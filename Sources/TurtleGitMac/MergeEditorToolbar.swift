@@ -288,7 +288,7 @@ extension MergeEditorToolbar {
             visible: { [weak model] in model?.retired == false }, toolbarShown:{ [weak model] in model?.showToolbar == true }, changedVisibility:{ [weak model] in model?.setToolbarVisible($0) }, installed: { [weak model] installed in if model?.nativeToolbarInstalled != installed { model?.nativeToolbarInstalled = installed } },
             state: { [weak model] command in
                 guard let model else { return nil }
-                let ready = !model.retired && !model.busy && !model.preparing && !model.exportingSource && !model.formatPending && !model.confirmingQuit && window.attachedSheet == nil && ownerReady()
+                let ready = !model.retired && !model.busy && !model.preparing && !model.exportingSource && !model.formatPending && !model.confirmingQuit && !model.externalReloadBlocksCommands && !model.preservingSourceCopies && window.attachedSheet == nil && ownerReady()
                 let text = ready && model.sourceToolsAllowed
                 switch command {
                 case .open, .reload, .help: return .init(enabled: ready)
@@ -317,7 +317,7 @@ extension MergeEditorToolbar {
                 guard let model else { return }
                 switch command {
                 case .open: open(); case .reload: reload()
-                case .save: model.save(markResolved: false)
+                case .save: model.saveRetainedEditorWork()
                 case .saveLeft: model.exportSource(mine: false); case .saveRight: model.exportSource(mine: true)
                 case .saveMerged: model.export(); case .continueResolving: model.continueResolving()
                 case .compareTheirs: model.compareSourceWithBase(mine: false); case .compareMine: model.compareSourceWithBase(mine: true)

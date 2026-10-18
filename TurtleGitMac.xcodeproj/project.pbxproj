@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D0F1E91CE2294F308CD12503 /* MergeExternalReload.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F1E91CE2294F308CD12504 /* MergeExternalReload.swift */; };
+		D0F1E91CE2294F308CD12501 /* MergeExternalSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F1E91CE2294F308CD12502 /* MergeExternalSource.swift */; };
 		BE462FE53C0B4B66B33BB003 /* SettingsSheetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE462FE53C0B4B66B33BB004 /* SettingsSheetController.swift */; };
 		BE462FE53C0B4B66B33BB001 /* HistoryContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE462FE53C0B4B66B33BB002 /* HistoryContextMenu.swift */; };
 		9D9CD3871BA00B95799144DB /* WorkspaceOpenHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = F683B62C4ED5B1A44ABABE5B /* WorkspaceOpenHandoff.swift */; };
@@ -533,6 +535,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		D0F1E91CE2294F308CD12504 /* MergeExternalReload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeExternalReload.swift; sourceTree = "<group>"; };
+		D0F1E91CE2294F308CD12502 /* MergeExternalSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeExternalSource.swift; sourceTree = "<group>"; };
 		BE462FE53C0B4B66B33BB004 /* SettingsSheetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheetController.swift; sourceTree = "<group>"; };
 		BE462FE53C0B4B66B33BB002 /* HistoryContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryContextMenu.swift; sourceTree = "<group>"; };
 		F683B62C4ED5B1A44ABABE5B /* WorkspaceOpenHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceOpenHandoff.swift; sourceTree = "<group>"; };
@@ -1173,6 +1177,7 @@
 				6823801F16A03836426285A5 /* SendPatchWindow.swift */,
 				8F4B173754C0AE48CB0FAAF8 /* SettingsNavigation.swift */,
 				BE462FE53C0B4B66B33BB004 /* SettingsSheetController.swift */,
+				D0F1E91CE2294F308CD12504 /* MergeExternalReload.swift */,
 				B07F1FB47DC4A875FEE5ECD4 /* SettingsTransaction.swift */,
 				1018E4684A7F74369EE313B3 /* SSHAuthenticationStore.swift */,
 				7D861E87DCA7F3D938BFDF07 /* SSHKeyGenerationWindow.swift */,
@@ -1440,6 +1445,7 @@
 				7FCFCDB728C608CE307F104D /* GitCommandPresentation.swift */,
 				E720E3E9B15FDAFDB7661C03 /* FinderSelectionContext.swift */,
 				C8793BAAC2C2BCB452DBF2BC /* SavedMergePane.swift */,
+				D0F1E91CE2294F308CD12502 /* MergeExternalSource.swift */,
 				B448BFA0806C28AEC8AE9126 /* SerialPatch.swift */,
 				1955B87A0E1325E2162C4C37 /* SSHAgentSession.swift */,
 				FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */,
@@ -2065,6 +2071,7 @@
 				87AF3D06D475C0FE3C5542C5 /* GitCommandPresentation.swift in Sources */,
 				BAE0AF0BB890C9C785B7904C /* FinderSelectionContext.swift in Sources */,
 				243FF612B8CF82EB79FC9C0D /* SavedMergePane.swift in Sources */,
+				D0F1E91CE2294F308CD12501 /* MergeExternalSource.swift in Sources */,
 				C90C42AC6C78C7122C11B302 /* SerialPatch.swift in Sources */,
 				B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */,
 				B144262A42A7437C5B7EE78F /* StatusListClipboard.swift in Sources */,
@@ -2265,6 +2272,7 @@
 				EC51E4CE03738676EE135A62 /* SendPatchWindow.swift in Sources */,
 				7A77EBE205DF3100F7F1D1ED /* SettingsNavigation.swift in Sources */,
 				BE462FE53C0B4B66B33BB003 /* SettingsSheetController.swift in Sources */,
+				D0F1E91CE2294F308CD12503 /* MergeExternalReload.swift in Sources */,
 				2F166DC70EEE317B9A6F3FF2 /* SettingsTransaction.swift in Sources */,
 				20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */,
 				7C3A58D7BEF989C5FE0D1C4D /* StashWindow.swift in Sources */,

@@ -202,6 +202,15 @@ current one. Inputs stay unchanged unless you explicitly select an input file
 as the output. Shared input paths are supported. If another program changes an
 input or an already-saved output, reload/review the changes before saving again.
 
+When you return to a text comparison or merge window, TurtleGit checks its local
+source files. **Load changes** replaces the current views and discards unsaved
+edits. **Ignore changes** and **Cancel** keep the displayed versions and acknowledge
+that disk change; another later change can prompt again. Retained source panes
+are marked separately from the merged result. Saving a retained version does not
+automatically authorize overwriting newer disk contents: use an independent
+**Save As…** copy when the original Save is refused. The separate result/output
+file is protected by Save checks and is not another activation-watched input.
+
 Choose **Apply unified diff** for a patch file and target directory, or select
 **Use Unified Diff from clipboard**. The checkbox follows clipboard format
 availability without reading clipboard text until OK. If clipboard contents

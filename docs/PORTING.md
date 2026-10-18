@@ -3249,3 +3249,20 @@ guards reject inputs that cannot be rendered within the documented limits. The
 record implementation, actual failures/repairs and final focused checks. This
 extends the accepted format subset; the remaining record/font/painting gaps,
 full hosted integration and current signed distribution acceptance remain open.
+
+
+### Merge activation reload and retained edits, October 18, 2026
+
+Two- and three-pane native editors now defer external-source checks on activation,
+matching the source Load/Ignore/Cancel workflow. Kept versions remain visible;
+observation acknowledgement grants no overwrite authority. Source copy Save As,
+independent result copies and rebound panes retain their own guarded save receipts.
+The batch also covers Single/combined input roles, identical-byte atomic writes,
+File/Open window adoption and actual probe/sheet/grant drain across close and Quit.
+
+The [source comparison](MERGE-EXTERNAL-RELOAD-PARITY.md) and
+[dated batch evidence](qa/merge-external-reload-2026-10-18.json) record actual
+repairs and focused results: 59 distinct Core methods, the Debug app, and eight
+native case/engine pairs with every owned receiver reaped. Physical activation,
+all supported filesystems, current full hosted integration and installed signed
+App Store acceptance remain open; these checks do not establish the whole port.

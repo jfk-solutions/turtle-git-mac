@@ -47,8 +47,35 @@ private extension FileComparisonDocument {
     private let editorFileMenu = MergeEditorFileMenu()
     private weak var patchMenu: NSMenu?
     private var patchMenuItem: NSMenuItem?
+    private(set) var externalReload: MergeExternalReloadCoordinator?
+    private var externalReloadSheetObserver: NSObjectProtocol?
+    private var closingComparison = false
+    deinit { if let externalReloadSheetObserver { NotificationCenter.default.removeObserver(externalReloadSheetObserver) } }
     func windowDidBecomeKey(_ notification: Notification) {
+        guard let owner = notification.object as? NSWindow, owner === window, !closingComparison else { return }
         refreshScopedFileMenu()
+        externalReload?.activate()
+    }
+    private func installExternalReload(_ window: NSWindow) {
+        let coordinator = MergeExternalReloadCoordinator(window: window,
+            sources: { [weak model] in model?.externalReloadSources ?? [] },
+            permissions: { [weak model] in model?.openPermissions ?? [] },
+            ready: { [weak self] in
+                guard let self, !self.closingComparison, self.editorOpenWorkflow == nil, !self.preparingReplacement,
+                      NSApp.modalWindow == nil else { return false }
+                return self.model.externalReloadReady
+            }, dirty: { [weak model] in model?.dirty == true },
+            reload: { [weak model] in model?.load(discardingDraft: true) },
+            keep: { [weak model] ids in model?.keepExternalSources(ids) },
+            failed: { [weak model] error in model?.externalReloadFailed(error) })
+        externalReload = coordinator; model.externalReload = coordinator
+        coordinator.stateChanged = { [weak model, weak coordinator] in
+            guard let model, let coordinator, model.externalReload === coordinator else { return }
+            model.externalReloadStateChanged()
+        }
+        externalReloadSheetObserver = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification, object: window, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.model.resumeExternalReload() }
+        }
     }
     func refreshScopedFileMenu() {
         editorFileMenu.remove();removePatchMenu()
@@ -63,6 +90,7 @@ private extension FileComparisonDocument {
         patchMenuItem = nil; patchMenu = nil
     }
     func detachForReplacement() {
+        externalReload?.retire()
         imageToolbar?.retire(); editorCommandMenu?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu(); model.retireImageLoader(); model.resetHistory(); model.window = nil
     }
     @objc func createPatchFile(_ sender: Any?) { model.createUnifiedPatch() }
@@ -85,7 +113,7 @@ private extension FileComparisonDocument {
         guard !preparingReplacement, editorOpenWorkflow == nil, let window, !model.busy, !model.hasPendingEditorChoice, !model.filtering, !model.confirmingQuit, window.attachedSheet == nil else { return }
         let workflow = makeEditorOpenWorkflow(window, model.openPermissions, model.comparisonDefaults)
         editorOpenWorkflow = workflow
-        workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil }
+        workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil; self?.model.resumeExternalReload() }
         workflow.accept = { [weak self] request, permissions in try self?.replaceEditor(request, permissions: permissions) }
         workflow.start(dirty: model.dirty, description: model.unsavedFilesDescription, save: { [weak self] completion in self?.model.saveAll(completion: completion) })
     }
@@ -138,6 +166,7 @@ private extension FileComparisonDocument {
         window.center()
         installEditorToolbar()
         imageToolbar = ImageEditorToolbar.comparison(self)
+        installExternalReload(window)
 
         DialogGeometry.attach(window, identifier: "TurtleGit.TwoFileDiff", legacyName: "TurtleGit.TwoFileDiff")
     }
@@ -155,11 +184,18 @@ private extension FileComparisonDocument {
         }
     }
     func windowWillClose(_ notification: Notification) {
-        guard let closing = notification.object as? NSWindow, closing === window else { return }
+        guard let closing = notification.object as? NSWindow, closing === window, !closingComparison else { return }
+        closingComparison = true; externalReload?.retire()
+        if let observer = externalReloadSheetObserver { NotificationCenter.default.removeObserver(observer); externalReloadSheetObserver = nil }
         MergeLineRuler.retire(in:window?.contentView)
         imageToolbar?.retire(); editorCommandMenu?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu()
         if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.retire(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
-        editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retireImageLoader(); model.resetHistory(); onClosed()
+        editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retireImageLoader(); model.resetHistory()
+        guard let coordinator = externalReload, coordinator.hasPendingWork else { onClosed(); return }
+        Task { @MainActor [self] in
+            while coordinator.hasPendingWork { try? await Task.sleep(nanoseconds: 10_000_000) }
+            onClosed()
+        }
     }
     func installEditorToolbar() {
         editorCommandMenu?.retire();editorToolbar?.retire();editorToolbar = MergeEditorToolbar.comparison(self)
@@ -201,6 +237,64 @@ private extension FileComparisonDocument {
               let comparison = workingComparison, [comparison.base, comparison.destination].allSatisfy({ $0.resolvingSymlinksInPath().deletingLastPathComponent() == root }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
         sourceSnapshotRoot = root
     }
+    weak var externalReload: MergeExternalReloadCoordinator?
+    var externalReloadReady: Bool {
+        !retired && document != nil && imageComparison == nil && viewerSelection != .image && !initialLoadDeferred &&
+        !busy && !filtering && !confirmingQuit && !exporting && formatRequest == nil && paneSave == nil &&
+        projectionChange == nil && regexList == nil && window?.attachedSheet == nil
+    }
+    var externalReloadSources: [MergeExternalSource] {
+        guard !retired, imageComparison == nil, viewerSelection != .image, let document else { return [] }
+        let sides = singleFileMode ? [false] : [true, false]
+        return sides.compactMap { base in
+            var content = base ? document.base : document.destination
+            let url: URL
+            if let target = paneTargets[base] { url = target.url; content = target.content }
+            else {
+                // Repository objects, conflict stages and private immutable source
+                // copies are not live files. A rebound Save As target is live.
+                guard sourceSnapshotRoot == nil, content.revision == .workingTree else { return nil }
+                let physicalBase = storageSide(base)
+                if let input = mergeToolInputs[physicalBase] {
+                    // A separate merged output can supply the displayed draft's
+                    // saved bytes; it does not replace the accepted input receipt.
+                    url = input.url; content = input.content
+                } else if let comparison = workingComparison { url = physicalBase ? comparison.base : comparison.destination }
+                else if let comparison = historicalWorkingComparison {
+                    guard physicalBase else { return nil }; url = comparison.workingFile
+                } else {
+                    url = content.path.hasPrefix("/") ? URL(fileURLWithPath: content.path) : snapshot.root.appendingPathComponent(content.path)
+                }
+            }
+            return MergeExternalSource(id: base ? "base" : "destination", url: url,
+                expectedBytes: content.bytes, expectedMissing: content.isDeleted, expectedPermissions: content.permissions)
+        }
+    }
+    private func acknowledgeExternalWrites(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        let paths = urls.map { $0.resolvingSymlinksInPath().standardizedFileURL.path }
+        let written = Set(externalReloadSources.filter { source in
+            paths.contains { GitReferenceName.equal($0, source.url.resolvingSymlinksInPath().standardizedFileURL.path) }
+        }.map { $0.id })
+        externalReload?.reset(preservingUnchangedSources: true, invalidatingSources: written)
+    }
+    func resumeExternalReload() {
+        // A load/save may settle while SwiftUI is updating its graph. Resume the
+        // observer outside that publication transaction, coalesced by its owner.
+        DispatchQueue.main.async { [weak self] in guard let self, !self.retired else { return }; self.externalReload?.resume() }
+    }
+    func keepExternalSources(_ ids: Set<String>) {
+        guard !retired, document != nil else { return }
+        // A single/combined view has only the Your destination editor. Combined
+        // comparison still watches Base, but the source does not dirty a hidden
+        // Base pane when those outside changes are ignored.
+        for base in [true, false] where ids.contains(base ? "base" : "destination") && (!base || !singleFileMode && !onePaneActive) {
+            drafts?.markExternallyChanged(base: base)
+        }
+        updateHistoryState()
+    }
+    func externalReloadStateChanged() { guard !retired else { return }; objectWillChange.send() }
+    func externalReloadFailed(_ error: Error) { guard !retired else { return }; self.error = error.localizedDescription }
     var openPermissions: [RepositoryAccessLease] { workingPermissions + [access].compactMap { $0 } }
     func retainPermissions(_ permissions: [RepositoryAccessLease]) {
         guard !retired else { return }
@@ -243,7 +337,7 @@ private extension FileComparisonDocument {
     var mergeToolSaved: Bool { mergeToolDidSave && drafts?.dirtySides.isEmpty != false && !mergeToolSaveRequired }
     @Published private(set) var mergeToolSaveRequired = false
     private var ownedMergeOperations = 0
-    var mergeToolHasPendingWork: Bool { loadSession != nil || ownedMergeOperations > 0 }
+    var mergeToolHasPendingWork: Bool { loadSession != nil || ownedMergeOperations > 0 || externalReload?.hasPendingWork == true }
     private var enforcedMergeToolReadOnly = false
     private var replacementBlame = false
     var mergeToolBlame: Bool { mergeToolInvocation?.blame ?? replacementBlame }
@@ -426,7 +520,7 @@ private extension FileComparisonDocument {
     }
     @Published private(set) var regexFilters = MergeRegexFilters.load()
     @Published private(set) var regexFilterName: String?
-    @Published private(set) var filtering = false
+    @Published private(set) var filtering = false { didSet { if oldValue != filtering { resumeExternalReload() } } }
     var regexExecutable: URL?
     var engineConfiguration: SubversionMergeConfiguration?
     @Published private(set) var comparisonOptions = MergeComparisonOptions.load()
@@ -606,6 +700,7 @@ private extension FileComparisonDocument {
         guard projectionChange === request else { return }
         if let observer = request.sheetObserver { NotificationCenter.default.removeObserver(observer); request.sheetObserver = nil }
         projectionChange = nil; confirmingQuit = false; Self.activeProjectionChoices -= 1
+        resumeExternalReload()
         if let question = request.question {
             if let owner = question.window.sheetParent { owner.endSheet(question.window) }
             question.window.orderOut(nil); request.question = nil
@@ -699,13 +794,13 @@ private extension FileComparisonDocument {
         guard !busy, !confirmingQuit, !retired else { return }
         if let regexList { regexList.showWindow(nil); regexList.window?.makeKeyAndOrderFront(nil); return }
         let controller = MergeRegexFilterListController(defaults: regexDefaults); controller.executable = regexExecutable
-        controller.onClosed = { [weak self] in self?.regexList = nil; self?.refreshRegexFilters() }
+        controller.onClosed = { [weak self] in self?.regexList = nil; self?.refreshRegexFilters(); self?.resumeExternalReload() }
         regexList = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private var loadSession: FileListComparisonSession?
     private var closeAfterLoad = false
-    @Published var busy = false { didSet { if oldValue != busy { paneTabEpoch = UUID() } } }
-    @Published var confirmingQuit = false
+    @Published var busy = false { didSet { if oldValue != busy { paneTabEpoch = UUID(); resumeExternalReload() } } }
+    @Published var confirmingQuit = false { didSet { if oldValue != confirmingQuit { resumeExternalReload() } } }
     @Published var error: String?
     @Published var difference = -1
     @Published var showLineNumbers = MergeEditorPreferences.load().showLineNumbers
@@ -939,7 +1034,7 @@ private extension FileComparisonDocument {
     }
     func encoding(base: Bool) -> ComparisonTextEncoding? { drafts?.encoding(base: base) }
     private var formatRequest: UUID?
-    var hasPendingEditorChoice: Bool { exporting || formatRequest != nil || paneSave != nil || projectionChange != nil }
+    var hasPendingEditorChoice: Bool { exporting || formatRequest != nil || paneSave != nil || projectionChange != nil || externalReload?.blocksCommands == true }
     var chooseFormat: ((NSWindow, String, MergeFormatSelection) async -> MergeFormatSelection?)?
     private var formatPrompt: MergeFormatPrompt?
     func showFormatDialog(base: Bool) {
@@ -1102,7 +1197,8 @@ private extension FileComparisonDocument {
             let chooser = chooseExportLocation
             guard let request = beginOutput() else { return }
             Task {
-                defer { finishOutput(request) }
+                var writtenURLs: [URL] = []
+                defer { acknowledgeExternalWrites(writtenURLs); finishOutput(request) }
                 guard acceptsOutput(request), let url = await chooser(window, name, directory), acceptsOutput(request) else { return }
                 let permission = RepositoryAccessLease(url: url)
                 do {
@@ -1110,6 +1206,7 @@ private extension FileComparisonDocument {
                        url.resolvingSymlinksInPath().standardizedFileURL.path.hasPrefix(sourceSnapshotRoot.path + "/") { throw FileComparisonEditFailure.unsupported }
                     guard try await authorizeWorkingReplacement(at:url,cancellation:request.cancellation),acceptsOutput(request) else {return}
                     try withExtendedLifetime(permission) { try MergePaneSaveAs.write(bytes,to:url) }
+                    writtenURLs.append(url)
                     if rebind, acceptsOutput(request) {
                         let target = try SavedMergePane(url: url, writtenBytes: bytes, encoding: selectedEncoding)
                         if originalPaneDocument == nil { originalPaneDocument = document }
@@ -1341,6 +1438,7 @@ private extension FileComparisonDocument {
         externalAttempted = true; viewerSelection = .image
     }
     func retireImageLoader() {
+        externalReload?.retire()
         cancelEditorConfigReads(); editorConfigAccess.retire()
         if let request = projectionChange { finishProjectionChange(request) }
         folding.retire()
@@ -1437,6 +1535,7 @@ private extension FileComparisonDocument {
             do { mergeToolOutput = try MergeToolOutputTarget(capturing:output.url) }
             catch { self.error = error.localizedDescription; return }
         }
+        externalReload?.reset()
         reloadCommentProfiles = true
         generalPreferences = .load(from: comparisonDefaults); pendingLoadNavigation = generalPreferences.firstDifference
         initialBlockGeneration = nil
@@ -1637,7 +1736,7 @@ private extension FileComparisonDocument {
             return await self.saveChoices.marked(window:self.window)
         }
     }
-    private func saveReadOnlyPane(base:Bool,document:FileComparisonDocument,text:String,request:OperationCancellation) async throws -> Bool {
+    private func saveReadOnlyPane(base:Bool,document:FileComparisonDocument,text:String,request:OperationCancellation,wrote:(URL)->Void) async throws -> Bool {
         guard let window else {return false}
         let content=base ? document.base : document.destination
         let proposed = base == mergeToolResultSide ? mergeToolOutput?.url : nil
@@ -1651,6 +1750,7 @@ private extension FileComparisonDocument {
         guard try await authorizeWorkingReplacement(at:url,cancellation:request) else {return false}
         try ensurePaneSave(request)
         try withExtendedLifetime(permission) {try MergePaneSaveAs.write(bytes,to:url)}
+        wrote(url)
         let target=try SavedMergePane(url:url,writtenBytes:bytes,encoding:encoding)
         if originalPaneDocument==nil {originalPaneDocument=document}
         paneTargets[base]=target;retainPermissions([permission])
@@ -1668,8 +1768,9 @@ private extension FileComparisonDocument {
         let request = OperationCancellation(), permissions = openPermissions
         paneSave = request;saveChoices.reset();error=nil; Self.activePaneExports += 1; ownedMergeOperations += 1; busy = true
         Task {
-            var saved = false
+            var saved = false, writtenURLs: [URL] = []
             defer {
+                acknowledgeExternalWrites(writtenURLs)
                 if paneSave === request { paneSave = nil; busy = false }
                 Self.activePaneExports -= 1; ownedMergeOperations -= 1; withExtendedLifetime(permissions) {}; completion?(saved)
             }
@@ -1690,7 +1791,7 @@ private extension FileComparisonDocument {
                     if base == mergeToolResultSide, let output = mergeToolOutput {
                         for input in mergeToolInputs.values { try input.validate() }
                         if MergePaneSaveAs.requiresSaveAs(at:output.url,permissions:output.content.permissions,absent:output.content.isDeleted) {
-                            guard try await saveReadOnlyPane(base:base,document:document,text:text,request:request) else { return }
+                            guard try await saveReadOnlyPane(base:base,document:document,text:text,request:request,wrote:{ writtenURLs.append($0) }) else { return }
                             continue
                         }
                         guard try await authorizeWorkingReplacement(at:output.url,cancellation:request) else { return }
@@ -1704,6 +1805,7 @@ private extension FileComparisonDocument {
                         let options = MergeFileSaveOptions(backupOriginal:MergeFileSaveOptions.backupEnabled(from:comparisonDefaults),emptyResult:choice)
                         for input in mergeToolInputs.values { try input.validate() }
                         let target = try output.save(text:text,encoding:drafts?.encoding(base:base),options:options)
+                        writtenURLs.append(target.url)
                         let savedContent = target.savedPaneContent(like:content)
                         mergeToolOutput = target
                         for (side,input) in mergeToolInputs where input.url.resolvingSymlinksInPath().standardizedFileURL.path == target.url.resolvingSymlinksInPath().standardizedFileURL.path {
@@ -1716,7 +1818,7 @@ private extension FileComparisonDocument {
                     }
                     let file=content.path.hasPrefix("/") ? URL(fileURLWithPath:content.path) : snapshot.root.appendingPathComponent(content.path)
                     if MergePaneSaveAs.requiresSaveAs(at:file,permissions:content.permissions,absent:content.isDeleted) {
-                        guard try await saveReadOnlyPane(base:base,document:document,text:text,request:request) else {return}
+                        guard try await saveReadOnlyPane(base:base,document:document,text:text,request:request,wrote:{ writtenURLs.append($0) }) else {return}
                         continue
                     }
                     guard try await authorizeWorkingReplacement(at:file,cancellation:request) else {return}
@@ -1750,6 +1852,7 @@ private extension FileComparisonDocument {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                         result = oriented(try await repository.saveComparisonFile(snapshot, document: context, base: physicalBase, text: text, encoding: drafts?.encoding(base: base), options: options,cancellation:request))
                     } else { throw RevisionComparisonFailure.selection }
+                    writtenURLs.append(paneTargets[base]?.url ?? file)
                     try ensurePaneSave(request)
                     var combined = result
                     for other in paneTargets.keys where other != base { combined = combined.replacingPane(base: other, content: other ? document.base : document.destination) }

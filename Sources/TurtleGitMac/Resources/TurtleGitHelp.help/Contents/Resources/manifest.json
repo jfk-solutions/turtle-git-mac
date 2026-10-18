@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "73ce672f72189734a0a7da215f4e4bb2021b26a5493f7727099cde946a85adc5",
+    "Contents/Info.plist": "c48e5d0ba0759ec7d5772ffce2fc895592823369ba65143ab5240564f6ac4ce1",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "ea62e9255277183fb721ceb36a97a21b113f94329e42eef862414b541f4853fd",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "8431f0108093ba0cc6e3fe9f221e11988b07773f928b428a8c63b5a158ba87f4",
@@ -12,7 +12,7 @@
     "Contents/Resources/en.lproj/CREDENTIAL-SETTINGS.html": "19bf327ce1d99aa8029b82ea24cf4069b59102336b876cb46441eb9d856f86f4",
     "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "f58c3f400ba2ada8a7f9a4857cb0a83aae7387f51ac085b3fbaf10fc19935716",
     "Contents/Resources/en.lproj/EXCEL-COMPARISON.html": "4e4dbf998996c02d74a4499f237017f8a14d522ba08ef3a05779f8fade1440d8",
-    "Contents/Resources/en.lproj/GETTING-STARTED.html": "3f5b8800027034ed649c7c48a6d9bfe46910539ef2e99064e567ad64b06b0edc",
+    "Contents/Resources/en.lproj/GETTING-STARTED.html": "62ea6aa01057762cf2411b54ad0b19809b3186124aec7e4c123eb66a4242e1a1",
     "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "a34926c6954ced39075b069b48ee2804e8e63bb7b056a5c4158435f97dcf4a47",
     "Contents/Resources/en.lproj/GIT-NOTES.html": "52816feaad67206716db305e4d1ff3d5afa91e313dd34a4d670315ce4e421120",
     "Contents/Resources/en.lproj/GIT-PROPERTIES.html": "4e71c861dc0f1c93cd123f477e231545fca537150a8e050fbdedfdef204d46a8",
@@ -72,7 +72,7 @@
     "docs/CREDENTIAL-SETTINGS.md": "b03463f22625ad700bbb600b3777076764d1a722f9f291bd5cb1c12a2b468016",
     "docs/DIALOG-GUIDE.md": "67b96daf1a7e3fa338257532e7cf7b085292075d9c0c444e18cca236ce7b72ae",
     "docs/EXCEL-COMPARISON.md": "7e3f3a627b2dc6bb807bee992ae0d76830107dea9592c3a02668fc570227ab36",
-    "docs/GETTING-STARTED.md": "60e220f777e25f6ca2cd533ea03d061690d98b0f498a399406cf1efddcc45421",
+    "docs/GETTING-STARTED.md": "27ee5b00814ad2e15aa582ec2c2f1d357a0fdf992d8fb074ad6e131cc4a8c74a",
     "docs/GIT-AUTHENTICATION.md": "34a58ad4649d7d7355712907441f35f37d3b9bd29c898002a58a8563361154bb",
     "docs/GIT-NOTES.md": "a2fe3e80da5ad3987ded76f1400801c0c4d9707b8a94ca3a93c11e22feec551c",
     "docs/GIT-PROPERTIES.md": "612ac979b47e69e263e308337f2ee7529d9620e73175167a72a1ff043f4d4605",

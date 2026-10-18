@@ -126,6 +126,7 @@ import AppKit
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if MergeExternalReloadCoordinator.activeRequests > 0 { return .terminateCancel }
         if SettingsSheetController.activeSheets > 0 || workspaceOpenHandoff.hasPendingWork || RepositoryModel.activeCommandFileOperations > 0 || repositoryModel?.hasPendingRepositoryWork == true { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? RepositoryAccessWindowController }).contains(where:{ $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if MergeSourceExport.activeExports > 0 || sender.windows.compactMap({ $0.delegate as? TextConflictWindowController }).contains(where: { $0.model.sourceExporter.hasPendingWork }) { return .terminateCancel }
@@ -320,7 +321,7 @@ import AppKit
         let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
         guard !adds.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !addProgress.contains(where: { $0.model.busy }), !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !submoduleDiffs.contains(where: { $0.model.busy || $0.model.hasUpdateChild }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) else { return .terminateCancel }
-        guard patchDocuments.contains(where: { $0.documentSession.dirty }) || !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) || reviews.contains(where: { $0.model.dirty }) else { return finishBackgroundWatches(sender) }
+        guard patchDocuments.contains(where: { $0.documentSession.dirty }) || !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.hasUnsavedEditorWork }) || fileComparisons.contains(where: { $0.model.dirty }) || reviews.contains(where: { $0.model.dirty }) else { return finishBackgroundWatches(sender) }
         confirmingQuit = true
         for controller in patchDocuments { controller.model.confirmingQuit = true }
         for controller in lfsLocks { controller.model.confirmingQuit = true }
@@ -380,9 +381,10 @@ import AppKit
                 }
                 if !allowQuit { break }
             }
-            for controller in controllers where allowQuit && controller.model.dirty {
+            for controller in controllers where allowQuit && controller.model.hasUnsavedEditorWork {
                 controller.window?.makeKeyAndOrderFront(nil)
                 let alert = NSAlert(); alert.messageText = "Save changes to “\(controller.model.path)” before quitting?"
+                if controller.model.hasKeptSourceChanges { alert.informativeText = String(localized:"Save copies of the retained source panes before saving the merged result.") }
                 alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
                 switch alert.runModal() {
                 case .alertFirstButtonReturn:

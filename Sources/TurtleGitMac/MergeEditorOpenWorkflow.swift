@@ -146,13 +146,13 @@ import TurtleGitCore
         current = next; Self.live[id] = self
         onAdopt(next,previous)
         if let pair = next as? FileComparisonWindowController {
-            pair.sharedReplacementOwner = self; pair.model.window = window; host.model = pair.model; pair.installEditorToolbar()
+            pair.sharedReplacementOwner = self; pair.model.window = window; pair.externalReload?.rebind(to: window); host.model = pair.model; pair.installEditorToolbar()
             host.openMergeDocument = { [weak pair] in pair?.openMergeDocument(nil) }
             window.delegate = pair; pair.onClosed = { [weak self] in self?.finish() }
             pair.model.externalDidOpen = { [weak window] in window?.close() }
             pair.model.beginTransferredDocument(); pair.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: window))
         } else if let merge = next as? TextConflictWindowController {
-            merge.sharedReplacementOwner = self; merge.model.window = window; merge.installEditorToolbar()
+            merge.sharedReplacementOwner = self; merge.model.window = window; merge.externalReload?.rebind(to: window); merge.installEditorToolbar()
             merge.model.close = { [weak window] in window?.close() }
             host.openMergeDocument = { [weak merge] in merge?.openMergeDocument(nil) }
             window.delegate = merge; merge.onClosed = { [weak self] in self?.finish() }

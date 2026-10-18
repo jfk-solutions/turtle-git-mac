@@ -1,0 +1,180 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "e61d618c427e0f0c6de17beb47b577b04a87298b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Owned deferred external-source activation checks for two-file comparisons and three-file Merge",
+    "Source Load/Ignore/Cancel semantics, exact accepted-byte observations and independent save CAS receipts",
+    "Retained-source copies, independent result Save As, ordinary default-Mine output protection, close/Open/Quit/replacement ownership"
+  ],
+  "validation": {
+    "status": "Focused batch passed: 59 distinct Core methods, Debug app, 8 distinct native case/engine pairs. Earlier failures retained; full hosted/signed acceptance not established.",
+    "core": [
+      {
+        "log": "build/qa/merge-external-reload-core.log",
+        "exit": 0,
+        "executed": 59,
+        "failures": 0,
+        "scope": "MergeExternalSourceTests, FileComparisonEditingTests, SavedMergePaneTests, MergeOpenTests, MergeToolInvocationTests"
+      },
+      {
+        "log": "build/qa/merge-external-reload-core-repair.log",
+        "exit": 0,
+        "executed": 1,
+        "failures": 0,
+        "scope": "Only extended three-file accepted-write test repeated after SavedMergePane recordingOwnedResult helper; 59 distinct Core methods retain passing evidence."
+      }
+    ],
+    "build": [
+      {
+        "log": "build/qa/merge-external-reload-build.log",
+        "exit": 0,
+        "empty_output_exit_zero_diagnostics": 14
+      },
+      {
+        "log": "build/qa/merge-external-reload-build-final.log",
+        "exit": 0,
+        "scope": "Only affected native Single/combined source-role correction rebuilt; Core unchanged and not repeated.",
+        "empty_output_exit_zero_diagnostics": 1
+      },
+      {
+        "log": "build/qa/merge-external-reload-build-repair.log",
+        "exit": 0,
+        "scope": "Own identical-byte source writes and rebound-source accepted-result receipt repair.",
+        "empty_output_exit_zero_diagnostics": 2
+      }
+    ],
+    "native": [
+      {
+        "log": "build/qa/merge-external-reload-native.log",
+        "exit": 1,
+        "case": "external/system",
+        "receiver_pid": 11594,
+        "reaped": true,
+        "independently_absent": true,
+        "failure": "Composite warning controls/default/appearance assertion; component diagnostics being added without weakening assertions. Other native cases not launched."
+      },
+      {
+        "log": "build/qa/merge-external-reload-native-repair.log",
+        "exit": 1,
+        "case": "external/system",
+        "receiver_pid": 12184,
+        "reaped": true,
+        "independently_absent": true,
+        "failure": "After actual sheet attachment, first button keyEquivalent is empty. Titles, Escape, hidden alpha, DarkAqua and actual owner sheet identity passed component diagnostics. Checking actual defaultButtonCell rather than assuming AppKit preserves raw Return keyEquivalent."
+      },
+      {
+        "log": "build/qa/merge-external-reload-native-default.log",
+        "exit": 1,
+        "case": "external/system",
+        "receiver_pid": 12389,
+        "reaped": true,
+        "independently_absent": true,
+        "failure": "Passed native warning default/appearance, two-file choices, Save As, Single/combined and default-Mine equal-byte Save. Three-file Base-only clean assertion failed: fixture preexisting output bytes differed from auto-merged result before Base change; establish and assert clean initial baseline."
+      },
+      {
+        "log": "build/qa/merge-external-reload-native-baseline.log",
+        "exit": 0,
+        "cases": [
+          "external/system",
+          "external/bundled"
+        ],
+        "receiver_pids": [
+          12551,
+          12583
+        ],
+        "reaped": true,
+        "independently_absent": true,
+        "fixture_repairs": [
+          "Verify actual AppKit defaultButtonCell or Return shortcut rather than raw shortcut alone.",
+          "Configure no-/merged CLI for default-Mine save, rather than unnamed standalone output.",
+          "Set and assert clean three-file initial merged output before Base-only change."
+        ],
+        "scope": "Actual hidden warning sheets, dirty Load, Ignore/Cancel, Save As, Single/combined policy, same-byte owned atomic writes, source copies, result/source distinctions, File/Open host adoption, forced-close grant and Quit drain."
+      },
+      {
+        "log": "build/qa/merge-external-reload-native-retained.log",
+        "exit": 0,
+        "cases": [
+          "reload/system",
+          "reload/bundled",
+          "comparison/system",
+          "comparison/bundled",
+          "three-file/system",
+          "three-file/bundled"
+        ],
+        "receiver_pids": [
+          12622,
+          12649,
+          12685,
+          12754,
+          12816,
+          12863
+        ],
+        "reaped": true,
+        "independently_absent": true,
+        "cache": "Reused unchanged compiled receiver; no app or Core rebuild.",
+        "scope": "Existing actual manual reload/edit identity and per-pane Save choices; two-file merge-tool output/readonly/source ownership; three-file required Save/output CAS/source export retirement and cleanup."
+      }
+    ],
+    "resources": [
+      {
+        "log": "build/qa/merge-external-reload-localizations-write.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/merge-external-reload-localizations-check.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/merge-external-reload-help-write.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/merge-external-reload-help-check.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/merge-external-reload-localizations-final.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/merge-external-reload-help-final.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/merge-external-reload-coverage.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/merge-external-reload-site.log",
+        "exit": 0,
+        "documents": 336,
+        "unresolved_fragments": []
+      }
+    ],
+    "distinct_core_methods": 59,
+    "core_method_executions": 60,
+    "distinct_passing_native_case_engine_pairs": 8
+  },
+  "preserved_unrelated_wip": {
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3",
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f"
+  },
+  "remaining": [
+    "Full current hosted macOS integration",
+    "Physical activation/restoration/input and accessibility on supported macOS versions/filesystems",
+    "Current installed signed Finder/app/service and App Store distribution acceptance",
+    "All remaining explicit workflow/layout/format gaps; complete port is not established"
+  ],
+  "source_review_repairs": [
+    "Rebind activation/sheet observations to adopted File/Open host window; retain prior requests through actual drain.",
+    "Always retain default-Mine output CAS even when source Save As removes that path from active inputs.",
+    "Requeue an answer without acknowledging if Quit/another owned operation blocks it before actual sheet release.",
+    "Check cancellation/target CAS/independent destination aliases again at retained-copy final guarded write.",
+    "Single-file mode watches only Your; combined mode watches both inputs but Keep marks only the visible Your editor. The final native-only mapping repair does not change Core.",
+    "Own identical-byte atomic writes invalidate observed metadata for exactly the written source roles; independent outputs invalidate no source roles.",
+    "Two-file separate merged-output saves retain original accepted input bytes for source monitoring.",
+    "Accepted result writes advance only matching rebound source panes using the accepted write receipt, without rereading outside bytes."
+  ]
+}

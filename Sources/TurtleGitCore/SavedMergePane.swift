@@ -19,6 +19,16 @@ public struct SavedMergePane: Sendable {
         guard saved.path == url.path, saved.revision == .workingTree else { throw RevisionComparisonFailure.selection }
         return Self(url: url, content: saved)
     }
+    /// A result write may deliberately target a rebound source pane. Advance
+    /// that pane only from the accepted write receipt, never a fresh disk read
+    /// that could accept another program's intervening contents.
+    public func recordingOwnedResult(_ document: TextConflictDocument, at output: URL) throws -> Self {
+        guard GitReferenceName.equal(url.path, output.standardizedFileURL.path) else { throw RevisionComparisonFailure.selection }
+        let saved = ComparisonFileContent(path: url.path, revision: .workingTree,
+            bytes: document.workingContents ?? Data(), mode: document.permissions & 0o111 != 0 ? "100755" : "100644",
+            permissions: document.permissions, encoding: document.encoding, isDeleted: document.workingContents == nil)
+        return Self(url: url, content: saved)
+    }
     public func read() throws -> ComparisonFileContent {
         do {
             let actual = try WorkingFileComparison.workingContent(at:url)

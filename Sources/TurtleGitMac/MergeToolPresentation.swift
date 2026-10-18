@@ -62,7 +62,7 @@ enum TurtleGitLaunchMode: Equatable {
               owner.editorOpenWorkflow == nil, !owner.preparingReplacement,
               owner.model.sourceToolsAllowed, owner.model.sourceMutationsAllowed,
               !owner.model.mergeToolHasPendingWork, !owner.model.confirmingQuit,
-              !owner.model.patchResultCompleted, owner.model.dirty else { return nil }
+              !owner.model.patchResultCompleted, owner.model.hasUnsavedEditorWork else { return nil }
         return owner
     }
     private func closableWindow() -> NSWindow? {
@@ -111,7 +111,7 @@ enum TurtleGitLaunchMode: Equatable {
         refresh()
         guard let window = keyWindow(), (window.firstResponder as? NSTextView)?.isFieldEditor != true else { return false }
         if let owner = comparison(in: window) { owner.model.saveAll(); return true }
-        if let owner = conflict(in: window) { owner.model.save(markResolved: false); return true }
+        if let owner = conflict(in: window) { owner.model.saveRetainedEditorWork(); return true }
         return false
     }
 }

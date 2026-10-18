@@ -518,6 +518,7 @@ public struct FileComparisonDrafts {
         var editRevision: UUID?
         var savedEditRevision: UUID?
         var enabled = false
+        var externallyChanged = false
         var encoding: ComparisonTextEncoding?
     }
     private var panes: [Bool: Pane]
@@ -549,7 +550,13 @@ public struct FileComparisonDrafts {
     public mutating func update(annotations: FileComparisonEditing.Annotations, base: Bool) { panes[base]?.annotations = annotations }
     public func isDirty(base: Bool) -> Bool {
         guard canEdit(base: base), let pane = panes[base], let text = pane.text, let original = pane.content.text else { return false }
-        return !text.utf8.elementsEqual(original.utf8) || pane.annotations.marked != pane.savedMarks || pane.annotations.edited != pane.savedEdits || pane.editRevision != pane.savedEditRevision || pane.encoding != pane.content.encoding
+        return pane.externallyChanged || !text.utf8.elementsEqual(original.utf8) || pane.annotations.marked != pane.savedMarks || pane.annotations.edited != pane.savedEdits || pane.editRevision != pane.savedEditRevision || pane.encoding != pane.content.encoding
+    }
+    /// Keep the displayed version modified without accepting different disk
+    /// bytes as its compare-and-swap save baseline.
+    public mutating func markExternallyChanged(base: Bool) {
+        guard canEdit(base: base) else { return }
+        panes[base]?.externallyChanged = true
     }
     public var dirtySides: [Bool] { [false, true].filter { isDirty(base: $0) } }
     public var dirtyPaths: [String] { dirtySides.compactMap { panes[$0]?.content.path } }
@@ -559,6 +566,7 @@ public struct FileComparisonDrafts {
         pane.savedMarks = pane.annotations.marked
         pane.savedEdits = pane.annotations.edited
         pane.savedEditRevision = pane.editRevision
+        pane.externallyChanged = false
         panes[base] = pane
     }
     public mutating func didSave(_ content: ComparisonFileContent, base: Bool) throws {
@@ -567,6 +575,7 @@ public struct FileComparisonDrafts {
         panes[base]?.savedMarks = pane.annotations.marked
         panes[base]?.savedEdits = pane.annotations.edited
         panes[base]?.savedEditRevision = pane.editRevision
+        panes[base]?.externallyChanged = false
     }
     public mutating func remapAnnotations(from old: FileComparisonAlignment, to new: FileComparisonAlignment, base: Bool) {
         guard let pane = panes[base] else { return }

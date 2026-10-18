@@ -115,6 +115,8 @@ public struct TextConflictDocument: Sendable {
     public let theirsEncoding: ComparisonTextEncoding?
     public var conflictTitles: ConflictTitles? = nil
     public fileprivate(set) var mergeSources: MergeSourceComparison? = nil
+    /// Accepted raw local inputs for activation checks; absent for immutable Git stages.
+    public var externalSources: [MergeExternalSource] = []
 }
 public struct TextConflictSaveFailure: LocalizedError, Sendable {
     public let savedDocument: TextConflictDocument
@@ -208,6 +210,7 @@ extension GitRepository {
             guard bytes == current, mode == permissions else { throw TextConflictFailure.changedWorkingFile }
         }
         var saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs, mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, generatedResult: document.generatedResult, workingContents: deleting ? nil : contents, permissions: document.permissions, encoding: selectedEncoding, baseEncoding: document.baseEncoding, mineEncoding: document.mineEncoding, theirsEncoding: document.theirsEncoding)
+        saved.externalSources = document.externalSources
         saved.mergeSources = document.mergeSources; saved.conflictTitles = document.conflictTitles
         if markResolved {
             do { _ = try run(["add", "-f", "--", document.entry.path]) }
@@ -277,15 +280,16 @@ public actor WorkingTextMerge {
         try cancellation?.check()
         let activeMine = savedSources[true]?.url ?? mineURL, activeTheirs = savedSources[false]?.url ?? theirsURL
         let base = try source(baseURL, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding), theirs = try source(activeTheirs, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding), mine = try source(activeMine, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding)
-        let output=explicitOutput ? try snapshot(outputURL,absentPermissions:mine.permissions ?? 0o644):nil
+        // The default Mine output needs its own CAS receipt too. Source Save As
+        // can later rebind Mine and remove it from inputs without authorizing a
+        // newly captured overwrite of the original result location.
+        let output = try snapshot(outputURL, absentPermissions: mine.permissions ?? 0o644)
         var engine = engine
         engine.blameEncodings = [base.encoding, mine.encoding, theirs.encoding]
         let presentation = try SubversionMergePresentation(plan: engine.plan(base: base.text!, mine: mine.text!, theirs: theirs.text!, cancellation: cancellation))
         try cancellation?.check()
-        if let output {
-            let currentOutput=try snapshot(outputURL,absentPermissions:output.permissions)
-            guard currentOutput.bytes==output.bytes,currentOutput.permissions==output.permissions,currentOutput.identity==output.identity else {throw TextConflictFailure.changedWorkingFile}
-        }
+        let currentOutput=try snapshot(outputURL,absentPermissions:output.permissions)
+        guard currentOutput.bytes==output.bytes,currentOutput.permissions==output.permissions,currentOutput.identity==output.identity else {throw TextConflictFailure.changedWorkingFile}
         for (url, content) in [(baseURL,base), (activeTheirs,theirs), (activeMine,mine)] {
             let value = try snapshot(url, absentPermissions: content.permissions ?? 0o644)
             guard value.bytes == (content.isDeleted ? nil:content.bytes), value.permissions == content.permissions else { throw TextConflictFailure.changedWorkingFile }
@@ -293,11 +297,15 @@ public actor WorkingTextMerge {
             if outputs[url.path] != nil { outputs[url.path] = value }
         }
         var workingContents:Data?=mine.isDeleted ? nil:mine.bytes,permissions=mine.permissions ?? 0o644
-        if let output {outputs[outputURL.path]=output;workingContents=output.bytes;permissions=output.permissions}
+        outputs[outputURL.path] = output
+        if explicitOutput {workingContents=output.bytes;permissions=output.permissions}
         var document = TextConflictDocument(entry: ConflictEntry(path: outputURL.lastPathComponent, stages: []),
             base: base.text!, mine: mine.text!, theirs: theirs.text!, mineStage: 2, theirsStage: 3,
             initialResult: presentation.result, generatedResult: presentation.result, workingContents: workingContents,
             permissions: permissions, encoding: mine.encoding!, baseEncoding: base.encoding, mineEncoding: mine.encoding, theirsEncoding: theirs.encoding)
+        document.externalSources = [("base",baseURL,base),("mine",activeMine,mine),("theirs",activeTheirs,theirs)].map { role, url, content in
+            MergeExternalSource(id:role,url:url,expectedBytes:content.bytes,expectedMissing:content.isDeleted,expectedPermissions:content.permissions)
+        }
         document.mergeSources = presentation.sources; return document
     }
     /// Explicit output selection; own writes update aliases without accepting external changes.
@@ -345,10 +353,50 @@ public actor WorkingTextMerge {
             mineStage:document.mineStage, theirsStage:document.theirsStage, initialResult:result, generatedResult:document.generatedResult,
             workingContents:deleting ? nil : bytes, permissions:original.permissions, encoding:selected,
             baseEncoding:document.baseEncoding, mineEncoding:document.mineEncoding, theirsEncoding:document.theirsEncoding)
+        saved.externalSources = document.externalSources.map { source in
+            guard let captured = inputs[source.url.path] else { return source }
+            return MergeExternalSource(id:source.id,url:source.url,expectedBytes:captured.bytes ?? Data(),expectedMissing:captured.bytes == nil,expectedPermissions:captured.permissions)
+        }
         saved.mergeSources = document.mergeSources; saved.conflictTitles = document.conflictTitles; return saved
     }
     public func save(_ document: TextConflictDocument, result: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> TextConflictDocument {
         try saveTo(outputURL, document:document, result:result, encoding:encoding, options:options)
+    }
+    /// Ignore outside changes keeps a deliberately older view. It can be copied
+    /// to an independently chosen file without accepting those outside bytes as
+    /// the normal Save baseline. Source/output aliases remain protected.
+    public func saveRetainedResultCopy(to output: URL, document: TextConflictDocument, result: String,
+                                       encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init(),
+                                       cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
+        try cancellation?.check()
+        guard options.emptyResult != .delete else { throw TextConflictFailure.unsupported }
+        guard !result.utf8.contains(0) else { throw TextConflictFailure.encoding }
+        let destination = output.standardizedFileURL
+        let protected = [baseURL, mineURL, theirsURL, outputURL] + savedSources.values.map { $0.url }
+        let target = try MergeToolOutputTarget(capturing: destination)
+        let selected = encoding ?? document.encoding
+        func validateDestination() throws {
+            try cancellation?.check()
+            let current = try snapshot(destination, absentPermissions: document.permissions)
+            for source in protected {
+                guard destination.resolvingSymlinksInPath().path != source.resolvingSymlinksInPath().path else { throw TextConflictFailure.changedWorkingFile }
+                let other = try? snapshot(source, absentPermissions: document.permissions)
+                guard current.identity == nil || current.identity != other?.identity else { throw TextConflictFailure.changedWorkingFile }
+            }
+            guard current.identity == nil || !inputs.values.contains(where: { $0.identity == current.identity }) else { throw TextConflictFailure.changedWorkingFile }
+            try target.validate()
+        }
+        try validateDestination()
+        guard !MergePaneSaveAs.requiresSaveAs(at: destination, permissions: target.content.permissions, absent: target.content.isDeleted) else { throw TextConflictFailure.readOnly }
+        let bytes = try selected.encode(result)
+        try MergeWorkingFileSave.write(at: destination, original: target.content.isDeleted ? nil : target.content.bytes,
+            permissions: target.content.permissions ?? 0o644, bytes: bytes, delete: false,
+            backup: options.backupOriginal, validate: validateDestination)
+        let written = try MergeToolOutputTarget(capturing: destination)
+        guard written.content.bytes == bytes else { throw TextConflictFailure.changedWorkingFile }
+        let content = ComparisonFileContent(path: destination.path, revision: .workingTree, bytes: bytes,
+            mode: written.content.mode, permissions: written.content.permissions, encoding: selected)
+        return try document.recordingOwnedWorkingWrite(content)
     }
 }
 
@@ -391,6 +439,11 @@ extension TextConflictDocument {
         var next = Self(entry: entry, base: base, mine: mineText, theirs: theirsText, mineStage: mineStage, theirsStage: theirsStage,
             initialResult: initialResult, generatedResult: presentation.result, workingContents: workingContents, permissions: permissions,
             encoding: encoding, baseEncoding: baseEncoding, mineEncoding: mine?.encoding ?? mineEncoding, theirsEncoding: theirs?.encoding ?? theirsEncoding)
+        next.externalSources = externalSources.map { source in
+            let replacement = source.id == "mine" ? mine : source.id == "theirs" ? theirs : nil
+            guard let replacement else { return source }
+            return MergeExternalSource(id:source.id,url:URL(fileURLWithPath:replacement.path),expectedBytes:replacement.bytes,expectedMissing:replacement.isDeleted,expectedPermissions:replacement.permissions)
+        }
         next.mergeSources = presentation.sources; next.conflictTitles = conflictTitles
         return next
     }
@@ -399,6 +452,7 @@ extension TextConflictDocument {
         var next = Self(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage,
             initialResult: text, generatedResult: generatedResult, workingContents: content.isDeleted ? nil : content.bytes, permissions: permissions,
             encoding: encoding, baseEncoding: baseEncoding, mineEncoding: mineEncoding, theirsEncoding: theirsEncoding)
+        next.externalSources = externalSources
         next.mergeSources = mergeSources; next.conflictTitles = conflictTitles
         return next
     }
@@ -424,6 +478,7 @@ extension TextConflictDocument {
     public func recordingPatchSave(_ saved:WorkingTreePatchSaveResult) throws -> TextConflictDocument {
         guard let text = saved.document.destination.text else {throw TextConflictFailure.encoding}
         var next = TextConflictDocument(entry:entry,base:base,mine:mine,theirs:theirs,mineStage:mineStage,theirsStage:theirsStage,initialResult:text,generatedResult:generatedResult,workingContents:saved.document.destination.isDeleted ? nil : saved.document.destination.bytes,permissions:saved.document.destination.permissions ?? permissions,encoding:saved.document.destination.encoding ?? encoding,baseEncoding:baseEncoding,mineEncoding:mineEncoding,theirsEncoding:theirsEncoding)
+        next.externalSources = externalSources
         next.mergeSources = mergeSources;next.conflictTitles = conflictTitles;return next
     }
 }

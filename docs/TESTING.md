@@ -2439,3 +2439,22 @@ insufficient radial coordinate precision. Pixel assertions normalize the actual
 CGImage into named sRGB bytes, avoiding `NSBitmapImageRep.colorAt` profile loss;
 thresholds remain unchanged. See [actual batch evidence](qa/metafile-painting-2026-10-18.json)
 for failed attempts, focused repairs, final scope and remaining acceptance.
+
+
+### Merge activation and external-source reload family
+
+Freeze the shared input-observation policy, both editor integrations and native
+Save/Save As/close/Open/Quit behavior before the checkpoint. Use the focused
+`MergeExternalSourceTests` plus affected retained comparison and three-file save
+Core tests, then the grouped `scripts/test-merge-external-reload.py` receiver.
+Private files/preferences and injected active-window/probe/answer seams allow
+hidden windows while exercising the production controller, native sheet release
+and actual filesystem changes. Keep existing manual Reload and standalone
+comparison/merge cases in the same grouped receiver where affected.
+
+Ignore and Cancel must acknowledge only the observation, preserve drafts/Undo
+and never refresh a Save CAS baseline. Check source Save As rebinding, own-save
+acknowledgement, independent-output exclusion, Base-only three-way behavior,
+late probe retirement, held warning replies, actual leases and Quit accounting.
+A local activation fixture does not certify physical focus events, network-volume
+metadata or signed sandbox access. See [source scope](MERGE-EXTERNAL-RELOAD-PARITY.md).

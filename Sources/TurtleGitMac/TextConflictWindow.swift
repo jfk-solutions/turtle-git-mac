@@ -122,6 +122,7 @@ private enum MergeSourceSide {
     var activeEditorText: NSTextView? { activeText }
     private var activeText: NSTextView? { (firstResponder as? MergeTextView) ?? findText ?? mergedText }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if let owner=delegate as? TextConflictWindowController,owner.model.externalReloadBlocksCommands || owner.model.preservingSourceCopies {return true}
         if let owner = delegate as? TextConflictWindowController,owner.editorCommandMenu?.performKeyEquivalent(event) == true { return true }
         if let patchModel {
             if let owner = delegate as? WorkingTreePatchWindowController,owner.editorCommandMenu?.performKeyEquivalent(event) == true {return true}
@@ -139,6 +140,9 @@ private enum MergeSourceSide {
             return super.performKeyEquivalent(with: event)
         }
         guard mergedText != nil else { return super.performKeyEquivalent(with: event) }
+        if event.modifierFlags.intersection([.command,.shift,.option,.control]) == .command,event.charactersIgnoringModifiers?.lowercased()=="s",let owner=delegate as? TextConflictWindowController {
+            owner.model.saveRetainedEditorWork();return true
+        }
         if (firstResponder as? NSTextView)?.isFieldEditor != true, MergeFindInterface.performKey(event, in: activeText) { return true }
         if event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command, event.charactersIgnoringModifiers?.lowercased() == "o" { openMergeDocument(); return true }
         let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
@@ -179,11 +183,40 @@ private enum MergeSourceSide {
 
 @MainActor final class TextConflictWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     private let editorFileMenu = MergeEditorFileMenu()
-    func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.remove();editorCommandMenu?.install() }
+    private(set) var externalReload: MergeExternalReloadCoordinator?
+    private final class CloseChoice {
+        let alert:NSAlert,owner:NSWindow
+        var draining=false,retired=false
+        init(_ alert:NSAlert,_ owner:NSWindow){self.alert=alert;self.owner=owner}
+    }
+    private var closeChoice:CloseChoice?
+    private var activationObservers:[NSObjectProtocol]=[]
+    private func retireActivationObservers() {activationObservers.forEach{NotificationCenter.default.removeObserver($0)};activationObservers=[]}
+    var presentCloseQuestion:(NSAlert,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void = {alert,owner,reply in alert.beginSheetModal(for:owner,completionHandler:reply)}
+    private func drainCloseChoice(_ receipt:CloseChoice,response:NSApplication.ModalResponse) {
+        guard !receipt.draining else{return};receipt.draining=true
+        if receipt.alert.window.sheetParent===receipt.owner {receipt.owner.endSheet(receipt.alert.window,returnCode:response)}
+        receipt.alert.window.orderOut(nil)
+        Task { [weak self,receipt] in
+            while receipt.alert.window.sheetParent != nil || receipt.owner.attachedSheet === receipt.alert.window {try? await Task.sleep(nanoseconds:10_000_000)}
+            MergeRegexOperations.activeRequests -= 1
+            guard let self,self.closeChoice===receipt else{return};self.closeChoice=nil;self.model.closingDecisionPending=false
+            guard !receipt.retired,!self.model.retired else{return}
+            switch response {
+            case .alertFirstButtonReturn:self.model.saveEditorWork { [weak self] saved in if saved {self?.model.close()} }
+            case .alertSecondButtonReturn:self.model.close()
+            default:self.externalReload?.resume()
+            }
+        }
+    }
+    private func retireCloseChoice() {
+        guard let closeChoice else{return};closeChoice.retired=true;drainCloseChoice(closeChoice,response:.cancel)
+    }
+    func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.remove();editorCommandMenu?.install();externalReload?.activate() }
     func windowDidResignKey(_ notification: Notification) { editorCommandMenu?.remove();editorFileMenu.remove() }
-    func detachForReplacement() { editorCommandMenu?.retire();editorToolbar?.retire(); editorFileMenu.remove(); model.retire(); model.window = nil }
-    @objc func reloadEditor(_ sender: Any?) { guard !preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
-    func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.formatPending && !model.confirmingQuit && !model.retired && !model.exportingSource && window?.attachedSheet == nil }
+    func detachForReplacement() {retireActivationObservers();retireCloseChoice();externalReload?.retire();editorCommandMenu?.retire();editorToolbar?.retire(); editorFileMenu.remove(); model.retire(); model.window = nil }
+    @objc func reloadEditor(_ sender: Any?) { guard !model.externalReloadBlocksCommands,!model.preservingSourceCopies,!preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
+    func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && !model.externalReloadBlocksCommands && !model.preservingSourceCopies && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.formatPending && !model.confirmingQuit && !model.retired && !model.exportingSource && window?.attachedSheet == nil }
     private(set) var editorToolbar: MergeEditorToolbar?
     private(set) var editorCommandMenu: MergeEditorCommandMenu?
     var showEditorHelp: () -> Void = { TurtleGitHelp.show(.resolve) }
@@ -195,15 +228,15 @@ private enum MergeSourceSide {
     weak var sharedReplacementOwner: MergeEditorReplacementOwner?
     var preparingReplacement: Bool { (sharedReplacementOwner ?? replacementOwner)?.preparingPatch == true }
     @objc func openMergeDocument(_ sender: Any?) {
-        guard !preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil, let window, !model.busy, !model.preparing, !model.confirmingQuit, !model.retired, window.attachedSheet == nil else { return }
+        guard !model.externalReloadBlocksCommands,!model.preservingSourceCopies,!preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil, let window, !model.busy, !model.preparing, !model.confirmingQuit, !model.retired, window.attachedSheet == nil else { return }
         let workflow = makeEditorOpenWorkflow(window, model.openPermissions, model.comparisonDefaults)
         editorOpenWorkflow = workflow
-        workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil }
+        workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil;self?.externalReload?.resume() }
         workflow.accept = { [weak self] request, permissions in try self?.replaceEditor(request, permissions: permissions) }
-        workflow.start(dirty: model.dirty, description: model.path, save: { [weak self] completion in self?.model.save(markResolved: false, completion: completion) })
+        workflow.start(dirty: model.hasUnsavedEditorWork, description: model.path, save: { [weak self] completion in self?.model.saveEditorWork(completion: completion) })
     }
     func replaceEditor(_ request: MergeOpenRequest, permissions: [RepositoryAccessLease]) throws {
-        guard let window, !model.busy, !model.confirmingQuit, !model.retired, !model.exportingSource else { return }
+        guard let window,!model.externalReloadBlocksCommands,!model.preservingSourceCopies, !model.busy, !model.confirmingQuit, !model.retired, !model.exportingSource else { return }
         let owner = sharedReplacementOwner ?? replacementOwner ?? MergeEditorReplacementOwner(onClosed: onClosed)
         if sharedReplacementOwner == nil { replacementOwner = owner }
         try owner.replace(request, permissions: permissions, preferences: model.comparisonDefaults, window: window, previous: self)
@@ -222,24 +255,34 @@ private enum MergeSourceSide {
         super.init(window: window); TurtleGitHelp.attach(window, topic: .resolve); window.delegate = self; window.openMergeDocument = { [weak self] in self?.openMergeDocument(nil) }; window.center(); model.window = window; model.close = { [weak window] in window?.close() }
 
 
+        let detector=MergeExternalReloadCoordinator(window:window,sources:{[weak model] in model?.externalReloadSources ?? []},permissions:{[weak model] in model?.openPermissions ?? []},ready:{[weak self] in
+            guard let self else{return false};return self.model.externalReloadReady && !self.preparingReplacement && self.editorOpenWorkflow==nil
+        },dirty:{[weak model] in model?.hasUnsavedEditorWork==true},reload:{[weak model] in model?.load(discardingDraft:true)},keep:{[weak model] ids in model?.keepExternalSources(ids)},failed:{[weak model] error in model?.error=error.localizedDescription})
+        externalReload=detector;model.externalReloadCoordinator=detector
+        detector.stateChanged={ [weak model] in guard let model,!model.retired else{return};model.objectWillChange.send() }
+        activationObservers.append(NotificationCenter.default.addObserver(forName:NSWindow.didEndSheetNotification,object:window,queue:.main) { [weak self] _ in DispatchQueue.main.async { [weak self] in self?.externalReload?.resume() } })
+        activationObservers.append(NotificationCenter.default.addObserver(forName:NSApplication.didBecomeActiveNotification,object:nil,queue:.main) { [weak self] _ in
+            guard let self,self.window?.isKeyWindow==true else{return};self.externalReload?.activate()
+        })
         installEditorToolbar()
         DialogGeometry.attach(window, identifier: "TurtleGit.TextConflict", legacyName: "TurtleGit.TextConflict")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil else { return false }
+        guard !model.externalReloadBlocksCommands,!model.preservingSourceCopies,!preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil else { return false }
         guard sender.attachedSheet == nil else { return false }
         if model.preparing { return true }
         guard !model.busy, !model.confirmingQuit, !model.formatPending else { return false }
-        guard model.dirty else { return true }
+        guard model.hasUnsavedEditorWork else { return true }
+        guard closeChoice==nil else{return false}
         let alert = NSAlert(); alert.messageText = "Save changes to “\(model.path)”?"
+        if model.hasKeptSourceChanges {alert.informativeText=model.keptSourcesExplanation}
         alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
-        switch alert.runModal() {
-        case .alertFirstButtonReturn: model.save(markResolved: false, closeAfter: true); return false
-        case .alertSecondButtonReturn: return true
-        default: return false
-        }
+        alert.window.appearance=sender.appearance;alert.window.alphaValue=sender.alphaValue
+        let receipt=CloseChoice(alert,sender);closeChoice=receipt;model.closingDecisionPending=true;MergeRegexOperations.activeRequests += 1
+        presentCloseQuestion(alert,sender) { [weak self,receipt] response in self?.drainCloseChoice(receipt,response:response) }
+        return false
     }
-    func windowWillClose(_ notification: Notification) { guard let closing = notification.object as? NSWindow, closing === window else { return }; MergeLineRuler.retire(in:window?.contentView); editorCommandMenu?.retire();editorToolbar?.retire(); editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire(); onClosed() }
+    func windowWillClose(_ notification: Notification) { guard let closing = notification.object as? NSWindow, closing === window else { return };retireActivationObservers();retireCloseChoice();externalReload?.retire(); MergeLineRuler.retire(in:window?.contentView); editorCommandMenu?.retire();editorToolbar?.retire(); editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire(); onClosed() }
     func installEditorToolbar() {
         editorCommandMenu?.retire();editorToolbar?.retire();editorToolbar = MergeEditorToolbar.conflict(self)
         editorCommandMenu = MergeEditorCommandMenu.conflict(self)
@@ -258,7 +301,7 @@ private enum MergeSourceSide {
     private var mergeToolInitialLine: Int?
     private var ownedFormatChoices = 0
     private var ownedEditorConfigReads = 0
-    var mergeToolHasPendingWork: Bool { busy || preparing || sourceExporter.hasPendingWork || formatPending || ownedFormatChoices > 0 || ownedEditorConfigReads > 0 }
+    var mergeToolHasPendingWork: Bool { externalReloadCoordinator?.hasPendingWork==true || preservingSourceCopies || closingDecisionPending || busy || preparing || sourceExporter.hasPendingWork || formatPending || ownedFormatChoices > 0 || ownedEditorConfigReads > 0 }
     private var explicitMergeToolReadOnly = false
     private var replacementReflectedNames: [String: String] = [:]
     private var hasMergeToolReplacementPolicy = false
@@ -330,6 +373,7 @@ private enum MergeSourceSide {
     let saveFolderAccess=MergeSaveFolderAccess()
     private let saveChoices=MergeSaveChoices()
     private(set) var mergedResultTarget:SavedMergePane?
+    private var retainedIndependentResultCopy=false
     var resultPath:String {mergedResultTarget?.url.path ?? workingMergeOutput?.path ?? path}
     var workingMerge: WorkingTextMerge?
     var workingMergePermissions: [RepositoryAccessLease] = []
@@ -381,7 +425,7 @@ private enum MergeSourceSide {
         return value
     }
     func setCollapsed(_ value: Bool) {
-        guard !retired, !busy, !preparing, !confirmingQuit else { return }
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!retired, !busy, !preparing, !confirmingQuit else { return }
         folding.setCollapsed(value); resultFolding.setCollapsed(value)
     }
     func updateFolding() {
@@ -410,6 +454,89 @@ private enum MergeSourceSide {
         for row in visibility.indices where visibility[row] == .hidden && (row == 0 || visibility[row - 1] == .shown) { visibility[row] = .marker }
         resultFolding.install(visibility: visibility)
     }
+    weak var externalReloadCoordinator:MergeExternalReloadCoordinator?
+    private(set) var externalReloadSources:[MergeExternalSource]=[]
+    var externalReloadBlocksCommands:Bool {externalReloadCoordinator?.blocksCommands==true || closingDecisionPending}
+    @Published fileprivate var closingDecisionPending=false
+    var externalReloadReady:Bool {!retired && !busy && !preparing && !formatPending && !confirmingQuit && !exportingSource && !preservingSourceCopies && editorConfigLoading.isEmpty && !closingDecisionPending && regexList==nil && document != nil && window?.attachedSheet==nil}
+    private(set) var keptExternalInputIDs:Set<String>=[]
+    @Published private(set) var keptExternalSources:Set<Bool>=[]
+    @Published private(set) var preservingSourceCopies=false
+    var hasKeptSourceChanges:Bool {!keptExternalSources.isEmpty}
+    var hasUnsavedEditorWork:Bool {dirty || hasKeptSourceChanges}
+    var keptSourcesExplanation:String {String(localized:"The kept source panes differ from their files on disk. Saving the merged result does not save those source versions. Save first asks for a separate copy of each kept source pane. Saving an edited result may also require a new destination.")}
+    func keepExternalSources(_ ids:Set<String>) {
+        guard !retired else{return}
+        keptExternalInputIDs.formUnion(ids)
+        if ids.contains("mine"){keptExternalSources.insert(true)}
+        if ids.contains("theirs"){keptExternalSources.insert(false)}
+    }
+    private var sourceCopyQuitApproved=false
+    private func acknowledgeOwnedSourceAliases(_ accepted:TextConflictDocument,at output:URL) throws {
+        for (side,target) in sourceTargets where GitReferenceName.equal(target.url.standardizedFileURL.path,output.standardizedFileURL.path) {
+            sourceTargets[side]=try target.recordingOwnedResult(accepted,at:output)
+        }
+    }
+    func refreshExternalReloadSources(invalidatingWrittenURLs:[URL]=[]) async {
+        guard !retired,let document else{return}
+        var next=document.externalSources
+        for (mine,target) in sourceTargets {
+            let id=mine ? "mine":"theirs"
+            next.removeAll {$0.id==id}
+            next.append(MergeExternalSource(id:id,url:target.url,expectedBytes:target.content.bytes,expectedMissing:target.content.isDeleted,expectedPermissions:target.content.permissions))
+        }
+        next.sort {$0.id<$1.id}
+        let same=externalReloadSources.count==next.count && zip(externalReloadSources,next).allSatisfy {a,b in a.id==b.id && a.url==b.url && a.expectedBytes==b.expectedBytes && a.expectedMissing==b.expectedMissing && a.expectedPermissions==b.expectedPermissions}
+        let writtenIDs=Set((externalReloadSources+next).filter {source in invalidatingWrittenURLs.contains {GitReferenceName.equal($0.standardizedFileURL.path,source.url.standardizedFileURL.path)}}.map(\.id))
+        externalReloadSources=next
+        if !same || !writtenIDs.isEmpty {externalReloadCoordinator?.reset(preservingUnchangedSources:true,invalidatingSources:writtenIDs)}
+        externalReloadCoordinator?.resume()
+    }
+    /// Preserve kept input versions separately; saving the result must never
+    /// pretend that these read-only source panes were saved with that result.
+    func saveKeptSourceCopies() {saveEditorWork(includeResult:false){_ in}}
+    func saveRetainedEditorWork() {
+        guard sourceMutationsAllowed else{return}
+        if hasKeptSourceChanges {
+            saveEditorWork(includeResult:false) { [weak self] saved in
+                guard let self,saved,!self.retired else{return}
+                self.save(markResolved:false,chooseNewOutput:!self.keptExternalInputIDs.isEmpty && !self.retainedIndependentResultCopy)
+            }
+        } else {save(markResolved:false,chooseNewOutput:!keptExternalInputIDs.isEmpty && !retainedIndependentResultCopy)}
+    }
+    func saveEditorWork(quitApproved:Bool=false,includeResult:Bool=true,completion:@escaping (Bool)->Void) {
+        guard !retired,!externalReloadBlocksCommands,!preservingSourceCopies,!busy,!preparing,!formatPending,!exportingSource,(!confirmingQuit || quitApproved),window?.attachedSheet==nil else{completion(false);return}
+        guard hasKeptSourceChanges else {
+            if dirty && includeResult {save(markResolved:false,chooseNewOutput:!keptExternalInputIDs.isEmpty && !retainedIndependentResultCopy,quitApproved:quitApproved,completion:completion)}else{completion(true)}
+            return
+        }
+        preservingSourceCopies=true;sourceCopyQuitApproved=quitApproved
+        MergeRegexOperations.activeRequests += 1
+        Task { [self] in
+            var preserved=true
+            let sides=[true,false].filter {keptExternalSources.contains($0)}
+            for mine in sides {
+                guard !retired else{preserved=false;break}
+                let owner=window
+                let (saved,sheets):(Bool,[NSWindow])=await withCheckedContinuation {continuation in exportSourceCopy(mine:mine) {saved,sheets in continuation.resume(returning:(saved,sheets))}}
+                // Even Cancel or forced retirement keeps this transition alive
+                // until its captured children detach. Never wait for a later
+                // EditorConfig, permission or unrelated operation's sheet.
+                for child in sheets {
+                    while child.sheetParent != nil || owner?.attachedSheet === child {try? await Task.sleep(nanoseconds:10_000_000)}
+                }
+                guard saved,!retired else{preserved=false;break}
+            }
+            preservingSourceCopies=false;sourceCopyQuitApproved=false
+            MergeRegexOperations.activeRequests -= 1
+            guard preserved,!retired,!hasKeptSourceChanges else{completion(false);return}
+            if dirty && includeResult {save(markResolved:false,chooseNewOutput:!keptExternalInputIDs.isEmpty && !retainedIndependentResultCopy,quitApproved:quitApproved,completion:completion)}else{completion(true)}
+            externalReloadCoordinator?.resume()
+        }
+    }
+    private var sourceSaveCompletion:((Bool,[NSWindow])->Void)?
+    private var sourceExportOwnedSheets:[NSWindow]=[]
+    private var sourceSaveSucceeded=false
     private(set) var sourceTargets: [Bool: SavedMergePane] = [:]
     func sourceTargetURL(mine: Bool) -> URL? { sourceTargets[mine]?.url }
     func sourceCaption(mine: Bool) -> String? {
@@ -420,7 +547,12 @@ private enum MergeSourceSide {
     @Published private(set) var exportingSource = false
     lazy var sourceExporter: MergeSourceExport = {
         let value = MergeSourceExport()
-        value.stateChanged = { [weak self] in self?.exportingSource = $0 }
+        value.present={panel,owner,reply in panel.appearance=owner.effectiveAppearance;panel.alphaValue=owner.alphaValue;panel.beginSheetModal(for:owner,completionHandler:reply)}
+        value.presentQuestion={alert,owner,reply in alert.window.appearance=owner.effectiveAppearance;alert.window.alphaValue=owner.alphaValue;alert.beginSheetModal(for:owner,completionHandler:reply)}
+        value.stateChanged = { [weak self] active in
+            guard let self else{return};self.exportingSource=active
+            if !active {let completion=self.sourceSaveCompletion,sheets=self.sourceExportOwnedSheets;self.sourceSaveCompletion=nil;self.sourceExportOwnedSheets=[];completion?(self.sourceSaveSucceeded,sheets);self.sourceSaveSucceeded=false;self.externalReloadCoordinator?.resume()}
+        }
         value.permissions = { [weak self] in self?.openPermissions ?? [] }
         value.failure = { [weak self] in self?.error = $0 }
         return value
@@ -445,16 +577,22 @@ private enum MergeSourceSide {
         // AppKit updates during a SwiftUI render cannot publish synchronously.
         DispatchQueue.main.async { [weak self] in guard let self, !self.retired else { return }; self.objectWillChange.send() }
     }
-    var sourceOperationsAllowed: Bool { !patchResultCompleted && !retired && !busy && !preparing && !formatPending && !confirmingQuit && !exportingSource && window?.attachedSheet == nil && document != nil }
+    private var sourceOperationBaseAllowed: Bool { !externalReloadBlocksCommands && !patchResultCompleted && !retired && !busy && !preparing && !formatPending && (!confirmingQuit || sourceCopyQuitApproved) && !exportingSource && window?.attachedSheet == nil && document != nil }
+    var sourceOperationsAllowed:Bool {sourceOperationBaseAllowed && !preservingSourceCopies}
     var sourceToolsAllowed: Bool { sourceOperationsAllowed && (!requiresNativeEditor || nativeEditorReady) }
     var sourceMutationsAllowed: Bool { !mergeToolReadOnly && sourceToolsAllowed }
-    func exportSource(mine: Bool) {
-        guard sourceMutationsAllowed, let window, let document, let sourceComparison else { return }
+    func exportSource(mine: Bool) {guard sourceMutationsAllowed else{return};exportSourceCopy(mine:mine,completion:nil)}
+    private func exportSourceCopy(mine:Bool,completion:((Bool,[NSWindow])->Void)?) {
+        guard !mergeToolReadOnly,sourceOperationBaseAllowed,sourceSaveCompletion==nil,let window,let document,let sourceComparison else{completion?(false,[]);return}
+        sourceSaveCompletion=completion;sourceSaveSucceeded=false;sourceExportOwnedSheets=[]
         do {
             let encoding = (mine ? document.mineEncoding : document.theirsEncoding) ?? document.encoding
             let bytes = try MergePaneSaveAs.sourceBytes(rows: sourceComparison.rows, mine: mine, encoding: encoding)
             let generation=loadGeneration
             let name = sourceTargets[mine]?.url.lastPathComponent ?? (mine ? "Mine-" : "Theirs-") + (path as NSString).lastPathComponent
+            let present=sourceExporter.present
+            sourceExporter.present={ [weak self] panel,owner,reply in self?.sourceExportOwnedSheets.append(panel);present(panel,owner,reply)}
+            defer {sourceExporter.present=present}
             sourceExporter.save(bytes, name: name, owner: window) { [weak self] url, lease in
                 let target=try await Task.detached {try SavedMergePane(url:url,writtenBytes:bytes,encoding:encoding)}.value
                 guard let self,!self.retired,self.loadGeneration==generation else{return}
@@ -469,16 +607,18 @@ private enum MergeSourceSide {
                     if self.mergedResultTarget != nil {self.mergedResultTarget=target}
                     if self.workingMerge != nil { self.standaloneSavedResult = target.content.text; self.standaloneSavedEncoding = target.content.encoding }
                 }
+                self.keptExternalSources.remove(mine);self.sourceSaveSucceeded=true
+                await self.refreshExternalReloadSources(invalidatingWrittenURLs:[target.url])
                 self.reloadEditorConfig()
                 self.objectWillChange.send()
             }
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = error.localizedDescription;let completion=sourceSaveCompletion,sheets=sourceExportOwnedSheets;sourceSaveCompletion=nil;sourceExportOwnedSheets=[];completion?(false,sheets) }
     }
     func compareSourceWithBase(mine: Bool) {
         guard sourceToolsAllowed, let document else { return }
         do {
             let base = try (document.baseEncoding ?? document.encoding).encode(document.base)
-            let side = try sourceTargets[mine]?.read().bytes ?? ((mine ? document.mineEncoding : document.theirsEncoding) ?? document.encoding).encode(mine ? document.mine : document.theirs)
+            let side = try sourceTargets[mine]?.content.bytes ?? ((mine ? document.mineEncoding : document.theirsEncoding) ?? document.encoding).encode(mine ? document.mine : document.theirs)
             try MergeSourceComparisonWindows.open(base: base, side: side, name: path, sideName: mine ? "Mine" : "Theirs", preferences: comparisonDefaults)
         } catch { self.error = error.localizedDescription }
     }
@@ -502,11 +642,11 @@ private enum MergeSourceSide {
     private var inlineCache: [Int: InlineRow] = [:]
     private var inlineCacheWord = false, inlineCacheMaximum = -1
     func setInlineDiff(_ value: Bool) {
-        guard !retired, !busy, !confirmingQuit else { return }
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!retired, !busy, !confirmingQuit else { return }
         showInlineDiff = value; MergeInlinePresentation.saveEnabled(value, to: comparisonDefaults)
     }
     func setInlineWordDiff(_ value: Bool) {
-        guard !retired, !busy, !confirmingQuit, showInlineDiff else { return }
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!retired, !busy, !confirmingQuit, showInlineDiff else { return }
         inlineWordDiff = value; inlineCache = [:]
     }
     func inlineDifference(_ row: Int, mine: Bool) -> MergeInlineComparison? {
@@ -527,12 +667,12 @@ private enum MergeSourceSide {
     @Published private(set) var wrapLines = UserDefaults.standard.bool(forKey: "TurtleGitMerge.WrapLines")
     let lineWrapping = MergeLineWrapping()
     func setWrapLines(_ value: Bool) {
-        guard !retired, !busy, !confirmingQuit else { return }
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!retired, !busy, !confirmingQuit else { return }
         wrapLines = value; comparisonDefaults.set(value, forKey: "TurtleGitMerge.WrapLines")
     }
     @Published private(set) var whitespaceDisplay = MergeWhitespaceDisplayPreferences.load()
     func setWhitespaceDisplay(_ value: MergeWhitespaceDisplayPreferences) {
-        guard !busy, !confirmingQuit, !retired else { return }
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!busy, !confirmingQuit, !retired else { return }
         whitespaceDisplay = value; value.save(to: comparisonDefaults)
     }
     @Published private(set) var locatorPreferences = MergeLocatorPreferences.load()
@@ -562,7 +702,7 @@ private enum MergeSourceSide {
         return MergeLocatorMap(columns: [sourceComparison?.rows.map { $0.theirs.state } ?? [], states, sourceComparison?.rows.map { $0.mine.state } ?? []])
     }
     func setLocatorPreferences(_ value: MergeLocatorPreferences) {
-        guard !retired, !busy, !confirmingQuit else { return }
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!retired, !busy, !confirmingQuit else { return }
         locatorPreferences = value; value.save(to: comparisonDefaults)
     }
     func registerLocatorResult(_ scroll: NSScrollView) { locatorResultScroll = scroll }
@@ -581,7 +721,7 @@ private enum MergeSourceSide {
         if value != locatorViewport { locatorViewport = value }
     }
     func scrollLocator(to row: Int) {
-        guard !retired, !busy, !confirmingQuit else { return }
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!retired, !busy, !confirmingQuit else { return }
         lineWrapping.prepareForInput()
         for reference in sourceScrolls.values { if let scroll = reference.view { MergeLocatorScrolling.scroll(scroll, to: row) } }
         if let locatorResultScroll {
@@ -598,7 +738,7 @@ private enum MergeSourceSide {
     private var commentProfiles = MergeCommentProfiles.bundled()
     var supportsComments: Bool { commentProfiles.tokens(paths: [path]) != nil }
     func setComparisonOptions(_ value: MergeComparisonOptions) {
-        guard !busy, !confirmingQuit, !retired, !formatPending else { return }
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!busy, !confirmingQuit, !retired, !formatPending else { return }
         pendingComparisonOptions = value; load()
     }
     enum ReloadDecision { case save, discard, cancel }
@@ -609,11 +749,11 @@ private enum MergeSourceSide {
     private var loadCancellation: OperationCancellation?
     private var regexList: MergeRegexFilterListController?
     func manageRegexFilters() {
-        guard !busy, !confirmingQuit, !retired else { return }
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!busy, !confirmingQuit, !retired else { return }
         if let regexList { regexList.showWindow(nil); regexList.window?.makeKeyAndOrderFront(nil); return }
         let controller = MergeRegexFilterListController(defaults: regexDefaults)
         controller.executable = engineConfiguration?.regexExecutable
-        controller.onClosed = { [weak self] in self?.regexList = nil; self?.refreshRegexFilters() }
+        controller.onClosed = { [weak self] in self?.regexList = nil; self?.refreshRegexFilters();self?.externalReloadCoordinator?.resume() }
         regexList = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     func refreshRegexFilters() {
@@ -623,10 +763,12 @@ private enum MergeSourceSide {
         regexFilters = MergeRegexFilters.load(defaults: regexDefaults)
     }
     func selectRegexFilter(_ name: String?) {
-        guard !busy, !confirmingQuit, !retired, !formatPending, name == nil || regexFilters.contains(where: { MergeRegexFilters.sameName($0.name,name) }) else { return }
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!busy, !confirmingQuit, !retired, !formatPending, name == nil || regexFilters.contains(where: { MergeRegexFilters.sameName($0.name,name) }) else { return }
         load(filterName: name)
     }
     func retire() {
+        externalReloadCoordinator?.retire()
+        let sourceCompletion=sourceSaveCompletion,sheets=sourceExportOwnedSheets;sourceSaveCompletion=nil;sourceExportOwnedSheets=[];sourceCompletion?(false,sheets)
         retireFormatChoice()
         saveChoices.cancel();saveFolderAccess.cancel()
         sourceExporter.retire()
@@ -669,19 +811,19 @@ private enum MergeSourceSide {
     @Published var selectedConflict = 0
     @Published var caret = NSRange(location: 0, length: 0)
     @Published var selectionRequest: NSRange?
-    @Published var busy = false { didSet { if oldValue != busy { paneTabEpoch = UUID() } } }
-    @Published private(set) var preparing = false
-    @Published var confirmingQuit = false
+    @Published var busy = false { didSet { if oldValue != busy { paneTabEpoch = UUID() };if !busy {externalReloadCoordinator?.resume()} } }
+    @Published private(set) var preparing = false {didSet {if !preparing {externalReloadCoordinator?.resume()}}}
+    @Published var confirmingQuit = false {didSet {if !confirmingQuit {externalReloadCoordinator?.resume()}}}
     @Published var error: String?
     @Published var nativeToolbarInstalled = false
     @Published private(set) var showToolbar = MergeEditorChrome.visible("Toolbar",defaults:.standard)
     @Published private(set) var showStatusBar = MergeEditorChrome.visible("StatusBar",defaults:.standard)
     func setToolbarVisible(_ value: Bool) {
-        guard !retired, showToolbar != value else { return }
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!retired, showToolbar != value else { return }
         showToolbar = value;comparisonDefaults.set(value,forKey:"TurtleGitMerge.ToolbarVisible")
     }
     func setStatusBarVisible(_ value: Bool) {
-        guard !retired, !busy, !confirmingQuit, showStatusBar != value else { return }
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!retired, !busy, !confirmingQuit, showStatusBar != value else { return }
         showStatusBar = value;comparisonDefaults.set(value,forKey:"TurtleGitMerge.StatusBarVisible")
     }
     @Published var showBase = false
@@ -693,7 +835,7 @@ private enum MergeSourceSide {
     @Published var editorPreferences = MergeEditorPreferences.load()
     @Published var editorConfigEnabled: [String: Bool] = [:]
     @Published var editorConfigLoaded: [String: Bool] = [:]
-    @Published var editorConfigLoading: Set<String> = []
+    @Published var editorConfigLoading: Set<String> = [] {didSet {if editorConfigLoading.isEmpty {externalReloadCoordinator?.resume()}}}
     private var editorConfigRequests: [String: UUID] = [:]
     @Published var overwriteMode = false
     private var initialEditorConfigDefault = MergeEditorPreferences.load().enableEditorConfig
@@ -897,7 +1039,7 @@ private enum MergeSourceSide {
             return resultLineEnding != savedResultLineEnding || !result.utf8.elementsEqual(previous.utf8) || resultPresentation.ignoredConflicts != savedIgnoredConflicts || resultPresentation.sourceChoiceRevision != savedSourceChoiceRevision || encoding != previousEncoding
         } ?? false
     }
-    @Published private(set) var formatPending = false
+    @Published private(set) var formatPending = false {didSet {if !formatPending {externalReloadCoordinator?.resume()}}}
     var chooseFormat:((NSWindow,String,MergeFormatSelection) async -> MergeFormatSelection?)?
     private var formatToken:UUID?
     private var formatTask:Task<Void,Never>?
@@ -994,15 +1136,16 @@ private enum MergeSourceSide {
     }
     var initialLoadDeferred = false
     func beginTransferredDocument() { initialLoadDeferred = false; load() }
-    func load() { guard !initialLoadDeferred else { return }; load(filterName: regexFilterName) }
-    private func load(filterName: String?) {
-        guard !busy, !confirmingQuit, !retired, !formatPending, window?.attachedSheet == nil else { return }
-        if dirty {
+    func load() {load(discardingDraft:false)}
+    func load(discardingDraft:Bool) { guard !initialLoadDeferred else { return }; load(filterName: regexFilterName,discardingDraft:discardingDraft) }
+    private func load(filterName: String?,discardingDraft:Bool=false) {
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!busy, !confirmingQuit, !retired, !formatPending, window?.attachedSheet == nil else { return }
+        if hasUnsavedEditorWork && !discardingDraft {
             let decision: ReloadDecision
             if let chooseReload { decision = chooseReload() }
             else {
                 let alert = NSAlert(); alert.messageText = "Save changes to “\(path)” before reloading?"
-                alert.informativeText = "Reload regenerates the merged result from the current conflict stages."
+                alert.informativeText = "Reload regenerates the merged result from the current conflict stages." + (hasKeptSourceChanges ? "\n\n"+keptSourcesExplanation:"")
                 alert.addButton(withTitle: "Save and Reload"); alert.addButton(withTitle: "Reload Without Saving"); alert.addButton(withTitle: "Cancel")
                 switch alert.runModal() {
                 case .alertFirstButtonReturn: decision = .save
@@ -1011,11 +1154,12 @@ private enum MergeSourceSide {
                 }
             }
             switch decision {
-            case .save: save(markResolved: false) { [weak self] saved in if saved { self?.load(filterName: filterName) } else { self?.pendingComparisonOptions = nil } }; return
+            case .save: saveEditorWork { [weak self] saved in if saved { self?.load(filterName: filterName,discardingDraft:true) } else { self?.pendingComparisonOptions = nil } }; return
             case .discard: break
             case .cancel: pendingComparisonOptions = nil; return
             }
         }
+        externalReloadCoordinator?.reset()
         cancelEditorConfigReads()
         busy = true; preparing = true
         loadGeneration += 1; let generation = loadGeneration, token = OperationCancellation()
@@ -1087,6 +1231,8 @@ private enum MergeSourceSide {
         let firstChanged = comparison.resultLocator?.states.firstIndex { $0 != .normal && $0 != .filtered && $0 != .empty }
         let difference = firstChanged.flatMap { ranges.indices.contains($0) ? ranges[$0] : nil }
         selectionRequest = generalPreferences.initialTarget(difference: difference, conflict: blocks.first?.range)
+        keptExternalSources=[];keptExternalInputIDs=[]
+        await refreshExternalReloadSources()
         reloadEditorConfig()
     }
     private weak var lastNavigationView: MergeTextView?
@@ -1256,7 +1402,7 @@ private enum MergeSourceSide {
         }
     }
     func selectConflict(_ index: Int) {
-        let blocks = blocks; guard !retired, !blocks.isEmpty else { return }
+        let blocks = blocks; guard !externalReloadBlocksCommands,!preservingSourceCopies,!retired, !blocks.isEmpty else { return }
         navigationOwnsChoice = false; navigationChoiceRange = nil
         selectedConflict = min(max(index, 0), blocks.count - 1); selectionRequest = blocks[selectedConflict].range
     }
@@ -1282,20 +1428,28 @@ private enum MergeSourceSide {
     weak var window: NSWindow?
     func saveForQuit(completion: @escaping (Bool) -> Void) {
         guard confirmingQuit else { completion(false); return }
-        save(markResolved: false, quitApproved: true, completion: completion)
+        saveEditorWork(quitApproved:true,completion:completion)
     }
     private func ensureSave(_ token:OperationCancellation) throws {
         guard !retired,loadCancellation === token else {throw OperationCancellationFailure.cancelled}
         try token.check()
     }
     func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, chooseNewOutput: Bool = false, quitApproved: Bool = false, completion: ((Bool) -> Void)? = nil) {
-        guard !mergeToolReadOnly,!patchResultCompleted,!busy,!preparing,!formatPending,!exportingSource,(!confirmingQuit || quitApproved),!retired,!markResolved || repositoryResolutionAllowed && !hasUnresolvedConflicts,window?.attachedSheet==nil,let document else {completion?(false);return}
+        guard !externalReloadBlocksCommands,!preservingSourceCopies,!mergeToolReadOnly,!patchResultCompleted,!busy,!preparing,!formatPending,!exportingSource,(!confirmingQuit || quitApproved),!retired,!markResolved || repositoryResolutionAllowed && !hasUnresolvedConflicts,window?.attachedSheet==nil,let document else {completion?(false);return}
+        if hasKeptSourceChanges,!chooseNewOutput {
+            saveEditorWork(quitApproved:quitApproved,includeResult:false) { [weak self] saved in
+                guard let self,saved,!self.retired else{completion?(false);return}
+                self.save(markResolved:markResolved,closeAfter:closeAfter,reloadAfter:reloadAfter,chooseNewOutput:!markResolved && !self.keptExternalInputIDs.isEmpty && !self.retainedIndependentResultCopy,quitApproved:quitApproved,completion:completion)
+            }
+            return
+        }
         let text=result,outputEncoding=encoding,ignoredResolved=resultPresentation.ignoredConflicts.isEmpty,ignoredSnapshot=resultPresentation.ignoredConflicts,choiceSnapshot=resultPresentation.sourceChoiceRevision,endingSnapshot=resultLineEnding
         let unresolved=hasUnresolvedConflicts,permissions=openPermissions,token=OperationCancellation()
         let resultPaneBeforeSave = "Merged · \(resultPath)"
         busy=true;error=nil;loadCancellation=token;saveChoices.reset();MergeRegexOperations.activeRequests += 1
         Task { [self] in
             var saved=false
+            var attemptedOutput:URL?
             defer {busy=false;if loadCancellation === token {loadCancellation=nil};MergeRegexOperations.activeRequests -= 1;withExtendedLifetime(permissions) {};completion?(saved)}
             do {
                 try ensureSave(token)
@@ -1315,7 +1469,9 @@ private enum MergeSourceSide {
                 let chosenOutput:URL?
                 if needsNewOutput {chosenOutput=await chooseMergeOutput();try ensureSave(token);guard chosenOutput != nil else {return}}
                 else {chosenOutput=existingOutput}
-                for target in sourceTargets.values {try target.validate()}
+                attemptedOutput=chosenOutput
+                let independentRetainedCopy=chooseNewOutput && workingMerge != nil && (!keptExternalInputIDs.isEmpty || retainedIndependentResultCopy)
+                if !independentRetainedCopy && !retainedIndependentResultCopy {for target in sourceTargets.values {try target.validate()}}
                 let choosingRepositoryCopy=workingMerge==nil && patchComparison==nil && (needsNewOutput || mergedResultTarget != nil)
                 if !choosingRepositoryCopy,workingMerge==nil,GitRuntime.isAppStoreBuild,(access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
                 if patchComparison==nil,let chosenOutput {
@@ -1338,7 +1494,22 @@ private enum MergeSourceSide {
                 } else if let workingMerge {
                     guard let chosenOutput else {return}
                     if saveFolderAccess.requireScope,!workingMergePermissions.contains(where:{$0.permits(chosenOutput)}) {throw RepositoryAccessFailure.securityScopeUnavailable}
-                    let next=try await workingMerge.saveTo(chosenOutput,document:document,result:text,encoding:outputEncoding,options:options,cancellation:token)
+                    let next:TextConflictDocument
+                    if independentRetainedCopy {
+                        next=try await workingMerge.saveRetainedResultCopy(to:chosenOutput,document:document,result:text,encoding:outputEncoding,options:options,cancellation:token)
+                        try ensureSave(token)
+                        mergedResultTarget=try SavedMergePane(url:chosenOutput,writtenBytes:try outputEncoding.encode(text),encoding:outputEncoding)
+                        retainedIndependentResultCopy=true
+                    } else if retainedIndependentResultCopy,!needsNewOutput,let target=mergedResultTarget {
+                        // This independently chosen copy owns its own captured
+                        // save baseline. Stale original inputs grant no authority
+                        // over it, and must not prevent preserving later edits.
+                        let saved=try FileComparisonEditing.saveWorkingContent(at:target.url,original:target.content,text:text,encoding:outputEncoding,options:options)
+                        try ensureSave(token);mergedResultTarget=try target.recording(saved)
+                        next=try document.recordingOwnedWorkingWrite(saved)
+                    } else {
+                        next=try await workingMerge.saveTo(chosenOutput,document:document,result:text,encoding:outputEncoding,options:options,cancellation:token)
+                    }
                     try ensureSave(token);self.document=next
                     workingMergeOutput=chosenOutput;standaloneSavedResult=text;standaloneSavedEncoding=outputEncoding
                     window?.title=mergeToolPaneTitle(chosenOutput.lastPathComponent,result:true) + " – TurtleGitMerge"
@@ -1363,12 +1534,22 @@ private enum MergeSourceSide {
                 if resultPaneBeforeSave != "Merged · \(resultPath)" { reloadEditorConfig() }
                 resultCopySavepoint=nil
                 savedIgnoredConflicts=ignoredSnapshot;savedSourceChoiceRevision=choiceSnapshot;savedResultLineEnding=endingSnapshot
+                if let chosenOutput,let accepted=self.document {try acknowledgeOwnedSourceAliases(accepted,at:chosenOutput)}
+                await refreshExternalReloadSources(invalidatingWrittenURLs:[chosenOutput].compactMap{$0})
                 onChanged(markResolved && !choosingRepositoryCopy ? "Resolved: " + path : "Saved merged result: " + resultPath)
                 if markResolved && !choosingRepositoryCopy || closeAfter {close()}
                 else if reloadAfter {try await reloadDocument(filterName:regexFilterName,cancellation:token)}
                 saved=true
             } catch let failure as TextConflictSaveFailure {
-                if !retired,!token.isCancelled {self.document=failure.savedDocument;resultCopySavepoint=nil;savedIgnoredConflicts=ignoredSnapshot;savedSourceChoiceRevision=choiceSnapshot;savedResultLineEnding=endingSnapshot;self.error=failure.localizedDescription;onChanged(failure.localizedDescription)}
+                if !retired,!token.isCancelled {
+                    self.document=failure.savedDocument;resultCopySavepoint=nil;savedIgnoredConflicts=ignoredSnapshot;savedSourceChoiceRevision=choiceSnapshot;savedResultLineEnding=endingSnapshot
+                    var diagnostic=failure.localizedDescription
+                    if let attemptedOutput {
+                        do {try acknowledgeOwnedSourceAliases(failure.savedDocument,at:attemptedOutput)}
+                        catch {diagnostic += "\n"+error.localizedDescription}
+                    }
+                    await refreshExternalReloadSources(invalidatingWrittenURLs:[attemptedOutput].compactMap{$0});self.error=diagnostic;onChanged(diagnostic)
+                }
             } catch {if !retired,!token.isCancelled {self.error=error.localizedDescription}}
         }
     }
@@ -1394,6 +1575,7 @@ private enum MergeSourceSide {
                     self.sourceTargets[side]=try target.recording(written.content)
                 }
                 self.savedIgnoredConflicts=ignored;self.savedSourceChoiceRevision=choice;self.savedResultLineEnding=ending
+                await self.refreshExternalReloadSources(invalidatingWrittenURLs:[written.url])
                 self.objectWillChange.send()
             }
         } catch { self.error = error.localizedDescription }
@@ -1460,7 +1642,8 @@ private struct TextConflictDialog: View {
                 Text(model.mergeToolPaneTitle(title,mine:side.map { $0 == .mine },result:editable)).font(.headline).textSelection(.enabled).help(model.mergeToolPaneLocation(mine:side.map { $0 == .mine },result:editable) ?? title)
                 if let caption = model.mergeToolPaneLocation(mine:side.map { $0 == .mine },result:editable) ?? caption { Text(caption).font(.caption).lineLimit(1).help(caption).textSelection(.enabled) }
                 if let side, let url = model.sourceTargetURL(mine: side == .mine) { Text(url.lastPathComponent).font(.caption).lineLimit(1).help(url.path) }
-                Spacer(); if editable { Text(model.mergeToolReadOnly ? "Read-only" : model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
+                Spacer();if let side,model.keptExternalSources.contains(side == .mine) {Text("Modified (kept)").font(.caption).foregroundStyle(.secondary).help(model.keptSourcesExplanation)}
+                if editable { Text(model.mergeToolReadOnly ? "Read-only" : model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
             MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab).frame(minWidth: 220, minHeight: 120)
             let counts=MergeLineStatistics(states:cells?.map(\.state) ?? (editable ? model.alignedResultStates : []))
             if !counts.isEmpty {MergeLineStatisticsView(statistics:counts).padding(.horizontal,7).padding(.vertical,2)}
@@ -1475,7 +1658,7 @@ private struct TextConflictDialog: View {
         VStack(spacing: 0) {
             if !model.nativeToolbarInstalled {
             HStack(spacing: 10) {
-                Button { model.save(markResolved: false) } label: { CommandLabel(title: "Save", icon: .mergeSave) }.keyboardShortcut("s", modifiers: .command).disabled(model.patchResultCompleted || model.mergeToolReadOnly)
+                Button { model.saveRetainedEditorWork() } label: { CommandLabel(title: "Save", icon: .mergeSave) }.keyboardShortcut("s", modifiers: .command).disabled(model.patchResultCompleted || model.mergeToolReadOnly)
                 Button { model.save(markResolved: true) } label: { CommandLabel(title: "Mark as resolved", icon: .mergeResolved) }.disabled(!model.repositoryResolutionAllowed || model.document == nil || model.hasUnresolvedConflicts)
                 Menu {
                     Button { model.exportSource(mine: false) } label: { CommandLabel(title: "Save left pane as…", icon: .mergeSaveAs) }
@@ -1498,6 +1681,14 @@ private struct TextConflictDialog: View {
                 Spacer()
                 Button { TurtleGitHelp.show(.resolve) } label: { CommandLabel(title: "Help", icon: .help) }
             }.padding(9)
+            }
+            if model.hasKeptSourceChanges {
+                HStack(spacing:8) {
+                    Image(systemName:"exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Text(model.keptSourcesExplanation).font(.caption).fixedSize(horizontal:false,vertical:true)
+                    Spacer()
+                    Button {model.saveKeptSourceCopies()} label:{CommandLabel(title:"Save source copies…",icon:.mergeSaveAs)}.disabled(!model.sourceMutationsAllowed)
+                }.padding(8).background(Color(nsColor:.controlBackgroundColor))
             }
             HStack {
                 MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed, toolbarVisible:model.showToolbar, applyToolbar:model.setToolbarVisible, statusBarVisible:model.showStatusBar, applyStatusBar:model.setStatusBarVisible)
@@ -1546,7 +1737,7 @@ private struct TextConflictDialog: View {
                 }.padding(8)
                 }
             } else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
-        }.disabled(model.busy || model.confirmingQuit || model.formatPending).onAppear { model.load() }
+        }.disabled(model.busy || model.confirmingQuit || model.formatPending || model.externalReloadBlocksCommands || model.preservingSourceCopies).onAppear { model.load() }
         .alert("Merge editor operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
         .onReceive(NotificationCenter.default.publisher(for: .mergeRegexFiltersChanged)) { _ in model.refreshRegexFilters() }
     }
