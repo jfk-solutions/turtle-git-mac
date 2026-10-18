@@ -14,6 +14,14 @@ public struct PrimaryCommandInvocation: Sendable {
     public let outputFile: URL?
     public let unified: Bool
     public let line: Int?
+    public let sourceURL: String?
+    public let exactClonePath: Bool
+    public let remote: String?
+    public let creationName: String?
+    public let pushBranch: String?
+    public let reflogReference: String?
+    public let upstream: String?
+    public let forceRebase: Bool
     public let message: String?
     public let messageFile: URL?
     public let issueID: String?
@@ -36,8 +44,8 @@ public struct PrimaryCommandInvocation: Sendable {
             return key == "--command" || key.hasPrefix("--command=") || key.hasPrefix("/command:")
         }
         guard hasCommand else { return nil }
-        let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified"]
-        let valued: Set<String> = ["command", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line"]
+        let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force"]
+        let valued: Set<String> = ["command", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream"]
         var values: [String: String] = [:], paths: [String] = [], index = 0
         while index < arguments.count {
             let argument = arguments[index]; index += 1
@@ -75,6 +83,17 @@ public struct PrimaryCommandInvocation: Sendable {
         case "diff": action = .diff
         case "revert": action = .revert
         case "resolve": action = .resolve
+        case "clone": action = .clone
+        case "fetch": action = .fetch
+        case "pull": action = .pull
+        case "push": action = .push
+        case "branch": action = .branch
+        case "tag": action = .tag
+        case "switch": action = .switchBranch
+        case "refbrowse": action = .referenceBrowser
+        case "repobrowser": action = .repositoryBrowser
+        case "reflog": action = .reflog
+        case "rebase": action = .rebase
         default: throw Failure("Unsupported command: " + (values["command"] ?? ""))
         }
         var allowed: Set<String> = ["command", "pathfile", "deletepathfile", "pathfile0"]
@@ -82,6 +101,13 @@ public struct PrimaryCommandInvocation: Sendable {
         case .commit: allowed.formUnion(["logmsg", "logmsgfile", "bugid", "wholeproject"])
         case .log: allowed.formUnion(["startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "findtext", "findregex", "outfile"])
         case .diff: allowed.formUnion(["path2", "alternative", "startrev", "endrev", "unified", "line"])
+        case .clone: allowed.formUnion(["url", "exactpath"])
+        case .fetch: allowed.insert("remote")
+        case .push: allowed.insert("branch")
+        case .branch, .tag: allowed.formUnion(["rev", "name"])
+        case .switchBranch, .repositoryBrowser: allowed.insert("rev")
+        case .reflog: allowed.insert("ref")
+        case .rebase: allowed.formUnion(["upstream", "force"])
         default: break
         }
         for key in values.keys.sorted() where !allowed.contains(key) { throw Failure("Option “" + key + "” is not valid for this command.") }
@@ -122,7 +148,10 @@ public struct PrimaryCommandInvocation: Sendable {
         }
         if action == .diff, (start == nil) != (end == nil) { throw Failure("Revision comparison requires both startrev and endrev.") }
         let from = action == .diff ? try start.map(revision) : nil, to = action == .diff ? try end.map(revision) : nil
-        let selected = try values["rev"].map(revision)
+        let selected = try values["rev"].flatMap { $0.isEmpty ? nil : try revision($0) }
+        let reflog = try values["ref"].flatMap { $0.isEmpty ? nil : try revision($0) }
+        let upstream = try values["upstream"].flatMap { $0.isEmpty ? nil : try revision($0) }
+        if action == .clone && urls.count != 1 { throw Failure("Select one Clone destination.") }
         var limit: HistoryLimitScope?
         if let raw = values["limit"]?.lowercased() {
             let digits = raw.prefix(while: { $0.isASCII && $0.isNumber }), suffix = raw.dropFirst(digits.count).trimmingCharacters(in: .whitespaces)
@@ -144,7 +173,7 @@ public struct PrimaryCommandInvocation: Sendable {
             let mapping: [(UInt16, HistorySearchFields)] = [(1,.messages),(2,.paths),(4,.authors),(8,.revisions),(32,.bugIDs),(64,.subject),(128,.referenceNames),(256,.emails),(512,.notes),(1024,.tagInfo)]
             fields = mapping.reduce(into: HistorySearchFields()) { result, item in if mask & item.0 != 0 { result.formUnion(item.1) } }
         }
-        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: action == .diff ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), unified: values["unified"] != nil, line: line, message: values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
+        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: action == .diff ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, forceRebase: values["force"] != nil, message: values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
     }
 
     /// Read only after the caller has acquired the requested file's permission.
@@ -202,6 +231,7 @@ public struct PrimaryCommandInvocation: Sendable {
             urls.append(secondaryPath)
             guard FinderRequest.normalizedSelection(urls).count == 2 else { throw Failure("Select two different comparison files.") }
         }
+        if request.action == .clone && urls.count != 1 { throw Failure("Select one Clone destination.") }
         try cancellation.check()
         if deletePathFile {
             var current = stat()
@@ -212,6 +242,13 @@ public struct PrimaryCommandInvocation: Sendable {
         resolved.pathFile = nil
         resolved.request = FinderRequest(action: request.action, paths: urls, alternateTool: request.alternateTool)
         return resolved
+    }
+    /// Split a captured multi-repository transport selection without losing its
+    /// presets or interpreting one root's paths relative to another repository.
+    public func selecting(_ paths: [URL]) -> Self {
+        var value = self
+        value.request = FinderRequest(action: request.action, paths: paths, alternateTool: request.alternateTool)
+        return value
     }
     public static func writeSelectedRevision(_ revision: String?, to file: URL, cancellation: OperationCancellation) throws {
         let value = revision ?? ""

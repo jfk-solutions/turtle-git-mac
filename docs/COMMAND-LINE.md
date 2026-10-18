@@ -85,7 +85,7 @@ switches produce an error in the workspace. They are not silently ignored.
 This is a partial command-family port, not full TortoiseProc CLI compatibility.
 Remaining entry behavior includes Diff `submodule` switches, Resolve
 `silent`/`noquestion` automation, shared Windows HWND/group/taskbar/close-on-end
-options, process exit/result signaling, and commands outside the six families.
+options, process exit/result signaling, and commands outside the documented families.
 Windows paths must be converted to macOS paths by the caller. Full symbolic
 Working Copy sentinel, permissive `_wtoi` parsing and every revision-expression
 edge case are not claimed; malformed/incomplete native input is diagnosed.
@@ -158,3 +158,64 @@ gets its own comparison window, preserving an existing editor's work. External
 Diff tool argument templates receive `%line`; zero is supplied when no line was
 requested. Unified, image and submodule viewers have their own navigation and do
 not consume a native text-line request.
+
+## Clone, transport and reference dialog launches
+
+These commands open their ordinary native options or browser window. No Clone,
+Fetch, Pull, Push, branch/tag creation, checkout or replay is accepted merely by
+passing an argument. The windows retain the normal coloured source icons,
+settings, captured actions, progress, authentication and cancellation behavior.
+
+| Command | Editable launch presets |
+| --- | --- |
+| `clone` | `url`, `exactpath`; `path` is the destination folder |
+| `fetch` | `remote` |
+| `pull` | Normal Pull defaults for the requested repository |
+| `push` | `branch` selects the source |
+| `branch`, `tag` | `rev` base, `name` |
+| `switch` | `rev` |
+| `refbrowse` | Reference browser at the requested repository |
+| `repobrowser` | `rev`, defaulting to HEAD |
+| `reflog` | `ref`, defaulting to HEAD |
+| `rebase` | `upstream`, `force` |
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=clone \
+  --url 'https://example.invalid/team/project.git' \
+  --path '/absolute/project' --exactpath
+
+open -n -a 'TurtleGit for Mac' --args --command=branch \
+  --path '/absolute/repository' --rev HEAD --name 'topic/new-work'
+
+open -n -a 'TurtleGit for Mac' --args --command=rebase \
+  --path '/absolute/repository' --upstream 'refs/heads/main' --force
+```
+
+Clone's `exactpath` suppresses automatic destination naming, including after URL
+edits, following `CCloneDlg::OnURLChange`. Without it, normal destination-name
+suggestions remain active. Launching Clone neither creates the destination nor
+authorizes its contents; the existing Clone workflow obtains permissions when
+needed. Explicit Branch/Tag names survive asynchronous base suggestions. Rebase's
+Force flag affects the editable initial plan and survives deferred preparation;
+a recovering operation keeps its saved session state. Another CLI Rebase request
+focuses an existing Rebase dialog and asks that it be closed before applying new
+presets, preserving its current plan.
+
+Fetch, Pull and Push accept multiple repository roots through repeated literal
+`--path` or a path file. TurtleGit prepares them in selection order, acquiring each
+root's own permission and metadata access, then presents an independently owned
+options window for each. Each window captures its own repository, transport
+presets and access lease. These native windows are nonmodal; no operation starts
+until its user accepts it. Closing/changing the initiating workspace, declining
+permission, an invalid root or preparation failure stops the remaining queue;
+previously opened windows remain available. This adapts the Windows modal loop:
+the source can continue past invalid items, whereas native preparation stops at
+that error. A multi-root selection must contain roots, rather than files or
+subdirectories. A single repository request still accepts normal in-repository
+selection paths. Another CLI request cannot retarget a batch already preparing.
+
+Source review for this continuation covers
+`Commands/{Clone,Fetch,Pull,Push,Branch,Tag,Switch,RepositoryBrowser,RefLog,Rebase}Command.cpp`,
+`Commands/RefBrowseCommand.h` and `CloneDlg.cpp`, at the same pinned upstream
+commit. Windows URL-protocol registration and every legacy command/shared switch
+remain outside this continuation; unsupported options still report an error.

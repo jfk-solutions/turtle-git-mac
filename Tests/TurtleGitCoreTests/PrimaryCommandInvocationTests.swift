@@ -56,7 +56,7 @@ final class PrimaryCommandInvocationTests: XCTestCase {
     }
     func testInvalidOptionsAreNeverSilentlyDropped() throws {
         let invalid: [[String]] = [
-            ["/command:clone"], ["/command:commit","/command:commit"], ["/command:commit","--logmsg"],
+            ["/command:unsupported"], ["/command:commit","/command:commit"], ["/command:commit","--logmsg"],
             ["/command:commit","/path:a**b"], ["/command:commit","--path="], ["/command:commit","/wholeproject:true"],
             ["/command:commit","/unknown"], ["/command:resolve","/silent"], ["/command:resolve","/noquestion"],
             ["/command:repostatus","/logmsg:bad"], ["/command:commit","--path","x\0y"],
@@ -162,6 +162,30 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         let working=String(decoding:try await repo.commandUnifiedDiff(from:nil,to:nil,paths:[paths[0]],cancellation:OperationCancellation()),as:UTF8.self)
         XCTAssertTrue(working.contains("+selected working"));XCTAssertFalse(working.contains("excluded"))
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+    }
+
+    func testNetworkAndReferenceCommandFamilyPresets() throws {
+        let actions: [(String, RepositoryAction)] = [("clone",.clone),("fetch",.fetch),("pull",.pull),("push",.push),("branch",.branch),("tag",.tag),("switch",.switchBranch),("refbrowse",.referenceBrowser),("repobrowser",.repositoryBrowser),("reflog",.reflog),("rebase",.rebase)]
+        for (name,action) in actions {XCTAssertEqual(try parse(["/command:"+name]).request.action,action)}
+        let clone=try parse(["/command:clone","/url:https://example.invalid/team/repo.git","/exactpath"])
+        XCTAssertEqual(clone.sourceURL,"https://example.invalid/team/repo.git");XCTAssertTrue(clone.exactClonePath)
+        XCTAssertEqual(try parse(["--command=fetch","--remote","team remote"]).remote,"team remote")
+        XCTAssertEqual(try parse(["--command=push","--branch=refs/heads/topic"]).pushBranch,"refs/heads/topic")
+        let name="cafe\u{301}",branch=try parse(["/command:branch","/rev:refs/heads/main","/name:"+name])
+        XCTAssertEqual(branch.selectedRevision,"refs/heads/main");XCTAssertEqual(branch.creationName.map {Data($0.utf8)},Data(name.utf8))
+        XCTAssertEqual(try parse(["/command:tag","/rev:HEAD~1","/name:v1"]).creationName,"v1")
+        XCTAssertEqual(try parse(["/command:switch","/rev:topic"]).selectedRevision,"topic")
+        XCTAssertEqual(try parse(["/command:repobrowser","/rev:v1"]).selectedRevision,"v1")
+        XCTAssertEqual(try parse(["/command:reflog","/ref:refs/heads/main"]).reflogReference,"refs/heads/main")
+        let replay=try parse(["/command:rebase","/upstream:refs/heads/main","/force"])
+        XCTAssertEqual(replay.upstream,"refs/heads/main");XCTAssertTrue(replay.forceRebase)
+    }
+    func testRepositoryBatchKeepsCapturedTransportOptions() throws {
+        let invocation=try parse(["--command=push","--path=/first","--path=/second","--branch=topic"])
+        XCTAssertEqual(invocation.request.paths.map(\.path),["/first","/second"])
+        let second=invocation.selecting([FileTransferPaths.fileURL("/second")])
+        XCTAssertEqual(second.request.paths.map(\.path),["/second"]);XCTAssertEqual(second.request.action,.push);XCTAssertEqual(second.pushBranch,"topic")
+        for args in [["/command:clone","/path:a*b"],["/command:pull","/remote:origin"],["/command:push","/force"],["/command:branch","/url:x"],["/command:fetch","/rev:HEAD"],["/command:rebase","/upstream:-bad"],["/command:reflog","/ref:-bad"]] {XCTAssertThrowsError(try parse(args))}
     }
 
 }

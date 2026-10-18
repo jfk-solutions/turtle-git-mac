@@ -195,9 +195,9 @@ import TurtleGitCore
         self.isTag = isTag; self.access = access; self.preferences = preferences; chooser = SwitchWindowModel(repository: repository, access: access, preferences: preferences)
         chooser.onInitialReadSettled = { [weak self] in self?.formRevision = UUID(); self?.changedBase(); self?.finishCloseWhenReady() }
     }
-    func load(revision: String?) {
+    func load(revision: String?, name: String? = nil) {
         guard !busy, !chooser.busy, chooser.pickerTarget == nil, !hasPendingNameConflict, createdBranch == nil, !invalidated, !finished, !confirmingCancellation, !cancelling else { return }
-        formRevision = UUID(); chooser.load(revision: revision); options = ReferenceCreationOptions(); options.isTag = isTag
+        formRevision = UUID(); chooser.load(revision: revision); options = ReferenceCreationOptions(); options.isTag = isTag; options.name = name ?? ""
         createdBranch = nil; previousSuggestion = ""
         useHead = revision == nil || revision == "HEAD" || revision?.isEmpty == true
         switchAfterCreation = preferences.bool(forKey: "NewBranchSwitchTo")

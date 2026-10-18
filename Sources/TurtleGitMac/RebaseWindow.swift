@@ -1029,13 +1029,13 @@ struct RebaseReferenceRequest {
         }
     }
     private var completion = "Rebase finished"
-    private var pendingLoad: (upstream: String?, autoStart: Bool, preserveMerges: Bool, cherryPick: [String]?)?
+    private var pendingLoad: (upstream: String?, autoStart: Bool, preserveMerges: Bool, cherryPick: [String]?, force: Bool?)?
     private func loadPendingHandoff() {
         guard !retired,!busy,pendingConfirmation == nil,pickingReference == nil,!pickingCommits,!selectingSplit else {return}
         if pendingSessionRefresh {pendingSessionRefresh=false;refreshState();return}
         guard let pending=pendingLoad else {return}
         pendingLoad = nil
-        load(upstream: pending.upstream, autoStart: pending.autoStart, preserveMerges: pending.preserveMerges, cherryPick: pending.cherryPick)
+        load(upstream: pending.upstream, autoStart: pending.autoStart, preserveMerges: pending.preserveMerges, cherryPick: pending.cherryPick, force: pending.force)
     }
     var active: Bool { state?.active == true }
     var editable: Bool { confirmation == nil && pendingConfirmation == nil && !retired && !busy && !revisionFiles.busy && pickingReference == nil && !active && !finished && !pickingCommits && !selectingSplit }
@@ -1216,18 +1216,18 @@ struct RebaseReferenceRequest {
         try token.check(); let value = try await read()
         if retired { token.cancel() }; try token.check(); return value
     }
-    func load(upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil) {
+    func load(upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, force: Bool? = nil) {
         guard !retired else { return }
         if pendingConfirmation != nil {
-            if upstream != nil || cherryPick != nil {pendingLoad=(upstream,autoStart,preserveMerges,cherryPick)}
+            if upstream != nil || cherryPick != nil || force != nil {pendingLoad=(upstream,autoStart,preserveMerges,cherryPick,force)}
             return
         }
         if hasReplayStash && !active && !busy {
-            finishReplay { [weak self] in self?.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick) }
+            finishReplay { [weak self] in self?.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick, force: force) }
             return
         }
         guard !busy, !revisionFiles.busy, pickingReference == nil, !pickingCommits, !selectingSplit else {
-            if upstream != nil || cherryPick != nil { pendingLoad = (upstream, autoStart, preserveMerges, cherryPick) }
+            if upstream != nil || cherryPick != nil || force != nil { pendingLoad = (upstream, autoStart, preserveMerges, cherryPick, force) }
             return
         }; planCancellation?.cancel(); detailCancellation?.cancel(); planSignature = nil
         let token = OperationCancellation(); initialCancellation = token; cancellingPreparation = false; Self.activePreparationReads += 1
@@ -1245,7 +1245,7 @@ struct RebaseReferenceRequest {
                 applyConflictSnapshot(session);finished=false;completedSuccessfully=false;output="";error=nil;confirmation=nil;draftEntries=[]
                 if fileRecovery {tab=0}
                 if active { splitCommit = state?.split != nil && state?.split?.conflictRecovery != true; options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; restoreSessionContext(); plan = nil; recovered=session.remaining;replayRows=session.replay; selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
-                finished = false; plan = nil; recovered = []; replayRows = []; selection = []; files = []; message = ""; options = RebaseOptions(); options.preserveMerges = preserveMerges; ontoEnabled = false
+                finished = false; plan = nil; recovered = []; replayRows = []; selection = []; files = []; message = ""; options = RebaseOptions(); options.preserveMerges = preserveMerges; options.force = force ?? false; ontoEnabled = false
                 if let cherryPick {
                     plan = try await preparedRead(token) { try await repository.cherryPickPlan(revisions: cherryPick, cancellation: token) }
                     options = plan!.options

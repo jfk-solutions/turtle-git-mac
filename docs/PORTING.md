@@ -1,5 +1,14 @@
 # TurtleGit for Mac — full port tracking
 
+The [network/reference launch family](COMMAND-LINE.md#clone-transport-and-reference-dialog-launches)
+connects eleven further command handlers to native options and browser windows,
+including Clone exact-path handling, reference names/base revisions, RefLog and
+Force Rebase presets, plus per-repository Fetch/Pull/Push preparation. Dialogs
+retain their own grants and no operation starts on launch. Validation and remaining
+source/platform differences are recorded in [batch evidence](qa/network-reference-launch-2026-10-18.json):
+38 focused Core passes, eight distinct native case/engine passes, the deferred-Force
+and directory-URL repairs, and all ten owned receivers reaped.
+
 The [command input/output family](COMMAND-LINE.md#path-list-input-and-log-revision-output)
 connects path-list permissions, bounded reads and explicit list deletion to native
 dialogs, adds source Log hash/Cancel output, and opens unified Diff or a requested

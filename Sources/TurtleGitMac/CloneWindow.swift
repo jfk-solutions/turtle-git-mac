@@ -163,11 +163,17 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         preferences.set(options.recursive,forKey:"Clone.Recursive")
         preferences.set(options.sshKey != nil,forKey:"Clone.UseSSHKey")
     }
+    private(set) var exactDestination = false
+    func configureLaunch(source: String?, exactPath: Bool) {
+        guard !invalidated, !activeOperation else { return }
+        exactDestination = exactPath
+        if let source { self.source = source; sourceChanged() }
+    }
     func sourceChanged() {
         let value = source.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/\\"))
         var name = value.components(separatedBy: CharacterSet(charactersIn: "/\\:")).last ?? ""
         if name.lowercased().hasSuffix(".git") { name.removeLast(4) }
-        if !name.isEmpty, name != ".", name != "..", !name.contains("\0") {
+        if !exactDestination, !name.isEmpty, name != ".", name != "..", !name.contains("\0") {
             if let old = automaticDirectory, directory == old {
                 directory = URL(fileURLWithPath: old).deletingLastPathComponent().appendingPathComponent(name).path
                 automaticDirectory = directory

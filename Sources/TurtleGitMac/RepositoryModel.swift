@@ -260,7 +260,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { commandLineInputCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -440,8 +440,8 @@ import UniformTypeIdentifiers
         }
         throw RepositoryMetadataAccessFailure.tooManyDependencies
     }
-    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, onOpened: (() -> Void)? = nil) {
-        guard !busy, !confirmingQuit else { return }
+    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandRootOnly: Bool = false, onFinished: ((Bool) -> Void)? = nil, onOpened: (() -> Void)? = nil) {
+        guard !busy, !confirmingQuit else { onFinished?(false); return }
         let restoreState:()->Void = { [repository,activeAccess,root,entries,selection,branch,bare,hasGitSVN,mergeActive,conflictRebase,submodules,section,output] in
             self.repository=repository;self.activeAccess=activeAccess;self.root=root;self.entries=entries;self.selection=selection
             self.branch=branch;self.bare=bare;self.hasGitSVN=hasGitSVN;self.mergeActive=mergeActive;self.conflictRebase=conflictRebase;self.submodules=submodules;self.section=section;self.output=output
@@ -454,6 +454,8 @@ import UniformTypeIdentifiers
         let owner=workspaceWindow
         let ownerObserver=owner.map { NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:$0,queue:.main) { _ in cancellation.cancel() } }
         Task {
+            var opened = false
+            defer { onFinished?(opened) }
             defer { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) };if adoptionCancellation === cancellation { adoptionCancellation=nil };withExtendedLifetime(lease) {} }
             do {
                 var commandSelectedRevision: String?
@@ -477,6 +479,10 @@ import UniformTypeIdentifiers
                 let sessionAccess=lease.retainingRelatedScopes(prepared.scopes)
                 let candidate = try makeRepository(location)
                 let resolved = try await candidate.discoverSelectionRoot(for: action ?? .status, selected: first,cancellation:cancellation)
+                if commandRootOnly {
+                    let requested = first.standardizedFileURL.resolvingSymlinksInPath().path
+                    guard GitReferenceName.equal(location.standardizedFileURL.resolvingSymlinksInPath().path, requested), GitReferenceName.equal(resolved.standardizedFileURL.resolvingSymlinksInPath().path, requested) else { throw PrimaryCommandInvocation.Failure("Batch transport commands require repository-root folders.") }
+                }
                 if requiresRepositoryScope && (!lease.hasSecurityScope || !lease.contains(resolved)) {
                     throw RepositoryAccessFailure.repositoryRootOutsidePermission(resolved.path)
                 }
@@ -494,7 +500,7 @@ import UniformTypeIdentifiers
                 }
                 try cancellation.check();guard adoption == adoptionGeneration else { return }
                 repository = try makeRepository(resolved); activeAccess = sessionAccess; root = resolved
-                if let revision = invocation?.selectedRevision {
+                if invocation?.request.action == .log, let revision = invocation?.selectedRevision {
                     commandSelectedRevision = try await repository!.rebaseCommit(revision, cancellation: cancellation).hash
                     try cancellation.check(); guard adoption == adoptionGeneration else { return }
                 }
@@ -524,7 +530,7 @@ import UniformTypeIdentifiers
                         showRequestPull(repository: repository, access: sessionAccess, end: selected?.requestPullEnd, repositoryURL: selected?.requestPullURL)
                     } else { activate(action, paths: paths) }
                 }
-                onOpened?()
+                opened = true; onOpened?()
             } catch {
                 guard adoption == adoptionGeneration else { return }
                 restoreState()
@@ -809,8 +815,8 @@ import UniformTypeIdentifiers
         } catch { self.error = "The clone’s SSH-key permission could not be renewed.\n" + error.localizedDescription }
     }
     var creationClipboardText:()->String? = {NSPasteboard.general.string(forType:.string)}
-    private func showClone(directory: URL? = nil, source: String? = nil) {
-        let id = UUID(), controller = CloneWindowController(directory: directory ?? root, access: activeAccess,clipboardText:source == nil ? creationClipboardText():nil)
+    private func showClone(directory: URL? = nil, source: String? = nil, exactPath: Bool = false) {
+        let id = UUID(), controller = CloneWindowController(directory: directory ?? root, access: activeAccess,preferences:fileComparisonPreferences,clipboardText:source == nil ? creationClipboardText():nil)
         controller.onClosed = { [weak self] in self?.cloneWindows.removeValue(forKey: id) }
         controller.model.onLog = { [weak self] repository, access in self?.showLog(repository: repository, access: access, paths: []) }
         controller.model.onCloned = { [weak self] repo, access, keyAccess, bare, result in
@@ -823,7 +829,7 @@ import UniformTypeIdentifiers
             self.adoptRepository(repo, access: access, bare: bare, output: result)
         }
         cloneWindows[id] = controller
-        if let source { controller.model.source = source }
+        controller.model.configureLaunch(source: source, exactPath: exactPath)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func adoptRepository(_ repo: GitRepository, access: RepositoryAccessLease, bare: Bool, output: String) {
@@ -2007,7 +2013,7 @@ import UniformTypeIdentifiers
     }
     private func showReferenceLog(repository: GitRepository, access: RepositoryAccessLease?, reference: String) {
         let root = repository.root
-        let controller = referenceLogWindows[root.path] ?? ReferenceLogWindowController(repository: repository, access: access, reference: reference)
+        let controller = referenceLogWindows[root.path] ?? ReferenceLogWindowController(repository: repository, access: access, reference: reference, preferences:fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.referenceLogWindows.removeValue(forKey: root.path) }
         controller.model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
         controller.model.onLogRange = { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range) }
@@ -2145,7 +2151,7 @@ import UniformTypeIdentifiers
             controller.window?.attachedSheet == nil && controller.model.canReuseForRevision(revision)
         }
         let key = reusable?.key ?? (browserWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
-        let controller = reusable?.value ?? RepositoryBrowserWindowController(repository: repository, access: access, revision: revision)
+        let controller = reusable?.value ?? RepositoryBrowserWindowController(repository: repository, access: access, revision: revision, preferences:fileComparisonPreferences)
         configureBrowserRevisionPicker(controller,repository:repository,access:access)
         controller.onClosed = { [weak self] in self?.browserWindows.removeValue(forKey: key) }
         controller.model.onLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash) }
@@ -2573,11 +2579,16 @@ import UniformTypeIdentifiers
         log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
     }
-    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, afterFetch: Bool = false, fromLog: Bool = false, owner: NSWindow? = nil, onDismissed: (() -> Void)? = nil, onResult: ((Bool) -> Void)? = nil, onRequestedLog: (() -> Void)? = nil) {
+    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, afterFetch: Bool = false, fromLog: Bool = false, owner: NSWindow? = nil, force: Bool? = nil, commandLaunch: Bool = false, onDismissed: (() -> Void)? = nil, onResult: ((Bool) -> Void)? = nil, onRequestedLog: (() -> Void)? = nil) {
         let root = repository.root
         let existing = rebaseWindows[root.path]
+        if commandLaunch, let existing {
+            existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
+            error = "Close the existing Rebase dialog before launching another Rebase command."
+            return
+        }
         if let existing, existing.window?.sheetParent != nil { existing.window?.makeKeyAndOrderFront(nil); return }
-        let controller = existing ?? RebaseWindowController(repository: repository, access: access)
+        let controller = existing ?? RebaseWindowController(repository: repository, access: access, preferences:fileComparisonPreferences)
         controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         var dismissed = false
         controller.onClosed = { [weak self, weak controller] in
@@ -2659,7 +2670,7 @@ import UniformTypeIdentifiers
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
         rebaseWindows[root.path] = controller
-        if existing == nil || controller.model.finished || upstream != nil || cherryPick != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick) }
+        if existing == nil || controller.model.finished || upstream != nil || cherryPick != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick, force: force) }
         if let owner, let child = controller.window { owner.beginSheet(child) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
@@ -2713,19 +2724,22 @@ import UniformTypeIdentifiers
             self?.showRebase(repository: repository, access: access, upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, afterFetch: true)
         }
     }
+    var transportClipboardText: () -> String? = { NSPasteboard.general.string(forType: .string) ?? NSPasteboard.general.string(forType: .fileURL) }
     private func showFetch(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false, followUp: PullFollowUp = PullFollowUp(), remote: String? = nil, allRemotes: Bool? = nil) {
         let key = repository.root.path + (isPull ? ":pull:" : ":fetch:") + UUID().uuidString
-        let controller = FetchWindowController(repository: repository, access: access, isPull: isPull)
+        let controller = FetchWindowController(repository: repository, access: access, isPull: isPull, preferences:fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.fetchWindows.removeValue(forKey: key) }
         configureFetchInteractions(controller, repository: repository, access: access, followUp: followUp)
+        controller.model.clipboardText = transportClipboardText
         fetchWindows[key] = controller; controller.model.load(remote: remote, allRemotes: allRemotes)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showPush(repository: GitRepository, access: RepositoryAccessLease?, source: String? = nil, preserveAllBranches: Bool = false) {
         let root = repository.root, key = repository.root.path + ":push:" + UUID().uuidString
-        let controller = PushWindowController(repository: repository, access: access)
+        let controller = PushWindowController(repository: repository, access: access, preferences:fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.pushWindows.removeValue(forKey: key) }
         configurePushInteractions(controller, repository: repository, access: access)
+        controller.model.clipboardText = transportClipboardText
         pushWindows[key] = controller; controller.model.load(source: source, preserveAllBranches: preserveAllBranches)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
@@ -2780,12 +2794,12 @@ import UniformTypeIdentifiers
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
     }
-    private func showReference(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, revision: String? = nil) {
+    private func showReference(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, revision: String? = nil, name: String? = nil) {
         let key = repository.root.path + (isTag ? ":tag:" : ":branch:") + UUID().uuidString
-        let controller = referenceWindows[key] ?? BranchTagWindowController(repository: repository, access: access, isTag: isTag)
+        let controller = referenceWindows[key] ?? BranchTagWindowController(repository: repository, access: access, isTag: isTag, preferences:fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.referenceWindows.removeValue(forKey: key) }
         configureReferenceInteractions(controller, repository: repository, access: access)
-        referenceWindows[key] = controller; controller.model.load(revision: revision)
+        referenceWindows[key] = controller; controller.model.load(revision: revision, name: name)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     @discardableResult private func showSwitchProgress(repository: GitRepository, access: RepositoryAccessLease?, reference: String, parent: NSWindow, preferences: UserDefaults = .standard, completion: (() -> Void)? = nil) -> SwitchProgressWindowController {
@@ -2818,7 +2832,7 @@ import UniformTypeIdentifiers
     private func showReferenceBrowser(repository: GitRepository, access: RepositoryAccessLease?) {
         let key = repository.root.path
         if let existing = referenceBrowserWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
-        let controller = ReferenceBrowserWindowController(repository: repository, access: access, initial: "HEAD", picking: false) { _ in }
+        let controller = ReferenceBrowserWindowController(repository: repository, access: access, initial: "HEAD", preferences:fileComparisonPreferences, picking: false) { _ in }
         controller.model.onReferencesChanged = { [weak self] in self?.refreshRepositoryLogs(repository.root); if self?.root == repository.root { Task { await self?.refresh() } } }
         configureReferenceBrowser(controller.model, repository: repository, access: access)
         controller.onClosed = { [weak self, weak controller] in
@@ -2862,7 +2876,7 @@ import UniformTypeIdentifiers
     private func showSwitch(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
         let root = repository.root
         let key = root.path + ":switch:" + UUID().uuidString
-        let controller = switchWindows[key] ?? SwitchWindowController(repository: repository, access: access, revision: revision)
+        let controller = switchWindows[key] ?? SwitchWindowController(repository: repository, access: access, revision: revision, preferences:fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.switchWindows.removeValue(forKey: key) }
         configureSwitchInteractions(controller, repository: repository, access: access)
         switchWindows[key] = controller; controller.model.load(revision: revision)
@@ -3042,7 +3056,7 @@ import UniformTypeIdentifiers
         guard !confirmingQuit else { return }
         do {
             guard let invocation = try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) else { return }
-            guard !busy else { error = "Wait for the current repository operation before opening a command."; return }
+            guard !busy, commandRepositoryBatchCancellation == nil else { error = "Wait for the current repository operation before opening a command."; return }
             if invocation.pathFile != nil { try prepareCommandPathList(invocation) }
             else { try launchCommandLine(invocation) }
         } catch { self.error = error.localizedDescription }
@@ -3065,6 +3079,12 @@ import UniformTypeIdentifiers
             guard outputAccess.contains(output), outputAccess.contains(output.deletingLastPathComponent()), !GitRuntime.isAppStoreBuild || outputAccess.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
         } else { outputAccess = nil }
         try cancellation?.check()
+        if invocation.request.action == .clone {
+            showClone(directory: invocation.request.paths.first, source: invocation.sourceURL, exactPath: invocation.exactClonePath); return
+        }
+        if [.fetch, .pull, .push].contains(invocation.request.action), invocation.request.paths.count > 1 {
+            launchCommandRepositoryBatch(invocation, cancellation: cancellation); return
+        }
         ComparisonToolInvocation.$alternate.withValue(invocation.request.alternateTool ?? false) {
             handleFinderRequest(invocation.request, invocation: invocation, messageAccess: permission, outputAccess: outputAccess, commandCancellation: cancellation)
         }
@@ -3075,6 +3095,15 @@ import UniformTypeIdentifiers
         switch invocation.request.action {
         case .commit: showCommitDialog(repository: repository, access: access, paths: paths, invocation: invocation, commandMessage: message)
         case .log: showLog(repository: repository, access: access, paths: paths, selectedRevision: selectedRevision, invocation: invocation, outputAccess: outputAccess)
+        case .fetch: showFetch(repository: repository, access: access, remote: invocation.remote)
+        case .pull: showFetch(repository: repository, access: access, isPull: true)
+        case .push: showPush(repository: repository, access: access, source: invocation.pushBranch)
+        case .branch, .tag: showReference(repository: repository, access: access, isTag: invocation.request.action == .tag, revision: invocation.selectedRevision, name: invocation.creationName)
+        case .switchBranch: showSwitch(repository: repository, access: access, revision: invocation.selectedRevision)
+        case .referenceBrowser: showReferenceBrowser(repository: repository, access: access)
+        case .repositoryBrowser: showRepositoryBrowser(repository: repository, access: access, revision: invocation.selectedRevision ?? "HEAD")
+        case .reflog: showReferenceLog(repository: repository, access: access, reference: invocation.reflogReference ?? "HEAD")
+        case .rebase: showRebase(repository: repository, access: access, upstream: invocation.upstream, force: invocation.forceRebase, commandLaunch: true)
         case .diff:
             var directory: ObjCBool = false
             if let first = invocation.request.paths.first, FileManager.default.fileExists(atPath: first.path, isDirectory: &directory), directory.boolValue {
@@ -3085,6 +3114,33 @@ import UniformTypeIdentifiers
                 showHistoricalFiles(repository: repository, access: access, from: .revision(from), to: .revision(to), paths: paths.contains(".") ? [] : paths, owner: workspaceWindow, line: invocation.line)
             } else { showWorkingFiles(repository: repository, access: access, paths: paths, owner: workspaceWindow, line: invocation.line) }
         default: activate(invocation.request.action, paths: paths)
+        }
+    }
+    private var commandRepositoryBatchCancellation: OperationCancellation?
+    private func launchCommandRepositoryBatch(_ invocation: PrimaryCommandInvocation, cancellation: OperationCancellation?) {
+        let token = cancellation ?? OperationCancellation()
+        commandRepositoryBatchCancellation = token
+        let owner = workspaceWindow
+        let observer = owner.map { NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: $0, queue: .main) { _ in token.cancel() } }
+        Self.activeCommandFileOperations += 1
+        let batchGeneration = adoptionGeneration
+        Task {
+            var expectedGeneration = batchGeneration
+            defer {
+                if let observer { NotificationCenter.default.removeObserver(observer) }
+                if commandRepositoryBatchCancellation === token { commandRepositoryBatchCancellation = nil }
+                Self.activeCommandFileOperations -= 1
+            }
+            for path in invocation.request.paths {
+                guard !token.isCancelled, !confirmingQuit, adoptionGeneration == expectedGeneration else { return }
+                let next = invocation.selecting([path])
+                let nextGeneration = expectedGeneration + 1
+                let opened = await withCheckedContinuation { continuation in
+                    handleFinderRequest(next.request, invocation: next, commandCancellation: token, commandRootOnly: true, completion: { continuation.resume(returning: $0) })
+                }
+                guard opened, adoptionGeneration == nextGeneration else { return }
+                expectedGeneration = nextGeneration
+            }
         }
     }
     private var commandUnifiedWindows: [UUID: PatchWindowController] = [:]
@@ -3102,7 +3158,9 @@ import UniformTypeIdentifiers
             commandUnifiedWindows[id] = controller
         }
     }
-    private func handleFinderRequest(_ request:FinderRequest, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandCancellation: OperationCancellation? = nil) {
+    private func handleFinderRequest(_ request:FinderRequest, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandCancellation: OperationCancellation? = nil, commandRootOnly: Bool = false, completion: ((Bool) -> Void)? = nil) {
+        var handedOff = false
+        defer { if !handedOff { completion?(false) } }
         guard commandCancellation?.isCancelled != true else { return }
         let action = request.action
         if action == .settings {
@@ -3139,7 +3197,8 @@ import UniformTypeIdentifiers
         }
         // A URL from Finder or another app is a request, not a sandbox permission grant.
         if let activeAccess, permissionTargets.allSatisfy({ activeAccess.contains($0) }) {
-            openSession(activeAccess, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess)
+            handedOff = true
+            openSession(activeAccess, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess, commandRootOnly: commandRootOnly, onFinished: completion)
             return
         }
         if let store = accessStore {
@@ -3147,7 +3206,8 @@ import UniformTypeIdentifiers
                 guard let lease = try? store.acquire(saved.id, requireSecurityScope: GitRuntime.isAppStoreBuild),
                       permissionTargets.allSatisfy({ lease.contains($0) }) else { continue }
                 recentRepositories = store.repositories
-                openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess)
+                handedOff = true
+                openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess, commandRootOnly: commandRootOnly, onFinished: completion)
                 return
             }
         }
@@ -3155,7 +3215,8 @@ import UniformTypeIdentifiers
             do {
                 guard let lease = try commandLineRepositoryPermission(permissionTargets), commandCancellation?.isCancelled != true else { return }
                 guard permissionTargets.allSatisfy({ lease.contains($0) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
-                openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess)
+                handedOff = true
+                openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess, commandRootOnly: commandRootOnly, onFinished: completion)
             } catch { self.error = error.localizedDescription }
             return
         }
@@ -3168,7 +3229,8 @@ import UniformTypeIdentifiers
         guard permissionTargets.allSatisfy({ lease.contains($0) }) else {
             error = "The selected folder does not contain every requested item."; return
         }
-        openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess)
+        handedOff = true
+        openSession(lease, selected: request, action: action, invocation: invocation, messageAccess: messageAccess, outputAccess: outputAccess, commandRootOnly: commandRootOnly, onFinished: completion)
     }
 }
 

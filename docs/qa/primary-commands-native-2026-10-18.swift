@@ -8,6 +8,119 @@ import TurtleGitCore
         for _ in 0..<3000 { if ready() { return }; try await Task.sleep(nanoseconds:10_000_000) }
         throw Failure(description:"Primary command native state did not settle at \(line)")
     }
+    @MainActor static func verifyNetwork() async throws {
+        let container=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2])
+        let roots=[container.appendingPathComponent("first"),container.appendingPathComponent("second")]
+        for root in roots {
+            try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+            let repo=GitRepository(root:root,executable:git)
+            _ = try await repo.run(["init","-b","main"])
+            for (key,value) in [("user.name","Network launch QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",key,value])}
+            try Data("base\n".utf8).write(to:root.appendingPathComponent("file"));try await repo.stage(["file"]);_ = try await repo.commit(message:"base")
+            _ = try await repo.run(["branch","topic"])
+            let tip=try await repo.rebaseCommit("HEAD");_ = try await repo.run(["update-ref","refs/remotes/origin/main",tip.hash])
+            try Data("next\n".utf8).write(to:root.appendingPathComponent("file"));try await repo.stage(["file"]);_ = try await repo.commit(message:"next")
+            _ = try await repo.run(["remote","add","origin",root.path]);_ = try await repo.run(["config","branch.main.remote","origin"]);_ = try await repo.run(["config","branch.main.merge","refs/heads/main"])
+        }
+        let repo=GitRepository(root:roots[0],executable:git),base=try await repo.rebaseCommit("topic")
+        let refsBefore=try await repo.run(["show-ref"]).stdout,index=try Data(contentsOf:roots[0].appendingPathComponent(".git/index"))
+        let suite="TurtleGit.NetworkLaunch."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
+        defer {prefs.removePersistentDomain(forName:suite)}
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:git)},snapshotWriter:{_ in true},comparisonMarks:WorkingComparisonMarkStore(storageURL:container.appendingPathComponent("marks.json")))
+        workspace.requiresRepositoryScope=false;workspace.fileComparisonPreferences=prefs;workspace.transportClipboardText={nil}
+        workspace.commandLineRepositoryPermission={paths in RepositoryAccessLease(url:paths[0])}
+        defer {workspace.stopMonitoringForTermination();for window in NSApp.windows {window.close()}}
+        func windows<T>(_ type:T.Type)->[T] {NSApp.windows.filter(\.isVisible).compactMap {$0.delegate as? T}}
+        func invoke(_ args:[String]) {workspace.handleCommandLine(arguments:args,currentDirectory:roots[0].path)}
+        let cloneDestination=container.appendingPathComponent("exact-destination")
+        invoke(["--command=clone","--path",cloneDestination.path,"--url",roots[0].path,"--exactpath"])
+        let clone=try requireOne(windows(CloneWindowController.self))
+        try require(clone.model.source==roots[0].path && clone.model.directory==cloneDestination.path && clone.model.exactDestination,"Clone exact path/source presets were lost")
+        clone.model.source=roots[1].path;clone.model.sourceChanged()
+        try require(clone.model.directory==cloneDestination.path && !FileManager.default.fileExists(atPath:cloneDestination.path),"Exact Clone path changed on URL edit or launched Git")
+        clone.close()
+        invoke(["/command:fetch","/remote:origin"])
+        try await wait {!workspace.busy && windows(FetchWindowController.self).first?.model.busy == false}
+        let fetch=windows(FetchWindowController.self).first!
+        try require(fetch.model.options.remote=="origin" && !fetch.model.isPull,"Fetch preset did not reach editable options");fetch.close()
+        invoke(["/command:pull"])
+        try await wait {!workspace.busy && windows(FetchWindowController.self).first?.model.busy == false}
+        let pull=windows(FetchWindowController.self).first!
+        try require(pull.model.isPull,"Pull opened Fetch mode");pull.close()
+        invoke(["/command:push","/branch:topic"])
+        try await wait {!workspace.busy && windows(PushWindowController.self).first?.model.busy == false}
+        let push=windows(PushWindowController.self).first!
+        try require(push.model.options.source=="topic","Push did not retain requested source branch");push.close()
+        for (command,name) in [("branch","new-branch"),("tag","new-tag")] {
+            invoke(["/command:"+command,"/rev:"+base.hash,"/name:"+name])
+            try await wait {!workspace.busy && windows(BranchTagWindowController.self).first?.model.busy == false && windows(BranchTagWindowController.self).first?.model.chooser.busy == false}
+            let owner=windows(BranchTagWindowController.self).first!
+            try require(owner.model.options.name==name && owner.model.chooser.revision==base.hash && owner.model.isTag==(command=="tag"),"Branch/Tag name/base preset was replaced by metadata suggestions");owner.close()
+        }
+        invoke(["/command:switch","/rev:topic"])
+        try await wait {!workspace.busy && windows(SwitchWindowController.self).first?.model.busy == false}
+        let checkout=windows(SwitchWindowController.self).first!
+        try require(checkout.model.revision=="topic","Switch revision preset lost");checkout.close()
+        invoke(["/command:refbrowse"])
+        try await wait {!workspace.busy && windows(ReferenceBrowserWindowController.self).first?.model.busy == false}
+        windows(ReferenceBrowserWindowController.self).first!.close()
+        invoke(["/command:repobrowser","/rev:"+base.hash])
+        try await wait {!workspace.busy && windows(RepositoryBrowserWindowController.self).first?.model.busy == false}
+        let browser=windows(RepositoryBrowserWindowController.self).first!
+        try require(browser.model.revision==base.hash,"Repository Browser revision preset lost");browser.close()
+        invoke(["/command:reflog","/ref:refs/heads/topic"])
+        try await wait {!workspace.busy && windows(ReferenceLogWindowController.self).first?.model.busy == false}
+        let reflog=windows(ReferenceLogWindowController.self).first!
+        try require(reflog.model.reference=="refs/heads/topic","RefLog reference preset lost");reflog.close()
+        invoke(["/command:rebase","/upstream:"+base.hash,"/force"])
+        try await wait {!workspace.busy && windows(RebaseWindowController.self).first?.model.busy == false}
+        let replay=windows(RebaseWindowController.self).first!
+        try require(replay.model.options.upstream==base.hash && replay.model.options.force && !replay.model.active,"Rebase lost source Force/upstream or auto-started")
+        replay.close()
+        let queued=RebaseWindowController(repository:repo,access:nil,preferences:prefs),queuedModel=queued.model
+        var gate:CheckedContinuation<Void,Never>?,sessionReads=0
+        let readSession=queuedModel.readSession
+        queuedModel.readSession={identity,token in
+            sessionReads += 1
+            if sessionReads==1 {await withCheckedContinuation {gate=$0}}
+            return try await readSession(identity,token)
+        }
+        defer {gate?.resume();queued.close()}
+        queuedModel.load(upstream:base.hash)
+        try await wait {gate != nil}
+        queuedModel.load(force:true)
+        gate?.resume();gate=nil
+        try await wait {!queuedModel.busy && sessionReads>=2}
+        try require(queuedModel.options.force && queuedModel.options.upstream=="refs/remotes/origin/main","Force-only deferred Rebase load lost its preset")
+        queued.close()
+        // Each transport root gets its own owned form; no operation is accepted.
+        for command in ["fetch","pull","push"] {
+            invoke(["--command="+command,"--path",roots[0].path,"--path",roots[1].path])
+            try await wait {!workspace.busy && RepositoryModel.activeCommandFileOperations==0}
+            print("Batch launch diagnostic: command=\(command), fetch=\(windows(FetchWindowController.self).map {($0.model.repository.root.path,$0.model.busy,$0.model.error ?? "none")}), push=\(windows(PushWindowController.self).count), error=\(workspace.error ?? "none")")
+            if command=="push" {
+                try await wait {windows(PushWindowController.self).count==2 && windows(PushWindowController.self).allSatisfy {!$0.model.busy}}
+                let all=windows(PushWindowController.self)
+                try require(Set(all.map {$0.model.repository.root.resolvingSymlinksInPath().path})==Set(roots.map {$0.resolvingSymlinksInPath().path}),"Multi-root Push reused one repository model");all.forEach {$0.close()}
+            } else {
+                try await wait {windows(FetchWindowController.self).count==2 && windows(FetchWindowController.self).allSatisfy {!$0.model.busy}}
+                let all=windows(FetchWindowController.self)
+                try require(Set(all.map {$0.model.repository.root.resolvingSymlinksInPath().path})==Set(roots.map {$0.resolvingSymlinksInPath().path}) && all.allSatisfy {$0.model.isPull==(command=="pull")},"Multi-root transport reused root or wrong mode");all.forEach {$0.close()}
+            }
+        }
+        invoke(["--command=fetch","--path",roots[0].appendingPathComponent("file").path,"--path",roots[1].path])
+        try await wait {!workspace.busy && RepositoryModel.activeCommandFileOperations==0}
+        try require(windows(FetchWindowController.self).isEmpty && workspace.error != nil,"Batch transport accepted a file instead of a repository root")
+        let cancelled=RepositoryModel(startMonitoring:false,initializePreferences:false)
+        cancelled.commandLineRepositoryPermission={_ in cancelled.stopMonitoringForTermination();return nil}
+        cancelled.handleCommandLine(arguments:["--command=fetch","--path",roots[0].path,"--path",roots[1].path],currentDirectory:roots[0].path)
+        try await wait {RepositoryModel.activeCommandFileOperations==0}
+        try require(windows(FetchWindowController.self).isEmpty,"Cancelled root authorization continued the command batch");cancelled.stopMonitoringForTermination()
+        try require(try await repo.run(["show-ref"]).stdout==refsBefore && Data(contentsOf:roots[0].appendingPathComponent(".git/index"))==index,"Opening network/reference options changed refs or index")
+        try require(!FileManager.default.fileExists(atPath:cloneDestination.path),"Clone ran without acceptance")
+        print("PASS: network/reference command family: eleven native dialog routes; Clone exact-path URL edits; Fetch/Pull/Push mode/source; Branch/Tag base/name; Switch, browsers, RefLog and Force Rebase; three two-repository transport batches; cancelled grants; no implicit clone/transport/ref mutation; owned windows closed")
+    }
+    static func requireOne<T>(_ values:[T]) throws -> T {guard values.count==1,let value=values.first else {throw Failure(description:"Expected one native launch dialog")};return value}
     @MainActor static func verifyIO() async throws {
         let container=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),root=container.appendingPathComponent("repository")
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
@@ -131,6 +244,7 @@ import TurtleGitCore
     }
     @MainActor static func main() async throws {
         NSApp.setActivationPolicy(.prohibited)
+        if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "network" { try await verifyNetwork(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "io" { try await verifyIO(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "bare" { try await verifyBare(); return }
         let root = URL(fileURLWithPath:CommandLine.arguments[1]), git = URL(fileURLWithPath:CommandLine.arguments[2])

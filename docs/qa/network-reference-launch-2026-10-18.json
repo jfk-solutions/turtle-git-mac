@@ -1,0 +1,135 @@
+{
+  "date": "2026-10-18",
+  "scope": "Eleven further native network/reference command launch handlers and multi-repository transport preparation",
+  "base_commit": "f12e076c0e987a6c9a68af748c2f1e3a0371a0ce",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "review": [
+    "Commands/CloneCommand.cpp and CloneDlg.cpp OnURLChange exact-path behavior",
+    "Commands/FetchCommand.cpp, PullCommand.cpp and PushCommand.cpp repository loop and presets",
+    "Commands/BranchCommand.cpp, TagCommand.cpp and SwitchCommand.cpp base/name input",
+    "Commands/RepositoryBrowserCommand.cpp, RefLogCommand.cpp and RefBrowseCommand.h",
+    "Commands/RebaseCommand.cpp upstream/Force input and AppUtils.cpp CAppUtils::Fetch remote selection"
+  ],
+  "implementation": [
+    "Typed clone/fetch/pull/push/branch/tag/switch/refbrowse/repobrowser/reflog/rebase commands with source allowed options and exact literal values",
+    "Clone source URL and exact destination survive URL edits; normal naming remains enabled without exactpath",
+    "Branch/Tag base and explicit name survive asynchronous chooser suggestions; Switch, Repo Browser, RefLog and Force Rebase presets reuse existing forms",
+    "Force-only deferred Rebase request survives held preparation; current replay context and an existing dialog are preserved",
+    "Separate typed reference presets are not incorrectly resolved as selected Log commits during repository adoption",
+    "Per-root transport queue carries captured presets, acquires each root permission, retains independent model/access owners, and stops on cancellation/failure or competing adoption",
+    "Once-only repository adoption completion drives queue without polling, timers or mutable shared pending request",
+    "Resolved exact path comparison ignores URL directory markers while rejecting file/subdirectory batch targets",
+    "Injected private transport clipboard reader and owning preferences reach all new native launch forms; no operation starts without acceptance"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "executed": 38,
+      "failures": 0,
+      "actual_classes": [
+        "PrimaryCommandInvocationTests",
+        "FinderRequestTests",
+        "CloneTests"
+      ],
+      "log": "build/qa/network-reference-launch-core-2026-10-18.log",
+      "full_suite_rerun": false
+    },
+    "debug_builds": [
+      {
+        "exit": 0,
+        "log": "build/qa/network-reference-launch-build-2026-10-18.log"
+      },
+      {
+        "exit": 0,
+        "log": "build/qa/network-reference-launch-build-force-2026-10-18.log",
+        "reason": "Review found Force-only requests were absent from deferred-load guards; repair before grouped native checkpoint"
+      },
+      {
+        "exit": 0,
+        "log": "build/qa/network-reference-launch-build-roots-2026-10-18.log",
+        "reason": "Native multi-root check exposed directory-URL metadata comparison rejecting valid roots; compare resolved path bytes"
+      }
+    ],
+    "native_initial": {
+      "exit": 1,
+      "passed": [
+        "family/system",
+        "family/bundled",
+        "bare/system",
+        "bare/bundled",
+        "io/system",
+        "io/bundled"
+      ],
+      "failed": "network/system at multi-root Fetch form count after eleven individual routes and deferred Force checks",
+      "log": "build/qa/network-reference-launch-native-2026-10-18.log"
+    },
+    "native_diagnostic": {
+      "exit": 1,
+      "failed": "Same multi-root Fetch case; no forms and explicit root-folder error",
+      "log": "build/qa/network-reference-launch-native-diagnostic-2026-10-18.log",
+      "assertions_removed": false
+    },
+    "native_final_affected": {
+      "exit": 0,
+      "passed": [
+        "network/system",
+        "network/bundled"
+      ],
+      "log": "build/qa/network-reference-launch-native-roots-2026-10-18.log",
+      "scope": "All eleven new native routes, held Force-only preparation, Fetch/Pull/Push for two independent roots, invalid-root/cancelled grant refusal and unchanged refs/index/destination"
+    },
+    "native_cumulative": {
+      "distinct_case_engine_passes": 8,
+      "runtime_attempts": 10,
+      "owned_receiver_pids": [
+        84002,
+        84372,
+        84742,
+        84757,
+        84772,
+        85024,
+        85320,
+        85780,
+        86274,
+        86878
+      ],
+      "cleanup": "All reported reaped; independently absent with ps exit 1 and empty stdout",
+      "unrepaired_failures": [],
+      "unaffected_cases_repeated": false
+    },
+    "native_warnings": [
+      "AppKit logged a transient zero-bounds NSSplitView arranged-frame diagnostic while creating the hidden Rebase verification owner; broader layout acceptance remains open"
+    ],
+    "localizations": {
+      "write_exit": 0,
+      "check_exit": 0,
+      "languages": 38,
+      "keys": 1284,
+      "log": "build/qa/network-reference-launch-localizations-2026-10-18.log"
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "not_a_completion_percentage": true
+    },
+    "site": {
+      "exit": 0,
+      "documents": 294,
+      "unresolved_fragments": 0,
+      "log": "build/qa/network-reference-launch-site-2026-10-18.log"
+    }
+  },
+  "limits": [
+    "Windows modal multi-root loop is adapted to independent native review windows; native preparation stops on invalid input/failure instead of continuing past that item",
+    "No automatic transport, reference mutation, checkout or replay was performed by these launch checks; existing backend tests remain separate",
+    "Physical Launch Services/Finder, signed/AppStore permissions and all-dialog visual parity remain unverified",
+    "Full unusual reference/remote naming, recovering-operation combinations and concurrent Clone-completion adoption during a root batch remain unverified",
+    "Other TortoiseProc commands, Windows URL handler registration, shared switches and process exit/result protocol remain open",
+    "Earlier hosted cd2c131d run was observed live in Git integration tests; no current-head full hosted pass is claimed"
+  ]
+}
