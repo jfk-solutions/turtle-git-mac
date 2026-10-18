@@ -219,6 +219,8 @@ import UniformTypeIdentifiers
     private var referenceBrowserWindows: [String: ReferenceBrowserWindowController] = [:]
     private var browserWindows: [String: RepositoryBrowserWindowController] = [:]
     private var worktreeListWindows: [String: WorktreeListWindowController] = [:]
+    var worktreeCreateWindowFactory: ((GitRepository, RepositoryAccessLease?, UserDefaults, URL?) -> WorktreeCreateWindowController)?
+    var worktreeListWindowFactory: ((GitRepository, RepositoryAccessLease?, UserDefaults) -> WorktreeListWindowController)?
     private var worktreeCreateWindows: [String: WorktreeCreateWindowController] = [:]
     var requestPullPresentation: ((RequestPullWindowController) -> Void)?
     var makeRequestPull: (GitRepository, RepositoryAccessLease?, String?, String?) -> RequestPullWindowController = { repository, access, end, url in
@@ -2276,7 +2278,7 @@ import UniformTypeIdentifiers
     }
     private func showWorktreeList(repository: GitRepository, access: RepositoryAccessLease?) {
         let key = repository.root.path
-        let controller = worktreeListWindows[key] ?? WorktreeListWindowController(repository: repository, access: access)
+        let controller = worktreeListWindows[key] ?? worktreeListWindowFactory?(repository, access, fileComparisonPreferences) ?? WorktreeListWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.worktreeListWindows.removeValue(forKey: key) }
         controller.onSubmodules = { [weak self] path, lease in
             self?.showSubmoduleUpdate(repository: GitRepository(root: path, executable: repository.executable), access: lease, scope: [])
@@ -2284,11 +2286,16 @@ import UniformTypeIdentifiers
         worktreeListWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showWorktreeCreate(repository: GitRepository, access: RepositoryAccessLease?) {
+    private func showWorktreeCreate(repository: GitRepository, access: RepositoryAccessLease?, directory: URL? = nil, commandLaunch: Bool = false) {
         let key = repository.root.path
-        let controller = worktreeCreateWindows[key] ?? WorktreeCreateWindowController(repository: repository, access: access)
+        if commandLaunch, let existing = worktreeCreateWindows[key] ?? worktreeListWindows[key]?.createWindow {
+            existing.window?.makeKeyAndOrderFront(nil)
+            return
+        }
+        let controller = worktreeCreateWindows[key] ?? worktreeCreateWindowFactory?(repository, access, fileComparisonPreferences, directory) ?? WorktreeCreateWindowController(repository: repository, access: access, preferences: fileComparisonPreferences, initialDirectory: directory)
         controller.onClosed = { [weak self] in self?.worktreeCreateWindows.removeValue(forKey: key) }
         controller.model.onCreated = { [weak self] output in
+            self?.worktreeListWindows[key]?.model.requestReload()
             if self?.root?.path == key { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onSubmodules = { [weak self] path, lease in
@@ -3516,6 +3523,12 @@ import UniformTypeIdentifiers
         case .previousDiff:
             guard paths.count == 1 else { error = "Select one file or directory to compare."; return }
             showPreviousDiff(repository: repository, access: access, path: paths[0], owner: workspaceWindow, unified: invocation.unified)
+        case .worktreeCreate:
+            do {
+                let directory = try invocation.worktreeDropTarget.map { try WorktreeCreationOptions.dropDestination(repository: repository.root, target: $0) }
+                showWorktreeCreate(repository: repository, access: access, directory: directory, commandLaunch: true)
+            } catch { self.error = error.localizedDescription }
+        case .worktreeList: showWorktreeList(repository: repository, access: access)
         case .lfsLocks: showLFSLocks(repository: repository, access: access)
         case .lfsLock, .lfsUnlock:
             showFinderLFSOperation(repository: repository, access: access, paths: paths, locked: invocation.request.action == .lfsLock, force: invocation.forceLFSUnlock, commandLaunch: true)

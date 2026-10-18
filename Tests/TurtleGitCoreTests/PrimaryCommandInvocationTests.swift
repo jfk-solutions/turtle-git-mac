@@ -2,6 +2,27 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PrimaryCommandInvocationTests: XCTestCase {
+    func testWorktreeCommandRoutesAndDropTarget() throws {
+        for command in ["worktreecreate", "worktreelist", "dropworktreecreate"] {
+            let args = ["--command=" + command, "--path=project.git"] + (command == "dropworktreecreate" ? ["--droptarget=outside/雪[*]"] : [])
+            let value = try parse(args)
+            XCTAssertEqual(value.request.action, command == "worktreelist" ? .worktreeList : .worktreeCreate)
+            XCTAssertFalse(value.request.action.requiresWorkingTree)
+            XCTAssertEqual(value.worktreeDropTarget?.path, command == "dropworktreecreate" ? "/repo/outside/雪[*]" : nil)
+        }
+        for args in [["--command=dropworktreecreate"], ["--command=dropworktreecreate", "--droptarget="], ["--command=worktreecreate", "--droptarget=x"], ["--command=worktreelist", "--force"], ["--command=worktreecreate", "--path=a", "--path=b"]] { XCTAssertThrowsError(try parse(args)) }
+    }
+    func testWorktreePathFileKeepsDropTargetAndRefusesMultipleSourcesBeforeDelete() throws {
+        let root = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("paths"); try Data("project.git\0".utf8).write(to: file)
+        let invocation = try parse(["/command:dropworktreecreate", "/droptarget:target", "--pathfile", file.path, "--pathfile0", "--deletepathfile"])
+        let resolved = try invocation.resolvingPathFile(cancellation: OperationCancellation())
+        XCTAssertEqual(resolved.worktreeDropTarget?.path, "/repo/target")
+        XCTAssertEqual(resolved.selecting([root]).worktreeDropTarget?.path, "/repo/target")
+        try Data("one\0two\0".utf8).write(to: file)
+        XCTAssertThrowsError(try invocation.resolvingPathFile(cancellation: OperationCancellation()))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
+    }
     func testLFSCommandRoutesAndForceOnlyUnlock() throws {
         for (command, action) in [("lfslocks", RepositoryAction.lfsLocks), ("lfslock", .lfsLock), ("lfsunlock", .lfsUnlock)] {
             let value = try parse(["--command=" + command, "--path", "雪[*]\n.bin", "--path", "second"])

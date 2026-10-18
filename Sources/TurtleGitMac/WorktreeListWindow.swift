@@ -86,7 +86,7 @@ import TurtleGitCore
     private func addWorktree() {
         guard model.canInteract, createWindow == nil, let window, window.attachedSheet == nil else { return }
         let controller = WorktreeCreateWindowController(repository: model.repository, access: model.access,preferences:model.preferences)
-        controller.model.onCreated = { [weak self] _ in self?.model.reload() }
+        controller.model.onCreated = { [weak self] _ in self?.model.requestReload() }
         controller.model.onSubmodules = { [weak self] path, lease in self?.onSubmodules(path, lease) }
         controller.onClosed = { [weak self, weak controller] in
             if let child = controller?.window { self?.window?.endSheet(child) }
@@ -105,7 +105,7 @@ import TurtleGitCore
     let preferences:UserDefaults
     private(set) var active=true
     private(set) var generation=UUID()
-    @Published var childActive=false
+    @Published var childActive=false { didSet { scheduleReload() } }
     var canInteract:Bool { active && !busy && !showProgress && !childActive && error == nil }
     func invalidate() { active=false; generation=UUID(); cancellation?.cancel(); confirmingCancellation=false }
     enum Action { case lock, unlock, remove, removeForce }
@@ -115,9 +115,9 @@ import TurtleGitCore
     let access: RepositoryAccessLease?
     @Published var rows: [GitWorktree] = []
     @Published var selection = Set<String>()
-    @Published var busy = false
-    @Published var error: String?
-    @Published var showProgress = false
+    @Published var busy = false { didSet { if !busy { scheduleReload() } } }
+    @Published var error: String? { didSet { if error == nil { scheduleReload() } } }
+    @Published var showProgress = false { didSet { if !showProgress { scheduleReload() } } }
     @Published var output = ""
     @Published private(set) var currentWork = ""
     @Published private(set) var percentage: Int?
@@ -211,8 +211,21 @@ import TurtleGitCore
         let read=token.isCancelled ? OperationCancellation() : token
         cancellation=read; try await refresh(token:read)
     }
+    private var reloadRequested = false, reloadScheduled = false
+    /// A newly created checkout may arrive during management/result review.
+    /// Defer its list read without changing that workflow's selection or token.
+    func requestReload() { guard active else { return }; reloadRequested = true; scheduleReload() }
+    private func scheduleReload() {
+        guard active, reloadRequested, !reloadScheduled else { return }; reloadScheduled = true
+        Task { [weak self] in
+            await Task.yield()
+            guard let self else { return }; self.reloadScheduled = false
+            guard self.active, self.reloadRequested, self.canInteract else { return }
+            self.reload()
+        }
+    }
     func reload() {
-        guard canInteract else { return }; let token=beginRequest()
+        guard canInteract else { return }; reloadRequested = false; let token=beginRequest()
         Task {
             defer { finishRequest(); withExtendedLifetime(access) {} }
             do { try await refresh(token:token) }

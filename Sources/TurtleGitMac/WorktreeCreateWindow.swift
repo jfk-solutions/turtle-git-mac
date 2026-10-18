@@ -14,8 +14,8 @@ import TurtleGitCore
     var presentPicker: (NSWindow, NSWindow) -> Bool { get { pickers.presentPicker } set { pickers.presentPicker = newValue } }
     var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults, String?) -> LogWindowController { get { pickers.makeCommitPicker } set { pickers.makeCommitPicker = newValue } }
 
-    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
-        model = WorktreeCreateWindowModel(repository: repository, access: access, preferences: preferences)
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, initialDirectory: URL? = nil) {
+        model = WorktreeCreateWindowModel(repository: repository, access: access, preferences: preferences, initialDirectory: initialDirectory)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "New Worktree", preferences: preferences)
         window.isReleasedWhenClosed = false
@@ -28,6 +28,7 @@ import TurtleGitCore
         window.center()
         model.close = { [weak self] in self?.window?.performClose(nil) }
         model.chooseDirectory = { [weak self] in self?.chooseDirectory() }
+        model.authorizeDestination = { [weak self] path, token in await self?.authorizeDestination(path, cancellation: token) }
         model.confirmCancellation = { [weak window] reply in
             guard let window, window.attachedSheet == nil else { reply(false); return }
             let alert = NSAlert(); alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
@@ -62,6 +63,21 @@ import TurtleGitCore
             self.model.destinationAccess = lease; self.model.directory = folder.path
         }
     }
+    private func authorizeDestination(_ path: URL, cancellation: OperationCancellation) async -> RepositoryAccessLease? {
+        guard model.active, !cancellation.isCancelled, let window, window.attachedSheet == nil, directoryPanel == nil else { return nil }
+        let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
+        panel.title = "Worktree Directory"; panel.prompt = "Authorize"
+        panel.message = "Choose the worktree directory or an existing parent folder to allow TurtleGit to create it."
+        panel.directoryURL = path.deletingLastPathComponent(); directoryPanel = panel
+        return await withCheckedContinuation { continuation in
+            panel.beginSheetModal(for: window) { [weak self] response in
+                guard let self, self.directoryPanel === panel else { continuation.resume(returning: nil); return }
+                self.directoryPanel = nil
+                guard self.model.active, !cancellation.isCancelled, response == .OK, let selected = panel.url else { continuation.resume(returning: nil); return }
+                continuation.resume(returning: RepositoryAccessLease(url: selected))
+            }
+        }
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -72,6 +88,9 @@ import TurtleGitCore
     let chooser: SwitchWindowModel
     let access: RepositoryAccessLease?
     var destinationAccess: RepositoryAccessLease?
+    var requiresSecurityScope = GitRuntime.isAppStoreBuild
+    var authorizeDestination: (URL, OperationCancellation) async throws -> RepositoryAccessLease? = { _, _ in nil }
+    @Published private(set) var authorizingDestination = false
     @Published var directory: String
     @Published var currentBranch = ""
     @Published var useHead = true
@@ -106,13 +125,13 @@ import TurtleGitCore
     var onCreated: (String) -> Void = { _ in }
     var onSubmodules: (URL, RepositoryAccessLease?) -> Void = { _, _ in }
     var automaticDetach: Bool { !createBranch && !useHead && (chooser.options.target != .branch || chooser.remote) }
-    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, initialDirectory: URL? = nil) {
         self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.access = access; chooser = SwitchWindowModel(repository: repository, access: access, preferences: preferences)
         let root = repository.root.path
-        directory = root.hasSuffix(".git") ? String(root.dropLast(4)) : root + "-worktree"
+        directory = initialDirectory?.path ?? (root.hasSuffix(".git") ? String(root.dropLast(4)) : root + "-worktree")
     }
     func checkAccess() throws {
-        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(chooser.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+        if requiresSecurityScope && (access?.hasSecurityScope != true || access?.contains(chooser.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func load() {
         guard !invalidated, !busy, !progress, chooser.pickerTarget == nil else { return }
@@ -159,12 +178,6 @@ import TurtleGitCore
         guard !invalidated, !busy, !chooser.busy, !progress, chooser.pickerTarget == nil else { return }
         guard !directory.isEmpty, directory.hasPrefix("/"), !directory.contains("\0") else { error = "Enter an absolute worktree directory."; return }
         let path = URL(fileURLWithPath: directory, isDirectory: true).standardizedFileURL
-        do {
-            try checkAccess()
-            if GitRuntime.isAppStoreBuild && !(access?.contains(path) == true || destinationAccess?.hasSecurityScope == true && destinationAccess?.contains(path) == true) {
-                error = "Choose the worktree directory using Browse to grant access. You can create an empty folder in the picker."; return
-            }
-        } catch { self.error = error.localizedDescription; return }
         var options = WorktreeCreationOptions()
         options.checkout = checkout; options.force = force; options.detach = detach
         options.newBranch = createBranch ? branchName : nil; options.revision = useHead ? "HEAD" : chooser.revision
@@ -175,28 +188,45 @@ import TurtleGitCore
             let ambiguous = chooser.branches.contains(where: { $0.label == reference.label }) && chooser.tags.contains(where: { $0.label == reference.label })
             if !ambiguous { options.revision = reference.label }
         }
-        ProgressActionLog.nextAttempt(self, savePrevious: progress)
         let token = OperationCancellation(); cancellation = token
-        currentWork = ""; percentage = nil; cancelling = false; confirmingCancellation = false
-        busy = true; progress = true; success = false; cancelled = false; output = ""; error = nil
+        let capturedOptions = options
+        var destinationLease = destinationAccess
+        busy = true; authorizingDestination = true; error = nil; cancelled = false; success = false
         Self.activeOperations += 1
-        let destinationLease = destinationAccess
         Task {
-            defer { busy = false; cancellation = nil; currentWork = ""; percentage = nil; cancelling = false; Self.activeOperations -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; withExtendedLifetime(destinationLease) {}; finishAutomaticClose() }
-            LocalGitCommandProgress.begin()
+            var startedProgress = false
+            defer {
+                busy = false; authorizingDestination = false; cancellation = nil; currentWork = ""; percentage = nil; cancelling = false
+                Self.activeOperations -= 1
+                if startedProgress { LocalGitCommandProgress.end() }
+                withExtendedLifetime(access) {}; withExtendedLifetime(destinationLease) {}; finishAutomaticClose()
+            }
             do {
+                try token.check(); guard active else { return }; try checkAccess()
+                if requiresSecurityScope && !(access?.hasSecurityScope == true && access?.contains(path) == true || destinationLease?.hasSecurityScope == true && destinationLease?.contains(path) == true) {
+                    guard let permission = try await authorizeDestination(path, token) else { return }
+                    try token.check(); guard active else { return }
+                    guard permission.hasSecurityScope, permission.contains(path) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(path.path) }
+                    destinationLease = permission; destinationAccess = permission
+                }
+                try token.check(); guard active else { return }
+                authorizingDestination = false
+                ProgressActionLog.nextAttempt(self, savePrevious: progress)
+                currentWork = ""; percentage = nil; cancelling = false; confirmingCancellation = false
+                progress = true; success = false; output = ""
+                LocalGitCommandProgress.begin(); startedProgress = true
                 let repository = chooser.repository
                 let text = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
                     guard let self, self.active, self.cancellation === token else { return }
                     self.output = state.output; self.currentWork = state.currentWork; self.percentage = state.percentage
-                }, resultText: { $0 }, operation: { emit in try await repository.createWorktree(at: path, options: options, cancellation: token, onOutput: emit) })
+                }, resultText: { $0 }, operation: { emit in try await repository.createWorktree(at: path, options: capturedOptions, cancellation: token, onOutput: emit) })
                 guard active else { return }
                 success = true; createdPath = path
-                hasSubmodules = checkout && FileManager.default.fileExists(atPath: path.appendingPathComponent(".gitmodules").path)
+                hasSubmodules = capturedOptions.checkout && FileManager.default.fileExists(atPath: path.appendingPathComponent(".gitmodules").path)
                 onCreated(text)
             } catch let failure as GitCommandCancellationFailure { guard active else { return }; cancelled = true; output = LocalGitCommandProgress.failure(failure, existing: output, preferences: preferences) }
             catch OperationCancellationFailure.cancelled { guard active else { return }; cancelled = true; output = "Cancelled before worktree creation." }
-            catch { if active { output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences) } }
+            catch { if active { if progress { output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences) } else { self.error = error.localizedDescription } } }
         }
     }
     private func finishAutomaticClose() {
@@ -217,7 +247,10 @@ import TurtleGitCore
     func returnToOptions() { guard active, !busy, !confirmingCancellation else { return }; saveActionLog(); progress = false }
     func updateSubmodules() {
         guard active, success, !busy, !confirmingCancellation, let createdPath else { return }
-        let lease = destinationAccess?.contains(createdPath) == true ? destinationAccess : access
+        let primary = destinationAccess?.contains(createdPath) == true ? destinationAccess : access
+        // The linked checkout keeps its common Git directory in the source.
+        // Its post-action must retain that grant after this creation window closes.
+        let lease = primary?.retainingRelatedScopes(access.map { [$0] } ?? [])
         onSubmodules(createdPath, lease); close()
     }
 }

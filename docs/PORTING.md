@@ -1,5 +1,12 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Worktree entry and destination family](COMMAND-LINE.md#worktree-creation-and-management-entry)
+adds Create/List/drop command routes, source destination presets, inherited
+settings, retained drafts/progress, captured native destination authorization,
+compound Submodule Update grants and deferred manager refresh. Existing forms,
+source icons and Git operations remain shared. [Batch evidence](qa/worktree-commands-2026-10-18.json)
+separates actual validation from physical/signed and remaining source parity.
+
 The connected [historical output/comparison entry batch](COMMAND-LINE.md#historical-comparison-cat-references-and-graph-output)
 adds ShowCompare, filtered Cat, standalone containing references and normal/hidden
 Revision Graph entry. Outputs retain separate grants, staged atomic publication

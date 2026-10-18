@@ -1,0 +1,159 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "5a55b673a4c15f897fddd32ad5f60b902af5702b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected Worktree Create/List/drop command entry, source destination presets, captured destination authorization/operations, preserved top-level/manager drafts and progress, owning presentation preferences, related source metadata grants and coalesced manager refresh.",
+  "dialogs": [
+    "IDD_WORKTREE_CREATE",
+    "IDD_WORKTREE_LIST"
+  ],
+  "source_review": [
+    "src/TortoiseProc/Commands/WorktreeCommand.cpp::WorktreeCreateCommand/WorktreeListCommand/DropWorktreeCreateCommand",
+    "src/TortoiseProc/AppUtils.cpp::CreateWorktree",
+    "src/TortoiseProc/CreateWorktreeDlg.cpp::OnInitDialog/OnBnClickedOk/OnVersionChanged",
+    "src/TortoiseProc/WorktreeListDlg.cpp"
+  ],
+  "implementation": [
+    "Typed worktreecreate/worktreelist/dropworktreecreate aliases; dedicated drop target survives path-file resolution/selection, one-source validation occurs before optional deletion, and drop alone accepts required droptarget.",
+    "Pure lexical drop destination derives source basename, strips .git and avoids proposing exact lexical source path. Normal source defaults and bare-repository eligibility retained; no destination probe/grant/mutation on command launch.",
+    "Workspace List/Create forward preferences. Competing command focuses existing Create, manager Add child or progress review without changing its draft/operation. Existing original source icons, native controls, version pickers and Git mutation implementations retained.",
+    "OK captures directory/revision/new branch/Checkout/Force/Detach before authorization. Scoped builds request destination or parent in a native folder panel; wrong/unscoped replies fail, cancellation leaves options without mutation and forced close refuses a late reply. Source/destination scopes and global operation count persist through actual drain.",
+    "Submodule Update receives destination primary containment plus retained source metadata access, preserving external common Git directory scope after creation closes.",
+    "Manager refresh requests coalesce and defer through busy operations, children, errors and result review, preserving current rows/token until allowed to read."
+  ],
+  "validation": {
+    "core": {
+      "command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter 'PrimaryCommandInvocationTests|GitWorktreeTests'",
+      "attempts": 1,
+      "exit": 0,
+      "cases": 56,
+      "classes": {
+        "PrimaryCommandInvocationTests": 41,
+        "GitWorktreeTests": 15
+      },
+      "scope": "Pure preset/option/path-file behavior plus real isolated Git worktree create/list/lock/unlock/remove/prune, literal paths, force preservation and cancellation. No full Core rerun."
+    },
+    "build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "attempts": 2,
+      "initial_exit": 65,
+      "initial_failure": "New catch handler assigned to immutable local error instead of model self.error.",
+      "repair": "Qualify only that model error assignment; no Core-source change and no Core test repeat.",
+      "affected_recheck_exit": 0,
+      "scope": "Local arm64 Debug app and embedded targets. Existing warnings/nonfatal diagnostics remain; no current universal/signed build claim."
+    },
+    "new_native": {
+      "command": "python3 scripts/test-primary-commands.py --only worktrees --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "initial_exit": 1,
+      "initial_failure": "After successful checkout creation, fixture wait at line 62 compared full directory URLs with different directory/slash hints and timed out.",
+      "repair": "Compare resolved literal path strings for manager row identity; keep readiness and behavior assertions and add state diagnostics for any remaining failure. No app-source change/rebuild for this fixture correction.",
+      "affected_recheck_exit": 0,
+      "distinct_final_engine_cases": 2,
+      "passed": [
+        "normal Create and .git default path",
+        "server Worktree List and owning settings",
+        "source drop basename/options and no mutation before OK",
+        "preserved top-level draft and finished progress against competing commands",
+        "preserved manager Add child draft",
+        "actual working and bare linked checkout creation",
+        "created checkout refresh in existing manager",
+        "cancelled/wrong/late injected destination grants; no directory/branch mutation",
+        "pending grant retains operation/Quit accounting until actual drain",
+        "duplicate authorization gate and immutable accepted directory/Checkout/Detach despite programmatic draft change",
+        "coalesced list reload waits for child ownership to end",
+        "Submodule Update destination containment retains source metadata permission",
+        "source HEAD/index/file bytes unchanged"
+      ]
+    },
+    "retained_native": {
+      "command": "python3 scripts/test-native-reference-batch.py --only worktree-family --only worktree-progress --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "attempts": 1,
+      "exit": 0,
+      "distinct_engine_cases": 4,
+      "scope": [
+        "native columns/header menus, original icons/backdrop and isolated preferences",
+        "creation base suggestions, detach/new branch gates and real creation callback",
+        "real list Lock/Unlock/Remove/Force/Prune and Continue/Abort recovery",
+        "private permission policy, prune denial/cancel and missing rows",
+        "live CR/split UTF-8 output and bounded display/copy menus",
+        "kill confirmation, cancellation/forced retirement, once-only close/autoclose, Quit and native ownership fences"
+      ],
+      "runner_note": "Pre-existing unrelated modification to reference batch runner used read-only and measured below; it remains unstaged. No claim of clean/hermetic inputs."
+    },
+    "cleanup": {
+      "owned_pids": [
+        41254,
+        41416,
+        41636,
+        41887,
+        41891,
+        42054,
+        42109,
+        42271
+      ],
+      "confirmed_absent": [
+        41254,
+        41416,
+        41636,
+        41887,
+        41891,
+        42054,
+        42109,
+        42271
+      ],
+      "still_present": [],
+      "scope": "All owned receiver/compiler helper processes reaped; fixture windows/sheets closed on completion/failure. No installed user app terminated."
+    },
+    "localizations": {
+      "write_before_build": true,
+      "check_exit": 0,
+      "languages": 38,
+      "keys": 1287,
+      "scope": "Generated catalogs unchanged; new unmatched native folder prompt retains English fallback; no complete-translation claim."
+    },
+    "hosted_observation": {
+      "source": "5a55b673a4c15f897fddd32ad5f60b902af5702b",
+      "pages_run": 39116372146,
+      "pages_conclusion": "success",
+      "macos_run": 39116372143,
+      "macos_status": "pending at observation",
+      "earlier_38b7_macos_run": 39115004086,
+      "earlier_38b7_conclusion": "cancelled",
+      "scope": "Read-only previous-checkpoint status; no current/full hosted CI pass inferred."
+    },
+    "documentation": {
+      "site_command": "build/site-venv/bin/python scripts/build-site.py",
+      "site_exit": 0,
+      "documents": 294,
+      "unresolved_fragments": [],
+      "dialog_coverage_reconciled_and_check_exit": 0,
+      "scope": "Generated table and JSON retain partial audit status; resource/control counts are not a feature completion percentage."
+    }
+  },
+  "logs": {
+    "build/qa/worktree-commands-core-2026-10-18.log": "5024f29b0d56614e4b715eaa4552842c07cfe791a495829d0e55253b8a274250",
+    "build/qa/worktree-commands-build-2026-10-18.log": "fd556f64fee951a474904d2a4b76341521372d254465af024020168696026fef",
+    "build/qa/worktree-commands-build-catch-recheck-2026-10-18.log": "afd0ebab4dfeef484732a2873dbe167b1fced4724578bbe22d00dc3103f3fdcc",
+    "build/qa/worktree-commands-native-2026-10-18.log": "29e7ed8ee5cc2304aed0814a5b6f4ae6425b44bc0950b8e1f2b4cc770ee06b7d",
+    "build/qa/worktree-commands-native-path-recheck-2026-10-18.log": "605e76dcbfbe5377fcce1f0f9da9d574ed7f7324a9cba27d27dbe0407e6e3009",
+    "build/qa/worktree-commands-retained-family-2026-10-18.log": "c1a8df22f0cc05795a45b3eddbdf0902516b1a981c4482844a662c335bd936de"
+  },
+  "input_sha256": {
+    "Sources/TurtleGitCore/GitWorktrees.swift": "fb76f759f43a8cc84da7f125fa262aad2f7741899c8744f0f27e3cbf3da04cda",
+    "Sources/TurtleGitCore/PrimaryCommandInvocation.swift": "75b125b4b96b5d7e458d5b53d9ba4690e7f6f50839d23c7c8d575cf38e283be4",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "43af852efc4e598c2bcc75a3b3c9657d3d4f27135259e958fa4a336098d52b97",
+    "Sources/TurtleGitMac/WorktreeCreateWindow.swift": "ecf0e00fc9dbbdab0e36d42396fdc2cf98b3a7c9c877c90143bd78c19182b5ee",
+    "Sources/TurtleGitMac/WorktreeListWindow.swift": "c8900b85671c829aa11eb14ab204492d5f8dfea92fed1a269996d5d5a8538a79",
+    "docs/qa/worktree-commands-native-2026-10-18.swift": "8fd73832c8e1f52391f8f314330ea8abc9adb80540d5ff8a3a8bc2bba400ac8b",
+    "docs/qa/primary-commands-native-2026-10-18.swift": "b6e63d453c7c34dbb7048c519810cacc33d6b73d481263522287e3a0cf50b238",
+    "scripts/test-primary-commands.py": "b160a0d232c5c791ada483103d06fd6cc300f12db9b913a54cbd69e5e1455863",
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f"
+  },
+  "remaining": [
+    "Drop command integration is implemented; automatic Windows-style Finder drag-menu interception is not established. Lexical source self-comparison does not resolve all case/normalization/symlink aliases of ungranted targets; Git validates actual creation.",
+    "Native folder permissions were injected with a private fake provider in workflow checks. They do not prove physical picker interaction, actual security-scope issuance, signed helpers or live installed Finder behavior.",
+    "Full rendered/input/VoiceOver parity, full hosted CI and current signed App Store acceptance remain open. No complete Worktree/application claim follows from these checks.",
+    "No distribution rebuild/export/install/upload/submission; latest documented preview/archive source remains 16380893. Full Core/unrelated native suites and screenshots were not repeated.",
+    "Custom TurtleGit artwork remains unavailable locally; no arbitrary replacement generated."
+  ]
+}

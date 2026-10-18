@@ -58,6 +58,19 @@ public struct WorktreeCreationOptions: Sendable {
     public var detach = false
     public var newBranch: String?
     public var revision = "HEAD"
+    /// DropWorktreeCreateCommand appends the source repository's basename,
+    /// stripping .git, unless doing so would propose that same source path.
+    /// This is lexical preset construction; it does not inspect or grant access
+    /// to an arbitrary destination supplied on the command line.
+    public static func dropDestination(repository: URL, target: URL) throws -> URL {
+        guard repository.isFileURL, target.isFileURL, repository.path.hasPrefix("/"), target.path.hasPrefix("/"),
+              !repository.path.contains("\0"), !target.path.contains("\0") else { throw WorktreeFailure.invalidPath }
+        var name = repository.lastPathComponent
+        if name.hasSuffix(".git") { name.removeLast(4) }
+        let parent = target.standardizedFileURL
+        let child = parent.appendingPathComponent(name, isDirectory: true).standardizedFileURL
+        return GitReferenceName.equal(FileTransferPaths.lexicalPath(child.path), FileTransferPaths.lexicalPath(repository.path)) ? parent : child
+    }
     public init() {}
 }
 

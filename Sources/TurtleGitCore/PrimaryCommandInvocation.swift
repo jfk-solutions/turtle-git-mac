@@ -37,6 +37,7 @@ public struct PrimaryCommandInvocation: Sendable {
     public let reflogReference: String?
     public let upstream: String?
     public let blameRevision: String?
+    public let worktreeDropTarget: URL?
     public let forceLFSUnlock: Bool
     public let forceRebase: Bool
     public let message: String?
@@ -126,6 +127,8 @@ public struct PrimaryCommandInvocation: Sendable {
         case "rebase": action = .rebase
         case "blame": action = .blame
         case "prevdiff": action = .previousDiff
+        case "worktreecreate", "dropworktreecreate": action = .worktreeCreate
+        case "worktreelist": action = .worktreeList
         case "lfslocks": action = .lfsLocks
         case "lfslock": action = .lfsLock
         case "lfsunlock": action = .lfsUnlock
@@ -177,6 +180,8 @@ public struct PrimaryCommandInvocation: Sendable {
         case .branch, .tag: allowed.formUnion(["rev", "name"])
         case .switchBranch, .repositoryBrowser: allowed.insert("rev")
         case .reflog: allowed.insert("ref")
+        case .worktreeCreate:
+            if values["command"]?.lowercased() == "dropworktreecreate" { allowed.insert("droptarget") }
         case .lfsUnlock: allowed.insert("force")
         case .rebase: allowed.formUnion(["upstream", "force"])
         case .blame: allowed.formUnion(["endrev", "line"])
@@ -200,6 +205,11 @@ public struct PrimaryCommandInvocation: Sendable {
             guard let number = Int(raw), (0...Int(Int32.max)).contains(number) else { throw Failure("Invalid source line number.") }
             line = number == 0 ? nil : number
         }
+        let worktreeDropTarget: URL?
+        if values["command"]?.lowercased() == "dropworktreecreate" {
+            guard let raw = values["droptarget"], !raw.isEmpty else { throw Failure("Drop Worktree Create requires a destination folder.") }
+            worktreeDropTarget = try file(raw)
+        } else { worktreeDropTarget = nil }
         var urls = try (paths.isEmpty ? [currentDirectory] : paths).map(file)
         if let second = values["path2"] {
             guard urls.count == 1, values["startrev"] == nil, values["endrev"] == nil else { throw Failure("path2 needs one selected file and cannot be combined with revisions.") }
@@ -291,11 +301,11 @@ public struct PrimaryCommandInvocation: Sendable {
             catch { throw Failure("Select a relative submodule path inside the superproject.") }
             return path
         }
-        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff, .showCompare].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: commandOutput, importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, submoduleBase: try values["bkpath"].map(file), selectedSubmodule: selectedSubmodule, synchronizationSequence: synchronizationSequence, graphOutputFormat: graphOutputFormat, catRevision: catRevision, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceLFSUnlock: action == .lfsUnlock && values["force"] != nil, forceRebase: action == .rebase && values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
+        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff, .showCompare].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: commandOutput, importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, submoduleBase: try values["bkpath"].map(file), selectedSubmodule: selectedSubmodule, synchronizationSequence: synchronizationSequence, graphOutputFormat: graphOutputFormat, catRevision: catRevision, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, worktreeDropTarget: worktreeDropTarget, forceLFSUnlock: action == .lfsUnlock && values["force"] != nil, forceRebase: action == .rebase && values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
     }
 
     private static func validateSelection(_ urls: [URL], action: RepositoryAction) throws {
-        if [.clone, .initialize, .blame, .previousDiff, .rename, .export, .submoduleAdd, .cat, .showCompare].contains(action), urls.count != 1 {
+        if [.clone, .initialize, .blame, .previousDiff, .rename, .export, .submoduleAdd, .cat, .showCompare, .worktreeCreate, .worktreeList].contains(action), urls.count != 1 {
             throw Failure("This command requires one selected path.")
         }
     }

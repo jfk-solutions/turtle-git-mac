@@ -7,6 +7,17 @@ final class GitWorktreeTests: XCTestCase {
         func append(_ chunk: GitOutputChunk) { lock.lock(); defer { lock.unlock() }; if chunk.stream == .stdout { stdout.append(chunk.data) } else { stderr.append(chunk.data) } }
         var text: String { lock.lock(); defer { lock.unlock() }; return String(decoding: stdout + stderr, as: UTF8.self) }
     }
+    func testDropDestinationUsesRepositoryBasenameAndAvoidsSourcePath() throws {
+        func destination(_ source: String, _ target: String) throws -> String {
+            try WorktreeCreationOptions.dropDestination(repository: URL(fileURLWithPath: source), target: URL(fileURLWithPath: target)).path
+        }
+        XCTAssertEqual(try destination("/repo/project.git", "/dest"), "/dest/project")
+        XCTAssertEqual(try destination("/repo/project", "/dest"), "/dest/project")
+        XCTAssertEqual(try destination("/repo/project", "/repo"), "/repo")
+        XCTAssertEqual(try destination("/repo/雪[*]\n", "/target"), "/target/雪[*]\n")
+        XCTAssertEqual(try destination("/repo/project.git", "/repo"), "/repo/project")
+        XCTAssertThrowsError(try WorktreeCreationOptions.dropDestination(repository: URL(string: "https://example.invalid/repo")!, target: URL(fileURLWithPath: "/dest")))
+    }
     func testWorktreeCommandOutputCallbacksExcludeValidationAndRetainDiagnostics() async throws {
         let (base, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: base) }
         let path = base.appendingPathComponent("streamed")

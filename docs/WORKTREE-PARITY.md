@@ -83,7 +83,8 @@ Worktree. The provisional direct Finder create entry was removed when the shell
 command order was ported; see [menu layout audit](FINDER-MENU-LAYOUT-PARITY.md).
 Browse is an AppKit folder panel that can create an empty directory. In Store
 builds, mutation requires scoped source and destination access. Typed destinations
-outside granted scope must be granted through Browse. Signed cross-directory and
+outside granted scope now request the destination or an existing parent on OK;
+Browse remains a separate destination choice. Signed cross-directory and
 linked-checkout/common-repository access remain unverified.
 
 Creation opens a progress view, prevents closing during mutation, and exposes
@@ -402,3 +403,42 @@ reference commands, stale/rejected/forced-close replies and real private
 branch/tag/worktree creation. The [grouped CI repair record](qa/reference-groups-2026-10-15.json)
 separates compilation, native and hosted evidence. Complete source picker/layout
 and signed worktree acceptance remain open.
+
+## Command entry, destination grants and manager refresh — October 18, 2026
+
+The connected family now includes primary `worktreecreate`, `worktreelist` and
+`dropworktreecreate` routes. The drop command requires a target folder, derives
+the source repository basename after repository discovery, strips `.git`, and
+avoids proposing the same lexical source path. Normal defaults remain those in
+`CreateWorktreeDlg`. Shared authorized path files retain presets and validate
+one-source cardinality before explicit deletion. Command paths do not grant
+access or execute creation merely by opening the form; bare creation is allowed.
+
+Top-level Create and manager-owned Add drafts retain their directory, revision,
+options and progress against a competing command. List keeps its current model,
+selection, progress and questions. Both workspace entry points now forward
+presentation preferences to the native forms and their existing pickers/children.
+The original branch/copy artwork and source dialog control order remain in use.
+
+OK captures destination, Checkout/Force/Detach/new branch and revision before
+requesting any missing destination grant. In a scoped build a native folder
+chooser accepts the destination or an existing parent; missing permission can be
+cancelled without creating directories/branches. Wrong-folder grants are rejected.
+A forced close cancels preparation and ends its owned sheet; a late chooser reply
+cannot publish permission or run Git. Pending authorization remains in the
+Worktree operation count until its actual reply drains. The captured options and
+leases remain stable through the subsequent existing Git progress workflow.
+
+Submodule Update now receives the destination as primary containment and retains
+source access as a related metadata permission, preserving common Git directory
+access after the creation window closes. A completed creation requests a list
+refresh that waits for current management, errors, child ownership or result
+review; it coalesces requests without replacing that operation's token or rows.
+
+[Batch evidence](qa/worktree-commands-2026-10-18.json) records grouped validation.
+Injected security-scope providers test the native policy and lifetime, rather
+than claiming real signed permissions. The drop target helper does not inspect
+ungranted folders; lexical self-comparison leaves alternate case/normalization
+and symlink spellings to Git's subsequent validation. Automatic native Finder
+drag-menu interception, all rendered/input/VoiceOver parity and current signed
+Store/Finder acceptance remain unverified. No whole-dialog completion is inferred.

@@ -693,3 +693,45 @@ progress icons, Log/Pull post-actions and result review. Delayed preparation is
 cancelled when its launching window closes or the workspace retires. Local
 injected-reply checks do not establish a real authenticated LFS provider or
 signed Finder integration; see [LFS parity](LFS-PARITY.md).
+
+## Worktree creation and management entry
+
+| Command | Native workflow | Options |
+| --- | --- | --- |
+| `worktreecreate` | New Worktree | one repository path or shared path-file input |
+| `worktreelist` | Worktree List | one repository path or shared path-file input |
+| `dropworktreecreate` | New Worktree with a dropped-folder destination preset | required `droptarget`, one source repository |
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=worktreelist \
+  --path '/absolute/repository'
+open -n -a 'TurtleGit for Mac' --args --command=dropworktreecreate \
+  --path '/absolute/source.git' --droptarget '/absolute/destination-folder'
+```
+
+These entries open the existing source-style forms and do not accept creation or
+management actions. Normal creation proposes `<repository>-worktree`, or strips
+`.git` from a repository ending in that suffix. Drop creation appends the source
+repository basename to `droptarget`, stripping `.git`; if that would propose the
+source repository itself, it keeps the drop folder. Preset construction is lexical
+and does not probe or authorize the external destination. Bare repositories can
+create linked checkouts through the same native form.
+
+A competing Create/drop command focuses an existing creation form, manager-owned
+Add child or progress review, preserving its input and captured operation. List
+entry reuses its current manager and preserves active management/review state.
+Forms, pickers, progress and manager children inherit the owning preferences.
+
+On OK in a scoped build, a typed destination outside existing grants asks for the
+worktree directory or an existing parent folder. It captures destination and Git
+options before that chooser; Cancel, wrong-folder replies and late replies after
+closure cannot start a mutation. No destination grant is inferred from `droptarget`.
+The source and destination permissions remain held through Git execution, and
+Submodule Update retains both the new checkout and its external source metadata.
+A created checkout queues a manager refresh through current child/result review.
+
+The command is available for integration callers. Automatic Windows-style Finder
+drag-menu interception is not implemented by this entry route. Lexical source
+self-comparison does not certify all case/normalization/symlink-alias spellings.
+Physical Finder, signed access and complete visual parity remain open; see
+[Worktree parity and evidence](WORKTREE-PARITY.md).
