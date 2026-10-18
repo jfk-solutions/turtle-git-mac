@@ -357,11 +357,12 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     case svnDCommit, svnRebase, svnFetch, svnIgnore
     case reviewPatch, daemon, lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
     case synchronize, blame, previousDiff, logSubmodule, properties, settings, help, about
-    case showCompare, cat, commitIsOnRefs
+    case showCompare, cat, commitIsOnRefs, firstStartWizard
     case status, commit, add, revert, clean, submoduleAdd, submoduleUpdate, submoduleSync, log, revisionGraph, referenceBrowser, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, importPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, move, pasteCopy, pasteMove, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
+        case .firstStartWizard: return "First Start Wizard…"
         case .showCompare: return "Compare revisions…"
         case .cat: return "Save historical file…"
         case .commitIsOnRefs: return "References commit is on…"
@@ -455,7 +456,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         switch self { case .svnDCommit: return .dcommit; case .svnRebase: return .rebase; case .svnFetch: return .fetch; case .svnIgnore: return .ignore; default: return nil }
     }
     public var isResolve: Bool { self == .resolve || self == .editConflict || resolveChoice != nil }
-    public var isApplicationUtility: Bool { [.settings, .help, .about].contains(self) }
+    public var isApplicationUtility: Bool { [.settings, .help, .about, .firstStartWizard].contains(self) }
     public var allowsEmptySelection: Bool { isApplicationUtility || self == .clone || self == .initialize }
     public var isMenuHeader: Bool { self == .lfs }
     public var isFileTransfer: Bool { self == .pasteCopy || self == .pasteMove }

@@ -94,7 +94,22 @@ import TurtleGitCore
         case .authentication: return "Authentication and credential store"
         }
     }
-    func activate() { guard !retired else { return }; git.activate() }
+    func activate() {
+        guard !retired else { return }; git.activate()
+        guard repository == nil, page == .user || page == .authentication, !busy else { return }
+        let token = OperationCancellation(); self.token = token; busy = true; Self.activeWrites += 1
+        task = Task {
+            defer { busy = false; self.token = nil; task = nil; Self.activeWrites -= 1 }
+            do {
+                guard let repository = try await prepareConfiguration(token) else { if !retired { page = .git }; return }
+                let configuration = try await repository.firstStartConfiguration(cancellation: token)
+                try token.check(); guard !retired else { return }
+                self.repository = repository; name = configuration.name; email = configuration.email
+                helpers = configuration.helpers; helper = configuration.selectedHelper; advanced = configuration.advancedCredentials
+                if advanced { skipHelper = true }
+            } catch { if !retired, !token.isCancelled { self.error = error.localizedDescription } }
+        }
+    }
     func retire() {
         guard !retired else { return }; retired = true; token?.cancel(); task?.cancel(); git.suspend()
         credentialController?.model.deactivate(); credentialController?.window?.close(); credentialController = nil; hasCredentialSheet = false
@@ -215,10 +230,11 @@ import TurtleGitCore
 @MainActor final class FirstStartWizardController: NSWindowController, NSWindowDelegate {
     let model: FirstStartWizardModel
     var onClosed: () -> Void = {}
-    init(preferences: UserDefaults = .standard, makeRepository: @escaping (URL, OperationCancellation) async throws -> GitRepository = { engine, token in
+    init(preferences: UserDefaults = .standard, initialPage: Int = 0, makeRepository: @escaping (URL, OperationCancellation) async throws -> GitRepository = { engine, token in
         try token.check(); return try GitRepository(root: TurtleGitTemporaryStorage.root, executable: engine)
     }) {
         model = FirstStartWizardModel(preferences: preferences, makeRepository: makeRepository)
+        model.page = FirstStartWizardModel.Page(rawValue: initialPage) ?? .language
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 700, height: 560), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "First Start Wizard – TurtleGit for Mac"; window.isReleasedWhenClosed = false
         let host = NSHostingController(rootView: FirstStartWizardDialog(model: model, git: model.git).defaultAppStorage(preferences)); host.sizingOptions = []
@@ -337,21 +353,25 @@ private struct FirstStartWizardDialog: View {
 }
 @MainActor final class FirstStartWizardService {
     static let shared = FirstStartWizardService()
-    private var controller: FirstStartWizardController?
+    private(set) var controller: FirstStartWizardController?
+    var create: (UserDefaults, Int) -> FirstStartWizardController = { FirstStartWizardController(preferences: $0, initialPage: $1) }
+    var present: (FirstStartWizardController) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
     private var consideredFirstRun = false
     func install() {
         guard !consideredFirstRun else { return }
         consideredFirstRun = true
+        // An explicit wizard page must not race the automatic first-run page.
+        if let invocation = try? PrimaryCommandInvocation.parse(arguments: Array(CommandLine.arguments.dropFirst()), currentDirectory: FileManager.default.currentDirectoryPath), invocation.request.action == .firstStartWizard { return }
         guard !UserDefaults.standard.bool(forKey: "TurtleGit.FirstStartComplete"),
               Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") != true,
               ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
         // Wait until SwiftUI has attached the main window before presenting setup.
         Task { @MainActor in await Task.yield(); self.show() }
     }
-    func show() {
-        if let controller { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return }
-        let controller = FirstStartWizardController(); self.controller = controller
+    func show(initialPage: Int = 0, preferences: UserDefaults = .standard) {
+        if let controller { present(controller); return }
+        let controller = create(preferences, initialPage); self.controller = controller
         controller.onClosed = { [weak self, weak controller] in if self?.controller === controller { self?.controller = nil } }
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        present(controller)
     }
 }

@@ -9,6 +9,14 @@ import Combine
 enum SettingsPageID: String {
     case general, dialogs, dialogs2, dialogs3, colors1, colors2, colors3, commit, alternativeEditor, git, remote, email, diff
     case hooks, issueProviders, issueTracker, credential, network, contextMenu, contextMenu2, overlays, overlayHandlers, overlayIcons, watchedRepositories, mergeTool, mergeEditor, mergeColors, savedData, blame, unifiedDiff, advanced
+    /// Settings.cpp pageName strings are case-sensitive. Unavailable or unknown
+    /// pages retain the source Git-in-repository / General-outside default.
+    static func commandPage(_ name: String?, repository: Bool) -> SettingsPageID {
+        let pages: [String: SettingsPageID] = ["main":.general,"look":.contextMenu,"extmenu":.contextMenu2,"dialog":.dialogs,"dialog2":.dialogs2,"dialog3":.dialogs3,"color1":.colors1,"color2":.colors2,"color3":.colors3,"alternativeeditor":.alternativeEditor,"gitconfig":.git,"gitremote":.remote,"gitcredential":.credential,"hooks":.hooks,"bugtraq":.issueProviders,"bugtraqconfig":.issueTracker,"overlay":.overlays,"overlays":.overlayIcons,"overlayshandlers":.overlayHandlers,"proxy":.network,"smtp":.email,"diff":.diff,"merge":.mergeTool,"save":.savedData,"blame":.blame,"udiff":.unifiedDiff,"advanced":.advanced]
+        let fallback: SettingsPageID = repository ? .git : .general
+        guard let name, let page = pages[name], repository || ![.remote,.issueTracker].contains(page) else { return fallback }
+        return page
+    }
     var minimumPageWidth:CGFloat {
         switch self {
         case .colors1, .colors2, .colors3, .mergeColors, .blame, .unifiedDiff: return 600
@@ -63,16 +71,17 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var current: NSViewController?
     private(set) var selected: SettingsPageID = .general
     private var repositoryPath: String?
-    private var remote: RemoteSettingsWindowModel?
+    private(set) var remote: RemoteSettingsWindowModel?
+    private var remoteNoFetch: Bool
     private var hooks: HookSettingsModel?
     private var delegateProxy: SettingsWindowDelegate?
     private var updating = false
     private var retired = false
-    init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false, preferences: UserDefaults = .standard, initialPage: SettingsPageID = .general, smtpCredentials: any SMTPCredentialStore = SMTPKeychainStore()) {
+    init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false, preferences: UserDefaults = .standard, initialPage: SettingsPageID = .general, remoteNoFetch: Bool = false, smtpCredentials: any SMTPCredentialStore = SMTPKeychainStore()) {
         overlayDraft = FinderOverlaySettingsModel(preferences:preferences)
         emailDraft = EmailSettingsModel(preferences:preferences,credentials:smtpCredentials)
         contextMenuDraft = FinderContextMenuSettingsModel(defaults:preferences)
-        self.selected = initialPage; self.preferences = preferences; self.workspace = workspace; self.appearance = appearance; self.globalOnly = globalOnly; self.appearanceDraft = SettingsAppearanceDraft(appearance: appearance); super.init(nibName: nil, bundle: nil) }
+        self.remoteNoFetch = remoteNoFetch; self.selected = initialPage; self.preferences = preferences; self.workspace = workspace; self.appearance = appearance; self.globalOnly = globalOnly; self.appearanceDraft = SettingsAppearanceDraft(appearance: appearance); super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     override func loadView() {
         // NSWindow adopts the controller view’s current size on assignment.
@@ -187,6 +196,11 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         updating = false; reveal(selected)
     }
     private var nodes:[SettingsPageNode] { roots.flatMap(\.descendants) }
+    func requestCommandPage(_ page: SettingsPageID, noFetch: Bool = false) {
+        guard canDismiss else { return }
+        if noFetch { remoteNoFetch = true; remote?.suppressFetchForCommand() }
+        show(page); reveal(selected)
+    }
     private func reveal(_ page:SettingsPageID) {
         guard !retired, let path = roots.compactMap({ $0.path(to:page) }).first, let node = path.last else { return }
         let previous = updating; updating = true; defer { updating = previous }
@@ -254,7 +268,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
             case .advanced: controller = host(AdvancedSettingsPage(defaults: preferences))
             case .remote:
                 guard let context = try? workspace.gitConfigurationContext(), context.localAvailable else { return }
-                let model = RemoteSettingsWindowModel(repository: context.repository, access: context.access)
+                let model = RemoteSettingsWindowModel(repository: context.repository, access: context.access, preferences: preferences, noFetch: remoteNoFetch)
                 remote = model; workspace.configureSettingsRemote(model)
                 model.close = { [weak self] in guard let self, self.canDismiss else { return }; self.view.window?.performClose(nil) }
                 controller = NSViewController(); controller.view = RemoteSettingsNativeView(model: model, embeddedSettings: true)
@@ -318,13 +332,19 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     static let shared = SettingsPresentationService()
     private weak var workspace: RepositoryModel?
     private weak var appearance: AppAppearance?
-    private var controller: NSWindowController?
-    private var navigation: SettingsNavigationController?
+    private(set) var controller: NSWindowController?
+    private(set) var navigation: SettingsNavigationController?
+    var present: (NSWindowController) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
     private var updates: AnyCancellable?
     func install(workspace: RepositoryModel, appearance: AppAppearance) {
         self.workspace = workspace; self.appearance = appearance
-        workspace.onSettings = { Self.shared.show(globalOnly: $0) }
-        workspace.canChangeSettingsContext = { Self.shared.prepareContextChange() }
+        workspace.onSettings = { [weak self] in self?.show(globalOnly: $0) }
+        workspace.onSettingsPage = { [weak self] global, name in
+            self?.show(globalOnly: global, initialPage: SettingsPageID.commandPage(name, repository: !global), remoteNoFetch: name == "gitremote")
+        }
+        workspace.onFirstStart = { [weak workspace] page in FirstStartWizardService.shared.show(initialPage: page, preferences: workspace?.fileComparisonPreferences ?? .standard) }
+        workspace.onCommandHelp = { TurtleGitHelp.show(.overview) }
+        workspace.canChangeSettingsContext = { [weak self] in self?.prepareContextChange() ?? true }
         workspace.onHelp = { Self.showHelp() }
         workspace.onAbout = { Self.showAbout() }
     }
@@ -341,14 +361,14 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         }
         return true
     }
-    func show(globalOnly: Bool = false, initialPage: SettingsPageID = .general) {
+    func show(globalOnly: Bool = false, initialPage: SettingsPageID? = nil, remoteNoFetch: Bool = false) {
         guard let workspace, let appearance, !workspace.confirmingQuit else { return }
         if let navigation, navigation.globalOnly != globalOnly {
             guard prepareContextChange() else { return }
             controller?.window?.performClose(nil)
         }
-        if let controller { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return }
-        let navigation = SettingsNavigationController(workspace: workspace, appearance: appearance, globalOnly: globalOnly,initialPage:initialPage)
+        if let controller { if let initialPage { navigation?.requestCommandPage(initialPage, noFetch: remoteNoFetch) }; present(controller); return }
+        let navigation = SettingsNavigationController(workspace: workspace, appearance: appearance, globalOnly: globalOnly,preferences:workspace.fileComparisonPreferences,initialPage:initialPage ?? .general,remoteNoFetch:remoteNoFetch)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 740), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "Settings – TurtleGit for Mac"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width:860,height:540)
@@ -358,7 +378,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         updates = workspace.objectWillChange.sink { [weak self] in
             DispatchQueue.main.async { [weak self] in self?.navigation?.updateRepository() }
         }
-        window.center(); controller.showWindow(nil); window.makeKeyAndOrderFront(nil)
+        window.center(); present(controller)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { navigation?.canDismiss == true }
     func windowWillClose(_ notification: Notification) {

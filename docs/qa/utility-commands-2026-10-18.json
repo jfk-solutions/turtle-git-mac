@@ -1,0 +1,210 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "887d1836d5d0c9cfdf34d7a965c699115495cffb",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Settings/About/Help/First Start command entry; source page mapping/defaults and Remote No Fetch; owned repository discovery/adoption; reused native Settings/wizard drafts; initial User/Authentication read bootstrap and actual cancellation drain.",
+  "dialogs": [
+    "IDD_SETTINGSMAIN",
+    "IDD_FIRSTSTARTWIZARD_LANGUAGE",
+    "IDD_FIRSTSTARTWIZARD_START",
+    "IDD_FIRSTSTARTWIZARD_GIT",
+    "IDD_FIRSTSTARTWIZARD_USER",
+    "IDD_FIRSTSTARTWIZARD_AUTHENTICATION",
+    "IDD_ABOUT"
+  ],
+  "source_review": [
+    "src/TortoiseProc/Commands/SettingsCommand.cpp",
+    "src/TortoiseProc/Settings/Settings.cpp::AddPropPages/OnInitDialog",
+    "src/TortoiseProc/Commands/FirstStartWizardCommand.cpp",
+    "src/TortoiseProc/FirstStartWizard.cpp",
+    "src/TortoiseProc/Commands/AboutCommand.cpp",
+    "src/TortoiseProc/Commands/Command.cpp"
+  ],
+  "implementation": [
+    "Primary aliases settings/about/help/firststartwizard; source page option scoped to Settings/Wizard, settings single-path validation, typed presets retained across authorized path-file resolution and selection. First Start is an application utility, with the existing About icon, without adding a Finder-menu preference bit.",
+    "About, manual Help, First Start and outside-repository global Settings do not require Git. A bounded permission-aware marker scan precedes Git creation; root/empty-path termination prevents parent traversal from cycling beyond the filesystem root.",
+    "Repository Settings captures original window/grants, resolves linked metadata before Git, refuses invalid scope or changed Settings context, and uses normal adoption/rollback. Reused page/window/cache preserves modified drafts; busy pages/child questions refuse navigation.",
+    "Case-sensitive pinned Settings page names map to native pages. Repository default is Git; outside default is General. Remote/Issue Tracker Config are conditional. Windows-only win11menu falls back. Explicit Remote suppresses its post-save Fetch question and uses owning preferences.",
+    "Common adoption retains an explicit handoff owner and uses its cancellation instead of observing a subsequently selected workspace window. Retained Clone/Init handoff regression checks cover this shared change.",
+    "New wizard starts on page 0-4 with Language fallback; explicit startup suppresses automatic Language race. Repeated entry retains its existing draft/page. Initial User/Authentication bootstrap selected-engine global configuration through existing permissions, without writing engine/identity/helper settings. Close cancels reads and retains accounting through actual drain; late results are fenced."
+  ],
+  "validation": {
+    "core": {
+      "initial_command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter 'PrimaryCommandInvocationTests|RepositoryAccessTests|MenuIconTests|FinderContextMenuSettingsTests'",
+      "initial_exit": 1,
+      "initial_cases": 73,
+      "initial_failures": 1,
+      "failure": "New Settings marker test found parent traversal past filesystem root until tooManyDependencies.",
+      "repair": "Return nil after checking root or empty path.",
+      "affected_recheck_command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter RepositoryAccessTests",
+      "affected_recheck_exit": 0,
+      "affected_recheck_cases": 19,
+      "distinct_passing_cases": 73,
+      "classes": {
+        "PrimaryCommandInvocationTests": 46,
+        "RepositoryAccessTests": 19,
+        "MenuIconTests": 3,
+        "FinderContextMenuSettingsTests": 5
+      },
+      "scope": "Focused selection only. Unaffected 54 passing tests were not repeated."
+    },
+    "build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "attempts": [
+        {
+          "log": "utility-commands-build-2026-10-18.log",
+          "exit": 0
+        },
+        {
+          "log": "utility-commands-build-root-recheck-2026-10-18.log",
+          "exit": 0,
+          "reason": "Affected Core root termination repair."
+        }
+      ],
+      "scope": "Local arm64 Debug app/embedded targets. Existing warnings, simulator mismatch and SwiftCompile exit-0 diagnostics remain; no clean diagnostics/universal/signed/current hosted acceptance claim."
+    },
+    "utility_native": {
+      "command": "python3 scripts/test-primary-commands.py --only utilities --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "initial_exit": 1,
+      "initial_failure": "Fixture attempted to close an owner inside a permission callback, but its existing broad active grant legitimately bypassed that callback.",
+      "fixture_repair": "Close the captured owner immediately after invoking Settings, before its asynchronous preparation begins. No product cancellation code changed for this failure.",
+      "recheck_exit": 0,
+      "engine_cases": 2,
+      "assertions": [
+        "No-Git utility callbacks and global Settings; no checkout adoption or Git factory call outside repository.",
+        "Representative source page/default/conditional/Windows fallback mapping; repository Git initial page.",
+        "Same Settings window reopens Remote with No Fetch and private preferences; page jump retains modified transaction without Apply.",
+        "Denied changed repository retains current checkout/window/draft; outside Global Settings leaves checkout unchanged.",
+        "Captured main-window closure before preflight refuses late Settings adoption.",
+        "Initial User/Authentication load private config without writes; repeated wizard retains its edited draft/page.",
+        "Private skip-helper Finish records completion without changing global config.",
+        "Forced wizard closure cancels an injected held bootstrap and holds counter through actual late return; retired fields stay empty.",
+        "Source HEAD/index and private global bytes unchanged."
+      ],
+      "limits": "Help/About external services are represented by callbacks, not launched. Real authorization panels, credential UI, rendered pixel fidelity and physical Finder not exercised."
+    },
+    "first_start_retained": {
+      "command": "python3 scripts/test-first-start-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "engine_cases": 2,
+      "attempts": 1,
+      "scope": "Existing source forms/order, form/picker/check/focus generations, captured engine/identity, accepted writes/partial-failure lifetime, private Finish, Advanced/SSH sheets and cancellation."
+    },
+    "settings_layout_retained": {
+      "command": "python3 scripts/test-settings-navigation-layout.py --only layout",
+      "exit": 0,
+      "engine_cases": 1,
+      "attempts": 1,
+      "scope": "Existing nested headings/initial selection/rebuild/error reveal, retained expansion/scroll, small-window footer/content access, sidebar/tooltips and retired navigation. Runner uses system Git only for layout."
+    },
+    "handoffs_retained": {
+      "command": "python3 scripts/test-repository-handoffs.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "engine_cases": 2,
+      "attempts": 1,
+      "scope": "Actual private Clone/Init normal/bare, held repository operation, latest-completion/explicit Open/Close, rollback/retry, metadata grants and cancellation/late callbacks through actual drain."
+    },
+    "distinct_native_case_engine_passes": 7,
+    "cleanup": {
+      "owned_pids": [
+        47725,
+        47839,
+        47843,
+        47870,
+        48301,
+        48514,
+        49072,
+        49148
+      ],
+      "confirmed_absent": [
+        47725,
+        47839,
+        47843,
+        47870,
+        48301,
+        48514,
+        49072,
+        49148
+      ],
+      "still_present": [],
+      "scope": "Native runner reaped each receiver, including failed fixture. Fixtures closed owned windows/panels and drained counters. No user-owned installed app terminated."
+    },
+    "localizations": {
+      "write_before_build": true,
+      "languages": 38,
+      "keys": 1287,
+      "scope": "Catalog unchanged; missing entries retain English fallback. Full translation not asserted.",
+      "check_exit": 0
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "scope": "Inventory/audit coverage, not feature completion."
+    },
+    "site": {
+      "command": "build/site-venv/bin/python scripts/build-site.py",
+      "exit": 0,
+      "documents": 294,
+      "unresolved_fragments": []
+    }
+  },
+  "remaining": [
+    "Complete Settings/wizard/About control/layout/keyboard/VoiceOver/physical theme parity across upstream resources.",
+    "Real sandbox folder/configuration grants and renewal, installed Finder input and current signed deployment/App Store acceptance.",
+    "Actual Help/About activation and explicit startup race in a normal launched application; local receiver uses injected callbacks.",
+    "Windows-specific administrator Credential sheet/Win11 Explorer page require platform adaptation, not compatibility emulation.",
+    "Other source utility/daemon/update/release administration entries remain separate batches.",
+    "The requested custom TurtleGit artwork was not recovered; packaged/shared branding remains adapted upstream artwork. No newly created/custom icon is claimed.",
+    "A current complete hosted CI pass is not established by these local focused checks."
+  ],
+  "logs": {
+    "utility-commands-build-2026-10-18.log": {
+      "bytes": 83674,
+      "sha256": "aa0d36a671927d875d8d43453da27ad399c0658d77438a49095d5ad294450808"
+    },
+    "utility-commands-build-root-recheck-2026-10-18.log": {
+      "bytes": 1330,
+      "sha256": "a52b04ba93f4fd10cd94069f7892d7a5920bb16ff1505acf4b1c9eccb9b9ba4b"
+    },
+    "utility-commands-core-2026-10-18.log": {
+      "bytes": 23573,
+      "sha256": "895997b80764bcaae62384d6846c9a0eb411f4fadced11fd43e9750944dcbecd"
+    },
+    "utility-commands-core-access-recheck-2026-10-18.log": {
+      "bytes": 6009,
+      "sha256": "b5c3061a4d2250095d46051a489ff27669eeb090fd8b9c73134a5c2d098dc46e"
+    },
+    "utility-commands-first-start-2026-10-18.log": {
+      "bytes": 789,
+      "sha256": "63804f26248dfcedf9bb37a5777d44d09775c02ce16fdf2e6e70f1e19ccddcdc"
+    },
+    "utility-commands-handoffs-2026-10-18.log": {
+      "bytes": 1895,
+      "sha256": "a04245028fd50fd76acce490402644f14c698d0599258808be966e421ed838f0"
+    },
+    "utility-commands-native-2026-10-18.log": {
+      "bytes": 1740,
+      "sha256": "cbd7f90616d9e162a93d5eef3bcfb0dbe695dd3585a92f3ccaa1cf786fd8b0fa"
+    },
+    "utility-commands-native-owner-recheck-2026-10-18.log": {
+      "bytes": 1645,
+      "sha256": "6b45673fde5714d3cfd9464d2b861fc70e5a2e016fbe30268abc88f392bf196a"
+    },
+    "utility-commands-settings-layout-2026-10-18.log": {
+      "bytes": 396,
+      "sha256": "616ed0076062c41dddfd983fbc7251dee8198d9e11d267c03582e93bbdb62b00"
+    },
+    "utility-commands-site-2026-10-18.log": {
+      "bytes": 123,
+      "sha256": "5c960247777bfa7672e3c2b60aa02946a6d588814bbacd7b1a81cb9dff74a451"
+    }
+  },
+  "fixture_sha256": "443b869e7aaf0e7272904ba4adbbdd268f654c79331daf9da7bdf3286116418f",
+  "resources": [
+    "src/Resources/TortoiseProcENG.rc"
+  ]
+}

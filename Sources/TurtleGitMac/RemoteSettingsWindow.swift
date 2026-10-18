@@ -20,7 +20,7 @@ import TurtleGitCore
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
-    let noFetch: Bool
+    private(set) var noFetch: Bool
     let identityAccess: SSHIdentityAccessStore
     @Published private(set) var names: [GitReferenceName] = []
     @Published private(set) var selected: GitReferenceName?
@@ -100,6 +100,7 @@ import TurtleGitCore
         names = values.map { GitReferenceName($0) }; if !names.isEmpty { cancelOriginHint() }; onRemotesChanged(values)
         if let onReferencesChanged { let references = try await repository.checkoutReferences(cancellation: request); guard live(request) else { return }; onReferencesChanged(references) }
     }
+    func suppressFetchForCommand() { guard !busy, !hasChild else { return }; noFetch = true }
     func load() { perform { [self] request in try await reloadNames(request); if live(request) { scheduleOriginHint() } } }
     private func cancelOriginHint() { hintGeneration = UUID(); hintTask?.cancel(); hintTask = nil; originHint = nil }
     private func scheduleOriginHint() {

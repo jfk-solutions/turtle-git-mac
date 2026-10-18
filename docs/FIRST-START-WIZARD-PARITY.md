@@ -196,3 +196,20 @@ all receiver PIDs were independently absent. See
 ![First Start language page in German, light](site/assets/first-start-language-de-light.png)
 
 ![First Start language page in German, dark](site/assets/first-start-language-de-dark.png)
+
+## Explicit page startup and bootstrap ownership — October 18, 2026
+
+The source `firststartwizard /page:<number>` entry now reaches the native five-page
+wizard. A fresh window selects 0–4, with Language fallback for unavailable values.
+A repeated command focuses the current wizard and preserves its draft, page and
+pending work. An explicit wizard command suppresses automatic first-run page
+creation, so it does not race the requested initial page.
+
+Initial User/Authentication pages read global configuration through the selected
+engine and existing scoped configuration authorization. They do not apply an
+engine preference or write identity/helper settings on opening. Next/Finish retain
+the existing captured write paths. Bootstrap holds its operation counter until
+actual return, cancels on forced close and rejects late configuration. Owning
+preferences persist the completion flag. [Batch evidence](qa/utility-commands-2026-10-18.json)
+records actual checks; physical input/rendered fidelity, real scope/credential
+interaction and signed Store acceptance remain open.

@@ -122,6 +122,9 @@ import UniformTypeIdentifiers
         loader.present(parent: workspaceWindow)
     }
     weak var workspaceWindow: NSWindow? { didSet { retireWorkspaceMenus() } }
+    var onSettingsPage: (Bool, String?) -> Void = { _, _ in }
+    var onFirstStart: (Int) -> Void = { _ in }
+    var onCommandHelp: () -> Void = {}
     var onSettings: (Bool) -> Void = { _ in }
     var canChangeSettingsContext: () -> Bool = { true }
     var onHelp: () -> Void = {}
@@ -314,7 +317,9 @@ import UniformTypeIdentifiers
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || creationFolderChoice != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || settingsPreparation != nil || creationFolderChoice != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    private var settingsPreparation: RepositoryWindowOwner?
+    private var settingsFolderChoice: RepositoryCreationFolderChoice?
     private var mailPreparations: [UUID: RepositoryWindowOwner] = [:]
     private var mailPermissionPanels: [UUID: NSOpenPanel] = [:]
     var mailFilePermission: (([URL], OperationCancellation) async throws -> [RepositoryAccessLease]?)?
@@ -345,7 +350,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -538,12 +543,12 @@ import UniformTypeIdentifiers
         let adoption = adoptionGeneration
         busy = true
         let cancellation=handoffOwner?.cancellation ?? OperationCancellation();adoptionCancellation=cancellation
-        let owner=workspaceWindow
+        let owner=handoffOwner == nil ? workspaceWindow : nil
         let ownerObserver=owner.map { NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:$0,queue:.main) { _ in cancellation.cancel() } }
         Task {
             var opened = false, holdsBusy = true
             defer { onFinished?(opened) }
-            defer { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) };if adoptionCancellation === cancellation { adoptionCancellation=nil;if holdsBusy { busy=false } };withExtendedLifetime(lease) {} }
+            defer { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) };if adoptionCancellation === cancellation { adoptionCancellation=nil;if holdsBusy { busy=false } };withExtendedLifetime((lease,handoffOwner)) {} }
             do {
                 var commandSelectedRevision: String?
                 let commandMessage: String?
@@ -751,6 +756,7 @@ import UniformTypeIdentifiers
             showFinderSendMail(files: (paths.isEmpty ? selectedPaths : paths).map { root.appendingPathComponent($0) })
         case .properties:
             guard let repository else { return }; showGitProperties(repository:repository,access:activeAccess,paths:paths.isEmpty ? selectedPaths : paths)
+        case .firstStartWizard: onFirstStart(0)
         case .settings: onSettings(false)
         case .help: onHelp()
         case .about: onAbout()
@@ -3441,6 +3447,10 @@ import UniformTypeIdentifiers
             guard outputAccess.contains(output), outputAccess.contains(output.deletingLastPathComponent()), !GitRuntime.isAppStoreBuild || outputAccess.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
         } else { outputAccess = nil }
         try cancellation?.check()
+        if invocation.request.action == .about { onAbout(); return }
+        if invocation.request.action == .help { onCommandHelp(); return }
+        if invocation.request.action == .firstStartWizard { onFirstStart(invocation.wizardPage ?? 0); return }
+        if invocation.request.action == .settings { prepareCommandSettings(invocation, cancellation: cancellation); return }
         if invocation.request.action == .sendMail {
             showFinderSendMail(files: invocation.mailFiles, commandCancellation: cancellation); return
         }
@@ -3458,6 +3468,59 @@ import UniformTypeIdentifiers
         }
         ComparisonToolInvocation.$alternate.withValue(invocation.request.alternateTool ?? false) {
             handleFinderRequest(invocation.request, invocation: invocation, messageAccess: permission, outputAccess: outputAccess, commandCancellation: cancellation)
+        }
+    }
+    private func prepareCommandSettings(_ invocation: PrimaryCommandInvocation, cancellation: OperationCancellation?) {
+        guard !retired, !confirmingQuit, settingsPreparation == nil, let selected = invocation.request.paths.first else { return }
+        let owner = RepositoryWindowOwner(window: workspaceWindow), window = workspaceWindow
+        // The captured window's token is the authority; Git reads use it too.
+        settingsPreparation = owner; busy = true
+        Task {
+            var transferred = false
+            defer { if settingsPreparation === owner { settingsPreparation = nil }; settingsFolderChoice = nil; if !transferred { busy = false } }
+            do {
+                try owner.cancellation.check(); try cancellation?.check()
+                let permission: RepositoryAccessLease?
+                if let activeAccess, activeAccess.contains(selected), !requiresRepositoryScope || activeAccess.hasSecurityScope { permission = activeAccess }
+                else if let commandLineRepositoryPermission { permission = try commandLineRepositoryPermission([selected]) }
+                else if !requiresRepositoryScope {
+                    let directory = (try? selected.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+                    permission = RepositoryAccessLease(url: directory ? selected : selected.deletingLastPathComponent())
+                } else {
+                    permission = await withCheckedContinuation { continuation in
+                        let choice = RepositoryCreationFolderChoice(window: window, owner: owner)
+                        choice.panel.canChooseFiles = false; choice.panel.canChooseDirectories = true; choice.panel.showsHiddenFiles = true
+                        choice.panel.prompt = "Authorize repository"; choice.panel.message = "Choose the folder containing this Settings path."; choice.panel.directoryURL = selected.deletingLastPathComponent()
+                        settingsFolderChoice = choice
+                        choice.onFinished = { folder in continuation.resume(returning: folder.map { RepositoryAccessLease(url: $0) }) }
+                        choice.begin(present: nil, selected: { $0.url })
+                    }
+                }
+                try owner.cancellation.check(); try cancellation?.check(); guard !retired, let permission else { return }
+                guard permission.contains(selected), !requiresRepositoryScope || permission.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let directory = (try? selected.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+                let location = directory ? selected : selected.deletingLastPathComponent()
+                guard permission.contains(location) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(location.path) }
+                let scopeRequired = requiresRepositoryScope, token = owner.cancellation
+                let hint = try await Task.detached { try RepositoryMetadataAccess.settingsRepository(at: location, permissions: [permission], requireSecurityScope: scopeRequired, cancellation: token) }.value
+                try owner.cancellation.check(); try cancellation?.check(); guard !retired, !confirmingQuit else { return }
+                guard let hint else {
+                    guard canChangeSettingsContext() else { return }; onSettingsPage(true, invocation.settingsPage); return
+                }
+                let prepared = try await prepareRepositoryMetadataAccess(at: hint, primary: permission, cancellation: owner.cancellation)
+                let access = permission.retainingRelatedScopes(prepared.scopes)
+                let repository = try makeRepository(hint)
+                let discovered = try await repository.discoverRoot(cancellation: owner.cancellation)
+                try owner.cancellation.check(); try cancellation?.check(); guard !retired, !confirmingQuit else { return }
+                guard !requiresRepositoryScope || access.contains(discovered) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(discovered.path) }
+                if root?.path == discovered.path { onSettingsPage(false, invocation.settingsPage); return }
+                guard canChangeSettingsContext() else { return }
+                // Reuse the normal captured adoption/rollback transaction. It
+                // rechecks the repository instead of trusting this preflight.
+                busy = false; transferred = true
+                openSession(access, selected: invocation.request, action: .settings, invocation: invocation, handoffOwner: owner)
+                withExtendedLifetime(access) {}
+            } catch { if !retired, !owner.cancellation.isCancelled, cancellation?.isCancelled != true { self.error = error.localizedDescription } }
         }
     }
     private func commandImportIsLive(_ owner: RepositoryWindowOwner, cancellation: OperationCancellation?) -> Bool {
@@ -3576,6 +3639,7 @@ import UniformTypeIdentifiers
         case .previousDiff:
             guard paths.count == 1 else { error = "Select one file or directory to compare."; return }
             showPreviousDiff(repository: repository, access: access, path: paths[0], owner: workspaceWindow, unified: invocation.unified)
+        case .settings: onSettingsPage(false, invocation.settingsPage)
         case .requestPull:
             showRequestPull(repository: repository, access: access, end: invocation.request.requestPullEnd, repositoryURL: invocation.request.requestPullURL, commandLaunch: true)
         case .worktreeCreate:

@@ -344,6 +344,23 @@ public enum RepositoryMetadataAccessFailure: LocalizedError {
 /// Discover permission needs before launching Git. Read only folders already
 /// covered by live grants; each newly authorized folder reveals the next layer.
 public enum RepositoryMetadataAccess {
+    /// Settings can open globally without a configured Git executable. Find a
+    /// repository marker first, using only folders available to the caller.
+    public static func settingsRepository(at location: URL, permissions: [RepositoryAccessLease], requireSecurityScope: Bool, cancellation: OperationCancellation? = nil) throws -> URL? {
+        let folders = permissions.flatMap { $0.permittedFolders(requireSecurityScope: requireSecurityScope) }
+        var cursor = location.standardizedFileURL
+        for _ in 0..<256 {
+            try cancellation?.check()
+            guard !requireSecurityScope || folders.contains(where: { RepositoryAccessLease.pathIsContained(cursor, by: $0) }) else { return nil }
+            let manager = FileManager.default
+            if (try? manager.attributesOfItem(atPath: cursor.appendingPathComponent(".git").path)) != nil ||
+                manager.fileExists(atPath: cursor.appendingPathComponent("HEAD").path) && manager.fileExists(atPath: cursor.appendingPathComponent("objects").path) { return cursor }
+            if cursor.path == "/" || cursor.path.isEmpty { return nil }
+            let parent = cursor.deletingLastPathComponent()
+            if parent.path == cursor.path { return nil }; cursor = parent
+        }
+        throw RepositoryMetadataAccessFailure.tooManyDependencies
+    }
     public static func next(at location: URL, permissions: [RepositoryAccessLease], requireSecurityScope: Bool = true, cancellation: OperationCancellation? = nil) throws -> RepositoryMetadataAccessRequirement? {
         try next(at: location, authorizedFolders: permissions.flatMap {$0.permittedFolders(requireSecurityScope:requireSecurityScope)}, cancellation: cancellation)
     }

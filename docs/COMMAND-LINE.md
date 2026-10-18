@@ -783,3 +783,62 @@ preview/checkbox/subject behavior and delivery backends. Local grant-policy and
 loopback checks do not establish physical Finder input, real scope issuance,
 public SMTP/Apple Mail acceptance or signed App Store approval. See
 [Request Pull](REQUEST-PULL-PARITY.md) and [Finder mail](FINDER-LFS-MAIL-PARITY.md).
+
+## Settings, About, Help and First Start entry
+
+`about` and `help` open their existing native application services without
+repository discovery or a required Git executable. Command Help selects the
+manual overview; normal dialog Help remains contextual. `firststartwizard`
+opens/reuses the native setup wizard. Numeric `page` values 0–4 select Language,
+Welcome, Git, User and Authentication; missing/invalid/out-of-range pages start
+at Language. An existing wizard keeps its page/draft and active work. Explicit
+wizard startup does not race the automatic first-run Language page.
+
+User/Authentication initial pages bootstrap the selected engine's global identity
+and credential configuration without applying engine settings or writing Git
+configuration. The existing native permission, Next/Back/Finish, credential and
+key-generation paths remain. Closing bootstrap cancels and waits for its actual
+read to drain; a late reply cannot populate a retired wizard.
+
+`settings` accepts one selected path plus an optional source `page` name. It
+looks for repository markers within available folders before requiring Git.
+Outside a repository it opens Global Settings and leaves the current checkout
+unchanged. Inside a repository it resolves/authorizes metadata and uses normal
+workspace adoption/rollback, unless already in that repository. Modified/active
+Settings can refuse a different context. Defaults are Git inside a repository
+and General outside; unknown or unavailable page names retain those defaults.
+
+| Source page name | Native page |
+| --- | --- |
+| `main`, `look`, `extmenu` | General, Context Menu, Set Extended Menu Item |
+| `dialog`, `dialog2`, `dialog3` | Dialogs 1, 2, 3 |
+| `color1`, `color2`, `color3` | Colors 1, 2, 3 |
+| `alternativeeditor` | Alternative Editor |
+| `gitconfig`, `gitremote`, `gitcredential` | Git, Remote, Credential |
+| `hooks`, `bugtraq`, `bugtraqconfig` | Hook Scripts, Issue Tracker Integration, Issue Tracker Config |
+| `overlay`, `overlays`, `overlayshandlers` | Icon Overlays, Icon Set, Overlay Handlers |
+| `proxy`, `smtp` | Network, Email |
+| `diff`, `merge` | Diff Viewer, Merge Tool |
+| `save`, `blame`, `udiff`, `advanced` | Saved Data, Blame, Unified Diff, Advanced |
+
+Names are case-sensitive as in `Settings.cpp`. Remote and Issue Tracker Config
+require a repository for source command selection. Windows-only `win11menu` is
+unavailable on macOS and uses the normal fallback; Finder configuration uses the
+native Context Menu pages. Remote command entry sets the source No Fetch policy
+for that Settings window; saving a remote does not ask for the post-save Fetch.
+Idle page jumps reuse the same window and retain its transaction/page drafts;
+active operations or child questions refuse page changes. Owning preferences are
+forwarded into Settings and embedded Remote. macOS does not need the source's
+Windows administrator-only Credential property sheet.
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=settings \
+  --path '/absolute/repository' --page gitremote
+open -n -a 'TurtleGit for Mac' --args --command=firststartwizard --page=3
+```
+
+[Utility batch evidence](qa/utility-commands-2026-10-18.json) separates local
+source/default/lifecycle checks from real Help browser, physical pickers,
+rendered/VoiceOver parity, signed deployment and App Store acceptance. Other
+utility command families, including daemon serving and release administration,
+remain separate work.

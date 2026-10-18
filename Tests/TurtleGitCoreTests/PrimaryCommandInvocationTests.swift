@@ -2,6 +2,27 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PrimaryCommandInvocationTests: XCTestCase {
+    func testApplicationUtilityCommandsAndEditablePages() throws {
+        for (command, action) in [("settings",RepositoryAction.settings),("about",.about),("help",.help),("firststartwizard",.firstStartWizard)] {
+            let value = try parse(["--command=" + command])
+            XCTAssertEqual(value.request.action, action); XCTAssertTrue(action.isApplicationUtility); XCTAssertFalse(action.requiresWorkingTree)
+        }
+        XCTAssertEqual(try parse(["/command:settings", "/page:gitcredential"]).settingsPage, "gitcredential")
+        XCTAssertEqual(try parse(["/command:settings", "/page:unavailable"]).settingsPage, "unavailable")
+        for (raw, value) in [("0",0),("4",4),("-1",-1),("abc",0),("2147483648",0)] { XCTAssertEqual(try parse(["--command=firststartwizard", "--page=" + raw]).wizardPage, value) }
+        XCTAssertNil(FinderMenuEntry.entry(for: .firstStartWizard))
+        XCTAssertEqual(RepositoryAction.firstStartWizard.icon, .about)
+        for args in [["--command=help","--page=main"],["--command=about","--force"],["--command=settings","--path=a","--path=b"],["--command=firststartwizard","--force"]] { XCTAssertThrowsError(try parse(args)) }
+    }
+    func testUtilityPathFileSelectionKeepsPagePreset() throws {
+        let root = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("paths"); try Data("folder\0".utf8).write(to:file)
+        for (command,page) in [("settings","gitremote"),("firststartwizard","3")] {
+            let value = try parse(["--command="+command,"--page="+page,"--pathfile",file.path,"--pathfile0"])
+            let loaded = try value.resolvingPathFile(cancellation:OperationCancellation()).selecting([root])
+            XCTAssertEqual(loaded.settingsPage,value.settingsPage); XCTAssertEqual(loaded.wizardPage,value.wizardPage)
+        }
+    }
     func testRequestPullPresetsAreEditableAndSurvivePathFileSelection() throws {
         let value = try parse(["--command=requestpull", "--endrev=topic", "--url=ssh://example.invalid/repo.git"])
         XCTAssertEqual(value.request.action, .requestPull)

@@ -472,3 +472,22 @@ QA records remain available as historical evidence.
 See [the hosted failure and local repair record](qa/settings-footer-ci-2026-10-16.json).
 A new hosted pass, other macOS versions, full physical/VoiceOver and signed
 acceptance remain unverified. This does not certify every Settings page.
+
+## Source command pages and context ownership — October 18, 2026
+
+`settings /page:<pageName>` now maps the pinned `Settings.cpp` source tree names
+into the existing native page IDs, with case-sensitive Git-in-repository / General
+outside defaults. Windows-only Win11 and repository-only unavailable pages fall
+back as source selection does. The native administrator credential equivalent is
+the regular Credential page. Explicit Remote entry suppresses the post-save Fetch
+question and carries the owning preferences into the embedded Remote model.
+
+Global Settings uses a bounded marker lookup before requiring Git. Repository
+entry authorizes source/metadata and uses captured workspace adoption/rollback.
+A changed context respects the existing Settings transaction guard. Idle source
+page jumps reuse the same window/cache and preserve modified page participants;
+active operations/children refuse navigation. Main-window closure cancels its
+preparation and adoption; transferred owners stay retained for actual drain.
+The common handoff now observes its supplied owner rather than a later workspace
+window. [Utility evidence](qa/utility-commands-2026-10-18.json) records actual checks
+and remaining physical/signed/complete-layout acceptance.

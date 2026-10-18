@@ -224,7 +224,7 @@ extension RepositoryAction {
         case .properties: return .settingsGit
         case .settings: return .settings
         case .help: return .help
-        case .about: return .about
+        case .about, .firstStartWizard: return .about
         case .status: return .status
         case .commit: return .commit
         case .add, .submoduleAdd: return .add

@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [application utility entry family](COMMAND-LINE.md#settings-about-help-and-first-start-entry)
+adds source Settings page selection/defaults, About/Help routes without repository
+requirements, and explicit First Start page/bootstrap ownership. Native Settings
+retains its transaction through idle page navigation, suppresses Remote Fetch for
+source command entry, and uses captured context adoption. Supplied handoff owners
+remain authoritative through drain. [Evidence](qa/utility-commands-2026-10-18.json)
+records actual validation and remaining platform/source acceptance.
+
 The connected [Request Pull/Send Mail entry family](COMMAND-LINE.md#request-pull-and-send-mail-entry)
 adds source presets and ordered duplicate file inputs, captured native
 permissions/inspection, linked sender metadata grants, independent global sender

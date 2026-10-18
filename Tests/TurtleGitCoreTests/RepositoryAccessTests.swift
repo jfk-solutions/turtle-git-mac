@@ -20,6 +20,26 @@ private final class TestBookmarks: RepositoryBookmarkProvider {
 }
 
 final class RepositoryAccessTests: XCTestCase {
+    func testSettingsMarkerDiscoveryNeedsNoGitAndRespectsScopeBoundary() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("tg-settings-discovery-"+UUID().uuidString)
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        defer {try? FileManager.default.removeItem(at:root)}
+        XCTAssertNil(try RepositoryMetadataAccess.settingsRepository(at:root,permissions:[],requireSecurityScope:false))
+        let repository=root.appendingPathComponent("repo"), child=repository.appendingPathComponent("child")
+        try FileManager.default.createDirectory(at:child,withIntermediateDirectories:true)
+        try Data("gitdir: external".utf8).write(to:repository.appendingPathComponent(".git"))
+        let grant=RepositoryAccessLease(url:child,provider:TestBookmarks())
+        XCTAssertNil(try RepositoryMetadataAccess.settingsRepository(at:child,permissions:[grant],requireSecurityScope:true))
+        XCTAssertEqual(try RepositoryMetadataAccess.settingsRepository(at:child,permissions:[],requireSecurityScope:false)?.path,repository.path)
+        let parent=RepositoryAccessLease(url:root,provider:TestBookmarks())
+        XCTAssertEqual(try RepositoryMetadataAccess.settingsRepository(at:child,permissions:[parent],requireSecurityScope:true)?.path,repository.path)
+        let bare=root.appendingPathComponent("bare.git");try FileManager.default.createDirectory(at:bare.appendingPathComponent("objects"),withIntermediateDirectories:true)
+        try Data("ref: refs/heads/main".utf8).write(to:bare.appendingPathComponent("HEAD"))
+        XCTAssertEqual(try RepositoryMetadataAccess.settingsRepository(at:bare,permissions:[parent],requireSecurityScope:true)?.path,bare.path)
+        let token=OperationCancellation();token.cancel()
+        XCTAssertThrowsError(try RepositoryMetadataAccess.settingsRepository(at:child,permissions:[parent],requireSecurityScope:true,cancellation:token))
+    }
+
     private func fixture() throws -> (URL, URL) {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
