@@ -735,3 +735,51 @@ drag-menu interception is not implemented by this entry route. Lexical source
 self-comparison does not certify all case/normalization/symlink-alias spellings.
 Physical Finder, signed access and complete visual parity remain open; see
 [Worktree parity and evidence](WORKTREE-PARITY.md).
+
+## Request Pull and Send Mail entry
+
+| Command | Native workflow | Inputs |
+| --- | --- | --- |
+| `requestpull` | Request pull | one repository; optional editable `endrev` and `url` |
+| `sendmail` | Send Patch options/progress | ordered file paths or a shared authorized path file |
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=requestpull \
+  --path '/absolute/repository' --endrev topic --url '/absolute/published.git'
+open -n -a 'TurtleGit for Mac' --args --command=sendmail \
+  --path '/absolute/1.patch' --path '/absolute/2.patch'
+```
+
+Request Pull preserves the source's editable end revision and repository URL;
+missing/empty presets retain saved history/defaults. A later command focuses its
+existing command window and preserves its options, picker, generation and mail
+handoff. Normal independent app entry remains separate. No request is generated
+until OK. The owning settings govern the form, history, Start Log and mail route.
+
+Send Mail uses the original ordered file list, including duplicate occurrences,
+matching `SendMailCommand::orgPathList`. Finder's selection remains deduplicated.
+Native repeated paths preserve literal asterisks/newlines/Unicode; legacy `/path:`
+uses its `*` separator. Path files retain order/duplicates and the usual bounded,
+authorized read and explicit optional deletion. No extension/existence filter narrows the
+original file list. Missing paths or directory entries remain visible and can be
+unchecked; acceptance reads/prepares only checked files, so a bad unselected entry
+does not block the valid selection. Opening the options does not send or prepare a
+message in another app.
+
+File preparation captures its launching window, settings, selected files and
+permission state. Scoped builds use an owned native files/folders chooser; Cancel,
+wrong grants, window close and retirement prevent a later composer handoff.
+Pending work remains accounted for until it drains. A first-file repository
+supplies sender identity only within granted folders; linked metadata/object
+folders request separate access before Git runs. Source and related scopes remain
+with the workflow. Saved grants can be renewed without reordering Recents.
+Files outside a discovered repository use an exclusive private Git-global context
+and leave the active checkout unchanged. That directory is removed when its
+owning workflow releases it. Every options/progress workflow retains its own
+files, preferences and sender context through review and delivery.
+
+These are native startup routes into the existing source forms, original icons,
+preview/checkbox/subject behavior and delivery backends. Local grant-policy and
+loopback checks do not establish physical Finder input, real scope issuance,
+public SMTP/Apple Mail acceptance or signed App Store approval. See
+[Request Pull](REQUEST-PULL-PARITY.md) and [Finder mail](FINDER-LFS-MAIL-PARITY.md).

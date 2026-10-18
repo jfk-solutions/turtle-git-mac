@@ -2416,6 +2416,7 @@
         "docs/REQUEST-PULL-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/mail-commands-2026-10-18.json",
         "docs/qa/request-pull-2026-10-08.json",
         "docs/qa/request-pull-lifecycle-2026-10-15.json",
         "docs/qa/request-pull-mail-2026-10-10.json"
@@ -3063,6 +3064,7 @@
       ],
       "qa_records": [
         "docs/qa/help-book-2026-10-15.json",
+        "docs/qa/mail-commands-2026-10-18.json",
         "docs/qa/send-mail-cancellation-2026-10-13.json",
         "docs/qa/send-source-family-2026-10-17.json",
         "docs/qa/unified-byte-buffer-2026-10-17.json"

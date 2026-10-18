@@ -2,6 +2,36 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PrimaryCommandInvocationTests: XCTestCase {
+    func testRequestPullPresetsAreEditableAndSurvivePathFileSelection() throws {
+        let value = try parse(["--command=requestpull", "--endrev=topic", "--url=ssh://example.invalid/repo.git"])
+        XCTAssertEqual(value.request.action, .requestPull)
+        XCTAssertEqual(value.request.requestPullEnd, "topic"); XCTAssertEqual(value.request.requestPullURL, "ssh://example.invalid/repo.git")
+        XCTAssertFalse(value.request.action.requiresWorkingTree)
+        let root = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("paths"); try Data("selected\0".utf8).write(to: file)
+        let loaded = try parse(["--command=requestpull", "--endrev=unresolved draft", "--url=local path", "--pathfile", file.path, "--pathfile0"])
+        let resolved = try loaded.resolvingPathFile(cancellation: OperationCancellation()).selecting([root])
+        XCTAssertEqual(resolved.request.requestPullEnd, "unresolved draft"); XCTAssertEqual(resolved.request.requestPullURL, "local path")
+        XCTAssertNil(try parse(["/command:requestpull", "/endrev:", "/url:"]).request.requestPullEnd)
+        for args in [["--command=requestpull", "--force"], ["--command=requestpull", "--startrev=main"], ["--command=requestpull", "--path=a", "--path=b"]] { XCTAssertThrowsError(try parse(args)) }
+    }
+    func testSendMailKeepsOrgPathListOrderAndDuplicates() throws {
+        let value = try parse(["--command=sendmail", "--path=雪[*]\n.patch", "--path=second.patch", "--path=雪[*]\n.patch"])
+        XCTAssertEqual(value.request.action, .sendMail)
+        XCTAssertEqual(value.request.paths.count, 2)
+        XCTAssertEqual(value.mailFiles.map(\.path), ["/repo/雪[*]\n.patch", "/repo/second.patch", "/repo/雪[*]\n.patch"])
+        XCTAssertEqual(try parse(["/command:sendmail", "/path:a*b*a"]).mailFiles.map(\.path), ["/repo/a", "/repo/b", "/repo/a"])
+        for args in [["--command=sendmail", "--url=x"], ["--command=sendmail", "--endrev=HEAD"], ["--command=sendmail", "--force"]] { XCTAssertThrowsError(try parse(args)) }
+    }
+    func testSendMailPathFileRetainsDuplicateInputsAndExplicitDeletion() throws {
+        let root = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("paths"); try Data("first\0second\0first\0".utf8).write(to: file)
+        let value = try parse(["--command=sendmail", "--pathfile", file.path, "--pathfile0", "--deletepathfile"])
+        let resolved = try value.resolvingPathFile(cancellation: OperationCancellation())
+        XCTAssertEqual(resolved.mailFiles.map(\.path), ["/repo/first", "/repo/second", "/repo/first"])
+        XCTAssertEqual(resolved.request.paths.count, 2); XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+        XCTAssertEqual(resolved.selecting([root,root]).mailFiles.count, 2)
+    }
     func testWorktreeCommandRoutesAndDropTarget() throws {
         for command in ["worktreecreate", "worktreelist", "dropworktreecreate"] {
             let args = ["--command=" + command, "--path=project.git"] + (command == "dropworktreecreate" ? ["--droptarget=outside/雪[*]"] : [])

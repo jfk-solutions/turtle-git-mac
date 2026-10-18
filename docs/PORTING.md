@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Request Pull/Send Mail entry family](COMMAND-LINE.md#request-pull-and-send-mail-entry)
+adds source presets and ordered duplicate file inputs, captured native
+permissions/inspection, linked sender metadata grants, independent global sender
+contexts and owning preferences. Competing Request Pull entry preserves its
+existing draft/progress; opening mail options does not deliver. Existing forms,
+icons and delivery remain shared. [Batch evidence](qa/mail-commands-2026-10-18.json)
+separates local checks from physical, public-service and signed acceptance.
+
 The connected [Worktree entry and destination family](COMMAND-LINE.md#worktree-creation-and-management-entry)
 adds Create/List/drop command routes, source destination presets, inherited
 settings, retained drafts/progress, captured native destination authorization,

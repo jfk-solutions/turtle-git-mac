@@ -88,3 +88,38 @@ Daemon and Review Patch. This is not full application or dialog certification.
 The six-unavailable-group count above is historical. The current catalog has
 routes for all 55 groups; see [current handoff coverage](FINDER-COMMAND-HANDOFF-PARITY.md).
 This does not establish complete command behavior or activated/signed Finder parity.
+
+## Captured mail preparation and direct entry — October 18, 2026
+
+The direct `sendmail` command and existing Finder/app routes share one owned
+preparation flow. It captures settings, selected files and the launching window
+before authorization or inspection. Native multi-file/folder authorization is
+asynchronous and belongs to that owner. Closing the window or retiring the
+workspace cancels pending work, dismisses its real chooser, and refuses late
+permission/inspection/root-discovery replies; busy/Quit accounting remains until
+actual work drains. Cancel and uncovered grants never open mail options.
+
+Native command inputs retain the source `orgPathList`, including ordered duplicate
+occurrences. Finder requests keep their existing normalized selection and
+cardinality. Shared bounded path-file reading/deletion remains permission-gated.
+The original list is shown independent of extension/existence/type, matching
+`SendMailDlg`; missing paths and directories can be unchecked. Only checked files
+are read/prepared on acceptance, so an unusable unselected entry does not reject
+the valid subset. The workflow itself retains its sender repository/access
+and presentation preferences explicitly. No send occurs when the form opens.
+
+A known or authorized first-entry repository supplies local sender identity without
+adopting a workspace. A directory entry supplies its own discovery location, while
+a file/missing entry uses its parent. Before Git discovery in a scoped folder, linked Git/common
+and external object-store dependencies request their own grants; the workflow
+retains these alongside primary working-folder containment. Saved metadata grants
+are reused/renewed without marking Recents as opened. Files with no repository
+use an exclusively owned private global-Git identity context. Pending preparations
+and later independent composers preserve their own captured settings/contexts.
+
+[Batch evidence](qa/mail-commands-2026-10-18.json) records actual validation and
+failures. Private injected scope providers exercise policy/lifetime, not real
+security-scope issuance. No physical Finder or picker/menu/VoiceOver acceptance,
+public delivery, Apple Mail automation or current signed Store acceptance is
+inferred. The original dialogs and command icons remain; complete visual/source
+parity is still under review.

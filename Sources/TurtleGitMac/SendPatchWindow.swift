@@ -941,12 +941,16 @@ private struct SendPatchProgressDialog: View {
 
 /// Retains options, progress and access for every delivery mode until final close.
 @MainActor final class SendMailWorkflow {
+    let repository: GitRepository
+    let access: RepositoryAccessLease?
+    let preferences: UserDefaults
     private(set) var options: SendPatchWindowController?, progress: SendPatchProgressWindowController?
     private var finished = false
     private let completion: (String?) -> Void
     private let present: (NSWindowController) -> Void
     private let applicationContext: ApplicationMailContext?
     init(files: [URL], repository: GitRepository, access: RepositoryAccessLease?, fileAccess: [RepositoryAccessLease], preferences: UserDefaults, presentation: ((NSWindowController) -> Void)? = nil, customSubject: Bool = false, appOwnedFiles: [URL] = [], applicationContext: ApplicationMailContext? = nil, completion: @escaping (String?) -> Void) {
+        self.repository = repository; self.access = access; self.preferences = preferences
         self.completion = completion
         self.applicationContext = applicationContext
         present = presentation ?? { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }

@@ -1,0 +1,196 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "88efaf6c96f78f8befb7ec388ec7f437197c89c5",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected Request Pull/Send Mail entry, source presets and orgPathList admission, preserved requester draft, captured native permission/preparation ownership, first-entry sender discovery, linked metadata grants, owning preferences and independent application-global mail contexts.",
+  "dialogs": [
+    "IDD_REQUESTPULL",
+    "IDD_SENDMAIL"
+  ],
+  "source_review": [
+    "src/TortoiseProc/Commands/RequestPullCommand.cpp",
+    "src/TortoiseProc/Commands/SendMailCommand.cpp",
+    "src/TortoiseProc/AppUtils.cpp::RequestPull/SendPatchMail",
+    "src/TortoiseProc/RequestPullDlg.cpp",
+    "src/TortoiseProc/SendMailDlg.cpp::OnInitDialog/OnBnClickedOk"
+  ],
+  "implementation": [
+    "Primary requestpull accepts editable endrev/url, retains history defaults for empty values, preserves presets through path-file selection, resolves one repository, and focuses its current command window without rewriting an existing draft/picker/generation/mail handoff. Normal app requests remain independent.",
+    "Primary sendmail keeps a dedicated ordered original URL list with duplicate occurrences; Finder request normalization still deduplicates its menu selection. Path-file inputs preserve duplicate ordering and optional authorized deletion.",
+    "Shared mail preparation captures original window, file list, preference domain and grants. Owned asynchronous multi-file/folder authorization replaces runModal; cancellation/retirement fences every later inspection/discovery/options handoff and retains pending/busy accounting until real drain.",
+    "Mail workflow stores its sender repository/access/preferences explicitly. Local sender discovery uses the first directory itself or the first file/missing entry parent, without changing the active checkout. Scoped linked/common/object metadata dependencies are authorized before Git and retained as related scopes.",
+    "Saved grants are reused with recordingOpen=false and available additional metadata scopes. Files outside a discovered repository use an exclusive private global-Git context, removed on owning workflow release.",
+    "Default Request Pull and all common mail options/progress inherit the owning preferences. Existing source forms, Start Log, message/checkbox/subject behavior, icons and delivery backends remain.",
+    "Final source review corrected the pre-existing all-regular-files admission restriction: SendMailDlg lists every original entry before reading checked files. Missing/directory rows now remain visible for users to uncheck; only checked files are prepared, so valid subsets still work. No extension/existence filter silently discards inputs."
+  ],
+  "validation": {
+    "core": {
+      "command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter 'PrimaryCommandInvocationTests|RequestPullTests|FinderLFSMailBatchTests'",
+      "exit": 0,
+      "attempts": 1,
+      "cases": 51,
+      "classes": {
+        "PrimaryCommandInvocationTests": 44,
+        "RequestPullTests": 4,
+        "FinderLFSMailBatchTests": 3
+      },
+      "scope": "Typed presets/order/cardinality/path-file semantics plus actual private Request Pull range/tag/bare/cancellation operations and retained Finder clauses. Core unchanged after this pass and not repeated."
+    },
+    "build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "attempts": [
+        {
+          "log": "mail-commands-build-2026-10-18.log",
+          "exit": 65,
+          "reason": "Local nested state-check function needed explicit MainActor isolation."
+        },
+        {
+          "log": "mail-commands-build-isolation-recheck-2026-10-18.log",
+          "exit": 0,
+          "reason": "Native-only isolation annotation repair."
+        },
+        {
+          "log": "mail-commands-build-original-list-recheck-2026-10-18.log",
+          "exit": 0,
+          "reason": "Final source review removed the old regular-file admission restriction."
+        },
+        {
+          "log": "mail-commands-build-directory-sender-recheck-2026-10-18.log",
+          "exit": 0,
+          "reason": "Completed original-list parity with directory-first sender discovery before the next native checkpoint."
+        }
+      ],
+      "scope": "Current local arm64 Debug app and embedded targets; existing warnings/ad-hoc/nonfatal diagnostics remain. No current universal/signed distribution claim."
+    },
+    "new_native": {
+      "command": "python3 scripts/test-primary-commands.py --only mail --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "initial_exit": 0,
+      "initial_engine_cases": 2,
+      "after_source_list_completion_exit": 0,
+      "final_engine_cases": 2,
+      "runtime_failures": [],
+      "passed": [
+        "Request Pull private history, editable presets, path-file deletion and competing draft preservation",
+        "real request text against an owned local bare remote, no editor/network activation",
+        "ordered duplicate mail paths, private settings and unchanged workspace",
+        "owned private Git-global sender context and immediate cleanup after release",
+        "owner-close/retirement cancellation and real pending-work drain; late grants/inspection refused",
+        "linked sender metadata gets a separate injected folder grant retained with the working-folder scope",
+        "wrong/cancelled permission refusal",
+        "mixed directory/valid/missing original rows remain visible; first directory supplies local sender; only checked valid patch is prepared through injected onSubmit, no delivery",
+        "source HEAD/raw index/tracked file bytes retained"
+      ]
+    },
+    "request_lifecycle": {
+      "command": "python3 scripts/test-request-pull.py --receiver docs/qa/request-pull-lifecycle-native-2026-10-15.swift --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "engine_cases": 2,
+      "attempts": 1,
+      "scope": "Start Log choices/Cancel/stale/retired replies, inherited themes, actual document fallback, forced mail owner retirement, authorized Finder URL dispatch, scope denial and cancellation at read/validation/generation phases. No editor/mail client/public service launched.",
+      "timing": "Retained pass before final Source-list/directory-discovery changes confined to RepositoryModel mail preparation; unchanged Request Pull lifecycle path not repeated."
+    },
+    "smtp_workflow": {
+      "command": "python3 scripts/test-send-source-family.py --only workflow --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "initial_exit": 0,
+      "initial_engine_cases": 2,
+      "affected_original_list_recheck_exit": 0,
+      "final_engine_cases": 2,
+      "scope": "Retained source options/checkboxes, captured delivery modes/bytes/recipient and credential gates, native configured progress/cancel/retry/late close, shared private history and actual SDK-framework loopback SMTP.",
+      "loopback": "Per engine: accepted=1/auth=0/data=1; .invalid To/Cc recipients, three MIME parts, exact body and two ordered attachments verified by runner. No user Keychain, Apple Mail or public delivery.",
+      "diagnostics": "Local unbundled helpers emit sandbox_extension_consume denial messages; assertions and both runner exits passed. No genuine scope issuance inferred."
+    },
+    "distinct_case_engine_passes": 6,
+    "cleanup": {
+      "owned_pids": [
+        43786,
+        43888,
+        44022,
+        44441,
+        44893,
+        44892,
+        45030,
+        45029,
+        45364,
+        45467,
+        45594,
+        45593,
+        45723,
+        45722
+      ],
+      "confirmed_absent": [
+        43786,
+        43888,
+        44022,
+        44441,
+        44893,
+        44892,
+        45030,
+        45029,
+        45364,
+        45467,
+        45594,
+        45593,
+        45723,
+        45722
+      ],
+      "still_present": [],
+      "scope": "Receiver/compiler/server handles reaped; private options/progress/windows/contexts retired. Native fixtures also assert their owned helpers/read counters drain. No unrelated installed app terminated."
+    },
+    "localizations": {
+      "write_before_build": true,
+      "languages": 38,
+      "keys": 1287,
+      "scope": "Catalog counts unchanged; English fallback retained. No complete-language claim.",
+      "check_exit": 0
+    },
+    "hosted_observation": {
+      "source": "88efaf6c96f78f8befb7ec388ec7f437197c89c5",
+      "pages_run": 39117422658,
+      "pages_conclusion": "success",
+      "macos_run": 39117422709,
+      "macos_status": "pending at observation",
+      "older_5a55_macos_run": 39116372143,
+      "older_conclusion": "cancelled",
+      "scope": "Read-only previous-checkpoint observations; no current/full hosted CI pass inferred."
+    },
+    "documentation": {
+      "command": "build/site-venv/bin/python scripts/build-site.py",
+      "initial_exit": 0,
+      "final_after_Send_Patch_parity_reference_exit": 0,
+      "documents": 294,
+      "unresolved_fragments": [],
+      "dialog_coverage_reconciled_and_checked_exit": 0,
+      "scope": "Final source family notes and both generated coverage files retained; dialog/control counts remain partial audit coverage, not completion percentages."
+    }
+  },
+  "log_sha256": {
+    "build/qa/mail-commands-core-2026-10-18.log": "f2a080023ab75c0390680a5f4cda559f1abf00c2b76d7e058d696beab3a8c9b3",
+    "build/qa/mail-commands-build-2026-10-18.log": "8b8417eb6fbb0790ff1d42d6f97cceb44f0bfaba0dfcff572d454b41f6c88ba8",
+    "build/qa/mail-commands-build-isolation-recheck-2026-10-18.log": "04943304a974f4c9041ce1b8e24c36f279601b17422ffccec39de8864f678a95",
+    "build/qa/mail-commands-build-original-list-recheck-2026-10-18.log": "c9eeb47f1d39b6ef21c1b2094d275166330eb6b35d51a5b8663b2a8494d37580",
+    "build/qa/mail-commands-build-directory-sender-recheck-2026-10-18.log": "21ce85fb26ad2688166a839284c49c716a784e28da790581d201a0c4dc214942",
+    "build/qa/mail-commands-native-2026-10-18.log": "6f4054ea0a63677d321956814707e83e734a21b3ebce4cbad89e3b1c9ff5ba3a",
+    "build/qa/mail-commands-request-lifecycle-2026-10-18.log": "8f54d4db4febd678733c8c547e0ea4dc76df18526e8f835513a00c39e38a7b45",
+    "build/qa/mail-commands-smtp-workflow-2026-10-18.log": "00de09e8140671eb81b49ef3844984b33a713aa61457ec7c0038fcd31689f5c5",
+    "build/qa/mail-commands-native-original-list-recheck-2026-10-18.log": "06ffea40d85a2eb245d6aa46f86d2d06ac543e65f9feb231ff7300c87f4d0721",
+    "build/qa/mail-commands-smtp-original-list-recheck-2026-10-18.log": "ac49fb521015976570b603c8dacbfa42a76b37e95e0083f13b0174c69b40e3f4"
+  },
+  "input_sha256": {
+    "Sources/TurtleGitCore/PrimaryCommandInvocation.swift": "73170ddd1bae78ca34a8e2dd16316e6e8ed41fbe35ef64a95f2e8678af80ef6f",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "b4a79f0d55a10a40aa19cede2e8e9b079d136452ba5cbd9d68b18c10e607fac4",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "dc0fcf043c71be1bee995ed01f08dfcfc76c28c2c051b7f26ef14a9852511496",
+    "Tests/TurtleGitCoreTests/PrimaryCommandInvocationTests.swift": "01194110bc74182f4fdc7b07f34a1289616339213d63b29fe2aec9c094c03b71",
+    "docs/qa/mail-commands-native-2026-10-18.swift": "e061c9d8b2a1193729eb515ba32681178ad1eae69edfbdb441c1b4750893a008",
+    "docs/qa/primary-commands-native-2026-10-18.swift": "a1c4533f0a9af168c17cbc5de3b6444502b625076cbf651b4b24bba25e617bb1",
+    "scripts/test-primary-commands.py": "23e2490689d7cfb6c88d3872b0533a7fb2ebba5e13c9440089af2d2e1a0fa50a",
+    "scripts/test-request-pull.py": "93885e8e831f8550cd7018c2581cae0f7793f87da308866a036b4d4fd64ce346",
+    "scripts/test-send-source-family.py": "61c84a32c6fd08909cbc3afa23a2f5dd7919cde3d3ff1e05ded7a4aea5795d25"
+  },
+  "remaining": [
+    "Physical picker/Finder/menu/VoiceOver/rendered parity, actual security-scope issuance, public remotes/SMTP/Apple Mail and signed App Store acceptance remain unverified for this source.",
+    "Scoped metadata policy uses private injected bookmark providers in native receivers; no claim of real signed permission propagation.",
+    "Only selected mail workflows were run. Full hosted CI, full Core/unrelated native suites and entire-port acceptance are not inferred from these passes.",
+    "No source screenshots/distribution rebuild/install/export/upload/submission repeated; latest documented packaged preview/archive source remains 16380893.",
+    "Custom TurtleGit artwork remains unavailable locally; no guessed replacement. Pre-existing reference-runner/Reflog-capture work remains unstaged."
+  ]
+}

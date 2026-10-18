@@ -162,3 +162,21 @@ Both the existing generation/mail and new lifecycle checks passed with system
 and bundled Git: four accepted fixture/engine pairs. The failed fixture receiver
 and all four accepted receivers were reaped and independently checked absent.
 No external editor or mail application was launched and no message was sent.
+
+## Primary command presets and draft ownership — October 18, 2026
+
+`requestpull` now accepts the pinned `RequestPullCommand.cpp` editable `endrev`
+and `url` values. Empty/missing values retain source history/default behavior.
+One selected repository/path-file source is resolved through the normal authorized
+repository route; no request generation or mail delivery occurs on launch.
+A deterministic command-owned window preserves its current draft, Start picker,
+active generation or mail handoff against a competing invocation. Ordinary app
+entry can still own independent requests. The default controller now inherits
+workspace presentation preferences instead of implicitly using the standard domain.
+
+The existing Start Log, URL history, end validation, generated document and
+Send Mail workflow remain its native consumers. Mail preparation and direct
+`sendmail` entry now share captured file/permission/sender ownership; see
+[mail entry evidence](qa/mail-commands-2026-10-18.json). Local private repositories
+and injected delivery do not certify public remotes, mail applications, physical
+input/visual parity or current signed Store/Finder acceptance.

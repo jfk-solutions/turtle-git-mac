@@ -223,9 +223,7 @@ import UniformTypeIdentifiers
     var worktreeListWindowFactory: ((GitRepository, RepositoryAccessLease?, UserDefaults) -> WorktreeListWindowController)?
     private var worktreeCreateWindows: [String: WorktreeCreateWindowController] = [:]
     var requestPullPresentation: ((RequestPullWindowController) -> Void)?
-    var makeRequestPull: (GitRepository, RepositoryAccessLease?, String?, String?) -> RequestPullWindowController = { repository, access, end, url in
-        RequestPullWindowController(repository: repository, access: access, end: end, repositoryURL: url)
-    }
+    var makeRequestPull: ((GitRepository, RepositoryAccessLease?, String?, String?) -> RequestPullWindowController)?
     private var requestPullWindows: [String: RequestPullWindowController] = [:]
     private var importPatchWindows: [String: ImportPatchWindowController] = [:]
     private var formatPatchWindows: [String: FormatPatchWindowController] = [:]
@@ -258,7 +256,7 @@ import UniformTypeIdentifiers
     private var finderPatchReceipts: [String] = []
     var reviewPatchPreparation: ((ReviewPatchWorkflow) -> Void)?
     var reviewPatchPresentation: ((WorkingTreePatchWindowController) -> Void)?
-    private var finderMailWorkflows: [UUID: SendMailWorkflow] = [:]
+    private(set) var finderMailWorkflows: [UUID: SendMailWorkflow] = [:]
     var finderMailPresentation: ((NSWindowController) -> Void)?
     private var addProgressWindows: [UUID: AddProgressWindowController] = [:]
     private var cleanWindows: [String: CleanWindowController] = [:]
@@ -316,7 +314,11 @@ import UniformTypeIdentifiers
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || creationFolderChoice != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || creationFolderChoice != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    private var mailPreparations: [UUID: RepositoryWindowOwner] = [:]
+    private var mailPermissionPanels: [UUID: NSOpenPanel] = [:]
+    var mailFilePermission: (([URL], OperationCancellation) async throws -> [RepositoryAccessLease]?)?
+    var mailFileInspection: (([URL], OperationCancellation) async throws -> Void)?
     private var lfsPreparations: [UUID: RepositoryWindowOwner] = [:]
     var lfsSelectionPreflight: ((GitRepository, [String], Bool, OperationCancellation) async throws -> [String])?
     var lfsLocksWindowFactory: ((GitRepository, RepositoryAccessLease?, UserDefaults) -> LFSLocksWindowController)?
@@ -343,7 +345,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -1570,61 +1572,108 @@ import UniformTypeIdentifiers
         } catch { self.error = error.localizedDescription }
     }
 
-    private func showFinderSendMail(files: [URL]) {
-        guard !busy, !confirmingQuit, !files.isEmpty else { return }
-        let first = files[0]
+    private func chooseMailPermissions(_ targets: [URL], id: UUID, owner: RepositoryWindowOwner, window: NSWindow?, message: String) async -> [RepositoryAccessLease]? {
+        guard !retired, !owner.cancellation.isCancelled, window?.attachedSheet == nil else { return nil }
+        let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = true; panel.allowsMultipleSelection = true
+        panel.prompt = "Authorize mail files"; panel.message = message
+        panel.directoryURL = targets.first?.deletingLastPathComponent(); mailPermissionPanels[id] = panel
+        owner.onCancelled = { [weak self, weak panel] in
+            guard let panel else { return }
+            if let parent = panel.sheetParent { parent.endSheet(panel, returnCode: .cancel) }
+            else { panel.cancel(nil) }
+            panel.orderOut(nil); self?.mailPermissionPanels.removeValue(forKey: id)
+        }
+        return await withCheckedContinuation { continuation in
+            var answered = false
+            let reply: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+                guard !answered else { return }; answered = true
+                self?.mailPermissionPanels.removeValue(forKey: id)
+                guard !owner.cancellation.isCancelled, self?.retired == false, response == .OK else { continuation.resume(returning: nil); return }
+                continuation.resume(returning: panel.urls.map { RepositoryAccessLease(url: $0) })
+            }
+            if let window { panel.beginSheetModal(for: window, completionHandler: reply) }
+            else { panel.begin(completionHandler: reply) }
+        }
+    }
+    private func showFinderSendMail(files: [URL], commandCancellation: OperationCancellation? = nil) {
+        guard !retired, !busy, !confirmingQuit, !files.isEmpty, workspaceWindow?.attachedSheet == nil else { return }
+        let first = files[0], window = workspaceWindow, id = UUID(), owner = RepositoryWindowOwner(window: workspaceWindow)
+        let requireScope = requiresRepositoryScope, preferences = fileComparisonPreferences, presentation = finderMailPresentation
+        let token = owner.cancellation
+        let inspect = mailFileInspection, permission = mailFilePermission
         let knownRoot = FinderSnapshot.read()?.roots.sorted { $0.count > $1.count }.first { first.path == $0 || first.path.hasPrefix($0 + "/") }
             ?? root.flatMap { first.path == $0.path || first.path.hasPrefix($0.path + "/") ? $0.path : nil }
         let rootURL = knownRoot.map { URL(fileURLWithPath: $0, isDirectory: true) }
         let targets = files + (rootURL.map { [$0] } ?? [])
-        var grants: [RepositoryAccessLease] = []
-        if let activeAccess { grants.append(activeAccess) }
-        if GitRuntime.isAppStoreBuild {
-            if let store = accessStore {
-                for saved in store.repositories {
-                    if let lease = try? store.acquire(saved.id, requireSecurityScope: true), targets.contains(where: { lease.contains($0) }) { grants.append(lease) }
-                }
-            }
-            if !targets.allSatisfy({ target in grants.contains { $0.hasSecurityScope && $0.contains(target) } }) {
-                let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = true; panel.allowsMultipleSelection = true
-                panel.prompt = "Authorize mail files"; panel.directoryURL = rootURL ?? first.deletingLastPathComponent()
-                panel.message = "Select these files or their containing folders. For a known repository, include its root folder to use the local sender identity."
-                guard panel.runModal() == .OK else { return }
-                grants += panel.urls.map { RepositoryAccessLease(url: $0) }
-                guard targets.allSatisfy({ target in grants.contains { $0.hasSecurityScope && $0.contains(target) } }) else {
-                    error = "The selected permissions do not cover every mail file and its sender repository."; return
+        var grants = activeAccess.map { [$0] } ?? []
+        if requireScope, let store = accessStore {
+            for saved in store.repositories {
+                if let lease = try? store.acquire(saved.id, requireSecurityScope: true, recordingOpen: false), targets.contains(where: { lease.contains($0) }) {
+                    let metadata = (try? store.acquireAdditionalPermissions(saved.id, requireSecurityScope: true, skipUnavailable: true)) ?? []
+                    grants.append(lease.retainingRelatedScopes(metadata))
                 }
             }
         }
-        busy = true
-        Task {
-            defer { busy = false }
+        mailPreparations[id] = owner; busy = true
+        Task { [self] in
+            defer { mailPreparations.removeValue(forKey: id); mailPermissionPanels.removeValue(forKey: id); busy = false; withExtendedLifetime(grants) {} }
+            @MainActor func check() throws { try token.check(); try commandCancellation?.check(); if retired || confirmingQuit { throw OperationCancellationFailure.cancelled } }
+            func covered(_ target: URL) -> Bool { grants.contains { (!requireScope || $0.hasSecurityScope) && $0.contains(target) } }
             do {
-                for file in files {
-                    guard (try file.resolvingSymlinksInPath().resourceValues(forKeys: [.isRegularFileKey])).isRegularFile == true else { throw MailPatchFailure.file }
+                try check()
+                if requireScope, !targets.allSatisfy(covered) {
+                    let selected: [RepositoryAccessLease]?
+                    if let permission { selected = try await permission(targets, token) }
+                    else { selected = await chooseMailPermissions(targets, id: id, owner: owner, window: window, message: "Select these files or their containing folders. For a known repository, include its root folder to use the local sender identity.") }
+                    try check(); guard let selected else { return }; grants += selected
+                    guard targets.allSatisfy(covered) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 }
-                var senderRoot = rootURL
-                // Desktop permits direct discovery. Sandboxed discovery is only
-                // attempted when the containing folder is already authorized.
-                if !GitRuntime.isAppStoreBuild || grants.contains(where: { $0.hasSecurityScope && $0.contains(first.deletingLastPathComponent()) }) {
-                    let candidate = try makeRepository(first.deletingLastPathComponent())
-                    senderRoot = try? await candidate.discoverRoot()
-                    if let senderRoot, GitRuntime.isAppStoreBuild, !grants.contains(where: { $0.hasSecurityScope && $0.contains(senderRoot) }) {
-                        throw RepositoryAccessFailure.repositoryRootOutsidePermission(senderRoot.path)
+                if let inspect { try await inspect(files, token) }
+                else {
+                    // SendMailDlg lists orgPathList before reading checked files.
+                    // A stale/missing/directory entry must remain available to uncheck by
+                    // the user instead of rejecting an otherwise usable batch.
+                    for file in files {
+                        try check()
+                        guard file.isFileURL, !file.path.contains("\0") else { throw MailPatchFailure.file }
                     }
+                }
+                try check()
+                var senderRoot = rootURL
+                let firstIsDirectory = await Task.detached { (try? first.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }.value
+                try check()
+                let location = rootURL ?? (firstIsDirectory ? first : first.deletingLastPathComponent())
+                if !requireScope || covered(location) {
+                    if requireScope {
+                        for index in 0..<64 {
+                            try check()
+                            let folders = grants.flatMap { $0.permittedFolders() }
+                            let requirement = try await Task.detached { try RepositoryMetadataAccess.next(at: location, authorizedFolders: folders, cancellation: token) }.value
+                            try check(); guard let requirement else { break }
+                            guard index < 63 else { throw RepositoryMetadataAccessFailure.tooManyDependencies }
+                            let selected: [RepositoryAccessLease]?
+                            if let permission { selected = try await permission([requirement.folder], token) }
+                            else { selected = await chooseMailPermissions([requirement.folder], id: id, owner: owner, window: window, message: requirement.explanation + "\n" + requirement.folder.path) }
+                            try check(); guard let selected else { return }; grants += selected
+                            guard covered(requirement.folder) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(requirement.folder.path) }
+                        }
+                    }
+                    let candidate = try makeRepository(location)
+                    senderRoot = try? await candidate.discoverRoot(cancellation: token)
+                    try check()
+                    if let senderRoot, requireScope, !covered(senderRoot) { throw RepositoryAccessFailure.repositoryRootOutsidePermission(senderRoot.path) }
                 }
                 let context = senderRoot == nil ? try ApplicationMailContext() : nil
                 guard let directory = senderRoot ?? context?.root else { throw MailPatchFailure.file }
                 let repository = try makeRepository(directory)
-                let access = grants.first { $0.contains(repository.root) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) }
-                guard !confirmingQuit else { return }
-                let id = UUID()
-                let workflow = SendMailWorkflow(files: files, repository: repository, access: access, fileAccess: grants, preferences: .standard, presentation: finderMailPresentation, applicationContext: context) { [weak self] result in
+                let access = grants.first { $0.contains(repository.root) && (!requireScope || $0.hasSecurityScope) }?.retainingRelatedScopes(grants)
+                try check()
+                let workflow = SendMailWorkflow(files: files, repository: repository, access: access, fileAccess: grants, preferences: preferences, presentation: presentation, applicationContext: context) { [weak self] result in
                     self?.finderMailWorkflows.removeValue(forKey: id)
                     if let result { self?.error = result }
                 }
                 finderMailWorkflows[id] = workflow; workflow.start()
-            } catch { self.error = error.localizedDescription }
+            } catch { if !retired, !token.isCancelled, commandCancellation?.isCancelled != true { self.error = error.localizedDescription } }
         }
     }
 
@@ -2308,9 +2357,10 @@ import UniformTypeIdentifiers
         worktreeCreateWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showRequestPull(repository: GitRepository, access: RepositoryAccessLease?, end: String? = nil, repositoryURL: String? = nil) {
-        let key = repository.root.path + ":requestPull:" + UUID().uuidString
-        let controller = makeRequestPull(repository, access, end, repositoryURL)
+    private func showRequestPull(repository: GitRepository, access: RepositoryAccessLease?, end: String? = nil, repositoryURL: String? = nil, commandLaunch: Bool = false) {
+        let key = repository.root.path + ":requestPull:" + (commandLaunch ? "command" : UUID().uuidString)
+        if let existing = requestPullWindows[key] { existing.window?.makeKeyAndOrderFront(nil); return }
+        let controller = makeRequestPull?(repository, access, end, repositoryURL) ?? RequestPullWindowController(repository: repository, access: access, end: end, repositoryURL: repositoryURL, preferences: fileComparisonPreferences)
         controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.onClosed = { [weak self] in self?.requestPullWindows.removeValue(forKey: key) }
         requestPullWindows[key] = controller
@@ -3391,6 +3441,9 @@ import UniformTypeIdentifiers
             guard outputAccess.contains(output), outputAccess.contains(output.deletingLastPathComponent()), !GitRuntime.isAppStoreBuild || outputAccess.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
         } else { outputAccess = nil }
         try cancellation?.check()
+        if invocation.request.action == .sendMail {
+            showFinderSendMail(files: invocation.mailFiles, commandCancellation: cancellation); return
+        }
         if invocation.request.action == .importPatch {
             prepareCommandPatchImport(invocation, cancellation: cancellation); return
         }
@@ -3523,6 +3576,8 @@ import UniformTypeIdentifiers
         case .previousDiff:
             guard paths.count == 1 else { error = "Select one file or directory to compare."; return }
             showPreviousDiff(repository: repository, access: access, path: paths[0], owner: workspaceWindow, unified: invocation.unified)
+        case .requestPull:
+            showRequestPull(repository: repository, access: access, end: invocation.request.requestPullEnd, repositoryURL: invocation.request.requestPullURL, commandLaunch: true)
         case .worktreeCreate:
             do {
                 let directory = try invocation.worktreeDropTarget.map { try WorktreeCreationOptions.dropDestination(repository: repository.root, target: $0) }

@@ -150,3 +150,27 @@ phase and adds the new source cases without repeating that phase.
 ![Injected completed Send progress, light](site/assets/send-progress-source-light.png)
 
 ![Injected completed Send progress, dark](site/assets/send-progress-source-dark.png)
+
+## Direct command entry and original path-list admission — October 18, 2026
+
+The `sendmail` primary command now feeds the existing `IDD_SENDMAIL` adaptation
+with its original ordered list, including duplicate occurrences. Finder keeps its
+selection deduplication. As in `SendMailDlg::OnInitDialog`, every original entry
+is listed: missing files and directories can be unchecked instead of rejecting
+the whole batch. Only checked files are read/prepared on acceptance. A directory
+entry supplies its own sender-discovery location; a file or missing path uses its
+parent. This corrects the older all-regular-files preparation gate.
+
+Preparation captures its owner, preferences and grants, cancels on owner close or
+retirement, and fences late replies while keeping real work accounted for. Scoped
+linked/common/object metadata gets separate grants retained with the sender's
+primary working-folder permission. The composer/progress retain that repository,
+access and settings explicitly; no-repository inputs use an owned private global
+identity context. The current workspace stays unchanged. Request Pull shares the
+existing mail workflow while its new entry preserves its own draft and presets.
+
+[Mail entry evidence](qa/mail-commands-2026-10-18.json) records the actual Core,
+native command/lifecycle and private loopback delivery checks, attempts and scope.
+It includes a mixed original list whose unchecked unusable entries do not block
+the valid checked patch. Physical pickers/Finder/VoiceOver, actual scope issuance,
+public services and current signed App Store acceptance remain open.
