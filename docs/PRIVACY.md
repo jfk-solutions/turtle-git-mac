@@ -42,11 +42,16 @@ but retains its private saved grants for a later enable. These bookmarks are nev
 placed in Finder's shared cache. Forgetting a recent entry removes
 its saved bookmark; it does not delete the Git repository.
 
-The app and Finder extension share a local cache of monitored repository roots,
-absolute file paths, file statuses and an update time. This cache enables badges.
-It does not contain file contents, access bookmarks or credentials. The current
-cache can retain status for previously opened repositories and is only refreshed
-for the active one; cache management and expiry still need implementation.
+The app, Finder extension and optional background service share a local cache of
+monitored repository roots, absolute file paths, statuses, repository metadata and
+publication times. It enables badges and cached menu eligibility; it contains no
+file contents, access bookmarks or credentials. The active workspace and explicitly
+watched repositories refresh their registered trees. The authorized background
+service can continue those watches while the main app is quit. Removing a watched
+repository retires collection and removes its cached subtree; failed cleanup is
+reported for retry. Other cached roots can remain, and a stored timestamp or badge
+does not itself prove that Git state is current. See [watched repositories](FINDER-WATCHED-ROOTS-PARITY.md)
+and [background service status/recovery](FINDER-SERVICE-DEPLOYMENT.md).
 
 Operation output is displayed in the app. Git's stdout/stderr are temporarily
 stored in per-command random directories and removed after completion. A forced
@@ -95,3 +100,35 @@ only its SHA-256 content hash in a bounded history of 64 handled reports; report
 bodies and report paths are not saved as preferences. Dismiss does not delete the
 Apple report. Manual import and the separately opened blank issue form retain
 their explicit sharing workflow.
+
+
+The optional persistent [Log cache](LOG-CACHE-PARITY.md) stores changed-file rows,
+rename pairs, status/statistics and submodule flags for completed commit/parent
+comparisons. Its lookup context includes repository paths and fingerprints of Git,
+configuration, index and attributes. It lives in the app's private macOS Caches
+location, using 0700 directories and 0600 versioned JSON records. Entries are
+bounded and trimmed; Saved Data can clear them. Cache clearing preserves the
+repositories, and a later Log read can populate records again. Live references,
+notes, identities and working-tree changes are read separately. The cache is not
+uploaded or shared with Finder.
+
+In non-App-Store builds, release checks contact the configured release-feed host
+according to the update setting/schedule or an explicit Check now request. Downloads
+use the selected release URLs. Those services receive ordinary request/network
+information; release checks do not include repository contents. The App Store
+build keeps its update flow isolated from the GitHub feed/download service.
+
+Send Mail sends the accepted message, selected attachments/patches and addressing
+information through the chosen mail workflow and configured server. Opening its
+options does not send a message. SMTP/SSH/Git service operators can retain their
+own logs and apply their own privacy policies. Review the destination and chosen
+files before using Send.
+
+For distribution, Apple's [privacy manifest documentation](https://developer.apple.com/documentation/bundleresources/privacy-manifest-files)
+distinguishes all-platform data-collection disclosures from required-reason API
+reporting for its listed mobile/spatial/watch platforms. The latter must not be
+presented here as an established macOS-only submission blocker. The current app
+targets do not declare a packaged `PrivacyInfo.xcprivacy` resource. Final app privacy answers,
+optional-service disclosures, third-party SDK requirements and any manifest added
+to a release still need review against the exact distributed app and Apple's
+current rules; this document is not a completed submission report.

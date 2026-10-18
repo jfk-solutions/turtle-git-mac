@@ -476,6 +476,28 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         let revision = try parse(["/command:diff","/startrev:HEAD~1","/endrev:HEAD"])
         XCTAssertEqual(revision.diffFrom,"HEAD~1"); XCTAssertEqual(revision.diffTo,"HEAD")
     }
+    func testDiffSubmoduleAndHistoricalPathPairSourceOptions() throws {
+        let value = try parse(["/command:diff", "/path:old", "/path2:new", "/startrev:main", "/endrev:topic", "/submodule", "/unified", "/alternative"])
+        XCTAssertTrue(value.diffSubmodule); XCTAssertTrue(value.unified); XCTAssertTrue(value.hasHistoricalDiffPair)
+        XCTAssertEqual(value.diffSecondaryPath?.path, "/repo/new"); XCTAssertEqual(value.diffFromRevision, .revision("main")); XCTAssertEqual(value.diffToRevision, .revision("topic"))
+        let same = try parse(["/command:diff", "/path:a", "/path2:a", "/startrev:HEAD", "/endrev:HEAD"])
+        XCTAssertEqual(same.request.paths.count, 1); XCTAssertEqual(same.diffSecondaryPath?.path, "/repo/a")
+        for length in [40, 64] {
+            let working = try parse(["/command:diff", "/submodule", "/startrev:" + String(repeating: "0", count: length), "/endrev:HEAD"])
+            XCTAssertEqual(working.diffFromRevision, .workingTree); XCTAssertEqual(working.diffToRevision, .revision("HEAD"))
+        }
+        for args in [["/command:diff", "/path:a*b", "/submodule"], ["/command:diff", "/submodule:true"], ["/command:log", "/submodule"], ["/command:diff", "/submodulepath:a"], ["/command:diff", "/submoduleforce"]] { XCTAssertThrowsError(try parse(args)) }
+    }
+    func testDiffSubmoduleOptionsAndPathPairSurviveAuthorizedPathFile() throws {
+        let root = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("paths"); try Data("old\0".utf8).write(to: file)
+        let input = try parse(["--command=diff", "--pathfile", file.path, "--pathfile0", "--submodule", "--path2=new", "--startrev=HEAD~1", "--endrev=HEAD"])
+        let resolved = try input.resolvingPathFile(cancellation: OperationCancellation()).selecting([root])
+        XCTAssertTrue(resolved.diffSubmodule); XCTAssertTrue(resolved.hasHistoricalDiffPair); XCTAssertEqual(resolved.diffSecondaryPath?.path, "/repo/new")
+        try Data("one\0two\0".utf8).write(to: file)
+        let invalid = try parse(["--command=diff", "--pathfile", file.path, "--pathfile0", "--submodule", "--deletepathfile"])
+        XCTAssertThrowsError(try invalid.resolvingPathFile(cancellation: OperationCancellation())); XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
+    }
     func testInvalidOptionsAreNeverSilentlyDropped() throws {
         let invalid: [[String]] = [
             ["/command:unsupported"], ["/command:commit","/command:commit"], ["/command:commit","--logmsg"],
@@ -485,7 +507,7 @@ final class PrimaryCommandInvocationTests: XCTestCase {
             ["/command:log","/range:--all"], ["/command:log","/rev:-bad"], ["/command:log","/limit:999999999999999"],
             ["/command:log","/limit:0 weeks"], ["/command:log","/limit:1fortnight"], ["/command:log","/findtype:4096"],
             ["/command:diff","/startrev:HEAD"], ["/command:diff","/path:a*b","/path2:c"], ["/command:diff","/path:a","/path2:a"],
-            ["/command:diff","/path2:b","/startrev:main","/endrev:topic"]]
+            ["/command:diff","/path2:b","/startrev:main"]]
         for arguments in invalid { XCTAssertThrowsError(try parse(arguments),arguments.joined(separator:" ")) }
     }
     func testMessageFileReadAndCancellationWithoutMutation() throws {
@@ -585,6 +607,13 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         XCTAssertTrue(working.contains("+selected working"));XCTAssertFalse(working.contains("excluded"))
         let previous=String(decoding:try await repo.commandUnifiedDiff(from:base.hash,to:nil,paths:[paths[0]],cancellation:OperationCancellation()),as:UTF8.self)
         XCTAssertTrue(previous.contains("-base"));XCTAssertTrue(previous.contains("+selected working"));XCTAssertFalse(previous.contains("excluded"))
+        let zero = String(repeating: "0", count: 40)
+        let forward = String(decoding: try await repo.commandUnifiedDiff(from: base.hash, to: zero, paths: [paths[0]], cancellation: OperationCancellation()), as: UTF8.self)
+        let reverse = String(decoding: try await repo.commandUnifiedDiff(from: zero, to: base.hash, paths: [paths[0]], cancellation: OperationCancellation()), as: UTF8.self)
+        XCTAssertTrue(forward.contains("-base")); XCTAssertTrue(forward.contains("+selected working"))
+        XCTAssertTrue(reverse.contains("+base")); XCTAssertTrue(reverse.contains("-selected working"))
+        let indexed = String(decoding: try await repo.commandUnifiedDiff(from: zero, to: zero, paths: [paths[0]], cancellation: OperationCancellation()), as: UTF8.self)
+        XCTAssertTrue(indexed.contains("-selected revision")); XCTAssertTrue(indexed.contains("+selected working")); XCTAssertFalse(indexed.contains("excluded"))
         do {_ = try await repo.commandUnifiedDiff(from:nil,to:head.hash,paths:[paths[0]],cancellation:OperationCancellation());XCTFail("Missing base accepted")} catch {}
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
     }

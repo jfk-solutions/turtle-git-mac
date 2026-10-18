@@ -35,6 +35,15 @@ public struct PrimaryCommandInvocation: Sendable {
         return submoduleBase ?? request.paths.first?.deletingLastPathComponent()
     }
     public let unified: Bool
+    public let diffSubmodule: Bool
+    public var diffSecondaryPath: URL? { secondaryPath }
+    public var hasDiffRevisionPair: Bool { request.action == .diff && diffFrom != nil && diffTo != nil }
+    public var hasHistoricalDiffPair: Bool { hasDiffRevisionPair && secondaryPath != nil }
+    public static func comparisonRevision(_ value: String) -> ComparisonRevision {
+        value == String(repeating: "0", count: 40) || value == String(repeating: "0", count: 64) ? .workingTree : .revision(value)
+    }
+    public var diffFromRevision: ComparisonRevision? { diffFrom.map(Self.comparisonRevision) }
+    public var diffToRevision: ComparisonRevision? { diffTo.map(Self.comparisonRevision) }
     public let line: Int?
     public let sourceURL: String?
     public let exactClonePath: Bool
@@ -85,7 +94,7 @@ public struct PrimaryCommandInvocation: Sendable {
             return key == "--command" || key.hasPrefix("--command=") || key.hasPrefix("/command:")
         }
         guard hasCommand else { return nil }
-        let flags: Set<String> = ["silent", "noquestion", "visible", "rename", "wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep", "onlymask", "delete", "abort", "start", "skip", "reset"]
+        let flags: Set<String> = ["submodule", "silent", "noquestion", "visible", "rename", "wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep", "onlymask", "delete", "abort", "start", "skip", "reset"]
         let valued: Set<String> = ["command", "page", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream", "msg", "droptarget", "bkpath", "selectedpath", "seq", "revision1", "revision2", "revision", "savepath", "output"]
         let optionalValues: Set<String> = ["good", "bad"]
         var values: [String: String] = [:], paths: [String] = [], index = 0
@@ -198,7 +207,7 @@ public struct PrimaryCommandInvocation: Sendable {
         switch action {
         case .commit: allowed.formUnion(["logmsg", "logmsgfile", "bugid", "wholeproject"])
         case .log: allowed.formUnion(["startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "findtext", "findregex", "outfile"])
-        case .diff: allowed.formUnion(["path2", "alternative", "startrev", "endrev", "unified", "line"])
+        case .diff: allowed.formUnion(["submodule", "path2", "alternative", "startrev", "endrev", "unified", "line"])
         case .showCompare: allowed.formUnion(["revision1", "revision2", "unified", "alternative"])
         case .cat: allowed.formUnion(["revision", "savepath"])
         case .commitIsOnRefs: allowed.insert("rev")
@@ -260,9 +269,10 @@ public struct PrimaryCommandInvocation: Sendable {
         } else { transferTarget = nil }
         var urls = try (paths.isEmpty ? [currentDirectory] : paths).map(file)
         if let second = values["path2"] {
-            guard urls.count == 1, values["startrev"] == nil, values["endrev"] == nil else { throw Failure("path2 needs one selected file and cannot be combined with revisions.") }
+            guard urls.count == 1 else { throw Failure("path2 needs one primary selected path.") }
             if values["pathfile"] == nil { urls.append(try file(second)) }
-            guard values["pathfile"] != nil || FinderRequest.normalizedSelection(urls).count == 2 else { throw Failure("Select two different comparison files.") }
+            let historicalPair = values["startrev"] != nil && values["endrev"] != nil
+            guard values["pathfile"] != nil || historicalPair || FinderRequest.normalizedSelection(urls).count == 2 else { throw Failure("Select two different comparison files.") }
         }
         func revision(_ value: String) throws -> String {
             guard !value.isEmpty, !value.hasPrefix("-"), !value.contains(where: { $0.isWhitespace }), !value.contains("\0") else { throw Failure("Invalid command revision: " + value) }
@@ -295,6 +305,7 @@ public struct PrimaryCommandInvocation: Sendable {
         let from = action == .showCompare ? try comparisonSide(values["revision1"]) : action == .diff ? try start.map(revision) : nil
         let to = action == .showCompare ? try comparisonSide(values["revision2"]) : action == .diff ? try end.map(revision) : nil
         if action == .showCompare, from == nil && to == nil { throw Failure("Choose at least one revision to compare with the working tree.") }
+        if action == .diff, values["submodule"] != nil, values["path2"] == nil, values["pathfile"] == nil, urls.count != 1 { throw Failure("Submodule Diff requires one selected path.") }
         let catRevision: String?
         if action == .cat {
             guard let value = values["revision"], !value.isEmpty, !value.hasPrefix("-"), values["savepath"]?.isEmpty == false else { throw Failure("Cat requires a revision and savepath.") }
@@ -349,7 +360,7 @@ public struct PrimaryCommandInvocation: Sendable {
             catch { throw Failure("Select a relative submodule path inside the superproject.") }
             return path
         }
-        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff, .showCompare, .editConflict].contains(action) ? values["alternative"] != nil : nil, requestPullEnd: action == .requestPull ? values["endrev"].flatMap { $0.isEmpty ? nil : $0 } : nil, requestPullURL: action == .requestPull ? values["url"].flatMap { $0.isEmpty ? nil : $0 } : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: commandOutput, importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, submoduleBase: try values["bkpath"].map(file), selectedSubmodule: selectedSubmodule, synchronizationSequence: synchronizationSequence, graphOutputFormat: graphOutputFormat, catRevision: catRevision, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, mailFiles: action == .sendMail ? urls : [], updateVisible: action == .updateCheck && values["visible"] != nil, forceUpdate: action == .updateCheck && values["force"] != nil, transferTarget: transferTarget, transferFiles: action.isDropTransfer ? urls : [], renameTransfer: action == .dropMove && values["rename"] != nil, settingsPage: action == .settings ? values["page"] : nil, wizardPage: action == .firstStartWizard ? values["page"].map { Int(Int32($0) ?? 0) } : nil, worktreeDropTarget: worktreeDropTarget, forceLFSUnlock: action == .lfsUnlock && values["force"] != nil, resolveOptions: action == .resolve ? ResolveCommandOptions(silent: values["silent"] != nil, noQuestion: values["noquestion"] != nil) : nil, forceRebase: action == .rebase && values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
+        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff, .showCompare, .editConflict].contains(action) ? values["alternative"] != nil : nil, requestPullEnd: action == .requestPull ? values["endrev"].flatMap { $0.isEmpty ? nil : $0 } : nil, requestPullURL: action == .requestPull ? values["url"].flatMap { $0.isEmpty ? nil : $0 } : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: commandOutput, importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, submoduleBase: try values["bkpath"].map(file), selectedSubmodule: selectedSubmodule, synchronizationSequence: synchronizationSequence, graphOutputFormat: graphOutputFormat, catRevision: catRevision, unified: values["unified"] != nil, diffSubmodule: action == .diff && values["submodule"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, mailFiles: action == .sendMail ? urls : [], updateVisible: action == .updateCheck && values["visible"] != nil, forceUpdate: action == .updateCheck && values["force"] != nil, transferTarget: transferTarget, transferFiles: action.isDropTransfer ? urls : [], renameTransfer: action == .dropMove && values["rename"] != nil, settingsPage: action == .settings ? values["page"] : nil, wizardPage: action == .firstStartWizard ? values["page"].map { Int(Int32($0) ?? 0) } : nil, worktreeDropTarget: worktreeDropTarget, forceLFSUnlock: action == .lfsUnlock && values["force"] != nil, resolveOptions: action == .resolve ? ResolveCommandOptions(silent: values["silent"] != nil, noQuestion: values["noquestion"] != nil) : nil, forceRebase: action == .rebase && values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
     }
 
     private static func validateSelection(_ urls: [URL], action: RepositoryAction) throws {
@@ -411,9 +422,10 @@ public struct PrimaryCommandInvocation: Sendable {
         if let secondaryPath {
             guard urls.count == 1 else { throw Failure("path2 requires one primary path in the path file.") }
             urls.append(secondaryPath)
-            guard FinderRequest.normalizedSelection(urls).count == 2 else { throw Failure("Select two different comparison files.") }
+            guard hasDiffRevisionPair || FinderRequest.normalizedSelection(urls).count == 2 else { throw Failure("Select two different comparison files.") }
         }
         try Self.validateSelection(urls, action: request.action)
+        if request.action == .diff, diffSubmodule, secondaryPath == nil, urls.count != 1 { throw Failure("Submodule Diff requires one selected path.") }
         try cancellation.check()
         if deletePathFile {
             var current = stat()
@@ -456,8 +468,18 @@ extension GitRepository {
         guard from != nil || to == nil, paths.allSatisfy({ !$0.contains("\0") }) else { throw RevisionComparisonFailure.range }
         var arguments = ["--literal-pathspecs", "-c", "core.precomposeunicode=false", "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--binary"] + diffDetection.comparisonArguments
         if let from {
-            arguments.append(try rebaseCommit(from, cancellation: cancellation).hash)
-            if let to { arguments.append(try rebaseCommit(to, cancellation: cancellation).hash) }
+            let first = PrimaryCommandInvocation.comparisonRevision(from)
+            let last = to.map(PrimaryCommandInvocation.comparisonRevision) ?? .workingTree
+            switch (first, last) {
+            case (.workingTree, .workingTree): break
+            case (.workingTree, .revision(let revision)):
+                arguments += ["-R", try rebaseCommit(revision, cancellation: cancellation).hash]
+            case (.revision(let revision), .workingTree):
+                arguments.append(try rebaseCommit(revision, cancellation: cancellation).hash)
+            case (.revision(let first), .revision(let last)):
+                arguments += [try rebaseCommit(first, cancellation: cancellation).hash, try rebaseCommit(last, cancellation: cancellation).hash]
+            default: throw RevisionComparisonFailure.range
+            }
         } else {
             let head = try run(["rev-parse", "--verify", "HEAD"], successfulExitCodes: 0...128, cancellation: cancellation)
             arguments += head.exitCode == 0 ? ["HEAD"] : ["--cached"]

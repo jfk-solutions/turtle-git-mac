@@ -28,6 +28,9 @@ import UniformTypeIdentifiers
     private(set) var partial: PatchWindowController?
     private(set) var stagingHintAlert:NSAlert?
     private var stagingHintAnswer:((Bool?)->Void)?
+    private(set) var unversionedFilesAlert:NSAlert?
+    private var unversionedFilesAnswer:(((show:Bool,remember:Bool)?)->Void)?
+    private var visibilitySheetObservation:AnyCancellable?
     private var previousPartialParentFrame: NSRect?
     private var positioningPartial = false
     var partialPlacementScreens: () -> [NSRect] = { NSScreen.screens.map(\.visibleFrame) }
@@ -71,6 +74,28 @@ import UniformTypeIdentifiers
                     answer(response == .alertFirstButtonReturn ? alert.suppressionButton?.state == .on:nil)
                 }
             }
+        }
+        model.presentUnversionedFiles = { [weak self,weak window] in
+            guard let self,!self.closingCommit,let window,window.isVisible,window.attachedSheet==nil else {return nil}
+            let alert=NSAlert();alert.alertStyle = .informational
+            alert.messageText=CommitWindowModel.noChangesMessage
+            alert.informativeText="Do you want to see the unversioned files?"
+            alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No");alert.buttons.last?.keyEquivalent="\u{1b}"
+            alert.showsSuppressionButton=true;alert.suppressionButton?.title="Do not show this message again"
+            self.unversionedFilesAlert=alert
+            return await withCheckedContinuation { continuation in
+                var answered=false
+                let answer:((show:Bool,remember:Bool)?)->Void = {value in guard !answered else {return};answered=true;continuation.resume(returning:value)}
+                self.unversionedFilesAnswer=answer
+                alert.beginSheetModal(for:window) { [weak self] response in
+                    if self?.unversionedFilesAlert === alert {self?.unversionedFilesAlert=nil;self?.unversionedFilesAnswer=nil}
+                    answer(response == .alertFirstButtonReturn || response == .alertSecondButtonReturn ? (response == .alertFirstButtonReturn,alert.suppressionButton?.state == .on):nil)
+                }
+            }
+        }
+        model.cancelUnversionedFilesPrompt = { [weak self] in self?.finishUnversionedFilesPrompt() }
+        visibilitySheetObservation=NotificationCenter.default.publisher(for:NSWindow.didEndSheetNotification,object:window).sink { [weak self] _ in
+            DispatchQueue.main.async { [weak self] in guard let self,!self.closingCommit else {return};self.model.offerStagingHint();self.model.offerUnversionedFiles() }
         }
         model.authorizeTemplateFile = { [weak self, weak window] file in
             guard let self, let window, !self.closingCommit, window.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
@@ -246,9 +271,18 @@ import UniformTypeIdentifiers
         commandMenu=CommitCommandMenu(owner:self);window.commandMenu=commandMenu
         DialogGeometry.attach(window, identifier: "CommitWindowController")
     }
+    private func finishUnversionedFilesPrompt() {
+        let answer=unversionedFilesAnswer;unversionedFilesAnswer=nil
+        if let alert=unversionedFilesAlert {
+            unversionedFilesAlert=nil
+            if let parent=alert.window.sheetParent {parent.endSheet(alert.window,returnCode:.abort)}
+            alert.window.orderOut(nil)
+        }
+        answer?(nil)
+    }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
     func windowWillClose(_ notification: Notification) {
-        commandMenu?.retire()
+        commandMenu?.retire();visibilitySheetObservation=nil;finishUnversionedFilesPrompt()
         let hintAnswer=stagingHintAnswer;stagingHintAnswer=nil;stagingHintAlert=nil;hintAnswer?(nil)
         templatePanel?.cancel(nil); templatePanel = nil
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
@@ -371,7 +405,7 @@ import UniformTypeIdentifiers
     func windowDidResize(_ notification: Notification) { followPartial() }
     func windowWillMiniaturize(_ notification: Notification) { partial?.window?.orderOut(nil) }
     func windowDidDeminiaturize(_ notification: Notification) { showPartialWithoutActivation() }
-    func windowDidBecomeKey(_ notification: Notification) {commandMenu?.install();showPartialWithoutActivation();model.offerStagingHint()}
+    func windowDidBecomeKey(_ notification: Notification) {commandMenu?.install();showPartialWithoutActivation();model.offerStagingHint();model.offerUnversionedFiles()}
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -402,6 +436,13 @@ import UniformTypeIdentifiers
     private var reloadTask: Task<Void, Never>?
     private var reloadCancellation: OperationCancellation?
     private var reloadError:String?
+    @Published private(set) var fileListReadError:String?
+    @Published private(set) var fileListReadCancelled=false
+    @Published private(set) var unversionedPromptVisible=false
+    private var unversionedPromptPending=false
+    private var unversionedPromptRequest=UUID()
+    var presentUnversionedFiles:(() async -> (show:Bool,remember:Bool)?)?
+    var cancelUnversionedFilesPrompt:()->Void = {}
     @Published private var pendingReloadCancel = false
     var queryCommitStatus: (Bool, OperationCancellation) async throws -> [StatusEntry]
     var queryStagingStates: ([StatusEntry], String?, OperationCancellation) async throws -> GitPathMap<CommitStagingState>
@@ -747,7 +788,7 @@ import UniformTypeIdentifiers
         formattingEnabled = dialogDefaults.object(forKey: "StyleCommitMessages") as? Bool ?? true
     }
     func setShowUnversioned(_ enabled: Bool) {
-        guard messageFocusAvailable, !busy, !confirmingQuit else { return }
+        guard messageFocusAvailable, !inputsBlocked else { return }
         let position = fileListRefresh.begin(preferences:dialogDefaults,selectedIDs:selection)
         showUnversioned = enabled
         unversionedDefaults.set(enabled, forKey: "AddBeforeCommit");restoreVisibleFilePosition(position)
@@ -755,6 +796,43 @@ import UniformTypeIdentifiers
     private func restoreVisibleFilePosition(_ position:FileListRefreshCoordinator.Ticket) {
         if !position.remember {selection = []}
         Task { [self] in await fileListRefresh.restore(position,ids:visibleFileRowIDs);fileListRefresh.finish(position) }
+    }
+    static let noChangesMessage="No files were changed or added since\nthe last commit."
+    var fileListEmptyMessage:String? {
+        guard visibleEntries.isEmpty else {return nil}
+        if pendingReloadCancel {return "Cancelling…"}
+        if reloadCancellation != nil {return hasLoaded ? "Refreshing changes…":"Loading changes…"}
+        if let fileListReadError {return "Could not load changes.\n"+fileListReadError}
+        if fileListReadCancelled {return "Refresh cancelled. Press F5 to retry."}
+        return Self.noChangesMessage
+    }
+    private var hasHiddenUnversionedFiles:Bool {
+        !showUnversioned && entries.contains {entry in
+            entry.state == .untracked && (showWholeProject || scopePaths.contains {GitReferenceName.equal($0,entry.path) || entry.path.utf8.starts(with:($0+"/").utf8)})
+        }
+    }
+    func offerUnversionedFiles() {
+        guard unversionedPromptPending else {return}
+        guard messageFocusAvailable,!inputsBlocked,error==nil else {return}
+        guard visibleEntries.isEmpty,hasHiddenUnversionedFiles,operation != .merge,fileListReadError==nil else {unversionedPromptPending=false;return}
+        if let remembered=dialogDefaults.object(forKey:"NothingToCommitShowUnversioned") as? NSNumber,[6,7].contains(remembered.intValue) {
+            unversionedPromptPending=false
+            if remembered.intValue==6 {showUnversioned=true}
+            return
+        }
+        guard let presentUnversionedFiles else {return}
+        let request=UUID();unversionedPromptRequest=request;unversionedPromptVisible=true;Self.activePreferenceOperations += 1
+        Task { [self,access] in
+            defer {Self.activePreferenceOperations -= 1;withExtendedLifetime(access){};if unversionedPromptRequest==request {unversionedPromptVisible=false}}
+            let response=await presentUnversionedFiles()
+            guard messageFocusAvailable,unversionedPromptRequest==request,!confirmingQuit,visibleEntries.isEmpty,hasHiddenUnversionedFiles,operation != .merge else {return}
+            guard let response else {return}
+            unversionedPromptPending=false
+            if response.remember {dialogDefaults.set(response.show ? 6:7,forKey:"NothingToCommitShowUnversioned")}
+            // Source StatusThread changes the live checkbox here; its shared
+            // AddBeforeCommit preference is saved only after a commit attempt.
+            if response.show {showUnversioned=true}
+        }
     }
     var visibleFileRowIDs:[String] {
         let ignored = GitPathSet(indexFlagFiles.filter {$0.assumeUnchanged || $0.skipWorktree}.map {$0.entry.path})
@@ -772,23 +850,23 @@ import UniformTypeIdentifiers
             .sorted(using: comparator).compactMap(\.entry)
     }
     @discardableResult func saveFileColumnLayout(order: [StatusListColumn], widths: [StatusListColumn: Double]) -> Bool {
-        guard messageFocusAvailable, !busy, !confirmingQuit else { return false }
+        guard messageFocusAvailable, !inputsBlocked else { return false }
         let next = StatusListColumnSettings(visible: fileColumns.visible, order: order, widths: widths)
         if fileColumns != next { fileColumns = next; fileColumns.save(to: dialogDefaults) }
         return true
     }
     func setFileColumn(_ column: StatusListColumn, visible: Bool) {
-        guard messageFocusAvailable, column != .path, availableFileColumns.contains(column), !busy, !confirmingQuit else { return }
+        guard messageFocusAvailable, column != .path, availableFileColumns.contains(column), !inputsBlocked else { return }
         if visible { fileColumns.visible.insert(column) } else { fileColumns.visible.remove(column) }
         fileColumns.save(to: dialogDefaults)
         if column == .lfsOwner { if visible { reload() } else { lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false } }
     }
     @discardableResult func resetFileColumns() -> Bool {
-        guard messageFocusAvailable, !busy, !confirmingQuit else { return false }
+        guard messageFocusAvailable, !inputsBlocked else { return false }
         fileColumns = StatusListColumnSettings(); fileColumns.save(to: dialogDefaults); return true
     }
     func requestResetFileColumns(choose: @escaping () async -> Bool, onAccepted: @escaping () -> Void) {
-        guard messageFocusAvailable, !busy, !confirmingQuit else { return }
+        guard messageFocusAvailable, !inputsBlocked else { return }
         busy = true
         Task {
             defer { busy = false }
@@ -798,7 +876,7 @@ import UniformTypeIdentifiers
         }
     }
     func setFileSortOrder(_ order: [CommitFileSort]) {
-        guard messageFocusAvailable, !busy, !confirmingQuit else { return }
+        guard messageFocusAvailable, !inputsBlocked else { return }
         // The source retains one column, with its path tie-break, rather than
         // accumulating old columns as additional sorting priorities.
         fileSortOrder = Array(order.prefix(1))
@@ -880,7 +958,7 @@ import UniformTypeIdentifiers
         return StatusFileMenuSnapshot(generation: fileMenuGeneration, entries: selected, mark: focused, commands: commands, markIsDirectory: focused.map(directory) ?? false)
     }
     private func acceptsFileMenu(_ snapshot: StatusFileMenuSnapshot, duringOperation: Bool = false) -> Bool {
-        guard messageFocusAvailable,!savingPreferences,!stagingHintVisible,!confirmingQuit,!pendingReloadCancel,duringOperation || !busy,
+        guard messageFocusAvailable,!savingPreferences,!stagingHintVisible,!unversionedPromptVisible,!confirmingQuit,!pendingReloadCancel,duringOperation || !busy,
               snapshot.generation == fileMenuGeneration, !snapshot.entries.isEmpty else { return false }
         let current = GitPathMap(entries.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         return snapshot.entries.allSatisfy { current[$0.path] == $0 } && (snapshot.mark.map { current[$0.path] == $0 } ?? true)
@@ -1132,9 +1210,12 @@ import UniformTypeIdentifiers
     }
     var colorPreferences: UserDefaults { dialogDefaults }
     func setDoNotAutoselectSubmodules(_ disabled: Bool) {
-        guard messageFocusAvailable, !inputsBlocked, !stagingEnabled else { return }
+        guard messageFocusAvailable, !inputsBlocked else { return }
         doNotAutoselectSubmodules = disabled
         dialogDefaults.set(disabled, forKey: "Commit.DoNotAutoselectSubmodules")
+        // The source keeps this policy enabled in staging mode. Changing an
+        // automatic-selection preference must never stage/unstage a gitlink.
+        guard !stagingEnabled else {return}
         if disabled { checked.subtract(submodules) }
         else { check { submodules.contains($0.path) } }
     }
@@ -1167,7 +1248,7 @@ import UniformTypeIdentifiers
         return changelists.name(for: entry.path).map { origin + (origin.isEmpty ? "" : "\n") + "Changelist: " + $0 } ?? origin
     }
     var checkedPathsForCommit: GitPathSet { GitPathSet(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
-    var canCommit: Bool { messageFocusAvailable && !stagingStateNeedsRefresh && !savingPreferences && !stagingHintVisible && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: { isStaged($0) }) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { messageFocusAvailable && !stagingStateNeedsRefresh && !savingPreferences && !stagingHintVisible && !unversionedPromptVisible && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: { isStaged($0) }) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { GitReferenceName.equal(path,source) ? destination : path.utf8.starts(with:(source + "/").utf8) ? destination + path.dropFirst(source.count) : path }
         checked = GitPathSet(checked.map(moved)); selection = GitPathSet(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -1178,7 +1259,7 @@ import UniformTypeIdentifiers
         amend = true; amendDiffToLastCommit = plan.lastParentCount != 1
         message = plan.message; amendMessage = plan.message; originalAmendMessage = plan.message
         showWholeProject = true; selectFilesAutomatically = true
-        setAuthorDate = true; authorDate = date == .first ? plan.lastAuthorDate : date == .latest ? plan.firstAuthorDate : Date()
+        setAuthorDate = true; authorDate = CommitAuthorDateControl.loaded(date == .first ? plan.lastAuthorDate : date == .latest ? plan.firstAuthorDate : Date(),retainingDay:authorDate)
         resetAuthorDate = date == .current
         replayDatePreset = (setAuthorDate, authorDate, resetAuthorDate)
         reload(paths: ["."])
@@ -1190,7 +1271,7 @@ import UniformTypeIdentifiers
         self.message = split.conflictRecovery == true || split.parts == 0 ? message : ""
         if split.parts == 0, let date = split.squashDate {
             setAuthor = true; author = split.firstAuthor
-            if date != .current, let value = ISO8601DateFormatter().date(from: split.firstDate) { setAuthorDate = true; authorDate = value }
+            if date != .current, let value = ISO8601DateFormatter().date(from: split.firstDate) { setAuthorDate = true; authorDate = CommitAuthorDateControl.loaded(value,retainingDay:authorDate) }
             else if date == .current { setAuthorDate = true; resetAuthorDate = true }
             // Suppress only the onChange generated by installing caller
             // presets. Later user checkbox changes still run normal handlers.
@@ -1242,7 +1323,8 @@ import UniformTypeIdentifiers
         if let issueID = invocation.issueID { self.issueID = issueID }
     }
     func reload(paths: [String]? = nil) {
-        guard messageFocusAvailable, !issueProviderBusy, !busy, !pendingReloadCancel else { return }
+        guard messageFocusAvailable, !issueProviderBusy, !busy, !pendingReloadCancel, !unversionedPromptVisible else { return }
+        unversionedPromptPending=false;fileListReadError=nil;fileListReadCancelled=false
         fileMenuGeneration = UUID(); busy = true
         let requestedScope = paths.map { $0.contains(".") ? [] : $0 } ?? scopePaths
         let requestedWholeProject = paths == nil ? showWholeProject : requestedScope.isEmpty
@@ -1252,7 +1334,7 @@ import UniformTypeIdentifiers
         reloadTask = Task {
             defer {
                 Self.activeReloads -= 1; fileListRefresh.finish(position); withExtendedLifetime(access) {}
-                if reloadCancellation === token {reloadCancellation=nil;reloadTask=nil;busy=false;offerStagingHint()}
+                if reloadCancellation === token {reloadCancellation=nil;reloadTask=nil;busy=false;offerStagingHint();offerUnversionedFiles()}
             }
             do {
                 try validateRestoreAccess()
@@ -1377,7 +1459,13 @@ import UniformTypeIdentifiers
                 if preferences?.showPatch == true {if stagingEnabled {showPartial(false)} else {showViewPatch()}}
                 if !position.remember {selection=[]}
                 await fileListRefresh.restore(position,ids:visibleFileRowIDs);try token.check()
-            } catch {if messageFocusAvailable,!token.isCancelled {reloadError=error.localizedDescription;self.error=reloadError}}
+                unversionedPromptPending=visibleEntries.isEmpty && hasHiddenUnversionedFiles && operation != .merge
+            } catch {
+                if messageFocusAvailable,reloadCancellation === token {
+                    if token.isCancelled {fileListReadCancelled=true}
+                    else {fileListReadError=error.localizedDescription;reloadError=error.localizedDescription;self.error=reloadError}
+                }
+            }
         }
     }
     /// Capture config before presenting a permission sheet. A config edit while
@@ -1445,7 +1533,7 @@ import UniformTypeIdentifiers
         guard messageFocusAvailable,!inputsBlocked,let presentStagingHint else {return}
         let request=UUID();stagingHintRequest=request;stagingHintVisible=true;Self.activePreferenceOperations += 1
         Task { [self,access] in
-            defer {Self.activePreferenceOperations -= 1;withExtendedLifetime(access){};if stagingHintRequest==request {stagingHintVisible=false}}
+            defer {Self.activePreferenceOperations -= 1;withExtendedLifetime(access){};if stagingHintRequest==request {stagingHintVisible=false;offerUnversionedFiles()}}
             let suppress=await presentStagingHint()
             guard messageFocusAvailable,stagingHintRequest==request,stagingEnabled else {return}
             if let suppress {stagingHintPending=false;if suppress {dialogDefaults.set(true,forKey:"HintStagingMode")}}
@@ -1456,10 +1544,10 @@ import UniformTypeIdentifiers
         stagingEnabled=enabled;stagingChanged()
     }
     func savePatchPreference(_ visible:Bool) {
-        guard messageFocusAvailable else {return};queuePreferences(showPatch:visible)
+        guard messageFocusAvailable,!unversionedPromptVisible else {return};queuePreferences(showPatch:visible)
     }
     func stagingChanged() {
-        guard messageFocusAvailable,loadedPreferences,!busy,!confirmingQuit,!stagingHintVisible,appliedStagingMode != stagingEnabled else {return}
+        guard messageFocusAvailable,loadedPreferences,!inputsBlocked,appliedStagingMode != stagingEnabled else {return}
         appliedStagingMode=stagingEnabled;closePartial();stagingHintPending=stagingEnabled
         queuePreferences(staging:stagingEnabled)
     }
@@ -1562,6 +1650,7 @@ import UniformTypeIdentifiers
     }
     func invalidateForClose() {
         preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
+        unversionedPromptRequest=UUID();unversionedPromptPending=false;unversionedPromptVisible=false;cancelUnversionedFilesPrompt()
         stagingHintRequest=UUID();stagingHintVisible=false;stagingHintPending=false
         preflightRequest=UUID();preflightCancellation?.cancel();preflightCancellation=nil
         if let progress=commitProgress { progress.invalidate();if !progress.busy { progress.choose(nil) } }
@@ -1630,7 +1719,7 @@ import UniformTypeIdentifiers
                 let value = try await queryCommitAuthorDate(token)
                 if token.isCancelled { throw OperationCancellationFailure.cancelled }
                 guard generation == dateGeneration, amend, setAuthorDate, authorDate == draft, let value else { return }
-                authorDate = value
+                authorDate = CommitAuthorDateControl.loaded(value,retainingDay:draft)
             } catch { if generation == dateGeneration, amend, setAuthorDate { self.error = error.localizedDescription } }
         }
     }
@@ -1655,7 +1744,7 @@ import UniformTypeIdentifiers
         guard !paths.isEmpty else { return }; onCompare(paths, amendToParent)
     }
     func diff(paths selected: some Sequence<String>, staged: Bool? = nil, alternate: Bool = false) { let selected = GitPathSet(selected);
-        guard messageFocusAvailable, !busy, !confirmingQuit, !unifiedViewerBusy else { return }
+        guard messageFocusAvailable, !inputsBlocked, !unifiedViewerBusy else { return }
         let paths = entries.filter { selected.contains($0.id) }.map(\.path)
         guard !paths.isEmpty else { return }
         let amendToParent = self.amendToParent
@@ -1688,7 +1777,7 @@ import UniformTypeIdentifiers
         guard canCommit, replaySplit == nil && historyCombine == nil || action == .commit,
               historyCombine == nil || (amend && !createBranch) else { return }
         if replaySplit == nil && historyCombine == nil { completionAction = action }
-        let rawMessage = message, rawIssueID = issueID, properties = issueProperties, provider = nativeIssueProvider, paths = checkedPathsForCommit, staging = stagingEnabled
+        let rawMessage = message, rawIssueID = issueID, properties = issueProperties, provider = nativeIssueProvider, paths = checkedPathsForCommit, staging = stagingEnabled, showUnversionedForAttempt=showUnversioned
         let committedPaths = staging ? GitPathSet(entries.filter { isStaged($0) }.map(\.path)) : messageOnly ? GitPathSet() : paths
         let committedPathNames = Set(committedPaths.map { GitReferenceName($0) })
         let retainedChangelists = Set(visibleEntries.filter { !committedPathNames.contains(GitReferenceName($0.path)) }.map { GitReferenceName($0.path) }).union(restoreCopies.keys.map { GitReferenceName($0) })
@@ -1696,12 +1785,13 @@ import UniformTypeIdentifiers
         let preserveChangelists = keepChangelists
         var options = CommitOptions(); options.amend = amend; options.amendDiffToLastCommit = amendDiffToLastCommit; options.author = setAuthor ? author : nil
         options.authorDate = setAuthorDate ? authorDate : nil; options.resetAuthorDate = amend && setAuthorDate && resetAuthorDate; options.messageOnly = messageOnly; options.newBranch = createBranch ? newBranch : nil
+        if let date=options.authorDate,!options.resetAuthorDate,date < Date(timeIntervalSince1970:0) {error="Invalid time";return}
         if !staging { options.checkboxIndexPolicy = CommitCheckboxIndexPolicy(paths:GitPathSet(visibleEntries.map(\.path)),defaults:dialogDefaults) }
         let preflight=UUID(),preflightToken=OperationCancellation();preflightRequest=preflight;preflightCancellation=preflightToken
         busy = true;Self.activeCommitPreflights += 1
         Task { [self,access] in
-            defer { Self.activeCommitPreflights -= 1;withExtendedLifetime(access) {};if preflightRequest==preflight { preflightCancellation=nil } }
             var commitAttempted = false
+            defer { if commitAttempted,messageFocusAvailable {unversionedDefaults.set(showUnversionedForAttempt,forKey:"AddBeforeCommit")};Self.activeCommitPreflights -= 1;withExtendedLifetime(access) {};if preflightRequest==preflight { preflightCancellation=nil } }
             var progress: CommitProgressWindowModel?
             var selectedPostAction: CommitPostAction?
             do {
@@ -1856,6 +1946,8 @@ import UniformTypeIdentifiers
                     busy = false
                     reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
                 } else {
+                    // Save before the accepted success closes/invalidates this owner.
+                    unversionedDefaults.set(showUnversionedForAttempt,forKey:"AddBeforeCommit")
                     busy = false; close()
                     if action == .push || selectedPostAction == .push { onPush() }
                     else if selectedPostAction == .pull { onPull() }
@@ -1892,14 +1984,14 @@ import UniformTypeIdentifiers
             return label.padding(toLength: max(10, label.count), withPad: " ", startingAt: 0) + " " + entry.path + "\n"
         }.joined()
     }
-    var inputsBlocked:Bool {busy || issueProviderBusy || confirmingQuit || pendingReloadCancel || savingPreferences || stagingHintVisible}
-    var canCancel: Bool { messageFocusAvailable && !stagingHintVisible && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil) }
+    var inputsBlocked:Bool {busy || issueProviderBusy || confirmingQuit || pendingReloadCancel || savingPreferences || stagingHintVisible || unversionedPromptVisible}
+    var canCancel: Bool { messageFocusAvailable && !stagingHintVisible && !unversionedPromptVisible && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil) }
     func cancel(closeWindow: Bool = true, completion: ((Bool) -> Void)? = nil) {
         cancel(closeWindow: closeWindow, completion: completion, confirmationAccepted: false)
     }
     private func cancel(closeWindow: Bool, completion: ((Bool) -> Void)?, confirmationAccepted: Bool) {
         guard messageFocusAvailable else { completion?(false); return }
-        guard !stagingHintVisible else {completion?(false);return}
+        guard !stagingHintVisible,!unversionedPromptVisible else {completion?(false);return}
         if let task=preferenceTask {
             preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
             Task { [weak self] in
@@ -2224,12 +2316,14 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                             checkButton("Files", enabled: model.visibleEntries.contains { !model.submodules.contains($0.path) }) { checking in model.check({ !model.submodules.contains($0.path) },checking:checking) }
                             checkButton("Submodules", enabled: model.visibleEntries.contains { model.submodules.contains($0.path) }) { checking in model.check({ model.submodules.contains($0.path) },checking:checking) }
                         }.font(.system(size: 12)).disabled(model.messageOnly)
-                        fileTable(model.visibleEntries, staged: model.stagingEnabled ? model.stagedDiff : nil).frame(minHeight: 120).disabled(model.messageOnly)
+                        fileTable(model.visibleEntries, staged: model.stagingEnabled ? model.stagedDiff : nil)
+                            .overlay {if let text=model.fileListEmptyMessage {Text(text).multilineTextAlignment(.center).font(.callout).foregroundStyle(.secondary).padding(20).frame(maxWidth:.infinity,maxHeight:.infinity).allowsHitTesting(false).accessibilityLabel(text)}}
+                            .frame(minHeight: 120).disabled(model.messageOnly)
                         HStack {
                             VStack(alignment: .leading, spacing: 6) {
                                 Toggle("Staging support (EXPERIMENTAL)",isOn:Binding(get:{model.stagingEnabled},set:{model.setStagingEnabled($0)}))
                                 Toggle("Show Unversioned Files", isOn: Binding(get: { model.showUnversioned }, set: { model.setShowUnversioned($0) }))
-                                Toggle("Do not autoselect submodules", isOn: Binding(get: { model.doNotAutoselectSubmodules }, set: model.setDoNotAutoselectSubmodules)).disabled(model.stagingEnabled)
+                                Toggle("Do not autoselect submodules", isOn: Binding(get: { model.doNotAutoselectSubmodules }, set: model.setDoNotAutoselectSubmodules))
                             }.toggleStyle(.checkbox)
                             Spacer()
                             VStack(alignment: .trailing, spacing: 6) {
@@ -2506,18 +2600,44 @@ private struct CommitDividerCursor: NSViewRepresentable {
     }
 }
 
+/// Only the source date control has a range. A rejected programmatic date
+/// leaves its previous calendar day intact; the independent time still loads.
+/// This is an editor rule, not a restriction on dates stored in Git history.
+enum CommitAuthorDateControl {
+    static var calendar:Calendar {var value=Calendar(identifier:.gregorian);value.timeZone = .current;return value}
+    static func range(calendar:Calendar = CommitAuthorDateControl.calendar)->ClosedRange<Date> {
+        let minimum=calendar.date(from:DateComponents(year:1970,month:1,day:1))!
+        let maximum=calendar.date(from:DateComponents(year:2099,month:12,day:31))!
+        return minimum...maximum
+    }
+    static func merging(day:Date,time:Date,calendar:Calendar = CommitAuthorDateControl.calendar)->Date {
+        var values=calendar.dateComponents([.year,.month,.day],from:day)
+        let clock=calendar.dateComponents([.hour,.minute,.second],from:time)
+        values.hour=clock.hour;values.minute=clock.minute;values.second=clock.second
+        return calendar.date(from:values) ?? day
+    }
+    static func loaded(_ value:Date,retainingDay previous:Date,calendar:Calendar = CommitAuthorDateControl.calendar)->Date {
+        let limits=range(calendar:calendar)
+        guard !limits.contains(value) else{return value}
+        let day=min(limits.upperBound,max(limits.lowerBound,calendar.startOfDay(for:previous)))
+        return merging(day:day,time:value,calendar:calendar)
+    }
+}
+
 /// Upstream has separate date and time fields, including seconds.
 private struct CommitDatePicker: NSViewRepresentable {
     @Binding var selection: Date
     @Environment(\.isEnabled) private var environmentEnabled
     let time: Bool
     let enabled: Bool
-    func makeCoordinator() -> Coordinator { Coordinator(selection: $selection) }
+    func makeCoordinator() -> Coordinator { Coordinator(selection: $selection,time:time) }
     func makeNSView(context: Context) -> NSDatePicker {
         let picker = NSDatePicker()
         picker.datePickerStyle = .textFieldAndStepper
         picker.datePickerMode = .single
         picker.datePickerElements = time ? .hourMinuteSecond : .yearMonthDay
+        picker.calendar=CommitAuthorDateControl.calendar;picker.timeZone = .current
+        if !time {let limits=CommitAuthorDateControl.range();picker.minDate=limits.lowerBound;picker.maxDate=limits.upperBound}
         picker.target = context.coordinator
         picker.action = #selector(Coordinator.changed(_:))
         picker.setAccessibilityLabel(time ? "Author time" : "Author date")
@@ -2525,13 +2645,18 @@ private struct CommitDatePicker: NSViewRepresentable {
     }
     func updateNSView(_ picker: NSDatePicker, context: Context) {
         context.coordinator.selection = $selection
-        if picker.dateValue != selection { picker.dateValue = selection }
+        let value=time ? selection:CommitAuthorDateControl.calendar.startOfDay(for:selection)
+        if picker.dateValue != value {picker.dateValue=value}
         picker.isEnabled = enabled && environmentEnabled
     }
     final class Coordinator: NSObject {
         var selection: Binding<Date>
-        init(selection: Binding<Date>) { self.selection = selection }
-        @objc func changed(_ sender: NSDatePicker) { selection.wrappedValue = sender.dateValue }
+        let time:Bool
+        init(selection: Binding<Date>,time:Bool) {self.selection=selection;self.time=time}
+        @objc func changed(_ sender: NSDatePicker) {
+            let previous=selection.wrappedValue
+            selection.wrappedValue=CommitAuthorDateControl.merging(day:time ? previous:sender.dateValue,time:time ? sender.dateValue:previous)
+        }
     }
 }
 

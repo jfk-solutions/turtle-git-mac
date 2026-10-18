@@ -33,6 +33,7 @@ struct LogMessageView: NSViewRepresentable {
         private var task: Task<Void,Never>?, token: OperationCancellation?
         private var preferencesObserver: NSObjectProtocol?, closeObserver: NSObjectProtocol?
         private var retired = false, configured = false
+        private var menuGeneration = UUID()
         var openURL: (URL) -> Void = { NSWorkspace.shared.open($0) }
         init(model: LogWindowModel, query: Query? = nil) {
             self.model = model; let worker = HistoryMessageStyler()
@@ -98,7 +99,7 @@ struct LogMessageView: NSViewRepresentable {
             if let origin { editor.enclosingScrollView?.contentView.scroll(to:origin) }
         }
         func retire() {
-            guard !retired else { return }; retired = true; request = UUID(); token?.cancel(); task?.cancel(); token = nil; task = nil
+            guard !retired else { return }; retired = true; menuGeneration = UUID(); request = UUID(); token?.cancel(); task?.cancel(); token = nil; task = nil
             for observer in [preferencesObserver,closeObserver].compactMap({$0}) { NotificationCenter.default.removeObserver(observer) }
             preferencesObserver = nil; closeObserver = nil; editor?.delegate = nil; editor?.coordinator = nil; editor?.onWindowChanged = {}; editor = nil
         }
@@ -106,7 +107,7 @@ struct LogMessageView: NSViewRepresentable {
             guard !retired, let editor, let model, !model.isInvalidated else { return false }
             return sourceGeneration == model.messageLinkGeneration && document == model.messageDocument && editor.string == document.text
         }
-        private var interactive: Bool { current && model?.canFollowMessageLink == true && editor?.window?.attachedSheet == nil }
+        private var interactive: Bool { current && model?.canFollowMessageLink == true && editor?.window?.attachedSheet == nil && NSApp.modalWindow == nil }
         func link(at index: Int) -> HistoryMessageLink? { styles.links.first { NSLocationInRange(index,$0.range) } }
         func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
             guard charIndex >= 0, charIndex < (textView.string as NSString).length,
@@ -120,21 +121,52 @@ struct LogMessageView: NSViewRepresentable {
             if link.kind == .hash { model?.followMessageHash(link.target) }
             else if let url = SourceMessageLinkURL.url(link.target) { openURL(url) }
         }
+        func copySelection() {
+            guard interactive, let model, let editor else { return }
+            let range = editor.selectedRange(), text = editor.string as NSString
+            guard range.location >= 0, range.length > 0, range.location <= text.length, range.length <= text.length-range.location else { return }
+            model.copy(text.substring(with: range))
+        }
         func menu(at index: Int) -> NSMenu {
-            let menu = NSMenu(); menu.autoenablesItems = false; let expected = request
-            if let link = link(at:index) {
-                let open = MessageLinkMenuItem(title:link.kind == .hash ? "Jump to commit" : "Open link",icon:link.kind == .hash ? .log : .open, defaults:model?.colorPreferences ?? .standard) { [weak self] in self?.activate(link, expected:expected) }
-                open.isEnabled = interactive; menu.addItem(open)
-                let copy = MessageLinkMenuItem(title:link.kind == .hash ? "Copy hash" : "Copy link address",icon:.copy, defaults:model?.colorPreferences ?? .standard) { [weak self] in self?.copyLink(link, expected:expected) }
-                copy.isEnabled = current; menu.addItem(copy); menu.addItem(.separator())
+            menuGeneration = UUID()
+            let epoch = menuGeneration, expected = request, selection = model?.selected, generation = model?.messageLoadGeneration, controls = model?.logControlsEpoch
+            let fullText = document.text, range = editor?.selectedRange() ?? NSRange(location:0,length:0)
+            let text = fullText as NSString
+            let selectionText = range.location >= 0 && range.location <= text.length && range.length <= text.length-range.location ? text.substring(with:range) : ""
+            var used = false
+            let menu = NSMenu(); menu.autoenablesItems = false
+            let available: () -> Bool = { [weak self] in
+                guard let self else { return false }
+                return !used && self.menuGeneration == epoch && self.request == expected && self.interactive &&
+                    self.model?.selected == selection && self.model?.messageLoadGeneration == generation && self.model?.logControlsEpoch == controls
             }
-            let copy = NSMenuItem(title:"Copy",action:#selector(NSTextView.copy(_:)),keyEquivalent:""); copy.target = editor; copy.image = MenuIcon.copy.contextImage(defaults:model?.colorPreferences ?? .standard); copy.isEnabled = current && (editor?.selectedRange().length ?? 0) > 0; menu.addItem(copy)
-            let all = NSMenuItem(title:"Select All",action:#selector(NSTextView.selectAll(_:)),keyEquivalent:""); all.target = editor; all.isEnabled = current; menu.addItem(all)
+            func add(_ title: String, icon: MenuIcon, enabled: Bool = true, _ action: @escaping () -> Void) {
+                let item = MessageLinkMenuItem(title:title, icon:icon, defaults:model?.colorPreferences ?? .standard, available: { available() && enabled }) {
+                    guard available(), enabled else { return }; used = true; action()
+                }
+                menu.addItem(item)
+            }
+            if let link = link(at:index) {
+                add(link.kind == .hash ? "Jump to commit" : "Open link", icon:link.kind == .hash ? .log:.open) { [weak self] in self?.activate(link, expected:expected) }
+                add(link.kind == .hash ? "Copy hash" : "Copy link address", icon:.copy) { [weak self] in self?.copyLink(link, expected:expected) }
+                menu.addItem(.separator())
+            }
+            add("Copy", icon:.copy, enabled:!selectionText.isEmpty) { [weak model = self.model] in model?.copy(selectionText) }
+            menu.addItem(.separator())
+            // Copy the document directly: selection and viewport never need to
+            // be changed/restored, matching the source Copy-all end state.
+            add("Copy all", icon:.copy, enabled:!fullText.isEmpty) { [weak model = self.model] in model?.copy(fullText) }
+            if let model, model.revision != nil {
+                menu.addItem(.separator())
+                add("Edit Notes", icon:.rebaseEdit, enabled:model.canEditNotes) { [weak model] in model?.editNotes() }
+            }
+            menu.addItem(.separator())
+            add("Select All", icon:.copy, enabled:!fullText.isEmpty) { [weak editor = self.editor] in editor?.selectAll(nil) }
             return menu
         }
         func copyLink(_ link: HistoryMessageLink, expected: UUID? = nil) {
             guard expected == nil || expected == request else { return }
-            guard current, styles.links.contains(link) else { return }; NSPasteboard.general.clearContents(); NSPasteboard.general.setString(link.target,forType:.string)
+            guard interactive, styles.links.contains(link) else { return }; model?.copy(link.target)
         }
     }
 }
@@ -147,7 +179,6 @@ final class LogMessageTextView: NSTextView {
         return coordinator?.menu(at:characterIndexForInsertion(at:point))
     }
     override func copy(_ sender: Any?) {
-        let range = selectedRange(); guard range.length > 0, NSMaxRange(range) <= (string as NSString).length else { return }
-        NSPasteboard.general.clearContents(); NSPasteboard.general.setString((string as NSString).substring(with:range),forType:.string)
+        coordinator?.copySelection()
     }
 }

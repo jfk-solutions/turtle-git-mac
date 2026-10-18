@@ -306,6 +306,10 @@ jobs:
         run: python3 scripts/test-message-style-family.py --only styles --only spelling --only font --only links --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Log rich message links and owned styling
         run: python3 scripts/test-log-message-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Commit visibility and Log source command families
+        run: python3 scripts/test-app-port-families.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Historical Diff and Submodule entry family
+        run: python3 scripts/test-submodule-diff-entry.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Add LFS and persistent native list family
         run: python3 scripts/test-add-list-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native file selection and Log workflows

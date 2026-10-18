@@ -10,7 +10,7 @@ struct LogFilterField: NSViewRepresentable {
     var kind: Kind = .history
     func makeCoordinator() -> Coordinator { Coordinator(model: model, kind: kind) }
     func makeNSView(context: Context) -> NSSearchField {
-        let field = NSSearchField(); field.delegate = context.coordinator
+        let field = NSSearchField(); field.identifier = kind == .history ? Self.historyIdentifier : Self.pathsIdentifier; field.delegate = context.coordinator
         field.target = context.coordinator; field.action = #selector(Coordinator.searchAction(_:))
         field.sendsSearchStringImmediately = true; field.sendsWholeSearchString = false
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -19,6 +19,18 @@ struct LogFilterField: NSViewRepresentable {
     func updateNSView(_ field: NSSearchField, context: Context) { context.coordinator.update() }
     static func dismantleNSView(_ field: NSSearchField, coordinator: Coordinator) {
         coordinator.retired = true; coordinator.menuGeneration = UUID(); field.delegate = nil; field.target = nil
+    }
+    private static let historyIdentifier = NSUserInterfaceItemIdentifier("TurtleGit.Log.HistoryFilter")
+    private static let pathsIdentifier = NSUserInterfaceItemIdentifier("TurtleGit.Log.PathFilter")
+    @MainActor @discardableResult static func focusHistory(in window: NSWindow, selectAll: Bool) -> Bool {
+        func find(_ view: NSView) -> NSSearchField? {
+            if let field = view as? NSSearchField, field.identifier == historyIdentifier { return field }
+            return view.subviews.compactMap(find).first
+        }
+        guard let content = window.contentView, let field = find(content), field.window === window,
+              field.isEnabled, window.makeFirstResponder(field) else { return false }
+        if selectAll { field.selectText(nil) }
+        return true
     }
     @MainActor final class Coordinator: NSObject, NSSearchFieldDelegate {
         private let wordCommands=GitInputWordCommands()

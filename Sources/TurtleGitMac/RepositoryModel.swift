@@ -1911,16 +1911,17 @@ import UniformTypeIdentifiers
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     var submoduleDiffPresentation:((SubmoduleDiffWindowController)->Void)?
-    private func showSubmoduleDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false) {
-        let key = repository.root.path + "\0" + path + "\0" + from + "\0" + (to ?? "Working tree") + "\0" + (fromPath ?? path) + "\0" + String(fromIndex)
-        let controller = submoduleDiffWindows[key] ?? SubmoduleDiffWindowController(repository: repository, access: access, path: path, from: from, to: to, fromPath:fromPath,fromIndex:fromIndex,preferences:fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.submoduleDiffWindows.removeValue(forKey: key) }
-        controller.model.onLog = { [weak self] child, hash in self?.showLog(repository: child, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
-        controller.model.onStatus = { [weak self] child in self?.showStatus(repository: child, access: access) }
-        controller.model.onCompare = { [weak self] child, old, new in self?.showRevisionComparison(repository: child, access: access, from: old, to: new) }
+    private func showSubmoduleDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, preferences: UserDefaults? = nil) {
+        let defaults = preferences ?? fileComparisonPreferences
+        let key = repository.root.path + "\0" + path + "\0" + from + "\0" + (to ?? "Working tree") + "\0" + (fromPath ?? path) + "\0" + String(fromIndex) + "\0preferences:" + String(describing: ObjectIdentifier(defaults))
+        let controller = submoduleDiffWindows[key] ?? SubmoduleDiffWindowController(repository: repository, access: access, path: path, from: from, to: to, fromPath:fromPath,fromIndex:fromIndex,preferences:defaults)
+        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.submoduleDiffWindows[key] === controller else { return }; self.submoduleDiffWindows.removeValue(forKey: key) }
+        controller.model.onLog = { [weak self] child, hash in self?.showLog(repository: child, access: access, paths: [], endRevision: hash, selectedRevision: hash, preferences: defaults) }
+        controller.model.onStatus = { [weak self] child in self?.showStatus(repository: child, access: access, preferences: defaults) }
+        controller.model.onCompare = { [weak self] child, old, new in self?.showRevisionComparison(repository: child, access: access, from: old, to: new, preferences: defaults) }
         controller.model.onConflict = { [weak self, weak controller] in
             controller?.window?.close()
-            self?.showConflictEditor(repository: repository, access: access, path: path)
+            self?.showConflictEditor(repository: repository, access: access, path: path, preferences: defaults)
         }
         controller.onUpdated = { [weak self] output in
             self?.refreshRepositoryLogs(repository.root)
@@ -1934,14 +1935,14 @@ import UniformTypeIdentifiers
         if let submoduleDiffPresentation {submoduleDiffPresentation(controller)} else {controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)}
         controller.model.load()
     }
-    private func showRevisionComparison(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = []) {
+    private func showRevisionComparison(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = [], preferences: UserDefaults? = nil) {
         let baseKey = repository.root.path + "\0" + from.label + "\0" + to.label + "\0scope\0" + paths.joined(separator: "\0")
         let reusable = revisionComparisonWindows.first { _, controller in
             controller.model.repository.root == repository.root && controller.model.repository.executable == repository.executable &&
-            controller.model.alternateTool == ComparisonToolInvocation.alternate && controller.window?.attachedSheet == nil && controller.model.canReuseForComparison(from: from, to: to, paths: paths)
+            controller.model.preferences === (preferences ?? fileComparisonPreferences) && controller.model.alternateTool == ComparisonToolInvocation.alternate && controller.window?.attachedSheet == nil && controller.model.canReuseForComparison(from: from, to: to, paths: paths)
         }
         let key = reusable?.key ?? (revisionComparisonWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
-        let controller = reusable?.value ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to, paths: paths, preferences: fileComparisonPreferences)
+        let controller = reusable?.value ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to, paths: paths, preferences: preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.revisionComparisonWindows.removeValue(forKey: key) }
         configureRevisionComparisonInteractions(controller.model, repository: repository, access: access)
         revisionComparisonWindows[key] = controller
@@ -2007,21 +2008,22 @@ import UniformTypeIdentifiers
         }
     }
     private func configureRevisionComparisonInteractions(_ model: RevisionComparisonWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        let preferences = model.preferences
         model.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         model.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         model.onBlame={ [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision) }
-        model.onSubmoduleLog={ [weak self] checkout,revision in self?.showLog(repository:GitRepository(root:checkout,executable:repository.executable),access:access,paths:[],endRevision:revision,selectedRevision:revision) }
+        model.onSubmoduleLog={ [weak self] checkout,revision in self?.showLog(repository:GitRepository(root:checkout,executable:repository.executable),access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:preferences) }
         model.onFilesChanged={ [weak self] in
             self?.refreshRepositoryLogs(repository.root);self?.statusWindows[repository.root.path]?.model.requestReload();self?.commitWindows[repository.root.path]?.model.reload()
             if self?.root==repository.root {Task{await self?.refresh()}}
         }
-        model.onLogRange = { [weak self] range in self?.showLog(repository:repository,access:access,paths:[],revisionRange:range) }
-        model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
-        model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
+        model.onLogRange = { [weak self] range in self?.showLog(repository:repository,access:access,paths:[],revisionRange:range,preferences:preferences) }
+        model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash,preferences:preferences) }
+        model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash,preferences:preferences) }
         model.onSubmoduleCompare = { [weak self] path, oldPath, old, new in
             let from = old == .emptyTree ? "" : old == .workingTree ? "Working tree" : old.label
             let to = new == .emptyTree ? "" : new == .workingTree ? nil : new.label
-            self?.showSubmoduleDiff(repository: repository, access: access, path: path, from: from, to: to,fromPath:oldPath)
+            self?.showSubmoduleDiff(repository: repository, access: access, path: path, from: from, to: to,fromPath:oldPath,preferences:preferences)
         }
     }
     var fileComparisonPreferences: UserDefaults = .standard
@@ -2041,9 +2043,9 @@ import UniformTypeIdentifiers
         fileComparisonWindows[key]=controller;controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
     }
     private var fileComparisonSessions: [UUID: FileListComparisonSession] = [:]
-    private func prepareFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, selectedCount: Int, owner: NSWindow?, operation: @escaping (OperationCancellation) async throws -> Void) {
+    private func prepareFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, selectedCount: Int, owner: NSWindow?, preferences: UserDefaults? = nil, capturedOwner: Bool = false, operation: @escaping (OperationCancellation) async throws -> Void) {
         guard !busy, !confirmingQuit else { return }
-        let id = UUID(), session = FileListComparisonSession(window: owner ?? NSApp.keyWindow ?? workspaceWindow, preferences: fileComparisonPreferences)
+        let id = UUID(), session = FileListComparisonSession(window: capturedOwner ? owner : owner ?? NSApp.keyWindow ?? workspaceWindow, preferences: preferences ?? fileComparisonPreferences)
         session.confirmation = fileComparisonQuestion
         fileComparisonSessions[id] = session; busy = true
         Task {
@@ -2162,19 +2164,20 @@ import UniformTypeIdentifiers
             presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, line: line)
         }
     }
-    private func presentFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, cancellation: OperationCancellation, line: Int? = nil) {
+    private func presentFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, cancellation: OperationCancellation, line: Int? = nil, preferences: UserDefaults? = nil) {
+        let defaults = preferences ?? fileComparisonPreferences
         for file in snapshot.files {
-            guard !confirmingQuit, !cancellation.isCancelled else { return }
+            guard !retired, !confirmingQuit, !cancellation.isCancelled else { return }
             if let fileComparisonPresentation { fileComparisonPresentation(snapshot, file); continue }
             if file.isSubmodule {
-                showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label, to: snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label,fromPath:file.oldPath)
+                showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label, to: snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label,fromPath:file.oldPath,preferences:defaults)
                 continue
             }
-            let key = repository.root.path + "\0" + file.path + "\0" + (file.oldPath ?? file.path) + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey + (line.map { "\0line\0" + String($0) + "\0" + UUID().uuidString } ?? "")
-            let controller = (fileComparisonWindows[key]?.window != nil ? fileComparisonWindows[key] : nil) ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path, preferences: fileComparisonPreferences, line: line)
+            let key = repository.root.path + "\0" + file.path + "\0" + (file.oldPath ?? file.path) + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey + "\0preferences:" + String(describing: ObjectIdentifier(defaults)) + (line.map { "\0line\0" + String($0) + "\0" + UUID().uuidString } ?? "")
+            let controller = (fileComparisonWindows[key]?.window != nil ? fileComparisonWindows[key] : nil) ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path, preferences: defaults, line: line)
             controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             fileComparisonWindows[key] = controller
-            controller.model.comparisonDefaults = fileComparisonPreferences
+            controller.model.comparisonDefaults = defaults
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         }
     }
@@ -2266,10 +2269,10 @@ import UniformTypeIdentifiers
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
         return controller
     }
-    private func showStatus(repository: GitRepository, access: RepositoryAccessLease?, paths: [String] = []) {
+    private func showStatus(repository: GitRepository, access: RepositoryAccessLease?, paths: [String] = [], preferences: UserDefaults? = nil) {
         let root = repository.root
         section = .status
-        let controller = statusWindows[root.path] ?? StatusWindowController(repository: repository, access: access, defaults: fileComparisonPreferences)
+        let controller = statusWindows[root.path] ?? StatusWindowController(repository: repository, access: access, defaults: preferences ?? fileComparisonPreferences)
         controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.onClosed = { [weak self] in self?.statusWindows.removeValue(forKey: root.path) }
         controller.model.onCopyAdd = { [weak self] paths in self?.showCopy(repository: repository, access: access, sources: paths.map { repository.root.appendingPathComponent($0) }) }
@@ -2588,26 +2591,28 @@ import UniformTypeIdentifiers
         }
         gitPropertyWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil, invocation: PrimaryCommandInvocation? = nil, outputAccess: RepositoryAccessLease? = nil) {
+    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil, invocation: PrimaryCommandInvocation? = nil, outputAccess: RepositoryAccessLease? = nil, preferences: UserDefaults? = nil) {
+        let defaults = preferences ?? fileComparisonPreferences
         let root = repository.root
         var baseKey = root.path
         if let revisionRange { baseKey += "\0range\0" + revisionRange.expression }
         else if let endRevision { baseKey += "\0" + endRevision }
         if !paths.isEmpty { baseKey += "\0paths\0" + paths.sorted().joined(separator: "\0") }
         if invocation != nil { baseKey += "\0command\0" + UUID().uuidString }
+        if let preferences { baseKey += "\0preferences\0" + String(describing: ObjectIdentifier(preferences)) }
         let reusable: (key: String, value: LogWindowController)?
         if let revisionRange, invocation == nil {
             reusable = logWindows.first { _, controller in
                 controller.model.repository.root == root && controller.model.repository.executable == repository.executable &&
-                controller.window?.attachedSheet == nil && controller.model.canReuseForRange(revisionRange,paths:paths)
+                controller.model.colorPreferences === defaults && controller.window?.attachedSheet == nil && controller.model.canReuseForRange(revisionRange,paths:paths)
             }
         } else { reusable = logWindows[baseKey].map { (key: baseKey, value: $0) } }
         let key = reusable?.key ?? (logWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
         let controller: LogWindowController
         if let output = invocation?.outputFile, let outputAccess {
             let completion: (LogEntry?) -> Void = { [weak self] revision in self?.writeCommandSelection(revision, file: output, permission: outputAccess) }
-            controller = commandLineSelectionWindowFactory?(repository, access, completion) ?? LogWindowController(repository: repository, access: access, onChoose: completion, labelDefaults: fileComparisonPreferences, loadsImmediately: false)
-        } else { controller = reusable?.value ?? logWindowFactory?(repository,access) ?? LogWindowController(repository: repository, access: access, loadsImmediately: invocation == nil) }
+            controller = commandLineSelectionWindowFactory?(repository, access, completion) ?? LogWindowController(repository: repository, access: access, onChoose: completion, labelDefaults: defaults, loadsImmediately: false)
+        } else { controller = reusable?.value ?? logWindowFactory?(repository,access) ?? LogWindowController(repository: repository, access: access, labelDefaults: defaults, loadsImmediately: invocation == nil) }
         controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: key) }
         controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.model.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
@@ -3282,13 +3287,13 @@ import UniformTypeIdentifiers
             }
         } catch { self.error = error.localizedDescription }
     }
-    private func handleFilePair(paths: [URL], line: Int? = nil) {
+    private func handleFilePair(paths: [URL], line: Int? = nil, preferences: UserDefaults? = nil) {
         let alternateTool = ComparisonToolInvocation.capture
         do {
             guard let prepared = try WorkingFilePairAccess.prepare(paths: paths, requireSecurityScope: GitRuntime.isAppStoreBuild,
                 acquire: { try comparisonPermission(for: $0) }) else { return }
             let key = "working-pair:" + UUID().uuidString
-            let controller = FileComparisonWindowController(comparison: prepared.comparison, permissions: prepared.permissions,preferences:fileComparisonPreferences, line: line)
+            let controller = FileComparisonWindowController(comparison: prepared.comparison, permissions: prepared.permissions,preferences:preferences ?? fileComparisonPreferences, line: line)
             controller.model.captureToolChoice(alternateTool)
             controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             fileComparisonWindows[key] = controller
@@ -3481,6 +3486,9 @@ import UniformTypeIdentifiers
         } else { outputAccess = nil }
         try cancellation?.check()
         if [.editConflict, .resolve].contains(invocation.request.action) { prepareResolutionCommand(invocation, cancellation: cancellation); return }
+        if invocation.request.action == .diff, invocation.diffSubmodule || invocation.hasHistoricalDiffPair || invocation.hasDiffRevisionPair && invocation.request.paths.count == 1 {
+            prepareCommandComparison(invocation, cancellation: cancellation); return
+        }
         if invocation.request.action == .updateCheck { onUpdateCheck(invocation.updateVisible, invocation.forceUpdate); return }
         if invocation.request.action == .autotextTest { onAutotextTest(); return }
         if invocation.request.action == .introduction { onIntroduction(); return }
@@ -3552,7 +3560,78 @@ import UniformTypeIdentifiers
             } catch { if !retired, !confirmingQuit, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    private func prepareResolutionCommand(_ invocation: PrimaryCommandInvocation, cancellation: OperationCancellation?) {
+    private func prepareCommandComparison(_ invocation: PrimaryCommandInvocation, cancellation: OperationCancellation?) {
+        guard let first = invocation.request.paths.first else { return }
+        // path2 belongs to the destination side, rather than repository lookup.
+        // An external destination falls back to the existing standalone pair.
+        let selection = invocation.selecting([first])
+        prepareResolutionCommand(selection, cancellation: cancellation, receive: { [weak self] repository, access, owner, preferences in
+            self?.showCommandComparison(invocation, repository: repository, access: access, owner: owner, preferences: preferences)
+        })
+    }
+    private func showCommandComparison(_ invocation: PrimaryCommandInvocation, repository: GitRepository, access: RepositoryAccessLease, owner: NSWindow?, preferences: UserDefaults) {
+        guard !retired, !confirmingQuit, let first = invocation.request.paths.first else { return }
+        let primary = FinderRequest(action: .diff, paths: [first]).relativePaths(root: repository.root)
+        guard primary.count == 1 else { error = "Choose comparison paths inside this repository."; return }
+        let source = primary[0], alternate = invocation.request.alternateTool ?? false
+        var firstDirectory: ObjCBool = false
+        _ = FileManager.default.fileExists(atPath: first.path, isDirectory: &firstDirectory)
+        ComparisonToolInvocation.$alternate.withValue(alternate) {
+            if invocation.hasHistoricalDiffPair, let second = invocation.diffSecondaryPath {
+                let destination = FinderRequest(action: .diff, paths: [second]).relativePaths(root: repository.root)
+                guard destination.count == 1 else { handleFilePair(paths: [first, second], line: invocation.line, preferences: preferences); return }
+                var secondDirectory: ObjCBool = false
+                _ = FileManager.default.fileExists(atPath: second.path, isDirectory: &secondDirectory)
+                if firstDirectory.boolValue || secondDirectory.boolValue {
+                    showCommandSubmodule(invocation, repository: repository, access: access, path: destination[0], preferences: preferences)
+                    return
+                }
+                guard let from = invocation.diffFromRevision, let to = invocation.diffToRevision else { return }
+                prepareFileComparisons(repository: repository, access: access, selectedCount: 1, owner: owner, preferences: preferences, capturedOwner: true) { [self] token in
+                    // DiffCommand passes path2 to CGitDiff directly; its unified
+                    // switch does not select StartShowUnifiedDiff in this branch.
+                    let snapshot = try await repository.preparedPathComparison(from: from, fromPath: source, to: to, toPath: destination[0], cancellation: token)
+                    presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, line: invocation.line, preferences: preferences)
+                }
+            } else if firstDirectory.boolValue && !invocation.diffSubmodule {
+                // Ordinary directory Diff keeps ChangedDlg precedence, even
+                // when a revision pair or unified was supplied.
+                showStatus(repository: repository, access: access, paths: primary, preferences: preferences)
+            } else if invocation.unified {
+                prepareFileComparisons(repository: repository, access: access, selectedCount: 1, owner: owner, preferences: preferences, capturedOwner: true) { [self] token in
+                    let bytes = try await repository.commandUnifiedDiff(from: invocation.diffFrom, to: invocation.diffTo, paths: primary, cancellation: token)
+                    let title = (invocation.diffFromRevision?.label ?? "HEAD") + " → " + (invocation.diffToRevision?.label ?? "Working tree")
+                    try await presentCommandUnifiedDiff(bytes, title: title, repository: repository, access: access, alternate: alternate, preferences: preferences, cancellation: token)
+                }
+            } else if invocation.diffSubmodule && firstDirectory.boolValue {
+                showCommandSubmodule(invocation, repository: repository, access: access, path: source, preferences: preferences)
+            } else if let from = invocation.diffFromRevision, let to = invocation.diffToRevision {
+                prepareFileComparisons(repository: repository, access: access, selectedCount: 1, owner: owner, preferences: preferences, capturedOwner: true) { [self] token in
+                    let snapshot = try await repository.preparedPathComparison(from: from, fromPath: source, to: to, toPath: source, cancellation: token)
+                    presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, line: invocation.line, preferences: preferences)
+                }
+            } else {
+                // The switch bypasses ChangedDlg; it does not force an
+                // ordinary file to become a gitlink comparison.
+                prepareFileComparisons(repository: repository, access: access, selectedCount: 1, owner: owner, preferences: preferences, capturedOwner: true) { [self] token in
+                    let snapshot = try await repository.workingFileComparison(paths: primary, cancellation: token)
+                    presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, line: invocation.line, preferences: preferences)
+                }
+            }
+        }
+    }
+    private func showCommandSubmodule(_ invocation: PrimaryCommandInvocation, repository: GitRepository, access: RepositoryAccessLease, path: String, preferences: UserDefaults) {
+        let from = invocation.diffFromRevision ?? .revision("HEAD"), to = invocation.diffToRevision ?? .workingTree
+        let working = from == .workingTree || to == .workingTree
+        let base = from == .workingTree ? to : from
+        // CGitDiff normalizes either working sentinel to the To side; two
+        // working sides use the indexed gitlink as the old pointer.
+        showSubmoduleDiff(repository: repository, access: access, path: path,
+            from: working && base == .workingTree ? "Working tree" : base.label,
+            to: working ? nil : to.label, fromIndex: from == .workingTree && to == .workingTree,
+            preferences: preferences)
+    }
+    private func prepareResolutionCommand(_ invocation: PrimaryCommandInvocation, cancellation: OperationCancellation?, receive: ((GitRepository, RepositoryAccessLease, NSWindow?, UserDefaults) -> Void)? = nil) {
         guard !retired, !confirmingQuit, resolutionCommandPreparation == nil, let selected = invocation.request.paths.first else { return }
         let owner = RepositoryWindowOwner(window: workspaceWindow), window = workspaceWindow, preferences = fileComparisonPreferences
         resolutionCommandPreparation = owner; busy = true
@@ -3581,7 +3660,7 @@ import UniformTypeIdentifiers
                         permission = await withCheckedContinuation { continuation in
                             let choice = RepositoryCreationFolderChoice(window: window, owner: owner)
                             choice.panel.canChooseFiles = false; choice.panel.canChooseDirectories = true; choice.panel.showsHiddenFiles = true
-                            choice.panel.prompt = "Authorize repository"; choice.panel.message = "Choose the working tree containing the selected conflict paths."; choice.panel.directoryURL = selected.deletingLastPathComponent()
+                            choice.panel.prompt = "Authorize repository"; choice.panel.message = "Choose the working tree containing the selected paths."; choice.panel.directoryURL = selected.deletingLastPathComponent()
                             resolutionCommandFolderChoice = choice
                             choice.onFinished = { folder in continuation.resume(returning: folder.map { RepositoryAccessLease(url: $0) }) }
                             choice.begin(present: nil, selected: { $0.url })
@@ -3591,15 +3670,25 @@ import UniformTypeIdentifiers
                 try owner.cancellation.check(); try cancellation?.check(); guard !retired, !confirmingQuit, let permission else { return }
                 guard invocation.request.paths.allSatisfy({permission.contains($0)}), !requiresRepositoryScope || permission.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let directory = (try? selected.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
-                let location = directory ? selected : selected.deletingLastPathComponent()
-                guard permission.contains(location) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(location.path) }
+                var location = directory ? selected : selected.deletingLastPathComponent()
+                if invocation.hasDiffRevisionPair {
+                    while location.path != "/", (try? location.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) != true {
+                        let parent = location.deletingLastPathComponent()
+                        guard !requiresRepositoryScope || permission.contains(parent) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(parent.path) }
+                        location = parent
+                    }
+                }
+                guard !requiresRepositoryScope || permission.contains(location) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(location.path) }
                 let prepared = try await prepareRepositoryMetadataAccess(at: location, primary: permission, cancellation: owner.cancellation)
-                let access = permission.retainingRelatedScopes(prepared.scopes), candidate = try makeRepository(location)
+                var access = permission.retainingRelatedScopes(prepared.scopes)
+                let candidate = try makeRepository(location)
                 let resolved = try await candidate.discoverSelectionRoot(for: invocation.request.action, selected: selected, cancellation: owner.cancellation)
+                if !requiresRepositoryScope, !access.contains(resolved) { access = RepositoryAccessLease(url: resolved).retainingRelatedScopes([access]) }
                 guard !requiresRepositoryScope || access.contains(resolved) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(resolved.path) }
                 let repository = try makeRepository(resolved)
                 let repositoryIsBare = try await repository.isBare(cancellation: owner.cancellation)
-                guard !repositoryIsBare else { throw PrimaryCommandInvocation.Failure("This operation requires a working tree.") }
+                let historicalDiff = invocation.hasDiffRevisionPair && invocation.diffFromRevision != .workingTree && invocation.diffToRevision != .workingTree
+                guard !repositoryIsBare || historicalDiff else { throw PrimaryCommandInvocation.Failure("This operation requires a working tree.") }
                 if invocation.request.action == .resolve {
                     let paths = invocation.request.relativePaths(root: resolved)
                     guard paths.count == invocation.request.paths.count else { throw ResolveFailure.outsideWorkingTree }
@@ -3608,7 +3697,8 @@ import UniformTypeIdentifiers
                 try owner.cancellation.check(); try cancellation?.check(); guard !retired, !confirmingQuit else { return }
                 if let root, GitReferenceName.equal(root.path, resolved.path) {
                     activeAccess = access; persistResolutionCommandScopes(prepared.newFolders, root: root)
-                    showResolutionCommand(invocation, repository: repository, access: access, owner: window, preferences: preferences); return
+                    if let receive { busy = false; transferred = true; receive(repository, access, window, preferences) }
+                    else { showResolutionCommand(invocation, repository: repository, access: access, owner: window, preferences: preferences) }; return
                 }
                 guard canChangeSettingsContext() else { return }
                 busy = false; transferred = true
@@ -3619,7 +3709,8 @@ import UniformTypeIdentifiers
                     guard let self, !self.retired, !self.confirmingQuit, !owner.cancellation.isCancelled, cancellation?.isCancelled != true,
                           let repository = self.repository, let access = self.activeAccess else { return }
                     self.persistResolutionCommandScopes(prepared.newFolders, root: repository.root)
-                    self.showResolutionCommand(invocation, repository: repository, access: access, owner: window, preferences: preferences)
+                    if let receive { receive(repository, access, window, preferences) }
+                    else { self.showResolutionCommand(invocation, repository: repository, access: access, owner: window, preferences: preferences) }
                 })
             } catch { if !retired, !owner.cancellation.isCancelled, cancellation?.isCancelled != true { self.error = error.localizedDescription } }
         }
@@ -3900,8 +3991,8 @@ import UniformTypeIdentifiers
                 activate(.diff, paths: paths)
             } else if invocation.unified {
                 showCommandUnifiedDiff(invocation, repository: repository, access: access, paths: paths)
-            } else if let from = invocation.diffFrom, let to = invocation.diffTo {
-                showHistoricalFiles(repository: repository, access: access, from: .revision(from), to: .revision(to), paths: paths.contains(".") ? [] : paths, owner: workspaceWindow, line: invocation.line)
+            } else if let from = invocation.diffFromRevision, let to = invocation.diffToRevision {
+                showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths.contains(".") ? [] : paths, owner: workspaceWindow, line: invocation.line)
             } else { showWorkingFiles(repository: repository, access: access, paths: paths, owner: workspaceWindow, line: invocation.line) }
         default: activate(invocation.request.action, paths: paths)
         }

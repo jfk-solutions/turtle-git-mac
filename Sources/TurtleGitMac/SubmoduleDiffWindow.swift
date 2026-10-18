@@ -51,7 +51,7 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, preferences: UserDefaults = .standard) {
         self.preferences = preferences
         model = SubmoduleDiffWindowModel(repository: repository, access: access, path: path, from: from, to: to, fromPath: fromPath, fromIndex: fromIndex)
-        let size = NSSize(width: 900, height: fromPath != nil && fromPath != path && !fromIndex ? 360:320)
+        let size = NSSize(width: 900, height: fromPath.map { !GitReferenceName.equal($0, path) } == true && !fromIndex ? 360:320)
         let window = SubmoduleDiffNativeWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Submodule Diff", preferences: preferences); window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 800, height: size.height)
@@ -271,7 +271,7 @@ private struct SubmoduleDiffDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Submodule " + String(reflecting:model.path)).textSelection(.enabled).lineLimit(1).truncationMode(.middle).help(model.path)
-            if model.fromPath != model.path && !model.fromIndex {Text("Renamed from " + String(reflecting:model.fromPath)).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)}
+            if !GitReferenceName.equal(model.fromPath, model.path) && !model.fromIndex {Text("Renamed from " + String(reflecting:model.fromPath)).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)}
             if let details = model.details { section(details.from, details: details, to: false); section(details.to, details: details, to: true) }
             else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
         }.padding(12).disabled(model.busy || model.confirmingQuit || model.retired || model.hasUpdateChild)

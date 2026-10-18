@@ -57,7 +57,7 @@ extension GitRepository {
         try cancellation?.check()
         let location = try restoreLocation(path)
         if try requireCurrentGitlink && !submoduleUpdatePaths(cancellation: cancellation).contains(where: { GitReferenceName.equal($0, path) }) {
-            let previous = try run(["ls-tree", "--full-tree", "-z", "HEAD", "--", path], successfulExitCodes: 0...128, cancellation: cancellation)
+            let previous = try run(["-c", "core.precomposeunicode=false", "ls-tree", "--full-tree", "-z", "HEAD", "--", path], successfulExitCodes: 0...128, cancellation: cancellation)
             let wasGitlink = previous.exitCode == 0 && previous.stdout.split(separator: 0).contains { record in
                 let parts = record.split(separator: 9, maxSplits: 1)
                 return parts.count == 2 && GitReferenceName.equal(String(decoding: parts[1], as: UTF8.self), path) && parts[0].starts(with: Data("160000 ".utf8))
@@ -123,10 +123,10 @@ extension GitRepository {
         func gitlink(_ revision: String, path: String) throws -> String? {
             if revision.isEmpty { return nil }
             let tree = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{tree}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-            let records = try run(["ls-tree", "--full-tree", "-z", tree, "--", path], cancellation: cancellation).stdout.split(separator: 0)
+            let records = try run(["-c", "core.precomposeunicode=false", "ls-tree", "--full-tree", "-z", tree, "--", path], cancellation: cancellation).stdout.split(separator: 0)
             for record in records {
                 let parts = record.split(separator: 9, maxSplits: 1)
-                guard parts.count == 2, String(decoding: parts[1], as: UTF8.self) == path else { continue }
+                guard parts.count == 2, GitReferenceName.equal(String(decoding: parts[1], as: UTF8.self), path) else { continue }
                 let header = String(decoding: parts[0], as: UTF8.self).split(separator: " ")
                 if header.count == 3 && header[0] == "160000" { return String(header[2]) }
             }
@@ -134,10 +134,10 @@ extension GitRepository {
         }
         func workingGitlink() throws -> String? {
             var hash: String?
-            let records = try run(["ls-files", "--stage", "-z", "--", path], cancellation: cancellation).stdout.split(separator: 0)
+            let records = try run(["-c", "core.precomposeunicode=false", "ls-files", "--stage", "-z", "--", path], cancellation: cancellation).stdout.split(separator: 0)
             for record in records {
                 let parts = record.split(separator: 9, maxSplits: 1)
-                guard parts.count == 2, String(decoding: parts[1], as: UTF8.self) == path else { continue }
+                guard parts.count == 2, GitReferenceName.equal(String(decoding: parts[1], as: UTF8.self), path) else { continue }
                 let header = String(decoding: parts[0], as: UTF8.self).split(separator: " ")
                 guard header.count == 3 else { continue }
                 guard header[2] == "0" else { throw SubmoduleComparisonFailure.conflicted }
@@ -151,7 +151,7 @@ extension GitRepository {
         // Reuse the existing read-only rename detection instead of treating its
         // historical gitlink as an addition. Never refresh/publish the index.
         if fromHash == nil,fromPath == nil,!fromIndex,from != "Working tree",to == nil,
-           let rename = try workingTreeFiles(cancellation:cancellation).first(where:{$0.path == path && $0.isSubmodule}),
+           let rename = try workingTreeFiles(cancellation:cancellation).first(where:{GitReferenceName.equal($0.path,path) && $0.isSubmodule}),
            let original = rename.oldPath {
             fromHash = try gitlink(from,path:original)
         }

@@ -853,6 +853,7 @@
         "docs/qa/legacy-partial-staging-2026-10-15.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/message-spelling-2026-10-13.json",
+        "docs/qa/parallel-port-families-2026-10-18.json",
         "docs/qa/partial-file-lifecycle-2026-10-13.json",
         "docs/qa/partial-metadata-2026-10-13.json",
         "docs/qa/partial-patch-2026-10-13.json",
@@ -1685,6 +1686,7 @@
         "docs/qa/lfs-tristate-2026-10-08.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
+        "docs/qa/resolve-commands-2026-10-18.json",
         "docs/qa/resolve-file-menu-2026-10-16.json",
         "docs/qa/resolve-interaction-family-2026-10-16.json",
         "docs/qa/resolve-mutation-family-2026-10-16.json",
@@ -1794,6 +1796,7 @@
         "docs/qa/log-tag-search-2026-10-06.json",
         "docs/qa/log-working-commands-2026-10-15.json",
         "docs/qa/merge-stream-2026-10-08.json",
+        "docs/qa/parallel-port-families-2026-10-18.json",
         "docs/qa/prepared-submodule-2026-10-16.json",
         "docs/qa/primary-live-presentation-2026-10-16.json",
         "docs/qa/push-stream-2026-10-08.json",
@@ -3231,6 +3234,7 @@
         "docs/qa/history-picker-2026-10-08.json",
         "docs/qa/legacy-partial-staging-2026-10-15.json",
         "docs/qa/message-spelling-2026-10-13.json",
+        "docs/qa/parallel-port-families-2026-10-18.json",
         "docs/qa/partial-file-lifecycle-2026-10-13.json",
         "docs/qa/partial-metadata-2026-10-13.json",
         "docs/qa/partial-patch-2026-10-13.json",
@@ -3458,6 +3462,7 @@
       "qa_records": [
         "docs/qa/changed-files-actions-2026-10-15.json",
         "docs/qa/changed-files-recovery-2026-10-16.json",
+        "docs/qa/parallel-port-families-2026-10-18.json",
         "docs/qa/prepared-submodule-2026-10-16.json",
         "docs/qa/submodule-handoffs-2026-10-14.json"
       ]

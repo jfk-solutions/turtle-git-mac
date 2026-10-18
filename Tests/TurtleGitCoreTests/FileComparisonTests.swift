@@ -2,6 +2,30 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonTests: XCTestCase {
+    func testExplicitHistoricalPathPairPinsMissingPathsAndWorksInBareRepository() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let old = "gone/old [literal]", new = "also gone/new [literal]"
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("gone"), withIntermediateDirectories: true)
+        try Data("base\n".utf8).write(to: root.appendingPathComponent(old)); try await repo.stage([old]); _ = try await repo.commit(message: "old file")
+        let first = try await repo.rebaseCommit("HEAD").hash
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("also gone"), withIntermediateDirectories: true)
+        _ = try await repo.run(["mv", "--", old, new]); try Data("destination\n".utf8).write(to: root.appendingPathComponent(new)); try await repo.stage([new]); _ = try await repo.commit(message: "new file")
+        let last = try await repo.rebaseCommit("HEAD").hash
+        try FileManager.default.removeItem(at: root.appendingPathComponent("gone")); try FileManager.default.removeItem(at: root.appendingPathComponent("also gone"))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let bareURL = root.appendingPathComponent("bare.git"); _ = try await repo.run(["clone", "--bare", root.path, bareURL.path])
+        for target in [repo, GitRepository(root: bareURL)] {
+            let snapshot = try await target.preparedPathComparison(from: .revision(first), fromPath: old, to: .revision(last), toPath: new)
+            let document = try await target.comparisonFile(snapshot, path: new)
+            XCTAssertEqual(document.base.bytes, Data("base\n".utf8)); XCTAssertEqual(document.destination.bytes, Data("destination\n".utf8))
+            XCTAssertEqual(snapshot.from, .revision(first)); XCTAssertEqual(snapshot.to, .revision(last))
+            let same = try await target.preparedPathComparison(from: .revision(last), fromPath: new, to: .revision(last), toPath: new)
+            XCTAssertEqual(same.files.count, 1)
+        }
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        do { _ = try await GitRepository(root: bareURL).preparedPathComparison(from: .revision(first), fromPath: old, to: .workingTree, toPath: new); XCTFail("Bare working side accepted") } catch is RevisionComparisonFailure {}
+    }
+
     func testFollowedHistoryComparisonKeepsEachEndpointNameAndRawBytes() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let old = ":(literal) old 雪\n.txt", middle = "middle file", current = "new 雪\n.txt"

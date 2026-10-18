@@ -22,8 +22,8 @@ contexts; see [popup behavior and remaining acceptance](docs/LOG-POPUP-VARIANTS.
 | Commit | Source checkbox index preparation and optional unchecked add/delete/rename restoration; Checked-file commits, optional staging, byte-preserving UTF-8/legacy-text partial staging in a right-hand window, same-repository file/folder drops, amend, author/date controls, Commit / ReCommit / Commit & Push | Complete upstream controls, hook/editor/signing interactions and physical UI acceptance across all routes |
 | History | Log with source command rows and integrated native filtering, incremental Git record ingestion, live read count and rows shown as metadata batches finish, revision graph before the list, revision/file menus, Blame with saved docked/tabbed/floating panes, Reflog, Browse References, references containing a commit, four Log ordering modes, notes, statistics, SVN-aware columns, saved revision/changed-file layouts and parent-group file sorting | Complete upstream views, menus and behavior; see individual parity documents |
 | Repository Browser | Pinned tree/blob browsing, historical Open/Save/drag, submodule handoffs, retained folder navigation, multi-file Revert, owned cancellation, saved native columns and multiple historical file/folder promises | Physical drag interoperability and complete physical/signed acceptance; [source audit](docs/REPOSITORY-BROWSER-PARITY.md) |
-| Repository workflows | Clone/Create Repository, status, branch/tag, Switch, Fetch/Pull/Push, merge, Rebase, Stash, reset, patches, export, Submodule Add/Update/Sync and worktrees | Each workflow has remaining source/UI/sandbox checks; a working Git operation alone does not establish parity |
-| Git LFS | Locked-file list, checked-file Unlock/Force, captured Lock/Unlock menus, source-style command/file/error progress, file actions and sorting, result review and saved action logs | Authenticated server and full physical/signed acceptance remain open; [guide](docs/LFS.md) |
+| Repository workflows | Clone/Create Repository, status, branch/tag, Switch, Fetch/Pull/Push, merge, Rebase, Stash, reset, patches, export, Submodule Add/Update/Sync, worktrees, and Resolve review/direct Silent commands | Each workflow has remaining source/UI/sandbox checks; a working Git operation alone does not establish parity |
+| Git LFS | Locked-file list, checked-file Unlock/Force, captured Lock/Unlock menus, source-style command/file/error progress, file actions and sorting, result review with retained completed effects after interrupted replies, and saved action logs | Authenticated server and full physical/signed acceptance remain open; [guide](docs/LFS.md) |
 | Languages | English and 37 bundled source label catalogs; shared Settings/First Start choice, Apply/Cancel and restart persistence, translated file-status cells, built-in groups, selection counters and clipboard headings | Partial translations; Mac-specific/dynamic wording and full RTL/physical acceptance remain open; [guide](docs/LANGUAGES.md) |
 | Problem reports | Local launch discovery with Review/Dismiss and handled-report suppression, manual Apple report import, explicit inclusion, Copy/Save and a separate blank issue form | Direct Windows DrDump collection/submission and solution lookup remain unported; [scope](docs/CRASH-REPORTING-PARITY.md) |
 | Working Tree | Scoped status, saved columns and source filter choices, F5, retained selection, cancellable refresh/Stage/Unstage/index flags/diff preparation, captured history/Blame/Open/editor/export/delete menus, shared status/changelist groups, separate parent/child submodule history and retired-window protection | Remaining menus and physical/signed acceptance; [source audit](docs/STATUS-PARITY.md) |
@@ -45,7 +45,7 @@ contexts; see [popup behavior and remaining acceptance](docs/LOG-POPUP-VARIANTS.
 | Moving and copying | Guarded Move/Rename, native Copy/Add and captured clipboard transfers; workspace/Working Tree drops offer active source transfer choices with owned preparation, same-worktree destinations and existing progress/recovery | Physical Finder drag menus and signed permission acceptance; [guide](docs/MOVING-AND-COPYING.md), [source audit](docs/FILE-DROP-TRANSFER-PARITY.md) |
 | Repository folder access | Saved workspace folder/metadata grants, automatic linked-worktree/submodule/shared-object discovery, native access manager with renewal, replacement and confirmed removal | Signed sandbox/powerbox and Finder-service acceptance; [guide](docs/REPOSITORY-FOLDER-ACCESS.md) |
 | Cache menu | Optional independent menu-bar icon, live counts, fifteen-line activity, Enable/Disable and awaited Exit | Signed service and physical menu-bar acceptance remain open; [guide](docs/CACHE-MENU.md) |
-| Finder | Embedded Finder Sync extension, status snapshot/badges, selection-based context-menu routing and event-driven active-workspace refresh and persistent watched repositories while the app runs | User-approved signed service/Finder activation and App Store acceptance (embedded agent, private grant handoff and runtime are implemented) |
+| Finder | Embedded Finder Sync extension, status snapshot/badges, selection-based context-menu routing and event-driven active-workspace refresh, plus a persistent watched-repository service | An older development-signed candidate passed installed activation, live badges and one file-context Show Log; complete current-command and distribution/App Store acceptance remain open |
 
 [Getting started](docs/GETTING-STARTED.md) explains the first workflows, including
 how checked-file commits differ from staging mode. The checkbox is named
@@ -152,12 +152,14 @@ Finder files, including files outside a repository; opening it does not send mai
 See the [LFS/mail handoff notes](docs/FINDER-LFS-MAIL-PARITY.md) for permissions
 and remaining acceptance work.
 
-Signed activation and badge rendering remain unverified. Finder Sync controls
-badge placement and menu insertion. Badges apply to registered repository
-folders. The implementation includes watched-repository management, FSEvents invalidation
-and an independent background cache service. Its signed service registration and
-physical Finder coexistence still require acceptance checks; cached badges are
-not evidence of current repository state. Selections spanning repositories are
+An [older development-signed candidate](docs/qa/finder-installed-2026-10-17.json)
+passed installed activation, live ignored/modified/normal badges, repository access,
+service registration, background refresh with the app quit, and a file-context
+Show Log. Current-source multi-selection/modifier commands, additional metadata
+grants and distribution/App Store acceptance remain open. Finder Sync controls
+badge placement and menu insertion for registered repository folders. Watched
+repositories, FSEvents invalidation and the independent cache service maintain the
+snapshots; a cached badge alone is not evidence of current state. Selections spanning repositories are
 rejected before an operation runs. See the [service deployment audit](docs/FINDER-SERVICE-DEPLOYMENT.md).
 
 See the [Finder parity documents](docs/README.md#finder-integration) for menu,

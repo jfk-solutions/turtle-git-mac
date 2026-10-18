@@ -19,6 +19,22 @@ final class SubmoduleComparisonTests: XCTestCase {
         return (root, parent, child, path, hash)
     }
 
+    func testHistoricalGitlinksPreserveCanonicalByteIdentityUnderPrecomposition() async throws {
+        let (root, parent, child, _, first) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try Data("second\n".utf8).write(to: child.root.appendingPathComponent("file.txt")); try await child.stage(["file.txt"]); _ = try await child.commit(message: "second")
+        let second = try await child.rebaseCommit("HEAD").hash
+        let names = ["module-é", "module-e\u{301}"]
+        for (name, hash) in zip(names, [first, second]) { _ = try await parent.run(["-c", "core.precomposeunicode=false", "update-index", "--add", "--cacheinfo", "160000," + hash + "," + name]) }
+        _ = try await parent.commit(message: "canonical gitlinks"); _ = try await parent.run(["config", "core.precomposeunicode", "true"])
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        for (name, hash) in zip(names, [first, second]) {
+            let details = try await parent.submoduleComparison(path: name, from: "HEAD", to: "HEAD")
+            XCTAssertEqual(details.from.revision, hash); XCTAssertEqual(details.to.revision, hash)
+            XCTAssertEqual(Array(details.path.utf8), Array(name.utf8))
+        }
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
+
     func testWorkingAndStagingStatisticsRetainAddedModifiedAndDeletedGitlinkModes() async throws {
         let (root,parent,child,path,_)=try await fixture();defer {try? FileManager.default.removeItem(at:root)}
         _ = try await parent.run(["reset","--soft","HEAD~1"])
@@ -136,6 +152,43 @@ final class SubmoduleComparisonTests: XCTestCase {
         let bareEntry = try XCTUnwrap(bare.entries.first { $0.kind == .submodule })
         do { _ = try await bareRepo.repositoryBrowserSubmodule(bare, entry: bareEntry); XCTFail("Bare child resolution attempted") } catch is RepositoryBrowserFailure {}
     }
+    func testSubmoduleRootDiscoveryIgnoresPreexistingURLDirectoryBitWithoutChangingOwnership() async throws {
+        let (root, parent, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let path = "module root"
+        // Match CLI/Finder URLs constructed while the checkout does not exist.
+        let selected = FileTransferPaths.fileURL(root.appendingPathComponent(path).path)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: selected.path))
+        try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+        let child = GitRepository(root: selected)
+        _ = try await child.run(["init", "-b", "main"])
+        for (key, value) in [("user.name", "QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await child.run(["config", key, value]) }
+        try Data("base\n".utf8).write(to: selected.appendingPathComponent("file")); try await child.stage(["file"]); _ = try await child.commit(message: "child base")
+        let hash = try await child.rebaseCommit("HEAD").hash
+        try Data("[submodule \"child\"]\n\tpath = module root\n\turl = ./unused\n".utf8).write(to: root.appendingPathComponent(".gitmodules"))
+        try await parent.stage([".gitmodules"])
+        _ = try await parent.run(["update-index", "--add", "--cacheinfo", "160000," + hash + "," + path]); _ = try await parent.commit(message: "attach child")
+        let directoryURL = URL(fileURLWithPath: selected.path, isDirectory: true)
+        XCTAssertNotEqual(selected, directoryURL, "Fixture must exercise differing URL directory bits")
+        let parentIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), childIndex = try Data(contentsOf: selected.appendingPathComponent(".git/index"))
+        for action in [RepositoryAction.diff, .revert, .submoduleUpdate, .submoduleSync, .rename, .move, .remove, .logSubmodule] {
+            let owner = try await child.discoverSelectionRoot(for: action, selected: selected)
+            XCTAssertTrue(GitReferenceName.equal(owner.path, parent.root.path), action.rawValue)
+        }
+        let statusOwner = try await child.discoverSelectionRoot(for: .status, selected: selected)
+        let fileOwner = try await child.discoverSelectionRoot(for: .diff, selected: selected.appendingPathComponent("file"))
+        XCTAssertTrue(GitReferenceName.equal(statusOwner.path, child.root.path)); XCTAssertTrue(GitReferenceName.equal(fileOwner.path, child.root.path))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), parentIndex)
+        XCTAssertEqual(try Data(contentsOf: selected.appendingPathComponent(".git/index")), childIndex)
+        // Parent discovery must still require an indexed gitlink, not merely a
+        // nested initialized repository or a former URL's directory identity.
+        _ = try await parent.run(["update-index", "--force-remove", "--", path])
+        let unlinkedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let withoutGitlink = try await child.discoverSelectionRoot(for: .diff, selected: selected)
+        XCTAssertTrue(GitReferenceName.equal(withoutGitlink.path, child.root.path))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), unlinkedIndex)
+        XCTAssertEqual(try Data(contentsOf: selected.appendingPathComponent(".git/index")), childIndex)
+    }
+
     func testWorkingComparisonUsesChildHeadAndDirtyStateWithoutWrites() async throws {
         let (root, parent, child, path, base) = try await fixture()
         defer { try? FileManager.default.removeItem(at: root) }

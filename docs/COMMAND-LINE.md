@@ -37,7 +37,7 @@ against that process's working directory. For example:
 | `commit` | Commit | `logmsg` or `logmsgfile`, `bugid`, `wholeproject` |
 | `repostatus` (`status` alias) | Working Tree | Selected file/directory scope |
 | `log` | Log Messages | `startrev`, `endrev`, deprecated `revstart`/`revend`, overriding `range`, selected `rev`, `limit`, `findstring`, `findtype`, `findtext`, `findregex`, `outfile` |
-| `diff` | File Compare, or Working Tree for a directory | `path2` for two standalone files, paired `startrev`/`endrev` for historical comparison, `alternative` for the configured alternative tool, `unified`, `line` |
+| `diff` | File Compare, or Working Tree for a directory | `submodule` for a gitlink dialog, `path2` for standalone or paired historical files, paired `startrev`/`endrev` for historical comparison, `alternative` for the configured alternative tool, `unified`, `line` |
 | `revert` | Revert review | Selected file/directory scope |
 | `resolve` | Resolve review | Selected conflict/file/directory scope |
 
@@ -50,7 +50,9 @@ Without `path`, the application's current directory is selected.
 Repeat `--path` to select literal names containing `*`, spaces, Unicode or newlines.
 Legacy `/path` retains TortoiseProc's `*` selection delimiter. Normal shell quoting
 is required; TurtleGit never evaluates a command's message or path as shell code.
-`path2` needs one primary selection, and cannot be combined with revisions.
+`path2` needs one primary selection. Without revisions it compares two different
+standalone files; with paired `startrev`/`endrev` it compares primary-at-start
+with path2-at-end, including the same path at two revisions.
 
 Log limits accept a nonnegative commit count (`0` means unlimited), or a positive
 number followed by `week(s)`, `month(s)` or `year(s)`. The existing history model
@@ -83,7 +85,7 @@ model readiness, regardless of their ordering.
 Unknown commands, duplicate scalar options and incompatible or unsupported
 switches produce an error in the workspace. They are not silently ignored.
 This is a partial command-family port, not full TortoiseProc CLI compatibility.
-Remaining entry behavior includes Diff `submodule` switches, shared Windows HWND/group/taskbar/close-on-end
+Remaining entry behavior includes shared Windows HWND/group/taskbar/close-on-end
 options, process exit/result signaling, and commands outside the documented families.
 Windows paths must be converted to macOS paths by the caller. Full symbolic
 Working Copy sentinel, permissive `_wtoi` parsing and every revision-expression
@@ -139,7 +141,9 @@ For a file, Diff's `unified` flag opens the configured unified viewer, including
 its alternative-tool choice, with the captured revision pair or HEAD-to-working
 comparison. The built-in viewer keeps the existing coloured editable patch,
 Find and Save As commands. A directory still opens Working Tree, following source
-command precedence. `path2` uses the standalone file comparison route.
+command precedence unless `submodule` is supplied. Historical `path2` keeps the
+file comparison route even with `unified`; standalone `path2` keeps its existing
+file pair route.
 
 ```sh
 open -n -a 'TurtleGit for Mac' --args --command=diff \
@@ -997,3 +1001,33 @@ Permission/metadata access, original owner/preferences and full-path validation
 still apply. Repeated reviews retain checked work, duplicate pending direct batches
 coalesce, and cancelled/closed owners suppress late delivery through actual drain.
 Windows HWND refresh and process-result protocols remain unported.
+
+
+## Diff submodule and historical entry family — October 18, 2026
+
+`diff --submodule` opens Submodule Diff for one selected gitlink. It retains the
+source From/To subjects, change colours, Log buttons, dirty Show Diff, Compare,
+identical-pointer Working Tree and Submodule Update options/progress. The source
+has one `submodule` switch; `submodulepath` and `submoduleforce` are not aliases.
+Paired `startrev`/`endrev` select superproject commits whose gitlinks supply the
+child hashes. Forty- or sixty-four-zero working sentinels compare the other
+revision against the actual child checkout; two working sides compare the indexed
+gitlink with that checkout. Each dialog button captures its own current Shift
+alternative-tool choice, as the source does.
+
+`submodule --unified` follows the unified patch route instead. Without `submodule`,
+a directory still opens Working Tree before applying revision/unified options.
+Historical `path2` reads primary-at-start and path2-at-end without checking out
+files. The two paths can match and their parent folders can have disappeared.
+Paths must belong to the same repository for this historical route; a destination
+outside it falls back to the existing standalone pair after repository access.
+An existing directory endpoint uses the source's destination-path submodule route.
+Explicit pairs whose sides are both historical also work in bare repositories;
+a working sentinel is refused there.
+
+Repository access, metadata scopes, the initiating owner and preferences remain
+captured through preparation and the actual comparison drain. Closing an owner
+cancels pending preparation; changing workspace preferences during a permission
+callback does not retarget the command or its Submodule Diff child Log/Compare.
+This extends the existing dialogs; it does not certify all upstream visual parity,
+physical Finder integration or a signed/App Store distribution.

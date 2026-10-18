@@ -2620,3 +2620,77 @@ physical/signed and complete Commit parity remain open.
 [Primary command bands](PRIMARY-COMMAND-BANDS.md) continue the native layout
 with retained control identity and wrapping at constrained widths. The source
 command order and existing behavior remain; full dialog acceptance stays open.
+
+## Empty changes, hidden unversioned files and submodule selection — October 18
+
+This continuation follows the pinned `CommitDlg::StatusThread`,
+`OnBnClickedShowunversioned`, `OnBnClickedNoautoselectsubmodules`, the
+`IDS_COMMITDLG_NOTHINGTOCOMMIT*` resources and `CMessageBox::ShowCheck`.
+The existing Commit checkboxes, split Commit/ReCommit/Commit & Push button,
+same-list staging controls and right-hand patch companion remain the established
+layout; this batch adds their missing connected visibility behavior.
+
+An empty successful file list displays the source's “No files were changed or
+added since the last commit.” text. If unversioned files are hidden within the
+current scope, Commit offers the source Yes/No explanation and suppression choice.
+Merge state and unrelated out-of-scope files do not trigger the offer. A remembered
+Yes or No uses the source `NothingToCommitShowUnversioned` values 6 and 7, and
+Settings → Saved Data → Stored decisions already clears this key. Unsuppressed
+No applies to the current refresh; a later refresh may ask again.
+
+Yes reveals the live unversioned rows without automatically checking them or
+immediately changing the shared `AddBeforeCommit` preference. The source saves
+that preference after an actual Commit attempt, including failure; an early
+preflight refusal does not save it. Manually changing Show Unversioned Files
+continues to save the preference immediately. Visibility and automatic-selection
+settings perform no index or HEAD mutation.
+
+The prompt belongs to the Commit window. An invisible owner or an already attached
+sheet defers presentation; key-window and sheet-completion events retry it. While
+it is open, delayed row/column commands, refresh, preferences, Commit and Cancel
+cannot act behind it. Forced retirement ends the native sheet exactly once,
+invalidates its request and rejects a late injected answer. Its retained worker
+continues to count toward application lifetime until it actually returns.
+
+Initial loading, refreshing an empty accepted snapshot, cancelling, and failed
+reads have distinct empty-list text. Failed refreshes retain the last accepted
+snapshot and diagnostics; they do not claim a clean working tree. A successful
+retry clears the read failure/cancellation state. Existing refresh cancellation
+and snapshot ownership fencing are preserved.
+
+The source keeps Do not autoselect submodules enabled with staging support.
+The native control now does the same: changing it saves the policy while staging
+mode keeps checkbox state tied to the actual index. In classic checkbox mode the
+policy changes automatic checked membership. Neither setting change stages or
+unstages a gitlink.
+
+The focused receiver fixture is
+[commit-visibility-native-2026-10-18.swift](qa/commit-visibility-native-2026-10-18.swift).
+It covers actual owned Yes/No/suppression sheets, stored-decision reset, visibility
+and owner-sheet deferral, scope/merge exclusions, read failure/retry/cancellation,
+retirement and late replies, real selected Commit persistence, and staged gitlink
+policy without index mutation, plus native author-date bounds and independent
+clock behavior. Optional `TURTLEGIT_COMMIT_VISIBILITY_CAPTURE`
+exports owned empty-list and hidden-file-prompt windows in light and dark. These
+passed with both Git engines at the parent grouped checkpoint, including the
+retained staging-mode receiver. [Batch evidence](qa/parallel-port-families-2026-10-18.json)
+records the fixture compile repair and exact validation scope.
+
+The source author-date control's inclusive endpoints are local
+1970-01-01 00:00:00 and 2099-12-31 00:00:00; its separate time control has no such
+range. The native date control now uses those endpoints and merges its selected
+calendar day with the independent clock, retaining seconds. An out-of-range
+programmatic author-date load keeps the previous valid calendar day while loading
+the incoming clock, matching the source's failed date `SetTime` plus successful
+time `SetTime`; it does not clamp to the nearest endpoint. This follows the
+[Windows date-picker range contract](https://learn.microsoft.com/en-us/windows/win32/controls/dtm-setrange).
+The explicit Commit override also retains the source's pre-epoch “Invalid time”
+refusal. These editor rules do not restrict dates read from Git history or amend
+without an author-date override. The focused fixture includes both endpoints,
+out-of-range loads, preserved day/seconds and the actual native controls.
+
+Remaining Commit work includes complete physical keyboard/default-button and
+VoiceOver acceptance, and comparison of all other upstream Commit states. This continuation does not establish full dialog,
+Finder, signed deployment or whole-application parity.
+
+Owned inactive-window captures for this state: empty changes [light](site/assets/commit-empty-changes-light.png) / [dark](site/assets/commit-empty-changes-dark.png), hidden-file question [light](site/assets/commit-hidden-unversioned-light.png) / [dark](site/assets/commit-hidden-unversioned-dark.png). All four were reviewed for complete captions and controls. They do not establish active-window, physical input or complete Commit visual parity.

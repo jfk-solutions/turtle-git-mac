@@ -679,3 +679,61 @@ records exact repair scope and the separate hosted compilation failure.
 Exhaustive copied/renamed/deinitialized combinations, physical layout/keyboard/Finder,
 minimum-OS and signed sandbox acceptance remain open. This does not certify the
 complete Submodule Diff port.
+
+
+## Diff command entry and historical path family — October 18, 2026
+
+Pinned source: `7338078f8ddd924b8cddee35f512f2286072136d`,
+`src/TortoiseProc/Commands/DiffCommand.cpp` (`DiffCommand::Execute`),
+`src/TortoiseProc/GitDiff.cpp` (`CGitDiff::Diff`, `SubmoduleDiff`),
+`src/TortoiseProc/SubmoduleDiffDlg.cpp` (`OnBnClickedShowlog*`,
+`OnBnClickedShowdiff`, `OnBnClickedCompare`) and the `IDD_DIFFSUBMODULE` resource.
+The connected entry batch adds the source `submodule` flag and restores directory,
+unified and historical path2 precedence before entering the existing native
+Submodule Diff/Changed Files/File Compare family. No invented submodule switches
+are accepted.
+
+- Directory Diff opens ChangedDlg/Working Tree first unless `submodule` bypasses
+  that branch. `submodule` plus `unified` still opens a unified gitlink patch.
+- Historical path2 uses primary at startrev as Base, path2 at endrev as Destination.
+  Its `unified` flag does not select StartShowUnifiedDiff. Missing historical
+  folders, identical endpoints and both-historical bare repository entries are
+  supported; outside-repository destinations retain standalone fallback.
+- Source CGitDiff normalizes either working sentinel to the To side for gitlinks;
+  both working sides use the index pointer. The dialog retains current-click Shift
+  handling rather than pinning the initial command's alternative flag to buttons.
+- Parent and child Git reads preserve exact canonical path bytes even with
+  `core.precomposeunicode=true`; renamed-path captions also compare exact bytes.
+- The original owner, preferences and metadata permissions survive asynchronous
+  authorization/adoption and file-comparison preparation. Submodule child Log,
+  Working Tree and Changed Files receive that preference domain. Reuse keys keep
+  independently captured Submodule/File Compare preference domains apart.
+
+Prepared checks (not executed by this implementation agent): parser/path-list and
+unified sentinel assertions in `PrimaryCommandInvocationTests`, canonical gitlink
+reads in `SubmoduleComparisonTests`, missing-path/bare snapshots in
+`FileComparisonTests`, and the private grouped receiver
+`qa/submodule-diff-entry-native-2026-10-18.swift` invoked by
+`scripts/test-submodule-diff-entry.py`. The parent checkpoint records actual
+results. The receiver covers real dirty/paired/index gitlinks, source route
+precedence, captured preferences, missing paths, same-path pairs, bare acceptance
+and working-sentinel refusal, unchanged HEAD/index and owned window cleanup.
+
+Remaining gaps: Windows HWND/group/taskbar/close-on-end and process-result
+protocols; complete upstream permission/revision-expression quirks; exact visual
+comparison of every resource/state; physical Finder and signed/App Store
+integration. On macOS, external path2 fallback may first request repository
+access. An absent directory endpoint without explicit `submodule` follows native
+file-content diagnosis rather than guessing that a missing historical path was a
+directory. Existing broader family limitations above remain open.
+
+Parent checkpoint: both engines pass this receiver after the actual root-discovery
+repair and fixture diagnostics/snapshot-owner corrections. Exact normalized path
+identity now avoids Foundation URL directory-bit differences when finding an
+indexed containing repository. One new Core regression verifies containing-root
+routes, child-file/Status ownership, unregistered fallback and unchanged indexes.
+The initial 102 focused Core cases, that affected regression, the final Debug
+build and retained Resolve/Edit Conflict native cases pass.
+[Batch evidence](qa/parallel-port-families-2026-10-18.json) records every failed
+attempt, focused repair, log digest and owned process cleanup. No full Core repeat,
+complete hosted pass or signed/Finder parity claim is implied.

@@ -85,6 +85,11 @@ final class LogHistoryWindow: NSWindow {
     var blocksInteraction: () -> Bool = { false }
     var commandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
     var navigationCommand: (NSEvent) -> Bool = { _ in false }
+    var sourceCommand: (NSEvent) -> Bool = { _ in false }
+    private func routeSourceCommand(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown, commandKeyWindow() === self, event.window === self else { return false }
+        return sourceCommand(event)
+    }
     private func routeNavigation(_ event:NSEvent) -> Bool {
         guard commandKeyWindow() === self,event.window === self,
               (firstResponder as? NSTextView)?.isEditable != true,
@@ -93,14 +98,14 @@ final class LogHistoryWindow: NSWindow {
     }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if blocksInteraction() { return true }
+        if routeSourceCommand(event) { return true }
         if routeNavigation(event) {return true}
-        if event.type == .keyDown, event.charactersIgnoringModifiers?.lowercased() == "f",
-           event.modifierFlags.intersection([.command, .option, .control, .shift]) == .command { find(); return true }
         if let table=firstResponder as? HistoryTableView,table.performRevisionReturn(with:event) { return true }
         return super.performKeyEquivalent(with: event)
     }
     override func sendEvent(_ event: NSEvent) {
         if blocksInteraction(), [.keyDown, .keyUp, .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp, .scrollWheel].contains(event.type) { return }
+        if event.type == .keyDown, routeSourceCommand(event) { return }
         if event.type == .otherMouseUp,routeNavigation(event) {return}
         super.sendEvent(event)
     }
@@ -222,12 +227,13 @@ final class LogHistoryWindow: NSWindow {
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Log Messages", preferences: labelDefaults)
         window.minSize = NSSize(width: 1080, height: 700)
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: LogDialog(model: model, savesColumnLayout: savesColumnLayout).disabled(model.findBlocked || model.orderingBlocked || model.referencePickerBlocked).defaultAppStorage(labelDefaults))
+        window.contentViewController = NSHostingController(rootView: LogDialog(model: model, savesColumnLayout: savesColumnLayout).disabled(model.findBlocked || model.orderingBlocked || model.referencePickerBlocked || model.confirmingQuit).defaultAppStorage(labelDefaults))
         super.init(window: window)
         model.window = window
         window.find = { [weak self] in self?.showFind() }
         window.navigationCommand = { [weak model] event in model?.handleNavigation(event) ?? false }
-        window.blocksInteraction = { [weak model] in model?.findBlocked == true || model?.orderingBlocked == true || model?.referencePickerBlocked == true }
+        window.sourceCommand = { [weak self] event in self?.handleSourceCommand(event) ?? false }
+        window.blocksInteraction = { [weak model] in model?.findBlocked == true || model?.orderingBlocked == true || model?.referencePickerBlocked == true || model?.confirmingQuit == true }
         findAvailability = model.$busy.sink { [weak self] _ in DispatchQueue.main.async { self?.find?.updateAvailability() } }
         notePresenter = CommitNotePresenter(parent: window, model: model, preferences: labelDefaults)
         model.onShowOrdering = { [weak self] in self?.showOrdering() }
@@ -329,6 +335,48 @@ final class LogHistoryWindow: NSWindow {
         if loadsImmediately { model.reload() }
 
         if savesGeometry { DialogGeometry.attach(window, identifier: "LogWindowController") }
+    }
+    /// Source Log accelerators stay with this window. Native text editing and
+    /// marked input keep their own Control/Option commands and Escape handling.
+    func handleSourceCommand(_ event: NSEvent) -> Bool {
+        guard let window = window as? LogHistoryWindow, event.window === window,
+              window.commandKeyWindow() === window, event.type == .keyDown else { return false }
+        let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+        let text = window.firstResponder as? NSTextView
+        if text?.hasMarkedText() == true { return false }
+        let editing = text?.isEditable == true || text?.isFieldEditor == true
+        let find = event.keyCode == 99 && flags.isEmpty || key == "f" && (flags == .command || flags == .control)
+        let refresh = event.keyCode == 96 && (flags.isEmpty || flags == .control || flags == .shift) || key == "r" && flags == .command
+        let focus = key == "l" && (flags == .command || flags == .control) || key == "d" && flags == .option
+        let selectFilter = key == "e" && flags == .control
+        if find {
+            if editing && flags == .control { return false }
+            guard model.canUseSourceCommands else { return true }; window.find(); return true
+        }
+        if refresh { model.refreshFromSourceCommand(); return true }
+        if focus || selectFilter {
+            // Cmd-L is the explicit native focus alias. Control-E/Control-L and
+            // Option-D remain text editing/Unicode input while editing a field.
+            if editing && !(key == "l" && flags == .command) { return false }
+            guard model.canUseSourceCommands else { return true }
+            _ = LogFilterField.focusHistory(in: window, selectAll: selectFilter); return true
+        }
+        if event.keyCode == 53 && flags.isEmpty {
+            guard !editing else { return false }
+            guard model.canUseSourceCommands else { return true }
+            if model.clearHistoryFilterFromSourceCommand() { _ = LogFilterField.focusHistory(in: window, selectAll: false) }
+            else { model.close() }
+            return true
+        }
+        let copying = key == "c" && (flags == .command || flags == .control) || event.keyCode == 114 && flags == .control
+        guard copying, !editing else { return false }
+        guard model.canFollowMessageLink else { return true }
+        if let message = text as? LogMessageTextView { message.copy(nil) }
+        else if window.firstResponder is HistoryTableView { model.copyDetails() }
+        else if window.firstResponder is NSTableView { model.copyChangedFileIDs(Array(model.selectedFiles)) }
+        else { model.copyDetails() }
+        return true
     }
     private func chooseFile(_ panel: NSSavePanel, accepted: @escaping (URL) -> Void) {
         guard !model.busy, !model.isInvalidated, window?.attachedSheet == nil else { return }
@@ -698,6 +746,7 @@ struct LogCommandRequest: Identifiable {
     // Upstream CGitLogListBase retains the index across Find close/reopen and reload.
     var findSearchIndex = 0
     var onFindReferenceRefresh: (() -> Void)?
+    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { retireLogControlMenus() } } }
     @Published var findBlocked = false { didSet { if findBlocked != oldValue { retireLogControlMenus() } } }
     @Published var orderingBlocked = false { didSet { if orderingBlocked != oldValue { retireLogControlMenus() } } }
     private(set) var historyProjectionEpoch = UUID()
@@ -1217,8 +1266,22 @@ struct LogCommandRequest: Identifiable {
     private var pathFilterTask: Task<Void, Never>?
     private var pathFilterGeneration = 0
     var readSearchValidation: ((String, Bool, OperationCancellation) async throws -> Bool)?
-    var canEditPathFilter: Bool { !isInvalidated && !referencePickerBlocked && !findBlocked && !orderingBlocked && window?.attachedSheet == nil }
+    var canEditPathFilter: Bool { !isInvalidated && !confirmingQuit && !referencePickerBlocked && !findBlocked && !orderingBlocked && window?.attachedSheet == nil }
     var canEditLogFilters: Bool { canEditPathFilter && (!busy || loadingHistory) }
+    var canUseSourceCommands: Bool {
+        !isInvalidated && !confirmingQuit && (!busy || loadingHistory) && !jumping && !loadingNote && !savingNote && noteRequest == nil &&
+            !findBlocked && !orderingBlocked && !referencePickerBlocked && !copyingDetails && !unifiedViewerBusy && window?.attachedSheet == nil && NSApp.modalWindow == nil
+    }
+    /// Explicit Refresh clears the history filter in CLogDlg::Refresh(true).
+    /// Background/selection refreshes continue to call reload() and retain it.
+    func refreshFromSourceCommand() {
+        guard canUseSourceCommands else { return }
+        cancelSearchFilter(); searchFilterError = nil; search = ""; reload()
+    }
+    @discardableResult func clearHistoryFilterFromSourceCommand() -> Bool {
+        guard canUseSourceCommands, !search.isEmpty || !appliedMessageSearch.query.isEmpty else { return false }
+        refreshFromSourceCommand(); return true
+    }
     func editSearch(_ text: String, submit: Bool = false) {
         guard canEditLogFilters else { return }
         search = text; scheduleSearchFilter(immediate: submit || text.isEmpty, validateRegex: !submit)
@@ -1369,7 +1432,7 @@ struct LogCommandRequest: Identifiable {
             }
         }
     }
-    var canEditNotes: Bool { !isInvalidated && revision != nil && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !selectedIsStash }
+    var canEditNotes: Bool { !isInvalidated && !confirmingQuit && revision != nil && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !selectedIsStash }
     var canSaveNote: Bool { !savingNote && noteRequest?.accepts(noteText) == true }
     private func cancelNoteRead() {
         noteCancellation?.cancel(); noteCancellation = nil; loadingNote = false; noteGeneration += 1
@@ -1695,6 +1758,7 @@ struct LogCommandRequest: Identifiable {
     var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     @Published var commandRequest: LogCommandRequest?
     fileprivate var generation = 0
+    var messageLoadGeneration: Int { generation }
     var contextMenuGeneration:Int { generation }
     private(set) var isInvalidated = false
     private var detailGeneration = 0
@@ -1840,7 +1904,7 @@ struct LogCommandRequest: Identifiable {
     @Published private(set) var appliedMessageSearch = HistoryMessageOptions()
     private(set) var messageLinkGeneration = UUID()
     var canFollowMessageLink: Bool {
-        !isInvalidated && !busy && !jumping && !findBlocked && !orderingBlocked && !referencePickerBlocked && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails && !unifiedViewerBusy && window?.attachedSheet == nil
+        !isInvalidated && !confirmingQuit && !busy && !jumping && !findBlocked && !orderingBlocked && !referencePickerBlocked && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails && !unifiedViewerBusy && window?.attachedSheet == nil
     }
     func followMessageHash(_ prefix: String) {
         guard canFollowMessageLink, let revision else { return }
@@ -3233,7 +3297,7 @@ struct LogDialog: View {
                 if model.copyingDetails { ProgressView("Reading log details for clipboard…").controlSize(.small) }
             }.frame(maxWidth:.infinity,alignment:.leading)
             HStack {
-                Button("Refresh") { model.reload() }.disabled(model.busy)
+                Button("Refresh") { model.refreshFromSourceCommand() }.disabled(!model.canUseSourceCommands)
                 Button("Statistics") { model.showStatistics() }.disabled(model.busy || model.entries.isEmpty || model.isInvalidated)
                 LogControlMenuButton(model: model, kind: .walk).fixedSize()
                 LogControlMenuButton(model: model, kind: .view).fixedSize()
@@ -4653,8 +4717,12 @@ final class HistoryTableView: NSTableView {
             && event.charactersIgnoringModifiers?.lowercased() == "f" && onFind?() == true
     }
     func performRevisionReturn(with event:NSEvent)->Bool {
-        event.type == .keyDown && [36,76].contains(event.keyCode) &&
-            event.modifierFlags.intersection([.command,.control]).isEmpty && onReturn?() == true
+        guard window?.firstResponder === self, event.type == .keyDown, [36,76].contains(event.keyCode),
+              event.modifierFlags.intersection([.command,.control]).isEmpty else { return false }
+        // CLogDlg::OnOK refuses Return while the revision list owns focus.
+        // Its comparison preference may act, but a disabled comparison must
+        // never fall through to the window's default OK/Close button.
+        _ = onReturn?(); return true
     }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if performRevisionReturn(with:event) { return true }

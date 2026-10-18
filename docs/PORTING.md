@@ -2823,3 +2823,47 @@ including private loopback SMTP MIME checks; all owned processes were reaped.
 log hashes and scope. Full hosted CI, public-provider authentication, physical
 visual/input acceptance and current signed/App Store distribution remain open.
 No complete dialog/port certification or replacement distribution is implied.
+
+
+### Parallel Commit, Log and historical comparison batch, 2026-10-18
+
+Three implementation agents completed connected workflow families before the
+parent checkpoint. Commit now has the source empty/read-state captions, owned
+hidden-unversioned Yes/No/suppression behavior, staging-compatible submodule
+selection policy, and independently merged date/time controls with source bounds.
+Log now routes its source Find/focus/select-filter/Refresh/Escape/Copy commands,
+protects Return in the revision table, and offers captured one-shot message Copy,
+Copy all and Edit Notes actions. Quit confirmation gates those commands and
+message callbacks through the application shutdown drain.
+
+Diff now accepts the actual source submodule switch and historical path2 pairs,
+retains directory/unified precedence, normalizes working/index sentinels, supports
+missing historical files and explicit historical bare comparisons, and preserves
+its originating owner/preferences through authorization and child handoffs.
+A native check exposed directory-bit-sensitive URL identity selecting a child
+repository instead of its indexed parent. Discovery now compares exact normalized
+path bytes while retaining containment, indexed gitlink and registration checks.
+
+The parent owns grouped validation and records initial failures, focused repairs,
+actual checks and process cleanup in [batch evidence](qa/parallel-port-families-2026-10-18.json).
+Commit's [source review and light/dark captures](COMMIT-PARITY.md),
+[Log command review](LOG-SOURCE-COMMANDS-PARITY.md) and
+[Submodule/Diff review](SUBMODULE-DIFF-PARITY.md) retain remaining behavior and
+platform gaps. The README/privacy guide now reflects the recorded older installed
+Finder check and actual app/cache/service storage behavior. Current hosted CI,
+complete physical input/visual/accessibility review and signed distribution remain
+open. These batches do not certify a complete dialog or the whole port.
+
+Read-only planning identified standalone Merge-tool command-line entry and Git
+mergetool/difftool integration as a substantial next workflow family; existing
+Merge Open editors can be reused. Reference-badge branch-description hover remains
+a smaller Log gap. Older partial notes must be reconciled with later implemented
+sections before scheduling replacement work.
+
+Checkpoint outcome: 103 distinct focused Core cases and 16 distinct native
+case/engine combinations pass. The initial build access error, Commit fixture
+compile annotation, nondeterministic Log fixture query, actual submodule root
+selection defect and fixture snapshot-owner mismatch are retained in the evidence.
+Only affected checks repeated; the complete Core suite was not rerun. All 22
+recorded receiver/metadata child processes are absent. Four owned inactive-window
+Commit captures were reviewed in light/dark. Hosted integration remains separate.

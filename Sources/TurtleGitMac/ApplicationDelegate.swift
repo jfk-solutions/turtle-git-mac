@@ -178,6 +178,7 @@ import AppKit
         let adds = sender.windows.compactMap { $0.delegate as? AddWindowController }
         let lfsLocks = sender.windows.compactMap { $0.delegate as? LFSLocksWindowController }
         let statuses = sender.windows.compactMap { $0.delegate as? StatusWindowController }
+        let logs = sender.windows.compactMap { $0.delegate as? LogWindowController }
         let addProgress = sender.windows.compactMap { $0.delegate as? AddProgressWindowController }
         let reverts = sender.windows.compactMap { $0.delegate as? RevertWindowController }
         let browsers = sender.windows.compactMap { $0.delegate as? RepositoryBrowserWindowController }
@@ -202,6 +203,7 @@ import AppKit
         for controller in patchDocuments { controller.model.confirmingQuit = true }
         for controller in lfsLocks { controller.model.confirmingQuit = true }
         for controller in statuses { controller.model.confirmingQuit = true }
+        for controller in logs { controller.model.confirmingQuit = true }
         for controller in imports { controller.setQuitConfirmation(true) }
         for controller in reviews { controller.setQuitConfirmation(true) }
         repositoryModel?.confirmingQuit = true
@@ -290,6 +292,7 @@ import AppKit
             for controller in patchDocuments { controller.model.confirmingQuit = false }
             for controller in lfsLocks { controller.model.confirmingQuit = false }
             for controller in statuses { controller.model.confirmingQuit = false }
+            for controller in logs { controller.model.confirmingQuit = false }
             if allowQuit { repositoryModel?.stopMonitoringForTermination();await repositoryModel?.finderWatches?.shutdown() }
             confirmingQuit = false
             replyToTermination(sender, allowQuit)
@@ -302,7 +305,13 @@ import AppKit
         let pending=manager.pendingOperations+(manager.backgroundService?.busy == true ? 1 : 0);manager.retire()
         guard pending>0 else { return .terminateNow }
         confirmingQuit=true
-        Task { await manager.shutdown();confirmingQuit=false;replyToTermination(sender,true) }
+        let logs = sender.windows.compactMap { $0.delegate as? LogWindowController }
+        for controller in logs { controller.model.confirmingQuit = true }
+        Task {
+            await manager.shutdown()
+            for controller in logs { controller.model.confirmingQuit = false }
+            confirmingQuit=false;replyToTermination(sender,true)
+        }
         return .terminateLater
     }
 

@@ -1,0 +1,280 @@
+{
+  "date": "2026-10-18",
+  "recorded_at": "2026-10-18T13:06:38.479606+00:00",
+  "base_commit": "185c5430390395b70b0af07245e92e0f0b48deb3",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Parallel connected Commit visibility/date/submodule-policy, Log source commands/message menus and historical Diff/Submodule command entry families; parent integration and grouped validation.",
+  "implementation_agents": [
+    "commit_family",
+    "log_family",
+    "submodule_compare_family"
+  ],
+  "implementation": {
+    "commit": "Owned hidden-unversioned Yes/No/suppression and remembered source decisions, deferred sheet retry and retirement, distinct read/empty/error states, actual-attempt visibility persistence, staging-compatible submodule policy, source author-date range and independent seconds-preserving time merge.",
+    "log": "Window-owned source Find/focus/select/Refresh/Escape/Copy, native editing/IME ownership, explicit refresh clears history query, Return shields revision default Close, captured one-shot Copy/Copy all/Edit Notes menu with original icons and owned pasteboard, application Quit gating.",
+    "diff": "Actual source submodule flag, historical path2 and identical endpoints, source directory/unified precedence, working/index sentinels, missing historical paths and explicit bare historical eligibility, exact gitlink bytes, captured owner/preferences across authorization and child handoffs.",
+    "root_repair": "Repository discovery compares exact standardized path bytes rather than URL directory-bit equality, preserving containing-root, indexed gitlink and registration requirements."
+  },
+  "validation": {
+    "core": {
+      "initial_command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter 'PrimaryCommandInvocationTests|SubmoduleComparisonTests|FileComparisonTests'",
+      "initial_exit": 0,
+      "initial_cases": 102,
+      "focused_repair_command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter SubmoduleComparisonTests.testSubmoduleRootDiscoveryIgnoresPreexistingURLDirectoryBitWithoutChangingOwnership",
+      "focused_repair_exit": 0,
+      "new_cases": 1,
+      "distinct_passes": 103,
+      "full_suite_repeated": false
+    },
+    "build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "attempt_exits": [
+        65,
+        0,
+        0
+      ],
+      "initial_failure": "New message menu read fileprivate Log generation across files. Repaired with read-only messageLoadGeneration accessor; setter remains private to the Log source file.",
+      "third_attempt_reason": "Affected framework/app rebuild after actual submodule root discovery repair.",
+      "scope": "Local arm64 Debug targets only. Existing warnings, simulator-version diagnostic and diagnostic lines reporting commands exited zero remain. Successful exit is not a clean-warning, Intel, minimum-OS, universal or signed claim."
+    },
+    "native": {
+      "git_engines": [
+        "/usr/bin/git (2.54.0)",
+        "build/git-runtime/Git/bin/git (2.55.0)"
+      ],
+      "distinct_case_engine_passes": 16,
+      "cases": [
+        {
+          "family": "Commit visibility and dates",
+          "command": "python3 scripts/test-app-port-families.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --captures build/qa/parallel-port-captures-2026-10-18",
+          "passes": 2,
+          "log": "build/qa/parallel-port-native-app-affected-2026-10-18.log",
+          "note": "Passed within initial grouped app runner before Core-only root repair. Unaffected Commit source was not revalidated after that Core repair."
+        },
+        {
+          "family": "Log source commands and message menu",
+          "command": "python3 scripts/test-app-port-families.py --only log --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+          "passes": 2,
+          "log": "build/qa/parallel-port-native-log-affected-2026-10-18.log"
+        },
+        {
+          "family": "Diff/Submodule entries",
+          "command": "python3 scripts/test-submodule-diff-entry.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+          "passes": 2,
+          "log": "build/qa/parallel-port-native-diff-owned-affected-2026-10-18.log"
+        },
+        {
+          "family": "Retained Log navigation and message",
+          "command": "python3 scripts/test-log-message-family.py --only navigation --only message --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+          "passes": 4,
+          "log": "build/qa/parallel-port-native-log-retained-2026-10-18.log"
+        },
+        {
+          "family": "Retained Commit staging mode",
+          "command": "python3 scripts/test-commit-staging-mode.py --only mode --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+          "passes": 2,
+          "log": "build/qa/parallel-port-native-commit-retained-2026-10-18.log"
+        },
+        {
+          "family": "Retained Resolve/Edit Conflict command preparation",
+          "command": "python3 scripts/test-primary-commands.py --only resolve --only conflicts --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+          "passes": 4,
+          "log": "build/qa/parallel-port-native-resolution-retained-2026-10-18.log"
+        }
+      ],
+      "failures_and_repairs": [
+        {
+          "attempt": "parallel-port-native-app",
+          "kind": "fixture compile",
+          "failure": "beginSheet no-completion overload selected async API without await",
+          "repair": "Use explicit completionHandler:nil; no native receiver launched; no app rebuild needed."
+        },
+        {
+          "attempt": "parallel-port-native-app-affected Log/system",
+          "kind": "fixture nondeterminism",
+          "failure": "One-row revision 1 search timed out because default all-field terms may also match arbitrary commit hashes.",
+          "repair": "Private fixture selects Subject search; retain exact cardinality and background/explicit refresh assertions. Also wait actual table selection delivery and refresh owned message coordinator before actions. Only Log cases repeated; Commit passes retained."
+        },
+        {
+          "attempt": "parallel-port-native-diff then diff-affected",
+          "kind": "product discovery defect exposed by fixture",
+          "failure": "Initial compound assertion diagnosed separately: selected gitlink root resolved as its own repository, path dot; source comparison could not load. URL directory-bit identity skipped parent detection.",
+          "repair": "Exact normalized path comparison in discoverSelectionRoot, plus regression for pre-created URL, containing-root actions, child-file/Status ownership, removed gitlink fallback and unchanged index. One focused Core case and affected build; no 102-case repeat."
+        },
+        {
+          "attempt": "parallel-port-native-diff-final",
+          "kind": "fixture snapshot ownership",
+          "failure": "Bare selection error reading a delivered snapshot through the fixture actor with a different URL directory form.",
+          "repair": "Assert exact expected root path then read via repository constructed from snapshot.root; retain old/new paths, endpoint bytes and unified precedence. Bare root check uses exact path plus independent no-error assertion. Only new Diff receiver repeated."
+        }
+      ]
+    },
+    "owned_processes": {
+      "pids": [
+        69646,
+        69737,
+        70431,
+        71092,
+        71334,
+        71822,
+        71988,
+        72248,
+        72544,
+        72610,
+        72698,
+        72764,
+        72858,
+        73462,
+        74128,
+        74320,
+        74515,
+        74910,
+        74912,
+        75308,
+        75334,
+        75590
+      ],
+      "absent_after_checkpoint": true,
+      "count": 22,
+      "policy": "Each bounded native receiver owns private repositories/preferences and closes its windows; process groups are reaped on success/failure. Metadata children also reaped. No unrelated user-owned app termination."
+    },
+    "captures": {
+      "files": [
+        "docs/site/assets/commit-empty-changes-dark.png",
+        "docs/site/assets/commit-empty-changes-light.png",
+        "docs/site/assets/commit-hidden-unversioned-dark.png",
+        "docs/site/assets/commit-hidden-unversioned-light.png"
+      ],
+      "reviewed": 4,
+      "scope": "Owned inactive native empty-list windows and hidden-file questions in light/dark. Complete captions/controls reviewed. Not active-window or full Commit visual certification."
+    },
+    "hosted_observation": {
+      "running_run": 39124375778,
+      "running_head": "ecbd8aa2c7d9e8202003b05d68f703c70314db96",
+      "step": "Git integration tests",
+      "preceding_wrapped_step": "success",
+      "queued_run_for_base": 39128167406,
+      "pages_base_run": 39128167391,
+      "pages_base_conclusion": "success",
+      "scope": "Read-only observations before this combined commit; live run left alone. No full hosted pass or current-head CI claim."
+    },
+    "resources": {
+      "localizations": {
+        "exit": 0,
+        "languages": 38,
+        "keys": 1288,
+        "scope": "Resource check, not complete translation certification"
+      },
+      "dialog_ledger": {
+        "exit": 0,
+        "dialogs": 130,
+        "certified_complete": 0,
+        "pending_control_reviews": 93
+      },
+      "site": {
+        "exit": 0,
+        "documents": 296,
+        "unresolved_fragments": [],
+        "attempts": 2,
+        "repeat_reason": "Final source resource ID correction and dialog ledger references; affected docs build only."
+      }
+    }
+  },
+  "logs": [
+    {
+      "path": "build/qa/parallel-port-build-2026-10-18.log",
+      "sha256": "7fb40dc1d6439ae955ca9c4280baea19c4d60404b5f2c4aabe6ce5abab056c50"
+    },
+    {
+      "path": "build/qa/parallel-port-build-affected-2026-10-18.log",
+      "sha256": "b67f282b072ddc1a846d14d741552dce63b30d117712daa365ae89c84145c5a9"
+    },
+    {
+      "path": "build/qa/parallel-port-build-root-affected-2026-10-18.log",
+      "sha256": "619693d17e29e25cfb87d107ce83abc7db4c4f5261fb2d014985a29d1f0712e5"
+    },
+    {
+      "path": "build/qa/parallel-port-core-2026-10-18.log",
+      "sha256": "d213d4ec3e87f521ec3f06723907d74317bc422ff2f167f42c0d467b10bf7b7d"
+    },
+    {
+      "path": "build/qa/parallel-port-core-root-affected-2026-10-18.log",
+      "sha256": "ff6481e42ff6926c298b9d7716070d0ed08ae019003bb74c3602ebd66c791107"
+    },
+    {
+      "path": "build/qa/parallel-port-native-app-2026-10-18.log",
+      "sha256": "bed3479be855cc8a722cf21b6fcf35b5080c529bbd50b1799b2a4cd361f1223e"
+    },
+    {
+      "path": "build/qa/parallel-port-native-app-affected-2026-10-18.log",
+      "sha256": "d2ccaa02d14c8af0c800a8ead16a996fa39cda213f938baf3c7db36a8f1e5846"
+    },
+    {
+      "path": "build/qa/parallel-port-native-commit-retained-2026-10-18.log",
+      "sha256": "9f0b7231b6acb66bbb2a1128264304628bbec658b773c36efb64fe0e8963d8da"
+    },
+    {
+      "path": "build/qa/parallel-port-native-diff-2026-10-18.log",
+      "sha256": "ec1166b773cd0437122fc21388fd1e93efa4306618fcc436ce342435fb1b0a44"
+    },
+    {
+      "path": "build/qa/parallel-port-native-diff-affected-2026-10-18.log",
+      "sha256": "37d26f3a72cb12f92ba3fa3b4a91ecc066174f2a6ddb2e8c9a7729b13584dc44"
+    },
+    {
+      "path": "build/qa/parallel-port-native-diff-final-2026-10-18.log",
+      "sha256": "844434d00ca7c8ed72ccd2b52c746095595c280c9b6c11dc7326eb76b6d1dbe6"
+    },
+    {
+      "path": "build/qa/parallel-port-native-diff-owned-affected-2026-10-18.log",
+      "sha256": "79fbe333ed57c83a3fce7118925c9d9bec09fbefa85b2eedc83bbe6ca6968c64"
+    },
+    {
+      "path": "build/qa/parallel-port-native-log-affected-2026-10-18.log",
+      "sha256": "b3c729b6332fa849cf6e7726ca5f866c4cdc673ca74daa3c7d1113c940e43120"
+    },
+    {
+      "path": "build/qa/parallel-port-native-log-retained-2026-10-18.log",
+      "sha256": "fa560c45d093e92869480dbfe36081cc87b0e05de696d764a8e6c9fb3587b82b"
+    },
+    {
+      "path": "build/qa/parallel-port-native-resolution-retained-2026-10-18.log",
+      "sha256": "527dddc406b9cb0c8eb74c735c51051d258c73e02d97676513c7886fa03b6645"
+    },
+    {
+      "path": "build/qa/parallel-port-site-2026-10-18.log",
+      "sha256": "8075472cbe696d19330371c6b497f313e1d58db8c4a83ab30c1784d004ab3b98"
+    },
+    {
+      "path": "build/qa/parallel-port-site-affected-2026-10-18.log",
+      "sha256": "8075472cbe696d19330371c6b497f313e1d58db8c4a83ab30c1784d004ab3b98"
+    }
+  ],
+  "limitations": [
+    "Full hosted CI remains pending; newly registered families have not yet completed hosted runs.",
+    "No current universal/signed archive refresh, physical Finder acceptance, external provider/app acceptance or App Store export/submission in this batch.",
+    "Complete upstream dialog/state, physical keyboard, VoiceOver and visual parity remain open; mapped control counts are not feature completion percentages.",
+    "Existing unrelated scripts/test-native-reference-batch.py and docs/qa/reflog-capture-native-2026-10-13.swift work remains unstaged."
+  ],
+  "dialogs": [
+    "IDD_COMMITDLG",
+    "IDD_LOGMESSAGE",
+    "IDD_DIFFSUBMODULE"
+  ],
+  "resources": [
+    "src/Resources/TortoiseProcENG.rc"
+  ],
+  "source_review": [
+    "CommitDlg.cpp StatusThread/author-date controls",
+    "LogDlg.cpp Refresh/OnContextMenu/OnOK",
+    "TortoiseProcENG.rc IDR_ACC_LOGDLG",
+    "Commands/DiffCommand.cpp Execute",
+    "GitDiff.cpp Diff/SubmoduleDiff",
+    "SubmoduleDiffDlg.cpp OnBnClickedShowlog*/Showdiff/Compare"
+  ],
+  "native_fixture_sha256": {
+    "docs/qa/commit-visibility-native-2026-10-18.swift": "3797571890c090a1491e634a1ef9524536035afd22d9d4e81b8d636d2b031c62",
+    "docs/qa/log-source-commands-native-2026-10-18.swift": "84f8b22190446a5bfac3b74d01b0ec9a1ce340dafec5294b73d3ad2fe91882cb",
+    "docs/qa/submodule-diff-entry-native-2026-10-18.swift": "8373d73257199c8e1a61fede922d54f28285bf962eacdb202fea6d440ca3ffd8"
+  }
+}

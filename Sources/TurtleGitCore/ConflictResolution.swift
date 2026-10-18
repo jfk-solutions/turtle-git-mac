@@ -55,21 +55,27 @@ extension GitRepository {
     /// continue to use the child repository.
     public func discoverSelectionRoot(for action: RepositoryAction, selected: URL, cancellation: OperationCancellation? = nil) async throws -> URL {
         let resolved = try discoverRoot(cancellation: cancellation)
+        // Finder/CLI selections preserve literal paths and may have been made
+        // before a directory existed. URL equality also compares its directory
+        // bit; repository ownership depends on the normalized exact path.
+        func sameLocation(_ lhs: URL, _ rhs: URL) -> Bool {
+            GitReferenceName.equal(lhs.standardizedFileURL.path, rhs.standardizedFileURL.path)
+        }
         if action == .logSubmodule {
-            guard selected.standardizedFileURL == resolved,
+            guard sameLocation(selected, resolved),
                   let parent = try await GitRepository(root: resolved, executable: executable).registeredSubmoduleParent(cancellation: cancellation) else { throw FinderCommandFailure.submodule }
             return parent
         }
-        guard action.isResolve || action == .revert || action == .submoduleUpdate || action == .submoduleSync || action == .diff || action == .rename || action == .move || action == .remove, selected.standardizedFileURL == resolved else { return resolved }
+        guard action.isResolve || action == .revert || action == .submoduleUpdate || action == .submoduleSync || action == .diff || action == .rename || action == .move || action == .remove, sameLocation(selected, resolved) else { return resolved }
         let parent = GitRepository(root: resolved.deletingLastPathComponent(), executable: executable)
         let parentRoot = try? await parent.discoverRoot(cancellation: cancellation)
         try cancellation?.check()
-        guard let containing = parentRoot, containing != resolved,
+        guard let containing = parentRoot, !sameLocation(containing, resolved),
               RepositoryAccessLease.pathIsContained(resolved, by: containing) else { return resolved }
         let path = String(resolved.path.dropFirst(containing.path.count + 1))
         let owner = GitRepository(root: containing, executable: executable)
         if action == .rename || action == .move || action == .remove {
-            guard try await GitRepository(root: resolved, executable: executable).registeredSubmoduleParent(cancellation: cancellation) == containing else { return resolved }
+            guard let registered = try await GitRepository(root: resolved, executable: executable).registeredSubmoduleParent(cancellation: cancellation), sameLocation(registered, containing) else { return resolved }
         }
         if action == .revert || action == .submoduleUpdate || action == .submoduleSync || action == .diff || action == .rename || action == .move || action == .remove {
             let indexed = try? await owner.run(["ls-files", "--stage", "-z", "--", path], cancellation: cancellation).stdout

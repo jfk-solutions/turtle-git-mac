@@ -106363,6 +106363,89 @@
         }
       }
     },
+    "No files were changed or added since\nthe last commit.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No s'han modificat o afegit fitxers des de\nl'última entrega."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Od posledního odevzdání\nnebyly žádné soubory změněny, nebo přidány."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seit der letzten Eintragung wurden keine\nDateien/Ordner verändert oder hinzugefügt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No files were changed or added since\nthe last commit."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se cambiaron o añadieron ficheros\ndesde la última consignación (commit)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun fichier n'a été modifié ou ajouté depuis\nla dernière livraison."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最後のコミットから\n変更/追加されたファイルはありません。"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geen bestanden zijn gewijzigd of toegevoegd sinds\nde laatste commit"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhum arquivo foi alterado ou adicionado desde\na última submissão."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ни один файл не был изменен или добавлен с момента\nпоследней фиксации."
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "கடந்த உறுதிமொழிக்குப் பிறகு எந்த கோப்புகளும் மாற்றப்படவில்லை \nஅல்லது சேர்க்கப்படவில்லை. "
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在上次提交后没有添加或更改过文件。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從上次提交以來沒有任何檔案\n變動或加入。"
+          }
+        }
+      }
+    },
     "No graph available": {
       "extractionState": "manual",
       "localizations": {

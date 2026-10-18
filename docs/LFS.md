@@ -41,8 +41,12 @@ ShowListBackgroundImage.
 
 Cancel stops remaining work where possible. Completed server changes remain;
 cancellation does not undo a lock or unlock already accepted by the server.
-Close the results to refresh the list once. Successful Lock offers the existing
-Pull workflow; opening its options does not run Pull automatically.
+If a request ends without a complete result for every selected file, the results
+retain the server changes already reported and show failure. Missing results do
+not mean those files succeeded. Failed Unlock still offers Force for the original
+captured selection. Close the results to refresh the list once. A complete
+successful Lock offers the existing Pull workflow; opening its options does not
+run Pull automatically.
 
 The same owned progress flow is used by Add, Commit, Working Tree and Finder
 file commands. The initiating window stays protected until result review ends.

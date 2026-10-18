@@ -1,5 +1,7 @@
 # Log Messages parity
 
+Source keyboard, focus and message actions: [command-family review](LOG-SOURCE-COMMANDS-PARITY.md).
+
 Current light/dark main-window review: [primary dialog visual review](PRIMARY-DIALOG-VISUAL-REVIEW.md).
 
 Format Patch now opens from the revision context menu with original menupatch
