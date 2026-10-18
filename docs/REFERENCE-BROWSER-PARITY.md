@@ -716,3 +716,54 @@ absence. Six unaffected passes precede the final layout-only build.
 ![Native dialog, light](site/assets/reference-browser-source-light.png)
 
 ![Native dialog, dark](site/assets/reference-browser-source-dark.png)
+
+
+## Connected source actions and native popup entry — October 18, 2026
+
+The pinned `src/TortoiseProc/BrowseRefsDlg.cpp::ShowContextMenu` separates local
+branch Rename/Description from tracked-branch commands. The native reference popup
+now retains that separator and its existing source command/icon order. Namespace
+popups capture an empty leaf set, as the source tree handler does, even while the
+contents list has selected references. Their folder commands cannot accidentally
+inherit the selected leaf payload. The native Add Remote convenience remains an
+explicit extension to the source folder menu, where Manage Remotes supplies Add.
+
+Both the namespace outline and reference list now expose native accessibility
+Show Menu and Shift-F10. They open at the selected row through the existing source
+menu builder; they do not reuse a stale mouse `clickedRow`. Menu preparation occurs
+before popup tracking. Pointer menus keep their existing clicked-row policy.
+Attached children, unavailable/hidden views, detached or retired owners refuse
+these entry points. A shared counted Git worker is not needed merely to display
+a synchronous popup; actual child/Git commands retain their existing ownership.
+Physical key delivery and VoiceOver discovery are separate acceptance work.
+
+A displayed menu command can be claimed once. Repeated delayed target/action
+invocations cannot replay clipboard writes, native child launches or mutations.
+Captured selection and existing catalog/view epochs continue to govern dispatch;
+normal selection movement does not retarget an older menu or replace the user's
+visible selection. Folder/range and column commands share this one-shot wrapper.
+
+An owned Compare selected refs child now receives the browser's actual preference
+store before its model, controls and Git read are created. Its nested history,
+file actions and presentation consequently inherit the same owner settings rather
+than silently falling back to standard defaults. Existing child close, cancellation,
+comparison snapshot and application-Quit gates remain unchanged.
+
+Reference catalog descriptions now use the same local-only, first-duplicate
+reader as Log (`Git.cpp::GetBranchDescriptions`). Deliberately empty first values
+remain empty; global descriptions do not appear as repository descriptions.
+Multiline values and exact valid UTF-8 branch identities remain separate.
+`ReferenceBrowserTests.testCatalogDescriptionsUseLocalFirstEntryAndPreserveEmptyAndExactNames`
+uses a private global-config wrapper, paired packed UTF-8 references and unchanged
+HEAD/index/config assertions. The new native receiver is
+`qa/reference-action-family-native-2026-10-18.swift`; it covers actual source
+section order, selected-row popup entry, leaf/folder capture, one-shot callbacks,
+child preference identity and stale/closed-owner refusal. The parent records
+actual grouped outcomes; fixture existence is not a pass.
+
+This continuation does not certify every source menu/object/error variant,
+physical keyboard/mouse/VoiceOver, signed Finder/App Store grants, or whole-dialog
+parity. Working-tree comparison's Shift/alternative route, all Windows menu/default
+painting details and platform-specific shortcuts remain separate review work.
+
+Actual grouped build/check outcomes: [history action batch evidence](qa/history-actions-2026-10-18.json).

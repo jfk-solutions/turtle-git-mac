@@ -145,7 +145,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     func showComparison(_ pair: ReferenceBrowserComparison) {
         guard let owner = window, owner.attachedSheet == nil, model.canComparePair else { return }
         owner.makeFirstResponder(nil); model.hasChild = true
-        let child = RevisionComparisonWindowController(repository: model.repository, access: model.access, from: .revision(pair.from.rawValue), to: .revision(pair.to.rawValue))
+        let child = RevisionComparisonWindowController(repository: model.repository, access: model.access, from: .revision(pair.from.rawValue), to: .revision(pair.to.rawValue), preferences: model.preferences)
         comparisonDialog = child; model.configureComparison(child.model)
         child.onClosed = { [weak self, weak child] in
             guard let self, let child, self.comparisonDialog === child else { return }
@@ -398,9 +398,9 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     }
     private var menuEpoch: UInt64 = 0
     private var dispatchingMenu: MenuContext?
-    func menuContext() -> MenuContext? {
+    func menuContext(folderOnly: Bool = false) -> MenuContext? {
         guard !invalidated, !busy, !hasChild, !confirmingCancellation, !awaitingConfirmation, renameReference == nil, snapshot != nil else { return nil }
-        return MenuContext(owner: ObjectIdentifier(self), epoch: menuEpoch, selectedRows: selectedRows, lastSelected: lastSelected)
+        return MenuContext(owner: ObjectIdentifier(self), epoch: menuEpoch, selectedRows: folderOnly ? [] : selectedRows, lastSelected: folderOnly ? nil : lastSelected)
     }
     func performMenu(_ context: MenuContext, action: () -> Void) {
         guard context.owner == ObjectIdentifier(self), context.epoch == menuEpoch,
@@ -837,7 +837,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSSplitView {
         let split = NSSplitView(); split.delegate = context.coordinator; split.isVertical = true; split.dividerStyle = .thin
-        let tree = NSOutlineView(); tree.headerView = nil; tree.setAccessibilityLabel("Reference namespaces")
+        let tree = ReferenceBrowserNamespaceOutline(); tree.headerView = nil; tree.setAccessibilityLabel("Reference namespaces")
         let folder = NSTableColumn(identifier: .init("folder")); folder.width = 185; tree.addTableColumn(folder); tree.outlineTableColumn = folder; tree.rowHeight = 22
         let table = ReferenceBrowserRenameTable(); table.rename = { [weak coordinator = context.coordinator] in coordinator?.beginRename(keyboard:true) }; table.rowHeight = 23; table.allowsMultipleSelection = !model.picking || model.pickMultiple; table.setAccessibilityLabel("References");table.identifier = .init("BrowseRefs.References")
         table.columnAutoresizingStyle = .noColumnAutoresizing;table.allowsColumnResizing = true;table.allowsColumnReordering = true
@@ -847,6 +847,9 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         let header = RepositoryBrowserColumnHeader(frame:.init(x:0,y:0,width:0,height:24))
         header.buildMenu = { [weak coordinator = context.coordinator] in coordinator?.columnMenu() }
         header.fit = { [weak coordinator = context.coordinator] index,includeHeader in coordinator?.fit(index,includeHeader:includeHeader) };table.headerView = header
+        for presenter in [tree.selectionMenu, table.selectionMenu] {
+            presenter.available = { [weak coordinator = context.coordinator] in coordinator?.presentationAvailable == true }
+        }
         tree.delegate = context.coordinator; tree.dataSource = context.coordinator; table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.target = context.coordinator; table.doubleAction = #selector(Coordinator.activateSelection)
         let menu = NSMenu(); menu.delegate = context.coordinator; table.menu = menu
@@ -860,7 +863,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         let coordinator = context.coordinator; coordinator.model = model; coordinator.update()
         DispatchQueue.main.async { [weak coordinator, weak table = coordinator.table, weak split] in guard let coordinator,!coordinator.retired, let table else { return }; if let split, !coordinator.positioned, split.bounds.width > 0 { coordinator.updating = true;split.setPosition(min(coordinator.model.columnLayout.divider,max(120,split.bounds.width - 320)), ofDividerAt: 0);coordinator.updating = false; coordinator.positioned = true }; coordinator.model.focusIfReady(table) }
     }
-    static func dismantleNSView(_ split: NSSplitView, coordinator: Coordinator) { coordinator.retired = true;split.delegate = nil; coordinator.tree?.delegate = nil; coordinator.tree?.dataSource = nil; coordinator.tree?.menu?.delegate = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil; coordinator.table?.menu?.delegate = nil;(coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.buildMenu = { nil };(coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.fit = {_,_ in} }
+    static func dismantleNSView(_ split: NSSplitView, coordinator: Coordinator) { coordinator.retired = true;(coordinator.tree as? ReferenceBrowserNamespaceOutline)?.selectionMenu.retire();(coordinator.table as? ReferenceBrowserRenameTable)?.selectionMenu.retire();split.delegate = nil; coordinator.tree?.delegate = nil; coordinator.tree?.dataSource = nil; coordinator.tree?.menu?.delegate = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil; coordinator.table?.menu?.delegate = nil;(coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.buildMenu = { nil };(coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.fit = {_,_ in} }
     @MainActor final class Folder: NSObject { let key: GitReferenceName; var children: [Folder] = []; weak var parent: Folder?; init(_ key: GitReferenceName) { self.key = key } }
     @MainActor final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate, NSMenuDelegate, NSSplitViewDelegate {
         private let wordCommands=GitInputWordCommands()
@@ -1027,9 +1030,9 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         func menuNeedsUpdate(_ menu: NSMenu) {
             menu.removeAllItems(); guard !model.closed, !model.busy, !model.hasChild, model.renameReference == nil, let table else { return }
             let fromTree = menu === tree?.menu
-            if fromTree, let tree, let clicked = tree.item(atRow: tree.clickedRow) as? Folder, clicked.key != model.folder { model.setFolder(clicked.key) }
-            if !fromTree, visible.indices.contains(table.clickedRow), !table.selectedRowIndexes.contains(table.clickedRow) { table.selectRowIndexes(IndexSet(integer: table.clickedRow), byExtendingSelection: false) }
-            guard let context = model.menuContext() else { return }
+            if fromTree, (tree as? ReferenceBrowserNamespaceOutline)?.selectionMenu.presenting != true, let tree, let clicked = tree.item(atRow: tree.clickedRow) as? Folder, clicked.key != model.folder { model.setFolder(clicked.key) }
+            if !fromTree, (table as? ReferenceBrowserRenameTable)?.selectionMenu.presenting != true, visible.indices.contains(table.clickedRow), !table.selectedRowIndexes.contains(table.clickedRow) { table.selectRowIndexes(IndexSet(integer: table.clickedRow), byExtendingSelection: false) }
+            guard let context = model.menuContext(folderOnly: fromTree) else { return }
             // Wrap every entry, including dynamically generated remote entries.
             // Keep NSMenuItem's weak target alive through representedObject.
             let owner = model
@@ -1101,6 +1104,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             if model.canEditDescription { item("Edit description", #selector(editDescription), .rename, model.onEditDescription != nil) }
             if model.canRename { item("Rename", #selector(rename), .rename, true) }
             if model.canChangeTracking {
+                menu.addItem(.separator())
                 if !chosen.upstream.isEmpty { item("Unset tracked branch", #selector(unsetTracking), .remove, true) }
                 item("Select tracked branch", #selector(selectTracking), .branch, model.onSelectTracking != nil)
             }
@@ -1136,9 +1140,14 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
     }
 }
 
-private final class ReferenceBrowserRenameTable: NSTableView {
+final class ReferenceBrowserRenameTable: NSTableView {
+    let selectionMenu = ReferenceBrowserSelectionMenu()
+    override func accessibilityPerformShowMenu() -> Bool { selectionMenu.show(in: self) }
     var rename: () -> Void = {}
     override func keyDown(with event: NSEvent) {
+        if event.keyCode == 109, event.modifierFlags.intersection([.command,.control,.option,.shift]) == .shift {
+            if window?.firstResponder === self, let owner = window as? ReferenceBrowserNativeWindow, owner.commandKeyWindow() === owner { _ = selectionMenu.show(in: self) }; return
+        }
         if event.keyCode == 120,event.modifierFlags.intersection([.command,.control,.option,.shift]).isEmpty {
             if isEnabled,window?.firstResponder === self,let owner = window as? ReferenceBrowserNativeWindow,owner.commandKeyWindow() === owner { rename() };return
         }
@@ -1150,6 +1159,44 @@ private final class ReferenceBrowserRenameTable: NSTableView {
 // next selection. The coordinator and window model are deliberately weak owners.
 @MainActor private final class ReferenceBrowserMenuCommand: NSObject {
     private let action: () -> Void
+    private var claimed = false
     init(_ action: @escaping () -> Void) { self.action = action }
-    @objc func invoke(_ sender: NSMenuItem) { guard sender.isEnabled else { return }; action() }
+    @objc func invoke(_ sender: NSMenuItem) { guard sender.isEnabled, !claimed else { return }; claimed = true; action() }
+}
+
+
+/// A keyboard/AX popup belongs to the selected row, never a stale mouse-clicked
+/// row. Both native lists use the same preparation and source menu delegate.
+@MainActor final class ReferenceBrowserSelectionMenu {
+    private(set) var presenting = false
+    private var retired = false
+    var available: () -> Bool = { false }
+    var present: ((NSMenu, NSPoint, NSView) -> Void)?
+    func retire() { retired = true; available = { false }; present = nil }
+    @discardableResult func show(in view: NSTableView) -> Bool {
+        guard !retired, !presenting, available(), view.window != nil, view.isEnabled,
+              !view.isHiddenOrHasHiddenAncestor, view.selectedRow >= 0,
+              view.selectedRow < view.numberOfRows, let menu = view.menu else { return false }
+        presenting = true; defer { presenting = false }
+        view.scrollRowToVisible(view.selectedRow); view.layoutSubtreeIfNeeded()
+        // AppKit's update() does not promise delegate population before tracking.
+        menu.delegate?.menuNeedsUpdate?(menu)
+        guard !menu.items.isEmpty else { return false }
+        let row = view.rect(ofRow: view.selectedRow).intersection(view.visibleRect)
+        let point = row.isEmpty ? NSPoint(x: view.bounds.midX, y: view.rect(ofRow: view.selectedRow).midY) : NSPoint(x: row.midX, y: row.midY)
+        if let present { present(menu, point, view) }
+        else { menu.popUp(positioning: nil, at: point, in: view) }
+        return true
+    }
+}
+
+final class ReferenceBrowserNamespaceOutline: NSOutlineView {
+    let selectionMenu = ReferenceBrowserSelectionMenu()
+    override func accessibilityPerformShowMenu() -> Bool { selectionMenu.show(in: self) }
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 109, event.modifierFlags.intersection([.command,.control,.option,.shift]) == .shift {
+            if window?.firstResponder === self, let owner = window as? ReferenceBrowserNativeWindow, owner.commandKeyWindow() === owner { _ = selectionMenu.show(in: self) }; return
+        }
+        super.keyDown(with: event)
+    }
 }

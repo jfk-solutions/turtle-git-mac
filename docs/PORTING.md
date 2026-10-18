@@ -2971,3 +2971,50 @@ actual failures and affected-only repairs. See the
 The earlier hosted Commit receiver's SIGSEGV is confirmed, but its precise cause
 is unproven without a crash stack. No full hosted pass, current signed/universal
 package, complete physical accessibility or whole-application parity is claimed.
+
+
+### History/reference action and replay identity family, 2026-10-18
+
+Three parallel owners completed source Log command-mask policy, Reference Browser
+context dispatch and Rebase identity/hook boundaries; the integrated Blame consumer
+uses that shared policy in its actual embedded history list. Original command
+icons, canonical captured targets and native child/Git operation ownership remain.
+Log filters commands before binding their original action receipts, preserves the
+source Show log and range exceptions, and emphasizes the default comparison.
+Blame adopts source parent/repository command order, WC/HEAD gates, clipboard
+submenu and the actual double-click comparison preference.
+
+Reference Browser now supports selected-row keyboard/accessibility context menus,
+retains an empty leaf selection for namespace menus, refuses replay of captured
+commands, preserves comparison preferences and reads local first-entry branch
+descriptions. Rebase checks all four source author/committer values after autostash,
+loops through its owned Git Settings repair, and only then invokes PreRebase.
+Cherry Pick shares the identity check without acquiring an invented client hook;
+automatic Merge commits retain source behavior. Sync/Fetch continue to inherit
+the existing Rebase path.
+
+The [grouped batch evidence](qa/history-actions-2026-10-18.json) records actual
+checks and repairs. See [Log policy](LOG-CONTEXT-MENU-POLICY-PARITY.md),
+[Blame policy](BLAME-HISTORY-POLICY-PARITY.md),
+[Reference Browser](REFERENCE-BROWSER-PARITY.md) and
+[client hooks](CLIENT-HOOKS-PARITY.md) for precise source scope and remaining
+behavior. Physical input/VoiceOver/menu tracking, minimum-OS/Intel, current hosted
+CI and signed App Store/Finder acceptance remain separate gates. This partial
+connected batch does not certify an entire dialog or the whole application.
+
+The user-reported replay Settings sheet Close/OK/Cancel refusal was reproduced
+with an enabled transaction and disabled sheet title button. The owned close path
+now retains its delegate policy and waits for actual sheet release. The same
+batch replaces the Remotes selector's unbounded appearance with a bordered native
+list, stable selection/scrolling during edits and explicit keyboard/draft ownership.
+See [Remote Settings](REMOTE-SETTINGS-PARITY.md) and the batch evidence for actual
+checks and acceptance limits. Automated receiver windows stay invisible/offscreen.
+
+All 33 selected Core cases and 22 distinct native case/engine receipts pass.
+Actual failures included an optional-title fixture compile, the user's Settings
+sheet close refusal, an invalid Remote constraint activation and lost keyboard
+focus across the Remote read. Only affected checks repeated after repairs. All
+27 recorded receiver processes are absent. Four Remote content-cache renders
+were inspected but have incomplete backdrops/button layers; they are not
+publication screenshots or complete visual parity evidence. No full hosted or
+current signed distribution pass is inferred from this local checkpoint.

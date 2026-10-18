@@ -103,3 +103,60 @@ repeated for that fixture repair; all receivers were reaped. See
 VoiceOver, source layout, live transport and signed/App Store acceptance remain
 open. Source rename/remove and the native catalog adaptation are not an atomic
 transaction against concurrent external configuration writers.
+
+
+## Native Remote name list and selection — October 18, 2026
+
+The pinned `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINREMOTE` uses a bordered,
+vertically scrolling, single-selection `IDC_LIST_REMOTE` beside its editable
+remote fields. Its `SettingsGitRemote.png` reference shows a continuous list
+viewport with a clear selected name, not loose text embedded in the form.
+`CSettingGitRemote::OnLbnSelchangeListRemote` retains Save/Discard handling before
+loading the newly selected remote. No initial remote is automatically selected.
+
+The native list now has a bezel border and explicit full-height viewport beside
+the form, alternating native row backgrounds and regular selected-row painting.
+Its name column and native horizontal scrollbar accommodate long remote names;
+name-cell tooltips retain the full literal name. An empty viewport says “No
+remotes configured.” This noninteractive guidance is a macOS adaptation of the
+source's empty list. Both standalone and shared Settings forms retain the same
+single-column list, source field/button order, native light/dark colors and
+existing SSH-key adaptation. Tab follows the list into the Remote/Rename/URL
+controls; ordinary list arrows retain native selection and focus behavior.
+
+Rendering now reloads actual native rows only when the remote-name catalog changes.
+Typing a field no longer rebuilds the list or resets its scroll position. Catalog
+updates preserve the top visible name when possible, while a newly selected or
+renamed remote scrolls into view. During the owned asynchronous Save/Discard and
+remote read, the requested row stays highlighted while fields and other list
+changes are disabled. Accepted selection still belongs to the original model/read
+request. Invalidated, child-owned, busy and attached-sheet lists reject later
+selection callbacks. Raw field updates compare UTF-8 bytes so canonical-equivalent
+spellings do not leave the wrong displayed name after an accepted read.
+
+Add New/Save, Rename, Remove, Fetch offers, actual Git configuration and the shared
+Settings transaction remain the same workflow. The list does not introduce a
+second draft or a separate configuration writer. Cancel/OK acceptance for the
+shared Settings frame remains covered by that frame's own receiver.
+
+`qa/remote-list-native-2026-10-18.swift` exercises the shipping list's actual
+bounds, native arrow selection/field read, Tab links, row reuse/scroll through
+field edits, a held Save/Discard reply and busy refusal, real Add/Save/Fetch/
+Rename/Remove controls, owner retirement and unchanged HEAD/index/input bytes.
+It checks both standalone minimum-size and embedded Settings content. Optional
+`TURTLEGIT_REMOTE_LIST_CAPTURE` writes owned invisible-window content renders in
+Aqua and Dark Aqua for individual visual review. The parent records actual results;
+fixture existence is not a pass. Physical mouse/key gestures, VoiceOver, all
+localizations/resize extremes, signed grants and full Settings parity remain open.
+
+The focused user-report checkpoint also retains list keyboard focus through the
+owned selection read: disabling NSTableView had displaced it to NSWindow. Restore
+only that original window/table focus after drain; another field or sheet is not
+overridden and no background window is activated. New and retained Remote
+workflows pass with system and bundled Git.
+
+[Actual grouped evidence](qa/history-actions-2026-10-18.json) preserves the initial
+constraint-ordering exception, keyboard-focus diagnosis, affected repairs and
+receiver cleanup. The four optional content-cache renders show list geometry but
+lose backdrop and button layers, so they are not published as complete window
+screenshots. Physical/compositor visual acceptance remains open.

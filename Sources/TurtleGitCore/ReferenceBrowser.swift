@@ -130,14 +130,7 @@ extension GitRepository {
         if scope == .excludingTags { records.removeAll { $0[0].utf8.starts(with: "refs/tags/".utf8) } }
         // Include all remote names in the gone check, independently of merge filtering.
         let remoteNames = Set(try checkoutReferences(includeAll: true, cancellation: cancellation).filter(\.remote).map { GitReferenceName($0.name) })
-        var descriptions: [GitReferenceName: String] = [:]
-        let configuration = try run(["config", "--null", "--get-regexp", "^branch\\..*\\.description$"], successfulExitCodes: 0...1, cancellation: cancellation).stdout
-        for item in String(decoding: configuration, as: UTF8.self).components(separatedBy: "\0") {
-            guard let separator = item.firstIndex(of: "\n") else { continue }
-            let key = String(item[..<separator])
-            guard let branch = GitReferenceName.removingPrefix("branch.", from: key).flatMap({ GitReferenceName.removingSuffix(".description", from: $0) }) else { continue }
-            descriptions[GitReferenceName("refs/heads/" + branch)] = String(item[item.index(after: separator)...])
-        }
+        let descriptions = try historyBranchDescriptions(cancellation: cancellation)
         func clean(_ value: String) -> String { value.trimmingCharacters(in: .whitespacesAndNewlines) }
         func identity(_ record: [String], committer: Bool) -> (String, String, TimeInterval?) {
             let offset = committer ? 9 : 6

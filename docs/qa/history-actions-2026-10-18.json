@@ -1,0 +1,240 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "89595fe090ec96b46362c58086e61ceec0f7436f",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Log typed source command masks, Shift/Show log exceptions and default comparison emphasis",
+    "Actual Blame embedded history consumer, WC/HEAD eligibility, source menu/default behavior",
+    "Reference Browser one-shot menu targets, native keyboard/AX entry and inherited preferences",
+    "Source Rebase author/committer identity repair between autostash and PreRebase",
+    "User-reported Settings sheet OK/Cancel dismissal and native Remotes list interaction/layout"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "distinct_cases": 33,
+      "selection": "ReplayUserIdentityTests|HistoryContextMenuPolicyTests|ReferenceBrowserTests|GitBlameTests.testProjectHistoryDetailsAndSourceIssueSVNMetadata",
+      "scope": "Focused relevant Core classes and retained real Blame metadata case; no full Core suite repeat."
+    },
+    "build_attempts": [
+      {
+        "log": "history-actions-build-2026-10-18.log",
+        "exit": 0
+      },
+      {
+        "log": "history-actions-build-settings-affected-2026-10-18.log",
+        "exit": 0,
+        "scope": "Rebase sheet close/drain and user-requested native Remote list; Core unchanged."
+      },
+      {
+        "log": "history-actions-build-remote-affected-2026-10-18.log",
+        "exit": 0,
+        "scope": "Remote constraint ordering only."
+      },
+      {
+        "log": "history-actions-build-remote-focus-2026-10-18.log",
+        "exit": 0,
+        "scope": "Remote owned list-focus restoration only; no Core/source-label change."
+      }
+    ],
+    "native": {
+      "status": "passed",
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "planned_cases": [
+        "log policy",
+        "reference action family",
+        "Blame history policy",
+        "replay identity/hooks",
+        "retained Blame menus",
+        "retained Reference targets/comparison/folders",
+        "retained Log source commands"
+      ],
+      "completed_before_settings_repairs": 16,
+      "scope": "Log policy2, Reference action2, Blame history2, replay identity/hooks2, new Remote list2, retained Blame menus2, retained Reference targets/comparison/folders6, retained Log commands2 and retained Remote settings2. Each uses system and bundled Git. Only actual failed cases repeated; passing unrelated groups and Core retained.",
+      "completed_before_remote_constraint_repair": 18,
+      "distinct_case_engine_receipts": 22
+    },
+    "resources": {
+      "localization_write_and_check_exit": 0,
+      "languages": 38,
+      "keys": 1289,
+      "scope": "Generated resource coverage remains partial; unmatched native labels retain English fallback."
+    },
+    "hosted": {
+      "observed_prior_macos_run": 39135993152,
+      "head": "fe9962aeed4256d6f8ad87fb03e02e0ce4bb5937",
+      "status": "in_progress",
+      "job": 117700782101,
+      "step": "Git integration tests",
+      "scope": "Observation during implementation only; no hosted pass claimed."
+    },
+    "failures_and_repairs": [
+      {
+        "log": "history-actions-native-2026-10-18.log",
+        "failure": "Fixture compiler: attributedTitle is optional.",
+        "repair": "Require nonempty attributed title before preserving exact caption/bold-font assertion. Fixture-only compile; app/Core unchanged."
+      },
+      {
+        "log": "history-actions-native-fixture-affected-2026-10-18.log",
+        "failure": "Replay/system receiver92337 timed out after300seconds; was reaped.",
+        "evidence": "One live sample showed idle AppKit event loop without identifying suspended Swift continuation. Added flushed phases and bounded Settings task waits; did not infer success or restart a live handle."
+      },
+      {
+        "log": "history-actions-replay-diagnostic-2026-10-18.log",
+        "failure": "Bounded native reproduction: first Settings performClose refused while title close button disabled, canDismiss true and sheet retained. Receiver94625 reaped.",
+        "repair": "Owned Settings NSWindow explicit performClose checks live transaction/delegate gates and closes independently of disabled sheet title button. Retain continuation/owner until actual sheet detachment; forced retirement stays false. Original performClose assertions retained; actual native footer OK/Cancel and held-save busy refusal added."
+      },
+      {
+        "log": "history-actions-settings-affected-2026-10-18.log",
+        "failure": "Remote/system receiver95721 abandoned async task after AppKit NSGenericException in RemoteSettingsNativeView.init/NSLayoutConstraint.setActive.",
+        "evidence": "Owned live sample idle; private fixture already contained all23 remotes. Unified log confirmed exception stack. Static source showed Remove=Add width constraint activated before common ancestor.",
+        "cleanup": "Parent verified exact owned PID/command/process group, then terminated it after confirmed exception; run_receiver reaped it. This was not a restart solely from an observation timeout.",
+        "repair": "Move equal-width activation after form stack owns both buttons. Preserve all assertions; add flushed Remote phases. Only Remote build/new+retained case checks repeated; passing replay2 and other16 native checks kept."
+      },
+      {
+        "log": "history-actions-remotes-final-2026-10-18.log",
+        "failure": "Remote arrow loaded correct row but lost table keyboard focus. Receiver96165 reaped.",
+        "diagnostic_log": "history-actions-remote-focus-diagnostic-2026-10-18.log",
+        "diagnostic": "Receiver96367 confirmed row1, origin field, enabled table, but firstResponder was NSWindow.",
+        "repair": "Capture same-window list focus before owned selection read disables table; restore only displaced window/table responder after completion without activating window or overriding another field/sheet. Original keyboard assertion retained and passes both engines."
+      }
+    ],
+    "warnings": [
+      "Native Reference Browser zero-size initial NSSplitView frame warning in hidden receivers; tests pass within scope, not a full physical geometry claim.",
+      "Existing SDK/compiler warnings retained; no warning-free build claim."
+    ],
+    "documentation": {
+      "coverage_write_and_check_exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "site_build_exit": 0,
+      "site_documents": 309,
+      "unresolved_fragments": [],
+      "site_link_cases": 2,
+      "site_link_exit": 0,
+      "scope": "Counts record partial audit mappings, not functional completion percentages."
+    }
+  },
+  "source_corrections": [
+    "Pinned automatic Merge commits have no client Commit hook caller; no extra hook invented.",
+    "Rebase already stashes before PreRebase; added missing four-field identity repair in that interval. Cherry Pick identity check adds no client PreRebase hook.",
+    "Ordinary Log pickers use default source Log mask; source .blame mask applies to embedded Blame history rather than ordinary Show log children.",
+    "Source shared-list range Log entries and ID_LOG named/Shift exceptions intentionally bypass normal mask filtering."
+  ],
+  "limitations": [
+    "Physical pointer/keyboard menu tracking and VoiceOver remain unverified",
+    "Native default emphasis is macOS adaptation; no complete visual dialog certification",
+    "Full Rebase embedded current/done/plan command mask mapping remains open",
+    "Current hosted full integration and minimum-OS/Intel remain open",
+    "Current signed/universal package and physical Finder/App Store acceptance remain open",
+    "Whole port remains active and incomplete"
+  ],
+  "user_report": {
+    "temporary_window": "history-actions-blcfqx0r/replay0/held-read",
+    "identified_receiver_pid": 94625,
+    "receiver_was_reaped": true,
+    "scope": "User screenshot matched diagnostic private QA sheet. Acknowledged desktop interruption; subsequent QA parent and child alpha set before ordering. Repository AGENTS records invisible/offscreen automated checks. User-owned installed app not terminated.",
+    "remote_list": "Missing bezel/minimum height plus default column sizing made remotes look unbounded. Native bordered list, explicit selection/rows, stable reuse/scroll while editing and keyboard/draft ownership implemented."
+  },
+  "dialogs": [
+    "IDD_LOGMESSAGE",
+    "IDD_BROWSE_REFS",
+    "IDD_REBASE",
+    "IDD_SETTINGIT_CONFIG",
+    "IDD_SETTINREMOTE"
+  ],
+  "visual": {
+    "captures": "build/qa/history-actions-remotes-captures",
+    "files": {
+      "remote-list-embedded-dark.png": "8f0479b60cdd7b44e30cae080c6a2ab4b67c7a8c71962b57fe33b5ce1d4ba997",
+      "remote-list-embedded-light.png": "bb39b371238ace7d6c19969e879acedadcb55dec8ff29fcbce831dfa15541ccf",
+      "remote-list-standalone-dark.png": "fda29f5c1a2a8611ac5f27833b6e41ed55c16529fcfefb1a2a6cd1b471acad68",
+      "remote-list-standalone-light.png": "6d58d634e9e67621bb38f4f8d56e4908d6814e35129617d64506c0f9e72b4297"
+    },
+    "review": "All four standalone/embedded light/dark content caches inspected. Border, rows and selected names are visible, but transparent backdrops and missing layer-backed button captions make these unsuitable publication screenshots. They are not complete rendered-window/physical visual parity evidence; not published to site. Native bounds/selection/behavior checks pass separately."
+  },
+  "local_log_sha256": {
+    "history-actions-blame-retained-2026-10-18.log": "38f8476ee0e1fcc89ff9c8f71933670289f6131f78dd6a443a82c623c494038f",
+    "history-actions-build-2026-10-18.log": "d72eac1bfd06409b09e2300a4c3c7e3f4b9acd062edb219643c5af364acc5aa4",
+    "history-actions-build-remote-affected-2026-10-18.log": "220745730b5ef184bba7ab329f877e0708700ee18d7a84b8f141e70e1ae2a022",
+    "history-actions-build-remote-focus-2026-10-18.log": "8240e5ce0364d17887c9ef53951333d63e782c757e2584ceccde6acc0ada793c",
+    "history-actions-build-settings-affected-2026-10-18.log": "4c0b3bc852173633191a92e4e5e383382e9e02884ad753a78fee78139a5fac00",
+    "history-actions-core-2026-10-18.log": "35cdf862f67f38151b8f1d6e1d5c047ba6f99237c63e118857d9f5d4a171ea04",
+    "history-actions-docs-2026-10-18.log": "646c58a4ed1d95ac23c04fff31787ab883c8cd9acd7a958e1e3b4b3ef11e3e00",
+    "history-actions-log-retained-2026-10-18.log": "801c2ee1ba8abd833d4685061b00dc4482eb054c4e3e46586a6b02746ee684bd",
+    "history-actions-native-2026-10-18.log": "d0501a2aca319eb7e9e779c7a81e469607db12e1e081ef8caff94bc4aa2ed590",
+    "history-actions-native-fixture-affected-2026-10-18.log": "cbb15ea3846f56d1c332eb6d61dd19b3dd2c18150f4494f818459c1a09a28aee",
+    "history-actions-reference-retained-2026-10-18.log": "4f66ca876cd6f0bafa593aa68da04492ff6d7d0c0882faaa6a2e76f18d6afc73",
+    "history-actions-remote-focus-diagnostic-2026-10-18.log": "1624dd5c4f07e690bdd3bc6adbc52e9149d7f84a7b0c50e3ca5ba60754c95be5",
+    "history-actions-remote-sample-2026-10-18.log": "406cecacce85cfd0fdd20d31ca57dabd1834652b12446e5f18b78a94ee9b7799",
+    "history-actions-remote-unified-2026-10-18.log": "d42e4bf684e812d70c75618dc7de5c77c3f099736e7b057ce7fa369764fb01d4",
+    "history-actions-remotes-final-2026-10-18.log": "8e08d5d4875f375ce77cdfd9d32134454da3a06a2016e508dad3b4f02fd77793",
+    "history-actions-remotes-focus-2026-10-18.log": "4082ce15327f97b64fa6dc38886e3562cbfdfa8b7a150674ab772c98b451818a",
+    "history-actions-replay-diagnostic-2026-10-18.log": "c3ab495d25d88f5113d7e753007f1abaca731535e9149414c0dfce8507771868",
+    "history-actions-replay-sample-2026-10-18.log": "b9c0aec8ec9e6d977c6e721ea091472b9084e625e4a0ff06c14c891908e30b63",
+    "history-actions-resources-2026-10-18.log": "9211f166663efcc8bdf089306d84ceeefeda0b0232bacf4fb650e606fa20e703",
+    "history-actions-resources-affected-2026-10-18.log": "9211f166663efcc8bdf089306d84ceeefeda0b0232bacf4fb650e606fa20e703",
+    "history-actions-settings-affected-2026-10-18.log": "8f1bee14d5753c26bc03a45244e1b987ac0168b941361406b0a55de4ed58e8d1",
+    "history-actions-docs-final-2026-10-18.log": "9d34aa460c0ac30db5ea45ed623739e90b59c80ac9bfcfb7e0a3cf500d12be0f"
+  },
+  "ownership": {
+    "recorded_receiver_pids": [
+      91966,
+      92030,
+      92093,
+      92138,
+      92181,
+      92258,
+      92337,
+      92574,
+      92903,
+      93269,
+      93380,
+      93448,
+      93624,
+      93726,
+      93811,
+      94000,
+      94269,
+      94625,
+      95487,
+      95606,
+      95721,
+      96165,
+      96367,
+      96488,
+      96588,
+      96694,
+      96961
+    ],
+    "recorded_receiver_count": 27,
+    "all_recorded_receivers_absent": true,
+    "scope": "Private receiver groups reaped on success/failure/timeout. Confirmed exception receiver explicitly terminated only after verifying owned PID/group/command. No user-owned application terminated.",
+    "private_preferences_cleanup": {
+      "removed_private_domains": [
+        "TurtleGit.ReplayIdentity.QA.E6D0912C-4394-4BCD-A587-A93E5BF752C8"
+      ]
+    }
+  },
+  "fixture_sha256": {
+    "docs/qa/log-context-menu-policy-native-2026-10-18.swift": "c50e6a5dc5a4241ab17cd589ed0f2b50172a2fe78d58eb34fdea73ec3ac4adab",
+    "docs/qa/reference-action-family-native-2026-10-18.swift": "60b1fce69021069e992172b6a0dbb8ce1e0dc5c05ca7db9bc418112cbb1d4cff",
+    "docs/qa/blame-history-policy-native-2026-10-18.swift": "975d6b77ab89e2d1230af8e5472619e1b92035951c7cdd2a24ba77b3e1639c52",
+    "docs/qa/replay-hook-identity-native-2026-10-18.swift": "d3f41d43330443b8260f0cfd48d307b5d7a9785a1c05ddd81d695927cc32cfdd",
+    "docs/qa/remote-list-native-2026-10-18.swift": "52171d53a63d7289d9def242911851aa37c492c35ea2148eba09b21ecc63396f",
+    "docs/qa/blame-menu-native-2026-10-13.swift": "6e8dda4617e423ce60e28e87e6b67d4e55c6c4ee6f1c6505857bf7b4949f3211",
+    "scripts/test-history-action-family.py": "d2af26dc6c3b7552ccac144f1bed7597d3d25224bfed7bfe74ed50eb333ecc1f"
+  },
+  "local_sample_sha256": {
+    "history-actions-replay-stall-2026-10-18.txt": "4e368bab56d864d8e95c1c39a632c6507da8fb97580abbd0090db56052aaa022",
+    "history-actions-remote-stall-2026-10-18.txt": "59046385f61e8ce5547b87971e6d6595f01aca5c4dfaf10573bcf77d6443fc33"
+  }
+}

@@ -51,10 +51,10 @@ import TurtleGitCore
         model.onHistoryExport={ routed.append("export:"+$0) };model.onHistoryReference={ routed.append(($0 ? "tag:" : "branch:")+$1) }
         model.onHistorySwitch={ routed.append("switch:"+$0) };model.onHistoryBrowse={ routed.append("browse:"+$0) };model.onContainingReferences={ routed.append("refs:"+$0) }
         model.writeClipboard={ historyCopied=$0 }
-        history.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+        history.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false)
         let historyMenu=history.menu!;historyCoordinator.menuNeedsUpdate(historyMenu)
         let pinned=model.selectedHistoryEntry!.hash,export=historyMenu.items.first { $0.title=="Export this version…" }!
-        history.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false)
+        history.selectRowIndexes(IndexSet(integer:2),byExtendingSelection:false)
         for title in ["Export this version…","Create branch at this version…","Create tag at this version…","Switch/Checkout to this…","Browse repository","Show branches this commit is on"] {
             let item=historyMenu.items.first { $0.title==title }!;try require(item.image != nil && item.isEnabled,"Missing enabled source revision command")
             _ = NSApp.sendAction(item.action!,to:item.target,from:item)
@@ -85,7 +85,7 @@ import TurtleGitCore
         owner.chooseFile=oldChoose;diff.model.busy=false
         diff.close();try await wait { owner.historyUnifiedWindows.isEmpty }
         history.selectRowIndexes(IndexSet([0,1,2]),byExtendingSelection:false);historyCoordinator.menuNeedsUpdate(historyMenu)
-        let hashes=historyMenu.items.first { $0.title=="Copy SHA-1 to clipboard" }!;_ = NSApp.sendAction(hashes.action!,to:hashes.target,from:hashes)
+        let hashes=historyMenu.items.first { $0.title=="Copy to clipboard" }!.submenu!.items.first { $0.title=="SHA-1" }!;_ = NSApp.sendAction(hashes.action!,to:hashes.target,from:hashes)
         try require(historyCopied==model.historyEntries.map(\.hash).joined(separator:"\n"),"Multi-revision hash clipboard")
         let clipboard=historyMenu.items.first { $0.title=="Copy to clipboard" }!.submenu!,subjects=clipboard.items.first { $0.title=="Subjects" }!
         _ = NSApp.sendAction(subjects.action!,to:subjects.target,from:subjects)

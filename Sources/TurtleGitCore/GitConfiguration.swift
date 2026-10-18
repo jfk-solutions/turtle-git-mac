@@ -41,6 +41,16 @@ public struct GitConfigurationSettings: Equatable, Sendable {
          ("core.safecrlf", safeCRLF.isEmpty ? nil : safeCRLF)]
     }
 }
+/// The four explicit values checked by CAppUtils::CheckUserData before replay.
+/// This deliberately does not accept Git's synthesized login/host fallback.
+public struct ReplayUserIdentity: Equatable, Sendable {
+    public let authorName: String, authorEmail: String, committerName: String, committerEmail: String
+    public init(authorName: String, authorEmail: String, committerName: String, committerEmail: String) {
+        self.authorName = authorName; self.authorEmail = authorEmail
+        self.committerName = committerName; self.committerEmail = committerEmail
+    }
+    public var complete: Bool { ![authorName, authorEmail, committerName, committerEmail].contains(where: \.isEmpty) }
+}
 public enum GitConfigurationFailure: LocalizedError {
     case destination, invalidValue, output, save(key: String, detail: String)
     public var errorDescription: String? {
@@ -58,6 +68,24 @@ extension GitRepository {
         if result.exitCode == 1 { return nil }
         guard result.stdout.last == 0, let value = String(data: result.stdout.dropLast(), encoding: .utf8) else { throw GitConfigurationFailure.output }
         return value
+    }
+    /// Match the pinned GetUser*/GetCommitter* lookup, including its unusual
+    /// GIT_AUTHOR_EMAIL override for the committer-email check. Actual Git still
+    /// receives its own ordinary environment; this is the source UI preflight.
+    public func replayUserIdentity(environment: [String: String] = ProcessInfo.processInfo.environment, cancellation: OperationCancellation? = nil) throws -> ReplayUserIdentity {
+        try cancellation?.check()
+        func value(_ environmentKey: String, _ key: String, _ fallback: String) throws -> String {
+            try cancellation?.check()
+            if let value = environment[environmentKey], !value.isEmpty { return value }
+            if let value = try configurationValue(key, source: .effective, cancellation: cancellation), !value.isEmpty { return value }
+            return try configurationValue(fallback, source: .effective, cancellation: cancellation) ?? ""
+        }
+        let result = try ReplayUserIdentity(
+            authorName: value("GIT_AUTHOR_NAME", "author.name", "user.name"),
+            authorEmail: value("GIT_AUTHOR_EMAIL", "author.email", "user.email"),
+            committerName: value("GIT_COMMITTER_NAME", "committer.name", "user.name"),
+            committerEmail: value("GIT_AUTHOR_EMAIL", "committer.email", "user.email"))
+        try cancellation?.check(); return result
     }
     public func gitConfiguration(source: GitConfigurationSource, cancellation: OperationCancellation? = nil) throws -> GitConfigurationSettings {
         try cancellation?.check()

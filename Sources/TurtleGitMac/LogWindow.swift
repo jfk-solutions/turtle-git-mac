@@ -217,9 +217,10 @@ final class LogHistoryWindow: NSWindow {
     var onClosed: () -> Void = {}
     private var selectionCompletion: ((LogEntry?) -> Void)?
     private var multipleSelectionCompletion: (([LogEntry]?) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, onChooseMultiple: (([LogEntry]?) -> Void)? = nil, onChoose: ((LogEntry?) -> Void)? = nil, labelDefaults: UserDefaults = .standard, savesColumnLayout: Bool = true, savesGeometry: Bool = true, initialRevision: String? = nil, historyRegexExecutable: URL? = nil, historyFileCache: HistoryFileCache = HistoryFileCache(), loadsImmediately: Bool = true) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, onChooseMultiple: (([LogEntry]?) -> Void)? = nil, onChoose: ((LogEntry?) -> Void)? = nil, labelDefaults: UserDefaults = .standard, savesColumnLayout: Bool = true, savesGeometry: Bool = true, initialRevision: String? = nil, historyRegexExecutable: URL? = nil, historyFileCache: HistoryFileCache = HistoryFileCache(), loadsImmediately: Bool = true, contextMenuPolicy: HistoryContextMenuPolicy = .log) {
         findAccess = access; findPreferences = labelDefaults
         model = LogWindowModel(repository: repository, access: access, selecting: onChoose != nil || onChooseMultiple != nil, selectingMultiple: onChooseMultiple != nil, labelDefaults: labelDefaults, historyRegexExecutable: historyRegexExecutable, historyFileCache: historyFileCache)
+        model.contextMenuPolicy = contextMenuPolicy
         selectionCompletion = onChoose; multipleSelectionCompletion = onChooseMultiple
         model.endRevision = initialRevision
         let window = LogHistoryWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780),
@@ -1822,9 +1823,10 @@ struct LogCommandRequest: Identifiable {
     var onShowHistoryRange: ((HistoryRevisionRange) -> Void)?
     var onCommitChangeSets: ((CommitChangeSetComparison) -> Void)?
     var onHistorySVNDCommit: (() -> Void)?
+    @Published var contextMenuPolicy: HistoryContextMenuPolicy = .log
     func historyLogAvailable(extended:Bool)->Bool {
         guard let revision else { return false }
-        return (!selectedIsStash && !revision.references.isEmpty) || extended
+        return contextMenuPolicy.showsLog(hasReferences: !revision.references.isEmpty, isStash: selectedIsStash, extended: extended)
     }
     func historyPushAvailable(extended:Bool)->Bool {
         guard let revision else { return false }
@@ -4281,7 +4283,7 @@ struct RevisionTable: NSViewRepresentable {
             let actionTarget=HistoryMenuActionTarget(self);menuActionTarget=actionTarget
             // NSMenuItem.target is weak; this coordinator retains the popup's
             // relay until the next revision popup replaces it.
-            defer { normalizeSeparators(menu);bind(menu,to:actionTarget) }
+            defer { applyConsumerPolicy(menu);normalizeSeparators(menu);emphasizeDefaultComparison(menu);bind(menu,to:actionTarget) }
             guard !model.selected.isEmpty,model.entries.filter({model.selected.contains($0.hash)}).count==model.selected.count else{return}
             @discardableResult func item(_ title: String, _ selector: Selector, icon: MenuIcon, enabled: Bool = true) -> NSMenuItem {
                 let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.image = icon.contextImage(defaults: model.colorPreferences); item.target = self; item.isEnabled = enabled; menu.addItem(item)
@@ -4439,7 +4441,7 @@ struct RevisionTable: NSViewRepresentable {
                 item(LogBisectCommand.skip.title, #selector(bisectSkip), icon: .bisect, enabled: model.canBisect(.skip)); menu.addItem(.separator())
             }
             let combineRows = model.entries.indices.filter { model.selected.contains(model.entries[$0].hash) }
-            if !model.busy, !model.bare, !model.mergeActive, !model.includesWorkingTree, combineRows.count > 1,
+            if model.contextMenuPolicy.contains(.combine), !model.busy, !model.bare, !model.mergeActive, !model.includesWorkingTree, combineRows.count > 1,
                combineRows.count == model.selected.count, model.continuousRevisionSelection,
                let headRow = model.entries.firstIndex(where: \.isHead), combineRows.first! >= headRow, model.onCombineRevisions != nil {
                 let chosen = combineRows.map { model.entries[$0] }, offset = combineRows.first! - headRow, head = model.entries[headRow].hash, projection = model.historyProjectionEpoch
@@ -4522,6 +4524,81 @@ struct RevisionTable: NSViewRepresentable {
             find.isEnabled = !model.isInvalidated && !model.busy && !model.findBlocked && !model.orderingBlocked && !model.referencePickerBlocked && (table?.window as? LogHistoryWindow) != nil
             find.representedObject=NSNumber(value:(table as? HistoryTableView)?.contextRow ?? table?.selectedRow ?? 0)
             menu.addItem(find)
+        }
+        private func sourceCommand(_ item: NSMenuItem) -> HistoryContextCommand? {
+            guard let selector = item.action else { return nil }
+            let name = NSStringFromSelector(selector)
+            if name.hasPrefix("copy") { return .copyClipboard }
+            switch name {
+            case "workingDiff": return .compareWorkingTree
+            case "commitWorkingTree": return .commit
+            case "showDiff", "showParentDiff:": return model.selected.count == 2 ? .unifiedDiffTwo : .unifiedDiff
+            case "compare", "compareParent:": return model.selected.count > 1 ? .compareTwo : .comparePrevious
+            case "compareChangeSets:": return .compareChangeSets
+            case "bisectGood": return .bisectGood
+            case "bisectBad": return .bisectBad
+            case "bisectSkip": return .bisectSkip
+            case "bisectReset": return .bisectReset
+            case "bisectStart": return .bisectStart
+            case "showHistory:": return .showLog
+            case "browseRepository": return .repositoryBrowser
+            case "mergeReference:", "mergeRevision": return .merge
+            case "reset": return .reset
+            case "switchBranchReference:": return .switchBranch
+            case "checkoutReference:", "checkout": return .checkout
+            case "branchReference:", "branch": return .createBranch
+            case "tagReference:", "tag": return .createTag
+            case "rebaseRevision": return .rebase
+            case "exportRevision": return .export
+            case "revertCaptured:", "revert", "revertParent:": return .revert
+            case "editNotes": return .editNote
+            case "combineRevisions:": return .combine
+            case "cherryPick": return .cherryPick
+            case "formatPatch": return .createPatch
+            case "pushCaptured:", "pushReference:", "push": return .push
+            case "svnDCommitFromHistory:": return .svnDCommit
+            case "pullFromHistory": return .pull
+            case "deleteReferenceItems:": return .delete
+            case "toggleRollup": return .rollup
+            case "findEntry:": return .find
+            case "showContainingReferences": return .showBranches
+            case "workingCommand:":
+                guard let value = item.representedObject as? String, let action = RepositoryAction(rawValue: value) else { return nil }
+                switch action {
+                case .mergeAbort: return .mergeAbort
+                case .stash: return .stashSave
+                case .stashPop: return .stashPop
+                case .stashList: return .stashList
+                case .pull: return .pull
+                case .fetch: return .fetch
+                case .submoduleUpdate: return .submoduleUpdate
+                case .clean: return .cleanup
+                default: return nil
+                }
+            default: return nil // Source range-log entries deliberately have no mask.
+            }
+        }
+        private func applyConsumerPolicy(_ menu: NSMenu) {
+            for item in menu.items where !item.isSeparatorItem {
+                // ID_LOG's source exception has already been resolved by the
+                // model against the captured row/Shift state when adding it.
+                if let command = sourceCommand(item), command != .showLog, !model.contextMenuPolicy.contains(command) {
+                    menu.removeItem(item); continue
+                }
+                if let submenu = item.submenu {
+                    applyConsumerPolicy(submenu); normalizeSeparators(submenu)
+                    if submenu.items.isEmpty { menu.removeItem(item) }
+                }
+            }
+        }
+        private func emphasizeDefaultComparison(_ menu: NSMenu) {
+            guard model.colorPreferences.bool(forKey: "DiffByDoubleClickInLog"),
+                  let item = menu.items.first(where: { sourceCommand($0) == .comparePrevious }) else { return }
+            func emphasize(_ item: NSMenuItem) {
+                item.attributedTitle = NSAttributedString(string: item.title, attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)])
+            }
+            emphasize(item)
+            if let firstParent = item.submenu?.items.first { emphasize(firstParent) }
         }
         private func normalizeSeparators(_ menu:NSMenu) {
             for item in menu.items {if let submenu=item.submenu{normalizeSeparators(submenu)}}
@@ -4675,16 +4752,17 @@ struct RevisionTable: NSViewRepresentable {
     private weak var coordinator:RevisionTable.Coordinator?
     private weak var model:LogWindowModel?
     private let generation:Int,projection:UUID,selection:Set<String>,hashes:[String],references:[[RevisionReference]]
+    private let policy: HistoryContextMenuPolicy
     private var consumed=false
     init(_ coordinator:RevisionTable.Coordinator) {
         self.coordinator=coordinator;let model=coordinator.model;self.model=model
-        generation=model.contextMenuGeneration;projection=model.historyProjectionEpoch;let selected=model.selected;selection=selected
+        generation=model.contextMenuGeneration;projection=model.historyProjectionEpoch;let selected=model.selected;selection=selected;policy=model.contextMenuPolicy
         let entries=model.entries.filter{selected.contains($0.hash)}
         hashes=entries.map(\.hash);references=entries.map(\.references)
     }
     private func invoke(_ selector:Selector,sender:NSMenuItem? = nil) {
         guard !consumed,let coordinator,let model,coordinator.model === model,!model.isInvalidated,
-              !model.busy,!model.findBlocked,!model.orderingBlocked,!model.referencePickerBlocked,
+              !model.busy,!model.confirmingQuit,!model.findBlocked,!model.orderingBlocked,!model.referencePickerBlocked,model.contextMenuPolicy==policy,
               model.window?.attachedSheet==nil,model.contextMenuGeneration==generation,model.historyProjectionEpoch==projection,
               !selection.isEmpty,model.selected==selection else { return }
         let entries=model.entries.filter{selection.contains($0.hash)}
@@ -4774,7 +4852,7 @@ final class HistoryTableView: NSTableView {
     @discardableResult func showReferenceContextMenu(row: Int, name: String, point: NSPoint) -> Bool {
         guard contextMenuAvailable(), row >= 0, row < numberOfRows, let menu else { return false }
         selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-        contextReference = (row, name); contextExtendedMenu = false; contextRow = row
+        contextReference = (row, name); contextExtendedMenu = NSEvent.modifierFlags.contains(.shift); contextRow = row
         scrollRowToVisible(row); scrollToVisible(NSRect(x: point.x - 2, y: point.y - 2, width: 4, height: 4)); layoutSubtreeIfNeeded()
         // NSMenu.update() need not ask its delegate to populate a menu before
         // tracking begins. Prepare this pointed popup once, including its

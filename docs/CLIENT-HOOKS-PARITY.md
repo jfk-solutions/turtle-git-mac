@@ -50,9 +50,10 @@ a security-scoped executable bookmark; execution retains scopes for literal
 external file arguments that have matching bookmarks. Complex shell expressions
 remain constrained by the sandbox, and signed execution acceptance is pending.
 
-Remaining acceptance: post-action combinations,
-source placement relative to Rebase autostash, Merge-created commits and alternate
-replay/Sync pathways, comprehensive success/failure and cancellation combinations,
+The connected replay identity/boundary review below supersedes the older
+pending source-placement notes for Rebase autostash, Merge-created commits and
+alternate replay/Sync paths. Remaining acceptance: post-action combinations,
+comprehensive success/failure and cancellation combinations,
 script-created UI and output presentation, stale/script folder grants, screenshots,
 physical keyboard/VoiceOver and signed deployment. This family remains partial.
 
@@ -108,3 +109,60 @@ tree. Configure controls preserve Enable/type/repository/path/command/Wait/Hide/
 OK/Cancel/Help order. Native fonts, rounded fields and alternating table styling
 are macOS adaptations. Window resize, physical keyboard/VoiceOver and signed
 acceptance are not certified by these images.
+
+## Replay identity repair and actual source hook boundaries — October 18, 2026
+
+The connected review follows pinned `RebaseDlg.cpp::CheckRebaseCondition`,
+`AppUtils.cpp::CheckUserData`, `Git.cpp::GetUserName/GetUserEmail/GetCommitterName/
+GetCommitterEmail` and `CommitDlg.cpp`'s three Commit client-hook call sites.
+The related native resource families are `src/Resources/TortoiseProcENG.rc` /
+`IDD_REBASE` and `IDD_SETTINGIT_CONFIG` (the native Git Settings page).
+
+Rebase Start now checks all four explicit author/committer values after the
+source's tracked-change stash boundary and before PreRebase. Git's synthesized
+login/host identity is not accepted as configured user data. Nonempty environment
+values take precedence over author/committer settings, then user settings; empty
+overrides fall through. This preflight deliberately preserves the pinned
+`GetCommitterEmail` use of `GIT_AUTHOR_EMAIL`, rather than silently changing that
+source UI rule to `GIT_COMMITTER_EMAIL`. The Git subprocess environment itself is
+unchanged and retains Git's own identity semantics.
+
+Incomplete identity offers Yes/No and an owned Settings sheet beginning on Git.
+It retains the replay repository, permission lease and original preferences in
+an independent Settings transaction. Returning from Settings does not certify
+identity or start the hook: all four values are read again, and the offer repeats
+if they remain incomplete. No aborts the pending Start. A stash already created
+by the source ordering stays owned and available through the existing restore
+flow. Cherry Pick shares identity validation but does not acquire a PreRebase
+client hook. Cancellation/owner retirement rejects delayed metadata and Settings
+replies; actual read/operation accounting remains owned until return.
+
+Source review also resolved two older pending hook questions without inventing
+extra call sites. Automatic merge commits from `git merge` have no Tortoise
+Start/Pre/PostCommit client-hook caller; the explicit Commit post-action opens
+the existing Commit dialog and its hook workflow. Sync Fetch-and-Rebase and Pull
+Rebase handoffs use the same owned Rebase Start boundary, including autostash,
+identity repair and PreRebase, while alternate Cherry Pick replay remains excluded.
+The existing Sync Push calls retain their separate PrePush/PostPush boundaries.
+
+`ReplayUserIdentityTests` exercises explicit/inherited values, environment and
+empty-override precedence, the pinned email rule, missing identity, cancellation
+and unchanged configuration/HEAD. The native
+[replay fixture](qa/replay-hook-identity-native-2026-10-18.swift) covers actual
+stash/identity/hook ordering, repeated incomplete Settings repair, original hook
+arguments, failed-hook history preservation, held-read retirement/Quit ownership,
+the actual owned Git Settings page and forced parent closure. Parent grouped
+validation records outcomes; fixture existence does not prove a pass. Physical
+Settings gestures, all replay combinations, signed script/save grants and whole
+application parity remain open.
+
+Actual grouped build/check outcomes: [history action batch evidence](qa/history-actions-2026-10-18.json).
+
+The actual native identity Settings sheet reproduced a Close/OK/Cancel refusal:
+AppKit disabled its title-bar close control despite an idle transaction. The
+owned sheet now accepts explicit close actions only through its live transaction
+and existing delegate guards. It retains its continuation and question ownership
+through actual parent/child sheet detachment, including forced parent retirement.
+The invisible fixture exercises Close, real OK/Cancel footer dispatch, held-save
+refusal and late-reader drain with both Git engines. This fixes that owned sheet;
+it is not a claim about every Settings host or signed platform behavior.

@@ -11,6 +11,7 @@ final class GitBlameTests: XCTestCase {
         let marker=root.appendingPathComponent(".git/svn/.metadata");try FileManager.default.createDirectory(at:marker.deletingLastPathComponent(),withIntermediateDirectories:true);try Data().write(to:marker)
         let snapshot=try await repo.blame(path:path),index=try Data(contentsOf:root.appendingPathComponent(".git/index")),details=try await repo.blameHistoryDetails(snapshot,options:GitBlameOptions(),regexExecutable:parser)
         XCTAssertTrue(details.issueProperties.showsBugIDColumn);XCTAssertTrue(details.hasGitSVN);XCTAssertEqual(details.entries.first?.issueIDs,"2 10");XCTAssertEqual(details.entries.first?.hash,snapshot.revision)
+        XCTAssertTrue(details.hasWorkingTree);XCTAssertEqual(details.head,snapshot.revision)
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(path)),snapshot.contents)
         let values=[LogEntry(hash:String(repeating:"a",count:40),author:"",date:"",subject:"",message:"\ngit-svn-id: https://example.invalid/a@00123 abcd"),LogEntry(hash:String(repeating:"b",count:40),author:"",date:"",subject:"subject",message:"subject\n\ngit-svn-id: https://example.invalid/a@42 abcd\n")]
         let source=try GitBlameHistoryDetails.prepare(entries:values,issueProperties:IssueTrackerProperties(),hasGitSVN:true,regexExecutable:parser)

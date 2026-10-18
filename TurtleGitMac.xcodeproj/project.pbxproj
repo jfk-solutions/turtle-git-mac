@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BE462FE53C0B4B66B33BB001 /* HistoryContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE462FE53C0B4B66B33BB002 /* HistoryContextMenu.swift */; };
 		9D9CD3871BA00B95799144DB /* WorkspaceOpenHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = F683B62C4ED5B1A44ABABE5B /* WorkspaceOpenHandoff.swift */; };
 		E7EE2E498E66943F441996F1 /* MergeToolPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D232D8E07E63FE16A8D390A /* MergeToolPresentation.swift */; };
 		5F28B30C7683C9167622EC00 /* MergeReflectedPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BD155E440FDEDE7B8AD1E25 /* MergeReflectedPatch.swift */; };
@@ -530,6 +531,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		BE462FE53C0B4B66B33BB002 /* HistoryContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryContextMenu.swift; sourceTree = "<group>"; };
 		F683B62C4ED5B1A44ABABE5B /* WorkspaceOpenHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceOpenHandoff.swift; sourceTree = "<group>"; };
 		5D232D8E07E63FE16A8D390A /* MergeToolPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeToolPresentation.swift; sourceTree = "<group>"; };
 		1BD155E440FDEDE7B8AD1E25 /* MergeReflectedPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeReflectedPatch.swift; sourceTree = "<group>"; };
@@ -1349,6 +1351,7 @@
 				FA0407EF51F807A4F8D86FDA /* HistoryOrdering.swift */,
 				EFDFF34043A119AA7ED83853 /* HistoryReferenceDeletion.swift */,
 				ACCD52A86C10025F3F1705C8 /* HistoryReferenceLabels.swift */,
+				BE462FE53C0B4B66B33BB002 /* HistoryContextMenu.swift */,
 				DAA057A2776BAA8F4BE538EE /* Ignore.swift */,
 				56132E3DE7A107C7B04A216E /* ImageComparison.swift */,
 				DDA6BCF99B24BA72CE43F823 /* ImageConflict.swift */,
@@ -1967,6 +1970,7 @@
 				AF9084378A5D1AF1BB70E8E2 /* HistoryOrdering.swift in Sources */,
 				003A4001BFAED871A45BC255 /* HistoryReferenceDeletion.swift in Sources */,
 				443137D28BFDD283BDA2B71E /* HistoryReferenceLabels.swift in Sources */,
+				BE462FE53C0B4B66B33BB001 /* HistoryContextMenu.swift in Sources */,
 				71A192AE217977ACEEDE0E0E /* Ignore.swift in Sources */,
 				03AD1F2FC854986D044AE453 /* ImageComparison.swift in Sources */,
 				BCD150BA60D833990C3FB778 /* ImageConflict.swift in Sources */,

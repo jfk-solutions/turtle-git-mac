@@ -272,6 +272,8 @@ public struct GitBlameHistoryDetails:Sendable {
     public let issueProperties:IssueTrackerProperties
     public let hasGitSVN:Bool
     public let svnRevisions:[String:String]
+    public var hasWorkingTree:Bool = false
+    public var head:String? = nil
     public static func prepare(entries:[LogEntry],issueProperties:IssueTrackerProperties,hasGitSVN:Bool,regexExecutable:URL? = nil,cancellation:OperationCancellation? = nil) throws -> Self {
         var decorated=entries,svn:[String:String]=[:]
         for start in stride(from:0,to:entries.count,by:128) {
@@ -302,7 +304,10 @@ extension GitRepository {
         if bytes.last==10 { bytes.removeLast() }
         guard let path=String(data:bytes,encoding:.utf8),path.hasPrefix("/"),!path.contains("\0") else { throw GitBlameFailure.format }
         let svn = !bare && FileManager.default.fileExists(atPath:URL(fileURLWithPath:path).appendingPathComponent("svn/.metadata").path)
-        return try GitBlameHistoryDetails.prepare(entries:entries,issueProperties:properties,hasGitSVN:svn,regexExecutable:regexExecutable,cancellation:cancellation)
+        var details = try GitBlameHistoryDetails.prepare(entries:entries,issueProperties:properties,hasGitSVN:svn,regexExecutable:regexExecutable,cancellation:cancellation)
+        details.hasWorkingTree = !bare
+        details.head = try run(["rev-parse","--verify","HEAD"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+        return details
     }
 }
 

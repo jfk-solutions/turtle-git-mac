@@ -24,6 +24,9 @@ import TurtleGitCore
     let identityAccess: SSHIdentityAccessStore
     @Published private(set) var names: [GitReferenceName] = []
     @Published private(set) var selected: GitReferenceName?
+    private(set) var requestedSelection: GitReferenceName?
+    private(set) var selectionPending = false
+    var displayedSelection: GitReferenceName? { selectionPending ? requestedSelection : selected }
     @Published private(set) var draft = RemoteSettings()
     @Published private(set) var changed: RemoteSettingsFields = []
     @Published private(set) var hasChild = false
@@ -60,7 +63,7 @@ import TurtleGitCore
     private func live(_ request: OperationCancellation) -> Bool { !closed && token === request && !request.isCancelled }
     private func checkAccess() throws { if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable } }
     func setChild(_ value: Bool) { hasChild = value; updated() }
-    func invalidate() { cancelOriginHint(); let completion = settingsCompletion; settingsCompletion = nil; completion?(false); hasChild = false; closed = true; token?.cancel(); collisionToken?.cancel(); token = nil; collisionToken = nil; pendingFetch = nil; busy = false; updated() }
+    func invalidate() { cancelOriginHint(); let completion = settingsCompletion; settingsCompletion = nil; completion?(false); hasChild = false; closed = true; token?.cancel(); collisionToken?.cancel(); token = nil; collisionToken = nil; pendingFetch = nil; selectionPending = false; requestedSelection = nil; busy = false; updated() }
     func edit(_ field: RemoteSettingsFields, _ change: (inout RemoteSettings) -> Void) {
         guard !closed, !busy, !hasChild else { return }; if field == .name || field == .url { cancelOriginHint() }; change(&draft); changed.formUnion(field)
         if field == .url, names.isEmpty, draft.name.isEmpty, !draft.url.isEmpty { draft.name = "origin"; changed.insert(.name) }
@@ -83,7 +86,7 @@ import TurtleGitCore
             defer { Self.activeOperations -= 1 }
             defer {
                 let completion = settingsCompletion; settingsCompletion = nil
-                if token === request { token = nil; busy = false; updated(); if pendingClose, !closed { pendingClose = false; close() }; if let remote = pendingFetch, !closed { pendingFetch = nil; onFetch(remote) } }
+                if token === request { token = nil; selectionPending = false; requestedSelection = nil; busy = false; updated(); if pendingClose, !closed { pendingClose = false; close() }; if let remote = pendingFetch, !closed { pendingFetch = nil; onFetch(remote) } }
                 // Read actor state in this scope. Older Swift compilers lose
                 // its isolation in the nested defer's Boolean autoclosures.
                 let succeeded = self.error == nil
@@ -128,7 +131,8 @@ import TurtleGitCore
         guard live(request) else { return }; selected = name; draft = value; changed = []; collision = false; updated()
     }
     func select(_ name: GitReferenceName?) {
-        guard !closed, !busy, !hasChild, name != selected else { return }
+        guard !closed, !busy, !hasChild, name != selected, name.map({ names.contains($0) }) ?? true else { return }
+        requestedSelection = name; selectionPending = true
         perform { [self] request in
             if !changed.isEmpty { let choice = await confirm(.saveDiscard); guard live(request) else { return }; if choice.yes { do { try await apply(request) } catch { guard live(request) else { return }; self.error = error.localizedDescription } } }
             guard live(request) else { return }; try await read(name, request)
@@ -208,7 +212,7 @@ import TurtleGitCore
         model = RemoteSettingsWindowModel(repository: repository, access: access, preferences: preferences, noFetch: noFetch)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 730, height: 440), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Remote – TurtleGit"; window.contentMinSize = .init(width: 680, height: 420); window.isReleasedWhenClosed = false
-        window.contentView = RemoteSettingsNativeView(model: model)
+        let content = RemoteSettingsNativeView(model: model); window.contentView = content; window.initialFirstResponder = content.table
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in guard let self, !self.model.busy, !self.model.hasChild, self.window?.attachedSheet == nil else { return }; self.close() }
         model.onFetch = { [weak self] remote in self?.showFetch(remote) }
@@ -229,6 +233,12 @@ import TurtleGitCore
     private let wordCommands=GitInputWordCommands()
     let model: RemoteSettingsWindowModel
     let table = NSTableView()
+    let remoteScroll = NSScrollView()
+    private let emptyList = RemoteSettingsEmptyLabel(wrappingLabelWithString: "No remotes configured")
+    private var renderedNames: [GitReferenceName] = []
+    private var renderedSelection: GitReferenceName?
+    private weak var selectionFocusWindow: NSWindow?
+    private var remoteColumnWidth: CGFloat = 180
     let remote = NSTextField(), url = NSTextField(), pushURL = NSTextField(), key = NSTextField(), sshKey = NSTextField()
     let browse = NSButton(title: "…", target: nil, action: nil), browseSSH = NSButton(title: "…", target: nil, action: nil)
     let tags = NSPopUpButton(frame: .zero, pullsDown: false)
@@ -242,10 +252,31 @@ import TurtleGitCore
     private var shownHint: String?
     init(model: RemoteSettingsWindowModel, embeddedSettings: Bool = false) {
         self.model = model; super.init(frame: .zero)
-        table.headerView = nil; table.delegate = self; table.dataSource = self; table.rowHeight = 22; table.addTableColumn(NSTableColumn(identifier: .init("remote"))); table.setAccessibilityLabel("Configured remotes")
-        let scroll = NSScrollView(); scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
-        let list = NSStackView(views: [NSTextField(labelWithString: "Remote:"), scroll]); list.orientation = .vertical; list.alignment = .leading
-        list.widthAnchor.constraint(equalToConstant: 180).isActive = true; scroll.widthAnchor.constraint(equalTo: list.widthAnchor).isActive = true
+        table.headerView = nil; table.delegate = self; table.dataSource = self
+        table.rowHeight = 24; table.intercellSpacing = NSSize(width: 0, height: 1)
+        table.allowsMultipleSelection = false; table.allowsEmptySelection = true
+        table.selectionHighlightStyle = .regular; table.usesAlternatingRowBackgroundColors = true
+        table.backgroundColor = .controlBackgroundColor; table.columnAutoresizingStyle = .noColumnAutoresizing
+        table.setAccessibilityLabel("Configured remotes"); table.identifier = .init("RemoteSettings.Remotes")
+        let column = NSTableColumn(identifier: .init("remote")); column.minWidth = 160; column.width = 180; table.addTableColumn(column)
+        remoteScroll.documentView = table; remoteScroll.hasVerticalScroller = true; remoteScroll.hasHorizontalScroller = true
+        remoteScroll.autohidesScrollers = true; remoteScroll.borderType = .bezelBorder
+        remoteScroll.drawsBackground = true; remoteScroll.backgroundColor = .controlBackgroundColor
+        let listContent = NSView(); listContent.addSubview(remoteScroll); listContent.addSubview(emptyList)
+        for view in [remoteScroll, emptyList] { view.translatesAutoresizingMaskIntoConstraints = false }
+        emptyList.font = .systemFont(ofSize: NSFont.smallSystemFontSize); emptyList.textColor = .secondaryLabelColor
+        emptyList.alignment = .center; emptyList.setAccessibilityLabel("No remotes configured")
+        NSLayoutConstraint.activate([
+            remoteScroll.leadingAnchor.constraint(equalTo: listContent.leadingAnchor), remoteScroll.trailingAnchor.constraint(equalTo: listContent.trailingAnchor),
+            remoteScroll.topAnchor.constraint(equalTo: listContent.topAnchor), remoteScroll.bottomAnchor.constraint(equalTo: listContent.bottomAnchor),
+            listContent.heightAnchor.constraint(greaterThanOrEqualToConstant: 220),
+            emptyList.leadingAnchor.constraint(equalTo: listContent.leadingAnchor, constant: 12), emptyList.trailingAnchor.constraint(equalTo: listContent.trailingAnchor, constant: -12),
+            emptyList.centerYAnchor.constraint(equalTo: listContent.centerYAnchor)
+        ])
+        let list = NSStackView(views: [NSTextField(labelWithString: "Remote:"), listContent]); list.orientation = .vertical; list.alignment = .leading; list.spacing = 6
+        list.widthAnchor.constraint(equalToConstant: 180).isActive = true; listContent.widthAnchor.constraint(equalTo: list.widthAnchor).isActive = true
+        listContent.setContentHuggingPriority(.defaultLow, for: .vertical)
+        listContent.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         for (field, label) in [(remote,"Remote"),(url,"URL"),(pushURL,"Push URL"),(key,"PuTTY Key (Windows)"),(sshKey,"SSH Key (macOS)")] { field.delegate = self; field.setAccessibilityLabel(label); field.setContentHuggingPriority(.defaultLow, for: .horizontal) }
         key.toolTip = "Preserves remote.<name>.puttykeyfile for Windows interoperability. PuTTY keys cannot be loaded by OpenSSH."
         sshKey.toolTip = "OpenSSH key for macOS. Use Browse to grant access, then enable Auto-load SSH key in Fetch/Push."
@@ -257,7 +288,10 @@ import TurtleGitCore
         browseSSH.target = self; browseSSH.action = #selector(browseSSHKey); browseSSH.bezelStyle = .rounded; browseSSH.setAccessibilityLabel("Browse OpenSSH private key file")
         func row(_ label: String, _ views: [NSView]) -> NSStackView { let title = NSTextField(labelWithString: label); title.widthAnchor.constraint(equalToConstant: 90).isActive = true; let stack = NSStackView(views: [title] + views); stack.orientation = .horizontal; stack.spacing = 8; return stack }
         warning.textColor = .systemOrange; warning.setAccessibilityLabel("Remote name warning")
-        let form = NSStackView(views: [row("Remote:",[remote,rename]),row("URL:",[url]),row("Push URL:",[pushURL]),row("PuTTY Key:",[key,browse]),row("SSH Key:",[sshKey,browseSSH]),row("Tags:",[tags,pushDefault]),prune,warning,NSView(),add,remove]); form.orientation = .vertical; form.alignment = .leading; form.spacing = 10
+        let formSpace = NSView(); formSpace.setContentHuggingPriority(.defaultLow, for: .vertical)
+        add.widthAnchor.constraint(equalToConstant: 160).isActive = true
+        let form = NSStackView(views: [row("Remote:",[remote,rename]),row("URL:",[url]),row("Push URL:",[pushURL]),row("PuTTY Key:",[key,browse]),row("SSH Key:",[sshKey,browseSSH]),row("Tags:",[tags,pushDefault]),prune,warning,formSpace,add,remove]); form.orientation = .vertical; form.alignment = .leading; form.spacing = 10
+        remove.widthAnchor.constraint(equalTo: add.widthAnchor).isActive = true
         for view in form.arrangedSubviews.prefix(6) { view.widthAnchor.constraint(equalTo: form.widthAnchor).isActive = true }
         let body = NSStackView(views: [list,form]); body.orientation = .horizontal; body.alignment = .top; body.spacing = 20
         list.heightAnchor.constraint(equalTo: body.heightAnchor).isActive = true; form.heightAnchor.constraint(equalTo: body.heightAnchor).isActive = true
@@ -265,6 +299,9 @@ import TurtleGitCore
         let buttons = NSStackView(views: embeddedSettings ? [help,status,NSView()] : [help,status,NSView(),ok,cancel,apply]); buttons.orientation = .horizontal; buttons.spacing = 8
         let layout = NSStackView(views: [body,buttons]); layout.orientation = .vertical; layout.spacing = 16; layout.translatesAutoresizingMaskIntoConstraints = false; addSubview(layout)
         NSLayoutConstraint.activate([layout.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),layout.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),layout.topAnchor.constraint(equalTo: topAnchor, constant: 16),layout.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -16),body.widthAnchor.constraint(equalTo: layout.widthAnchor),buttons.widthAnchor.constraint(equalTo: layout.widthAnchor)])
+        let keyViews: [NSView] = [table,remote,rename,url,pushURL,key,browse,sshKey,browseSSH,tags,pushDefault,prune,add,remove,help]
+        for index in 0..<(keyViews.count - 1) { keyViews[index].nextKeyView = keyViews[index + 1] }
+        if !embeddedSettings { help.nextKeyView = ok; ok.nextKeyView = cancel; cancel.nextKeyView = apply; apply.nextKeyView = table }
         model.updated = { [weak self] in self?.render() }; render()
     }
     override func viewDidMoveToWindow() {
@@ -289,9 +326,26 @@ import TurtleGitCore
     }
     func render() {
         updating = true; defer { updating = false }
-        for (field,value) in [(remote,model.draft.name),(url,model.draft.url),(pushURL,model.draft.pushURL),(key,model.draft.puttyKeyFile),(sshKey,model.draft.sshKeyFile)] { if field.stringValue != value { field.stringValue = value }; field.isEnabled = !model.busy && !model.closed && !model.hasChild }
+        for (field,value) in [(remote,model.draft.name),(url,model.draft.url),(pushURL,model.draft.pushURL),(key,model.draft.puttyKeyFile),(sshKey,model.draft.sshKeyFile)] { if !field.stringValue.utf8.elementsEqual(value.utf8) { field.stringValue = value }; field.isEnabled = !model.busy && !model.closed && !model.hasChild }
         browse.isEnabled = key.isEnabled; browseSSH.isEnabled = sshKey.isEnabled
-        table.reloadData(); table.selectRowIndexes(IndexSet(model.names.indices.filter { model.names[$0] == model.selected }), byExtendingSelection: false); table.isEnabled = !model.busy && !model.closed && !model.hasChild
+        let topRow = table.row(at: NSPoint(x: 0, y: table.visibleRect.minY))
+        let topName = renderedNames.indices.contains(topRow) ? renderedNames[topRow] : nil
+        let topOffset = topRow >= 0 ? table.visibleRect.minY - table.rect(ofRow: topRow).minY : 0
+        let changedNames = renderedNames != model.names
+        if changedNames {
+            renderedNames = model.names
+            remoteColumnWidth = max(180, model.names.map { ($0.rawValue as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: NSFont.systemFontSize)]).width + 20 }.max() ?? 0)
+            table.reloadData(); needsLayout = true
+        }
+        let desired = IndexSet(model.names.indices.filter { model.names[$0] == model.displayedSelection })
+        if table.selectedRowIndexes != desired { table.deselectAll(nil); table.selectRowIndexes(desired, byExtendingSelection: false) }
+        if renderedSelection != model.displayedSelection, let row = desired.first { table.scrollRowToVisible(row) }
+        else if changedNames, let topName, let row = model.names.firstIndex(of: topName) {
+            table.scroll(NSPoint(x: table.visibleRect.minX, y: max(0, table.rect(ofRow: row).minY + topOffset))); remoteScroll.reflectScrolledClipView(remoteScroll.contentView)
+        }
+        renderedSelection = model.displayedSelection
+        emptyList.isHidden = !model.names.isEmpty
+        table.isEnabled = !model.busy && !model.closed && !model.hasChild
         tags.selectItem(at: model.draft.tags == .none ? 1 : model.draft.tags == .all ? 2 : 0); tags.isEnabled = !model.busy && !model.closed && !model.hasChild
         prune.state = model.draft.prune == .enabled ? .on : model.draft.prune == .disabled ? .off : .mixed; pushDefault.state = model.draft.pushDefault ? .on : .off
         prune.isEnabled = !model.busy && !model.closed && !model.hasChild; pushDefault.isEnabled = prune.isEnabled; rename.isEnabled = model.canRename; remove.isEnabled = model.canRename; add.isEnabled = model.canSave; apply.isEnabled = model.canApply; ok.isEnabled = !model.busy && !model.closed && !model.hasChild; cancel.isEnabled = ok.isEnabled
@@ -306,10 +360,46 @@ import TurtleGitCore
         } else if model.originHint == nil { hintPopover?.close(); hintPopover = nil; shownHint = nil }
         warning.stringValue = model.collision ? "This remote name collides with fetch refspec of other remotes. Please use another name." : ""
         status.stringValue = model.busy ? "Please wait…" : model.error ?? ""; status.textColor = model.error == nil ? .secondaryLabelColor : .systemRed
+        if let owner = selectionFocusWindow {
+            if window !== owner || model.closed || model.hasChild { selectionFocusWindow = nil }
+            else if !model.busy && !model.selectionPending {
+                selectionFocusWindow = nil
+                // Disabling NSTableView during its owned read resigns focus to
+                // NSWindow. Restore only that displaced list focus, never a new
+                // field/sheet responder, and never activate a background window.
+                if owner.attachedSheet == nil && (owner.firstResponder === owner || owner.firstResponder === table) { owner.makeFirstResponder(table) }
+            }
+        }
     }
-    func numberOfRows(in tableView: NSTableView) -> Int { model.names.count }
-    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? { NSTextField(labelWithString: model.names[row].rawValue) }
-    func tableViewSelectionDidChange(_ notification: Notification) { guard !updating else { return }; model.select(model.names.indices.contains(table.selectedRow) ? model.names[table.selectedRow] : nil) }
+    override func layout() {
+        super.layout()
+        let width = max(remoteColumnWidth, remoteScroll.contentSize.width)
+        if let column = table.tableColumns.first, abs(column.width - width) > 0.5 { column.width = width }
+        if abs(table.frame.width - width) > 0.5 { table.setFrameSize(NSSize(width: width, height: table.frame.height)) }
+    }
+    func numberOfRows(in tableView: NSTableView) -> Int { renderedNames.count }
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        guard renderedNames.indices.contains(row) else { return nil }
+        let identifier = NSUserInterfaceItemIdentifier("RemoteSettings.Name")
+        let cell = tableView.makeView(withIdentifier: identifier, owner: nil) as? NSTableCellView ?? NSTableCellView()
+        if cell.textField == nil {
+            let label = NSTextField(labelWithString: ""); label.font = .systemFont(ofSize: NSFont.systemFontSize); label.lineBreakMode = .byClipping
+            cell.addSubview(label); cell.textField = label; label.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([label.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 6), label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6), label.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
+            cell.identifier = identifier
+        }
+        cell.textField?.stringValue = renderedNames[row].rawValue; cell.toolTip = renderedNames[row].rawValue
+        return cell
+    }
+    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool { !model.closed && !model.busy && !model.hasChild && window?.attachedSheet == nil && renderedNames.indices.contains(row) }
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        guard !updating, !model.closed, !model.busy, !model.hasChild, window?.attachedSheet == nil else { return }
+        let requested = renderedNames.indices.contains(table.selectedRow) ? renderedNames[table.selectedRow] : nil
+        guard requested != model.selected else { return }
+        selectionFocusWindow = window?.firstResponder === table ? window : nil
+        model.select(requested)
+        if !model.busy { selectionFocusWindow = nil }
+    }
     func control(_ control:NSControl,textView:NSTextView,doCommandBy selector:Selector)->Bool {
         guard !updating,!model.closed,!model.busy,!model.hasChild,[remote,url,pushURL,key,sshKey].contains(where:{$0 === control}) else{return false}
         wordCommands.policy=GitInputWordBreak(defaults:model.preferences)
@@ -372,4 +462,10 @@ struct PushRemoteSettings: View {
             .onAppear { settings.close = { if let onClose { onClose() } else { model.managingRemotes = false } }; settings.onRemotesChanged = { model.remotes = $0 }; settings.onReferencesChanged = { model.references = $0 }; settings.load() }
             .onDisappear { settings.invalidate(); if !model.closed { model.refreshRemoteCatalog() } }
     }
+}
+
+
+/// Empty-list guidance does not intercept clicks or become an editable row.
+private final class RemoteSettingsEmptyLabel: NSTextField {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }

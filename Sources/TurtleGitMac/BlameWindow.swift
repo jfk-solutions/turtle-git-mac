@@ -302,6 +302,12 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
 
     private var historyClipboardCancellation:OperationCancellation?
     private(set) static var activeHistoryOperations=0
+    @Published var historyContextMenuPolicy = HistoryContextMenuPolicy.blame {
+        didSet { if historyContextMenuPolicy != oldValue { historyMenuGeneration = UUID(); historyParentToken?.cancel() } }
+    }
+    private var historyMenuGeneration = UUID()
+    private(set) var historyHasWorkingTree = false
+    private(set) var historyHead:String?
     @Published private(set) var historyColumns:BlameHistoryColumns
     @Published private(set) var resettingHistoryColumns=false
     var confirmHistoryReset:() async -> Bool = { false }
@@ -379,17 +385,17 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         let line=lines[target.line.number-1]
         return line.hash==target.line.hash && line.originalLine==target.line.originalLine && line.filename.utf8.elementsEqual(target.line.filename.utf8) && line.sourceBytes==target.line.sourceBytes
     }
-    struct HistoryTarget { let owner:ObjectIdentifier,generation:Int;let entries:[LogEntry];var sourceOrigin=false }
+    struct HistoryTarget { let owner:ObjectIdentifier,generation:Int;let entries:[LogEntry];var sourceOrigin=false;let menuGeneration:UUID }
     func sourceParentTarget(_ hash:String)->HistoryTarget? {
         guard canFind,let line=lines.first(where:{ $0.hash==hash }) else { return nil }
         let entry=historyEntries.first { $0.hash==hash } ?? LogEntry(hash:hash,author:line.author,date:ISO8601DateFormatter().string(from:line.date),subject:line.summary)
-        return HistoryTarget(owner:ObjectIdentifier(self),generation:generation,entries:[entry],sourceOrigin:true)
+        return HistoryTarget(owner:ObjectIdentifier(self),generation:generation,entries:[entry],sourceOrigin:true,menuGeneration:historyMenuGeneration)
     }
     func historyTarget(_ entries:[LogEntry])->HistoryTarget? {
         guard canFind,!entries.isEmpty,entries.allSatisfy({ item in historyEntries.contains { $0.hash==item.hash } }) else { return nil }
-        return HistoryTarget(owner:ObjectIdentifier(self),generation:generation,entries:entries)
+        return HistoryTarget(owner:ObjectIdentifier(self),generation:generation,entries:entries,menuGeneration:historyMenuGeneration)
     }
-    func acceptsHistory(_ target:HistoryTarget)->Bool { canFind && target.owner==ObjectIdentifier(self) && target.generation==generation && target.entries.allSatisfy { item in target.sourceOrigin ? lines.contains { $0.hash==item.hash } : historyEntries.contains { $0.hash==item.hash } } }
+    func acceptsHistory(_ target:HistoryTarget)->Bool { canFind && target.owner==ObjectIdentifier(self) && target.generation==generation && target.menuGeneration==historyMenuGeneration && target.entries.allSatisfy { item in target.sourceOrigin ? lines.contains { $0.hash==item.hash } : historyEntries.contains { $0.hash==item.hash } } }
 
     @Published var copyingLog = false
     @Published var snapshot: GitBlameSnapshot?
@@ -710,12 +716,13 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
                 guard request==generation,!retired,!token.isCancelled else { return }
                 snapshot=nil;selection=nil;highlightedHash=nil;hoveredLine=nil;origins=[:];ranks=[:]
                 historyCount=0;navigationMessage="";historyEntries=[];selectedLogHashes=[]
-                issueProperties=IssueTrackerProperties();hasGitSVN=false;svnRevisions=[:];self.error=error.localizedDescription
+                issueProperties=IssueTrackerProperties();hasGitSVN=false;svnRevisions=[:];historyHasWorkingTree=false;historyHead=nil;self.error=error.localizedDescription
             }
         }
     }
     func install(_ result:GitBlameSnapshot,history entries:[LogEntry],options:GitBlameOptions,details:GitBlameHistoryDetails? = nil) {
         issueProperties=details?.issueProperties ?? IssueTrackerProperties();hasGitSVN=details?.hasGitSVN ?? false;svnRevisions=details?.svnRevisions ?? [:]
+        historyHasWorkingTree=details?.hasWorkingTree ?? false;historyHead=details?.head;historyMenuGeneration=UUID()
         let hashes=entries.map(\.hash)
         ranks=Dictionary(hashes.enumerated().map { ($0.element,$0.offset) },uniquingKeysWith:min)
         origins=Dictionary(result.lines.map { ($0.hash,$0) },uniquingKeysWith:{ first,_ in first })
@@ -1060,10 +1067,10 @@ struct BlameHistoryTable:NSViewRepresentable {
             for (id,title,width,_) in BlameHistoryColumns.definitions {
                 let column=NSTableColumn(identifier:.init(id));column.title=title;column.width=width;column.minWidth=24;column.maxWidth=10000;table.addTableColumn(column)
             }
-            table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(showLog)
+            table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(openHistory)
             table.menu=NSMenu();table.menu?.delegate=self
             let header=BlameHistoryColumnHeader(frame:NSRect(x:0,y:0,width:1000,height:24));header.buildMenu={ [weak self] in self?.columnMenu() };table.headerView=header
-            table.copySelection={ [weak self] in self?.copyHashes() };table.openSelection={ [weak self] in self?.showLog() };table.showContext={ [weak self] event in self?.showContext(event) }
+            table.copySelection={ [weak self] in self?.copyHashes() };table.openSelection={ [weak self] in self?.openHistory() };table.showContext={ [weak self] event in self?.showContext(event) }
             self.table=table
             let scroll=NSScrollView();scroll.borderType = .bezelBorder;scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.documentView=table
             update();return scroll
@@ -1176,36 +1183,47 @@ struct BlameHistoryTable:NSViewRepresentable {
         func menuNeedsUpdate(_ menu:NSMenu) {
             menu.removeAllItems();menu.autoenablesItems=false
             guard available,let target=contextTarget ?? model.historyTarget(selected),model.acceptsHistory(target) else { return }
+            let policy=model.historyContextMenuPolicy
             func item(_ title:String,_ command:String,_ icon:MenuIcon,enabled:Bool=true,into parent:NSMenu? = nil) {
+                let source:HistoryContextCommand = ["log":.showLog,"export":.export,"branch":.createBranch,"tag":.createTag,"switch":.checkout,"browse":.repositoryBrowser,"refs":.showBranches][command] ?? .copyClipboard
+                guard policy.contains(source) else { return }
                 let item=NSMenuItem(title:title,action:#selector(invoke(_:)),keyEquivalent:"");item.target=self;item.image=icon.contextImage(defaults:model.labelDefaults);item.representedObject=Invocation(target,command);item.isEnabled=enabled;(parent ?? menu).addItem(item)
             }
             if target.entries.count==1 {
                 let choices=model.cachedHistoryParents(target),parents=Dictionary(grouping:choices,by: \.parentNumber)
-                for (title,action,icon,enabled) in [("Blame previous revision",BlameWindowModel.ParentAction.previous,MenuIcon.blame,model.onPrevious != nil),("Compare with previous revision",.compare,.compare,model.onChanges != nil),("Show changes as unified diff",.unified,.unifiedDiff,model.onHistoryUnified != nil)] where !parents.isEmpty {
+                for (title,action,icon,enabled) in [("Blame previous revision",BlameWindowModel.ParentAction.previous,MenuIcon.blame,model.onPrevious != nil),("Show changes as unified diff",.unified,.unifiedDiff,model.onHistoryUnified != nil && model.historyHasWorkingTree),("Compare with previous revision",.compare,.compare,model.onChanges != nil)] where !parents.isEmpty {
+                    let source:HistoryContextCommand = action == .previous ? .blamePrevious : action == .compare ? .comparePrevious : .unifiedDiff
+                    guard policy.contains(source), action != .unified || model.historyHasWorkingTree else { continue }
                     func command(_ number:Int,_ title:String)->NSMenuItem {
-                        let result=NSMenuItem(title:title,action:#selector(invokeParent(_:)),keyEquivalent:"");result.target=self;result.image=icon.contextImage(defaults:model.labelDefaults);result.isEnabled=enabled;result.representedObject=ParentInvocation(target,parents[number]!,action);return result
+                        let result=NSMenuItem(title:title,action:#selector(invokeParent(_:)),keyEquivalent:"");result.target=self;result.image=icon.contextImage(defaults:model.labelDefaults);result.isEnabled=enabled;result.representedObject=ParentInvocation(target,parents[number]!,action)
+                        if action == .compare && model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog") && number==parents.keys.min() { result.attributedTitle=NSAttributedString(string:title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) };return result
                     }
                     if parents.count==1,let number=parents.keys.first { menu.addItem(command(number,title)) }
                     else {
                         let item=NSMenuItem(title:title,action:nil,keyEquivalent:"");item.image=icon.contextImage(defaults:model.labelDefaults);let sub=NSMenu();sub.autoenablesItems=false
-                        for number in parents.keys.sorted() { sub.addItem(command(number,"Parent \(number) (\(parents[number]![0].revision.prefix(8)))")) };item.submenu=sub;menu.addItem(item)
+                        for number in parents.keys.sorted() { sub.addItem(command(number,"Parent \(number) (\(parents[number]![0].revision.prefix(8)))")) };item.submenu=sub
+                        if action == .compare && model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog") { item.attributedTitle=NSAttributedString(string:title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) };menu.addItem(item)
                     }
                 }
                 if !parents.isEmpty { menu.addItem(.separator()) }
             }
             if target.entries.count==1 {
                 item("Show log","log",.log,enabled:model.onLog != nil);menu.addItem(.separator())
-                item("Export this version…","export",.export,enabled:model.onHistoryExport != nil)
+                item("Browse repository","browse",.repositoryBrowser,enabled:model.onHistoryBrowse != nil)
+                if model.historyHasWorkingTree && target.entries[0].hash != model.historyHead { item("Switch/Checkout to this…","switch",.checkout,enabled:model.onHistorySwitch != nil) }
                 item("Create branch at this version…","branch",.branch,enabled:model.onHistoryReference != nil)
                 item("Create tag at this version…","tag",.tag,enabled:model.onHistoryReference != nil)
-                item("Switch/Checkout to this…","switch",.checkout,enabled:model.onHistorySwitch != nil)
-                item("Browse repository","browse",.repositoryBrowser,enabled:model.onHistoryBrowse != nil)
-                item("Show branches this commit is on","refs",.showBranches,enabled:model.onContainingReferences != nil);menu.addItem(.separator())
+                item("Export this version…","export",.export,enabled:model.onHistoryExport != nil)
+                menu.addItem(.separator())
             }
-            item("Copy SHA-1 to clipboard","hash",.copy)
-            item("Copy log message","details",.copy)
+            if policy.contains(.copyClipboard) {
             let parent=NSMenuItem(title:"Copy to clipboard",action:nil,keyEquivalent:"");parent.image=MenuIcon.copy.contextImage(defaults:model.labelDefaults);let sub=NSMenu();sub.autoenablesItems=false;parent.submenu=sub;menu.addItem(parent)
             for (title,command) in [("Full log messages","details"),("Full log messages without changed paths","detailsNoPaths"),("SHA-1","hash"),("Author names and emails","authors"),("Author names","names"),("Author emails","emails"),("Subjects","subjects"),("Messages","messages")] { item(title,command,.copy,into:sub) }
+            }
+            if target.entries.count==1 { item("Show branches this commit is on","refs",.showBranches,enabled:model.onContainingReferences != nil) }
+            var priorSeparator=true
+            for value in Array(menu.items) { if value.isSeparatorItem { if priorSeparator { menu.removeItem(value) };priorSeparator=true } else { priorSeparator=false } }
+            if menu.items.last?.isSeparatorItem==true { menu.removeItem(at:menu.items.count-1) }
         }
         @objc func invoke(_ sender:NSMenuItem) {
             guard available,let action=sender.representedObject as? Invocation,!action.used,model.acceptsHistory(action.target) else {return}
@@ -1229,6 +1247,14 @@ struct BlameHistoryTable:NSViewRepresentable {
                 case "refs":model.onContainingReferences?(entry.hash)
                 default:break
                 }
+            }
+        }
+        @objc func openHistory() {
+            guard available,model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog"),let target=model.historyTarget(selected),target.entries.count==1,model.historyContextMenuPolicy.contains(.comparePrevious) else { return }
+            let alternate=ComparisonToolInvocation.capture
+            model.prepareHistoryParents(target) { [weak self] choices in
+                guard let self,self.available,self.model.acceptsHistory(target),Set(self.selected.map(\.hash))==Set(target.entries.map(\.hash)),let first=choices.map(\.parentNumber).min() else { return }
+                self.model.performHistoryParent(target,choices:choices.filter { $0.parentNumber==first },action:.compare,alternate:alternate)
             }
         }
         @objc func showLog() { guard available,selected.count==1,let entry=selected.first else { return };model.onLog?(model.path,entry.hash) }

@@ -478,3 +478,35 @@ extension ReferenceBrowserTests {
     }
 
 }
+
+
+extension ReferenceBrowserTests {
+    func testCatalogDescriptionsUseLocalFirstEntryAndPreserveEmptyAndExactNames() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let nfc = "Café", nfd = "Cafe\u{301}"
+        let hash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let names = ["refs/heads/main", "refs/heads/other", "refs/heads/" + nfc, "refs/heads/" + nfd].sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
+        try Data(("# pack-refs with: sorted\n" + names.map { hash + " " + $0 + "\n" }.joined()).utf8).write(to:root.appendingPathComponent(".git/packed-refs"))
+        let config = root.appendingPathComponent(".git/config")
+        var raw = try Data(contentsOf: config)
+        raw.append(Data(("\n[branch \"main\"]\n description = first\\nline\n description = later\n" +
+                         "[branch \"" + nfc + "\"]\n description = NFC\n" +
+                         "[branch \"" + nfd + "\"]\n description = \"\"\n description = ignored\n").utf8))
+        try raw.write(to: config)
+        let global = root.appendingPathComponent("private-global-config")
+        try Data("[branch \"main\"]\n description = global-main\n[branch \"other\"]\n description = global-only\n".utf8).write(to: global)
+        let helper = root.appendingPathComponent("description-git")
+        func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+        let script = "#!/bin/sh\nexport GIT_CONFIG_GLOBAL=" + quote(global.path) + "\nexec " + quote(repo.executable.path) + " \"$@\"\n"
+        try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions:0o755], ofItemAtPath:helper.path)
+        let wrapped = GitRepository(root:root,executable:helper)
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let catalog = try await wrapped.referenceBrowser()
+        XCTAssertEqual(catalog.references.first { $0.name == "refs/heads/main" }?.description, "first\nline")
+        XCTAssertEqual(catalog.references.first { $0.name == "refs/heads/other" }?.description, "")
+        XCTAssertEqual(catalog.references.first { $0.name == GitReferenceName("refs/heads/" + nfc) }?.description, "NFC")
+        XCTAssertEqual(catalog.references.first { $0.name == GitReferenceName("refs/heads/" + nfd) }?.description, "")
+        XCTAssertEqual(raw, try Data(contentsOf:config)); XCTAssertEqual(index, try Data(contentsOf:root.appendingPathComponent(".git/index")))
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(head,after)
+    }
+}

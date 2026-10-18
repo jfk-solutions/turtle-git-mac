@@ -11,6 +11,9 @@ import TurtleGitCore
     private var revisionFilePresenter:RevisionFileActionPresenter?
     var onClosed: () -> Void = {}
     private var replayQuestion: (UUID, NSAlert, (Int) -> Void)?
+    private var identitySettings: ReplayIdentitySettingsController?
+    var replayIdentitySettingsWindow: NSWindow? { identitySettings?.window }
+    var replayIdentityNavigation: SettingsNavigationController? { identitySettings?.navigation }
     private(set) var conflictBaseViewer: FileComparisonWindowController?
     private(set) var conflictRevertWindow:RevertProgressWindowController?
     private(set) var conflictUnifiedWindows:[UUID:PatchWindowController]=[:]
@@ -205,6 +208,11 @@ import TurtleGitCore
         model.pickAdditionalCommits = { [weak self] in self?.showAdditionalCommits() }
         model.cancelMainlineQuestion = { [weak self] in
             if let pending = self?.replayQuestion { self?.finishReplayQuestion(pending.0, answer: Int.max) }
+            self?.identitySettings?.retire()
+        }
+        model.repairReplayIdentity = { [weak self] in
+            guard let self, await self.askReplay("You have not entered your user information yet.", detail: "Enter your name and email address in Git settings before continuing.", buttons: ["Yes", "No"], defaultIndex: 1) == 0 else { return false }
+            return await self.showReplayIdentitySettings()
         }
         model.showSplitSelection = { [weak self] split, message in self?.showSplitSelection(split, message: message) }
         model.chooseStashBeforeReplay = { [weak self] in
@@ -249,6 +257,23 @@ import TurtleGitCore
         }
 
         DialogGeometry.attach(window, identifier: "RebaseWindowController")
+    }
+    /// The replay keeps its operation/access ownership while this local Settings
+    /// transaction is open. Returning does not mean identity is valid: Start reads
+    /// the four values again, and may offer this repair again as upstream does.
+    func showReplayIdentitySettings() async -> Bool {
+        guard !model.retired, identitySettings == nil, let window, window.attachedSheet == nil else { return false }
+        let child = ReplayIdentitySettingsController(repository: model.repository, access: model.repositoryAccess, preferences: model.columnPreferences)
+        child.window?.alphaValue = window.alphaValue
+        identitySettings = child; model.hasReplayQuestion = true
+        return await withCheckedContinuation { continuation in
+            child.onClosed = { [weak self, weak child] accepted in
+                if let self, self.identitySettings === child { self.identitySettings = nil; self.model.hasReplayQuestion = false }
+                continuation.resume(returning: accepted)
+            }
+            guard child.window != nil else { child.retire(); return }
+            child.presentSheet(for: window)
+        }
     }
     private func askReplay(_ title: String, detail: String = "", buttons: [String], defaultIndex: Int, accessory: NSView? = nil) async -> Int {
         guard !model.retired, replayQuestion == nil, let window, window.attachedSheet == nil else { return Int.max }
@@ -316,7 +341,7 @@ import TurtleGitCore
         if !model.active && model.hasReplayStash { model.finishReplay(); return false }
         return true
     }
-    func windowWillClose(_ notification: Notification) { retireReferencePicker(); model.retire(); retireCommitPicker();conflictAddWindow?.close();conflictAddWindow=nil;conflictIgnoreWindow?.close();conflictIgnoreWindow=nil;Array(conflictUnifiedWindows.values).forEach {$0.close()};conflictUnifiedWindows=[:]; if let pending = replayQuestion { finishReplayQuestion(pending.0, answer: Int.max) }; if let pending = conflictPanel { finishConflictPanel(pending.0, accepted: false) }; conflictRevertWindow?.close();conflictRevertWindow=nil; conflictBaseViewer?.close(); conflictBaseViewer = nil; notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) { retireReferencePicker(); model.retire(); identitySettings?.retire(); retireCommitPicker();conflictAddWindow?.close();conflictAddWindow=nil;conflictIgnoreWindow?.close();conflictIgnoreWindow=nil;Array(conflictUnifiedWindows.values).forEach {$0.close()};conflictUnifiedWindows=[:]; if let pending = replayQuestion { finishReplayQuestion(pending.0, answer: Int.max) }; if let pending = conflictPanel { finishConflictPanel(pending.0, accepted: false) }; conflictRevertWindow?.close();conflictRevertWindow=nil; conflictBaseViewer?.close(); conflictBaseViewer = nil; notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 enum RebaseReferenceTarget: Equatable { case upstream, onto }
@@ -661,6 +686,20 @@ struct RebaseReferenceRequest {
         Task { let accepted = await confirmReplayCancellation(); confirmingReplayCancellation = false; if accepted && !retired && replayPreparationCancellation === token { pendingSessionRefresh = false; cancellingReplay = true; token.cancel() } }
     }
 
+    var readReplayIdentity: ((OperationCancellation) async throws -> ReplayUserIdentity)?
+    var repairReplayIdentity: () async -> Bool = { false }
+    private func requireReplayIdentity(_ token: OperationCancellation) async throws {
+        while true {
+            try token.check(); guard !retired else { throw OperationCancellationFailure.cancelled }
+            let identity: ReplayUserIdentity
+            if let readReplayIdentity { identity = try await readReplayIdentity(token) }
+            else { identity = try await repository.replayUserIdentity(cancellation: token) }
+            try token.check(); guard !retired else { throw OperationCancellationFailure.cancelled }
+            if identity.complete { return }
+            guard await repairReplayIdentity(), !retired else { throw OperationCancellationFailure.cancelled }
+            try token.check()
+        }
+    }
     var chooseStashBeforeReplay: () async -> Bool = { false }
     var chooseRestoreReplayStash: () async -> Bool = { false }
     var restoreReplayStash: (Int) async -> Void = { _ in }
@@ -1616,6 +1655,10 @@ struct RebaseReferenceRequest {
                         onChanged()
                     }
                     try preparation.check(); guard !retired else { throw OperationCancellationFailure.cancelled }
+                    // Source CheckRebaseCondition stashes first, then repairs
+                    // author/committer configuration, then runs PreRebase. Cherry
+                    // Pick shares the identity check but has no client hook.
+                    try await requireReplayIdentity(preparation)
                     if !snapshot.options.isCherryPick {
                         _ = try await clientHooks.run(.preRebase, repository: repository, access: access, upstream: snapshot.options.upstream, rebasedBranch: snapshot.options.branch, cancellation: preparation, allowContinue: true)
                     }
@@ -2218,5 +2261,72 @@ struct RebaseConflictFileKeys: NSViewRepresentable {
             }
             return event
         }
+    }
+}
+
+
+@MainActor private final class ReplayIdentitySettingsController: NSWindowController, NSWindowDelegate {
+    let navigation: SettingsNavigationController
+    private let workspace: RepositoryModel
+    var onClosed: (Bool) -> Void = { _ in }
+    private var retired = false, finished = false, closing = false
+    private weak var sheetOwner: NSWindow?
+    private var sheetObserver: NSObjectProtocol?
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults) {
+        workspace = RepositoryModel(startMonitoring: false, initializePreferences: false)
+        workspace.root = repository.root; workspace.settingsContextOverride = (repository, access, true)
+        navigation = SettingsNavigationController(workspace: workspace, appearance: AppAppearance(), preferences: preferences, initialPage: .git)
+        let window = ReplayIdentitySettingsWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 740), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false; window.title = "Settings – TurtleGit for Mac"; window.contentMinSize = NSSize(width: 860, height: 540)
+        super.init(window: window); window.delegate = self; window.contentViewController = navigation
+        window.canClose = { [weak self] in self.map { !$0.retired && !$0.closing && !$0.finished && $0.navigation.canDismiss } ?? false }
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    func presentSheet(for owner: NSWindow) {
+        guard let window, !closing, !finished else { return }
+        sheetOwner = owner
+        sheetObserver = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification, object: owner, queue: .main) { [weak self] _ in
+            DispatchQueue.main.async { self?.drain() }
+        }
+        owner.beginSheet(window)
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { navigation.canDismiss }
+    func windowWillClose(_ notification: Notification) { finish() }
+    func retire() {
+        guard !finished else { return }; retired = true
+        if !closing { close() }
+        finish()
+    }
+    private func finish() {
+        guard !finished else { return }
+        if !closing {
+            closing = true; navigation.invalidate()
+            if let window { window.sheetParent?.endSheet(window, returnCode: retired ? .abort : .OK); window.orderOut(nil) }
+        }
+        // Keep the transaction/window/continuation through AppKit's actual sheet
+        // release. The source repair loop can immediately need another question.
+        DispatchQueue.main.async { [self] in drain() }
+    }
+    private func drain() {
+        guard closing, !finished, window?.sheetParent == nil, sheetOwner?.attachedSheet !== window else { return }
+        finished = true
+        if let sheetObserver { NotificationCenter.default.removeObserver(sheetObserver); self.sheetObserver = nil }
+        let reply = onClosed; onClosed = { _ in }
+        reply(!retired && sheetOwner != nil && sheetOwner?.attachedSheet == nil)
+        withExtendedLifetime(workspace) {}
+    }
+    deinit { if let sheetObserver { NotificationCenter.default.removeObserver(sheetObserver) } }
+}
+
+
+/// AppKit disables an attached sheet's title-bar close button. Its ordinary
+/// performClose therefore refuses even the Settings footer's OK/Cancel action.
+/// This owned sheet keeps the same transaction/delegate policy while allowing
+/// those explicit close actions to finish their existing handoff.
+@MainActor private final class ReplayIdentitySettingsWindow: NSWindow {
+    var canClose: () -> Bool = { false }
+    override func performClose(_ sender: Any?) {
+        guard canClose(), delegate?.windowShouldClose?(self) != false else { return }
+        close()
     }
 }

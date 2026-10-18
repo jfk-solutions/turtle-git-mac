@@ -45,7 +45,10 @@ compiler version. Do not remove behavioral assertions to shorten tests.
 Use private repositories, preferences and pasteboards and injected responses
 where available. Close every test-owned window and terminate/wait for owned
 helper processes on success, failure and timeout. Keep at most the app instances
-needed for the current check. Do not terminate unrelated user-owned apps.
+needed for the current check. Do not terminate unrelated user-owned apps. Keep
+automated receiver windows invisible or offscreen, including sheets and child
+windows, so checks do not interrupt the user’s desktop. Use visible windows only
+for a deliberate physical/visual acceptance check, then close them immediately.
 
 Record the actual validation scope and failures. A local focused pass does not
 prove a complete hosted CI pass, physical Finder integration, signed deployment,
