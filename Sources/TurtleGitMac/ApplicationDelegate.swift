@@ -204,7 +204,7 @@ import AppKit
         if GitDaemonWindowModel.activeOperations > 0 || GitDaemonWindowModel.activeQuestions > 0 { return .terminateCancel }
         if FirstStartWizardModel.activeWrites > 0 || GeneralGitSettingsModel.activeOperations > 0 || GeneralGitSettingsModel.activeDialogs > 0 { return .terminateCancel }
         if GitConfigurationSettingsModel.activeFolderChoosers > 0 {return .terminateCancel}
-        if GitConfigurationSettingsModel.activeSheetReleases > 0 || CredentialSettingsModel.activeSheetReleases > 0 || NetworkSettingsModel.activeSheetReleases > 0 || HookSettingsModel.activeReads > 0 || HookConfigurationController.activeReleases > 0 || RemoteSettingsWindowModel.activeRetirements > 0 || SettingsTransaction.activeRetirements > 0 {return .terminateCancel}
+        if GitConfigurationSettingsModel.activeSheetReleases > 0 || CredentialSettingsModel.activeSheetReleases > 0 || NetworkSettingsModel.activeSheetReleases > 0 || HookSettingsModel.activeReads > 0 || HookConfigurationController.activeReleases > 0 || HookConfigurationController.activeChoosers > 0 || RemoteSettingsWindowModel.activeRetirements > 0 || SettingsTransaction.activeRetirements > 0 {return .terminateCancel}
         if MergeFormatPrompt.activeDialogs > 0 { return .terminateCancel }
         if MergeEditorSettingsModel.activeProfileEditors > 0 { return .terminateCancel }
         if MergeNavigationRequests.activeRequests > 0 { return .terminateCancel }
@@ -221,7 +221,7 @@ import AppKit
         if LFSLocksWindowModel.activeOperations > 0 { return .terminateCancel }
         if StashRestoreWindowModel.activeOperations > 0 || StashWindowModel.activePreparations > 0 || StashWindowController.activeChildReleases > 0 { return .terminateCancel }
         if SubmoduleAddProgressWindowModel.activeOperations > 0 || SubmoduleSyncWindowModel.activeOperations > 0 || SubmoduleUpdateProgressWindowController.activeChildReleases > 0 { return .terminateCancel }
-        if ClientHookProcessPool.shared.activeScripts > 0 { return .terminateCancel }
+        if ClientHookProcessPool.shared.activeScripts > 0 || ClientHookSession.activeOperations > 0 || ClientHookSession.activeQuestionReleases > 0 { return .terminateCancel }
         if HookSettingsModel.activeSaves > 0 { return .terminateCancel }
         if AutotextTesterModel.activeRequests > 0 { return .terminateCancel }
         if IssueRegexTesterModel.activeRequests > 0 { return .terminateCancel }

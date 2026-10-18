@@ -2563,3 +2563,28 @@ owned process draining. New cases save content-only light/dark captures during
 the normal run; these do not establish physical desktop, VoiceOver or Windows
 visual acceptance. Repeat only failed cases or checks affected by actual repairs.
 Full hosted CI and signed Finder/App Store acceptance remain separate.
+
+
+## Hook Scripts editor, exact identities and owned decisions
+
+Implement the connected family before the grouped checkpoint:
+
+```sh
+TURTLEGIT_CORE_ONLY=1 swift test --filter 'ClientHookIdentityTests|ClientHooksTests'
+```
+
+After the Debug build:
+
+```sh
+python3 scripts/test-hook-scripts-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+Three isolated receiver cases per engine cover editor/list/Apply/Cancel and
+choosers, actual approval/failure sheets and owned script work, and the retained
+Commit/Push/Rebase/non-wait workflows. Exact Unicode scopes/commands, compatible
+approval records, bookmark migration, renewal/refusal and balanced leases are
+included. Scope providers simulate policy; they do not prove signed sandbox
+access. Receivers use private repositories/preferences/geometry and invisible
+windows, and reap owned process groups. No optional content captures are produced.
+Repeat only actually failed or affected cases; full hosted, physical and signed
+acceptance remain separate requirements.

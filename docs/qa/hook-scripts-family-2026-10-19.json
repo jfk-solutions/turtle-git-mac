@@ -1,0 +1,283 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "c484156b03b5885ab297514c042a3afc85eccde8",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Hook Scripts source Add/Copy/editor defaults, existing-folder validation, retained global/local drafts and native five-column checked list",
+    "Exact scope/command identities, compatible persisted approvals and project save boundaries",
+    "Owned picker/approval/failure-choice detachment, cancellation and actual read/process drain, pending launch accounting",
+    "Exact script bookmark store, legacy compatibility, stale grant renewal and balanced scoped execution"
+  ],
+  "validation": {
+    "core": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "tests": 9,
+        "passed_methods": 7,
+        "assertion_failures": 5,
+        "failed_methods": [
+          "testConfigurationKeepsExactScopesAndSelectsNearestOriginalSpelling",
+          "testProjectSaveRetainsExactCommandAndRejectsDifferentScopeBytes"
+        ],
+        "log": "build/qa/hook-scripts-core-2026-10-19.log",
+        "diagnostic": "Foundation standardizedFileURL rewrites composed/decomposed scope spelling; production selection boundary and test alias construction under investigation."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "tests": 9,
+        "failures": 0,
+        "log": "build/qa/hook-scripts-core-repair-2026-10-19.log",
+        "scope": "Both affected hook classes repeated because shared scope selection changed; no full Core suite.",
+        "repair": "Lexical absolute scope and ancestor traversal retains URL.path UTF-8; fixtures assert truly different supplied path bytes. Stored public fields unchanged."
+      }
+    ],
+    "build": [
+      {
+        "attempt": 1,
+        "exit": 65,
+        "log": "build/qa/hook-scripts-build-2026-10-19.log",
+        "diagnostic": "Nested cancellation check inside handler required explicit MainActor annotation; Core checkpoint also terminal before repair."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/hook-scripts-build-repair-2026-10-19.log",
+        "scope": "Explicit MainActor nested check inside cancellation handler, final exact bookmark path handling and current family app sources."
+      },
+      {
+        "attempt": 3,
+        "exit": 0,
+        "log": "build/qa/hook-scripts-build-picker-2026-10-19.log",
+        "scope": "Native-only draft revision repair; Core unchanged and not repeated."
+      },
+      {
+        "attempt": 4,
+        "exit": 0,
+        "log": "build/qa/hook-scripts-build-default-2026-10-19.log",
+        "scope": "Native-only approval default ordering after actual alert layout; no Core or passing settings-case repetition."
+      }
+    ],
+    "native": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "log": "build/qa/hook-scripts-native-2026-10-19.log",
+        "failed_case": "settings",
+        "git": "/usr/bin/git",
+        "receiver_pid": 36274,
+        "reaped": true,
+        "diagnostic": "Folder Browse response discarded after actual detach. Candidate production cause: equal SwiftUI binding writes advanced revision; guard now uses actual exact value changes. Strict assertion retained with path/revision/owner diagnostics; confirmation pending."
+      },
+      {
+        "attempt": 2,
+        "exit": 1,
+        "log": "build/qa/hook-scripts-native-picker-2026-10-19.log",
+        "passed_pairs": [
+          [
+            "settings",
+            "/usr/bin/git",
+            36465
+          ],
+          [
+            "settings",
+            "build/git-runtime/Git/bin/git",
+            36481
+          ]
+        ],
+        "failed_case": "runtime",
+        "git": "/usr/bin/git",
+        "receiver_pid": 36496,
+        "reaped": true,
+        "diagnostic": "Chooser repair passed on both engines. Actual approval exposed lazy NSAlert layout restoring Return on Yes; set source No default after forcing alert layout. Runtime and retained cases remain to run; settings/Core unaffected."
+      },
+      {
+        "attempt": 3,
+        "exit": 1,
+        "log": "build/qa/hook-scripts-native-default-2026-10-19.log",
+        "failed_case": "runtime",
+        "git": "/usr/bin/git",
+        "receiver_pid": 36610,
+        "reaped": true,
+        "diagnostic": "Pre-presentation alert layout alone did not satisfy strict No-default check. Fixture now uses actual NSAlert.beginSheetModal rather than raw NSWindow.beginSheet and reports button/default-cell diagnostics; production cause not established by this failed attempt."
+      },
+      {
+        "attempt": 4,
+        "exit": 1,
+        "log": "build/qa/hook-scripts-native-alert-2026-10-19.log",
+        "failed_case": "runtime",
+        "git": "/usr/bin/git",
+        "receiver_pid": 36717,
+        "reaped": true,
+        "diagnostic": "Actual NSAlert presentation proves defaultButtonCell belongs to No and Yes has no Return key. SDK clears No's explicit keyEquivalent on default-cell assignment, so the fixture's key-string assertion was invalid. Replace it with actual default identity and Return dispatch, retaining source safe-default behavior; do not claim a proven production default regression."
+      },
+      {
+        "attempt": 5,
+        "exit": 1,
+        "log": "build/qa/hook-scripts-native-return-2026-10-19.log",
+        "failed_case": "runtime",
+        "git": "/usr/bin/git",
+        "receiver_pid": 36834,
+        "reaped": true,
+        "diagnostic": "No default-cell identity correct; invisible unactivated window did not route injected Return. Fixture now invokes the actual button owning that default cell and retains decline/detach/no-approval/no-execution assertions. Physical Return remains explicitly unverified; no production repair inferred from hidden key routing."
+      },
+      {
+        "attempt": 6,
+        "exit": 1,
+        "log": "build/qa/hook-scripts-native-default-control-2026-10-19.log",
+        "failed_case": "runtime",
+        "git": "/usr/bin/git",
+        "receiver_pid": 36957,
+        "reaped": true,
+        "diagnostic": "Actual default No control and all preceding approval/failure/cancellation/worker cases completed; remaining bookmark fixture reported canonical path collision. Inspect actual supplied URL.path bytes before inferring datastore failure; native filesystem URL constructors can normalize them."
+      },
+      {
+        "attempt": 7,
+        "exit": 0,
+        "log": "build/qa/hook-scripts-native-exact-url-2026-10-19.log",
+        "passed_pairs": [
+          [
+            "runtime",
+            "/usr/bin/git",
+            37112
+          ],
+          [
+            "runtime",
+            "build/git-runtime/Git/bin/git",
+            37180
+          ],
+          [
+            "retained",
+            "/usr/bin/git",
+            37249
+          ],
+          [
+            "retained",
+            "build/git-runtime/Git/bin/git",
+            37805
+          ]
+        ],
+        "reaped": true,
+        "scope": "Only failed/runtime and previously unrun retained cases. Previously passing settings cases/Core were not repeated for fixture-only changes.",
+        "repair": "Bookmark fixture supplies literal percent-encoded URLs and asserts distinct original path UTF-8 before testing storage. Actual No default and default-button action pass; hidden Return remains unverified."
+      }
+    ],
+    "status": "Scoped nine Core methods, Debug app and six distinct native case/engine pairs passed; full hosted, physical and signed acceptance remain open.",
+    "distinct_passed_native_pairs": 6,
+    "cleanup": [
+      {
+        "pid": 36274,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 36465,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 36481,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 36496,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 36610,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 36717,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 36834,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 36957,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 37112,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 37180,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 37249,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 37805,
+        "pid_absent": true,
+        "pgid_absent": true
+      }
+    ],
+    "resources": {
+      "localizations": {
+        "check_exit": 0,
+        "languages": 38,
+        "keys": 1292
+      },
+      "help": {
+        "check_exit": 0,
+        "documents": 40,
+        "topics": 49,
+        "files": 60
+      },
+      "coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_controls": 1566,
+        "pending_control_reviews": 93,
+        "completion_percentage": false
+      },
+      "site": {
+        "exit": 0,
+        "documents": 340,
+        "unresolved_fragments": []
+      }
+    }
+  },
+  "remaining": [
+    "Complete source dialog/physical keyboard/VoiceOver acceptance",
+    "Actual signed sandbox script grants, installer/runtime acceptance and App Store distribution",
+    "Current full hosted integration",
+    "Physical Return dispatch for repository approval; hidden native receiver verifies configured default No and actual default-button action",
+    "Editor opened from an existing local row displays its actual repository root rather than the source local placeholder; exact initial local/global transition presentation remains open."
+  ],
+  "unrelated_wip_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ],
+  "source_dialogs": [
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSHOOKS"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSHOOKCONFIG"
+    }
+  ],
+  "unrelated_wip_sha256": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  }
+}

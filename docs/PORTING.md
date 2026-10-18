@@ -3357,3 +3357,27 @@ four focused Core methods, Debug build and ten native case/engine pairs passing,
 with actual failures and focused repairs retained. All receivers were reaped;
 unusable optional content captures were not published. No screen or fixture
 count certifies the whole port.
+
+
+### Hook Scripts editor and owned decisions, October 19, 2026
+
+Hook Add now begins disabled with no type or path, Copy clears its new scope,
+and local/global toggling retains the typed global draft. Existing-folder checks,
+the five-column native checked list and whole-row editing follow the pinned
+settings family. Choosers capture their owner and draft and publish only after
+actual detachment; equivalent binding writes do not discard accepted responses.
+
+Scope/command identities and approvals compare original bytes while preserving
+existing configuration fields. Script grants use exact path records, retain
+legacy ordinary entries and renew only the same resolved stale grant. Partial
+acquisition and process failures release acquired access. Approval/failure
+questions and actual script/read work retain their ownership through cancellation,
+retirement and drain; pending launches block Quit too.
+
+[Source comparison](CLIENT-HOOKS-PARITY.md) and
+[dated evidence](qa/hook-scripts-family-2026-10-19.json) record nine Core methods,
+Debug build and six distinct native case/engine pairs passing. Failed attempts
+and focused repairs are retained. A hidden Return event was not delivered; the
+actual No default cell and button action were verified instead. Physical input,
+the existing-local editor value presentation, signed sandbox grants and whole-port
+acceptance remain open. No new screenshots or full hosted pass are claimed.

@@ -36,7 +36,14 @@ public struct ClientHook: Equatable, Codable, Sendable, Identifiable {
     public var show: Bool
     public var enabled: Bool
     public var local: Bool
-    public var id: String { type.rawValue + "\0" + (local ? "local" : "global") + "\0" + path }
+    // String equality folds canonical Unicode spellings; configured scopes do
+    // not. Encode the path so SwiftUI/Set identity preserves its original bytes.
+    public var id: String { type.rawValue + "\0" + (local ? "local" : "global") + "\0" + GitPathRowIdentity.encode(path) }
+    public static func == (lhs:Self,rhs:Self)->Bool {
+        lhs.type == rhs.type && GitReferenceName.equal(lhs.path,rhs.path) &&
+        GitReferenceName.equal(lhs.command,rhs.command) && lhs.wait == rhs.wait &&
+        lhs.show == rhs.show && lhs.enabled == rhs.enabled && lhs.local == rhs.local
+    }
     public init(type: ClientHookType = .startCommit, path: String = "", command: String = "", wait: Bool = true, show: Bool = true, enabled: Bool = true, local: Bool = false) {
         self.type = type; self.path = path; self.command = command
         self.wait = wait; self.show = show; self.enabled = enabled; self.local = local
@@ -58,6 +65,12 @@ public struct ClientHookApprovalIdentity: Hashable, Codable, Sendable {
     public let type: ClientHookType
     public let command: String
     public init(root:String,type:ClientHookType,command:String) { self.root = root; self.type = type; self.command = command }
+    public static func == (lhs:Self,rhs:Self)->Bool {
+        lhs.type == rhs.type && GitReferenceName.equal(lhs.root,rhs.root) && GitReferenceName.equal(lhs.command,rhs.command)
+    }
+    public func hash(into hasher:inout Hasher) {
+        hasher.combine(type);hasher.combine(Data(root.utf8));hasher.combine(Data(command.utf8))
+    }
 }
 
 public enum ClientHookConfiguration {
@@ -97,20 +110,35 @@ public enum ClientHookConfiguration {
         return hooks.sorted {
             if $0.type != $1.type { return order[$0.type]! < order[$1.type]! }
             if $0.local != $1.local { return !$0.local }
-            return $0.path.utf16.lexicographicallyPrecedes($1.path.utf16)
+            if !GitReferenceName.equal($0.path,$1.path) { return $0.path.utf16.lexicographicallyPrecedes($1.path.utf16) }
+            // Valid configurations have one entry per type/scope. Keep even an
+            // unvalidated list deterministic without canonical String ties.
+            if !GitReferenceName.equal($0.command,$1.command) { return $0.command.utf16.lexicographicallyPrecedes($1.command.utf16) }
+            if $0.enabled != $1.enabled { return $0.enabled }
+            if $0.wait != $1.wait { return $0.wait }
+            return $0.show && !$1.show
         }
     }
     /// At each path source checks global before local, then walks the ancestors.
     /// A local entry is selected even when disabled so its approval decision can
     /// suppress execution; disabled globals are skipped. Wildcard is last.
     public static func selected(type:ClientHookType,workingTree:URL,hooks:[ClientHook]) -> ClientHook? {
-        var path = workingTree.standardizedFileURL.path
+        // Filesystem URL standardization/ancestor construction can normalize
+        // Unicode on macOS. Walk the supplied URL's original path lexically so
+        // approval and configured-scope identity stay byte-exact.
+        var components:[Substring] = []
+        for component in workingTree.path.split(separator:"/") {
+            if component == "." {continue}
+            if component == ".." {if !components.isEmpty {components.removeLast()}}
+            else {components.append(component)}
+        }
         while true {
+            let path = "/" + components.joined(separator:"/")
             for local in [false,true] {
-                if let hook = hooks.first(where:{ $0.type == type && $0.path == path && $0.local == local && ($0.enabled || $0.local) }) { return hook }
+                if let hook = hooks.first(where:{ $0.type == type && GitReferenceName.equal($0.path,path) && $0.local == local && ($0.enabled || $0.local) }) { return hook }
             }
-            if path == "/" { break }
-            path = URL(fileURLWithPath:path).deletingLastPathComponent().path
+            if components.isEmpty {break}
+            components.removeLast()
         }
         return hooks.first { $0.type == type && $0.path == "*" && !$0.local && $0.enabled }
     }

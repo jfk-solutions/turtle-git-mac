@@ -475,6 +475,28 @@ Diff Viewer select built-in or external tools. Saved Data clears only the chosen
 category. See [Saved Data](SAVED-DATA.md), [SSH authentication](SSH-AUTHENTICATION.md),
 [Git authentication](GIT-AUTHENTICATION.md) and [Privacy](PRIVACY.md).
 
+### Hook Scripts
+
+Settings → Hook Scripts lists hook type, path, command, Wait and Show. Check a
+row to enable it; double-click any row cell to edit. Add begins disabled with no
+type or path selected. Choose a type and an existing absolute working-tree folder,
+or `*` for all repositories, then enter a macOS command. Run for this repository
+stores the shared command in `.tgitconfig`; switching it off restores the typed
+global path. Copy keeps the selected command/options and clears its destination
+path so you can choose another scope.
+
+OK in the editor updates the Settings draft. Apply saves it; Cancel restores the
+saved list. Browse chooses a folder or script and waits for the chooser to close
+before changing the draft. Repository scripts require a per-user decision before
+their first execution. No is the safe default; Cancel stops the pending operation.
+Remembered decisions apply only to that exact repository, type and command.
+Approval/failure sheets close before execution or Continue proceeds. Cancellation
+also dismisses an owned pending question and waits for script work to end.
+
+App Store script grants remain attached to their selected files through execution.
+A stale grant can be renewed only when it resolves to the same selected path;
+a missing or mismatched grant requires selecting the script again.
+
 ## Finder and permissions
 
 Open **Settings → Icon Overlays → Manage Finder Extension…** to enable the

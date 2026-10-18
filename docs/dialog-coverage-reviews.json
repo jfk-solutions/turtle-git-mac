@@ -885,6 +885,38 @@
       ],
       "parity_document": "docs/MESSAGE-HISTORY-PARITY.md",
       "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSHOOKS",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/HookSettings.swift",
+          "anchor": "HookSettingsNativeList"
+        },
+        {
+          "path": "Sources/TurtleGitMac/ClientHookRuntime.swift",
+          "anchor": "ClientHookSession"
+        }
+      ],
+      "parity_document": "docs/CLIENT-HOOKS-PARITY.md",
+      "status": "partial"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SETTINGSHOOKCONFIG",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/HookSettings.swift",
+          "anchor": "HookConfigurationController"
+        },
+        {
+          "path": "Sources/TurtleGitMac/ClientHookRuntime.swift",
+          "anchor": "ClientHookSession"
+        }
+      ],
+      "parity_document": "docs/CLIENT-HOOKS-PARITY.md",
+      "status": "partial"
     }
   ]
 }

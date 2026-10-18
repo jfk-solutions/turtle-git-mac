@@ -148,7 +148,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
     }
     private var settingsLifetimesIdle: Bool {
-        GitConfigurationSettingsModel.activeSheetReleases == 0 && CredentialSettingsModel.activeSheetReleases == 0 && NetworkSettingsModel.activeSheetReleases == 0 && HookSettingsModel.activeReads == 0 && HookConfigurationController.activeReleases == 0 && RemoteSettingsWindowModel.activeRetirements == 0 && SettingsTransaction.activeRetirements == 0
+        GitConfigurationSettingsModel.activeSheetReleases == 0 && CredentialSettingsModel.activeSheetReleases == 0 && NetworkSettingsModel.activeSheetReleases == 0 && HookSettingsModel.activeReads == 0 && HookConfigurationController.activeReleases == 0 && HookConfigurationController.activeChoosers == 0 && RemoteSettingsWindowModel.activeRetirements == 0 && SettingsTransaction.activeRetirements == 0
     }
     private func retireRemotePage() {
         if let native = cache[.remote]?.view as? RemoteSettingsNativeView { native.retire() }

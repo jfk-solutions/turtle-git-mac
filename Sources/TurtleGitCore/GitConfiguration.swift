@@ -464,7 +464,7 @@ extension GitRepository {
     }
     public func saveProjectClientHooks(_ hooks: [ClientHook], cancellation: OperationCancellation? = nil) throws {
         try ClientHookConfiguration.validate(hooks)
-        guard hooks.allSatisfy({ $0.local && $0.path == root.path }) else {
+        guard hooks.allSatisfy({ $0.local && GitReferenceName.equal($0.path,root.path) }) else {
             throw ClientHookFailure.configuration("Local hooks must belong to this repository.")
         }
         var values: [(String,String?)] = []

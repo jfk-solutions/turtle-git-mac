@@ -387,6 +387,24 @@ menus and overlays within macOS's extension behavior. Diff/Merge tools and Unifi
 Diff Viewer select built-in or external tools. Saved Data clears only the chosen
 category. See <a href="SAVED-DATA.html">Saved Data</a>, <a href="SSH-AUTHENTICATION.html">SSH authentication</a>,
 <a href="GIT-AUTHENTICATION.html">Git authentication</a> and <a href="PRIVACY.html">Privacy</a>.</p>
+<h3 id="hook-scripts">Hook Scripts</h3>
+<p>Settings → Hook Scripts lists hook type, path, command, Wait and Show. Check a
+row to enable it; double-click any row cell to edit. Add begins disabled with no
+type or path selected. Choose a type and an existing absolute working-tree folder,
+or <code>*</code> for all repositories, then enter a macOS command. Run for this repository
+stores the shared command in <code>.tgitconfig</code>; switching it off restores the typed
+global path. Copy keeps the selected command/options and clears its destination
+path so you can choose another scope.</p>
+<p>OK in the editor updates the Settings draft. Apply saves it; Cancel restores the
+saved list. Browse chooses a folder or script and waits for the chooser to close
+before changing the draft. Repository scripts require a per-user decision before
+their first execution. No is the safe default; Cancel stops the pending operation.
+Remembered decisions apply only to that exact repository, type and command.
+Approval/failure sheets close before execution or Continue proceeds. Cancellation
+also dismisses an owned pending question and waits for script work to end.</p>
+<p>App Store script grants remain attached to their selected files through execution.
+A stale grant can be renewed only when it resolves to the same selected path;
+a missing or mismatched grant requires selecting the script again.</p>
 <a name="topic-finder"></a><h2 id="finder-and-permissions">Finder and permissions</h2>
 <p>Open <strong>Settings → Icon Overlays → Manage Finder Extension…</strong> to enable the
 installed extension in macOS. The page shows its activation status when you return.
