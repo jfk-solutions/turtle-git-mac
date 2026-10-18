@@ -2733,3 +2733,31 @@ reaped. Its uploaded stack was downloaded and verified against the upload digest
 [stack evidence](qa/ci-wrapped-stack-2026-10-18.json) records active UI layout/draw
 frames without claiming a cause or repair. That blocker, physical/current signed
 acceptance and complete port/App Store clearance remain open.
+
+### Direct LFS commands and cancellation ownership, 2026-10-18
+
+Ported all three pinned `LFSCommands.cpp` primary entries together: server-wide
+Locks, direct Lock and Unlock, with Force accepted only for Unlock. Typed options
+survive authorized path-file resolution; literal paths, missing/unversioned
+files and whole-batch validation retain the source command semantics. Finder
+keeps its stricter versioned selection policy. Existing list choices/result
+review are preserved, and list/progress inherit workspace presentation settings.
+Delayed preparation retains its original repository/access/window, cancels on
+owner close or retirement and remains accounted for until it drains. Parent
+closure now retires/cancels an attached progress controller and rejects late data.
+
+Diagnosed the older hosted LFS/mail failure with one local reproduction: a
+cancelled Working Tree reload retained its complete prior ownership snapshot,
+while the assertion expected empty ownership. The corrected check verifies the
+unchanged owners/locks/known flag/file IDs, rejects the late reply and requires
+the next successful empty query to publish known-empty ownership. Product data
+retention was preserved.
+
+All 47 focused Core cases and the single Debug build passed. The new command
+receiver passed with both engines after a fixture idle-wait repair. The affected
+LFS/mail subset of the hosted runner and bundled LFS regression passed once,
+including private loopback SMTP MIME checks; all owned processes were reaped.
+[Exact batch evidence](qa/lfs-commands-2026-10-18.json) records attempts, failures,
+log hashes and scope. Full hosted CI, public-provider authentication, physical
+visual/input acceptance and current signed/App Store distribution remain open.
+No complete dialog/port certification or replacement distribution is implied.

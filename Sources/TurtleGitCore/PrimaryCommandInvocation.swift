@@ -3,7 +3,8 @@ import Foundation
 import Darwin
 
 /// TortoiseProc's primary dialog entry points. Values remain editable input;
-/// neither a command line nor a file URL grants sandbox access or runs a mutation.
+/// neither a command line nor a file URL grants sandbox access. Direct action
+/// commands (including LFS lock/unlock) execute only after authorized routing.
 public struct PrimaryCommandInvocation: Sendable {
     public private(set) var request: FinderRequest
     public private(set) var pathFile: URL?
@@ -36,6 +37,7 @@ public struct PrimaryCommandInvocation: Sendable {
     public let reflogReference: String?
     public let upstream: String?
     public let blameRevision: String?
+    public let forceLFSUnlock: Bool
     public let forceRebase: Bool
     public let message: String?
     public let messageFile: URL?
@@ -124,6 +126,9 @@ public struct PrimaryCommandInvocation: Sendable {
         case "rebase": action = .rebase
         case "blame": action = .blame
         case "prevdiff": action = .previousDiff
+        case "lfslocks": action = .lfsLocks
+        case "lfslock": action = .lfsLock
+        case "lfsunlock": action = .lfsUnlock
         case "add": action = .add
         case "rename": action = .rename
         case "remove": action = values["keep"] != nil ? .removeKeep : .remove
@@ -172,6 +177,7 @@ public struct PrimaryCommandInvocation: Sendable {
         case .branch, .tag: allowed.formUnion(["rev", "name"])
         case .switchBranch, .repositoryBrowser: allowed.insert("rev")
         case .reflog: allowed.insert("ref")
+        case .lfsUnlock: allowed.insert("force")
         case .rebase: allowed.formUnion(["upstream", "force"])
         case .blame: allowed.formUnion(["endrev", "line"])
         case .previousDiff: allowed.formUnion(["alternative", "unified"])
@@ -285,7 +291,7 @@ public struct PrimaryCommandInvocation: Sendable {
             catch { throw Failure("Select a relative submodule path inside the superproject.") }
             return path
         }
-        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff, .showCompare].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: commandOutput, importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, submoduleBase: try values["bkpath"].map(file), selectedSubmodule: selectedSubmodule, synchronizationSequence: synchronizationSequence, graphOutputFormat: graphOutputFormat, catRevision: catRevision, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceRebase: values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
+        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff, .showCompare].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: commandOutput, importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, submoduleBase: try values["bkpath"].map(file), selectedSubmodule: selectedSubmodule, synchronizationSequence: synchronizationSequence, graphOutputFormat: graphOutputFormat, catRevision: catRevision, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceLFSUnlock: action == .lfsUnlock && values["force"] != nil, forceRebase: action == .rebase && values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
     }
 
     private static func validateSelection(_ urls: [URL], action: RepositoryAction) throws {

@@ -254,6 +254,7 @@ import TurtleGitCore
     }
     @MainActor static func main() async throws {
         NSApp.setActivationPolicy(.prohibited)
+        if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "lfs" { try await verifyLFSCommands(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "history" { try await verifyHistoricalCommands(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "syncsvn" { try await verifySyncSVNCommands(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "submodules" { try await verifySubmoduleCommands(); return }

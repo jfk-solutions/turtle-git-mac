@@ -324,10 +324,10 @@ import TurtleGitCore
         if !forceRetry { operationLocked = false; operationForce = force; resetTargetChecks = false; operationPaths = rows.filter { checked.contains($0.id) }.map(\.path) }
         await runOperation(forceRetry: forceRetry)
     }
-    func perform(paths: [String], locked: Bool) async {
+    func perform(paths: [String], locked: Bool, force: Bool = false) async {
         guard !retired, !busy, !confirmingQuit, !showingProgress, !paths.isEmpty else { return }
         var seen = GitPathSet()
-        operationPaths = paths.filter { seen.insert($0).inserted }; operationLocked = locked; operationForce = false; resetTargetChecks = true
+        operationPaths = paths.filter { seen.insert($0).inserted }; operationLocked = locked; operationForce = !locked && force; resetTargetChecks = true
         await runOperation(forceRetry: false)
     }
     private func runOperation(forceRetry: Bool) async {
@@ -492,6 +492,7 @@ struct LFSUnlockProgress: View {
     var onClosed: () -> Void = {}
     var standalonePresentation: ((NSWindow) -> Void)?
     private var started = false, finished = false
+    private var ownerObserver: NSObjectProtocol?
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
         model = LFSLocksWindowModel(repository: repository, access: access, defaults: defaults)
         model.refreshLocksAfterOperation = false
@@ -502,25 +503,31 @@ struct LFSUnlockProgress: View {
         model.progressActions.window = window
         model.onProgressVisibility = { [weak self] visible in if !visible { self?.finish() } }
     }
-    @discardableResult func present(owner: NSWindow? = nil, paths: [String], locked: Bool) -> Bool {
+    @discardableResult func present(owner: NSWindow? = nil, paths: [String], locked: Bool, force: Bool = false) -> Bool {
         guard !started, !finished, !model.retired, owner?.attachedSheet == nil, let window else { return false }
         started = true
         RepositoryWindowTitles.set(window, repository: model.repository.root, location: RepositoryPresentationSettings.scopedLocation(repository: model.repository.root, paths: paths, wholeProject: false), dialog: locked ? "LFS Lock" : "LFS Unlock", preferences: model.presentationPreferences); TurtleGitHelp.attach(window, topic: .lfs)
         model.operationLocked = locked
-        if let owner { owner.beginSheet(window, completionHandler: nil) }
+        if let owner {
+            ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.close() } }
+            owner.beginSheet(window, completionHandler: nil)
+        }
         else if let standalonePresentation { standalonePresentation(window) }
         else { window.center(); showWindow(nil); window.makeKeyAndOrderFront(nil) }
-        Task { await model.perform(paths: paths, locked: locked) }
+        Task { await model.perform(paths: paths, locked: locked, force: force) }
         return true
     }
     private func finish() {
         guard !finished, let window else { return }; finished = true
+        removeOwnerObserver()
         if let parent = window.sheetParent { parent.endSheet(window) }
         window.orderOut(nil); window.close(); model.retire(); onClosed()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { false }
+    private func removeOwnerObserver() { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }; ownerObserver = nil }
+    deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
     func windowWillClose(_ notification: Notification) {
-        model.retire()
+        removeOwnerObserver(); model.retire()
         if let window, let parent = window.sheetParent { parent.endSheet(window); window.orderOut(nil) }
         guard !finished else { return }; finished = true; onClosed()
     }

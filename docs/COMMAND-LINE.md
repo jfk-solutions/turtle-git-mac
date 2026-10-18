@@ -663,3 +663,33 @@ Pinned review covers `Commands/{ShowCompare,Cat,CommitIsOnRefs,RevisionGraph}Com
 `GitDiff::DiffCommit`, `FileDiffDlg`, unified launch and Graph save/hidden completion.
 [Batch evidence](qa/history-commands-2026-10-18.json) separates actual byte/Git/native
 checks from full dialogs, filters, physical/signed and App Store acceptance.
+
+## Git LFS commands
+
+| Command | Behavior | Options |
+| --- | --- | --- |
+| `lfslocks` | Open/focus the server-wide LFS Locks list | shared path/path-file inputs |
+| `lfslock` | Lock the selected literal files through native progress | shared path/path-file inputs |
+| `lfsunlock` | Unlock the selected literal files through native progress | `force`, shared path/path-file inputs |
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=lfsunlock --force \
+  --path '/absolute/repository/large asset.bin'
+```
+
+Lock and Unlock are direct action commands and start their selected batch after
+repository authorization. They do not add a separate confirmation absent from
+upstream. Only Unlock accepts Force. Failed Unlock offers the existing explicit
+Force retry for the captured paths. Selection validation finishes before the
+first remote mutation; cancellation cannot undo locks already changed remotely.
+The list preserves an existing window's checks and Force draft. Its server-wide
+locks query follows pinned `LFSLocksDlg`/`GitStatusListCtrl`, even when entry was
+through one file. Directory LFS actions are refused. Direct commands accept
+missing/unversioned literal files and leave per-file eligibility to Git LFS;
+Finder's cached menu entry additionally revalidates versioned targets.
+
+These commands inherit the owning presentation settings and existing native
+progress icons, Log/Pull post-actions and result review. Delayed preparation is
+cancelled when its launching window closes or the workspace retires. Local
+injected-reply checks do not establish a real authenticated LFS provider or
+signed Finder integration; see [LFS parity](LFS-PARITY.md).

@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "38b7ecbbecbc67cfe72c64a19de2006b6f6b3c56",
+  "scope": "Connected LFS primary commands, Force/path-file routing, captured preparation and progress ownership, inherited presentation preferences, retained ownership cancellation assertion and LFS/mail regression.",
+  "dialogs": [
+    "IDD_LFS_LOCKS",
+    "IDD_GITPROGRESS"
+  ],
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_review": [
+    "src/TortoiseProc/Commands/LFSCommands.cpp",
+    "src/TortoiseProc/LFSLocksDlg.cpp::LocksThread",
+    "src/Git/GitStatusListCtrl.cpp::GetStatus/Show/UpdateFileList/AppendLFSLocks",
+    "src/TortoiseProc/ProgressCommands/LFSSetLockedProgressCommand.cpp"
+  ],
+  "implementation": [
+    "Primary aliases lfslocks/lfslock/lfsunlock; only Unlock accepts Force. Dedicated forceLFSUnlock survives path-list resolution/selection; Rebase Force remains independent.",
+    "Locks retains the existing server-wide list/checks/Force rather than applying a later file selection. Both list/progress use the workspace presentation preferences and existing original icons/menus.",
+    "Shared direct-command preflight validates every deduplicated literal target, including missing/unversioned paths, before mutation. Finder keeps stricter versioned-file preflight. Existing backend per-file continuation/Force retry/Log/Pull remain.",
+    "Preparation captures repository/access/window, retains pending-work and busy accounting until drain, cancels on window close/retirement, and refuses late progress. Progress sheets observe parent closure and retire/cancel exactly once, fencing late results.",
+    "Corrected Status reload cancellation assertion verifies retained owners/locked paths/known flag/file IDs and rejects late replacement, followed by publication of a successful known-empty snapshot. No product data-clearing change made merely to satisfy old test."
+  ],
+  "validation": {
+    "diagnostic_baseline": {
+      "command": "python3 scripts/test-lfs-locks.py --git /usr/bin/git",
+      "exit": 1,
+      "source_checkpoint": "38b7ecbb",
+      "observation": "Prior and settled snapshots each contained 2 owners and 2 locked paths, known=true, unusual file owner=Zebra; original empty-state assertion failed. Receiver reaped.",
+      "hosted_reference": "docs/qa/ci-lfs-failure-16380893-2026-10-18.json"
+    },
+    "core": {
+      "command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter 'PrimaryCommandInvocationTests|LFSLocksTests'",
+      "exit": 0,
+      "cases": 47,
+      "classes": {
+        "PrimaryCommandInvocationTests": 39,
+        "LFSLocksTests": 8
+      },
+      "attempts": 1
+    },
+    "build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "exit": 0,
+      "attempts": 1,
+      "scope": "Current local arm64 Debug app and embedded targets; existing warnings and Xcode exit-code-zero diagnostic messages remain. No new literal native UI labels or new resource files."
+    },
+    "native_commands": {
+      "command": "python3 scripts/test-primary-commands.py --only lfs --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "initial_exit": 1,
+      "initial_failure": "Fixture wait at source line 109: cancellation preflight did not start. The fixture omitted waiting for the workspace refresh triggered by earlier result closure. No product change for this repair.",
+      "repair": "Wait for workspace idle and active command-file operations to drain before beginning cancellation preflight; all assertions retained.",
+      "affected_recheck_exit": 0,
+      "final_engine_cases": 2,
+      "passed": [
+        "server-wide Locks/check/Force preservation",
+        "private presentation preferences",
+        "literal Unicode/glob/newline NUL path-file Unlock and explicit deletion",
+        "normal Unlock and captured Force retry",
+        "Lock selection order",
+        "standalone result review/Quit refusal",
+        "parent sheet close/cancel/drain with rejected late output and exactly-once close",
+        "window-close and workspace-retirement preparation cancellation/drain",
+        "HEAD/index/working bytes unchanged with injected LFS replies"
+      ]
+    },
+    "retained_workflows": {
+      "commands": [
+        "python3 scripts/test-native-lfs-mail-batch.py --lfs-mail-only",
+        "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 python3 scripts/test-lfs-locks.py --git build/git-runtime/Git/bin/git"
+      ],
+      "exit": [
+        0,
+        0
+      ],
+      "scope": "The affected LFS and SendPatch phases of the hosted multi-family runner, plus the bundled-engine LFS receiver; each successful command ran once. Other phases in the default hosted runner were not repeated.",
+      "smtp": "Owned loopback server verified accepted=1/auth=0/data=1, To/Cc .invalid recipients, three MIME parts, exact message body and two ordered byte-identical attachments. No public mail delivery or user Keychain."
+    },
+    "cleanup": {
+      "owned_pids": [
+        36594,
+        38040,
+        38245,
+        38420,
+        38604,
+        38626,
+        39167,
+        39337
+      ],
+      "confirmed_absent": [
+        36594,
+        38040,
+        38245,
+        38420,
+        38604,
+        38626,
+        39167,
+        39337
+      ],
+      "still_present": [],
+      "scope": "Each runner reaped its receiver/compiler/SMTP resources; native receivers close their own windows/sheets. No unrelated installed app terminated."
+    },
+    "localizations": {
+      "check_exit": 0,
+      "languages": 38,
+      "keys": 1287,
+      "scope": "Catalog unchanged; no literal UI-label changes; no complete-translation claim."
+    },
+    "hosted_observation": {
+      "head": "38b7ecbbecbc67cfe72c64a19de2006b6f6b3c56",
+      "pages_run": 39115004096,
+      "pages_conclusion": "success",
+      "macos_run": 39115004086,
+      "macos_status": "pending at observation",
+      "older_macos_run": 39112363015,
+      "older_macos_status": "build-and-test running Git integration tests at last observation; svn-runtime passed",
+      "scope": "Read-only status observations; no full hosted macOS pass inferred."
+    },
+    "documentation": {
+      "pages_build": "build/site-venv/bin/python scripts/build-site.py",
+      "documents": 294,
+      "unresolved_fragments": [],
+      "scope": "Successful renderer output reached final build/site path; generated dialog ledger and localization consistency checks passed. Dialog counts remain partial audits, not completion percentages."
+    }
+  },
+  "logs": {
+    "build/qa/lfs-mail-retention-baseline-2026-10-18.log": "d49525cf1dcbdb358808c8f80dde8ab501d6a05479f9e16394685f7190ba1bd7",
+    "build/qa/lfs-commands-core-2026-10-18.log": "46f8aba04670437fa1b6620624feae3938525ba21d3e0e561966e8292e7e5cb3",
+    "build/qa/lfs-commands-build-2026-10-18.log": "a9d94c527592d46c2ff38fef692dee80788c1fab48c1d72f2cbbc37c3252602d",
+    "build/qa/lfs-commands-native-2026-10-18.log": "caa8ce17c261de7c2dc519b6b016d35e4323bbc9f24d03efd074e57267320b51",
+    "build/qa/lfs-commands-native-settle-recheck-2026-10-18.log": "24a353e476cec2ec281be3a327311e40ca433856e1971ac7be14540a78aa5710",
+    "build/qa/lfs-commands-hosted-group-2026-10-18.log": "f1887b55494c8e0d0cc06d225259eae815dea2ea2d3a90b94c946af8ab8ab51e",
+    "build/qa/lfs-commands-bundled-regression-2026-10-18.log": "8ebf664837ed10aa866f99a893ff06fbbcf55e2a7c4c5896eb11667c54d05f3a"
+  },
+  "input_sha256": {
+    "Sources/TurtleGitCore/LFSLocks.swift": "41219da7adf7afc544a421bec195b6007cbc2d4978e7e92047e00c17c49f010c",
+    "Sources/TurtleGitCore/PrimaryCommandInvocation.swift": "5ba3ce96b9b7bf5d34d2c65bf6168486c09c0d2057b539878851edc5a9e7335a",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "7212aff4fb0c3ba2ecf13b710f53841f0c0313ed43b263aa33cb1ee1d6c31f35",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "c01546775f28a55c1942f4f5424508eed79cbb7f58e8279a6f7d1d073f8b71a2",
+    "docs/qa/lfs-commands-native-2026-10-18.swift": "fc62861a016dd4f877e49a949723ce456c9778d14227d95854743818705539e0",
+    "docs/qa/lfs-locks-native-2026-10-08.swift": "5423042dd934a9b77f51d19cc09fbb80e4057667ef6ad78d7ec8e8744af55c93",
+    "docs/qa/primary-commands-native-2026-10-18.swift": "ef13f9eb264bbd2b20076767992f21170860b36c0c0198b9d23775d64c482638",
+    "scripts/test-primary-commands.py": "447e250f4ae70630100f28aaaf6da3d2d0c8fa812352a3c478f0b1d6f93ef119",
+    "scripts/test-native-lfs-mail-batch.py": "2312e4d5e73229896f2810acb5813541127944f6a3d2942b4c24dff500661086"
+  },
+  "remaining": [
+    "Full hosted CI, physical input/VoiceOver/complete visual comparison, authenticated public LFS providers and signed Finder/App Store acceptance remain unverified for this source checkpoint.",
+    "This does not replace packaged distribution evidence: most recent preview/archive source remains 16380893; no artifact export/install/upload/submission performed.",
+    "Custom TurtleGit artwork remains unavailable locally; no guessed replacement or claim of recovered original artwork.",
+    "No unrelated full Core/native suites, screenshots or distribution builds repeated. The full TortoiseGit port remains incomplete."
+  ]
+}

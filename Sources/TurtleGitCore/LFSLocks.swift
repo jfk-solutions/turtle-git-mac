@@ -77,6 +77,22 @@ extension GitRepository {
         }
         return result
     }
+    /// Direct TortoiseProc LFS commands accept literal file targets, including
+    /// unversioned or missing files. Git LFS reports their per-file eligibility.
+    /// Validate the whole batch before the first mutation; Finder additionally
+    /// requires a versioned selection through finderLFSPaths.
+    public func lfsCommandPaths(_ paths: [String], cancellation: OperationCancellation? = nil) throws -> [String] {
+        try cancellation?.check()
+        guard !paths.isEmpty, try !isBare(cancellation: cancellation) else { throw LFSLocksFailure.selection }
+        var seen = GitPathSet(), targets: [String] = []
+        for path in paths where seen.insert(path).inserted {
+            try cancellation?.check()
+            let location = try restoreLocation(path)
+            if let type = try? FileManager.default.attributesOfItem(atPath: location.path)[.type] as? FileAttributeType, type == .typeDirectory { throw LFSLocksFailure.directory }
+            targets.append(path)
+        }
+        return targets
+    }
     public func hasLFS(cancellation: OperationCancellation? = nil) throws -> Bool {
         try cancellation?.check()
         var bytes = try run(["rev-parse", "--git-common-dir"], cancellation: cancellation).stdout
@@ -94,13 +110,7 @@ extension GitRepository {
     /// Cancellation cannot roll back server-side locks already changed.
     public func setLFSLocked(paths: [String], locked: Bool, force: Bool = false, cancellation: OperationCancellation? = nil, onFileStarted: (@Sendable (String) -> Void)? = nil, onResult: (@Sendable (LFSFileResult) -> Void)? = nil) throws -> LFSBatchResult {
         if cancellation?.isCancelled == true { return LFSBatchResult(files: [], cancelled: true) }
-        guard !paths.isEmpty, try !isBare() else { throw LFSLocksFailure.selection }
-        var seen = GitPathSet(), targets: [String] = []
-        for path in paths where seen.insert(path).inserted {
-            let location = try restoreLocation(path)
-            if let type = try? FileManager.default.attributesOfItem(atPath: location.path)[.type] as? FileAttributeType, type == .typeDirectory { throw LFSLocksFailure.directory }
-            targets.append(path)
-        }
+        let targets = try lfsCommandPaths(paths, cancellation: cancellation)
         var files: [LFSFileResult] = []
         for path in targets {
             if cancellation?.isCancelled == true { return LFSBatchResult(files: files, cancelled: true) }

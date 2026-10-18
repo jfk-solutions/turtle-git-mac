@@ -2,6 +2,30 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PrimaryCommandInvocationTests: XCTestCase {
+    func testLFSCommandRoutesAndForceOnlyUnlock() throws {
+        for (command, action) in [("lfslocks", RepositoryAction.lfsLocks), ("lfslock", .lfsLock), ("lfsunlock", .lfsUnlock)] {
+            let value = try parse(["--command=" + command, "--path", "雪[*]\n.bin", "--path", "second"])
+            XCTAssertEqual(value.request.action, action)
+            XCTAssertEqual(value.request.paths.map(\.path), ["/repo/雪[*]\n.bin", "/repo/second"])
+            XCTAssertFalse(value.forceLFSUnlock); XCTAssertFalse(value.forceRebase)
+            XCTAssertTrue(action.requiresWorkingTree)
+        }
+        let forced = try parse(["/command:lfsunlock", "/force", "/path:one*two"])
+        XCTAssertTrue(forced.forceLFSUnlock); XCTAssertFalse(forced.forceRebase)
+        XCTAssertEqual(forced.request.paths.map(\.path), ["/repo/one", "/repo/two"])
+        for command in ["lfslocks", "lfslock"] { XCTAssertThrowsError(try parse(["--command=" + command, "--force"])) }
+        XCTAssertThrowsError(try parse(["--command=lfsunlock", "--force=true"]))
+        XCTAssertThrowsError(try parse(["--command=lfslocks", "--rev=HEAD"]))
+    }
+    func testLFSForceSurvivesPathFileResolutionAndSelection() throws {
+        let root = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("paths"); try Data("雪[*]\n.bin\0second\0".utf8).write(to: file)
+        let value = try parse(["--command=lfsunlock", "--force", "--pathfile", file.path, "--pathfile0", "--deletepathfile"])
+        let resolved = try value.resolvingPathFile(cancellation: OperationCancellation())
+        XCTAssertTrue(resolved.forceLFSUnlock); XCTAssertTrue(resolved.selecting([root]).forceLFSUnlock)
+        XCTAssertEqual(resolved.request.paths.map(\.path), ["/repo/雪[*]\n.bin", "/repo/second"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
     func testHistoricalCommandRoutesAndOutputFormats() throws {
         let compare = try parse(["--command=showcompare", "--revision1=HEAD~1", "--revision2=HEAD", "--unified", "--alternative"])
         XCTAssertEqual(compare.request.action, .showCompare); XCTAssertEqual(compare.diffFrom, "HEAD~1"); XCTAssertEqual(compare.diffTo, "HEAD")

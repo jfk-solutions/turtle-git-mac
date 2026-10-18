@@ -314,7 +314,11 @@ import UniformTypeIdentifiers
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || creationFolderChoice != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || creationFolderChoice != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    private var lfsPreparations: [UUID: RepositoryWindowOwner] = [:]
+    var lfsSelectionPreflight: ((GitRepository, [String], Bool, OperationCancellation) async throws -> [String])?
+    var lfsLocksWindowFactory: ((GitRepository, RepositoryAccessLease?, UserDefaults) -> LFSLocksWindowController)?
+    var lfsFileOperationFactory: ((GitRepository, RepositoryAccessLease?, UserDefaults) -> LFSFileOperationController)?
     private var addPreparations: [UUID: RepositoryWindowOwner] = [:]
     private var commandOutputOwners: [UUID: RepositoryWindowOwner] = [:]
     private var commandGraphWindows: [UUID: RevisionGraphWindowController] = [:]
@@ -337,7 +341,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -1438,26 +1442,38 @@ import UniformTypeIdentifiers
     }
     func showLFSLocks() {
         guard !busy, !confirmingQuit, !bare, let repository else { return }
+        showLFSLocks(repository: repository, access: activeAccess)
+    }
+    private func showLFSLocks(repository: GitRepository, access: RepositoryAccessLease?) {
+        guard !retired, !confirmingQuit else { return }
         let key = repository.root.path
+        // A later command focuses the existing list, preserving checks, Force,
+        // column layout and any progress review already owned by that window.
         if let existing = lfsLocksWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
-        let access = activeAccess
-        let controller = LFSLocksWindowController(repository: repository, access: access)
+        let controller = lfsLocksWindowFactory?(repository, access, fileComparisonPreferences) ?? LFSLocksWindowController(repository: repository, access: access, defaults: fileComparisonPreferences)
         controller.model.onProgressLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
         controller.onPullAfterLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.onClosed = { [weak self] in self?.lfsLocksWindows.removeValue(forKey: key) }
         lfsLocksWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         Task { await controller.model.refresh() }
     }
-    private func showFinderLFSOperation(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], locked: Bool) {
-        guard !busy, !confirmingQuit, workspaceWindow?.attachedSheet == nil else { return }
-        busy = true
-        Task {
-            defer { busy = false }
+    private func showFinderLFSOperation(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], locked: Bool, force: Bool = false, commandLaunch: Bool = false) {
+        guard !retired, !busy, !confirmingQuit, workspaceWindow?.attachedSheet == nil else { return }
+        let id = UUID(), window = workspaceWindow, owner = RepositoryWindowOwner(window: workspaceWindow)
+        let preflight = lfsSelectionPreflight
+        lfsPreparations[id] = owner; busy = true
+        Task { [self, access] in
+            defer { lfsPreparations.removeValue(forKey: id); busy = false; withExtendedLifetime(access) {} }
             do {
+                try owner.cancellation.check()
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let targets = try await repository.finderLFSPaths(paths)
-                guard !confirmingQuit else { return }
-                let id = UUID(), controller = LFSFileOperationController(repository: repository, access: access)
+                let targets: [String]
+                if let preflight { targets = try await preflight(repository, paths, commandLaunch, owner.cancellation) }
+                else if commandLaunch { targets = try await repository.lfsCommandPaths(paths, cancellation: owner.cancellation) }
+                else { targets = try await repository.finderLFSPaths(paths, cancellation: owner.cancellation) }
+                try owner.cancellation.check()
+                guard !retired, !confirmingQuit, window?.attachedSheet == nil else { return }
+                let controller = lfsFileOperationFactory?(repository, access, fileComparisonPreferences) ?? LFSFileOperationController(repository: repository, access: access, defaults: fileComparisonPreferences)
                 controller.model.onProgressLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
                 controller.model.onPullAfterLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
                 controller.onClosed = { [weak self] in
@@ -1466,8 +1482,8 @@ import UniformTypeIdentifiers
                     if self.root == repository.root { Task { await self.refresh() } }
                 }
                 lfsFileOperations[id] = controller
-                if !controller.present(owner: workspaceWindow, paths: targets, locked: locked) { lfsFileOperations.removeValue(forKey: id) }
-            } catch { self.error = error.localizedDescription }
+                if !controller.present(owner: window, paths: targets, locked: locked, force: force) { lfsFileOperations.removeValue(forKey: id) }
+            } catch { if !retired, !owner.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
 
@@ -3500,6 +3516,9 @@ import UniformTypeIdentifiers
         case .previousDiff:
             guard paths.count == 1 else { error = "Select one file or directory to compare."; return }
             showPreviousDiff(repository: repository, access: access, path: paths[0], owner: workspaceWindow, unified: invocation.unified)
+        case .lfsLocks: showLFSLocks(repository: repository, access: access)
+        case .lfsLock, .lfsUnlock:
+            showFinderLFSOperation(repository: repository, access: access, paths: paths, locked: invocation.request.action == .lfsLock, force: invocation.forceLFSUnlock, commandLaunch: true)
         case .add: showAdd(repository: repository, access: access, paths: paths, commandLaunch: true)
         case .clean: showClean(repository: repository, access: access, paths: paths, commandLaunch: true)
         case .submoduleAdd:

@@ -2,6 +2,21 @@ import XCTest
 @testable import TurtleGitCore
 
 final class LFSLocksTests: XCTestCase {
+    func testDirectCommandPreflightKeepsLiteralMissingAndUnversionedTargets() async throws {
+        let (root, repository, log) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let literal = "unversioned 雪[*]\n.bin"
+        try Data("local".utf8).write(to: root.appendingPathComponent(literal))
+        let targets = try await repository.lfsCommandPaths([literal, "missing", literal])
+        XCTAssertEqual(targets, [literal, "missing"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: log.path))
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("folder"), withIntermediateDirectories: true)
+        for paths in [[literal, "folder"], [literal, ".git/config"], [literal, "../outside"]] {
+            do { _ = try await repository.lfsCommandPaths(paths); XCTFail("Invalid whole batch accepted") } catch {}
+        }
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repository.lfsCommandPaths([literal], cancellation: token); XCTFail("Cancelled preparation accepted") } catch {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath: log.path))
+    }
     func testCLIArrayParsingEmptyIDsAndMalformedRecords() throws {
         let bytes = Data("[{\"id\":\"\"},{\"id\":\"42\",\"path\":\"雪\\t🦎.bin\",\"owner\":{\"name\":\"Jochen\"},\"locked_at\":\"ignored\"}]".utf8)
         XCTAssertEqual(try LFSLock.parse(bytes), [LFSLock(id: "42", path: "雪\t🦎.bin", owner: "Jochen")])

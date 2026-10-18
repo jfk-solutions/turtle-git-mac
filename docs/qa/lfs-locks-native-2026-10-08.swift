@@ -681,10 +681,21 @@ import TurtleGitCore
             while !token.isCancelled { try await Task.sleep(nanoseconds: 5_000_000) }
             return [LFSLock(id: "late", path: unusual, owner: "Late")]
         }
+        let priorOwners = status.model.lfsOwners, priorLocks = status.model.lfsLockedPaths
+        let priorKnown = status.model.lfsOwnershipKnown, priorRows = status.model.files.map(\.id)
+        precondition(priorKnown && priorOwners[unusual] == "Zebra" && !priorLocks.isEmpty)
         status.model.reload(); try await settle { statusQueryActive && status.model.busy }
         precondition(!status.windowShouldClose(status.window!))
         try await settle { !status.model.busy }
-        precondition(status.model.lfsOwners.isEmpty && !status.model.lfsOwnershipKnown)
+        // Reload publishes one complete snapshot. Cancel keeps the prior table
+        // and its ownership; the late query must never replace it with “Late”.
+        precondition(status.model.lfsOwners == priorOwners && status.model.lfsLockedPaths == priorLocks)
+        precondition(status.model.lfsOwnershipKnown == priorKnown && status.model.files.map(\.id) == priorRows)
+        status.model.queryLFSOwners = { _ in [] }
+        status.model.reload(); try await settle { !status.model.busy }
+        precondition(status.model.lfsOwnershipKnown && status.model.lfsOwners.isEmpty && status.model.lfsLockedPaths.isEmpty)
+        precondition(status.model.lfsActions([statusLocked,statusFree]) == [.lock])
+        print("LFS cancellation retained complete ownership snapshot; late reply fenced; subsequent known-empty snapshot published."); fflush(stdout)
         let statusHide = statusTable.headerView!.menu!.item(withTitle: "LFS Lock")!
         _ = NSApplication.shared.sendAction(statusHide.action!, to: statusHide.target, from: statusHide)
         try await settle { statusOwner.isHidden }

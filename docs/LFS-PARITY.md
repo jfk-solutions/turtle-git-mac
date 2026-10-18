@@ -85,9 +85,11 @@ default. Showing it refreshes ownership; hidden columns do not request locks.
 The owner participates in case-insensitive sorting, path ties, autosizing and
 visible-column clipboard output. Lock state is independent of a nonempty owner
 name. Known uniformly locked selections offer Unlock, uniformly unlocked ones
-offer Lock, and mixed selections offer neither. A query failure or cancelled
-reply clears ownership instead of presenting unknown files as unlocked; Cancel
-interrupts an in-flight owner query. Existing visibility/order/width preferences
+offer Lock, and mixed selections offer neither. A first query failure leaves ownership unknown instead of presenting files as
+unlocked; Cancel interrupts an in-flight owner query. A cancelled complete
+Working Tree reload retains its prior table and ownership atomically, and a late
+query cannot overwrite that snapshot. A subsequent successful empty reply
+publishes known-empty ownership. Existing visibility/order/width preferences
 migrate additively. See [owner-column QA](qa/lfs-owner-column-2026-10-08.json).
 
 Working Tree now offers a saved **LFS Lock** visibility choice in its native
@@ -342,7 +344,9 @@ raw-string termination, per-engine private log isolation and two old unscoped-
 title assertions. The initial app build had one capture-list warning, repaired
 before the native check; Core was not repeated for that native-only change.
 
-Remaining gaps include the lock-list's own background watermark; complete progress
+At that checkpoint remaining gaps included the lock-list watermark (now
+rendered by `LFSLocksNativeTable` using the original `LockBackground.ico` and
+`ShowListBackgroundImage` setting); complete progress
 file menus/double-click/sorting; exact completion wording and common timing-policy
 comparison; physical checkbox/menu/keyboard/VoiceOver and sheet/compositor sizing;
 authenticated LFS/Pull, signed grants/Finder and full dialog acceptance. No complete
@@ -383,8 +387,9 @@ history window lifetime. A fallback history controller is retained for standalon
 hosts without an app route. Child LFS progress and fallback history controllers
 close with their owning host; that differs from upstream's separate process
 windows. System application launch and Finder reveal still require
-physical/signed acceptance. The main lock-list watermark and complete dialog
-geometry/accessibility acceptance remain open.
+physical/signed acceptance. The main lock-list watermark is now rendered through
+the shared native table; complete dialog geometry/accessibility acceptance
+remains open.
 
 Both native engine cases passed in one grouped run, including the retained LFS
 interaction checks. No Core run was needed for native-only changes. See the
@@ -473,3 +478,39 @@ preferences and simulated LFS replies; no remote authenticated locking is claime
 All four receivers were reaped and independently absent. Existing build warnings
 and the zero-exit driver diagnostic are retained in [batch evidence](qa/lfs-path-identities-2026-10-17.json).
 No new visual capture certifies the full dialog.
+
+## Direct LFS commands and retained ownership, 2026-10-18
+
+The primary command router now accepts `lfslocks`, `lfslock`, and `lfsunlock`.
+Only Unlock accepts `/force` or `--force`. Native repeated paths preserve literal
+asterisks, Unicode and newlines; legacy `/path:` keeps its source `*` separator.
+UTF-8/UTF-16/NUL path files use the existing authorized, bounded reader and
+optional explicit deletion. Force survives resolution and repository discovery.
+
+As in the pinned `LFSCommands.cpp`, Locks opens the server-wide list, while
+Lock/Unlock execute the selected paths through native progress. A later Locks
+request focuses its current window and preserves checks, Force and result review.
+Both list and standalone progress inherit the workspace's presentation settings.
+Direct actions validate the complete literal batch before contacting Git LFS,
+including missing/unversioned files for which Git LFS supplies the actual result.
+Finder retains its stricter versioned-file eligibility check. Direct commands
+refuse directories, administration paths, escapes and bare repositories.
+
+Selection preparation retains the original repository/access/window. Closing the
+launching window or retiring the workspace cancels that read; even an uncooperative
+late reply cannot open progress. Pending work remains accounted for until it
+actually drains. Progress supports a parent sheet or standalone window, per-file
+results, cancellation, explicit failed-Unlock Force retry and existing Log/Pull
+post-actions. Closing a result refreshes matching Commit/Working Tree views.
+
+The hosted failure at generated `LFSReceiver.swift:688` occurred before SMTP
+readiness. Its assertion expected ownership to be empty after cancellation of a
+previously loaded Working Tree table. A single local reproduction observed the
+same two owners/locked paths before and after cancellation, including `Zebra`,
+with no late `Late` owner. The corrected assertion checks the complete retained
+snapshot, then requires the next successful empty query to publish known-empty
+ownership. This preserves behavioral assertions rather than clearing valid data
+to satisfy the old expectation. Validation results are recorded separately in
+[batch evidence](qa/lfs-commands-2026-10-18.json). Public-provider authentication,
+physical input/visual parity, full hosted CI and signed App Store acceptance
+remain outside this local check.
