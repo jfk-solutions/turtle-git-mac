@@ -536,3 +536,54 @@ and progress families. Source review covers pinned `Commands/SubmoduleCommand.cp
 The [batch evidence](qa/submodule-commands-2026-10-18.json) records grouped checks
 and limits. Physical interaction, external metadata/security-scope grants,
 network/key execution and signed App Store acceptance remain separate work.
+
+## Synchronization and SVN entry
+
+| Source command | Native behavior |
+| --- | --- |
+| `sync` | Opens Git Synchronization for the authorized working tree; `seq` supplies source startup placement sequencing |
+| `svnfetch` | Starts the existing SVN Fetch progress workflow and exposes fetched Diff/Log post-actions when the upstream changes |
+| `svnrebase` | Runs the existing tracked-change Stash question, SVN Fetch, and up-to-date / fast-forward / native Rebase continuation |
+| `svndcommit` | Opens the normal DCommit Type options unless this repository has a remembered type; Remember and Git Style retain their ordinary semantics |
+| `svnignore` | Opens Import SVN Ignore's destination choices and waits for OK before overwriting exclude or creating `.gitignore` |
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=sync \
+  --path '/absolute/project' --seq 3
+
+open -n -a 'TurtleGit for Mac' --args --command=svnfetch \
+  --path '/absolute/git-svn-project'
+
+open -n -a 'TurtleGit for Mac' --args --command=svndcommit \
+  --path '/absolute/git-svn-project'
+```
+
+All five accept the common path-list input and require an authorized working tree;
+bare repositories are refused. SVN also retains its existing runtime/remote
+validation. Fetch/Rebase are immediate source operations after those checks;
+DCommit follows its saved type/options and Ignore retains explicit acceptance.
+These are not silent option-bypass commands. Unsupported command-specific options
+report an error. Network authentication, permission and progress ownership remain
+in their existing native workflows.
+
+`seq` accepts a signed 32-bit integer only with `sync`. With the advanced
+**Randomize Sync Dialog startup position** setting enabled, positive sequences
+use the source modulo-five, 30-point offset and 150-point wrap, constrained to the
+macOS visible screen. Zero, negative or omitted CLI values add no offset. Ordinary
+in-app Sync launches retain their native placement sequence. Another request
+focuses an existing Sync review without moving it or replacing edited inputs.
+Workspace preferences reach both Sync and SVN forms/progress.
+
+An existing SVN options draft, active operation, cancellation decision, attached
+sheet or controller question retains its owner. This includes a question still
+held by an otherwise finished operation. A competing operation focuses that
+window and reports that the current workflow must finish. Repeated same-operation
+options requests preserve fields; a completed, question-free workflow can be
+replaced by another operation. No request implicitly accepts an existing draft.
+
+Reviewed pinned handlers are `Commands/{Sync,SVNFetch,SVNRebase,SVNDCommit,SVNIgnore}Command.cpp`,
+`SyncDlg.cpp` placement and `AppUtils::SVNDCommit`; the existing native resource
+forms/icons are reused. [Dated evidence](qa/sync-svn-commands-2026-10-18.json)
+records actual Git state checks with private injected SVN transport, selected
+native checks and remaining limits. It does not certify public SVN transport,
+physical interactions, signed grants, complete source dialogs or App Store use.

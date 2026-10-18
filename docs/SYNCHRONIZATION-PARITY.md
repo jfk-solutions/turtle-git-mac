@@ -1,5 +1,12 @@
 # Git Synchronization parity
 
+The connected [Synchronization/SVN entry family](COMMAND-LINE.md#synchronization-and-svn-entry)
+adds all five source command routes, Sync sequence placement, owning preferences
+and preserved SVN questions/options across competing requests. Existing native
+forms, original icons and backend workflows remain the consumers.
+[Batch evidence](qa/sync-svn-commands-2026-10-18.json) separates focused execution
+from public transport, physical, signed and complete dialog acceptance.
+
 Baseline: `7338078f8ddd924b8cddee35f512f2286072136d`, `SyncDlg.cpp`
 (`FetchOutList`, `ShowInCommits`), its inline `AddDiffFileList` in `SyncDlg.h`,
 and `Git.cpp::IsFastForward/GetCommitDiffList`, plus `BranchCombox.h`.

@@ -1,5 +1,12 @@
 # SVN command workflows — native implementation
 
+The connected [Synchronization/SVN entry family](COMMAND-LINE.md#synchronization-and-svn-entry)
+adds all five source command routes, Sync sequence placement, owning preferences
+and preserved SVN questions/options across competing requests. Existing native
+forms, original icons and backend workflows remain the consumers.
+[Batch evidence](qa/sync-svn-commands-2026-10-18.json) separates focused execution
+from public transport, physical, signed and complete dialog acceptance.
+
 Pinned source: `SVNFetchCommand.cpp`, `SVNRebaseCommand.cpp`,
 `AppUtils::SVNDCommit`, `SVNDCommitDlg.cpp`, `SVNIgnoreCommand.cpp`,
 `SVNIgnoreTypeDlg.cpp`, the two resource dialogs and `MenuInfo.cpp`, at

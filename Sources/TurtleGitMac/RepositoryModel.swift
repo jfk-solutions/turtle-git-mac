@@ -1378,7 +1378,7 @@ import UniformTypeIdentifiers
         guard !confirmingQuit else { return }
         let key = repository.root.path
         if let existing = svnWindows[key] {
-            if existing.model.busy || existing.model.phase == .options || existing.window?.attachedSheet != nil {
+            if existing.model.busy || existing.model.hasQuestion || existing.model.confirmingCancellation || existing.model.phase == .options || existing.window?.attachedSheet != nil {
                 if existing.model.operation != operation { error = "Finish " + existing.model.title + " before starting another SVN operation." }
                 if let svnPresentation { svnPresentation(existing) } else { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil) }
                 return
@@ -1386,7 +1386,7 @@ import UniformTypeIdentifiers
             existing.window?.close()
         }
         if operation == .rebase, let existing = rebaseWindows[key] { existing.window?.makeKeyAndOrderFront(nil); error = "Close the existing Rebase dialog before starting SVN Rebase."; return }
-        let controller = svnWindowFactory?(repository,access,operation) ?? SVNWindowController(repository: repository, access: access, operation: operation)
+        let controller = svnWindowFactory?(repository,access,operation) ?? SVNWindowController(repository: repository, access: access, operation: operation, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self, weak controller] in
             guard let self, let controller, self.svnWindows[key] === controller else { return }
             self.svnWindows.removeValue(forKey: key)
@@ -1593,11 +1593,11 @@ import UniformTypeIdentifiers
         }
     }
 
-    func showSynchronization() {
+    func showSynchronization(sequence: Int? = nil) {
         guard !busy, !confirmingQuit, !bare, let repository else { return }
         let key = repository.root.path, access = activeAccess
         if let existing = synchronizationWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
-        let controller = SynchronizationWindowController(repository: repository, access: access)
+        let controller = SynchronizationWindowController(repository: repository, access: access, preferences: fileComparisonPreferences, sequence: sequence)
         controller.configureExport = { [weak self] child in self?.configureExportInteractions(child, repository: repository, access: access) }
         controller.configureBranchPicker = { [weak self] model in self?.configureReferenceBrowser(model, repository: repository, access: access) }
         controller.configureHistoryReference = { [weak self] child in self?.configureReferenceInteractions(child, repository: repository, access: access) }
@@ -3406,6 +3406,9 @@ import UniformTypeIdentifiers
             if invocation.request.action == .submoduleUpdate {
                 showSubmoduleUpdate(repository: repository, access: access, scope: scope, selected: invocation.selectedSubmodule.map { [$0] } ?? [], commandLaunch: true)
             } else { showSubmoduleSync(repository: repository, access: access, scope: paths, commandLaunch: true) }
+        case .synchronize: showSynchronization(sequence: invocation.synchronizationSequence ?? 0)
+        case .svnFetch, .svnRebase, .svnDCommit, .svnIgnore:
+            if let operation = invocation.request.action.svnOperation { showSVN(operation, repository: repository, access: access) }
         case .fetch: showFetch(repository: repository, access: access, remote: invocation.remote)
         case .pull: showFetch(repository: repository, access: access, isPull: true)
         case .push: showPush(repository: repository, access: access, source: invocation.pushBranch)

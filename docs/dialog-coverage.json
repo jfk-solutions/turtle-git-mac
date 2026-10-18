@@ -1962,6 +1962,7 @@
         "docs/qa/sync-conflict-files-2026-10-17.json",
         "docs/qa/sync-recovery-2026-10-17.json",
         "docs/qa/sync-replay-hooks-2026-10-14.json",
+        "docs/qa/sync-svn-commands-2026-10-18.json",
         "docs/qa/synchronization-apply-native-2026-10-11.json",
         "docs/qa/synchronization-branch-picker-native-2026-10-11.json",
         "docs/qa/synchronization-checkout-2026-10-11.json",
@@ -2389,7 +2390,8 @@
         "docs/qa/svn-batch-2026-10-12.json",
         "docs/qa/svn-progress-native-2026-10-12.json",
         "docs/qa/svn-scoped-lifecycle-native-2026-10-12.json",
-        "docs/qa/svn-source-family-2026-10-17.json"
+        "docs/qa/svn-source-family-2026-10-17.json",
+        "docs/qa/sync-svn-commands-2026-10-18.json"
       ]
     },
     {
@@ -3253,7 +3255,8 @@
         "docs/qa/svn-batch-2026-10-12.json",
         "docs/qa/svn-progress-native-2026-10-12.json",
         "docs/qa/svn-scoped-lifecycle-native-2026-10-12.json",
-        "docs/qa/svn-source-family-2026-10-17.json"
+        "docs/qa/svn-source-family-2026-10-17.json",
+        "docs/qa/sync-svn-commands-2026-10-18.json"
       ]
     },
     {

@@ -378,7 +378,7 @@ final class SynchronizationNativeWindow: NSWindow {
     private var historyFindAvailability: AnyCancellable?
     var configureOptions: (FetchWindowController) -> Void = { _ in }
     var configurePushOptions: (PushWindowController) -> Void = { _ in }
-    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, sequence: Int? = nil) {
         model = SynchronizationWindowModel(repository: repository, access: access, preferences: preferences)
         let window = SynchronizationNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1050, height: 660), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Git Synchronization", preferences: preferences)
@@ -700,8 +700,9 @@ final class SynchronizationNativeWindow: NSWindow {
         model.comparison.window = window; model.incomingComparison.window = window; window.center()
         NotificationCenter.default.addObserver(self, selector: #selector(branchPickerSheetEnded), name: NSWindow.didEndSheetNotification, object: window)
         DialogGeometry.attach(window, identifier: "SyncDlg", legacyName: "SyncDlg")
-        if model.preferences.bool(forKey: "SyncDialogRandomPos"), Self.placementSequence > 0 {
-            let offset = CGFloat(Self.placementSequence % 5) * 30
+        let placement = sequence ?? Self.placementSequence
+        if model.preferences.bool(forKey: "SyncDialogRandomPos"), placement > 0 {
+            let offset = CGFloat(placement % 5) * 30
             let visible = (window.screen ?? NSScreen.main)?.visibleFrame ?? window.frame
             var origin = window.frame.origin; origin.y += offset
             if origin.y + window.frame.height > visible.maxY { origin.y -= 150 }

@@ -17,6 +17,7 @@ public struct PrimaryCommandInvocation: Sendable {
     public let bisectCommand: BisectCommandRequest?
     public let submoduleBase: URL?
     public let selectedSubmodule: String?
+    public let synchronizationSequence: Int?
     /// Source subupdate/subsync start at bkpath, or the selected path's parent.
     /// Resolving a path file must happen before deriving that default.
     public var submoduleDiscoveryURL: URL? {
@@ -57,7 +58,7 @@ public struct PrimaryCommandInvocation: Sendable {
         }
         guard hasCommand else { return nil }
         let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep", "onlymask", "delete", "abort", "start", "skip", "reset"]
-        let valued: Set<String> = ["command", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream", "msg", "droptarget", "bkpath", "selectedpath"]
+        let valued: Set<String> = ["command", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream", "msg", "droptarget", "bkpath", "selectedpath", "seq"]
         let optionalValues: Set<String> = ["good", "bad"]
         var values: [String: String] = [:], paths: [String] = [], index = 0
         var legacySelectedPath = false
@@ -124,6 +125,11 @@ public struct PrimaryCommandInvocation: Sendable {
         case "subadd": action = .submoduleAdd
         case "subupdate": action = .submoduleUpdate
         case "subsync": action = .submoduleSync
+        case "sync": action = .synchronize
+        case "svnfetch": action = .svnFetch
+        case "svnrebase": action = .svnRebase
+        case "svndcommit": action = .svnDCommit
+        case "svnignore": action = .svnIgnore
         case "formatpatch": action = .formatPatch
         case "export": action = .export
         case "importpatch": action = .importPatch
@@ -146,6 +152,7 @@ public struct PrimaryCommandInvocation: Sendable {
         case .bisect: allowed.formUnion(["start", "good", "bad", "skip", "reset", "ref"])
         case .submoduleUpdate: allowed.formUnion(["bkpath", "selectedpath"])
         case .submoduleSync: allowed.insert("bkpath")
+        case .synchronize: allowed.insert("seq")
         case .formatPatch: allowed.formUnion(["startrev", "endrev"])
         case .export: allowed.insert("rev")
         case .importPatch: allowed.insert("droptarget")
@@ -239,6 +246,11 @@ public struct PrimaryCommandInvocation: Sendable {
             let mapping: [(UInt16, HistorySearchFields)] = [(1,.messages),(2,.paths),(4,.authors),(8,.revisions),(32,.bugIDs),(64,.subject),(128,.referenceNames),(256,.emails),(512,.notes),(1024,.tagInfo)]
             fields = mapping.reduce(into: HistorySearchFields()) { result, item in if mask & item.0 != 0 { result.formUnion(item.1) } }
         }
+        let synchronizationSequence: Int?
+        if let raw = values["seq"] {
+            guard let value = Int32(raw) else { throw Failure("Invalid Synchronization window sequence.") }
+            synchronizationSequence = Int(value)
+        } else { synchronizationSequence = nil }
         let selectedSubmodule = try values["selectedpath"].flatMap { raw -> String? in
             guard !raw.isEmpty else { return nil }
             let path = legacySelectedPath ? raw.replacingOccurrences(of: "\\", with: "/") : raw
@@ -246,7 +258,7 @@ public struct PrimaryCommandInvocation: Sendable {
             catch { throw Failure("Select a relative submodule path inside the superproject.") }
             return path
         }
-        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, submoduleBase: try values["bkpath"].map(file), selectedSubmodule: selectedSubmodule, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceRebase: values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
+        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, submoduleBase: try values["bkpath"].map(file), selectedSubmodule: selectedSubmodule, synchronizationSequence: synchronizationSequence, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceRebase: values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
     }
 
     private static func validateSelection(_ urls: [URL], action: RepositoryAction) throws {

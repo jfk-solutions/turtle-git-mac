@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-18",
+  "scope": "Connected native Synchronization/SVN primary command entry: source aliases, Sync seq placement, owning preferences and retention of drafts/finished-operation questions across new requests. Existing source forms/icons and Git workflows remain.",
+  "base_commit": "498a7a2e8b8a64f8c0ef5d89dbbbf92657259da4",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_review": [
+    "src/TortoiseProc/Commands/SyncCommand.cpp",
+    "src/TortoiseProc/Commands/SVNFetchCommand.cpp",
+    "src/TortoiseProc/Commands/SVNRebaseCommand.cpp",
+    "src/TortoiseProc/Commands/SVNDCommitCommand.cpp",
+    "src/TortoiseProc/Commands/SVNIgnoreCommand.cpp",
+    "src/TortoiseProc/SyncDlg.cpp: positive seq modulo-five and 30/150 offset rules",
+    "src/TortoiseProc/AppUtils.cpp::SVNDCommit"
+  ],
+  "implementation": [
+    "Typed sync/svnfetch/svnrebase/svndcommit/svnignore entry with existing authorization, path-file, bare and runtime rules; incompatible options are refused.",
+    "sync-only signed Int32 seq survives path-list resolution/selection. CLI omitted/zero/negative means no source offset; positive values use existing native constrained modulo-five placement. Ordinary in-app placement sequence remains.",
+    "Existing Synchronization review is focused without moving it or replacing draft input. Owning preferences now flow from RepositoryModel to default Sync and SVN controllers.",
+    "SVN options/busy/attached-sheet owners remain, with explicit retention of hasQuestion and confirmingCancellation even after Git work finishes. Different-operation requests report Finish; same-operation options drafts remain unaccepted.",
+    "Existing immediate SVN Fetch/Rebase, saved/explicit DCommit type and explicit Ignore destination workflows, original icons, progress/cancellation and fetched Diff/Log actions remain the consumers."
+  ],
+  "validation": {
+    "core": {
+      "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'PrimaryCommandInvocationTests|GitSVNTests'",
+      "log": "build/qa/sync-svn-commands-core-2026-10-18.log",
+      "exit": 0,
+      "executed": 39,
+      "failures": 0,
+      "classes": [
+        "PrimaryCommandInvocationTests:35",
+        "GitSVNTests:4"
+      ],
+      "full_suite_rerun": false
+    },
+    "debug_build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "log": "build/qa/sync-svn-commands-build-2026-10-18.log",
+      "exit": 0,
+      "invocations": 1,
+      "scope": "Current arm64 Debug app/embedded targets; existing warnings/nonfatal toolchain diagnostics remain. No current universal or signed-build claim."
+    },
+    "native": {
+      "commands": [
+        "python3 scripts/test-primary-commands.py --only syncsvn --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+        "python3 scripts/test-svn-source-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+      ],
+      "logs": [
+        "build/qa/sync-svn-commands-native-2026-10-18.log",
+        "build/qa/sync-svn-commands-regression-2026-10-18.log"
+      ],
+      "exit": 0,
+      "distinct_case_engine_passes": 4,
+      "receiver_attempts": 4,
+      "failures": [],
+      "passed": [
+        "sync-svn-commands/system",
+        "sync-svn-commands/bundled",
+        "svn-source-workflow/system",
+        "svn-source-workflow/bundled"
+      ],
+      "assertions": [
+        "Actual native seq=0/seq=8 placement uses modulo-five/screen constraints and owning advanced setting; persisted Fetch action loaded, repeated Sync retains force/branch draft and frame; opening Sync leaves HEAD/index unchanged.",
+        "SVN Fetch changes real tracking ref from old to next object through private injected SVN transport; changed result and post-actions are available; progress preference and private pasteboard retained.",
+        "A finished Fetch controller holds an actual controller ask through an injected presenter. Incoming Ignore retains that controller and question, reports Finish, creates no new owner, then the original No response settles once.",
+        "SVN Rebase performs actual Git fast-forward to fetched object and delivers its information callback.",
+        "Repeated DCommit retains Git Style/Remember options and emits no dcommit before OK; accepted --rmdir reaches the injected transport and svn.rmdir persists in private repository.",
+        "Repeated Ignore retains .gitignore destination and emits no file before OK; accepted operation creates exact private fixture bytes.",
+        "Cancelled repository authorization opens no Sync; all five commands refuse a bare repository; one captured root permission is reused.",
+        "Existing SVN source/workflow receiver covers native options/progress layout, captured accepted options, retry/runtime recovery, source menus/colors, Stash/pop/Ignore destinations, cancellation/Quit/forced-close, question and duplicate/late callback ownership."
+      ],
+      "transport_limit": "GitSVNFixture supplies deterministic version/fetch/dcommit/ignore responses and delegates other Git arguments to the selected real engine. The native runner converts its import/private root and strips global Git options before mock SVN dispatch, as the existing SVN runner does. No SVN server, network authentication or actual remote commit was exercised."
+    },
+    "ownership": {
+      "reaped_receiver_pids": [
+        30852,
+        31460,
+        31133,
+        31736
+      ],
+      "independently_absent": true,
+      "private_state": "New command fixture uses private repositories, preference suite and pasteboard; injectable SVN presenter/responses. Windows close and workspace stops on success/failure; SVN active-operation count drains. Owned process groups are reaped by runner.",
+      "user_apps": "No installed app, Finder extension or background service launched, replaced, registered or terminated."
+    }
+  },
+  "remaining": [
+    "Full source dialog/global command option parity is not certified by these entry paths.",
+    "Public SVN authentication, actual remote DCommit/divergent server scenarios, physical/VoiceOver, external metadata grants and signed App Store sandbox remain open.",
+    "Native placement uses macOS points and visible-screen constraints; it is not a pixel-identical Windows multi-monitor/DPI implementation.",
+    "New default SVN preference forwarding is code-reviewed; command fixture uses the existing factory to supply private preferences/pasteboard and injected information responses.",
+    "No new screenshots, whole Synchronization regression, full Core suite, distribution rebuild or unrelated native family repeated.",
+    "Latest packaged preview remains at 16380893. This source continuation is verified in Debug; hosted full current CI and complete application/App Store acceptance remain required."
+  ]
+}

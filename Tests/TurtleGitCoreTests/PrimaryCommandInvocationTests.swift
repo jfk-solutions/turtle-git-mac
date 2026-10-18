@@ -2,6 +2,37 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PrimaryCommandInvocationTests: XCTestCase {
+    func testSynchronizationAndSVNCommandRouting() throws {
+        for (command, action) in [("sync", RepositoryAction.synchronize), ("svnfetch", .svnFetch), ("svnrebase", .svnRebase), ("svndcommit", .svnDCommit), ("svnignore", .svnIgnore)] {
+            let value = try parse(["--command=" + command, "--path", "literal 雪[*].txt"])
+            XCTAssertEqual(value.request.action, action)
+            XCTAssertTrue(action.requiresWorkingTree)
+            XCTAssertEqual(value.request.paths.first?.path, "/repo/literal 雪[*].txt")
+            XCTAssertNil(value.synchronizationSequence)
+        }
+        for value in [Int32.min, -1, 0, 3, Int32.max] {
+            XCTAssertEqual(try parse(["/command:sync", "/seq:" + String(value)]).synchronizationSequence, Int(value))
+        }
+    }
+    func testSynchronizationSequenceRetainedThroughPathFile() throws {
+        let root = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("selections")
+        try Data("one\0two[*]\0".utf8).write(to: file)
+        let value = try parse(["--command=sync", "--seq=8", "--pathfile", file.path, "--pathfile0"])
+        let resolved = try value.resolvingPathFile(cancellation: OperationCancellation())
+        XCTAssertEqual(resolved.synchronizationSequence, 8)
+        XCTAssertEqual(resolved.selecting([root]).synchronizationSequence, 8)
+        XCTAssertEqual(resolved.request.paths.map(\.path), ["/repo/one", "/repo/two[*]"])
+        for command in ["svnfetch", "svnrebase", "svndcommit", "svnignore"] {
+            let invocation = try parse(["--command=" + command, "--pathfile", file.path, "--pathfile0"])
+            XCTAssertEqual(try invocation.resolvingPathFile(cancellation: OperationCancellation()).request.action, invocation.request.action)
+        }
+    }
+    func testSynchronizationAndSVNInvalidOptions() throws {
+        for arguments in [["--command=sync", "--seq="], ["--command=sync", "--seq=abc"], ["--command=sync", "--seq=2147483648"], ["--command=sync", "--seq=-2147483649"], ["--command=sync", "--seq=1", "--seq=2"], ["--command=svnfetch", "--seq=2"], ["--command=svnrebase", "--force"], ["--command=svndcommit", "--msg=commit"], ["--command=svnignore", "--delete"], ["--command=sync", "--remote=origin"]] {
+            XCTAssertThrowsError(try parse(arguments), arguments.joined(separator: " "))
+        }
+    }
     func testSubmoduleCommandRoutingAndDiscoveryInputs() throws {
         for (command, action) in [("subadd", RepositoryAction.submoduleAdd), ("subupdate", .submoduleUpdate), ("subsync", .submoduleSync)] {
             let value = try parse(["--command=" + command, "--path", "libs/雪[*]"])

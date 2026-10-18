@@ -1,5 +1,12 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Synchronization/SVN command batch](COMMAND-LINE.md#synchronization-and-svn-entry)
+adds Sync, SVN Fetch/Rebase/DCommit/Ignore entry paths, source sequence placement,
+owning settings and preserved SVN options/questions through competing commands.
+It reuses the native transport forms, progress and Git workflows.
+[Batch evidence](qa/sync-svn-commands-2026-10-18.json) retains actual checks and
+source/platform limits; no whole dialog or application certification is implied.
+
 The connected [Submodule entry batch](COMMAND-LINE.md#submodule-add-update-and-sync-entry)
 adds Add, Update and Sync command routes, source parent/bkpath superproject
 lookup, Update filtering/preselection, preserved reviews, active-progress refusal
