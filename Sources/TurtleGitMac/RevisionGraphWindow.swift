@@ -144,6 +144,7 @@ final class RevisionGraphSurface: NSView {
         }
     }
     func cancel() { cancellation?.cancel(); worker?.cancel() }
+    func waitForCompletion() async { await worker?.value }
     func invalidate() { closed = true; generation = UUID(); cancel(); changed = {}; becameIdle = {} }
     func select(_ hash: String?, extending: Bool) {
         guard !busy, !closed else { return }
@@ -649,12 +650,15 @@ enum RevisionGraphReferenceCommand {
         }
     }
     func exportGraph(to url: URL, format: RevisionGraphFormat) throws {
-        guard !model.closed, !model.busy, !exporting, filter == nil, !hasFindError,
-              window?.attachedSheet == nil, let window else { throw RevisionGraphExportFailure.unavailable }
-        let data = try RevisionGraphExport.data(canvas: canvas, viewport: scroll.contentSize, format: format, appearance: window.effectiveAppearance)
+        let data = try graphExportData(format: format)
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         try data.write(to: url, options: .atomic)
+    }
+    func graphExportData(format: RevisionGraphFormat) throws -> Data {
+        guard !model.closed, !model.busy, !exporting, filter == nil, !hasFindError,
+              window?.attachedSheet == nil, let window else { throw RevisionGraphExportFailure.unavailable }
+        return try RevisionGraphExport.data(canvas: canvas, viewport: scroll.contentSize, format: format, appearance: window.effectiveAppearance)
     }
 
     func showFind(regexExecutable: URL? = nil) {

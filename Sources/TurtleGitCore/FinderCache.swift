@@ -357,10 +357,14 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     case svnDCommit, svnRebase, svnFetch, svnIgnore
     case reviewPatch, daemon, lfs, lfsLocks, lfsLock, lfsUnlock, sendMail
     case synchronize, blame, previousDiff, logSubmodule, properties, settings, help, about
+    case showCompare, cat, commitIsOnRefs
     case status, commit, add, revert, clean, submoduleAdd, submoduleUpdate, submoduleSync, log, revisionGraph, referenceBrowser, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, importPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, move, pasteCopy, pasteMove, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
+        case .showCompare: return "Compare revisions…"
+        case .cat: return "Save historical file…"
+        case .commitIsOnRefs: return "References commit is on…"
         case .svnDCommit: return "SVN DCommit…"
         case .svnRebase: return "SVN Rebase"
         case .svnFetch: return "SVN Fetch"

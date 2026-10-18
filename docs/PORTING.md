@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [historical output/comparison entry batch](COMMAND-LINE.md#historical-comparison-cat-references-and-graph-output)
+adds ShowCompare, filtered Cat, standalone containing references and normal/hidden
+Revision Graph entry. Outputs retain separate grants, staged atomic publication
+and owner/Quit cancellation; historical virtual paths use authorized ancestors.
+Existing source windows, icons and native renderers remain the consumers.
+[Batch evidence](qa/history-commands-2026-10-18.json) records actual checks and
+remaining source/platform acceptance; no complete-port claim follows.
+
 The connected [Synchronization/SVN command batch](COMMAND-LINE.md#synchronization-and-svn-entry)
 adds Sync, SVN Fetch/Rebase/DCommit/Ignore entry paths, source sequence placement,
 owning settings and preserved SVN options/questions through competing commands.

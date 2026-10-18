@@ -234,14 +234,15 @@ extension RepositoryAction {
         case .daemon: return .daemon
         case .revisionGraph: return .revisionGraph
         case .referenceBrowser, .repositoryBrowser: return .repositoryBrowser
+        case .commitIsOnRefs: return .showBranches
         case .bisect, .bisectStart, .bisectSkip: return .bisect
         case .bisectGood: return .bisectGood
         case .bisectBad: return .bisectBad
         case .bisectReset: return .bisectReset
-        case .export: return .export
+        case .export, .cat: return .export
         case .formatPatch, .requestPull: return .unifiedDiff
         case .importPatch: return .patch
-        case .diff, .diffLater, .clearComparisonMark: return .compare
+        case .diff, .showCompare, .diffLater, .clearComparisonMark: return .compare
         case .pull: return .pull
         case .push: return .push
         case .submoduleSync: return .sync

@@ -47,8 +47,10 @@ acceptance for this revision.
 
 The [earlier hosted wrapped-editor timeout](qa/ci-wrapped-stack-2026-10-18.json)
 remains release evidence; its macOS 15.7.9 Intel samples show active UI layout/drawing.
-Subsequent local presentation/history checks pass, but a complete current hosted
-macOS result is still pending. [Current blockers](RELEASE-BLOCKERS.md) keep that
+Subsequent local presentation/history checks pass. The hosted 16380893 run now
+passes that moved/wrapped family but fails in its grouped LFS receiver before SMTP
+readiness; [failure evidence](qa/ci-lfs-failure-16380893-2026-10-18.json) retains the
+actual assertion. A complete passing current hosted macOS result remains required. [Current blockers](RELEASE-BLOCKERS.md) keep that
 separate from packaging, selected signed runtime checks and complete port acceptance.
 
 ## Build channels

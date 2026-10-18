@@ -1,0 +1,147 @@
+{
+  "date": "2026-10-18",
+  "scope": "Connected ShowCompare/Cat/CommitIsOnRefs/RevisionGraph command entry, exact historical content and staged output publication, independent native reference windows and hidden seven-format Graph export. Existing layouts/icons and native consumers remain.",
+  "base_commit": "cdb82acc2f098fc95ed248817b977851ca7cedca",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_review": [
+    "src/TortoiseProc/Commands/ShowCompareCommand.cpp",
+    "src/TortoiseProc/Commands/CatCommand.cpp",
+    "src/TortoiseProc/Commands/CommitIsOnRefsCommand.cpp",
+    "src/TortoiseProc/Commands/RevisionGraphCommand.cpp",
+    "src/TortoiseProc/GitDiff.cpp::DiffCommit",
+    "src/TortoiseProc/FileDiffDlg.cpp::SetDiff/OnInitDialog",
+    "src/TortoiseProc/AppUtils.cpp::StartShowUnifiedDiff",
+    "src/TortoiseProc/RevisionGraph/RevisionGraphWnd.cpp hidden output completion",
+    "src/TortoiseProc/GitLogListBase.cpp ID_SHOWBRANCHES/IDI_SHOWBRANCHES"
+  ],
+  "implementation": [
+    "Typed source aliases/options; ShowCompare preserves base/destination order, working sentinels, unified/alternative routing and one-path validation; original Find menu preference table has no new bits for internal commands.",
+    "Cat resolves/peels a revision once, supports direct blobs and exact commit/tree entries, literal Unicode/glob/newline paths and Git checkout filters/EOL conversion. Historical discovery reaches an authorized existing directory through missing or non-directory current ancestors, including bare virtual paths.",
+    "PreparedCommandFile stages private 0600 bytes in the authorized output directory, checks cancellation while writing, and publishes once with renameat against the captured directory descriptor. Discard/failure/cancellation leaves destination data intact and removes unpublished temporary files. Parent rename and leaf symlinks cannot redirect publication to a replacement directory/alias target.",
+    "Native output owners hold repository/output leases, drain job/Quit accounting and cancel on initiating-window closure or workspace retirement. Final publication shares the MainActor owner check/rename acceptance turn.",
+    "Graph formats moved into shared typed metadata while native AppKit renderer/format UI remain. Hidden output has its own controller/model, waits for actual worker completion, renders through the existing seven encodings, stages/publishes and closes. Normal Graph retains interactive filters and owning preferences.",
+    "Standalone containing-reference windows retain independent input and source layouts/pickers; captured repository/access consumers handle Log, Browse, compare, unified and navigation. Unified handoffs retain window cancellation and original preferences.",
+    "History command action artwork uses existing original compare/export/showbranches resources; the pinned Log source confirms IDI_SHOWBRANCHES. Source icon decoding and Finder preference exclusions remain asserted."
+  ],
+  "validation": {
+    "core": {
+      "initial_log": "build/qa/history-commands-core-2026-10-18.log",
+      "initial_exit": 1,
+      "initial_stage": "Compile: new action cases missing from exhaustive FinderMenuEntry mapping; no runtime test pass claimed for that attempt.",
+      "scoped_log": "build/qa/history-commands-core-mapping-recheck-2026-10-18.log",
+      "scoped_exit": 1,
+      "executed": 50,
+      "failures": 1,
+      "classes": [
+        "CommandHistoricalOutputTests:5",
+        "FinderContextMenuSettingsTests:5",
+        "MenuIconTests:3",
+        "PrimaryCommandInvocationTests:37"
+      ],
+      "failure": "Distinct-action icon invariant needed explicit aliases; source review also selected original showbranches artwork for CommitIsOnRefs. Assertions for aliases and original icon remain.",
+      "affected_recheck_log": "build/qa/history-commands-core-icons-recheck-2026-10-18.log",
+      "affected_recheck_exit": 0,
+      "affected_cases": 1,
+      "distinct_cases_with_final_passing_evidence": 50,
+      "commands": [
+        "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter 'PrimaryCommandInvocationTests|CommandHistoricalOutputTests|MenuIconTests|FinderContextMenuSettingsTests'",
+        "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter MenuIconTests.testAllBundledUpstreamIconsDecodeAtMenuAndRetinaSizes"
+      ],
+      "byte_assertions": [
+        "Blob, commit, tree and HEAD:path reads preserve binary bytes after working directory deletion; CRLF checkout filtering is applied.",
+        "Cancelled/missing/traversing/admin/directory requests refuse without working/index/HEAD mutation.",
+        "Staged 200000-byte content leaves old destination before acceptance; cancellation/discard preserves it; publication is atomic and one-use.",
+        "Directory-relative publication stays with a renamed directory, does not follow a replaced symlink leaf, and failed directory publication cleans staging."
+      ],
+      "full_suite_rerun": false
+    },
+    "debug_build": {
+      "invocations": 4,
+      "logs": [
+        {
+          "path": "build/qa/history-commands-build-2026-10-18.log",
+          "exit": 65,
+          "reason": "Exhaustive Finder mapping compile repair."
+        },
+        {
+          "path": "build/qa/history-commands-build-mapping-recheck-2026-10-18.log",
+          "exit": 0
+        },
+        {
+          "path": "build/qa/history-commands-build-icons-recheck-2026-10-18.log",
+          "exit": 0,
+          "reason": "Source icon mapping repair; only affected Core test repeated."
+        },
+        {
+          "path": "build/qa/history-commands-build-ancestor-recheck-2026-10-18.log",
+          "exit": 0,
+          "reason": "Before native execution, final review expanded historical ancestor discovery to current non-directory blockers. Native fixture exercises that case; Core unchanged/not repeated."
+        }
+      ],
+      "scope": "Current arm64 Debug app/embedded targets; new shared format/output files registered manually in Xcode project. Existing warnings/nonfatal diagnostics remain; no universal/signed-build claim."
+    },
+    "native": {
+      "commands": [
+        "python3 scripts/test-primary-commands.py --only history --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+        "python3 scripts/test-revision-graph-window.py --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+      ],
+      "logs": [
+        "build/qa/history-commands-native-2026-10-18.log",
+        "build/qa/history-commands-graph-regression-2026-10-18.log"
+      ],
+      "exit": 0,
+      "distinct_case_engine_passes": 4,
+      "receiver_attempts": 4,
+      "runtime_failures": [],
+      "passed": [
+        "historical-commands/system",
+        "historical-commands/bundled",
+        "revision-graph-window/system",
+        "revision-graph-window/bundled"
+      ],
+      "assertions": [
+        "Cat publishes exact base/second blob bytes, preserves existing output on missing ref, and reads a virtual bare path whose historical directory is blocked by a current regular file without changing that blocker.",
+        "Actual file, reverse Working tree-to-revision, Changed Files directory and unified comparison routes retain expected sides/content.",
+        "Standalone refs resolve the selected commit/containing topic ref; Show Log opens/selects that commit; empty input stays empty and another command preserves edited independent input.",
+        "Normal Graph gets private settings; hidden Graph produces seven independently validated SVG/GV/PDF/ImageIO raster encodings with no visible Graph result window.",
+        "Private blocking Git filters subprocess starts under actual native owner, then owner closure cancels/reaps work, preserves destination and drains pending/Quit accounting. Separate output authorization can be declined.",
+        "Repository lease reused once; all ten main output requests separately authorized; HEAD/index/working bytes unchanged.",
+        "Existing full Graph receiver retains source menus/icons, formats/encodings, export sheet ownership, zoom/filter/find/pickers, selection/Quit/cancel, ref mutation races and conflicted submodule pointer labels."
+      ]
+    },
+    "ownership": {
+      "reaped_receiver_pids": [
+        34135,
+        34672,
+        35222,
+        35597
+      ],
+      "independently_absent": true,
+      "private_state": "Private repositories/preferences and injected grants; source UI runners own their windows/helpers and close/reap on all outcomes. New output fixture cancels its private infinite filter process through the actual owner lifecycle.",
+      "user_apps": "No installed app, Finder extension or launch service registered, replaced, launched or terminated."
+    },
+    "hosted": {
+      "run": 39107208680,
+      "implementation_commit": "16380893",
+      "conclusion": "failure",
+      "passed": "Moved blocks and wrapped editor navigation family",
+      "failed": "Grouped native LFS and Send Mail receivers with one compilation; LFS phase before SMTP readiness",
+      "evidence": "docs/qa/ci-lfs-failure-16380893-2026-10-18.json",
+      "scope": "Older source run; no complete current hosted pass or repair is claimed."
+    },
+    "documentation": {
+      "localizations": "--write before builds and final --check passed: 38 languages / 1287 keys; original catalogs and fallback policy retained. No complete-language claim.",
+      "coverage": "Regenerated ledger/table and --check passed: 130 dialogs, 120 partial families, 10 pending, zero certified; 1659 static controls / 1566 mapped / 93 pending. No feature percentage.",
+      "site": "294 documents / zero unresolved fragments; no new screenshot or complete visual-parity claim."
+    }
+  },
+  "remaining": [
+    "Both-empty/working ShowCompare requests are currently refused; their source/default index-versus-working semantics remain a command gap.",
+    "WMF/EMF Windows graph formats remain unported; native PDF is available.",
+    "Cat uses filtered Git blob/file semantics and preserves destination on failure; it does not duplicate all Windows libgit2-versus-CLI backend differences.",
+    "Native app remains running after Cat/hidden Graph; separate TortoiseProc process exit/return-code contract remains unported.",
+    "Publication uses a serialized native owner acceptance point; unrelated external concurrent output writers are not locked.",
+    "Custom filter/LFS/network, physical/VoiceOver/receiving-app, actual signed external output/repository grants, App Store and complete-dialog acceptance remain open.",
+    "No new screenshots, unrelated native suites, full Core suite or distribution rebuild repeated. Most recent packaged preview remains at 16380893."
+  ]
+}

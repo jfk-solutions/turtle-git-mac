@@ -122,7 +122,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSUDIFF` | partial-native | 29/29 mapped; 0 pending | [APPEARANCE](APPEARANCE.md), [UNIFIED-DIFF-VIEWER-PARITY](UNIFIED-DIFF-VIEWER-PARITY.md); 23 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_RESOLVESUBMODULECONFLICT` | partial | 26/26 mapped; 0 pending | [SUBMODULE-CONFLICT-PARITY](SUBMODULE-CONFLICT-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_FINDBAR` | partial-native-replacement | 6/6 mapped; 0 pending | [UNIFIED-DIFF-VIEWER-PARITY](UNIFIED-DIFF-VIEWER-PARITY.md); 12 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_COMMITISONREFS` | partial | 7/7 mapped; 0 pending | [COMMIT-CONTAINING-REFS-PARITY](COMMIT-CONTAINING-REFS-PARITY.md); 4 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_COMMITISONREFS` | partial | 7/7 mapped; 0 pending | [COMMIT-CONTAINING-REFS-PARITY](COMMIT-CONTAINING-REFS-PARITY.md); 5 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_USER` | partial-native-replacement | 7/7 mapped; 0 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 5 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_GIT` | partial-native-replacement | 10/13 mapped; 3 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 5 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_AUTHENTICATION` | partial-native-replacement | 11/11 mapped; 0 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 5 QA records |

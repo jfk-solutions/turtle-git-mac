@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-18",
+  "run": 39107208680,
+  "job": 117619419521,
+  "commit": "16380893eaee4af9e649472c927487678beefc64",
+  "workflow_conclusion": "failure",
+  "job_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39107208680/job/117619419521",
+  "logs_source": "GitHub authenticated decoded workflow-job logs endpoint; excerpt only, not a complete archive",
+  "decoded_log_characters": 2080288,
+  "excerpt": "docs/qa/ci-lfs-failure-16380893-2026-10-18.txt",
+  "excerpt_sha256": "146d0e78b89b9a608de617951535079173260f94119aaf97e45df1090f1193dd",
+  "passed_steps": [
+    "Moved blocks and wrapped editor navigation family",
+    "Shared message styles and spelling",
+    "Log rich message links and owned styling",
+    "Add LFS and persistent native list family",
+    "LFS exact paths, owner columns and captured progress"
+  ],
+  "failed_step": "Grouped native LFS and Send Mail receivers with one compilation",
+  "assertion": "verify/LFSReceiver.swift:688: Precondition failed",
+  "native_phase": "LFSLocksVerification",
+  "wrapper_result": "Native receiver exited before SMTP readiness: exit=-4; LFS phase still marked running",
+  "limitations": [
+    "This older implementation revision passed its previously failing wrapped-editor family, not a full hosted application pass.",
+    "The group failed in its LFS phase before SMTP readiness; this is not evidence of an SMTP server/network failure.",
+    "The failing source assertion must be mapped and diagnosed; no cause or repair is inferred from the precondition message alone.",
+    "Later main commits remain unproven by this older run."
+  ],
+  "excerpt_normalization": "Trailing blank lines stripped; timestamped diagnostic text retained."
+}

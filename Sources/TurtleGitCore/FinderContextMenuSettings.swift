@@ -255,6 +255,7 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
     public static func entry(for action: RepositoryAction) -> Self? {
         switch action {
         case .properties: return nil // macOS entry replaces Explorer's property-sheet tab, not a MenuInfo bit.
+        case .showCompare, .cat, .commitIsOnRefs: return nil // Internal history commands have no Explorer menu preference bit.
         case .lfs, .lfsLocks, .lfsLock, .lfsUnlock: return .lfs
         case .svnDCommit: return .svndCommit
         case .svnRebase: return .svnRebase

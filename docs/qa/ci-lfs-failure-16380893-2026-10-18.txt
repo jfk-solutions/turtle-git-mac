@@ -1,0 +1,48 @@
+2026-10-18T09:04:24.3763050Z Native phase completed: MergeWrappingVerification
+2026-10-18T09:04:24.3765460Z Native phase started: ClipboardTargetNativeVerification
+2026-10-18T09:04:24.4270290Z Waiting for native phase: ClipboardTargetNativeVerification
+2026-10-18T09:04:32.9913180Z Clipboard/target native: raw byte formats, captured source across clipboard replacement, no source-file chooser, suggested/selected target choices, p0 plain review/application and private pasteboard cleanup verified.
+2026-10-18T09:04:32.9999300Z Native phase completed: ClipboardTargetNativeVerification
+2026-10-18T09:04:33.0001710Z Native phase started: ReviewPatchNativeVerification
+2026-10-18T09:04:33.0737940Z Waiting for native phase: ReviewPatchNativeVerification
+2026-10-18T09:04:43.9373970Z Native Finder single-patch handoff: plain-folder before/after, checked subset, edited save, no Git initialization, immutable source, guarded dirty close and expired picker reply verified.
+2026-10-18T09:04:43.9377060Z Native phase completed: ReviewPatchNativeVerification
+2026-10-18T09:04:43.9384490Z Native phase started: DaemonNativeVerification
+2026-10-18T09:04:44.0085060Z Waiting for native phase: DaemonNativeVerification
+2026-10-18T09:04:44.3280190Z Native daemon warning, remembered Proceed, Abort, bounded output, cancellation, forced-close and Quit ownership verified.
+2026-10-18T09:04:44.3283140Z Native phase completed: DaemonNativeVerification
+2026-10-18T09:04:44.3291350Z Native phase started: LFSLocksVerification
+2026-10-18T09:04:44.3748370Z Waiting for native phase: LFSLocksVerification
+2026-10-18T09:04:45.4595640Z LOCKS SORT/RESULT DIAGNOSTIC before [("Path", Foundation.SortOrder.forward)] ["1", "2"]
+2026-10-18T09:04:45.5265240Z LOCKS SORT/RESULT DIAGNOSTIC after [("file2.bin", true), ("雪\t🦎.bin", false)] ["1", "2"] GitPathSet(storage: Set([TurtleGitCore.GitReferenceName(rawValue: "1"), TurtleGitCore.GitReferenceName(rawValue: "2")]))
+2026-10-18T09:04:45.5269550Z LFS checkpoint: mixed results sheet attached
+2026-10-18T09:04:45.5270860Z LFS checkpoint: forced retry starting
+2026-10-18T09:04:45.5272350Z LFS checkpoint: forced retry finished
+2026-10-18T09:04:45.6581850Z LFS checkpoint: completed review closed/refreshed
+2026-10-18T09:04:46.1266760Z LFS checkpoint: cancellation review passed
+2026-10-18T09:04:46.4118900Z LFS checkpoint: deferred refresh ownership passed
+2026-10-18T09:04:46.9321630Z LFS checkpoint: path check memory passed
+2026-10-18T09:05:26.6909980Z swift-driver version: 1.120.5 verify/LFSReceiver.swift:688: Precondition failed
+2026-10-18T09:05:26.8084520Z Owned native receiver reaped: 13454
+2026-10-18T09:05:26.9308520Z Traceback (most recent call last):
+2026-10-18T09:05:26.9352080Z   File "/Users/runner/work/turtle-git-mac/turtle-git-mac/scripts/test-native-lfs-mail-batch.py", line 207, in <module>
+2026-10-18T09:05:26.9356500Z     raise RuntimeError('Native receiver exited before SMTP readiness: exit=' + str(code) + ', phase=' + str(phase))
+2026-10-18T09:05:26.9362330Z RuntimeError: Native receiver exited before SMTP readiness: exit=-4, phase={'phase': 'LFSLocksVerification', 'status': 'running'}
+2026-10-18T09:05:26.9990500Z ##[error]Process completed with exit code 1.
+2026-10-18T09:05:27.2387050Z Post job cleanup.
+2026-10-18T09:05:28.4962140Z [command]/usr/local/bin/git version
+2026-10-18T09:05:28.5762330Z git version 2.55.0
+2026-10-18T09:05:28.5856900Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/0b929ae1-70f6-4ce0-9467-6d2e91511f7f/.gitconfig'
+2026-10-18T09:05:28.5864970Z Temporarily overriding HOME='/Users/runner/work/_temp/0b929ae1-70f6-4ce0-9467-6d2e91511f7f' before making global git config changes
+2026-10-18T09:05:28.5870890Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-18T09:05:28.5873930Z [command]/usr/local/bin/git config --global --add safe.directory /Users/runner/work/turtle-git-mac/turtle-git-mac
+2026-10-18T09:05:28.6633160Z [command]/usr/local/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-18T09:05:28.6679170Z [command]/usr/local/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-18T09:05:28.9091730Z [command]/usr/local/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-18T09:05:28.9230150Z http.https://github.com/.extraheader
+2026-10-18T09:05:28.9260430Z [command]/usr/local/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-18T09:05:28.9463580Z [command]/usr/local/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-18T09:05:29.1950800Z [command]/usr/local/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-18T09:05:29.2111260Z [command]/usr/local/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-18T09:05:29.6154920Z Cleaning up orphan processes
+2026-10-18T09:05:31.7117790Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/download-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

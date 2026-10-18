@@ -314,8 +314,12 @@ import UniformTypeIdentifiers
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || creationFolderChoice != nil || commandImportOwner != nil }
+    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || creationFolderChoice != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
     private var addPreparations: [UUID: RepositoryWindowOwner] = [:]
+    private var commandOutputOwners: [UUID: RepositoryWindowOwner] = [:]
+    private var commandGraphWindows: [UUID: RevisionGraphWindowController] = [:]
+    private var commandReferenceWindows: [UUID: CommitContainingReferencesWindowController] = [:]
+    var revisionGraphWindowFactory: ((GitRepository, RepositoryAccessLease?, UserDefaults, Bool) -> RevisionGraphWindowController)?
     private var commandImportOwner: RepositoryWindowOwner?
     private var commandImportFolderChoice: RepositoryCreationFolderChoice?
     var commandLinePatchPermission: ((URL) throws -> RepositoryAccessLease?)?
@@ -333,7 +337,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -550,6 +554,16 @@ import UniformTypeIdentifiers
                 if !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue {
                     location.deleteLastPathComponent()
                 }
+                let historicalSelection = invocation.map { [.cat, .showCompare].contains($0.request.action) } ?? false
+                if historicalSelection {
+                    while location.path != "/" {
+                        var existingDirectory: ObjCBool = false
+                        if FileManager.default.fileExists(atPath: location.path, isDirectory: &existingDirectory), existingDirectory.boolValue { break }
+                        let parent = location.deletingLastPathComponent()
+                        guard lease.contains(parent) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(parent.path) }
+                        location = parent
+                    }
+                }
                 let prepared=try await prepareRepositoryMetadataAccess(at:location,primary:lease,cancellation:cancellation)
                 try cancellation.check();guard adoption==adoptionGeneration else { return }
                 let sessionAccess=lease.retainingRelatedScopes(prepared.scopes)
@@ -573,7 +587,7 @@ import UniformTypeIdentifiers
                         guard lease.contains(item), item.path == resolved.path || item.path.hasPrefix(resolved.path + "/") else {
                             throw FinderSelectionFailure.multipleRepositories
                         }
-                        if submoduleLocation != nil { continue }
+                        if submoduleLocation != nil || historicalSelection { continue }
                         var location = item
                         var directory: ObjCBool = false
                         if !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue { location.deleteLastPathComponent() }
@@ -712,6 +726,9 @@ import UniformTypeIdentifiers
         guard !confirmingQuit else { return }
         guard !bare || !action.requiresWorkingTree else { error = "\(action.title) requires a working tree. This repository is bare."; return }
         switch action {
+        case .cat, .showCompare: error = "Use the command-line revision and destination options for this operation."
+        case .commitIsOnRefs:
+            if let repository { showCommandContainingReferences(repository: repository, access: activeAccess, revision: "") }
         case .svnDCommit, .svnRebase, .svnFetch, .svnIgnore: showSVN(action.svnOperation!)
         case .reviewPatch:
             showReviewPatch(files: (paths.isEmpty ? selectedPaths : paths).map { repository?.root.appendingPathComponent($0) }.compactMap { $0 })
@@ -1828,7 +1845,7 @@ import UniformTypeIdentifiers
     private func showRevisionGraph(repository: GitRepository, access: RepositoryAccessLease?) {
         let key = repository.root.path + "\0" + repository.executable.path
         if let existing = revisionGraphWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
-        let controller = RevisionGraphWindowController(repository: repository, access: access)
+        let controller = revisionGraphWindowFactory?(repository, access, fileComparisonPreferences, true) ?? RevisionGraphWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.revisionGraphWindows.removeValue(forKey: key) }
         controller.model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
         controller.model.onBrowse = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
@@ -3243,6 +3260,74 @@ import UniformTypeIdentifiers
             } catch { busy = false; if !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
+    private func beginCommandOutput() -> (UUID, RepositoryWindowOwner) {
+        let id = UUID(), owner = RepositoryWindowOwner(window: workspaceWindow)
+        commandOutputOwners[id] = owner; commandLineOutputOperations[id] = owner.cancellation
+        Self.activeCommandFileOperations += 1
+        return (id, owner)
+    }
+    private func finishCommandOutput(_ id: UUID) {
+        commandOutputOwners.removeValue(forKey: id); commandLineOutputOperations.removeValue(forKey: id); commandGraphWindows.removeValue(forKey: id)
+        Self.activeCommandFileOperations -= 1
+    }
+    private func publishCommandOutput(_ bytes: Data, file: URL, permission: RepositoryAccessLease, owner: RepositoryWindowOwner) async throws {
+        let token = owner.cancellation
+        try token.check()
+        guard !retired, !confirmingQuit, permission.contains(file), permission.contains(file.deletingLastPathComponent()), !GitRuntime.isAppStoreBuild || permission.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let staged = try await Task.detached { try PreparedCommandFile.prepare(bytes, to: file, cancellation: token) }.value
+        defer { staged.discard() }
+        try token.check()
+        guard !retired, !confirmingQuit else { throw OperationCancellationFailure.cancelled }
+        // UI ownership and the final atomic rename share this MainActor turn.
+        try staged.publish(cancellation: token)
+    }
+    private func writeCommandHistoricalFile(repository: GitRepository, access: RepositoryAccessLease, revision: String, path: String, file: URL, permission: RepositoryAccessLease) {
+        let (id, owner) = beginCommandOutput()
+        Task {
+            defer { finishCommandOutput(id); withExtendedLifetime((access, permission)) {} }
+            do {
+                let bytes = try await repository.commandHistoricalFile(revision: revision, path: path, cancellation: owner.cancellation)
+                try await publishCommandOutput(bytes, file: file, permission: permission, owner: owner)
+                if root?.path == repository.root.path { output = "Saved historical file: " + file.path }
+            } catch { if !retired, !owner.cancellation.isCancelled { self.error = "Could not save " + file.path + ": " + error.localizedDescription } }
+        }
+    }
+    private func writeCommandGraph(repository: GitRepository, access: RepositoryAccessLease, file: URL, permission: RepositoryAccessLease, format: RevisionGraphFormat) {
+        let (id, owner) = beginCommandOutput()
+        let controller = revisionGraphWindowFactory?(repository, access, fileComparisonPreferences, false) ?? RevisionGraphWindowController(repository: repository, access: access, preferences: fileComparisonPreferences, automaticallyLoad: false)
+        commandGraphWindows[id] = controller
+        owner.onCancelled = { [weak controller] in controller?.model.cancel() }
+        controller.onClosed = { owner.cancellation.cancel() }
+        controller.model.load()
+        Task {
+            defer { controller.close(); finishCommandOutput(id); withExtendedLifetime((access, permission)) {} }
+            await controller.model.waitForCompletion()
+            do {
+                try owner.cancellation.check()
+                guard !controller.model.closed else { throw OperationCancellationFailure.cancelled }
+                if let failure = controller.model.error { throw PrimaryCommandInvocation.Failure(failure) }
+                let bytes = try controller.graphExportData(format: format)
+                try await publishCommandOutput(bytes, file: file, permission: permission, owner: owner)
+                if root?.path == repository.root.path { output = "Saved revision graph: " + file.path }
+            } catch { if !retired, !owner.cancellation.isCancelled { self.error = "Could not save " + file.path + ": " + error.localizedDescription } }
+        }
+    }
+    private func showCommandContainingReferences(repository: GitRepository, access: RepositoryAccessLease?, revision: String) {
+        let id = UUID(), preferences = fileComparisonPreferences
+        let controller = CommitContainingReferencesWindowController(repository: repository, access: access, revision: revision, preferences: preferences)
+        let owner = RepositoryWindowOwner(window: controller.window)
+        controller.onClosed = { [weak self] in self?.commandReferenceWindows.removeValue(forKey: id) }
+        controller.onLog = { [weak self] name, select, range in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range) }
+        controller.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
+        controller.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
+        controller.onNavigate = { [weak self] name, select in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil) }
+        controller.onUnified = { [weak self] bytes, alternate in
+            guard let self else { return }
+            try await self.presentCommandUnifiedDiff(bytes, title: "References commit is on", repository: repository, access: access, alternate: alternate, preferences: preferences, cancellation: owner.cancellation)
+        }
+        commandReferenceWindows[id] = controller
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.refresh()
+    }
     private func writeCommandSelection(_ revision: LogEntry?, file: URL, permission: RepositoryAccessLease) {
         let id = UUID(), token = OperationCancellation()
         commandLineOutputOperations[id] = token; Self.activeCommandFileOperations += 1
@@ -3382,6 +3467,31 @@ import UniformTypeIdentifiers
         let paths = invocation.request.relativePaths(root: repository.root)
         if bare && invocation.request.action.requiresWorkingTree { activate(invocation.request.action, paths: paths); return }
         switch invocation.request.action {
+        case .cat:
+            guard let file = invocation.outputFile, let permission = outputAccess, let revision = invocation.catRevision, let path = paths.first else { return }
+            writeCommandHistoricalFile(repository: repository, access: access, revision: revision, path: path, file: file, permission: permission)
+        case .showCompare:
+            let from = invocation.diffFrom.map(ComparisonRevision.revision) ?? .workingTree
+            let to = invocation.diffTo.map(ComparisonRevision.revision) ?? .workingTree
+            let scope = paths.filter { $0 != "." }
+            if invocation.unified {
+                prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: workspaceWindow) { [self] token in
+                    let snapshot = try await repository.revisionFileComparison(from: from, to: to, paths: scope, cancellation: token)
+                    let bytes = try await repository.revisionComparisonPatchData(snapshot, cancellation: token)
+                    try await presentCommandUnifiedDiff(bytes, title: from.label + " → " + to.label, repository: repository, access: access, alternate: invocation.request.alternateTool ?? false, preferences: fileComparisonPreferences, cancellation: token)
+                }
+            } else {
+                var directory: ObjCBool = false
+                let selected = invocation.request.paths[0]
+                if paths == ["."] || (FileManager.default.fileExists(atPath: selected.path, isDirectory: &directory) && directory.boolValue) {
+                    showRevisionComparison(repository: repository, access: access, from: from, to: to, paths: scope)
+                } else { showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: scope, owner: workspaceWindow) }
+            }
+        case .commitIsOnRefs: showCommandContainingReferences(repository: repository, access: access, revision: invocation.selectedRevision ?? "")
+        case .revisionGraph:
+            if let file = invocation.outputFile, let permission = outputAccess, let format = invocation.graphOutputFormat {
+                writeCommandGraph(repository: repository, access: access, file: file, permission: permission, format: format)
+            } else { showRevisionGraph(repository: repository, access: access) }
         case .commit: showCommitDialog(repository: repository, access: access, paths: paths, invocation: invocation, commandMessage: message)
         case .log: showLog(repository: repository, access: access, paths: paths, selectedRevision: selectedRevision, invocation: invocation, outputAccess: outputAccess)
         case .blame:

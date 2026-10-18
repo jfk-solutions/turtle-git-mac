@@ -5,10 +5,8 @@ import ImageIO
 import UniformTypeIdentifiers
 import TurtleGitCore
 
-enum RevisionGraphFormat: String, CaseIterable {
-    case svg, graphviz, png, jpeg, bmp, gif, pdf
+extension RevisionGraphFormat {
     var title: String { self == .graphviz ? "Graphviz" : rawValue.uppercased() }
-    var fileExtension: String { self == .graphviz ? "gv" : self == .jpeg ? "jpg" : rawValue }
     var contentType: UTType {
         switch self { case .svg: return .svg; case .graphviz: return UTType(filenameExtension: "gv", conformingTo: .plainText)!; case .png: return .png; case .jpeg: return .jpeg; case .bmp: return .bmp; case .gif: return .gif; case .pdf: return .pdf }
     }

@@ -1,5 +1,12 @@
 # References commit is on
 
+The connected [historical command family](COMMAND-LINE.md#historical-comparison-cat-references-and-graph-output)
+adds source ShowCompare, Cat, containing-reference and Revision Graph entry,
+authorized staged output, independent reference windows and hidden graph exports.
+Existing native layouts, original icons and renderer/comparison consumers remain.
+[Batch evidence](qa/history-commands-2026-10-18.json) retains focused checks and
+explicit Windows-format/process, physical, signed and complete parity gaps.
+
 A native modeless dialog now opens from Log's **Show branches this commit is on**
 menu entry. Core and native interaction checks pass with system and packaged Git;
 Core checks also pass with isolated Git 2.39.5. The dialog and its seven controls

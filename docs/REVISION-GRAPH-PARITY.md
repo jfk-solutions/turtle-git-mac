@@ -1,5 +1,12 @@
 # Revision Graph port
 
+The connected [historical command family](COMMAND-LINE.md#historical-comparison-cat-references-and-graph-output)
+adds source ShowCompare, Cat, containing-reference and Revision Graph entry,
+authorized staged output, independent reference windows and hidden graph exports.
+Existing native layouts, original icons and renderer/comparison consumers remain.
+[Batch evidence](qa/history-commands-2026-10-18.json) retains focused checks and
+explicit Windows-format/process, physical, signed and complete parity gaps.
+
 The repository data, graph reduction and pinned OGDF layout adapter are ported.
 A native AppKit Revision Graph window and Filter sheet are now implemented locally;
 focused native interaction checks passed with system and bundled Git. Neither dialog has complete upstream parity. The complete TortoiseGit port and App Store acceptance remain open.

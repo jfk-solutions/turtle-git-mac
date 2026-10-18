@@ -1,5 +1,12 @@
 # Selected-file comparison workflow
 
+The connected [historical command family](COMMAND-LINE.md#historical-comparison-cat-references-and-graph-output)
+adds source ShowCompare, Cat, containing-reference and Revision Graph entry,
+authorized staged output, independent reference windows and hidden graph exports.
+Existing native layouts, original icons and renderer/comparison consumers remain.
+[Batch evidence](qa/history-commands-2026-10-18.json) retains focused checks and
+explicit Windows-format/process, physical, signed and complete parity gaps.
+
 The pinned TortoiseGit source is `7338078f8ddd924b8cddee35f512f2286072136d`.
 `GitStatusListCtrl.cpp::CheckMultipleDiffs` and
 `FileDiffDlg.cpp::CheckMultipleDiffs` use the selected-row count, a strict greater

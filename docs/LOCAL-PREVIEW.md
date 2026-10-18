@@ -58,8 +58,10 @@ workflow checks; each parity guide records the remaining acceptance.
 An earlier hosted wrapped-navigation check timed out on macOS 15.7.9 Intel.
 The hash-verified stack sample is retained in [the CI evidence](qa/ci-wrapped-stack-2026-10-18.json).
 The current preview includes subsequent presentation/history changes with scoped
-local passes. A complete current hosted macOS result remains pending; successful
-packaging does not clear the release gate.
+local passes. The 16380893 hosted moved/wrapped family passed; that run then failed
+in LFSLocksVerification before the grouped SMTP phase reached readiness. See
+[the actual CI assertion](qa/ci-lfs-failure-16380893-2026-10-18.json). A complete
+passing current hosted result remains required; packaging does not clear that gate.
 
 The current 18 October local package is under `build/previews/TurtleGit-16380893`.
 Its ZIP is `TurtleGit-for-Mac-0.1.0-local-preview.zip` (353,713,855 bytes); the

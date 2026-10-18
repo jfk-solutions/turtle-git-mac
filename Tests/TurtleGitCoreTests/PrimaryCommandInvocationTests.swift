@@ -2,6 +2,39 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PrimaryCommandInvocationTests: XCTestCase {
+    func testHistoricalCommandRoutesAndOutputFormats() throws {
+        let compare = try parse(["--command=showcompare", "--revision1=HEAD~1", "--revision2=HEAD", "--unified", "--alternative"])
+        XCTAssertEqual(compare.request.action, .showCompare); XCTAssertEqual(compare.diffFrom, "HEAD~1"); XCTAssertEqual(compare.diffTo, "HEAD")
+        XCTAssertTrue(compare.unified); XCTAssertEqual(compare.request.alternateTool, true)
+        XCTAssertNil(try parse(["/command:showcompare", "/revision2:HEAD"]).diffFrom)
+        XCTAssertNil(try parse(["/command:showcompare", "/revision1:HEAD", "/revision2:" + String(repeating: "0", count: 40)]).diffTo)
+        let cat = try parse(["--command=cat", "--revision=HEAD:folder/a b", "--savepath=result.bin"])
+        XCTAssertEqual(cat.request.action, .cat); XCTAssertEqual(cat.catRevision, "HEAD:folder/a b"); XCTAssertEqual(cat.outputFile?.path, "/repo/result.bin")
+        XCTAssertEqual(try parse(["/command:commitisonrefs", "/rev:topic"]).selectedRevision, "topic")
+        XCTAssertNil(try parse(["/command:commitisonrefs", "/rev:"]).selectedRevision)
+        for (ext, format) in [("SVG", RevisionGraphFormat.svg), ("gv", .graphviz), ("dot", .graphviz), ("png", .png), ("jpg", .jpeg), ("jpeg", .jpeg), ("bmp", .bmp), ("gif", .gif), ("pdf", .pdf)] {
+            let graph = try parse(["--command=revisiongraph", "--output=graph." + ext])
+            XCTAssertEqual(graph.graphOutputFormat, format); XCTAssertEqual(graph.outputFile?.path, "/repo/graph." + ext)
+        }
+        XCTAssertNil(try parse(["--command=revisiongraph", "--output="]).outputFile)
+        XCTAssertFalse(RepositoryAction.cat.requiresWorkingTree); XCTAssertFalse(RepositoryAction.showCompare.requiresWorkingTree)
+        for action in [RepositoryAction.cat, .showCompare, .commitIsOnRefs] { XCTAssertNil(FinderMenuEntry.entry(for: action)) }
+    }
+    func testHistoricalCommandInvalidOptionsAndPathFileCardinality() throws {
+        for arguments in [["--command=cat"], ["--command=cat", "--revision=HEAD"], ["--command=cat", "--revision=", "--savepath=x"], ["--command=cat", "--revision=-x", "--savepath=x"], ["--command=cat", "--revision=HEAD", "--outfile=x"], ["--command=showcompare"], ["--command=showcompare", "--revision1=-bad"], ["--command=revisiongraph", "--output=x.emf"], ["--command=revisiongraph", "--outfile=x.svg"], ["--command=commitisonrefs", "--revision=HEAD"]] {
+            XCTAssertThrowsError(try parse(arguments), arguments.joined(separator: " "))
+        }
+        let root = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("paths"); try Data("a\0b\0".utf8).write(to: file)
+        let invalid = try parse(["--command=cat", "--revision=HEAD", "--savepath=x", "--pathfile", file.path, "--pathfile0", "--deletepathfile"])
+        XCTAssertThrowsError(try invalid.resolvingPathFile(cancellation: OperationCancellation()))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
+        try Data("folder/a b\0".utf8).write(to: file)
+        let resolved = try invalid.resolvingPathFile(cancellation: OperationCancellation())
+        XCTAssertEqual(resolved.catRevision, "HEAD"); XCTAssertEqual(resolved.outputFile?.path, "/repo/x"); XCTAssertEqual(resolved.request.paths.first?.path, "/repo/folder/a b")
+        let graph = try parse(["--command=revisiongraph", "--output=x.svg", "--pathfile=roots"])
+        XCTAssertEqual(graph.selecting([root]).graphOutputFormat, .svg)
+    }
     func testSynchronizationAndSVNCommandRouting() throws {
         for (command, action) in [("sync", RepositoryAction.synchronize), ("svnfetch", .svnFetch), ("svnrebase", .svnRebase), ("svndcommit", .svnDCommit), ("svnignore", .svnIgnore)] {
             let value = try parse(["--command=" + command, "--path", "literal 雪[*].txt"])

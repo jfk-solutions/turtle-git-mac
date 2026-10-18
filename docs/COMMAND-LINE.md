@@ -587,3 +587,79 @@ forms/icons are reused. [Dated evidence](qa/sync-svn-commands-2026-10-18.json)
 records actual Git state checks with private injected SVN transport, selected
 native checks and remaining limits. It does not certify public SVN transport,
 physical interactions, signed grants, complete source dialogs or App Store use.
+
+## Historical comparison, Cat, references and Graph output
+
+| Source command | Native destination and inputs |
+| --- | --- |
+| `showcompare` | One selected file/directory; `revision1` is the base and `revision2` the destination, with `unified` and `alternative` viewer selection |
+| `cat` | One selected historical file or blob context; required `revision` and `savepath` publish the filtered file bytes after repository/output authorization |
+| `commitisonrefs` | Opens an independent References commit is on window; optional `rev` supplies the editable revision, while empty/omitted input remains blank |
+| `revisiongraph` | Opens Revision Graph normally; nonempty `output` loads/renders a separate hidden graph and writes the selected format |
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=showcompare \
+  --path '/absolute/project/file.txt' --revision1 'HEAD~1' --revision2 HEAD
+
+open -n -a 'TurtleGit for Mac' --args --command=cat \
+  --path '/absolute/project/file.txt' --revision HEAD \
+  --savepath '/absolute/output/file.txt'
+
+open -n -a 'TurtleGit for Mac' --args --command=commitisonrefs \
+  --path '/absolute/project' --rev HEAD
+
+open -n -a 'TurtleGit for Mac' --args --command=revisiongraph \
+  --path '/absolute/project' --output '/absolute/output/history.svg'
+```
+
+ShowCompare's native directory route uses Changed Files; a file opens the existing
+comparison viewer, and Unified uses the owned configured unified-viewer path.
+An empty/omitted side, or a 40/64-zero working-copy sentinel, selects Working tree;
+this port currently requires at least one actual revision. Both-working/empty
+source requests remain a command parity gap. Commit/tree revisions retain the
+normal comparison resolver. Bare repositories can compare two historical sides;
+a Working tree request there reports the existing error. Native literal paths
+retain spaces, Unicode and glob characters; legacy `/path:` still uses `*` to
+separate selections. Cat and ShowCompare reject multi-path lists before an
+explicitly requested input-list deletion.
+
+Cat resolves its revision/object once, peels tags and reads an exact blob path
+from a commit/tree, or accepts a direct blob/object expression such as
+`HEAD:path with spaces`. Git's `cat-file --filters --path=…` supplies checkout
+filters/EOL conversion using the selected path, matching the filtered-file
+workflow rather than checking out a file or changing the index. This is a native
+Git adaptation of CatCommand's blob/GetOneFile branch; it does not reproduce all
+Windows CLI-versus-libgit2 backend differences. Deleted directories, current file/directory collisions and bare
+virtual file paths discover an existing authorized directory before Git runs.
+Custom filters can invoke their configured helpers and retain ordinary sandbox
+restrictions; public LFS/filter/Keychain acceptance is separate.
+
+`savepath` and Graph `output` require their own parent-folder permission. Bytes
+are staged in a private file and published with one directory-relative atomic
+rename only after the initiating native owner remains valid. Closing that owner
+or terminating its workspace cancels the read/render/staging work. A failed or
+cancelled operation preserves an existing destination; temporary files are
+removed. This deliberately avoids upstream Cat's error-path destination deletion.
+The owner retains both repository and output scopes through completion and
+participates in Quit accounting. Separate concurrent external writers are not
+serialized by this local ownership mechanism.
+
+Graph output selects SVG, GV/DOT, PNG, JPEG, BMP, GIF or native PDF from the file
+extension, with the same graph model, fonts, colors and export renderer as Save
+Graph As. Unsupported extensions, including Windows WMF/EMF, are refused before
+output permission or writing; those Windows formats remain unported. Hidden
+output owns a separate graph and does not retarget an existing interactive graph.
+A normal Graph command reuses its existing view and preserves its filters.
+
+Standalone containing-reference windows retain independent editable input,
+filter, source icons, reference actions and pickers. Show Log, Browse, comparison,
+unified output and navigation have workspace consumers using the captured
+repository/access. Closing a window retires its reads and any later unified
+handoff. The application remains running after Cat/hidden Graph completion;
+Windows' separate TortoiseProc process-exit/return-code contract is not implemented
+by this native application entry path.
+
+Pinned review covers `Commands/{ShowCompare,Cat,CommitIsOnRefs,RevisionGraph}Command.cpp`,
+`GitDiff::DiffCommit`, `FileDiffDlg`, unified launch and Graph save/hidden completion.
+[Batch evidence](qa/history-commands-2026-10-18.json) separates actual byte/Git/native
+checks from full dialogs, filters, physical/signed and App Store acceptance.
