@@ -74,7 +74,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_AUTOTEXTTESTDLG` | partial | 9/9 mapped; 0 pending | [AUTOTEXT-TESTER-PARITY](AUTOTEXT-TESTER-PARITY.md); 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGS_CONFIG` | partial | 2/2 mapped; 0 pending | [ADVANCED-SETTINGS-PARITY](ADVANCED-SETTINGS-PARITY.md); 7 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_CLONE` | partial-native-replacement | 34/34 mapped; 0 pending | [CLONE-PARITY](CLONE-PARITY.md), [UI-PARITY](UI-PARITY.md); 11 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_GITPROGRESS` | partial-native | 6/7 mapped; 1 pending | [MERGE-PARITY](MERGE-PARITY.md), [PROGRESS-PARITY](PROGRESS-PARITY.md); 27 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_GITPROGRESS` | partial-native | 6/7 mapped; 1 pending | [MERGE-PARITY](MERGE-PARITY.md), [PROGRESS-PARITY](PROGRESS-PARITY.md); 28 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_PULLFETCH` | partial-native-replacement | 25/25 mapped; 0 pending | [FETCH-PARITY](FETCH-PARITY.md), [HELP-PARITY](HELP-PARITY.md), [PULL-PARITY](PULL-PARITY.md), [UI-PARITY](UI-PARITY.md); 21 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_PUSH` | partial-native-replacement | 29/29 mapped; 0 pending | [HELP-PARITY](HELP-PARITY.md), [PUSH-PARITY](PUSH-PARITY.md), [UI-PARITY](UI-PARITY.md); 21 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SVNDCOMMITTYPE` | partial-native-replacement | 7/7 mapped; 0 pending | [SVN-PARITY](SVN-PARITY.md); 4 QA records |
@@ -83,7 +83,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_NEW_BRANCH_TAG` | partial-native-replacement | 24/24 mapped; 0 pending | [BRANCH-TAG-PARITY](BRANCH-TAG-PARITY.md), [HELP-PARITY](HELP-PARITY.md), [UI-PARITY](UI-PARITY.md); 12 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_APPLY_PATCH_LIST` | partial-native-replacement | 14/14 mapped; 0 pending | [HELP-PARITY](HELP-PARITY.md), [IMPORT-PATCH-PARITY](IMPORT-PATCH-PARITY.md); 29 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_FORMAT_PATCH` | partial-native-replacement | 24/24 mapped; 0 pending | [FORMAT-PATCH-PARITY](FORMAT-PATCH-PARITY.md); 3 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_MERGE` | partial-workflow-replacement | 27/27 mapped; 0 pending | [MERGE-PARITY](MERGE-PARITY.md), [MESSAGE-LINK-INTERACTION-PARITY](MESSAGE-LINK-INTERACTION-PARITY.md), [UI-PARITY](UI-PARITY.md); 20 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_MERGE` | partial-workflow-replacement | 27/27 mapped; 0 pending | [MERGE-PARITY](MERGE-PARITY.md), [MESSAGE-LINK-INTERACTION-PARITY](MESSAGE-LINK-INTERACTION-PARITY.md), [UI-PARITY](UI-PARITY.md); 21 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_START` | partial-native-replacement | 1/1 mapped; 0 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 5 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSCOLORS_1` | partial-native-replacement | 21/21 mapped; 0 pending | [APPEARANCE](APPEARANCE.md), [SETTINGS-NAVIGATION-PARITY](SETTINGS-NAVIGATION-PARITY.md); 19 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSCOLORS_3` | partial-native-replacement | 22/22 mapped; 0 pending | [APPEARANCE](APPEARANCE.md), [SETTINGS-NAVIGATION-PARITY](SETTINGS-NAVIGATION-PARITY.md); 19 QA records |
@@ -103,7 +103,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_CREATEREPO` | partial-native-replacement | 5/5 mapped; 0 pending | [INIT-PARITY](INIT-PARITY.md), [UI-PARITY](UI-PARITY.md); 6 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSPROGSALTERNATIVEEDITOR` | partial-native-replacement | 5/5 mapped; 0 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_BISECTSTART` | partial-native-replacement | 9/9 mapped; 0 pending | [BISECT-PARITY](BISECT-PARITY.md); 3 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_STASH` | partial | 8/8 mapped; 0 pending | [STASH-PARITY](STASH-PARITY.md), [UI-PARITY](UI-PARITY.md); 12 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_STASH` | partial | 8/8 mapped; 0 pending | [STASH-PARITY](STASH-PARITY.md), [UI-PARITY](UI-PARITY.md); 13 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REVGRAPHFILTER` | partial | 12/12 mapped; 0 pending | [UI-PARITY](UI-PARITY.md); 6 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_DIFFSUBMODULE` | partial-native-replacement | 17/17 mapped; 0 pending | [SUBMODULE-DIFF-PARITY](SUBMODULE-DIFF-PARITY.md); 4 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_IGNORE` | partial-native-replacement | 10/10 mapped; 0 pending | [IGNORE-PARITY](IGNORE-PARITY.md), [UI-PARITY](UI-PARITY.md); 7 QA records |

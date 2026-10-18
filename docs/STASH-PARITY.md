@@ -272,3 +272,18 @@ sheets, crash recovery and full replay parity remain open.
 The connected [local command progress family](LOCAL-COMMAND-PROGRESS-PARITY.md)
 adds live Reset/Switch/Stash output, shared native log styling/copy controls,
 bounded presentation, independent ownership and once-only kill questions.
+
+## Command entry and warning ownership — October 18, 2026
+
+Source `stashsave`, `stashapply`, `stashpop` and `stashlist` now enter the native
+Save, Restore and stash RefLog workflows. Save's `msg` preset remains editable;
+repeated entry preserves its command-owned draft. Apply/Pop retain latest-stash
+semantics and source result questions. Existing source icons and options remain.
+All these workspace consumers pass captured preferences rather than falling back
+to global preferences. Busy stash operations refuse competing launches and Save
+acceptance within that workspace; this does not coordinate unrelated processes.
+Untracked-warning responses are matched by request identity, preventing a reply
+from a cancelled warning accepting a later snapshot. See
+[command entry](COMMAND-LINE.md#merge-and-stash-command-entry) and
+[batch evidence](qa/integration-commands-2026-10-18.json) for actual Git validation
+and remaining platform limits.

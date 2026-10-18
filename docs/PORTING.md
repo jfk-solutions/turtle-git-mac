@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Merge/Stash entry batch](COMMAND-LINE.md#merge-and-stash-command-entry)
+adds the source Merge/Abort and four Stash commands, preserved native command
+drafts, owning preferences, scoped pending-operation guards and request-specific
+untracked warning replies. Existing native dialogs, source icons, Git progress
+and result/post-action workflows remain the consumers.
+[Batch evidence](qa/integration-commands-2026-10-18.json) records actual Git effects,
+grouped checks and remaining source/platform limits.
+
 The connected [Compare editing-history batch](MERGE-TYPING-PARITY.md#document-owned-editing-history--october-18-2026)
 addresses the hosted combined-row Undo failure with document-owned history and
 native pane-role rebinding. A production view-reuse fixture reproduced the owner

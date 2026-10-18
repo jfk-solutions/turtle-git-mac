@@ -45,8 +45,8 @@ public struct PrimaryCommandInvocation: Sendable {
             return key == "--command" || key.hasPrefix("--command=") || key.hasPrefix("/command:")
         }
         guard hasCommand else { return nil }
-        let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep", "onlymask", "delete"]
-        let valued: Set<String> = ["command", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream"]
+        let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep", "onlymask", "delete", "abort"]
+        let valued: Set<String> = ["command", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream", "msg"]
         var values: [String: String] = [:], paths: [String] = [], index = 0
         while index < arguments.count {
             let argument = arguments[index]; index += 1
@@ -100,6 +100,11 @@ public struct PrimaryCommandInvocation: Sendable {
         case "add": action = .add
         case "rename": action = .rename
         case "remove": action = values["keep"] != nil ? .removeKeep : .remove
+        case "merge": action = values["abort"] != nil ? .mergeAbort : .merge
+        case "stashsave": action = .stash
+        case "stashapply": action = .stashApply
+        case "stashpop": action = .stashPop
+        case "stashlist": action = .stashList
         case "repocreate": action = .initialize
         case "cleanup": action = .clean
         case "ignore":
@@ -120,6 +125,8 @@ public struct PrimaryCommandInvocation: Sendable {
         case .rebase: allowed.formUnion(["upstream", "force"])
         case .blame: allowed.formUnion(["endrev", "line"])
         case .previousDiff: allowed.formUnion(["alternative", "unified"])
+        case .merge, .mergeAbort: allowed.insert("abort")
+        case .stash: allowed.insert("msg")
         case .remove, .removeKeep: allowed.insert("keep")
         case .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask: allowed.formUnion(["onlymask", "delete"])
         default: break
@@ -188,7 +195,7 @@ public struct PrimaryCommandInvocation: Sendable {
             let mapping: [(UInt16, HistorySearchFields)] = [(1,.messages),(2,.paths),(4,.authors),(8,.revisions),(32,.bugIDs),(64,.subject),(128,.referenceNames),(256,.emails),(512,.notes),(1024,.tagInfo)]
             fields = mapping.reduce(into: HistorySearchFields()) { result, item in if mask & item.0 != 0 { result.formUnion(item.1) } }
         }
-        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceRebase: values["force"] != nil, message: values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
+        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceRebase: values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
     }
 
     private static func validateSelection(_ urls: [URL], action: RepositoryAction) throws {

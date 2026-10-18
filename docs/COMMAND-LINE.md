@@ -353,3 +353,48 @@ line endings and unchanged bytes survive append. The source handlers reviewed ar
 `Commands/{CreateRepository,Cleanup,Ignore}Command.cpp`, `CleanTypeDlg.cpp` and
 `AppUtils.cpp::IgnoreFile`. Full Windows process/shared-switch protocol, signed
 sandbox acceptance and every native visual comparison remain open.
+
+## Merge and Stash command entry
+
+| Command | Native workflow | Source presets |
+| --- | --- | --- |
+| `merge` | Merge review, native reference/Log choosers and owned progress | `abort` opens Abort Merge instead |
+| `stashsave` | Stash Save review and owned progress | `msg` supplies the editable message, including an explicitly empty message |
+| `stashapply` | Apply the latest stash, then the source result question | No revision or message switches |
+| `stashpop` | Pop the latest stash, then the source result question | No revision or message switches |
+| `stashlist` | RefLog with `refs/stash` selected | Existing stash inspection, Apply and guarded deletion menus |
+
+```sh
+'/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac' \
+  --command=stashsave --path '/absolute/repository' --msg 'Before integration'
+
+'/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac' \
+  --command=merge --path '/absolute/repository' --abort
+```
+
+The source Merge command supplies no revision/message option: choose them in the
+native dialog. Merge, Abort and Stash Save wait for their native acceptance.
+Apply and Pop are operation commands and run after repository authorization;
+they retain existing progress, cancellation, conflict/result questions and
+View Changes handoffs. Apply retains the stash; successful Pop removes it.
+Selections and common path-file input locate the repository rather than limiting
+these repository-wide operations to individual files.
+
+A repeated Merge or Stash Save command brings its command-owned draft forward
+without replacing edited options or the message. Repeated Abort entry reuses the
+open repository review. Stash Save warnings capture their own request identity;
+a cancelled or already-consumed reply cannot accept a newer warning snapshot.
+A pending stash mutation refuses a competing Apply/Pop launch and an already-open
+Save draft's acceptance until that operation settles. This is a native workspace
+ownership guard, not an external-process Git lock or a global cross-workspace
+transaction system.
+
+Merge, Abort, Save and Restore use their owning workspace's preferences for
+message history, progress, output and result prompts. Post-operation callbacks
+retain their original repository and update the workspace output only while it
+still displays that repository. The dialogs retain existing native controls,
+source icons, choices and post-actions. Source review:
+`Commands/{Merge,Stash}Command.cpp`, `Commands/Command.cpp` and
+`AppUtils.cpp::{Merge,MergeAbort,StashSave,StashApply,StashPop}` at the pinned
+revision. Complete process result/shared-switch compatibility and physical/signed
+acceptance remain open.

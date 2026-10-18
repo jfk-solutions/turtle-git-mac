@@ -272,6 +272,7 @@ import UniformTypeIdentifiers
     private var referenceLogWindows: [String: ReferenceLogWindowController] = [:]
     private var stashRestoreWindows: [String: StashRestoreWindowController] = [:]
     private var stashWindows: [String: StashWindowController] = [:]
+    var stashRestoreWindowFactory: ((GitRepository, RepositoryAccessLease?, Bool, String?, Int) -> StashRestoreWindowController)?
     private var cloneWindows: [UUID: CloneWindowController] = [:]
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     var createWindowFactory: ((URL, RepositoryAccessLease) -> CreateRepositoryWindowController)?
@@ -2195,7 +2196,8 @@ import UniformTypeIdentifiers
     private func showStashRestore(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1) {
         let root = repository.root, key = repository.root.path + (pop ? ":pop" : ":apply:" + (reference ?? "latest")) + ":show:" + String(showChanges)
         if let existing = stashRestoreWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
-        let controller = StashRestoreWindowController(repository: repository, access: access, pop: pop, reference: reference, showChanges: showChanges)
+        guard !stashMutationIsBusy(repository.root) else { error = "Wait for the current stash operation to finish."; return }
+        let controller = stashRestoreWindowFactory?(repository, access, pop, reference, showChanges) ?? StashRestoreWindowController(repository: repository, access: access, pop: pop, reference: reference, showChanges: showChanges, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self, weak controller] in if self?.stashRestoreWindows[key] === controller { self?.stashRestoreWindows.removeValue(forKey: key) } }
         controller.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
@@ -2588,9 +2590,12 @@ import UniformTypeIdentifiers
         controller.onClosed = { [weak self] in self?.exportWindows.removeValue(forKey: key) }
         exportWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showMergeAbort(repository: GitRepository, access: RepositoryAccessLease?) {
+    private func showMergeAbort(repository: GitRepository, access: RepositoryAccessLease?, commandLaunch: Bool = false) {
+        if commandLaunch, let existing = mergeAbortWindows.values.first(where: { $0.model.repository.root == repository.root }) {
+            existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return
+        }
         let id = UUID(), root = repository.root
-        let controller = mergeAbortWindowFactory?(repository,access) ?? MergeAbortWindowController(repository: repository, access: access)
+        let controller = mergeAbortWindowFactory?(repository,access) ?? MergeAbortWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
         controller.configureModifiedComparison={ [weak self] model in self?.configureRevisionComparisonInteractions(model,repository:repository,access:access) }
         controller.onClosed = { [weak self] in self?.mergeAbortWindows.removeValue(forKey: id) }
         controller.model.onChanged = { [weak self] output in
@@ -2644,17 +2649,26 @@ import UniformTypeIdentifiers
             self?.showRebase(repository:repository,access:access,upstream:prepared.canonicalRevision,fromLog:true)
         }
     }
-    private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, showStashPop: Bool = false) {
-        let key = repository.root.path + "\0" + UUID().uuidString
-        let controller = MergeWindowController(repository: repository, access: access)
+    private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, showStashPop: Bool = false, commandLaunch: Bool = false) {
+        let key = repository.root.path + "\0" + (commandLaunch ? "command-merge" : UUID().uuidString)
+        if let existing = mergeWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        let controller = MergeWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.mergeWindows.removeValue(forKey: key) }
         configureMergeInteractions(controller, repository: repository, access: access, showStashPop: showStashPop)
         mergeWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showStash(repository: GitRepository, access: RepositoryAccessLease?, followUp: StashSaveFollowUp = StashSaveFollowUp()) {
-        let root = repository.root, key = repository.root.path + "\0" + UUID().uuidString
-        let controller = StashWindowController(repository: repository, access: access)
+    private func stashMutationIsBusy(_ root: URL) -> Bool {
+        stashWindows.values.contains { $0.model.repository.root == root && $0.model.busy }
+            || stashRestoreWindows.values.contains { $0.repository.root == root && $0.model.busy }
+    }
+    private func showStash(repository: GitRepository, access: RepositoryAccessLease?, followUp: StashSaveFollowUp = StashSaveFollowUp(), message: String? = nil, commandLaunch: Bool = false) {
+        let root = repository.root, key = repository.root.path + "\0" + (commandLaunch ? "command-stash" : UUID().uuidString)
+        if let existing = stashWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        guard !stashMutationIsBusy(root) else { error = "Wait for the current stash operation to finish."; return }
+        let controller = StashWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
+        if let message { controller.model.options.message = message }
+        controller.model.canStart = { [weak self] in self.map { !$0.stashMutationIsBusy(root) } ?? false }
         controller.onClosed = { [weak self] in self?.stashWindows.removeValue(forKey: key) }
         let changed: (String) -> Void = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
@@ -3257,6 +3271,11 @@ import UniformTypeIdentifiers
         case .repositoryBrowser: showRepositoryBrowser(repository: repository, access: access, revision: invocation.selectedRevision ?? "HEAD")
         case .reflog: showReferenceLog(repository: repository, access: access, reference: invocation.reflogReference ?? "HEAD")
         case .rebase: showRebase(repository: repository, access: access, upstream: invocation.upstream, force: invocation.forceRebase, commandLaunch: true)
+        case .merge: showMerge(repository: repository, access: access, commandLaunch: true)
+        case .mergeAbort: showMergeAbort(repository: repository, access: access, commandLaunch: true)
+        case .stash: showStash(repository: repository, access: access, message: invocation.message, commandLaunch: true)
+        case .stashApply, .stashPop: showStashRestore(repository: repository, access: access, pop: invocation.request.action == .stashPop)
+        case .stashList: showReferenceLog(repository: repository, access: access, reference: "refs/stash")
         case .diff:
             var directory: ObjCBool = false
             if let first = invocation.request.paths.first, FileManager.default.fileExists(atPath: first.path, isDirectory: &directory), directory.boolValue {

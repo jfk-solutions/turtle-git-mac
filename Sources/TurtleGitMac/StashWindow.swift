@@ -69,6 +69,8 @@ import TurtleGitCore
     var onProgress: ((StashSaveProgressWindowModel) -> Void)?
     var onPostAction: ((StashSavePostAction, StashSaveFollowUp) -> Void)?
     private var invalidated = false
+    private var untrackedRequest: UUID?
+    var canStart: () -> Bool = { true }
     var confirmUntracked: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     var close: () -> Void = {}
     var onSaved: (StashSaveResult) -> Void = { _ in }
@@ -78,21 +80,25 @@ import TurtleGitCore
         guard !invalidated, !busy, !confirmingUntracked else { return }
         let snapshot = options
         if snapshot.includeUntracked && !preferences.bool(forKey: "Stash.NoIncludeUntrackedWarning") {
+            let request = UUID(); untrackedRequest = request
             confirmingUntracked = true
             confirmUntracked { [weak self] accepted in
-                guard let self, !self.invalidated, self.confirmingUntracked else { return }
+                guard let self, !self.invalidated, self.confirmingUntracked, self.untrackedRequest == request else { return }
+                self.untrackedRequest = nil
                 self.confirmingUntracked = false
                 if accepted { self.perform(snapshot) }
             }
         } else { perform(snapshot) }
     }
-    func invalidate() { invalidated = true; progress?.invalidate(); progress = nil; busy = false; confirmingUntracked = false }
+    func invalidate() { invalidated = true; untrackedRequest = nil; progress?.invalidate(); progress = nil; busy = false; confirmingUntracked = false }
     func finish(_ progress: StashSaveProgressWindowModel) {
         guard !invalidated, self.progress === progress, !progress.busy else { return }
         self.progress = nil; busy = false; close()
     }
     private func perform(_ snapshot: StashSaveOptions) {
-        guard !invalidated, !busy else { return }; busy = true
+        guard !invalidated, !busy else { return }
+        guard canStart() else { error = "Wait for the current stash operation to finish."; return }
+        busy = true
         let progress = StashSaveProgressWindowModel(repository: repository, access: access, options: snapshot, followUp: followUp, preferences: preferences)
         self.progress = progress
         progress.onFinished = { [weak self] result, details in

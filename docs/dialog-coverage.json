@@ -2241,6 +2241,7 @@
         "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/format-patch-progress-2026-10-08.json",
         "docs/qa/history-picker-2026-10-08.json",
+        "docs/qa/integration-commands-2026-10-18.json",
         "docs/qa/merge-abort-confirm-2026-10-11.json",
         "docs/qa/merge-abort-footer-2026-10-11.json",
         "docs/qa/merge-abort-layout-2026-10-10.json",
@@ -2611,6 +2612,7 @@
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/history-picker-2026-10-08.json",
+        "docs/qa/integration-commands-2026-10-18.json",
         "docs/qa/merge-abort-confirm-2026-10-11.json",
         "docs/qa/merge-abort-footer-2026-10-11.json",
         "docs/qa/merge-abort-layout-2026-10-10.json",
@@ -3375,6 +3377,7 @@
       "qa_records": [
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
+        "docs/qa/integration-commands-2026-10-18.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",

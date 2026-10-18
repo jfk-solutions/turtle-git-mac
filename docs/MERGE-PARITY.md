@@ -534,3 +534,16 @@ The [October 17 shared message-history continuation](MESSAGE-HISTORY-PARITY.md)
 connects the complete native AppKit picker, exact history removals, captured
 commands and forced-owner retirement. The Merge editor now reflects raw-only
 Unicode spelling changes. Full Merge and physical/signed acceptance remain open.
+
+## Command entry and preserved reviews — October 18, 2026
+
+Pinned `MergeCommand.cpp` routes `merge` to the normal review and `abort` to
+Abort Merge. Native command entry now follows those routes without inventing
+revision/message command switches. Reopening a command-owned Merge draft or the
+open Abort review preserves user choices. Both receive owning workspace
+preferences; reference/Log choosers, source icons, option controls, accepted Git
+operations and post-actions remain the existing implementations. The connected
+Stash entry family preserves edited Save drafts and result-question behavior.
+See [command entry](COMMAND-LINE.md#merge-and-stash-command-entry) and
+[batch evidence](qa/integration-commands-2026-10-18.json). Command wiring and
+focused native passes do not certify every source control or signed deployment.

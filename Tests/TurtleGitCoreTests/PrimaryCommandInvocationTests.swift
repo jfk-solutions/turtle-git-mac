@@ -6,6 +6,35 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         let value = try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: cwd)
         return try XCTUnwrap(value)
     }
+    func testIntegrationCommandFamilySourceFlagsAndMessage() throws {
+        for (command,action) in [("merge",RepositoryAction.merge),("stashsave",.stash),("stashapply",.stashApply),("stashpop",.stashPop),("stashlist",.stashList)] {
+            let value=try parse(["--command="+command,"--path","folder[*] 雪"])
+            XCTAssertEqual(value.request.action,action)
+            XCTAssertEqual(value.request.paths.first?.path,"/repo/folder[*] 雪")
+        }
+        XCTAssertEqual(try parse(["/command:merge","/abort"]).request.action,.mergeAbort)
+        let message="shelf 🐢\n`literal` $(literal)"
+        XCTAssertEqual(try parse(["--command=stashsave","--msg",message]).message,message)
+        XCTAssertEqual(try parse(["/command:stashsave","/msg:"]).message,"")
+        XCTAssertNil(try parse(["/command:stashsave"]).message)
+    }
+    func testIntegrationCommandRejectsForeignAndInventedOptions() throws {
+        for arguments in [["/command:merge","/abort:true"],["/command:merge","/rev:topic"],["/command:merge","/msg:text"],["/command:stashsave","/logmsg:text"],["/command:stashsave","/includeuntracked"],["/command:stashapply","/ref:stash@{1}"],["/command:stashpop","/msg:text"],["/command:stashlist","/abort"],["/command:commit","/msg:text"],["/command:stashsave","/msg:one","/msg:two"]] {
+            XCTAssertThrowsError(try parse(arguments),arguments.joined(separator:" "))
+        }
+    }
+    func testIntegrationCommandPathFileRetainsActionAndMessage() throws {
+        let folder=try temporaryDirectory();defer {try? FileManager.default.removeItem(at:folder)}
+        let file=folder.appendingPathComponent("selections")
+        try Data("folder[*] 雪\0".utf8).write(to:file)
+        let value=try parse(["--command=stashsave","--msg=message","--pathfile",file.path,"--pathfile0"])
+        let resolved=try value.resolvingPathFile(cancellation:OperationCancellation())
+        XCTAssertEqual(resolved.request.action,.stash);XCTAssertEqual(resolved.message,"message")
+        XCTAssertEqual(resolved.request.paths.first?.path,"/repo/folder[*] 雪")
+        XCTAssertEqual(resolved.selecting([folder]).message,"message")
+        let abort=try parse(["--command=merge","--abort","--pathfile",file.path,"--pathfile0"])
+        XCTAssertEqual(try abort.resolvingPathFile(cancellation:OperationCancellation()).request.action,.mergeAbort)
+    }
     func testSourceFileCommandRoutingAndPresets() throws {
         for (name,action) in [("add",RepositoryAction.add),("rename",.rename),("remove",.remove),("blame",.blame),("prevdiff",.previousDiff)] {
             let value = try parse(["--command="+name,"--path","literal 雪[*].txt"])

@@ -1,0 +1,113 @@
+{
+  "date": "2026-10-18",
+  "scope": "Source Merge/Abort and Stash Save/Apply/Pop/List entry, preserved native reviews, captured preferences and mutation/warning ownership",
+  "base_commit": "e6c2efb1ff0b64fd30eb89feef489463ed0bb0e9",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_review": [
+    "Commands/Command.cpp source command names",
+    "Commands/MergeCommand.cpp abort routing and normal Merge review",
+    "Commands/StashCommand.cpp editable msg and latest-stash Apply/Pop",
+    "AppUtils.cpp Merge/MergeAbort and StashSave/StashApply/StashPop dialog/result flows"
+  ],
+  "implementation": [
+    "Five typed source command names, with merge abort selecting the Abort review; msg is allowed only on Stash Save and no revision/message switches invented for Merge",
+    "Common path-file resolution preserves actions and exact message presets",
+    "Repeated command-owned Merge/Save requests preserve native drafts; Abort reuses the open repository review",
+    "Merge, Abort, Save and Restore consumers receive owning workspace preferences",
+    "Untracked warning replies capture request UUIDs, rejecting duplicate old responses after a newer warning starts",
+    "A workspace pending stash mutation refuses competing launches and acceptance of an already-open Save draft; existing completion, cancellation and source post-actions remain"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "executed": 23,
+      "failures": 0,
+      "classes": [
+        "PrimaryCommandInvocationTests"
+      ],
+      "log": "build/qa/integration-commands-core-2026-10-18.log",
+      "full_suite_rerun": false
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/integration-commands-build-2026-10-18.log",
+      "known_diagnostics": "Local Xcode printed CoreSimulator version and driver exit-code-zero diagnostics; xcodebuild process exited 0."
+    },
+    "native": {
+      "exit": 0,
+      "distinct_case_engine_passes": 4,
+      "passed": [
+        "integration/system",
+        "integration/bundled",
+        "bare/system",
+        "bare/bundled"
+      ],
+      "log": "build/qa/integration-commands-native-2026-10-18.log",
+      "runtime_attempts": 4,
+      "runtime_failures": [],
+      "scope": [
+        "Real native command entry opens and preserves Merge/Abort/Save reviews without mutating before acceptance",
+        "Owning private preferences reach Merge, Abort and Restore; Save uses a private unsuppressed untracked warning",
+        "Accepted No Commit/No Fast Forward merge creates MERGE_HEAD, and accepted Abort restores worktree with HEAD unchanged",
+        "Edited Save message reaches a real stash; old warning reply cannot accept a newer request",
+        "Real Apply restores exact Unicode worktree bytes and retains stash; Pop restores bytes and removes stash; both expose result questions",
+        "Stash List opens refs/stash RefLog",
+        "Injected cancellable restore keeps a native owner live while a competing Pop launch and existing Save acceptance are refused, then cancels and settles active-operation count",
+        "Merge, Abort and all Stash command variants retain ordinary bare-repository working-tree eligibility"
+      ],
+      "owned_receiver_pids": [
+        4606,
+        4962,
+        5318,
+        5503
+      ],
+      "cleanup": "Every receiver reaped; independent ps exit 1 and empty stdout. Receiver-owned windows, private preferences, temporary repositories and helper processes only."
+    },
+    "localization": {
+      "write_exit": 0,
+      "languages": 38,
+      "keys": 1284,
+      "write_log": "build/qa/integration-commands-localizations-2026-10-18.log",
+      "check_exit": 0,
+      "check_log": "build/qa/integration-commands-localizations-check-2026-10-18.log"
+    },
+    "hosted_observation": {
+      "observed_before_this_push": true,
+      "previous_commit": "e6c2efb1ff0b64fd30eb89feef489463ed0bb0e9",
+      "macos_run": 39104753286,
+      "macos_status": "pending",
+      "macos_conclusion": null,
+      "pages_run": 39104753247,
+      "pages_status": "completed",
+      "pages_conclusion": "success",
+      "prior_commit_macos_run": 39103154393,
+      "prior_commit_macos_status": "in_progress",
+      "complete_hosted_pass_claimed": false
+    },
+    "dialog_ledger": {
+      "exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_controls": 93,
+      "log": "build/qa/integration-commands-coverage-2026-10-18.log"
+    },
+    "site": {
+      "exit": 0,
+      "documents": 294,
+      "unresolved_fragments": 0,
+      "log": "build/qa/integration-commands-site-2026-10-18.log"
+    }
+  },
+  "limits": [
+    "No full source CLI/process/shared-switch or exit-code signaling parity claimed.",
+    "Mutation ownership guard is within this workspace, not an external-process lock or global cross-workspace serializer.",
+    "No physical Finder, minimum OS, every source layout, native picker gesture, real remote authentication or signed/App Store acceptance is established here.",
+    "Previous Merge history repair still requires hosted confirmation; queued CI is not a pass.",
+    "Current Release/unsigned App Store archive predates this batch. Custom TurtleGit artwork has not been recovered; the packaged artwork remains upstream.",
+    "Full-port completion remains open."
+  ]
+}
