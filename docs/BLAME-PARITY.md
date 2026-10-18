@@ -1424,3 +1424,14 @@ records supported arguments, default HEAD, path-list authorization and remaining
 Windows sentinel/executable protocol limitations. This reuses the existing colored
 source/log panes, source icons, preferences and captured menus; it does not mark
 all Blame behavior or layout certified.
+
+
+## Zoom and rich hover workflow, October 18, 2026
+
+The [presentation interaction batch](BLAME-PRESENTATION-INTERACTION-PARITY.md)
+connects transient zoom, source/attribution font and gutter remeasurement,
+wrapped viewport/selection retention and bounded full revision tooltips. Missing
+copied-origin messages are loaded separately without adding visible Log rows.
+This supersedes earlier descriptions of summary-only hover metadata; the dated
+batch evidence separates implementation from actual checks. Physical input,
+accessibility, every original layout and signed acceptance remain open.

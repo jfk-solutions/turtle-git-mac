@@ -57,3 +57,18 @@ Find drafts, HEAD Reload after a new commit, two owned paused-read Cancel/retire
 paths and simulated moved recent grants. Process/window ownership and detailed
 limits are in [batch evidence](qa/blame-file-open-2026-10-13.json). No new screenshot
 or complete global-menu/registry/signed acceptance is inferred from these checks.
+
+## Zooming and reading a line's revision
+
+Use **View → Zoom In**, **Zoom Out** or **Actual Size** in Blame. The shortcuts
+are Command-Plus, Command-Minus and Command-0. Command-Equals also zooms in.
+Command-wheel, Control-wheel and trackpad pinch work over source and attribution.
+Zoom changes both together, including wrapped rows, and keeps your selection and
+scroll location. It applies to the current document; Actual Size restores the
+font configured in Blame settings without changing that setting.
+
+Hover a source line or its attribution to read its full revision, author/email,
+date and message preview. Different origin filenames are included when relevant.
+Long messages are bounded, and the preview follows the hovered line rather than
+the current selection. The [source comparison](BLAME-PRESENTATION-INTERACTION-PARITY.md)
+records the implementation scope and remaining physical acceptance.

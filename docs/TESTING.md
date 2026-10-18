@@ -2458,3 +2458,30 @@ acknowledgement, independent-output exclusion, Base-only three-way behavior,
 late probe retirement, held warning replies, actual leases and Quit accounting.
 A local activation fixture does not certify physical focus events, network-volume
 metadata or signed sandbox access. See [source scope](MERGE-EXTERNAL-RELOAD-PARITY.md).
+
+
+## Blame zoom and revision tooltips
+
+After the complete presentation batch freezes, run the relevant Core group once:
+
+```sh
+TURTLEGIT_CORE_ONLY=1 swift test --filter 'GitBlamePresentationInteractionTests|GitBlameTests|GitBlamePresentationTests'
+```
+
+After the Debug build, the cached native receiver groups new presentation
+interactions and existing wrapping/source-editor checks:
+
+```sh
+python3 scripts/test-blame-presentation-interaction.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The new case uses private repository/configuration/preferences and hidden actual
+AppKit controls. It checks menu/key/wheel dispatch, effective fonts, shared row and
+gutter metrics, wrapped logical/pixel and unwrapped horizontal anchors, UTF-16
+selection, limits and configured-font persistence, per-row full-message tooltips,
+Reload revocation and retired guards. Every case closes owned windows and drains
+workers, and the runner reaps its owned receiver. A fixture correction repeats
+only the failed case; unchanged source/wrap cases reuse the same compiled cache.
+Core origin fallback covers preserved visible history and owned cancellation.
+Physical gestures/tooltips, VoiceOver, full current CI and signed distribution
+remain separate acceptance; no display captures are included by default.

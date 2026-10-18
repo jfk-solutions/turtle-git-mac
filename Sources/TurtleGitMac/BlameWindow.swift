@@ -127,6 +127,11 @@ import TurtleGitCore
         DispatchQueue.main.async { [weak self] in self?.refreshHistoryChildBlocking() }
     }
     private func configureHistoryActions() {
+        let current = model
+        model.presentationCommandsAvailable = { [weak self, weak current] in
+            guard let self, let current, self.model === current else { return false }
+            return self.commandsAvailable && NSApp.modalWindow == nil
+        }
         NotificationCenter.default.removeObserver(self, name: NSWindow.willBeginSheetNotification, object: nil)
         NotificationCenter.default.removeObserver(self, name: NSWindow.didEndSheetNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(historyChildSheetChanged(_:)), name: NSWindow.willBeginSheetNotification, object: nil)
@@ -425,7 +430,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     struct HistoryTarget { let owner:ObjectIdentifier,generation:Int;let entries:[LogEntry];var sourceOrigin=false;let menuGeneration:UUID }
     func sourceParentTarget(_ hash:String)->HistoryTarget? {
         guard canFind,let line=lines.first(where:{ $0.hash==hash }) else { return nil }
-        let entry=historyEntries.first { $0.hash==hash } ?? LogEntry(hash:hash,author:line.author,date:ISO8601DateFormatter().string(from:line.date),subject:line.summary)
+        let entry=tooltipEntries[hash] ?? LogEntry(hash:hash,author:line.author,date:ISO8601DateFormatter().string(from:line.date),subject:line.summary,email:line.email)
         return HistoryTarget(owner:ObjectIdentifier(self),generation:generation,entries:[entry],sourceOrigin:true,menuGeneration:historyMenuGeneration)
     }
     func historyTarget(_ entries:[LogEntry])->HistoryTarget? {
@@ -442,7 +447,12 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     @Published var onlyFirstParent = false
     @Published var showCompleteLog = true
     @Published var followRenames = false
-    @Published var historyEntries: [LogEntry] = [] { didSet { historyVersion += 1 } }
+    @Published var historyEntries: [LogEntry] = [] { didSet {
+        historyVersion += 1
+        tooltipEntries = Dictionary(historyEntries.map { ($0.hash, $0) }, uniquingKeysWith: { first, _ in first })
+    } }
+    private var tooltipEntries: [String: LogEntry] = [:]
+    private var tooltipOtherFilenames = false
     private(set) var historyVersion=0
     @Published var selectedLogHashes: Set<String> = []
     @Published var showProperties=true { didSet { guard !retired else { return };labelDefaults.set(showProperties,forKey:"Blame.ShowProperties");onPaneLayoutChanged() } }
@@ -530,13 +540,33 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     @Published var betweenFileCharacters = "40"
     @Published var colorAge=true { didSet { labelDefaults.set(colorAge,forKey:"Blame.ColorAge") } }
     @Published var presentation = GitBlamePresentation.load()
+    @Published private(set) var zoom = GitBlameZoom()
+    var zoomLevel: Int { zoom.offset }
+    var effectiveFontSize: Int { zoom.effectiveFontSize(base: presentation.fontSize) }
+    var presentationCommandsAvailable: () -> Bool = { true }
+    private var canZoom: Bool { canFind && snapshot != nil && presentationCommandsAvailable() }
+    var canZoomIn: Bool { canZoom && zoom.canIncrease }
+    var canZoomOut: Bool { canZoom && zoom.canDecrease }
+    var canResetZoom: Bool { canZoom && zoomLevel != 0 }
+    func zoomIn() { if canZoomIn { zoom = zoom.stepping(1) } }
+    func zoomOut() { if canZoomOut { zoom = zoom.stepping(-1) } }
+    func resetZoom() { if canResetZoom { zoom = GitBlameZoom() } }
+    func revisionToolTip(for row: Int) -> String? {
+        guard canFind, lines.indices.contains(row) else { return nil }
+        let line = lines[row]
+        let filename = tooltipOtherFilenames || appliedOptions.detectionMode.betweenFiles ||
+            (appliedOptions.usesCompleteLog && appliedOptions.usesFollowRenames && !appliedOptions.onlyFirstParent)
+        return GitBlameTooltip.text(line: line, entry: tooltipEntries[line.hash], showFilename: filename,
+                                   dateSettings: .load(defaults: labelDefaults))
+    }
     private var cachedSourceFont: (String, Int, NSFont)?
     var sourceFont: NSFont {
-        if let cachedSourceFont, cachedSourceFont.0 == presentation.fontName, cachedSourceFont.1 == presentation.fontSize { return cachedSourceFont.2 }
-        let font = NSFontManager.shared.font(withFamily: presentation.fontName, traits: [], weight: 5, size: CGFloat(presentation.fontSize)) ?? .monospacedSystemFont(ofSize: CGFloat(presentation.fontSize), weight: .regular)
-        cachedSourceFont = (presentation.fontName, presentation.fontSize, font)
+        if let cachedSourceFont, cachedSourceFont.0 == presentation.fontName, cachedSourceFont.1 == effectiveFontSize { return cachedSourceFont.2 }
+        let font = NSFontManager.shared.font(withFamily: presentation.fontName, traits: [], weight: 5, size: CGFloat(effectiveFontSize)) ?? .monospacedSystemFont(ofSize: CGFloat(effectiveFontSize), weight: .regular)
+        cachedSourceFont = (presentation.fontName, effectiveFontSize, font)
         return font
     }
+    var sourceLineHeight: CGFloat { max(8,ceil(sourceFont.ascender-sourceFont.descender+sourceFont.leading)+6) }
     func displayedSource(_ line: GitBlameLine) -> NSAttributedString {
         var source = line.source
         while source.hasSuffix("\r") { source.removeLast() }
@@ -633,6 +663,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         syntaxEnabled = labelDefaults.object(forKey:"Blame.EnableLexer") as? Bool ?? !NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         wrapLongLines = labelDefaults.bool(forKey:"Blame.WrapLongLines")
         self.fullCommitMessageOnLogLine = labelDefaults.bool(forKey: "FullCommitMessageOnLogLine")
+        presentation = .load(from:labelDefaults)
         let search = GitBlameFindPreferences.load(from:labelDefaults); find = search.text; matchCase = search.matchCase
         setControls(options); appliedOptions = options
     }
@@ -693,7 +724,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         followRenames = enabled; GitBlamePreferences.update(in:labelDefaults) { $0.followRenames = enabled }; reload(saveThresholds: true)
     }
     func retire() {
-        retired=true;presentSourceMenu=nil;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
+        retired=true;hoveredLine=nil;tooltipEntries=[:];presentationCommandsAvailable={false};presentSourceMenu=nil;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
     }
     func invalidate() { loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
@@ -744,7 +775,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
             }
         }
         let token=OperationCancellation();loadCancellation=token;cancellingReload=false
-        busy = true; error = nil;Self.activeHistoryOperations += 1
+        hoveredLine=nil;busy = true; error = nil;Self.activeHistoryOperations += 1
         Task { [self,access] in
             defer { Self.activeHistoryOperations -= 1;withExtendedLifetime(access) {};if request==generation { loadCancellation=nil;cancellingReload=false;busy=false } }
             do {
@@ -752,7 +783,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
                 let result=try await repository.blame(path:path,revision:revision,options:options,cancellation:token)
                 let details=try await repository.blameHistoryDetails(result,options:options,cancellation:token,regexExecutable:historyRegexExecutable)
                 guard request==generation,!retired,!token.isCancelled else { return }
-                install(result.applyingDisplayIdentities(details.entries),history:details.entries,options:options,details:details)
+                install(result,history:details.entries,options:options,details:details)
                 busy=false;applyPendingLine();onLoaded?()
             } catch {
                 guard request==generation,!retired,!token.isCancelled else { return }
@@ -763,12 +794,15 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         }
     }
     func install(_ result:GitBlameSnapshot,history entries:[LogEntry],options:GitBlameOptions,details:GitBlameHistoryDetails? = nil) {
+        let result=result.applyingDisplayIdentities(entries + (details?.tooltipEntries ?? []))
+        hoveredLine=nil;tooltipOtherFilenames=result.lines.contains { $0.filename != result.path }
         issueProperties=details?.issueProperties ?? IssueTrackerProperties();hasGitSVN=details?.hasGitSVN ?? false;svnRevisions=details?.svnRevisions ?? [:]
         historyHasWorkingTree=details?.hasWorkingTree ?? false;historyHead=details?.head;historyMenuGeneration=UUID()
         let hashes=entries.map(\.hash)
         ranks=Dictionary(hashes.enumerated().map { ($0.element,$0.offset) },uniquingKeysWith:min)
         origins=Dictionary(result.lines.map { ($0.hash,$0) },uniquingKeysWith:{ first,_ in first })
         historyCount=hashes.count;appliedOptions=options;snapshot=result;historyEntries=entries
+        for entry in details?.tooltipEntries ?? [] {tooltipEntries[entry.hash]=entry}
         selectedLogHashes.formIntersection(Set(hashes))
         if let selection,!result.lines.contains(where:{ $0.number==selection }) { self.selection=nil }
     }
@@ -865,6 +899,10 @@ private struct BlameDialog: View {
                 Menu("View") {
                     Button("Next") { model.navigateChange(previous:false) }.disabled(model.selectedLogHashes.isEmpty)
                     Button("Previous") { model.navigateChange(previous:true) }.disabled(model.selectedLogHashes.isEmpty)
+                    Divider()
+                    Button { model.zoomIn() } label: { CommandLabel(title:"Zoom In",icon:.imageZoomIn) }.disabled(!model.canZoomIn)
+                    Button { model.zoomOut() } label: { CommandLabel(title:"Zoom Out",icon:.imageZoomOut) }.disabled(!model.canZoomOut)
+                    Button { model.resetZoom() } label: { CommandLabel(title:"Actual Size",icon:.imageOriginal) }.disabled(!model.canResetZoom)
                     Divider()
                     ForEach(BlameMarginField.allCases,id:\.self) { field in
                         Toggle(field.title,isOn:Binding(get:{model.marginFields.contains(field)},set:{model.setMargin(field,visible:$0)}))
@@ -1354,7 +1392,7 @@ private struct BlameTable: NSViewRepresentable {
         for (id, title, width) in [("revision", "Revision", 90.0), ("author", "Author", 130), ("date", "Date", 145), ("filename", "Filename", 180), ("original", "Original line", 65), ("line", "Line", 45)] {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width; column.minWidth = 40; table.addTableColumn(column)
         }
-        table.setAccessibilityLabel("Annotated source")
+        table.setAccessibilityLabel("Annotated source");table.setAccessibilityIdentifier("BlameAttributionTable")
         let menu = NSMenu(); menu.delegate = context.coordinator; table.menu = menu
         context.coordinator.table = table
         let container = BlameSourceContainer()
@@ -1395,11 +1433,13 @@ private struct BlameTable: NSViewRepresentable {
             default: break
             }
         }
-        if coordinator.revision != model.snapshot?.revision || coordinator.presentation != model.presentation {
+        if coordinator.revision != model.snapshot?.revision || coordinator.presentation != model.presentation || coordinator.zoomLevel != model.zoomLevel {
             coordinator.revision = model.snapshot?.revision
             coordinator.presentation = model.presentation
-            table.rowHeight = max(22, model.sourceFont.ascender - model.sourceFont.descender + model.sourceFont.leading + 6)
+            coordinator.zoomLevel = model.zoomLevel
+            table.rowHeight = model.sourceLineHeight
         }
+        coordinator.updateColumnMetrics(table)
         container.installNavigation(model)
         container.updateSource(model)
         let viewportOrigin = container.scroll.contentView.bounds.origin
@@ -1434,7 +1474,35 @@ private struct BlameTable: NSViewRepresentable {
         var updating = false
         var revision: String?
         var presentation: GitBlamePresentation?
+        var zoomLevel: Int?
+        private var metricsKey = ""
         init(_ model: BlameWindowModel) { self.model = model }
+        func updateColumnMetrics(_ table: NSTableView) {
+            let key = "\(model.historyVersion):\(model.sourceFont.fontName):\(model.effectiveFontSize):" + model.marginFields.map(\.rawValue).sorted().joined(separator:",")
+            guard metricsKey != key else { return };metricsKey = key
+            let font = model.sourceFont
+            func width(_ values: Set<String>) -> CGFloat {
+                values.reduce(CGFloat(0)) { max($0, ($1 as NSString).size(withAttributes:[.font:font]).width) } + 12
+            }
+            for column in table.tableColumns {
+                guard !column.isHidden else {continue}
+                let id = column.identifier.rawValue
+                let measured: CGFloat
+                switch id {
+                case "line":
+                    let digits = max(2,String(max(1,model.lines.count)).count + 1)
+                    measured = width([String(repeating:"8",count:digits)])
+                case "revision": measured = width([model.marginFields.contains(.logID) ? String(max(1,model.historyCount)) : "ffffffff"])
+                case "author": measured = width(Set(model.lines.map(\.author)))
+                case "filename": measured = width(Set(model.lines.map(\.filename)))
+                case "original": measured = width([String(model.lines.map(\.originalLine).max() ?? 1)])
+                case "date": measured = width(Set(Set(model.lines.map(\.date)).map { DateFormatter.localizedString(from:$0,dateStyle:.short,timeStyle:.short) }))
+                default: continue
+                }
+                column.minWidth=24;column.maxWidth=1_000_000
+                column.width=max(24,measured)
+            }
+        }
         func numberOfRows(in tableView: NSTableView) -> Int { model.lines.count }
         func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
             guard let rectangles = container?.editor.rowRectangles, rectangles.indices.contains(row) else { return tableView.rowHeight }
@@ -1456,7 +1524,7 @@ private struct BlameTable: NSViewRepresentable {
             let label = NSTextField(labelWithString: value); label.font = model.sourceFont
             if id == "source" { label.attributedStringValue = model.displayedSource(line) }
             label.lineBreakMode = .byClipping; label.maximumNumberOfLines = 1
-            label.toolTip = "\(line.hash)\n\(line.author)\n\(line.summary)\n\(line.filename):\(line.originalLine)"
+            label.toolTip = model.revisionToolTip(for:row)
             label.textColor = [1, 2].contains(model.highlightKind(line)) ? .alternateSelectedControlTextColor : .labelColor
             let cell = BlameMetadataCell(label:label, lineHeight:tableView.rowHeight)
             return cell
@@ -1615,6 +1683,30 @@ private func visibleBlameSourceRect(_ table: NSTableView) -> NSRect {
 
 private final class BlameSourceScrollView: NSScrollView {
     var onScroll: () -> Void = {}
+    var onZoom: (Int) -> Void = { _ in }
+    private var wheelRemainder: CGFloat = 0, pinchRemainder: CGFloat = 0
+    override func scrollWheel(with event: NSEvent) {
+        let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
+        guard flags == .command || flags == .control else {wheelRemainder=0;super.scrollWheel(with:event);return}
+        guard event.momentumPhase.isEmpty else {wheelRemainder=0;return}
+        if event.phase == .began || event.phase == .cancelled {wheelRemainder=0}
+        let delta = event.scrollingDeltaY
+        guard delta.isFinite else {return}
+        if event.hasPreciseScrollingDeltas {
+            wheelRemainder = max(-120,min(120,wheelRemainder + delta))
+            let steps = Int(wheelRemainder / 20)
+            if steps != 0 {wheelRemainder -= CGFloat(steps)*20;onZoom(steps)}
+        } else if delta != 0 {onZoom(delta > 0 ? 1 : -1)}
+        if event.phase == .ended || event.phase == .cancelled {wheelRemainder=0}
+    }
+    override func magnify(with event: NSEvent) {
+        if event.phase == .began || event.phase == .cancelled {pinchRemainder=0}
+        guard event.magnification.isFinite else {return}
+        pinchRemainder = max(-0.6,min(0.6,pinchRemainder + event.magnification))
+        let steps=Int(pinchRemainder / 0.1)
+        if steps != 0 {pinchRemainder -= CGFloat(steps)*0.1;onZoom(steps)}
+        if event.phase == .ended || event.phase == .cancelled {pinchRemainder=0}
+    }
     override func reflectScrolledClipView(_ clipView: NSClipView) {
         super.reflectScrolledClipView(clipView); onScroll()
     }
@@ -1635,6 +1727,8 @@ private final class BlameSourceContainer: NSView {
     private var renderedRevision: String?
     private var renderedEncoding: GitBlameEncoding?
     private var renderedPresentation: GitBlamePresentation?
+    private var renderedZoomLevel: Int?
+    private var renderedContents: Data?
     private var renderedLineCount = -1
     private var gutterWidth: CGFloat = 270
     private var syntaxText: String?
@@ -1647,6 +1741,8 @@ private final class BlameSourceContainer: NSView {
     private var wrapped = false
     private var reflowing = false
     private var desiredSourceWidth: CGFloat = 300
+    private struct ViewportAnchor {let row:Int,within:CGFloat,x:CGFloat}
+    private var pendingReflowAnchor: ViewportAnchor?
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         addSubview(locator); addSubview(scroll); addSubview(sourceScroll)
@@ -1666,6 +1762,8 @@ private final class BlameSourceContainer: NSView {
         editor.setAccessibilityLabel("Blame source text")
         sourceScroll.hasVerticalScroller = true; sourceScroll.hasHorizontalScroller = true
         sourceScroll.autohidesScrollers = true; sourceScroll.documentView = editor
+        sourceScroll.setAccessibilityIdentifier("BlameSourceScroll")
+        scroll.setAccessibilityIdentifier("BlameAttributionScroll")
         locator.scroll = scroll
         scroll.onScroll = { [weak self] in self?.synchronize(fromSource: false) }
         sourceScroll.onScroll = { [weak self] in self?.synchronize(fromSource: true) }
@@ -1676,10 +1774,20 @@ private final class BlameSourceContainer: NSView {
         syntaxGeneration += 1; syntaxToken?.cancel(); syntaxTask?.cancel()
         editor.retired = true; editor.isSelectable = false
         editor.keyboardContextRow=nil;editor.contextMenuAvailable={false};editor.onOpen = {};editor.onFind = {}; editor.onFindNext = { _ in }; editor.onGoTo = {}
+        editor.tooltipForRow={_ in nil};editor.removeAllToolTips()
+        scroll.onZoom={_ in};sourceScroll.onZoom={_ in}
         scroll.onScroll = {}; sourceScroll.onScroll = {}
     }
     func installNavigation(_ model: BlameWindowModel) {
         guard !retired else { return }
+        editor.tooltipForRow={ [weak model] row in model?.revisionToolTip(for:row) }
+        let zoom: (Int)->Void = { [weak self,weak model] steps in
+            guard let self,let model,!self.retired,let window=self.window,
+                  let owner=BlameWindowController.focusedOwner(window),owner.model === model,
+                  owner.commandKeyWindow() === window else {return}
+            for _ in 0..<abs(steps) {if steps>0 {model.zoomIn()}else{model.zoomOut()}}
+        }
+        scroll.onZoom=zoom;sourceScroll.onZoom=zoom
         model.selectedSourceText = { [weak self] in
             guard let self, !self.retired else { return "" }
             let range = self.editor.selectedRange(), text = self.editor.string as NSString
@@ -1736,7 +1844,12 @@ private final class BlameSourceContainer: NSView {
             needsLayout = true
         }
         let changed = renderedRevision != model.snapshot?.revision || renderedEncoding != model.snapshot?.encoding ||
-            renderedPresentation != model.presentation || renderedLineCount != model.lines.count || wrapped != model.wrapLongLines
+            renderedPresentation != model.presentation || renderedZoomLevel != model.zoomLevel || renderedContents != model.snapshot?.contents ||
+            renderedLineCount != model.lines.count || wrapped != model.wrapLongLines
+        if changed,let row=editor.sourceRow(atY:sourceScroll.contentView.bounds.minY),editor.rowRectangles.indices.contains(row) {
+            let origin=sourceScroll.contentView.bounds.origin
+            pendingReflowAnchor=ViewportAnchor(row:row,within:origin.y-editor.rowRectangles[row].minY,x:origin.x)
+        }
         wrapped = model.wrapLongLines
         sourceScroll.hasHorizontalScroller = !wrapped
         editor.isHorizontallyResizable = !wrapped
@@ -1745,7 +1858,8 @@ private final class BlameSourceContainer: NSView {
         if changed {
             renderedRevision = model.snapshot?.revision; renderedEncoding = model.snapshot?.encoding
             renderedPresentation = model.presentation; renderedLineCount = model.lines.count
-            editor.lineHeight = max(22, model.sourceFont.ascender - model.sourceFont.descender + model.sourceFont.leading + 6)
+            renderedZoomLevel=model.zoomLevel;renderedContents=model.snapshot?.contents
+            editor.lineHeight = model.sourceLineHeight
             var contents = ""; ranges = []; lineLengths = []
             let decoded = model.snapshot.flatMap { $0.encoding.decodeText($0.contents) }
             let trailingBreak = decoded?.hasSuffix("\n") == true
@@ -1802,14 +1916,14 @@ private final class BlameSourceContainer: NSView {
         }
         editor.textStorage?.endEditing()
         if let storage=editor.textStorage { desiredSourceWidth=max(300,ceil(storage.size().width)+editor.textContainerInset.width*2+24) }
-        reflowSource();editor.needsDisplay=true
+        reflowSource();editor.refreshRevisionTooltips();editor.needsDisplay=true
     }
     private func reflowSource() {
         guard !retired, !reflowing, let manager=editor.layoutManager, let textContainer=editor.textContainer else { return }
         reflowing=true; defer { reflowing=false }
         let origin=sourceScroll.contentView.bounds.origin
-        let first=editor.sourceRow(atY:origin.y)
-        let within=first.flatMap { editor.rowRectangles.indices.contains($0) ? origin.y-editor.rowRectangles[$0].minY : nil } ?? 0
+        let first=pendingReflowAnchor?.row ?? editor.sourceRow(atY:origin.y)
+        let within=pendingReflowAnchor?.within ?? first.flatMap { editor.rowRectangles.indices.contains($0) ? origin.y-editor.rowRectangles[$0].minY : nil } ?? 0
         let width=wrapped ? max(30,sourceScroll.contentSize.width) : max(desiredSourceWidth,sourceScroll.contentSize.width)
         editor.frame.size.width=width
         textContainer.containerSize=NSSize(width:wrapped ? max(1,width-editor.textContainerInset.width*2) : CGFloat.greatestFiniteMagnitude,height:CGFloat.greatestFiniteMagnitude)
@@ -1836,7 +1950,7 @@ private final class BlameSourceContainer: NSView {
             table.needsLayout=true
         }
         if let first, rectangles.indices.contains(first) {
-            var next=origin;next.y=rectangles[first].minY+min(within,max(0,rectangles[first].height-1))
+            var next=origin;next.x=pendingReflowAnchor?.x ?? origin.x;next.y=rectangles[first].minY+min(within,max(0,rectangles[first].height-1))
             if wrapped { next.x=0 }
             sourceScroll.contentView.scroll(to:sourceScroll.contentView.constrainBoundsRect(NSRect(origin:next,size:sourceScroll.contentView.bounds.size)).origin)
         }
@@ -1895,6 +2009,8 @@ private final class BlameSourceContainer: NSView {
         let extra = max(0,scroll.contentSize.height - sourceScroll.contentSize.height)
         if extra > 0 { scroll.frame.origin.y += extra; scroll.frame.size.height -= extra; scroll.tile() }
         reflowSource()
+        pendingReflowAnchor=nil
+        editor.refreshRevisionTooltips()
         synchronize(fromSource:true)
         locator.needsDisplay = true
     }
@@ -1930,8 +2046,24 @@ private func blameSyntaxColor(_ rgb: [UInt8], dark: Bool) -> NSColor? {
     return NSColor(srgbRed:r,green:g,blue:b,alpha:1)
 }
 
-private final class BlameSourceTextView: NSTextView {
+@MainActor protocol BlameSourceTooltipProviding {
+    func revisionTooltip(at point:NSPoint)->String?
+}
+private final class BlameSourceTextView: NSTextView, BlameSourceTooltipProviding, NSViewToolTipOwner {
     var retired = false
+    var tooltipForRow: (Int)->String? = { _ in nil }
+    func revisionTooltip(at point:NSPoint)->String? {
+        guard !retired,bounds.contains(point),let row=sourceRow(atY:point.y),rowRectangles.indices.contains(row),
+              point.y>=rowRectangles[row].minY,point.y<rowRectangles[row].maxY else {return nil}
+        return tooltipForRow(row)
+    }
+    func refreshRevisionTooltips() {
+        removeAllToolTips()
+        if !retired,!rowRectangles.isEmpty {addToolTip(bounds,owner:self,userData:nil)}
+    }
+    @objc func view(_ view:NSView,stringForToolTip tag:NSView.ToolTipTag,point:NSPoint,userData:UnsafeMutableRawPointer?)->String {
+        revisionTooltip(at:point) ?? ""
+    }
     var lineHeight: CGFloat = 22
     var rowColors: [NSColor] = []
     var rowRectangles: [NSRect] = []
@@ -2648,6 +2780,7 @@ extension BlameWindowController {
               owner.commandKeyWindow() === source,
               source === owner.window || owner.floatingPanes.values.contains(where:{$0.window === source}),
               event.windowNumber == source.windowNumber else {return false}
+        if BlameZoomKeyRouting.route(event,owner:owner) {return true}
         let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
         enum Action {case find,next,previous,goTo,open,nextPane,previousPane,close}
         let action:Action

@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "f4878ea5",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Per-document bounded zoom, existing source artwork and native menus/key/wheel/pinch controls",
+    "Synchronized source/attribution/gutter metrics and viewport/selection retention",
+    "Rich bounded per-line revision tooltips, captured history and missing-origin metadata",
+    "Owning font preferences, cancellation, reload/replacement and retirement guards"
+  ],
+  "validation": {
+    "status": "Focused batch passed: 38 distinct Core cases, Debug app, 6 distinct native case/engine pairs; actual prior failures retained. Full hosted and signed acceptance remain open.",
+    "core": [
+      {
+        "log": "build/qa/blame-presentation-core.log",
+        "exit": 1,
+        "executed": 0,
+        "failure": "New XCTest fixture hash:String conflicts with inherited NSObject.hash:Int; rename test data property."
+      },
+      {
+        "log": "build/qa/blame-presentation-core-repair.log",
+        "exit": 0,
+        "executed": 38,
+        "failures": 0,
+        "scope": "GitBlamePresentationInteractionTests (9), GitBlamePresentationTests (9), GitBlameTests (20); first executed group after compile-only fixture repair."
+      }
+    ],
+    "build": [
+      {
+        "log": "build/qa/blame-presentation-build.log",
+        "exit": 65,
+        "failure": "AppKit addToolTipRect API renamed addToolTip in Swift; correct selector spelling. CoreSimulator version diagnostics are unrelated to macOS target."
+      },
+      {
+        "log": "build/qa/blame-presentation-build-repair.log",
+        "exit": 0,
+        "scope": "Complete Debug app after source family freeze and Swift AppKit selector correction.",
+        "empty_output_exit_zero_diagnostics": 11
+      }
+    ],
+    "native": [
+      {
+        "log": "build/qa/blame-presentation-native.log",
+        "exit": 1,
+        "executed_cases": 0,
+        "receiver_pids": [],
+        "failure": "Fixture used String trimming on Data stdout in four repository assertions. Use GitResult.text for these text-only hashes; app/Core unchanged."
+      },
+      {
+        "log": "build/qa/blame-presentation-native-text.log",
+        "exit": 1,
+        "case": "presentation/system",
+        "receiver_pid": 15675,
+        "receiver_signal": 11,
+        "reaped": true,
+        "independently_absent": true,
+        "failure": "Fixture-owned foreign NSWindow used release-on-close while also retained and closed again by cleanup; crash in objc_release/swift_arrayDestroy during verification scope exit. Set isReleasedWhenClosed=false to retain explicit fixture lifetime. Initial assertion outcome was masked by teardown crash; no passing native case inferred.",
+        "crash_report": "receiver-0b2076223b6e6e27aef9b8d5ea56d5bf86049c70ae20103b7ead84f-2026-10-18-235601.ips",
+        "crash_frames": [
+          "objc_release",
+          "swift_arrayDestroy",
+          "_ContiguousArrayStorage.__deallocating_deinit",
+          "static BlamePresentationInteractionVerification.verify()"
+        ]
+      },
+      {
+        "log": "build/qa/blame-presentation-native-ownership.log",
+        "exit": 0,
+        "cases": [
+          "presentation/system",
+          "presentation/bundled"
+        ],
+        "receiver_pids": [
+          15792,
+          15834
+        ],
+        "reaped": true,
+        "independently_absent": true,
+        "scope": "Actual native source/attribution fonts, lower/upper row/gutter geometry, wrapped logical/intra-row and unwrapped horizontal viewport, UTF16 selection, menu/key/wheel/owner and saved-font guards, real source-point and attribution tooltips, ref-change Reload revocation and unchanged source/index."
+      },
+      {
+        "log": "build/qa/blame-presentation-native-retained.log",
+        "exit": 0,
+        "cases": [
+          "wrap/system",
+          "wrap/bundled",
+          "editor/system",
+          "editor/bundled"
+        ],
+        "receiver_pids": [
+          15891,
+          15931,
+          15970,
+          15999
+        ],
+        "reaped": true,
+        "independently_absent": true,
+        "cache": "Reused unchanged compiled receiver; app and Core not rebuilt.",
+        "scope": "Actual wrapped TextKit/source-attribution alignment, resize, private clipboard/UTF16 range, logical context/navigation and scroll anchors; normalized source bytes, fonts/themes, persisted margins, two-way scrolling, native keyboard and retired guards."
+      }
+    ],
+    "resources": [
+      {
+        "log": "build/qa/blame-presentation-localizations-write.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/blame-presentation-help-write.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/blame-presentation-localizations-check.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/blame-presentation-help-check.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/blame-presentation-coverage.log",
+        "exit": 0,
+        "scope": "Dialog/control ledger regenerated after final parity documentation; counts are not a completion percentage."
+      },
+      {
+        "log": "build/qa/blame-presentation-site.log",
+        "exit": 0,
+        "documents": 337,
+        "unresolved_fragments": []
+      }
+    ],
+    "distinct_core_methods": 38,
+    "distinct_passing_native_case_engine_pairs": 6,
+    "not_established": [
+      "Physical wheel/pinch/precise delta behavior and tooltip timing",
+      "A complete hosted current CI pass",
+      "Current signed app/Finder or App Store acceptance",
+      "Complete Blame layout or entire port parity"
+    ]
+  },
+  "preserved_unrelated_wip": {
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3",
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f"
+  },
+  "remaining": [
+    "Physical gesture direction/smoothness and native tooltip timing across devices",
+    "VoiceOver and every font/DPI/appearance combination",
+    "Full current hosted macOS integration",
+    "Current installed signed Finder/app/service and App Store distribution acceptance",
+    "All other explicit port/layout/format gaps; complete port not established"
+  ]
+}

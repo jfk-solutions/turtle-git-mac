@@ -276,6 +276,9 @@ public enum GitBlameParser {
 /// Project-dependent presentation shared by Reload and File Open.
 public struct GitBlameHistoryDetails:Sendable {
     public let entries:[LogEntry]
+    /// Attributed origins absent from the path-filtered visible history. Hover
+    /// metadata only: these entries must not change history rows or age ranks.
+    public var tooltipEntries:[LogEntry] = []
     public let issueProperties:IssueTrackerProperties
     public let hasGitSVN:Bool
     public let svnRevisions:[String:String]
@@ -305,6 +308,18 @@ public struct GitBlameHistoryDetails:Sendable {
 extension GitRepository {
     public func blameHistoryDetails(_ snapshot:GitBlameSnapshot,options:GitBlameOptions,cancellation:OperationCancellation? = nil,regexExecutable:URL? = nil) throws -> GitBlameHistoryDetails {
         let entries=try blameHistory(snapshot,options:options,cancellation:cancellation)
+        let visibleHashes=Set(entries.map(\.hash))
+        let missingLines=snapshot.lines.filter { !visibleHashes.contains($0.hash) }
+        var tooltipEntries:[LogEntry]=[]
+        if !missingLines.isEmpty {
+            let origins=GitBlameSnapshot(revision:snapshot.revision,path:snapshot.path,contents:snapshot.contents,
+                                        encoding:snapshot.encoding,lines:missingLines)
+            var attributedOptions=options;attributedOptions.showCompleteLog=false
+            // GetRev's hover fallback resolves attributed origin commits even
+            // when the complete path log omits them. Reuse bounded hash reads,
+            // cancellation and the captured mailmap policy without adding rows.
+            tooltipEntries=try blameHistory(origins,options:attributedOptions,cancellation:cancellation)
+        }
         let properties=try issueTrackerProperties(cancellation:cancellation)
         let bare=try isBare(cancellation:cancellation)
         var bytes=try run(["rev-parse","--path-format=absolute","--git-common-dir"],cancellation:cancellation).stdout
@@ -312,6 +327,7 @@ extension GitRepository {
         guard let path=String(data:bytes,encoding:.utf8),path.hasPrefix("/"),!path.contains("\0") else { throw GitBlameFailure.format }
         let svn = !bare && FileManager.default.fileExists(atPath:URL(fileURLWithPath:path).appendingPathComponent("svn/.metadata").path)
         var details = try GitBlameHistoryDetails.prepare(entries:entries,issueProperties:properties,hasGitSVN:svn,regexExecutable:regexExecutable,cancellation:cancellation)
+        details.tooltipEntries = tooltipEntries
         details.hasWorkingTree = !bare
         details.head = try run(["rev-parse","--verify","HEAD"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
         return details

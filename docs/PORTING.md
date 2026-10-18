@@ -3266,3 +3266,22 @@ repairs and focused results: 59 distinct Core methods, the Debug app, and eight
 native case/engine pairs with every owned receiver reaped. Physical activation,
 all supported filesystems, current full hosted integration and installed signed
 App Store acceptance remain open; these checks do not establish the whole port.
+
+
+### Blame zoom and revision hover, October 18, 2026
+
+Blame now provides per-document source zoom through native View menus, existing
+zoom artwork, keyboard shortcuts, modified wheels and pinch. Source/attribution
+fonts, row geometry and gutter widths update together while retaining wrapped
+logical/pixel anchors, horizontal position and UTF-16 selection. Configured font
+preferences remain separate; the initial viewer now reads its owning defaults.
+Rich row tooltips use loaded full revision metadata, with cancellable missing
+origin lookup for complete path-filtered history and bounded Unicode previews.
+
+The [source comparison](BLAME-PRESENTATION-INTERACTION-PARITY.md) and
+[batch evidence](qa/blame-presentation-interaction-2026-10-18.json) retain actual
+compile/fixture failures and final results: 38 focused Core cases, the Debug app
+and six native case/engine pairs, with owned receivers reaped. Physical gestures,
+tooltip timing, accessibility, full hosted integration and current signed App
+Store acceptance remain open. This is scoped Blame progress, not whole-port
+completion.
