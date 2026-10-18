@@ -564,7 +564,9 @@ alpha. Ordinary trackpad scrolling and Shift-wheel use native scrolling.
 Drop a local file onto an image pane to preview it there. If several files are
 dropped, only the first is used. Reload restores the original comparison inputs.
 Image Info and the pane-title tooltip show the current preview’s metadata.
-WMF, EMF and EMF+ use the bundled renderer in the same image panes. Decoding runs
+WMF, EMF and EMF+ use the bundled renderer in the same image panes. EMF+ regions,
+hatch fills and bitmap texture brushes use those panes too; unsupported drawing
+variants report a conversion error. Decoding runs
 in the background and cancels when its owning input is replaced or closed.
 Unsupported drawing records retain an undecodable side; original captured bytes
 remain available. See [Windows metafile rendering](IMAGE-METAFILE-PARITY.md).

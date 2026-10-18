@@ -2511,3 +2511,29 @@ providers simulate policy, not signed delivery. The runner closes/reaps owned
 receivers; every failure retains a dated QA entry. Repeat only an actually failed
 case or checks affected by a production repair, reusing unchanged compilation.
 Physical installed Finder and current signed/App Store acceptance remain separate.
+
+
+### EMF+ region and pattern rendering
+
+The October19 [source comparison](METAFILE-REGION-PATTERN-PARITY.md) and
+[recorded results](qa/metafile-region-pattern-2026-10-19.json) extend the original
+metafile corpus with region trees, hatch cells and texture brushes. Reconstruct
+the pinned runtime after patch/license changes, then run the focused Core group:
+
+```sh
+python3 scripts/build-metafile-runtime.py
+TURTLEGIT_CORE_ONLY=1 swift test --filter MetafileImageTests
+```
+
+After the Debug app build, use the retained grouped receiver:
+
+```sh
+python3 scripts/test-metafile-workflows.py --only consumers --only colors \
+  --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+The receiver uses private repositories/preferences, hidden windows, actual
+comparison/conflict consumers, original-byte checks and owned process cleanup.
+It does not certify physical Windows output, all native gestures, signed-parent
+execution or full hosted integration. The dated record preserves initial failures
+and only the affected rechecks; authored fixtures alone are not passing evidence.

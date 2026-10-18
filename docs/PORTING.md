@@ -3310,3 +3310,25 @@ case/engine pairs. Every receiver was reaped; unrelated user WIP was preserved.
 Physical installed Finder delivery, real signed grants, complete dialog/input and
 VoiceOver acceptance, full hosted integration and App Store distribution remain
 open. This does not certify the whole port.
+
+
+### EMF+ region and pattern painting, October 19, 2026
+
+Image Compare and conflict panes now render bounded EMF+ Boolean regions,
+FillRegion/SetClipRegion, all 53 canonical hatch cells and bitmap texture brushes.
+Device clips and rendering origins survive indexed state and containers; brush
+matrices, wrap/reflection, Clamp and DoNotTransform retain independent semantics.
+Unequal-alpha hatch coverage uses premultiplied interpolation. Converted metafiles
+use bilinear final sampling to preserve device cells instead of wide-filter halos.
+
+Wine's hatch table is isolated with pinned LGPL provenance, complete license,
+notices and corresponding patch source in the packaged runtime. Forty-four new
+original fixtures include geometry/color/alpha/transform and malformed/budget
+cases. The [source comparison](METAFILE-REGION-PATTERN-PARITY.md) and
+[dated evidence](qa/metafile-region-pattern-2026-10-19.json) preserve actual failures
+and focused repairs: 26 distinct Core methods, Debug app, six cache checks and
+four native case/engine pairs pass, with every receiver reaped. Existing user WIP
+was preserved. Relative/RLE region paths, negative region rectangles, singular
+region fills, nested-metafile textures, older format gaps, full Windows rendering
+acceptance, current hosted integration and signed App Store acceptance remain
+open. This is real format coverage, not complete GDI/GDI+ or whole-port parity.

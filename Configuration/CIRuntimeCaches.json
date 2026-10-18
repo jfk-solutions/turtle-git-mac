@@ -153,6 +153,8 @@
     "path": "build/metafile-runtime/Metafile",
     "inputs": [
       "LICENSE",
+      "Licenses/Wine-LGPL-2.1.txt",
+      "NOTICE",
       "Configuration/MetafileRuntime.json",
       "Sources/TurtleGitMetafile/main.swift",
       "patches/metafile-renderer.patch",

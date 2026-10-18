@@ -27,6 +27,8 @@ def main():
     manifest = json.loads((runtime / 'provenance.json').read_text())
     pin = json.loads((ROOT / 'Configuration/MetafileRuntime.json').read_text())
     assert manifest['pin'] == pin
+    assert digest(runtime / 'LICENSE-Wine-hatches') == pin['hatch_patterns']['license_sha256']
+    assert digest(ROOT / pin['hatch_patterns']['license_file']) == pin['hatch_patterns']['license_sha256']
     binary = runtime / 'metafile-convert'
     assert digest(binary) == manifest['binary_sha256']
     assert digest(runtime / 'renderer.js') == manifest['renderer_sha256']
@@ -72,5 +74,5 @@ def main():
             svg = ET.fromstring(result.stdout)
             assert svg.tag == '{http://www.w3.org/2000/svg}svg'
             assert any(node.tag.rsplit('}', 1)[-1] in {'path', 'rect', 'polygon'} for node in svg.iter()), 'WMF produced an empty SVG'
-    print('Metafile: pinned MIT renderer, reconstruction, universal macOS13 helper and SDK-only dependencies verified' + (' (structure only).' if args.structure_only else ' with actual conversion/rejection.'))
+    print('Metafile: pinned MIT renderer/LGPL hatch source, reconstruction, universal macOS13 helper and SDK-only dependencies verified' + (' (structure only).' if args.structure_only else ' with actual conversion/rejection.'))
 if __name__ == '__main__': main()

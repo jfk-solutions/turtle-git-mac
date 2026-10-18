@@ -264,3 +264,5 @@ reviewed full-window light/dark captures.
 - [Finder query lifetime and directory menus](FINDER-QUERY-PARITY.md): snapshot query reuse, ancestor-state ownership and remaining responsiveness work.
 
 - [Trying the local preview](LOCAL-PREVIEW.md): packaged app/ZIP, source manifest and the separate signed Finder channel.
+
+- [EMF+ region and pattern painting](METAFILE-REGION-PATTERN-PARITY.md)

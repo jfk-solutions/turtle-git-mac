@@ -1,0 +1,143 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "f9de54f9eca315ad3a62066ca992ad0069b5c5a8",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "EMF+ bounded region trees, FillRegion and SetClipRegion with five Boolean operators/six clip modes and saved device state",
+    "All53 Wine hatch cells, independent ARGB, device rendering origin, alpha coverage and bitmap texture brush transform/wrap/clamp/DoNotTransform",
+    "Original synthetic44newfixtures, shared comparison and real3stage image conflict consumers preserving repository bytes",
+    "Pinned LGPL hatch provenance/license/source and immutable runtime cache inputs"
+  ],
+  "validation": {
+    "status": "Scoped runtime, 26 distinct Core methods, Debug app and four native case/engine pairs passed; full port, hosted and signed acceptance remain open.",
+    "runtime": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "log": "build/qa/metafile-region-pattern-runtime.log",
+        "scope": "Pinned universal runtime build and source/license/structure reconstruction",
+        "cache_key": "39ec70846e6701315677c8c2fc6376eecf2efba3e87d1ef253abc4bbc7ea5faa",
+        "renderer_sha256": "141ec5b462b23a691acaa62e7fd3dc5506584c7ea500a1163422cda4a0cf0fc8",
+        "binary_sha256": "dc2caf5467f77818c1b5ddbf85686320c099b20ec26ef63a6e2910627986423e",
+        "final_source_inputs_match": true
+      }
+    ],
+    "core": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "tests": 26,
+        "assertion_failures": 457,
+        "failed_methods": [
+          "testHatchAlphaDeviceScaleRenderingOriginAndRestoreRemainIndependent",
+          "testHatchStylesRetainForegroundBackgroundAndNativeCellOrientation",
+          "testTextureBrushWorldAndDoNotTransformMappingsKeepAlphaAndRegionFills"
+        ],
+        "log": "build/qa/metafile-region-pattern-core.log",
+        "diagnostic": "Native CoreSVG rasterizes2x; high-quality secondary filter introduces neighbor/white halos. Independent none/low/high diagnostic confirms bilinear preserves device pixels; repair affects shared metafile rasterization, so repeat full26metafile methods only."
+      },
+      {
+        "attempt": 2,
+        "exit": 1,
+        "tests": 26,
+        "passed_methods": 25,
+        "assertion_failures": 4,
+        "log": "build/qa/metafile-region-pattern-core-sampling.log",
+        "failed_methods": [
+          "testTextureBrushWorldAndDoNotTransformMappingsKeepAlphaAndRegionFills"
+        ],
+        "diagnostic": "Hatches and every other method pass. Remaining texture probes incorrectly assumed nearest-neighbor at boundaries. Independent world/brush inversion moved probes to four actualtexelcenters; bounds/alpha/region assertions unchanged. Only affected method repeated."
+      },
+      {
+        "attempt": 3,
+        "exit": 0,
+        "tests": 1,
+        "log": "build/qa/metafile-region-pattern-core-texel-centers.log",
+        "scope": "Only corrected texture mapping method; preceding25methods already passed on final production source"
+      }
+    ],
+    "build": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "log": "build/qa/metafile-region-pattern-build.log"
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/metafile-region-pattern-build-sampling.log"
+      }
+    ],
+    "native": [
+      {
+        "exit": 0,
+        "cases": [
+          "consumers/system",
+          "consumers/bundled",
+          "colors/system",
+          "colors/bundled"
+        ],
+        "log": "build/qa/metafile-region-pattern-native.log",
+        "reaped_pids": [
+          23510,
+          23748,
+          23977,
+          24072
+        ],
+        "owned_pid_and_group_absent_after_group": true
+      }
+    ],
+    "resources": [
+      {
+        "command": "build-help.py",
+        "exit": 0
+      },
+      {
+        "command": "test-ci-runtime-caches.py",
+        "exit": 0,
+        "tests": 6
+      },
+      {
+        "command": "build-help.py --check",
+        "exit": 0,
+        "documents": 40,
+        "topics": 49,
+        "files": 60
+      },
+      {
+        "command": "build-localizations.py --check",
+        "exit": 0,
+        "languages": 38,
+        "keys": 1292
+      },
+      {
+        "command": "reconcile-dialog-coverage.py",
+        "exit": 0,
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_controls": 1566,
+        "pending_control_reviews": 93
+      },
+      {
+        "command": "build-site.py",
+        "exit": 0,
+        "documents": 339,
+        "unresolved_fragments": []
+      }
+    ],
+    "distinct_core_methods_passed": 26,
+    "preserved_unrelated_wip_hashes_match": true
+  },
+  "remaining": [
+    "Relative/RLE region paths, negative rectangle dimensions and singular/ill-conditioned FillRegion transforms",
+    "Nested metafile textures, unsupported native bitmap formats/codecs and all older explicit format gaps",
+    "Full Windows pixel/font/AA/physical acceptance",
+    "Current signed parent execution, full hosted integration and App Store distribution acceptance"
+  ],
+  "preserved_unrelated_wip": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  }
+}

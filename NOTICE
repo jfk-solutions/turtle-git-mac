@@ -1564,3 +1564,14 @@ System JavaScriptCore, CoreText, ImageIO and CoreGraphics retain Apple's license
 See docs/METAFILE-RUNTIME.md and docs/IMAGE-METAFILE-PARITY.md for provenance
 and remaining Windows drawing compatibility limits. No Node.js, browser or
 separately installed converter is required by a packaged application.
+
+EMF+ hatch painting adapts Wine's HatchBrushes table from dlls/gdiplus/brush.c,
+commit 7298a818b79446bae153b8d5aa27235ab3703bf9. Copyright (C) 2007 Google
+(Evan Stade); Copyright (C) 2003-2004,2007 Novell, Inc. (Ravindra).
+This isolated table adaptation is LGPL-2.1-or-later; see
+Licenses/Wine-LGPL-2.1.txt. The bundled Metafile runtime includes that license,
+this notice, and exact modified source in patches/metafile-renderer.patch,
+including src/turtleGitHatch.js. Configuration/MetafileRuntime.json records its
+source URL, full-source hash and revision. No other Wine components are linked
+or required. WmfEmfViewer retains its MIT license; the application's own license
+is unchanged.

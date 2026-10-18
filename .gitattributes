@@ -15,3 +15,6 @@ Sources/TurtleGitCore/Resources/RegexFilter.ini -text -whitespace
 
 # Unified patch context includes a required single-space blank-line marker.
 patches/metafile-renderer.patch -whitespace
+
+# Preserve Wine's LGPL license text byte-for-byte, including original whitespace.
+Licenses/Wine-LGPL-2.1.txt -text -whitespace

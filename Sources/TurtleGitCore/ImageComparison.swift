@@ -30,9 +30,12 @@ public struct ComparisonImage {
             self.init(source: first, index: 0, id: UUID(), cursorHotspots: hotspots, cursorFrames: sources); return
         }
         guard let original = ImageComparisonContainers.payload(bytes) else { return nil }
-        let payload: Data
-        do { payload = try MetafileImageDecoder.convert(original, cancellation: cancellation) ?? original }
-        catch { return nil }
+        let payload: Data, renderedMetafile: Bool
+        do {
+            if let converted = try MetafileImageDecoder.convert(original, cancellation: cancellation) {
+                payload = converted; renderedMetafile = true
+            } else { payload = original; renderedMetafile = false }
+        } catch { return nil }
         guard cancellation?.isCancelled != true, !Task.isCancelled else { return nil }
         if let source = CGImageSourceCreateWithData(payload as CFData, nil),
            let image = Self(source: source, index: 0, id: UUID(), cursorHotspots: ImageComparisonContainers.cursorHotspots(bytes)) { self = image; return }
@@ -45,7 +48,12 @@ public struct ComparisonImage {
         let width = max(1, Int(ceil(native.size.width))), height = max(1, Int(ceil(native.size.height)))
         guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
                                       space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
-        context.interpolationQuality = .high; context.draw(pixels, in: CGRect(x: 0, y: 0, width: width, height: height))
+        // CoreSVG renders metafile display SVG at 2x. A wide reconstruction
+        // filter bleeds white/neighboring cells into device-pixel hatch patterns.
+        // Bilinear sampling averages the corresponding 2x footprint while
+        // preserving the captured pattern period and its antialiased coverage.
+        context.interpolationQuality = renderedMetafile ? .low : .high
+        context.draw(pixels, in: CGRect(x: 0, y: 0, width: width, height: height))
         guard let raster = context.makeImage() else { return nil }
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil) else { return nil }

@@ -73,12 +73,18 @@ GDI+ `GdipCreateMetafileFromWmf` does. Standard WMF lacks physical dimensions; t
 native renderer uses an explicit window extent and 96 dpi fallback. It refuses
 inputs without a usable extent instead of inventing a default 800×600 viewport.
 
+The [region and pattern extension](METAFILE-REGION-PATTERN-PARITY.md) adds bounded
+region trees, region fill/clip records, all 53 hatch styles and bitmap texture
+brushes. Its own evidence separates newly accepted behavior from this older
+checkpoint. Relative/RLE region paths, negative region rectangle extents, singular
+region fill transforms and nested-metafile textures remain explicit refusals.
+
 ## Explicit remaining format behavior
 
 This is useful three-format support, not complete GDI compatibility. Remaining
-unsupported features include EMF+ region objects/fills, driver/glyph strings,
+unsupported features include driver/glyph strings,
 vertical/RTL/tab/trimming StringFormat layouts, custom text tracking, relative
-compressed path encodings, texture/hatch brushes and gradients outside the
+compressed path encodings and gradients outside the
 [accepted painting subset](METAFILE-PAINTING-PARITY.md), transformed/compound/custom-cap
 pens, alternate-format/terminal-server records and source-copy compositing.
 Indexed and 16-bit raw EMF+ bitmap formats, nested WMF images and uncommon embedded

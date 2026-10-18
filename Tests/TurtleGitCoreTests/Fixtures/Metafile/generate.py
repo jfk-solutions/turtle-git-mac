@@ -176,3 +176,104 @@ large_path=U(0xdbc01002,13,0)+F(*(v for point in large_ellipse for v in point))+
 large_radial=U(0xdbc01002,3,1,4,0xffff0000)+F(large,large)+U(1,0xff0000ff,len(large_path))+large_path
 rs=[ep(0x4008,large_radial,0x100),ep(0x402A,F(.03,0,0,.03,48-large*.03,32-large*.03)),ep(0x400E,U(0)+F(large-radius,large-radius,2*radius,2*radius))]
 (P/'unsupported-gradient-precision.emf').write_bytes(plus(rs))
+
+# Region/pattern family: original binary records, with independent Boolean and
+# source-pixel expectations in MetafileImageTests. RegionNodeCount counts CHILD
+# nodes, excluding the root. Paths retain their own GraphicsVersion header.
+def region_rect(x,y,w,h):return (U(0x10000000)+F(x,y,w,h),1)
+def region_terminal(t):return (U(t),1)
+def region_op(t,a,b):return (U(t)+a[0]+b[0],1+a[1]+b[1])
+def region_path(points,types=None,flags=0):
+ types=types or ([0]+[1]*(len(points)-2)+[0x81])
+ path=U(0xdbc01002,len(points),flags)+(struct.pack('<'+'h'*(2*len(points)),*(v for point in points for v in point)) if flags==0x4000 else F(*(v for point in points for v in point)))+pad(bytes(types))
+ return (U(0x10000001,len(path))+path,1)
+def region(node):return U(0xdbc01002,node[1]-1)+node[0]
+def region_object(node,id=2):return ep(0x4008,region(node),0x400|id)
+def region_fill(color=0xffff0000,id=2,inline=True):return ep(0x4013,U(color),(0x8000 if inline else 0)|id)
+a,b=region_rect(8,8,48,40),region_rect(32,8,48,40)
+for op,name in [(1,'and'),(2,'or'),(3,'xor'),(4,'exclude'),(5,'complement')]:
+ (P/('plus-region-'+name+'.emf')).write_bytes(plus([region_object(region_op(op,a,b)),region_fill()]))
+# Each clip combine has independently known A-only, intersection, B-only and
+# outside samples. SetClipRegion's combine nibble is bits8..11, ID is lowbyte.
+for mode in range(6):
+ rs=[ep(0x4032,F(8,8,48,40)),region_object(b),ep(0x4034,flags=(mode<<8)|2),ep(0x400A,U(0xffff0000,1)+F(0,0,96,64),0x8000)]
+ (P/('plus-region-clip-'+str(mode)+'.emf')).write_bytes(plus(rs))
+# One even-odd region path has a genuine hole; a second compressed Int16 path
+# keeps its own boundary. Closed contours are not an inferred bounding rectangle.
+points=[(8,8),(48,8),(48,48),(8,48),(20,20),(36,20),(36,36),(20,36)]
+types=[0,1,1,0x81,0,1,1,0x81]
+rs=[region_object(region_path(points,types)),region_fill(),region_object(region_path([(60,8),(88,8),(60,48)],flags=0x4000)),region_fill(0xff0000ff)]
+(P/'plus-region-path.emf').write_bytes(plus(rs))
+# Infinite/empty leaves participate in Boolean operations, rather than guessed
+# huge rectangles. Infinite minus a finite rectangle paints only its complement.
+rs=[region_object(region_op(4,region_terminal(0x10000003),region_rect(24,16,32,24))),region_fill(),region_object(region_terminal(0x10000002)),region_fill(0xff0000ff)]
+(P/'plus-region-infinite-empty.emf').write_bytes(plus(rs))
+# The clip captures the current device mapping. Resetting world transform cannot
+# move it; restoring saved state removes it before the blue rectangle paints.
+rs=[ep(0x4025,U(17)),region_object(region_rect(0,0,24,24)),ep(0x402D,F(12,4)),ep(0x4034,flags=2),ep(0x402B),ep(0x400A,U(0xffff0000,1)+F(0,0,96,64),0x8000),ep(0x4026,U(17)),ep(0x400A,U(0xff0000ff,1)+F(60,8,16,16),0x8000)]
+(P/'plus-region-state.emf').write_bytes(plus(rs))
+# Hatch style IDs0..52 each occupy an8x8 cell. Exact Windows bitmap phase is a
+# separate physical acceptance item; tests check orientation/colors/nonblank and
+# that native device-cell scale survives a world transform.
+def hatch(style,fore=0xffff0000,back=0xff0000ff):return U(0xdbc01002,1,style,fore,back)
+rs=[]
+for style in range(53):
+ x,y=2+10*(style%9),2+10*(style//9)
+ rs += [ep(0x4008,hatch(style),0x100),ep(0x400A,U(0,1)+F(x,y,8,8))]
+(P/'plus-hatch-atlas.emf').write_bytes(plus(rs))
+rs=[ep(0x4008,hatch(0,0x80ff0000,0x800000ff),0x100),ep(0x402A,F(2,0,0,2,8,8)),ep(0x400A,U(0,1)+F(0,0,32,20))]
+(P/'plus-hatch-alpha-world.emf').write_bytes(plus(rs))
+# Embedded EmfPlusImage is the whole image object, not an object-table ID. Pixel
+# order is red/green above blue/white; brush scaling leaves broad sample plateaus.
+texture_raw=U(0xdbc01002,1)+I(2,2,8)+U(0x26200a,0)+pixels
+def texture(wrap=0,transform=(8,0,0,8,24,24),flags=0,image=texture_raw):
+ return U(0xdbc01002,2,flags|(2 if transform is not None else 0),wrap)+(F(*transform) if transform is not None else b'')+image
+for mode in range(5):
+ rs=[ep(0x4008,texture(mode),0x100),ep(0x400A,U(0,1)+F(0,0,96,64))]
+ (P/('plus-texture-wrap-'+str(mode)+'.emf')).write_bytes(plus(rs))
+for flags,name in [(0,'world'),(0x100,'device')]:
+ rs=[ep(0x4008,texture(transform=(8,0,0,8,8,8),flags=flags,image=compressed_image),0x100),ep(0x402A,F(2,0,0,1,4,4)),ep(0x400A,U(0,1)+F(0,0,40,40))]
+ (P/('plus-texture-'+name+'.emf')).write_bytes(plus(rs))
+alpha_pixels=bytes([0,0,255,128])*4
+alpha_image=U(0xdbc01002,1)+I(2,2,8)+U(0x26200a,0)+alpha_pixels
+(P/'plus-texture-alpha.emf').write_bytes(plus([ep(0x4008,texture(transform=(16,0,0,16,8,8),image=alpha_image),0x100),ep(0x400A,U(0,1)+F(8,8,48,32))]))
+# Pattern brushes also fill nonrectilinear regions through the same paint path.
+rs=[region_object(region_op(4,a,region_rect(24,20,16,16))),ep(0x4008,hatch(0),0x101),region_fill(1,inline=False)]
+(P/'plus-region-hatch.emf').write_bytes(plus(rs))
+rs=[region_object(region_path([(8,8),(88,8),(8,56)])),ep(0x4008,texture(),0x101),region_fill(1,inline=False)]
+(P/'plus-region-texture.emf').write_bytes(plus(rs))
+# Failures have valid outer chains and only the targeted malformed/unsupported
+# object/record contract. No full render can silently accept them as white.
+(P/'unsupported-region-count.emf').write_bytes(plus([ep(0x4008,U(0xdbc01002,2)+a[0],0x402),region_fill()]))
+(P/'unsupported-region-trailing.emf').write_bytes(plus([ep(0x4008,region(a)+U(0),0x402),region_fill()]))
+(P/'unsupported-region-path-length.emf').write_bytes(plus([ep(0x4008,U(0xdbc01002,0,0x10000001,0x7fffffff)+U(0),0x402),region_fill()]))
+deep=a
+for _ in range(65):deep=region_op(2,deep,region_terminal(0x10000002))
+(P/'unsupported-region-depth.emf').write_bytes(plus([region_object(deep),region_fill()]))
+(P/'unsupported-region-id.emf').write_bytes(plus([region_object(a),region_fill(id=3)]))
+(P/'unsupported-region-clip-mode.emf').write_bytes(plus([region_object(a),ep(0x4034,flags=0x602),ep(0x400A,U(0xffff0000,1)+F(0,0,96,64),0x8000)]))
+(P/'unsupported-hatch-style.emf').write_bytes(plus([ep(0x4008,hatch(53),0x100),ep(0x400A,U(0,1)+F(0,0,96,64))]))
+(P/'unsupported-texture-flags.emf').write_bytes(plus([ep(0x4008,texture(flags=1),0x100),ep(0x400A,U(0,1)+F(0,0,96,64))]))
+(P/'unsupported-texture-wrap.emf').write_bytes(plus([ep(0x4008,texture(wrap=5),0x100),ep(0x400A,U(0,1)+F(0,0,96,64))]))
+(P/'unsupported-texture-truncated.emf').write_bytes(plus([ep(0x4008,texture(image=texture_raw[:-5]),0x100),ep(0x400A,U(0,1)+F(0,0,96,64))]))
+(P/'unsupported-texture-image.emf').write_bytes(plus([ep(0x4008,texture(image=U(0xdbc01002,1)+I(0,0,0)+U(0,1)+b'not a bitmap'),0x100),ep(0x400A,U(0,1)+F(0,0,96,64))]))
+(P/'unsupported-texture-tile-budget.emf').write_bytes(plus([ep(0x4008,texture(transform=(.01,0,0,.01,0,0),image=noise_image),0x100),ep(0x400A,U(0,1)+F(0,0,96,64))]))
+# Rendering-origin phase belongs to captured graphics state. Horizontal hatch
+# itself stays in device pixels even when separate world coordinates scale.
+rs=[ep(0x4008,hatch(0),0x100),ep(0x400A,U(0,1)+F(8,8,32,16)),ep(0x4025,U(41)),ep(0x401D,U(0,3)),ep(0x400A,U(0,1)+F(48,8,32,16)),ep(0x4026,U(41)),ep(0x400A,U(0,1)+F(8,40,32,16))]
+(P/'plus-hatch-origin.emf').write_bytes(plus(rs))
+# Resource budgets apply to repeated use, not just each individually bounded
+# region object. A valid31-node balanced tree is reused beyond65536 nodevisits.
+work_region=a
+for _ in range(4):work_region=region_op(2,work_region,work_region)
+(P/'unsupported-region-work-budget.emf').write_bytes(plus([region_object(work_region)]+[region_fill() for _ in range(2115)]))
+(P/'unsupported-region-brush-id.emf').write_bytes(plus([region_object(a),region_fill(3,inline=False)]))
+(P/'unsupported-region-path-flags.emf').write_bytes(plus([region_object(region_path([(8,8),(72,8),(8,56)],flags=0x8000)),region_fill()]))
+# GammaCorrected marks input as already corrected; no second color transform is
+# permitted. Same original bitmap and geometry must retain the ordinary colors.
+(P/'plus-texture-gamma.emf').write_bytes(plus([ep(0x4008,texture(flags=0x80),0x100),ep(0x400A,U(0,1)+F(0,0,96,64))]))
+# Diagonal antialias coverage mixes premultiplied color, not invisible RGB.
+# Left: zero-alpha red cannot stain partially covered opaque blue. Right: two
+# unequal nonzero alpha colors exercise the same rule without a zero specialcase.
+rs=[ep(0x4008,hatch(2,0x00ff0000,0xff0000ff),0x100),ep(0x400A,U(0,1)+F(8,8,32,40)),ep(0x4008,hatch(2,0x80ff0000,0x400000ff),0x100),ep(0x400A,U(0,1)+F(48,8,32,40))]
+(P/'plus-hatch-alpha-edge.emf').write_bytes(plus(rs))

@@ -6,8 +6,22 @@
     "sha256": "544d77f8f0e362ae47877c82f3803a1ba2550abbe3204bf23e5802f71264219c",
     "license": "MIT"
   },
-  "architectures": ["arm64", "x86_64"],
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
   "deployment_target": "13.0",
   "maximum_input_bytes": 67108864,
-  "maximum_output_bytes": 134217728
+  "maximum_output_bytes": 134217728,
+  "hatch_patterns": {
+    "project": "Wine",
+    "commit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+    "source": "dlls/gdiplus/brush.c",
+    "url": "https://raw.githubusercontent.com/wine-mirror/wine/7298a818b79446bae153b8d5aa27235ab3703bf9/dlls/gdiplus/brush.c",
+    "source_sha256": "c0294a2d4081f4dea2d05712ac916080cae7e0fcdc3ae52e64b7629ac27972d7",
+    "license": "LGPL-2.1-or-later",
+    "license_file": "Licenses/Wine-LGPL-2.1.txt",
+    "license_sha256": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+    "adapted_module": "src/turtleGitHatch.js"
+  }
 }

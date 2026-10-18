@@ -23,7 +23,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
     static func verify()async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),corpus=URL(fileURLWithPath:CommandLine.arguments[3])
         let corpusFiles=try FileManager.default.contentsOfDirectory(at:corpus,includingPropertiesForKeys:nil).filter { ["wmf","emf"].contains($0.pathExtension.lowercased()) }.sorted {$0.lastPathComponent < $1.lastPathComponent}
-        let nativeSamples:Set<String>=["clip-vector.wmf","classic-vector.emf","classic-bitmap.emf","plus-transform.emf","plus-bitmap-text.emf","plus-compressed-crop.emf","plus-gradient-transform.emf","plus-image-attributes.emf"]
+        let nativeSamples:Set<String>=["clip-vector.wmf","classic-vector.emf","classic-bitmap.emf","plus-transform.emf","plus-bitmap-text.emf","plus-compressed-crop.emf","plus-gradient-transform.emf","plus-image-attributes.emf","plus-region-path.emf","plus-region-state.emf","plus-hatch-atlas.emf","plus-texture-world.emf","plus-region-texture.emf"]
         let samples=corpusFiles.filter {nativeSamples.contains($0.lastPathComponent)},unsupported=corpusFiles.filter {$0.lastPathComponent.hasPrefix("unsupported-")}
         try require(samples.count == nativeSamples.count,"Representative native metafile corpus incomplete")
         try require(samples.contains {$0.pathExtension.lowercased()=="wmf"} && samples.filter {$0.pathExtension.lowercased()=="emf"}.count >= 2 && samples.contains {$0.lastPathComponent.lowercased().contains("plus")},"Provide representative WMF, EMF and EMF+ corpus files")
@@ -185,6 +185,29 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try require(conflict.model.images.count == 3 && ImageConflictSide.allCases.allSatisfy {conflict.model.canSelect($0) && conflict.model.panes[$0]?.currentImage(base:true)?.pixels.width == 96 && conflict.model.panes[$0]?.currentImage(base:true)?.pixels.height == 64},"Three-side WMF/EMF/EMF+ conflict failed to decode: \(conflict.model.error ?? "none")")
             conflict.model.reload();try await wait {!conflict.model.busy}
             try require(conflict.model.images.count == 3,"Metafile conflict reload lost an image")
+            // The newly accepted region, hatch and texture families also enter
+            // actual three-stage conflict panes, not only standalone decoders.
+            let patternWork=root.appendingPathComponent("pattern repository")
+            try FileManager.default.createDirectory(at:patternWork,withIntermediateDirectories:true)
+            let patternRepo=GitRepository(root:patternWork,executable:git),patternFile=patternWork.appendingPathComponent(path)
+            _ = try await patternRepo.run(["init","-b","main"])
+            for (key,value) in [("user.name","Pattern consumers QA"),("user.email","patterns@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await patternRepo.run(["config",key,value])}
+            let regionBytes=try Data(contentsOf:corpus.appendingPathComponent("plus-region-path.emf")),hatchBytes=try Data(contentsOf:corpus.appendingPathComponent("plus-hatch-atlas.emf")),textureBytes=try Data(contentsOf:corpus.appendingPathComponent("plus-texture-world.emf"))
+            try regionBytes.write(to:patternFile);try await patternRepo.stage([path]);_ = try await patternRepo.commit(message:"base region")
+            _ = try await patternRepo.run(["switch","-c","side"]);try hatchBytes.write(to:patternFile);try await patternRepo.stage([path]);_ = try await patternRepo.commit(message:"incoming hatch")
+            _ = try await patternRepo.run(["switch","main"]);try textureBytes.write(to:patternFile);try await patternRepo.stage([path]);_ = try await patternRepo.commit(message:"mine texture")
+            do {_ = try await patternRepo.run(["merge","--no-edit","side"]);throw Failure(message:"Expected region/pattern metafile conflict")}catch is GitFailure {}
+            guard let patternDocument=try await patternRepo.imageConflictDocument(path:path) else {throw Failure(message:"Region/pattern conflict did not dispatch to IDiff")}
+            let patternHead=try await patternRepo.run(["rev-parse","HEAD"]).stdout,patternIndex=try Data(contentsOf:patternWork.appendingPathComponent(".git/index")),patternWorking=try Data(contentsOf:patternFile)
+            let patternConflict=track(ImageConflictWindowController(repository:patternRepo,access:nil,document:patternDocument,preferences:prefs))
+            try await wait {!patternConflict.model.busy}
+            try require(patternConflict.model.images.count==3 && ImageConflictSide.allCases.allSatisfy {patternConflict.model.canSelect($0) && patternConflict.model.panes[$0]?.currentImage(base:true)?.pixels.width==96 && patternConflict.model.panes[$0]?.currentImage(base:true)?.pixels.height==64},"Region/hatch/texture conflict panes failed to decode: \(patternConflict.model.error ?? "none")")
+            try require(patternConflict.model.document.contents[.base]==regionBytes && patternConflict.model.document.contents[.theirs]==hatchBytes && patternConflict.model.document.contents[.mine]==textureBytes,"Region/pattern conflict decoding rewrote original stages")
+            patternConflict.model.reload();try await wait {!patternConflict.model.busy}
+            try require(patternConflict.model.images.count==3,"Region/pattern conflict reload lost a side")
+            patternConflict.close();try await wait {ImageConflictWindowModel.activeOperations==0 && patternConflict.window?.isVisible != true}
+            try require(try await patternRepo.run(["rev-parse","HEAD"]).stdout==patternHead,"Region/pattern preview moved HEAD")
+            try require((try Data(contentsOf:patternWork.appendingPathComponent(".git/index")))==patternIndex && (try Data(contentsOf:patternFile))==patternWorking,"Region/pattern preview mutated conflict index/working bytes")
             let priorImages=conflict.model.images.mapValues(\.id)
             var reloadToken:OperationCancellation?
             conflict.model.decodeImages={_,token in reloadToken=token;return await withCheckedContinuation {conflictHold=$0}}
@@ -207,7 +230,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try require((try Data(contentsOf:work.appendingPathComponent(".git/index"))) == index && (try Data(contentsOf:file)) == working,"Metafile preview mutated conflict state")
             for (sample,bytes) in zip(samples,inputs) {try require(try Data(contentsOf:sample) == bytes,"Metafile renderer modified corpus bytes")}
             try await cleanup()
-            print("PASS: actual WMF/EMF/EMF+ default two-side and conflict decode/reload, unsupported-side IDiff and explicit Merge routing, preview-only drop, cancellation/late-result/session/grant/Quit ownership; original corpus/comparison/conflict HEAD/index/working bytes unchanged")
+            print("PASS: actual WMF/EMF/EMF+ and region/hatch/texture default two-side and conflict decode/reload, unsupported-side IDiff and explicit Merge routing, preview-only drop, cancellation/late-result/session/grant/Quit ownership; original corpus/comparison/conflict HEAD/index/working bytes unchanged")
         } catch {let original=error;do {try await cleanup()}catch {throw Failure(message:"\(original); cleanup: \(error)")};throw original}
     }
     private static func firstSample(_ files:[URL],withExtension ext:String)throws->URL {

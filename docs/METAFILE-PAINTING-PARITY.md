@@ -202,8 +202,10 @@ The subsets above passed this batch's source reconstruction, focused Core pixel
 checks and native consumer checks. These results establish only the recorded
 subset and workflows; they do not certify complete Windows graphics parity.
 
-Existing explicit gaps remain: region painting, complex glyph/StringFormat
-layout, transformed or custom-cap pens, texture/hatch brushes, unsupported raw
+The later [region and pattern extension](METAFILE-REGION-PATTERN-PARITY.md)
+addresses region painting and hatch/bitmap texture brushes with separate evidence.
+Existing explicit gaps remain: complex glyph/StringFormat layout, transformed or
+custom-cap pens, unsupported raw
 bitmap formats, uncommon classic raster operations and Windows font/antialiasing
 identity. Any newly accepted gradient subset must retain explicit refusals for
 its remaining optional fields, malformed boundaries and unsupported painting.
