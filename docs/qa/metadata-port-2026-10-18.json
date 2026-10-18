@@ -1,0 +1,161 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "fe9962aeed4256d6f8ad87fb03e02e0ce4bb5937",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Reflected EditorConfig pane targets, Save As/rebinding and serialized permission ownership",
+    "Local Log reference descriptions, painted hit/AX identity and owned hover reads",
+    "Commit author/date native callback retirement and actual metadata lifetime",
+    "Independent external workspace handoff from standalone Merge and original Git exit ownership"
+  ],
+  "dialogs": [
+    "IDD_OPENDLG",
+    "IDD_LOGMESSAGE",
+    "IDD_COMMITDLG"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "distinct_cases": 22,
+      "selection": "EditorConfigPathTests|EditorConfigTests|HistoryReferenceTooltipTests|HistoryReferenceLabelTests",
+      "scope": "Eight new cases and fourteen retained cases. No full Core repeat."
+    },
+    "build_attempts": [
+      {
+        "log": "metadata-port-build-2026-10-18.log",
+        "exit": 65,
+        "failure": "Ambiguous GitReferenceName.init overload in optional map."
+      },
+      {
+        "log": "metadata-port-build-affected-2026-10-18.log",
+        "exit": 0,
+        "repair": "Explicit initializer closure; integration also preserves FIFO during reentrant external URL callbacks."
+      },
+      {
+        "log": "metadata-port-build-reference-affected-2026-10-18.log",
+        "exit": 0,
+        "repair": "Explicit delegate preparation for new reference accessibility first-open popup; no unrelated rebuild/test expansion."
+      }
+    ],
+    "native": {
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "passed_distinct_case_engine_receipts": 14,
+      "cases_passed": [
+        "editorconfig",
+        "references",
+        "handoff",
+        "commit",
+        "log",
+        "launch",
+        "scene"
+      ],
+      "reference_case": "both engines pass after focused repair",
+      "scope": "Seven distinct cases with both engines. Only the failed reference case repeated; passing Core, EditorConfig, handoff, Commit/Log and retained Merge groups were not repeated after the reference-only repair."
+    },
+    "failures_and_repairs": [
+      {
+        "log": "metadata-port-native-2026-10-18.log",
+        "failure": "Log tooltip assertion queried retired paint geometry after published metadata caused table relayout.",
+        "repair": "Fixture reacquires current field, settles layout and paints actual badge before checking exact updated tooltip. Original stale-hit assertions preserved."
+      },
+      {
+        "log": "metadata-port-native-affected-2026-10-18.log",
+        "failure": "Log accessible badge did not target pointed native context.",
+        "repair": "Real first-open path relied on NSMenu.update() before popup tracking; explicitly prepare menu through its existing delegate before checking items/presentation. Canonical context and original one-shot assertions retained. Focused build and references with both engines pass."
+      }
+    ],
+    "resources": {
+      "localization_languages": 38,
+      "localization_keys": 1289,
+      "localization_write_and_check_exit": 0,
+      "help_documents": 39,
+      "help_topics": 48,
+      "help_files": 59,
+      "help_bytes": 3562267,
+      "help_write_and_check_exit": 0,
+      "scope": "Partial generated label/help coverage; not full translation certification."
+    },
+    "hosted": {
+      "observed_macos_run": 39135993152,
+      "head": "fe9962aeed4256d6f8ad87fb03e02e0ce4bb5937",
+      "status": "in_progress",
+      "conclusion": null,
+      "failed_prior_run": 39130261984,
+      "failed_prior_head": "92654909",
+      "failed_job": 117687644563,
+      "failure": "First Commit/system Git receiver SIGSEGV11; Log and bundled cases not reached. No crash stack/fixture phase supplied.",
+      "cause": "Unproven. Independent fixture release-on-close defect and production callback/lifetime gaps repaired; no causal claim.",
+      "evidence": "ci-commit-log-92654909-2026-10-18.txt"
+    },
+    "physical": "No external process launched by handoff fixture: NSWorkspace configuration/callbacks injected. Signed physical Finder/document delivery, scope transfer and independent workspace acceptance remain open.",
+    "documentation": {
+      "coverage_write_and_check_exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "site_documents": 307,
+      "unresolved_fragments": [],
+      "site_build_exit": 0,
+      "site_link_cases": 2,
+      "site_link_exit": 0,
+      "scope": "Documentation coverage counts do not measure functionality completion."
+    }
+  },
+  "limitations": [
+    "No complete hosted macOS pass claimed",
+    "No current signed/universal distribution or App Store acceptance",
+    "Complete visual/keyboard/VoiceOver and minimum-OS/Intel acceptance remain open",
+    "130 resource dialogs: 120 partial family reviews, 10 pending, zero certified complete; counts are not feature completion percentages",
+    "Whole port remains active and incomplete"
+  ],
+  "local_log_sha256": {
+    "metadata-port-core-2026-10-18.log": "7ce29c9fb3c86d3eea69b1ef692eededc550e64837a272b3b10753ccadad006f",
+    "metadata-port-resources-2026-10-18.log": "4c86c4c111c9ddf0fe69de880827bb6209ca7c4d6b4f2a4e3c5a566bffc3ee8a",
+    "metadata-port-build-2026-10-18.log": "ac188034db9fe317e796e5ab45341839177a47feba448001c3c9dd6a0271c978",
+    "metadata-port-build-affected-2026-10-18.log": "6722d839bc35a876b0489d0b9c5340fe40fd5465db2ecb74347cee0eac5b09d7",
+    "metadata-port-native-2026-10-18.log": "0374305299fef08f55c77cceddbcc12ccdeb77eb905459df2f953bcd9e45b334",
+    "metadata-port-native-affected-2026-10-18.log": "cddddbaca25d5e769adcd87c4a7a4711ac183dca3fb7788d0d50f284cff3e96b",
+    "metadata-port-handoff-2026-10-18.log": "d97778f2dcf1eed0aa6d1294c1ddb64e79225dd6f5a7d2b8530c08d2ea847569",
+    "metadata-port-commit-log-2026-10-18.log": "e5c073af5daa8963523f2a3f42000c74319d53fd022e0c91a3de46c02f6aee04",
+    "metadata-port-launch-retained-2026-10-18.log": "6b7d03bfcf051e303020c6965bf4f5f698c27da2d97f8cc3cf3d4438fbb4185b",
+    "metadata-port-build-reference-affected-2026-10-18.log": "2e0fe802d0844871357664b2b1f8be069bc50ddb5cdc9dba8beec84583206578",
+    "metadata-port-reference-final-2026-10-18.log": "9199d0a4d0f0ffd9d08e2f59752f58fcd617207832055122ff27063d92ab9e81",
+    "metadata-port-docs-2026-10-18.log": "e5a0bc700626fc0738a9c96645565871c5f7768ead3e3ea58223661ce9b5e392"
+  },
+  "ownership": {
+    "recorded_receiver_pids": [
+      86501,
+      86547,
+      86605,
+      86832,
+      86937,
+      86941,
+      86960,
+      87660,
+      88344,
+      88632,
+      88910,
+      88974,
+      89038,
+      89044,
+      89272,
+      89330
+    ],
+    "all_recorded_receivers_absent": true,
+    "recorded_receiver_count": 16,
+    "scope": "Each private native receiver was reaped by run_receiver on pass/failure. No external workspace child was launched; user-owned application not terminated."
+  },
+  "fixture_sha256": {
+    "docs/qa/editorconfig-reflected-native-2026-10-18.swift": "d0f2bde276d48e9cb81af34551501db4d5c2ad0fca6e960b808eb9743474785a",
+    "docs/qa/log-reference-interaction-native-2026-10-18.swift": "df3dd99a910250abc1103e3e0953b60492d3d108212495dfa6115c546d4c87ca",
+    "docs/qa/workspace-open-handoff-native-2026-10-18.swift": "d1c2e57c3d29e93658c2c6b2151b01ad5c7725ed85aecf8a4c98f7ab8cf7ddba",
+    "docs/qa/commit-visibility-native-2026-10-18.swift": "a745588d13ba6557a80d393031403b1fa9ccc9f89850cde42bba84aee3c8fbb2",
+    "scripts/test-metadata-port-family.py": "be7929c8d45e96ca306089a8cb2587af393e0dec3b3e97aa8917d0947ea184b4"
+  }
+}

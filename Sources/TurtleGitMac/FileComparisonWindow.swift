@@ -747,11 +747,11 @@ private extension FileComparisonDocument {
     @Published var editorConfigLoaded: [Bool: Bool] = [:]
     @Published var editorConfigLoading: Set<Bool> = []
     private var editorConfigRequests: [Bool: UUID] = [:]
-    func setEditorConfig(_ enabled: Bool, base: Bool) {
+    func setEditorConfig(_ enabled: Bool, base: Bool, readGroup: UUID = UUID()) {
         guard let document, !retired, !confirmingQuit else { return }
         editorConfigReads.removeValue(forKey:base)?.cancel()
         let content = base ? document.base : document.destination
-        let file = FileTransferPaths.fileURL(content.path.hasPrefix("/") ? content.path : snapshot.root.path + "/" + content.path)
+        let reflectedName = mergeToolReflectedName(base: base)
         let request = UUID(); editorConfigRequests[base] = request; paneTabEpoch = UUID()
         editorConfigEnabled[base] = enabled
         if enabled { editorConfigLoaded[base] = false }
@@ -766,8 +766,10 @@ private extension FileComparisonDocument {
         Task {
             defer { ownedMergeOperations -= 1 }
             let resolved: Result<MergeEditorConfigProperties?,Error>
-            do { resolved = .success(try await read.read(file:file,permissions:permissions,window:window)) }
-            catch { resolved = .failure(error) }
+            do {
+                let file = try MergeEditorConfigPath.fileURL(actualPath: content.path, reflectedName: reflectedName, root: snapshot.root)
+                resolved = .success(try await editorConfigAccess.read(read, file: file, permissions: permissions, window: window, group: readGroup))
+            } catch { resolved = .failure(error) }
             guard !retired, editorConfigRequests[base] == request else { return }
             editorConfigLoading.remove(base); editorConfigReads.removeValue(forKey:base); paneTabEpoch = UUID()
             switch resolved {
@@ -782,6 +784,7 @@ private extension FileComparisonDocument {
     }
     private var paneTabEpoch = UUID()
     private var editorConfigReads: [Bool:MergeEditorConfigRead] = [:]
+    private let editorConfigAccess = MergeEditorConfigAccess()
     var makeEditorConfigRead: () -> MergeEditorConfigRead = { MergeEditorConfigRead() }
     func captureTabCommand(base:Bool) -> MergePaneTabCommand {
         .init(epoch:paneTabEpoch,writable:canTransfer(toBase:base) && !retired && window?.attachedSheet == nil && !editorConfigLoading.contains(base),editorConfigLoaded:editorConfigLoaded[base] == true)
@@ -802,7 +805,8 @@ private extension FileComparisonDocument {
         editorConfigReads.removeAll(); editorConfigLoading.removeAll()
     }
     private func reloadEditorConfig() {
-        for base in editorConfigEnabled.keys where editorConfigEnabled[base] == true { setEditorConfig(true, base: base) }
+        let group = UUID()
+        for base in editorConfigEnabled.keys where editorConfigEnabled[base] == true { setEditorConfig(true, base: base, readGroup: group) }
     }
 
     func tabWidth(base: Bool) -> Int { tabWidths[base] ?? editorPreferences.tabWidth }
@@ -1326,7 +1330,7 @@ private extension FileComparisonDocument {
         externalAttempted = true; viewerSelection = .image
     }
     func retireImageLoader() {
-        cancelEditorConfigReads()
+        cancelEditorConfigReads(); editorConfigAccess.retire()
         if let request = projectionChange { finishProjectionChange(request) }
         folding.retire()
         loadSession?.cancel(); closeAfterLoad = false

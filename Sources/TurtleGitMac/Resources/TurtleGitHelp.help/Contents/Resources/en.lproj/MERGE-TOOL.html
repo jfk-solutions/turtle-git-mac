@@ -28,7 +28,11 @@ Base/Theirs/Mine inputs. No automatic staging occurs in this standalone editor.<
 </code></pre>
 <p>Standalone requests open only the requested Merge editor or chooser, with its
 File, Edit, Navigate, View and Help commands. They do not open a repository
-workspace or start Finder monitoring. With no file arguments the tool opens its
+workspace or start Finder monitoring. A Finder action or patch-file open received
+while this tool process is running is handed to a new workspace process. It does
+not replace the Git editor or alter the Git result. Tool exit waits for an
+accepted workspace launch and any owned launch-error acknowledgment. The new
+workspace still performs its normal repository/file authorization. With no file arguments the tool opens its
 native Open dialog. A patch without a
 target asks for the target directory; a target without a patch asks for the patch.
 <code>--wc</code> uses a supplied patch's containing folder as its default target. Read-only

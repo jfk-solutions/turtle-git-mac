@@ -469,6 +469,7 @@ private enum MergeSourceSide {
                     if self.mergedResultTarget != nil {self.mergedResultTarget=target}
                     if self.workingMerge != nil { self.standaloneSavedResult = target.content.text; self.standaloneSavedEncoding = target.content.encoding }
                 }
+                self.reloadEditorConfig()
                 self.objectWillChange.send()
             }
         } catch { self.error = error.localizedDescription }
@@ -633,7 +634,7 @@ private enum MergeSourceSide {
         lineWrapping.retire()
         retired = true; loadGeneration += 1; loadCancellation?.cancel(); loadCancellation = nil
         regexList?.retire(); regexList = nil
-        cancelEditorConfigReads()
+        cancelEditorConfigReads(); editorConfigAccess.retire()
     }
     private struct ResultCopySavepoint {let text:String;let encoding:ComparisonTextEncoding}
     private var resultCopySavepoint:ResultCopySavepoint?
@@ -696,8 +697,33 @@ private enum MergeSourceSide {
     private var editorConfigRequests: [String: UUID] = [:]
     @Published var overwriteMode = false
     private var initialEditorConfigDefault = MergeEditorPreferences.load().enableEditorConfig
-    func setEditorConfig(_ enabled: Bool, pane: String) {
-        guard document != nil, !retired, !confirmingQuit else { return }
+    private enum EditorConfigPane: CaseIterable, Hashable { case base, mine, theirs, result }
+    private var lastEditorConfigPaneNames: [EditorConfigPane: String] = [:]
+    private var editorConfigPaneNames: [EditorConfigPane: String] {
+        guard let document else { return [:] }
+        return [.base: "Base", .mine: document.mineStage == 3 ? "Mine — Branch being rebased" : "Mine",
+                .theirs: document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", .result: "Merged · \(resultPath)"]
+    }
+    func editorConfigURL(pane: String) throws -> URL {
+        guard let role = editorConfigPaneNames.first(where: { $0.value == pane })?.key else { throw EditorConfigFailure.invalidPath }
+        let actual: String, reflected: String?
+        switch role {
+        case .base:
+            actual = workingMerge?.baseURL.path ?? patchComparison?.recoveryBase?.path ?? path
+            reflected = mergeToolReflectedName()
+        case .mine:
+            actual = sourceTargets[true]?.url.path ?? workingMerge?.mineURL.path ?? path
+            reflected = mergeToolReflectedName(mine: true)
+        case .theirs:
+            actual = sourceTargets[false]?.url.path ?? workingMerge?.theirsURL.path ?? path
+            reflected = mergeToolReflectedName(mine: false)
+        case .result:
+            actual = resultPath; reflected = mergeToolReflectedName(result: true)
+        }
+        return try MergeEditorConfigPath.fileURL(actualPath: actual, reflectedName: reflected, root: repository.root)
+    }
+    func setEditorConfig(_ enabled: Bool, pane: String, readGroup: UUID = UUID()) {
+        guard document != nil, !retired, !confirmingQuit, editorConfigPaneNames.values.contains(pane) else { return }
         editorConfigReads.removeValue(forKey:pane)?.cancel()
         let request = UUID(); editorConfigRequests[pane] = request; paneTabEpoch = UUID()
         editorConfigEnabled[pane] = enabled
@@ -709,13 +735,13 @@ private enum MergeSourceSide {
         guard enabled else { return }
         let read = makeEditorConfigRead(); editorConfigReads[pane] = read
         editorConfigLoading.insert(pane)
-        let file = FileTransferPaths.fileURL(path.hasPrefix("/") ? path : repository.root.path + "/" + path)
+        let file = Result { try editorConfigURL(pane: pane) }
         let permissions = openPermissions
         ownedEditorConfigReads += 1
         Task {
             defer { ownedEditorConfigReads -= 1 }
             let resolved: Result<MergeEditorConfigProperties?,Error>
-            do { resolved = .success(try await read.read(file:file,permissions:permissions,window:window)) }
+            do { resolved = .success(try await editorConfigAccess.read(read, file: file.get(), permissions: permissions, window: window, group: readGroup)) }
             catch { resolved = .failure(error) }
             guard !retired, editorConfigRequests[pane] == request else { return }
             editorConfigLoading.remove(pane); editorConfigReads.removeValue(forKey:pane); paneTabEpoch = UUID()
@@ -731,6 +757,7 @@ private enum MergeSourceSide {
     }
     private var paneTabEpoch = UUID()
     private var editorConfigReads: [String:MergeEditorConfigRead] = [:]
+    private let editorConfigAccess = MergeEditorConfigAccess()
     var makeEditorConfigRead: () -> MergeEditorConfigRead = { MergeEditorConfigRead() }
     func captureTabCommand(pane:String) -> MergePaneTabCommand {
         .init(epoch:paneTabEpoch,writable:sourceMutationsAllowed && pane == "Merged · \(resultPath)" && !editorConfigLoading.contains(pane),editorConfigLoaded:editorConfigLoaded[pane] == true)
@@ -751,12 +778,27 @@ private enum MergeSourceSide {
         editorConfigReads.removeAll(); editorConfigLoading.removeAll()
     }
     private func reloadEditorConfig() {
-        guard let document else { return }
-        let panes = ["Base", document.mineStage == 3 ? "Mine — Branch being rebased" : "Mine",
-                     document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", "Merged · \(resultPath)"]
-        for pane in panes {
+        let names = editorConfigPaneNames
+        // A result Save As (or rebase-side caption change) changes its display
+        // key, not the pane's session toggle. Retire old requests before moving
+        // that pane's settings; late replies cannot recreate the obsolete key.
+        for role in EditorConfigPane.allCases {
+            guard let next = names[role], let previous = lastEditorConfigPaneNames[role], previous != next else { continue }
+            editorConfigReads.removeValue(forKey: previous)?.cancel()
+            editorConfigRequests.removeValue(forKey: previous); editorConfigLoading.remove(previous)
+            editorConfigEnabled[next] = editorConfigEnabled.removeValue(forKey: previous)
+            editorConfigLoaded[next] = editorConfigLoaded.removeValue(forKey: previous)
+            tabWidths[next] = tabWidths.removeValue(forKey: previous)
+            spacePanes[next] = spacePanes.removeValue(forKey: previous)
+            smartTabPanes[next] = smartTabPanes.removeValue(forKey: previous)
+            paneTabEpoch = UUID()
+        }
+        lastEditorConfigPaneNames = names
+        let group = UUID()
+        for role in EditorConfigPane.allCases {
+            guard let pane = names[role] else { continue }
             if editorConfigEnabled[pane] == nil { editorConfigEnabled[pane] = initialEditorConfigDefault }
-            if editorConfigEnabled[pane] == true { setEditorConfig(true, pane: pane) }
+            if editorConfigEnabled[pane] == true { setEditorConfig(true, pane: pane, readGroup: group) }
         }
     }
 
@@ -1250,6 +1292,7 @@ private enum MergeSourceSide {
         guard !mergeToolReadOnly,!patchResultCompleted,!busy,!preparing,!formatPending,!exportingSource,(!confirmingQuit || quitApproved),!retired,!markResolved || repositoryResolutionAllowed && !hasUnresolvedConflicts,window?.attachedSheet==nil,let document else {completion?(false);return}
         let text=result,outputEncoding=encoding,ignoredResolved=resultPresentation.ignoredConflicts.isEmpty,ignoredSnapshot=resultPresentation.ignoredConflicts,choiceSnapshot=resultPresentation.sourceChoiceRevision,endingSnapshot=resultLineEnding
         let unresolved=hasUnresolvedConflicts,permissions=openPermissions,token=OperationCancellation()
+        let resultPaneBeforeSave = "Merged · \(resultPath)"
         busy=true;error=nil;loadCancellation=token;saveChoices.reset();MergeRegexOperations.activeRequests += 1
         Task { [self] in
             var saved=false
@@ -1317,6 +1360,7 @@ private enum MergeSourceSide {
                     try ensureSave(token);self.document=next
                 }
                 if mergeToolInvocation != nil { mergeToolRequiredSave = false; mergeToolAcceptedSave = true }
+                if resultPaneBeforeSave != "Merged · \(resultPath)" { reloadEditorConfig() }
                 resultCopySavepoint=nil
                 savedIgnoredConflicts=ignoredSnapshot;savedSourceChoiceRevision=choiceSnapshot;savedResultLineEnding=endingSnapshot
                 onChanged(markResolved && !choosingRepositoryCopy ? "Resolved: " + path : "Saved merged result: " + resultPath)

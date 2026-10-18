@@ -10,12 +10,61 @@ import AppKit
         if startupLaunchMode == .workspace { SupportReportService.shared.checkForPreviousCrash() }
     }
     @objc func showHelp(_ sender: Any?) { TurtleGitHelp.showContext() }
-    weak var repositoryModel: RepositoryModel? { didSet { deliverStartupCommand() } }
+    weak var repositoryModel: RepositoryModel? { didSet { deliverStartupCommand(); deliverPendingOpenURLs() } }
     var startupArguments = Array(CommandLine.arguments.dropFirst())
     var startupDirectory = FileManager.default.currentDirectoryPath
     var startupCommandHandler: ((RepositoryModel, [String], String) -> Void)?
     var startupMergeToolExit: (Int32) -> Void = { exit($0) }
     private var startupMergeToolActive = false
+    private var pendingMergeToolExit: Int32?
+    private var completingMergeToolExit = false
+    private var mergeToolShutdownPrepared = false, mergeToolExitDelivered = false
+    private var pendingOpenURLs: [URL] = []
+    private var deliveringOpenURLs = false, acceptingOpenURLs = true
+    var workspaceOpenHandler: (RepositoryModel, URL) -> Void = { $0.handle($1) }
+    lazy var workspaceOpenHandoff: WorkspaceOpenHandoff = {
+        let value = WorkspaceOpenHandoff()
+        value.onStateChanged = { [weak self] in self?.completeMergeToolExitIfReady() }
+        return value
+    }()
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard acceptingOpenURLs else { return }
+        if startupLaunchMode == .mergeTool { workspaceOpenHandoff.submit(urls) }
+        else { pendingOpenURLs += urls; deliverPendingOpenURLs() }
+    }
+    private func deliverPendingOpenURLs() {
+        guard acceptingOpenURLs, !deliveringOpenURLs, startupReady, startupDelivered, startupLaunchMode == .workspace, let repositoryModel else { return }
+        deliveringOpenURLs = true; defer { deliveringOpenURLs = false }
+        while acceptingOpenURLs, !pendingOpenURLs.isEmpty {
+            let urls = pendingOpenURLs; pendingOpenURLs.removeAll()
+            for url in urls {
+                guard acceptingOpenURLs else { return }
+                workspaceOpenHandler(repositoryModel, url)
+            }
+        }
+    }
+    private func finishMergeToolStartup(_ status: Int32) {
+        guard pendingMergeToolExit == nil, !completingMergeToolExit, !mergeToolExitDelivered else { return }
+        pendingMergeToolExit = status; completeMergeToolExitIfReady()
+    }
+    private func completeMergeToolExitIfReady() {
+        guard let status = pendingMergeToolExit, !completingMergeToolExit, !workspaceOpenHandoff.hasPendingWork else { return }
+        completingMergeToolExit = true
+        Task { [self] in
+            if !mergeToolShutdownPrepared {
+                repositoryModel?.stopMonitoringForTermination()
+                await repositoryModel?.finderWatches?.shutdown()
+                mergeToolShutdownPrepared = true
+            }
+            completingMergeToolExit = false
+            // Launch Services may deliver another request while shutdown yields.
+            // Its accepted launch/acknowledgment must finish before process exit.
+            guard !workspaceOpenHandoff.hasPendingWork, !mergeToolExitDelivered else { return }
+            pendingMergeToolExit = nil; mergeToolExitDelivered = true; startupMergeToolActive = false
+            applicationWillTerminate(Notification(name: NSApplication.willTerminateNotification))
+            startupMergeToolExit(status)
+        }
+    }
     private var startupReady = false
     private(set) var startupDelivered = false
     var startupLaunchMode: TurtleGitLaunchMode { TurtleGitLaunchMode.resolve(arguments: startupArguments, currentDirectory: startupDirectory) }
@@ -59,23 +108,18 @@ import AppKit
         else {
           let mergeTool = repositoryModel.handleMergeToolCommandLine(arguments: startupArguments, currentDirectory: startupDirectory, completion: { [weak self, weak repositoryModel] status in
             guard let self else { return }
-            Task {
-                self.startupMergeToolActive = false
-                repositoryModel?.stopMonitoringForTermination()
-                await repositoryModel?.finderWatches?.shutdown()
-                self.applicationWillTerminate(Notification(name: NSApplication.willTerminateNotification))
-                self.startupMergeToolExit(status)
-            }
+            self.finishMergeToolStartup(status)
           })
           startupMergeToolActive = mergeTool
           if !mergeTool { repositoryModel.handleCommandLine(arguments: startupArguments, currentDirectory: startupDirectory) }
         }
+        deliverPendingOpenURLs()
     }
     private var confirmingQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
-    func applicationWillTerminate(_ notification: Notification) { SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
+    func applicationWillTerminate(_ notification: Notification) { acceptingOpenURLs = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if RepositoryModel.activeCommandFileOperations > 0 || repositoryModel?.hasPendingRepositoryWork == true { return .terminateCancel }
+        if workspaceOpenHandoff.hasPendingWork || RepositoryModel.activeCommandFileOperations > 0 || repositoryModel?.hasPendingRepositoryWork == true { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? RepositoryAccessWindowController }).contains(where:{ $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if MergeSourceExport.activeExports > 0 || sender.windows.compactMap({ $0.delegate as? TextConflictWindowController }).contains(where: { $0.model.sourceExporter.hasPendingWork }) { return .terminateCancel }
         if MergeEditorOpenWorkflow.activeSaves > 0 || sender.windows.contains(where: { ($0.delegate as? FileComparisonWindowController)?.editorOpenWorkflow != nil || ($0.delegate as? FileComparisonWindowController)?.preparingReplacement == true || ($0.delegate as? TextConflictWindowController)?.editorOpenWorkflow != nil || ($0.delegate as? TextConflictWindowController)?.preparingReplacement == true || ($0.delegate as? WorkingTreePatchWindowController)?.preparingReplacement == true }) { return .terminateCancel }
@@ -110,7 +154,7 @@ import AppKit
         if LogMessageView.Coordinator.activeOperations > 0 { return .terminateCancel }
         if AddWindowModel.activeOperations > 0 { return .terminateCancel }
         if CommitWindowModel.activeCommitPreflights > 0 { return .terminateCancel }
-        if CommitWindowModel.activeReloads > 0 || CommitWindowModel.activeFileOperations > 0 || CommitWindowModel.activePreferenceOperations > 0 { return .terminateCancel }
+        if CommitWindowModel.activeReloads > 0 || CommitWindowModel.activeFileOperations > 0 || CommitWindowModel.activePreferenceOperations > 0 || CommitWindowModel.activeMetadataOperations > 0 { return .terminateCancel }
         if CommitWindowModel.activeFileDrops > 0 { return .terminateCancel }
         if LogWindowModel.activeNoteReads > 0 || LogWindowModel.activeNoteSaves > 0 { return .terminateCancel }
         if MessageEditorStylingSession.activeOperations > 0 { return .terminateCancel }

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		9D9CD3871BA00B95799144DB /* WorkspaceOpenHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = F683B62C4ED5B1A44ABABE5B /* WorkspaceOpenHandoff.swift */; };
 		E7EE2E498E66943F441996F1 /* MergeToolPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D232D8E07E63FE16A8D390A /* MergeToolPresentation.swift */; };
 		5F28B30C7683C9167622EC00 /* MergeReflectedPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BD155E440FDEDE7B8AD1E25 /* MergeReflectedPatch.swift */; };
 		A1BF506E51B6C84F8399254C /* MergeBlameComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = D739524257BD7C401303476F /* MergeBlameComparison.swift */; };
@@ -529,6 +530,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		F683B62C4ED5B1A44ABABE5B /* WorkspaceOpenHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceOpenHandoff.swift; sourceTree = "<group>"; };
 		5D232D8E07E63FE16A8D390A /* MergeToolPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeToolPresentation.swift; sourceTree = "<group>"; };
 		1BD155E440FDEDE7B8AD1E25 /* MergeReflectedPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeReflectedPatch.swift; sourceTree = "<group>"; };
 		D739524257BD7C401303476F /* MergeBlameComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeBlameComparison.swift; sourceTree = "<group>"; };
@@ -1018,6 +1020,7 @@
 				58AC22A1002BEBAD67A07B33 /* AlternativeEditorSettings.swift */,
 				B16F443B326FDAB1414D334B /* Appearance.swift */,
 				5D232D8E07E63FE16A8D390A /* MergeToolPresentation.swift */,
+				F683B62C4ED5B1A44ABABE5B /* WorkspaceOpenHandoff.swift */,
 				66DFE38B38B2FD975CCF874F /* MergeToolLaunchSession.swift */,
 				5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */,
 				FBBD8565B30421DA978B8A58 /* ApplicationIntroduction.swift */,
@@ -2102,6 +2105,7 @@
 				338C2F4E08F8FCB953636C45 /* AlternativeEditorSettings.swift in Sources */,
 				D710492DFFD4B6D5AF1A322E /* Appearance.swift in Sources */,
 				E7EE2E498E66943F441996F1 /* MergeToolPresentation.swift in Sources */,
+				9D9CD3871BA00B95799144DB /* WorkspaceOpenHandoff.swift in Sources */,
 				03DA9821BB1AD77E7629EC93 /* MergeToolLaunchSession.swift in Sources */,
 				230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */,
 				11093D5F4B8D1856AE3CE2FF /* ApplicationIntroduction.swift in Sources */,

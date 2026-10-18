@@ -325,12 +325,14 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/EDITORCONFIG-REFLECTED-PARITY.md",
         "docs/HELP-PARITY.md",
         "docs/MERGE-BLAME-PARITY.md",
         "docs/MERGE-OPEN-PARITY.md",
         "docs/MERGE-TOOL-ENTRY-PARITY.md",
         "docs/MERGE-TOOL-FRAME-PARITY.md",
-        "docs/MERGE-TOOL-PRESENTATION-PARITY.md"
+        "docs/MERGE-TOOL-PRESENTATION-PARITY.md",
+        "docs/WORKSPACE-OPEN-HANDOFF-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/help-book-2026-10-15.json",
@@ -341,6 +343,7 @@
         "docs/qa/merge-open-source-family-2026-10-17.json",
         "docs/qa/merge-patch-open-2026-10-14.json",
         "docs/qa/merge-tool-entry-2026-10-18.json",
+        "docs/qa/metadata-port-2026-10-18.json",
         "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
     },
@@ -689,6 +692,7 @@
         "docs/LOG-FOOTER-PARITY.md",
         "docs/LOG-MESSAGE-PARITY.md",
         "docs/LOG-PARITY.md",
+        "docs/LOG-REFERENCE-INTERACTION-PARITY.md",
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md",
         "docs/PRIMARY-COMMAND-BANDS.md"
       ],
@@ -767,6 +771,7 @@
         "docs/qa/log-tag-dates-2026-10-06.json",
         "docs/qa/log-tag-search-2026-10-06.json",
         "docs/qa/log-working-commands-2026-10-15.json",
+        "docs/qa/metadata-port-2026-10-18.json",
         "docs/qa/primary-command-bands-2026-10-17.json",
         "docs/qa/primary-live-presentation-2026-10-16.json",
         "docs/qa/repository-presentation-2026-10-15.json",
@@ -805,6 +810,7 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/COMMIT-METADATA-LIFETIME-PARITY.md",
         "docs/COMMIT-PARITY.md",
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md",
         "docs/PRIMARY-COMMAND-BANDS.md",
@@ -859,6 +865,7 @@
         "docs/qa/legacy-partial-staging-2026-10-15.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/message-spelling-2026-10-13.json",
+        "docs/qa/metadata-port-2026-10-18.json",
         "docs/qa/parallel-port-families-2026-10-18.json",
         "docs/qa/partial-file-lifecycle-2026-10-13.json",
         "docs/qa/partial-metadata-2026-10-13.json",

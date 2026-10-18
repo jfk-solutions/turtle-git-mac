@@ -1,0 +1,82 @@
+# Log reference metadata and native interaction
+
+This partial workflow review follows pinned TortoiseGit
+`7338078f8ddd924b8cddee35f512f2286072136d`,
+`src/TortoiseProc/GitLogListBase.cpp::OnToolTipText`, `GetToolTipText` and
+`IsMouseOnRefLabel`, plus `src/Git/Git.cpp::GetBranchDescriptions`.
+The Log dialog is `src/Resources/TortoiseProcENG.rc` / `IDD_LOGMESSAGE`.
+It does not certify every control or every shared-list consumer.
+
+## Source hover metadata
+
+A pointer over a **local branch** badge prefers `Description:\n` followed by
+that branch's local Git description. This also applies with right-side labels;
+right-side mode disables only the ordinary message/subject tooltip. Remote,
+tag, stash and other labels do not acquire an invented annotation tooltip.
+When no description exists, the original subject fallback remains in left-label
+mode and remains absent in right-label mode. A deliberately empty description
+still displays its heading, matching the source map lookup.
+
+The read uses repository-local configuration and preserves the first duplicate
+entry, multiline content, case and exact UTF-8 name/value identity. Global
+branch descriptions are not inherited. Ref names remain canonical, even when
+the badge shows a symbolized/shortened upstream name. The source wide tooltip
+buffer reserves a terminator and literal `...` from 8192 UTF-16 units; native
+text follows that bound. Arbitrary malformed UTF-8/UTF-16 equivalence remains
+outside this review.
+
+History reload captures descriptions with its owned metadata read. Entering a
+local badge, requesting its tooltip or reading its accessible help also refreshes
+local descriptions without walking history or modifying selection. Native reads
+are asynchronous: the existing captured description supplies immediate help
+while the new read finishes, rather than blocking the main thread on Git as the
+Windows handler does. A failed read restores ordinary tooltip fallback. Requests
+capture history generation, hash, canonical ref, cancellation and access. Hover
+changes, reload and closure cancel the original request; the existing reference
+read counter retains its actual work/scopes through late completion and Quit.
+Retired or superseded replies cannot replace current metadata.
+
+## Painted hit geometry and native accessibility
+
+The existing colored, rounded tracking and pointed-tag painter remains in use.
+Pointer hit testing and native badge accessibility use the same clipped,
+half-open rectangles and canonical names; repeated upstream names retain the
+last painted rectangle as in the source map. New attributed text, font or size
+invalidates old hit geometry immediately, before repaint. Repaint publishes a
+new accessibility generation when label geometry changes.
+
+Visible badges are native accessibility buttons within the message group. Their
+label uses the displayed badge, their value retains the canonical reference,
+and their help follows the source tooltip policy. Press/Show Menu selects the
+owning row and opens the existing icon-bearing pointed-reference popup at the
+badge, scrolling it into view. This is a macOS accessibility adaptation of the
+source pointer target, not a new Git operation. The normal row keyboard menu
+continues to use its unpointed/background policy.
+The pointed popup explicitly prepares its delegate-owned items and one-shot
+action receipt before first presentation; it does not rely on menu tracking
+to populate an initially empty menu.
+
+Buttons retain weak owners and the painter generation. Hidden columns, detached
+fields, changed geometry, busy/child/Quit states, reload and retired models refuse
+stale actions. Context callbacks re-resolve the same commit and canonical ref;
+clipboard/menu dispatch still uses the existing one-shot menu receipt. No
+symbolized label becomes an operation argument.
+
+## Grouped verification scope
+
+`HistoryReferenceTooltipTests` covers source precedence/fallback, empty and
+multiline descriptions, UTF-16 bounds, first duplicate, case/NFC/NFD identity,
+actual local Git reading, cancellation and unchanged configuration/index state.
+`docs/qa/log-reference-interaction-native-2026-10-18.swift` exercises the real Log
+model/table/painter, fresh hover reads, original subject fallback, accessible
+canonical context/copy, busy refusal, invalidation before redraw, held late-read
+cancellation/accounting and unchanged HEAD/index/input bytes. The parent owns
+the grouped checkpoint and records results; fixture existence alone is no pass.
+
+Physical tooltip timing/placement, pointer/VoiceOver menu discovery, source GDI
+versus AppKit clipping/Retina behavior, all font extremes, signed sandbox access
+and other shared-list consumers remain unverified. These checks do not certify
+complete Log visuals, complete localization or whole-app parity.
+
+Actual build/check outcomes and remaining acceptance limits are recorded in the
+[grouped batch evidence](qa/metadata-port-2026-10-18.json).

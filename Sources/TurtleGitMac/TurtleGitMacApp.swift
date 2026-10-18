@@ -44,7 +44,6 @@ struct TurtleGitMacApp: App {
         WindowGroup("TurtleGit for Mac") {
             RepositoryWindow(model: model)
                 .disabled(model.confirmingQuit)
-                .onOpenURL { model.handle($0) }
                 .onAppear { appearance.apply(); SettingsPresentationService.shared.install(workspace: model, appearance: appearance); FirstStartWizardService.shared.install(); ReleaseUpdateService.shared.install(); applicationDelegate.repositoryModel = model }
                 #if DEBUG
                 .onAppear {

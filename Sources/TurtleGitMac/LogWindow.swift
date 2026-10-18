@@ -1150,6 +1150,48 @@ struct LogCommandRequest: Identifiable {
     let fullCommitMessageOnLogLine: Bool
     let drawTagsBranchesOnRightSide: Bool, symbolizeRefNames: Bool
     @Published var referenceContext = HistoryReferenceContext()
+    @Published private(set) var referenceDescriptions: [GitReferenceName: String] = [:]
+    private var referenceDescriptionRead: OperationCancellation?
+    private var referenceDescriptionHover: (hash: String, name: String)?
+    var readReferenceDescriptions: ((OperationCancellation) async throws -> [GitReferenceName: String])?
+    func referenceTooltip(hash: String, name: String?, fallback: String?) -> String? {
+        guard !isInvalidated, let entry = entries.first(where: { $0.hash == hash }) else { return nil }
+        let reference = name.flatMap { name in entry.references.first { GitReferenceName.equal($0.name, name) } }
+        return HistoryReferenceTooltip.text(reference: reference, descriptions: referenceDescriptions,
+            fallback: fallback, descriptionTitle: String(localized: "Description"))
+    }
+    func hoverReference(hash: String, name: String?) {
+        guard !isInvalidated, !busy, !confirmingQuit, window?.attachedSheet == nil else { cancelReferenceDescriptionRead(); return }
+        guard let name, let entry = entries.first(where: { $0.hash == hash }),
+              visibleReferenceLabels(for: entry).contains(where: { GitReferenceName.equal($0.reference.name, name) && $0.kind == .localBranch }) else { cancelReferenceDescriptionRead(); return }
+        if let hover = referenceDescriptionHover, hover.hash == hash, GitReferenceName.equal(hover.name, name), referenceDescriptionRead != nil { return }
+        cancelReferenceDescriptionRead()
+        referenceDescriptionHover = (hash, name)
+        let token = OperationCancellation(), request = generation, reader = readReferenceDescriptions
+        referenceDescriptionRead = token; Self.activeReferenceReads += 1
+        Task {
+            defer { Self.activeReferenceReads -= 1; withExtendedLifetime(access) {}; if referenceDescriptionRead === token { referenceDescriptionRead = nil } }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let descriptions: [GitReferenceName: String]
+                if let reader { descriptions = try await reader(token) }
+                else { descriptions = try await repository.historyBranchDescriptions(cancellation: token) }
+                guard !isInvalidated, !confirmingQuit, !token.isCancelled, generation == request,
+                      referenceDescriptionRead === token, let hover = referenceDescriptionHover,
+                      hover.hash == hash, GitReferenceName.equal(hover.name, name),
+                      entries.contains(where: { $0.hash == hash && $0.references.contains(where: { GitReferenceName.equal($0.name, name) }) }) else { return }
+                if !HistoryReferenceTooltip.equalDescriptions(referenceDescriptions, descriptions) { referenceDescriptions = descriptions }
+            } catch {
+                // Source starts with a fresh empty map for each request; a
+                // failed config read must not keep a previously cached description.
+                if !isInvalidated, !confirmingQuit, !token.isCancelled, generation == request,
+                   referenceDescriptionRead === token { referenceDescriptions = [:] }
+            }
+        }
+    }
+    private func cancelReferenceDescriptionRead() {
+        referenceDescriptionRead?.cancel(); referenceDescriptionRead = nil; referenceDescriptionHover = nil
+    }
     private var loadedHighlightFields: HistorySearchFields = LogSearchSelection.all
     var canShowWorkingTree: Bool { includeWorkingTreeChanges && !selecting && !bare }
     private let includeBoundaryCommits: Bool
@@ -2056,6 +2098,7 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        cancelReferenceDescriptionRead()
         retireLogControlMenus()
         cancelFileChoice(); invalidateFileSelection()
         messageLinkGeneration = UUID()
@@ -2084,6 +2127,7 @@ struct LogCommandRequest: Identifiable {
     }
     func reload() {
         guard !isInvalidated, !referencePickerBlocked, !busy || loadingHistory else { return }
+        cancelReferenceDescriptionRead()
         cancelSearchFilter()
         restoreHistorySnapshot()
         historyRestore = HistoryRestore(entries: entries, graph: graph, rollups: rollupInfo, highlights: searchHighlights, sourceRowCount: historySourceRowCount)
@@ -2124,6 +2168,7 @@ struct LogCommandRequest: Identifiable {
                 let conflictRebase: Bool
                 if bare { conflictRebase = false } else { conflictRebase = try await repository.conflictIsRebase(cancellation:cancellation) }
                 let referenceContext = try await repository.historyReferenceContext(cancellation: cancellation)
+                let referenceDescriptions = try await repository.historyBranchDescriptions(cancellation: cancellation)
                 let startReferences = try await repository.historyStartReferences(cancellation: cancellation)
                 let currentBranch = startReferences.branch
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
@@ -2168,6 +2213,7 @@ struct LogCommandRequest: Identifiable {
                 guard request == generation else { return }
                 let projection = CommitGraph.project(result, walk: options.walk, references: referenceVisibility, rollupStates: rollupStates)
                 self.referenceContext = referenceContext
+                self.referenceDescriptions = referenceDescriptions
                 let highlightEntries = projection.entries
                 let labeledHashes = Set(highlightEntries.filter { !visibleReferences(for: $0).isEmpty }.map(\.hash))
                 let fullMessage = fullCommitMessageOnLogLine
@@ -4114,7 +4160,7 @@ struct RevisionTable: NSViewRepresentable {
                 cell.toolTip = labels.joined(separator: ", "); cell.setAccessibilityLabel(cell.toolTip)
                 return cell
             }
-            let text = NSTextField(labelWithString: "")
+            let text: NSTextField = column?.identifier.rawValue == "message" ? LogReferenceTextField(labelWithString: "") : NSTextField(labelWithString: "")
             if column?.identifier.rawValue == "message" {
                 let painter = LogReferenceTextCell(textCell: "")
                 painter.isEditable = false; painter.isSelectable = false; painter.isBordered = false; painter.drawsBackground = false
@@ -4185,6 +4231,20 @@ struct RevisionTable: NSViewRepresentable {
             else if column?.identifier.rawValue == "date" { text.toolTip = dateSettings.relative ? dateSettings.format(entry.date, absolute: true) : nil }
             else if column?.identifier.rawValue == "committerDate" { text.toolTip = dateSettings.relative ? dateSettings.format(entry.committerDate, absolute: true) : nil }
             else { text.toolTip = entry.subject + "\n" + entry.hash }
+            if let referenceField = text as? LogReferenceTextField {
+                let hash = entry.hash, fallback = text.toolTip, historyTable = tableView as? HistoryTableView
+                referenceField.tooltipForReference = { [weak model] name in model?.referenceTooltip(hash: hash, name: name, fallback: fallback) }
+                referenceField.onHoverReference = { [weak model] name in model?.hoverReference(hash: hash, name: name) }
+                referenceField.referenceInteractionAllowed = { [weak model, weak historyTable] in
+                    guard let model, let historyTable else { return false }
+                    return !model.confirmingQuit && historyTable.contextMenuAvailable() && historyTable.tableColumn(withIdentifier: .init("message"))?.isHidden == false && model.entries.contains { $0.hash == hash }
+                }
+                referenceField.onReferenceMenu = { [weak model, weak historyTable, weak referenceField] name, point in
+                    guard let model, let historyTable, let referenceField,
+                          let row = model.entries.firstIndex(where: { $0.hash == hash && $0.references.contains(where: { GitReferenceName.equal($0.name, name) }) }) else { return false }
+                    return historyTable.showReferenceContextMenu(row: row, name: name, point: historyTable.convert(point, from: referenceField))
+                }
+            }
             let cell = NSTableCellView(); cell.addSubview(text); cell.textField = text
             text.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([text.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 3), text.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -3), text.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
@@ -4711,6 +4771,20 @@ final class HistoryTableView: NSTableView {
         else { menu.popUp(positioning:nil,at:point,in:self) }
         return true
     }
+    @discardableResult func showReferenceContextMenu(row: Int, name: String, point: NSPoint) -> Bool {
+        guard contextMenuAvailable(), row >= 0, row < numberOfRows, let menu else { return false }
+        selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        contextReference = (row, name); contextExtendedMenu = false; contextRow = row
+        scrollRowToVisible(row); scrollToVisible(NSRect(x: point.x - 2, y: point.y - 2, width: 4, height: 4)); layoutSubtreeIfNeeded()
+        // NSMenu.update() need not ask its delegate to populate a menu before
+        // tracking begins. Prepare this pointed popup once, including its
+        // captured action receipt, before rejecting an empty first-open menu.
+        menu.delegate?.menuNeedsUpdate?(menu)
+        guard !menu.items.isEmpty else { return false }
+        if let presentContextMenu { presentContextMenu(menu, point, self) }
+        else { menu.popUp(positioning: nil, at: point, in: self) }
+        return true
+    }
     override func accessibilityPerformShowMenu()->Bool { showKeyboardContextMenu() }
     private func performFind(_ event: NSEvent) -> Bool {
         event.modifierFlags.intersection([.shift, .command, .control, .option]) == .command
@@ -4741,6 +4815,7 @@ final class HistoryTableView: NSTableView {
         guard row >= 0, let column = tableColumns.firstIndex(where: { $0.identifier.rawValue == "message" }),
             let field = (view(atColumn: column, row: row, makeIfNecessary: true) as? NSTableCellView)?.textField,
             let cell = field.cell as? LogReferenceTextCell,
+            field.bounds.contains(field.convert(point, from: self)),
             let ref = cell.reference(at: field.convert(point, from: self)) else { return nil }
         return (row, ref.name)
     }

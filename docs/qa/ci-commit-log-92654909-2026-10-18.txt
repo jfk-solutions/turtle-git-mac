@@ -1,0 +1,25 @@
+Official GitHub Actions failure excerpt
+Repository: jfk-solutions/turtle-git-mac
+Run: https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39130261984
+Head: 926549098606257555efa11e64d2c8d98a5a6d32
+Job: 117687644563 (build-and-test)
+Failed step: Commit visibility and Log source command families
+Scope: first Commit/system-Git receiver died with SIGSEGV11. The step did not reach Log or bundled Git. No crash stack or fixture phase was present in the job log. This excerpt does not establish the cause of the crash.
+
+2026-10-18T14:25:22.8787090Z ##[group]Run python3 scripts/test-app-port-families.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+2026-10-18T14:25:22.8789060Z python3 scripts/test-app-port-families.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+2026-10-18T14:25:22.8867380Z shell: /bin/bash -e {0}
+2026-10-18T14:25:22.8868010Z ##[endgroup]
+2026-10-18T14:25:37.1911410Z Native QA: compiled fixture only: commit-visibility-native-2026-10-18.swift, log-source-commands-native-2026-10-18.swift, AppPortFamilyMain.swift
+2026-10-18T14:25:37.1932490Z Checking commit port family with /usr/bin/git
+2026-10-18T14:26:26.6447860Z Owned receiver reaped: 18032
+2026-10-18T14:26:26.6790760Z swift-driver version: 1.120.5 Traceback (most recent call last):
+2026-10-18T14:26:26.6819370Z   File "/Users/runner/work/turtle-git-mac/turtle-git-mac/scripts/test-app-port-families.py", line 51, in <module>
+2026-10-18T14:26:26.6821880Z     print(result.stdout, end=''); print(result.stderr, end=''); result.check_returncode()
+2026-10-18T14:26:26.6863830Z                                                                 ~~~~~~~~~~~~~~~~~~~~~~~^^
+2026-10-18T14:26:26.6867800Z   File "/usr/local/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/subprocess.py", line 509, in check_returncode
+2026-10-18T14:26:26.6872540Z     raise CalledProcessError(self.returncode, self.args, self.stdout,
+2026-10-18T14:26:26.6875360Z                              self.stderr)
+2026-10-18T14:26:26.6881460Z subprocess.CalledProcessError: Command '['/Users/runner/work/turtle-git-mac/turtle-git-mac/build/qa/native-receivers/linked/d7e86cd06c2e6e585d30e3bfb8e4c7d33ebda2bca38d6ced0db325dfcf43330c/receiver-65a53e717d22ff4536d688b4d1020a05bb37578a1cf16a7dcd6d77dc85b9723f', '/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/turtlegit-app-port-jpie554c/commit0', '/usr/bin/git']' died with <Signals.SIGSEGV: 11>.
+2026-10-18T14:26:26.7159920Z ##[error]Process completed with exit code 1.
+2026-10-18T14:26:27.4571050Z

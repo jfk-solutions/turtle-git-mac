@@ -80,6 +80,21 @@ enum LogReferenceDrawing {
 final class LogReferenceTextCell: NSTextFieldCell {
     struct BadgeFrame { let name: String; let range: NSRange; let rect: CGRect; let style: LogReferenceStyle }
     private(set) var badgeFrames: [BadgeFrame] = []
+    private(set) var interactionGeneration = UUID()
+    override var attributedStringValue: NSAttributedString {
+        didSet { invalidateReferenceGeometry() }
+    }
+    override var stringValue: String {
+        didSet { invalidateReferenceGeometry() }
+    }
+    override var font: NSFont? {
+        didSet { invalidateReferenceGeometry() }
+    }
+    func invalidateReferenceGeometry() { badgeFrames = []; interactionGeneration = UUID() }
+    var uniqueBadgeFrames: [BadgeFrame] {
+        var seen = Set<GitReferenceName>()
+        return Array(badgeFrames.reversed().filter { seen.insert(GitReferenceName($0.name)).inserted }.reversed())
+    }
     func reference(at point: NSPoint) -> RevisionReference? {
         // Source m_RefLabelPosMap retains the last rectangle for a canonical
         // name (a shared upstream can be painted beside several local refs).
@@ -92,6 +107,7 @@ final class LogReferenceTextCell: NSTextFieldCell {
     }
 
     override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
+        let previousFrames = badgeFrames
         let value = NSMutableAttributedString(attributedString: attributedStringValue)
         let full = NSRange(location: 0, length: value.length)
         guard full.length > 0 else { badgeFrames = []; return }
@@ -148,5 +164,115 @@ final class LogReferenceTextCell: NSTextFieldCell {
         let drawingGlyphs = clipsLabelText ? naturalGlyphs : glyphs
         drawingLayout.drawBackground(forGlyphRange: drawingGlyphs, at: origin)
         drawingLayout.drawGlyphs(forGlyphRange: drawingGlyphs, at: origin)
+        let sameFrames = previousFrames.count == badgeFrames.count && zip(previousFrames, badgeFrames).allSatisfy { pair in
+            GitReferenceName.equal(pair.0.name, pair.1.name) && pair.0.range == pair.1.range && pair.0.rect == pair.1.rect && pair.0.style.label == pair.1.style.label
+        }
+        if !sameFrames { interactionGeneration = UUID() }
+        (controlView as? LogReferenceTextField)?.referenceGeometryChanged()
     }
+}
+
+
+/// Native tooltip and accessibility entry points share the painter's exact
+/// clipped rectangles and canonical names, never shortened/symbolized text.
+final class LogReferenceTextField: NSTextField {
+    var tooltipForReference: ((String?) -> String?)?
+    var onHoverReference: ((String?) -> Void)?
+    var onReferenceMenu: ((String, NSPoint) -> Bool)?
+    var referenceInteractionAllowed: () -> Bool = { true }
+    private var hoverName: GitReferenceName?
+    private var referenceTracking: NSTrackingArea?
+    private var tooltipBounds = NSRect.null
+    private var accessibleGeneration = UUID()
+    private var accessibleBadges: [LogReferenceAccessibleBadge] = []
+    var referenceCell: LogReferenceTextCell? { cell as? LogReferenceTextCell }
+    override func setFrameSize(_ newSize: NSSize) {
+        if frame.size != newSize { referenceCell?.invalidateReferenceGeometry() }
+        super.setFrameSize(newSize)
+    }
+    override func setBoundsSize(_ newSize: NSSize) {
+        if bounds.size != newSize { referenceCell?.invalidateReferenceGeometry() }
+        super.setBoundsSize(newSize)
+    }
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if referenceTracking == nil {
+            let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
+            referenceTracking = area; addTrackingArea(area)
+        }
+        refreshTooltipBounds()
+    }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil { hoverName = nil; onHoverReference?(nil); accessibleBadges = [] }
+        else { updateTrackingAreas() }
+    }
+    override func mouseEntered(with event: NSEvent) { updateHover(at: convert(event.locationInWindow, from: nil)) }
+    override func mouseMoved(with event: NSEvent) { updateHover(at: convert(event.locationInWindow, from: nil)) }
+    override func mouseExited(with event: NSEvent) { hoverName = nil; onHoverReference?(nil) }
+    func updateHover(at point: NSPoint) {
+        let name = referenceCell?.reference(at: point)?.name
+        let next = name.map { GitReferenceName($0) }
+        guard next != hoverName else { return }; hoverName = next; onHoverReference?(name)
+    }
+    @objc func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData: UnsafeMutableRawPointer?) -> String {
+        tooltip(at: point) ?? ""
+    }
+    func tooltip(at point: NSPoint) -> String? {
+        guard window != nil, bounds.contains(point) else { return nil }
+        let name = referenceCell?.reference(at: point)?.name
+        onHoverReference?(name)
+        return tooltipForReference?(name)
+    }
+    private func refreshTooltipBounds() {
+        if tooltipBounds != bounds { tooltipBounds = bounds; removeAllToolTips(); addToolTip(bounds, owner: self, userData: nil) }
+    }
+    func referenceGeometryChanged() {
+        refreshTooltipBounds()
+        guard let cell = referenceCell, accessibleGeneration != cell.interactionGeneration else { return }
+        accessibleGeneration = cell.interactionGeneration
+        accessibleBadges = cell.uniqueBadgeFrames.map { LogReferenceAccessibleBadge(field: self, frame: $0, generation: accessibleGeneration) }
+        NSAccessibility.post(element: self, notification: .layoutChanged)
+    }
+    func accepts(_ name: String, generation: UUID) -> Bool {
+        window != nil && !isHiddenOrHasHiddenAncestor && referenceInteractionAllowed() && referenceCell?.interactionGeneration == generation &&
+            referenceCell?.uniqueBadgeFrames.contains(where: { GitReferenceName.equal($0.name, name) }) == true
+    }
+    func showReferenceMenu(name: String, generation: UUID) -> Bool {
+        guard accepts(name, generation: generation), let frame = referenceCell?.uniqueBadgeFrames.first(where: { GitReferenceName.equal($0.name, name) }) else { return false }
+        return onReferenceMenu?(name, NSPoint(x: frame.rect.midX, y: frame.rect.midY)) == true
+    }
+    override func accessibilityRole() -> NSAccessibility.Role? { .group }
+    override func accessibilityLabel() -> String? { stringValue }
+    override func accessibilityChildren() -> [Any]? {
+        referenceGeometryChanged()
+        return accessibleBadges
+    }
+}
+
+@MainActor final class LogReferenceAccessibleBadge: NSAccessibilityElement {
+    private weak var field: LogReferenceTextField?
+    let name: String
+    private let label: String
+    private let rect: NSRect
+    private let generation: UUID
+    init(field: LogReferenceTextField, frame: LogReferenceTextCell.BadgeFrame, generation: UUID) {
+        self.field = field; name = frame.name; label = frame.style.label.text; rect = frame.rect; self.generation = generation
+        super.init(); setAccessibilityElement(true); setAccessibilityRole(.button)
+    }
+    override func accessibilityParent() -> Any? { field }
+    override func accessibilityLabel() -> String? { label }
+    override func accessibilityValue() -> Any? { name }
+    override func accessibilityHelp() -> String? {
+        guard let field, field.accepts(name, generation: generation) else { return nil }
+        field.onHoverReference?(name)
+        return field.tooltipForReference?(name)
+    }
+    override func accessibilityFrame() -> NSRect {
+        guard let field, let window = field.window, field.accepts(name, generation: generation) else { return .zero }
+        return window.convertToScreen(field.convert(rect, to: nil))
+    }
+    override func isAccessibilityEnabled() -> Bool { field?.accepts(name, generation: generation) == true }
+    override func accessibilityPerformPress() -> Bool { field?.showReferenceMenu(name: name, generation: generation) == true }
+    override func accessibilityPerformShowMenu() -> Bool { accessibilityPerformPress() }
 }

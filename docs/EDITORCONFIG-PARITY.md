@@ -140,3 +140,14 @@ exercise the real pinned parser, both production editor models, writable/loaded
 gates, stale callbacks, retained loaded/default reset, a held late read, owned
 folder-sheet cancellation and unchanged input/result/index bytes. No signed
 scope, physical menu gestures, timeout/failure UI or full visual parity is claimed.
+
+## Reflected and independent pane targets — October 18
+
+The later [reflected-file family review](EDITORCONFIG-REFLECTED-PARITY.md)
+completes the standalone command's reflected-name target selection and separates
+all four working/rebound/result pane paths. Earlier native checks covered ordinary
+repository filenames; they did not prove these standalone temporary-input cases.
+The same family serializes permission reads, retains editor-owned acquired scopes,
+handles cancelled queued prompts, migrates result-pane settings through Save As
+and preserves source-unused save properties. Its parent batch owns the grouped
+checkpoint and records precise remaining physical/signed acceptance.

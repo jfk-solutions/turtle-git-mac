@@ -2939,3 +2939,35 @@ EditorConfig semantics, shared installed-app identity/interleaved external
 requests, complete physical visual/input/VoiceOver, minimum-OS/Intel and signed
 App Store terminal-grant acceptance remain open. This is a partial port record,
 not whole-dialog or whole-application certification.
+
+
+### Editor metadata, Log references and external request family, 2026-10-18
+
+Three parallel implementation owners completed related EditorConfig, Log and
+Commit work, integrated with independent workspace handoff from standalone Merge.
+Comparison panes resolve reflected EditorConfig filenames before temporary files,
+retain pane identity across Switch Sides, source rebinding and result Save As,
+and serialize owned permission/parser work with cancellation and actual drain.
+The source indentation-only behavior preserves existing saved bytes.
+
+Log branch badges read local descriptions with source fallback and UTF-16 limits.
+Painted hit geometry and native accessibility share canonical reference identity;
+stale document/geometry generations refuse actions. Commit author/date callbacks
+check live ownership and model gates, retire replaced native targets, and keep
+cancelled metadata work counted until its actual return.
+
+External Finder/patch events have one application receiver. Ordinary startup
+queues them in order; standalone Merge requests a separate workspace instance,
+retains launch/error acknowledgment ownership and returns its original Git result
+after accepted handoffs drain. The injected native checks do not prove physical
+signed Launch Services delivery or transfer of sandbox authority.
+
+The [batch evidence](qa/metadata-port-2026-10-18.json) records grouped validation,
+actual failures and affected-only repairs. See the
+[EditorConfig review](EDITORCONFIG-REFLECTED-PARITY.md),
+[Log reference review](LOG-REFERENCE-INTERACTION-PARITY.md),
+[Commit ownership review](COMMIT-METADATA-LIFETIME-PARITY.md) and
+[workspace handoff review](WORKSPACE-OPEN-HANDOFF-PARITY.md).
+The earlier hosted Commit receiver's SIGSEGV is confirmed, but its precise cause
+is unproven without a crash stack. No full hosted pass, current signed/universal
+package, complete physical accessibility or whole-application parity is claimed.

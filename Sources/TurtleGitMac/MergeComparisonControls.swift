@@ -939,15 +939,57 @@ struct MergeTypingModeControl: View {
     }
     init() { folderAccess.readingEditorConfig = true }
     func cancel() { cancellation.cancel(); folderAccess.cancel() }
-    func read(file:URL, permissions:[RepositoryAccessLease], window:NSWindow?) async throws -> MergeEditorConfigProperties? {
+    func read(file:URL, permissions:[RepositoryAccessLease], window:NSWindow?, authorized: (([RepositoryAccessLease]) -> Void)? = nil) async throws -> MergeEditorConfigProperties? {
         MergeRegexOperations.activeRequests += 1
         defer { MergeRegexOperations.activeRequests -= 1 }
         guard let acquired = try await folderAccess.authorize(file:file,permissions:permissions,window:window,cancellation:cancellation) else { return nil }
+        try cancellation.check()
+        authorized?(acquired)
         let held = permissions + acquired
         defer { withExtendedLifetime(held) {} }
         let resolve = resolve, cancellation = cancellation
         return try await Task.detached { try resolve(file,cancellation) }.value
     }
+}
+
+/// One editor serializes its pane reads so a single native permission sheet is
+/// owned at a time. Granted folders remain scoped to this editor and are reused
+/// only where their actual lease covers a subsequent reflected/actual target.
+@MainActor final class MergeEditorConfigAccess {
+    private var permissions: [RepositoryAccessLease] = []
+    private var tail: Task<Void, Never>?
+    private var latest: UUID?
+    private var deniedParents: [UUID: Set<Data>] = [:]
+    private var latestGroup: UUID?
+    private var retired = false
+    func read(_ read: MergeEditorConfigRead, file: URL, permissions existing: [RepositoryAccessLease], window: NSWindow?, group: UUID = UUID()) async throws -> MergeEditorConfigProperties? {
+        guard !retired else { throw OperationCancellationFailure.cancelled }
+        MergeRegexOperations.activeRequests += 1
+        defer { MergeRegexOperations.activeRequests -= 1 }
+        if tail == nil, latestGroup != group { deniedParents.removeAll() }
+        latestGroup = group
+        let previous = tail, id = UUID()
+        let parent = Data(((file.path as NSString).deletingLastPathComponent).utf8)
+        let task = Task { @MainActor [self] () throws -> MergeEditorConfigProperties? in
+            await previous?.value
+            try read.cancellation.check()
+            guard !retired else { throw OperationCancellationFailure.cancelled }
+            // A cancelled folder chooser does not produce the same question for
+            // every remaining pane of one reload. A later explicit read can retry.
+            guard deniedParents[group]?.contains(parent) != true else { return nil }
+            let result = try await read.read(file: file, permissions: existing + permissions, window: window, authorized: { [weak self] acquired in
+                guard let self, !self.retired else { return }
+                self.permissions += acquired
+            })
+            if result == nil, !read.cancellation.isCancelled { deniedParents[group, default: []].insert(parent) }
+            return result
+        }
+        latest = id
+        tail = Task { _ = try? await task.value }
+        defer { if latest == id { tail = nil; latest = nil } }
+        return try await task.value
+    }
+    func retire() { retired = true; permissions.removeAll(); deniedParents.removeAll() }
 }
 
 struct MergePaneTabCommand {

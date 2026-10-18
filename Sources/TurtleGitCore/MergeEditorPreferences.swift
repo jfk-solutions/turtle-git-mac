@@ -13,6 +13,20 @@ public enum EditorConfigFailure: LocalizedError {
     }
 }
 
+/// BaseView chooses its reflected name before its actual file path. Choosing
+/// a path does not grant read access, resolve symlinks or require the leaf to exist.
+public enum MergeEditorConfigPath {
+    public static func fileURL(actualPath: String, reflectedName: String? = nil, root: URL) throws -> URL {
+        if let reflectedName, !reflectedName.isEmpty {
+            guard reflectedName.hasPrefix("/"), !reflectedName.contains("\0") else { throw EditorConfigFailure.invalidPath }
+            return FileTransferPaths.fileURL(reflectedName)
+        }
+        guard root.isFileURL, root.path.hasPrefix("/"), !actualPath.isEmpty, !actualPath.contains("\0") else { throw EditorConfigFailure.invalidPath }
+        let path = actualPath.hasPrefix("/") ? actualPath : root.path + "/" + actualPath
+        return FileTransferPaths.fileURL(path)
+    }
+}
+
 public struct MergeEditorConfigProperties: Equatable, Sendable {
     public let properties: [String: String]
     public init(properties: [String: String]) { self.properties = properties }

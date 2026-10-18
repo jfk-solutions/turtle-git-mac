@@ -312,6 +312,8 @@ jobs:
         run: python3 scripts/test-submodule-diff-entry.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Standalone Merge tool entry and editor workflows
         run: python3 scripts/test-merge-tool-entry.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Reflected EditorConfig, Log references and external workspace requests
+        run: python3 scripts/test-metadata-port-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Add LFS and persistent native list family
         run: python3 scripts/test-add-list-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native file selection and Log workflows

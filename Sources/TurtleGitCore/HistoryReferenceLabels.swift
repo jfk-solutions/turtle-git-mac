@@ -140,3 +140,46 @@ extension GitRepository {
         return HistoryReferenceContext(remotes: remotes, tracking: tracking)
     }
 }
+
+/// GitLogListBase::OnToolTipText prefers a local branch's description over the
+/// ordinary message tooltip, including right-side label mode. Its wide buffer
+/// reserves one terminator and three literal dots from 8192 UTF-16 units.
+public enum HistoryReferenceTooltip {
+    public static func text(reference: RevisionReference?, descriptions: [GitReferenceName: String],
+                            fallback: String?, descriptionTitle: String = "Description") -> String? {
+        let value: String?
+        if let reference, HistoryReferenceLabel.shortName(reference.name).kind == .localBranch,
+           let description = descriptions[GitReferenceName(reference.name)] {
+            value = descriptionTitle + ":\n" + description
+        } else { value = fallback }
+        guard let value, !value.isEmpty else { return nil }
+        let source = value as NSString
+        return source.length >= 8192 ? source.substring(to: 8188) + "..." : value
+    }
+    public static func equalDescriptions(_ lhs: [GitReferenceName: String], _ rhs: [GitReferenceName: String]) -> Bool {
+        lhs.count == rhs.count && lhs.allSatisfy { name, value in rhs[name].map { value.utf8.elementsEqual($0.utf8) } == true }
+    }
+    public static func descriptions(from data: Data) -> [GitReferenceName: String] {
+        var result: [GitReferenceName: String] = [:]
+        for record in data.split(separator: 0) {
+            guard let separator = record.firstIndex(of: 10),
+                  let key = String(data: record[..<separator], encoding: .utf8),
+                  let name = GitReferenceName.removingPrefix("branch.", from: key).flatMap({ GitReferenceName.removingSuffix(".description", from: $0) }),
+                  let value = String(data: record[record.index(after: separator)...], encoding: .utf8) else { continue }
+            let canonical = GitReferenceName("refs/heads/" + name)
+            // GetBranchDescriptions inserts into a map; the first entry wins.
+            if result[canonical] == nil { result[canonical] = value }
+        }
+        return result
+    }
+}
+extension GitRepository {
+    /// Source GetBranchDescriptions reads the repository's local config rather
+    /// than inheriting a global description or treating remote labels as locals.
+    public func historyBranchDescriptions(cancellation: OperationCancellation? = nil) throws -> [GitReferenceName: String] {
+        try cancellation?.check()
+        let output = try run(["config", "--local", "--null", "--get-regexp", "^branch\\..*\\.description$"], successfulExitCodes: 0...1, cancellation: cancellation).stdout
+        try cancellation?.check()
+        return HistoryReferenceTooltip.descriptions(from: output)
+    }
+}

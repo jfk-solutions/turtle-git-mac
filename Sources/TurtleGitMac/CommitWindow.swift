@@ -282,11 +282,14 @@ import UniformTypeIdentifiers
     }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
     func windowWillClose(_ notification: Notification) {
+        // End-sheet callbacks may run synchronously while native children retire.
+        // Fence owner actions before dismissing any of those children.
+        closingCommit = true
         commandMenu?.retire();visibilitySheetObservation=nil;finishUnversionedFilesPrompt()
         let hintAnswer=stagingHintAnswer;stagingHintAnswer=nil;stagingHintAlert=nil;hintAnswer?(nil)
         templatePanel?.cancel(nil); templatePanel = nil
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
-        closingCommit = true;preflightAlert=nil; model.invalidateForClose(); issueProviderOwner?.retire(); issueProviderOwner = nil; lfsOperation?.close(); lfsOperation = nil
+        preflightAlert=nil; model.invalidateForClose(); issueProviderOwner?.retire(); issueProviderOwner = nil; lfsOperation?.close(); lfsOperation = nil
         if let child = historyWindow {
             historyWindow = nil; window?.endSheet(child); child.orderOut(nil); child.close()
         }
@@ -706,6 +709,10 @@ import UniformTypeIdentifiers
     private var authorCancellation: OperationCancellation?
     private var dateCancellation: OperationCancellation?
     private var amendCancellation: OperationCancellation?
+    /// Includes cancelled author/date/amend readers after their native owner closes.
+    static private(set) var activeMetadataOperations = 0
+    var nativeAuthorInputAvailable: Bool { messageFocusAvailable && !inputsBlocked && setAuthor && !loadingAuthorIdentity }
+    var nativeAuthorDateInputAvailable: Bool { messageFocusAvailable && !inputsBlocked && setAuthorDate && !loadingAuthorDate && !(amend && resetAuthorDate) }
     var queryCommitAuthor: (Bool, OperationCancellation) async throws -> String?
     var queryCommitAuthorDate: (OperationCancellation) async throws -> Date?
     var queryAmendMessage: (OperationCancellation) async throws -> String?
@@ -1612,8 +1619,9 @@ import UniformTypeIdentifiers
             loadingAmendMessage = true
             let generation = amendGeneration, draft = message, token = OperationCancellation()
             amendCancellation = token
+            Self.activeMetadataOperations += 1
             Task {
-                defer { if generation == amendGeneration { loadingAmendMessage = false; amendCancellation = nil } }
+                defer { Self.activeMetadataOperations -= 1; if generation == amendGeneration { loadingAmendMessage = false; amendCancellation = nil } }
                 do {
                     if token.isCancelled { throw OperationCancellationFailure.cancelled }
                     let previous = try await queryAmendMessage(token)
@@ -1685,8 +1693,9 @@ import UniformTypeIdentifiers
         let generation = authorGeneration, wasAmend = amend, wasSetAuthor = setAuthor, draft = author
         let token = OperationCancellation(); authorCancellation = token
         loadingAuthorIdentity = true
+        Self.activeMetadataOperations += 1
         Task {
-            defer { if generation == authorGeneration { loadingAuthorIdentity = false; authorCancellation = nil } }
+            defer { Self.activeMetadataOperations -= 1; if generation == authorGeneration { loadingAuthorIdentity = false; authorCancellation = nil } }
             do {
                 if token.isCancelled { throw OperationCancellationFailure.cancelled }
                 let value = try await queryCommitAuthor(wasAmend, token)
@@ -1712,8 +1721,9 @@ import UniformTypeIdentifiers
         let generation = dateGeneration, draft = authorDate
         let token = OperationCancellation(); dateCancellation = token
         loadingAuthorDate = true
+        Self.activeMetadataOperations += 1
         Task {
-            defer { if generation == dateGeneration { loadingAuthorDate = false; dateCancellation = nil } }
+            defer { Self.activeMetadataOperations -= 1; if generation == dateGeneration { loadingAuthorDate = false; dateCancellation = nil } }
             do {
                 if token.isCancelled { throw OperationCancellationFailure.cancelled }
                 let value = try await queryCommitAuthorDate(token)
@@ -2138,7 +2148,8 @@ struct CommitAuthorField: NSViewRepresentable {
     @Binding var author: String
     @AppStorage("UseCustomWordBreak") private var wordBreakMode=2
     var editable: Bool
-    func makeCoordinator() -> Coordinator { Coordinator(author: $author) }
+    var acceptsChanges: () -> Bool = { true }
+    func makeCoordinator() -> Coordinator { Coordinator(author: $author, acceptsChanges: acceptsChanges) }
     func makeNSView(context: Context) -> NSTextField {
         let field = NSTextField()
         field.isBezeled = true; field.bezelStyle = .roundedBezel
@@ -2151,6 +2162,7 @@ struct CommitAuthorField: NSViewRepresentable {
     func updateNSView(_ field: NSTextField, context: Context) {
         context.coordinator.wordCommands.policy=GitInputWordBreak(mode:UInt32(truncatingIfNeeded:wordBreakMode))
         context.coordinator.author = $author
+        context.coordinator.acceptsChanges = acceptsChanges
         if !field.stringValue.utf8.elementsEqual(author.utf8) { field.stringValue = author }
         field.isEnabled = context.environment.isEnabled
         field.isEditable = editable && field.isEnabled
@@ -2160,16 +2172,22 @@ struct CommitAuthorField: NSViewRepresentable {
             editor.isEditable = field.isEditable
         }
     }
-    static func dismantleNSView(_ field: NSTextField, coordinator: Coordinator) { field.delegate = nil }
+    static func dismantleNSView(_ field: NSTextField, coordinator: Coordinator) {
+        field.delegate = nil; field.isEditable = false
+        coordinator.retired = true; coordinator.acceptsChanges = { false }
+    }
     @MainActor final class Coordinator: NSObject, NSTextFieldDelegate {
         let wordCommands=GitInputWordCommands()
+        var retired = false
+        var acceptsChanges: () -> Bool
         func control(_ control:NSControl,textView:NSTextView,doCommandBy commandSelector:Selector)->Bool {
-            wordCommands.handle(control,text:textView,selector:commandSelector,combo:false,owner:self)
+            guard !retired else { return false }
+            return wordCommands.handle(control,text:textView,selector:commandSelector,combo:false,owner:self)
         }
         var author: Binding<String>
-        init(author: Binding<String>) { self.author = author }
+        init(author: Binding<String>, acceptsChanges: @escaping () -> Bool) { self.author = author; self.acceptsChanges = acceptsChanges }
         func controlTextDidChange(_ notification: Notification) {
-            guard let field = notification.object as? NSTextField, field.isEnabled, field.isEditable else { return }
+            guard !retired, acceptsChanges(), let field = notification.object as? NSTextField, field.isEnabled, field.isEditable else { return }
             author.wrappedValue = field.stringValue
         }
     }
@@ -2287,14 +2305,14 @@ GroupBox("Message:") {
                     DialogCommandRows {
                         Toggle("Set author date", isOn: $model.setAuthorDate).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
                         if model.setAuthorDate {
-                            CommitDatePicker(selection: $model.authorDate, time: false, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate)).frame(width: 130, height: 24)
-                            CommitDatePicker(selection: $model.authorDate, time: true, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate)).frame(width: 115, height: 24)
+                            CommitDatePicker(selection: $model.authorDate, time: false, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate), acceptsChanges: { model.nativeAuthorDateInputAvailable }).frame(width: 130, height: 24)
+                            CommitDatePicker(selection: $model.authorDate, time: true, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate), acceptsChanges: { model.nativeAuthorDateInputAvailable }).frame(width: 115, height: 24)
                             if model.amend { Toggle("Reset", isOn: $model.resetAuthorDate).toggleStyle(.checkbox) }
                         }
                     }
                     DialogCommandRows {
                         Toggle("Set author", isOn: $model.setAuthor).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
-                        CommitAuthorField(author: $model.author, editable: model.setAuthor && !model.loadingAuthorIdentity)
+                        CommitAuthorField(author: $model.author, editable: model.setAuthor && !model.loadingAuthorIdentity, acceptsChanges: { model.nativeAuthorInputAvailable })
                             .frame(minWidth:220,idealWidth:280).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
                         Button("Add Signed-off-by") { model.addSignOff() }
                     }
@@ -2630,7 +2648,8 @@ private struct CommitDatePicker: NSViewRepresentable {
     @Environment(\.isEnabled) private var environmentEnabled
     let time: Bool
     let enabled: Bool
-    func makeCoordinator() -> Coordinator { Coordinator(selection: $selection,time:time) }
+    let acceptsChanges: () -> Bool
+    func makeCoordinator() -> Coordinator { Coordinator(selection: $selection,time:time, acceptsChanges: acceptsChanges) }
     func makeNSView(context: Context) -> NSDatePicker {
         let picker = NSDatePicker()
         picker.datePickerStyle = .textFieldAndStepper
@@ -2645,15 +2664,23 @@ private struct CommitDatePicker: NSViewRepresentable {
     }
     func updateNSView(_ picker: NSDatePicker, context: Context) {
         context.coordinator.selection = $selection
+        context.coordinator.acceptsChanges = acceptsChanges
         let value=time ? selection:CommitAuthorDateControl.calendar.startOfDay(for:selection)
         if picker.dateValue != value {picker.dateValue=value}
         picker.isEnabled = enabled && environmentEnabled
     }
-    final class Coordinator: NSObject {
+    static func dismantleNSView(_ picker: NSDatePicker, coordinator: Coordinator) {
+        picker.target = nil; picker.action = nil; picker.isEnabled = false
+        coordinator.retired = true; coordinator.acceptsChanges = { false }
+    }
+    @MainActor final class Coordinator: NSObject {
         var selection: Binding<Date>
         let time:Bool
-        init(selection: Binding<Date>,time:Bool) {self.selection=selection;self.time=time}
+        var retired = false
+        var acceptsChanges: () -> Bool
+        init(selection: Binding<Date>,time:Bool, acceptsChanges: @escaping () -> Bool) {self.selection=selection;self.time=time;self.acceptsChanges=acceptsChanges}
         @objc func changed(_ sender: NSDatePicker) {
+            guard !retired, sender.isEnabled, acceptsChanges() else { return }
             let previous=selection.wrappedValue
             selection.wrappedValue=CommitAuthorDateControl.merging(day:time ? previous:sender.dateValue,time:time ? sender.dateValue:previous)
         }

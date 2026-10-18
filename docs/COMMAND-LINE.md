@@ -1045,3 +1045,25 @@ output. [Source review](MERGE-TOOL-ENTRY-PARITY.md) records the exact accepted
 arguments, remaining Blame/reflected-header/Windows protocol gaps, and completion
 and cleanup adaptations. Native labels and reflected names never replace the
 file paths or grant filesystem access.
+
+
+### Finder/document delivery while a standalone Merge tool is open
+
+The application delegate receives macOS URL/document events. An ordinary workspace
+queues early events until its model and startup command are ready, then delivers
+them once in received order. The former window-view URL handler is removed so an
+event has one owner.
+
+A standalone Merge process forwards supported `turtlegit://action` requests and
+`.patch`/`.diff` documents through Launch Services to a fresh workspace instance,
+with empty launch arguments. It preserves the URL list, order and duplicates;
+Merge input/output arguments are never inherited by the new workspace. Unknown
+schemes/actions and unrelated document types do not launch a workspace. URLs
+carry selection, not access authority; ordinary workspace checks still apply.
+
+Accepted launches retain their file scopes through the Launch Services callback.
+Failures have an owned native acknowledgment even if the Merge editor has closed.
+The waiting Git tool's captured result is unchanged and exits only after its
+external launch work has drained. User Quit refuses active handoff work. Retiring
+the parent never terminates an independently launched user workspace.
+See [handoff review](WORKSPACE-OPEN-HANDOFF-PARITY.md) for verification limits.
