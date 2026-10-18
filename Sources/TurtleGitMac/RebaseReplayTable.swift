@@ -37,7 +37,7 @@ struct RebaseReplayTable: NSViewRepresentable {
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         struct Row: Equatable {
-            let id: String, hash: String, values: [String], action: RebaseAction, progress: RebaseEntryProgress
+            let id: String, hash: String, values: [String], labels: [HistoryReferenceLabel], action: RebaseAction, progress: RebaseEntryProgress
         }
         private(set) var model: RebaseWindowModel
         weak var table: RebaseReplayNativeTable?
@@ -52,11 +52,12 @@ struct RebaseReplayTable: NSViewRepresentable {
         func update(model: RebaseWindowModel, dates: HistoryDateSettings, font: NSFont?) {
             guard !retired, let table else { return }; self.model = model
             let next = model.entries.map { entry in
-                Row(id: entry.id, hash: entry.commit.hash, values: [entry.action == .skip ? "Skip" : entry.action.rawValue.capitalized,
+                let labels = model.revisionMenuLog.referenceContext.labels(model.revisionHistoryCommit(entry.commit).references, symbolize: model.columnPreferences.bool(forKey: "SymbolizeRefNames"), terms: model.revisionBisectTerms)
+                return Row(id: entry.id, hash: entry.commit.hash, values: [entry.action == .skip ? "Skip" : entry.action.rawValue.capitalized,
                     String(model.entryNumber(entry)), entry.commit.hash, entry.commit.logLine(fullMessage: model.fullCommitMessageOnLogLine),
                     entry.commit.author, dates.format(entry.commit.date), entry.commit.email, entry.commit.committer,
                     entry.commit.committerEmail, dates.format(entry.commit.committerDate), model.issueColumnValues[entry.commit.hash] ?? "",
-                    model.svnColumnValues[entry.commit.hash] ?? ""], action: entry.action, progress: entry.progress)
+                    model.svnColumnValues[entry.commit.hash] ?? ""], labels: labels, action: entry.action, progress: entry.progress)
             }
             let changed = rows != next || self.font != font || highlightedHash != model.revisionFindHighlightHash
             self.font = font; highlightedHash = model.revisionFindHighlightHash; rows = next; synchronizing = true
@@ -74,13 +75,14 @@ struct RebaseReplayTable: NSViewRepresentable {
                 if let id = model.scrollRevisionOccurrence, let index = rows.firstIndex(where: { $0.id == id }) { table.scrollRowToVisible(index) }
             }
             model.onFindAvailability()
+            model.flushRevisionHistoryRefresh()
         }
         func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
             guard rows.indices.contains(row), let tableColumn,
                   let column = RebaseColumnLayout.Probe.names.firstIndex(of: tableColumn.identifier.rawValue) else { return nil }
             let key = NSUserInterfaceItemIdentifier("RebaseCell." + tableColumn.identifier.rawValue)
-            let cell = tableView.makeView(withIdentifier: key, owner: nil) as? RebaseReplayNativeCell ?? RebaseReplayNativeCell(action: column == 0)
+            let cell = tableView.makeView(withIdentifier: key, owner: nil) as? RebaseReplayNativeCell ?? RebaseReplayNativeCell(action: column == 0, references: column == 3)
             cell.identifier = key; let value = rows[row]
             var face = font ?? (column == 2 ? NSFont.monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular) : NSFont.systemFont(ofSize: NSFont.systemFontSize))
             if value.progress == .current { face = NSFontManager.shared.convert(face, toHaveTrait: .boldFontMask) }
@@ -90,6 +92,18 @@ struct RebaseReplayTable: NSViewRepresentable {
             cell.configure(value.values[column], font: face, secondary: value.action == .skip || value.progress == .completed,
                            icon: column == 0 ? value.action.icon.image() : nil, rightAligned: column == 1,
                            progress: value.progress == .completed ? "Completed" : value.progress == .current ? "Current" : "Pending", column: tableColumn.title)
+            if column == 3 {
+                cell.configureReferences(value.labels, value: value.values[column], font: face, preferences: model.columnPreferences)
+                if let field = cell.textField as? LogReferenceTextField {
+                    field.referenceInteractionAllowed = { [weak self] in self?.available == true }
+                    field.tooltipForReference = { $0 }
+                    field.onReferenceMenu = { [weak self, weak field] name, point in
+                        guard let self, self.rows.indices.contains(row), self.rows[row].id == value.id,
+                              let field, let table = self.table else { return false }
+                        return table.showReferenceContextMenu(row: row, name: name, point: table.convert(point, from: field))
+                    }
+                }
+            }
             return cell
         }
         func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
@@ -114,10 +128,12 @@ struct RebaseReplayTable: NSViewRepresentable {
             model.performRevisionMenu(.compare, ids: model.selection, alternate: alternate); return true
         }
         @objc func compareDefault(_ sender: Any?) { guard (table?.clickedRow ?? -1) >= 0 else { return }; _ = performDefaultComparison(alternate: NSEvent.modifierFlags.contains(.shift)) }
-        func menu(ids: Set<String>, alternate: Bool) -> NSMenu {
+        func menu(ids: Set<String>, alternate: Bool, pointed: LogReferenceMenuTarget? = nil) -> NSMenu {
             menuGeneration = UUID(); let generation = menuGeneration
             let menu = NSMenu(); menu.autoenablesItems = false
-            guard available, let claim = model.captureRevisionMenu(ids) else { return menu }
+            let pointed = ids.count == 1 ? pointed : nil
+            guard available, pointed == nil || model.revisionReference(pointed, ids: ids) != nil,
+                  let claim = model.captureRevisionMenu(ids) else { return menu }
             // GetSelectionMark follows the focused native selection, including
             // multi-selection, rather than the first displayed selected commit.
             if let table, rows.indices.contains(table.selectedRow), ids.contains(rows[table.selectedRow].id) {
@@ -137,10 +153,10 @@ struct RebaseReplayTable: NSViewRepresentable {
                     action: { [weak model] in model?.setAction(action, ids: ids) })
             }
             func command(_ command: RebaseRevisionCommand, to menu: NSMenu, title: String? = nil, parent: Int? = nil, mode: LogRevisionDiffMode = .firstParent) {
-                guard policy.contains(command.sourceCommand(single: one)) else { return }
-                let item = add(title ?? (command == .compare && ids.count == 2 ? "Compare revisions" : command.rawValue), icon: command.icon, to: menu,
-                    allowed: { [weak model] in model?.canPerformRevisionMenu(command, ids: ids) == true },
-                    action: { [weak model] in model?.performRevisionMenu(command, ids: ids, alternate: alternate, parent: parent, diffMode: mode) })
+                guard model.revisionCommandVisible(command, ids: ids, extended: alternate) else { return }
+                let item = add(title ?? (command == .compare && ids.count >= 2 ? "Compare revisions" : command.rawValue), icon: command.icon, to: menu,
+                    allowed: { [weak model] in model?.canPerformRevisionMenu(command, ids: ids, extended: alternate) == true },
+                    action: { [weak model] in model?.performRevisionMenu(command, ids: ids, alternate: alternate, parent: parent, diffMode: mode, target: pointed) })
                 if command == .compare, model.columnPreferences.bool(forKey: "DiffByDoubleClickInLog"), parent == nil || parent == 1 {
                     item.attributedTitle = NSAttributedString(string: item.title, attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)])
                 }
@@ -157,7 +173,7 @@ struct RebaseReplayTable: NSViewRepresentable {
                 }
                 for parent in model.revisionMenuLog.parentChoices(for: revision) { command(.unified, to: choices, title: parent.title, mode: .parent(parent.number)) }
                 unified.submenu = choices; unified.isEnabled = model.canPerformRevisionMenu(.unified, ids: ids)
-                if policy.contains(.unifiedDiff) { menu.addItem(unified) }
+                if model.revisionCommandVisible(.unified, ids: ids) { menu.addItem(unified) }
                 let compare = NSMenuItem(title: "Compare with previous revision", action: nil, keyEquivalent: "")
                 compare.image = MenuIcon.compare.contextImage(defaults: model.columnPreferences)
                 let parents = NSMenu(); parents.autoenablesItems = false
@@ -174,16 +190,56 @@ struct RebaseReplayTable: NSViewRepresentable {
                     let title = "Show log of " + String(range.from.prefix(8)) + range.separator + String(range.to.prefix(8))
                     add(title, icon: .log, to: menu, allowed: { [weak model] in model?.revisionMenuLog.onShowHistoryRange != nil && model?.revisionMenuRanges(ids).contains(range) == true }, action: { [weak model] in model?.performRevisionRange(range, ids: ids) })
                 }
+                command(.changeSets, to: menu)
             }
-            let groups: [[RebaseRevisionCommand]] = [[.log, .browse, .branch, .tag, .export, .notes], [.patch], [.push]]
-            for group in groups {
-                separator(); for value in group { command(value, to: menu) }
+            func bisect(_ value: LogBisectCommand) {
+                guard model.revisionBisectAvailable(value, ids: ids) else { return }
+                add(value.title, icon: value.icon, to: menu, allowed: { [weak model] in model?.revisionBisectAvailable(value, ids: ids) == true && model?.revisionMenuLog.onBisect != nil }, action: { [weak model] in model?.performRevisionBisect(value, ids: ids) })
+            }
+            separator()
+            if one { for value in [LogBisectCommand.good, .bad, .skip] { bisect(value) } }
+            command(.log, to: menu); command(.browse, to: menu)
+            let branches = policy.contains(.switchBranch) ? model.revisionSwitchBranches(ids, target: pointed) : []
+            if let revision = selected.first?.commit, !branches.isEmpty {
+                let choices = NSMenu(); choices.autoenablesItems = false
+                for reference in branches {
+                    let target = LogReferenceMenuTarget(hash: revision.hash, name: reference.name)
+                    add(branches.count == 1 ? "Switch branch \"" + reference.label + "\"" : reference.label, icon: .checkout, to: branches.count == 1 ? menu : choices,
+                        allowed: { [weak model] in model?.revisionSwitchBranches(ids, target: target).count == 1 && model?.revisionMenuLog.onSwitchBranch != nil }, action: { [weak model] in model?.performRevisionSwitch(target, ids: ids) })
+                }
+                if branches.count > 1 {
+                    let item = NSMenuItem(title: "Switch branch", action: nil, keyEquivalent: ""); item.submenu = choices; item.image = MenuIcon.checkout.contextImage(defaults: model.columnPreferences); item.isEnabled = choices.items.contains { $0.isEnabled }; menu.addItem(item)
+                }
+            }
+            for value in [RebaseRevisionCommand.branch, .tag, .export, .notes] { command(value, to: menu) }
+            separator()
+            if !one { bisect(.skip) }
+            command(.patch, to: menu)
+            separator(); bisect(.start); separator()
+            let pushTitle = pointed.flatMap { model.revisionReference($0, ids: ids) }.flatMap { reference -> String? in
+                guard reference.name.hasPrefix("refs/heads/") || reference.name.hasPrefix("refs/tags/") else { return nil }
+                return "Push \"" + reference.label + "\"…"
+            }
+            command(.push, to: menu, title: pushTitle); command(.svnDCommit, to: menu); command(.pull, to: menu)
+            let deletable = policy.contains(.delete) ? model.revisionDeletionCandidates(ids, target: pointed) : []
+            if let revision = selected.first?.commit, !deletable.isEmpty {
+                let choices = NSMenu(); choices.autoenablesItems = false
+                func deletion(_ references: [RevisionReference], title: String, to parent: NSMenu) {
+                    let targets = references.map { LogReferenceMenuTarget(hash: revision.hash, name: $0.name) }
+                    add(title, icon: .remove, to: parent, allowed: { [weak model] in targets.allSatisfy { model?.revisionDeletionCandidates(ids, target: $0).count == 1 } }, action: { [weak model] in model?.performRevisionDeletion(targets, ids: ids) })
+                }
+                for reference in deletable { deletion([reference], title: deletable.count == 1 ? "Delete " + reference.name : reference.name, to: deletable.count == 1 ? menu : choices) }
+                if deletable.count > 1 {
+                    deletion(deletable, title: "All", to: choices)
+                    let item = NSMenuItem(title: "Delete branch/tag", action: nil, keyEquivalent: ""); item.submenu = choices; item.image = MenuIcon.remove.contextImage(defaults: model.columnPreferences); item.isEnabled = choices.items.contains { $0.isEnabled }; menu.addItem(item)
+                }
             }
             separator()
             let copy = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
             copy.image = MenuIcon.copy.contextImage(defaults: model.columnPreferences); copy.isEnabled = model.revisionMenuAvailable
             let choices = NSMenu(); choices.autoenablesItems = false
             for value in [RebaseRevisionCommand.details, .detailsWithoutPaths, .hashes, .authors, .authorNames, .authorEmails, .subjects, .messages] { command(value, to: choices) }
+            command(.referenceNames, to: choices)
             copy.submenu = choices; menu.addItem(copy)
             command(.find, to: menu)
             if one { command(.containing, to: menu) }
@@ -200,7 +256,25 @@ struct RebaseReplayTable: NSViewRepresentable {
         let point = convert(event.locationInWindow, from: nil), row = self.row(at: point)
         guard row >= 0 else { return nil }
         if !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
-        return owner.menu(ids: owner.model.selection, alternate: event.modifierFlags.contains(.shift))
+        let pointed = reference(at: point).flatMap { hit in owner.model.entries.indices.contains(hit.row) ? LogReferenceMenuTarget(hash: owner.model.entries[hit.row].commit.hash, name: hit.name) : nil }
+        return owner.menu(ids: owner.model.selection, alternate: event.modifierFlags.contains(.shift), pointed: pointed)
+    }
+    func reference(at point: NSPoint) -> (row: Int, name: String)? {
+        let row = self.row(at: point)
+        guard row >= 0, let column = tableColumns.firstIndex(where: { $0.identifier.rawValue == "Message" }),
+              let field = (view(atColumn: column, row: row, makeIfNecessary: true) as? NSTableCellView)?.textField,
+              let painter = field.cell as? LogReferenceTextCell,
+              field.bounds.contains(field.convert(point, from: self)),
+              let reference = painter.reference(at: field.convert(point, from: self)) else { return nil }
+        return (row, reference.name)
+    }
+    @discardableResult func showReferenceContextMenu(row: Int, name: String, point: NSPoint) -> Bool {
+        guard let owner, owner.available, owner.model.entries.indices.contains(row) else { return false }
+        let target = LogReferenceMenuTarget(hash: owner.model.entries[row].commit.hash, name: name)
+        guard owner.model.revisionHistoryCommit(owner.model.entries[row].commit).references.contains(where: { GitReferenceName.equal($0.name, name) }) else { return false }
+        if !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
+        let menu = owner.menu(ids: owner.model.selection, alternate: NSEvent.modifierFlags.contains(.shift), pointed: target)
+        guard !menu.items.isEmpty else { return false }; presentContextMenu(menu, point, self); return true
     }
     @discardableResult func showSelectionMenu() -> Bool {
         guard let owner, owner.available, let row = selectedRowIndexes.first, row < numberOfRows else { return false }
@@ -222,9 +296,13 @@ struct RebaseReplayTable: NSViewRepresentable {
 }
 @MainActor final class RebaseReplayNativeCell: NSTableCellView {
     private var secondary = false
-    init(action: Bool) {
+    init(action: Bool, references: Bool = false) {
         super.init(frame: .zero)
-        let field = NSTextField(labelWithString: ""); field.lineBreakMode = .byTruncatingTail; field.maximumNumberOfLines = 1
+        let field: NSTextField = references ? LogReferenceTextField(labelWithString: "") : NSTextField(labelWithString: "")
+        if references {
+            let painter = LogReferenceTextCell(textCell: ""); painter.isEditable = false; painter.isSelectable = false; painter.isBordered = false; painter.drawsBackground = false; field.cell = painter
+        }
+        field.lineBreakMode = .byTruncatingTail; field.maximumNumberOfLines = 1
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         textField = field; let row = NSStackView(); row.orientation = .horizontal; row.alignment = .centerY; row.spacing = 5
         if action { let image = NSImageView(); image.imageScaling = .scaleProportionallyDown; imageView = image; row.addArrangedSubview(image); image.widthAnchor.constraint(equalToConstant: 16).isActive = true; image.heightAnchor.constraint(equalToConstant: 16).isActive = true }
@@ -238,6 +316,30 @@ struct RebaseReplayTable: NSViewRepresentable {
         textField?.stringValue = value; textField?.font = font; textField?.alignment = rightAligned ? .right : .left
         imageView?.image = icon; self.secondary = secondary; toolTip = value; updateColor()
         textField?.setAccessibilityLabel(column); textField?.setAccessibilityHelp(progress)
+    }
+    func configureReferences(_ labels: [HistoryReferenceLabel], value: String, font: NSFont, preferences: UserDefaults) {
+        guard let field = textField as? LogReferenceTextField else { return }
+        let badges = NSMutableAttributedString()
+        for badge in labels {
+            let color = LogPalette.native(LogColorRole.reference(badge.reference), preferences: preferences)
+            let foreground = NSColor(name: nil) { _ in LogPalette.foreground(background: color) }
+            let attributes: [NSAttributedString.Key: Any] = [.backgroundColor: color, .foregroundColor: foreground, .font: font]
+            let start = badges.length; badges.append(NSAttributedString(string: " ", attributes: attributes))
+            if badge.singleRemote {
+                let marker = NSMutableAttributedString(attachment: LogUpstreamMarker.attachment(foreground: foreground, font: font, isHead: badge.reference.isCurrent))
+                marker.addAttributes(attributes, range: NSRange(location: 0, length: marker.length)); badges.append(marker)
+            }
+            badges.append(NSAttributedString(string: badge.text + " ", attributes: attributes))
+            badges.addAttribute(.logReference, value: LogReferenceStyle(badge, color: color), range: NSRange(location: start, length: badges.length - start))
+            let space = (" " as NSString).size(withAttributes: [.font: font]).width
+            badges.addAttribute(.kern, value: 4 - space, range: NSRange(location: start, length: 1))
+            badges.addAttribute(.kern, value: 4 - space + (badge.kind == .annotatedTag ? 8 : 0), range: NSRange(location: badges.length - 1, length: 1))
+            badges.append(NSAttributedString(string: " ", attributes: [.font: font, .kern: 1 - space]))
+        }
+        let text = NSMutableAttributedString(), message = NSAttributedString(string: value, attributes: [.font: font])
+        if preferences.bool(forKey: "DrawTagsBranchesOnRightSide") { text.append(message); if badges.length > 0 { text.append(NSAttributedString(string: " ", attributes: [.font: font])); text.append(badges) } }
+        else { text.append(badges); text.append(message) }
+        field.attributedStringValue = text
     }
 }
 @MainActor private final class RebaseReplayNativeRow: NSTableRowView {

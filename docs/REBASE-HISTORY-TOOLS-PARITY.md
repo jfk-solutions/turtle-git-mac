@@ -45,8 +45,9 @@ Actual checkpoint results and limitations are recorded in
 Native status text replaces the source Windows flashing/beep feedback; font and
 focus rendering follow AppKit.
 
-Remaining work includes the rest of the shared Log command family and reference
-pointed menus, a compiled Windows enabled/omitted comparison, metadata changes
+The [reference context continuation](REBASE-REFERENCE-CONTEXT-PARITY.md) adds
+pointed reference menus and further applicable shared Log actions. Remaining work
+includes a compiled Windows enabled/omitted comparison, metadata changes
 during a search and every mutation-to-Find refresh route. Physical mouse/keyboard
 and VoiceOver acceptance, full dialog visual comparison, minimum macOS/Intel,
 current hosted CI, signed sandbox/Finder deployment and App Store distribution

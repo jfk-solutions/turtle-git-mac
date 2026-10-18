@@ -46,7 +46,9 @@ the earlier paused-session editing gap for reproducible native sessions. It owns
 the saved todo/identity/message transaction; the menu does not edit live files
 by itself. Older/custom structural conversion remains explicit.
 The connected [history tools family](REBASE-HISTORY-TOOLS-PARITY.md) adds
-Find, Export, containing references and all three range Log entries. Rebase still
-lacks the rest of the shared Log command family and reference pointed menus. No compiled Windows enabled/omitted matrix, physical
+Find, Export, containing references and all three range Log entries. The
+[reference-context continuation](REBASE-REFERENCE-CONTEXT-PARITY.md) connects
+pointed labels and additional applicable shared Log actions. Exhaustive consumer
+state combinations remain open. No compiled Windows enabled/omitted matrix, physical
 pointer/VoiceOver, minimum-macOS/Intel, signed deployment or full-dialog visual
 parity is certified by this batch. The complete port remains unfinished.

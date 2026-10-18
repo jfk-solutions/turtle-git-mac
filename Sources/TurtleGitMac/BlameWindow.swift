@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 import UniformTypeIdentifiers
 import TurtleGitCore
 
@@ -14,6 +15,7 @@ import TurtleGitCore
     private var feedbackGeneration=0
     private var columnAlert:NSAlert?
     private(set) var historyUnifiedWindows:[UUID:PatchWindowController]=[:]
+    private var historyUnifiedObservations:[UUID:AnyCancellable]=[:]
     private(set) var containingReferences:[UUID:CommitContainingReferencesWindowController]=[:]
     var configureContainingReferences:(CommitContainingReferencesWindowController)->Void = { _ in }
     private let preferences:UserDefaults
@@ -102,7 +104,7 @@ import TurtleGitCore
                 retireFloatingPanes();model=replacement;replacement.onGoTo={ [weak self] in self?.showGoToLine() };replacement.onFind={ [weak self] in self?.showFind() };replacement.onFindFeedback={ [weak self] in self?.feedback($0) };replacement.onOpenDocument={ [weak self] in self?.openDocument() };replacement.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };replacement.onOpenRecent={ [weak self] in self?.openRecent($0) };replacement.recentDocuments=recentDocuments
                 window?.contentViewController=NSHostingController(rootView:BlameDialog(model:replacement))
                 Array(containingReferences.values).forEach { $0.close() };containingReferences=[:]
-                Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:]
+                Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:];historyUnifiedObservations=[:]
                 configureHistoryActions();configurePaneLayout();findWindow?.rebind(replacement);applyWindowAppearance()
                 NotificationCenter.default.post(name:NSNotification.Name("TurtleGit.BlameDocumentChanged"),object:window)
                 window?.title="\(document.snapshot.path) at HEAD – Blame – TurtleGit";replacement.goToLine(1)
@@ -115,14 +117,30 @@ import TurtleGitCore
             }
         }
     }
-    private var hasBlockingHistoryChild:Bool { containingReferences.values.contains { $0.hasBlockingChild } || historyUnifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } }
+    var hasBlockingHistoryChild:Bool { containingReferences.values.contains { $0.hasBlockingChild } || historyUnifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } }
+    private func refreshHistoryChildBlocking() {
+        let blocked = hasBlockingHistoryChild
+        if model.historyChildBlocked != blocked { model.historyChildBlocked = blocked }
+    }
+    @objc private func historyChildSheetChanged(_ notification: Notification) {
+        guard let changed = notification.object as? NSWindow, historyUnifiedWindows.values.contains(where: { $0.window === changed }) else { return }
+        DispatchQueue.main.async { [weak self] in self?.refreshHistoryChildBlocking() }
+    }
     private func configureHistoryActions() {
-        model.onHistoryUnified={ [weak self] bytes,title,alternate in
-            guard let self,!self.model.retired else { return };let original=self.model
-            if try await !UnifiedDiffApplication.openExternal(bytes,alternate:alternate,preferences:self.preferences,title:title,permissions:original.repositoryAccess.map { [$0] } ?? []) {
-                guard self.model===original,!original.retired else { return };let id=UUID()
-                let child=UnifiedDiffApplication.presentBuiltin(bytes,repository:original.repository,access:original.repositoryAccess,existing:nil,title:title,onClosed:{ [weak self] in self?.historyUnifiedWindows.removeValue(forKey:id) })
-                child.window?.appearance=self.window?.appearance;self.historyUnifiedWindows[id]=child
+        NotificationCenter.default.removeObserver(self, name: NSWindow.willBeginSheetNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: NSWindow.didEndSheetNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(historyChildSheetChanged(_:)), name: NSWindow.willBeginSheetNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(historyChildSheetChanged(_:)), name: NSWindow.didEndSheetNotification, object: nil)
+        model.onOwnedHistoryUnified={ [weak self] bytes,title,alternate,token in
+            guard let self,self.model.canFind,!token.isCancelled else { return };let original=self.model
+            if try await !UnifiedDiffApplication.openExternal(bytes,alternate:alternate,preferences:self.preferences,title:title,permissions:original.repositoryAccess.map { [$0] } ?? [],cancellation:token) {
+                guard self.model===original,original.canFind,!token.isCancelled else { return };let id=UUID()
+                let prepared=PatchWindowController(repository:original.repository,access:original.repositoryAccess,preferences:self.preferences)
+                prepared.window?.alphaValue=self.window?.alphaValue ?? 1;prepared.window?.appearance=self.window?.appearance
+                let child=UnifiedDiffApplication.presentBuiltin(bytes,repository:original.repository,access:original.repositoryAccess,existing:prepared,title:title,preferences:self.preferences,onClosed:{ [weak self] in self?.historyUnifiedWindows.removeValue(forKey:id);self?.historyUnifiedObservations.removeValue(forKey:id);self?.refreshHistoryChildBlocking() })
+                self.historyUnifiedWindows[id]=child
+                self.historyUnifiedObservations[id]=child.model.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async { self?.refreshHistoryChildBlocking() } }
+                self.refreshHistoryChildBlocking()
             }
         }
 
@@ -140,9 +158,11 @@ import TurtleGitCore
             guard let self,self.model.canFind,let parent=self.window,parent.attachedSheet==nil else { return }
             let id=UUID(),child=CommitContainingReferencesWindowController(repository:self.model.repository,access:self.model.repositoryAccess,revision:hash,preferences:self.preferences)
             self.configureContainingReferences(child)
-            child.onClosed={ [weak self,weak child,weak parent] in if let window=child?.window { parent?.removeChildWindow(window) };self?.containingReferences.removeValue(forKey:id) }
+            child.externalAvailability={ [weak self,weak child] in guard let self,let child else { return false };return self.model.canFindIgnoringHistoryChild && !self.historyUnifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } && !self.containingReferences.values.contains { $0 !== child && $0.hasBlockingChild } }
+            child.blockingStateChanged={ [weak self] in self?.refreshHistoryChildBlocking() }
+            child.onClosed={ [weak self,weak child,weak parent] in if let window=child?.window { parent?.removeChildWindow(window) };self?.containingReferences.removeValue(forKey:id);self?.refreshHistoryChildBlocking() }
             self.containingReferences[id]=child
-            if let window=child.window { window.appearance=parent.appearance;parent.addChildWindow(window,ordered:.above);window.center();window.orderFront(nil) };child.refresh()
+            if let window=child.window { window.alphaValue=parent.alphaValue;window.appearance=parent.appearance;parent.addChildWindow(window,ordered:.above);window.center();window.orderFront(nil) };child.refresh()
         }
     }
     override func showWindow(_ sender:Any?) { super.showWindow(sender);refreshPaneLayout() }
@@ -231,7 +251,7 @@ import TurtleGitCore
         model.onPaneLayoutChanged={};model.onPaneFloatRequested={_,_ in};retireFloatingPanes()
         feedbackGeneration += 1;openingGeneration += 1;documentOpener.cancel()
         if let alert=columnAlert { alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.close();columnAlert=nil }
-        Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:]
+        Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:];historyUnifiedObservations=[:]
         Array(containingReferences.values).forEach { $0.close() };containingReferences=[:]
         if let panel=openPanel { panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.close();openPanel=nil };model.openingDocument=false
         if let alert=findAlert {
@@ -317,8 +337,14 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     var onHistoryBrowse:((String)->Void)?
     var onContainingReferences:((String)->Void)?
     var onHistoryUnified:((Data,String,Bool) async throws -> Void)?
+    var onOwnedHistoryUnified:((Data,String,Bool,OperationCancellation) async throws -> Void)?
+    var hasHistoryUnifiedAction:Bool { onHistoryUnified != nil || onOwnedHistoryUnified != nil }
+    var readHistoryParents:((GitBlameSnapshot,String,OperationCancellation) async throws -> [GitBlameParentComparison])?
+    var readSourceParents:((String,String,OperationCancellation) async throws -> [GitBlameParentComparison])?
+    var readHistoryPatch:((RevisionComparisonSnapshot,OperationCancellation) async throws -> Data)?
     private var historyParentCache:[String:[GitBlameParentComparison]]=[:]
     private var historyParentToken:OperationCancellation?
+    private var historyParentRequest=UUID()
     private var sourceParentToken:OperationCancellation?
     @Published private(set) var readingHistoryParents=false
     func cachedHistoryParents(_ target:HistoryTarget)->[GitBlameParentComparison] {
@@ -328,38 +354,49 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     func prepareHistoryParents(_ target:HistoryTarget,completion:@escaping ([GitBlameParentComparison])->Void) {
         guard acceptsHistory(target),target.entries.count==1,let snapshot else { completion([]);return }
         let hash=target.entries[0].hash
+        historyParentToken?.cancel();historyParentToken=nil;historyParentRequest=UUID();let request=historyParentRequest
+        readingHistoryParents=false
         if let choices=historyParentCache[hash] { completion(choices);return }
-        historyParentToken?.cancel();let token=OperationCancellation();historyParentToken=token;readingHistoryParents=true;Self.activeHistoryOperations += 1
+        let token=OperationCancellation();historyParentToken=token;readingHistoryParents=true;Self.activeHistoryOperations += 1
         Task { [self,access] in
             defer { Self.activeHistoryOperations -= 1;withExtendedLifetime(access) {};if historyParentToken===token { historyParentToken=nil;readingHistoryParents=false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let choices=try await repository.blameHistoryParentComparisons(snapshot,revision:hash,cancellation:token)
-                guard acceptsHistory(target),!token.isCancelled else { return };historyParentCache[hash]=choices;completion(choices)
-            } catch { if acceptsHistory(target),!token.isCancelled { self.error=error.localizedDescription;completion([]) } }
+                let choices: [GitBlameParentComparison]
+                if let readHistoryParents { choices=try await readHistoryParents(snapshot,hash,token) }
+                else { choices=try await repository.blameHistoryParentComparisons(snapshot,revision:hash,cancellation:token) }
+                guard request==historyParentRequest,acceptsHistory(target),!token.isCancelled else { return };historyParentCache[hash]=choices;completion(choices)
+            } catch { if request==historyParentRequest,acceptsHistory(target),!token.isCancelled { self.error=error.localizedDescription;completion([]) } }
         }
     }
     enum ParentAction { case previous,compare,unified }
     func performHistoryParent(_ target:HistoryTarget,choices:[GitBlameParentComparison],action:ParentAction,alternate:Bool = false,originalLine:Int = 1) {
-        guard acceptsHistory(target),!choices.isEmpty else { return }
-        if action == .previous { for choice in choices { onPrevious?(choice.path,choice.revision,originalLine,appliedOptions) };return }
-        if action == .compare { ComparisonToolInvocation.$alternate.withValue(alternate) { for choice in choices { onChanges?(choice.comparison) } };return }
+        guard acceptsHistory(target),target.entries.count==1,!choices.isEmpty,
+              choices.allSatisfy({ choice in
+                  choice.parentNumber>0 && choice.comparison.root==repository.root && choice.comparison.from == .revision(choice.revision) && choice.comparison.to == .revision(target.entries[0].hash) && choice.comparison.files.count==1 && choice.comparison.files.first.map { GitReferenceName.equal(choice.path,$0.oldPath ?? $0.path) } == true
+              }) else { return }
+        if action == .previous { for choice in choices { guard acceptsHistory(target) else { return };onPrevious?(choice.path,choice.revision,originalLine,appliedOptions) };return }
+        if action == .compare { ComparisonToolInvocation.$alternate.withValue(alternate) { for choice in choices { guard acceptsHistory(target) else { return };onChanges?(choice.comparison) } };return }
         let id=UUID(),token=OperationCancellation();unifiedReadTokens[id]=token;Self.activeHistoryOperations += 1
         Task { [self,access] in
             defer { unifiedReadTokens.removeValue(forKey:id);Self.activeHistoryOperations -= 1;withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 for choice in choices {
-                    let bytes=try await repository.revisionComparisonPatchData(choice.comparison,paths:choice.comparison.files.map(\.path),cancellation:token)
+                    let bytes:Data
+                    if let readHistoryPatch { bytes=try await readHistoryPatch(choice.comparison,token) }
+                    else { bytes=try await repository.revisionComparisonPatchData(choice.comparison,paths:choice.comparison.files.map(\.path),cancellation:token) }
                     guard acceptsHistory(target),!token.isCancelled else { return }
-                    try await onHistoryUnified?(bytes,"Parent \(choice.parentNumber) → \(target.entries[0].hash.prefix(8)) — \(choice.path)",alternate)
+                    let title="Parent \(choice.parentNumber) → \(target.entries[0].hash.prefix(8)) — \(choice.path)"
+                    if let onHistoryUnified { try await onHistoryUnified(bytes,title,alternate) }
+                    else { try await onOwnedHistoryUnified?(bytes,title,alternate,token) }
                 }
             } catch { if acceptsHistory(target),!token.isCancelled { self.error=error.localizedDescription } }
         }
     }
     private func cancelHistoryParentReads() {
         sourceParentToken?.cancel();sourceParentToken=nil;readingHistoryParents=false
-        historyParentToken?.cancel();historyParentToken=nil;unifiedReadTokens.values.forEach { $0.cancel() };historyParentCache=[:]
+        historyParentRequest=UUID();historyParentToken?.cancel();historyParentToken=nil;unifiedReadTokens.values.forEach { $0.cancel() };historyParentCache=[:]
     }
 
     func saveHistoryColumns(_ value:BlameHistoryColumns) { guard canFind else { return };historyColumns=value;value.save(labelDefaults) }
@@ -513,7 +550,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     @Published var parentChoices: [GitBlameParentComparison] = []
     @Published var loadingParents = false
     private var parentGeneration = 0
-    private var parentCache: [String: [GitBlameParentComparison]] = [:]
+    private var parentCache: [Data: [GitBlameParentComparison]] = [:]
     @Published var highlightedHash: String?
     @Published var hoveredLine: Int?
     @Published var find = ""
@@ -530,7 +567,10 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     @Published var searchFeedbackBusy=false
     private(set) var retired=false
     @Published var navigationSheetPresented = false
-    var canFind:Bool { !retired && !busy && !navigationSheetPresented && !searchFeedbackBusy && !openingDocument && !resettingHistoryColumns }
+    @Published var historyChildBlocked=false
+    @Published var confirmingQuit=false
+    var canFindIgnoringHistoryChild:Bool { !retired && !busy && !confirmingQuit && !navigationSheetPresented && !searchFeedbackBusy && !openingDocument && !resettingHistoryColumns }
+    var canFind:Bool { !historyChildBlocked && canFindIgnoringHistoryChild }
     var onFindFeedback:((BlameFindFeedback)->Void)?
     var ranks: [String: Int] = [:]
     private var origins: [String: GitBlameLine] = [:]
@@ -664,23 +704,25 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         sourceParentToken?.cancel()
         parentGeneration += 1; let request = parentGeneration
         guard let line = selectedLine else { parentChoices = []; loadingParents = false; return }
-        let key = line.hash + "\0" + line.filename
+        let key = Data((line.hash + "\0" + line.filename).utf8)
         if let cached = parentCache[key] { parentChoices = cached; loadingParents = false; completion(); return }
         sourceParentToken?.cancel();let token=OperationCancellation();sourceParentToken=token
         parentChoices = []; loadingParents = true;Self.activeHistoryOperations += 1
         Task { [self,access] in
-            defer { Self.activeHistoryOperations -= 1;withExtendedLifetime(access) {};if sourceParentToken===token { sourceParentToken=nil } }
+            defer { Self.activeHistoryOperations -= 1;withExtendedLifetime(access) {};if sourceParentToken===token { sourceParentToken=nil;loadingParents=false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let choices = try await repository.blameParentComparisons(revision:line.hash,path:line.filename,cancellation:token)
-                guard request == parentGeneration else { return }
+                let choices:[GitBlameParentComparison]
+                if let readSourceParents { choices=try await readSourceParents(line.hash,line.filename,token) }
+                else { choices=try await repository.blameParentComparisons(revision:line.hash,path:line.filename,cancellation:token) }
+                guard request == parentGeneration,canFind,!token.isCancelled else { return }
                 parentCache[key] = choices; parentChoices = choices; loadingParents = false
                 if selectedLine?.number == line.number, selectedLine?.hash == line.hash, selectedLine?.filename == line.filename { completion() }
-            } catch { if request == parentGeneration { if !token.isCancelled { self.error = error.localizedDescription }; loadingParents = false } }
+            } catch { if request == parentGeneration,canFind,!token.isCancelled { self.error = error.localizedDescription;parentChoices=[];loadingParents = false;completion() } }
         }
     }
     func reload(saveThresholds: Bool = false) {
-        guard !retired,!busy,!openingDocument,!searchFeedbackBusy,!resettingHistoryColumns else { return }
+        guard !historyChildBlocked,!confirmingQuit,!retired,!busy,!openingDocument,!searchFeedbackBusy,!resettingHistoryColumns else { return }
         let required = detectionMode == .withinFile ? withinFileCharacters : detectionMode.betweenFiles ? betweenFileCharacters : nil
         if let required, required.isEmpty || !required.utf8.allSatisfy({ (48...57).contains($0) }) || UInt32(required) == nil {
             error = "Enter a character count from 0 to 4294967295."; return
@@ -866,7 +908,7 @@ private struct BlameDialog: View {
                 Text("\(line.summary)\nOrigin: \(line.filename), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
             }
             Text("\(model.lines.count) lines • \(model.snapshot?.encoding.rawValue ?? "") • \(model.navigationMessage)").font(.system(size: 11)).foregroundStyle(.secondary) }
-        }.padding(12).onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }
+        }.padding(12).disabled(model.historyChildBlocked || model.confirmingQuit).onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }
     }
 }
 
@@ -1156,14 +1198,16 @@ struct BlameHistoryTable:NSViewRepresentable {
         }
         @objc func reset() { guard available else { return };model.resetHistoryColumns() }
         private var contextTarget:BlameWindowModel.HistoryTarget?
+        private var contextRequest=UUID()
         func showContext(_ event:NSEvent) {
+            contextRequest=UUID();let request=contextRequest
             guard available,let table,let window=table.window else { return }
             let row=event.type == .keyDown ? table.selectedRow : table.row(at:table.convert(event.locationInWindow,from:nil))
             guard row>=0 else { return }
             if !table.selectedRowIndexes.contains(row) { table.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false) }
             guard let target=model.historyTarget(selected) else { return }
             model.prepareHistoryParents(target) { [weak self,weak table,weak window] _ in
-                guard let self,let table,let window,table.window===window,window.isVisible,self.available,self.model.acceptsHistory(target),Set(self.selected.map(\.hash))==Set(target.entries.map(\.hash)),let menu=table.menu else { return }
+                guard let self,self.contextRequest==request,let table,let window,table.window===window,window.isVisible,self.available,self.model.acceptsHistory(target),Set(self.selected.map(\.hash))==Set(target.entries.map(\.hash)),let menu=table.menu else { return }
                 self.contextTarget=target;defer { self.contextTarget=nil }
                 NSMenu.popUpContextMenu(menu,with:event,for:table)
             }
@@ -1191,7 +1235,7 @@ struct BlameHistoryTable:NSViewRepresentable {
             }
             if target.entries.count==1 {
                 let choices=model.cachedHistoryParents(target),parents=Dictionary(grouping:choices,by: \.parentNumber)
-                for (title,action,icon,enabled) in [("Blame previous revision",BlameWindowModel.ParentAction.previous,MenuIcon.blame,model.onPrevious != nil),("Show changes as unified diff",.unified,.unifiedDiff,model.onHistoryUnified != nil && model.historyHasWorkingTree),("Compare with previous revision",.compare,.compare,model.onChanges != nil)] where !parents.isEmpty {
+                for (title,action,icon,enabled) in [("Blame previous revision",BlameWindowModel.ParentAction.previous,MenuIcon.blame,model.onPrevious != nil),("Show changes as unified diff",.unified,.unifiedDiff,model.hasHistoryUnifiedAction && model.historyHasWorkingTree),("Compare with previous revision",.compare,.compare,model.onChanges != nil)] where !parents.isEmpty {
                     let source:HistoryContextCommand = action == .previous ? .blamePrevious : action == .compare ? .comparePrevious : .unifiedDiff
                     guard policy.contains(source), action != .unified || model.historyHasWorkingTree else { continue }
                     func command(_ number:Int,_ title:String)->NSMenuItem {
@@ -1201,7 +1245,7 @@ struct BlameHistoryTable:NSViewRepresentable {
                     if parents.count==1,let number=parents.keys.first { menu.addItem(command(number,title)) }
                     else {
                         let item=NSMenuItem(title:title,action:nil,keyEquivalent:"");item.image=icon.contextImage(defaults:model.labelDefaults);let sub=NSMenu();sub.autoenablesItems=false
-                        for number in parents.keys.sorted() { sub.addItem(command(number,"Parent \(number) (\(parents[number]![0].revision.prefix(8)))")) };item.submenu=sub
+                        for (ordinal,number) in parents.keys.sorted().enumerated() { sub.addItem(command(number,parents[number]![0].historyMenuTitle(ordinal:ordinal+1))) };item.submenu=sub
                         if action == .compare && model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog") { item.attributedTitle=NSAttributedString(string:title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) };menu.addItem(item)
                     }
                 }
@@ -1427,6 +1471,7 @@ private struct BlameTable: NSViewRepresentable {
         }
         private var contextTarget:BlameWindowModel.SourceTarget?
         private var contextParents:[GitBlameParentComparison]=[]
+        private var contextRequest=UUID()
         private final class SourceInvocation:NSObject {
             let target:BlameWindowModel.SourceTarget,command:String,choice:GitBlameParentComparison?
             var used=false
@@ -1437,9 +1482,10 @@ private struct BlameTable: NSViewRepresentable {
             return editor.selectedRanges.map(\.rangeValue).filter{$0.location != NSNotFound && $0.length>0 && NSMaxRange($0)<=text.length}.map{text.substring(with:$0)}.joined(separator:"\n")
         }
         func showContext(row:Int,event:NSEvent,in view:NSView) {
+            contextRequest=UUID();let request=contextRequest
             guard let target=model.sourceTarget(number:row+1,selectionText:selectedText()) else {return}
             model.prepareParentMenu(number:row+1) { [weak self,weak view] in
-                guard let self,let view,view.window?.isVisible==true,self.model.acceptsSource(target),self.model.selection==target.line.number,let menu=self.table?.menu else {return}
+                guard let self,self.contextRequest==request,let view,view.window?.isVisible==true,self.model.acceptsSource(target),self.model.selection==target.line.number,let menu=self.table?.menu else {return}
                 self.contextTarget=target;self.contextParents=self.model.parentChoices;self.menuNeedsUpdate(menu)
                 let rectangle=(view as? NSTableView)?.rect(ofRow:row) ?? self.container.flatMap { $0.editor.rowRectangles.indices.contains(row) ? $0.editor.rowRectangles[row]:nil } ?? .zero
                 let point=event.type == .keyDown ? NSPoint(x:max(view.visibleRect.minX+8,rectangle.minX),y:rectangle.maxY):view.convert(event.locationInWindow,from:nil)
@@ -1456,15 +1502,17 @@ private struct BlameTable: NSViewRepresentable {
             func item(_ title:String,_ command:String,_ icon:MenuIcon?,choice:GitBlameParentComparison? = nil,enabled:Bool=true,into parent:NSMenu? = nil) {
                 let value=NSMenuItem(title:title,action:#selector(invokeSource(_:)),keyEquivalent:"");value.target=self
                 value.image=icon?.contextImage(defaults:model.labelDefaults);value.representedObject=SourceInvocation(target,command,choice);value.isEnabled=enabled;(parent ?? menu).addItem(value)
+                if command=="compare",model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog"),choice?.id==choices.first?.id { value.attributedTitle=NSAttributedString(string:title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) }
             }
             if contextTarget==nil && model.loadingParents {let value=NSMenuItem(title:"Reading previous revisions…",action:nil,keyEquivalent:"");value.isEnabled=false;menu.addItem(value)}
             else if !choices.isEmpty {
-                for (title,command,icon,enabled) in [("Blame previous revision","previous",MenuIcon.blame,model.onPrevious != nil),("Compare with previous revision","compare",.compare,model.onChanges != nil),("Show changes as unified diff","unified",.unifiedDiff,model.onHistoryUnified != nil)] {
+                for (title,command,icon,enabled) in [("Blame previous revision","previous",MenuIcon.blame,model.onPrevious != nil),("Compare with previous revision","compare",.compare,model.onChanges != nil),("Show changes as unified diff","unified",.unifiedDiff,model.hasHistoryUnifiedAction)] {
                     if choices.count==1 {item(title,command,icon,choice:choices[0],enabled:enabled)}
                     else {
                         let parent=NSMenuItem(title:title,action:nil,keyEquivalent:"");parent.image=icon.contextImage(defaults:model.labelDefaults);parent.isEnabled=enabled
+                        if command=="compare",model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog") { parent.attributedTitle=NSAttributedString(string:title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) }
                         let sub=NSMenu();sub.autoenablesItems=false;parent.submenu=sub;menu.addItem(parent)
-                        for choice in choices {item("Parent \(choice.parentNumber) (\(choice.revision.prefix(8)))",command,icon,choice:choice,enabled:enabled,into:sub)}
+                        for (ordinal,choice) in choices.enumerated() {item("Parent \(ordinal+1)",command,icon,choice:choice,enabled:enabled,into:sub)}
                     }
                 }
             }

@@ -2035,7 +2035,7 @@ import UniformTypeIdentifiers
         let preferences = model.preferences
         model.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         model.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
-        model.onBlame={ [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision) }
+        model.onBlame={ [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision,preferences:preferences) }
         model.onSubmoduleLog={ [weak self] checkout,revision in self?.showLog(repository:GitRepository(root:checkout,executable:repository.executable),access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:preferences) }
         model.onFilesChanged={ [weak self] in
             self?.refreshRepositoryLogs(repository.root);self?.statusWindows[repository.root.path]?.model.requestReload();self?.commitWindows[repository.root.path]?.model.reload()
@@ -2054,12 +2054,13 @@ import UniformTypeIdentifiers
     var fileComparisonQuestion: ((Int) async -> Bool)?
     var fileComparisonPresentation: ((RevisionComparisonSnapshot, CommitFile) -> Void)?
     var commitChangeSetPresentation: ((CommitChangeSetComparison) -> Void)?
-    private func showCommitChangeSets(repository:GitRepository,access:RepositoryAccessLease?,comparison:CommitChangeSetComparison) {
+    private func showCommitChangeSets(repository:GitRepository,access:RepositoryAccessLease?,comparison:CommitChangeSetComparison,preferences:UserDefaults? = nil) {
+        let defaults=preferences ?? fileComparisonPreferences
         guard !confirmingQuit else { return }
         if let commitChangeSetPresentation { commitChangeSetPresentation(comparison);return }
-        let key=repository.root.path+"\0changesets\0"+comparison.snapshot.from.label+"\0"+comparison.snapshot.to.label+"\0"+ComparisonToolInvocation.cacheKey
-        let controller=fileComparisonWindows[key] ?? FileComparisonWindowController(repository:repository,access:access,changeSets:comparison)
-        controller.model.comparisonDefaults=fileComparisonPreferences
+        let key=repository.root.path+"\0changesets\0"+comparison.snapshot.from.label+"\0"+comparison.snapshot.to.label+"\0"+ComparisonToolInvocation.cacheKey+"\0preferences:"+String(describing:ObjectIdentifier(defaults))
+        let controller=fileComparisonWindows[key] ?? FileComparisonWindowController(repository:repository,access:access,changeSets:comparison,preferences:defaults)
+        controller.model.comparisonDefaults=defaults
         controller.onClosed={ [weak self,weak controller] in
             guard let self,let controller,self.fileComparisonWindows[key] === controller else { return }
             self.fileComparisonWindows.removeValue(forKey:key)
@@ -2083,9 +2084,9 @@ import UniformTypeIdentifiers
             } catch { if !session.cancellation.isCancelled, !confirmingQuit { self.error = error.localizedDescription } }
         }
     }
-    func showFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, owner: NSWindow? = nil) {
-        prepareFileComparisons(repository: repository, access: access, selectedCount: snapshot.files.count, owner: owner) { [self] token in
-            presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
+    func showFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, owner: NSWindow? = nil, preferences: UserDefaults? = nil) {
+        prepareFileComparisons(repository: repository, access: access, selectedCount: snapshot.files.count, owner: owner, preferences: preferences) { [self] token in
+            presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, preferences: preferences)
         }
     }
     func showWorkingFiles(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], amendToParent: Bool = false, owner: NSWindow? = nil, line: Int? = nil) {
@@ -2485,18 +2486,19 @@ import UniformTypeIdentifiers
     func configureBrowserRevisionPicker(_ controller:RepositoryBrowserWindowController,repository:GitRepository,access:RepositoryAccessLease?) {
         controller.configureLogPicker={ [weak self] log in self?.configureSelectableLog(log,repository:repository,access:access) }
     }
-    private func showRepositoryBrowser(repository: GitRepository, access: RepositoryAccessLease?, revision: String = "HEAD") {
+    private func showRepositoryBrowser(repository: GitRepository, access: RepositoryAccessLease?, revision: String = "HEAD", preferences: UserDefaults? = nil, initialFile: String? = nil) {
+        let defaults = preferences ?? fileComparisonPreferences
         let baseKey = repository.root.path + "\0" + revision
         let reusable = browserWindows.first { _, controller in
-            controller.model.repository.root == repository.root && controller.model.repository.executable == repository.executable &&
-            controller.window?.attachedSheet == nil && controller.model.canReuseForRevision(revision)
+            initialFile == nil && controller.model.repository.root == repository.root && controller.model.repository.executable == repository.executable &&
+            controller.model.preferences === defaults && controller.window?.attachedSheet == nil && controller.model.canReuseForRevision(revision)
         }
         let key = reusable?.key ?? (browserWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
-        let controller = reusable?.value ?? RepositoryBrowserWindowController(repository: repository, access: access, revision: revision, preferences:fileComparisonPreferences)
+        let controller = reusable?.value ?? RepositoryBrowserWindowController(repository: repository, access: access, revision: revision, preferences:defaults, initialFile:initialFile)
         configureBrowserRevisionPicker(controller,repository:repository,access:access)
         controller.onClosed = { [weak self] in self?.browserWindows.removeValue(forKey: key) }
-        controller.model.onLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash) }
-        controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
+        controller.model.onLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash, preferences: defaults) }
+        controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash, preferences: defaults) }
         controller.model.onCompare = { [weak self, weak controller] path, hash in guard let controller else { return }; self?.showHistoricalFiles(repository: repository, access: access, from: .revision(hash), to: .workingTree, paths: [path], owner: controller.window) }
         controller.model.onChanged = { [weak self] in
             guard let self else { return }
@@ -2523,25 +2525,27 @@ import UniformTypeIdentifiers
         browserWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configureBlameRoutes(_ controller:BlameWindowController) {
-        let repository=controller.model.repository,access=controller.model.repositoryAccess
-        controller.model.onHistoryExport={ [weak self] hash in self?.showExport(repository:repository,access:access,revision:hash) }
-        controller.model.onHistoryReference={ [weak self] tag,hash in self?.showReference(repository:repository,access:access,isTag:tag,revision:hash) }
-        controller.model.onHistorySwitch={ [weak self] hash in self?.showSwitch(repository:repository,access:access,revision:hash) }
-        controller.model.onHistoryBrowse={ [weak self] hash in self?.showRepositoryBrowser(repository:repository,access:access,revision:hash) }
+        let repository=controller.model.repository,access=controller.model.repositoryAccess,preferences=controller.model.labelDefaults
+        controller.model.onHistoryExport={ [weak self] hash in self?.showExport(repository:repository,access:access,revision:hash,preferences:preferences) }
+        controller.model.onHistoryReference={ [weak self] tag,hash in self?.showReference(repository:repository,access:access,isTag:tag,revision:hash,preferences:preferences) }
+        controller.model.onHistorySwitch={ [weak self] hash in self?.showSwitch(repository:repository,access:access,revision:hash,preferences:preferences) }
+        controller.model.onHistoryBrowse={ [weak self,weak controller] hash in self?.showRepositoryBrowser(repository:repository,access:access,revision:hash,preferences:preferences,initialFile:controller?.model.path) }
         controller.configureContainingReferences={ [weak self] child in
-            child.onLog={ [weak self] name,select,range in self?.showLog(repository:repository,access:access,paths:[],endRevision:name,selectedRevision:select ? name : nil,revisionRange:range) }
-            child.onBrowse={ [weak self] name in self?.showRepositoryBrowser(repository:repository,access:access,revision:name) }
-            child.onCompare={ [weak self] from,to in self?.showRevisionComparison(repository:repository,access:access,from:from,to:to) }
+            child.onLog={ [weak self] name,select,range in self?.showLog(repository:repository,access:access,paths:[],endRevision:name,selectedRevision:select ? name : nil,revisionRange:range,preferences:preferences) }
+            child.onBrowse={ [weak self] name in self?.showRepositoryBrowser(repository:repository,access:access,revision:name,preferences:preferences) }
+            child.onCompare={ [weak self] from,to in self?.showRevisionComparison(repository:repository,access:access,from:from,to:to,preferences:preferences) }
         }
-        controller.model.onLog={ [weak self] origin,hash in self?.showLog(repository:repository,access:access,paths:[origin],endRevision:hash) }
-        controller.model.onChanges={ [weak self, weak controller] snapshot in guard let controller else { return }; self?.showFileComparisons(repository:repository,access:access,snapshot:snapshot,owner:controller.window) }
-        controller.model.onPrevious={ [weak self] origin,hash,number,inherited in self?.showBlame(repository:repository,access:access,path:origin,revision:hash,line:number,options:inherited) }
+        controller.model.onLog={ [weak self] origin,hash in self?.showLog(repository:repository,access:access,paths:[origin],endRevision:hash,selectedRevision:hash,preferences:preferences) }
+        controller.model.onChanges={ [weak self, weak controller] snapshot in guard let controller else { return }; self?.showFileComparisons(repository:repository,access:access,snapshot:snapshot,owner:controller.window,preferences:preferences) }
+        controller.model.onPrevious={ [weak self] origin,hash,number,inherited in self?.showBlame(repository:repository,access:access,path:origin,revision:hash,line:number,options:inherited,preferences:preferences) }
     }
-    private func showBlame(repository:GitRepository,access:RepositoryAccessLease?,path:String,revision:String,line:Int? = nil,options:GitBlameOptions? = nil,commandLaunch:Bool = false) {
-        let key=GitPathRowIdentity.encode(repository.root.path+"\0"+path+"\0"+revision)+(commandLaunch ? UUID().uuidString:"")
+    private func showBlame(repository:GitRepository,access:RepositoryAccessLease?,path:String,revision:String,line:Int? = nil,options:GitBlameOptions? = nil,commandLaunch:Bool = false,preferences:UserDefaults? = nil) {
+        let defaults=preferences ?? fileComparisonPreferences
+        let baseKey=GitPathRowIdentity.encode(repository.root.path+"\0"+path+"\0"+revision)
+        let key=baseKey+(commandLaunch || (blameWindows[baseKey].map { $0.model.labelDefaults !== defaults } ?? false) ? UUID().uuidString:"")
         var recentFailure:String?
         if blameRecentDocuments==nil { do { blameRecentDocuments=try BlameRecentDocuments.production() } catch { recentFailure="Recent files could not be loaded: "+error.localizedDescription } }
-        let controller=blameWindows[key] ?? BlameWindowController(repository:repository,access:access,path:path,revision:revision,options:options ?? GitBlamePreferences.load(from:fileComparisonPreferences),preferences:fileComparisonPreferences,recentDocuments:blameRecentDocuments)
+        let controller=blameWindows[key] ?? BlameWindowController(repository:repository,access:access,path:path,revision:revision,options:options ?? GitBlamePreferences.load(from:defaults),preferences:defaults,recentDocuments:blameRecentDocuments)
         controller.model.recentHistoryError=recentFailure
         configureBlameRoutes(controller)
         controller.onClosed={ [weak self,weak controller] in guard let self,let controller else { return };self.blameWindows=self.blameWindows.filter { $0.value !== controller } }
@@ -2563,6 +2567,7 @@ import UniformTypeIdentifiers
         for model in logWindows.values.map(\.model)+configuredLogModels.values.compactMap(\.model) where model.repository.root == root && !model.isInvalidated {
             if refreshed.insert(ObjectIdentifier(model)).inserted { model.requestRepositoryRefresh() }
         }
+        for replay in rebaseWindows.values where replay.model.repository.root == root && !replay.model.retired { replay.model.refreshRevisionHistoryContext() }
         for graph in revisionGraphWindows.values where graph.model.repository.root == root && !graph.model.closed { graph.requestRepositoryRefresh() }
     }
     private func showHistoryRevert(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], mainline: Int?, owner: NSWindow?) {
@@ -2707,12 +2712,13 @@ import UniformTypeIdentifiers
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
 
-    private func configureLogMenus(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+    private func configureLogMenus(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?, registerRefresh: Bool = true) {
+        let preferences=model.colorPreferences
         model.onFollowedFileComparison = { [weak self] snapshot, token in
-            self?.presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token)
+            self?.presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, preferences: preferences)
         }
         configuredLogModels=configuredLogModels.filter { $0.value.model?.isInvalidated == false }
-        configuredLogModels[ObjectIdentifier(model)]=ConfiguredLog(model:model)
+        if registerRefresh { configuredLogModels[ObjectIdentifier(model)]=ConfiguredLog(model:model) }
         model.onCommit={ [weak self,weak model] in
             guard let model else { return }
             self?.showCommitDialog(repository:repository,access:access,paths:model.historyPaths)
@@ -2732,19 +2738,19 @@ import UniformTypeIdentifiers
         }
         model.onCompare={ [weak self,weak model] from,to in
             guard let model else { return }
-            self?.showRevisionComparison(repository:repository,access:access,from:from,to:to,paths:model.showWholeProject ? [] : model.historyPaths)
+            self?.showRevisionComparison(repository:repository,access:access,from:from,to:to,paths:model.showWholeProject ? [] : model.historyPaths,preferences:preferences)
         }
-        model.onShowHistory={ [weak self] hash in self?.showLog(repository:repository,access:access,paths:[],endRevision:hash,selectedRevision:hash) }
+        model.onShowHistory={ [weak self] hash in self?.showLog(repository:repository,access:access,paths:[],endRevision:hash,selectedRevision:hash,preferences:preferences) }
         model.onShowHistoryRange={ [weak self,weak model] range in
             guard let model else { return }
-            self?.showLog(repository:repository,access:access,paths:model.historyPaths,revisionRange:range)
+            self?.showLog(repository:repository,access:access,paths:model.historyPaths,revisionRange:range,preferences:preferences)
         }
-        model.onCommitChangeSets={ [weak self] comparison in self?.showCommitChangeSets(repository:repository,access:access,comparison:comparison) }
+        model.onCommitChangeSets={ [weak self] comparison in self?.showCommitChangeSets(repository:repository,access:access,comparison:comparison,preferences:preferences) }
         model.onHistorySVNDCommit={ [weak self] in self?.showSVN(.dcommit,repository:repository,access:access) }
         model.configureStartReferenceBrowser = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         model.onSwitchBranch = { [weak self, weak model] reference in
             guard let parent = model?.window, parent.attachedSheet == nil else { return }
-            self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent)
+            self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, preferences: preferences)
         }
     }
     private func configureLogBisect(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?, refreshPicker: Bool = false) {
@@ -3010,9 +3016,11 @@ import UniformTypeIdentifiers
             child.onLog = { [weak self] name, select, range in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range, preferences: inherited) }
         }
         let revisionLog = controller.model.revisionMenuLog
-        revisionLog.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
-        revisionLog.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
-        revisionLog.onCreateReference = { [weak self] tag, hash in self?.showReference(repository: repository, access: access, isTag: tag, revision: hash) }
+        configureLogMenus(revisionLog, repository: repository, access: access, registerRefresh: false)
+        configureLogBisect(revisionLog, repository: repository, access: access)
+        revisionLog.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to, preferences: inherited) }
+        revisionLog.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash, preferences: inherited) }
+        revisionLog.onCreateReference = { [weak self] tag, hash in self?.showReference(repository: repository, access: access, isTag: tag, revision: hash, preferences: inherited) }
         revisionLog.onPush = { [weak self] hash in self?.showPush(repository: repository, access: access, source: hash) }
         revisionLog.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
         revisionLog.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
@@ -3165,9 +3173,9 @@ import UniformTypeIdentifiers
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
     }
-    private func showReference(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, revision: String? = nil, name: String? = nil) {
+    private func showReference(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, revision: String? = nil, name: String? = nil, preferences: UserDefaults? = nil) {
         let key = repository.root.path + (isTag ? ":tag:" : ":branch:") + UUID().uuidString
-        let controller = referenceWindows[key] ?? BranchTagWindowController(repository: repository, access: access, isTag: isTag, preferences:fileComparisonPreferences)
+        let controller = referenceWindows[key] ?? BranchTagWindowController(repository: repository, access: access, isTag: isTag, preferences:preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.referenceWindows.removeValue(forKey: key) }
         configureReferenceInteractions(controller, repository: repository, access: access)
         referenceWindows[key] = controller; controller.model.load(revision: revision, name: name)
@@ -3214,11 +3222,17 @@ import UniformTypeIdentifiers
         controller.model.load(); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     func configureReferenceBrowser(_ model: ReferenceBrowserWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        let preferences=model.preferences
         model.configureComparison = { [weak self] comparison in self?.configureRevisionComparisonInteractions(comparison, repository: repository, access: access) }
-        model.onLogRange = { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range) }
-        model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name) }
-        model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
-        model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree) }
+        model.onLogRange = { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range, preferences: preferences) }
+        model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, preferences: preferences) }
+        model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name, preferences: preferences) }
+        model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree, preferences: preferences) }
+        model.onCompareWithOptions = { [weak self] name, alternate in
+            ComparisonToolInvocation.$alternate.withValue(alternate) {
+                self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree, preferences: preferences)
+            }
+        }
         model.configureFetch = { [weak self] controller in self?.configureFetchInteractions(controller, repository: repository, access: access) }
         model.configureBranch = { [weak self] controller in self?.configureReferenceInteractions(controller, repository: repository, access: access) }
         model.configureMerge = { [weak self] controller in self?.configureMergeInteractions(controller, repository: repository, access: access) }
@@ -3244,10 +3258,10 @@ import UniformTypeIdentifiers
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
     }
-    private func showSwitch(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
+    private func showSwitch(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults? = nil) {
         let root = repository.root
         let key = root.path + ":switch:" + UUID().uuidString
-        let controller = switchWindows[key] ?? SwitchWindowController(repository: repository, access: access, revision: revision, preferences:fileComparisonPreferences)
+        let controller = switchWindows[key] ?? SwitchWindowController(repository: repository, access: access, revision: revision, preferences:preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.switchWindows.removeValue(forKey: key) }
         configureSwitchInteractions(controller, repository: repository, access: access)
         switchWindows[key] = controller; controller.model.load(revision: revision)

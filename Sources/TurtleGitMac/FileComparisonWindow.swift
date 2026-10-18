@@ -116,8 +116,10 @@ private extension FileComparisonDocument {
     convenience init(repository: GitRepository, access: RepositoryAccessLease?, comparison: HistoricalWorkingFileComparison, permission: RepositoryAccessLease) {
         self.init(model: FileComparisonWindowModel(repository: repository, access: access, comparison: comparison, permission: permission))
     }
-    convenience init(repository: GitRepository, access: RepositoryAccessLease?, changeSets: CommitChangeSetComparison) {
-        self.init(model: FileComparisonWindowModel(repository: repository, access: access, changeSets: changeSets))
+    convenience init(repository: GitRepository, access: RepositoryAccessLease?, changeSets: CommitChangeSetComparison, preferences: UserDefaults = .standard) {
+        let model = FileComparisonWindowModel(repository: repository, access: access, changeSets: changeSets)
+        model.comparisonDefaults = preferences
+        self.init(model: model)
     }
     convenience init(readOnly document: FileComparisonDocument, root: URL, preferences: UserDefaults = .standard) {
         let model = FileComparisonWindowModel(readOnly: document, root: root); model.comparisonDefaults = preferences

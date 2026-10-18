@@ -72,3 +72,8 @@ presets do not imply those missing UI handlers have been implemented. There is
 no invented global picker restriction and no whole-port completion claim.
 
 Actual grouped build/check outcomes: [history action batch evidence](qa/history-actions-2026-10-18.json).
+
+The [connected consumer continuation](HISTORY-REFERENCE-WORKFLOWS.md) implements
+additional Rebase reference menus and Blame parent/file behavior. Its source and
+verification scope supersede those specific older gaps without certifying every
+shared-list state or full visual parity.

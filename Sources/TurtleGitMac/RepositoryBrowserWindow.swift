@@ -59,8 +59,9 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         try await Task.detached {try token.check();try bytes.write(to:url,options:.atomic)}.value
     }
 
-    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences:UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences:UserDefaults = .standard, initialFile: String? = nil) {
         model = RepositoryBrowserWindowModel(repository: repository, access: access, revision: revision, preferences:preferences)
+        model.initialFile = initialFile
         let window = RepositoryBrowserNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 650), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Repository Browser", preferences: preferences)
         window.contentMinSize = NSSize(width: 760, height: 440); window.isReleasedWhenClosed = false
@@ -327,11 +328,20 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
+    /// One-shot file context supplied by Blame or another historical file view.
+    var initialFile: String?
     func refresh() {
         guard active,!mutating,!confirmingQuit,!confirmingColumns,!choosingRevision,!handlingFile else { return }
         cancelRequests()
         let identity = UUID(); generation = identity; busy = true; error = nil; loads = []
-        let value = revision, directory = snapshot?.directory ?? "", retainedSelection = selection
+        let requestedFile = initialFile
+        let components = requestedFile?.split(separator: "/", omittingEmptySubsequences: false)
+        let seed = requestedFile.flatMap { value -> String? in
+            guard !value.isEmpty, !value.contains("\0"), components?.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." }) == true else { return nil }
+            return value
+        }
+        if requestedFile != nil && seed == nil { initialFile = nil }
+        let value = revision, directory = seed.map { String($0.split(separator: "/").dropLast().joined(separator: "/")) } ?? snapshot?.directory ?? "", retainedSelection = selection
         var wanted = expanded
         var parent = directory
         while !parent.isEmpty { wanted.insert(parent); parent = (parent as NSString).deletingLastPathComponent }
@@ -366,7 +376,11 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
                 let current = restored[currentPath] ?? root
                 directories = restored.mapValues(\.entries); listings = restored; requestedDirectory = current.directory
                 snapshot = current;revisionLabel=label;error=labelError; expanded = wanted.intersection(restored.keys); expanded.insert("")
-                selection = retainedSelection.intersection(Set(current.entries.map(\.id)))
+                if let seed {
+                    selection = Set(current.entries.filter { RepositoryBrowserPathIdentity.equal($0.path, seed) }.map(\.id))
+                    if let pending = initialFile, RepositoryBrowserPathIdentity.equal(pending, seed) { initialFile = nil }
+                }
+                else { selection = retainedSelection.intersection(Set(current.entries.map(\.id))) }
             } catch { if active && generation == identity && !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }

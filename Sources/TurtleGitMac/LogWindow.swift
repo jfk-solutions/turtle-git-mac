@@ -773,6 +773,15 @@ struct LogCommandRequest: Identifiable {
     @Published private(set) var hasGitSVN = false
     @Published private(set) var svnRevisions: [String: String] = [:]
     @Published var hasSubmodules = false
+    /// Install an owned snapshot for shared-list consumers without replacing
+    /// their rows with an ordinary Log history walk.
+    func installEmbeddedHistoryContext(_ metadata: FinderRepositoryMetadata, currentBranch: String, referenceContext: HistoryReferenceContext, bisectTerms: HistoryBisectTerms) {
+        guard !isInvalidated else { return }
+        bare = metadata.bare; mergeActive = metadata.mergeActive; bisectActive = metadata.bisectActive
+        hasGitSVN = metadata.hasGitSVN; hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig
+        self.currentBranch = currentBranch; self.referenceContext = referenceContext
+        bisectGoodTerm = bisectTerms.good; bisectBadTerm = bisectTerms.bad
+    }
     var onWorkingCommand: ((RepositoryAction) -> Void)?
     private(set) static var activeWorkingCommandReads=0
     private var workingCommandCancellation:OperationCancellation?
@@ -935,37 +944,46 @@ struct LogCommandRequest: Identifiable {
         if let onPreparedRevert {onPreparedRevert(selection)}
         else {onRevertRevisions?(selection.commits,mainline)}
     }
+    /// Embedded replay lists can contain two occurrences of the same commit.
+    /// Ordinary Log keeps its hash-based selection contract.
+    var embeddedSelectionCount: Int?
+    var occurrenceSelectionCount: Int { embeddedSelectionCount ?? selected.count }
+    private var bisectRead: OperationCancellation?
     var onBisect: ((LogBisectRequest) -> Void)?
     func bisectAvailable(_ command: LogBisectCommand) -> Bool {
         if selectedWorkingTree { return !bare && bisectActive && command != .start }
         if includesWorkingTree { return !bare && bisectActive && command == .skip }
         if command == .reset { return false }
         let chosen = revisions
-        guard !bare, !chosen.isEmpty, chosen.count == selected.count, let first = chosen.first, !first.hash.isEmpty else { return false }
+        guard !bare, !chosen.isEmpty, chosen.count == occurrenceSelectionCount, let first = chosen.first, !first.hash.isEmpty else { return false }
         if command == .start { return chosen.count == 2 && !bisectActive && !mergeActive && !isStash(first) }
         return bisectActive && !first.references.contains { $0.name.hasPrefix("refs/bisect/") } && (command == .skip || chosen.count == 1)
     }
     func canBisect(_ command: LogBisectCommand) -> Bool {
-        bisectAvailable(command) && onBisect != nil && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails
+        !isInvalidated && !confirmingQuit && bisectAvailable(command) && onBisect != nil && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails
     }
     func requestBisect(_ command: LogBisectCommand) {
         guard canBisect(command) else { return }
-        let chosen = revisions, selection = selected, request = generation
-        busy = true; error = nil
+        let chosen = revisions, selection = selected, request = generation, projection = historyProjectionEpoch, count = occurrenceSelectionCount
+        let cancellation = OperationCancellation(); bisectRead = cancellation
+        busy = true; error = nil; Self.activeActionReads += 1
         Task {
-            defer { busy = false }
+            defer {
+                Self.activeActionReads -= 1; withExtendedLifetime(access) {}
+                if bisectRead === cancellation { bisectRead = nil; busy = false }
+            }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                guard try await !repository.isBare() else { throw BisectFailure.workingTree }
-                let state = try await repository.bisectState()
+                guard try await !repository.isBare(cancellation: cancellation) else { throw BisectFailure.workingTree }
+                let state = try await repository.bisectState(cancellation: cancellation)
                 let handoff: LogBisectRequest
                 if command == .start {
-                    guard !state.active, try await !repository.logMergeActive() else { throw BisectFailure.active }
+                    guard !state.active, try await !repository.logMergeActive(cancellation: cancellation) else { throw BisectFailure.active }
                     // Upstream uses the first reference, otherwise the hash. A
                     // moved reference falls back to the selected commit.
                     func preset(_ entry: LogEntry) async throws -> String {
                         guard let ref = entry.references.first?.name else { return entry.hash }
-                        let result = try await repository.run(["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"], successfulExitCodes: 0...128)
+                        let result = try await repository.run(["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"], successfulExitCodes: 0...128, cancellation: cancellation)
                         return result.exitCode == 0 && result.text.trimmingCharacters(in: .newlines) == entry.hash ? ref : entry.hash
                     }
                     let bad = try await preset(chosen[0]), good = try await preset(chosen[1])
@@ -973,14 +991,14 @@ struct LogCommandRequest: Identifiable {
                 } else {
                     guard state.active else { throw BisectFailure.inactive }
                     if !selection.contains(""), let first = chosen.first {
-                        let marks = try await repository.run(["for-each-ref", "--points-at", first.hash, "--format=%(refname)", "refs/bisect/"]).text
+                        let marks = try await repository.run(["for-each-ref", "--points-at", first.hash, "--format=%(refname)", "refs/bisect/"], cancellation: cancellation).text
                         guard marks.isEmpty else { throw LogBisectFailure.marked }
                     }
                     handoff = LogBisectRequest(good: nil, bad: nil, operation: command.operation, revisions: chosen.map(\.hash))
                 }
-                guard generation == request, selected == selection else { return }
+                guard !isInvalidated, !confirmingQuit, !cancellation.isCancelled, generation == request, historyProjectionEpoch == projection, selected == selection, occurrenceSelectionCount == count else { return }
                 busy = false; onBisect?(handoff)
-            } catch { if generation == request { self.error = error.localizedDescription } }
+            } catch { if !isInvalidated, !cancellation.isCancelled, generation == request, historyProjectionEpoch == projection { self.error = error.localizedDescription } }
         }
     }
     var confirmRevert: (LogCommandRequest) async -> Bool = { _ in false }
@@ -1858,8 +1876,8 @@ struct LogCommandRequest: Identifiable {
         return selected.count==count && (count==1 || count==2 || continuousRevisionSelection)
     }
     func compareChangeSets(alternate:Bool = false) {
-        guard canStartHistoryTransport,!includesWorkingTree,selected.count==2,revisions.count==2,onCommitChangeSets != nil else { return }
-        let chosen=revisions,request=generation,selection=selected
+        guard canStartHistoryTransport,!includesWorkingTree,occurrenceSelectionCount==2,revisions.count==2,onCommitChangeSets != nil else { return }
+        let chosen=revisions,request=generation,selection=selected,count=occurrenceSelectionCount,projection=historyProjectionEpoch
         let id=UUID(),session=FileListComparisonSession(window:window,preferences:labelDefaults,alternateTool:alternate)
         unifiedSessions[id]=session;busy=true;error=nil
         Task {
@@ -1868,10 +1886,10 @@ struct LogCommandRequest: Identifiable {
                 try await session.run(selectedCount:0) { [self] token in
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                     let comparison=try await repository.commitChangeSets(first:chosen[0].hash,second:chosen[1].hash,cancellation:token)
-                    guard request==generation,selection==selected,!isInvalidated,!token.isCancelled else { return }
+                    guard request==generation,historyProjectionEpoch==projection,occurrenceSelectionCount==count,selection==selected,!isInvalidated,!token.isCancelled else { return }
                     onCommitChangeSets?(comparison)
                 }
-            } catch { if request==generation,selection==selected,!isInvalidated,!session.cancellation.isCancelled { self.error=error.localizedDescription } }
+            } catch { if request==generation,historyProjectionEpoch==projection,occurrenceSelectionCount==count,selection==selected,!isInvalidated,!session.cancellation.isCancelled { self.error=error.localizedDescription } }
         }
     }
     func svnDCommitFromHistory(extended:Bool) {
@@ -2100,6 +2118,7 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        bisectRead?.cancel(); bisectRead = nil
         cancelReferenceDescriptionRead()
         retireLogControlMenus()
         cancelFileChoice(); invalidateFileSelection()

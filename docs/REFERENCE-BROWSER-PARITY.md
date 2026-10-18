@@ -1,5 +1,7 @@
 # Reference browser parity
 
+The October 18 [comparison and native ownership follow-up](REFERENCE-COMPARISON-OWNERSHIP-PARITY.md) covers Shift, source default commands, sheet release, tracking handoff and refreshed action catalogs. Its grouped validation is recorded separately.
+
 ## Captured native context commands — October 16, 2026
 
 The native list and namespace menus now retain the leaves, row order and

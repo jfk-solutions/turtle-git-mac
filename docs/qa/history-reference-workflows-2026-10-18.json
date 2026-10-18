@@ -1,0 +1,164 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "8d2f188ace110914d1775f4cb1d3d792846c3560",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Rebase reference-pointed menus and applicable shared history actions",
+    "Blame source/history parent file actions, lookup failure fallback and popup ownership",
+    "Reference Browser captured alternate comparison and actual child release/catalog freshness",
+    "Shared workspace preference inheritance, canonical targets and Quit ownership"
+  ],
+  "validation": {
+    "status": "passed scoped grouped checkpoint",
+    "build": {
+      "log": "history-reference-build-2026-10-18.log",
+      "exit": 0,
+      "attempts": 1
+    },
+    "core": {
+      "log": "history-reference-core-2026-10-18.log",
+      "exit": 0,
+      "cases": 5,
+      "selection": "GitBlameParentActionTests|GitBlameTests.testHistoryParentOriginsFallbackAndScopedPatch|GitBlameTests.testParentComparisonKeepsRenamePathsPinnedAndSkipsFileBirth|GitBlameTests.testMergeOriginOffersEachRelevantParent",
+      "attempts": 1
+    },
+    "native": {
+      "distinct_case_engine_passes": 12,
+      "cases": [
+        "rebase",
+        "references",
+        "blame",
+        "rebase-tools",
+        "blame-source",
+        "reference-actions"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "attempts": [
+        {
+          "log": "history-reference-native-2026-10-18.log",
+          "exit": 1,
+          "scope": "Fixture compilation: two optional Bool assertions required explicit == true; no native cases executed."
+        },
+        {
+          "log": "history-reference-native-affected-2026-10-18.log",
+          "exit": 1,
+          "scope": "New Rebase success fixture included root commit; change-set source uses hash~1..hash."
+        },
+        {
+          "log": "history-reference-native-rebase-diagnostic-2026-10-18.log",
+          "exit": 1,
+          "scope": "Same failed Rebase/system case with handoff diagnostics; no passed cases repeated."
+        },
+        {
+          "log": "history-reference-native-valid-pair-2026-10-18.log",
+          "exit": 1,
+          "scope": "Rebase/system+bundled passed after parented pair correction; Reference/system failed captured detection50 vs private fixture17."
+        },
+        {
+          "log": "history-reference-native-reference-diagnostic-2026-10-18.log",
+          "exit": 1,
+          "scope": "Same failed Reference/system case: alternate=true, inherited prefs=true, correct names; only repo session detection50 mismatched."
+        },
+        {
+          "log": "history-reference-native-remaining-2026-10-18.log",
+          "exit": 1,
+          "scope": "Reference/system+bundled passed after constructing private repository with captured detection17; Blame/system failed disabled Previous callback fixture setup."
+        },
+        {
+          "log": "history-reference-native-blame-diagnostic-2026-10-18.log",
+          "exit": 1,
+          "scope": "Same failed Blame/system case: actual=nil despite correct origin/parent, because callbacks were installed after menu creation."
+        },
+        {
+          "log": "history-reference-native-final-2026-10-18.log",
+          "exit": 1,
+          "scope": "Blame/system advanced through parent/browser/unified assertions then waited for picker using popup placeholder instead of Browse References."
+        },
+        {
+          "log": "history-reference-native-picker-affected-2026-10-18.log",
+          "exit": 0,
+          "scope": "Blame2 plus retained Rebase tools2, Blame source2 and Reference actions2 passed; prior Rebase2 and Reference2 were not repeated."
+        }
+      ],
+      "repairs": "Only fixture corrections; original behavioral assertions retained, enabled-action/owned-operation checks added. No app rebuild or Core rerun after passing initial checkpoint."
+    },
+    "resources": {
+      "write_exit": 0,
+      "languages": 38,
+      "keys": 1289,
+      "check_exit": 0
+    },
+    "ownership": {
+      "owned_receiver_pids": [
+        23734,
+        24002,
+        24335,
+        24630,
+        24915,
+        25091,
+        25319,
+        25460,
+        25591,
+        25862,
+        26063,
+        26230,
+        26337,
+        26441,
+        26678,
+        26911,
+        27030,
+        27148,
+        27190
+      ],
+      "all_absent_after_checks": true,
+      "automated_windows": "Invisible/offscreen, activation prohibited; isolated repositories/preferences/pasteboards; owned process-group cleanup on success/failure/timeout."
+    },
+    "limitations": [
+      "Native fixtures inject workspace handoffs into actual consumers; shared RepositoryModel callback configuration compiled and reviewed, not a full interactive workspace acceptance run.",
+      "New per-consumer Quit fences are exercised; all application document-confirmation/watch-shutdown combinations are not certified.",
+      "Hidden unshown split-view hosts emit geometry diagnostics; no full pixel/layout or physical desktop acceptance claimed.",
+      "No current hosted CI, minimum macOS/Intel, installed/signed/Finder/App Store pass inferred."
+    ],
+    "documentation": {
+      "coverage_write_exit": 0,
+      "coverage_check_exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "site_documents": 317,
+      "site_build_exit": 0,
+      "site_link_exit": 0,
+      "site_link_tests": 2
+    }
+  },
+  "remaining": [
+    "Compiled Windows menu state matrix",
+    "All remote mutation/authentication/error variants",
+    "Complete physical/visual/VoiceOver, minimum macOS/Intel and hosted CI",
+    "Signed sandbox/Finder and App Store distribution"
+  ],
+  "validated_sha256": {
+    "Sources/TurtleGitCore/GitBlame.swift": "1e73bbc48d691c4250f58d30ccb4035ec807e46afc6ba5bbf08935c492dc1605",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "30c8df8126fb95c627bb89f50f4e18ecdf91cdef76813020de97c2643c03c0e6",
+    "Sources/TurtleGitMac/BlameWindow.swift": "6f5d4b90cf6a30258c49cb70fcd95b45ca8dbf8b2ea568eb984f7b867f8a8aec",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "ceb87721b8e9f5b585b22101601023bcb8ddf187bfc51fb4ba8519edf3f1911c",
+    "Sources/TurtleGitMac/LogWindow.swift": "9b3321a7c192560c96147276f370551a274f2db2956398304a8141e653039fb4",
+    "Sources/TurtleGitMac/RebaseReplayTable.swift": "eaf7a38d4291193245c5de3bd0e500bee38af208ef7aa8c6b4f6aa691d996df6",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "5e5174c30439c5c78c8ca59275b399d80380ceee0a693796ec1503880c0086cf",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "90353d0b0b24c55a40ac9d428b807b07790cf1ab2e46b01acecaa860fecc2bf1",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "9ec51d1dfe26579db11e8b1dcdc27fc091409939e94e0d6375b92bdfd2cdd409",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "d8b4a0da7de5666f8a671e73190871e0a045710d14ee1b5ca25a4e7cdfad2c63",
+    "docs/qa/rebase-reference-context-native-2026-10-18.swift": "5f887c6d803765cfe7a82a4af4d4af86f084a0ed172bc41b57be68ea9f4fa7f5",
+    "docs/qa/reference-comparison-ownership-native-2026-10-18.swift": "7e85e15ed1d51836ca8714f3096a65d9e965a92d094640d3eb8f709e143e658a",
+    "docs/qa/blame-parent-action-native-2026-10-18.swift": "62b3ba5192a1233da124a08899623cf712017354916654482c0f8b0ec0d738d2",
+    "Tests/TurtleGitCoreTests/GitBlameParentActionTests.swift": "7a07be6e9a7ec822109d8ba0166e485f196ca24ba07907d782bc91e2c4ea1a49",
+    "scripts/test-history-reference-workflows.py": "1c39e2658cf9d7ca8fabf0c5b06eb3c7df8eac1738701e7f2598e31dab48dade"
+  }
+}

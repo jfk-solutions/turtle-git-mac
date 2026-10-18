@@ -10,6 +10,18 @@ import TurtleGitCore
     let model: RebaseWindowModel
     private(set) var revisionFind: RevisionGraphFindController?
     private(set) var containingWindows: [UUID: CommitContainingReferencesWindowController] = [:]
+    private var historyAlert: (UUID, NSAlert, CheckedContinuation<NSApplication.ModalResponse, Never>)?
+    private func presentHistoryAlert(_ alert: NSAlert) async -> NSApplication.ModalResponse {
+        guard !model.retired, let window, window.attachedSheet == nil, historyAlert == nil else { return .abort }
+        return await withCheckedContinuation { continuation in
+            let id = UUID(); historyAlert = (id, alert, continuation); alert.window.alphaValue = window.alphaValue
+            alert.beginSheetModal(for: window) { [weak self] response in self?.finishHistoryAlert(id, response: response) }
+        }
+    }
+    private func finishHistoryAlert(_ id: UUID, response: NSApplication.ModalResponse) {
+        guard let pending = historyAlert, pending.0 == id else { return }; historyAlert = nil
+        pending.2.resume(returning: response)
+    }
     var configureContainingReferences: (CommitContainingReferencesWindowController) -> Void = { _ in }
     private func refreshContainingReferenceBlocking() {
         let blocking = containingWindows.values.contains { $0.hasBlockingChild }
@@ -169,6 +181,21 @@ import TurtleGitCore
         model.onFindAvailability = { [weak self] in self?.revisionFind?.updateAvailability(); self?.containingWindows.values.forEach { $0.updateAvailability() } }
         model.revisionMenuLog.onShowContainingReferences = { [weak self] in self?.showRevisionContainingReferences($0) }
         model.revisionMenuLog.window = window
+        model.revisionMenuLog.confirmReferenceDeletion = { [weak self] request in
+            guard let self else { return .abort }
+            let response = await self.presentHistoryAlert(HistoryReferenceDeletionPresentation.alert(request))
+            let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+            return request.choices.indices.contains(index) ? request.choices[index].choice : .abort
+        }
+        model.revisionMenuLog.acknowledgeReferenceDeletionFailure = { [weak self] message in
+            let alert = NSAlert(); alert.alertStyle = .critical; alert.messageText = "Could not delete reference."
+            alert.informativeText = message; alert.addButton(withTitle: "OK")
+            _ = await self?.presentHistoryAlert(alert)
+        }
+        model.revisionMenuLog.sshSettings.present = { [weak self, weak window] prompt in
+            guard let self, !self.model.retired, let window, window.attachedSheet == nil, let child = prompt.window else { return false }
+            child.alphaValue = window.alphaValue; window.makeFirstResponder(nil); window.beginSheet(child); return true
+        }
         model.revisionFiles.window = window
         revisionFilePresenter=RevisionFileActionPresenter(model:model.revisionFiles,window:window)
         model.revisionFiles.onFilesChanged={ [weak model] in model?.onChanged() }
@@ -397,13 +424,13 @@ import TurtleGitCore
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.replaying { model.cancelReplay(); return false }
-        if model.containingReferenceBlocked || model.revisionFindBlocked || model.hasReplayQuestion || model.confirmingReplayCancellation || model.pendingConfirmation != nil { return false }
+        if model.containingReferenceBlocked || model.revisionFindBlocked || model.revisionHistoryBlocked || model.hasReplayQuestion || model.confirmingReplayCancellation || model.pendingConfirmation != nil { return false }
         if model.cancelPreparation() { return false }
         guard !conflictUnifiedWindows.values.contains(where:{$0.model.busy || $0.window?.attachedSheet != nil}),model.pickingReference == nil, !model.busy, !model.selectingSplit, !(model.active && model.hasReplayStash), sender.attachedSheet == nil else { return false }
         if !model.active && model.hasReplayStash { model.finishReplay(); return false }
         return true
     }
-    func windowWillClose(_ notification: Notification) { revisionFind?.close(); revisionFind = nil; Array(containingWindows.values).forEach { $0.close() }; containingWindows = [:]; retireReferencePicker(); model.retire(); identitySettings?.retire(); retireCommitPicker();conflictAddWindow?.close();conflictAddWindow=nil;conflictIgnoreWindow?.close();conflictIgnoreWindow=nil;Array(conflictUnifiedWindows.values).forEach {$0.close()};conflictUnifiedWindows=[:]; if let pending = replayQuestion { finishReplayQuestion(pending.0, answer: Int.max) }; if let pending = conflictPanel { finishConflictPanel(pending.0, accepted: false) }; conflictRevertWindow?.close();conflictRevertWindow=nil; conflictBaseViewer?.close(); conflictBaseViewer = nil; notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) { if let pending = historyAlert { finishHistoryAlert(pending.0, response: .abort); window?.endSheet(pending.1.window, returnCode: .abort); pending.1.window.close() }; revisionFind?.close(); revisionFind = nil; Array(containingWindows.values).forEach { $0.close() }; containingWindows = [:]; retireReferencePicker(); model.retire(); identitySettings?.retire(); retireCommitPicker();conflictAddWindow?.close();conflictAddWindow=nil;conflictIgnoreWindow?.close();conflictIgnoreWindow=nil;Array(conflictUnifiedWindows.values).forEach {$0.close()};conflictUnifiedWindows=[:]; if let pending = replayQuestion { finishReplayQuestion(pending.0, answer: Int.max) }; if let pending = conflictPanel { finishConflictPanel(pending.0, accepted: false) }; conflictRevertWindow?.close();conflictRevertWindow=nil; conflictBaseViewer?.close(); conflictBaseViewer = nil; notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 enum RebaseReferenceTarget: Equatable { case upstream, onto }
@@ -442,6 +469,11 @@ struct RebaseReferenceRequest {
     @Published private(set) var svnColumnValues: [String:String] = [:]
     @Published private(set) var loadingColumnMetadata = false
     @Published private(set) var revisionReferenceNames: [String: [String]] = [:]
+    private var revisionCurrentReference = ""
+    private var revisionHeadHash = ""
+    private(set) var revisionBisectTerms = HistoryBisectTerms()
+    private var pendingRevisionHistoryRefresh = false
+    private var revisionReferenceMutation = false
     private var columnToken: OperationCancellation?
     private var columnGeneration = UUID()
     private var columnSignature: [String] = []
@@ -458,7 +490,9 @@ struct RebaseReferenceRequest {
     @Published var files: [CommitFile] = []
     let revisionFiles:RevisionComparisonWindowModel
     private var revisionFilesObservation:AnyCancellable?
-    var revisionFilesAvailable:Bool { !retired && !busy && !selectingSplit && !pickingCommits && pickingReference == nil && !revisionFiles.busy && revisionFiles.window?.attachedSheet == nil }
+    private var revisionMenuObservation: AnyCancellable?
+    private var revisionBusyObservation: AnyCancellable?
+    var revisionFilesAvailable:Bool { !revisionHistoryBlocked && !retired && !busy && !selectingSplit && !pickingCommits && pickingReference == nil && !revisionFiles.busy && revisionFiles.window?.attachedSheet == nil }
 
     @Published var conflictRows: [StatusEntry] = []
     @Published var conflictStatistics: GitPathMap<CommitFile> = [:]
@@ -647,7 +681,7 @@ struct RebaseReferenceRequest {
             if key == \RebaseOptions.addCherryPickedFrom {self.updateAttribution()} else {self.reloadPlan()}
         })
     }
-    var canEditMessage: Bool { !retired && !busy && !revisionFiles.busy && pickingReference == nil && !pickingCommits && !selectingSplit && pendingConfirmation == nil && confirmation == nil && (fileRecovery || state?.squashMessage != nil || state?.isEditPause == true || state?.split != nil) }
+    var canEditMessage: Bool { !revisionHistoryBlocked && !retired && !busy && !revisionFiles.busy && pickingReference == nil && !pickingCommits && !selectingSplit && pendingConfirmation == nil && confirmation == nil && (fileRecovery || state?.squashMessage != nil || state?.isEditPause == true || state?.split != nil) }
     func messageBinding(_ context: FormContext) -> Binding<String> { Binding(get:{self.amendMessage},set:{if self.matches(context),self.canEditMessage {self.amendMessage=$0}}) }
     func splitBinding(_ context: FormContext) -> Binding<Bool> { Binding(get:{self.splitCommit},set:{if self.matches(context),self.canSplit,self.state?.split == nil {self.splitCommit=$0}}) }
     func tabBinding(_ context: FormContext) -> Binding<Int> { Binding(get:{self.tab},set:{if self.matches(context),!self.busy,!self.selectingSplit,self.pickingReference == nil,self.pendingConfirmation == nil {self.tab=$0}}) }
@@ -675,7 +709,7 @@ struct RebaseReferenceRequest {
         guard proceed,accepted,canRequest(question.action) else{return};execute(question.action)
     }
     private func canRequest(_ action:String)->Bool {
-        guard !containingReferenceBlocked,!revisionFindBlocked,!retired,!busy,!revisionFiles.busy,pickingReference == nil,!pickingCommits,!selectingSplit,pendingConfirmation == nil,confirmation == nil,!hasReplayQuestion,!confirmingReplayCancellation else{return false}
+        guard !containingReferenceBlocked,!revisionFindBlocked,!revisionHistoryBlocked,!retired,!busy,!revisionFiles.busy,pickingReference == nil,!pickingCommits,!selectingSplit,pendingConfirmation == nil,confirmation == nil,!hasReplayQuestion,!confirmingReplayCancellation else{return false}
         switch action {case "start":return canStart;case "continue","skip","abort":return active;default:return false}
     }
     func referenceChoices(_ target: RebaseReferenceTarget?) -> [CheckoutReference] {
@@ -1154,7 +1188,7 @@ struct RebaseReferenceRequest {
         load(upstream: pending.upstream, autoStart: pending.autoStart, preserveMerges: pending.preserveMerges, cherryPick: pending.cherryPick, force: pending.force)
     }
     var active: Bool { state?.active == true }
-    var editable: Bool { !containingReferenceBlocked && !revisionFindBlocked && confirmation == nil && pendingConfirmation == nil && !retired && !busy && !revisionFiles.busy && pickingReference == nil && !active && !finished && !pickingCommits && !selectingSplit }
+    var editable: Bool { !containingReferenceBlocked && !revisionFindBlocked && !revisionHistoryBlocked && confirmation == nil && pendingConfirmation == nil && !retired && !busy && !revisionFiles.busy && pickingReference == nil && !active && !finished && !pickingCommits && !selectingSplit }
     var canAdd: Bool { editable && !options.preserveMerges }
     // Upstream displays newest first, while replay proceeds from the oldest commit.
     var entries: [RebaseEntry] {
@@ -1251,12 +1285,22 @@ struct RebaseReferenceRequest {
         validateOnto = { try await repository.rebaseOntoSelection($0, branch: $1, upstream: $2, cancellation: $3) }
         self.fullCommitMessageOnLogLine = messageDefaults.bool(forKey: "FullCommitMessageOnLogLine")
         revisionFilesObservation=revisionFiles.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        revisionMenuObservation = revisionMenuLog.objectWillChange.sink { [weak self] _ in
+            guard let self else { return }; self.controlMenuGeneration = UUID(); self.objectWillChange.send()
+        }
+        revisionBusyObservation = revisionMenuLog.$busy.dropFirst().removeDuplicates().sink { [weak self] busy in
+            guard !busy else { return }
+            Task { @MainActor [weak self] in
+                guard let self, !self.retired else { return }
+                if self.revisionReferenceMutation { self.revisionReferenceMutation = false; self.refreshRevisionHistoryContext() }
+                self.flushRevisionHistoryRefresh()
+            }
+        }
     }
     /// Rebase's source list enables its action bits in the choosing phase.
     /// Running/paused replay plans remain owned by the sequencer, not this draft.
     var revisionContextPolicy: HistoryContextMenuPolicy {
         var policy = HistoryContextMenuPolicy.rebase
-        policy.commands.insert(.showLog)
         if editable || canEditPendingActions { policy.commands.formUnion([.rebasePick, .rebaseSquash, .rebaseEdit, .rebaseSkip]) }
         return policy
     }
@@ -1283,24 +1327,73 @@ struct RebaseReferenceRequest {
             used = true; return true
         }
     }
-    var revisionMenuOwnerAvailable: Bool { !loadingPlan && !revisionFindBlocked && confirmation == nil && pendingConfirmation == nil && !hasReplayQuestion && !confirmingReplayCancellation && pickingReference == nil && revisionMenuLog.window?.attachedSheet == nil && !revisionMenuLog.confirmingQuit && !retired && !busy && !revisionFiles.busy && !selectingSplit && !pickingCommits && revisionMenuLog.noteRequest == nil && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
+    var revisionMenuOwnerAvailable: Bool { !revisionHistoryBlocked && !loadingPlan && !revisionFindBlocked && confirmation == nil && pendingConfirmation == nil && !hasReplayQuestion && !confirmingReplayCancellation && pickingReference == nil && revisionMenuLog.window?.attachedSheet == nil && !revisionMenuLog.confirmingQuit && !retired && !busy && !revisionFiles.busy && !selectingSplit && !pickingCommits && revisionMenuLog.noteRequest == nil && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
     var revisionMenuAvailable: Bool { !containingReferenceBlocked && revisionMenuOwnerAvailable }
     func revisionMenuRows(_ ids: Set<String>) -> [RebaseEntry] { entries.filter { ids.contains($0.id) } }
     func revisionHistoryCommit(_ commit: LogEntry) -> LogEntry {
         var commit = commit
+        commit.isHead = commit.hash == revisionHeadHash
         var seen = Set<GitReferenceName>()
         commit.references = (revisionReferenceNames[commit.hash] ?? []).compactMap { raw in
             let peeled = GitReferenceName.removingSuffix("^{}", from: raw)
             let name = peeled ?? raw
             guard seen.insert(GitReferenceName(name)).inserted else { return nil }
-            return RevisionReference(name: name, kind: peeled == nil ? HistoryReferenceLabel.shortName(name).kind : .annotatedTag)
+            return RevisionReference(name: name, isCurrent: GitReferenceName.equal(name, revisionCurrentReference), kind: peeled == nil ? HistoryReferenceLabel.shortName(name, terms: revisionBisectTerms).kind : .annotatedTag)
         }
         return commit
+    }
+    var revisionHistoryBlocked: Bool {
+        revisionMenuLog.confirmingQuit || revisionMenuLog.busy || revisionMenuLog.unifiedViewerBusy || revisionMenuLog.jumping ||
+            revisionMenuLog.copyingDetails || revisionMenuLog.loadingNote || revisionMenuLog.savingNote || revisionMenuLog.noteRequest != nil
+    }
+    func refreshRevisionHistoryContext() { pendingRevisionHistoryRefresh = true; flushRevisionHistoryRefresh() }
+    func flushRevisionHistoryRefresh() {
+        guard pendingRevisionHistoryRefresh, !retired, !busy, !loadingColumnMetadata,
+              revisionMenuAvailable, revisionMenuLog.window?.attachedSheet == nil else { return }
+        pendingRevisionHistoryRefresh = false; refreshColumnMetadata(force: true)
+    }
+    func revisionReference(_ target: LogReferenceMenuTarget?, ids: Set<String>) -> RevisionReference? {
+        guard ids.count == 1, let target, let entry = revisionMenuRows(ids).first,
+              entry.commit.hash == target.revisionHash else { return nil }
+        return revisionHistoryCommit(entry.commit).references.first { GitReferenceName.equal($0.name, target.name) }
+    }
+    func revisionSwitchBranches(_ ids: Set<String>, target: LogReferenceMenuTarget?) -> [RevisionReference] {
+        guard !revisionMenuLog.bare, ids.count == 1, let entry = revisionMenuRows(ids).first else { return [] }
+        let references = target.map { _ in revisionReference(target, ids: ids).map { [$0] } ?? [] } ?? revisionHistoryCommit(entry.commit).references
+        guard !revisionHistoryCommit(entry.commit).references.contains(where: { $0.name == "refs/stash" }) else { return [] }
+        return references.filter { $0.name.hasPrefix("refs/heads/") && !$0.isCurrent }
+    }
+    func revisionDeletionCandidates(_ ids: Set<String>, target: LogReferenceMenuTarget?) -> [RevisionReference] {
+        guard ids.count == 1, let entry = revisionMenuRows(ids).first else { return [] }
+        let references = target.map { _ in revisionReference(target, ids: ids).map { [$0] } ?? [] } ?? revisionHistoryCommit(entry.commit).references
+        return references.filter { !$0.isCurrent }
+    }
+    func performRevisionSwitch(_ target: LogReferenceMenuTarget, ids: Set<String>) {
+        guard revisionSwitchBranches(ids, target: target).count == 1, let log = prepareRevisionMenu(ids) else { return }
+        log.switchBranch(target: target)
+    }
+    func performRevisionDeletion(_ targets: [LogReferenceMenuTarget], ids: Set<String>) {
+        guard !targets.isEmpty, targets.allSatisfy({ target in revisionDeletionCandidates(ids, target: target).count == 1 }),
+              let log = prepareRevisionMenu(ids) else { return }
+        revisionReferenceMutation = true; log.deleteReferences(targets)
+    }
+    func revisionBisectAvailable(_ command: LogBisectCommand, ids: Set<String>) -> Bool {
+        let rows = revisionMenuRows(ids), source: HistoryContextCommand
+        switch command { case .start: source = .bisectStart; case .good: source = .bisectGood; case .bad: source = .bisectBad; case .skip: source = .bisectSkip; case .reset: source = .bisectReset }
+        guard revisionContextPolicy.contains(source), !revisionMenuLog.bare, !rows.isEmpty, rows.count == ids.count else { return false }
+        let first = revisionHistoryCommit(rows[0].commit)
+        if command == .start { return rows.count == 2 && !revisionMenuLog.bisectActive && !revisionMenuLog.mergeActive && !first.references.contains { $0.name == "refs/stash" } }
+        return command != .reset && revisionMenuLog.bisectActive && !first.references.contains { $0.name.hasPrefix("refs/bisect/") } && (command == .skip || rows.count == 1)
+    }
+    func performRevisionBisect(_ command: LogBisectCommand, ids: Set<String>) {
+        guard revisionBisectAvailable(command, ids: ids), let log = prepareRevisionMenu(ids) else { return }
+        log.requestBisect(command)
     }
     @discardableResult func prepareRevisionMenu(_ ids: Set<String>) -> LogWindowModel? {
         let rows = revisionMenuRows(ids)
         guard revisionMenuAvailable, !rows.isEmpty, rows.count == ids.count else { return nil }
         revisionMenuLog.contextMenuPolicy = revisionContextPolicy
+        revisionMenuLog.embeddedSelectionCount = ids.count
         revisionMenuLog.entries = rows.map { revisionHistoryCommit($0.commit) }
         revisionMenuLog.selected = Set(rows.map { $0.commit.hash })
         return revisionMenuLog
@@ -1323,12 +1416,37 @@ struct RebaseReferenceRequest {
         guard indexes.count <= 2 || indexes.last! - indexes.first! + 1 == indexes.count else { return nil }
         return FormatPatchPreset(startRevision: entries[indexes.last!].commit.hash + "~1", endRevision: entries[indexes.first!].commit.hash)
     }
-    func canPerformRevisionMenu(_ command: RebaseRevisionCommand, ids: Set<String>) -> Bool {
+    func revisionCommandVisible(_ command: RebaseRevisionCommand, ids: Set<String>, extended: Bool = false) -> Bool {
         let rows = revisionMenuRows(ids), one = rows.count == 1
-        guard revisionMenuAvailable, !rows.isEmpty, rows.count == ids.count else { return false }
+        guard !rows.isEmpty, rows.count == ids.count else { return false }
+        let commit = rows.first.map { revisionHistoryCommit($0.commit) }
+        let stash = commit?.references.contains { $0.name == "refs/stash" } == true
+        if command == .log { return one && revisionContextPolicy.showsLog(hasReferences: commit?.references.isEmpty == false, isStash: stash, extended: extended) }
+        guard revisionContextPolicy.contains(command.sourceCommand(single: one)) else { return false }
+        switch command {
+        case .workingTree: return one && !revisionMenuLog.bare
+        case .unified: return rows.count <= 2 && !revisionMenuLog.bare
+        case .compare:
+            let indexes = entries.indices.filter { ids.contains(entries[$0].id) }
+            return rows.count <= 2 || indexes.last! - indexes.first! + 1 == indexes.count
+        case .branch, .tag, .notes: return one && !stash
+        case .browse, .export, .containing: return one
+        case .patch: return !stash && revisionMenuPatchPreset(ids) != nil
+        case .push, .svnDCommit:
+            return one && ((!stash && commit?.references.contains { $0.name.hasPrefix("refs/heads/") || $0.name.hasPrefix("refs/tags/") } == true) || extended) &&
+                (command != .svnDCommit || hasGitSVN && !revisionMenuLog.bare)
+        case .pull: return one && commit?.isHead == true && !revisionMenuLog.bare && !revisionMenuLog.mergeActive
+        case .referenceNames: return one && commit?.references.isEmpty == false
+        case .changeSets: return rows.count == 2
+        default: return true
+        }
+    }
+    func canPerformRevisionMenu(_ command: RebaseRevisionCommand, ids: Set<String>, extended: Bool = false) -> Bool {
+        let rows = revisionMenuRows(ids), one = rows.count == 1
+        guard revisionMenuAvailable, revisionCommandVisible(command, ids: ids, extended: extended) else { return false }
         switch command {
         case .workingTree: return one && !revisionMenuLog.bare && revisionMenuLog.onCompare != nil
-        case .compare: return rows.count <= 2 && revisionMenuLog.onCompare != nil
+        case .compare: return revisionMenuLog.onCompare != nil
         case .unified: return rows.count <= 2 && !revisionMenuLog.unifiedViewerBusy
         case .log: return one && onShowRevisionLog != nil
         case .browse: return one && revisionMenuLog.onBrowseRepository != nil
@@ -1338,25 +1456,40 @@ struct RebaseReferenceRequest {
         case .export: return one && revisionMenuLog.onExportRevision != nil
         case .containing: return one && revisionMenuLog.onShowContainingReferences != nil
         case .patch: return revisionMenuPatchPreset(ids) != nil && revisionMenuLog.onFormatPatch != nil
+        case .changeSets: return rows.count == 2 && revisionMenuLog.onCommitChangeSets != nil
+        case .pull: return revisionMenuLog.onHistoryPull != nil
+        case .svnDCommit: return revisionMenuLog.onHistorySVNDCommit != nil
         default: return true
         }
     }
-    func performRevisionMenu(_ command: RebaseRevisionCommand, ids: Set<String>, alternate: Bool = false, parent: Int? = nil, diffMode: LogRevisionDiffMode = .firstParent) {
-        guard canPerformRevisionMenu(command, ids: ids), let log = prepareRevisionMenu(ids) else { return }
+    func performRevisionMenu(_ command: RebaseRevisionCommand, ids: Set<String>, alternate: Bool = false, parent: Int? = nil, diffMode: LogRevisionDiffMode = .firstParent, target: LogReferenceMenuTarget? = nil) {
+        guard canPerformRevisionMenu(command, ids: ids, extended: alternate), target == nil || revisionReference(target, ids: ids) != nil,
+              let log = prepareRevisionMenu(ids) else { return }
         switch command {
         case .workingTree: ComparisonToolInvocation.$alternate.withValue(alternate) { log.compare(workingTree: true) }
-        case .compare: ComparisonToolInvocation.$alternate.withValue(alternate) { log.compare(parent: parent) }
+        case .compare:
+            let rows = revisionMenuRows(ids)
+            ComparisonToolInvocation.$alternate.withValue(alternate) {
+                if rows.count > 1 { log.onCompare?(.revision(rows.last!.commit.hash), .revision(rows[0].commit.hash)) }
+                else { log.compare(parent: parent) }
+            }
         case .unified: log.diff(alternate: alternate, mode: diffMode)
         case .log: if let revision = log.revision { onShowRevisionLog?(revision.hash) }
         case .browse: if let revision = log.revision { log.onBrowseRepository?(revision.hash) }
-        case .branch: log.request(.branch)
-        case .tag: log.request(.tag)
-        case .push: log.request(.push)
+        case .branch:
+            if let target { log.onCreateReference(false, target.name) }
+            else { log.requestReference(.branch, target: nil) }
+        case .tag: log.requestReference(.tag, target: nil)
+        case .push: if let revision = log.revision { log.pushCaptured(revision, pointedName: target?.name) }
         case .find: onFindRevision?()
         case .export: log.requestExport()
         case .containing: if let hash = log.revision?.hash { log.onShowContainingReferences?(hash) }
         case .notes: log.editNotes()
         case .patch: if let preset = revisionMenuPatchPreset(ids) { log.onFormatPatch?(preset) }
+        case .changeSets: log.compareChangeSets(alternate: alternate)
+        case .pull: log.pullFromHistory()
+        case .svnDCommit: log.svnDCommitFromHistory(extended: alternate)
+        case .referenceNames: log.copyReferenceNames(target: target)
         case .details: log.copyDetails()
         case .detailsWithoutPaths: log.copyDetails(includePaths: false)
         case .hashes: log.copy(log.revisions.map(\.hash).joined(separator: "\n"))
@@ -1385,10 +1518,19 @@ struct RebaseReferenceRequest {
                 // Reuse the source-style peeled hash/name map within this
                 // existing owned read; menu actions never start a Git lookup.
                 let names = try await self.repository.referenceLogReferenceNamesByHash(cancellation: token)
+                let current = try await self.repository.run(["symbolic-ref", "--quiet", "HEAD"], successfulExitCodes: 0...1, cancellation: token).text.trimmingCharacters(in: .newlines)
+                let head = try await self.repository.run(["rev-parse", "--verify", "HEAD"], successfulExitCodes: 0...1, cancellation: token).text.trimmingCharacters(in: .newlines)
+                let metadata = try await self.repository.finderMetadata(cancellation: token)
+                let referenceContext = try await self.repository.historyReferenceContext(cancellation: token)
+                let bisectTerms = try await self.repository.historyBisectTerms(cancellation: token)
                 guard !self.retired, self.columnGeneration == request, !token.isCancelled else { return }
                 self.showsIssueColumn = result.showsIssueIDs; self.hasGitSVN = result.hasGitSVN
+                self.controlMenuGeneration = UUID()
                 self.issueColumnValues = result.issueIDs; self.svnColumnValues = result.svnRevisions
                 self.revisionReferenceNames = names
+                self.revisionCurrentReference = current; self.revisionHeadHash = head
+                self.revisionMenuLog.installEmbeddedHistoryContext(metadata, currentBranch: GitReferenceName.removingPrefix("refs/heads/", from: current) ?? current, referenceContext: referenceContext, bisectTerms: bisectTerms)
+                self.revisionBisectTerms = bisectTerms
                 self.onRefreshRevisionFind()
             } catch {
                 guard let self, !self.retired, self.columnGeneration == request, !token.isCancelled else { return }
@@ -1825,7 +1967,7 @@ struct RebaseReferenceRequest {
         pendingConfirmation=question;confirmation=message
     }
     func execute(_ action: String) {
-        guard !containingReferenceBlocked, !revisionFindBlocked, !retired, pendingConfirmation == nil, confirmation == nil, !busy, !revisionFiles.busy, pickingReference == nil, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
+        guard !containingReferenceBlocked, !revisionFindBlocked, !revisionHistoryBlocked, !retired, pendingConfirmation == nil, confirmation == nil, !busy, !revisionFiles.busy, pickingReference == nil, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
         let snapshot = plan, draftMessage = amendMessage, previouslyFinished = finished
         let continuationState=state,continuationPaths=checkedConflicts,continuationHead=conflictHead
         let continuationRecovery=fileRecovery,usesCheckedSelection=supportsConflictSelection
@@ -1928,7 +2070,7 @@ struct RebaseReferenceRequest {
             }
         }
     }
-    var canSplit: Bool { !retired && pendingConfirmation == nil && confirmation == nil && !busy && !revisionFiles.busy && !selectingSplit && state?.canSplit == true }
+    var canSplit: Bool { !revisionHistoryBlocked && !retired && pendingConfirmation == nil && confirmation == nil && !busy && !revisionFiles.busy && !selectingSplit && state?.canSplit == true }
     func beginSplitSelection() {
         guard canSplit else { return }; busy = true; Self.beginReplayWork()
         Task {
@@ -2062,6 +2204,7 @@ enum RebaseRevisionCommand: String, CaseIterable {
     case workingTree = "Compare with working tree", compare = "Compare with previous revision", unified = "Show changes as unified diff"
     case log = "Show log", browse = "Browse repository", branch = "Create branch at this version…", tag = "Create tag at this version…", push = "Push…", notes = "Edit Notes", patch = "Format Patch…"
     case find = "Find…", export = "Export this version…", containing = "Show branches this commit is on"
+    case changeSets = "Compare change sets", pull = "Pull…", svnDCommit = "SVN DCommit…", referenceNames = "Tag/branch names"
     case details = "Full log details", detailsWithoutPaths = "Full log details without changed paths", hashes = "Hashes", authors = "Authors", authorNames = "Author names", authorEmails = "Author emails", subjects = "Subjects", messages = "Messages"
     func sourceCommand(single: Bool) -> HistoryContextCommand {
         switch self {
@@ -2078,6 +2221,9 @@ enum RebaseRevisionCommand: String, CaseIterable {
         case .export: return .export
         case .containing: return .showBranches
         case .patch: return .createPatch
+        case .changeSets: return .compareChangeSets
+        case .pull: return .pull
+        case .svnDCommit: return .svnDCommit
         default: return .copyClipboard
         }
     }
@@ -2095,6 +2241,9 @@ enum RebaseRevisionCommand: String, CaseIterable {
         case .export: return .export
         case .containing: return .showBranches
         case .patch: return .patch
+        case .changeSets: return .compare
+        case .pull: return .pull
+        case .svnDCommit: return .commit
         default: return .copy
         }
     }

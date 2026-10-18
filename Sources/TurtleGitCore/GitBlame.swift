@@ -84,11 +84,18 @@ public struct GitBlameSnapshot: Sendable {
     }
 }
 public struct GitBlameParentComparison: Identifiable, Sendable {
-    public var id: String { revision }
+    /// A parent may supply several attributed origin files. Preserve each
+    /// exact Git path as a distinct choice, including canonically equal text.
+    public var id: Data { Data((String(parentNumber) + "\0" + revision + "\0" + path + "\0" + (comparison.files.first?.path ?? "")).utf8) }
     public let parentNumber: Int
     public let revision: String
     public let path: String
     public let comparison: RevisionComparisonSnapshot
+    /// GetParentHashes filters the relevant parents before the list numbers
+    /// and describes them. The actual parent number remains the Git target.
+    public func historyMenuTitle(ordinal: Int) -> String {
+        LogParentChoice(number: ordinal, hash: revision, subject: comparison.fromDetails?.subject).title
+    }
 }
 public struct GitBlameEncoding: Hashable, Identifiable, Sendable, CustomStringConvertible {
     public let id: UInt

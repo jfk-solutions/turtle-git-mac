@@ -310,6 +310,8 @@ jobs:
         run: python3 scripts/test-history-action-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Durable paused replay actions
         run: python3 scripts/test-rebase-pending-actions.py --only linear --only structural --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Connected history reference workflows
+        run: python3 scripts/test-history-reference-workflows.py --only rebase --only blame --only references --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Rebase connected history tools
         run: python3 scripts/test-rebase-history-tools.py --only tools --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Rebase captured revision menu family

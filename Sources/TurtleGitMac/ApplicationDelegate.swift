@@ -132,10 +132,10 @@ import AppKit
         if RevertProgressWindowModel.activeOperations > 0 { return .terminateCancel }
         if FileDropTransferModel.activePreparations > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? FileDropTransferWindowController }).contains(where: { !$0.model.retired }) { return .terminateCancel }
-        if RenameWindowModel.activeOperations > 0 || ReferenceBrowserWindowModel.activeMutations > 0 { return .terminateCancel }
+        if ReferenceBrowserWindowModel.activeComparisons > 0 || ReferenceBrowserWindowController.activeChildReleases > 0 || RenameWindowModel.activeOperations > 0 || ReferenceBrowserWindowModel.activeMutations > 0 { return .terminateCancel }
         if RemoveWindowModel.activeOperations > 0 { return .terminateCancel }
         if RebaseWindowModel.activeReplayOperations > 0 { return .terminateCancel }
-        if sender.windows.compactMap({$0.delegate as? RebaseWindowController}).contains(where:{$0.model.containingReferenceBlocked || $0.model.revisionFindBlocked || $0.model.pendingConfirmation != nil || $0.model.hasReplayQuestion || $0.model.confirmingReplayCancellation || $0.window?.attachedSheet != nil}) {return .terminateCancel}
+        if sender.windows.compactMap({$0.delegate as? RebaseWindowController}).contains(where:{$0.model.revisionHistoryBlocked || $0.model.containingReferenceBlocked || $0.model.revisionFindBlocked || $0.model.pendingConfirmation != nil || $0.model.hasReplayQuestion || $0.model.confirmingReplayCancellation || $0.window?.attachedSheet != nil}) {return .terminateCancel}
         if RebaseWindowModel.activePreparationReads > 0 || RebaseWindowController.activeReferencePickers > 0 || RebaseWindowController.activeCommitPickers > 0 { return .terminateCancel }
         if RebaseWindowModel.activeColumnReads > 0 { return .terminateCancel }
         if RebaseWindowModel.activeStashRestorations > 0 { return .terminateCancel }
@@ -163,7 +163,7 @@ import AppKit
         if BisectWindowModel.activeOperations > 0 { return .terminateCancel }
         if GitPropertiesWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? GitPropertiesWindowController }).contains(where:{ $0.model.busy || $0.model.hasSettings || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if RepositoryBrowserWindowModel.activeOperations > 0 || RepositoryBrowserFileOperation.activeRequests > 0 { return .terminateCancel }
-        if sender.windows.compactMap({ $0.delegate as? BlameWindowController }).contains(where:{ $0.model.busy || $0.model.openingDocument || $0.model.searchFeedbackBusy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        if sender.windows.compactMap({ $0.delegate as? BlameWindowController }).contains(where:{ $0.model.busy || $0.model.openingDocument || $0.model.searchFeedbackBusy || $0.hasBlockingHistoryChild || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if BlameDocumentOpener.activeReads > 0 { return .terminateCancel }
         if BlameWindowModel.activeHistoryOperations > 0 { return .terminateCancel }
         if BlameWindowModel.activeSyntaxRequests > 0 { return .terminateCancel }
@@ -270,6 +270,9 @@ import AppKit
         let adds = sender.windows.compactMap { $0.delegate as? AddWindowController }
         let lfsLocks = sender.windows.compactMap { $0.delegate as? LFSLocksWindowController }
         let statuses = sender.windows.compactMap { $0.delegate as? StatusWindowController }
+        let historyReplays = sender.windows.compactMap { $0.delegate as? RebaseWindowController }
+        let referenceBrowsers = sender.windows.compactMap { $0.delegate as? ReferenceBrowserWindowController }
+        let blames = sender.windows.compactMap { $0.delegate as? BlameWindowController }
         let logs = sender.windows.compactMap { $0.delegate as? LogWindowController }
         let addProgress = sender.windows.compactMap { $0.delegate as? AddProgressWindowController }
         let reverts = sender.windows.compactMap { $0.delegate as? RevertWindowController }
@@ -295,6 +298,9 @@ import AppKit
         for controller in patchDocuments { controller.model.confirmingQuit = true }
         for controller in lfsLocks { controller.model.confirmingQuit = true }
         for controller in statuses { controller.model.confirmingQuit = true }
+        for controller in historyReplays { controller.model.revisionMenuLog.confirmingQuit = true }
+        for controller in referenceBrowsers { controller.model.confirmingQuit = true }
+        for controller in blames { controller.model.confirmingQuit = true }
         for controller in logs { controller.model.confirmingQuit = true }
         for controller in imports { controller.setQuitConfirmation(true) }
         for controller in reviews { controller.setQuitConfirmation(true) }
@@ -364,6 +370,8 @@ import AppKit
                 }
             }
             if allowQuit { for commit in commits { commit.model.restoreCopies.removeAll() } }
+            if allowQuit, startupMergeToolActive { repositoryModel?.closeMergeToolLaunchesAfterApprovedQuit(); return }
+            if allowQuit { repositoryModel?.stopMonitoringForTermination();await repositoryModel?.finderWatches?.shutdown() }
             for browser in browsers { browser.model.confirmingQuit = false }
             for diff in submoduleDiffs { diff.model.confirmingQuit = false }
             for comparison in fileComparisons { comparison.model.confirmingQuit = false }
@@ -384,9 +392,10 @@ import AppKit
             for controller in patchDocuments { controller.model.confirmingQuit = false }
             for controller in lfsLocks { controller.model.confirmingQuit = false }
             for controller in statuses { controller.model.confirmingQuit = false }
+            for controller in historyReplays { controller.model.revisionMenuLog.confirmingQuit = false }
+            for controller in referenceBrowsers { controller.model.confirmingQuit = false }
+            for controller in blames { controller.model.confirmingQuit = false }
             for controller in logs { controller.model.confirmingQuit = false }
-            if allowQuit, startupMergeToolActive { repositoryModel?.closeMergeToolLaunchesAfterApprovedQuit(); return }
-            if allowQuit { repositoryModel?.stopMonitoringForTermination();await repositoryModel?.finderWatches?.shutdown() }
             confirmingQuit = false
             replyToTermination(sender, allowQuit)
         }
@@ -401,10 +410,19 @@ import AppKit
         let pending=manager.pendingOperations+(manager.backgroundService?.busy == true ? 1 : 0);manager.retire()
         guard pending>0 else { return .terminateNow }
         confirmingQuit=true
+        let historyReplays = sender.windows.compactMap { $0.delegate as? RebaseWindowController }
+        let referenceBrowsers = sender.windows.compactMap { $0.delegate as? ReferenceBrowserWindowController }
+        let blames = sender.windows.compactMap { $0.delegate as? BlameWindowController }
         let logs = sender.windows.compactMap { $0.delegate as? LogWindowController }
+        for controller in historyReplays { controller.model.revisionMenuLog.confirmingQuit = true }
+        for controller in referenceBrowsers { controller.model.confirmingQuit = true }
+        for controller in blames { controller.model.confirmingQuit = true }
         for controller in logs { controller.model.confirmingQuit = true }
         Task {
             await manager.shutdown()
+            for controller in historyReplays { controller.model.revisionMenuLog.confirmingQuit = false }
+            for controller in referenceBrowsers { controller.model.confirmingQuit = false }
+            for controller in blames { controller.model.confirmingQuit = false }
             for controller in logs { controller.model.confirmingQuit = false }
             confirmingQuit=false;replyToTermination(sender,true)
         }

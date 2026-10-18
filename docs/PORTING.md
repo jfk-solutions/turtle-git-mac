@@ -3048,3 +3048,13 @@ source artwork and captured single-use menu receipts. Parent action/close owners
 and actual cancelled-read lifetime extend through helper retirement. The remaining
 shared Log/reference menu family, complete visual parity, physical acceptance,
 current hosted CI and signed App Store deployment remain open.
+
+
+### Connected history/reference consumers, 2026-10-18
+
+The [connected workflow batch](HISTORY-REFERENCE-WORKFLOWS.md) implements Rebase
+reference-pointed commands, Blame parent/file actions and Reference Browser
+comparison/child release. Canonical targets, captured alternative-tool choices,
+source artwork, actual cancelled-read ownership and inherited preferences remain
+part of the end-user workflow. Its evidence records the grouped checkpoint and
+remaining Windows matrix, physical/visual, signed and whole-port gaps.
