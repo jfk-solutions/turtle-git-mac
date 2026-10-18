@@ -16,9 +16,11 @@ helpers, empty helper resets, usernames, HTTP-path settings, unknown credential
 fields and included/XDG/system/worktree origins. The list groups entries by
 scope, exact file and URL. Selecting a group preserves its helper chain until an
 explicit helper edit replaces it. Advanced writes affect only the selected
-file's helper/username/useHttpPath keys; other URL sections and unrelated keys
-remain intact. False HTTP-path writes are explicit, so a higher-level true value
-is overridden. Add New/Save confirms replacing an existing helper chain. Remove
+file's edited helper/username/useHttpPath keys; other URL sections and unrelated
+keys remain intact. Editing Use HTTP path component to unchecked unsets that
+origin's key, restoring inheritance, as in the pinned source. Untouched boolean
+entries are retained verbatim. Explicit Add New/Save confirms replacing an
+existing configuration and writes all known fields. Remove
 confirms before clearing that URL's known and unknown credential fields in the
 selected file. Passwords held by credential helpers are not deleted.
 
@@ -171,3 +173,19 @@ system configuration; it does not install a privileged helper or promise elevate
 system writes. The credential-manager action maps to Keychain Access. These
 adaptations are not full Windows elevation equivalence or App Store acceptance.
 Four grouped native case/engine combinations pass with system and bundled Git. Both raw light/dark page captures were individually reviewed: labels, editable Helper, list, actions and footers fit without clipping. All four owned receivers were reaped and independently absent. Core algorithms were unchanged and their suite was not repeated. Physical keyboard, signed Keychain/Finder and complete upstream acceptance remain open. See [batch evidence](qa/credential-source-family-2026-10-17.json).
+
+
+## Advanced editing and source Save/Apply — October 18, 2026
+
+The advanced editing family now separates partial property-sheet Apply from
+explicit Add New/Save. This supersedes the earlier full-field Apply and explicit
+false override behavior. Existing helperless groups accept username/HTTP-path
+edits; unrelated raw/repeated fields and included origins remain untouched.
+Selection provides the source Save/Discard choices, with an additional native
+Cancel action. All editor/list callbacks capture their accepted editor identity.
+
+Implementation details, source references, proposed grouped verification and
+remaining acceptance gaps are recorded in
+[CREDENTIAL-ADVANCED-EDITING-PARITY.md](CREDENTIAL-ADVANCED-EDITING-PARITY.md).
+The October 18 extension has not yet passed its grouped checkpoint; earlier
+receipts establish their stated historical coverage only.

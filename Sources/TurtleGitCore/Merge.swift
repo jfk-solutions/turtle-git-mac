@@ -12,12 +12,25 @@ public struct MergeOptions: Sendable {
     public var strategyOption = ""
     public var strategyParameter = ""
     public var message = ""
+    public var stripComments = false
+    public var sanitizeMessage = true
+    /// User-invoked Merge checks configured identity even for a fast-forward.
+    /// Fetch's internal fast-forward deliberately retains Git's own requirements.
+    public var requireIdentity = false
     public init() {}
     public static let strategies = ["resolve", "recursive", "ours", "subtree"]
     public static let strategyOptions = ["ours", "theirs", "patience", "ignore-space-change", "ignore-all-space", "ignore-space-at-eol", "renormalize", "no-renormalize", "rename-threshold", "subtree"]
 }
+public struct MergePreparation: Sendable {
+    public let identity: ReplayUserIdentity
+    public let replayActive: Bool
+    public let hasGitSVN: Bool
+    public init(identity: ReplayUserIdentity, replayActive: Bool, hasGitSVN: Bool) {
+        self.identity = identity; self.replayActive = replayActive; self.hasGitSVN = hasGitSVN
+    }
+}
 public enum MergeFailure: LocalizedError {
-    case revision, combination, strategy, parameter, logCount
+    case revision, combination, strategy, parameter, logCount, identity, activeReplay
     public var errorDescription: String? {
         switch self {
         case .revision: return "Choose a branch, tag or commit that exists in this repository."
@@ -25,10 +38,41 @@ public enum MergeFailure: LocalizedError {
         case .strategy: return "Choose a supported merge strategy and strategy option."
         case .parameter: return "Enter a valid strategy parameter."
         case .logCount: return "Enter a nonnegative number of commit messages."
+        case .identity: return "Configure your Git user name and email before merging."
+        case .activeReplay: return "Finish or abort the active TurtleGit rebase or cherry-pick before merging."
         }
     }
 }
 extension GitRepository {
+    private func mergeRepositoryPath(_ name: String, cancellation: OperationCancellation?) throws -> URL {
+        var bytes = try run(["rev-parse", "--git-path", name], cancellation: cancellation).stdout
+        if bytes.last == 10 { bytes.removeLast() }
+        let path = String(decoding: bytes, as: UTF8.self)
+        return path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
+    }
+    /// Read ownership markers without invoking rebaseState's transaction recovery:
+    /// this preflight must not edit an in-progress replay merely to reject Merge.
+    private func mergeHasOwnedReplay(cancellation: OperationCancellation?) throws -> Bool {
+        let manager = FileManager.default
+        for name in ["rebase-merge", "rebase-apply"] {
+            let directory = try mergeRepositoryPath(name, cancellation: cancellation)
+            for marker in ["turtlegit-session.json", "turtlegit-replay-identities.json", "turtlegit-cherry-pick.json"] {
+                try cancellation?.check()
+                if manager.fileExists(atPath: directory.appendingPathComponent(marker).path) { return true }
+            }
+        }
+        return false
+    }
+    public func prepareMerge(cancellation: OperationCancellation? = nil) throws -> MergePreparation {
+        let identity = try replayUserIdentity(cancellation: cancellation)
+        let active = try mergeHasOwnedReplay(cancellation: cancellation)
+        var bytes = try run(["rev-parse", "--git-common-dir"], cancellation: cancellation).stdout
+        if bytes.last == 10 { bytes.removeLast() }
+        let path = String(decoding: bytes, as: UTF8.self)
+        let common = path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
+        try cancellation?.check()
+        return MergePreparation(identity: identity, replayActive: active, hasGitSVN: FileManager.default.fileExists(atPath: common.appendingPathComponent("svn/.metadata").path))
+    }
     public func mergeMessageCount() -> Int {
         (try? mergeMessageCount(cancellation: OperationCancellation())) ?? 20
     }
@@ -68,12 +112,24 @@ extension GitRepository {
             }
             args.append("--strategy-option=" + option)
         }
+        var messageFile: EncodedCommitMessageFile?
+        defer { messageFile?.remove() }
         if !options.squash, !options.message.isEmpty {
             guard !options.message.contains("\0") else { throw MergeFailure.parameter }
-            args += ["-m", options.message]
+            let prepared = try prepareCommitMessageFile(options.message, stripComments: options.stripComments, sanitize: options.sanitizeMessage, cancellation: cancellation)
+            let file = try makeCommitMessageFile(prepared.contents, appendFinalNewline: false, cancellation: cancellation)
+            messageFile = file
+            args += ["-F", file.url.path]
         }
         // Keep the selected ref name for Git's generated message; -- prevents options.
         args += ["--", options.revision]
+        // Recheck after all preparation, immediately before Git can mutate refs or
+        // the index. Match the source's identity-before-replay refusal order.
+        if options.requireIdentity {
+            let identity = try replayUserIdentity(cancellation: cancellation)
+            guard identity.complete else { throw MergeFailure.identity }
+        }
+        if try mergeHasOwnedReplay(cancellation: cancellation) { throw MergeFailure.activeReplay }
         return try run(args, cancellation: cancellation, onOutput: onOutput).text
     }
 }

@@ -9,7 +9,7 @@ enum TurtleGitHelpTopic: String, CaseIterable {
     case synchronization, ignore, lfs
     case patches, export, bisect, settings, finder, folderAccess, statistics
     case revisionGraph, blame, compare, images, unifiedDiff, svn, authentication
-    case ssh, savedData, privacy, notes, moving, languages
+    case ssh, savedData, privacy, notes, moving, languages, credentials
 }
 
 @MainActor final class TurtleGitHelpService {
@@ -173,7 +173,7 @@ enum TurtleGitHelpTopic: String, CaseIterable {
         switch page {
         case .overlays, .overlayHandlers, .overlayIcons, .contextMenu, .contextMenu2: return .finder
         case .savedData: return .savedData
-        case .credential: return .authentication
+        case .credential: return .credentials
         case .network: return .ssh
         case .unifiedDiff: return .unifiedDiff
         case .diff, .mergeTool, .mergeEditor, .mergeColors: return .compare

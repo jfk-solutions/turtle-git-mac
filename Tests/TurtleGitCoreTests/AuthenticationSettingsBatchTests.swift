@@ -25,7 +25,7 @@ final class AuthenticationSettingsBatchTests: XCTestCase {
         try await repo.saveCredential(draft, file: config, expected: before)
         let after = try await repo.credentialConfiguration(), group = try XCTUnwrap(after.groups.first { $0.url == draft.url })
         XCTAssertEqual(group.helpers, draft.helpers); XCTAssertEqual(group.username, draft.username); XCTAssertFalse(group.useHTTPPath)
-        XCTAssertEqual(group.entries.last { $0.field == "usehttppath" }?.value, "false")
+        XCTAssertNil(group.entries.last { $0.field == "usehttppath" })
         XCTAssertTrue(group.entries.contains { $0.field == "custom" && $0.value == "retained" })
         XCTAssertTrue(after.groups.contains { $0.url == "https://other.invalid" && $0.helpers == ["other"] })
         XCTAssertEqual(try Data(contentsOf: included), bytes)

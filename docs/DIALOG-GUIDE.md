@@ -192,9 +192,23 @@ the remote.
 
 ## Merge and conflicts
 
+Merge first checks the Git identity and whether a TurtleGit replay is active.
+If identity needs repair, complete the owned Git Settings sheet before continuing.
+An active TurtleGit replay must be finished or aborted before starting Merge.
+
 Choose the revision to merge and review the merge options/message. Commit options
-control whether Git creates a merge commit automatically. A conflict leaves an
-unfinished merge in the repository; it is not resolved by dismissing progress.
+control whether Git creates a merge commit automatically. A custom message uses
+the repository's commit encoding and the configured comment-stripping and message
+sanitizing preferences. The automatic message and Squash retain Git's own message
+behavior. An unavailable commit encoding reports an error before Merge changes
+the repository. As in the source, characters unavailable in the selected encoding
+can be replaced with question marks. Message History opens a separate owned sheet; closing it preserves
+the current draft unless you accept an entry.
+
+After a successful committed merge, a Git-SVN repository also offers SVN DCommit,
+including merges selected by a tag or commit. This opens the existing SVN workflow
+with its own options and confirmation. A conflict leaves an unfinished merge in
+the repository; it is not resolved by dismissing progress.
 
 Use Resolve or the conflict-file context menu to open the appropriate text,
 image, delete/modify or submodule workflow. Compare the named sides, save the

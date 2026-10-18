@@ -345,9 +345,11 @@ extension GitRepository {
         try cancellation?.check()
         return try CommitMessageEncoding.decode(data, name: commitMessageEncodingName(cancellation: cancellation))
     }
-    func makeCommitMessageFile(_ message: String, appendFinalNewline: Bool = true) throws -> EncodedCommitMessageFile {
+    func makeCommitMessageFile(_ message: String, appendFinalNewline: Bool = true, cancellation: OperationCancellation? = nil) throws -> EncodedCommitMessageFile {
+        try cancellation?.check()
         let payload = !appendFinalNewline || message.hasSuffix("\n") ? message : message + "\n"
-        let data = try encodedCommitMessage(payload)
+        let data = try CommitMessageEncoding.encode(payload, name: commitMessageEncodingName(cancellation: cancellation))
+        try cancellation?.check()
         let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-message-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         let result = EncodedCommitMessageFile(directory: directory, url: directory.appendingPathComponent("message"))

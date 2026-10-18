@@ -1462,7 +1462,7 @@ import UniformTypeIdentifiers
         guard !busy, !confirmingQuit, !bare, let repository else { return }
         showSVN(operation, repository: repository, access: activeAccess)
     }
-    func showSVN(_ operation: GitSVNOperation, repository: GitRepository, access: RepositoryAccessLease?) {
+    func showSVN(_ operation: GitSVNOperation, repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults? = nil) {
         guard !confirmingQuit else { return }
         let key = repository.root.path
         if let existing = svnWindows[key] {
@@ -1474,22 +1474,23 @@ import UniformTypeIdentifiers
             existing.window?.close()
         }
         if operation == .rebase, let existing = rebaseWindows[key] { existing.window?.makeKeyAndOrderFront(nil); error = "Close the existing Rebase dialog before starting SVN Rebase."; return }
-        let controller = svnWindowFactory?(repository,access,operation) ?? SVNWindowController(repository: repository, access: access, operation: operation, preferences: fileComparisonPreferences)
+        let controller = svnWindowFactory?(repository,access,operation) ?? SVNWindowController(repository: repository, access: access, operation: operation, preferences: preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self, weak controller] in
             guard let self, let controller, self.svnWindows[key] === controller else { return }
             self.svnWindows.removeValue(forKey: key)
         }
+        let inherited = controller.model.outputPreferences
         controller.model.onChanged = { [weak self] in
             self?.refreshRepositoryLogs(repository.root)
             if self?.root == repository.root { Task { await self?.refresh() } }
         }
-        controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: .revision(from), to: .revision(to)) }
-        controller.model.onLog = { [weak self] result in self?.showLog(repository: repository, access: access, paths: [], revisionRange: HistoryRevisionRange(from: result.oldHash, to: result.newHash)) }
-        controller.model.onRepositoryLog = { [weak self] in self?.showLog(repository: repository, access: access, paths: []) }
+        controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: .revision(from), to: .revision(to), preferences: inherited) }
+        controller.model.onLog = { [weak self] result in self?.showLog(repository: repository, access: access, paths: [], revisionRange: HistoryRevisionRange(from: result.oldHash, to: result.newHash), preferences: inherited) }
+        controller.model.onRepositoryLog = { [weak self] in self?.showLog(repository: repository, access: access, paths: [], preferences: inherited) }
         controller.model.openRebase = { [weak self, weak controller] reference in
             guard let self, let window = controller?.window, window.attachedSheet == nil, self.rebaseWindows[key] == nil else { return false }
             return await withCheckedContinuation { continuation in
-                self.showRebase(repository: repository, access: access, upstream: String(reference.dropFirst("refs/".count)), owner: window, onResult: { continuation.resume(returning: $0) }, onRequestedLog: { [weak controller] in controller?.model.pendingRebaseLog = true })
+                self.showRebase(repository: repository, access: access, upstream: String(reference.dropFirst("refs/".count)), owner: window, onResult: { continuation.resume(returning: $0) }, onRequestedLog: { [weak controller] in controller?.model.pendingRebaseLog = true }, preferences: inherited)
             }
         }
         svnWindows[key] = controller
@@ -2805,12 +2806,12 @@ import UniformTypeIdentifiers
         controller.onClosed = { [weak self] in self?.exportWindows.removeValue(forKey: key) }
         exportWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showMergeAbort(repository: GitRepository, access: RepositoryAccessLease?, commandLaunch: Bool = false) {
+    private func showMergeAbort(repository: GitRepository, access: RepositoryAccessLease?, commandLaunch: Bool = false, preferences: UserDefaults? = nil) {
         if commandLaunch, let existing = mergeAbortWindows.values.first(where: { $0.model.repository.root == repository.root }) {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return
         }
         let id = UUID(), root = repository.root
-        let controller = mergeAbortWindowFactory?(repository,access) ?? MergeAbortWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
+        let controller = mergeAbortWindowFactory?(repository,access) ?? MergeAbortWindowController(repository: repository, access: access, preferences: preferences ?? fileComparisonPreferences)
         controller.configureModifiedComparison={ [weak self] model in self?.configureRevisionComparisonInteractions(model,repository:repository,access:access) }
         controller.onClosed = { [weak self] in self?.mergeAbortWindows.removeValue(forKey: id) }
         controller.model.onChanged = { [weak self] output in
@@ -2829,7 +2830,7 @@ import UniformTypeIdentifiers
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
-        let root = repository.root
+        let root = repository.root, preferences = controller.model.presentationPreferences
         controller.model.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
             self?.statusWindows[root.path]?.model.requestReload(); self?.refreshRepositoryLogs(root)
@@ -2839,16 +2840,17 @@ import UniformTypeIdentifiers
         }
         controller.model.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.model.showStashPop = showStashPop
-        controller.model.onAbortRequested = { [weak self] in self?.showMergeAbort(repository: repository, access: access) }
+        controller.model.onAbortRequested = { [weak self] in self?.showMergeAbort(repository: repository, access: access, preferences: preferences) }
         controller.model.onPostAction = { [weak self] action, request in
             switch action {
-            case .resolve: self?.showResolve(repository: repository, access: access, paths: [], quick: nil)
-            case .commit: self?.showCommitDialog(repository: repository, access: access, paths: [])
+            case .resolve: self?.showResolve(repository: repository, access: access, paths: [], quick: nil, preferences: preferences)
+            case .commit: self?.showCommitDialog(repository: repository, access: access, paths: [], preferences: preferences)
             case .stash:
                 var followUp = StashSaveFollowUp(); followUp.mergeRevision = request.revision
-                self?.showStash(repository: repository, access: access, followUp: followUp)
-            case .stashPop: self?.showStashRestore(repository: repository, access: access, pop: true)
-            case .push: self?.showPush(repository: repository, access: access)
+                self?.showStash(repository: repository, access: access, followUp: followUp, preferences: preferences)
+            case .stashPop: self?.showStashRestore(repository: repository, access: access, pop: true, preferences: preferences)
+            case .push: self?.showPush(repository: repository, access: access, preferences: preferences)
+            case .svnDCommit: self?.showSVN(.dcommit, repository: repository, access: access, preferences: preferences)
             case .mergeUnrelated, .removeBranch: break
             }
         }
@@ -2859,15 +2861,16 @@ import UniformTypeIdentifiers
         }
     }
     func configureLogIntegration(_ log:LogWindowModel,repository:GitRepository,access:RepositoryAccessLease?) {
-        log.onMergeRevision = { [weak self] revision in self?.showMerge(repository:repository,access:access,revision:revision) }
+        let preferences = log.colorPreferences
+        log.onMergeRevision = { [weak self] revision in self?.showMerge(repository:repository,access:access,revision:revision,preferences:preferences) }
         log.onPreparedRebase = { [weak self] prepared in
-            self?.showRebase(repository:repository,access:access,upstream:prepared.canonicalRevision,fromLog:true)
+            self?.showRebase(repository:repository,access:access,upstream:prepared.canonicalRevision,fromLog:true,preferences:preferences)
         }
     }
-    private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, showStashPop: Bool = false, commandLaunch: Bool = false) {
+    private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, showStashPop: Bool = false, commandLaunch: Bool = false, preferences: UserDefaults? = nil) {
         let key = repository.root.path + "\0" + (commandLaunch ? "command-merge" : UUID().uuidString)
         if let existing = mergeWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
-        let controller = MergeWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
+        let controller = MergeWindowController(repository: repository, access: access, preferences: preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.mergeWindows.removeValue(forKey: key) }
         configureMergeInteractions(controller, repository: repository, access: access, showStashPop: showStashPop)
         mergeWindows[key] = controller; controller.model.load(revision: revision)
@@ -2899,7 +2902,7 @@ import UniformTypeIdentifiers
         controller.model.onPostAction = { [weak self] action, request in
             switch action {
             case .pull: self?.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(stashSave: request), preferences: preferences)
-            case .merge: if let revision = request.mergeRevision { self?.showMerge(repository: repository, access: access, revision: revision, showStashPop: true) }
+            case .merge: if let revision = request.mergeRevision { self?.showMerge(repository: repository, access: access, revision: revision, showStashPop: true, preferences: preferences) }
             case .pop, .apply: self?.showStashRestore(repository: repository, access: access, pop: action == .pop, preferences: preferences)
             }
         }

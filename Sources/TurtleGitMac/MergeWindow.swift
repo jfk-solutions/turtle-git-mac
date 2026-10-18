@@ -11,9 +11,15 @@ import TurtleGitCore
     var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void { get { pickers.configureReferencePicker } set { pickers.configureReferencePicker = newValue } }
     var presentPicker: (NSWindow, NSWindow) -> Bool { get { pickers.presentPicker } set { pickers.presentPicker = newValue } }
     var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults, String?) -> LogWindowController { get { pickers.makeCommitPicker } set { pickers.makeCommitPicker = newValue } }
-    private var historyWindow: NSWindow?
+    private(set) var historyWindow: NSWindow?
+    private var historyAnswered=false
+    private var identitySettings: SettingsSheetController?
+    var identitySettingsWindow: NSWindow? { identitySettings?.window }
+    var identityNavigation: SettingsNavigationController? { identitySettings?.navigation }
+    private var closingPreparation = false
+    static var activeChildReleases: Int { MergeChildRelease.activeCount }
     private(set) var progressController: MergeProgressWindowController?
-    var presentProgress: (NSWindow, NSWindow) -> Void = { owner, child in owner.beginSheet(child) }
+    var presentProgress: (NSWindow, NSWindow) -> Void = { owner, child in child.alphaValue=owner.alphaValue;child.appearance=owner.appearance;owner.beginSheet(child) }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = MergeWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 570), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -25,7 +31,7 @@ import TurtleGitCore
         pickers.configureCommitPicker = { [weak model] log in model?.configureLogPicker(log) }
         window.setContentSize(NSSize(width: 680, height: 570)); window.center()
         model.close = { [weak self] in
-            guard let self, !self.model.busy, self.model.pickerTarget == nil, self.window?.attachedSheet == nil else { return }
+            guard let self, !self.model.confirmingQuit, !self.model.busy, !self.model.hasHistory, !self.model.hasIdentitySettings, self.model.pickerTarget == nil, self.window?.attachedSheet == nil else { return }
             self.window?.close()
         }
         model.onProgress = { [weak self] progress in
@@ -39,35 +45,112 @@ import TurtleGitCore
             self.progressController = controller
             if let child = controller.window { self.presentProgress(window, child) }
         }
+        model.becameIdle = { [weak self] in if self?.closingPreparation == true { self?.model.close() } }
+        model.retireIdentitySettings = { [weak self] in self?.identitySettings?.retire() }
+        model.repairIdentity = { [weak self] in await self?.showIdentitySettings() ?? false }
         model.showMessageHistory = { [weak self] insert in self?.showHistory(insert: insert) }
 
         DialogGeometry.attach(window, identifier: "MergeWindowController")
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && model.pickerTarget == nil && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !model.confirmingQuit else { return false }
+        if model.preparing { closingPreparation=true;model.cancelPreparation();return false }
+        return !model.busy && !model.hasHistory && !model.hasIdentitySettings && model.pickerTarget == nil && sender.attachedSheet == nil
+    }
+    func showIdentitySettings() async -> Bool {
+        guard !model.closed, identitySettings == nil, let window, window.attachedSheet == nil else { return false }
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false)
+        workspace.root=model.repository.root;workspace.settingsContextOverride=(model.repository,model.repositoryAccess,true)
+        let child=SettingsSheetController(workspace:workspace,preferences:model.presentationPreferences,initialPage:.git,title:"Settings – TurtleGit for Mac")
+        identitySettings=child;model.hasIdentitySettings=true;child.window?.appearance=window.appearance
+        return await withCheckedContinuation { continuation in
+            child.onClosed = { [weak self,weak child] accepted in
+                if let self,self.identitySettings === child { self.identitySettings=nil;self.model.hasIdentitySettings=false }
+                continuation.resume(returning:accepted)
+            }
+            child.presentSheet(for:window)
+        }
+    }
     func windowWillClose(_ notification: Notification) {
-        model.saveMessageHistoryForClose(); model.invalidate(); pickers.invalidate()
+        model.saveMessageHistoryForClose(); model.invalidate(); identitySettings?.retire(); pickers.invalidate()
         let controller = progressController; progressController = nil
-        if let child = controller?.window, child.sheetParent === window { window?.endSheet(child) }
-        controller?.close(); historyWindow?.close(); historyWindow = nil
+        controller?.close()
+        if let child=historyWindow {historyAnswered=true;let release=MergeChildRelease(window:child,parent:window,closeWindow:true) {[model] in model.hasHistory=false};release.start();child.close()};historyWindow=nil
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
         onClosed()
     }
-    private func showHistory(insert: @escaping (String) -> Void) {
-        guard let window, window.attachedSheet == nil, historyWindow == nil, !model.busy, model.pickerTarget == nil, !model.closed else { return }
+    func showHistory(insert: @escaping (String) -> Void) {
+        guard let window, window.attachedSheet == nil, historyWindow == nil, model.canEditMessage else { return }
         let child = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 320), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         child.title = "Log History – TurtleGit"; child.minSize = NSSize(width: 400, height: 260); child.isReleasedWhenClosed = false
+        let draft=model.message
+        model.hasHistory=true;child.alphaValue=window.alphaValue;child.appearance=window.appearance
         child.contentView = MessageHistoryPickerView(history: model.messageHistory) { [weak self, weak window, weak child] text in
-            guard let self, let child, self.historyWindow === child, !self.model.closed else { return }; window?.endSheet(child); child.orderOut(nil); self.historyWindow = nil
-            if let text { insert(text) }
+            guard let self, let child, self.historyWindow === child, !self.historyAnswered, !self.model.closed else { return }
+            self.historyAnswered=true
+            let release=MergeChildRelease(window:child,parent:window,closeWindow:true) { [self] in
+                self.historyWindow=nil;self.model.hasHistory=false
+                if self.model.canEditMessage,self.model.message == draft,let text {insert(text)}
+            }
+            release.start()
         }
         DialogGeometry.attach(child, identifier: "HistoryDlg")
-        historyWindow = child; window.beginSheet(child)
+        historyAnswered=false;historyWindow = child; window.beginSheet(child)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class MergeWindowModel: ObservableObject, VersionPickerModel {
     private(set) static var activeReads = 0
+    @Published var confirmingQuit=false { didSet { if confirmingQuit != oldValue {formRevision=UUID()};progress?.confirmingQuit=confirmingQuit } }
+    @Published var hasHistory=false {didSet {if hasHistory != oldValue {formRevision=UUID()}}}
+    @Published var hasIdentitySettings=false {didSet {if hasIdentitySettings != oldValue {formRevision=UUID()}}}
+    @Published private(set) var prepared=false
+    @Published private(set) var preparing=false
+    @Published private(set) var formRevision=UUID()
+    var repositoryAccess:RepositoryAccessLease? {access}
+    var becameIdle:()->Void = {}
+    var retireIdentitySettings:()->Void = {}
+    var readPreparation:((OperationCancellation) async throws -> MergePreparation)?
+    var repairIdentity:() async -> Bool = {false}
+    struct FormContext:Equatable {let revision:UUID}
+    var formContext:FormContext {.init(revision:formRevision)}
+    var canEditForm:Bool {prepared && !closed && !confirmingQuit && !busy && !hasHistory && !hasIdentitySettings && pickerTarget == nil && progress == nil}
+    var canEditMessage:Bool {canEditForm && !options.squash}
+    func field<Value>(_ key:ReferenceWritableKeyPath<MergeWindowModel,Value>,context:FormContext)->Binding<Value> {
+        Binding(get:{self[keyPath:key]},set:{value in guard self.canEditForm,self.formContext == context else{return}
+            if key == \MergeWindowModel.branchRevision,self.target != .branch {return}
+            if key == \MergeWindowModel.tagRevision,self.target != .tag {return}
+            if key == \MergeWindowModel.commitRevision,self.target != .commit {return}
+            if key == \MergeWindowModel.messageCount,!self.messages {return}
+            if key == \MergeWindowModel.message,self.options.squash {return}
+            self[keyPath:key]=value})
+    }
+    func option<Value>(_ key:WritableKeyPath<MergeOptions,Value>,context:FormContext)->Binding<Value> {
+        Binding(get:{self.options[keyPath:key]},set:{value in
+            guard self.canEditForm,self.formContext == context else{return}
+            if key == \MergeOptions.squash,self.options.noFastForward {return}
+            if key == \MergeOptions.noFastForward,self.options.squash || self.options.fastForwardOnly {return}
+            if key == \MergeOptions.fastForwardOnly,self.options.noFastForward {return}
+            if key == \MergeOptions.strategyOption,self.options.strategy != "recursive" {return}
+            if key == \MergeOptions.strategyParameter,self.options.strategy != "recursive" || !["rename-threshold","subtree"].contains(self.options.strategyOption) {return}
+            self.options[keyPath:key]=value
+        })
+    }
+    private func requirePreparation(_ token:OperationCancellation) async throws {
+        while true {
+            try token.check();guard !closed else{throw OperationCancellationFailure.cancelled}
+            let state:MergePreparation
+            if let readPreparation {state=try await readPreparation(token)} else {state=try await repository.prepareMerge(cancellation:token)}
+            try token.check();guard !closed else{throw OperationCancellationFailure.cancelled}
+            if !state.identity.complete {guard await repairIdentity(),!closed else{throw OperationCancellationFailure.cancelled};continue}
+            guard !state.replayActive else {throw MergeFailure.activeReplay}
+            return
+        }
+    }
+    func cancelPreparation() {loadToken?.cancel();retireIdentitySettings()}
+    private var closeAfterPreparation=false
+    func cancel() {if preparing {closeAfterPreparation=true;cancelPreparation()} else {close()}}
     var versionPickerDraft: [GitReferenceName] { [target.rawValue, branchRevision, tagRevision, commitRevision].map { GitReferenceName($0) } }
     let repository: GitRepository
     private let access: RepositoryAccessLease?
@@ -75,13 +158,13 @@ import TurtleGitCore
     static let defaultMessage = "<Auto Generated by Git>"
     @Published var references: [CheckoutReference] = []
     @Published var currentBranch = ""
-    @Published var target = CheckoutTarget.branch
+    @Published var target = CheckoutTarget.branch {didSet {if target != oldValue {formRevision=UUID()}}}
     @Published var branchRevision = ""
     @Published var tagRevision = ""
     @Published private(set) var commitChoices: [String] = []
     @Published var commitRevision = "HEAD"
-    @Published var options = MergeOptions()
-    @Published var messages = false
+    @Published var options = MergeOptions() {didSet {if options.strategy != oldValue.strategy || options.strategyOption != oldValue.strategyOption || options.noFastForward != oldValue.noFastForward || options.fastForwardOnly != oldValue.fastForwardOnly || options.squash != oldValue.squash || options.noCommit != oldValue.noCommit {formRevision=UUID()}}}
+    @Published var messages = false {didSet {if messages != oldValue {formRevision=UUID()}}}
     @Published var messageCount = "20"
     @Published var message = MergeWindowModel.defaultMessage
     @Published var projectSettings = ProjectDialogSettings()
@@ -109,7 +192,7 @@ import TurtleGitCore
     private var appliedReferenceFocusRequest = 0
     private var referenceSelectionToken: OperationCancellation?
     var onBrowsePicker: ((CheckoutTarget) -> Void)?
-    func canBrowse(_ target: CheckoutTarget) -> Bool { !busy && progress == nil && pickerTarget == nil && !invalidated && self.target == target && target != .tag }
+    func canBrowse(_ target: CheckoutTarget) -> Bool { canEditForm && self.target == target && target != .tag }
     func beginPicker(_ target: CheckoutTarget) -> Bool { guard canBrowse(target) else { return false }; pickerTarget = target; return true }
     func browse(_ target: CheckoutTarget) { guard canBrowse(target) else { return }; onBrowsePicker?(target) }
     func finishPicker() { referenceSelectionToken?.cancel(); referenceSelectionToken = nil; pickerTarget = nil; busy = false }
@@ -131,7 +214,7 @@ import TurtleGitCore
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
                 let current = try await repository.branch(cancellation: token)
-                guard !invalidated, referenceSelectionToken === token, !token.isCancelled, versionPickerDraft == selectionDraft else { return }
+                guard !invalidated, !confirmingQuit, referenceSelectionToken === token, !token.isCancelled, versionPickerDraft == selectionDraft else { return }
                 references = catalog; currentBranch = current
                 if let reference = catalog.first(where: { GitReferenceName.equal($0.name, requested) }), let target = reference.target {
                     self.target = target
@@ -147,7 +230,7 @@ import TurtleGitCore
         commitRevision = selected
     }
     func acceptCommitSelection(_ entry: LogEntry?) {
-        guard !invalidated, pickerTarget == .commit else { return }
+        guard !invalidated, !confirmingQuit, pickerTarget == .commit else { return }
         if let entry { selectCustomRevision(entry.hash); referenceFocusRequest += 1 }
         finishPicker()
     }
@@ -158,19 +241,21 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.preferences = preferences; messageHistory = MergeMessageHistory(defaults: preferences)
     }
-    func saveMessageHistoryForClose() {
+    func saveMessageHistoryForClose() { saveAcceptedMessageHistory(message:message,noCommit:options.noCommit) }
+    private func saveAcceptedMessageHistory(message:String,noCommit:Bool) {
         guard !historyHandled else { return }
         historyHandled = true
-        if !options.noCommit, message != Self.defaultMessage { messageHistory.add(message) }
+        if !noCommit, message != Self.defaultMessage { messageHistory.add(message) }
     }
     func load(revision preset: String? = nil) {
-        guard !busy, pickerTarget == nil, !invalidated else { return }; busy = true
+        guard !closed,!confirmingQuit,!busy,!hasHistory,!hasIdentitySettings,pickerTarget == nil,progress == nil else{return}; busy = true; preparing=true;prepared=false;formRevision=UUID()
         let token = OperationCancellation(); loadToken = token
         Self.activeReads += 1
         Task {
-            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if loadToken === token { loadToken = nil; busy = false } }
+            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if loadToken === token { loadToken = nil; busy = false;preparing=false;if !closed {becameIdle();if closeAfterPreparation {close()}} } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                try await requirePreparation(token)
                 let current = try await repository.branch(cancellation: token), catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
                 let defaults = try await repository.pushDefaults(source: "HEAD", cancellation: token)
                 let destination = defaults.destination.hasPrefix("refs/heads/") ? String(defaults.destination.dropFirst(11)) : defaults.destination
@@ -179,7 +264,7 @@ import TurtleGitCore
                 let project = try await repository.projectDialogSettings(source: .effective, cancellation: token)
                 let issues = try await repository.issueTrackerProperties(cancellation: token)
                 guard !invalidated, loadToken === token, !token.isCancelled else { return }
-                currentBranch = current; references = catalog
+                prepared=true;currentBranch = current; references = catalog
                 branchRevision = preset ?? ""
                 branchRevision = branches.first { GitReferenceName.equal($0.name, tracked) }?.name ?? branches.first?.name ?? ""
                 tagRevision = tags.first?.name ?? ""; messageCount = String(count); projectSettings = project; issueProperties = issues
@@ -192,25 +277,38 @@ import TurtleGitCore
         }
     }
     func merge() {
-        guard !invalidated, !busy, pickerTarget == nil, !revision.isEmpty else { return }
+        guard canEditForm, !revision.isEmpty else { return }
         var snapshot = options; snapshot.revision = revision
         if messages {
             guard let count = Int(messageCount), count >= 0 else { error = MergeFailure.logCount.localizedDescription; return }
             snapshot.logCount = count
         }
         snapshot.message = message == Self.defaultMessage ? "" : message
-        saveMessageHistoryForClose()
-        busy = true
+        snapshot.requireIdentity=true
+        snapshot.stripComments=preferences.bool(forKey:"StripCommentedLines")
+        snapshot.sanitizeMessage=preferences.object(forKey:"SanitizeCommitMsg") as? Bool ?? true
+        let acceptedTarget=target,acceptedStashPop=showStashPop,acceptedMessage=message
+        busy=true;preparing=true;formRevision=UUID()
+        let token=OperationCancellation();loadToken=token;Self.activeReads += 1
+        Task {
+            defer {Self.activeReads -= 1;withExtendedLifetime(access) {};if loadToken === token {loadToken=nil;preparing=false;if progress == nil {busy=false};if !closed {becameIdle();if closeAfterPreparation {close()}}}}
+            do {try await requirePreparation(token);try token.check();guard !closed else{return}}
+            catch {if !closed,!token.isCancelled {self.error=error.localizedDescription};return}
+            saveAcceptedMessageHistory(message:acceptedMessage,noCommit:snapshot.noCommit)
+            beginMerge(snapshot,target:acceptedTarget,showStashPop:acceptedStashPop)
+        }
+    }
+    private func beginMerge(_ snapshot:MergeOptions,target:CheckoutTarget,showStashPop:Bool) {
         let progress = MergeProgressWindowModel(repository: repository, access: access, options: snapshot, target: target, showStashPop: showStashPop, preferences: preferences)
         self.progress = progress
         progress.onChanged = { [weak self, weak progress] output in guard let self, let progress, !self.invalidated, self.progress === progress else { return }; self.onChanged(output) }
-        if onPostAction != nil { progress.onPostAction = { [weak self] action, request in guard let self, !self.invalidated || self.acknowledged else { return }; self.onPostAction?(action, request) } }
-        if onAbortRequested != nil { progress.onAbortRequested = { [weak self] in guard let self, !self.invalidated || self.acknowledged else { return }; self.onAbortRequested?() } }
+        if onPostAction != nil { progress.onPostAction = { [self] action, request in guard !invalidated || acknowledged else { return }; self.onPostAction?(action, request) } }
+        if onAbortRequested != nil { progress.onAbortRequested = { [self] in guard !invalidated || acknowledged else { return }; self.onAbortRequested?() } }
         progress.close = { [weak self, weak progress] in if let progress { self?.finish(progress) } }
         onProgress?(progress); progress.start()
     }
     func abandonProgressPresentation(_ progress: MergeProgressWindowModel) { guard self.progress === progress else { return }; progress.invalidate(); self.progress = nil; busy = false }
-    func invalidate() { invalidated = true; finishPicker(); referenceFocusRequest = 0; loadToken?.cancel(); loadToken = nil; progress?.invalidate(); progress = nil; busy = false }
+    func invalidate() { invalidated = true; formRevision=UUID();retireIdentitySettings(); finishPicker(); referenceFocusRequest = 0; loadToken?.cancel(); loadToken = nil; progress?.invalidate(); progress = nil; busy = false }
     func finish(_ progress: MergeProgressWindowModel) {
         guard self.progress === progress, !progress.busy, !progress.confirmingCancellation, !progress.confirmingDeletion else { return }
         self.progress = nil; busy = false; guard !invalidated else { return }; acknowledged = true; close()
@@ -220,64 +318,66 @@ import TurtleGitCore
 private struct MergeDialog: View {
     @ObservedObject var model: MergeWindowModel
     var body: some View {
+        let context=model.formContext
         VStack(alignment: .leading, spacing: 12) {
             HStack { Text("Current branch:").frame(width: 115, alignment: .leading); Text(model.currentBranch.isEmpty ? "Detached HEAD" : model.currentBranch).foregroundStyle(.blue) }
             GroupBox("From") {
                 VStack(spacing: 8) {
                     HStack {
-                        SwitchRadio(title: "Branch", target: .branch, selection: $model.target).frame(width: 95)
-                        ReferencePopup(references: model.branches, selection: $model.branchRevision, accessibilityLabel: "Merge branch revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .branch) }).disabled(model.target != .branch)
+                        SwitchRadio(title: "Branch", target: .branch, selection: model.field(\.target,context:context)).frame(width: 95)
+                        ReferencePopup(references: model.branches, selection: model.field(\.branchRevision,context:context), accessibilityLabel: "Merge branch revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .branch) }).disabled(model.target != .branch)
                         Button("…") { model.browse(.branch) }.accessibilityLabel("Browse references").disabled(model.target != .branch)
                     }
                     HStack {
-                        SwitchRadio(title: "Tag", target: .tag, selection: $model.target).frame(width: 95)
-                        ReferencePopup(references: model.tags, selection: $model.tagRevision, accessibilityLabel: "Merge tag revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .tag) }).disabled(model.target != .tag)
+                        SwitchRadio(title: "Tag", target: .tag, selection: model.field(\.target,context:context)).frame(width: 95)
+                        ReferencePopup(references: model.tags, selection: model.field(\.tagRevision,context:context), accessibilityLabel: "Merge tag revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .tag) }).disabled(model.target != .tag)
                         Color.clear.frame(width: 29)
                     }
                     HStack {
-                        SwitchRadio(title: "Commit", target: .commit, selection: $model.target).frame(width: 95)
-                        VersionRevisionField(text: $model.commitRevision, choices: model.commitChoices, accessibilityLabel: "Merge commit revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit) }).disabled(model.target != .commit)
+                        SwitchRadio(title: "Commit", target: .commit, selection: model.field(\.target,context:context)).frame(width: 95)
+                        VersionRevisionField(text: model.field(\.commitRevision,context:context), choices: model.commitChoices, accessibilityLabel: "Merge commit revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit) }).disabled(model.target != .commit)
                         Button("…") { model.browse(.commit) }.accessibilityLabel("Choose commit").disabled(model.target != .commit)
                     }
                 }.padding(8)
-            }
+            }.disabled(!model.canEditForm)
             GroupBox("Option") {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Toggle("Squash", isOn: $model.options.squash).frame(width: 260, alignment: .leading).disabled(model.options.noFastForward)
-                        Toggle("Messages", isOn: $model.messages)
-                        TextField("Count", text: $model.messageCount).frame(width: 55).disabled(!model.messages).accessibilityLabel("Number of commit messages")
+                        Toggle("Squash", isOn: model.option(\.squash,context:context)).frame(width: 260, alignment: .leading).disabled(model.options.noFastForward)
+                        Toggle("Messages", isOn: model.field(\.messages,context:context))
+                        TextField("Count", text: model.field(\.messageCount,context:context)).frame(width: 55).disabled(!model.messages).accessibilityLabel("Number of commit messages")
                     }
                     HStack {
-                        Toggle("No Fast Forward", isOn: $model.options.noFastForward).frame(width: 260, alignment: .leading).disabled(model.options.squash || model.options.fastForwardOnly)
-                        Toggle("Fast Forward Only", isOn: $model.options.fastForwardOnly).disabled(model.options.noFastForward)
+                        Toggle("No Fast Forward", isOn: model.option(\.noFastForward,context:context)).frame(width: 260, alignment: .leading).disabled(model.options.squash || model.options.fastForwardOnly)
+                        Toggle("Fast Forward Only", isOn: model.option(\.fastForwardOnly,context:context)).disabled(model.options.noFastForward)
                     }
-                    Toggle("No Commit", isOn: $model.options.noCommit)
+                    Toggle("No Commit", isOn: model.option(\.noCommit,context:context))
                     HStack {
                         Text("Strategy")
-                        Picker("Merge strategy", selection: $model.options.strategy) { Text("").tag(""); ForEach(MergeOptions.strategies, id: \.self) { Text($0).tag($0) } }.labelsHidden().frame(width: 125)
-                        Picker("Strategy option", selection: $model.options.strategyOption) { Text("").tag(""); ForEach(MergeOptions.strategyOptions, id: \.self) { Text($0).tag($0) } }.labelsHidden().disabled(model.options.strategy != "recursive")
-                        TextField("Parameter", text: $model.options.strategyParameter).frame(width: 75).disabled(model.options.strategy != "recursive" || !["rename-threshold", "subtree"].contains(model.options.strategyOption))
+                        Picker("Merge strategy", selection: model.option(\.strategy,context:context)) { Text("").tag(""); ForEach(MergeOptions.strategies, id: \.self) { Text($0).tag($0) } }.labelsHidden().frame(width: 125)
+                        Picker("Strategy option", selection: model.option(\.strategyOption,context:context)) { Text("").tag(""); ForEach(MergeOptions.strategyOptions, id: \.self) { Text($0).tag($0) } }.labelsHidden().disabled(model.options.strategy != "recursive")
+                        TextField("Parameter", text: model.option(\.strategyParameter,context:context)).frame(width: 75).disabled(model.options.strategy != "recursive" || !["rename-threshold", "subtree"].contains(model.options.strategyOption))
                     }
                 }.toggleStyle(.checkbox).frame(maxWidth: .infinity, alignment: .leading).padding(8)
-            }
+            }.disabled(!model.canEditForm)
             GroupBox("Merge Message") {
-                MergeMessageEditor(model: model).frame(minHeight: 110).disabled(model.options.squash).padding(5)
+                MergeMessageEditor(model: model).frame(minHeight: 110).disabled(!model.canEditMessage).padding(5)
             }
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
                 Spacer()
-                Button("OK") { model.merge() }.keyboardShortcut(.defaultAction).disabled(model.busy || model.revision.isEmpty)
-                Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction).disabled(model.busy)
+                if !model.prepared && !model.busy {Button("Retry loading") {model.load()}.disabled(model.confirmingQuit)}
+                Button("OK") { model.merge() }.keyboardShortcut(.defaultAction).disabled(!model.canEditForm || model.revision.isEmpty)
+                Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(model.confirmingQuit || model.hasHistory || model.busy && !model.preparing)
                 Button("Help") { TurtleGitHelp.show(.merge) }
             }
-        }.padding(16).disabled(model.busy || model.pickerTarget != nil)
-        .alert("Merge failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
+        }.padding(16)
+        .alert("Merge failed", isPresented: Binding(get: { !model.closed && model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }
 }
 
 enum MergePostAction: String, CaseIterable, Hashable {
-    case resolve, commit, mergeUnrelated, stash, stashPop, removeBranch, push
+    case resolve, commit, mergeUnrelated, stash, stashPop, removeBranch, push, svnDCommit
     var title: String {
         switch self {
         case .resolve: return "Resolve…"
@@ -287,13 +387,19 @@ enum MergePostAction: String, CaseIterable, Hashable {
         case .stashPop: return "Stash Pop"
         case .removeBranch: return "Remove branch"
         case .push: return "Push…"
+        case .svnDCommit: return "SVN DCommit…"
         }
     }
     var icon: MenuIcon {
-        switch self { case .resolve: return .resolve; case .commit: return .commit; case .mergeUnrelated: return .merge; case .stash: return .stash; case .stashPop: return .stashPop; case .removeBranch: return .remove; case .push: return .push }
+        switch self { case .resolve: return .resolve; case .commit: return .commit; case .mergeUnrelated: return .merge; case .stash: return .stash; case .stashPop: return .stashPop; case .removeBranch: return .remove; case .push: return .push;case .svnDCommit:return .commit }
     }
 }
 @MainActor final class MergeProgressWindowModel: ObservableObject {
+    private(set) static var activeOperations=0
+    @Published var confirmingQuit=false
+    var presentationAvailable:()->Bool = {true}
+    var closeForHandoff:((@escaping ()->Void)->Void)?
+    private func finishAndPerform(_ action:@escaping ()->Void) {if let closeForHandoff {closeForHandoff(action)} else {close();action()}}
     let repository: GitRepository
     let options: MergeOptions
     let target: CheckoutTarget
@@ -332,7 +438,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
     private var outputState: GitProgressOutputState
     var progressPresentation: GitCommandPresentation { outputState.presentation }
     var outputLimit: Int { outputState.limit }
-    var canCancel: Bool { busy && !cancelling && !confirmingCancellation && !confirmingConflictHint }
+    var canCancel: Bool { !confirmingQuit && busy && !cancelling && !confirmingCancellation && !confirmingConflictHint }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     @Published private(set) var postActions: [MergePostAction] = []
     @Published private(set) var confirmingDeletion = false
@@ -386,6 +492,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
     }
     private func execute(_ snapshot: MergeOptions) async {
         guard !invalidated else { return }
+        Self.activeOperations += 1;defer {Self.activeOperations -= 1;withExtendedLifetime(access) {}}
         busy = true; success = false; cancelled = false; cancelling = false; outputState.reset(); output = ""; rawOutput = ""; percentage = nil; currentWork = ""; postActions = []
         do { try validateAccess() }
         catch { guard !invalidated else { return }; output = error.localizedDescription; rawOutput = output; busy = false; onChanged(rawOutput); return }
@@ -407,6 +514,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
                 if options.revision.hasPrefix("refs/heads/") { actions.append(.removeBranch) }
                 actions.append(.push)
             }
+            if !options.noCommit && !options.squash, (try? await repository.prepareMerge(cancellation:cancellation).hasGitSVN) == true {actions.append(.svnDCommit)}
         } else {
             // Normal Cancel still inspects recovery state using a fresh token.
             // Forced cleanup cancels this read as well as the original merge.
@@ -436,20 +544,22 @@ enum MergePostAction: String, CaseIterable, Hashable {
         postActions = actions; busy = false; cancelling = false; onChanged(rawOutput); finishResult()
     }
     func cancelResult() {
-        guard !invalidated, !busy, !confirmingCancellation, !confirmingConflictHint, !confirmingDeletion, !checkingDismissal else { return }
+        guard !invalidated, !confirmingQuit, !busy, !confirmingCancellation, !confirmingConflictHint, !confirmingDeletion, !checkingDismissal else { return }
         checkingDismissal = true
         let token = OperationCancellation(); dismissalCancellation = token
+        Self.activeOperations += 1
         Task {
+            defer {Self.activeOperations -= 1;withExtendedLifetime(access) {}}
             var conflicts = false
             do { try validateAccess(); conflicts = try await repository.status(refreshIndex: false, cancellation: token).contains { $0.state == .conflicted } } catch {}
             guard !invalidated, dismissalCancellation === token, !token.isCancelled else { return }
             dismissalCancellation = nil; checkingDismissal = false
-            close()
-            if conflicts { onAbortRequested?() }
+            let abort=onAbortRequested
+            finishAndPerform {if conflicts {abort?()}}
         }
     }
     func perform(_ action: MergePostAction) {
-        guard !invalidated, !dispatched, !busy, !confirmingCancellation, !confirmingDeletion, !checkingDismissal, postActions.contains(action) else { return }
+        guard !invalidated, !confirmingQuit, presentationAvailable(), !dispatched, !busy, !confirmingCancellation, !confirmingDeletion, !checkingDismissal, postActions.contains(action) else { return }
         if action == .mergeUnrelated {
             ProgressActionLog.nextAttempt(self)
             var snapshot = options; snapshot.allowUnrelatedHistories = true
@@ -460,14 +570,16 @@ enum MergePostAction: String, CaseIterable, Hashable {
             confirmDeletion(String(options.revision.dropFirst("refs/heads/".count))) { [weak self] accepted in
                 guard !answered, let self, !self.invalidated, self.confirmingDeletion else { return }
                 answered = true; self.confirmingDeletion = false
-                if accepted { self.deleteBranch() }
+                if accepted && !self.confirmingQuit { self.deleteBranch() }
             }
-        } else if let onPostAction { dispatched = true; close(); onPostAction(action, options) }
+        } else if let onPostAction { dispatched = true; let options=self.options;finishAndPerform {onPostAction(action, options)} }
     }
     private func deleteBranch() {
-        guard !invalidated, !busy, options.revision.hasPrefix("refs/heads/") else { return }; busy = true
+        guard !invalidated, !confirmingQuit, !busy, options.revision.hasPrefix("refs/heads/") else { return }; busy = true
         let token = OperationCancellation(); cancellation = token
+        Self.activeOperations += 1
         Task {
+            defer {Self.activeOperations -= 1;withExtendedLifetime(access) {}}
             do {
                 try validateAccess()
                 let result = try await repository.run(["branch", "-D", "--", String(options.revision.dropFirst("refs/heads/".count))], cancellation: token)
@@ -480,6 +592,10 @@ enum MergePostAction: String, CaseIterable, Hashable {
     }
 }
 @MainActor final class MergeProgressWindowController: NSWindowController, NSWindowDelegate {
+    private var pendingHandoff:(()->Void)?
+    private var release:MergeChildRelease?
+    private var presentationParent:NSWindow?
+    private var finished=false
     let model: MergeProgressWindowModel
     var onClosed: () -> Void = {}
     init(model: MergeProgressWindowModel) {
@@ -490,8 +606,12 @@ enum MergePostAction: String, CaseIterable, Hashable {
         window.contentViewController = NSHostingController(rootView: MergeProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in
-            guard let self, !self.model.busy, !self.model.confirmingDeletion, !self.model.confirmingCancellation, !self.model.checkingDismissal, self.window?.attachedSheet == nil else { return }
-            if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
+            guard let self, !self.model.confirmingQuit, !self.model.busy, !self.model.confirmingDeletion, !self.model.confirmingCancellation, !self.model.checkingDismissal, self.window?.attachedSheet == nil else { return }
+            if let window = self.window {self.presentationParent=window.sheetParent;window.close()}
+        }
+        model.presentationAvailable = { [weak window] in window != nil && window?.attachedSheet == nil }
+        model.closeForHandoff = { [weak self] action in
+            guard let self,!self.finished,self.pendingHandoff == nil else{return};self.pendingHandoff=action;self.model.close()
         }
         model.presentConflictHint = { [weak window] in
             guard let window, window.attachedSheet == nil else { return false }
@@ -500,6 +620,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
                 alert.messageText = "TurtleGit"; alert.informativeText = MergeProgressWindowModel.conflictHint
                 alert.addButton(withTitle: "OK")
                 alert.showsSuppressionButton = true; alert.suppressionButton?.title = "Don't show this message again"
+                alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
                 alert.beginSheetModal(for: window) { _ in continuation.resume(returning: alert.suppressionButton?.state == .on) }
             }
         }
@@ -507,30 +628,35 @@ enum MergePostAction: String, CaseIterable, Hashable {
             guard let window, window.attachedSheet == nil else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
         model.confirmDeletion = { [weak window] branch, choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = "Delete branch \"\(branch)\"?"
             alert.addButton(withTitle: "Delete"); alert.addButton(withTitle: "Abort")
+            alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
 
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if model.confirmingConflictHint || model.confirmingCancellation { return false }
+        if model.confirmingQuit || model.confirmingConflictHint || model.confirmingCancellation { return false }
         if model.busy { model.cancel(); return false }
         guard !model.confirmingDeletion, !model.checkingDismissal, sender.attachedSheet == nil else { return false }
         model.cancelResult(); return false
     }
     func windowWillClose(_ notification: Notification) {
-        model.saveActionLog(); model.invalidate()
-        if let window {
-            if let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
-            window.sheetParent?.endSheet(window)
+        guard !finished else{return};finished=true
+        model.saveActionLog();model.invalidate();model.closeForHandoff=nil
+        guard let window else{onClosed();return}
+        if let sheet=window.attachedSheet {window.endSheet(sheet,returnCode:.abort);sheet.close()}
+        let action=pendingHandoff;pendingHandoff=nil
+        let release=MergeChildRelease(window:window,parent:presentationParent ?? window.sheetParent) { [self] in
+            self.release=nil;onClosed();action?()
         }
-        onClosed()
+        self.release=release;release.start()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -872,5 +998,26 @@ private struct MergeAbortDialog: View {
             }
         }.padding(16).frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(nsColor: .windowBackgroundColor))
         .gitDockProgress(model.showingProgress ? .command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation, percentage: model.percentage) : nil)
+    }
+}
+
+@MainActor private final class MergeChildRelease {
+    static private(set) var activeCount=0
+    private let window:NSWindow,parent:NSWindow?
+    private let closeWindow:Bool
+    private var completion:()->Void
+    private var observer:NSObjectProtocol?
+    private var finished=false
+    init(window:NSWindow,parent:NSWindow?,closeWindow:Bool=false,completion:@escaping ()->Void) {self.window=window;self.parent=parent;self.closeWindow=closeWindow;self.completion=completion}
+    func start() {
+        Self.activeCount += 1
+        if window.sheetParent == nil && parent?.attachedSheet !== window {drain();return}
+        observer=NotificationCenter.default.addObserver(forName:NSWindow.didEndSheetNotification,object:parent,queue:.main) { [self] _ in DispatchQueue.main.async {self.drain()} }
+        window.sheetParent?.endSheet(window);window.orderOut(nil);DispatchQueue.main.async { [self] in drain()}
+    }
+    private func drain() {
+        guard !finished,window.sheetParent == nil,parent?.attachedSheet !== window else{return};finished=true
+        if let observer {NotificationCenter.default.removeObserver(observer);self.observer=nil}
+        Self.activeCount -= 1;if closeWindow {window.close()};let done=completion;completion={};done()
     }
 }

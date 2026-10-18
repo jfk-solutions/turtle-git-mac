@@ -3076,3 +3076,20 @@ completion percentage; full visual comparison, physical macOS/Finder acceptance,
 current hosted integration and signed/App Store distribution remain separate,
 unfinished gates. Bundled Mac Help is regenerated with included guide changes;
 the Pages source check must pass before website rendering and deployment.
+
+
+### Credential editing and Merge operation family, 2026-10-18
+
+The next connected batch ports [Credential advanced editing](CREDENTIAL-ADVANCED-EDITING-PARITY.md)
+and [Merge preparation/messages/completion](MERGE-OPERATION-PARITY.md). Credential
+Apply retains untouched origin values while explicit Save keeps its separate
+replacement behavior; Merge owns identity repair, replay checks, encoded/cleaned
+messages and Git-SVN completion. The [Credential guide](CREDENTIAL-SETTINGS.md) is
+also available from that Settings page's dedicated offline Help topic.
+
+Scoped grouped outcomes, repairs, hosted evidence and remaining gaps are recorded
+in [batch evidence](qa/credential-merge-workflows-2026-10-18.json). This is another
+partial source-family checkpoint, not a whole-port, signed Finder or App Store
+acceptance claim. The previous operation batch's Pages run
+[39150619295](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39150619295)
+built and deployed successfully, including bundled Mac Help source validation.

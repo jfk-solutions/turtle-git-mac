@@ -72,6 +72,9 @@ import TurtleGitCore
         try require(!owner.model.references.contains(where:{$0.name=="refs/tags/late"}),"Late reference already in parent catalog")
         _ = try await repo.run(["update-ref","refs/tags/late",prior])
         guard let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:refresh.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:96) else { throw Failure(description:"F5 event unavailable") }
+        refresh.commandKeyWindow={nil}
+        try require(!refresh.window!.performKeyEquivalent(with:event) && !refresh.model.busy,"Hidden non-key reference browser accepted F5")
+        refresh.commandKeyWindow={ [weak window=refresh.window] in window }
         try require(refresh.window!.performKeyEquivalent(with:event),"F5 not handled")
         try await wait([refresh.window!]) { !refresh.model.busy && refresh.model.snapshot?.references.contains(where:{$0.name=="refs/tags/late"}) == true }
         let lateChoice=refresh.model.snapshot!.initialSelection("refs/tags/late"); refresh.model.setFolder(lateChoice.folder); refresh.model.selected=lateChoice.reference; refresh.model.accept()
@@ -114,7 +117,17 @@ import TurtleGitCore
         let git=URL(fileURLWithPath:CommandLine.arguments[2]), quoted="'"+git.path.replacingOccurrences(of:"'",with:"'\\''")+"'"
         let script="""
         #!/bin/sh
-        if [ "${4-}" = for-each-ref ] && [ -f "$0.pause" ]; then
+        task_command=
+        task_skip=
+        for task_arg do
+          if [ -n "$task_skip" ]; then task_skip=; continue; fi
+          case "$task_arg" in
+            -C|-c|--git-dir|--work-tree|--namespace|--config-env) task_skip=1 ;;
+            -*) ;;
+            *) task_command=$task_arg; break ;;
+          esac
+        done
+        if [ "$task_command" = for-each-ref ] && [ -f "$0.pause" ]; then
           /bin/sleep 30 &
           task_child=$!
           trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT

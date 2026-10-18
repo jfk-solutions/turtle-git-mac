@@ -22,8 +22,8 @@ struct MergeMessageEditor: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let editor = scroll.documentView as? MergeMessageTextView else { return }
-        editor.model = model; editor.isEditable = enabled
-        editor.sourceLinkAvailable = { [weak model] in model?.busy == false && model?.closed == false }
+        editor.model = model; editor.isEditable = enabled && model.canEditMessage
+        editor.sourceLinkAvailable = { [weak model] in model?.canEditMessage == true }
         let preferences = model.messageEditorPreferences
         let font = MessageEditorFont.resolve(name: preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName, size: preferences.object(forKey: "LogFontSize") as? Int ?? MessageEditorFont.defaultSize)
         editor.spellingPreferences = model.messageEditorPreferences
@@ -43,7 +43,7 @@ struct MergeMessageEditor: NSViewRepresentable {
         let model: MergeWindowModel
         init(_ model: MergeWindowModel) { self.model = model }
         func textDidChange(_ notification: Notification) {
-            if let editor = notification.object as? NSTextView { model.message = editor.string }
+            if let editor = notification.object as? NSTextView,editor.isEditable,editor.window != nil,model.canEditMessage { model.message = editor.string }
         }
     }
 }
@@ -64,7 +64,7 @@ final class MergeMessageTextView: ProjectMessageTextView {
         return menu
     }
     func appendHistoryItems(to menu: NSMenu) {
-        guard isEditable, model?.busy == false, model?.messageHistory.entries.isEmpty == false else { return }
+        guard isEditable, model?.canEditMessage == true, model?.messageHistory.entries.isEmpty == false else { return }
         menu.addItem(.separator())
         for (title, action, icon) in [("Paste last message", #selector(pasteLastMessage), MenuIcon.copy), ("Recent messages…", #selector(recentMessages), MenuIcon.log)] {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
@@ -72,15 +72,18 @@ final class MergeMessageTextView: ProjectMessageTextView {
         }
     }
     @objc func pasteLastMessage() {
-        guard let text = model?.messageHistory.entries.first else { return }
+        guard isEditable,window != nil,model?.canEditMessage == true,let text = model?.messageHistory.entries.first else { return }
         insertHistory(text, appendNewline: false)
     }
     @objc func recentMessages() {
-        guard isEditable, model?.busy == false else { return }
-        model?.showMessageHistory { [weak self] text in self?.insertHistory(text, appendNewline: true) }
+        guard isEditable,window != nil, model?.canEditMessage == true else { return }
+        model?.showMessageHistory { [weak self] text in
+            guard let self,self.window?.attachedSheet == nil,self.model?.canEditMessage == true else{return}
+            self.isEditable=true;self.insertHistory(text,appendNewline:true)
+        }
     }
     func insertHistory(_ text: String, appendNewline: Bool) {
-        guard isEditable, model?.busy == false else { return }
+        guard isEditable,window != nil, model?.canEditMessage == true else { return }
         let sentinel = string == MergeWindowModel.defaultMessage
         let range = sentinel ? NSRange(location: 0, length: (string as NSString).length) : selectedRange()
         let suffix = appendNewline && !sentinel && !string.isEmpty ? "\n" : ""

@@ -29,16 +29,16 @@ import TurtleGitCore
         try require(groups.count==2 && groups.allSatisfy{$0.helpers==["","fixture-helper"]},"Save did not copy chain/preserve source")
         model.draft.helpers=["replacement"]
         model.confirmAction={_,_,_ in false}
-        let rejected=await model.apply(); try require(!rejected && model.modified,"Rejected replacement saved")
+        let rejected=await model.saveAdvanced(); try require(!rejected && model.modified,"Rejected replacement saved")
         model.confirmAction={_,_,_ in true}
-        let replaced=await model.apply(); try require(replaced && !model.modified,"Accepted replacement failed")
+        let replaced=await model.saveAdvanced(); try require(replaced && !model.modified,"Accepted replacement failed")
         model.draft.username="unsaved"
         model.confirmAction={_,_,_ in false}; model.select(nil)
         try await Task.sleep(nanoseconds:30_000_000)
         try require(model.selected != nil && model.draft.username=="unsaved","Discard rejection lost draft")
         model.confirmAction={_,_,_ in true}; model.select(nil); try await wait {model.selected==nil}
         model.draft.url="https://new.invalid"; model.draft.helpers=["fixture-new"]; model.draft.useHTTPPath=true
-        let added=await model.apply(); try require(added,"Add New failed")
+        let added=await model.saveAdvanced(); try require(added,"Add New failed")
         model.confirmAction={_,_,_ in false}; model.remove(); try await wait {!model.busy}
         try require(model.selected != nil,"Rejected Remove cleared selection")
         model.confirmAction={_,_,_ in true}; model.remove(); try await wait {!model.busy}
@@ -69,7 +69,7 @@ import TurtleGitCore
         let displayed=CredentialSettingsModel(repository:repo,access:nil,localAvailable:true)
         displayed.authorizeFile={_ in true}; displayed.activate();try await wait {displayed.snapshot != nil && !displayed.busy}
         let window=NSWindow(contentRect:NSRect(x:0,y:0,width:820,height:650),styleMask:[.titled],backing:.buffered,defer:false)
-        window.isReleasedWhenClosed=false
+        window.isReleasedWhenClosed=false;window.alphaValue=0
         let transaction=SettingsTransaction()
         let host=NSHostingView(rootView:CredentialSettingsPage(model:displayed).environment(\.settingsTransaction,transaction));window.contentView=host
         defer {transaction.invalidate();displayed.deactivate(); window.contentView=nil;window.close()}
@@ -82,7 +82,7 @@ import TurtleGitCore
         displayed.destination = originalDestination == .local ? .global : .local
         try await wait {transaction.modified};transaction.cancel()
         try require(displayed.destination==originalDestination && !transaction.modified,"Settings Cancel lost destination draft")
-        displayed.draft.helpers=[];try await wait {transaction.modified}
+        displayed.draft.helpers=["invalid\0helper"];try await wait {transaction.modified}
         transaction.apply(closeAfter:false);try await wait {!transaction.busy}
         try require(transaction.error != nil && displayed.modified,"Settings validation accepted invalid helper")
         transaction.cancel();try require(!transaction.modified,"Validation Cancel did not restore fields")

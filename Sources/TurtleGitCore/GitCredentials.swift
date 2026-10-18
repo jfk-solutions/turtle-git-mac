@@ -75,6 +75,16 @@ public struct GitCredentialSnapshot: Equatable, Sendable {
         return Self(entries: entries)
     }
 }
+/// Fields written by the advanced property-sheet Apply operation. Untouched
+/// entries retain their original spelling, repetition, boolean form and origin.
+public struct GitCredentialFields: OptionSet, Equatable, Sendable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+    public static let helper = Self(rawValue: 1)
+    public static let username = Self(rawValue: 2)
+    public static let useHTTPPath = Self(rawValue: 4)
+    public static let all: Self = [.helper, .username, .useHTTPPath]
+}
 public struct GitCredentialDraft: Equatable, Sendable {
     public var url = ""
     public var helpers: [String] = []
@@ -82,8 +92,18 @@ public struct GitCredentialDraft: Equatable, Sendable {
     public var useHTTPPath = false
     public init() {}
     public var valid: Bool {
-        !helpers.isEmpty && !url.contains("\0") && !url.contains("\n") && !url.contains("\r") &&
+        !helpers.isEmpty && fieldsValid
+    }
+    public var fieldsValid: Bool {
+        !url.contains("\0") && !url.contains("\n") && !url.contains("\r") &&
         !username.contains("\0") && helpers.allSatisfy { !$0.contains("\0") }
+    }
+    public func changedFields(from saved: Self) -> GitCredentialFields {
+        var result: GitCredentialFields = []
+        if helpers != saved.helpers { result.insert(.helper) }
+        if username != saved.username { result.insert(.username) }
+        if useHTTPPath != saved.useHTTPPath { result.insert(.useHTTPPath) }
+        return result
     }
     func key(_ field: String) -> String { "credential." + (url.isEmpty ? "" : url + ".") + field }
 }
@@ -109,8 +129,8 @@ extension GitRepository {
     }
     /// Exact file writes also support XDG and included configuration. No other
     /// credential subsections or unrelated keys are rewritten.
-    public func saveCredential(_ draft: GitCredentialDraft, file: URL, expected: GitCredentialSnapshot? = nil) throws {
-        guard draft.valid, file.isFileURL, file.path.hasPrefix("/"), !file.path.contains("\0") else { throw GitConfigurationFailure.invalidValue }
+    public func saveCredential(_ draft: GitCredentialDraft, file: URL, expected: GitCredentialSnapshot? = nil, fields: GitCredentialFields = .all) throws {
+        guard draft.fieldsValid, fields.subtracting(.all).isEmpty, file.isFileURL, file.path.hasPrefix("/"), !file.path.contains("\0") else { throw GitConfigurationFailure.invalidValue }
         if let expected, try credentialConfiguration() != expected { throw GitCredentialFailure.changed }
         let scope = ["config", "--file", file.path, "--no-includes"]
         func write(_ key: String, _ value: String?) throws {
@@ -123,13 +143,17 @@ extension GitRepository {
                 }
             } catch { throw GitConfigurationFailure.save(key: key, detail: error.localizedDescription) }
         }
-        try write(draft.key("helper"), draft.helpers[0])
-        for helper in draft.helpers.dropFirst() {
-            do { _ = try run(scope + ["--add", "--", draft.key("helper"), helper]) }
-            catch { throw GitConfigurationFailure.save(key: draft.key("helper"), detail: error.localizedDescription) }
+        if fields.contains(.helper) {
+            try write(draft.key("helper"), draft.helpers.first)
+            for helper in draft.helpers.dropFirst() {
+                do { _ = try run(scope + ["--add", "--", draft.key("helper"), helper]) }
+                catch { throw GitConfigurationFailure.save(key: draft.key("helper"), detail: error.localizedDescription) }
+            }
         }
-        try write(draft.key("username"), draft.username.isEmpty ? nil : draft.username)
-        try write(draft.key("useHttpPath"), draft.useHTTPPath ? "true" : "false")
+        if fields.contains(.username) { try write(draft.key("username"), draft.username.isEmpty ? nil : draft.username) }
+        // SettingGitCredential::SaveSettings sends an empty value for unchecked;
+        // Save unsets that key, restoring the inherited effective setting.
+        if fields.contains(.useHTTPPath) { try write(draft.key("useHttpPath"), draft.useHTTPPath ? "true" : nil) }
     }
     public func removeCredential(_ group: GitCredentialGroup, expected: GitCredentialSnapshot? = nil) throws {
         guard let file = group.file, ["local", "global", "system", "worktree"].contains(group.scope) else { throw GitConfigurationFailure.destination }

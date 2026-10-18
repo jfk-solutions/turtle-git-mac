@@ -22,7 +22,12 @@ import TurtleGitCore
         _ = try await repo.run(["commit", "--allow-empty", "-m", "base"])
         let history = MergeMessageHistory(defaults: prefs)
         let model = MergeWindowModel(repository: repo, access: nil, preferences: prefs)
+        model.load();try await wait {model.busy}
+        let editorWindow=NSWindow(contentRect:.init(x:0,y:0,width:600,height:110),styleMask:[.titled,.closable],backing:.buffered,defer:false)
+        editorWindow.isReleasedWhenClosed=false;editorWindow.alphaValue=0
+        defer {editorWindow.close();model.invalidate()}
         let editor = MergeMessageTextView(frame: .init(x: 0, y: 0, width: 600, height: 110))
+        editorWindow.contentView=editor
         editor.isRichText = false; editor.allowsUndo = true; editor.model = model
         let menu = NSMenu(); editor.appendHistoryItems(to: menu); precondition(menu.items.isEmpty)
         history.add("previous 雪\nbody")
@@ -49,14 +54,18 @@ import TurtleGitCore
         let sentinel = MergeWindowController(repository: repo, access: nil, preferences: prefs)
         sentinel.window?.contentViewController = nil; sentinel.close(); precondition(history.entries == ["cancel draft"])
         let failed = MergeWindowModel(repository: repo, access: nil, preferences: prefs)
+        failed.load();try await wait {failed.busy}
+        defer {failed.invalidate()}
         failed.target = .commit; failed.commitRevision = "refs/heads/missing"; failed.message = "failed attempt"
-        failed.merge(); let progress = failed.progress!
+        failed.merge();try await wait {failed.preparing};let progress = failed.progress!
         precondition(history.entries.first == "failed attempt")
         try await wait { progress.busy }; precondition(!progress.success)
         // A concurrent dialog must retain its newest position when the operation's owner closes.
         history.add("other dialog"); failed.finish(progress); failed.saveMessageHistoryForClose()
         precondition(history.entries.first == "other dialog")
         let invalid = MergeWindowModel(repository: repo, access: nil, preferences: prefs)
+        invalid.load();try await wait {invalid.busy}
+        defer {invalid.invalidate()}
         invalid.target = .commit; invalid.messages = true; invalid.messageCount = "invalid"; invalid.message = "not submitted"
         invalid.merge(); precondition(invalid.progress == nil && !history.entries.contains("not submitted"))
         let host = NSHostingView(rootView: CommitMessageHistoryDialog(history: history) { _ in })

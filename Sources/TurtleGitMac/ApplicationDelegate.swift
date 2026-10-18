@@ -145,6 +145,7 @@ import AppKit
         if WorktreeListWindowModel.activeOperations > 0 || WorktreeCreateWindowModel.activeOperations > 0 { return .terminateCancel }
         if PushWindowModel.activePreparationReads > 0 || PushWindowModel.activePushWorkflows > 0 || FetchWindowModel.activePreparationReads > 0 { return .terminateCancel }
         if FetchWindowModel.activeProgressOperations > 0 || FetchWindowController.activeProgressReleases > 0 { return .terminateCancel }
+        if MergeProgressWindowModel.activeOperations > 0 || MergeWindowController.activeChildReleases > 0 { return .terminateCancel }
         if StatisticsWindowModel.activeOperations > 0 || StatisticsWindowController.activeExports > 0 || sender.windows.compactMap({ $0.delegate as? StatisticsWindowController }).contains(where: { $0.model.hasSheet }) { return .terminateCancel }
         if RevisionGraphFindController.activeOperations > 0 || CommitContainingReferencesWindowController.activeOperations > 0 || RevisionGraphWindowModel.activeOperations > 0 || RevisionGraphFilterController.activeOperations > 0 { return .terminateCancel }
         if FileCopyWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? FileCopyWindowController }).contains(where: { $0.model.question || $0.model.confirmingCancel }) { return .terminateCancel }
@@ -278,6 +279,8 @@ import AppKit
         let fetches = sender.windows.compactMap { $0.delegate as? FetchWindowController }
         let pullsInProgress = sender.windows.compactMap { $0.delegate as? PullProgressWindowController }
         let fetchesInProgress = sender.windows.compactMap { $0.delegate as? FetchProgressWindowController }
+        let merges = sender.windows.compactMap { $0.delegate as? MergeWindowController }
+        let mergesInProgress = sender.windows.compactMap { $0.delegate as? MergeProgressWindowController }
         let addProgress = sender.windows.compactMap { $0.delegate as? AddProgressWindowController }
         let reverts = sender.windows.compactMap { $0.delegate as? RevertWindowController }
         let browsers = sender.windows.compactMap { $0.delegate as? RepositoryBrowserWindowController }
@@ -309,6 +312,8 @@ import AppKit
         for controller in fetches { controller.model.confirmingQuit = true }
         for controller in pullsInProgress { controller.model.confirmingQuit = true }
         for controller in fetchesInProgress { controller.model.confirmingQuit = true }
+        for controller in merges { controller.model.confirmingQuit = true }
+        for controller in mergesInProgress { controller.model.confirmingQuit = true }
         for controller in imports { controller.setQuitConfirmation(true) }
         for controller in reviews { controller.setQuitConfirmation(true) }
         repositoryModel?.confirmingQuit = true
@@ -406,6 +411,8 @@ import AppKit
             for controller in fetches { controller.model.confirmingQuit = false }
             for controller in pullsInProgress { controller.model.confirmingQuit = false }
             for controller in fetchesInProgress { controller.model.confirmingQuit = false }
+            for controller in merges { controller.model.confirmingQuit = false }
+            for controller in mergesInProgress { controller.model.confirmingQuit = false }
             confirmingQuit = false
             replyToTermination(sender, allowQuit)
         }
@@ -427,6 +434,8 @@ import AppKit
         let fetches = sender.windows.compactMap { $0.delegate as? FetchWindowController }
         let pullsInProgress = sender.windows.compactMap { $0.delegate as? PullProgressWindowController }
         let fetchesInProgress = sender.windows.compactMap { $0.delegate as? FetchProgressWindowController }
+        let merges = sender.windows.compactMap { $0.delegate as? MergeWindowController }
+        let mergesInProgress = sender.windows.compactMap { $0.delegate as? MergeProgressWindowController }
         for controller in historyReplays { controller.model.revisionMenuLog.confirmingQuit = true }
         for controller in referenceBrowsers { controller.model.confirmingQuit = true }
         for controller in blames { controller.model.confirmingQuit = true }
@@ -434,6 +443,8 @@ import AppKit
         for controller in fetches { controller.model.confirmingQuit = true }
         for controller in pullsInProgress { controller.model.confirmingQuit = true }
         for controller in fetchesInProgress { controller.model.confirmingQuit = true }
+        for controller in merges { controller.model.confirmingQuit = true }
+        for controller in mergesInProgress { controller.model.confirmingQuit = true }
         Task {
             await manager.shutdown()
             for controller in historyReplays { controller.model.revisionMenuLog.confirmingQuit = false }
@@ -443,6 +454,8 @@ import AppKit
             for controller in fetches { controller.model.confirmingQuit = false }
             for controller in pullsInProgress { controller.model.confirmingQuit = false }
             for controller in fetchesInProgress { controller.model.confirmingQuit = false }
+            for controller in merges { controller.model.confirmingQuit = false }
+            for controller in mergesInProgress { controller.model.confirmingQuit = false }
             confirmingQuit=false;replyToTermination(sender,true)
         }
         return .terminateLater

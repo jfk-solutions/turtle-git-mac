@@ -2635,11 +2635,13 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/MERGE-OPERATION-PARITY.md",
         "docs/MERGE-PARITY.md",
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/credential-merge-workflows-2026-10-18.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/history-picker-2026-10-08.json",
@@ -3773,10 +3775,12 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/CREDENTIAL-ADVANCED-EDITING-PARITY.md",
         "docs/CREDENTIAL-SETTINGS-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/authentication-settings-batch-2026-10-11.json",
+        "docs/qa/credential-merge-workflows-2026-10-18.json",
         "docs/qa/credential-source-family-2026-10-17.json"
       ]
     },

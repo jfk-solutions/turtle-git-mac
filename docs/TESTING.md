@@ -2318,3 +2318,21 @@ When changing included Mac Help guides, run `scripts/build-help.py` after the gu
 edits and before building the app, then `scripts/build-help.py --check` before
 committing. The Pages workflow validates the tracked help HTML and manifest before
 building the website. A passing site render alone does not validate those sources.
+
+
+## Credential advanced editing and Merge operation checkpoint
+
+`scripts/test-credential-merge-workflows.py` compiles the completed Credential and
+Merge families into one cached native receiver. New cases exercise masked Apply,
+explicit Save, helperless groups, Save/Discard/Cancel, permission/selection
+retirement, actual Merge identity repair and History sheets, immutable options,
+encoded/cleaned messages, replay refusal and SVN completion. Retained Credential
+source/settings and Merge History/picker/progress cases cover the affected
+consumers. Each case runs in a private repository and global/XDG configuration,
+with injected credentials/preferences and hidden native children.
+
+Run the relevant Credential and Merge Core cases once at this implementation
+boundary. Repair an actual failure and repeat only its affected checks. Native
+process groups and actual sheet/operation counters must drain on every outcome.
+The grouped result, hosted Pages evidence and remaining physical/signed/full-port
+limits are in `qa/credential-merge-workflows-2026-10-18.json`.

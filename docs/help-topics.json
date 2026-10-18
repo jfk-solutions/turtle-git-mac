@@ -187,6 +187,10 @@
       "document": "GIT-AUTHENTICATION.md"
     },
     {
+      "id": "credentials",
+      "document": "CREDENTIAL-SETTINGS.md"
+    },
+    {
       "id": "ssh",
       "document": "SSH-AUTHENTICATION.md"
     },

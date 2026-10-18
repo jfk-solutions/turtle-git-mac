@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "e15efa498160d6f0b455a606ec1b41ca0a379e976b4b8a617899e6a99a31bb3a",
+    "Contents/Info.plist": "7418aeee54cebbd5510090a3176aaa03222c2272351de205360590cdfc58c406",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "ea62e9255277183fb721ceb36a97a21b113f94329e42eef862414b541f4853fd",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "8431f0108093ba0cc6e3fe9f221e11988b07773f928b428a8c63b5a158ba87f4",
@@ -9,7 +9,8 @@
     "Contents/Resources/en.lproj/CHERRY-PICK.html": "69424c956849c3686861e28c3a1c8d034ded56dba04c84841fc93528b67ee1af",
     "Contents/Resources/en.lproj/COMMIT-CHECKBOX-INDEX.html": "871565da3ad60a404ddb968363c9783366aedfe681563068df4eb1d53b704bca",
     "Contents/Resources/en.lproj/CONFLICT-IDENTITIES.html": "fceecf83506092258f348b48a3a36d150fe8fe34ee26f36e5cf84d4d96b405c7",
-    "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "13a566936a3b22fc746fc13ea1ad28e6347d6e4bddf1ded9656cd3a9136fd347",
+    "Contents/Resources/en.lproj/CREDENTIAL-SETTINGS.html": "19bf327ce1d99aa8029b82ea24cf4069b59102336b876cb46441eb9d856f86f4",
+    "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "83b7af30607dd2b3a29154984d3da854cbcb4db66d475acefe1b62865ae2e4ab",
     "Contents/Resources/en.lproj/EXCEL-COMPARISON.html": "4e4dbf998996c02d74a4499f237017f8a14d522ba08ef3a05779f8fade1440d8",
     "Contents/Resources/en.lproj/GETTING-STARTED.html": "3f5b8800027034ed649c7c48a6d9bfe46910539ef2e99064e567ad64b06b0edc",
     "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "a34926c6954ced39075b069b48ee2804e8e63bb7b056a5c4158435f97dcf4a47",
@@ -56,8 +57,8 @@
     "Contents/Resources/en.lproj/images/ed3713977296-image-conflict-undecodable-light.png": "138d20aa5da3ab6b283e6d2d69e78639534af3cbef1a2bbbb686ab48aa3b1446",
     "Contents/Resources/en.lproj/images/f49a195c8c35-cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
     "Contents/Resources/en.lproj/images/f7856202ab6a-commit-file-groups-language-de-dark.png": "e7f075b32f6ff02494ead9db85a9da57039ad1a108cda57cadbe40c895f988ed",
-    "Contents/Resources/en.lproj/index.html": "334811a8aae8d60f3406523e44d676ec723751d06ff2a1b6e7e5b71f21cea555",
-    "Contents/Resources/en.lproj/topics.json": "d68b343503e00e87629bc1552737fac90ed1063a5dd33225773019472ec773f0"
+    "Contents/Resources/en.lproj/index.html": "ab996b99296e4898c98e0c2087228ecc3795e5ed6d2f4a5b498b849797bf8589",
+    "Contents/Resources/en.lproj/topics.json": "29ca4fc914e5b3f259fb7e7ad85534dacf7937a8fec8eb06e29930fe99f54de0"
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
@@ -68,7 +69,8 @@
     "docs/CHERRY-PICK.md": "ac4553c2aa55314d8be0f2b333d5a094d4c67b3c67f6613812a8c395df8f2380",
     "docs/COMMIT-CHECKBOX-INDEX.md": "59ae109cbde9c4c77a3ffdff3485b1b3ab20c0524cf42cbcc5a3f25303d4681e",
     "docs/CONFLICT-IDENTITIES.md": "5a0f6ac729c78df24e4ed8a6194e2cd9053d2289438b75519f1f21e908ec2213",
-    "docs/DIALOG-GUIDE.md": "03b0b9b06a6986088e90b37f7d1aebfa2bc1222a10d343de07bb73d5918c7f62",
+    "docs/CREDENTIAL-SETTINGS.md": "b03463f22625ad700bbb600b3777076764d1a722f9f291bd5cb1c12a2b468016",
+    "docs/DIALOG-GUIDE.md": "dd32baa3452ce0178ed6971e95938ab3c8e8ee2811c9e8ed38c354593563f2b4",
     "docs/EXCEL-COMPARISON.md": "7e3f3a627b2dc6bb807bee992ae0d76830107dea9592c3a02668fc570227ab36",
     "docs/GETTING-STARTED.md": "60e220f777e25f6ca2cd533ea03d061690d98b0f498a399406cf1efddcc45421",
     "docs/GIT-AUTHENTICATION.md": "34a58ad4649d7d7355712907441f35f37d3b9bd29c898002a58a8563361154bb",
@@ -99,7 +101,7 @@
     "docs/WORD-COMPARISON.md": "4abfaf00ef834ee9788858006e4272d16f9961a7a42147a97e5d09dfd0350fd2",
     "docs/WORD-MERGE.md": "ffed41df55c03977f430e784cd444e2b5616b77422a79119f11df0f53631ef6d",
     "docs/ZIP-COMPARISON.md": "1fa7085d96970e6cc85ef8edb5e94f12277617d5c91614f1fd05c92362576241",
-    "docs/help-topics.json": "d68b343503e00e87629bc1552737fac90ed1063a5dd33225773019472ec773f0",
+    "docs/help-topics.json": "29ca4fc914e5b3f259fb7e7ad85534dacf7937a8fec8eb06e29930fe99f54de0",
     "docs/site/assets/binary-comparison-dark.png": "13944fd1b3128d1a46cadfabc89f4245a0008a379a7b1ad18e8b77365e618c8d",
     "docs/site/assets/binary-comparison-light.png": "0dda7bddf5a03dbf5bad64e6481f89121752721f2d4bb16995f29a406f2bb04b",
     "docs/site/assets/cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
