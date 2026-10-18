@@ -211,6 +211,15 @@ private extension FileComparisonDocument {
     let path: String
     let imagePresentation = ImageWindowPresentation()
     @Published var imageComparison: ImageComparisonDocument?
+    var decodeImages:(FileComparisonDocument,OperationCancellation) async throws -> ImageComparisonDocument = { document,token in
+        try await Task.detached {
+            try token.check()
+            // Explicit IDiff routing survives unsupported or empty sides.
+            let base=ComparisonImage(bytes:document.base.bytes,cancellation:token);try token.check()
+            let destination=ComparisonImage(bytes:document.destination.bytes,cancellation:token);try token.check()
+            return ImageComparisonDocument(base:base,destination:destination)
+        }.value
+    }
     var externalDidOpen: () -> Void = {}
     private(set) var alternateTool = ComparisonToolInvocation.capture
     private var externalAttempted = false, retired = false
@@ -1433,6 +1442,7 @@ private extension FileComparisonDocument {
         initialBlockGeneration = nil
         let session = FileListComparisonSession(window: window, preferences: comparisonDefaults)
         loadSession = session; busy = true; error = nil
+        let capturedPermissions=workingPermissions,decodeImages=decodeImages
         Task {
             var externalOpened = false
             defer {
@@ -1441,7 +1451,7 @@ private extension FileComparisonDocument {
                     if externalOpened { externalDidOpen() }
                     else if closeAfterLoad { closeAfterLoad = false; window?.performClose(nil) }
                 }
-                withExtendedLifetime(access) {}; withExtendedLifetime(workingPermissions) {}
+                withExtendedLifetime(access) {}; withExtendedLifetime(capturedPermissions) {}
             }
             do {
                 try await session.run(selectedCount: 0) { [self] token in
@@ -1482,8 +1492,7 @@ private extension FileComparisonDocument {
                         if let prior = originalPaneDocument { original = original.replacingPane(base: base, content: base ? prior.base : prior.destination) }
                         value = value.replacingPane(base: base, content: replacement)
                     }
-                    originalPaneDocument = original
-                    guard !retired, !token.isCancelled else { return }
+                    guard !retired, loadSession === session, !token.isCancelled else { return }
                     if !externalAttempted {
                         let chosen = try DiffToolPreferences.load(from: comparisonDefaults).selection(base: value.base.path, destination: value.destination.path, alternate: alternateTool)
                         pendingToolSelection = chosen
@@ -1494,13 +1503,17 @@ private extension FileComparisonDocument {
                         guard !externalOpened, !retired, !token.isCancelled else { return }
                 }
                 let adapted = value.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults),legacyEncoding:legacyEncoding)
+                let decodedImages=viewerSelection == .image ? try await decodeImages(adapted,token):nil
+                try token.check()
+                guard !retired,loadSession === session else{return}
+                originalPaneDocument=original
                 document = adapted
                 if mergeToolInvocation != nil { mergeToolInputs = loadedMergeInputs }
                 for (base, target) in paneTargets { paneTargets[base] = try target.recording(base ? adapted.base : adapted.destination) }
                 imagePresentation.openImages = { [weak self] in self?.chooseImageFiles() }
                 // Source dispatch chooses the viewer before decoding. Failed/empty
                 // image sides stay in IDiff; Merge stays Merge even for PNG bytes.
-                imageComparison = viewerSelection == .image ? ImageComparisonDocument(base: ComparisonImage(bytes: adapted.base.bytes), destination: ComparisonImage(bytes: adapted.destination.bytes)) : nil
+                imageComparison = decodedImages
                 if let images = imageComparison {retainedImageModel?.configureImages(base:images.base,destination:images.destination,force:true)}
                 window?.title = "\(standaloneImages == nil ? (sidesReversed ? adapted.destination.path : path) : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
                 drafts = imageComparison == nil ? FileComparisonDrafts(adapted) : nil

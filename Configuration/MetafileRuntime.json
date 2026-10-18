@@ -1,0 +1,13 @@
+{
+  "renderer": {
+    "version": "0.2.1",
+    "commit": "4e0d6d6807349ebfc8f8c681009c14f9e57621ff",
+    "url": "https://codeload.github.com/congduan/WmfEmfViewer/tar.gz/4e0d6d6807349ebfc8f8c681009c14f9e57621ff",
+    "sha256": "544d77f8f0e362ae47877c82f3803a1ba2550abbe3204bf23e5802f71264219c",
+    "license": "MIT"
+  },
+  "architectures": ["arm64", "x86_64"],
+  "deployment_target": "13.0",
+  "maximum_input_bytes": 67108864,
+  "maximum_output_bytes": 134217728
+}

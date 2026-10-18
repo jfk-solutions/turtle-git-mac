@@ -39,7 +39,7 @@ import TurtleGitCore
         func owner(_ repo:GitRepository) async throws -> ImageConflictWindowController {
             guard let document=try await repo.imageConflictDocument(path:path) else{throw Failure(description:"Mixed image conflict did not route")}
             let controller=ImageConflictWindowController(repository:repo,access:nil,document:document,preferences:prefs);owners.append(controller)
-            controller.window!.alphaValue=0;controller.showWindow(nil);controller.window!.contentView?.layoutSubtreeIfNeeded();return controller
+            controller.window!.alphaValue=0;controller.showWindow(nil);controller.window!.contentView?.layoutSubtreeIfNeeded();try await wait {!controller.model.busy};return controller
         }
         func descendants(_ view:NSView)->[NSView]{[view]+view.subviews.flatMap(descendants)}
         func press(_ side:ImageConflictSide,_ controller:ImageConflictWindowController) async throws {

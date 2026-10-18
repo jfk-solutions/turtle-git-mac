@@ -148,5 +148,25 @@
       "build/git-svn-runtime/GitSVN",
       "--audit-only"
     ]
+  },
+  "metafile": {
+    "path": "build/metafile-runtime/Metafile",
+    "inputs": [
+      "LICENSE",
+      "Configuration/MetafileRuntime.json",
+      "Sources/TurtleGitMetafile/main.swift",
+      "patches/metafile-renderer.patch",
+      "scripts/build-metafile-runtime.py",
+      "scripts/validate-metafile-runtime.py",
+      "scripts/embed-metafile-runtime.py",
+      "scripts/pinned_download.py",
+      "scripts/runtime_bundle_layout.py",
+      "scripts/git_lfs_runtime.py"
+    ],
+    "validate": [
+      "python3",
+      "scripts/validate-metafile-runtime.py",
+      "build/metafile-runtime/Metafile"
+    ]
   }
 }

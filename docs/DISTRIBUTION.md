@@ -65,6 +65,7 @@ python3 scripts/build-editorconfig-runtime.py
 python3 scripts/build-issue-regex-runtime.py
 python3 scripts/build-lexilla-runtime.py
 python3 scripts/build-graph-layout-runtime.py
+python3 scripts/build-metafile-runtime.py
 python3 scripts/build-openssh-runtime.py
 python3 scripts/build-git-runtime.py
 xcodebuild -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore \

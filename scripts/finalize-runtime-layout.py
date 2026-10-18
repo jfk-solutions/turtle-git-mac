@@ -112,7 +112,7 @@ for runtime in trees:
     target=resources/runtime.name;file=target/'provenance.json'
     if not file.exists():continue
     manifest=json.loads(file.read_text())
-    names={'GitAskpass':'TurtleGitGitAskpass','EditorConfig':'editorconfig','IssueRegex':'issue-regex','MergeDiff':'merge-diff','GraphLayout':'graph-layout','SSHAskpass':'TurtleGitSSHAskpass'}
+    names={'GitAskpass':'TurtleGitGitAskpass','EditorConfig':'editorconfig','IssueRegex':'issue-regex','MergeDiff':'merge-diff','GraphLayout':'graph-layout','Metafile':'metafile-convert','SSHAskpass':'TurtleGitSSHAskpass'}
     if runtime.name in names:
         binary=target/names[runtime.name];manifest.setdefault('unsigned_binary_sha256',manifest['binary_sha256']);manifest['binary_sha256']=hashlib.sha256(binary.read_bytes()).hexdigest()
     elif runtime.name=='Lexilla':

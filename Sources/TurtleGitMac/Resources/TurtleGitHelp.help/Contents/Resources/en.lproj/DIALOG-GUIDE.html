@@ -447,7 +447,11 @@ the first image and Ctrl-drag only the second. Ctrl-Shift-wheel adjusts blend
 alpha. Ordinary trackpad scrolling and Shift-wheel use native scrolling.</p>
 <p>Drop a local file onto an image pane to preview it there. If several files are
 dropped, only the first is used. Reload restores the original comparison inputs.
-Image Info and the pane-title tooltip show the current preview’s metadata.</p>
+Image Info and the pane-title tooltip show the current preview’s metadata.
+WMF, EMF and EMF+ use the bundled renderer in the same image panes. Decoding runs
+in the background and cancels when its owning input is replaced or closed.
+Unsupported drawing records retain an undecodable side; original captured bytes
+remain available. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/IMAGE-METAFILE-PARITY.html">Windows metafile rendering</a>.</p>
 <h3 id="image-conflict-selection">Image conflict selection</h3>
 <p>A file dropped onto a conflict pane changes its preview. <strong>Select still uses the
 original conflict revision</strong>, as the pane’s preview notice explains.</p>

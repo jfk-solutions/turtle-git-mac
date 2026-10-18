@@ -155,6 +155,26 @@ jobs:
         with:
           path: build/lexilla-runtime/Lexilla
           key: ${{ steps.lexilla-cache.outputs.cache-primary-key }}
+      - name: Capture metafile runtime cache key
+        id: metafile-key
+        run: python3 scripts/ci-runtime-cache-key.py metafile --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> "$GITHUB_OUTPUT"
+      - name: Restore exact metafile runtime
+        id: metafile-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: build/metafile-runtime/Metafile
+          key: ${{ steps.metafile-key.outputs.key }}
+      - name: Build pinned universal WMF and EMF renderer
+        if: steps.metafile-cache.outputs.cache-hit != 'true'
+        run: python3 scripts/build-metafile-runtime.py
+      - name: Validate prepared or restored metafile runtime
+        run: python3 scripts/validate-metafile-runtime.py build/metafile-runtime/Metafile
+      - name: Save validated metafile runtime
+        if: steps.metafile-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: build/metafile-runtime/Metafile
+          key: ${{ steps.metafile-cache.outputs.cache-primary-key }}
       - name: Restore exact graph runtime package
         id: graph-layout-cache
         uses: actions/cache/restore@v5
@@ -374,6 +394,8 @@ jobs:
         run: python3 scripts/test-git-properties-family.py --only parents --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Image native command family
         run: python3 scripts/test-image-command-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: WMF and EMF native comparison consumers and colors
+        run: python3 scripts/test-metafile-workflows.py --only consumers --only colors --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: LibreOffice comparison and tracked-change merge owners
         run: python3 scripts/test-libreoffice-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Scoped native Merge menus and pane shortcuts

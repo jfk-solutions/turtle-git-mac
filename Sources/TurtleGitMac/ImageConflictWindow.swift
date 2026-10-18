@@ -7,11 +7,15 @@ import TurtleGitCore
     weak var imageModel: ImageConflictWindowModel?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         guard attachedSheet == nil, (firstResponder as? NSTextView)?.isFieldEditor != true,
-              let imageModel, !imageModel.busy, !imageModel.retired else { return super.performKeyEquivalent(with: event) }
+              let imageModel, !imageModel.retired else { return super.performKeyEquivalent(with: event) }
+        // Preview decoding is cancellable by the ordinary window close route.
+        // Mutation/Select work still keeps its existing busy close protection.
+        if event.modifierFlags.intersection([.command,.shift,.control,.option]).isEmpty, event.keyCode == 53,
+           !imageModel.busy || imageModel.decoding { performClose(nil); return true }
+        guard !imageModel.busy else {return super.performKeyEquivalent(with:event)}
         if let command = ImageEditorCommand.key(event), imageModel.commandState(command) != nil {
             imageModel.perform(command); return true
         }
-        if event.modifierFlags.intersection([.command,.shift,.control,.option]).isEmpty, event.keyCode == 53 { performClose(nil); return true }
         return super.performKeyEquivalent(with: event)
     }
 }
@@ -19,8 +23,8 @@ import TurtleGitCore
     let model: ImageConflictWindowModel
     private(set) var imageToolbar: ImageEditorToolbar?
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, document: ImageConflictDocument, preferences: UserDefaults = .standard) {
-        model = ImageConflictWindowModel(repository: repository, access: access, document: document, preferences: preferences)
+    init(repository: GitRepository, access: RepositoryAccessLease?, document: ImageConflictDocument, preferences: UserDefaults = .standard, decodeImages:ImageConflictWindowModel.Decoder?=nil) {
+        model = ImageConflictWindowModel(repository: repository, access: access, document: document, preferences: preferences,decodeImages:decodeImages)
         let window = ImageConflictNSWindow(contentRect: NSRect(x: 0,y: 0,width: 1200,height: 720), styleMask: [.titled,.closable,.miniaturizable,.resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.title = document.entry.path + " — TurtleGitIDiff"
         window.contentView = NSHostingView(rootView: ImageConflictDialog(model: model))
@@ -31,7 +35,7 @@ import TurtleGitCore
         imageToolbar = ImageEditorToolbar.conflict(self)
         DialogGeometry.attach(window, identifier: "TurtleGit.ImageConflict", legacyName: "TurtleGit.ImageConflict")
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { (!model.busy || model.decoding) && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) {
         imageToolbar?.retire(); model.retire(); (window as? ImageConflictNSWindow)?.imageModel = nil; onClosed()
     }
@@ -39,6 +43,15 @@ import TurtleGitCore
 }
 @MainActor final class ImageConflictWindowModel: ObservableObject {
     private(set) static var activeOperations = 0
+    typealias Decoder=(ImageConflictDocument,OperationCancellation) async throws -> [ImageConflictSide:ComparisonImage]
+    var decodeImages:Decoder = { document,token in
+        try await Task.detached {
+            var images:[ImageConflictSide:ComparisonImage]=[:]
+            for side in ImageConflictSide.allCases {try token.check();images[side]=document.image(side,cancellation:token)}
+            try token.check();return images
+        }.value
+    }
+    @Published private(set) var decoding=false
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     private let preferences: UserDefaults
@@ -59,19 +72,41 @@ import TurtleGitCore
     let presentation = ImageWindowPresentation()
     let panes: [ImageConflictSide: ImageComparisonViewModel]
     private(set) var images: [ImageConflictSide: ComparisonImage]
-    init(repository: GitRepository, access: RepositoryAccessLease?, document: ImageConflictDocument, preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, document: ImageConflictDocument, preferences: UserDefaults = .standard,decodeImages:Decoder?=nil) {
         self.repository = repository; self.access = access; self.document = document; self.preferences = preferences
-        let decoded = Dictionary(uniqueKeysWithValues: ImageConflictSide.allCases.compactMap { side in document.image(side).map { (side,$0) } })
-        images = decoded
+        if let decodeImages {self.decodeImages=decodeImages}
+        images = [:]
         let presentation = self.presentation
         panes = Dictionary(uniqueKeysWithValues: ImageConflictSide.allCases.map { side in
-            let pane = ImageComparisonViewModel(presentation: presentation); pane.configureImages(base: decoded[side], destination: nil)
+            let pane = ImageComparisonViewModel(presentation: presentation); pane.configureImages(base: nil, destination: nil)
             return (side,pane)
         })
         for (side,pane) in panes { pane.commandsAllowed = { [weak self] in
             guard let self else {return false};return !self.busy && !self.retired && !self.panes.contains(where:{$0.key != side && $0.value.receivingDrop}) && self.windowForCommands?.attachedSheet == nil
         } }
         paneObservers = panes.values.map {pane in pane.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() } }
+        loadInitialImages()
+    }
+    private func publishImages(_ decoded:[ImageConflictSide:ComparisonImage]) {
+        images=decoded
+        for side in ImageConflictSide.allCases {panes[side]?.configureImages(base:decoded[side],destination:nil,force:true)}
+        fitImages()
+    }
+    private func loadInitialImages() {
+        busy=true;decoding=true
+        let token=OperationCancellation(),snapshot=document,decode=decodeImages
+        cancellation=token;Self.activeOperations += 1
+        task=Task { [self,access] in
+            defer {
+                Self.activeOperations -= 1;withExtendedLifetime(access) {}
+                if cancellation === token {busy=false;decoding=false;task=nil;cancellation=nil}
+            }
+            do {
+                let decoded=try await decode(snapshot,token);try token.check()
+                guard !retired,cancellation === token else{return}
+                publishImages(decoded)
+            } catch {if !retired,!token.isCancelled {self.error=error.localizedDescription}}
+        }
     }
     func commandState(_ command: ImageEditorCommand) -> ImageEditorCommandState? {
         let ready = !busy && !retired && !panes.values.contains(where:{$0.receivingDrop}) && windowForCommands?.attachedSheet == nil
@@ -114,18 +149,17 @@ import TurtleGitCore
         !busy && !retired && !panes.values.contains(where:{$0.receivingDrop}) && windowForCommands?.attachedSheet == nil && document.selectionBytes(side) != nil
     }
     func reload() {
-        guard !busy, !retired, !panes.values.contains(where:{$0.receivingDrop}), windowForCommands?.attachedSheet == nil else { return }; busy = true; error = nil
-        let token = OperationCancellation(); cancellation = token; Self.activeOperations += 1
-        task = Task { [self] in
-            defer { busy = false; task = nil; cancellation = nil; Self.activeOperations -= 1 }
+        guard !busy, !retired, !panes.values.contains(where:{$0.receivingDrop}), windowForCommands?.attachedSheet == nil else { return }; busy = true; decoding=true;error = nil
+        let token = OperationCancellation(),decode=decodeImages; cancellation = token; Self.activeOperations += 1
+        task = Task { [self,access] in
+            defer { busy = false; decoding=false;task = nil; cancellation = nil; Self.activeOperations -= 1;withExtendedLifetime(access) {} }
             guard !retired else { return }
             do {
                 guard let next = try await repository.imageConflictDocument(path: document.entry.path, identityOptions: ConflictIdentityOptions(defaults: preferences), cancellation: token) else { throw ImageConflictFailure.unavailable }
-                guard !retired else { return }
-                document = next
-                images = Dictionary(uniqueKeysWithValues: ImageConflictSide.allCases.compactMap { side in next.image(side).map { (side,$0) } })
-                for side in ImageConflictSide.allCases { panes[side]?.configureImages(base: images[side], destination: nil,force:true) }
-                fitImages()
+                try token.check()
+                let decoded=try await decode(next,token);try token.check()
+                guard !retired,cancellation === token else { return }
+                document = next;publishImages(decoded)
             } catch { if !retired { self.error = error.localizedDescription } }
         }
     }
@@ -198,7 +232,7 @@ struct ImageConflictDialog: View {
                 HSplitView { pane(.mine); pane(.base); pane(.theirs) }
             }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled).padding(8) }
-            HStack { if model.busy { ProgressView().controlSize(.small); Text("Selecting image…") }; Spacer(); Text(model.document.entry.path).lineLimit(1) }.font(.caption).padding(8)
+            HStack { if model.busy { ProgressView().controlSize(.small); Text(model.decoding ? "Loading images…":"Selecting image…") }; Spacer(); Text(model.document.entry.path).lineLimit(1) }.font(.caption).padding(8)
         }.background(Color(nsColor: .windowBackgroundColor)).disabled(model.busy)
     }
     private func pane(_ side: ImageConflictSide) -> some View {

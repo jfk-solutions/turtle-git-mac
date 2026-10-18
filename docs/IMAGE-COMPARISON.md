@@ -68,3 +68,24 @@ Use the app's **File → Load Images…** to compare image files without opening
 repository. In an image viewer, **File → Open…** or **Cmd+O** opens the same
 native two-path chooser. Use Browse for either side, leave a side blank for a
 single image, or choose the same image twice. Cancel keeps the existing view.
+
+
+## Windows metafiles
+
+WMF, EMF and EMF+ inputs use the bundled metafile renderer in the existing image
+panes. No separately installed converter is needed. Load Images and image-pane
+drops accept these formats too. Rendering supports captured vector paths, text,
+transforms, clipping and embedded bitmaps; recorded dimensions and available
+resolution feed the normal zoom and Image Info controls.
+
+Decoding runs in the background. Closing or replacing an input cancels the owned
+decoder and prevents a delayed preview from replacing a newer view. Rendering
+never rewrites the original file or conflict stage. Selecting a conflict side
+copies its original bytes, including when that side cannot be rendered.
+
+Some Windows drawing records and font behavior still need compatibility work.
+Unsupported records and malformed files retain an undecodable image side rather
+than showing an incomplete successful drawing. See the
+[metafile renderer comparison](IMAGE-METAFILE-PARITY.md) and
+[native consumer comparison](METAFILE-CONSUMER-PARITY.md) for the supported record
+families, actual checks and remaining limits.

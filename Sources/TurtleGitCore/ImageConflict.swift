@@ -18,7 +18,7 @@ public struct ImageConflictDocument: Sendable {
         if side == .base, !entry.stages.contains(where: { $0.number == 1 }) { return Data() }
         return contents[side]
     }
-    public func image(_ side: ImageConflictSide) -> ComparisonImage? { contents[side].flatMap { ComparisonImage(bytes: $0) } }
+    public func image(_ side: ImageConflictSide, cancellation: OperationCancellation? = nil) -> ComparisonImage? { contents[side].flatMap { ComparisonImage(bytes: $0, cancellation: cancellation) } }
 }
 public enum ImageConflictFailure: LocalizedError {
     case unavailable, changedWorkingFile, readOnly

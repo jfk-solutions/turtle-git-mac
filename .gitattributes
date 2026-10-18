@@ -12,3 +12,6 @@ Sources/TurtleGitMac/Resources/Branding/UPSTREAM-ICON-LICENSE.txt -text -whitesp
 
 # Preserve the shipped upstream Merge regex preset byte-for-byte, including CRLF.
 Sources/TurtleGitCore/Resources/RegexFilter.ini -text -whitespace
+
+# Unified patch context includes a required single-space blank-line marker.
+patches/metafile-renderer.patch -whitespace

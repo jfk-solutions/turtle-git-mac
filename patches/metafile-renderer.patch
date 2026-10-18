@@ -1,0 +1,449 @@
+diff --git a/packages/wmf-emf-renderer/entry.js b/packages/wmf-emf-renderer/entry.js
+index 08aa9a7..2f47a74 100644
+--- a/packages/wmf-emf-renderer/entry.js
++++ b/packages/wmf-emf-renderer/entry.js
+@@ -124,6 +124,8 @@ function renderToSvg(data, options) {
+     // (info kept implicit; callers needing dimensions can parseMetafile themselves)
+ }
+ 
++require('../../src/turtleGit')({ EmfPlusDrawer, EmfDrawer, WmfDrawer, SvgContext, parseMetafile, renderToSvg, createDrawer });
++
+ module.exports = {
+     // high-level API
+     detectFileType,
+diff --git a/src/modules/drawers/emfDrawer.js b/src/modules/drawers/emfDrawer.js
+index 3237370..ca9f915 100644
+--- a/src/modules/drawers/emfDrawer.js
++++ b/src/modules/drawers/emfDrawer.js
+@@ -290,7 +290,7 @@ class EmfDrawer {
+       return;
+     }
+     console.log('Unknown EMF record type:', recordType, '(0x' + recordType.toString(16).padStart(8, '0') + ')');
+-    this.tryProcessAsCoordinates(data);
++    throw new Error('Metafile: unsupported EMF record 0x'+recordType.toString(16));
+   }
+ 
+   // Byte readers and color conversion now live in utils/binaryReader and utils/colorUtils
+@@ -986,7 +986,7 @@ class EmfDrawer {
+       // 故不旁路 strokeScaleProvider；EMF+-only 文件无 provider、不受影响。
+       NestedMetafilePlayer.playEmfPlusRecords(this._emfPlusDrawer, emfPlusRecords);
+     } catch (e) {
+-      console.log('EMF+ GDIComment playback failed:', /** @type {Error} */(e).message);
++      throw e; console.log('EMF+ GDIComment playback failed:', /** @type {Error} */(e).message);
+     }
+   }
+ 
+@@ -1521,7 +1521,7 @@ class EmfDrawer {
+           console.log('  Rendered text:', text.substring(0, 50));
+         }
+       } catch (error) {
+-        console.log('  Error reading text:', /** @type {Error} */(error).message);
++        throw error; console.log('  Error reading text:', /** @type {Error} */(error).message);
+       }
+     }
+   }
+diff --git a/src/modules/drawers/emfPlusDrawer.js b/src/modules/drawers/emfPlusDrawer.js
+index 7474f52..b0d11bf 100644
+--- a/src/modules/drawers/emfPlusDrawer.js
++++ b/src/modules/drawers/emfPlusDrawer.js
+@@ -524,7 +524,7 @@ class EmfPlusDrawer {
+         defs + body + '</g>'
+       );
+     } catch (e) {
+-      console.log('EMF+ DrawImage failed:', /** @type {Error} */ (e).message);
++      throw e; console.log('EMF+ DrawImage failed:', /** @type {Error} */ (e).message);
+     }
+   }
+ 
+diff --git a/src/modules/drawers/wmfDrawer.js b/src/modules/drawers/wmfDrawer.js
+index 60b3c84..b2e3ae6 100644
+--- a/src/modules/drawers/wmfDrawer.js
++++ b/src/modules/drawers/wmfDrawer.js
+@@ -284,6 +284,7 @@ class WmfDrawer extends BaseDrawer {
+       }
+       return;
+     }
++    throw new Error('Metafile: unsupported WMF record 0x'+record.functionId.toString(16));
+     console.log('Unknown/Unimplemented WMF function:', record.functionId, '(0x' + record.functionId.toString(16).padStart(4, '0') + ')');
+   }
+ 
+diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
+index 28e5b62..e33c033 100644
+--- a/src/modules/svgContext.js
++++ b/src/modules/svgContext.js
+@@ -338,7 +338,7 @@ class SvgContext {
+         family = family.replace(/^"([^"]*)"$/, '$1').replace(/^'([^']*)'$/, '$1');
+         const style = /italic/.test(this.font) ? 'italic' : 'normal';
+         const weight = /bold/.test(this.font) ? 'bold' : 'normal';
+-        return { size: this._fmt(size), sizeNum: size, family: SvgContext._esc(family), style, weight };
++        return { size: this._fmt(size), sizeNum: size, family: SvgContext._esc(family), rawFamily: family, style, weight };
+     }
+ 
+     measureText(text) {
+@@ -407,7 +407,7 @@ class SvgContext {
+         if (!this._hasSubpath) return;
+         this._clipCount++;
+         const id = 'clip' + this._clipCount;
+-        this._defs.push('<clipPath id="' + id + '"><path d="' + this._d() + '"/></clipPath>');
++        this._defs.push('<clipPath id="' + id + '">' + (this._state.clip ? '<g clip-path="' + this._state.clip + '">' : '') + '<path d="' + this._d() + '"/>' + (this._state.clip ? '</g>' : '') + '</clipPath>');
+         this._state.clip = 'url(#' + id + ')';
+     }
+ 
+@@ -447,7 +447,8 @@ class SvgContext {
+ 
+     // 最小 PNG 编码器（zlib 无压缩块 + CRC32），跨环境可用（无需 canvas/zlib）
+     _pngBase64(imgData) {
+-        const img = this._downscaleIfNeeded(imgData, 1572864);
++        const img = imgData;
++        if (!img || img.width<=0 || img.height<=0 || img.width*img.height>16777216) throw new Error('Metafile: bitmap dimensions exceed decoder limit');
+         const { width: w, height: h, data: px } = img;
+         if (!img || w <= 0 || h <= 0) return null;
+         // 原始扫描线：每行前置 filter byte 0
+@@ -651,7 +652,7 @@ class SvgContext {
+                     (img.stretch ? ' preserveAspectRatio="none"' : '') +
+                     ' href="' + href + '" />'
+                 );
+-            } catch (e) { /* 编码失败则跳过该位图 */ }
++            } catch (e) { throw e; }
+         }
+         const cw = this.canvas.width || 800;
+         const ch = this.canvas.height || 600;
+diff --git a/src/turtleGit.js b/src/turtleGit.js
+new file mode 100644
+index 0000000..c5ab9df
+--- /dev/null
++++ b/src/turtleGit.js
+@@ -0,0 +1,321 @@
++// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
++// No filesystem, network, DOM or ambient executable access is exposed here.
++module.exports = function installTurtleGit(api) {
++  const { EmfPlusDrawer, EmfDrawer, WmfDrawer, SvgContext, parseMetafile, renderToSvg, createDrawer } = api;
++  const identity = () => [1, 0, 0, 1, 0, 0];
++  const mul = (a, b) => [a[0]*b[0]+a[2]*b[1], a[1]*b[0]+a[3]*b[1], a[0]*b[2]+a[2]*b[3], a[1]*b[2]+a[3]*b[3], a[0]*b[4]+a[2]*b[5]+a[4], a[1]*b[4]+a[3]*b[5]+a[5]];
++  const fail = message => { throw new Error('Metafile: ' + message); };
++  function u32(b, o) { if (o < 0 || o+4 > b.length) fail('truncated record'); return (b[o]|b[o+1]<<8|b[o+2]<<16|b[o+3]<<24)>>>0; }
++  function i32(b,o) { return u32(b,o)|0; }
++  function f32(b,o) { if(o < 0 || o+4 > b.length) fail('truncated floating-point record'); const v=new DataView(b.buffer,b.byteOffset,b.byteLength).getFloat32(o,true); if(!Number.isFinite(v)||Math.abs(v)>1e9) fail('invalid coordinate'); return v; }
++  const escape = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
++  const matrix = a => a.map(v => { if(!Number.isFinite(v)||Math.abs(v)>1e12) fail('invalid transform'); return String(v); }).join(' ');
++  function state(d) { return d._turtle || (d._turtle={world:identity(),page:1,unit:2,dpiX:96,dpiY:96,clip:null,saves:[],objectParts:null}); }
++  function baseMatrix(d) {
++    const t=d.coordinateTransformer, o=t.transform(0,0), x=t.transform(1,0), y=t.transform(0,1);
++    return [x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y];
++  }
++  function currentMatrix(d) { const s=state(d); return mul(baseMatrix(d),mul([s.page,0,0,s.page,0,0],s.world)); }
++  function unitScale(unit,dpi) { const scales={0:1,1:dpi/75,2:1,3:dpi/72,4:dpi,5:dpi/300,6:dpi/25.4}; if(!(unit in scales)) fail('unsupported page unit '+unit); return scales[unit]; }
++  function snapshot(d,id,container) { const s=state(d); if(s.saves.length>=4096) fail('graphics state nesting limit'); s.saves.push({id,container,world:s.world.slice(),page:s.page,unit:s.unit,clip:s.clip}); }
++  function restore(d,id,container) { const s=state(d); let index=s.saves.length-1; for(;index>=0;index--) if(s.saves[index].id===id&&s.saves[index].container===container) break; if(index<0) fail('unmatched graphics restore'); const old=s.saves[index]; s.world=old.world.slice();s.page=old.page;s.unit=old.unit;s.clip=old.clip;s.saves.length=index; }
++  function updateWorld(d,m,flags) { const s=state(d); s.world=flags&0x2000 ? mul(m,s.world):mul(s.world,m); matrix(s.world); }
++  // Clips live in device coordinates: later world changes cannot move an existing clip.
++  // SVG luminance masks express all six GDI+ combine operations without region approximation.
++  function fullRect(d,color) { return '<rect x="0" y="0" width="'+d.ctx.canvas.width+'" height="'+d.ctx.canvas.height+'" fill="'+color+'"/>'; }
++  function mask(d,body) { const id='turtle-mask-'+d.ctx._defs.length;d.ctx._defs.push('<mask id="'+id+'" maskUnits="userSpaceOnUse" x="0" y="0" width="'+d.ctx.canvas.width+'" height="'+d.ctx.canvas.height+'" style="mask-type:luminance">'+body+'</mask>');return id; }
++  function masked(id,body) { return id?'<g mask="url(#'+id+')">'+body+'</g>':body; }
++  function inverse(d,id) { return mask(d,fullRect(d,'white')+masked(id,fullRect(d,'black'))); }
++  function combineClip(d,shape,mode) {
++    const s=state(d), b=mask(d,shape), a=s.clip;
++    if(mode===0) s.clip=b;
++    else if(mode===1) s.clip=mask(d,masked(a,masked(b,fullRect(d,'white'))));
++    else if(mode===2) s.clip=a?mask(d,masked(a,fullRect(d,'white'))+masked(b,fullRect(d,'white'))):null;
++    else if(mode===3) s.clip=mask(d,masked(a,masked(inverse(d,b),fullRect(d,'white')))+masked(b,masked(inverse(d,a),fullRect(d,'white'))));
++    else if(mode===4) s.clip=mask(d,masked(a,masked(inverse(d,b),fullRect(d,'white'))));
++    else if(mode===5) s.clip=mask(d,masked(b,masked(inverse(d,a),fullRect(d,'white'))));
++    else fail('invalid clip combine mode');
++  }
++  const ep=EmfPlusDrawer.prototype, originalDispatch=ep.processEmfPlusRecordType;
++  // Existing drawing routines operate in local coordinates. Wrap each completed
++  // record in the captured full affine matrix, preserving rotated ellipses/text/pens.
++  ep._emfPlusMapPoint=function(x,y){return{x,y};};
++  ep._emfPlusUnitsToPx=function(){return 1;};
++  ep.processEmfPlusRecordType=function(type,flags,data) {
++    data=Uint8Array.from(data); const s=state(this), ctx=this.ctx;
++    switch(type) {
++      case 0x4001: if(data.length<16) fail('truncated EMF+ header'); s.dpiX=u32(data,8)||96;s.dpiY=u32(data,12)||96;return;
++      case 0x4025: snapshot(this,u32(data,0),false);return;
++      case 0x4026: restore(this,u32(data,0),false);return;
++      case 0x4028: snapshot(this,u32(data,0),true);return;
++      case 0x4029: restore(this,u32(data,0),true);return;
++      case 0x4027: {
++        if(data.length<36) fail('truncated container');
++        snapshot(this,u32(data,32),true);
++        const dx=f32(data,0),dy=f32(data,4),dw=f32(data,8),dh=f32(data,12),sx=f32(data,16),sy=f32(data,20),sw=f32(data,24),sh=f32(data,28);
++        if(!sw||!sh) fail('zero container source rectangle');
++        const k=unitScale(flags&255,s.dpiX); const m=[dw/(sw*k),0,0,dh/(sh*k),dx-sx*dw/sw,dy-sy*dh/sh];s.world=mul(s.world,m);return;
++      }
++      case 0x402A: s.world=Array.from({length:6},(_,i)=>f32(data,i*4));return;
++      case 0x402B: s.world=identity();return;
++      case 0x402C: updateWorld(this,Array.from({length:6},(_,i)=>f32(data,i*4)),flags);return;
++      case 0x402D: updateWorld(this,[1,0,0,1,f32(data,0),f32(data,4)],flags);return;
++      case 0x402E: updateWorld(this,[f32(data,0),0,0,f32(data,4),0,0],flags);return;
++      case 0x402F: {const a=f32(data,0)*Math.PI/180;updateWorld(this,[Math.cos(a),Math.sin(a),-Math.sin(a),Math.cos(a),0,0],flags);return;}
++      case 0x4030: s.unit=flags&255;s.page=f32(data,0)*unitScale(s.unit,s.dpiX);if(s.page<=0)fail('invalid page scale');return;
++      case 0x4031: s.clip=null;return;
++      case 0x4032: {
++        const x=f32(data,0),y=f32(data,4),w=f32(data,8),h=f32(data,12);
++        combineClip(this,'<rect x="'+x+'" y="'+y+'" width="'+Math.abs(w)+'" height="'+Math.abs(h)+'" fill="white" transform="matrix('+matrix(currentMatrix(this))+')"/>',(flags>>>8)&15);return;
++      }
++      case 0x4033: {
++        const path=this.emfPlusObjects[flags&255];if(!path||path.type!=='path')fail('missing clip path');
++        this._emfPlusTracePath(path);const geometry=ctx._d();ctx.beginPath();
++        combineClip(this,'<path d="'+escape(geometry)+'" fill="white" transform="matrix('+matrix(currentMatrix(this))+')"/>',(flags>>>8)&15);return;
++      }
++      case 0x4035: {
++        if(s.clip){const m=currentMatrix(this),x=f32(data,0),y=f32(data,4);s.clip=mask(this,'<g transform="translate('+(m[0]*x+m[2]*y)+' '+(m[1]*x+m[3]*y)+')">'+masked(s.clip,fullRect(this,'white'))+'</g>');}return;
++      }
++      case 0x4013:case 0x4034:case 0x4036:case 0x4037:case 0x4038:case 0x4039:case 0x403A: fail('unsupported EMF+ painting/region record 0x'+type.toString(16));
++      case 0x4005:case 0x4006:case 0x4007: fail('unsupported EMF+ alternate-format records');
++      case 0x4023: if((flags&255)!==0)fail('unsupported source-copy compositing');return;
++    }
++    if(type<0x4001||type>0x403A)fail('unsupported EMF+ record 0x'+type.toString(16));
++    const first=ctx._nodes.length, savedClip=ctx._state.clip;ctx._state.clip=null;
++    try { originalDispatch.call(this,type,flags,data); }
++    finally {ctx._state.clip=savedClip;}
++    if(ctx._nodes.length>first) {
++      const nodes=ctx._nodes.splice(first).join('');
++      ctx._nodes.push(masked(s.clip,'<g transform="matrix('+matrix(currentMatrix(this))+')">'+nodes+'</g>'));
++    }
++  };
++  const originalObject=ep.processEmfPlusObject;
++  ep.processEmfPlusObject=function(flags,data) {
++    data=Uint8Array.from(data);const type=(flags>>>8)&127,id=flags&255;
++    // Object continuations carry TotalObjectSize before each fragment. Keep only
++    // one bounded continuation and require exact assembly before parsing it.
++    if(flags&0x8000 || state(this).objectParts) {
++      const s=state(this), total=(flags&0x8000)?u32(data,0):s.objectParts.total;
++      if(total>64*1024*1024||total<4)fail('invalid continued object size');
++      if(!s.objectParts)s.objectParts={id,type,total,parts:[],size:0};
++      const p=s.objectParts;if(p.id!==id||p.type!==type||p.total!==total)fail('interleaved continued objects');
++      const fragment=(flags&0x8000)?data.slice(4):data;p.parts.push(fragment);p.size+=fragment.length;if(p.size>p.total)fail('continued object overflow');
++      if((flags&0x8000)&&p.size<p.total)return;
++      if(p.size!==p.total)fail('truncated continued object');
++      data=new Uint8Array(p.size);let o=0;for(const bytes of p.parts){data.set(bytes,o);o+=bytes.length;}s.objectParts=null;
++    }
++    if(type===4)fail('unsupported EMF+ region object');
++    if(type===7){
++      if(data.length<60)fail('truncated string format');const flags=u32(data,4),align=u32(data,12),line=u32(data,16);
++      if(flags&3||u32(data,52)||u32(data,56)||u32(data,48)||u32(data,32)||align>2||line>2)fail('unsupported EMF+ vertical/RTL/tab/trimming string format');
++      this.emfPlusObjects[id]={type:'stringFormat',flags,align,line,leading:f32(data,36),trailing:f32(data,40),tracking:f32(data,44)};return;
++    }
++    if(type>7)fail('unsupported EMF+ object type '+type);
++    if(type===2){
++      const bits=u32(data,8),unit=u32(data,12),width=f32(data,16);let offset=20;
++      if(bits&~0x1fe)fail('unsupported transformed/compound/custom-cap EMF+ pen');
++      const pen={type:'pen',unit,width,cap:'butt',join:'miter',dash:[]};
++      const read=()=>{const v=u32(data,offset);offset+=4;return v;};
++      let start=0,end=0;
++      if(bits&2)start=read();if(bits&4)end=read();
++      if(start!==end||start>2)fail('unsupported asymmetric/custom pen caps');pen.cap=['butt','square','round'][start];
++      if(bits&8){const join=read();if(join>2)fail('unsupported bevel-clipped pen join');pen.join=['miter','bevel','round'][join];}
++      if(bits&16){pen.miter=f32(data,offset);offset+=4;}
++      if(bits&32){const style=read();const styles=[[],[3,1],[1,1],[3,1,1,1],[3,1,1,1,1,1],[]];if(style>5)fail('invalid pen dash style');pen.dash=styles[style];}
++      if(bits&64){if(read()!==0)fail('unsupported nonflat dash caps');}
++      if(bits&128){pen.dashOffset=f32(data,offset);offset+=4;}
++      if(bits&256){const count=read();if(count>10000||offset+count*4>data.length)fail('invalid dash pattern');pen.dash=Array.from({length:count},()=>{const v=f32(data,offset);offset+=4;return v;});}
++      if(read()!==0)fail('unsupported non-solid pen brush');const color=u32(data,offset);pen.color='rgba('+((color>>>16)&255)+','+((color>>>8)&255)+','+(color&255)+','+((color>>>24)/255)+')';
++      this.emfPlusObjects[id]=pen;return;
++    }
++    if(type===1) { const brush=u32(data,4);if(brush!==0)fail('unsupported non-solid EMF+ brush '+brush); }
++    if(type===5) {
++      const imageType=u32(data,4);
++      if(imageType===1) {
++        if(data.length<32)fail('truncated EMF+ bitmap');
++        let width=i32(data,8),height=i32(data,12);const stride=i32(data,16),pixelFormat=u32(data,20),bitmapType=u32(data,24);let href;
++        if(bitmapType===0) href=__turtleBitmap(data.slice(28),width,height,stride,pixelFormat);
++        else if(bitmapType===1) {
++          const bytes=data.slice(28),png=bytes.length>=8&&bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10;
++          const jpeg=bytes.length>=3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
++          if(!png&&!jpeg)fail('unsupported compressed EMF+ bitmap');
++          const image=__turtleCompressedImage(bytes);href=image.href;width=image.width;height=image.height;
++        } else fail('invalid EMF+ bitmap compression');
++        if(typeof href!=='string'||!/^data:image\/png;base64,|^data:image\/jpeg;base64,/.test(href))fail('invalid native bitmap result');
++        this.emfPlusObjects[id]={type:'imageData',href,width:Math.abs(width),height:Math.abs(height)};return;
++      }
++      if(imageType!==2)fail('unsupported EMF+ image object');
++    }
++    originalObject.call(this,flags&0x7fff,data);
++    if(type===6) {
++      // EmfPlusFont: Version, EmSize, SizeUnit, StyleFlags, Reserved, Length, UTF16.
++      const count=u32(data,20);if(!count||count>1024||24+count*2>data.length)fail('invalid font face');
++      let name='';for(let i=0;i<count;i++){const c=data[24+i*2]|data[25+i*2]<<8;if(!c)break;name+=String.fromCharCode(c);}
++      const font=this.emfPlusObjects[id];if(!font)fail('missing font');font.face=name.replace(/[\u0000-\u001f"]/g,'');font.sizeUnit=u32(data,8);
++      font.emSize=f32(data,4);if(font.emSize<=0)fail('invalid font size');
++    }
++  };
++  ep.processEmfPlusDrawString=function(flags,data){
++    const font=this.emfPlusObjects[flags&255];if(!font||font.type!=='font')fail('missing text font');
++    const length=u32(data,8);if(length>1000000||28+length*2>data.length)fail('truncated text');
++    let text='';for(let i=0;i<length;i++)text+=String.fromCharCode(data[28+i*2]|data[29+i*2]<<8);
++    if(text.includes('\t'))fail('unsupported text tab layout');
++    const fid=u32(data,4),format=fid===0xffffffff?{flags:0x1000,align:0,line:0,leading:0,trailing:0,tracking:1}:this.emfPlusObjects[fid];
++    if(!format||format.type&&format.type!=='stringFormat')fail('missing string format');
++    if(format.tracking!==1&&format.tracking!==0)fail('unsupported custom text tracking');
++    const s=state(this),size=font.emSize*unitScale(font.sizeUnit,s.dpiY)/unitScale(s.unit,s.dpiY),ctx=this.ctx;
++    ctx.font=font.italic+font.weight+' '+size+'px "'+font.face+'"';ctx.fillStyle=this._emfPlusResolveBrush(flags,u32(data,0));ctx.textBaseline='alphabetic';ctx.textAlign=['left','center','right'][format.align];
++    const x=f32(data,12),y=f32(data,16),width=f32(data,20),height=f32(data,24),margin=(format.leading||0)*size;
++    const available=Math.max(0,width-margin-(format.trailing||0)*size);let lines=[];
++    for(const paragraph of text.split(/\r\n|\n|\r/)){
++      if(format.flags&0x1000||!available){lines.push(paragraph);continue;}
++      let line='';for(const word of paragraph.split(/(\s+)/)){if(line&&ctx.measureText(line+word).width>available){lines.push(line);line=word.trimStart();}else line+=word;}lines.push(line);
++    }
++    if(lines.length>100000)fail('text line limit');
++    const advance=size*1.2,total=lines.length*advance,top=y+(format.line===1?(height-total)/2:format.line===2?height-total:0);
++    const anchor=x+margin+(format.align===1?available/2:format.align===2?available:0);
++    for(let i=0;i<lines.length;i++)ctx.fillText(lines[i],anchor,top+size+i*advance);
++  };
++  ep._emfPlusResolvePen=function(id){const pen=this.emfPlusObjects[id];if(!pen||pen.type!=='pen')fail('missing pen');const s=state(this),width=pen.width*unitScale(pen.unit,s.dpiX)/unitScale(s.unit,s.dpiX);this.ctx.lineCap=pen.cap;this.ctx.lineJoin=pen.join;this.ctx.setLineDash(pen.dash.map(v=>v*width));return{color:pen.color,width};};
++  const originalDraw=ep.draw;
++  ep.draw=function(document,options){const bounds=document.header.bounds;if(bounds)this.coordinateTransformer.setDeviceOrg(bounds.left,bounds.top);return originalDraw.call(this,document,options);};
++  const parsePath=ep._emfPlusParsePath;
++  ep._emfPlusParsePath=function(data){const count=u32(data,0),flags=u32(data,4);if(count>1000000)fail('path point limit');if(flags&0x800)fail('unsupported relative EMF+ path encoding');const path=parsePath.call(this,data);if(!path||path.points.length!==count||path.pointTypes.length!==count)fail('truncated EMF+ path');return path;};
++  ep._emfPlusTracePath=function(path){
++    this.ctx.beginPath();let bezier=[];
++    for(let i=0;i<path.count;i++){
++      const point=path.points[i],type=path.pointTypes[i]&15;if(!point)fail('missing path point');
++      if(type===0){if(bezier.length)fail('incomplete Bezier');this.ctx.moveTo(point.x,point.y);}
++      else if(type===1){if(bezier.length)fail('incomplete Bezier');this.ctx.lineTo(point.x,point.y);}
++      else if(type===3){bezier.push(point);if(bezier.length===3){this.ctx.bezierCurveTo(bezier[0].x,bezier[0].y,bezier[1].x,bezier[1].y,bezier[2].x,bezier[2].y);bezier=[];}}
++      else fail('unsupported path point type');
++      if(path.pointTypes[i]&128){if(bezier.length)fail('incomplete Bezier');this.ctx.closePath();}
++    }
++    if(bezier.length)fail('incomplete Bezier');
++  };
++  ep.processEmfPlusDrawImagePoints=function(flags,data){
++    const image=this.emfPlusObjects[flags&255];if(!image)fail('missing image object');
++    if(u32(data,4)!==2)fail('unsupported non-pixel bitmap source units');
++    if(u32(data,24)!==3)fail('invalid bitmap destination point count');
++    if(flags&0x800)fail('unsupported relative bitmap destination points');
++    const compressed=(flags&0x4000)!==0,stride=compressed?4:8;
++    if(data.length<28+3*stride)fail('truncated bitmap destination points');
++    const point=i=>{const o=28+i*stride;if(compressed)return{x:(data[o]|data[o+1]<<8)<<16>>16,y:(data[o+2]|data[o+3]<<8)<<16>>16};return{x:f32(data,o),y:f32(data,o+4)};};
++    const a=point(0),b=point(1),c=point(2),source={x:f32(data,8),y:f32(data,12),w:f32(data,16),h:f32(data,20)};
++    this._drawImageObj(image,a.x,a.y,b.x,b.y,c.x,c.y,source);
++  };
++  const oldImage=ep._drawImageObj;
++  ep._drawImageObj=function(img,x1,y1,x2,y2,x3,y3,src) {
++    if(img.type!=='imageData')return oldImage.call(this,img,x1,y1,x2,y2,x3,y3,src);
++    const sx=src?src.x:0,sy=src?src.y:0,sw=src?src.w:img.width,sh=src?src.h:img.height;
++    if(!sw||!sh)fail('zero bitmap source rectangle');
++    const a=(x2-x1)/sw,b=(y2-y1)/sw,c=(x3-x1)/sh,d=(y3-y1)/sh,e=x1-a*sx-c*sy,f=y1-b*sx-d*sy;
++    const id='turtle-image-clip-'+this.ctx._defs.length;
++    this.ctx._defs.push('<clipPath id="'+id+'"><rect x="'+sx+'" y="'+sy+'" width="'+sw+'" height="'+sh+'"/></clipPath>');
++    this.ctx.rawPush('<g transform="matrix('+matrix([a,b,c,d,e,f])+')"><image x="0" y="0" width="'+img.width+'" height="'+img.height+'" href="'+escape(img.href)+'" clip-path="url(#'+id+')" preserveAspectRatio="none"/></g>');
++  };
++  SvgContext.prototype.measureText=function(text){const f=this._parseFont();const width=__turtleMeasureText(String(text),f.rawFamily,f.sizeNum,f.weight==='bold',f.style==='italic');if(!Number.isFinite(width)||width<0)fail('invalid text measurement');return{width};};
++  // Never turn a bitmap that could not be rendered into a plausible grey box.
++  SvgContext.prototype.drawImage=function(){fail('unsupported canvas image serialization');};
++  // Ordinary EMF/WMF records with known missing visible semantics fail explicitly.
++  const ed=EmfDrawer.prototype,wd=WmfDrawer.prototype;
++  for(const [prototype,key,blocked] of [[ed,'processEmfRecordType',new Set([0x49,0x4e,0x4f,0x50,0x76])],[wd,'processRecordType',new Set([0x228,0x419])]]) {
++    const original=prototype[key];if(!original)continue;
++    prototype[key]=function(type,...args){if(blocked.has(type))fail('unsupported painting record 0x'+type.toString(16));return original.call(this,type,...args);};
++  }
++  const oldWmfRecord=wd.processRecord;
++  wd.processRecord=function(record){
++    const type=record.functionId,data=record.data;
++    if(type===0x415||type===0x416){
++      if(data.length<8)fail('truncated WMF clip rectangle');
++      const short=o=>(data[o]|data[o+1]<<8)<<16>>16;
++      const a=this.coordinateTransformer.transform(short(6),short(4)),b=this.coordinateTransformer.transform(short(2),short(0));
++      const l=Math.min(a.x,b.x),t=Math.min(a.y,b.y),r=Math.max(a.x,b.x),bottom=Math.max(a.y,b.y);
++      const id='turtle-wmf-clip-'+this.ctx._defs.length,old=this.ctx._state.clip;
++      const rect='M '+l+' '+t+' H '+r+' V '+bottom+' H '+l+' Z';
++      const path=(type===0x415?'M -1000000 -1000000 H 1000000 V 1000000 H -1000000 Z ':'')+rect;
++      this.ctx._defs.push('<clipPath id="'+id+'">'+(old?'<g clip-path="'+old+'">':'')+'<path d="'+path+'" clip-rule="evenodd"/>'+(old?'</g>':'')+'</clipPath>');
++      this.ctx._state.clip='url(#'+id+')';return;
++    }
++    if(type===0x228||type===0x419)fail('unsupported WMF region/flood fill');
++    if(type===0x104){const mode=data[0]|data[1]<<8;if(mode!==13)fail('unsupported WMF binary raster operation');}
++    if([0x940,0xb41,0xf43].includes(type)&&u32(data,0)!==0x00cc0020)fail('unsupported WMF bitmap raster operation');
++    return oldWmfRecord.call(this,record);
++  };
++  // GDI+ playback selects EMF+ drawing. The classic representation is a fallback,
++  // except for the explicit GetDC interval until the next EMF+ record.
++  ed._detectDualMode=function(){return false;};
++  ed.processEmfGdiComment=function(data){
++    if(data.length<8||u32(data,4)!==0x2b464d45)return;
++    if(!this._emfPlusDrawer){this._emfPlusDrawer=new EmfPlusDrawer(this.ctx);this._emfPlusDrawer.coordinateTransformer=this.coordinateTransformer;}
++    let offset=8,end=4+u32(data,0);
++    if(end>data.length)fail('truncated EMF+ comment');
++    while(offset<end){
++      if(offset+12>end)fail('truncated EMF+ record');const type=data[offset]|data[offset+1]<<8,flags=data[offset+2]|data[offset+3]<<8,size=u32(data,offset+4),body=u32(data,offset+8);
++      if(size<12||size>end-offset||body>size-12)fail('invalid EMF+ record');
++      if(this._turtleGetDC){Object.assign(this.coordinateTransformer,this._turtleGdiSaved);this.ctx.restore();this._turtleGetDC=false;}
++      if(type===0x4001)this._turtlePlusSeen=true;
++      if(!this._turtlePlusSeen)fail('EMF+ records precede header');
++      this._emfPlusDrawer.processEmfPlusRecordType(type,flags,data.slice(offset+12,offset+12+body));
++      if(type===0x4004){this._turtleGetDC=true;this._turtleGdiSaved={...this.coordinateTransformer};this.ctx.save();}
++      if(type===0x4002&&state(this._emfPlusDrawer).objectParts)fail('truncated continued EMF+ object');
++      offset+=size;
++    }
++  };
++  const oldEmfRecord=ed.processEmfRecordType;
++  ed.processEmfRecordType=function(type,data){
++    if(this._turtlePlusSeen&&!this._turtleGetDC&&type!==70&&type!==14&&type!==1)return;
++    if(type===0x48)fail('unsupported EMF framed region');
++    if(type===0x4b){const count=u32(data,0),mode=u32(data,4);if(mode!==1&&mode!==5)fail('unsupported EMF region combine mode');if(mode===5)this.ctx._state.clip=null;if(count){const rects=this._readRgnData(data,8);if(!rects)fail('invalid EMF clip region');this._buildRgnPath(rects);this.ctx.clip();}return;}
++    if(type===0x14&&u32(data,0)!==13)fail('unsupported EMF binary raster operation');
++    if([0x4c,0x4d].includes(type)&&![0x00cc0020,0x00000042,0x00ff0062,0x00f00021].includes(u32(data,32)))fail('unsupported EMF bitmap raster operation');
++    if(type===0x51&&u32(data,60)!==0x00cc0020)fail('unsupported EMF bitmap raster operation');
++    if(type===0x76){
++      const count=u32(data,16),meshCount=u32(data,20),mode=u32(data,24);
++      if(mode>1)fail('unsupported EMF triangle gradient');
++      if(count>100000||meshCount>100000||28+count*16+meshCount*8>data.length)fail('invalid gradient mesh');
++      const vertices=Array.from({length:count},(_,i)=>{const o=28+i*16;return{x:i32(data,o),y:i32(data,o+4),color:'rgb('+data[o+9]+','+data[o+11]+','+data[o+13]+')'};});
++      for(let i=0;i<meshCount;i++){
++        const o=28+count*16+i*8,a=vertices[u32(data,o)],b=vertices[u32(data,o+4)];if(!a||!b)fail('invalid gradient index');
++        const p=this.coordinateTransformer.transform(a.x,a.y),q=this.coordinateTransformer.transform(b.x,b.y),id='turtle-gradient-'+this.ctx._defs.length;
++        this.ctx._defs.push('<linearGradient id="'+id+'" x1="0" y1="0" x2="'+(mode===0?'1':'0')+'" y2="'+(mode===1?'1':'0')+'"><stop stop-color="'+a.color+'"/><stop offset="1" stop-color="'+b.color+'"/></linearGradient>');
++        const fill=this.ctx.fillStyle;this.ctx.fillStyle='url(#'+id+')';this.ctx.fillRect(p.x,p.y,q.x-p.x,q.y-p.y);this.ctx.fillStyle=fill;
++      }return;
++    }
++    return oldEmfRecord.call(this,type,data);
++  };
++  function validateRecords(bytes){
++    if(bytes.length>=88&&u32(bytes,0)===1&&u32(bytes,40)===0x464d4520){
++      const total=u32(bytes,48),declared=u32(bytes,52),header=u32(bytes,4);if(total!==bytes.length||header<88||header>total||header%4||declared>1000000)fail('invalid EMF header lengths');
++      let o=0,count=0,eof=false;while(o<total){if(o+8>total)fail('truncated EMF record');const type=u32(bytes,o),size=u32(bytes,o+4);if(size<8||size%4||size>total-o)fail('invalid EMF record length');
++        if(type===70){const cb=u32(bytes,o+8);if(cb>size-12)fail('truncated EMF comment');if(cb>=4&&u32(bytes,o+12)===0x2b464d45){let c=o+16,end=o+12+cb;while(c<end){if(c+12>end)fail('truncated EMF+ header');const n=u32(bytes,c+4),body=u32(bytes,c+8);if(n<12||n%4||n>end-c||body>n-12)fail('invalid EMF+ record length');c+=n;}}}
++        o+=size;count++;if(type===14){eof=true;if(o!==total)fail('bytes after EMF EOF');break;}}
++      if(!eof||count!==declared)fail('incomplete EMF record chain');return;
++    }
++    let o=bytes.length>=22&&u32(bytes,0)===0x9ac6cdd7?22:0;if(bytes.length<o+18)fail('truncated WMF header');
++    if((bytes[o]|bytes[o+1]<<8)>2||(bytes[o+2]|bytes[o+3]<<8)!==9||u32(bytes,o+6)*2!==bytes.length-o)fail('invalid WMF header');
++    o+=18;let eof=false,count=0;while(o<bytes.length){if(o+6>bytes.length)fail('truncated WMF record');const size=u32(bytes,o)*2,type=bytes[o+4]|bytes[o+5]<<8;if(size<6||size>bytes.length-o)fail('invalid WMF record length');o+=size;if(++count>1000000)fail('record count limit');if(type===0){eof=true;if(o!==bytes.length)fail('bytes after WMF EOF');break;}}
++    if(!eof)fail('missing WMF EOF');
++  }
++  globalThis.__turtleRender=function(bytes,format) {
++    bytes=Uint8Array.from(bytes);if(!bytes.length||bytes.length>64*1024*1024)fail('input size limit');
++    validateRecords(bytes);
++    const parsed=parseMetafile(bytes);if(parsed.error||!parsed.header)fail(parsed.error||'invalid header');
++    if(!['wmf','placeable-wmf','emf','emf+'].includes(parsed.fileType))fail('unsupported format');
++    if(format&&format!=='auto'&&format==='wmf'&&!/wmf/.test(parsed.fileType))fail('format mismatch');
++    let bounds=parsed.header.bounds||parsed.header.placeableHeader;
++    let width=bounds?bounds.right-bounds.left:0,height=bounds?bounds.bottom-bounds.top:0;
++    if(parsed.header.bounds&&parsed.header.frame){
++      const header=parsed.header,device=header.szlDevice,mm=header.szlMillimeters,frame=header.frame;
++      const dx=device&&mm&&device.cx>0&&mm.cx>0?device.cx*25.4/mm.cx:96;
++      const dy=device&&mm&&device.cy>0&&mm.cy>0?device.cy*25.4/mm.cy:96;
++      if(frame.right>frame.left&&frame.bottom>frame.top){width=Math.round((frame.right-frame.left)*dx/2540);height=Math.round((frame.bottom-frame.top)*dy/2540);const left=frame.left*dx/2540,top=frame.top*dy/2540;parsed.header.bounds={left,top,right:left+width,bottom:top+height};bounds=parsed.header.bounds;}
++    }
++    if(parsed.header.placeableHeader){const inch=parsed.header.placeableHeader.inch;if(!inch)fail('invalid WMF units');width=Math.abs(width);height=Math.abs(height);}
++    else if(/wmf/.test(parsed.fileType)) {const ext=parsed.records.find(r=>r.functionId===0x20c);if(ext&&ext.data.length>=4){width=Math.abs((ext.data[2]|ext.data[3]<<8)<<16>>16);height=Math.abs((ext.data[0]|ext.data[1]<<8)<<16>>16);}}
++    if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0||width>32768||height>32768||width*height>67108864)fail('invalid or oversized image bounds');
++    if(parsed.records.length>1000000)fail('record count limit');
++    const context=new SvgContext();createDrawer(context,parsed.fileType).draw(parsed,{viewWidth:width,viewHeight:height});const svg=context.getSvg();
++    if(typeof svg!=='string'||svg.length>128*1024*1024)fail('output size limit');return svg;
++  };
++};
+diff --git a/src/utils/nestedMetafilePlayer.js b/src/utils/nestedMetafilePlayer.js
+index 01b1fc8..69ebdef 100644
+--- a/src/utils/nestedMetafilePlayer.js
++++ b/src/utils/nestedMetafilePlayer.js
+@@ -114,6 +114,7 @@ function renderNestedToSvgNodes(bytes) {
+         }
+         return { nodes: subCtx.nodes, defs: subCtx.defs, width: W || 1, height: H || 1 };
+     } catch (e) {
++        throw e;
+         // Callers are EMF+ DrawImage handlers; wording kept for log continuity.
+         console.log('EMF+ nested EMF render failed:', /** @type {Error} */ (e).message);
+         return null;

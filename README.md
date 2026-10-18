@@ -88,6 +88,7 @@ python3 scripts/build-editorconfig-runtime.py
 python3 scripts/build-issue-regex-runtime.py
 python3 scripts/build-lexilla-runtime.py
 python3 scripts/build-graph-layout-runtime.py
+python3 scripts/build-metafile-runtime.py
 python3 scripts/build-openssh-runtime.py
 TURTLEGIT_CORE_ONLY=1 swift test
 ./scripts/build.sh
@@ -96,14 +97,14 @@ open build/Build/Products/Debug/TurtleGitMac.app
 
 The Core test mode keeps the same tests, resources and revision utility while skipping a duplicate SwiftPM build of the app. The full app and Finder extension are built separately by `build.sh`; ordinary `swift run TurtleGitMac` remains available without that environment variable.
 
-The build script prepares the editor, regex, graph, SSH and PuTTY key-conversion helpers, plus the merge
+The build script prepares the editor, regex, graph, metafile, SSH and PuTTY key-conversion helpers, plus the merge
 adapter when the Git/SVN runtime is present, before building the unsigned Debug
 app. The explicit commands above prepare the dependencies for the preceding
 tests. The initial pinned Git/SVN build can take substantially longer than app
 builds; it caches its components. Build its universal SVN payload on Apple Silicon
 with Rosetta, or restore the universal payload produced by CI.
 `swift run TurtleGitMac` is an alternative development launch; it does not embed
-the Finder extension or the EditorConfig, issue-matching, graph-layout and OpenSSH helpers.
+the Finder extension or the EditorConfig, issue-matching, graph-layout, metafile and OpenSSH helpers.
 
 See [testing](docs/TESTING.md) for scoped checks, native receivers, compatibility
 coverage and process cleanup. Close app instances after manual testing.
@@ -361,3 +362,8 @@ acceptance is tracked alongside each workflow.
 [Switch](docs/SWITCH-OPERATION-PARITY.md), [Reset](docs/RESET-OPERATION-PARITY.md)
 and [Bisect](docs/BISECT-OPERATION-PARITY.md) also retain explicit source mappings,
 operation/recovery behavior and remaining acceptance records.
+
+Windows metafile comparison uses the [bundled renderer](docs/METAFILE-RUNTIME.md)
+for WMF, EMF and EMF+, including native comparison, dropped previews and conflict
+panes. [Supported drawing behavior and remaining limits](docs/IMAGE-METAFILE-PARITY.md)
+remain explicit; rendering does not rewrite the original files.

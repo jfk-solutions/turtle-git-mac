@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import SwiftUI
 import TurtleGitCore
 import Darwin
@@ -52,9 +53,18 @@ import Darwin
         try a.write(to: left); try b.write(to: right); try c.write(to: other)
         try await repo.stage(["left.png", "right.png", "other.dat"]); _ = try await repo.commit(message: "images")
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
-        let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: left, destination: right), permissions: [])
+        let suite="TurtleGit.ImageOpen.QA."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
+        DialogGeometry.install(preferences:prefs)
+        defer {prefs.removePersistentDomain(forName:suite);DialogGeometry.install(preferences:.standard)}
+        let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: left, destination: right), permissions: [],preferences:prefs)
         let window = controller.window!; window.alphaValue = 0; window.setFrameOrigin(NSPoint(x: -10000, y: -10000))
         defer { window.close() }
+        var granted:ImageLoadWindowController?,standalone:FileComparisonWindowController?
+        func cleanup()async throws {
+            granted?.retire();granted=nil;standalone?.close();standalone=nil;controller.close()
+            try await wait {FileListComparisonSession.activeOperations == 0 && ImageComparisonViewModel.activeFileReads == 0 && ImageLoadWindowController.activeReleases == 0 && window.attachedSheet == nil && !window.isVisible}
+        }
+        do {
         controller.model.makeImageLoader = { path, leases in
             let loader = ImageLoadWindowController(leftPath: path, permissions: leases)
             loader.window!.alphaValue = 0
@@ -91,24 +101,24 @@ import Darwin
                 try bitmap.representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent("image-open-native-" + mode + "-2026-10-10.png"))
             }
         }
-        loader.left.stringValue = other.path; try press("Cancel", window: loader.window!); try await wait { window.attachedSheet == nil }
+        loader.left.stringValue = other.path; try press("Cancel", window: loader.window!); try await wait { window.attachedSheet == nil && ImageLoadWindowController.activeReleases == 0 }
         try require(controller.model.document?.base.bytes == initial.base.bytes && controller.model.document?.destination.bytes == initial.destination.bytes)
         loader = try await open(); loader.left.stringValue = root.appendingPathComponent("missing.dat").path
         try press("OK", window: loader.window!); try require(!loader.retired && window.attachedSheet != nil)
         try require(controller.model.document?.base.bytes == a)
         loader.left.stringValue = other.path; loader.right.stringValue = other.path
-        try press("OK", window: loader.window!); try await wait { window.attachedSheet == nil && !controller.model.busy }; try await settle()
+        try press("OK", window: loader.window!); try await wait { window.attachedSheet == nil && ImageLoadWindowController.activeReleases == 0 && !controller.model.busy }; try await settle()
         try require(controller.model.document?.base.bytes == c && controller.model.document?.destination.bytes == c)
         try require(controller.model.imageComparison != nil && pane.vertical && !pane.linked && pane.showInfo && pane.alpha == 0.75 && pane.fit)
         try require(window.title.contains("other.dat") && (window as! ImageComparisonKeyRouting).imageKeyModel === pane)
         try require(pane.fitWidths && pane.fitHeights)
         try require(pane.displaySizing.base.pixels == CGSize(width: 120, height: 40))
         loader = try await open(); loader.left.stringValue = ""; loader.right.stringValue = right.path
-        try press("OK", window: loader.window!); try await wait { window.attachedSheet == nil && !controller.model.busy }; try await settle()
+        try press("OK", window: loader.window!); try await wait { window.attachedSheet == nil && ImageLoadWindowController.activeReleases == 0 && !controller.model.busy }; try await settle()
         try require(controller.model.imageComparison?.base == nil && controller.model.imageComparison?.destination != nil)
         try require(pane.fitWidths && pane.fitHeights)
         loader = try await open(); loader.left.stringValue = ""; loader.right.stringValue = ""
-        try press("OK", window: loader.window!); try await wait { window.attachedSheet == nil && !controller.model.busy }; try await settle()
+        try press("OK", window: loader.window!); try await wait { window.attachedSheet == nil && ImageLoadWindowController.activeReleases == 0 && !controller.model.busy }; try await settle()
         try require(controller.model.imageComparison != nil && controller.model.document?.base.bytes.isEmpty == true && controller.model.document?.destination.bytes.isEmpty == true)
         // An ungranted typed path must ask for a native file grant before acceptance.
         loader = try await open(); loader.requiresScopes = true; loader.left.stringValue = left.path
@@ -118,19 +128,20 @@ import Darwin
         let picker = loader.window!.attachedSheet as! NSOpenPanel
         picker.orderOut(nil); loader.window!.orderOut(nil); window.orderOut(nil)
         try require(!accepted && picker.allowsOtherFileTypes && !picker.canChooseDirectories && !loader.windowShouldClose(loader.window!))
+        let imageExtensions=Set(picker.allowedContentTypes.compactMap(\.preferredFilenameExtension))
+        try require(imageExtensions.contains("wmf") && imageExtensions.contains("emf") && picker.alphaValue == loader.window?.alphaValue && picker.appearance == loader.window?.appearance)
         print("CANCEL PICKER"); fflush(stdout); picker.cancel(nil); print("CANCELLED PICKER"); fflush(stdout); try await wait { loader.window?.attachedSheet == nil }; try await settle()
         try require(!accepted && !loader.retired)
-        try press("Cancel", window: loader.window!); try await wait { window.attachedSheet == nil }
+        try press("Cancel", window: loader.window!); try await wait { window.attachedSheet == nil && ImageLoadWindowController.activeReleases == 0 }
         // Granted standalone acceptance keeps the lease in the receiving viewer.
         let recorder = ScopeRecorder()
         var lease: RepositoryAccessLease? = RepositoryAccessLease(url: other, provider: ScopeProvider(recorder: recorder))
         weak var witness = lease
-        var granted: ImageLoadWindowController? = ImageLoadWindowController(leftPath: other.path, permissions: [lease!])
+        granted = ImageLoadWindowController(leftPath: other.path, permissions: [lease!])
         granted!.requiresScopes = true; granted!.window!.alphaValue = 0
         granted!.window!.setFrameOrigin(NSPoint(x: -10000, y: -10000))
-        var standalone: FileComparisonWindowController?
         granted!.onAccepted = { inputs, permissions in
-            standalone = FileComparisonWindowController(images: inputs, permissions: permissions)
+            standalone = FileComparisonWindowController(images: inputs, permissions: permissions,preferences:prefs)
             standalone!.window!.alphaValue = 0
             standalone!.window!.setFrameOrigin(NSPoint(x: -10000, y: -10000))
             standalone!.model.load()
@@ -144,6 +155,8 @@ import Darwin
         let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout, finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let finalA = try Data(contentsOf: left), finalB = try Data(contentsOf: right), finalC = try Data(contentsOf: other)
         try require(finalHead == head && finalIndex == index && finalA == a && finalB == b && finalC == c)
+        try await cleanup()
         print("PASS: Native Cmd+O, left-only prefill, two path fields and actual OK/Cancel; missing path retains chooser/current images, identical and empty sides, replacement title/fit and retained view modes; ungranted typed path opens native file authorization and cancellation prevents acceptance; pregranted standalone acceptance retains and releases its lease; close/Quit guards; unchanged HEAD/index/file bytes. All owned windows closed.")
+        } catch {let original=error;do {try await cleanup()}catch {throw NSError(domain:"Image Open cleanup: \(original); \(error)",code:1)};throw original}
     }
 }

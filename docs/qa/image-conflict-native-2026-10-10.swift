@@ -56,6 +56,7 @@ import Darwin
         // Keep this private receiver transparent/offscreen throughout that path.
         window.alphaValue = 0; window.setFrameOrigin(NSPoint(x: -10000,y: -10000))
         window.appearance = NSAppearance(named: .aqua)
+        try await wait {!controller.model.busy}
         host.layoutSubtreeIfNeeded(); try await settle()
         func scrolls() -> [NSScrollView] { descendants(host).compactMap { $0 as? ImageComparisonScrollView } }
         try require(scrolls().count == 3)

@@ -3170,3 +3170,27 @@ Finder/app acceptance. The signed preview and unsigned App Store archive remain
 evidence for their recorded older source revision. Distribution signing/export
 and App Store acceptance have not been completed. These requirements remain
 part of the full port; this scoped batch does not replace them.
+
+
+### Windows metafile comparison family, October 18, 2026
+
+The previous checkpoint identified WMF/EMF decoding as a genuine feature gap.
+This batch adds a pinned MIT renderer in a universal JavaScriptCore helper,
+native drawing/encoding adapters, EMF+ transforms/state/clipping and dual-mode
+playback, original font names, embedded bitmap conversion and physical sizing.
+The [renderer source comparison](IMAGE-METAFILE-PARITY.md) records the exact
+record support and remaining Windows graphics compatibility.
+
+[Native consumers](METAFILE-CONSUMER-PARITY.md) decode comparisons, preview drops
+and conflict sides off the main actor, retain the accepted grants and operation
+lifetime through decoder drain, and discard retired results. WMF/EMF file types
+appear in the native Load Images filter; accepted Open waits for actual sheet
+release. Explicit IDiff/unsupported-side and explicit Merge routing remain.
+[Runtime reconstruction](METAFILE-RUNTIME.md) retains the exact source archive,
+license, adaptations and compiler/package provenance without a Node or browser
+dependency. Source files and conflict selections retain their original bytes.
+
+This is a connected implementation batch with grouped evidence in
+[metafile workflow checks](qa/metafile-workflows-2026-10-18.json). A successful
+scoped checkpoint does not certify every Windows drawing operation, every native
+layout or current signed Finder/App Store deployment.

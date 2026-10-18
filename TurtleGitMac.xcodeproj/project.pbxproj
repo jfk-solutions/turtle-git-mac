@@ -37,6 +37,7 @@
 		0195C6B3141B1AE8A2DD732B /* Checkout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593DF9B126BBA7E5D206ABE5 /* Checkout.swift */; };
 		02B318481C48E5ACC8497EF9 /* MessageSnippets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81E52787ACF6315F812EA290 /* MessageSnippets.swift */; };
 		039C1C33E2239E40BD58E0B5 /* GitDaemon.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11FB71BB05B58ECF349B727 /* GitDaemon.swift */; };
+		A673FD874C4932E7FF512D01 /* MetafileImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A673FD874C4932E7FF512D02 /* MetafileImage.swift */; };
 		03AD1F2FC854986D044AE453 /* ImageComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56132E3DE7A107C7B04A216E /* ImageComparison.swift */; };
 		03EB74C07B887765C564C04D /* SSHKeyGenerationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D861E87DCA7F3D938BFDF07 /* SSHKeyGenerationWindow.swift */; };
 		03FB132957093BAC375BD5BB /* SSHAuthenticationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1018E4684A7F74369EE313B3 /* SSHAuthenticationStore.swift */; };
@@ -664,6 +665,7 @@
 		53A34FF11AFBC8CA0823CFB5 /* SendPatchList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendPatchList.swift; sourceTree = "<group>"; };
 		548BA53E454CA6C5917EABE9 /* UnifiedDiffPrintMargins.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffPrintMargins.swift; sourceTree = "<group>"; };
 		553B03B8CB0E867E812A6B53 /* ReferenceLogDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogDiff.swift; sourceTree = "<group>"; };
+		A673FD874C4932E7FF512D02 /* MetafileImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetafileImage.swift; sourceTree = "<group>"; };
 		56132E3DE7A107C7B04A216E /* ImageComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageComparison.swift; sourceTree = "<group>"; };
 		5703FFF60B4C7B3BD68D1F9A /* RemoteReferenceWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteReferenceWindow.swift; sourceTree = "<group>"; };
 		571A28B129049EF346F00279 /* MailPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailPatch.swift; sourceTree = "<group>"; };
@@ -1356,6 +1358,7 @@
 				ACCD52A86C10025F3F1705C8 /* HistoryReferenceLabels.swift */,
 				BE462FE53C0B4B66B33BB002 /* HistoryContextMenu.swift */,
 				DAA057A2776BAA8F4BE538EE /* Ignore.swift */,
+				A673FD874C4932E7FF512D02 /* MetafileImage.swift */,
 				56132E3DE7A107C7B04A216E /* ImageComparison.swift */,
 				DDA6BCF99B24BA72CE43F823 /* ImageConflict.swift */,
 				AB93559771ED0B23D12480BE /* ImageFileComparison.swift */,
@@ -1975,6 +1978,7 @@
 				443137D28BFDD283BDA2B71E /* HistoryReferenceLabels.swift in Sources */,
 				BE462FE53C0B4B66B33BB001 /* HistoryContextMenu.swift in Sources */,
 				71A192AE217977ACEEDE0E0E /* Ignore.swift in Sources */,
+				A673FD874C4932E7FF512D01 /* MetafileImage.swift in Sources */,
 				03AD1F2FC854986D044AE453 /* ImageComparison.swift in Sources */,
 				BCD150BA60D833990C3FB778 /* ImageConflict.swift in Sources */,
 				E04C5627AD25CC2EF1C86987 /* ImageFileComparison.swift in Sources */,

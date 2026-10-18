@@ -1,0 +1,272 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "07111a3894595beae165ab6a9a6f564b27307182",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Native WMF/EMF/EMF+ image rendering with source dimensions, text, paths, clipping, bitmap and dual/GetDC handling",
+    "Pinned MIT renderer and universal interpreter-only JavaScriptCore helper, reconstruction/source/license/package integration",
+    "Off-main two-side comparison, preview drops and three-side conflict decoding; token/grant/session ownership until actual retirement",
+    "Load Images WMF/EMF filters and once-only accepted handoff after actual sheet detachment",
+    "Original captured bytes and explicit image/Merge/unsupported-side routes preserved",
+    "Actual user Close/Escape cancels initial and Reload preview decoding; Select mutation/question close protection remains"
+  ],
+  "dialogs": [
+    "IDD_OPEN"
+  ],
+  "validation": {
+    "status": "Scoped implementation checkpoint completed; unexplained earlier intermittent consumer assertion remains explicit",
+    "runtime": {
+      "log": "metafile-runtime-2026-10-18.log",
+      "exit": 0,
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "deployment_target": "13.0",
+      "hardened_adhoc_without_jit_entitlements": true,
+      "signed_copy_removed": true,
+      "scope": "Universal reconstruction/provenance/source/license/SDK-only linkage; actual WMF conversion and invalid-input rejection on both slices, including private hardened copy. Not a signed sandbox parent or full corpus pass."
+    },
+    "core_attempts": [
+      {
+        "log": "metafile-core-2026-10-18.log",
+        "exit": 1,
+        "cases": 33,
+        "assertion_failures": 5,
+        "failed_cases": [
+          "MetafileImageTests.testClassicAndPlusBitmapsDecodeOriginalChannelOrderAndKeepTextFace",
+          "MetafileImageTests.testCompressedPlusBitmapUsesSignatureDimensionsAndSourceCrop",
+          "MetafileImageTests.testEMFPlusTransformsClipsAndIndexedRestoreRenderDifferentTargets"
+        ],
+        "scope": "Ordinary image/conflict/file/viewer groups passed. Investigating actual bitmap interpolation/crop and SVG clipping behavior; no passing cases repeated yet."
+      },
+      {
+        "log": "metafile-core-affected-2026-10-18.log",
+        "exit": 1,
+        "cases": 11,
+        "assertion_failures": 1,
+        "scope": "Only metafile cases repeated after helper graphics-state/crop changes. Mask/crop functional repairs pass; crop sample remains between source pixel centers."
+      },
+      {
+        "log": "metafile-core-crop-center-2026-10-18.log",
+        "exit": 0,
+        "cases": 1,
+        "assertion_failures": 0,
+        "scope": "Only failed crop-center case repeated. Actual NSImage/CGContext raster diagnostic proved pure green at mapped source center24,16; original color thresholds preserved."
+      }
+    ],
+    "runtime_attempts": [
+      {
+        "log": "metafile-runtime-2026-10-18.log",
+        "exit": 0
+      },
+      {
+        "log": "metafile-runtime-repair-2026-10-18.log",
+        "exit": 0,
+        "scope": "Affected renderer source-crop and finite-mask repairs; source/architecture/provenance and standalone conversion/rejection checks on both slices. Helper native code unchanged; original hardened-copy proof retained."
+      },
+      {
+        "log": "metafile-packaged-runtime-2026-10-18.log",
+        "exit": 0,
+        "scope": "Finalized actual Debug app helper and relocated renderer, actual conversion/rejection on arm64 and x86_64."
+      }
+    ],
+    "build_attempts": [
+      {
+        "log": "metafile-build-2026-10-18.log",
+        "exit": 0
+      },
+      {
+        "log": "metafile-build-runtime-refresh-2026-10-18.log",
+        "exit": 0,
+        "scope": "Embed repaired renderer with actual app; Swift app/Core source unchanged."
+      },
+      {
+        "log": "metafile-build-close-repair-2026-10-18.log",
+        "exit": 0,
+        "scope": "Affected native conflict Close/Escape repair. Reused unchanged production runtime embedding; no Core changes or full Core rerun."
+      }
+    ],
+    "core_distinct_cases_passed": 33,
+    "native_attempts": [
+      {
+        "log": "metafile-native-2026-10-18.log",
+        "exit": 1,
+        "scope": "Fixture-only compile failed on two private drafts references. No native cases or app instances started."
+      },
+      {
+        "log": "metafile-native-affected-2026-10-18.log",
+        "exit": 1,
+        "passed_case_engine_pairs": 0,
+        "scope": "System consumer fixture invoked explicit Merge while constructor auto-load was busy. Deferred transfer constructor now installs hooks before beginTransferredDocument; production unchanged."
+      },
+      {
+        "log": "metafile-native-retained-2026-10-18.log",
+        "exit": 1,
+        "passed_case_engine_pairs": 6,
+        "scope": "Conflict, owned conflict and frames passed on both engines. Colors expected a replacement model identity; production intentionally retains pane model. Fixture now requires refreshed document/image identities, native canvas pixels, unchanged bytes and retained presentation."
+      },
+      {
+        "log": "metafile-native-remaining-2026-10-18.log",
+        "exit": 1,
+        "passed_case_engine_pairs": 1,
+        "scope": "System consumers passed. Bundled consumer observed nil decoded plus-bitmap-text.emf side, with no model error; diagnostic failure reporting added without retries or weakened acceptance. Colors/toolbar/Open did not run."
+      },
+      {
+        "log": "metafile-native-consumers-affected-2026-10-18.log",
+        "exit": 0,
+        "passed_case_engine_pairs": 1,
+        "scope": "Only failed bundled consumer repeated, unchanged production code. Passed all original assertions; diagnostic did not trigger. Earlier intermittent nil decode is not proven fixed and remains recorded."
+      },
+      {
+        "log": "metafile-native-retained-remaining-2026-10-18.log",
+        "exit": 1,
+        "passed_case_engine_pairs": 2,
+        "scope": "Colors passed with both engines, including refreshed native image identities and retained color pixels. Toolbar/system dispatched before queued async decode toolbar enablement refreshed. Fixture now awaits actual enabled native controls without forcing refresh; later cases did not execute."
+      },
+      {
+        "log": "metafile-native-close-affected-2026-10-18.log",
+        "exit": 0,
+        "passed_case_engine_pairs": 6,
+        "scope": "Affected consumers, toolbar and Open only, both Git engines. Actual Close/Escape during held initial/Reload preview, token/drain/Quit fencing and native toolbar enablement pass. Earlier conflict/owned/frames/colors passes retained; unchanged checks not repeated."
+      }
+    ],
+    "resources": {
+      "localization_check_exit": 0,
+      "languages": 38,
+      "keys": 1289,
+      "help_check_exit": 0,
+      "help_documents": 40,
+      "help_topics": 49,
+      "help_files": 60,
+      "coverage_check_exit": 0,
+      "site_build_exit": 0,
+      "site_documents": 332,
+      "unresolved_site_fragments": [],
+      "build_script_syntax_exit": 0,
+      "staged_diff_check_exit": 0
+    },
+    "source_repairs": [
+      "EMF+ image source-crop forwarding/compressed-point stride and finite SVG clip-mask bounds",
+      "Conflict preview Close/Escape remains usable during asynchronous initial/Reload decode; window retirement cancels token and keeps operation/grant ownership through actual drain"
+    ],
+    "native_distinct_case_engine_pairs_passed": 14,
+    "native_cases": [
+      "consumers",
+      "conflict",
+      "conflict-owned",
+      "frames",
+      "colors",
+      "toolbar",
+      "open"
+    ],
+    "git_engines": [
+      {
+        "path": "/usr/bin/git",
+        "version": "2.54.0"
+      },
+      {
+        "path": "build/git-runtime/Git/bin/git",
+        "version": "2.55.0"
+      }
+    ],
+    "cleanup": {
+      "receiver_pids": [
+        85501,
+        85751,
+        85874,
+        85984,
+        86196,
+        86419,
+        86479,
+        86535,
+        87565,
+        87755,
+        88057,
+        88265,
+        88381,
+        88435,
+        89136,
+        89317,
+        89435,
+        89510,
+        89592,
+        89640
+      ],
+      "independently_absent_after_checkpoint": true,
+      "count": 20,
+      "scope": "Every logged receiver independently absent via kill(pid,0). run_receiver owns/reaps receiver groups; Core/helper validators wait their children. Native fixtures close hidden owned windows, release held decoders and assert operation/grant retirement. No unrelated app terminated."
+    },
+    "log_sha256": {
+      "metafile-build-2026-10-18.log": "3e3f43ed46ad0a406e5fa935e3be6f978b4e664e6e8cbc6ff143ecadd0ce97f7",
+      "metafile-build-close-repair-2026-10-18.log": "891fb4580cd79e787c9c2cbffcbd01439e43a054a998b0163c7ba7b77d955f9b",
+      "metafile-build-runtime-refresh-2026-10-18.log": "fee3ad0d3fc50def04a3ec55f6e27343154101c0df28c0c732e916217dc08bdb",
+      "metafile-core-2026-10-18.log": "3bf58a6170a4b0f91e82d0297bae6346ef453b0776a696ef958945f7c4404015",
+      "metafile-core-affected-2026-10-18.log": "9422603c6a6311b541d66b9e01931fef1fcc52f38953c91d21790e738dd0f9a7",
+      "metafile-core-crop-center-2026-10-18.log": "cf664897d227904c0db2b8e99e7f48838f37cbcda4c6dd9bc91b2fafb879be82",
+      "metafile-native-2026-10-18.log": "22e08cfa66d18f49a80bde2ece4b0f596cd310fce7306df55730b37b5b56e72e",
+      "metafile-native-affected-2026-10-18.log": "33e787d25b62e866b309408a04dfe0a75a6930278282118172abb658bbcd60a1",
+      "metafile-native-close-affected-2026-10-18.log": "73ba5ce9f8b992b7cb04425578e503e6c8391a8267704b802b383669cc91fe57",
+      "metafile-native-consumers-affected-2026-10-18.log": "651f4fa2f7aa1292f1b7e52773888e2efee1c546862d5ac3e7243f18d54b581a",
+      "metafile-native-remaining-2026-10-18.log": "23d3390adccae6df42c4ea48708a4eb44c8ff3273995d7f395ba20dbdc1f37b1",
+      "metafile-native-retained-2026-10-18.log": "c895c401b57e7b1024c2b9b6149f1aea23bd58d0a76d6544f498d9e0e73bd4f8",
+      "metafile-native-retained-remaining-2026-10-18.log": "c93740a77697b688c474cb970a88939d1226562923ec5b81b734125bb7973c23",
+      "metafile-packaged-runtime-2026-10-18.log": "2d2791e2f678bfa7f201148db1739fc3e9f4a629dffbcb261ed18dcdd846535a",
+      "metafile-runtime-2026-10-18.log": "9fe501db2090d8661392e62bf39c543fab760ff978e45373926517d381012e51",
+      "metafile-runtime-repair-2026-10-18.log": "6f615809572645044b37d72debf44c00de50b0aaee70122335841c1ff8fc0ac1"
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "scope": "Source audit coverage, not feature-completion percentage."
+    },
+    "packaged_metafile_runtime": {
+      "binary_sha256": "69f66ee6ac578038be6094613558c14f969464a28650b9ad00880a8eca2df7a1",
+      "renderer_sha256": "d66dfafbf93649efb582f26a985dc7bcc9f617de17c22fd314c25e399edb0305",
+      "cache_key": "e2699e4ffa6b7d60aed49cd42407f4be941a11e0dc3dffb9b89ebe751173bd7b"
+    }
+  },
+  "remaining": [
+    "Unsupported Windows painting records and complex text/brush/region/raster-operation compatibility listed in IMAGE-METAFILE-PARITY.md",
+    "Physical compositor/font/input acceptance and minimum macOS/physical Intel",
+    "Current full hosted integration, current installed signed Finder/app and App Store distribution acceptance",
+    "Unresolved custom TurtleGit artwork",
+    "One bundled consumer run observed nil EMF+ image; focused unchanged-code rerun passed. Cause not reproduced; diagnostic assertions retained."
+  ],
+  "notes": [
+    "No claim of complete GDI compatibility or whole-port completion.",
+    "Test-owned windows remain hidden and helper/receiver groups are reaped.",
+    "Pre-existing unrelated reference runner and reflog-capture WIP are not staged.",
+    "The previous goal turn yielded authoritative source evidence for the user-provided writer reference; this turn repairs actual user cancellation, completes scoped validation and records current artifacts. Full goal remains active.",
+    "Initial staged whitespace check flagged required single-space unified patch context markers; a targeted .gitattributes whitespace exemption preserves exact reconstructible patch bytes. Final staged diff check passes."
+  ],
+  "independent_reference": {
+    "repository": "https://github.com/node-projects/layout2vector",
+    "commit": "2e0a96b9f87f2a8c0ff649963a67dfccd73bf5bb",
+    "license": "MIT",
+    "scope": "Read-only inspection of EMF/EMF+ export writers, synthetic tests and paint probes. No WMF implementation/import decoder found; no code or website-derived output copied. ImageAttributes/gradient interoperability remains future implementation."
+  },
+  "hosted_observation": {
+    "07111a38_pages": {
+      "run": 39156847682,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "07111a38_macos": {
+      "run": 39156847749,
+      "status": "pending",
+      "conclusion": null
+    },
+    "ea108cf9_macos": {
+      "run": 39154284194,
+      "status": "in_progress",
+      "conclusion": null
+    },
+    "scope": "Observed before this batch commit; does not establish current hosted integration."
+  }
+}

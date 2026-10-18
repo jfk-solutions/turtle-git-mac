@@ -101,7 +101,7 @@ public struct DiffToolAssociation: Codable, Equatable, Identifiable, Sendable {
 /// an explicit viewer choice; content sniffing must not undo a Merge selection.
 public enum DiffToolSelection: Equatable, Sendable {
     case merge, image, program(DiffToolProgram)
-    public static let imageExtensions = ["jpg", "jpeg", "bmp", "gif", "png", "ico", "tif", "tiff", "dib", "emf", "cur", "webp", "svg", "svgz"]
+    public static let imageExtensions = ["jpg", "jpeg", "bmp", "gif", "png", "ico", "tif", "tiff", "dib", "emf", "wmf", "cur", "webp", "svg", "svgz"]
 }
 public struct DiffToolPreferences: Codable, Equatable, Sendable {
     public var program = DiffToolProgram()

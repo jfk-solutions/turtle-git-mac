@@ -2370,3 +2370,23 @@ Run the related Core classes once at this boundary and the grouped native cases
 with system and bundled Git. Repeat only checks affected by a real failure or
 subsequent change. See `qa/switch-reset-bisect-workflows-2026-10-18.json` for actual
 results, fixture repairs and remaining physical/signed/full-port limits.
+
+
+### Windows metafile comparison family
+
+Build the source-pinned helper with `python3 scripts/build-metafile-runtime.py`,
+then build the Debug app so its runtime kit and actual native sources agree.
+The focused Core group includes `MetafileImageTests`, `ImageComparisonTests`,
+`ImageConflictTests`, `ImageFileComparisonTests` and `DiffToolViewerSelectionTests`.
+Run `python3 scripts/test-metafile-workflows.py --git /usr/bin/git --git
+build/git-runtime/Git/bin/git` for actual decoder consumers and affected retained
+image workflows. The receiver cache includes source/framework/compiler inputs
+and stable generated source paths; cases use private repositories/preferences
+and hidden owned windows. `--only` selects affected cases after a real failure.
+
+The corpus generator is `Tests/TurtleGitCoreTests/Fixtures/Metafile/generate.py`.
+Successful and deliberately unsupported samples are separate. A successful
+raster must retain expected dimensions/colors and original source bytes; an
+unsupported record must fail rather than return a misleading partial drawing.
+Physical input/compositor/font equivalence, minimum-OS and installed signed
+App Store acceptance remain separate from these focused checks.

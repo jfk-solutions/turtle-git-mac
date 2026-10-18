@@ -117,14 +117,19 @@ import Darwin
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let afterFirst = try Data(contentsOf: first), afterSecond = try Data(contentsOf: second)
         try require(afterHead == head && afterIndex == index && afterFirst == red && afterSecond == blue)
-        // Source SetPic retains the chosen background; the new pane model
-        // must share its owning window's presentation after reloading.
+        // Source SetPic refreshes pixels while retaining the viewer's chosen
+        // background. The native viewer model is intentionally retained too.
         try await choose(model.presentation, window: window, color: .green, answer: "OK")
+        let priorDocumentID=controller.model.imageComparison?.id,priorBaseID=model.currentImage(base:true)?.id
         controller.model.load(); try await wait { !controller.model.busy }
-        try await wait { (window as? ImageComparisonKeyRouting)?.imageKeyModel != nil && (window as? ImageComparisonKeyRouting)?.imageKeyModel !== model }
+        try await wait {
+            window.contentView?.layoutSubtreeIfNeeded()
+            return (window as? ImageComparisonKeyRouting)?.imageKeyModel === model && controller.model.imageComparison?.id != priorDocumentID && model.currentImage(base:true)?.id != priorBaseID && model.currentImage(base:true)?.id == controller.model.imageComparison?.base?.id
+        }
+        try require(controller.model.document?.base.bytes == red && controller.model.document?.destination.bytes == blue && model.currentImage(base:true)?.pixels.width == 80 && model.currentImage(base:false)?.pixels.width == 80)
         let replacement = (window as! ImageComparisonKeyRouting).imageKeyModel!
         replacement.originalSize(); try await settle()
-        try require(replacement.presentation === model.presentation && matches(colors(window), greenReference))
+        try require(replacement.presentation === model.presentation && colors(window).count == 2 && matches(colors(window), greenReference))
         try keyD(window); try await settle(); try require(replacement.presentation.darkMode && replacement.presentation.transparentColor == nil)
         try keyD(window); try await settle()
         _ = try await repo.run(["switch", "-c", "color-side"])
@@ -137,7 +142,7 @@ import Darwin
         let conflict = ImageConflictWindowController(repository: repo, access: nil, document: document), conflictWindow = conflict.window!
         conflictWindow.alphaValue = 0; conflictWindow.setFrameOrigin(NSPoint(x: -10000, y: -10000)); conflictWindow.appearance = NSAppearance(named: .aqua)
         defer { conflictWindow.close() }
-        conflictWindow.orderFront(nil); conflictWindow.orderOut(nil); conflict.model.originalSize(); try await settle()
+        conflictWindow.orderFront(nil); conflictWindow.orderOut(nil);try await wait {!conflict.model.busy}; conflict.model.originalSize(); try await settle()
         try await choose(conflict.model.presentation, window: conflictWindow, color: .cyan, answer: "OK")
         try require(colors(conflictWindow).count == 3 && matches(colors(conflictWindow), reference(.cyan, window: conflictWindow)))
         try keyD(conflictWindow); try await settle()

@@ -20,7 +20,8 @@ public struct ComparisonImage {
     private let source: CGImageSource
     public var canAnimate: Bool { frameCount > 1 && !isIconVariants }
     public var size: CGSize { CGSize(width: pixels.width, height: pixels.height) }
-    public init?(bytes: Data) {
+    public init?(bytes: Data, cancellation: OperationCancellation? = nil) {
+        guard cancellation?.isCancelled != true, !Task.isCancelled else { return nil }
         if bytes.starts(with: [0, 0, 2, 0]) {
             let hotspots = ImageComparisonContainers.cursorHotspots(bytes)
             guard !hotspots.isEmpty, let payloads = ImageComparisonContainers.cursorPayloads(bytes) else { return nil }
@@ -28,7 +29,11 @@ public struct ComparisonImage {
             guard sources.count == payloads.count, let first = sources.first else { return nil }
             self.init(source: first, index: 0, id: UUID(), cursorHotspots: hotspots, cursorFrames: sources); return
         }
-        guard let payload = ImageComparisonContainers.payload(bytes) else { return nil }
+        guard let original = ImageComparisonContainers.payload(bytes) else { return nil }
+        let payload: Data
+        do { payload = try MetafileImageDecoder.convert(original, cancellation: cancellation) ?? original }
+        catch { return nil }
+        guard cancellation?.isCancelled != true, !Task.isCancelled else { return nil }
         if let source = CGImageSourceCreateWithData(payload as CFData, nil),
            let image = Self(source: source, index: 0, id: UUID(), cursorHotspots: ImageComparisonContainers.cursorHotspots(bytes)) { self = image; return }
         // AppKit supplies native vector rendering on systems whose ImageIO does
@@ -44,7 +49,9 @@ public struct ComparisonImage {
         guard let raster = context.makeImage() else { return nil }
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil) else { return nil }
-        CGImageDestinationAddImage(destination, raster, nil)
+        let resolution = MetafileImageFormat.resolution(original)
+        let properties = resolution.map { [kCGImagePropertyDPIWidth: $0.0, kCGImagePropertyDPIHeight: $0.1] as CFDictionary }
+        CGImageDestinationAddImage(destination, raster, properties)
         guard CGImageDestinationFinalize(destination), let source = CGImageSourceCreateWithData(data, nil) else { return nil }
         self.init(source: source, index: 0, id: UUID(), cursorHotspots: [])
     }
@@ -191,8 +198,8 @@ public struct ImageComparisonDocument {
     public let destination: ComparisonImage?
     /// Explicit image-viewer inputs may have empty or unsupported image sides.
     public init(base: ComparisonImage?, destination: ComparisonImage?) { self.base = base; self.destination = destination }
-    public init?(_ document: FileComparisonDocument) {
-        let a = ComparisonImage(bytes: document.base.bytes), b = ComparisonImage(bytes: document.destination.bytes)
+    public init?(_ document: FileComparisonDocument, cancellation: OperationCancellation? = nil) {
+        let a = ComparisonImage(bytes: document.base.bytes, cancellation: cancellation), b = ComparisonImage(bytes: document.destination.bytes, cancellation: cancellation)
         guard a != nil || b != nil,
               a != nil || document.base.bytes.isEmpty,
               b != nil || document.destination.bytes.isEmpty else { return nil }

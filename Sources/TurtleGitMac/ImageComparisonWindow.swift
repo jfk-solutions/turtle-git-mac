@@ -30,6 +30,13 @@ import TurtleGitCore
             try token.check();return value
         }.value
     }
+    // Metafile rasterization may own an external decoder. Keep it off the UI
+    // actor and await its true completion even after this preview is retired.
+    var decodeDroppedImage:(Data,OperationCancellation) async throws -> ComparisonImage? = { bytes,token in
+        try await Task.detached {
+            try token.check();let image=ComparisonImage(bytes:bytes,cancellation:token);try token.check();return image
+        }.value
+    }
     var interactionAllowed: Bool { !retired && !receivingDrop && commandsAllowed() }
     @discardableResult func dropFile(_ url:URL,base:Bool) -> Bool {
         guard interactionAllowed,url.isFileURL,!url.path.contains("\0") else { return false }
@@ -37,7 +44,7 @@ import TurtleGitCore
         guard !requiresDropScope || permission.permits(url) else {
             dropError = ImageFileComparisonFailure.filePermissionRequired.localizedDescription;return false
         }
-        let token = OperationCancellation(),generation = UUID(),read = readDroppedFile
+        let token = OperationCancellation(),generation = UUID(),read = readDroppedFile,decode=decodeDroppedImage
         dropCancellation = token;dropGeneration = generation;receivingDrop = true;dropError = nil;stopAllPlayback()
         Self.activeFileReads += 1
         Task { [self] in
@@ -47,10 +54,11 @@ import TurtleGitCore
             }
             do {
                 let content = try await read(url,token);try token.check()
+                let decoded=try await decode(content.bytes,token);try token.check()
                 guard !retired,dropGeneration == generation,commandsAllowed() else { return }
                 stopAllPlayback();imageOffsets = [:]
                 droppedFiles[base] = content;dropPermissions[base] = permission
-                sources[base] = ComparisonImage(bytes:content.bytes);currentImages[base] = sources[base]
+                sources[base] = decoded;currentImages[base] = sources[base]
                 frameErrors[base] = nil
                 sizing.replacePixels(base:currentImages[true]?.size ?? .zero,destination:currentImages[false]?.size ?? .zero)
                 fit = true

@@ -61,4 +61,20 @@ appearance and resets the transparency background to the theme default.</p>
 repository. In an image viewer, <strong>File → Open…</strong> or <strong>Cmd+O</strong> opens the same
 native two-path chooser. Use Browse for either side, leave a side blank for a
 single image, or choose the same image twice. Cancel keeps the existing view.</p>
+<h2 id="windows-metafiles">Windows metafiles</h2>
+<p>WMF, EMF and EMF+ inputs use the bundled metafile renderer in the existing image
+panes. No separately installed converter is needed. Load Images and image-pane
+drops accept these formats too. Rendering supports captured vector paths, text,
+transforms, clipping and embedded bitmaps; recorded dimensions and available
+resolution feed the normal zoom and Image Info controls.</p>
+<p>Decoding runs in the background. Closing or replacing an input cancels the owned
+decoder and prevents a delayed preview from replacing a newer view. Rendering
+never rewrites the original file or conflict stage. Selecting a conflict side
+copies its original bytes, including when that side cannot be rendered.</p>
+<p>Some Windows drawing records and font behavior still need compatibility work.
+Unsupported records and malformed files retain an undecodable image side rather
+than showing an incomplete successful drawing. See the
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/IMAGE-METAFILE-PARITY.html">metafile renderer comparison</a> and
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/METAFILE-CONSUMER-PARITY.html">native consumer comparison</a> for the supported record
+families, actual checks and remaining limits.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

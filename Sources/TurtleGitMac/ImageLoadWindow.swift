@@ -3,6 +3,11 @@ import TurtleGitCore
 import UniformTypeIdentifiers
 
 @MainActor final class ImageLoadWindowController: NSWindowController, NSWindowDelegate {
+    private(set) static var activeReleases=0
+    static var imageContentTypes:[UTType] {[.image]+["wmf","emf"].compactMap {UTType(filenameExtension:$0,conformingTo:.data)}}
+    private var releaseObserver:NSObjectProtocol?
+    private var releaseOwner:NSWindow?
+    private var finished=false
     let left = NSTextField(), right = NSTextField()
     private let status = NSTextField(wrappingLabelWithString: "")
     private let ok = NSButton(title: "OK", target: nil, action: nil)
@@ -46,7 +51,7 @@ import UniformTypeIdentifiers
     }
     func present(parent: NSWindow?) {
         self.parent = parent
-        if let parent { parent.beginSheet(window!) } else { showWindow(nil) }
+        if let parent { window?.alphaValue=parent.alphaValue;window?.appearance=parent.appearance;parent.beginSheet(window!) } else { showWindow(nil) }
         window?.makeFirstResponder(left)
     }
     @objc private func browseLeft() { browse(left) }
@@ -54,7 +59,8 @@ import UniformTypeIdentifiers
     private func browse(_ field: NSTextField, authorize: URL? = nil) {
         guard !retired, panel == nil, let window else { return }
         let picker = makeOpenPanel(); picker.canChooseFiles = true; picker.canChooseDirectories = false; picker.allowsMultipleSelection = false
-        picker.allowedContentTypes = [.image]; picker.allowsOtherFileTypes = true
+        picker.allowedContentTypes = Self.imageContentTypes; picker.allowsOtherFileTypes = true
+        picker.alphaValue=window.alphaValue;picker.appearance=window.appearance
         picker.title = "Open image file…"
         if let authorize { picker.directoryURL = authorize.deletingLastPathComponent(); picker.message = "Select “" + authorize.lastPathComponent + "” to allow this image to be read." }
         else if !field.stringValue.isEmpty { picker.directoryURL = URL(fileURLWithPath: field.stringValue).deletingLastPathComponent() }
@@ -87,8 +93,18 @@ import UniformTypeIdentifiers
     private func finish(closeWindow: Bool = true) {
         guard !retired else { return }; retired = true
         if let panel, let window { window.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
-        if let parent, parent.attachedSheet === window { parent.endSheet(window!) }
-        window?.orderOut(nil); if closeWindow { window?.close() }; onClosed()
+        releaseOwner=window?.sheetParent ?? parent
+        Self.activeReleases += 1
+        releaseObserver=NotificationCenter.default.addObserver(forName:NSWindow.didEndSheetNotification,object:nil,queue:.main) { [self] _ in DispatchQueue.main.async {self.drainRelease()} }
+        if let parent=releaseOwner,let window,parent.attachedSheet === window {parent.endSheet(window)}
+        window?.orderOut(nil);if closeWindow {window?.close()}
+        drainRelease();DispatchQueue.main.async { [self] in drainRelease() }
+    }
+    private func drainRelease() {
+        guard retired,!finished,window?.attachedSheet == nil,window?.sheetParent == nil,releaseOwner?.attachedSheet !== window else{return}
+        finished=true;Self.activeReleases -= 1
+        if let releaseObserver {NotificationCenter.default.removeObserver(releaseObserver);self.releaseObserver=nil}
+        releaseOwner=nil;let done=onClosed;onClosed={};done()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if panel != nil { return false }; cancel(); return false }
     func windowWillClose(_ notification: Notification) { if !retired { finish(closeWindow: false) } }

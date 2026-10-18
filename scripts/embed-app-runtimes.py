@@ -12,7 +12,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parent.parent
 KITS = [
     ('lexilla', 'Lexilla'), ('issue-regex', 'IssueRegex'),
-    ('merge-diff', 'MergeDiff'), ('graph-layout', 'GraphLayout'),
+    ('merge-diff', 'MergeDiff'), ('graph-layout', 'GraphLayout'), ('metafile', 'Metafile'),
     ('editorconfig', 'EditorConfig'), ('openssh', 'OpenSSH'), ('putty', 'PuTTY'),
 ]
 

@@ -1554,3 +1554,13 @@ The unmodified src/Resources/RegexFilter.ini from the pinned TortoiseGit source
 is bundled in TurtleGitCore as the first-run Merge GUID filter preset. Source,
 blob and SHA-256 provenance are recorded in Configuration/MergeRegexPresets.json.
 It retains the upstream GPL-2.0-or-later licensing and contributor attribution.
+
+Windows metafile comparison uses the MIT-licensed WmfEmfViewer renderer by
+Cong Duan, pinned at 4e0d6d6807349ebfc8f8c681009c14f9e57621ff, in a separate
+JavaScriptCore helper. Original copyright/license, exact corresponding source,
+local rendering adaptations and reconstruction inputs accompany the Metafile
+runtime. Native helper and renderer adaptations in this repository use GPLv2.
+System JavaScriptCore, CoreText, ImageIO and CoreGraphics retain Apple's licenses.
+See docs/METAFILE-RUNTIME.md and docs/IMAGE-METAFILE-PARITY.md for provenance
+and remaining Windows drawing compatibility limits. No Node.js, browser or
+separately installed converter is required by a packaged application.

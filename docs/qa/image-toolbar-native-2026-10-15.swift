@@ -14,6 +14,10 @@ struct ImageToolbarVerification {
         guard let item = owner.toolbar.items.first(where: { $0.itemIdentifier == command.identifier }) else { throw NSError(domain: "Missing " + command.rawValue, code: 1) }
         return item
     }
+    @MainActor static func commandIsEnabled(_ command:ImageEditorCommand,_ owner:ImageEditorToolbar)->Bool {
+        guard let native=try? item(command,owner),native.isEnabled,let control=native.view as? NSControl else{return false}
+        return control.isEnabled
+    }
     @MainActor static func send(_ item: NSMenuItem) throws {
         try require(NSApp.sendAction(item.action!, to: item.target, from: item))
     }
@@ -119,14 +123,14 @@ struct ImageToolbarVerification {
         let conflict = ImageConflictWindowController(repository: repo, access: nil, document: document, preferences: prefs)
         defer { conflict.close() }
         let selection = conflict.imageToolbar!, selectionModel = conflict.model
-        conflict.window?.contentView?.layoutSubtreeIfNeeded(); try await wait { selectionModel.nativeToolbarInstalled && selection.toolbar.items.count >= 8 }
+        conflict.window?.contentView?.layoutSubtreeIfNeeded(); try await wait { !selectionModel.busy && selectionModel.nativeToolbarInstalled && selection.toolbar.items.count >= 8 && commandIsEnabled(.info,selection) && commandIsEnabled(.vertical,selection) }
         try require(selection.toolbar.items.filter { $0.itemIdentifier != .space && $0.itemIdentifier != .flexibleSpace }.map(\.itemIdentifier) == expected.filter { ![.overlay,.blend,.link,.widths,.heights].contains($0) }.map(\.identifier))
         try send(try item(.info, selection)); try require(selectionModel.showInfo)
         try send(try item(.vertical, selection)); try require(selectionModel.vertical)
         let stale = try item(.info, selection).menuFormRepresentation!
-        selectionModel.reload(); selection.refresh(); let old = selectionModel.showInfo
+        selectionModel.reload(); let old = selectionModel.showInfo
         try send(stale); try require(selectionModel.showInfo == old && !selection.validateMenuItem(stale))
-        try await wait { !selectionModel.busy }; selection.refresh()
+        try await wait { !selectionModel.busy && commandIsEnabled(.vertical,selection) }
         try send(try item(.vertical, selection)); try require(!selectionModel.vertical)
         try await capture(conflict, name: "image-toolbar-selection")
         conflict.close(); try send(stale); try require(selectionModel.retired && selectionModel.showInfo == old && !selection.validateMenuItem(stale))

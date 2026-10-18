@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""Reconstruct the pinned MIT metafile renderer and universal system-framework helper."""
+import argparse
+import hashlib
+import json
+import pathlib
+import re
+import shutil
+import subprocess
+import tarfile
+import tempfile
+import uuid
+from pinned_download import download_verified
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+FILES = ['LICENSE', 'Configuration/MetafileRuntime.json', 'Sources/TurtleGitMetafile/main.swift',
+         'patches/metafile-renderer.patch', 'scripts/build-metafile-runtime.py',
+         'scripts/validate-metafile-runtime.py', 'scripts/embed-metafile-runtime.py',
+         'scripts/pinned_download.py', 'scripts/runtime_bundle_layout.py', 'scripts/git_lfs_runtime.py']
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def bundle(source):
+    """Bundle only reachable, static, relative CommonJS imports. No npm or eval loader."""
+    modules = {}
+    pattern = re.compile(r'''\brequire\(\s*(['"])([^'"]+)\1\s*\)''')
+    def visit(relative):
+        if relative in modules:
+            return
+        path = source / relative
+        if not path.resolve().is_relative_to(source.resolve()) or path.suffix != '.js':
+            raise RuntimeError('Module escapes reviewed source: ' + relative)
+        text = path.read_text()
+        modules[relative] = None
+        dependencies = {}
+        for match in pattern.finditer(text):
+            name = match[2]
+            if not name.startswith('.'):
+                raise RuntimeError('External renderer module: ' + name)
+            target = (path.parent / name).with_suffix('.js').resolve()
+            key = str(target.relative_to(source.resolve()))
+            dependencies[name] = key
+            visit(key)
+        # A future dynamic import must fail reconstruction rather than access host files.
+        if len(re.findall(r'\brequire\s*\(', text)) != len(list(pattern.finditer(text))):
+            raise RuntimeError('Dynamic CommonJS import in ' + relative)
+        modules[relative] = (text, dependencies)
+    entry = 'packages/wmf-emf-renderer/entry.js'
+    visit(entry)
+    lines = ['// Pinned MIT WmfEmfViewer; see LICENSE-renderer and provenance.json.', '(function(){"use strict";const definitions={};']
+    for name, (text, dependencies) in sorted(modules.items()):
+        lines += ['definitions[' + json.dumps(name) + ']=[function(require,module,exports){\n' + text + '\n},' + json.dumps(dependencies, sort_keys=True) + '];']
+    lines += ['const cache={};function load(id){if(cache[id])return cache[id].exports;const d=definitions[id];if(!d)throw Error("Unknown bundled module");const m={exports:{}};cache[id]=m;d[0](name=>{if(!Object.hasOwn(d[1],name))throw Error("Unknown import");return load(d[1][name]);},m,m.exports);return m.exports;}',
+              'globalThis.TurtleGitMetafile=load(' + json.dumps(entry) + ');})();\n']
+    return '\n'.join(lines)
+
+def extract(archive, destination):
+    with tarfile.open(archive) as stream:
+        for member in stream:
+            relative = pathlib.PurePosixPath(*pathlib.PurePosixPath(member.name).parts[1:])
+            target = destination / relative
+            if not target.resolve().is_relative_to(destination.resolve()):
+                raise RuntimeError('Escaping source archive')
+            if member.isdir(): target.mkdir(parents=True, exist_ok=True)
+            elif member.isfile():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(stream.extractfile(member).read())
+            else: raise RuntimeError('Unsupported source archive entry: ' + member.name)
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=pathlib.Path, default=ROOT / 'build/metafile-runtime/Metafile')
+    args = parser.parse_args()
+    output = args.output.resolve()
+    if output.exists() and not (output / 'provenance.json').is_file():
+        raise RuntimeError('Refusing to replace unrecognized runtime')
+    pin = json.loads((ROOT / 'Configuration/MetafileRuntime.json').read_text())
+    cache = ROOT / 'build/metafile-runtime/cache'
+    cache.mkdir(parents=True, exist_ok=True)
+    archive = cache / ('renderer-' + pin['renderer']['commit'] + '.tar.gz')
+    bundled_archive = ROOT.parent / 'renderer.tar.gz'
+    if not archive.exists() and bundled_archive.is_file():
+        if digest(bundled_archive) != pin['renderer']['sha256']:
+            raise RuntimeError('Bundled renderer source checksum mismatch')
+        shutil.copy2(bundled_archive, archive)
+    download_verified(pin['renderer']['url'], archive, pin['renderer']['sha256'])
+    compiler = subprocess.check_output(['xcrun', 'swiftc', '--version'], text=True)
+    sdk = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
+    sdk_version = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-version'], text=True).strip()
+    hashes = {name: digest(ROOT / name) for name in FILES}
+    flags = ['-O', '-whole-module-optimization', '-framework', 'JavaScriptCore', '-framework', 'CoreText', '-framework', 'ImageIO']
+    key = hashlib.sha256(json.dumps([pin, hashes, compiler, sdk_version, flags], sort_keys=True).encode()).hexdigest()
+    work = cache / key
+    work.mkdir(exist_ok=True)
+    binary = work / 'metafile-convert'
+    renderer = work / 'renderer.js'
+    if not binary.is_file() or not renderer.is_file():
+        with tempfile.TemporaryDirectory(prefix='metafile-source-', dir=cache) as directory:
+            source = pathlib.Path(directory)
+            extract(archive, source)
+            subprocess.run(['/usr/bin/patch', '-f', '-F', '0', '-p1', '-i', str(ROOT / 'patches/metafile-renderer.patch')], cwd=source, check=True)
+            renderer.write_text(bundle(source))
+            shutil.copy2(source / 'LICENSE', work / 'LICENSE-renderer')
+        slices = []
+        for arch in pin['architectures']:
+            part = work / ('metafile-convert-' + arch)
+            subprocess.run(['xcrun', 'swiftc', *flags, '-sdk', sdk,
+                            '-target', arch + '-apple-macosx' + pin['deployment_target'],
+                            str(ROOT / 'Sources/TurtleGitMetafile/main.swift'), '-o', str(part)], check=True)
+            slices.append(str(part))
+        subprocess.run(['lipo', '-create', *slices, '-output', str(binary)], check=True)
+    stage = output.with_name(output.name + '-stage-' + uuid.uuid4().hex)
+    stage.mkdir(parents=True)
+    try:
+        for name in ['metafile-convert', 'renderer.js', 'LICENSE-renderer']:
+            shutil.copy2(work / name, stage / name)
+        shutil.copy2(ROOT / 'LICENSE', stage / 'LICENSE')
+        sources = stage / 'Sources/build'
+        sources.mkdir(parents=True)
+        shutil.copy2(archive, stage / 'Sources/renderer.tar.gz')
+        for name in FILES:
+            target = sources / name; target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / name, target)
+        manifest = {'pin': pin, 'binary_sha256': digest(stage / 'metafile-convert'),
+                    'renderer_sha256': digest(stage / 'renderer.js'), 'source_sha256': hashes,
+                    'license_sha256': {name: digest(stage / name) for name in ['LICENSE', 'LICENSE-renderer']},
+                    'compiler': compiler, 'sdk_version': sdk_version, 'flags': flags, 'cache_key': key, 'signed': False}
+        (stage / 'provenance.json').write_text(json.dumps(manifest, indent=2) + '\n')
+        subprocess.run(['python3', str(ROOT / 'scripts/validate-metafile-runtime.py'), str(stage), '--structure-only'], check=True)
+        if output.exists(): shutil.rmtree(output)
+        stage.rename(output)
+    finally:
+        if stage.exists(): shutil.rmtree(stage)
+    print('Built pinned universal Metafile runtime: ' + str(output))
+
+if __name__ == '__main__': main()
