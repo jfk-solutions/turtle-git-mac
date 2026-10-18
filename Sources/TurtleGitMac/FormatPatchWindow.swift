@@ -33,7 +33,7 @@ import TurtleGitCore
     private var sendPatch: SendMailWorkflow?
     private let mailPreferences: UserDefaults
     private let mailPresentation: ((NSWindowController) -> Void)?
-    var activeOperation: Bool { model.hasOptionSheet || model.busy || model.progress || model.confirmingCancellation || model.finishScheduled || model.composingMail || model.openingViewer }
+    var activeOperation: Bool { model.hasOptionSheet || model.busy || model.progress || model.confirmingCancellation || model.finishScheduled || model.waitingForOwnerClose || model.composingMail || model.openingViewer }
     init(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
         mailPreferences = preferences; self.mailPresentation = mailPresentation
         model = FormatPatchWindowModel(repository: repository, access: access, preferences: preferences)
@@ -47,11 +47,7 @@ import TurtleGitCore
         window.setContentSize(NSSize(width: 680, height: 365))
         window.contentMinSize = NSSize(width: 650, height: 365); window.contentMaxSize = NSSize(width: 4000, height: 365)
         window.center()
-        model.close = { [weak self] in
-            guard let self else { return }
-            if self.model.cancelRead(closeAfter: true) { return }
-            guard !self.activeOperation else { return }; self.window?.performClose(nil)
-        }
+        model.close = { [weak self] in self?.requestOwnerClose() }
         model.chooseDirectory = { [weak self] in self?.chooseDirectory() }
         model.chooseRevision = { [weak self] target in self?.chooseRevision(target) }
         model.showPatch = { [weak self] bytes, alternate in self?.showPatch(bytes, alternate: alternate) }
@@ -145,7 +141,23 @@ import TurtleGitCore
         referencePicker?.abandonPresentation(); referencePicker = nil
         picker?.close(); picker = nil
     }
-    @objc private func optionSheetEnded() { drainChoice(); drainDirectory() }
+    private func requestOwnerClose() {
+        guard !retired else { return }
+        if model.cancelRead(closeAfter: true) { return }
+        guard !activeOperation, let window else { return }
+        // SwiftUI dismisses the progress sheet asynchronously. Keep the
+        // acknowledgement until AppKit releases that sheet instead of losing
+        // performClose to windowShouldClose's attached-sheet guard.
+        guard window.attachedSheet == nil else { model.waitingForOwnerClose = true; return }
+        window.performClose(nil)
+    }
+    @objc private func optionSheetEnded() {
+        drainChoice(); drainDirectory()
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.retired, self.model.waitingForOwnerClose, self.window?.attachedSheet == nil else { return }
+            self.model.waitingForOwnerClose = false; self.requestOwnerClose()
+        }
+    }
     private func drainDirectory() {
         guard !retired, let pending = pendingDirectory, choiceRequest == pending.0,
               window?.attachedSheet == nil, directoryPanel == nil else { return }
@@ -220,7 +232,7 @@ import TurtleGitCore
     private(set) static var activeOperations = 0
     enum Mode: Equatable { case since, number, from, to }
     @Published var hasOptionSheet = false
-    var optionsAvailable: Bool { !invalidated && !hasOptionSheet && !busy && !progress && !finishScheduled && !confirmingCancellation && !composingMail && !openingViewer }
+    var optionsAvailable: Bool { !invalidated && !hasOptionSheet && !busy && !progress && !finishScheduled && !waitingForOwnerClose && !confirmingCancellation && !composingMail && !openingViewer }
     var isRetired: Bool { invalidated }
     private var readCancellation: OperationCancellation?
     private var closeAfterRead = false
@@ -269,6 +281,7 @@ import TurtleGitCore
     @Published var cancelled = false
     @Published private(set) var confirmingCancellation = false
     @Published private(set) var finishScheduled = false
+    @Published var waitingForOwnerClose = false
     let preferences: UserDefaults
     private var invalidated = false
     private var progressClosePolicy = GitProgressAutoClose.manual
@@ -282,7 +295,7 @@ import TurtleGitCore
     var composeMail: ([URL]) -> Void = { _ in }
     var onOutputChanged: (String) -> Void = { _ in }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
-    func invalidate() { invalidated = true; readCancellation?.cancel(); confirmingCancellation = false; progress = false; cancellation?.cancel() }
+    func invalidate() { invalidated = true; waitingForOwnerClose = false; readCancellation?.cancel(); confirmingCancellation = false; progress = false; cancellation?.cancel() }
     func apply(_ preset: FormatPatchPreset?) {
         guard let preset, optionsAvailable else { return }
         from = preset.from; to = preset.to

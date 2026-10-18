@@ -314,8 +314,13 @@ import UniformTypeIdentifiers
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || creationFolderChoice != nil }
+    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || creationFolderChoice != nil || commandImportOwner != nil }
     private var addPreparations: [UUID: RepositoryWindowOwner] = [:]
+    private var commandImportOwner: RepositoryWindowOwner?
+    private var commandImportFolderChoice: RepositoryCreationFolderChoice?
+    var commandLinePatchPermission: ((URL) throws -> RepositoryAccessLease?)?
+    var presentCommandImportFolderPanel: ((NSOpenPanel, NSWindow?, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
+    var selectedCommandImportFolderURL: (NSOpenPanel) -> URL? = { $0.url }
     var addSelectionPreflight: ((GitRepository, [String], OperationCancellation) async throws -> Bool)?
     private var cloneKeyAccess: [String: RepositoryAccessLease] = [:]
     private let repositoryFactory:((URL) throws -> GitRepository)?
@@ -328,7 +333,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -2246,8 +2251,16 @@ import UniformTypeIdentifiers
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
     private func showImportPatch(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
+        let files = paths.map { repository.root.appendingPathComponent($0) }.filter { ["patch", "diff"].contains($0.pathExtension.lowercased()) }
+        showImportPatchFiles(repository: repository, access: access, files: files)
+    }
+    private func showImportPatchFiles(repository: GitRepository, access: RepositoryAccessLease?, files: [URL], grants: [RepositoryAccessLease] = [], commandLaunch: Bool = false) {
         let key = repository.root.path
-        let controller = importPatchWindows[key] ?? ImportPatchWindowController(repository: repository, access: access)
+        if commandLaunch, let existing = importPatchWindows[key], existing.activeOperation {
+            existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
+            error = "Wait for the current patch operation to finish."; return
+        }
+        let controller = importPatchWindows[key] ?? ImportPatchWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
         controller.model.onMutationStopped = { [weak self] in
             self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
             if self?.root?.path == key { Task { await self?.refresh() } }
@@ -2257,11 +2270,13 @@ import UniformTypeIdentifiers
             self?.statusWindows[key]?.model.requestReload()
             if self?.root?.path == key { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.model.add(paths.map { repository.root.appendingPathComponent($0) }.filter { ["patch", "diff"].contains($0.pathExtension.lowercased()) })
+        var existingPaths = GitPathSet(controller.model.items.map { FileTransferPaths.lexicalPath($0.file.path) })
+        let accepted = commandLaunch ? files.filter { existingPaths.insert(FileTransferPaths.lexicalPath($0.path)).inserted } : files
+        controller.model.add(accepted, retaining: grants)
         importPatchWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showFormatPatch(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false) {
+    private func showFormatPatch(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false, commandLaunch: Bool = false) {
         let rootKey = repository.root.path
         let suffix: String
         switch preset?.selection {
@@ -2270,10 +2285,9 @@ import UniformTypeIdentifiers
         case .number(let count): suffix = "\0number\0" + String(count)
         case nil: suffix = ""
         }
-        let key = rootKey + suffix
+        let key = rootKey + (commandLaunch ? "\0command-format-patch" : suffix)
         let existing = formatPatchWindows[key]
-        let controller = existing ?? FormatPatchWindowController(repository: repository, access: access, preset: preset, sendMail: sendMail)
-        if existing != nil { controller.model.apply(preset) }
+        let controller = existing ?? FormatPatchWindowController(repository: repository, access: access, preset: preset, sendMail: sendMail, preferences: fileComparisonPreferences)
         if sendMail && controller.model.optionsAvailable { controller.model.sendMail = true }
         controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
@@ -2576,16 +2590,19 @@ import UniformTypeIdentifiers
         controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
     }
-    private func showExport(repository: GitRepository, access: RepositoryAccessLease?, revision: String, paths: [String] = []) {
+    private func showExport(repository: GitRepository, access: RepositoryAccessLease?, revision: String, paths: [String] = [], commandLaunch: Bool = false) {
+        let commandKey = repository.root.path + "\0command-export"
+        if commandLaunch, let existing = exportWindows[commandKey] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let root = repository.root
         let directory = ExportWindowModel.directoryScope(root: root, paths: paths)
         let baseKey = root.path + "\0" + revision + "\0" + directory
-        let reusable = exportWindows.first { _, controller in
+        let reusable = exportWindows.first { key, controller in
+            !commandLaunch && key != commandKey &&
             controller.model.repository.root == repository.root && controller.model.repository.executable == repository.executable &&
             controller.window?.attachedSheet == nil && controller.model.canReuseForRevision(revision, directory: directory)
         }
-        let key = reusable?.key ?? (exportWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
-        let controller = reusable?.value ?? ExportWindowController(repository: repository, access: access, revision: revision, directory: directory)
+        let key = commandLaunch ? commandKey : reusable?.key ?? (exportWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
+        let controller = reusable?.value ?? ExportWindowController(repository: repository, access: access, revision: revision, directory: directory, preferences: fileComparisonPreferences)
         configureExportInteractions(controller, repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.exportWindows.removeValue(forKey: key) }
         exportWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -3064,7 +3081,7 @@ import UniformTypeIdentifiers
         do { try comparisonMarkStore.clear(); try publishComparisonMark() }
         catch { self.error = error.localizedDescription }
     }
-    private func comparisonPermission(for file: URL, messageFile: Bool = false, commandFile: Bool = false, commandOutput: Bool = false, commandDirectory: Bool = false) throws -> RepositoryAccessLease? {
+    private func comparisonPermission(for file: URL, messageFile: Bool = false, commandFile: Bool = false, commandOutput: Bool = false, commandDirectory: Bool = false, commandPatch: Bool = false) throws -> RepositoryAccessLease? {
         if let activeAccess, activeAccess.contains(file), !GitRuntime.isAppStoreBuild || activeAccess.hasSecurityScope { return activeAccess }
         if let accessStore {
             for saved in accessStore.repositories {
@@ -3073,8 +3090,8 @@ import UniformTypeIdentifiers
         }
         if !GitRuntime.isAppStoreBuild { return RepositoryAccessLease(url: file) }
         let panel = NSOpenPanel(); panel.canChooseFiles = true; panel.canChooseDirectories = true
-        panel.directoryURL = file.deletingLastPathComponent(); panel.prompt = commandOutput ? "Authorize output folder" : commandFile ? "Authorize path list" : messageFile ? "Authorize message file" : "Authorize comparison"
-        panel.message = commandOutput ? "Choose the output folder to allow TurtleGit to write the selected revision." : commandFile ? (commandDirectory ? "Choose the path-list folder to allow TurtleGit to read and delete the requested list." : "Choose the path-list file or its containing folder to allow TurtleGit to read the requested selections.") : messageFile ? "Choose the commit message file or its containing folder to allow TurtleGit to read it." : "Choose the requested file or its containing folder to allow TurtleGit to compare it."
+        panel.directoryURL = file.deletingLastPathComponent(); panel.prompt = commandPatch ? "Authorize patch file" : commandOutput ? "Authorize output folder" : commandFile ? "Authorize path list" : messageFile ? "Authorize message file" : "Authorize comparison"
+        panel.message = commandPatch ? "Choose the requested patch file or its containing folder to allow TurtleGit to import it." : commandOutput ? "Choose the output folder to allow TurtleGit to write the selected revision." : commandFile ? (commandDirectory ? "Choose the path-list folder to allow TurtleGit to read and delete the requested list." : "Choose the path-list file or its containing folder to allow TurtleGit to read the requested selections.") : messageFile ? "Choose the commit message file or its containing folder to allow TurtleGit to read it." : "Choose the requested file or its containing folder to allow TurtleGit to compare it."
         if commandOutput || commandDirectory { panel.canChooseFiles = false }
         guard panel.runModal() == .OK, let grant = panel.url else { return nil }
         let lease = RepositoryAccessLease(url: grant)
@@ -3235,6 +3252,9 @@ import UniformTypeIdentifiers
             guard outputAccess.contains(output), outputAccess.contains(output.deletingLastPathComponent()), !GitRuntime.isAppStoreBuild || outputAccess.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
         } else { outputAccess = nil }
         try cancellation?.check()
+        if invocation.request.action == .importPatch {
+            prepareCommandPatchImport(invocation, cancellation: cancellation); return
+        }
         if invocation.request.action == .initialize {
             showCreateRepository(folder: invocation.request.paths.first, commandLaunch: true, cancellation: cancellation); return
         }
@@ -3246,6 +3266,85 @@ import UniformTypeIdentifiers
         }
         ComparisonToolInvocation.$alternate.withValue(invocation.request.alternateTool ?? false) {
             handleFinderRequest(invocation.request, invocation: invocation, messageAccess: permission, outputAccess: outputAccess, commandCancellation: cancellation)
+        }
+    }
+    private func commandImportIsLive(_ owner: RepositoryWindowOwner, cancellation: OperationCancellation?) -> Bool {
+        !retired && !confirmingQuit && commandImportOwner === owner && !owner.cancellation.isCancelled && cancellation?.isCancelled != true
+    }
+    private func chooseCommandImportGrant(file: URL?, owner: RepositoryWindowOwner, window: NSWindow?) async -> RepositoryAccessLease? {
+        guard commandImportIsLive(owner, cancellation: nil), window?.attachedSheet == nil else { return nil }
+        return await withCheckedContinuation { continuation in
+            let choice = RepositoryCreationFolderChoice(window: window, owner: owner)
+            choice.panel.canChooseFiles = file != nil; choice.panel.canChooseDirectories = true; choice.panel.showsHiddenFiles = true
+            choice.panel.prompt = file == nil ? "Choose repository" : "Authorize patch file"
+            choice.panel.message = file.map { "Choose this patch file or its containing folder to allow TurtleGit to import it: " + $0.path } ?? "Choose the repository into which the selected patches will be imported."
+            choice.panel.directoryURL = file?.deletingLastPathComponent() ?? root
+            commandImportFolderChoice = choice
+            choice.onFinished = { [weak self, weak choice] selected in
+                guard let self, let choice, self.commandImportFolderChoice === choice else { continuation.resume(returning: nil); return }
+                self.commandImportFolderChoice = nil
+                guard self.commandImportIsLive(owner, cancellation: nil), let selected else { continuation.resume(returning: nil); return }
+                continuation.resume(returning: RepositoryAccessLease(url: selected, provider: self.repositoryBookmarkProvider))
+            }
+            choice.begin(present: presentCommandImportFolderPanel, selected: selectedCommandImportFolderURL)
+        }
+    }
+    private func prepareCommandPatchImport(_ invocation: PrimaryCommandInvocation, cancellation: OperationCancellation?) {
+        guard commandImportOwner == nil, !retired, !confirmingQuit else { return }
+        let owner = RepositoryWindowOwner(window: workspaceWindow), window = workspaceWindow
+        commandImportOwner = owner; busy = true
+        Task {
+            var transferred = false
+            defer { if !transferred, commandImportOwner === owner { commandImportOwner = nil; busy = false } }
+            do {
+                var grants: [RepositoryAccessLease] = [], files: [URL] = []
+                for file in invocation.request.paths {
+                    guard commandImportIsLive(owner, cancellation: cancellation) else { return }
+                    let lease: RepositoryAccessLease?
+                    if let retained = grants.first(where: { $0.contains(file) }) { lease = retained }
+                    else if let activeAccess, activeAccess.contains(file), !requiresRepositoryScope || activeAccess.hasSecurityScope { lease = activeAccess }
+                    else if let commandLinePatchPermission { lease = try commandLinePatchPermission(file) }
+                    else if !requiresRepositoryScope { lease = RepositoryAccessLease(url: file, provider: repositoryBookmarkProvider) }
+                    else { lease = await chooseCommandImportGrant(file: file, owner: owner, window: window) }
+                    guard commandImportIsLive(owner, cancellation: cancellation), let lease else { return }
+                    guard lease.contains(file), !requiresRepositoryScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    grants.append(lease)
+                    let isDirectory = await Task.detached { (try? file.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }.value
+                    if !isDirectory { files.append(file) }
+                }
+                guard commandImportIsLive(owner, cancellation: cancellation) else { return }
+                var target = invocation.importTarget
+                if target == nil, let first = invocation.request.paths.first {
+                    var location = first
+                    if (try? first.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) != true { location.deleteLastPathComponent() }
+                    // A file-only grant cannot authorize probing its parent Git
+                    // metadata. In that case the owned repository chooser runs.
+                    if !requiresRepositoryScope || grants.contains(where: { $0.contains(location) }) {
+                        target = try? await makeRepository(location).discoverRoot(cancellation: owner.cancellation)
+                    }
+                }
+                guard commandImportIsLive(owner, cancellation: cancellation) else { return }
+                if let target, target.pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }) {
+                    throw PrimaryCommandInvocation.Failure("Choose a working folder outside Git metadata.")
+                }
+                let repositoryGrant: RepositoryAccessLease?
+                if let target, let activeAccess, activeAccess.contains(target), !requiresRepositoryScope || activeAccess.hasSecurityScope { repositoryGrant = activeAccess }
+                else if let target, let commandLineRepositoryPermission { repositoryGrant = try commandLineRepositoryPermission([target]) }
+                else if let target, !requiresRepositoryScope { repositoryGrant = RepositoryAccessLease(url: target, provider: repositoryBookmarkProvider) }
+                else { repositoryGrant = await chooseCommandImportGrant(file: nil, owner: owner, window: window) }
+                guard commandImportIsLive(owner, cancellation: cancellation), let repositoryGrant else { return }
+                let requested = target ?? repositoryGrant.url
+                guard repositoryGrant.contains(requested), !requiresRepositoryScope || repositoryGrant.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let selected = FinderRequest(action: .importPatch, paths: [requested])
+                transferred = true; busy = false
+                openSession(repositoryGrant, selected: selected, onFinished: { [weak self] _ in
+                    if self?.commandImportOwner === owner { self?.commandImportOwner = nil }
+                }, handoffOwner: owner, onOpened: { [weak self] in
+                    guard let self, !self.retired, !owner.cancellation.isCancelled, !self.confirmingQuit, cancellation?.isCancelled != true, let repository = self.repository, let access = self.activeAccess else { return }
+                    if self.bare { self.activate(.importPatch); return }
+                    self.showImportPatchFiles(repository: repository, access: access, files: files, grants: grants, commandLaunch: true)
+                })
+            } catch { if commandImportIsLive(owner, cancellation: cancellation) { self.error = error.localizedDescription } }
         }
     }
     private func activateCommandLine(_ invocation: PrimaryCommandInvocation, message: String?, selectedRevision: String?, repository: GitRepository, access: RepositoryAccessLease, outputAccess: RepositoryAccessLease?) {
@@ -3276,6 +3375,8 @@ import UniformTypeIdentifiers
         case .stash: showStash(repository: repository, access: access, message: invocation.message, commandLaunch: true)
         case .stashApply, .stashPop: showStashRestore(repository: repository, access: access, pop: invocation.request.action == .stashPop)
         case .stashList: showReferenceLog(repository: repository, access: access, reference: "refs/stash")
+        case .formatPatch: showFormatPatch(repository: repository, access: access, preset: invocation.formatPatchPreset, commandLaunch: true)
+        case .export: showExport(repository: repository, access: access, revision: invocation.selectedRevision ?? "HEAD", paths: paths, commandLaunch: true)
         case .diff:
             var directory: ObjCBool = false
             if let first = invocation.request.paths.first, FileManager.default.fileExists(atPath: first.path, isDirectory: &directory), directory.boolValue {

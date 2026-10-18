@@ -6,6 +6,40 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         let value = try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: cwd)
         return try XCTUnwrap(value)
     }
+    func testPatchCommandFamilyPresetsAndDestination() throws {
+        for (command,action) in [("formatpatch",RepositoryAction.formatPatch),("export",.export),("importpatch",.importPatch)] {
+            XCTAssertEqual(try parse(["--command="+command]).request.action,action)
+        }
+        let since=try parse(["/command:formatpatch","/startrev:topic"])
+        XCTAssertEqual(since.formatPatchPreset?.selection,.since("topic"));XCTAssertEqual(since.formatPatchPreset?.from,"topic~1");XCTAssertEqual(since.formatPatchPreset?.to,"topic")
+        let range=try parse(["--command=formatpatch","--startrev=base","--endrev=tip"])
+        XCTAssertEqual(range.formatPatchPreset?.selection,.range(from:"base",to:"tip"));XCTAssertNil(range.diffFrom)
+        for flags in [[],["/endrev:tip"],["/startrev:"],["/startrev:base","/endrev:"]] {
+            let value=try parse(["/command:formatpatch"]+flags)
+            XCTAssertEqual(value.formatPatchPreset?.selection,flags.first=="/startrev:base" ? .since("base"):nil)
+        }
+        XCTAssertEqual(try parse(["/command:export","/rev:topic~1"]).selectedRevision,"topic~1")
+        let imported=try parse(["--command=importpatch","--path=mailbox.dat","--droptarget=target/../work"])
+        XCTAssertEqual(imported.importTarget?.path,"/repo/work");XCTAssertEqual(imported.request.paths.first?.path,"/repo/mailbox.dat")
+        XCTAssertNil(try parse(["/command:importpatch","/droptarget:"]).importTarget)
+    }
+    func testPatchCommandFamilyRejectsForeignFlagsAndInvalidRevisions() throws {
+        for args in [["/command:export","/startrev:HEAD"],["/command:export","/path:a*b"],["/command:formatpatch","/rev:HEAD"],["/command:formatpatch","/startrev:-bad"],["/command:formatpatch","/startrev:topic with spaces"],["/command:formatpatch","/endrev:-bad"],["/command:importpatch","/rev:HEAD"],["/command:importpatch","/droptarget:one","/droptarget:two"],["/command:commit","/droptarget:repo"]] {XCTAssertThrowsError(try parse(args))}
+    }
+    func testPatchCommandPathFileRetainsPresetsAndValidatesBeforeDelete() throws {
+        let folder=try temporaryDirectory();defer {try? FileManager.default.removeItem(at:folder)}
+        let list=folder.appendingPathComponent("paths")
+        try Data("one\ntwo\n".utf8).write(to:list)
+        let export=try parse(["--command=export","--pathfile",list.path,"--deletepathfile"])
+        XCTAssertThrowsError(try export.resolvingPathFile(cancellation:OperationCancellation()));XCTAssertTrue(FileManager.default.fileExists(atPath:list.path))
+        for command in ["formatpatch","importpatch"] {
+            let flags=command=="formatpatch" ? ["--startrev=base","--endrev=tip"]:["--droptarget=work"]
+            let value=try parse(["--command="+command,"--pathfile",list.path]+flags)
+            let resolved=try value.resolvingPathFile(cancellation:OperationCancellation())
+            XCTAssertEqual(resolved.request.paths.count,2);XCTAssertEqual(resolved.formatPatchPreset,value.formatPatchPreset);XCTAssertEqual(resolved.importTarget,value.importTarget)
+            XCTAssertEqual(resolved.selecting([folder]).formatPatchPreset,value.formatPatchPreset)
+        }
+    }
     func testIntegrationCommandFamilySourceFlagsAndMessage() throws {
         for (command,action) in [("merge",RepositoryAction.merge),("stashsave",.stash),("stashapply",.stashApply),("stashpop",.stashPop),("stashlist",.stashList)] {
             let value=try parse(["--command="+command,"--path","folder[*] 雪"])

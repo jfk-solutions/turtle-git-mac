@@ -12,6 +12,8 @@ public struct PrimaryCommandInvocation: Sendable {
     private let currentDirectory: String
     private let secondaryPath: URL?
     public let outputFile: URL?
+    public let importTarget: URL?
+    public let formatPatchPreset: FormatPatchPreset?
     public let unified: Bool
     public let line: Int?
     public let sourceURL: String?
@@ -46,7 +48,7 @@ public struct PrimaryCommandInvocation: Sendable {
         }
         guard hasCommand else { return nil }
         let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep", "onlymask", "delete", "abort"]
-        let valued: Set<String> = ["command", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream", "msg"]
+        let valued: Set<String> = ["command", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream", "msg", "droptarget"]
         var values: [String: String] = [:], paths: [String] = [], index = 0
         while index < arguments.count {
             let argument = arguments[index]; index += 1
@@ -100,6 +102,9 @@ public struct PrimaryCommandInvocation: Sendable {
         case "add": action = .add
         case "rename": action = .rename
         case "remove": action = values["keep"] != nil ? .removeKeep : .remove
+        case "formatpatch": action = .formatPatch
+        case "export": action = .export
+        case "importpatch": action = .importPatch
         case "merge": action = values["abort"] != nil ? .mergeAbort : .merge
         case "stashsave": action = .stash
         case "stashapply": action = .stashApply
@@ -116,6 +121,9 @@ public struct PrimaryCommandInvocation: Sendable {
         case .commit: allowed.formUnion(["logmsg", "logmsgfile", "bugid", "wholeproject"])
         case .log: allowed.formUnion(["startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "findtext", "findregex", "outfile"])
         case .diff: allowed.formUnion(["path2", "alternative", "startrev", "endrev", "unified", "line"])
+        case .formatPatch: allowed.formUnion(["startrev", "endrev"])
+        case .export: allowed.insert("rev")
+        case .importPatch: allowed.insert("droptarget")
         case .clone: allowed.formUnion(["url", "exactpath"])
         case .fetch: allowed.insert("remote")
         case .push: allowed.insert("branch")
@@ -168,6 +176,12 @@ public struct PrimaryCommandInvocation: Sendable {
             }
         }
         if action == .diff, (start == nil) != (end == nil) { throw Failure("Revision comparison requires both startrev and endrev.") }
+        let patchPreset: FormatPatchPreset?
+        if action == .formatPatch {
+            let first = try start.flatMap { $0.isEmpty ? nil : try revision($0) }
+            let last = try end.flatMap { $0.isEmpty ? nil : try revision($0) }
+            patchPreset = FormatPatchPreset(startRevision: first, endRevision: last)
+        } else { patchPreset = nil }
         let from = action == .diff ? try start.map(revision) : nil, to = action == .diff ? try end.map(revision) : nil
         let selected = try values["rev"].flatMap { $0.isEmpty ? nil : try revision($0) }
         let reflog = try values["ref"].flatMap { $0.isEmpty ? nil : try revision($0) }
@@ -195,11 +209,11 @@ public struct PrimaryCommandInvocation: Sendable {
             let mapping: [(UInt16, HistorySearchFields)] = [(1,.messages),(2,.paths),(4,.authors),(8,.revisions),(32,.bugIDs),(64,.subject),(128,.referenceNames),(256,.emails),(512,.notes),(1024,.tagInfo)]
             fields = mapping.reduce(into: HistorySearchFields()) { result, item in if mask & item.0 != 0 { result.formUnion(item.1) } }
         }
-        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceRebase: values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
+        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceRebase: values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
     }
 
     private static func validateSelection(_ urls: [URL], action: RepositoryAction) throws {
-        if [.clone, .initialize, .blame, .previousDiff, .rename].contains(action), urls.count != 1 {
+        if [.clone, .initialize, .blame, .previousDiff, .rename, .export].contains(action), urls.count != 1 {
             throw Failure("This command requires one selected path.")
         }
     }

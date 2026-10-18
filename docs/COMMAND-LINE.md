@@ -398,3 +398,52 @@ source icons, choices and post-actions. Source review:
 `AppUtils.cpp::{Merge,MergeAbort,StashSave,StashApply,StashPop}` at the pinned
 revision. Complete process result/shared-switch compatibility and physical/signed
 acceptance remain open.
+
+## Patch series, archive and mailbox entry
+
+| Command | Native destination | Presets |
+| --- | --- | --- |
+| `formatpatch` | Create Patch Serial | `startrev` alone selects Since and presets inactive From/To to `startrev~1`/`startrev`; paired `startrev`/`endrev` selects Range |
+| `export` | Export ZIP | `rev` selects the revision; one selected directory presets subtree export |
+| `importpatch` | Import Patch mailbox list | `droptarget` selects the destination repository independently of input files |
+
+An end-only Format Patch value leaves the dialog defaults, as in the source.
+An empty start value also leaves defaults. Export accepts one selected file or
+directory, including after reading a path list. These commands open native
+review controls; they do not generate archives/patches or apply commits before
+acceptance. Repeated command entry preserves edited Format Patch and Export
+drafts. Log's separate preset windows remain available.
+
+```sh
+'/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac' \
+  --command=formatpatch --path '/absolute/repository' \
+  --startrev 'HEAD~3' --endrev HEAD
+
+'/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac' \
+  --command=importpatch --path '/absolute/mailboxes/series.mbox' \
+  --droptarget '/absolute/repository'
+```
+
+Import authorizes the selected input files independently of the repository.
+Existing live grants can cover multiple selected inputs; retained per-file grants
+reach preview, mailbox application and existing viewer/mail handoffs. Source
+command input accepts every non-directory file, including mailbox names without
+`.patch` or `.diff`. Reopening the same repository list preserves options, row
+identities/check states and order, and appends only new exact paths. A busy Import
+owner refuses list changes. No mail is sent by opening these commands.
+
+Without `droptarget`, Import discovers the first selected path's repository when
+its containing folder can be probed. Otherwise an owned native repository chooser
+asks for the destination. A file-only grant does not authorize probing its parent
+Git metadata. Cancelling a file grant or repository choice stops the launch.
+Pending preparation blocks Quit/replacement; duplicate or late native replies,
+closure of the initiating window and termination cannot adopt a repository or
+open an Import window. An explicit Git metadata target is rejected. The normal
+metadata-permission and bare-working-tree guards still apply during adoption.
+
+Format Patch, archive Export and Import consumers receive owning workspace
+preferences. Output-folder authorization, native options, progress, cancellation,
+error/recovery and source icons remain their existing workflows. Source review:
+`Commands/{FormatPatch,Export,ImportPatch}Command.cpp` and
+`AppUtils.cpp::Export`, at the pinned revision. Complete Windows process protocol,
+physical chooser/keyboard/layout and signed sandbox acceptance remain open.

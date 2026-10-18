@@ -1,0 +1,132 @@
+{
+  "date": "2026-10-18",
+  "scope": "Format Patch, ZIP Export and mailbox Import command entry, preserved native drafts, external grants and captured chooser/acknowledgement ownership",
+  "base_commit": "5b59fa1ea0a50e9700af2a39a579e76544853ce0",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_review": [
+    "Commands/FormatPatchCommand.cpp start/end modes and inactive Since range fields",
+    "Commands/ExportCommand.cpp rev and original selection; AppUtils.cpp Export",
+    "Commands/ImportPatchCommand.cpp droptarget, repository choice and all non-directory files"
+  ],
+  "implementation": [
+    "Typed formatpatch/export/importpatch commands with source revision, start/end and droptarget presets; Export cardinality validates before path-list deletion",
+    "Preserved command-owned series/archive drafts; repeated Log preset entry keeps the existing series draft",
+    "Captured workspace preferences reach series, archive and Import consumers",
+    "External Import inputs acquire independent file grants before inspection; per-row grants survive preview/application/viewer/mail ownership",
+    "Owned repository chooser when authorized first-path discovery cannot supply a destination; file-only grants do not authorize parent metadata probing",
+    "Import preparation blocks Quit/replacement and rejects cancelled/wrong grants, explicit metadata targets, original-window closure, termination and duplicate/late replies",
+    "Import preserves list state/options/order and appends new exact paths once; busy owners refuse command list changes",
+    "Successful Format Patch acknowledgement waits for AppKit sheet dismissal before normal owner close, with option/Quit gating and retirement cleanup"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "executed": 26,
+      "failures": 0,
+      "classes": [
+        "PrimaryCommandInvocationTests"
+      ],
+      "log": "build/qa/patch-commands-core-2026-10-18.log",
+      "full_suite_rerun": false,
+      "after_ui_only_repair_rerun": false
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/patch-commands-build-2026-10-18.log",
+      "repair_build_exit": 0,
+      "repair_build_log": "build/qa/patch-commands-build-recheck-2026-10-18.log"
+    },
+    "native": {
+      "exit": 0,
+      "distinct_case_engine_passes": 4,
+      "passed": [
+        "patches/system",
+        "patches/bundled",
+        "bare/system",
+        "bare/bundled"
+      ],
+      "final_log": "build/qa/patch-commands-native-recheck-2026-10-18.log",
+      "runtime_attempts": 6,
+      "local_failures": [
+        {
+          "log": "build/qa/patch-commands-native-2026-10-18.log",
+          "failure": "Timed out waiting for Format Patch owner closure after successful export and Finish",
+          "stage": "Patch created successfully; acknowledgement did not close owner"
+        },
+        {
+          "log": "build/qa/patch-commands-finish-diagnostic-2026-10-18.log",
+          "failure": "Same acknowledgement timeout with diagnostic",
+          "observed": "Window still visible, sheet no longer attached, activeOperation/busy/progress/finishScheduled/workspaceBusy all false",
+          "repair": "Retain owner-close intent while the SwiftUI progress sheet dismisses; replay after AppKit didEndSheet and run ordinary close guards. Gate form and Quit until handoff settles; clear on retirement."
+        }
+      ],
+      "scope": [
+        "Source range and Since defaults, including inactive range fields and end-only/default parser cases",
+        "Actual native Format Patch generation and Finish/window closure; source HEAD/index unchanged",
+        "Actual scoped archive ZIP generation with private preferences and preserved edited destination/revision",
+        "Arbitrary-extension external mailbox import with retained independent grant, preserved options/row identity and duplicate-path refusal",
+        "Actual git am through native acceptance updates target worktree; no mutation before acceptance",
+        "Owned repository chooser captures parent, blocks replacement, accepts once and refuses duplicate/Cancel/late/original-owner-close/retired replies",
+        "Wrong file and repository grants, cancelled file permission and explicit metadata target refuse launch",
+        "Ordinary working-tree eligibility rejects bare Import through the same adoption path"
+      ],
+      "owned_receiver_pids": [
+        6672,
+        6853,
+        7040,
+        7298,
+        7553,
+        7754
+      ],
+      "cleanup": "Every receiver reaped; independent ps exit 1 with empty output. Private repositories/preferences, injected picker responses and receiver-owned windows/helpers only.",
+      "unrepaired_local_failures": []
+    },
+    "localization": {
+      "write_exit": 0,
+      "languages": 38,
+      "keys": 1284,
+      "write_log": "build/qa/patch-commands-localizations-2026-10-18.log",
+      "check_exit": 0,
+      "check_log": "build/qa/patch-commands-localizations-check-2026-10-18.log"
+    },
+    "hosted_observation": {
+      "observed_before_this_push": true,
+      "previous_commit": "5b59fa1ea0a50e9700af2a39a579e76544853ce0",
+      "macos_run": 39105318108,
+      "macos_status": "pending",
+      "macos_conclusion": null,
+      "pages_run": 39105317956,
+      "pages_status": "in_progress",
+      "pages_conclusion": null,
+      "prior_editor_commit_macos_run": 39104753286,
+      "prior_editor_commit_macos_conclusion": "cancelled",
+      "full_hosted_pass_claimed": false
+    },
+    "dialog_ledger": {
+      "exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_controls": 93,
+      "log": "build/qa/patch-commands-coverage-2026-10-18.log"
+    },
+    "site": {
+      "exit": 0,
+      "documents": 294,
+      "unresolved_fragments": 0,
+      "log": "build/qa/patch-commands-site-2026-10-18.log"
+    }
+  },
+  "limits": [
+    "Complete Windows shared-switch/process/exit signaling protocol remains open.",
+    "Native checks inject file/folder grants; physical signed sandbox, minimum OS, VoiceOver and every picker gesture remain separate acceptance.",
+    "Mail handoff keeps existing workflows; no message sent and no full mail-delivery claim.",
+    "No all-dialog visual parity or full-port completion inferred from command routes or ledger mappings.",
+    "Previous editing-history repair still requires a full hosted run; cancelled/queued CI is not a pass.",
+    "Current universal Release/unsigned App Store archive predates this batch; current signed distribution/physical Finder acceptance remains open.",
+    "Custom TurtleGit artwork has not been recovered; packaged artwork remains upstream."
+  ]
+}

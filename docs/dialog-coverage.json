@@ -290,6 +290,7 @@
         "docs/qa/import-patch-split-2026-10-08.json",
         "docs/qa/import-source-family-2026-10-17.json",
         "docs/qa/mail-patch-2026-10-08.json",
+        "docs/qa/patch-commands-2026-10-18.json",
         "docs/qa/patch-comparison-2026-10-08.json",
         "docs/qa/patch-edit-save-2026-10-08.json",
         "docs/qa/patch-embedded-find-2026-10-08.json",
@@ -2535,6 +2536,7 @@
         "docs/qa/import-patch-split-2026-10-08.json",
         "docs/qa/import-source-family-2026-10-17.json",
         "docs/qa/mail-patch-2026-10-08.json",
+        "docs/qa/patch-commands-2026-10-18.json",
         "docs/qa/patch-comparison-2026-10-08.json",
         "docs/qa/patch-edit-save-2026-10-08.json",
         "docs/qa/patch-embedded-find-2026-10-08.json",
@@ -2579,7 +2581,8 @@
       "qa_records": [
         "docs/qa/format-patch-options-2026-10-15.json",
         "docs/qa/format-patch-progress-2026-10-08.json",
-        "docs/qa/format-patch-stream-2026-10-10.json"
+        "docs/qa/format-patch-stream-2026-10-10.json",
+        "docs/qa/patch-commands-2026-10-18.json"
       ]
     },
     {

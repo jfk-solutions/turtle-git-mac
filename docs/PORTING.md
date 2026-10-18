@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [patch command batch](COMMAND-LINE.md#patch-series-archive-and-mailbox-entry)
+adds source Format Patch, archive Export and mailbox Import entry, revision
+presets, preserved command drafts and owning preferences. External mailbox inputs
+retain separate grants, and an owned chooser handles repository selection without
+late/cancelled handoffs. Existing source icons, native controls and Git workflows
+remain the consumers. [Batch evidence](qa/patch-commands-2026-10-18.json) separates
+focused validation from full source, signed and App Store acceptance.
+
 The connected [Merge/Stash entry batch](COMMAND-LINE.md#merge-and-stash-command-entry)
 adds the source Merge/Abort and four Stash commands, preserved native command
 drafts, owning preferences, scoped pending-operation guards and request-specific

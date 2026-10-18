@@ -658,3 +658,22 @@ independently absent. The full retained workflow passes with both Git engines.
 ![Apply Patch Serial, light](site/assets/import-patch-source-light.png)
 
 ![Apply Patch Serial, dark](site/assets/import-patch-source-dark.png)
+
+## External mailbox command input — October 18, 2026
+
+Source `importpatch` now accepts selected non-directory mailbox files regardless
+of extension and an independent `droptarget` repository. The command acquires
+input grants before inspecting them and retains grants with native list rows.
+Without a destination, authorized first-path discovery or an owned repository
+chooser selects the repository. File-only permissions never authorize parent
+metadata probing. The original window owns preparation and chooser replies;
+Cancel, closure, termination and duplicate/late replies cannot launch a window.
+Normal metadata and bare guards remain on repository adoption.
+
+Repeated command entry preserves row identities/checks, order and options and
+appends only new exact paths; a busy owner refuses changes. Preview and mailbox
+Git actions remain the existing implementation. Workspace preferences now reach
+the Import window and its viewer/mail consumers. See
+[command guide](COMMAND-LINE.md#patch-series-archive-and-mailbox-entry) and
+[batch evidence](qa/patch-commands-2026-10-18.json) for actual Git effects, grants,
+chooser ownership and remaining signed/physical limits.

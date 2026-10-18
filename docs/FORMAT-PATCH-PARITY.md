@@ -273,3 +273,26 @@ or external application, signed grants, Finder or App Store acceptance are prove
 by these hidden checks. All receivers were reaped and independently checked absent.
 See [options-family evidence](qa/format-patch-options-2026-10-15.json). This remains
 partial source parity.
+
+## Command entry and retained drafts — October 18, 2026
+
+Source `formatpatch` now reaches the native series dialog with start/end presets,
+including Since's inactive `revision~1`/`revision` range and end-only defaults.
+Repeated command entry preserves the edited review; repeated Log preset entry
+also keeps its existing draft rather than reapplying initial fields. Different
+Log ranges retain separate windows. Workspace preferences reach histories,
+options, picker and progress consumers. The connected `export` command opens
+ZIP export with its revision/subdirectory preset and preserved command draft.
+Existing source controls/icons and accepted Git operations remain. See
+[command guide](COMMAND-LINE.md#patch-series-archive-and-mailbox-entry) and
+[batch evidence](qa/patch-commands-2026-10-18.json); focused native passes do not
+certify the full source layout or signed deployment.
+
+The connected native export check exposed a lost successful acknowledgement:
+`finish()` cleared the progress flag and requested owner close before SwiftUI's
+sheet dismissal completed, so the native attached-sheet guard rejected Close.
+The owner now retains that close intent until AppKit reports the sheet ended.
+Options and Quit remain gated during this handoff, retirement drops the intent,
+and the normal close checks still run after dismissal. No artificial delay or
+forced dismissal bypasses the live-operation guards. The grouped command check
+includes actual export and native Finish/window closure.
