@@ -227,7 +227,7 @@ extension RepositoryAction {
         case .about, .firstStartWizard: return .about
         case .status: return .status
         case .commit: return .commit
-        case .add, .submoduleAdd: return .add
+        case .add, .submoduleAdd, .dropCopyAdd: return .add
         case .revert: return .revert
         case .clean: return .clean
         case .log, .stashList, .reflog: return .log
@@ -257,7 +257,7 @@ extension RepositoryAction {
         case .stashApply, .stashPop: return .stashPop
         case .clone: return .clone
         case .initialize: return .initialize
-        case .rename, .move, .pasteMove: return .rename
+        case .rename, .move, .pasteMove, .dropMove: return .rename
         case .pasteCopy: return .copy
         case .remove, .removeKeep: return .remove
         case .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask: return .ignore

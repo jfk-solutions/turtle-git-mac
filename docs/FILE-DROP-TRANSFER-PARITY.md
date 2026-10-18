@@ -45,3 +45,26 @@ not rerun. Every owned receiver was reaped. See
 [batch evidence](qa/file-drop-transfer-2026-10-14.json).
 
 The connected [exact transfer identity continuation](FILE-TRANSFER-PARITY.md#exact-movecopyclipboarddrop-identities--october-17-2026) covers source rows, clipboard/drop capture, working-path resolution and Move/Rename/Copy/Add targets. Physical/signed and full dialog acceptance remain partial.
+
+## Source command execution and ownership — October 18, 2026
+
+Active `dropmove`/`dropcopyadd` command entry now captures sources separately from
+`droptarget` repository adoption. Optional `rename` reaches the single-item name
+sheet; source administrative entries and Copy/Add destination-self entries are
+filtered. Missing source/destination options fail before path-file deletion.
+
+Explicit commands start after preflight; app receiving sheets and clipboard menus
+still wait for acceptance. Move reuses same-worktree validation and Ignore/Abort;
+Copy/Add reuses its batch Add policy, external source grants and copied-metadata
+questions. Both retain owning preferences through destination adoption. After adoption the
+operation receives the adopted repository and complete composite grant, including
+additional metadata scopes discovered during that transaction. Move's
+asynchronous preparation can auto-start only while its operation window remains
+live. Original receiving-window cancellation fences preflight/adoption, and the
+existing operation owners retain counters/scopes through actual drain.
+
+[Batch evidence](qa/transfer-commands-2026-10-18.json) records grouped checks,
+failures and repairs. Installed Finder right-drag interception, real scoped picker
+issuance, physical keyboard/theme/prompt parity, ACL/xattr fidelity and complete
+source shell behavior remain open. The upstream-disabled DropCopy/Paste command
+aliases are not enabled by this batch.

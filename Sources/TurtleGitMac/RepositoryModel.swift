@@ -317,7 +317,12 @@ import UniformTypeIdentifiers
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || settingsPreparation != nil || creationFolderChoice != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    private var transferPreparation: RepositoryWindowOwner?
+    private var transferFolderChoice: RepositoryCreationFolderChoice?
+    var movePresentation: ((FileMoveWindowController) -> Void)?
+    var copyPresentation: ((FileCopyWindowController) -> Void)?
+    var fileCopySourceProvider: any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()
     private var settingsPreparation: RepositoryWindowOwner?
     private var settingsFolderChoice: RepositoryCreationFolderChoice?
     private var mailPreparations: [UUID: RepositoryWindowOwner] = [:]
@@ -350,7 +355,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -756,6 +761,7 @@ import UniformTypeIdentifiers
             showFinderSendMail(files: (paths.isEmpty ? selectedPaths : paths).map { root.appendingPathComponent($0) })
         case .properties:
             guard let repository else { return }; showGitProperties(repository:repository,access:activeAccess,paths:paths.isEmpty ? selectedPaths : paths)
+        case .dropMove, .dropCopyAdd: break // Command sources/target are carried by PrimaryCommandInvocation.
         case .firstStartWizard: onFirstStart(0)
         case .settings: onSettings(false)
         case .help: onHelp()
@@ -1054,9 +1060,9 @@ import UniformTypeIdentifiers
         renameWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    func showMove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], clipboard: [URL]? = nil, destination: URL? = nil, renameFirst: Bool = false, stopOnError: Bool = true) {
+    func showMove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], clipboard: [URL]? = nil, destination: URL? = nil, renameFirst: Bool = false, stopOnError: Bool = true, automaticallyStart: Bool = false, preferences: UserDefaults? = nil) {
         let root = repository.root, key = GitPathRowIdentity.encode(root.path + "\0" + (clipboard == nil ? paths.joined(separator: "\0") : UUID().uuidString))
-        let controller = moveWindows[key] ?? FileMoveWindowController(repository: repository, access: access, paths: paths)
+        let controller = moveWindows[key] ?? FileMoveWindowController(repository: repository, access: access, paths: paths, preferences: preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.moveWindows.removeValue(forKey: key) }
         controller.model.onMoved = { [weak self] old, new, text in
             guard let self else { return }; self.revertWindows[root.path]?.model.didRename(old,to:new); self.statusWindows[root.path]?.model.didRename(old, to: new); self.commitWindows[root.path]?.model.didRename(old, to: new)
@@ -1066,18 +1072,21 @@ import UniformTypeIdentifiers
             self?.revertWindows[root.path]?.model.requestReload(); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
             if self?.root == root { Task { await self?.refresh() } }
         }
-        moveWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
-        if let clipboard { controller.model.renameFirst = renameFirst; controller.model.loadClipboard(clipboard, destination: destination, stopOnError: stopOnError) }
+        moveWindows[key] = controller
+        if let movePresentation { movePresentation(controller) } else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+        if let clipboard { controller.model.renameFirst = renameFirst; controller.model.loadClipboard(clipboard, destination: destination, stopOnError: stopOnError, automaticallyStart: automaticallyStart) }
     }
-    func showCopy(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], paste: Bool = false, folder: URL? = nil) {
+    func showCopy(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], paste: Bool = false, folder: URL? = nil, automaticallyStart: Bool = false, preferences: UserDefaults? = nil) {
         let id = UUID(), root = repository.root
-        let controller = FileCopyWindowController(repository: repository, access: access, sources: sources, folder: folder, paste: paste)
+        let controller = FileCopyWindowController(repository: repository, access: access, sources: sources, folder: folder, paste: paste, sourceProvider: fileCopySourceProvider, preferences: preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.copyWindows.removeValue(forKey: id) }
         controller.model.onChanged = { [weak self] in
             self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
             if self?.root == root { Task { await self?.refresh() } }
         }
-        copyWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        copyWindows[id] = controller
+        if let copyPresentation { copyPresentation(controller) } else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+        if automaticallyStart { controller.model.run() }
     }
     private var dropTransfers: [UUID: FileDropTransferWindowController] = [:]
     var canReceiveTransferDrop: Bool { repository != nil && !bare && !busy && !confirmingQuit && workspaceWindow?.attachedSheet == nil }
@@ -3450,6 +3459,7 @@ import UniformTypeIdentifiers
         if invocation.request.action == .about { onAbout(); return }
         if invocation.request.action == .help { onCommandHelp(); return }
         if invocation.request.action == .firstStartWizard { onFirstStart(invocation.wizardPage ?? 0); return }
+        if invocation.request.action.isDropTransfer { prepareCommandTransfer(invocation, cancellation: cancellation); return }
         if invocation.request.action == .settings { prepareCommandSettings(invocation, cancellation: cancellation); return }
         if invocation.request.action == .sendMail {
             showFinderSendMail(files: invocation.mailFiles, commandCancellation: cancellation); return
@@ -3468,6 +3478,58 @@ import UniformTypeIdentifiers
         }
         ComparisonToolInvocation.$alternate.withValue(invocation.request.alternateTool ?? false) {
             handleFinderRequest(invocation.request, invocation: invocation, messageAccess: permission, outputAccess: outputAccess, commandCancellation: cancellation)
+        }
+    }
+    private func showCommandTransfer(_ invocation: PrimaryCommandInvocation, repository: GitRepository, access: RepositoryAccessLease, preferences: UserDefaults) {
+        guard let target = invocation.transferTarget, !invocation.dropFiles.isEmpty else { return }
+        if invocation.request.action == .dropMove {
+            showMove(repository: repository, access: access, paths: [], clipboard: invocation.dropFiles, destination: target, renameFirst: invocation.renameTransfer, stopOnError: false, automaticallyStart: true, preferences: preferences)
+        } else { showCopy(repository: repository, access: access, sources: invocation.dropFiles, folder: target, automaticallyStart: true, preferences: preferences) }
+    }
+    private func prepareCommandTransfer(_ invocation: PrimaryCommandInvocation, cancellation: OperationCancellation?) {
+        guard !retired, !confirmingQuit, transferPreparation == nil, let target = invocation.transferTarget, !invocation.dropFiles.isEmpty else { return }
+        let owner = RepositoryWindowOwner(window: workspaceWindow), window = workspaceWindow
+        let preferences = fileComparisonPreferences
+        transferPreparation = owner; busy = true
+        Task {
+            var transferred = false
+            defer { if transferPreparation === owner { transferPreparation = nil }; transferFolderChoice = nil; if !transferred { busy = false } }
+            do {
+                try owner.cancellation.check(); try cancellation?.check()
+                let permission: RepositoryAccessLease?
+                if let activeAccess, activeAccess.contains(target), !requiresRepositoryScope || activeAccess.hasSecurityScope { permission = activeAccess }
+                else if let commandLineRepositoryPermission { permission = try commandLineRepositoryPermission([target]) }
+                else if !requiresRepositoryScope { permission = RepositoryAccessLease(url: target) }
+                else {
+                    permission = await withCheckedContinuation { continuation in
+                        let choice = RepositoryCreationFolderChoice(window: window, owner: owner)
+                        choice.panel.canChooseFiles = false; choice.panel.canChooseDirectories = true; choice.panel.showsHiddenFiles = true
+                        choice.panel.prompt = "Authorize repository"; choice.panel.message = "Choose the working tree containing the drop destination."; choice.panel.directoryURL = target
+                        transferFolderChoice = choice
+                        choice.onFinished = { folder in continuation.resume(returning: folder.map { RepositoryAccessLease(url: $0) }) }
+                        choice.begin(present: nil, selected: { $0.url })
+                    }
+                }
+                try owner.cancellation.check(); try cancellation?.check(); guard !retired, !confirmingQuit, let permission else { return }
+                guard permission.contains(target), !requiresRepositoryScope || permission.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let prepared = try await prepareRepositoryMetadataAccess(at: target, primary: permission, cancellation: owner.cancellation)
+                let access = permission.retainingRelatedScopes(prepared.scopes), candidate = try makeRepository(target)
+                let discovered = try await candidate.discoverRoot(cancellation: owner.cancellation)
+                guard !requiresRepositoryScope || access.contains(discovered) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(discovered.path) }
+                let repository = try makeRepository(discovered)
+                _ = try await repository.fileMoveDestination(target, cancellation: owner.cancellation)
+                if invocation.request.action == .dropMove { _ = try await repository.clipboardMovePaths(invocation.dropFiles, cancellation: owner.cancellation) }
+                try owner.cancellation.check(); try cancellation?.check(); guard !retired, !confirmingQuit else { return }
+                if root?.path == discovered.path { showCommandTransfer(invocation, repository: repository, access: access, preferences: preferences); return }
+                guard canChangeSettingsContext() else { return }
+                busy = false; transferred = true
+                let destination = invocation.selecting([target])
+                openSession(access, selected: destination.request, action: destination.request.action, handoffOwner: owner, onOpened: { [weak self] in
+                    guard let self, !self.retired, !self.confirmingQuit, !owner.cancellation.isCancelled,
+                          let repository = self.repository, let access = self.activeAccess else { return }
+                    self.showCommandTransfer(invocation, repository: repository, access: access, preferences: preferences)
+                })
+            } catch { if !retired, !owner.cancellation.isCancelled, cancellation?.isCancelled != true { self.error = error.localizedDescription } }
         }
     }
     private func prepareCommandSettings(_ invocation: PrimaryCommandInvocation, cancellation: OperationCancellation?) {

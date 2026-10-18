@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [dropped-file command family](COMMAND-LINE.md#dropped-file-move-and-copyadd-entry)
+adds source Move, Move/Rename and Copy/Add command routes, source/target separation,
+owned destination authorization/adoption, automatic explicit operation startup and
+captured preferences. Existing name/collision/error/metadata prompts, Git actions,
+source icons and cancellation counters remain shared with native transfers.
+[Batch evidence](qa/transfer-commands-2026-10-18.json) records actual checks and
+remaining physical Finder, complete source and signed acceptance.
+
 The connected [application utility entry family](COMMAND-LINE.md#settings-about-help-and-first-start-entry)
 adds source Settings page selection/defaults, About/Help routes without repository
 requirements, and explicit First Start page/bootstrap ownership. Native Settings

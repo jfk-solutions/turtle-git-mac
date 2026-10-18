@@ -39,6 +39,15 @@ public struct PrimaryCommandInvocation: Sendable {
     public let blameRevision: String?
     /// SendMailCommand uses orgPathList: preserve order and duplicate files.
     public private(set) var mailFiles: [URL]
+    public let transferTarget: URL?
+    public private(set) var transferFiles: [URL]
+    public let renameTransfer: Bool
+    public var dropFiles: [URL] {
+        FileTransferPaths.uniqueURLs(transferFiles.filter { source in
+            !source.pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }) &&
+                !(request.action == .dropCopyAdd && transferTarget.map { GitReferenceName.equal(FileTransferPaths.lexicalPath(source.path), FileTransferPaths.lexicalPath($0.path)) } == true)
+        })
+    }
     public let settingsPage: String?
     public let wizardPage: Int?
     public let worktreeDropTarget: URL?
@@ -66,7 +75,7 @@ public struct PrimaryCommandInvocation: Sendable {
             return key == "--command" || key.hasPrefix("--command=") || key.hasPrefix("/command:")
         }
         guard hasCommand else { return nil }
-        let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep", "onlymask", "delete", "abort", "start", "skip", "reset"]
+        let flags: Set<String> = ["rename", "wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep", "onlymask", "delete", "abort", "start", "skip", "reset"]
         let valued: Set<String> = ["command", "page", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream", "msg", "droptarget", "bkpath", "selectedpath", "seq", "revision1", "revision2", "revision", "savepath", "output"]
         let optionalValues: Set<String> = ["good", "bad"]
         var values: [String: String] = [:], paths: [String] = [], index = 0
@@ -135,6 +144,8 @@ public struct PrimaryCommandInvocation: Sendable {
         case "about": action = .about
         case "help": action = .help
         case "firststartwizard": action = .firstStartWizard
+        case "dropmove": action = .dropMove
+        case "dropcopyadd": action = .dropCopyAdd
         case "sendmail": action = .sendMail
         case "requestpull": action = .requestPull
         case "worktreecreate", "dropworktreecreate": action = .worktreeCreate
@@ -183,6 +194,8 @@ public struct PrimaryCommandInvocation: Sendable {
         case .synchronize: allowed.insert("seq")
         case .formatPatch: allowed.formUnion(["startrev", "endrev"])
         case .export: allowed.insert("rev")
+        case .dropMove: allowed.formUnion(["droptarget", "rename"])
+        case .dropCopyAdd: allowed.insert("droptarget")
         case .importPatch: allowed.insert("droptarget")
         case .clone: allowed.formUnion(["url", "exactpath"])
         case .fetch: allowed.insert("remote")
@@ -222,6 +235,11 @@ public struct PrimaryCommandInvocation: Sendable {
             guard let raw = values["droptarget"], !raw.isEmpty else { throw Failure("Drop Worktree Create requires a destination folder.") }
             worktreeDropTarget = try file(raw)
         } else { worktreeDropTarget = nil }
+        let transferTarget: URL?
+        if action.isDropTransfer {
+            guard let raw = values["droptarget"], !raw.isEmpty, !paths.isEmpty || values["pathfile"] != nil else { throw Failure("A drop transfer requires source paths and a destination folder.") }
+            transferTarget = try file(raw)
+        } else { transferTarget = nil }
         var urls = try (paths.isEmpty ? [currentDirectory] : paths).map(file)
         if let second = values["path2"] {
             guard urls.count == 1, values["startrev"] == nil, values["endrev"] == nil else { throw Failure("path2 needs one selected file and cannot be combined with revisions.") }
@@ -313,7 +331,7 @@ public struct PrimaryCommandInvocation: Sendable {
             catch { throw Failure("Select a relative submodule path inside the superproject.") }
             return path
         }
-        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff, .showCompare].contains(action) ? values["alternative"] != nil : nil, requestPullEnd: action == .requestPull ? values["endrev"].flatMap { $0.isEmpty ? nil : $0 } : nil, requestPullURL: action == .requestPull ? values["url"].flatMap { $0.isEmpty ? nil : $0 } : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: commandOutput, importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, submoduleBase: try values["bkpath"].map(file), selectedSubmodule: selectedSubmodule, synchronizationSequence: synchronizationSequence, graphOutputFormat: graphOutputFormat, catRevision: catRevision, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, mailFiles: action == .sendMail ? urls : [], settingsPage: action == .settings ? values["page"] : nil, wizardPage: action == .firstStartWizard ? values["page"].map { Int(Int32($0) ?? 0) } : nil, worktreeDropTarget: worktreeDropTarget, forceLFSUnlock: action == .lfsUnlock && values["force"] != nil, forceRebase: action == .rebase && values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
+        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff, .showCompare].contains(action) ? values["alternative"] != nil : nil, requestPullEnd: action == .requestPull ? values["endrev"].flatMap { $0.isEmpty ? nil : $0 } : nil, requestPullURL: action == .requestPull ? values["url"].flatMap { $0.isEmpty ? nil : $0 } : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: commandOutput, importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, submoduleBase: try values["bkpath"].map(file), selectedSubmodule: selectedSubmodule, synchronizationSequence: synchronizationSequence, graphOutputFormat: graphOutputFormat, catRevision: catRevision, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, mailFiles: action == .sendMail ? urls : [], transferTarget: transferTarget, transferFiles: action.isDropTransfer ? urls : [], renameTransfer: action == .dropMove && values["rename"] != nil, settingsPage: action == .settings ? values["page"] : nil, wizardPage: action == .firstStartWizard ? values["page"].map { Int(Int32($0) ?? 0) } : nil, worktreeDropTarget: worktreeDropTarget, forceLFSUnlock: action == .lfsUnlock && values["force"] != nil, forceRebase: action == .rebase && values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
     }
 
     private static func validateSelection(_ urls: [URL], action: RepositoryAction) throws {
@@ -388,6 +406,7 @@ public struct PrimaryCommandInvocation: Sendable {
         resolved.pathFile = nil
         resolved.request = FinderRequest(action: request.action, paths: urls, alternateTool: request.alternateTool, requestPullEnd: request.requestPullEnd, requestPullURL: request.requestPullURL)
         if request.action == .sendMail { resolved.mailFiles = urls }
+        if request.action.isDropTransfer { resolved.transferFiles = urls }
         return resolved
     }
     /// Split a captured multi-repository transport selection without losing its

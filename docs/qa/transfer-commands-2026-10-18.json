@@ -1,0 +1,205 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "8a76a87278bd2afed05274c176acf989398c177d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected active DropMove/MoveRename/DropCopyAdd command family, captured source/target identity and permissions, destination adoption, explicit automatic execution, native source prompts/progress/cancellation and owning preferences.",
+  "dialogs": [
+    "IDD_RENAME",
+    "IDD_GITPROGRESS"
+  ],
+  "resources": [
+    "src/Resources/TortoiseProcENG.rc"
+  ],
+  "source_review": [
+    "src/TortoiseProc/Commands/DropMoveCommand.cpp",
+    "src/TortoiseProc/Commands/DropCopyAddCommand.cpp",
+    "src/TortoiseProc/Commands/Command.cpp",
+    "src/TortoiseShell/ContextMenu.cpp"
+  ],
+  "implementation": [
+    "Typed internal Drop Move/Copy Add actions preserve separate raw source list and required destination; Move accepts optional rename. Sources/target survive authorized path-file resolution and adoption selection. Missing arguments fail before list deletion. Source administrative paths and Copy/Add destination-self are filtered; native exact ordered unique source identity remains.",
+    "Captured native preparation authorizes the destination working tree, resolves linked metadata before Git, validates its working folder and same-working-tree tracked Move sources before any operation window. Original window cancellation/retirement suppresses late preparation/adoption. Pending work retains busy/Quit ownership until actual drain.",
+    "Destination adoption uses the existing normal workspace transaction and captured owner. The subsequent operation captures the original sources and owning preferences rather than interpreting sources relative to a later destination workspace. After adoption, the operation uses the adopted repository and final composite access lease, including any additional metadata grants acquired by that transaction.",
+    "Explicit commands begin native progress after preflight. Move uses optional Rename, collision name sheets, ordered Ignore/Abort and original Rename artwork; Copy/Add uses original Add artwork, external-source permission, Overwrite/Keep/Cancel, copied repository/submodule Delete/Ignore/Abort and final batch Add. Existing app menu, clipboard and drop-sheet entries retain their review.",
+    "Move asynchronous source/destination preparation has a default-off automatic continuation, guarded by its live operation owner after preparation settles. Closing a window before late permission/read completion cannot begin mutation. Existing operation windows retain grants and active counters until actual drain.",
+    "Shared Move and Copy/Add helpers now forward owning preferences and permit native presentation/source-grant injection for grouped verification. Command windows stay independent; no prior transfer draft is overwritten."
+  ],
+  "validation": {
+    "core": {
+      "command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter 'PrimaryCommandInvocationTests|FileMoveTests|FileCopyTests|FinderTransferTests|MenuIconTests'",
+      "exit": 0,
+      "attempts": 1,
+      "cases": 71,
+      "classes": {
+        "PrimaryCommandInvocationTests": 48,
+        "FileMoveTests": 10,
+        "FileCopyTests": 6,
+        "FinderTransferTests": 4,
+        "MenuIconTests": 3
+      },
+      "scope": "Typed command/options/path-file and literal identities; actual private Move/Copy effects, separate staged/working bytes, collision/stale/metadata/cancellation and retained Finder/icon clauses. Full Core suite not repeated."
+    },
+    "build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "exit": 0,
+      "attempts": 2,
+      "scope": "Local arm64 Debug app/embedded targets. Existing warnings, simulator mismatch and exit-0/no-output Swift diagnostics remain. No current signed/universal/hosted acceptance inferred.",
+      "logs": [
+        {
+          "log": "transfer-commands-build-2026-10-18.log",
+          "exit": 0
+        },
+        {
+          "log": "transfer-commands-build-session-recheck-2026-10-18.log",
+          "exit": 0,
+          "reason": "Final review corrected post-adoption session/grant handoff for command transfers."
+        }
+      ]
+    },
+    "new_native": {
+      "command": "python3 scripts/test-primary-commands.py --only transfers --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "initial_exit": 1,
+      "initial_failure": "Fixture compared Git stdout Data with String literals; compiler refused the invalid byte comparison. No native runtime case launched.",
+      "repair": "Expected stdout is now compared as exact Data bytes. Product code/build/Core unchanged; only fixture recompiled.",
+      "recheck_exit": 0,
+      "engine_cases": 2,
+      "passed": [
+        "Destination workspace adoption, automatic explicit Move, owning preferences and separate index/working bytes.",
+        "Move/Rename executes its captured validated name plan.",
+        "External/admin/nonfolder target Move refusals preserve source index and open no operation window.",
+        "Copy/Add from authorized external sources, ordered source batch, Keep staging retained bytes, copied nested metadata Delete with original metadata/source preserved.",
+        "Authorized NUL path-file deletion, source admin/destination-self filtering and independent source/destination snapshots.",
+        "Forced Copy/Add close during held source authorization retains active ownership through real return; late grant copies nothing.",
+        "Receiving window closure before preflight prevents handoff.",
+        "HEAD unchanged; windows closed and operation counters drained.",
+        "Post-adoption repository and access lease identities match the adopted workspace configuration context."
+      ],
+      "scope_limits": "Move covers initial destination adoption; Copy/Add covers an already-open destination repository. Fake source grants exercise continuation policy, not real sandbox scope issuance. Physical Finder right-drag menus, displayed grant panels and pixel/VoiceOver acceptance not exercised.",
+      "post_adoption_review": {
+        "product_change": "Use the adopted repository and final activeAccess rather than earlier preflight values in the command-only onOpened handoff.",
+        "first_recheck_exit": 1,
+        "failure": "Additional fixture assertion attempted direct access to private workspace fields; fixture compile failed before a runtime launch.",
+        "fixture_repair": "Read the existing gitConfigurationContext() accessor and retain both repository and lease identity assertions. No visibility change or removed assertion.",
+        "final_recheck_exit": 0,
+        "engine_cases": 2,
+        "log": "transfer-commands-native-session-context-recheck-2026-10-18.log"
+      },
+      "runtime_failures": []
+    },
+    "retained_native": {
+      "command": "python3 scripts/test-file-transfer-family.py --only move --only copy --only drop --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "attempts": 1,
+      "engine_cases": 6,
+      "passed": [
+        "Move: actual streamed cancellation, collision validation/name sheet, staged/working bytes, Ignore, late retirement and Quit.",
+        "Copy: private file-URL clipboard, actual copy/Add, self-name validation, Keep/Overwrite, nested metadata Delete/Ignore/Abort and recoverable real Add cancellation.",
+        "Drop: provider URL/order/dedup, source choices/admin destination guards, actual production Move/Rename and external Copy/Add effects, provider retirement/Quit and sheet cleanup."
+      ],
+      "diagnostics": "Unsigned private clipboard checks emitted sandbox_extension_consume denied diagnostics while assertions/runner exits passed. This does not prove genuine scoped pasteboard delivery.",
+      "timing": "Passed before final command-only onOpened session/grant refinement. Move/Copy/drop review entry and model algorithms unchanged afterward; unaffected retained cases not repeated."
+    },
+    "distinct_native_case_engine_passes": 8,
+    "cleanup": {
+      "owned_pids": [
+        50696,
+        50796,
+        51098,
+        51213,
+        51327,
+        51408,
+        51570,
+        51708,
+        52298,
+        52472
+      ],
+      "confirmed_absent": [
+        50696,
+        50796,
+        51098,
+        51213,
+        51327,
+        51408,
+        51570,
+        51708,
+        52298,
+        52472
+      ],
+      "still_present": [],
+      "scope": "All receiver handles reaped by owned process-group cleanup; fixtures closed owned windows/panels and drained operation counters. No unrelated installed app terminated."
+    },
+    "localizations": {
+      "write_before_build": true,
+      "languages": 38,
+      "keys": 1287,
+      "scope": "Catalog unchanged. Missing source translations retain English fallback; no complete-language claim.",
+      "check_exit": 0
+    },
+    "hosted_observation": {
+      "head": "8a76a87278bd2afed05274c176acf989398c177d",
+      "macos_run": 39120901124,
+      "macos_status": "pending",
+      "pages_run": 39120901113,
+      "pages_conclusion": "success",
+      "previous_head": "887d1836d5d0c9cfdf34d7a965c699115495cffb",
+      "previous_macos_run": 39119247789,
+      "previous_macos_conclusion": "cancelled",
+      "scope": "Read-only observation during this batch; not a hosted pass for this new source."
+    },
+    "total_runtime_case_engine_passes": 10,
+    "site": {
+      "command": "build/site-venv/bin/python scripts/build-site.py",
+      "exit": 0,
+      "documents": 294,
+      "unresolved_fragments": []
+    }
+  },
+  "remaining": [
+    "Installed Finder right-drag/context interception is not implemented by this native command/receiving-sheet family.",
+    "Physical source/destination and authorization pickers, keyboard/focus/VoiceOver/theme/prompt rendering, real scopes/renewal and signed current App Store deployment.",
+    "Full upstream shell cases, copied directory ACL/xattr fidelity and submodule/gitmodules move semantics remain partial.",
+    "Native transfers keep exact ordered unique identities and a retained result view; upstream process exit/automatic progress close semantics are not emulated.",
+    "Upstream-disabled dropcopy/pastecopy/pastemove aliases remain disabled; native clipboard entries are separate.",
+    "Other utility command families, complete source controls and current full hosted CI remain open.",
+    "Custom TurtleGit artwork remains unavailable; no new/custom branding is claimed."
+  ],
+  "fixture_sha256": "bcf2b8703904ae51845292741647e507d2078b75c292ab97ea8041f32d958ec3",
+  "logs": {
+    "transfer-commands-build-2026-10-18.log": {
+      "bytes": 68079,
+      "sha256": "a8e42ddd1d0697a687cb4b9f97211f4947f4cd1f016427073564f022297bc9e3"
+    },
+    "transfer-commands-build-session-recheck-2026-10-18.log": {
+      "bytes": 20629,
+      "sha256": "5487ae7b87ed6acca95806b443fc0a94fe03cf773187c6addc84ea78c2f8c4bf"
+    },
+    "transfer-commands-core-2026-10-18.log": {
+      "bytes": 20510,
+      "sha256": "cd1a88f5c901b807501d344ecb3a148a8d60c4586aced9c1c4d4034de34c1ed9"
+    },
+    "transfer-commands-native-2026-10-18.log": {
+      "bytes": 9179,
+      "sha256": "f92d69ea6709a4dfb1ae0a2e44b17ee9396b8d84c52d31dfcfe41d36bc843a0f"
+    },
+    "transfer-commands-native-bytes-recheck-2026-10-18.log": {
+      "bytes": 1828,
+      "sha256": "5e20ea84f140e5d1d57201450040281d373a043bb76174401014a8d0d3c48fae"
+    },
+    "transfer-commands-native-session-context-recheck-2026-10-18.log": {
+      "bytes": 1828,
+      "sha256": "ca948b693dbf2c83c6877872f01de358e38285bba4ded9f71d6eb7064c58003b"
+    },
+    "transfer-commands-native-session-recheck-2026-10-18.log": {
+      "bytes": 7320,
+      "sha256": "9f114440576904131c5b15679f0bf6a3e5b0e0461a19e9f557e34d79867d3102"
+    },
+    "transfer-commands-retained-2026-10-18.log": {
+      "bytes": 2356,
+      "sha256": "74dc82f47f3a4a0d352f482c88b85a77d49c2937fb5a37d0feb48674c310ae87"
+    },
+    "transfer-commands-site-2026-10-18.log": {
+      "bytes": 123,
+      "sha256": "5c960247777bfa7672e3c2b60aa02946a6d588814bbacd7b1a81cb9dff74a451"
+    }
+  }
+}

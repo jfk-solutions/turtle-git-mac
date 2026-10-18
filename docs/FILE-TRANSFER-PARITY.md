@@ -120,3 +120,10 @@ rerun and no screenshot or full visual audit is added. Unsigned clipboard
 sandbox-extension diagnostics do not prove signed permission delivery.
 
 The connected [workspace file workflow continuation](WORKSPACE-FILE-WORKFLOWS.md) covers exact overview selection, Finder reopening, shared viewer caches and Add/Commit drop identities. Earlier workspace-selection limitations describe the prior checkpoint; complete physical/signed and application parity remain open.
+
+The connected [source drop-command continuation](COMMAND-LINE.md#dropped-file-move-and-copyadd-entry)
+adds automatic execution after captured destination adoption for explicit Move,
+Move/Rename and Copy/Add commands. Existing native menu/clipboard reviews remain.
+Owning preferences now reach the shared Move and Copy/Add consumers. Actual
+validation and remaining acceptance are recorded in
+[the command batch evidence](qa/transfer-commands-2026-10-18.json).

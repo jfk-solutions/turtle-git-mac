@@ -842,3 +842,49 @@ source/default/lifecycle checks from real Help browser, physical pickers,
 rendered/VoiceOver parity, signed deployment and App Store acceptance. Other
 utility command families, including daemon serving and release administration,
 remain separate work.
+
+## Dropped-file Move and Copy/Add entry
+
+The active source `dropmove` and `dropcopyadd` commands accept explicit source
+`path` arguments or an authorized path file, plus the required `droptarget`
+folder. `dropmove` also accepts `rename`; it asks for a new name when one source
+is selected. These explicit operation commands begin after destination/source
+validation. Ordinary app menu, clipboard and receiving-sheet entries retain
+review before execution.
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=dropmove \
+  --path '/absolute/repository/file.txt' --droptarget '/absolute/repository/folder'
+open -n -a 'TurtleGit for Mac' --args --command=dropmove \
+  --path '/absolute/repository/file.txt' --droptarget '/absolute/repository/folder' --rename
+open -n -a 'TurtleGit for Mac' --args --command=dropcopyadd \
+  --path '/absolute/external/folder' --droptarget '/absolute/repository/folder'
+```
+
+Destination authorization and linked metadata discovery happen before adopting
+the target working tree. Move requires versioned sources from that same working
+tree; outside, bare, administrative and nonfolder destinations are refused.
+Original source URLs stay independent of the destination used for repository
+adoption. Git administrative source entries are skipped. Copy/Add also skips a
+source equal to the destination folder. Native transfers retain the exact ordered
+unique file identities used by their existing menu/clipboard workflows.
+
+Move starts the existing `git mv` progress, including collision name sheets,
+optional Move/Rename and ordered Ignore/Abort recovery. Separate index/working
+bytes remain separate. Copy/Add starts its existing external-source authorization,
+Overwrite/Keep/Cancel and copied repository/submodule metadata Delete/Ignore/Abort
+workflow, then ordinary Git Add after the copy batch. Neither command commits.
+Earlier successful moves/copies remain when later work fails or is cancelled.
+
+Preparation captures the initiating window, grants, input list and preferences.
+Window closure/retirement cancels pending work; transferred adoption retains the
+original owner. The operation window owns work after handoff, and counters/grants
+remain held through actual cancellation drain. A late source grant cannot resume
+a retired Copy/Add window. The native result view remains available for Close.
+
+This command family does not add Finder right-drag interception. Windows' disabled
+`dropcopy`, `pastecopy` and `pastemove` command aliases remain disabled; macOS
+clipboard commands have their existing native entry points. See
+[transfer command evidence](qa/transfer-commands-2026-10-18.json) and
+[dropped-file workflow parity](FILE-DROP-TRANSFER-PARITY.md) for validation and
+physical/signed/source acceptance gaps.

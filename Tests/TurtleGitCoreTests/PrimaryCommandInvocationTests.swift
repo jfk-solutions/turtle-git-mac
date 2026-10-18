@@ -2,6 +2,28 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PrimaryCommandInvocationTests: XCTestCase {
+    func testDropTransfersRequireDestinationAndKeepExactSourceIdentity() throws {
+        let value = try parse(["/command:dropmove", "/path:one*two", "/droptarget:target", "/rename"])
+        XCTAssertEqual(value.request.action, .dropMove); XCTAssertTrue(value.renameTransfer)
+        XCTAssertEqual(value.transferTarget?.path, "/repo/target"); XCTAssertEqual(value.dropFiles.map(\.path), ["/repo/one", "/repo/two"])
+        XCTAssertTrue(value.request.action.requiresWorkingTree); XCTAssertNil(FinderMenuEntry.entry(for:.dropMove))
+        let copy = try parse(["--command=dropcopyadd", "--path=a[*]", "--path=a[*]", "--path=e\u{301}", "--path=é", "--path=.git/config", "--path=target", "--droptarget=target"])
+        XCTAssertEqual(copy.request.action,.dropCopyAdd); XCTAssertEqual(copy.dropFiles.count,3)
+        XCTAssertEqual(copy.dropFiles.map { Array($0.path.utf8) }, ["/repo/a[*]", "/repo/e\u{301}", "/repo/é"].map { Array($0.utf8) })
+        XCTAssertEqual(copy.selecting([URL(fileURLWithPath:"/new/destination")]).dropFiles.map { Array($0.path.utf8) },copy.dropFiles.map { Array($0.path.utf8) })
+        for args in [["--command=dropmove"],["--command=dropmove","--path=a"],["--command=dropcopyadd","--droptarget=t"],["--command=dropcopyadd","--path=a","--droptarget="],["--command=dropcopyadd","--path=a","--droptarget=t","--rename"],["--command=rename","--path=a","--droptarget=t"],["--command=commit","--rename"]] { XCTAssertThrowsError(try parse(args)) }
+    }
+    func testDropPathFileRetainsDestinationAndRenameBeforeAuthorizedDeletion() throws {
+        let root = try temporaryDirectory(); defer {try? FileManager.default.removeItem(at:root)}
+        let file=root.appendingPathComponent("sources");try Data("first\0.git/config\0second\0".utf8).write(to:file)
+        XCTAssertThrowsError(try parse(["--command=dropmove","--pathfile",file.path,"--pathfile0","--deletepathfile"]))
+        XCTAssertTrue(FileManager.default.fileExists(atPath:file.path))
+        let value=try parse(["--command=dropmove","--droptarget=destination","--rename","--pathfile",file.path,"--pathfile0","--deletepathfile"])
+        let resolved=try value.resolvingPathFile(cancellation:OperationCancellation())
+        XCTAssertEqual(resolved.dropFiles.map(\.path),["/repo/first","/repo/second"])
+        XCTAssertEqual(resolved.transferTarget?.path,"/repo/destination");XCTAssertTrue(resolved.renameTransfer)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:file.path))
+    }
     func testApplicationUtilityCommandsAndEditablePages() throws {
         for (command, action) in [("settings",RepositoryAction.settings),("about",.about),("help",.help),("firststartwizard",.firstStartWizard)] {
             let value = try parse(["--command=" + command])
