@@ -21,6 +21,66 @@ final class ConflictResolutionTests: XCTestCase {
         try Data("other working\n".utf8).write(to: root.appendingPathComponent("other.txt"))
         return (root, repo, path)
     }
+    func testSilentCommandStagesOriginalIgnoredAndConflictPathsAndCleansOnlySourceArtifacts() async throws {
+        let (root,repo,path)=try await fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout
+        try Data("ignored.bin\n".utf8).write(to:root.appendingPathComponent(".gitignore"))
+        try Data("ignored content\n".utf8).write(to:root.appendingPathComponent("ignored.bin"))
+        let file=root.appendingPathComponent(path)
+        for side in ["LOCAL","REMOTE","BASE","BACKUP"] {try Data(side.utf8).write(to:URL(fileURLWithPath:file.path+"."+side+".txt"))}
+        let outside=root.appendingPathComponent("keep-target")
+        try Data("keep".utf8).write(to:outside)
+        try FileManager.default.removeItem(atPath:file.path+".REMOTE.txt")
+        try FileManager.default.createSymbolicLink(atPath:file.path+".REMOTE.txt",withDestinationPath:outside.path)
+        let contents=try Data(contentsOf:file)
+        _=try await repo.resolveCommandSilently(paths:[path,"ignored.bin",path])
+        let remaining=try await repo.conflicts(),indexed=try await repo.run(["show",":"+path]).stdout,ignored=try await repo.run(["show",":ignored.bin"]).stdout
+        XCTAssertTrue(remaining.isEmpty);XCTAssertEqual(indexed,contents);XCTAssertEqual(ignored,Data("ignored content\n".utf8))
+        for side in ["LOCAL","REMOTE","BASE"] {XCTAssertFalse(FileManager.default.fileExists(atPath:file.path+"."+side+".txt"))}
+        XCTAssertTrue(FileManager.default.fileExists(atPath:file.path+".BACKUP.txt"));XCTAssertEqual(try String(contentsOf:outside),"keep")
+        let after=try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(head,after)
+    }
+    func testSilentCommandValidatesEveryPathBeforeMutationAndRejectsChildRepository() async throws {
+        let (root,repo,path)=try await fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let before=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        for invalid in ["../outside",".git/config","/absolute","bad\0name",""] {
+            do {_=try await repo.resolveCommandSilently(paths:[path,invalid]);XCTFail("Accepted invalid path")} catch {}
+            XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),before)
+        }
+        let child=root.appendingPathComponent("child");try FileManager.default.createDirectory(at:child,withIntermediateDirectories:true)
+        _=try await repo.run(["init",child.path])
+        try Data("child".utf8).write(to:child.appendingPathComponent("file"))
+        do {_=try await repo.resolveCommandSilently(paths:[path,"child/file"]);XCTFail("Accepted child repository")} catch ResolveFailure.outsideWorkingTree {}
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),before)
+    }
+    func testSilentCommandStopsAtFirstFailureAndCancellationKeepsEarlierEffects() async throws {
+        for cancelled in [false,true] {
+            let (root,repo,path)=try await fixture();defer {try? FileManager.default.removeItem(at:root)}
+            try Data("last".utf8).write(to:root.appendingPathComponent("last.bin"))
+            let token=OperationCancellation()
+            do {
+                _=try await repo.resolveCommandSilently(paths:[path,cancelled ? "last.bin":"missing.bin","last.bin"],cancellation:token,onProgress:{event in if cancelled && event.finished {token.cancel()}})
+                XCTFail("Accepted failure/cancellation")
+            } catch {}
+            let remaining=try await repo.conflicts(),last=try await repo.run(["ls-files","--error-unmatch","--","last.bin"],successfulExitCodes:0...1).exitCode
+            XCTAssertTrue(remaining.isEmpty);XCTAssertEqual(last,1)
+        }
+    }
+    func testSilentCommandSupportsDirectoryAndWholeWorkingTreeAndNeverRemovesArtifactDirectories() async throws {
+        let (root,repo,path)=try await fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let folder=root.appendingPathComponent("folder");try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        try Data("directory content".utf8).write(to:folder.appendingPathComponent("new.bin"))
+        _=try await repo.resolveCommandSilently(paths:["folder"])
+        let indexed=try await repo.run(["show",":folder/new.bin"]).text;XCTAssertEqual(indexed,"directory content")
+        let artifact=root.appendingPathComponent(path+".BASE.txt")
+        try FileManager.default.createDirectory(at:artifact,withIntermediateDirectories:true)
+        try Data("keep".utf8).write(to:artifact.appendingPathComponent("inside"))
+        let selected=try await repo.conflicts();_=try await repo.resolveConflicts(selected,using:.current)
+        XCTAssertEqual(try String(contentsOf:artifact.appendingPathComponent("inside")),"keep")
+        try Data("whole".utf8).write(to:root.appendingPathComponent("whole.bin"))
+        _=try await repo.resolveCommandSilently(paths:["."])
+        let whole=try await repo.run(["show",":whole.bin"]).text;XCTAssertEqual(whole,"whole")
+    }
     func testCurrentResolutionKeepsWorkingContentsAndUnrelatedIndexAndDoesNotCommit() async throws {
         let (root, repo, path) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let checked = try await repo.conflicts(), head = try await repo.run(["rev-parse", "HEAD"]).text

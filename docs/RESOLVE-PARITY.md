@@ -280,3 +280,52 @@ checked/highlighted memory, refresh, captured menus and resolution validation.
 The native binary checkbox follows the source highlighted-row rule. Shared
 Git actions retain their existing mutation/cancellation and child lifetimes.
 Physical/signed acceptance and broader invalid-path handling remain open.
+
+## Resolve command modes and shared ownership — October 18, 2026
+
+The primary `resolve` command accepts independent `silent` and `noquestion`
+flags. Normal entry opens the existing checked conflict review and progress.
+`silent` alone keeps the review but applies its accepted checked rows without a
+progress panel, closes on success and reports failure for acknowledgment. Context
+Mine/Theirs/current actions still retain their separate confirmation/progress
+behavior; the outer Silent option applies only to accepting the checklist.
+
+With both flags, the original literal request runs `git add -f` one selected path
+at a time, without a checklist or progress window. This accepts ignored,
+unversioned and directory inputs as upstream does; it does not first reduce the
+request to conflicted files. A failure or cancellation stops the remaining paths
+and retains earlier staged changes. All selected paths are validated for the same
+working tree before the first mutation; native permission prompts still apply.
+NUL path packets preserve literal names and exact UTF-8 index spellings.
+
+The pinned `ResolveCommand::Execute` and
+`ResolveProgressCommand::Run(ResolveWith::Current)` have a specific fourth case:
+`noquestion` without `silent` bypasses status population, leaving argv paths
+without the `UNMERGED` action bit. Native entry preserves the resulting **Skip**
+progress rather than changing it into force staging. It leaves the index unchanged
+and retains the normal Close/Commit post-action policy. Use both flags for the
+source's direct staging behavior. This is an observed source contract, not a
+claim that every upstream version behaves this way.
+
+Successful resolutions remove the source three sibling merge files:
+`<path>.LOCAL<extension>`, `.REMOTE<extension>` and `.BASE<extension>`. The native
+implementation unlinks only regular files or symlinks, never their targets or
+nonempty directories. Other backups remain. Folder/root selection does not delete
+neighbor artifacts outside that selected folder; macOS-owned external-tool inputs
+keep their existing session cleanup policy.
+
+Resolve and Edit Conflict now share captured command permission/discovery/adoption
+ownership. Every input must remain inside the discovered working tree; mixed-root
+inputs are refused rather than dropped by relative-path conversion. The original
+window and settings survive authorization/metadata reads and workspace adoption.
+Resolve window keys and close callbacks retain exact identities; repeated review
+entry preserves checks instead of replacing the current model. Silent pending
+commands coalesce only for the same exact root/path batch. Closing their initiating
+window or retiring the app cancels actual work, retains Quit lifetime until drain,
+refreshes possible partial effects and refuses late success/error delivery.
+
+[Batch evidence](qa/resolve-commands-2026-10-18.json) records actual validation and
+repairs. Windows HWND refresh messages, process exit status, arbitrary invalid
+UTF-8 names, physical source geometry/keyboard/VoiceOver/theme comparison and
+current real sandbox/Finder/App Store acceptance remain open. This continuation
+does not certify every Resolve dialog or the complete port.

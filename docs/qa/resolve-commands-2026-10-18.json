@@ -1,0 +1,154 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "b2b7e81a33114638289f608ad8f9964aa2a09458",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected Resolve command review/automation family: independent Silent/Noquestion, checked and direct staging, source Skip-only mode, cleanup, captured authorization/adoption/preferences, exact review/direct ownership and cancellation.",
+  "dialogs": [
+    "IDD_RESOLVE",
+    "IDD_GITPROGRESS"
+  ],
+  "resources": [
+    "src/Resources/TortoiseProcENG.rc"
+  ],
+  "source_review": [
+    "src/TortoiseProc/Commands/ResolveCommand.cpp::Execute",
+    "src/TortoiseProc/ResolveDlg.cpp::OnOK/ResolveThread",
+    "src/TortoiseProc/ProgressCommands/ResolveProgressCommand.cpp::Run(Current)",
+    "src/TortoiseProc/AppUtils.cpp::RemoveTempMergeFile/GetMergeTempFile",
+    "src/TortoiseProc/TortoiseProc.cpp path/path-file loading",
+    "src/Git/TGitPath.cpp::Clear/GetFileExtension",
+    "src/TortoiseMerge/MainFrm.cpp::MarkAsResolved"
+  ],
+  "implementation": [
+    "Resolve accepts independent silent/noquestion flags, preserved through path-file resolution/selection. Other commands reject them and valued flags remain invalid.",
+    "Normal command review retains its checked targets and uses existing real progress. Silent review applies only to outer checklist acceptance; context resolutions retain their independent confirmation/progress. Silent success closes; failure retains an acknowledgment error without a progress panel.",
+    "Combined Silent/Noquestion force-adds original literal inputs, including ignored/unversioned files and directories/root, one selected path at a time. All paths must validate inside the same working tree before mutation; each item rechecks ownership. First failure/cancellation stops later items without rolling back prior effects. NUL path packets retain literal/exact spelling.",
+    "Noquestion without Silent preserves the pinned source behavior: skipping status population leaves raw argv paths without UNMERGED action flags, so progress reports Skip and does not stage them. Success retains existing Close/Commit post-action policy. This source-specific behavior is documented explicitly.",
+    "Successful direct and ordinary checked resolutions unlink source LOCAL/REMOTE/BASE sibling files using source filename-extension spelling. Unlink does not follow symlinks or recursively remove directories; other backups remain. Folder/root selections do not clean neighboring artifacts outside that folder.",
+    "Resolve shares captured command permission/metadata discovery and root adoption with Edit Conflict. Mixed-root inputs are rejected before adoption rather than silently dropped by relative-path conversion. Original window/settings and related grants survive handoff.",
+    "Resolve window maps use exact Git path keys and identity-checked close callbacks. Reviews reuse checks/models per mode. Pending direct Silent batches coalesce by exact root/paths; owner closure/retirement cancels, retains pending/Quit lifetime through real drain, refreshes possible partial effects and refuses late result/error delivery."
+  ],
+  "validation": {
+    "core": {
+      "command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter 'PrimaryCommandInvocationTests|ConflictResolutionTests|ConflictPathIdentityTests'",
+      "initial_exit": 1,
+      "distinct_cases": 72,
+      "classes": {
+        "PrimaryCommandInvocationTests": 53,
+        "ConflictResolutionTests": 14,
+        "ConflictPathIdentityTests": 5
+      },
+      "failure": "One old invalid-option test still expected resolve /silent and /noquestion to throw (two assertions). New four-mode parser and real Git cases passed.",
+      "repair": "Replaced the two obsolete rejection inputs with a valued Silent flag and Noquestion on Commit; retained all new positive/negative behavioral assertions.",
+      "affected_command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter PrimaryCommandInvocationTests.testInvalidOptionsAreNeverSilentlyDropped",
+      "affected_exit": 0,
+      "affected_cases": 1,
+      "distinct_final_passes": 72,
+      "scope": "Parser/path-file modes; direct ignored/conflict/directory/root staging; whole-batch unsafe/child-root refusal; first-failure/cancellation retention; side-file/symlink-target/directory preservation; existing current/mine/theirs/binary/delete/stale and exact-index cases. No complete Core repeat."
+    },
+    "build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "exit": 0,
+      "attempts": 1,
+      "scope": "Local arm64 Debug app/embedded targets. Existing warnings and simulator-version diagnostic remain; no universal/signed/current hosted claim."
+    },
+    "native_commands": {
+      "command": "python3 scripts/test-primary-commands.py --only resolve --only conflicts --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "attempts": 1,
+      "engine_cases": 4,
+      "runtime_failures": [],
+      "scope": "All four Resolve modes through actual command authorization/adoption; original settings, checked review reuse, normal/hidden staging and errors, source Skip behavior, real ignored path-file staging/cleanup, mixed-root rejection, duplicate pending coalescing/owner-close late fencing; retained four-editor routing and metadata-child reaping. Permission adapters injected."
+    },
+    "retained_progress": {
+      "command": "python3 scripts/test-resolve-interaction-family.py --only progress --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "attempts": 1,
+      "engine_cases": 2,
+      "scope": "Actual streamed Git add, cancellation and unchanged pre-mutation index; real checked completion/list refresh and unchanged HEAD; pending-question duplicate/late callback refusal and noncooperative read/Quit lifetime.",
+      "driver_typo": {
+        "command": "python3 scripts/test-resolve-family.py --only progress ...",
+        "exit": 2,
+        "effect": "No such script; no receiver ran. Correct existing driver used afterward."
+      }
+    },
+    "distinct_native_case_engine_passes": 6,
+    "total_native_runtime_attempts": 6,
+    "cleanup": {
+      "owned_pids": [
+        63708,
+        63890,
+        64075,
+        64465,
+        64467,
+        64861,
+        64892,
+        64962
+      ],
+      "confirmed_absent": [
+        63708,
+        63890,
+        64075,
+        64465,
+        64467,
+        64861,
+        64892,
+        64962
+      ],
+      "still_present": [],
+      "scope": "All six receivers plus two explicit held metadata Git children reaped/absent; private model windows/helpers retired and counters drained; unrelated user-owned installed app untouched."
+    },
+    "localizations": {
+      "write_before_build": true,
+      "languages": 38,
+      "keys": 1287,
+      "check_exit": 0,
+      "scope": "Catalog unchanged; English fallback retained."
+    },
+    "site": {
+      "command": "build/site-venv/bin/python scripts/build-site.py",
+      "exit": 0,
+      "documents": 295,
+      "unresolved_fragments": []
+    }
+  },
+  "remaining": [
+    "Windows HWND refresh messaging/process exit protocol, and exact global skipcheck/closeonend switch compatibility.",
+    "Arbitrary invalid UTF-8 paths and independent physical canonical-alias files/directories on macOS.",
+    "Physical input/layout/default-button/VoiceOver/light-dark acceptance of every mode and complete upstream dialog parity.",
+    "Actual sandbox scope issuance/renewal, current installed signed Finder/App Store acceptance and a complete current hosted CI result.",
+    "Folder/root side-artifact cleanup intentionally stays inside native selected ownership; no outside-folder neighbor deletion claimed.",
+    "Earlier custom TurtleGit artwork has not been recovered; current branding remains upstream-derived."
+  ],
+  "fixture_sha256": "2d290ac7c1f11838503e2d0667a5958121e6fad95a4ad28473dd23cf04aee812",
+  "logs": {
+    "resolve-commands-build-2026-10-18.log": {
+      "bytes": 119097,
+      "sha256": "bf94148ab1462d649398aeb29bf0e3290ffb0a44419b029709d37fd886e37e72"
+    },
+    "resolve-commands-core-2026-10-18.log": {
+      "bytes": 57712,
+      "sha256": "54db568edd842f111c7c9c47d6008240e7f8debd1ef33a2b7407a09938dd2092"
+    },
+    "resolve-commands-core-affected-2026-10-18.log": {
+      "bytes": 1169,
+      "sha256": "323936406211912c1090805a742312b926a88570e267ab8bc2cd1c6e891a2e77"
+    },
+    "resolve-commands-native-2026-10-18.log": {
+      "bytes": 5112,
+      "sha256": "c6a422b5c6603eb0e075204a51928d3765ffd0d0c9a1bdc5566877232db1a177"
+    },
+    "resolve-commands-retained-2026-10-18.log": {
+      "bytes": 205,
+      "sha256": "f627459d6dd95a03f166fe0448243c8bfb34dcf55de2fe6525d72207d3e2d9f1"
+    },
+    "resolve-commands-retained-progress-2026-10-18.log": {
+      "bytes": 666,
+      "sha256": "cce68579d4f9b066017c8d16957afe018e1d798c128530e9bca429eef14f4fa8"
+    },
+    "resolve-commands-site-2026-10-18.log": {
+      "bytes": 123,
+      "sha256": "ce9a50d5187922eeef385b2978c999c322fb10732c141dd35c5256ea94be42f6"
+    }
+  }
+}

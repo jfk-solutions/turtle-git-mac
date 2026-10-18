@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Resolve review/automation family](RESOLVE-PARITY.md#resolve-command-modes-and-shared-ownership--october-18-2026)
+adds all four `silent`/`noquestion` entry modes, literal force-staging with first
+failure/cancellation semantics, source side-file cleanup, retained reviews and
+captured permission/adoption/preferences. Silent work owns cancellation and Quit
+through actual drain; source noquestion-only Skip behavior stays explicit.
+[Batch evidence](qa/resolve-commands-2026-10-18.json) records checks and remaining
+Windows protocol, physical, hosted and signed acceptance.
+
 The connected [LFS completion and native-readiness family](LFS-PARITY.md#connected-lfs-completion-and-native-readiness--october-18-2026)
 retains reported server effects through incomplete/cancelled terminal replies,
 refuses false success/Pull, preserves captured Force targets, settings and exact

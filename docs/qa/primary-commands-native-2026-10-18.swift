@@ -255,6 +255,7 @@ import TurtleGitCore
     @MainActor static func main() async throws {
         NSApp.setActivationPolicy(.prohibited)
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "conflicts" { try await verifyConflictCommands(); return }
+        if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "resolve" { try await verifyResolveCommands(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "services" { try await verifyServiceCommands(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "transfers" { try await verifyTransferCommands(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "utilities" { try await verifyUtilityCommands(); return }

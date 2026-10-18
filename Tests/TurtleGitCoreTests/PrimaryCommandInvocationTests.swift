@@ -2,6 +2,20 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PrimaryCommandInvocationTests: XCTestCase {
+    func testResolveFlagsAreIndependentAndSurvivePathFile() throws {
+        for silent in [false,true] { for noQuestion in [false,true] {
+            let args=["--command=resolve","--path=file"]+(silent ? ["--silent"]:[])+(noQuestion ? ["--noquestion"]:[])
+            let value=try parse(args)
+            XCTAssertEqual(value.resolveOptions,ResolveCommandOptions(silent:silent,noQuestion:noQuestion))
+        }}
+        for args in [["--command=commit","--silent"],["--command=conflicteditor","--noquestion"],["--command=resolve","--silent=true"],["--command=resolve","--alternative"]] {XCTAssertThrowsError(try parse(args))}
+        let root=try temporaryDirectory();defer {try? FileManager.default.removeItem(at:root)}
+        let file=root.appendingPathComponent("paths");try Data("a\0b\0".utf8).write(to:file)
+        let value=try parse(["/command:resolve","/silent","/noquestion","--pathfile",file.path,"--pathfile0"])
+        let resolved=try value.resolvingPathFile(cancellation:OperationCancellation())
+        XCTAssertEqual(resolved.resolveOptions,.init(silent:true,noQuestion:true));XCTAssertEqual(resolved.request.paths.count,2)
+        XCTAssertEqual(resolved.selecting([root]).resolveOptions,resolved.resolveOptions)
+    }
     func testStandaloneConflictEditorCapturesExplicitAlternativeAndOnePath() throws {
         let normal=try parse(["--command=conflicteditor","--path=-conflict 雪\n[*].txt"])
         XCTAssertEqual(normal.request.action,.editConflict);XCTAssertTrue(normal.request.action.requiresWorkingTree);XCTAssertEqual(normal.request.alternateTool,false)
@@ -466,7 +480,7 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         let invalid: [[String]] = [
             ["/command:unsupported"], ["/command:commit","/command:commit"], ["/command:commit","--logmsg"],
             ["/command:commit","/path:a**b"], ["/command:commit","--path="], ["/command:commit","/wholeproject:true"],
-            ["/command:commit","/unknown"], ["/command:resolve","/silent"], ["/command:resolve","/noquestion"],
+            ["/command:commit","/unknown"], ["/command:resolve","/silent:true"], ["/command:commit","/noquestion"],
             ["/command:repostatus","/logmsg:bad"], ["/command:commit","--path","x\0y"],
             ["/command:log","/range:--all"], ["/command:log","/rev:-bad"], ["/command:log","/limit:999999999999999"],
             ["/command:log","/limit:0 weeks"], ["/command:log","/limit:1fortnight"], ["/command:log","/findtype:4096"],

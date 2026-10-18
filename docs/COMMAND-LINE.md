@@ -83,8 +83,7 @@ model readiness, regardless of their ordering.
 Unknown commands, duplicate scalar options and incompatible or unsupported
 switches produce an error in the workspace. They are not silently ignored.
 This is a partial command-family port, not full TortoiseProc CLI compatibility.
-Remaining entry behavior includes Diff `submodule` switches, Resolve
-`silent`/`noquestion` automation, shared Windows HWND/group/taskbar/close-on-end
+Remaining entry behavior includes Diff `submodule` switches, shared Windows HWND/group/taskbar/close-on-end
 options, process exit/result signaling, and commands outside the documented families.
 Windows paths must be converted to macOS paths by the caller. Full symbolic
 Working Copy sentinel, permissive `_wtoi` parsing and every revision-expression
@@ -970,3 +969,31 @@ until the actual read returns; a late reply cannot open another editor.
 See [conflict editor parity](CONFLICT-EDITOR-PARITY.md) and
 [batch evidence](qa/conflict-commands-2026-10-18.json) for actual validation and
 remaining source, external-tool, physical and signed acceptance.
+
+## Resolve review and automation
+
+`resolve` accepts `silent` and `noquestion`, independently:
+
+| Flags | Source-compatible behavior |
+| --- | --- |
+| Neither | Checked conflict review, then native progress |
+| `silent` | Checked review, then apply without progress; errors remain visible |
+| `noquestion` | Skip review and show Skip progress for the raw argv list |
+| Both | Force-add the original selected paths without review/progress |
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=resolve \
+  --path '/absolute/repository/resolved.txt' --noquestion --silent
+```
+
+Both flags preserve literal repeated paths and authorized path-list inputs.
+Direct Silent also accepts ignored/unversioned files and directories, including
+the working-tree root; it stops on the first failure and does not commit.
+`noquestion` alone retains the pinned source's Skip behavior because bypassing the
+review does not populate conflict-action flags. It must not be used as an alias
+for the combined direct-staging mode. See [Resolve command parity](RESOLVE-PARITY.md#resolve-command-modes-and-shared-ownership--october-18-2026).
+
+Permission/metadata access, original owner/preferences and full-path validation
+still apply. Repeated reviews retain checked work, duplicate pending direct batches
+coalesce, and cancelled/closed owners suppress late delivery through actual drain.
+Windows HWND refresh and process-result protocols remain unported.

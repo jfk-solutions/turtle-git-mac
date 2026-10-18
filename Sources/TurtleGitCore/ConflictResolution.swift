@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 public struct ConflictStage: Hashable, Sendable {
     public let number: Int
@@ -114,6 +115,57 @@ extension GitRepository {
         }
         return entries.map { ConflictEntry(path: $0.key, stages: $0.value.sorted { $0.number < $1.number }) }.sorted { $0.path < $1.path || $0.path == $1.path && $0.path.utf8.lexicographicallyPrecedes($1.path.utf8) }
     }
+    /// Silent ResolveCommand stages the original requested paths, not a newly
+    /// enumerated conflict selection. Validate the whole batch before mutation.
+    public func resolveCommandPaths(_ paths: [String], cancellation: OperationCancellation? = nil) throws -> [String] {
+        try cancellation?.check()
+        guard !paths.isEmpty, try !isBare(cancellation: cancellation) else { throw ResolveFailure.selection }
+        var seen = GitPathSet(), result: [String] = []
+        for path in paths where seen.insert(path).inserted {
+            try cancellation?.check()
+            if path != "." {
+                do { _ = try RemovalRequest(paths: [path], keepLocal: true) } catch { throw ResolveFailure.outsideWorkingTree }
+                let location = try restoreLocation(path)
+                let parent = try CloneOptions.workingDirectory(for: location.deletingLastPathComponent())
+                var bytes = try run(["-C", parent.path, "rev-parse", "--show-toplevel"], cancellation: cancellation).stdout
+                if bytes.last == 10 { bytes.removeLast() }
+                guard GitReferenceName.equal(URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self)).resolvingSymlinksInPath().path, root.resolvingSymlinksInPath().path) else { throw ResolveFailure.outsideWorkingTree }
+            }
+            result.append(path)
+        }
+        return result
+    }
+    public func resolveCommandSilently(paths: [String], cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (ConflictResolutionProgress) -> Void)? = nil) throws -> String {
+        let selected = try resolveCommandPaths(paths, cancellation: cancellation)
+        var output: [String] = []
+        for (index, path) in selected.enumerated() {
+            try cancellation?.check()
+            // Recheck ownership before each mutation after an earlier Git child
+            // returned. Cancellation/failure preserves earlier staged paths.
+            _ = try resolveCommandPaths([path], cancellation: cancellation)
+            onProgress?(.init(path: path, completed: index, total: selected.count, finished: false))
+            output.append(try run(["add", "-f", "--pathspec-from-file=-", "--pathspec-file-nul"], cancellation: cancellation, input: literalPathPacket([path]), onOutput: onOutput).text)
+            removeSourceMergeFiles(path)
+            let message = "Resolved: " + path
+            output.append(message); onOutput?(.init(stream: .stdout, data: Data((message + "\n").utf8)))
+            onProgress?(.init(path: path, completed: index + 1, total: selected.count, finished: true))
+        }
+        return output.filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+    /// Remove only the three source-side sibling files, without following a
+    /// symlink or recursively deleting a directory. Other backups remain.
+    private func removeSourceMergeFiles(_ path: String) {
+        guard path != ".", let file = try? restoreLocation(path) else { return }
+        var directory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: file.path, isDirectory: &directory), directory.boolValue { return }
+        let name = file.lastPathComponent
+        let suffix = name.lastIndex(of: ".").map { String(name[$0...]) } ?? ""
+        for side in ["LOCAL", "REMOTE", "BASE"] {
+            let artifact = file.path + "." + side + suffix
+            var info = stat()
+            if lstat(artifact, &info) == 0, [S_IFREG, S_IFLNK].contains(info.st_mode & S_IFMT) { _ = unlink(artifact) }
+        }
+    }
     /// Native editor routing needs validated stages and filesystem ownership
     /// before selecting a specialized editor or preparing external tool inputs.
     public func conflictEditorEntry(path: String, cancellation: OperationCancellation? = nil) throws -> ConflictEntry {
@@ -194,6 +246,7 @@ extension GitRepository {
                     #endif
                 }
             }
+            removeSourceMergeFiles(entry.path)
             let resolved = "Resolved: " + entry.path
             output.append(resolved)
             onOutput?(GitOutputChunk(stream: .stdout, data: Data((resolved + "\n").utf8)))
