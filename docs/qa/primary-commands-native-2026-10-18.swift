@@ -240,7 +240,7 @@ import TurtleGitCore
         workspace.handleCommandLine(arguments:["/command:commit","/logmsg:bare"],currentDirectory:root.path)
         try await wait {!workspace.busy}
         try require(created==0 && workspace.error?.contains("requires a working tree")==true,"Bare repository bypassed ordinary Commit eligibility: \(workspace.error ?? "none")")
-        for command in ["blame","prevdiff","add","rename","remove"] {
+        for command in ["blame","prevdiff","add","rename","remove","cleanup","ignore"] {
             workspace.error=nil
             workspace.handleCommandLine(arguments:["--command="+command],currentDirectory:root.path)
             try await wait {!workspace.busy}
@@ -250,6 +250,7 @@ import TurtleGitCore
     }
     @MainActor static func main() async throws {
         NSApp.setActivationPolicy(.prohibited)
+        if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "maintenance" { try await verifyMaintenance(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "files" { try await verifyFiles(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "network" { try await verifyNetwork(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "io" { try await verifyIO(); return }

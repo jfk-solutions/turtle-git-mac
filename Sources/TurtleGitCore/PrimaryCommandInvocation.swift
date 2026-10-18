@@ -45,7 +45,7 @@ public struct PrimaryCommandInvocation: Sendable {
             return key == "--command" || key.hasPrefix("--command=") || key.hasPrefix("/command:")
         }
         guard hasCommand else { return nil }
-        let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep"]
+        let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep", "onlymask", "delete"]
         let valued: Set<String> = ["command", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream"]
         var values: [String: String] = [:], paths: [String] = [], index = 0
         while index < arguments.count {
@@ -100,6 +100,10 @@ public struct PrimaryCommandInvocation: Sendable {
         case "add": action = .add
         case "rename": action = .rename
         case "remove": action = values["keep"] != nil ? .removeKeep : .remove
+        case "repocreate": action = .initialize
+        case "cleanup": action = .clean
+        case "ignore":
+            action = values["delete"] != nil ? (values["onlymask"] != nil ? .ignoreDeleteMask : .ignoreDelete) : (values["onlymask"] != nil ? .ignoreMask : .ignore)
         default: throw Failure("Unsupported command: " + (values["command"] ?? ""))
         }
         var allowed: Set<String> = ["command", "pathfile", "deletepathfile", "pathfile0"]
@@ -117,6 +121,7 @@ public struct PrimaryCommandInvocation: Sendable {
         case .blame: allowed.formUnion(["endrev", "line"])
         case .previousDiff: allowed.formUnion(["alternative", "unified"])
         case .remove, .removeKeep: allowed.insert("keep")
+        case .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask: allowed.formUnion(["onlymask", "delete"])
         default: break
         }
         for key in values.keys.sorted() where !allowed.contains(key) { throw Failure("Option “" + key + "” is not valid for this command.") }
@@ -187,7 +192,7 @@ public struct PrimaryCommandInvocation: Sendable {
     }
 
     private static func validateSelection(_ urls: [URL], action: RepositoryAction) throws {
-        if [.clone, .blame, .previousDiff, .rename].contains(action), urls.count != 1 {
+        if [.clone, .initialize, .blame, .previousDiff, .rename].contains(action), urls.count != 1 {
             throw Failure("This command requires one selected path.")
         }
     }

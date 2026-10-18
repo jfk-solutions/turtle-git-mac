@@ -123,3 +123,21 @@ Finder/App Store execution and complete Ignore parity.
 The Debug build, 23 unique affected Core tests, four grouped native cases and
 two additional real-sheet teardown cases passed. See the
 [scoped workflow evidence](qa/ignore-workflow-2026-10-13.json).
+
+## Command entry, exact rules and retained metadata grants — October 18, 2026
+
+Source `ignore` now reaches the native form through the
+[maintenance command family](COMMAND-LINE.md#repository-creation-cleanup-and-ignore),
+including all combinations of `onlymask` and `delete`. The existing form, source
+radio groups, keep-local choice, error continuation and summary remain the actual
+workflow; a repeated identical request preserves edited scope/destination. Its
+window key encodes exact UTF-8 path identities.
+
+Ignore selections use exact identities through their shared RemovalRequest, and
+existing-rule detection no longer conflates canonical Unicode peers. Appends keep
+comments, line endings and exact existing bytes; identical rules remain idempotent.
+For info/exclude in linked worktrees, the native sandbox gate accepts a retained
+common-metadata permission through `permits`, while retaining the primary root
+check. A working-folder grant alone still fails before writing the external exclude
+file. This closes a permission-consumer gap in the existing compound lease flow;
+physical App Store/Finder acceptance remains unverified.

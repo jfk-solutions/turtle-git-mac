@@ -81,3 +81,18 @@ and closing its result window does not invalidate an already queued handoff.
 Pending handoffs block Quit until settled or retired. The existing native Init
 layout, warnings and confirmation remain the source baseline from
 `Commands/CreateRepositoryCommand.cpp` and `IDD_CREATEREPO`.
+
+## Owned destination authorization and command entry — October 18, 2026
+
+The `repocreate` [command entry](COMMAND-LINE.md#repository-creation-cleanup-and-ignore)
+opens this dialog for one captured folder, including a destination that does not
+exist yet. Its existing ancestor is authorized as Git's working directory; the
+target remains the requested child. Normal and bare creation retain their existing
+warning, default/template, acceptance, success and workspace-handoff behavior.
+Folder panels now belong to the initiating workspace, consume responses once and
+participate in Quit ownership. Cancel, forced workspace closure and retirement
+clear the pending chooser and reject a late valid selection. Rebinding the current
+workspace does not move the original chooser's ownership. Another Create request
+preserves the outstanding picker. An existing dialog retains its original owner.
+The same chooser lifetime applies to the app and Finder creation routes. Physical
+signed permissions and all source Init warnings remain separate acceptance work.

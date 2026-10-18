@@ -11,11 +11,11 @@ import TurtleGitCore
     var presentQuestion: (NSWindow, NSAlert, @escaping (NSApplication.ModalResponse) -> Void) -> Bool = { owner, alert, reply in
         guard owner.attachedSheet == nil else { return false }; alert.beginSheetModal(for: owner, completionHandler: reply); return true
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mask: Bool, delete: Bool) throws {
+    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mask: Bool, delete: Bool, preferences: UserDefaults = .standard) throws {
         model = IgnoreWindowModel(repository: repository, access: access, options: try IgnoreOptions(paths: paths, mask: mask), delete: delete)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 550, height: 300), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Ignore – TurtleGit"; window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 550, height: 300)
-        window.contentViewController = NSHostingController(rootView: IgnoreDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: IgnoreDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 550, height: 300)); window.center()
         model.close = { [weak self] in guard let self, !self.retired else { return }; self.window?.close() }
         model.onRulesWritten = { [weak self] files in
@@ -86,6 +86,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, options: IgnoreOptions, delete: Bool = false) {
         self.repository = repository; self.access = access; self.options = options; self.delete = delete
     }
+    var requiresSecurityScope = GitRuntime.isAppStoreBuild
     var validateMutation: (OperationCancellation, Bool) async throws -> Void = { _, _ in }
     func cancel() { cancellation?.cancel() }
     func invalidate() { retired = true; cancellation?.cancel(); busy = false }
@@ -99,9 +100,9 @@ import TurtleGitCore
             do {
                 let destinations = try await repository.ignoreDestinations(selected, cancellation: token)
                 guard isCurrent(token) else { return }
-                if GitRuntime.isAppStoreBuild {
+                if requiresSecurityScope {
                     guard access?.hasSecurityScope == true, access?.contains(repository.root) == true,
-                          destinations.allSatisfy({ access?.contains($0) == true }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                          destinations.allSatisfy({ access?.permits($0) == true }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 }
                 try await validateMutation(token, true); try token.check()
                 guard isCurrent(token) else { return }

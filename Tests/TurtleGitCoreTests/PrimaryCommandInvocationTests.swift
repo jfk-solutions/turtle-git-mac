@@ -51,6 +51,23 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         let removal=try parse(["--command=remove","--pathfile",file.path,"--pathfile0","--keep"])
         XCTAssertEqual(try removal.resolvingPathFile(cancellation:OperationCancellation()).request.action,.removeKeep)
     }
+    func testMaintenanceCommandFamilyOptionsAndSelections() throws {
+        XCTAssertEqual(try parse(["/command:repocreate"]).request.action,.initialize)
+        XCTAssertEqual(try parse(["/command:cleanup","/path:folder*other"]).request.action,.clean)
+        for (flags,action) in [([],RepositoryAction.ignore),(["/onlymask"],.ignoreMask),(["/delete"],.ignoreDelete),(["/onlymask","/delete"],.ignoreDeleteMask)] {
+            let value=try parse(["/command:ignore","/path:literal[1].tmp"]+flags)
+            XCTAssertEqual(value.request.action,action);XCTAssertEqual(value.request.paths.first?.path,"/repo/literal[1].tmp")
+        }
+        for args in [["/command:repocreate","/bare"],["/command:repocreate","/path:a*b"],["/command:cleanup","/dryrun"],["/command:cleanup","/delete"],["/command:ignore","/keep"],["/command:ignore","/onlymask:true"],["/command:remove","/delete"]] {XCTAssertThrowsError(try parse(args))}
+        let folder=try temporaryDirectory();defer {try? FileManager.default.removeItem(at:folder)}
+        let list=folder.appendingPathComponent("paths");try Data("one\ntwo\n".utf8).write(to:list)
+        let create=try parse(["--command=repocreate","--pathfile",list.path,"--deletepathfile"])
+        XCTAssertThrowsError(try create.resolvingPathFile(cancellation:OperationCancellation()))
+        XCTAssertTrue(FileManager.default.fileExists(atPath:list.path))
+        let ignore=try parse(["--command=ignore","--pathfile",list.path,"--onlymask","--delete"])
+        let resolved=try ignore.resolvingPathFile(cancellation:OperationCancellation())
+        XCTAssertEqual(resolved.request.action,.ignoreDeleteMask);XCTAssertEqual(resolved.request.paths.count,2)
+    }
     func testOrdinaryLaunchDoesNotTreatMacArgumentsAsCommands() throws {
         for arguments in [[], ["-psn_0_123"], ["-ApplePersistenceIgnoreState", "YES"], ["--path", "/repo"]] {
             XCTAssertNil(try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: "/repo"))

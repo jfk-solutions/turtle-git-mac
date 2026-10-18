@@ -2,6 +2,21 @@ import XCTest
 @testable import TurtleGitCore
 
 final class IgnoreTests: XCTestCase {
+    func testCanonicalPeerRulesAndRemovalSelectionsRemainExact() async throws {
+        let (root,repo,_)=try await GitPatchTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let names=["caf\u{e9}.tmp","cafe\u{301}.tmp"]
+        let removal=try RemovalRequest(paths:names+[names[0]],keepLocal:true)
+        XCTAssertEqual(removal.paths.map {Data($0.utf8)},names.map {Data($0.utf8)})
+        let file=root.appendingPathComponent(".gitignore"),original=Data("# retained\r\n".utf8)
+        try (original+Data(("/"+names[0]+"\r\n").utf8)).write(to:file)
+        let options=try IgnoreOptions(paths:names+[names[1]])
+        XCTAssertEqual(options.paths.map {Data($0.utf8)},names.map {Data($0.utf8)})
+        _ = try await repo.addIgnoreRules(options)
+        let expected=original+Data((names.map {"/"+$0}.joined(separator:"\r\n")+"\r\n").utf8)
+        XCTAssertEqual(try Data(contentsOf:file),expected)
+        _ = try await repo.addIgnoreRules(options)
+        XCTAssertEqual(try Data(contentsOf:file),expected,"Exact duplicate rule writes must remain idempotent")
+    }
     func testRepositoryURLDirectoryHintDoesNotRejectValidIgnoreDestination() async throws {
         let (root, original, tracked) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

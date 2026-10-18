@@ -19,6 +19,7 @@ struct CleanDialogRequest {
     private let typeKey: String
     private let directoryKey: String
     private var paths: [String] = []
+    var scopePaths: [String] { paths }
     @Published var options: CleanOptions
     @Published var dryRun = false
     @Published var submodules = false
@@ -40,7 +41,7 @@ struct CleanDialogRequest {
     /// never become an empty path and silently widen cleanup to the whole tree.
     func directoryScopes() throws -> [String] {
         guard paths.allSatisfy({ !$0.isEmpty && !$0.hasPrefix("/") && !$0.contains("\0") && !$0.split(separator: "/").contains(where: { $0 == ".." || $0 == ".git" }) }) else { throw CleanFailure.path }
-        var result: [String] = []
+        var result: [String] = [], seen = GitPathSet()
         for path in paths {
             let normalized = path.split(separator: "/").filter { $0 != "." }.joined(separator: "/")
             if normalized.isEmpty { return [] }
@@ -48,7 +49,7 @@ struct CleanDialogRequest {
             let type = (try? FileManager.default.attributesOfItem(atPath: location.path)[.type]) as? FileAttributeType
             let scope = type == .typeDirectory ? normalized : (normalized as NSString).deletingLastPathComponent
             if scope.isEmpty { return [] }
-            if !result.contains(scope) { result.append(scope) }
+            if seen.insert(scope).inserted { result.append(scope) }
         }
         return result
     }

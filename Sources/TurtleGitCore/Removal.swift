@@ -16,7 +16,7 @@ public struct RemovalRequest: Sendable {
     public let keepLocal: Bool
     public init(paths: [String], keepLocal: Bool) throws {
         guard !paths.isEmpty else { throw RemovalFailure.selection }
-        var seen = Set<String>()
+        var seen = GitPathSet()
         for path in paths {
             let components = path.components(separatedBy: "/")
             guard !path.isEmpty, !path.hasPrefix("/"), !path.contains("\0"),

@@ -21,6 +21,35 @@ import UniformTypeIdentifiers
     deinit { if let observer { NotificationCenter.default.removeObserver(observer) } }
 }
 
+/// One folder chooser, captured before any modal/native reply can arrive.
+@MainActor private final class RepositoryCreationFolderChoice {
+    let owner: RepositoryWindowOwner
+    let panel = NSOpenPanel()
+    private weak var window: NSWindow?
+    private var completed = false
+    var onFinished: (URL?) -> Void = { _ in }
+    init(window: NSWindow?, owner: RepositoryWindowOwner) {
+        self.window = window; self.owner = owner
+        owner.onCancelled = { [weak self] in self?.cancel() }
+    }
+    func begin(present: ((NSOpenPanel, NSWindow?, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?, selected: @escaping (NSOpenPanel) -> URL?) {
+        let reply: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            guard let self else { return }
+            self.finish(response == .OK && !self.owner.cancellation.isCancelled ? selected(self.panel) : nil)
+        }
+        if let present { present(panel, window, reply) }
+        else if let window { panel.beginSheetModal(for: window, completionHandler: reply) }
+        else { panel.begin(completionHandler: reply) }
+    }
+    private func finish(_ selected: URL?) {
+        guard !completed else { return }; completed = true
+        if let parent = panel.sheetParent { parent.endSheet(panel, returnCode: selected == nil ? .cancel : .OK) }
+        panel.orderOut(nil); panel.close()
+        let reply = onFinished; onFinished = { _ in }; reply(selected)
+    }
+    func cancel() { owner.cancellation.cancel(); finish(nil) }
+}
+
 @MainActor final class RepositoryModel: ObservableObject {
     private let autotextTester = AutotextTesterOwner()
     func showAutotextTester() {
@@ -245,6 +274,10 @@ import UniformTypeIdentifiers
     private var stashWindows: [String: StashWindowController] = [:]
     private var cloneWindows: [UUID: CloneWindowController] = [:]
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
+    var createWindowFactory: ((URL, RepositoryAccessLease) -> CreateRepositoryWindowController)?
+    var presentCreationFolderPanel: ((NSOpenPanel, NSWindow?, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
+    var selectedCreationFolderURL: (NSOpenPanel) -> URL? = { $0.url }
+    private var creationFolderChoice: RepositoryCreationFolderChoice?
     var finderTransferPresentation: ((FinderRequest, GitRepository, RepositoryAccessLease) -> Void)?
     private var copyWindows: [UUID: FileCopyWindowController] = [:]
     private(set) var moveWindows: [String: FileMoveWindowController] = [:]
@@ -265,6 +298,7 @@ import UniformTypeIdentifiers
     private var resetWindows: [String: ResetWindowController] = [:]
     private var resolveWindows: [String: ResolveWindowController] = [:]
     private var ignoreWindows: [String: IgnoreWindowController] = [:]
+    var ignoreWindowFactory: ((GitRepository, RepositoryAccessLease?, [String], Bool, Bool) throws -> IgnoreWindowController)?
     private var removeWindows: [String: RemoveWindowController] = [:]
     var removeWindowFactory: ((GitRepository, RepositoryAccessLease?, RemovalRequest) -> RemoveWindowController)?
     private var adoptionGeneration = 0
@@ -279,7 +313,7 @@ import UniformTypeIdentifiers
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty }
+    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || creationFolderChoice != nil }
     private var addPreparations: [UUID: RepositoryWindowOwner] = [:]
     var addSelectionPreflight: ((GitRepository, [String], OperationCancellation) async throws -> Bool)?
     private var cloneKeyAccess: [String: RepositoryAccessLease] = [:]
@@ -293,7 +327,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; for owner in addPreparations.values { owner.cancellation.cancel() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -899,34 +933,59 @@ import UniformTypeIdentifiers
             self.openSession(handoff.access, selected: FinderRequest(action: .status, paths: [handoff.root]), handoffOwner: handoff.owner, onOpened: { [weak self] in self?.output = handoff.output })
         }
     }
-    private func showCreateRepository(folder preferred: URL? = nil) {
-        let folder = preferred
-        var lease: RepositoryAccessLease?
-        if let folder, let activeAccess, activeAccess.contains(folder) { lease = activeAccess }
-        else if let folder, !GitRuntime.isAppStoreBuild { lease = RepositoryAccessLease(url: folder) }
-        if lease == nil {
-            let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
-            panel.prompt = "Create repository here"; panel.directoryURL = folder ?? root?.deletingLastPathComponent()
-            panel.message = "Choose the folder that will contain the new repository."
-            panel.begin { [weak self] response in
-                guard response == .OK, let selected = panel.url else { return }
-                self?.presentCreateRepository(folder: selected, lease: RepositoryAccessLease(url: selected))
+    private func showCreateRepository(folder: URL? = nil, commandLaunch: Bool = false, cancellation: OperationCancellation? = nil) {
+        guard !retired, !confirmingQuit, cancellation?.isCancelled != true else { return }
+        guard creationFolderChoice == nil else { error = "Finish choosing a repository folder before opening another Create Repository dialog."; return }
+        let owner = RepositoryWindowOwner(window: workspaceWindow)
+        do {
+            let directory = try folder.map { try CloneOptions.workingDirectory(for: $0) }
+            if let folder, let directory {
+                if let activeAccess, activeAccess.contains(folder), activeAccess.contains(directory), !requiresRepositoryScope || activeAccess.hasSecurityScope {
+                    presentCreateRepository(folder: folder, lease: activeAccess, owner: owner); return
+                }
+                if commandLaunch, let permission = commandLineRepositoryPermission {
+                    let lease = try permission([folder])
+                    guard !retired, !owner.cancellation.isCancelled, cancellation?.isCancelled != true, let lease else { return }
+                    guard lease.contains(folder), lease.contains(directory), !requiresRepositoryScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    presentCreateRepository(folder: folder, lease: lease, owner: owner); return
+                }
+                if !requiresRepositoryScope {
+                    presentCreateRepository(folder: folder, lease: RepositoryAccessLease(url: directory, provider: repositoryBookmarkProvider), owner: owner); return
+                }
             }
-            return
-        }
-        guard let folder, let lease else { return }
-        presentCreateRepository(folder: folder, lease: lease)
+            guard workspaceWindow?.attachedSheet == nil else { return }
+            let choice = RepositoryCreationFolderChoice(window: workspaceWindow, owner: owner)
+            let panel = choice.panel
+            panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true; panel.showsHiddenFiles = true
+            panel.prompt = folder == nil ? "Create repository here" : "Authorize repository folder"
+            panel.message = folder.map { "Choose this folder or a containing parent to allow TurtleGit to create the repository: " + $0.path } ?? "Choose the folder that will contain the new repository."
+            panel.directoryURL = directory ?? root?.deletingLastPathComponent()
+            creationFolderChoice = choice
+            choice.onFinished = { [weak self, weak choice] selected in
+                guard let self, let choice, self.creationFolderChoice === choice else { return }
+                self.creationFolderChoice = nil
+                guard !self.retired, !self.confirmingQuit, !owner.cancellation.isCancelled, cancellation?.isCancelled != true, let selected else { return }
+                let target = folder ?? selected
+                do {
+                    let lease = RepositoryAccessLease(url: selected, provider: self.repositoryBookmarkProvider)
+                    let working = try CloneOptions.workingDirectory(for: target)
+                    guard lease.contains(target), lease.contains(working), !self.requiresRepositoryScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    self.presentCreateRepository(folder: target, lease: lease, owner: owner)
+                } catch { self.error = error.localizedDescription }
+            }
+            choice.begin(present: presentCreationFolderPanel, selected: selectedCreationFolderURL)
+        } catch { self.error = error.localizedDescription }
     }
-    private func presentCreateRepository(folder: URL, lease: RepositoryAccessLease) {
-        guard lease.contains(folder), !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else { error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
-        let controller = createWindows[folder.path] ?? CreateRepositoryWindowController(folder: folder, access: lease)
-        let fresh = createWindows[folder.path] == nil
-        controller.onClosed = { [weak self] in self?.createWindows.removeValue(forKey: folder.path) }
+    private func presentCreateRepository(folder: URL, lease: RepositoryAccessLease, owner: RepositoryWindowOwner) {
+        guard !retired, !owner.cancellation.isCancelled, lease.contains(folder), !requiresRepositoryScope || lease.hasSecurityScope else { return }
+        let key = GitPathRowIdentity.encode(folder.path)
+        let controller = createWindows[key] ?? createWindowFactory?(folder, lease) ?? CreateRepositoryWindowController(folder: folder, access: lease)
+        let fresh = createWindows[key] == nil
+        controller.onClosed = { [weak self] in self?.createWindows.removeValue(forKey: key) }
         if fresh {
-            let handoffOwner = RepositoryWindowOwner(window: workspaceWindow)
-            controller.model.onInitialized = { [weak self] repo, access, _, output in self?.adoptRepository(repo, access: access, output: output, owner: handoffOwner) }
+            controller.model.onInitialized = { [weak self] repo, access, _, output in self?.adoptRepository(repo, access: access, output: output, owner: owner) }
         }
-        createWindows[folder.path] = controller
+        createWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         if fresh { controller.model.prepare() }
     }
@@ -1181,8 +1240,11 @@ import UniformTypeIdentifiers
     }
     private func showIgnore(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], action: RepositoryAction) {
         do {
-            let root = repository.root, key = root.path + "\0" + action.rawValue + "\0" + paths.joined(separator: "\0")
-            let controller = try ignoreWindows[key] ?? IgnoreWindowController(repository: repository, access: access, paths: paths, mask: action.ignoresByExtension, delete: action.removesWhenIgnoring)
+            let root = repository.root, key = GitPathRowIdentity.encode(root.path + "\0" + action.rawValue + "\0" + paths.joined(separator: "\0"))
+            let controller: IgnoreWindowController
+            if let existing = ignoreWindows[key] { controller = existing }
+            else if let factory = ignoreWindowFactory { controller = try factory(repository, access, paths, action.ignoresByExtension, action.removesWhenIgnoring) }
+            else { controller = try IgnoreWindowController(repository: repository, access: access, paths: paths, mask: action.ignoresByExtension, delete: action.removesWhenIgnoring, preferences: fileComparisonPreferences) }
             controller.onClosed = { [weak self] in self?.ignoreWindows.removeValue(forKey: key) }
             controller.onChanged = { [weak self] output in
                 self?.refreshRepositoryLogs(root)
@@ -1643,14 +1705,18 @@ import UniformTypeIdentifiers
         controller.model.onCommit = { [weak self] in self?.openSession(access ?? RepositoryAccessLease(url: repository.root), selected: FinderRequest(action: .commit, paths: [repository.root]), action: .commit) }
         addProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
-    private func showClean(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
+    private func showClean(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], commandLaunch: Bool = false) {
+        if commandLaunch, let existing = cleanWindows[repository.root.path] {
+            existing.window?.makeKeyAndOrderFront(nil)
+            error = "A Cleanup dialog is already open. Close it before opening another command-line Cleanup."; return
+        }
         let root = repository.root
-        let controller = cleanWindows[root.path] ?? cleanWindowFactory?(repository) ?? CleanWindowController(repository: repository)
+        let controller = cleanWindows[root.path] ?? cleanWindowFactory?(repository) ?? CleanWindowController(repository: repository, defaults: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.cleanWindows.removeValue(forKey: root.path) }
         controller.model.setScope(paths)
         controller.model.onAccepted = { [weak self] request in
             guard let self else { return }
-            let id = UUID(), progress = CleanProgressWindowController(repository: repository, access: access, request: request)
+            let id = UUID(), progress = CleanProgressWindowController(repository: repository, access: access, request: request, preferences: fileComparisonPreferences)
             progress.onClosed = { [weak self] in self?.cleanProgressWindows.removeValue(forKey: id) }
             progress.model.onFinished = { [weak self] output, changed in
                 guard let self else { return }
@@ -3155,6 +3221,9 @@ import UniformTypeIdentifiers
             guard outputAccess.contains(output), outputAccess.contains(output.deletingLastPathComponent()), !GitRuntime.isAppStoreBuild || outputAccess.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
         } else { outputAccess = nil }
         try cancellation?.check()
+        if invocation.request.action == .initialize {
+            showCreateRepository(folder: invocation.request.paths.first, commandLaunch: true, cancellation: cancellation); return
+        }
         if invocation.request.action == .clone {
             showClone(directory: invocation.request.paths.first, source: invocation.sourceURL, exactPath: invocation.exactClonePath); return
         }
@@ -3178,6 +3247,7 @@ import UniformTypeIdentifiers
             guard paths.count == 1 else { error = "Select one file or directory to compare."; return }
             showPreviousDiff(repository: repository, access: access, path: paths[0], owner: workspaceWindow, unified: invocation.unified)
         case .add: showAdd(repository: repository, access: access, paths: paths, commandLaunch: true)
+        case .clean: showClean(repository: repository, access: access, paths: paths, commandLaunch: true)
         case .fetch: showFetch(repository: repository, access: access, remote: invocation.remote)
         case .pull: showFetch(repository: repository, access: access, isPull: true)
         case .push: showPush(repository: repository, access: access, source: invocation.pushBranch)

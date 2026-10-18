@@ -14,7 +14,9 @@ failed clone can leave files in its destination; inspect them before retrying.
 
 Create Repository initializes Git in the selected folder. Choose a bare repository
 only when you want repository storage without a working tree. Authorize the
-folder when macOS requests access. After Clone or Create Repository succeeds,
+folder when macOS requests access. For a new repository folder, authorize an
+existing parent that contains the destination. Cancelling authorization stops the
+Init request. After Clone or Create Repository succeeds,
 TurtleGit opens the result when the workspace finishes its current operation.
 If several creations finish while it is busy, the latest result opens. Choosing
 Open Repository or Close Repository before that handoff takes priority. Closing

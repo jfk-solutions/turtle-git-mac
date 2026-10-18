@@ -1,5 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+The [repository maintenance entry family](COMMAND-LINE.md#repository-creation-cleanup-and-ignore)
+adds source Create Repository, Cleanup and Ignore commands with captured native
+folder authorization, parent permissions for new destinations, preserved Cleanup
+drafts and linked-worktree exclude grants. Exact ignore/removal identities survive
+rule deduplication. Existing dialogs and actual Git operations remain the workflow.
+[Batch evidence](qa/maintenance-commands-2026-10-18.json) records validation and
+remaining platform/source limits: 35 focused Core passes, eight native case/engine
+passes on their first runtime attempts, and all eight receivers reaped. The complete
+port is still in progress. Previous-commit hosted CI now reports a typing/system
+“Combined cycle Undo failed” assertion; that editor repair remains open.
+
 The [source-file launch family](COMMAND-LINE.md#source-file-actions-and-annotation-launches)
 adds Blame revision/line viewers, Previous Diff file/directory/unified routes,
 source-style file Add progress and folder checklist, Rename and Remove/keep

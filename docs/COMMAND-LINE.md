@@ -292,3 +292,64 @@ Reviewed pinned handlers: `Commands/{Blame,PrevDiff,Add,Rename,Remove}Command.cp
 `TortoiseGitBlame/TortoiseGitBlameDoc.cpp`. Existing dialog layouts/icons and
 backend operations are reused. This adds entry paths; it does not certify complete
 source dialog, signed sandbox or process-exit protocol parity.
+
+## Repository creation, Cleanup and Ignore
+
+| Command | Native behavior |
+| --- | --- |
+| `repocreate` | One destination folder opens Create Repository, including a new folder inside an authorized existing parent |
+| `cleanup` | Selected files/directories open Cleanup options; files use their containing directories |
+| `ignore` | Selected paths open Ignore; `onlymask` selects extension patterns and `delete` asks about removal after writing rules |
+
+```sh
+open -n -a 'TurtleGit for Mac' --args --command=repocreate \
+  --path '/absolute/parent/new-repository'
+
+open -n -a 'TurtleGit for Mac' --args --command=cleanup \
+  --path '/absolute/repository/generated folder'
+
+open -n -a 'TurtleGit for Mac' --args --command=ignore \
+  --path '/absolute/repository/generated.tmp' --onlymask --delete
+```
+
+These commands accept the common path-file input as well. `repocreate` requires
+one destination, including after reading a list; invalid input is preserved when
+`deletepathfile` was requested. Source Create Repository has no `bare` command
+switch: the native dialog offers that option, with the existing `.git` destination
+name default. Opening it does not initialize or reinitialize Git before OK.
+Normal and bare completion reuse the owned workspace handoff described in
+[Clone parity](CLONE-PARITY.md#workspace-completion-handoffs--october-18-2026).
+
+A sandbox destination needs permission for both its folder and the existing
+working directory from which Git creates it. A containing-parent grant supports
+new nested folders without changing the requested destination. Folder choice
+belongs to the initiating workspace, blocks Quit while pending, and consumes its
+reply once. Cancel, workspace closure and termination reject late replies. A new
+request preserves an outstanding chooser. Closing a Create dialog before acceptance
+leaves Git unchanged; user-created folders in the system picker follow macOS's
+normal behavior.
+
+Cleanup opens the existing options, type/directory defaults and progress workflow;
+it never accepts an operation from command arguments. Its flags remain native
+controls: `dryrun`, delete policy and other invented command switches are diagnosed
+rather than silently accepted. A second Cleanup launch preserves the open dialog's
+scope and edited options. The common Git runner already uses literal pathspecs,
+so selected names containing brackets/asterisks keep their normal file meaning.
+Dry run retains files; accepted removal uses the existing preview, Trash/permanent
+choice, metadata permissions, progress and cancellation handling.
+
+Ignore opens the existing scope/destination radio groups and waits for OK. With
+`onlymask`, the rule uses the selected extension. With `delete`, ignore rules are
+written first, then the source-style Keep file locally? question controls removal
+from the index or also from disk. Errors retain the existing per-path Continue/
+Abort and summary behavior. Changing the destination and reopening the same
+request preserves that draft. No new Keep prompt is bypassed by the CLI flags.
+
+Linked worktrees resolve info/exclude through Git's common metadata directory.
+An already-retained metadata grant authorizes that destination; a primary folder
+grant alone does not. Ignore/removal selections and duplicate-rule detection retain
+exact UTF-8 spellings, including canonical Unicode peers. Existing ignore comments,
+line endings and unchanged bytes survive append. The source handlers reviewed are
+`Commands/{CreateRepository,Cleanup,Ignore}Command.cpp`, `CleanTypeDlg.cpp` and
+`AppUtils.cpp::IgnoreFile`. Full Windows process/shared-switch protocol, signed
+sandbox acceptance and every native visual comparison remain open.

@@ -62,7 +62,7 @@ extension GitRepository {
             var data = original
             guard let text = String(data: data, encoding: .utf8) else { throw IgnoreFailure.unsupportedFile }
             let eol = data.firstIndex(of: 10).map { index in index > 0 && data[index - 1] == 13 ? "\r\n" : "\n" } ?? "\n"
-            var existing = Set(text.components(separatedBy: "\n").map { line -> String in
+            var existing = GitPathSet(text.components(separatedBy: "\n").map { line -> String in
                 var value = line; if value.last == "\r" { value.removeLast() }; if value.first == "\u{feff}" { value.removeFirst() }; return value
             })
             let new = plan.patterns.filter { existing.insert($0).inserted }

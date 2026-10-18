@@ -272,3 +272,16 @@ bundled Git. The permission fixture gates actual checkout Git reads; retained
 checks exercise real permanent deletion, recoverable Trash and owned process
 cancellation. Two fixture/runner repairs are recorded separately. No application
 source repair or expanded test cycle followed the grouped checkpoint.
+
+## Maintenance command entry and draft scope — October 18, 2026
+
+Source `cleanup` launches the existing native options and progress via the
+[maintenance command family](COMMAND-LINE.md#repository-creation-cleanup-and-ignore).
+No cleanup option is automatically accepted. A second command focuses/refuses
+replacement of an existing options draft, preserving its scope, type and checkboxes.
+Selected file paths still translate to containing-directory scopes; scope
+collection now keeps exact UTF-8 identities. The shared Git runner already applies
+literal pathspec semantics. The options and accepted progress receive the owning
+preference store together. Existing cleanup type/directory persistence, preview,
+Trash/permanent selection, metadata grants and cancellation remain authoritative.
+This is command/lifetime coverage rather than complete Clean visual certification.

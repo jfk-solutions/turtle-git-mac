@@ -1,0 +1,154 @@
+{
+  "date": "2026-10-18",
+  "scope": "Repository creation, Cleanup and Ignore command entry with captured folder authorization, maintained drafts and metadata permission consumers",
+  "base_commit": "12f29e1e31d087ffed3718424541987ba0052a37",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_review": [
+    "Commands/CreateRepositoryCommand.cpp destination, special-folder/bare checks and success",
+    "Commands/CleanupCommand.cpp options-only launch and CleanTypeDlg.cpp source controls",
+    "Commands/IgnoreCommand.cpp onlymask/delete phases; AppUtils.cpp IgnoreFile and IgnoreDlg radio groups"
+  ],
+  "implementation": [
+    "Typed repocreate/cleanup/ignore command entry and all Ignore onlymask/delete combinations; single creation destination validated before list deletion",
+    "Owned Creation folder picker with once-only response, originating workspace capture, Quit, Cancel/forced-close/retirement and rejection of late replies",
+    "Existing parent grant covers a new nested Init destination and its Git working directory; ordinary/bare acceptance and result handoff reused",
+    "Repeated Cleanup command preserves the open draft and exact scope identities; owning preferences reach both options and progress",
+    "Ignore shares exact UTF-8 RemovalRequest identities and exact rule duplicate detection; canonical peers and prior bytes survive",
+    "Linked info/exclude gate accepts retained common metadata scopes through permits while requiring authorized primary repository root"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "executed": 35,
+      "failures": 0,
+      "classes": [
+        "IgnoreTests",
+        "PrimaryCommandInvocationTests",
+        "RemovalTests"
+      ],
+      "log": "build/qa/maintenance-commands-core-2026-10-18.log",
+      "full_suite_rerun": false
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/maintenance-commands-build-2026-10-18.log"
+    },
+    "native": {
+      "exit": 0,
+      "log": "build/qa/maintenance-commands-native-2026-10-18.log",
+      "distinct_case_engine_passes": 4,
+      "passed": [
+        "maintenance/system",
+        "maintenance/bundled",
+        "bare/system",
+        "bare/bundled"
+      ],
+      "scope": [
+        "Real normal and bare Init into previously missing nested paths through an existing parent permission",
+        "Create remains uninitialized until acceptance and hands its captured result to the workspace",
+        "One pending creation picker blocks Quit, preserves another request, and rejects Cancel, unrelated parent, duplicate response and late original-owner response after workspace rebinding",
+        "Retired chooser and actual native panel/owner close settle without Init or leaked request",
+        "Cleanup preserves edited draft/scope, runs dry preview then actual permanent scoped removal, retaining a bracket-lookalike sibling and tracked/index bytes",
+        "Ignore preserves edited destination, writes extension mask, and executes explicit keep-local/delete with summary",
+        "Linked-worktree exclude reuses captured common metadata grant; primary-only model fails before writing that file",
+        "Bare working-tree guard covers Cleanup and Ignore"
+      ]
+    },
+    "native_regression": {
+      "exit": 0,
+      "log": "build/qa/maintenance-commands-ownership-regression-2026-10-18.log",
+      "distinct_case_engine_passes": 4,
+      "passed": [
+        "handoffs/system",
+        "handoffs/bundled",
+        "ignore/system",
+        "ignore/bundled"
+      ],
+      "scope": "Existing real Clone/Init completion/busy ownership, grants, explicit Open/Close and batch cancellation; Ignore captured options, Continue/Abort, stale sheets, writer retirement, Quit and preserved Git state"
+    },
+    "localizations": {
+      "write_exit": 0,
+      "check_exit": 0,
+      "languages": 38,
+      "keys": 1284,
+      "log": "build/qa/maintenance-commands-localizations-2026-10-18.log",
+      "generated_resource_changes": false
+    },
+    "help": {
+      "write_exit": 0,
+      "check_exit": 0,
+      "documents": 38,
+      "topics": 48,
+      "files": 58,
+      "bytes": 3552691,
+      "log": "build/qa/maintenance-commands-help-2026-10-18.log"
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "pending_control_reviews": 93,
+      "mapped_controls": 1566,
+      "statuses": {
+        "pending-review": 10,
+        "partial-native-replacement": 89,
+        "partial": 24,
+        "native-partial": 1,
+        "partial-workflow-replacement": 3,
+        "partial-native": 3
+      },
+      "not_a_completion_percentage": true
+    },
+    "native_cumulative": {
+      "distinct_case_engine_passes": 8,
+      "runtime_attempts": 8,
+      "owned_receiver_pids": [
+        99088,
+        99396,
+        99703,
+        99811,
+        99962,
+        505,
+        1049,
+        1130
+      ],
+      "cleanup": "Every receiver reaped; independent ps exit 1 and empty stdout",
+      "unrepaired_local_failures": []
+    },
+    "hosted_observation": {
+      "commit": "12f29e1e31d087ffed3718424541987ba0052a37",
+      "macos_run": 39083876316,
+      "job_id": 117557557616,
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_step": "Scoped native Merge menus and pane shortcuts",
+      "actual_case": "typing/system",
+      "assertion": "Combined cycle Undo failed",
+      "remote_owned_receiver_reaped": 13326,
+      "earlier_typing_checks": [
+        "Unicode, selection and paste passed",
+        "row cycle and Undo passed",
+        "marks and busy fences passed"
+      ],
+      "pages_run": 39083876421,
+      "pages_conclusion": "success",
+      "this_batch_repairs_editor_failure": false
+    },
+    "site": {
+      "exit": 0,
+      "documents": 294,
+      "unresolved_fragments": 0,
+      "log": "build/qa/maintenance-commands-site-2026-10-18.log"
+    }
+  },
+  "limits": [
+    "No complete source process/shared-switch/exit protocol or whole-port completion claim",
+    "Cleanup already uses literal pathspecs in the common Git runner; this batch preserves that existing behavior",
+    "Physical signed sandbox/Finder/Launch Services and every visual layout remain separate acceptance work",
+    "Creation can preserve user-created folders made in the system picker; cancelling authorization does not run Git init",
+    "Full special-folder/template/nonempty-bare combinations and all external filesystem cases remain open",
+    "Hosted previous-commit macOS CI has a confirmed Combined cycle Undo failure in typing/system; editor Undo repair is separate required work"
+  ]
+}
