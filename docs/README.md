@@ -119,6 +119,7 @@ for baseline and update rules.
 - [Reset parity](RESET-PARITY.md)
 - [Cherry Pick parity audit](CHERRY-PICK-PARITY.md)
 - [Worktree port audit](WORKTREE-PARITY.md)
+- [Finder New Worktree and post-create handoff](FINDER-WORKTREE-PARITY.md)
 - [Export parity](EXPORT-PARITY.md)
 - [Format Patch port audit](FORMAT-PATCH-PARITY.md)
 - [Request Pull dialog parity](REQUEST-PULL-PARITY.md)

@@ -1782,6 +1782,35 @@
           "no": []
         }
       ]
+    },
+    "worktreeCreate": {
+      "command": "Finder selected repository New Worktree (ContextMenu.cpp DropNewWorktree source selection; destination checked by app)",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDER",
+            "ITEMIS_WCROOT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDER",
+            "ITEMIS_BAREREPO",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
     }
   }
 }

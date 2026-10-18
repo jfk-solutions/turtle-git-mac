@@ -50,7 +50,7 @@ final class FinderRepositoryMetadataTests: XCTestCase {
         }
         let bare = FinderRepositoryMetadata(bare: true, hasStash: true, hasSubmoduleConfig: true)
         for action in RepositoryAction.allCases {
-            XCTAssertEqual(bare.allows(action), action.isApplicationUtility || [.sendMail, .reviewPatch].contains(action) || [RepositoryAction.fetch, .push, .log, .daemon, .revisionGraph, .reflog, .referenceBrowser, .repositoryBrowser, .export, .worktreeList].contains(action))
+            XCTAssertEqual(bare.allows(action), action.isApplicationUtility || [.sendMail, .reviewPatch].contains(action) || [RepositoryAction.fetch, .push, .log, .daemon, .revisionGraph, .reflog, .referenceBrowser, .repositoryBrowser, .export, .worktreeCreate, .worktreeList].contains(action))
         }
     }
     func testRealRegularRepositoryMarkersAndPackedStash() async throws {

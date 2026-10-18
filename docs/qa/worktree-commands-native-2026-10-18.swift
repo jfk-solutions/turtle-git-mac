@@ -136,6 +136,7 @@ extension PrimaryCommandsVerification {
         var submodulePath: URL?, submoduleAccess: RepositoryAccessLease?
         handoff.model.onSubmodules = { submodulePath = $0; submoduleAccess = $1 }
         handoff.model.updateSubmodules()
+        try await wait { submodulePath != nil && handoff.window?.isVisible != true && handoff.window?.sheetParent == nil }
         try require(submodulePath?.path == handoffPath.path && submoduleAccess?.contains(handoffPath) == true && submoduleAccess?.contains(root) == false && submoduleAccess?.permits(root.appendingPathComponent(".git/config")) == true, "Submodule post-action lost source metadata or destination containment")
         manager.close()
         let bare = container.appendingPathComponent("bare.git")

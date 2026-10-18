@@ -19,7 +19,7 @@ final class FinderShellRulesTests: XCTestCase {
             "ITEMIS_PATCHFILE": .patchFile, "ITEMIS_DELETED": .deleted, "ITEMIS_STASH": .stash, "ITEMIS_SUBMODULECONTAINER": .submoduleContainer
         ]
         XCTAssertEqual(fixture.rules.count, 64)
-        XCTAssertEqual(Set(fixture.nativeAdaptations.keys), ["properties"])
+        XCTAssertEqual(Set(fixture.nativeAdaptations.keys), ["properties", "worktreeCreate"])
         XCTAssertTrue(Set(fixture.rules.keys).isDisjoint(with: fixture.nativeAdaptations.keys))
         let allRules = fixture.rules.merging(fixture.nativeAdaptations) { source, _ in source }
         XCTAssertEqual(Set(allRules.keys), Set(FinderShellRules.conditions.keys.map(\.rawValue)))

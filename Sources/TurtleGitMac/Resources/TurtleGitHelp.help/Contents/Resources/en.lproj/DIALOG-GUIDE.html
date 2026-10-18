@@ -318,6 +318,13 @@ when a later command fails or is cancelled.
 Revert can mark a submodule for comparison. With working-copy marks, Submodule Diff compares its indexed commit with the checkout and labels the From group <strong>Index</strong>. Historical renamed gitlinks retain both paths. A submodule is a separate repository. Inspect its own status and commit pointer
 when the superproject reports a change.</p>
 <p>New Worktree creates another checkout attached to the same repository storage.
+In Finder, select the watched repository's root folder (or a bare repository)
+and choose <strong>TurtleGit → New Worktree…</strong>. Choose a destination parent outside a
+working tree; the creation dialog appends the repository name and removes a
+trailing <code>.git</code>. Review the path and options before OK creates anything.
+Completed progress keeps its status and elapsed time visible. If the checkout
+has submodules, <strong>Submodule Update…</strong> closes that progress window before opening
+the update dialog for the new checkout.
 Choose its path, target revision and branch options. Worktree List offers the
 applicable management actions. macOS may require additional parent-folder access
 for creation, movement or removal. See <a href="REPOSITORY-FOLDER-ACCESS.html">repository folder access</a>.</p>

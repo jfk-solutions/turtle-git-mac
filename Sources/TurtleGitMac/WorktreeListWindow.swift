@@ -6,6 +6,7 @@ import TurtleGitCore
     let model: WorktreeListWindowModel
     var onClosed: () -> Void = {}
     var onSubmodules: (URL, RepositoryAccessLease?) -> Void = { _, _ in }
+    var externalAvailability: () -> Bool = { true }
     private(set) var createWindow: WorktreeCreateWindowController?
     private var ownedSheets: [UUID:NSWindow] = [:]
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences:UserDefaults = .standard) {
@@ -84,17 +85,18 @@ import TurtleGitCore
         return granted
     }
     private func addWorktree() {
-        guard model.canInteract, createWindow == nil, let window, window.attachedSheet == nil else { return }
+        guard externalAvailability(), model.canInteract, createWindow == nil, let window, window.attachedSheet == nil else { return }
         let controller = WorktreeCreateWindowController(repository: model.repository, access: model.access,preferences:model.preferences)
+        controller.externalAvailability = { [weak self] in self?.model.active == true && self?.externalAvailability() == true }
         controller.model.onCreated = { [weak self] _ in self?.model.requestReload() }
-        controller.model.onSubmodules = { [weak self] path, lease in self?.onSubmodules(path, lease) }
+        controller.model.onSubmodules = { [weak self] path, lease in guard let self, self.model.active, self.externalAvailability() else { return }; self.onSubmodules(path, lease) }
         controller.onClosed = { [weak self, weak controller] in
             if let child = controller?.window { self?.window?.endSheet(child) }
             self?.createWindow = nil; self?.model.childActive=false; self?.model.reload()
         }
         model.childActive=true
         createWindow = controller
-        if let child = controller.window { window.beginSheet(child) }
+        if let child = controller.window { child.alphaValue = window.alphaValue; child.appearance = window.appearance; window.beginSheet(child) }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }

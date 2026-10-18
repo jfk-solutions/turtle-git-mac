@@ -257,7 +257,19 @@ import UniformTypeIdentifiers
 
     @Published var output = "Open a repository to get started."
     @Published var busy = false { didSet { if busy != oldValue { retireWorkspaceMenus() };repositoryAccessWindow?.model.objectWillChange.send();if !busy { eventRefresh?.kick(); scheduleCompletedRepositoryHandoff() } } }
-    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { retireWorkspaceMenus(); for controller in dropTransfers.values { controller.model.confirmingQuit = confirmingQuit }; for controller in moveWindows.values { controller.model.confirmingQuit = confirmingQuit }; for controller in copyWindows.values { controller.model.confirmingQuit = confirmingQuit } };repositoryAccessWindow?.model.objectWillChange.send();if !confirmingQuit { eventRefresh?.kick(); scheduleCompletedRepositoryHandoff() } } }
+    @Published var confirmingQuit = false { didSet {
+        if confirmingQuit != oldValue {
+            retireWorkspaceMenus()
+            for controller in dropTransfers.values {controller.model.confirmingQuit=confirmingQuit}
+            for controller in moveWindows.values {controller.model.confirmingQuit=confirmingQuit}
+            for controller in copyWindows.values {controller.model.confirmingQuit=confirmingQuit}
+            for controller in worktreeCreateWindows.values {controller.model.confirmingQuit=confirmingQuit}
+            for controller in worktreeListWindows.values {controller.createWindow?.model.confirmingQuit=confirmingQuit}
+            if confirmingQuit {cancelFinderWorktreeCreation()}
+        }
+        repositoryAccessWindow?.model.objectWillChange.send()
+        if !confirmingQuit {eventRefresh?.kick();scheduleCompletedRepositoryHandoff()}
+    } }
     @Published var error: String? { didSet {retireWorkspaceMenus()} }
     @Published var section = RepositoryAction.status { didSet { if section != oldValue {retireWorkspaceMenus()} } }
     @Published var dialog: RepositoryAction? { didSet {retireWorkspaceMenus()} }
@@ -357,6 +369,11 @@ import UniformTypeIdentifiers
     var selectedTransferDestinationURL: (NSOpenPanel) -> URL? = { $0.url }
     private var sourceTransferOwner: RepositoryWindowOwner?
     private var sourceTransferFolderChoice: FinderTransferDestinationChoice?
+    var presentWorktreeFolderPanel: ((NSOpenPanel, NSWindow?, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
+    var selectedWorktreeFolderURL: (NSOpenPanel) -> URL? = { $0.url }
+    var worktreeSourceAccessProvider: (([URL]) throws -> RepositoryAccessLease?)?
+    private var sourceWorktreeOwner: RepositoryWindowOwner?
+    private var sourceWorktreeFolderChoice: FinderTransferDestinationChoice?
     var finderTransferPresentation: ((FinderRequest, GitRepository, RepositoryAccessLease) -> Void)?
     private var copyWindows: [UUID: FileCopyWindowController] = [:]
     private(set) var moveWindows: [String: FileMoveWindowController] = [:]
@@ -392,7 +409,7 @@ import UniformTypeIdentifiers
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
     private var resolutionCommandPreparation: RepositoryWindowOwner?
     private var resolutionCommandFolderChoice: RepositoryCreationFolderChoice?
     private var silentResolveSessions = GitPathMap<FileListComparisonSession>()
@@ -436,7 +453,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -590,6 +607,9 @@ import UniformTypeIdentifiers
         catch { self.error = "The repository is open, but its permission could not be saved: " + error.localizedDescription }
     }
     private func prepareRepositoryMetadataAccess(at location:URL,primary:RepositoryAccessLease,cancellation:OperationCancellation) async throws -> (scopes:[RepositoryAccessLease],newFolders:[URL]) {
+        try await prepareRepositoryMetadataAccess(at:location,primary:primary,cancellation:cancellation,owner:workspaceWindow)
+    }
+    private func prepareRepositoryMetadataAccess(at location:URL,primary:RepositoryAccessLease,cancellation:OperationCancellation,owner:NSWindow?) async throws -> (scopes:[RepositoryAccessLease],newFolders:[URL]) {
         guard requiresRepositoryScope else { return ([],[]) }
         guard primary.hasSecurityScope,primary.contains(location) else { throw RepositoryAccessFailure.securityScopeUnavailable }
         var scopes:[RepositoryAccessLease]=[],newFolders:[URL]=[]
@@ -607,7 +627,7 @@ import UniformTypeIdentifiers
             else {
                 let prompt=RepositoryMetadataPermissionPrompt();repositoryPermissionPrompt=prompt
                 defer { if repositoryPermissionPrompt === prompt { repositoryPermissionPrompt=nil } }
-                selected=await prompt.choose(requirement,owner:workspaceWindow,cancellation:cancellation)
+                selected=await prompt.choose(requirement,owner:owner,cancellation:cancellation)
             }
             try cancellation.check()
             guard let selected else { cancellation.cancel();throw OperationCancellationFailure.cancelled }
@@ -1200,6 +1220,89 @@ import UniformTypeIdentifiers
     /// Source URLs are captured before the destination panel; neither Finder's
     /// later selection nor the general clipboard participates in this workflow.
     func cancelFinderSourceTransfer() { sourceTransferOwner?.cancellation.cancel(); sourceTransferFolderChoice?.cancel() }
+    func cancelFinderWorktreeCreation() {
+        guard let owner=sourceWorktreeOwner else {return}
+        owner.cancellation.cancel();sourceWorktreeFolderChoice?.cancel()
+        repositoryPermissionPrompt?.cancel()
+    }
+    /// A Finder source request captures one repository before asking for its
+    /// destination. It never adopts another repository into the workspace.
+    private func prepareFinderWorktreeCreation(_ request: FinderRequest, completion: ((Bool)->Void)? = nil) {
+        guard request.action == .worktreeCreate,request.paths.count == 1,request.sources.isEmpty,
+              !retired,!confirmingQuit,!busy,sourceWorktreeOwner == nil,workspaceWindow?.attachedSheet == nil else {completion?(false);return}
+        let source=request.paths[0],window=workspaceWindow,preferences=fileComparisonPreferences
+        let owner=RepositoryWindowOwner(window:window)
+        sourceWorktreeOwner=owner;busy=true;Self.activeCommandFileOperations += 1
+        Task {
+            var opened=false
+            var retained:[RepositoryAccessLease]=[]
+            defer {
+                if sourceWorktreeOwner === owner {sourceWorktreeOwner=nil;sourceWorktreeFolderChoice=nil}
+                busy=false;Self.activeCommandFileOperations -= 1
+                withExtendedLifetime(retained) {};completion?(opened)
+            }
+            @MainActor func live() -> Bool {!retired && !confirmingQuit && sourceWorktreeOwner === owner && !owner.cancellation.isCancelled}
+            @MainActor func choose(title:String,prompt:String,message:String,directory:URL?,create:Bool) async -> URL? {
+                guard live(),window?.attachedSheet == nil else {return nil}
+                return await withCheckedContinuation { continuation in
+                    let choice=FinderTransferDestinationChoice(window:window,owner:owner)
+                    choice.panel.title=title;choice.panel.prompt=prompt;choice.panel.message=message
+                    choice.panel.canChooseFiles=false;choice.panel.canChooseDirectories=true;choice.panel.allowsMultipleSelection=false
+                    choice.panel.canCreateDirectories=create;choice.panel.directoryURL=directory
+                    if window == nil {
+                        let appearance=preferences.string(forKey:"appearance") ?? "system"
+                        choice.panel.appearance=appearance == "dark" ? NSAppearance(named:.darkAqua) : appearance == "light" ? NSAppearance(named:.aqua) : nil
+                    }
+                    sourceWorktreeFolderChoice=choice
+                    choice.onFinished={continuation.resume(returning:$0)}
+                    choice.begin(present:presentWorktreeFolderPanel,selected:selectedWorktreeFolderURL)
+                }
+            }
+            do {
+                guard live() else {return}
+                var sourceLease:RepositoryAccessLease?
+                if let activeAccess,activeAccess.contains(source),!requiresRepositoryScope || activeAccess.hasSecurityScope {sourceLease=activeAccess}
+                if sourceLease == nil,let store=accessStore {
+                    for saved in store.repositories {
+                        if let lease=try? store.acquire(saved.id,requireSecurityScope:requiresRepositoryScope),lease.contains(source) {sourceLease=lease;break}
+                    }
+                }
+                if sourceLease == nil,let provider=worktreeSourceAccessProvider {sourceLease=try provider([source])}
+                if sourceLease == nil,!requiresRepositoryScope {sourceLease=RepositoryAccessLease(url:source,provider:repositoryBookmarkProvider)}
+                if sourceLease == nil {
+                    guard let folder=await choose(title:String(localized:"New Worktree"),prompt:String(localized:"Authorize repository"),message:String(localized:"Choose this repository or a containing folder to allow New Worktree: ")+source.path,directory:source,create:false),live() else {return}
+                    sourceLease=RepositoryAccessLease(url:folder,provider:repositoryBookmarkProvider)
+                }
+                guard let primary=sourceLease,primary.contains(source),!requiresRepositoryScope || primary.hasSecurityScope else {throw RepositoryAccessFailure.securityScopeUnavailable}
+                retained.append(primary)
+                let metadata=try await prepareRepositoryMetadataAccess(at:source,primary:primary,cancellation:owner.cancellation,owner:window)
+                retained += metadata.scopes
+                guard live() else {return}
+                let context=try makeRepository(source)
+                let actual=try await context.validateFinderWorktreeSource(cancellation:owner.cancellation)
+                guard live(),primary.contains(actual) else {return}
+                let repository=try makeRepository(actual),access=primary.retainingRelatedScopes(metadata.scopes)
+                if worktreeCreateWindows[actual.path] != nil || worktreeListWindows[actual.path]?.createWindow != nil {
+                    opened=showWorktreeCreate(repository:repository,access:access,commandLaunch:true,preferences:preferences) != nil;return
+                }
+                guard let folder=await choose(title:String(localized:"New Worktree"),prompt:String(localized:"Choose destination"),message:String(localized:"Choose a destination folder outside a working tree. The repository name will be appended in New Worktree."),directory:source.deletingLastPathComponent(),create:true),live() else {return}
+                let destination=RepositoryAccessLease(url:folder,provider:repositoryBookmarkProvider)
+                retained.append(destination)
+                guard destination.contains(folder),!requiresRepositoryScope || destination.hasSecurityScope else {throw RepositoryAccessFailure.securityScopeUnavailable}
+                // The source may have changed while its native chooser was open.
+                let latestMetadata=try await prepareRepositoryMetadataAccess(at:source,primary:access,cancellation:owner.cancellation,owner:window)
+                retained += latestMetadata.scopes
+                let rechecked=try await context.validateFinderWorktreeSource(cancellation:owner.cancellation)
+                guard live(),GitReferenceName.equal(rechecked.resolvingSymlinksInPath().path,actual.resolvingSymlinksInPath().path) else {return}
+                let proposed=try await repository.finderWorktreeDestination(parent:folder,cancellation:owner.cancellation)
+                guard live(),destination.contains(proposed),window?.attachedSheet == nil else {return}
+                let combined=access.retainingRelatedScopes(latestMetadata.scopes)
+                opened=showWorktreeCreate(repository:repository,access:combined,directory:proposed,commandLaunch:true,preferences:preferences,destinationAccess:destination) != nil
+            } catch {
+                if live(),!(error is OperationCancellationFailure),!(error is GitCommandCancellationFailure) {self.error=error.localizedDescription}
+            }
+        }
+    }
     private func prepareFinderSourceTransfer(_ request: FinderRequest, completion: ((Bool) -> Void)? = nil) {
         guard request.isTransferSourceSelection, !retired, !confirmingQuit, !busy,
               sourceTransferOwner == nil, workspaceWindow?.attachedSheet == nil else { completion?(false); return }
@@ -2383,7 +2486,7 @@ import UniformTypeIdentifiers
         }
         submoduleAddProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); model.start()
     }
-    private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], commandLaunch: Bool = false, completion: (() -> Void)? = nil, preferences: UserDefaults? = nil) {
+    private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], commandLaunch: Bool = false, completion: (() -> Void)? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil) {
         guard !confirmingQuit else { return }
         let preferences = preferences ?? fileComparisonPreferences
         let root = repository.root, key = root.path + "\0" + scope.joined(separator: "\0") + "\0" + selected.joined(separator: "\0")
@@ -2396,6 +2499,7 @@ import UniformTypeIdentifiers
             error = "A Submodule Update operation is already running. Wait for it before opening another command."; return
         }
         let controller = submoduleUpdateWindows[key] ?? SubmoduleUpdateWindowController(repository: repository, access: access, scope: scope, selected: selected, preferences: preferences)
+        if let sourceWindow {controller.window?.alphaValue=sourceWindow.alphaValue;controller.window?.appearance=sourceWindow.effectiveAppearance}
         controller.onClosed = { [weak self] in self?.submoduleUpdateWindows.removeValue(forKey: key) }
         let progressPreferences = controller.model.presentationPreferences
         controller.model.onSubmit = { [weak self] paths, options in
@@ -2540,27 +2644,48 @@ import UniformTypeIdentifiers
     private func showWorktreeList(repository: GitRepository, access: RepositoryAccessLease?) {
         let key = repository.root.path
         let controller = worktreeListWindows[key] ?? worktreeListWindowFactory?(repository, access, fileComparisonPreferences) ?? WorktreeListWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.worktreeListWindows.removeValue(forKey: key) }
-        controller.onSubmodules = { [weak self] path, lease in
-            self?.showSubmoduleUpdate(repository: GitRepository(root: path, executable: repository.executable), access: lease, scope: [])
+        controller.externalAvailability = { [weak self] in self?.retired == false && self?.confirmingQuit == false }
+        controller.onClosed = { [weak self,weak controller] in
+            guard let self,let controller,self.worktreeListWindows[key] === controller else {return}
+            self.worktreeListWindows.removeValue(forKey:key)
+        }
+        let inherited=controller.model.preferences
+        controller.onSubmodules = { [weak self,weak controller] path, lease in
+            guard let self,!self.retired,!self.confirmingQuit else {return}
+            self.showSubmoduleUpdate(repository: GitRepository(root: path, executable: repository.executable), access: lease, scope: [],preferences:inherited,sourceWindow:controller?.window)
         }
         worktreeListWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showWorktreeCreate(repository: GitRepository, access: RepositoryAccessLease?, directory: URL? = nil, commandLaunch: Bool = false) {
+    @discardableResult private func showWorktreeCreate(repository: GitRepository, access: RepositoryAccessLease?, directory: URL? = nil, commandLaunch: Bool = false, preferences: UserDefaults? = nil, destinationAccess: RepositoryAccessLease? = nil) -> WorktreeCreateWindowController? {
+        guard !retired,!confirmingQuit else {return nil}
         let key = repository.root.path
+        if let existing=worktreeCreateWindows[key] ?? worktreeListWindows[key]?.createWindow,
+           !existing.model.active || existing.model.handoffPending {
+            error=String(localized:"A previous New Worktree window is still closing. Wait for it to finish before opening another.")
+            return nil
+        }
         if commandLaunch, let existing = worktreeCreateWindows[key] ?? worktreeListWindows[key]?.createWindow {
             existing.window?.makeKeyAndOrderFront(nil)
-            return
+            return existing
         }
-        let controller = worktreeCreateWindows[key] ?? worktreeCreateWindowFactory?(repository, access, fileComparisonPreferences, directory) ?? WorktreeCreateWindowController(repository: repository, access: access, preferences: fileComparisonPreferences, initialDirectory: directory)
-        controller.onClosed = { [weak self] in self?.worktreeCreateWindows.removeValue(forKey: key) }
+        let inherited=preferences ?? fileComparisonPreferences
+        let controller = worktreeCreateWindows[key] ?? worktreeCreateWindowFactory?(repository, access, inherited, directory) ?? WorktreeCreateWindowController(repository: repository, access: access, preferences: inherited, initialDirectory: directory)
+        let presentedPreferences=controller.model.preferences
+        controller.externalAvailability = { [weak self] in self?.retired == false && self?.confirmingQuit == false }
+        controller.model.confirmingQuit=confirmingQuit
+        if let destinationAccess {controller.model.destinationAccess=destinationAccess}
+        controller.onClosed = { [weak self,weak controller] in
+            guard let self,let controller,self.worktreeCreateWindows[key] === controller else {return}
+            self.worktreeCreateWindows.removeValue(forKey:key)
+        }
         controller.model.onCreated = { [weak self] output in
             self?.worktreeListWindows[key]?.model.requestReload()
             if self?.root?.path == key { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.model.onSubmodules = { [weak self] path, lease in
-            self?.showSubmoduleUpdate(repository: GitRepository(root: path, executable: repository.executable), access: lease, scope: [])
+        controller.model.onSubmodules = { [weak self,weak controller] path, lease in
+            guard let self,!self.retired,!self.confirmingQuit else {return}
+            self.showSubmoduleUpdate(repository: GitRepository(root: path, executable: repository.executable), access: lease, scope: [],preferences:presentedPreferences,sourceWindow:controller?.window)
         }
         controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureReferencePicker = { [weak self] model in
@@ -2568,6 +2693,7 @@ import UniformTypeIdentifiers
         }
         worktreeCreateWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        return controller
     }
     private func showRequestPull(repository: GitRepository, access: RepositoryAccessLease?, end: String? = nil, repositoryURL: String? = nil, commandLaunch: Bool = false) {
         let key = repository.root.path + ":requestPull:" + (commandLaunch ? "command" : UUID().uuidString)
@@ -4270,6 +4396,7 @@ import UniformTypeIdentifiers
             else { showReviewPatch(files: request.paths) }; return
         }
         if action == .transferFiles, request.isTransferSourceSelection { handedOff = true; prepareFinderSourceTransfer(request, completion: completion); return }
+        if action == .worktreeCreate,invocation == nil {handedOff=true;prepareFinderWorktreeCreation(request,completion:completion);return}
         if action == .sendMail { showFinderSendMail(files: request.paths); return }
         if action == .clearComparisonMark { clearComparisonMark(); return }
         if action == .diffLater {
@@ -4380,7 +4507,7 @@ private enum FinderSelectionFailure: LocalizedError {
         picker.title="Allow repository folder access";picker.prompt="Allow Access"
         picker.message=requirement.explanation+"\n\nSelect this folder, or a parent folder: "+requirement.folder.path
         picker.canChooseDirectories=true;picker.canChooseFiles=false;picker.allowsMultipleSelection=false
-        picker.directoryURL=requirement.folder;picker.appearance=owner?.appearance
+        picker.directoryURL=requirement.folder;picker.appearance=owner?.appearance;picker.alphaValue=owner?.alphaValue ?? 1
         if let owner { observer=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:owner,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.cancel() } } }
         monitor=Task { [weak self] in
             while !cancellation.isCancelled,!Task.isCancelled { do { try await Task.sleep(nanoseconds:20_000_000) } catch { return } }

@@ -153,7 +153,7 @@ enum FinderShellMenuLayout {
         [.lfs],
         [.switchBranch, .merge, .branch, .tag, .export],
         [.initialize, .add, .blame, .ignore, .ignoreDelete],
-        [.worktreeList, .submoduleAdd, .submoduleUpdate, .submoduleSync],
+        [.worktreeCreate, .worktreeList, .submoduleAdd, .submoduleUpdate, .submoduleSync],
         [.formatPatch, .importPatch, .reviewPatch, .sendMail],
         [.transferFiles, .pasteCopy, .pasteMove],
         [.properties, .settings, .help, .about]
@@ -284,6 +284,13 @@ enum FinderMenuBuilder {
            capturedSources.count == paths.count,
            capturedSources.allSatisfy({ source in paths.contains { GitReferenceName.equal($0.path, source.path) } }),
            let request = FinderTransferContext.sourceRequest(selection: sourceSelection, snapshot: snapshot, settings: settings) {
+            let item = NSMenuItem(title: captions.label(request.action.title), action: actionSelector, keyEquivalent: "")
+            item.image = image(request.action.icon); item.target = target
+            item.representedObject = FinderMenuCommand(request: request); submenu.addItem(item)
+        }
+        if !toolbar, capturedSources.count == paths.count,
+           capturedSources.allSatisfy({ source in paths.contains { GitReferenceName.equal($0.path, source.path) } }),
+           let request = FinderWorktreeContext.sourceRequest(selection: sourceSelection, snapshot: snapshot) {
             let item = NSMenuItem(title: captions.label(request.action.title), action: actionSelector, keyEquivalent: "")
             item.image = image(request.action.icon); item.target = target
             item.representedObject = FinderMenuCommand(request: request); submenu.addItem(item)

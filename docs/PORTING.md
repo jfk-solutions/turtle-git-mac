@@ -3285,3 +3285,28 @@ and six native case/engine pairs, with owned receivers reaped. Physical gestures
 tooltip timing, accessibility, full hosted integration and current signed App
 Store acceptance remain open. This is scoped Blame progress, not whole-port
 completion.
+
+
+### Finder Worktree destination and post-create continuation, October 19, 2026
+
+Finder now offers New Worktree for one watched working-tree root or bare
+repository, using the existing Worktrees menu settings and source icon. The app
+captures the source before choosing a destination parent, revalidates both,
+retains metadata grants and opens the existing creation form with the upstream
+basename preset. No repository mutation occurs until OK. Public FinderSync lacks
+Explorer's right-drag interception, so source selection plus a destination chooser
+is the documented native adaptation; the command-line drop backend already existed.
+
+Creation retains its completed percentage, status and timing. Submodule Update
+captures the created path, related source/destination scopes, appearance and
+preferences, waits for actual creation-window/sheet/worker release, then opens
+its child once. Cancellation, owner closure, late replies, retirement and deferred
+Quit retain ownership until their operations drain.
+
+The [source comparison](FINDER-WORKTREE-PARITY.md) and
+[batch evidence](qa/worktree-finder-handoff-2026-10-19.json) record actual failures
+and passing scoped results: 30 Core methods, Debug app build and eight native
+case/engine pairs. Every receiver was reaped; unrelated user WIP was preserved.
+Physical installed Finder delivery, real signed grants, complete dialog/input and
+VoiceOver acceptance, full hosted integration and App Store distribution remain
+open. This does not certify the whole port.

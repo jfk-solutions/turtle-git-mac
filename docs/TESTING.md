@@ -2485,3 +2485,29 @@ only the failed case; unchanged source/wrap cases reuse the same compiled cache.
 Core origin fallback covers preserved visible history and owned cancellation.
 Physical gestures/tooltips, VoiceOver, full current CI and signed distribution
 remain separate acceptance; no display captures are included by default.
+
+
+## Finder Worktree source and post-create handoff
+
+After the implementation family freezes, run one focused Core group:
+
+```sh
+TURTLEGIT_CORE_ONLY=1 swift test --filter 'FinderWorktreeSourceTests|FinderWorktreeValidationTests|GitWorktreeTests|FinderShellRulesTests|FinderRepositoryMetadataTests'
+```
+
+After the Debug build, the cached native group uses the actual Finder menu source,
+the new source/destination/review case and retained Worktree family/progress/command cases:
+
+```sh
+python3 scripts/test-worktree-finder-handoff.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+It uses private repository/configuration/preferences and hidden native sheets and
+controls. Checks cover source URL identity, duplicate/late/cancelled destination
+replies, owner close and Quit fences, no premature Git writes, actual OK, finished
+status/timing, actual creation closure before a real Update child, retained
+related metadata scopes, bare source and failed/held-authorization paths. Scope
+providers simulate policy, not signed delivery. The runner closes/reaps owned
+receivers; every failure retains a dated QA entry. Repeat only an actually failed
+case or checks affected by a production repair, reusing unchanged compilation.
+Physical installed Finder and current signed/App Store acceptance remain separate.

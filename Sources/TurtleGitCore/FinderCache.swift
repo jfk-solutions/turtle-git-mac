@@ -147,6 +147,22 @@ public struct FinderCreationMenuContext: Sendable {
     }
 }
 
+/// Cache-only source eligibility for Finder's New Worktree destination workflow.
+/// The application revalidates the repository and authorizes both locations.
+public enum FinderWorktreeContext {
+    public static func sourceRequest(selection: [URL], snapshot: FinderSnapshot?) -> FinderRequest? {
+        guard selection.count == 1, let snapshot,
+              let source = FinderRequest.normalizedSelection(selection).first,
+              source.path != "/", !source.path.contains("\0"),
+              !source.pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }),
+              (try? source.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
+              let root = snapshot.repositoryRoot(for: source), snapshot.isRepositoryRoot(source, root: root),
+              FinderShellRules.allows(.worktreeCreate, flags: FinderShellRules.flags(paths: [source], snapshot: snapshot)) else { return nil }
+        let request = FinderRequest(action: .worktreeCreate, paths: [source])
+        return request.url == nil ? nil : request
+    }
+}
+
 public struct FinderRepositoryMetadata: Codable, Equatable, Sendable {
     public var bare: Bool
     public var bisectActive: Bool
@@ -177,7 +193,7 @@ public struct FinderRepositoryMetadata: Codable, Equatable, Sendable {
     /// Repository-wide clauses only; path/status clauses remain separate.
     public func allows(_ action: RepositoryAction) -> Bool {
         if action.isApplicationUtility || [.sendMail, .reviewPatch].contains(action) { return true }
-        if bare { return [.fetch, .push, .log, .daemon, .revisionGraph, .reflog, .referenceBrowser, .repositoryBrowser, .export, .worktreeList].contains(action) }
+        if bare { return [.fetch, .push, .log, .daemon, .revisionGraph, .reflog, .referenceBrowser, .repositoryBrowser, .export, .worktreeCreate, .worktreeList].contains(action) }
         if action.svnOperation != nil && !hasGitSVN { return false }
         if [.svnDCommit, .svnRebase, .pull, .merge, .rebase, .synchronize].contains(action) && (bisectActive || mergeActive) { return false }
         if action == .bisectStart && (bisectActive || mergeActive) { return false }
@@ -618,6 +634,9 @@ public enum FinderShellRules {
         .initialize: [.init([.folder], [.inGit, .folderInGit, .bare, .inaccessible]), .init([.folder, .ignored], []), .init([.folder, .extended], [.inGit]), .init([], [])],
         .ignore: [.init([.inVersionedFolder], [.ignored, .inGit, .workingTreeRoot]), .init([], []), .init([], []), .init([], [])],
         .ignoreDelete: [.init([.inVersionedFolder, .inGit], [.ignored, .workingTreeRoot]), .init([], []), .init([], []), .init([], [])],
+        // Direct macOS source selection adapts Explorer's DropNewWorktree:
+        // only a repository root (including bare), never a nested working folder.
+        .worktreeCreate: [.init([.folder, .workingTreeRoot, .onlyOne], []), .init([.folder, .bare, .onlyOne], []), .init([], []), .init([], [])],
         .worktreeList: [.init([.folderInGit, .onlyOne], []), .init([.bare], []), .init([], []), .init([], [])],
         .submoduleAdd: [.init([.folderInGit, .onlyOne], []), .init([], []), .init([], []), .init([], [])],
         .submoduleSync: [.init([.folderInGit, .submoduleContainer], []), .init([], []), .init([], []), .init([], [])],

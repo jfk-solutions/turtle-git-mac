@@ -391,6 +391,13 @@ Revert can mark a submodule for comparison. With working-copy marks, Submodule D
 when the superproject reports a change.
 
 New Worktree creates another checkout attached to the same repository storage.
+In Finder, select the watched repository's root folder (or a bare repository)
+and choose **TurtleGit → New Worktree…**. Choose a destination parent outside a
+working tree; the creation dialog appends the repository name and removes a
+trailing `.git`. Review the path and options before OK creates anything.
+Completed progress keeps its status and elapsed time visible. If the checkout
+has submodules, **Submodule Update…** closes that progress window before opening
+the update dialog for the new checkout.
 Choose its path, target revision and branch options. Worktree List offers the
 applicable management actions. macOS may require additional parent-folder access
 for creation, movement or removal. See [repository folder access](REPOSITORY-FOLDER-ACCESS.md).

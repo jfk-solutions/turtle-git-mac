@@ -442,3 +442,25 @@ ungranted folders; lexical self-comparison leaves alternate case/normalization
 and symlink spellings to Git's subsequent validation. Automatic native Finder
 drag-menu interception, all rendered/input/VoiceOver parity and current signed
 Store/Finder acceptance remain unverified. No whole-dialog completion is inferred.
+
+
+## Direct Finder creation and completed handoff — October 19, 2026
+
+The [Finder Worktree family](FINDER-WORKTREE-PARITY.md) connects a selected watched
+working-tree/bare root to an owned destination chooser and the existing creation
+form. The earlier command/drop-target backend was already implemented; direct
+Finder source routing, read-only source/destination revalidation, completed100
+progress/timing and actual-close-before-Update continuation are this extension.
+Earlier broad Finder-drop pending notes do not describe these new source menus.
+Explorer right-drag interception remains unavailable through public FinderSync.
+
+Destination and source metadata grants, captured preferences and the initiating
+window remain owned through cancellation or real worker/sheet release. Source
+and target choices do not change the active workspace repository or create Git
+state before explicit OK. Completed progress retains the shared status/timing
+footer. Submodule Update claims once and launches only after the old creation
+frame has retired and its onClosed callback settled, including manager-owned Add.
+[Dated evidence](qa/worktree-finder-handoff-2026-10-19.json) separates authored
+implementation from actual grouped results and retains earlier failed attempts.
+Signed/physical Finder, full input/layout/VoiceOver and current complete hosted
+acceptance remain separate requirements.

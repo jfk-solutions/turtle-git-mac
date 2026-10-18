@@ -1,0 +1,201 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "db3140b65caa9f852ef87e0481e6957dc193dcd0",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Finder selected repository root/bare source context and original Worktrees settings/icon contract",
+    "Owned source/destination authorization and revalidation before prefilled creation review",
+    "Completed creation progress/status/timing, cancellation/retry and actualclose-before-Submodule Update continuation",
+    "Captured source/destination metadata scopes, preferences, appearance and late/duplicate/Quit/retirement gates"
+  ],
+  "validation": {
+    "status": "Focused Core, Debug build and eight native case/engine pairs passed; full hosted/signed/physical acceptance remains open.",
+    "core": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "log": "build/qa/worktree-finder-core.log",
+        "result": "Compilation failed before tests: cross-actor probe.run requires await in finderWorktreeDestination."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "tests": 30,
+        "failures": 0,
+        "log": "build/qa/worktree-finder-core-repair.log"
+      }
+    ],
+    "build": [
+      {
+        "attempt": 1,
+        "exit": 65,
+        "log": "build/qa/worktree-finder-build.log",
+        "result": "Same Core actor-isolation compile error; no native checks ran."
+      },
+      {
+        "attempt": 2,
+        "exit": 65,
+        "log": "build/qa/worktree-finder-build-repair.log",
+        "result": "Nested live/choose functions need explicit MainActor isolation; focused native-only repair."
+      },
+      {
+        "attempt": 3,
+        "exit": 0,
+        "log": "build/qa/worktree-finder-build-mainactor.log"
+      }
+    ],
+    "native": [
+      {
+        "attempt": 1,
+        "case": "finder/system",
+        "exit": 1,
+        "log": "build/qa/worktree-finder-native.log",
+        "reaped_pid": 18685,
+        "result": "Fixture assumed SwiftUI buttons were backed by NSButton instances; initial failure was treated as possible render readiness and a bounded wait added. Later diagnostics confirmed the backing-class assumption was wrong."
+      },
+      {
+        "attempt": 2,
+        "case": "finder/system",
+        "exit": 1,
+        "log": "build/qa/worktree-finder-native-finder-repair.log",
+        "reaped_pid": 18873,
+        "result": "Readiness wait did not produce an NSButton. Fixture now also discovers and presses the actual SwiftUI accessibility OK control; preserves native action requirement."
+      },
+      {
+        "attempt": 3,
+        "case": "finder/system",
+        "exit": 1,
+        "log": "build/qa/worktree-finder-native-finder-ax.log",
+        "reaped_pid": 19011,
+        "result": "No OK accessibility/native element became available; focused explicit display and view/AX diagnostics added before further changes."
+      },
+      {
+        "attempt": 4,
+        "case": "finder/system",
+        "exit": 1,
+        "log": "build/qa/worktree-finder-native-finder-display.log",
+        "reaped_pid": 19110,
+        "result": "Diagnostics confirm rendered SwiftUI button geometry without NSButton or hidden AX children. Fixture uses the production default OK keyboard action instead of depending on SwiftUI backing classes."
+      },
+      {
+        "attempt": 5,
+        "case": "finder/system",
+        "exit": 1,
+        "log": "build/qa/worktree-finder-native-finder-key.log",
+        "reaped_pid": 19201,
+        "result": "Actual native Return creates worktree and reaches post-action; combined handoff assertion failed. Split existing assertion into independently diagnosed checks without removing any condition."
+      },
+      {
+        "attempt": 6,
+        "case": "finder/system",
+        "exit": 1,
+        "log": "build/qa/worktree-finder-native-finder-handoff-diagnostic.log",
+        "reaped_pid": 19267,
+        "result": "Fixture compared equivalent directory URLs with different trailing-slash hints. Preserve exact path assertions using URL.path; production destination is correct."
+      },
+      {
+        "attempt": 7,
+        "exit": 0,
+        "cases": [
+          "finder/system",
+          "finder/bundled"
+        ],
+        "log": "build/qa/worktree-finder-native-finder-path.log",
+        "reaped_pids": [
+          19326,
+          19390
+        ],
+        "completion_markers": 2
+      },
+      {
+        "attempt": 8,
+        "exit": 0,
+        "cases": [
+          "family/system",
+          "family/bundled",
+          "progress/system",
+          "progress/bundled",
+          "commands/system",
+          "commands/bundled"
+        ],
+        "log": "build/qa/worktree-finder-native-retained.log",
+        "reaped_pids": [
+          19456,
+          19619,
+          19786,
+          19841,
+          19903,
+          20122
+        ],
+        "completion_markers": 6
+      }
+    ],
+    "resources": [
+      {
+        "command": "build-localizations.py --write",
+        "exit": 0
+      },
+      {
+        "command": "build-help.py",
+        "exit": 0
+      },
+      {
+        "command": "build-localizations.py --check",
+        "exit": 0,
+        "languages": 38,
+        "keys": 1292
+      },
+      {
+        "command": "build-help.py --check",
+        "exit": 0,
+        "documents": 40,
+        "topics": 49,
+        "files": 60
+      },
+      {
+        "command": "reconcile-dialog-coverage.py",
+        "exit": 0,
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_controls": 1566,
+        "pending_control_reviews": 93
+      },
+      {
+        "command": "build-site.py",
+        "exit": 0,
+        "documents": 338,
+        "unresolved_fragments": []
+      }
+    ],
+    "owned_receivers_absent_after_group": [
+      19326,
+      19390,
+      19456,
+      19619,
+      19786,
+      19841,
+      19903,
+      20122,
+      18685,
+      18873,
+      19011,
+      19110,
+      19201,
+      19267
+    ],
+    "preserved_unrelated_wip_hashes_match": true
+  },
+  "preserved_unrelated_wip": {
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3",
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f"
+  },
+  "remaining": [
+    "Public FinderSync has no Explorer right-drag menu interception; source/destination chooser is the native adaptation",
+    "Physical installed signed Finder delivery and actual source/common-dir/destination grant acceptance",
+    "Full original Worktree layout, input and VoiceOver acceptance",
+    "Full current hosted macOS integration and current App Store distribution acceptance",
+    "All other explicit workflow/layout/format gaps; complete port not established"
+  ]
+}

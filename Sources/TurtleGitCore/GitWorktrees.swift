@@ -87,7 +87,54 @@ public enum WorktreeFailure: LocalizedError {
     }
 }
 
+/// Finder's cached shell eligibility is only a hint. Recheck the selected
+/// repository and destination without changing the repository or creating files.
+public enum FinderWorktreeFailure: LocalizedError {
+    case source, destination
+    public var errorDescription: String? {
+        switch self {
+        case .source: return "Select one working-tree root or bare repository for New Worktree."
+        case .destination: return "Choose an existing destination folder outside a working tree."
+        }
+    }
+}
+
 extension GitRepository {
+    public func validateFinderWorktreeSource(cancellation: OperationCancellation? = nil) throws -> URL {
+        try cancellation?.check()
+        guard root.isFileURL,root.path.hasPrefix("/"),root.path != "/",!root.path.contains("\0"),
+              !root.pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}),
+              !root.resolvingSymlinksInPath().pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}),
+              (try? root.resourceValues(forKeys:[.isDirectoryKey]).isDirectory) == true else {throw FinderWorktreeFailure.source}
+        let discovered = try discoverRoot(cancellation:cancellation)
+        guard GitReferenceName.equal(discovered.resolvingSymlinksInPath().standardizedFileURL.path,root.resolvingSymlinksInPath().standardizedFileURL.path) else {throw FinderWorktreeFailure.source}
+        try cancellation?.check()
+        return discovered
+    }
+    public func finderWorktreeDestination(parent: URL,cancellation: OperationCancellation? = nil) async throws -> URL {
+        try cancellation?.check()
+        guard parent.isFileURL,parent.path.hasPrefix("/"),!parent.path.contains("\0"),
+              !parent.pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}),
+              !parent.resolvingSymlinksInPath().pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}),
+              (try? parent.resourceValues(forKeys:[.isDirectoryKey]).isDirectory) == true else {throw FinderWorktreeFailure.destination}
+        let probe = GitRepository(root:parent,executable:executable)
+        let arguments = ["rev-parse","--is-inside-work-tree"]
+        let result = try await probe.run(arguments,environmentOverrides:["LC_ALL":"C","GIT_OPTIONAL_LOCKS":"0"],successfulExitCodes:0...128,cancellation:cancellation)
+        if result.exitCode == 0 {
+            guard String(decoding:result.stdout,as:UTF8.self).trimmingCharacters(in:.newlines) == "false" else {throw FinderWorktreeFailure.destination}
+        } else {
+            // A non-repository parent is the normal case. Permission, corrupt
+            // metadata, dubious-ownership and engine failures are not that case.
+            let diagnostic = String(decoding:result.stderr,as:UTF8.self)
+            let absent = diagnostic.hasPrefix("fatal: not a git repository (or any of the parent directories): .git") ||
+                diagnostic.hasPrefix("fatal: not a git repository (or any parent up to mount point ")
+            guard result.exitCode == 128,absent else {
+                throw GitFailure(arguments:arguments,code:result.exitCode,message:result.text,standardError:result.stderr)
+            }
+        }
+        try cancellation?.check()
+        return try WorktreeCreationOptions.dropDestination(repository:root,target:parent)
+    }
     public func worktrees(cancellation: OperationCancellation? = nil) throws -> [GitWorktree] {
         GitWorktree.parse(try run(["worktree", "list", "--porcelain", "-z"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation:cancellation).stdout)
     }
