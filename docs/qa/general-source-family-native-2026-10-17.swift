@@ -74,19 +74,19 @@ import TurtleGitCore
         model.presentPanel={_,_,reply in replies.append(reply)};model.selectedURL={_ in selected};model.bookmark={_ in bookmarks += 1;return Data("private Git grant".utf8)}
         model.browse();model.browse()
         try require(replies.count==1 && model.selecting && GeneralGitSettingsModel.activeDialogs==1 && model.validationError != nil && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Browse duplicate/modal ownership missing")
-        model.draft.extraPath="/tmp";replies[0](.OK);try require(bookmarks==0 && model.draft.extraPath=="/tmp","Browse overwrote changed engine context")
-        selected=root;model.browse();replies[1](.OK);try require(bookmarks==0 && model.error != nil,"Directory bookmarked as Git executable")
-        selected=git;model.browse();replies[2](.OK);replies[2](.OK);try require(bookmarks==1 && model.draft.path==git.path && model.draft.extraPath=="/tmp" && !model.selecting && model.error==nil,"Browse adoption repeated or lost Extra PATH")
-        model.browse();model.suspend();model.activate();replies[3](.OK);try require(bookmarks==1 && GeneralGitSettingsModel.activeDialogs==0,"Retired Browse accepted late bookmark")
+        model.draft.extraPath="/tmp";replies[0](.OK);try await wait {GeneralGitSettingsModel.activeDialogs==0};try require(bookmarks==0 && model.draft.extraPath=="/tmp","Browse overwrote changed engine context")
+        selected=root;model.browse();replies[1](.OK);try await wait {GeneralGitSettingsModel.activeDialogs==0};try require(bookmarks==0 && model.error != nil,"Directory bookmarked as Git executable")
+        selected=git;model.browse();replies[2](.OK);replies[2](.OK);try await wait {GeneralGitSettingsModel.activeDialogs==0};try require(bookmarks==1 && model.draft.path==git.path && model.draft.extraPath=="/tmp" && !model.selecting && model.error==nil,"Browse adoption repeated or lost Extra PATH")
+        model.browse();model.suspend();model.activate();replies[3](.OK);try await wait {GeneralGitSettingsModel.activeDialogs==0 && model.canEditPage};try require(bookmarks==1 && GeneralGitSettingsModel.activeDialogs==0,"Retired Browse accepted late bookmark")
         var questions:[NSAlert]=[],answers:[(NSApplication.ModalResponse)->Void]=[],disabled=0
         model.presentUpdateQuestion={alert,_,reply in questions.append(alert);answers.append(reply)}
         model.confirmDisableUpdates {disabled += 1};model.confirmDisableUpdates {disabled += 1}
         try require(answers.count==1 && GeneralGitSettingsModel.activeDialogs==1 && questions[0].buttons[1].keyEquivalent=="\r" && questions[0].buttons[0].keyEquivalent.isEmpty,"Update question duplicated or changed Abort default")
-        answers[0](.alertSecondButtonReturn);try require(disabled==0 && !model.confirmingUpdates,"Abort disabled updates")
-        model.confirmDisableUpdates {disabled += 1};answers[1](.alertFirstButtonReturn);answers[1](.alertFirstButtonReturn);try require(disabled==1,"Update confirmation repeated")
-        model.confirmDisableUpdates {disabled += 1};model.suspend();model.activate();answers[2](.alertFirstButtonReturn);try require(disabled==1 && GeneralGitSettingsModel.activeDialogs==0,"Retired update reply changed reopened page")
+        answers[0](.alertSecondButtonReturn);try await wait {GeneralGitSettingsModel.activeDialogs==0};try require(disabled==0 && !model.confirmingUpdates,"Abort disabled updates")
+        model.confirmDisableUpdates {disabled += 1};answers[1](.alertFirstButtonReturn);answers[1](.alertFirstButtonReturn);try await wait {GeneralGitSettingsModel.activeDialogs==0};try require(disabled==1,"Update confirmation repeated")
+        model.confirmDisableUpdates {disabled += 1};model.suspend();model.activate();answers[2](.alertFirstButtonReturn);try await wait {GeneralGitSettingsModel.activeDialogs==0 && model.canEditPage};try require(disabled==1 && GeneralGitSettingsModel.activeDialogs==0,"Retired update reply changed reopened page")
         // Actual window close retires the owner even with an injected unattached panel.
-        model.browse();window.close();replies[4](.OK);try require(bookmarks==1 && GeneralGitSettingsModel.activeDialogs==0 && !model.canEditPage,"Closed owner accepted executable")
+        model.browse();window.close();replies[4](.OK);try await wait {GeneralGitSettingsModel.activeDialogs==0};try require(bookmarks==1 && GeneralGitSettingsModel.activeDialogs==0 && !model.canEditPage,"Closed owner accepted executable")
         let pageWindow=NSWindow(contentRect:NSRect(x:0,y:0,width:820,height:700),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false);pageWindow.isReleasedWhenClosed=false;pageWindow.alphaValue=0;pageWindow.title="General – Settings – TurtleGit"
         let transaction=SettingsTransaction(),appearance=SettingsAppearanceDraft(appearance:AppAppearance(preferences:prefs))
         model.draft=accepted;model.error=nil

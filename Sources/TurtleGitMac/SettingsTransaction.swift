@@ -11,6 +11,7 @@ import AppKit
         let cancel: () -> Void
     }
     private(set) static var activeApplications = 0
+    private(set) static var activeRetirements = 0
     private var participants: [String: Participant] = [:]
     private var order: [String] = []
     private var registrations: [String: UUID] = [:]
@@ -28,7 +29,7 @@ import AppKit
         participants[id] = participant; registrations[id] = registration; notify()
     }
     func unregister(_ id: String) { participants.removeValue(forKey: id); registrations.removeValue(forKey: id); order.removeAll { $0 == id }; notify() }
-    func notify() { objectWillChange.send(); changed() }
+    func notify() { guard !invalidated else { return }; objectWillChange.send(); changed() }
     func apply(closeAfter: Bool) {
         guard !invalidated, !busy else { return }
         busy = true; error = nil; Self.activeApplications += 1; notify()
@@ -66,15 +67,23 @@ import AppKit
         }
     }
     func cancel() {
-        guard !busy else { return }
+        guard !invalidated, !busy else { return }
         for id in order { participants[id]?.cancel() }; error = nil; notify()
     }
     func invalidate() {
+        guard !invalidated else { return }
         invalidated = true; changed = {}; failed = { _ in }; completed = { _ in }
-        if !busy { cancelDrafts() }
+        // This transaction and its cached pages are terminal. Their discard
+        // callbacks can publish, so keep them out of SwiftUI graph destruction.
+        let cancellations = busy ? [] : order.compactMap { participants[$0]?.cancel }
         participants.removeAll(); registrations.removeAll(); order.removeAll()
+        guard !cancellations.isEmpty else { return }
+        Self.activeRetirements += 1
+        DispatchQueue.main.async {
+            defer { Self.activeRetirements -= 1 }
+            for cancel in cancellations { cancel() }
+        }
     }
-    private func cancelDrafts() { for id in order { participants[id]?.cancel() } }
 }
 private struct SettingsTransactionKey: EnvironmentKey { static let defaultValue: SettingsTransaction? = nil }
 extension EnvironmentValues {

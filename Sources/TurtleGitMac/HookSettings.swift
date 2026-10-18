@@ -21,6 +21,7 @@ import TurtleGitCore
 
 @MainActor final class HookSettingsModel: ObservableObject {
     private(set) static var activeSaves = 0
+    private(set) static var activeReads = 0
     @Published var hooks:[ClientHook] = []
     @Published var selection = Set<String>()
     @Published private(set) var busy = false
@@ -32,22 +33,30 @@ import TurtleGitCore
     private var repository:GitRepository?, access:RepositoryAccessLease?
     private(set) var localAvailable = false
     private var invalidated = false, generation = UUID()
+    private var live=true,saving=false
+    private var attachment:UUID?
+    private var editorGeneration=UUID()
+    @Published private var active=true
     private var cancellation:OperationCancellation?
     private var editor:HookConfigurationController?
     weak var window:NSWindow?
     init(preferences:UserDefaults = .standard) { self.preferences = preferences }
     var modified:Bool { loaded && hooks != saved }
-    var editable:Bool { loaded && !busy && !hasEditor && !invalidated }
+    var editable:Bool { loaded && live && !busy && !hasEditor && !invalidated }
     var selected:[ClientHook] { hooks.filter { selection.contains($0.id) } }
     var validationError:String? {
         do { try ClientHookConfiguration.validate(hooks); return nil } catch { return error.localizedDescription }
     }
     func activate(repository:GitRepository?,access:RepositoryAccessLease?) {
-        guard !invalidated, !busy else { return }
+        guard !invalidated else{return};live=true
+        let epoch=editorGeneration
+        DispatchQueue.main.async { [weak self] in guard let self,self.live,self.editorGeneration==epoch else{return};self.active=true }
+        guard !busy || cancellation?.isCancelled == true else{return}
         if loaded { return }
         self.repository = repository; self.access = access
-        let request = UUID(), token = OperationCancellation(); generation = request; cancellation = token; busy = true
-        Task {
+        let request = UUID(), token = OperationCancellation(); generation = request; cancellation = token; busy = true;Self.activeReads += 1
+        Task { [self,access] in
+            defer {Self.activeReads -= 1;withExtendedLifetime(access) {}}
             defer { if generation == request { busy = false; cancellation = nil } }
             do {
                 var values = ClientHookPreferences.globals(preferences), local = false
@@ -67,8 +76,8 @@ import TurtleGitCore
         guard loaded, !busy, !hasEditor, !invalidated else { return false }
         if let validationError { error = validationError; return false }
         let snapshot = hooks, prior = saved, repository = repository, access = access, request = generation
-        let token = OperationCancellation(); cancellation = token; busy = true; Self.activeSaves += 1
-        defer { Self.activeSaves -= 1; busy = false; cancellation = nil; withExtendedLifetime(access) {} }
+        let token = OperationCancellation(); cancellation = token; busy = true;saving=true; Self.activeSaves += 1
+        defer { Self.activeSaves -= 1;saving=false; busy = false; cancellation = nil; withExtendedLifetime(access) {} }
         do {
             let globals = try ClientHookConfiguration.serialize(snapshot)
             if snapshot.filter(\.local) != prior.filter(\.local) {
@@ -88,8 +97,25 @@ import TurtleGitCore
         } catch { if !invalidated, generation == request { self.error = error.localizedDescription }; return false }
     }
     func cancel() { guard !busy else { return }; closeEditor(); hooks = saved; selection = []; error = nil }
-    func invalidate() { invalidated = true; generation = UUID(); cancellation?.cancel(); closeEditor() }
-    func suspend() { closeEditor() }
+    func invalidate() {invalidated=true;suspend()}
+    func suspend() {
+        live=false;editorGeneration=UUID();let epoch=editorGeneration
+        if !saving || invalidated {generation=UUID();cancellation?.cancel()}
+        closeEditor()
+        DispatchQueue.main.async { [weak self] in
+            guard let self,!self.live,self.editorGeneration==epoch else{return}
+            self.active=false;if !self.saving {self.busy=false}
+        }
+    }
+    func attach(to owner:NSWindow?,attachment receipt:UUID) {
+        guard !invalidated else{return}
+        guard let owner else{detach(attachment:receipt);return}
+        guard attachment != receipt || window !== owner else{return}
+        attachment=receipt;window=owner;editorGeneration=UUID();live=true
+        let epoch=editorGeneration
+        DispatchQueue.main.async { [weak self] in guard let self,self.live,self.editorGeneration==epoch else{return};self.active=true }
+    }
+    func detach(attachment receipt:UUID) {guard attachment==receipt else{return};attachment=nil;suspend()}
     func setEnabled(_ id:String,_ enabled:Bool) { guard editable, let index = hooks.firstIndex(where:{ $0.id == id }) else { return }; hooks[index].enabled = enabled }
     func remove() { guard editable else { return }; hooks.removeAll { selection.contains($0.id) }; selection = [] }
     func configure(copy:Bool = false,add:Bool = false) {
@@ -97,21 +123,21 @@ import TurtleGitCore
         let original = add ? nil : selected.first
         let draft = original ?? ClientHook(path:repository?.root.path ?? "*")
         let controller = HookConfigurationController(hook:draft,repositoryRoot:localAvailable ? repository?.root:nil,preferences:preferences)
-        let request = generation
+        let request = editorGeneration
         editor = controller; hasEditor = true
-        controller.completed = { [weak self,weak controller] value in
-            guard let self, let controller, self.editor === controller else { return }
-            if let sheet = controller.window { self.window?.endSheet(sheet) }
-            self.editor = nil; self.hasEditor = false
-            guard !self.invalidated, self.generation == request, let value else { return }
-            if !copy, let original { self.hooks.removeAll { $0.id == original.id } }
-            // Source Add/Edit overwrite an existing map key.
-            self.hooks.removeAll { $0.id == value.id }; self.hooks.append(value)
-            self.hooks = ClientHookConfiguration.sorted(self.hooks); self.selection = [value.id]
+        controller.completed = { [self,weak controller] value in
+            guard let controller else{return}
+            if editor === controller {editor=nil}
+            if editor == nil {hasEditor=false}
+            guard !invalidated,live,editorGeneration==request,let value else{return}
+            if !copy,let original {hooks.removeAll {$0.id==original.id}}
+            hooks.removeAll {$0.id==value.id};hooks.append(value)
+            hooks=ClientHookConfiguration.sorted(hooks);selection=[value.id]
         }
-        if let sheet = controller.window { window.beginSheet(sheet) }
+        if let sheet=controller.window {sheet.alphaValue=window.alphaValue;sheet.appearance=window.appearance;window.beginSheet(sheet,completionHandler:nil)}
     }
-    private func closeEditor() { let controller = editor; controller?.finish(nil); editor = nil; hasEditor = false }
+    private func closeEditor() {let controller=editor;editor=nil;controller?.finish(nil)}
+
 }
 
 @MainActor final class HookConfigurationDraft: ObservableObject {
@@ -123,6 +149,7 @@ import TurtleGitCore
 }
 
 @MainActor final class HookConfigurationController: NSWindowController, NSWindowDelegate {
+    static private(set) var activeReleases=0
     let draft:HookConfigurationDraft
     var completed:(ClientHook?) -> Void = { _ in }
     private var answered = false
@@ -140,14 +167,21 @@ import TurtleGitCore
     required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
     func accept() { guard !answered, panel == nil else { return }; if let error = draft.hook.validationError { draft.error = error; return }; finish(draft.hook) }
     func finish(_ value:ClientHook?) {
-        guard !answered else { return }; answered = true
-        if let panel { window?.endSheet(panel,returnCode:.cancel); panel.orderOut(nil) }; panel = nil
-        completed(value); window?.close()
+        guard !answered else{return};answered=true;Self.activeReleases += 1
+        let child=window,parent=window?.sheetParent,picker=panel,reply=completed
+        completed={_ in};panel=nil
+        Task { @MainActor [self] in
+            if let picker {picker.sheetParent?.endSheet(picker,returnCode:.cancel);picker.orderOut(nil)}
+            if let child {parent?.endSheet(child);child.orderOut(nil);child.close()}
+            while picker?.sheetParent != nil || child?.attachedSheet != nil || child?.sheetParent != nil || (child != nil && parent?.attachedSheet === child) {try? await Task.sleep(nanoseconds:10_000_000)}
+            Self.activeReleases -= 1;reply(value)
+            withExtendedLifetime(self) {}
+        }
     }
     func windowWillClose(_ notification:Notification) { finish(nil) }
     func browse(command:Bool) {
         guard !answered, panel == nil, let window, window.attachedSheet == nil else { return }
-        let chooser = NSOpenPanel(); chooser.canChooseDirectories = !command; chooser.canChooseFiles = command
+        let chooser = NSOpenPanel();chooser.alphaValue=window.alphaValue;chooser.appearance=window.appearance; chooser.canChooseDirectories = !command; chooser.canChooseFiles = command
         chooser.title = command ? "Select hook executable or script" : "Select working tree parent"; panel = chooser
         chooser.beginSheetModal(for:window) { [weak self] response in
             guard let self, self.panel === chooser, !self.answered else { return }; self.panel = nil
@@ -203,7 +237,7 @@ private struct HookConfigurationDialog: View {
         }.padding(16)
         .background(HookSettingsWindowCapture(model:model).frame(width:0,height:0))
         .onAppear { model.activate(repository:repository,access:access) }
-        .onDisappear { model.suspend() }
+
         .settingsParticipant("hooks",page:.hooks,value:model.hooks,modified:{model.modified},validate:{model.validationError},apply:model.apply,cancel:model.cancel)
     }
 }
@@ -211,11 +245,13 @@ private struct HookConfigurationDialog: View {
 private struct HookSettingsWindowCapture:NSViewRepresentable {
     let model:HookSettingsModel
     func makeNSView(context:Context) -> NSView { Capture(model:model) }
-    func updateNSView(_ view:NSView,context:Context) {}
+    func updateNSView(_ view:NSView,context:Context) {if let view=view as? Capture {model.attach(to:view.window,attachment:view.attachment)}}
+    static func dismantleNSView(_ view:NSView,coordinator:()) {guard let view=view as? Capture else{return};view.model?.detach(attachment:view.attachment);view.model=nil}
     final class Capture:NSView {
+        let attachment=UUID()
         weak var model:HookSettingsModel?
         init(model:HookSettingsModel) { self.model = model; super.init(frame:.zero) }
         required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.window = window }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.attach(to:window,attachment:attachment) }
     }
 }

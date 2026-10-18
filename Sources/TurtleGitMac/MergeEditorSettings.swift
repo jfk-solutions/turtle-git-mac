@@ -29,12 +29,19 @@ extension Notification.Name {
     @Published private(set) var profileError: String?
     @Published private(set) var error: String?
     @Published private(set) var active = true
-    @Published private(set) var revision = UUID()
+    @Published private(set) var revision = UUID() { didSet { contextRevision = UUID() } }
     private var retired = false
+    private var live = true
+    private var attachment: UUID?
+    private var lifecycle = UUID()
+    private var contextRevision = UUID()
+    private var profileIdentity: UUID?
+    private weak var profileWindow: NSWindow?
+    private var profileWindowIdentity: UUID?
     private(set) weak var window: NSWindow?
     private var ownerObserver: NSObjectProtocol?
     struct EditContext: Equatable { let owner: ObjectIdentifier; let revision: UUID }
-    var editContext: EditContext { .init(owner: ObjectIdentifier(self), revision: revision) }
+    var editContext: EditContext { .init(owner: ObjectIdentifier(self), revision: contextRevision) }
     struct ProfileSession: Identifiable { let id = UUID(); let original: Data; var text: String }
     @Published private(set) var profileSession: ProfileSession?
     var readProfiles: (URL) throws -> String = { try MergeCommentProfileFile.text(at: $0) }
@@ -43,21 +50,30 @@ extension Notification.Name {
         preferences = defaults; profileURL = commentProfileURL; restore()
     }
     deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
-    func attach(to owner: NSWindow?) {
+    func attach(to owner: NSWindow?, attachment receipt: UUID? = nil) {
         guard !retired else { return }
-        guard let owner else { setActive(false); return }
-        guard window !== owner else { return }
-        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }
-        window = owner; revision = UUID(); setActive(true)
-        ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { guard let self else { return }; self.cancelProfiles(); self.active = false; self.retired = true; self.revision = UUID() }
+        guard let owner else { if let receipt { detach(attachment:receipt) } else { setActive(false) }; return }
+        guard window !== owner || !live || (receipt != nil && attachment != receipt) else { return }
+        if let receipt {attachment=receipt}
+        if window !== owner {
+            if let ownerObserver {NotificationCenter.default.removeObserver(ownerObserver)}
+            window=owner
+            ownerObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:owner,queue:.main) { [weak self] _ in
+                MainActor.assumeIsolated {guard let self else{return};self.retired=true;self.setActive(false)}
+            }
+        }
+        setActive(true, force: true)
+    }
+    func detach(attachment receipt:UUID) {guard attachment==receipt else{return};attachment=nil;setActive(false)}
+    func setActive(_ value: Bool, force: Bool = false) {
+        guard (!retired || !value), (live != value || force) else {return}
+        live=value;lifecycle=UUID();contextRevision=UUID();let generation=lifecycle
+        if !value {cancelProfiles()}
+        DispatchQueue.main.async { [weak self] in
+            guard let self,self.lifecycle==generation else{return};self.active=value;self.revision=UUID()
         }
     }
-    func setActive(_ value: Bool) {
-        guard !retired, active != value else { return }; active = value; revision = UUID()
-        if !value { cancelProfiles() }
-    }
-    private func accepts(_ context: EditContext) -> Bool { !retired && active && profileSession == nil && context == editContext }
+    private func accepts(_ context: EditContext) -> Bool { !retired && live && profileIdentity == nil && profileSession == nil && context == editContext }
     func binding<Value>(_ key: ReferenceWritableKeyPath<MergeEditorSettingsModel, Value>) -> Binding<Value> {
         let context = editContext
         return Binding(get: { self[keyPath: key] }, set: { if self.accepts(context) { self[keyPath: key] = $0 } })
@@ -92,11 +108,11 @@ extension Notification.Name {
     }
     func openProfiles(context: EditContext) {
         guard accepts(context), profileError == nil, let window, window.attachedSheet == nil else { return }
-        profileSession = .init(original: Data(profileText.utf8), text: profileText); revision = UUID(); Self.activeProfileEditors += 1
+        profileSession = .init(original: Data(profileText.utf8), text: profileText); profileIdentity = profileSession?.id; revision = UUID(); Self.activeProfileEditors += 1
     }
     func profileBinding(_ session: ProfileSession) -> Binding<String> {
         Binding(get: { self.profileSession?.id == session.id ? self.profileSession!.text : session.text }, set: {
-            guard !self.retired, self.active, self.profileSession?.id == session.id else { return }; self.profileSession?.text = $0
+            guard !self.retired, self.live, self.profileIdentity == session.id, self.profileSession?.id == session.id else { return }; self.profileSession?.text = $0
         })
     }
     var sheetValidationError: String? {
@@ -104,13 +120,25 @@ extension Notification.Name {
         if session.original != Data(profileText.utf8) { return "The profile draft changed. Cancel and reopen Comment Profiles." }
         do { try MergeCommentProfileFile.validate(session.text); return nil } catch { return error.localizedDescription }
     }
-    func restoreProfiles(_ session: ProfileSession) { guard !retired, active, profileSession?.id == session.id else { return }; profileSession?.text = MergeCommentProfiles.bundledText() }
+    func restoreProfiles(_ session: ProfileSession) { guard !retired, live, profileIdentity == session.id, profileSession?.id == session.id else { return }; profileSession?.text = MergeCommentProfiles.bundledText() }
     func cancelProfiles(_ session: ProfileSession? = nil) {
-        guard let current = profileSession, session == nil || current.id == session?.id else { return }
-        profileSession = nil; Self.activeProfileEditors -= 1; revision = UUID()
+        guard let identity=profileIdentity,let current=profileSession,identity==current.id,session == nil || current.id == session?.id else{return}
+        profileIdentity=nil;contextRevision=UUID()
+        let parent=window,child=profileWindowIdentity==identity ? profileWindow : nil
+        Task { @MainActor [self] in
+            // Publication happens after SwiftUI has left its dismantle transaction.
+            if profileSession?.id==identity {profileSession=nil;revision=UUID()}
+            if let child,child.sheetParent === parent {parent?.endSheet(child,returnCode:.cancel);child.orderOut(nil)}
+            await Task.yield()
+            while child?.sheetParent != nil || (child != nil && parent?.attachedSheet === child) {try? await Task.sleep(nanoseconds:10_000_000)}
+            Self.activeProfileEditors -= 1
+        }
+    }
+    func attachProfileWindow(_ owner:NSWindow?, session:UUID) {
+        guard profileIdentity==session,let owner else{return};profileWindow=owner;profileWindowIdentity=session
     }
     func acceptProfiles(_ session: ProfileSession) {
-        guard !retired, active, profileSession?.id == session.id, sheetValidationError == nil else { return }
+        guard !retired, live, profileIdentity == session.id, profileSession?.id == session.id, sheetValidationError == nil else { return }
         profileText = profileSession!.text; cancelProfiles(session)
     }
     func reloadProfiles(context: EditContext) {
@@ -240,7 +268,7 @@ extension Notification.Name {
             } }
         }.padding(20).disabled(!model.active || model.profileSession != nil)
         .background(MergeEditorOwnerProbe(model: model).frame(width: 0, height: 0))
-        .onAppear { model.setActive(true) }.onDisappear { model.setActive(false) }
+        .onAppear { model.setActive(true) }
         .sheet(item: Binding(get: { model.profileSession }, set: { if $0 == nil { model.cancelProfiles() } })) { session in
             VStack(alignment: .leading, spacing: 12) {
                 Text("Comment Profiles").font(.headline)
@@ -255,19 +283,33 @@ extension Notification.Name {
                     Button("OK") { model.acceptProfiles(session) }.keyboardShortcut(.defaultAction).disabled(model.sheetValidationError != nil)
                 }
             }.padding(20).frame(width: 740, height: 480).environment(\.isEnabled, model.active)
+                .background(MergeProfileOwnerProbe(model:model,session:session.id).frame(width:0,height:0))
         }
         .settingsParticipant("mergeEditor", page: .mergeEditor, value: model.state,
             modified: { model.changed }, validate: { model.validationError }, apply: { model.apply() }, cancel: { model.restore() })
     }
 }
+private struct MergeProfileOwnerProbe:NSViewRepresentable {
+    let model:MergeEditorSettingsModel
+    let session:UUID
+    func makeNSView(context:Context)->Probe {let view=Probe();view.model=model;view.session=session;return view}
+    func updateNSView(_ view:Probe,context:Context) {model.attachProfileWindow(view.window,session:session)}
+    static func dismantleNSView(_ view:Probe,coordinator:()) {view.model=nil}
+    final class Probe:NSView {
+        weak var model:MergeEditorSettingsModel?
+        var session=UUID()
+        override func viewDidMoveToWindow() {super.viewDidMoveToWindow();model?.attachProfileWindow(window,session:session)}
+    }
+}
 private struct MergeEditorOwnerProbe: NSViewRepresentable {
     let model: MergeEditorSettingsModel
     func makeNSView(context: Context) -> Probe { let view = Probe(); view.model = model; return view }
-    func updateNSView(_ view: Probe, context: Context) { model.attach(to: view.window) }
-    static func dismantleNSView(_ view: Probe, coordinator: ()) { view.model?.attach(to: nil); view.model = nil }
+    func updateNSView(_ view: Probe, context: Context) { model.attach(to: view.window, attachment: view.attachment) }
+    static func dismantleNSView(_ view: Probe, coordinator: ()) { view.model?.detach(attachment: view.attachment); view.model = nil }
     final class Probe: NSView {
+        let attachment=UUID()
         weak var model: MergeEditorSettingsModel?
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.attach(to: window) }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.attach(to: window, attachment: attachment) }
     }
 }
 
@@ -277,8 +319,12 @@ private struct MergeEditorOwnerProbe: NSViewRepresentable {
     @Published private(set) var draft: MergeColorPreferences
     @Published var dark: Bool { didSet { if oldValue != dark { editRevision = UUID() } } }
     @Published private(set) var active = true
-    @Published private(set) var editRevision = UUID()
+    @Published private(set) var editRevision = UUID() { didSet {contextRevision=UUID()} }
     private var retired = false
+    private var live = true
+    private var attachment:UUID?
+    private var lifecycle=UUID()
+    private var contextRevision=UUID()
     private weak var ownerWindow: NSWindow?
     private var ownerObserver: NSObjectProtocol?
     struct EditContext: Equatable {
@@ -287,18 +333,29 @@ private struct MergeEditorOwnerProbe: NSViewRepresentable {
         let dark: Bool
         var identity: String { revision.uuidString + (dark ? ".dark" : ".light") }
     }
-    var editContext: EditContext { .init(owner: ObjectIdentifier(self), revision: editRevision, dark: dark) }
-    func accepts(_ context: EditContext) -> Bool { !retired && active && context == editContext }
-    func setActive(_ value: Bool) { guard !retired, active != value else { return }; active = value; editRevision = UUID() }
-    func attach(to window: NSWindow?) {
-        guard !retired, ownerWindow !== window else { return }
-        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }; ownerObserver = nil
-        ownerWindow = window; editRevision = UUID(); setActive(window != nil)
-        if let window {
-            ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { guard let self else { return }; self.active = false; self.retired = true; self.editRevision = UUID() }
+    var editContext: EditContext { .init(owner: ObjectIdentifier(self), revision: contextRevision, dark: dark) }
+    func accepts(_ context: EditContext) -> Bool { !retired && live && context == editContext }
+    func setActive(_ value:Bool, force:Bool = false) {
+        guard (!retired || !value),(live != value || force) else{return}
+        live=value;lifecycle=UUID();contextRevision=UUID();let generation=lifecycle
+        DispatchQueue.main.async { [weak self] in
+            guard let self,self.lifecycle==generation else{return};self.active=value;self.editRevision=UUID()
+        }
+    }
+    func detach(attachment receipt:UUID) {guard attachment==receipt else{return};attachment=nil;setActive(false)}
+    func attach(to window:NSWindow?,attachment receipt:UUID? = nil) {
+        guard !retired else{return}
+        guard let window else {if let receipt {detach(attachment:receipt)} else {setActive(false)};return}
+        guard ownerWindow !== window || !live || (receipt != nil && attachment != receipt) else{return}
+        if let receipt {attachment=receipt}
+        if ownerWindow !== window {
+            if let ownerObserver {NotificationCenter.default.removeObserver(ownerObserver)}
+            ownerWindow=window
+            ownerObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in
+                MainActor.assumeIsolated {guard let self else{return};self.retired=true;self.setActive(false)}
             }
         }
+        setActive(true, force:true)
     }
     deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
     func selectPalette(_ value: Bool, context: EditContext) { guard accepts(context) else { return }; dark = value }
@@ -374,7 +431,7 @@ private struct MergeEditorOwnerProbe: NSViewRepresentable {
             if transaction == nil { HStack { Spacer(); Button("Cancel") { model.discard() }; Button("Apply") { _ = model.apply() }.disabled(!model.changed) } }
         }.padding(20).disabled(!model.active) }
         .background(MergeColorsOwnerProbe(model: model).frame(width: 0, height: 0))
-        .onAppear { model.setActive(true) }.onDisappear { model.setActive(false) }
+        .onAppear { model.setActive(true) }
         .settingsParticipant("mergeColors", page: .mergeColors, value: model.draft, modified: { model.changed }, apply: { model.apply() }, cancel: { model.discard() })
     }
 }
@@ -382,11 +439,12 @@ private struct MergeEditorOwnerProbe: NSViewRepresentable {
 private struct MergeColorsOwnerProbe: NSViewRepresentable {
     let model: MergeColorsSettingsModel
     func makeNSView(context: Context) -> Probe { let view = Probe(); view.model = model; return view }
-    func updateNSView(_ view: Probe, context: Context) { model.attach(to: view.window) }
-    static func dismantleNSView(_ view: Probe, coordinator: ()) { view.model?.attach(to: nil); view.model = nil }
+    func updateNSView(_ view: Probe, context: Context) { model.attach(to: view.window, attachment: view.attachment) }
+    static func dismantleNSView(_ view: Probe, coordinator: ()) { view.model?.detach(attachment: view.attachment); view.model = nil }
     final class Probe: NSView {
+        let attachment=UUID()
         weak var model: MergeColorsSettingsModel?
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.attach(to: window) }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.attach(to: window, attachment: attachment) }
     }
 }
 

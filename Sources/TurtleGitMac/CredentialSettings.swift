@@ -3,12 +3,13 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
-@MainActor final class CredentialSettingsModel: ObservableObject {
+@MainActor final class CredentialSettingsModel: ObservableObject, SettingsLifecyclePresenting {
     enum PendingChangesDecision { case save, discard, cancel }
     let settingsRegistration = UUID()
     static var activeSaves = 0
     static private(set) var activeReads = 0
     static private(set) var activeSelections=0
+    static private(set) var activeSheetReleases=0
     @Published private(set) var editorIdentity=UUID()
     private var selectionRequest:UUID?
     @Published private(set) var snapshot: GitCredentialSnapshot?
@@ -16,10 +17,10 @@ import TurtleGitCore
     @Published private(set) var helpers: [String] = []
     @Published private(set) var busy = false
     @Published var selected: String?
-    @Published var destination: GitConfigurationSource = .global { didSet { if oldValue != destination { editorIdentity = UUID() } } }
+    @Published var destination: GitConfigurationSource = .global { didSet { if oldValue != destination { advanceEditor() } } }
     @Published var draft = GitCredentialDraft()
     @Published var error: String?
-    @Published var mode = "advanced" { didSet { if oldValue != mode { editorIdentity = UUID() } } }
+    @Published var mode = "advanced" { didSet { if oldValue != mode { advanceEditor() } } }
     private var savedMode = "advanced"
     private var saved = GitCredentialDraft()
     @Published private var editedFields: GitCredentialFields = []
@@ -33,8 +34,12 @@ import TurtleGitCore
     var openPasswordManager: (() -> Bool)?
     private var generation = UUID()
     private var token: OperationCancellation?
-    @Published private var active = false
+    private var active = false
+    private var lifecycle=UUID()
+    private var editorReceipt=UUID()
+    private let attachments=SettingsLifecycleAttachments()
     private var saving = false
+    private var acceptedWrite:UUID?
     private var panel: NSOpenPanel?
     private var alert: NSAlert?
     private var reply: ((Bool) -> Void)?
@@ -75,55 +80,84 @@ import TurtleGitCore
     var canAdd: Bool { draft.fieldsValid && draft.helpers.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } && writable }
     var advancedValid: Bool { draft.fieldsValid && writable && (editsExistingOrigin || canAdd) }
     func editHelper(_ text:String,identity:UUID) {
-        guard canEditFields,editorIdentity==identity else {return}
+        guard canEditFields,editorIdentity==identity,editorReceipt==identity else {return}
         let helpers = text.isEmpty ? [] : [text]
         if helpers != draft.helpers { editedFields.insert(.helper) }; draft.helpers=helpers
     }
-    func editURL(_ text:String,identity:UUID) { guard canEditFields,editorIdentity==identity else {return};draft.url=text }
-    func editUsername(_ text:String,identity:UUID) { guard canEditFields,editorIdentity==identity else {return};if draft.username != text {editedFields.insert(.username)};draft.username=text }
-    func editHTTPPath(_ value:Bool,identity:UUID) { guard canEditFields,editorIdentity==identity else {return};if draft.useHTTPPath != value {editedFields.insert(.useHTTPPath)};draft.useHTTPPath=value }
-    func editDestination(_ value:GitConfigurationSource,identity:UUID) { guard canEditFields,editorIdentity==identity else {return};destination=value }
-    func editMode(_ value:String,identity:UUID) { guard active,!busy,snapshot != nil,editorIdentity==identity else {return};mode=value }
-    func activate() { active = true; if snapshot == nil { refresh() } }
+    func editURL(_ text:String,identity:UUID) { guard canEditFields,editorIdentity==identity,editorReceipt==identity else {return};draft.url=text }
+    func editUsername(_ text:String,identity:UUID) { guard canEditFields,editorIdentity==identity,editorReceipt==identity else {return};if draft.username != text {editedFields.insert(.username)};draft.username=text }
+    func editHTTPPath(_ value:Bool,identity:UUID) { guard canEditFields,editorIdentity==identity,editorReceipt==identity else {return};if draft.useHTTPPath != value {editedFields.insert(.useHTTPPath)};draft.useHTTPPath=value }
+    func editDestination(_ value:GitConfigurationSource,identity:UUID) { guard canEditFields,editorIdentity==identity,editorReceipt==identity else {return};destination=value }
+    func editMode(_ value:String,identity:UUID) { guard active,!busy,snapshot != nil,editorIdentity==identity,editorReceipt==identity else {return};mode=value }
+    private func advanceEditor() {editorReceipt=UUID();editorIdentity=editorReceipt}
+    var isActive:Bool {active}
+    func attachPresentation(_ owner:UUID) {window=attachments.claim(owner)}
+    func detachPresentation(_ owner:UUID) {if attachments.releaseOwner(owner) {window=nil;deactivate()}}
+    func attachProbe(owner:UUID,identity:UUID,window:NSWindow) {if attachments.attach(owner:owner,identity:identity,window:window) {self.window=window}}
+    func detachProbe(_ identity:UUID) {if attachments.releaseProbe(identity) {window=nil;deactivate()}}
+    func activate() {
+        lifecycle=UUID()
+        if !saving || acceptedWrite != generation {generation=UUID();token?.cancel();token=nil;selectionRequest=nil}
+        active=true;advanceEditor();if !saving {busy=false};if snapshot==nil {refresh()}
+    }
     func deactivate() {
-        active = false; generation = UUID(); token?.cancel(); token = nil;editorIdentity=UUID()
-        if selectionRequest != nil {selectionRequest=nil;Self.activeSelections -= 1}
-        if let panel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
-        if let alert { window?.endSheet(alert.window, returnCode: .abort) }; alert = nil
-        let reply = reply; self.reply = nil; reply?(false)
-        if !saving { busy = false }
+        active=false;lifecycle=UUID();generation=UUID();editorReceipt=UUID();token?.cancel();token=nil
+        let retirement=lifecycle,editor=editorReceipt
+        selectionRequest=nil
+        let panel=self.panel;self.panel=nil
+        let alert=self.alert;self.alert=nil
+        let reply=self.reply;self.reply=nil
+        let sheets=[panel,alert?.window].compactMap {$0}
+        let releasing = !sheets.isEmpty || reply != nil
+        if releasing {Self.activeSheetReleases += 1}
+        DispatchQueue.main.async { [self] in
+            SettingsLifecycleSheetDrain.close(sheets) { [self] in
+                reply?(false)
+                if releasing {Self.activeSheetReleases -= 1}
+                guard !active,lifecycle==retirement else {return}
+                editorIdentity=editor;if !saving {busy=false}
+            }
+        }
     }
     private func permission(_ file: URL) async -> Bool {
+        guard active else {return false}
         if let authorizeFile { return await authorizeFile(file) }
         if GitConfigurationPermissions.authorized(file) { return true }
         guard active, let window, window.attachedSheet == nil else { return false }
         let chooser = NSOpenPanel(); chooser.canChooseDirectories = true; chooser.canChooseFiles = false; chooser.canCreateDirectories = true
         chooser.directoryURL = file.deletingLastPathComponent(); chooser.message = "Authorize the folder containing " + file.path
         chooser.prompt = "Authorize"; chooser.alphaValue = window.alphaValue; chooser.appearance = window.appearance; panel = chooser
+        let request=generation,activation=lifecycle
         return await withCheckedContinuation { continuation in
             var answered = false
             let reply: (Bool) -> Void = { value in guard !answered else { return }; answered = true; continuation.resume(returning: value) }
             self.reply = reply
             chooser.beginSheetModal(for: window) { [weak self] response in
-                guard let self, self.panel === chooser else { reply(false); return }; self.panel = nil; self.reply = nil
-                guard response == .OK, self.active, let directory = chooser.url else { reply(false); return }
-                do { try GitConfigurationPermissions.remember(directory, for: file); reply(true) }
-                catch { self.error = error.localizedDescription; reply(false) }
+                guard let self,self.panel===chooser else {return};self.panel=nil;self.reply=nil
+                SettingsLifecycleSheetDrain.close([chooser]) { [weak self] in
+                    guard let self,self.active,self.generation==request,self.lifecycle==activation,response == .OK,let directory=chooser.url else {reply(false);return}
+                    do {try GitConfigurationPermissions.remember(directory,for:file);reply(true)}
+                    catch {self.error=error.localizedDescription;reply(false)}
+                }
             }
         }
     }
     private func confirm(_ title: String, detail: String, action: String) async -> Bool {
+        guard active else {return false}
         if let confirmAction { return await confirmAction(title, detail, action) }
         guard active, let window, window.attachedSheet == nil else { return false }
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = detail
         alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: action); alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.appearance; self.alert = alert
+        let request=generation,activation=lifecycle
         return await withCheckedContinuation { continuation in
             var answered = false
             let reply: (Bool) -> Void = { value in guard !answered else { return }; answered = true; continuation.resume(returning: value) }
             self.reply = reply
             alert.beginSheetModal(for: window) { [weak self] response in
-                guard let self, self.alert === alert else { reply(false); return }; self.alert = nil; self.reply = nil
-                reply(response == .alertSecondButtonReturn && self.active)
+                guard let self,self.alert===alert else {return};self.alert=nil;self.reply=nil
+                SettingsLifecycleSheetDrain.close([alert.window]) { [weak self] in
+                    reply(response == .alertSecondButtonReturn && self?.active == true && self?.generation==request && self?.lifecycle==activation)
+                }
             }
         }
     }
@@ -183,13 +217,14 @@ import TurtleGitCore
         selected = group.id
         destination = group.scope == "local" || group.scope == "worktree" ? .local : group.scope == "system" ? .system : .global
         var draft = GitCredentialDraft(); draft.url = group.url; draft.helpers = group.helpers; draft.username = group.username; draft.useHTTPPath = group.useHTTPPath
-        self.draft = draft; saved = draft; savedDestination = destination;editedFields=[];editorIdentity=UUID()
+        self.draft = draft; saved = draft; savedDestination = destination;editedFields=[];advanceEditor()
     }
     private func clearDraft(resetDestination:Bool = false) {
         if resetDestination {destination=localAvailable ? .local:.global}
-        selected=nil;draft=GitCredentialDraft();saved=draft;savedDestination=destination;editedFields=[];editorIdentity=UUID()
+        selected=nil;draft=GitCredentialDraft();saved=draft;savedDestination=destination;editedFields=[];advanceEditor()
     }
     private func pendingChangesDecision() async -> PendingChangesDecision {
+        guard active else {return .cancel}
         if let choosePendingChanges { return await choosePendingChanges() }
         // Keep the older binary confirmation seam for existing receivers. Real
         // presentation and new callers use the source Save/Discard decision.
@@ -204,31 +239,36 @@ import TurtleGitCore
         question.buttons[2].keyEquivalent = "\u{1b}"
         question.window.alphaValue = window.alphaValue; question.window.appearance = window.appearance
         self.alert = question
+        let request=generation,activation=lifecycle
         var decision: PendingChangesDecision = .cancel
         let accepted = await withCheckedContinuation { continuation in
             var answered = false
             let reply: (Bool) -> Void = { value in guard !answered else { return }; answered = true; continuation.resume(returning: value) }
             self.reply = reply
             question.beginSheetModal(for: window) { [weak self] response in
-                guard let self, self.alert === question else { reply(false); return }
+                guard let self,self.alert===question else {return}
                 self.alert = nil; self.reply = nil
                 if response == .alertFirstButtonReturn { decision = .save }
                 else if response == .alertSecondButtonReturn { decision = .discard }
-                reply(self.active)
+                SettingsLifecycleSheetDrain.close([question.window]) { [weak self] in
+                    reply(self?.active == true && self?.generation==request && self?.lifecycle==activation)
+                }
             }
         }
         return accepted ? decision : .cancel
     }
     func select(_ id: String?, identity: UUID? = nil) {
-        guard identity == nil || identity == editorIdentity else { return }
+        guard identity == nil || identity == editorIdentity && identity == editorReceipt else { return }
         guard canEditFields,id == nil || id != selected,id == nil || snapshot?.groups.contains(where:{$0.id==id}) == true else {return}
         let request=generation,choice=UUID();selectionRequest=choice;Self.activeSelections += 1
         busy=true
         Task { [self,access] in
             defer {
                 withExtendedLifetime(access) {}
-                if selectionRequest==choice {selectionRequest=nil;Self.activeSelections -= 1;if generation==request {busy=false}}
+                Self.activeSelections -= 1
+                if selectionRequest==choice {selectionRequest=nil;if generation==request {busy=false}}
             }
+            guard active,generation==request,selectionRequest==choice else {return}
             if draft != saved || destination != savedDestination || !editedFields.isEmpty {
                 let decision = await pendingChangesDecision()
                 guard active, generation == request, selectionRequest == choice else { return }
@@ -247,19 +287,21 @@ import TurtleGitCore
             } else {clearDraft()}
         }
     }
-    func cancelDraft() { guard !busy else { return }; draft = saved; destination = savedDestination; mode = savedMode;editedFields=[];editorIdentity=UUID() }
+    func cancelDraft() { guard !busy else { return }; draft = saved; destination = savedDestination; mode = savedMode;editedFields=[];advanceEditor() }
     func save(identity: UUID? = nil) {
-        guard identity == nil || identity == editorIdentity else { return }
+        guard identity == nil || identity == editorIdentity && identity == editorReceipt else { return }
         let captured = editorIdentity
-        Task { guard captured == editorIdentity else { return }; _ = await saveAdvanced() }
+        Task { guard active,captured == editorIdentity,captured == editorReceipt else { return }; _ = await saveAdvanced() }
     }
     func saveAdvanced() async -> Bool {
         guard mode == "advanced" else { return await apply() }
         return await persistAdvanced(explicit: true)
     }
     func applyForSettings(owner: NSWindow?) async -> Bool {
-        let wasActive = active, request = generation; active = true; if window == nil { window = owner }
-        defer { if generation == request { active = wasActive } }; return await apply()
+        let wasActive=active,request=generation,activation=lifecycle;active=true
+        if !wasActive {advanceEditor()}
+        if window == nil {window=owner}
+        defer {if generation==request,lifecycle==activation {active=wasActive}};return await apply()
     }
     func apply() async -> Bool {
         if mode != "advanced" { return await applySimple() }
@@ -282,8 +324,8 @@ import TurtleGitCore
             if !value.useHTTPPath { fields.remove(.useHTTPPath) }
         }
         busy = true; saving = true; Self.activeSaves += 1
-        defer { if !selectionOwned || generation != request { busy = false }; saving = false; Self.activeSaves -= 1 }
-        func current() -> Bool { active && generation == request && editorIdentity == identity }
+        defer { if !selectionOwned || generation != request {busy=false}; saving = false;acceptedWrite=nil; Self.activeSaves -= 1 }
+        func current() -> Bool {active && generation==request && (acceptedWrite==request || editorIdentity==identity && editorReceipt==identity)}
         do {
             try checkAccess()
             if explicit, existing != nil {
@@ -291,6 +333,7 @@ import TurtleGitCore
             }
             guard current() else { return false }
             guard await permission(file), current() else { return false }
+            acceptedWrite=request
             if let writeCredentialFields { try await writeCredentialFields(value, file, expected, fields) }
             else if let writeCredential { try await writeCredential(value, file, expected) }
             else { try await repository.saveCredential(value, file: file, expected: expected, fields: fields) }
@@ -311,7 +354,7 @@ import TurtleGitCore
         let helper = mode == "none" ? nil : parts.last
         let file = parts.first == "local" ? files?.local : parts.first == "system" ? files?.system : files?.global
         busy = true; saving = true; Self.activeSaves += 1
-        defer { busy = false; saving = false; Self.activeSaves -= 1 }
+        defer {busy=false;saving=false;acceptedWrite=nil;Self.activeSaves -= 1}
         do {
             try checkAccess()
             if !snapshot.entries.isEmpty {
@@ -320,6 +363,7 @@ import TurtleGitCore
             guard active, generation == request else { return false }
             var files = snapshot.groups.compactMap(\.file); if let file, helper != nil { files.append(file) }
             for file in Set(files) { guard await permission(file), active, generation == request else { return false } }
+            acceptedWrite=request
             try await repository.simplifyCredentials(expected: snapshot, helper: helper, file: file)
             guard active, generation == request else { return true }
             let result = try await read()
@@ -328,16 +372,16 @@ import TurtleGitCore
         } catch { if active, generation == request { self.error = error.localizedDescription }; return false }
     }
     func remove(identity: UUID? = nil) {
-        guard identity == nil || identity == editorIdentity else { return }
+        guard identity == nil || identity == editorIdentity && identity == editorReceipt else { return }
         guard active, !busy, let group, let file = group.file else { return }
         let request = generation
         busy = true; saving = true; Self.activeSaves += 1
         Task {
-            defer { busy = false; saving = false; Self.activeSaves -= 1 }
+            defer {busy=false;saving=false;acceptedWrite=nil;Self.activeSaves -= 1}
             do {
                 guard await confirm("Remove this credential configuration?", detail: "Remove \(group.url.isEmpty ? "default credentials" : group.url) from \(file.path). Stored passwords in Keychain remain available.", action: "Remove"), active, generation == request else { return }
                 guard await permission(file), active, generation == request else { return }
-                try checkAccess(); try await repository.removeCredential(group, expected: snapshot)
+                try checkAccess();acceptedWrite=request;try await repository.removeCredential(group, expected: snapshot)
                 guard active, generation == request else { return }
                 let snapshot = try await read()
                 guard active,generation==request else {return};self.snapshot=snapshot;clearDraft()
@@ -355,6 +399,7 @@ import TurtleGitCore
 struct CredentialSettingsPage: View {
     @ObservedObject var model: CredentialSettingsModel
     @Environment(\.settingsTransaction) private var transaction
+    @State private var presentation=UUID()
     var body: some View {
         let identity=model.editorIdentity
         VStack(alignment: .leading, spacing: 14) {
@@ -413,27 +458,16 @@ struct CredentialSettingsPage: View {
             Text("Add New/Save and Remove save immediately, like the source dialog. Cancel restores only unsaved field edits.").font(.caption).foregroundStyle(.secondary)
             Spacer()
         }.padding(12)
-        .background(CredentialWindowCapture(model: model).frame(width: 0, height: 0))
+        .background(SettingsLifecycleWindowProbe(model:model,owner:presentation).frame(width: 0, height: 0))
         .onAppear {
-            model.activate()
+            model.attachPresentation(presentation);model.activate()
             transaction?.register("credential", participant: .init(page: .credential, modified: { model.modified }, validate: { model.validationError }, apply: { await model.applyForSettings(owner: transaction?.window) }, cancel: model.cancelDraft), registration: model.settingsRegistration)
         }
         .onChange(of: model.draft) { _ in transaction?.notify() }
         .onChange(of: model.busy) { _ in transaction?.notify() }
         .onChange(of: model.mode) { _ in transaction?.notify() }
         .onChange(of: model.destination) { _ in transaction?.notify() }
-        .onDisappear { model.deactivate() }
-    }
-}
-private struct CredentialWindowCapture: NSViewRepresentable {
-    let model: CredentialSettingsModel
-    func makeNSView(context: Context) -> NSView { Capture(model: model) }
-    func updateNSView(_ view: NSView, context: Context) {}
-    final class Capture: NSView {
-        weak var model: CredentialSettingsModel?
-        init(model: CredentialSettingsModel) { self.model = model; super.init(frame: .zero) }
-        required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.window = window }
+        .onDisappear {model.detachPresentation(presentation)}
     }
 }
 

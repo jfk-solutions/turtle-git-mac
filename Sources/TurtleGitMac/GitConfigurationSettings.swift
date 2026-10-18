@@ -7,6 +7,7 @@ import TurtleGitCore
     private(set) static var activeSaves = 0
     private(set) static var activeReads = 0
     private(set) static var activeFolderChoosers=0
+    private(set) static var activeSheetReleases=0
     @Published private(set) var authorizingFolder=false
     private let preferences: UserDefaults
     init(preferences: UserDefaults = .standard) { self.preferences = preferences }
@@ -33,11 +34,18 @@ import TurtleGitCore
     private(set) var repository: GitRepository?
     private var access: RepositoryAccessLease?
     private var hasRepository = false
-    @Published private var active = false
+    // Authoritative command gates must never publish during SwiftUI graph teardown.
+    private var active = false
+    private var editorReceipt = UUID()
+    private var presentationOwner: UUID?
+    private var probeIdentity: UUID?
+    private var probes: [UUID: GitConfigurationProbeAttachment] = [:]
+    private var folderChooser: GitConfigurationFolderChoice?
     private var hintShown = false
     private var needsInitialLoad=true
     var isActive: Bool { active }
     private var saving = false
+    private var acceptedWrite:UUID?
     private var pendingContext: (GitRepository, RepositoryAccessLease?, Bool)?
     private var generation = UUID()
     private var activationIdentity=UUID()
@@ -48,28 +56,80 @@ import TurtleGitCore
     var localAvailable: Bool { hasRepository }
     var editable: Bool {active && loaded && source != .effective && !busy}
     var changed: Bool { loaded && (draft != saved || destination != savedDestination) }
+    fileprivate static func beginFolderChoice() {activeFolderChoosers += 1}
+    fileprivate static func endFolderChoice() {activeFolderChoosers -= 1}
+    func acceptsSourceSelection(_ receipt: UUID) -> Bool {active && !busy && editorReceipt==receipt && editorIdentity==receipt}
+    func acceptsEditor(_ receipt: UUID) -> Bool { editable && editorReceipt == receipt && editorIdentity == receipt }
+    private func advanceEditor() { editorReceipt = UUID(); editorIdentity = editorReceipt }
+    func attachPresentation(_ owner: UUID) {
+        presentationOwner = owner
+        if let attachment = probes.values.filter({ $0.owner == owner }).max(by: { $0.order < $1.order }) {
+            probeIdentity = attachment.identity; window = attachment.window
+        } else { probeIdentity = nil; window = nil }
+    }
+    func detachPresentation(_ owner: UUID) {
+        guard presentationOwner == owner else { return }
+        presentationOwner = nil; probeIdentity = nil; window = nil; deactivate()
+    }
+    func attachProbe(owner: UUID, identity: UUID, window: NSWindow) {
+        let attachment = GitConfigurationProbeAttachment(owner: owner, identity: identity, window: window)
+        probes[identity] = attachment
+        guard presentationOwner == nil || presentationOwner == owner else { return }
+        presentationOwner = owner; probeIdentity = identity; self.window = window
+    }
+    func detachProbe(_ identity: UUID) {
+        probes.removeValue(forKey: identity)
+        guard probeIdentity == identity else { return }
+        probeIdentity = nil; presentationOwner = nil; window = nil; deactivate()
+    }
     func activate(repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool) {
-        activationIdentity=UUID()
-        if saving { pendingContext = (repository, access, localAvailable); return }
+        activationIdentity=UUID();editorReceipt=UUID()
+        let sameContext=self.repository?.root==repository.root && self.repository?.executable==repository.executable && hasRepository==localAvailable
+        if saving,sameContext,acceptedWrite==generation {
+            // Presentation/editor authority changes, but an already accepted
+            // write to this exact context keeps its operation receipt.
+            active=true;editorIdentity=editorReceipt;pendingContext=nil;return
+        }
+        generation=UUID();readToken?.cancel();readToken=nil
+        if saving {pendingContext=(repository,access,localAvailable);return}
         if loaded && self.repository?.root == repository.root && self.repository?.executable == repository.executable && hasRepository == localAvailable {
-            active = true; return
+            active = true;busy=false;loadingSource=nil;configurationText=nil;authorizingFolder=false;editorIdentity=editorReceipt;return
         }
         deactivate()
         self.repository = repository; self.access = access; hasRepository = localAvailable
         active=true;source = .effective;destination=localAvailable ? .local:.global;savedDestination=destination
+        busy=false;authorizingFolder=false;configurationText=nil;loadingSource=nil
         files=nil;draft=GitConfigurationSettings();saved=draft;loaded=false;needsInitialLoad=true
         load(.effective, initial: true)
     }
     func deactivate() {
-        active = false;activationIdentity=UUID(); pendingContext = nil; generation = UUID();editorIdentity=UUID();loadingSource=nil; readToken?.cancel(); readToken = nil
-        if !saving { busy = false }; configurationText = nil
+        // Revoke all authority synchronously. This is called by dismantleNSView
+        // while SwiftUI holds exclusive graph access: no Published setter here.
+        active = false;activationIdentity=UUID();pendingContext=nil;generation=UUID();editorReceipt=UUID()
+        let retirement=activationIdentity,editor=editorReceipt
+        readToken?.cancel();readToken=nil
         let panel=permissionPanel;permissionPanel=nil
-        if authorizingFolder {authorizingFolder=false;Self.activeFolderChoosers -= 1}
-        if let panel {(panel.sheetParent ?? window)?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil)}
-        let permission=permissionAnswer;permissionAnswer=nil;permission?(false)
-        if let alert { window?.endSheet(alert.window, returnCode: .abort) }
-        alert = nil; let pending = answer; answer = nil; pending?(false)
+        let folder=folderChooser;folderChooser=nil
+        let permission=permissionAnswer;permissionAnswer=nil
+        let alert=self.alert;self.alert=nil
+        let pending=answer;answer=nil
+        let sheets=[panel,alert?.window].compactMap {$0}
+        let ownsRelease = !sheets.isEmpty || permission != nil || pending != nil || folder != nil
+        if ownsRelease {Self.activeSheetReleases += 1}
+        DispatchQueue.main.async { [self] in
+            SettingsLifecycleSheetDrain.close(sheets) { [self] in
+                folder?.release()
+                // Resume each retired continuation after actual captured sheets
+                // detach, regardless of a newer presentation's activation.
+                permission?(false);pending?(false)
+                if ownsRelease {Self.activeSheetReleases -= 1}
+                guard !active,activationIdentity==retirement else {return}
+                editorIdentity=editor;loadingSource=nil;configurationText=nil;authorizingFolder=false
+                if !saving {busy=false}
+            }
+        }
     }
+    func dismissDisplayedConfiguration() {guard active else {return};configurationText=nil}
     private func checkAccess(_ repository: GitRepository, access: RepositoryAccessLease?, local: Bool) throws {
         if GitRuntime.isAppStoreBuild && local && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
@@ -77,7 +137,7 @@ import TurtleGitCore
         guard active, let repository, (!busy || readToken != nil), source != .local || hasRepository else { return }
         let firstAccepted=needsInitialLoad,initialize=initial || (needsInitialLoad && source == .effective)
         readToken?.cancel(); let token = OperationCancellation(), request = UUID(); generation = request; readToken = token
-        editorIdentity=UUID();loadingSource=source;loaded=false;busy=true;error=nil
+        advanceEditor();loadingSource=source;loaded=false;busy=true;error=nil
         let destination=(source == .local || source == .global) ? source:self.destination
         Self.activeReads += 1
         Task { [self, access] in
@@ -102,7 +162,7 @@ import TurtleGitCore
                 }
                 // Publish one accepted level, origin set, destination and draft.
                 self.files=files;self.source=acceptedSource;self.destination=acceptedDestination
-                self.draft=value;self.saved=value;self.savedDestination=acceptedDestination;self.loaded=true;self.editorIdentity=UUID();self.needsInitialLoad=false
+                self.draft=value;self.saved=value;self.savedDestination=acceptedDestination;self.loaded=true;self.advanceEditor();self.needsInitialLoad=false
                 if initial || firstAccepted {self.showHierarchyHint()}
             } catch { if self.active, self.generation == request, !token.isCancelled { self.error = error.localizedDescription } }
         }
@@ -114,27 +174,37 @@ import TurtleGitCore
         alert.informativeText = "Git uses hierarchical configuration: settings in higher levels override lower levels. Effective shows the read-only values for the current scope. Select a level to see its stored values. To change settings, select a level, enter the values and choose where to save them."
         alert.addButton(withTitle: "OK"); alert.showsSuppressionButton = true
         alert.suppressionButton?.title = "Do not show this message again"; self.alert = alert
+        alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
+        let request=generation,activation=activationIdentity
         alert.beginSheetModal(for: window) { [weak self] response in
-            guard let self, self.alert === alert else { return }
-            self.alert = nil
-            if response == .alertFirstButtonReturn && alert.suppressionButton?.state == .on {
-                self.preferences.set(true, forKey: "HintHierarchicalConfig")
+            guard let self,self.alert===alert else {return};self.alert=nil
+            Self.activeSheetReleases += 1
+            SettingsLifecycleSheetDrain.close([alert.window]) { [weak self] in
+                Self.activeSheetReleases -= 1
+                guard let self,self.active,self.generation==request,self.activationIdentity==activation else {return}
+                if response == .alertFirstButtonReturn,alert.suppressionButton?.state == .on {self.preferences.set(true,forKey:"HintHierarchicalConfig")}
             }
         }
     }
+
     private func confirmSave(to destination: GitConfigurationSource) async -> Bool {
         guard active, let window, window.attachedSheet == nil else { return false }
         let alert = NSAlert(); alert.messageText = "Are you sure you want to save to \"\(destination.rawValue)\"?"
         alert.informativeText = "The selected config source differs from the save destination."
         alert.addButton(withTitle: "Abort"); alert.addButton(withTitle: "Save")
         self.alert = alert
+        alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
+        let request=generation,activation=activationIdentity
         return await withCheckedContinuation { continuation in
             var answered = false
             let answer: (Bool) -> Void = { value in guard !answered else { return }; answered = true; continuation.resume(returning: value) }
             self.answer = answer
             alert.beginSheetModal(for: window) { [weak self] response in
-                guard let self, self.alert === alert else { answer(false); return }
-                self.alert = nil; self.answer = nil; answer(response == .alertSecondButtonReturn && self.active)
+                guard let self, self.alert === alert else { return }
+                self.alert=nil;self.answer=nil
+                SettingsLifecycleSheetDrain.close([alert.window]) { [weak self] in
+                    answer(response == .alertSecondButtonReturn && self?.active == true && self?.generation==request && self?.activationIdentity==activation)
+                }
             }
         }
     }
@@ -159,7 +229,7 @@ import TurtleGitCore
             defer { Self.activeSaves -= 1; withExtendedLifetime(access) {}; completion(success) }
             guard let self else { return }
             defer {
-                self.saving = false
+                self.saving = false;self.acceptedWrite=nil
                 if self.generation == request || !self.active { self.busy = false }
                 if let pending = self.pendingContext {
                     self.pendingContext = nil
@@ -180,6 +250,7 @@ import TurtleGitCore
                 }
                 // Each Git config write holds its own lock. Retain the grant and
                 // allow this source-ordered batch to finish after owner closure.
+                self.acceptedWrite=request
                 try await self.writeSettings(repository, value, destination)
                 guard self.active, self.generation == request else { return }
                 self.saved = value; self.savedDestination = destination; success = true
@@ -187,6 +258,7 @@ import TurtleGitCore
         }
     }
     private func ensurePermission(for file: URL) async -> Bool {
+        guard active else {return false}
         if let authorizeFile { return await authorizeFile(file) }
         if GitConfigurationPermissions.authorized(file) || access?.contains(file) == true && access?.hasSecurityScope == true { return true }
         guard active, let window, window.attachedSheet == nil, permissionPanel == nil else { return false }
@@ -197,16 +269,19 @@ import TurtleGitCore
         var directory = file.deletingLastPathComponent()
         while !FileManager.default.fileExists(atPath: directory.path), directory.path != "/" { directory.deleteLastPathComponent() }
         panel.directoryURL = directory; permissionPanel = panel
+        panel.alphaValue=window.alphaValue;panel.appearance=window.appearance
+        let request=generation,activation=activationIdentity
         return await withCheckedContinuation { continuation in
             var answered = false
             let answer: (Bool) -> Void = { value in guard !answered else { return }; answered = true; continuation.resume(returning: value) }
             permissionAnswer = answer
             panel.beginSheetModal(for: window) { [weak self] response in
-                guard let self, self.permissionPanel === panel else { answer(false); return }
-                self.permissionPanel = nil; self.permissionAnswer = nil
-                guard response == .OK, self.active, let directory = panel.url else { answer(false); return }
-                do { try GitConfigurationPermissions.remember(directory, for: file); answer(true) }
-                catch { self.error = error.localizedDescription; answer(false) }
+                guard let self,self.permissionPanel===panel else {return};self.permissionPanel=nil;self.permissionAnswer=nil
+                SettingsLifecycleSheetDrain.close([panel]) { [weak self] in
+                    guard let self,self.active,self.generation==request,self.activationIdentity==activation,response == .OK,let directory=panel.url else {answer(false);return}
+                    do {try GitConfigurationPermissions.remember(directory,for:file);answer(true)}
+                    catch {self.error=error.localizedDescription;answer(false)}
+                }
             }
         }
     }
@@ -215,19 +290,21 @@ import TurtleGitCore
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
         panel.allowsMultipleSelection = false; panel.title = "Authorize Git configuration folder"; panel.prompt = "Authorize"
         panel.message = "Choose a folder containing your Git config files. This permission is remembered for future Git operations."
-        permissionPanel=panel;busy=true;authorizingFolder=true;Self.activeFolderChoosers += 1
-        let request = generation
+        let chooser=GitConfigurationFolderChoice();folderChooser=chooser
+        permissionPanel=panel;busy=true;authorizingFolder=true
+        panel.alphaValue=window.alphaValue;panel.appearance=window.appearance
+        let request=generation,activation=activationIdentity
         panel.beginSheetModal(for: window) { [weak self] response in
-            guard let self, self.permissionPanel === panel else { return }
-            self.permissionPanel=nil
-            if self.authorizingFolder {self.authorizingFolder=false;Self.activeFolderChoosers -= 1}
-            guard self.active, self.generation == request else { return }
-            self.busy = false
-            guard response == .OK, let directory = panel.url else { return }
-            do {
-                try GitConfigurationPermissions.remember(directory, for: directory)
-                self.load(self.source)
-            } catch { self.error = error.localizedDescription }
+            guard let self,self.permissionPanel===panel,self.folderChooser===chooser else {return}
+            self.permissionPanel=nil;self.folderChooser=nil
+            SettingsLifecycleSheetDrain.close([panel]) { [weak self] in
+                chooser.release()
+                guard let self,self.active,self.generation==request,self.activationIdentity==activation else {return}
+                self.authorizingFolder=false;self.busy=false
+                guard response == .OK,let directory=panel.url else {return}
+                do {try GitConfigurationPermissions.remember(directory,for:directory);self.load(self.source)}
+                catch {self.error=error.localizedDescription}
+            }
         }
     }
     func editConfiguration(_ kind: GitConfigurationFile) {
@@ -298,7 +375,7 @@ struct GitConfigurationSettingsPage: View {
     var globalOnly = false
     @Environment(\.settingsTransaction) private var transaction
     @StateObject private var model: GitConfigurationSettingsModel
-    @State private var visible=false
+    @State private var presentation=UUID()
     init(workspace: RepositoryModel, globalOnly: Bool = false, preferences: UserDefaults = .standard, model: GitConfigurationSettingsModel? = nil) {
         self.workspace = workspace; self.globalOnly = globalOnly
         _model = StateObject(wrappedValue: model ?? GitConfigurationSettingsModel(preferences: preferences))
@@ -311,7 +388,7 @@ struct GitConfigurationSettingsPage: View {
                     ForEach(Array(GitConfigurationSource.allCases.enumerated()),id:\.offset) {index,source in
                         if index>0 {Text(index==1 ? "|":"<<").foregroundStyle(.secondary)}
                         BaseRadio(title:source.rawValue,selected:model.source==source) {
-                            guard visible,model.isActive,!model.busy,model.editorIdentity==identity else {return};model.load(source)
+                            guard model.acceptsSourceSelection(identity) else {return};model.load(source)
                         }.frame(height:24).disabled(source == .local && !model.localAvailable)
                     }
                 }.padding(8).disabled(model.busy || !model.isActive)
@@ -372,16 +449,16 @@ struct GitConfigurationSettingsPage: View {
                 }
             }
         }.padding(20)
-        .background(GitConfigurationWindowProbe(model: model).frame(width: 0, height: 0))
+        .background(GitConfigurationWindowProbe(model: model,owner:presentation).frame(width: 0, height: 0))
         .settingsParticipant("git", page: .git, value: model.draft, modified: { model.changed },
             validate: { model.repository == nil ? "Choose a repository or global configuration." : nil },
             apply: { await model.applyForSettings(owner: transaction?.window) }, cancel: model.cancelDraft)
         .onChange(of: model.destination) { _ in transaction?.notify() }
-        .onAppear {visible=true;activate()}.onChange(of: workspace.root) { _ in if model.isActive { activate() } }.onDisappear {visible=false;model.deactivate()}
-        .sheet(isPresented: Binding(get: { model.configurationText != nil }, set: { if !$0 { model.configurationText = nil } })) {
+        .onAppear {model.attachPresentation(presentation);activate()}.onChange(of: workspace.root) { _ in if model.isActive { activate() } }.onDisappear {model.detachPresentation(presentation)}
+        .sheet(isPresented: Binding(get: { model.configurationText != nil }, set: { if !$0 { model.dismissDisplayedConfiguration() } })) {
             VStack(alignment: .leading) {
                 ScrollView([.horizontal, .vertical]) { Text(model.configurationText ?? "").font(.system(.body, design: .monospaced)).textSelection(.enabled).padding() }
-                HStack { Button("Open in editor", action: model.openDisplayedConfiguration); Spacer(); Button("Close") { model.configurationText = nil }.keyboardShortcut(.cancelAction) }.padding()
+                HStack { Button("Open in editor", action: model.openDisplayedConfiguration); Spacer(); Button("Close") { model.dismissDisplayedConfiguration() }.keyboardShortcut(.cancelAction) }.padding()
             }.frame(minWidth: 680, minHeight: 420)
         }
     }
@@ -390,7 +467,7 @@ struct GitConfigurationSettingsPage: View {
         catch { model.error = error.localizedDescription }
     }
     private func guarded<Value>(_ value:Binding<Value>,identity:UUID)->Binding<Value> {
-        Binding(get:{value.wrappedValue},set:{if visible,model.editable,model.editorIdentity==identity {value.wrappedValue=$0}})
+        Binding(get:{value.wrappedValue},set:{if model.acceptsEditor(identity) {value.wrappedValue=$0}})
     }
     private func identity(_ label:String,field:Binding<GitConfigurationIdentity>,identity:UUID)->some View {
         let field=guarded(field,identity:identity)
@@ -424,12 +501,65 @@ private struct GitConfigurationCheckbox: NSViewRepresentable {
 }
 private struct GitConfigurationWindowProbe: NSViewRepresentable {
     let model: GitConfigurationSettingsModel
-    func makeNSView(context: Context) -> Probe { let view = Probe(); view.model = model; return view }
-    func updateNSView(_ view: Probe, context: Context) { model.window = view.window }
-    static func dismantleNSView(_ view:Probe,coordinator:()) {view.model?.deactivate();view.model=nil}
-    final class Probe: NSView {
-        weak var model: GitConfigurationSettingsModel?
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.window = window }
+    let owner: UUID
+    func makeNSView(context: Context) -> Probe {let view=Probe();view.model=model;view.owner=owner;return view}
+    func updateNSView(_ view:Probe,context:Context) {view.synchronizeAttachment()}
+    static func dismantleNSView(_ view:Probe,coordinator:()) {view.retire()}
+    final class Probe:NSView {
+        weak var model:GitConfigurationSettingsModel?
+        var owner=UUID()
+        private var receipt:UUID?
+        private weak var attachedWindow:NSWindow?
+        private var retired=false
+        private var ownerObserver:NSObjectProtocol?
+        private func releaseAttachment() {
+            if let ownerObserver {NotificationCenter.default.removeObserver(ownerObserver)};ownerObserver=nil
+            if let receipt {model?.detachProbe(receipt)};receipt=nil;attachedWindow=nil
+        }
+        func synchronizeAttachment() {
+            guard !retired else {return}
+            if window===attachedWindow,receipt != nil {return}
+            releaseAttachment();attachedWindow=window
+            if let window {
+                let identity=UUID();receipt=identity
+                model?.attachProbe(owner:owner,identity:identity,window:window)
+                ownerObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in MainActor.assumeIsolated {self?.releaseAttachment()} }
+            }
+        }
+        override func viewDidMoveToWindow() {super.viewDidMoveToWindow();synchronizeAttachment()}
+        func retire() {
+            guard !retired else {return};retired=true
+            releaseAttachment();model=nil
+        }
+    }
+}
+
+@MainActor private final class GitConfigurationProbeAttachment {
+    static private var nextOrder:UInt64=0
+    let owner:UUID,identity:UUID,order:UInt64
+    weak var window:NSWindow?
+    init(owner:UUID,identity:UUID,window:NSWindow) {
+        Self.nextOrder &+= 1;order=Self.nextOrder;self.owner=owner;self.identity=identity;self.window=window
+    }
+}
+@MainActor private final class GitConfigurationFolderChoice {
+    private var released=false
+    init() {GitConfigurationSettingsModel.beginFolderChoice()}
+    func release() {guard !released else {return};released=true;GitConfigurationSettingsModel.endFolderChoice()}
+}
+@MainActor enum SettingsLifecycleSheetDrain {
+    static func close(_ windows:[NSWindow],completion:@escaping ()->Void) {
+        for window in windows {
+            if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)}
+            window.orderOut(nil)
+        }
+        func finish() {
+            if windows.contains(where:{$0.sheetParent != nil || $0.isVisible}) {
+                DispatchQueue.main.asyncAfter(deadline:.now()+0.01,execute:finish)
+            } else {completion()}
+        }
+        // Even an already detached window's reply must leave graph teardown.
+        DispatchQueue.main.async(execute:finish)
     }
 }
 
@@ -446,4 +576,60 @@ private struct GitConfigurationWindowProbe: NSViewRepresentable {
         } catch { try? FileManager.default.removeItem(at: directory); throw error }
     }
     static func discardAll() { directories.forEach { try? FileManager.default.removeItem(at: $0) }; directories.removeAll() }
+}
+
+@MainActor final class SettingsLifecycleAttachments {
+    private var owner:UUID?,identity:UUID?
+    private var attachments:[UUID:Attachment]=[:]
+    private var order:UInt64=0
+    private final class Attachment {
+        let owner:UUID,identity:UUID,order:UInt64
+        weak var window:NSWindow?
+        init(owner:UUID,identity:UUID,order:UInt64,window:NSWindow) {self.owner=owner;self.identity=identity;self.order=order;self.window=window}
+    }
+    func claim(_ owner:UUID)->NSWindow? {
+        self.owner=owner
+        let latest=attachments.values.filter {$0.owner==owner}.max {$0.order<$1.order}
+        identity=latest?.identity;return latest?.window
+    }
+    func attach(owner:UUID,identity:UUID,window:NSWindow)->Bool {
+        order &+= 1;attachments[identity]=Attachment(owner:owner,identity:identity,order:order,window:window)
+        guard self.owner==nil || self.owner==owner else {return false}
+        self.owner=owner;self.identity=identity;return true
+    }
+    func releaseOwner(_ owner:UUID)->Bool {guard self.owner==owner else {return false};self.owner=nil;identity=nil;return true}
+    func releaseProbe(_ identity:UUID)->Bool {attachments.removeValue(forKey:identity);guard self.identity==identity else {return false};owner=nil;self.identity=nil;return true}
+}
+@MainActor protocol SettingsLifecyclePresenting:AnyObject {
+    func attachProbe(owner:UUID,identity:UUID,window:NSWindow)
+    func detachProbe(_ identity:UUID)
+}
+struct SettingsLifecycleWindowProbe<Model:SettingsLifecyclePresenting>:NSViewRepresentable {
+    let model:Model,owner:UUID
+    func makeNSView(context:Context)->Probe {let view=Probe();view.model=model;view.owner=owner;return view}
+    func updateNSView(_ view:Probe,context:Context) {view.synchronizeAttachment()}
+    static func dismantleNSView(_ view:Probe,coordinator:()) {view.retire()}
+    final class Probe:NSView {
+        weak var model:Model?
+        var owner=UUID()
+        private var receipt:UUID?
+        private weak var attachedWindow:NSWindow?
+        private var retired=false
+        private var ownerObserver:NSObjectProtocol?
+        private func releaseAttachment() {
+            if let ownerObserver {NotificationCenter.default.removeObserver(ownerObserver)};ownerObserver=nil
+            if let receipt {model?.detachProbe(receipt)};receipt=nil;attachedWindow=nil
+        }
+        func synchronizeAttachment() {
+            guard !retired else {return}
+            if window===attachedWindow,receipt != nil {return}
+            releaseAttachment();attachedWindow=window
+            if let window {
+                let identity=UUID();receipt=identity;model?.attachProbe(owner:owner,identity:identity,window:window)
+                ownerObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in MainActor.assumeIsolated {self?.releaseAttachment()} }
+            }
+        }
+        override func viewDidMoveToWindow() {super.viewDidMoveToWindow();synchronizeAttachment()}
+        func retire() {guard !retired else {return};retired=true;releaseAttachment();model=nil}
+    }
 }

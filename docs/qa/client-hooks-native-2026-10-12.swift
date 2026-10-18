@@ -46,7 +46,7 @@ import TurtleGitCore
         model.configure(add:true)
         try await wait { parent.attachedSheet?.delegate is HookConfigurationController }
         let configuration = parent.attachedSheet!.delegate as! HookConfigurationController
-        configuration.draft.hook = hook(.preCommit,repo,local:true); configuration.accept()
+        configuration.draft.hook = hook(.preCommit,repo,local:true); configuration.accept(); try await wait { !model.hasEditor && parent.attachedSheet == nil }
         try require(model.hooks.count == 1 && model.modified && !model.hasEditor,"Owned Add did not update draft only")
         let before = try Data(contentsOf:repo.root.appendingPathComponent(".tgitconfig"))
         try require(!String(decoding:before,as:UTF8.self).contains("precommit"),"Dialog OK wrote before shared Apply")
@@ -61,10 +61,10 @@ import TurtleGitCore
         model.selection = [model.hooks[0].id]; model.configure(copy:true)
         try await wait { parent.attachedSheet?.delegate is HookConfigurationController }
         let copy = parent.attachedSheet!.delegate as! HookConfigurationController
-        copy.draft.setLocal(false); copy.draft.hook.path = "*"; copy.accept()
+        copy.draft.setLocal(false); copy.draft.hook.path = "*"; copy.accept(); try await wait { !model.hasEditor && parent.attachedSheet == nil }
         try require(model.hooks.count == 2 && model.modified,"Copy did not preserve original key")
         model.cancel(); try require(model.hooks.count == 1,"Cancel did not discard copied global hook")
-        model.configure(add:true); try await wait { model.hasEditor }; model.invalidate()
+        model.configure(add:true); try await wait { model.hasEditor }; model.invalidate(); try await wait { !model.hasEditor && parent.attachedSheet == nil && HookConfigurationController.activeReleases == 0 }
         try require(!model.hasEditor && parent.attachedSheet == nil,"Invalidation left owned configuration sheet")
         try require(MenuIcon.settingsHooks.image() != nil,"Original hook icon did not decode")
 

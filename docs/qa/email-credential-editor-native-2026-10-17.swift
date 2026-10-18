@@ -54,19 +54,19 @@ private actor EmailEditorStore:SMTPCredentialStore {
         first.controlTextDidChange(Notification(name:NSControl.textDidChangeNotification,object:first.password))
         try require(first.password.stringValue == String(repeating:"a",count:254),"Password split a surrogate at 255 UTF-16 boundary")
         first.password.stringValue=String(repeating:"b",count:253)+"🐢"+"tail"
-        await store.hold();first.acceptButton.performClick(nil);first.accept()
+        await store.hold();first.acceptButton.performClick(nil);first.accept();try await wait {EmailSettingsModel.activeCredentialEditors == 0 && model.busy}
         try require(first.retired && first.password.stringValue.isEmpty && owner.editor == nil && !model.editingCredentials && model.busy && EmailSettingsModel.activeCredentialEditors == 0,"Accepted editor did not scrub/settle once")
         await store.release();try await wait {!model.busy && model.pendingOperations == 0}
         var state=await store.state();try require(state.0 == "captured 雪" && state.1 == String(repeating:"b",count:253)+"🐢" && state.2 == 1 && model.login == state.0,"Captured immediate store changed or repeated")
-        model.editCredentials();guard let cancelled=owner.editor else {throw Failure.assertion("Cancel editor missing")};cancelled.password.stringValue="cancelled secret";cancelled.cancelButton.performClick(nil);cancelled.accept()
+        model.editCredentials();guard let cancelled=owner.editor else {throw Failure.assertion("Cancel editor missing")};cancelled.password.stringValue="cancelled secret";cancelled.cancelButton.performClick(nil);cancelled.accept();try await wait {EmailSettingsModel.activeCredentialEditors == 0}
         state=await store.state();try require(state.2 == 1 && cancelled.password.stringValue.isEmpty && !model.editingCredentials,"Cancel/late OK wrote credentials")
-        model.editCredentials();guard let changed=owner.editor else {throw Failure.assertion("Captured editor missing")};model.server="replaced.example.invalid";changed.username.stringValue="wrong context";changed.accept();state=await store.state();try require(state.2 == 1,"Changed Settings context accepted old reply")
-        model.editCredentials();guard let detached=owner.editor else {throw Failure.assertion("Detached editor missing")};owner.cancel();detached.accept();try require(!model.editingCredentials && detached.retired,"Host detachment retained dialog")
+        model.editCredentials();guard let changed=owner.editor else {throw Failure.assertion("Captured editor missing")};model.server="replaced.example.invalid";changed.username.stringValue="wrong context";changed.accept();try await wait {EmailSettingsModel.activeCredentialEditors == 0};state=await store.state();try require(state.2 == 1,"Changed Settings context accepted old reply")
+        model.editCredentials();guard let detached=owner.editor else {throw Failure.assertion("Detached editor missing")};owner.cancel();detached.accept();try await wait {EmailSettingsModel.activeCredentialEditors == 0};try require(!model.editingCredentials && detached.retired,"Host detachment retained dialog")
         model.delivery = .direct;model.authenticate=false;try require(model.canClear && !model.credentialControls,"Clear followed configured/auth gate");model.clearCredentials();try await wait {!model.busy};state=await store.state();try require(state.3 == 1 && model.login.isEmpty,"Immediate Clear failed")
         // Request identity also fences an injected stale presenter callback.
-        model.delivery = .configured;model.authenticate=true;var reply:(((String,String)?)->Void)?
+        model.claimCredentialOwner(UUID());model.delivery = .configured;model.authenticate=true;var reply:(((String,String)?)->Void)?
         model.presentCredentialEditor={_,completion in reply=completion};model.cancelCredentialEditor={}
-        model.editCredentials();let late=reply;model.invalidate();late?(("late","late secret"));late?(("twice","twice secret"));state=await store.state()
+        model.editCredentials();let late=reply;model.invalidate();late?(("late","late secret"));late?(("twice","twice secret"));try await wait {EmailSettingsModel.activeCredentialEditors == 0};state=await store.state()
         try require(EmailSettingsModel.activeCredentialEditors == 0 && state.2 == 1 && !model.editingCredentials,"Retired reply adopted or leaked dialog lifetime")
         let empty=SMTPCredentialWindowController(login:""){_ in};defer {empty.cancel()}
         try require(empty.window?.initialFirstResponder === empty.username && empty.acceptButton.keyEquivalent == "\r" && empty.cancelButton.keyEquivalent == "\u{1b}" && empty.username.nextKeyView === empty.password,"Source default buttons/tab/initial focus missing")

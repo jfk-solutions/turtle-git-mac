@@ -64,6 +64,8 @@ import TurtleGitCore
     private var panel: NSOpenPanel?
     @Published private var active=false
     private var lifecycle=UUID()
+    private var live=false
+    private var attachment:UUID?
     private var windowObserver:NSObjectProtocol?
     weak var window:NSWindow? {didSet {
         guard oldValue !== window else {return};cancelBrowse();cancelUpdateQuestion()
@@ -76,33 +78,59 @@ import TurtleGitCore
     var selectedURL:(NSOpenPanel)->URL? = {$0.url}
     var bookmark:(URL)throws->Data = {try $0.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil)}
     var presentUpdateQuestion:((NSAlert,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void)?
-    var canEditEngine:Bool {active && !busy && !selecting && !confirmingUpdates && !GitRuntime.isAppStoreBuild}
-    var canCheck:Bool {active && !busy && !selecting && !confirmingUpdates}
-    var canEditPage:Bool {active && !busy && !selecting && !confirmingUpdates}
+    var canEditEngine:Bool {live && !busy && !selecting && !confirmingUpdates && !GitRuntime.isAppStoreBuild}
+    var canCheck:Bool {live && !busy && !selecting && !confirmingUpdates}
+    var canEditPage:Bool {live && !busy && !selecting && !confirmingUpdates}
     var validationError:String? {
         if selecting || confirmingUpdates {return "Finish the General settings question first."}
         if busy {return "Wait for the Git version check to finish, or cancel it."}
         return GitRuntime.isAppStoreBuild || draft.valid ? nil:"Choose a valid Git executable and absolute Extra PATH directories."
     }
     var modified: Bool { draft != saved }
+    func attach(to owner:NSWindow?, attachment receipt:UUID) {
+        guard let owner else { detach(attachment:receipt); return }
+        guard attachment != receipt || window !== owner || !live else { return }
+        attachment=receipt; window=owner; activate()
+    }
+    func detach(attachment receipt:UUID) { guard attachment == receipt else{return};attachment=nil;suspend() }
     func activate() {
-        if !languageModified {
-            let current = AppLanguageChoice.selected(in: preferences)
-            if current != savedLanguage { language = current; savedLanguage = current; languageRevision = UUID() }
+        live=true;lifecycle=UUID();let generation=lifecycle
+        DispatchQueue.main.async { [weak self] in
+            guard let self,self.live,self.lifecycle==generation else{return}
+            if !self.languageModified {
+                let current=AppLanguageChoice.selected(in:self.preferences)
+                if current != self.savedLanguage {self.language=current;self.savedLanguage=current;self.languageRevision=UUID()}
+            }
+            self.active=true
+            if self.token == nil {self.busy=false;self.checking=false;self.cancellingCheck=false}
+            self.selecting=self.panel != nil;self.confirmingUpdates=self.updateAlert != nil
         }
-        active = true
     }
     func suspend() {
-        active=false;lifecycle=UUID();request=UUID();token?.cancel();token=nil;busy=false;checking=false;cancellingCheck=false
+        live=false;lifecycle=UUID();let generation=lifecycle
+        request=UUID();token?.cancel();token=nil
         cancelBrowse();cancelUpdateQuestion()
+        DispatchQueue.main.async { [weak self] in
+            guard let self,self.lifecycle==generation,!self.live else{return}
+            self.active=false;self.busy=false;self.checking=false;self.cancellingCheck=false
+        }
+    }
+    private func releaseDialog(_ dialog:NSWindow, publication:@escaping (GeneralGitSettingsModel)->Void) {
+        let parent=dialog.sheetParent ?? window
+        if dialog.sheetParent != nil {parent?.endSheet(dialog,returnCode:.cancel)};dialog.orderOut(nil)
+        Task { @MainActor [self] in
+            while dialog.sheetParent != nil || parent?.attachedSheet === dialog {try? await Task.sleep(nanoseconds:10_000_000)}
+            Self.activeDialogs -= 1
+            publication(self)
+        }
     }
     private func cancelBrowse() {
-        guard let panel else {return};self.panel=nil;selecting=false;Self.activeDialogs -= 1
-        (panel.sheetParent ?? window)?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil)
+        guard let panel else{return};self.panel=nil
+        releaseDialog(panel) { model in if model.panel == nil {model.selecting=false} }
     }
     private func cancelUpdateQuestion() {
-        guard let alert=updateAlert else {return};updateAlert=nil;confirmingUpdates=false;Self.activeDialogs -= 1
-        (alert.window.sheetParent ?? window)?.endSheet(alert.window,returnCode:.abort);alert.window.orderOut(nil)
+        guard let alert=updateAlert else{return};updateAlert=nil
+        releaseDialog(alert.window) { model in if model.updateAlert == nil {model.confirmingUpdates=false} }
     }
     private func executable(_ settings: GitEnginePreferences) throws -> URL {
         if !GitRuntime.isAppStoreBuild, settings.choice == .custom {
@@ -142,11 +170,11 @@ import TurtleGitCore
             defer {Self.activeOperations -= 1;if request==generation {busy=false;checking=false;cancellingCheck=false;token=nil}}
             do {
                 let result=try await inspectDraft(settings,token:cancellation)
-                if active,request==generation,!cancellation.isCancelled,draft==settings {version=result}
-            } catch {if active,request==generation,!cancellation.isCancelled,draft==settings {self.error=error.localizedDescription}}
+                if live,request==generation,!cancellation.isCancelled,draft==settings {version=result}
+            } catch {if live,request==generation,!cancellation.isCancelled,draft==settings {self.error=error.localizedDescription}}
         }
     }
-    func cancelCheck() {guard checking,!cancellingCheck else {return};cancellingCheck=true;token?.cancel()}
+    func cancelCheck() {guard live,checking,!cancellingCheck else {return};cancellingCheck=true;token?.cancel()}
     func apply(validateUnchanged:Bool = false,cancellation:OperationCancellation? = nil)async->Bool {
         guard !busy,!selecting,!confirmingUpdates else {return false}
         guard modified || validateUnchanged else {return true}
@@ -171,8 +199,11 @@ import TurtleGitCore
         updateAlert=alert;confirmingUpdates=true;Self.activeDialogs += 1
         let reply:(NSApplication.ModalResponse)->Void = { [weak self,weak window] response in
             guard let self,self.updateAlert === alert else {return}
-            self.updateAlert=nil;self.confirmingUpdates=false;Self.activeDialogs -= 1
-            if response == .alertFirstButtonReturn,self.active,self.lifecycle==context,self.window === window,window != nil {completion()}
+            self.updateAlert=nil
+            self.releaseDialog(alert.window) { model in
+                if model.updateAlert == nil {model.confirmingUpdates=false}
+                if response == .alertFirstButtonReturn,model.live,model.lifecycle==context,model.window === window,window != nil {completion()}
+            }
         }
         if let presentUpdateQuestion {presentUpdateQuestion(alert,window,reply)} else {alert.beginSheetModal(for:window,completionHandler:reply)}
     }
@@ -184,14 +215,17 @@ import TurtleGitCore
         error=nil;panel=chooser;selecting=true;Self.activeDialogs += 1
         let reply:(NSApplication.ModalResponse)->Void = { [weak self,weak window] response in
             guard let self,self.panel === chooser else {return}
-            self.panel=nil;self.selecting=false;Self.activeDialogs -= 1
-            guard response == .OK,self.active,self.lifecycle==context,self.draft==settings,self.window === window,window != nil,let file=self.selectedURL(chooser) else {return}
+            self.panel=nil
+            self.releaseDialog(chooser) { model in
+                if model.panel == nil {model.selecting=false}
+            guard response == .OK,model.live,model.lifecycle==context,model.draft==settings,model.window === window,window != nil,let file=model.selectedURL(chooser) else {return}
             do {
                 guard try file.resolvingSymlinksInPath().resourceValues(forKeys:[.isRegularFileKey]).isRegularFile == true,FileManager.default.isExecutableFile(atPath:file.path) else {throw GitRuntimeFailure.customGitInvalid}
-                let grant=try self.bookmark(file)
-                guard self.active,self.lifecycle==context,self.draft==settings,self.window === window else {return}
-                var chosen=settings;chosen.bookmark=grant;chosen.path=file.path;chosen.choice = .custom;self.draft=chosen
-            } catch {if self.active,self.lifecycle==context,self.draft==settings,self.window === window {self.error=error.localizedDescription}}
+                let grant=try model.bookmark(file)
+                guard model.live,model.lifecycle==context,model.draft==settings,model.window === window else {return}
+                var chosen=settings;chosen.bookmark=grant;chosen.path=file.path;chosen.choice = .custom;model.draft=chosen
+            } catch {if model.live,model.lifecycle==context,model.draft==settings,model.window === window {model.error=error.localizedDescription}}
+            }
         }
         if let presentPanel {presentPanel(chooser,window,reply)} else {chooser.beginSheetModal(for:window,completionHandler:reply)}
     }
@@ -279,7 +313,7 @@ struct GeneralSettings: View {
             Text(GitRuntime.isAppStoreBuild ? "The App Store build uses the Git and SSH engines included in the app." : "Git engine changes apply to newly opened repositories and dialogs. Reopen the repository after changing the engine.").font(.caption).foregroundStyle(.secondary)
             Spacer()
         }.padding(20).background(GeneralSettingsProbe(model: model).frame(width: 0, height: 0))
-        .onAppear { model.activate() }.onDisappear { model.suspend() }
+        .onAppear { model.activate() }
         .settingsParticipant("general", page: .general, value: appearance.choice, modified: { appearance.changed }, apply: { appearance.apply(); return true }, cancel: appearance.cancel)
         .settingsParticipant("general.updates", page: .general, value: updates, modified: { updates != savedUpdates }, apply: { preferences.set(updates, forKey: "VersionCheck"); savedUpdates = updates; return true }, cancel: { updates = savedUpdates })
         .settingsParticipant("general.language", page: .general, value: model.language, modified: { model.languageModified }, apply: { model.applyLanguage() }, cancel: model.cancelLanguage)
@@ -296,10 +330,11 @@ struct GeneralSettings: View {
 private struct GeneralSettingsProbe: NSViewRepresentable {
     let model: GeneralGitSettingsModel
     func makeNSView(context: Context) -> Probe { let view = Probe(); view.model = model; return view }
-    func updateNSView(_ view: Probe, context: Context) { model.window = view.window }
-    static func dismantleNSView(_ view:Probe,coordinator:()) {view.model?.suspend();view.model=nil}
+    func updateNSView(_ view: Probe, context: Context) { model.attach(to: view.window, attachment: view.attachment) }
+    static func dismantleNSView(_ view:Probe,coordinator:()) {view.model?.detach(attachment:view.attachment);view.model=nil}
     final class Probe: NSView {
+        let attachment=UUID()
         weak var model: GeneralGitSettingsModel?
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.window = window }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.attach(to: window, attachment: attachment) }
     }
 }

@@ -85,8 +85,8 @@ import TurtleGitCore
         model.confirmAction={_,_,_ in questions += 1;return await withCheckedContinuation {selection=$0}}
         model.select(nil);model.select(nil);try await wait {selection != nil}
         try require(questions == 1 && CredentialSettingsModel.activeSelections == 1 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Selection question lost serialization/Quit ownership")
-        model.deactivate();try require(CredentialSettingsModel.activeSelections == 0,"Retired selection retained modal ownership");model.activate();selection?.resume(returning:true);selection=nil
-        try await wait {!model.busy};try require(model.selected==second.id && model.draft.username=="unsaved selection draft","Late selection replaced reactivated draft")
+        model.deactivate();try require(CredentialSettingsModel.activeSelections == 1,"Retired selection released accepted worker before its reply");model.activate();selection?.resume(returning:true);selection=nil
+        try await wait {!model.busy && CredentialSettingsModel.activeSelections == 0};try require(model.selected==second.id && model.draft.username=="unsaved selection draft","Late selection replaced reactivated draft")
         model.confirmAction={_,_,_ in true};model.cancelDraft()
         var launches=0;model.openPasswordManager={launches += 1;return true};model.mode="none"
         try await wait {model.canManagePasswords && helperCombo()?.isEnabled == false}

@@ -1,0 +1,195 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "b58be0fa865bcdbf62309b7cefcb59b2631dee0a",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected native Settings retirement, reattachment, owned worker/sheet/reply drain and shared transactions; no new source controls certified.",
+  "production_families": [
+    "Git",
+    "Credential",
+    "Network",
+    "General",
+    "Context Menu",
+    "Merge main/colors",
+    "Remote",
+    "Hook Scripts",
+    "Email",
+    "Settings transaction/navigation/Quit"
+  ],
+  "hosted_failure": {
+    "run": 39154284194,
+    "job": 117755673356,
+    "source_commit": "ea108cf9",
+    "conclusion": "failure",
+    "failed_step": 68,
+    "step": "Source history actions and replay identity family",
+    "command": "python3 scripts/test-history-action-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "failed_case": "replay/system",
+    "receiver_pid": 96421,
+    "signal": "SIGABRT",
+    "platform": "macOS15.7.9 Intel",
+    "swift_driver": "1.120.5",
+    "observed_stack": [
+      "SwiftUI graph destruction",
+      "GitConfigurationWindowProbe.dismantleNSView",
+      "GitConfigurationSettingsModel.deactivate",
+      "Combine @Published setter/objectWillChange",
+      "SwiftUI exclusive-access conflict"
+    ],
+    "log": "build/qa/hosted-ea108cf9-history-failure.log",
+    "log_sha256": "80e96aada2e9cb64e799e08bc79146c0b5821d1c8e503a6d524b827d740b0df3",
+    "scope": "Observed hosted production Settings teardown crash; not a proven fix or reproduction on currentlocalSDK. Prior log/references/blame case-engine pairs passed. Currentb58be0fa localFinder/Corepasses do not prove fullhostedCI."
+  },
+  "local_platform": "macOS-27.0.1-arm64-arm-64bit",
+  "build": {
+    "exit_code": 0,
+    "log": "build/qa/settings-teardown-build.log",
+    "notes": "Xcode emitted concurrency/deprecation warnings and messages about commands with exit0 producing no further output; overall build exited0 and native receiver accepted current Debug app objects.",
+    "focused_repair_log": "build/qa/settings-teardown-save-repair-build.log",
+    "focused_repair_exit_code": 0
+  },
+  "failed_attempts": [
+    {
+      "phase": "receiver compile",
+      "log": "build/qa/settings-teardown-native.log",
+      "failure": "Merge General fixture helper TwoPaneEngineVerification not included",
+      "repair": "Include existing helper source in stable cache digest; preserve every case/assertion. No receiver launched."
+    },
+    {
+      "phase": "teardown/system",
+      "log": "build/qa/settings-teardown-native-repaired.log",
+      "receiver": 95634,
+      "failure": "Deferred Credential retirement reset current activation",
+      "diagnosis": "Private empty credential configuration starts None, so Advanced field assertion was false before retirement.",
+      "repair": "Select Advanced through guarded editMode and assert baseline editable before checking retirement.",
+      "cleanup": "Owned receiver reaped; failure cleanup drained actual workers/windows."
+    },
+    {
+      "phase": "git/system retained consumer",
+      "log": "build/qa/settings-teardown-native-advanced.log",
+      "receiver": 96514,
+      "failure": "Hidden Apply completion deactivated the returned page",
+      "diagnosis": "Rotating the Git operation generation before the saving guard revoked an already accepted hidden-page write when the page reattached.",
+      "repair": "Accepted-write generation markers separate already authorized mutations from editor/presentation receipts in Git, Credential and Network. Same-context reattachment retains the save; pre-write prompts and different contexts remain revoked.",
+      "cleanup": "Owned receiver reaped; six earlier case-engine pairs passed and reaped."
+    }
+  ],
+  "native": {
+    "status": "pass",
+    "runner": "scripts/test-settings-teardown-family.py",
+    "cases_per_engine": 12,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "log": "build/qa/settings-teardown-native-save-repair.log",
+    "completed_before_repair": [
+      "teardown/system",
+      "teardown/bundled",
+      "replay/system",
+      "replay/bundled",
+      "configuration/system",
+      "configuration/bundled"
+    ],
+    "receiver_pids_before_repair": [
+      95862,
+      95933,
+      96018,
+      96138,
+      96260,
+      96388
+    ],
+    "remaining_command": "python3 scripts/test-settings-teardown-family.py --only teardown --only git --only credential --only network --only general --only finder --only merge --only remote --only properties --only email --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "retained_prior_passes": "Replay and configuration passed with both engines before the focused accepted-write repair; their teardown paths were unchanged. New teardown and the affected Git/Credential/Network paths are rechecked after that repair; other unfinished cases run once.",
+    "successful_case_engine_pairs_after_repair": 20,
+    "distinct_case_engine_pairs_across_checkpoint": 24,
+    "successful_runs_across_checkpoint": 26,
+    "receiver_pids_after_repair": [
+      97062,
+      97137,
+      97206,
+      97348,
+      97460,
+      97487,
+      97514,
+      97532,
+      97550,
+      97561,
+      97572,
+      97573,
+      97574,
+      97579,
+      97583,
+      97682,
+      97782,
+      97810,
+      97839,
+      97842
+    ],
+    "independent_cleanup": "All28 successfully launched receiver PIDs, including two failed attempts, independently absent from process table. Each runner reaped its owned receiver/process group.",
+    "exit_code": 0
+  },
+  "core": "Not rerun: changes are native Settings lifecycle only; full Core integration remains CI-owned.",
+  "resources": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1289,
+      "check": "pass"
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_reviews": 120,
+      "pending_family_reviews": 10,
+      "certified": 0,
+      "mapped_controls": 1566,
+      "pending_controls": 93
+    },
+    "help": {
+      "status": "pass",
+      "documents": 40,
+      "topics": 49,
+      "files": 60,
+      "bytes": 3573518
+    },
+    "site": {
+      "status": "pass",
+      "documents": 334,
+      "unresolved_fragments": []
+    }
+  },
+  "preserved_unrelated_wip": {
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3",
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f"
+  },
+  "remaining": [
+    "Complete current hosted macOS integration result, including Intel/SDK15 crash workflow.",
+    "Physical layout, input and accessibility acceptance for each source dialog.",
+    "Current installed signed main/Finder/service behavior and distribution signing/export/App Store acceptance.",
+    "Remaining source-specific controls/behaviors in individual Settings family parity documents."
+  ],
+  "production_source_sha256": {
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "20d3bb5a685dba53abb0f6a434598af41d29b620a1633fd30567ff1354b23cc1",
+    "Sources/TurtleGitMac/CredentialSettings.swift": "aea95b6d0dc55256d2b92154fba25666fc5c4892eeab29d60d7f9605123bfe13",
+    "Sources/TurtleGitMac/EmailSettings.swift": "7a6a0c53676f515e1cde8136b4660698ca0cbc7e26fdd2475cc1cf210178be4d",
+    "Sources/TurtleGitMac/FinderContextMenuSettings.swift": "87d055991bf4408f5cc513ed2e7197eda0bdc8401dd42a375247781099c1a6f0",
+    "Sources/TurtleGitMac/GeneralSettings.swift": "7301e29ab168d6d195e24203e937ff20473bb6687ca4d587ad5ed8b92fac7d2f",
+    "Sources/TurtleGitMac/GitConfigurationSettings.swift": "87646280121fb3d8cb55885d300e0125de7dabfaf1fe327b0d5ae4c4beefa181",
+    "Sources/TurtleGitMac/HookSettings.swift": "11c6117a1c71be3edb13a11ccc7af054afe2ceaaedfbb2c9bed68df3c4b26659",
+    "Sources/TurtleGitMac/MergeEditorSettings.swift": "2e5a0e2d64d51bb34e365999a4611b5b989980e0c203e50c17a05caefca74fc3",
+    "Sources/TurtleGitMac/NetworkSettings.swift": "aeff0c5c09d5671d2e6de070e36dc0bdd8e49dbbe88084b331a9e7f3440895cc",
+    "Sources/TurtleGitMac/RemoteSettingsWindow.swift": "22b12c26c6b9f578951455d5383956a4c448525a089283c540000dc83731e9eb",
+    "Sources/TurtleGitMac/SettingsNavigation.swift": "43410bf816e87602c18c9ac08a7bb6e11a0837fbe505f22fa2ff10da3a452334",
+    "Sources/TurtleGitMac/SettingsTransaction.swift": "20b99c6b6e1ec7923ffe7df87e56a1c7d001e367e129fc05802133e02fed544b"
+  },
+  "hosted_observation_before_push": {
+    "source_commit": "b58be0fa865bcdbf62309b7cefcb59b2631dee0a",
+    "macos": {
+      "id": 39161738041,
+      "status": "pending"
+    },
+    "pages": {
+      "id": 39161737909,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  }
+}

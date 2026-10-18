@@ -3212,3 +3212,22 @@ and remaining gaps. Exact Finder right-drag menu replacement has no public
 FinderSync callback; this batch implements the native selected-source adaptation.
 Physical gestures, current installed signed Finder/grant delivery, every original
 control layout and full App Store distribution remain separate acceptance.
+
+
+### Settings teardown and reattachment, October 18, 2026
+
+The older hosted `ea108cf9` history workflow exposed a SwiftUI exclusive-access
+abort when closing Git Settings: its native probe synchronously published from
+graph destruction. The connected repair covers Git, Credential, Network,
+General, Context Menu, Merge main/colors, Remote, Hook Scripts and Email pages
+and the shared Settings transaction. Retirement revokes controls and captured
+requests immediately, defers observable cleanup and terminal replies until
+actual captured sheet release, and protects newer attachments from obsolete
+cleanup. Quit/navigation retain actual worker and modal lifetimes.
+
+The [source comparison](SETTINGS-TEARDOWN-PARITY.md) describes the native ownership
+contract. The grouped checkpoint retains the exact failed Replay workflow and
+affected consumers. [Recorded local evidence](qa/settings-teardown-2026-10-18.json)
+covers 24 distinct case/engine pairs, actual failed attempts and independent
+receiver cleanup. Hosted Intel/SDK execution, current installed signed workflows, physical
+layout/input acceptance and complete Settings parity remain separate requirements.

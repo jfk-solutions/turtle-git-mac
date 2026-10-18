@@ -147,21 +147,35 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         TurtleGitHelp.attach(window, topic: TurtleGitHelp.settingsTopic(selected))
         window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
     }
-    var canDismiss: Bool { MergeEditorSettingsModel.activeProfileEditors == 0 && GitConfigurationSettingsModel.activeFolderChoosers == 0 && GeneralGitSettingsModel.activeDialogs == 0 && ToolApplicationChooser.activeChoosers == 0 && !retired && workspace.finderWatches?.busy != true && !emailDraft.busy && !emailDraft.editingCredentials && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0 && NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0 && view.window?.attachedSheet == nil }
+    private var settingsLifetimesIdle: Bool {
+        GitConfigurationSettingsModel.activeSheetReleases == 0 && CredentialSettingsModel.activeSheetReleases == 0 && NetworkSettingsModel.activeSheetReleases == 0 && HookSettingsModel.activeReads == 0 && HookConfigurationController.activeReleases == 0 && RemoteSettingsWindowModel.activeRetirements == 0 && SettingsTransaction.activeRetirements == 0
+    }
+    private func retireRemotePage() {
+        if let native = cache[.remote]?.view as? RemoteSettingsNativeView { native.retire() }
+        else { remote?.invalidate() }
+        remote = nil
+    }
+    var canDismiss: Bool { settingsLifetimesIdle && MergeEditorSettingsModel.activeProfileEditors == 0 && GitConfigurationSettingsModel.activeFolderChoosers == 0 && GeneralGitSettingsModel.activeDialogs == 0 && ToolApplicationChooser.activeChoosers == 0 && !retired && workspace.finderWatches?.busy != true && !emailDraft.busy && !emailDraft.editingCredentials && !transaction.busy && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0 && NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0 && view.window?.attachedSheet == nil }
     func updateRepository() {
         guard !retired, !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
         hooks?.invalidate(); hooks = nil; cache.removeValue(forKey: .hooks); transaction.unregister("hooks")
-        remote?.invalidate()
-        if selected == .remote, let window = view.window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
-        remote = nil; cache.removeValue(forKey: .remote); transaction.unregister("remote")
+        retireRemotePage()
+        cache.removeValue(forKey: .remote); transaction.unregister("remote")
         transaction.unregister("git"); transaction.unregister("dialogs3"); transaction.unregister("issueTracker"); cache.removeValue(forKey: .issueTracker)
         transaction.unregister("credential"); cache.removeValue(forKey: .credential)
         transaction.unregister("network"); cache.removeValue(forKey: .network)
         cache.removeValue(forKey: .git); cache.removeValue(forKey: .dialogs3)
         if [.remote, .git, .dialogs3, .hooks, .issueTracker, .credential, .network].contains(selected) {
             current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil
-            show(selected == .remote ? .git : selected)
+            let origin = selected, page = selected == .remote ? .git : selected, context = workspace.root?.path
+            Task { @MainActor [weak self] in
+                while let self, !self.retired, self.workspace.root?.path == context, self.selected == origin, !self.canDismiss {
+                    try? await Task.sleep(nanoseconds:10_000_000)
+                }
+                guard let self, !self.retired, self.workspace.root?.path == context, self.selected == origin, self.current == nil else {return}
+                self.show(page)
+            }
         }
         rebuildTree()
     }
@@ -222,7 +236,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     @objc private func cancelSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.cancel(); view.window?.performClose(nil) }
     private func host<V: View>(_ view: V) -> NSViewController { NSHostingController(rootView: view.environment(\.settingsTransaction, transaction).defaultAppStorage(preferences)) }
     private func show(_ page: SettingsPageID) {
-        guard !retired, MergeEditorSettingsModel.activeProfileEditors == 0, GitConfigurationSettingsModel.activeFolderChoosers == 0, GeneralGitSettingsModel.activeDialogs == 0, ToolApplicationChooser.activeChoosers == 0, !emailDraft.busy, !emailDraft.editingCredentials, !transaction.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0, NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0, IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0 else { return }
+        guard settingsLifetimesIdle, !retired, MergeEditorSettingsModel.activeProfileEditors == 0, GitConfigurationSettingsModel.activeFolderChoosers == 0, GeneralGitSettingsModel.activeDialogs == 0, ToolApplicationChooser.activeChoosers == 0, !emailDraft.busy, !emailDraft.editingCredentials, !transaction.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0, NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0, IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0 else { return }
         if current != nil && selected == page { return }
         view.window?.makeFirstResponder(nil)
         let controller: NSViewController
@@ -300,7 +314,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     func invalidate() {
         guard !retired else { return }; retired = true
         transaction.invalidate(); emailDraft.invalidate(); hooks?.invalidate(); hooks = nil
-        remote?.invalidate(); remote = nil
+        retireRemotePage()
         if let window = view.window, let delegateProxy, window.delegate === delegateProxy { window.delegate = delegateProxy.original }
         delegateProxy = nil; current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil; cache.removeAll()
     }
@@ -402,8 +416,8 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     init(owner: SettingsNavigationController, original: NSWindowDelegate?) { self.owner = owner; self.original = original }
     func windowShouldClose(_ sender: NSWindow) -> Bool { owner?.canDismiss == true && (original?.windowShouldClose?(sender) ?? true) }
     func windowWillClose(_ notification: Notification) {
-        if let window = notification.object as? NSWindow, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
-        original?.windowWillClose?(notification); owner?.invalidate()
+        // Each page retires only the child dialogs it actually owns.
+        owner?.invalidate(); original?.windowWillClose?(notification)
     }
     override func responds(to selector: Selector!) -> Bool { super.responds(to: selector) || original?.responds(to: selector) == true }
     override func forwardingTarget(for selector: Selector!) -> Any? { original }

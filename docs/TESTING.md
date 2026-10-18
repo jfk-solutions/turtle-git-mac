@@ -2402,3 +2402,20 @@ no mutation occurs until an accepted operation runs. Verify actual sheet detach,
 late cancellation, recent-destination revalidation, captured preferences, Quit
 guards and original source/index outcomes in private repositories with hidden
 owned windows. See [batch evidence](qa/finder-source-transfer-2026-10-18.json).
+
+
+### Settings graph retirement family
+
+After the connected native Settings implementation freezes and Debug is built,
+run `python3 scripts/test-settings-teardown-family.py --git /usr/bin/git --git
+build/git-runtime/Git/bin/git`. This links one cached receiver against actual app
+objects and runs twelve affected lifecycle/consumer cases per engine. The new
+teardown case checks same-stack publication, stale controls and attachments,
+held workers, actual hosted-page destruction, captured sheet/reply drain and
+shared transaction disposal. The retained Replay case is the exact workflow
+that aborted in the older macOS 15 hosted run. Private configuration/preferences
+and invisible owned windows isolate the checks; cleanup must finish on failure
+as well as success. Use `--only` for affected repairs, not a new full-suite run.
+This native-only repair does not require another Core suite. Local ARM execution
+does not establish hosted Intel/SDK acceptance or current signed deployment.
+See [source comparison](SETTINGS-TEARDOWN-PARITY.md).

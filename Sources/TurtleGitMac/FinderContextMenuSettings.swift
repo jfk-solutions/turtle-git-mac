@@ -13,9 +13,13 @@ import TurtleGitCore
     @Published private(set) var error: String?
     @Published private(set) var notice: String?
     @Published private(set) var activePage: Page? = .primary
-    @Published private(set) var revision = UUID()
+    @Published private(set) var revision = UUID() { didSet { contextRevision = UUID() } }
     @Published private(set) var applying = false
     private(set) var retired = false
+    private var livePage: Page? = .primary
+    private var attachment: UUID?
+    private var lifecycle = UUID()
+    private var contextRevision = UUID()
     private(set) weak var window: NSWindow?
     private var ownerObserver: NSObjectProtocol?
     private var saved: FinderMenuSettings
@@ -31,20 +35,35 @@ import TurtleGitCore
         let initial = FinderMenuSettings.from(defaults: defaults); draft = initial; saved = initial
     }
     deinit { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) } }
-    func attach(to owner: NSWindow?, page: Page) {
+    func attach(to owner: NSWindow?, page: Page, attachment receipt: UUID? = nil) {
         guard !retired else { return }
-        guard let owner else { deactivate(page); return }
-        guard window !== owner else { return }
-        if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }
-        window = owner; revision = UUID()
-        ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { guard let self else { return }; self.retired = true; self.activePage = nil; self.revision = UUID() }
+        guard let owner else { if let receipt { detach(attachment: receipt) } else { deactivate(page) }; return }
+        if window === owner, livePage == page, receipt == nil || attachment == receipt { return }
+        if let receipt { attachment = receipt }
+        if window !== owner {
+            if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }
+            window = owner
+            ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { guard let self else { return }; self.retired = true; self.setActive(nil) }
+            }
+        }
+        setActive(page, force: true)
+    }
+    func detach(attachment receipt: UUID) {
+        guard attachment == receipt else { return }; attachment = nil; setActive(nil)
+    }
+    func setActive(_ page: Page?, force: Bool = false) {
+        guard !retired || page == nil else { return }
+        guard livePage != page || force else { return }
+        livePage = page; contextRevision = UUID(); lifecycle = UUID(); let generation = lifecycle
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.lifecycle == generation else { return }
+            self.activePage = page; self.revision = UUID()
         }
     }
-    func setActive(_ page: Page?) { guard !retired, activePage != page else { return }; activePage = page; revision = UUID() }
-    func deactivate(_ page: Page) { if activePage == page { setActive(nil) } }
-    func context(_ page: Page) -> EditContext { .init(owner: ObjectIdentifier(self), revision: revision, page: page) }
-    func accepts(_ context: EditContext) -> Bool { !retired && !applying && activePage == context.page && self.context(context.page) == context }
+    func deactivate(_ page: Page) { if livePage == page { setActive(nil) } }
+    func context(_ page: Page) -> EditContext { .init(owner: ObjectIdentifier(self), revision: contextRevision, page: page) }
+    func accepts(_ context: EditContext) -> Bool { !retired && !applying && livePage == context.page && self.context(context.page) == context }
     func mask(_ page: Page) -> UInt64 { page == .extended ? draft.extendedOnlyMask : draft.topLevelMask }
     func set(_ entry: FinderMenuEntry, checked: Bool, context: EditContext, expectedMask: UInt64? = nil) {
         guard accepts(context), entry.availableInFinder, expectedMask == nil || expectedMask == mask(context.page) else { return }
@@ -155,7 +174,7 @@ struct FinderContextMenuSettingsPage: View {
             model.setActive(page)
             transaction?.register("contextMenu", participant: .init(page: .contextMenu, modified: { model.modified }, validate: { model.validationError }, apply: model.apply, cancel: model.cancel), registration: model.settingsRegistration)
         }
-        .onDisappear { model.deactivate(page) }
+
         .onChange(of: model.draft) { _ in transaction?.notify() }
     }
 }
@@ -163,11 +182,12 @@ struct FinderContextMenuSettingsPage: View {
 private struct FinderMenuOwnerProbe: NSViewRepresentable {
     let model: FinderContextMenuSettingsModel; let page: FinderContextMenuSettingsModel.Page
     func makeNSView(context: Context) -> Probe { let view = Probe(); view.model = model; view.page = page; return view }
-    func updateNSView(_ view: Probe, context: Context) { model.attach(to: view.window, page: page) }
-    static func dismantleNSView(_ view: Probe, coordinator: ()) { if let page = view.page { view.model?.deactivate(page) }; view.model = nil }
+    func updateNSView(_ view: Probe, context: Context) { model.attach(to: view.window, page: page, attachment: view.attachment) }
+    static func dismantleNSView(_ view: Probe, coordinator: ()) { view.model?.detach(attachment: view.attachment); view.model = nil }
     final class Probe: NSView {
+        let attachment = UUID()
         weak var model: FinderContextMenuSettingsModel?; var page: FinderContextMenuSettingsModel.Page?
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); if let page { model?.attach(to: window, page: page) } }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); if let page { model?.attach(to: window, page: page, attachment: attachment) } }
     }
 }
 

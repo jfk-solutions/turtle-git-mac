@@ -201,6 +201,7 @@ import AppKit
         if GitDaemonWindowModel.activeOperations > 0 || GitDaemonWindowModel.activeQuestions > 0 { return .terminateCancel }
         if FirstStartWizardModel.activeWrites > 0 || GeneralGitSettingsModel.activeOperations > 0 || GeneralGitSettingsModel.activeDialogs > 0 { return .terminateCancel }
         if GitConfigurationSettingsModel.activeFolderChoosers > 0 {return .terminateCancel}
+        if GitConfigurationSettingsModel.activeSheetReleases > 0 || CredentialSettingsModel.activeSheetReleases > 0 || NetworkSettingsModel.activeSheetReleases > 0 || HookSettingsModel.activeReads > 0 || HookConfigurationController.activeReleases > 0 || RemoteSettingsWindowModel.activeRetirements > 0 || SettingsTransaction.activeRetirements > 0 {return .terminateCancel}
         if MergeFormatPrompt.activeDialogs > 0 { return .terminateCancel }
         if MergeEditorSettingsModel.activeProfileEditors > 0 { return .terminateCancel }
         if MergeNavigationRequests.activeRequests > 0 { return .terminateCancel }

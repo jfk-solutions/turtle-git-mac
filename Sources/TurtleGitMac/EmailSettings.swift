@@ -146,6 +146,8 @@ actor SMTPKeychainStore: SMTPCredentialStore, SMTPTransportCredentialSource {
     var presentCredentialEditor:((String,@escaping ((String,String)?)->Void)->Void)?
     var cancelCredentialEditor:()->Void = {}
     private var credentialRequest:UUID?
+    private var credentialOwner:UUID?
+    private var credentialOwnerLive=true
     @Published private(set) var login = ""
     @Published private(set) var busy = false
     @Published private(set) var pendingOperations = 0
@@ -163,7 +165,7 @@ actor SMTPKeychainStore: SMTPCredentialStore, SMTPTransportCredentialSource {
         delivery = deliveries.contains(value.delivery) ? value.delivery : .direct; server = value.server; port = String(value.port)
         encryption = value.encryption; authenticate = value.authenticate
     }
-    var configuredControls: Bool { !invalidated && !busy && !editingCredentials && delivery == .configured }
+    var configuredControls: Bool { !invalidated && credentialOwnerLive && !busy && !editingCredentials && delivery == .configured }
     var credentialControls: Bool { configuredControls && authenticate }
     // Upstream Clear remains available for stored credentials regardless of delivery/auth.
     var canClear: Bool { !invalidated && !busy && !editingCredentials && !login.isEmpty }
@@ -193,19 +195,35 @@ actor SMTPKeychainStore: SMTPCredentialStore, SMTPTransportCredentialSource {
     }
     func editCredentials() {
         guard credentialControls,let presentCredentialEditor else {return}
-        let request=UUID(),context=[String(delivery.rawValue),server,port,String(encryption.rawValue),String(authenticate)]
+        let request=UUID(),owner=credentialOwner,context=[String(delivery.rawValue),server,port,String(encryption.rawValue),String(authenticate)]
         credentialRequest=request;editingCredentials=true;Self.activeCredentialEditors += 1
-        presentCredentialEditor(login) { [weak self] answer in
-            guard let self,self.credentialRequest==request else {return}
-            self.credentialRequest=nil;self.editingCredentials=false;Self.activeCredentialEditors -= 1
-            guard !self.invalidated,context == [String(self.delivery.rawValue),self.server,self.port,String(self.encryption.rawValue),String(self.authenticate)],let answer else {return}
-            self.storeCredentials(login:answer.0,password:answer.1)
+        var replied=false
+        presentCredentialEditor(login) { [self] answer in
+            guard !replied else{return};replied=true
+            Task { @MainActor [self] in
+                defer {Self.activeCredentialEditors -= 1}
+                guard credentialRequest==request else{return}
+                credentialRequest=nil;editingCredentials=false
+                guard !invalidated,credentialOwnerLive,credentialOwner==owner,context == [String(delivery.rawValue),server,port,String(encryption.rawValue),String(authenticate)],let answer else{return}
+                storeCredentials(login:answer.0,password:answer.1)
+            }
         }
     }
+    func claimCredentialOwner(_ receipt:UUID) {credentialOwner=receipt;credentialOwnerLive=true}
+    func revokeCredentialOwner(_ receipt:UUID) {
+        guard credentialOwner==receipt else{return};credentialOwner=nil;credentialOwnerLive=false
+        presentCredentialEditor=nil;cancelCredentialEditor={}
+    }
     func invalidate() {
-        invalidated = true; generation = UUID();cancelCredentialEditor()
-        if credentialRequest != nil {credentialRequest=nil;editingCredentials=false;Self.activeCredentialEditors -= 1}
-        presentCredentialEditor=nil;cancelCredentialEditor={};busy=false
+        invalidated=true;generation=UUID();credentialOwnerLive=false;credentialOwner=nil
+        let cancel=cancelCredentialEditor;presentCredentialEditor=nil;cancelCredentialEditor={}
+        DispatchQueue.main.async {cancel()}
+        // The accepted editor reply still owns its counter and model until its
+        // actual sheet drains. Credential workers likewise finish their own count.
+        let request=generation
+        DispatchQueue.main.async { [weak self] in
+            guard let self,self.invalidated,self.generation==request else{return};self.busy=false
+        }
     }
     private func perform(_ operation: @escaping @Sendable (any SMTPCredentialStore) async throws -> String) {
         guard !invalidated, !busy, !editingCredentials else { return }
@@ -393,31 +411,38 @@ private struct SMTPLoginField: NSViewRepresentable {
     @objc func cancel() {finish(nil)}
     func finish(_ value:(String,String)?) {
         guard !retired else {return};retired=true
+        username.target=nil;password.target=nil;password.delegate=nil;acceptButton.target=nil;cancelButton.target=nil
         password.currentEditor()?.string="";password.stringValue="";validation.stringValue=""
-        let answer=reply;reply=nil
-        if let window {window.sheetParent?.endSheet(window);window.orderOut(nil);window.close()}
-        answer?(value)
+        let answer=reply;reply=nil;let child=window,parent=window?.sheetParent
+        Task { @MainActor [self] in
+            if let child {parent?.endSheet(child);child.orderOut(nil);child.close()}
+            while child?.sheetParent != nil || (child != nil && parent?.attachedSheet === child) {try? await Task.sleep(nanoseconds:10_000_000)}
+            answer?(value)
+            withExtendedLifetime(self) {}
+        }
     }
     func windowWillClose(_ notification:Notification) {if !retired {finish(nil)}}
     required init?(coder:NSCoder) {fatalError("init(coder:) is not supported")}
 }
 @MainActor final class SMTPCredentialOwner {
-    weak var window:NSWindow?
+    weak var window:NSWindow? {didSet {if window != nil,oldValue !== window {install()}}}
+    private var receipt=UUID()
     let model:EmailSettingsModel
     private(set) var editor:SMTPCredentialWindowController?
-    var present:(NSWindow,NSWindow)->Void = {owner,child in owner.beginSheet(child)}
-    init(model:EmailSettingsModel) {
-        self.model=model
+    var present:(NSWindow,NSWindow)->Void = {owner,child in owner.beginSheet(child,completionHandler:nil)}
+    init(model:EmailSettingsModel) {self.model=model;install()}
+    private func install() {
+        receipt=UUID();model.claimCredentialOwner(receipt)
         model.presentCredentialEditor={ [weak self] login,reply in
             guard let self,let window=self.window,window.attachedSheet==nil,self.editor==nil else {reply(nil);return}
             let controller=SMTPCredentialWindowController(login:login) { [weak self] result in self?.editor=nil;reply(result) }
-            self.editor=controller;controller.window?.appearance=window.appearance
+            self.editor=controller;controller.window?.appearance=window.appearance;controller.window?.alphaValue=window.alphaValue
             if let child=controller.window {self.present(window,child);controller.focusInitialField()}
             else {controller.cancel()}
         }
         model.cancelCredentialEditor={ [weak self] in self?.cancel() }
     }
-    func cancel() {editor?.cancel();editor=nil}
+    func cancel() {model.revokeCredentialOwner(receipt);let child=editor;editor=nil;child?.cancel()}
 }
 private struct SMTPCredentialHost:NSViewRepresentable {
     let model:EmailSettingsModel

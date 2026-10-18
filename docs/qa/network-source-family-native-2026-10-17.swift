@@ -82,14 +82,14 @@ private actor NetworkSourcePasswords:ProxyPasswordStoring {
         model.presentSSHPanel={_,_,reply in replies.append(reply)};model.selectedSSHURL={_ in URL(fileURLWithPath:"/usr/bin/ssh")};model.bookmarkSSH={_ in bookmarks += 1;return Data("private bookmark".utf8)}
         model.ssh.path="/old-client";model.browseSSH();model.browseSSH()
         try require(replies.count == 1 && model.selectingSSH && NetworkSettingsModel.activeSSHChoosers == 1 && model.validate() == "Finish selecting the SSH client first." && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"SSH picker lost ownership/duplicate gate")
-        replies[0](.OK);replies[0](.OK)
+        replies[0](.OK);replies[0](.OK);try await wait {NetworkSettingsModel.activeSSHChoosers == 0 && !model.selectingSSH}
         try require(model.ssh.path == "/usr/bin/ssh" && bookmarks == 1 && !model.selectingSSH,"Picker adoption repeated/failed")
-        model.browseSSH();model.ssh.path="/typed-new-client";replies[1](.OK)
+        model.browseSSH();model.ssh.path="/typed-new-client";replies[1](.OK);try await wait {NetworkSettingsModel.activeSSHChoosers == 0 && !model.selectingSSH}
         try require(model.ssh.path == "/typed-new-client" && bookmarks == 1,"Picker overwrote changed SSH context")
-        model.browseSSH();replies[2](.cancel);try require(!model.selectingSSH,"Picker Cancel retained state")
-        model.selectedSSHURL={_ in root};model.browseSSH();replies[3](.OK)
+        model.browseSSH();replies[2](.cancel);try await wait {NetworkSettingsModel.activeSSHChoosers == 0 && !model.selectingSSH};try require(!model.selectingSSH,"Picker Cancel retained state")
+        model.selectedSSHURL={_ in root};model.browseSSH();replies[3](.OK);try await wait {NetworkSettingsModel.activeSSHChoosers == 0 && !model.selectingSSH}
         try require(bookmarks == 1 && model.ssh.path == "/typed-new-client" && model.error != nil,"Directory selection accepted as SSH executable")
-        model.error=nil;model.browseSSH();let panel=model.panel;model.deactivate();replies[4](.OK)
+        model.error=nil;model.browseSSH();let panel=model.panel;model.deactivate();replies[4](.OK);try await wait {NetworkSettingsModel.activeSSHChoosers == 0 && !model.selectingSSH}
         try require(NetworkSettingsModel.activeSSHChoosers == 0 && model.panel == nil && panel?.isVisible != true && bookmarks == 1,"Closed picker retained/adopted late grant")
         model.activate();model.ssh=SSHClientPreferences();model.proxy.enabled=true;model.proxy.server="proxy.example.invalid";model.proxy.port="8080";model.proxy.username="source-user";model.proxy.password="private sample secret"
         let transaction=SettingsTransaction(),host=NSHostingView(rootView:NetworkSettingsPage(model:model).environment(\.settingsTransaction,transaction).defaultAppStorage(prefs))

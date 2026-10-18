@@ -5,6 +5,7 @@ import TurtleGitCore
 
 @MainActor final class RemoteSettingsWindowModel: ObservableObject {
     private(set) static var activeOperations = 0
+    private(set) static var activeRetirements = 0
     enum Prompt {
         case saveDiscard, overwrite(String), noTags, fetch, remove(String)
         var message: String {
@@ -31,13 +32,18 @@ import TurtleGitCore
     @Published private(set) var changed: RemoteSettingsFields = []
     @Published private(set) var hasChild = false
     @Published private(set) var busy = false
-    @Published private(set) var closed = false
+    private(set) var closed = false
+    private var lifecycle = UUID()
+    private var attachment: UUID?
+    private var activating = false
+    private var pendingLoad = false
     @Published var error: String?
     @Published private(set) var collision = false
     @Published private(set) var originHint: String?
     var originHintDelay: UInt64 = 1_000_000_000
     private var hintTask: Task<Void, Never>?
     private var hintGeneration = UUID()
+    var retireNativeOwner: () -> Void = {}
     var updated: () -> Void = {}
     var close: () -> Void = {}
     var onFetch: (String) -> Void = { _ in }
@@ -53,19 +59,64 @@ import TurtleGitCore
         self.repository = repository; self.access = access; self.preferences = preferences; self.noFetch = noFetch; self.identityAccess = identityAccess
     }
     func selectIdentity(_ url: URL) {
-        guard !closed, !busy, !hasChild else { return }
+        guard !closed, !activating, !busy, !hasChild else { return }
         do { try identityAccess.remember(url, requireSecurityScope: GitRuntime.isAppStoreBuild); error = nil; edit(.sshKeyFile) { $0.sshKeyFile = url.path } }
         catch { self.error = error.localizedDescription; updated() }
     }
-    var canSave: Bool { !closed && !busy && !hasChild && !draft.name.isEmpty && !draft.url.isEmpty }
-    var canRename: Bool { !closed && !busy && !hasChild && selected != nil }
-    var canApply: Bool { !closed && !busy && !hasChild && !changed.isEmpty }
+    var canSave: Bool { !closed && !activating && !busy && !hasChild && !draft.name.isEmpty && !draft.url.isEmpty }
+    var canRename: Bool { !closed && !activating && !busy && !hasChild && selected != nil }
+    var canApply: Bool { !closed && !activating && !busy && !hasChild && !changed.isEmpty }
     private func live(_ request: OperationCancellation) -> Bool { !closed && token === request && !request.isCancelled }
     private func checkAccess() throws { if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable } }
-    func setChild(_ value: Bool) { hasChild = value; updated() }
-    func invalidate() { cancelOriginHint(); let completion = settingsCompletion; settingsCompletion = nil; completion?(false); hasChild = false; closed = true; token?.cancel(); collisionToken?.cancel(); token = nil; collisionToken = nil; pendingFetch = nil; selectionPending = false; requestedSelection = nil; busy = false; updated() }
+    func ownsAttachment(_ receipt: UUID) -> Bool { attachment == receipt }
+    func acceptsAttachment(_ receipt: UUID) -> Bool { attachment == receipt && !closed && !activating }
+    func attach(attachment receipt: UUID) {
+        guard attachment != receipt else { return }
+        let resetting = closed || attachment != nil
+        if resetting { invalidate() }
+        attachment = receipt; closed = false; lifecycle = UUID(); activating = resetting
+        guard resetting else { return }
+        let identity = lifecycle
+        DispatchQueue.main.async { [self] in
+            guard lifecycle == identity, !closed, attachment == receipt else { return }
+            hasChild = false; busy = false; originHint = nil; activating = false
+            updated()
+            if pendingLoad { pendingLoad = false; load() }
+        }
+    }
+    func setChild(_ value: Bool) { guard !closed, !activating else { return }; hasChild = value; updated() }
+    /// Revocation is synchronous; observable cleanup and external replies must
+    /// never re-enter SwiftUI while its graph is being destroyed.
+    func invalidate() {
+        retireNativeOwner()
+        if !closed { invalidate(attachment: nil) }
+    }
+    func invalidate(sheets: [NSWindow]) {
+        invalidate(attachment: nil, sheets: sheets)
+    }
+    func invalidate(attachment receipt: UUID?, sheets: [NSWindow] = [], completion: @escaping () -> Void = {}, terminal: @escaping () -> Void = {}) {
+        guard !closed, receipt == nil || attachment == receipt else { return }
+        retireNativeOwner = {}
+        closed = true; lifecycle = UUID(); let identity = lifecycle
+        activating = false; pendingLoad = false
+        hintGeneration = UUID(); hintTask?.cancel(); hintTask = nil
+        token?.cancel(); collisionToken?.cancel(); token = nil; collisionToken = nil
+        pendingFetch = nil; pendingClose = false; selectionPending = false; requestedSelection = nil
+        let answer = settingsCompletion; settingsCompletion = nil
+        let refresh = updated; updated = {}
+        Self.activeRetirements += 1
+        Task { @MainActor [self, access] in
+            defer { Self.activeRetirements -= 1; withExtendedLifetime(access) {} }
+            for sheet in sheets {
+                sheet.sheetParent?.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil); sheet.close()
+            }
+            while sheets.contains(where: { $0.sheetParent != nil || $0.attachedSheet != nil }) { try? await Task.sleep(nanoseconds: 10_000_000) }
+            if lifecycle == identity, closed { originHint = nil; hasChild = false; busy = false; refresh(); completion() }
+            terminal(); answer?(false)
+        }
+    }
     func edit(_ field: RemoteSettingsFields, _ change: (inout RemoteSettings) -> Void) {
-        guard !closed, !busy, !hasChild else { return }; if field == .name || field == .url { cancelOriginHint() }; change(&draft); changed.formUnion(field)
+        guard !closed, !activating, !busy, !hasChild else { return }; if field == .name || field == .url { cancelOriginHint() }; change(&draft); changed.formUnion(field)
         if field == .url, names.isEmpty, draft.name.isEmpty, !draft.url.isEmpty { draft.name = "origin"; changed.insert(.name) }
         if field == .name || field == .url { checkCollision() }; updated()
     }
@@ -80,12 +131,13 @@ import TurtleGitCore
         }
     }
     private func perform(_ body: @escaping (OperationCancellation) async throws -> Void) {
-        guard !closed, !busy, !hasChild else { return }; collisionToken?.cancel(); collisionToken = nil
+        guard !closed, !activating, !busy, !hasChild else { return }; collisionToken?.cancel(); collisionToken = nil
         let request = OperationCancellation(); token = request; busy = true; error = nil; updated(); Self.activeOperations += 1
         Task {
             defer { Self.activeOperations -= 1 }
             defer {
-                let completion = settingsCompletion; settingsCompletion = nil
+                let completion = token === request ? settingsCompletion : nil
+                if token === request { settingsCompletion = nil }
                 if token === request { token = nil; selectionPending = false; requestedSelection = nil; busy = false; updated(); if pendingClose, !closed { pendingClose = false; close() }; if let remote = pendingFetch, !closed { pendingFetch = nil; onFetch(remote) } }
                 // Read actor state in this scope. Older Swift compilers lose
                 // its isolation in the nested defer's Boolean autoclosures.
@@ -103,8 +155,8 @@ import TurtleGitCore
         names = values.map { GitReferenceName($0) }; if !names.isEmpty { cancelOriginHint() }; onRemotesChanged(values)
         if let onReferencesChanged { let references = try await repository.checkoutReferences(cancellation: request); guard live(request) else { return }; onReferencesChanged(references) }
     }
-    func suppressFetchForCommand() { guard !busy, !hasChild else { return }; noFetch = true }
-    func load() { perform { [self] request in try await reloadNames(request); if live(request) { scheduleOriginHint() } } }
+    func suppressFetchForCommand() { guard !closed, !activating, !busy, !hasChild else { return }; noFetch = true }
+    func load() { if activating { pendingLoad = true; return }; perform { [self] request in try await reloadNames(request); if live(request) { scheduleOriginHint() } } }
     private func cancelOriginHint() { hintGeneration = UUID(); hintTask?.cancel(); hintTask = nil; originHint = nil }
     private func scheduleOriginHint() {
         cancelOriginHint()
@@ -131,7 +183,7 @@ import TurtleGitCore
         guard live(request) else { return }; selected = name; draft = value; changed = []; collision = false; updated()
     }
     func select(_ name: GitReferenceName?) {
-        guard !closed, !busy, !hasChild, name != selected, name.map({ names.contains($0) }) ?? true else { return }
+        guard !closed, !activating, !busy, !hasChild, name != selected, name.map({ names.contains($0) }) ?? true else { return }
         requestedSelection = name; selectionPending = true
         perform { [self] request in
             if !changed.isEmpty { let choice = await confirm(.saveDiscard); guard live(request) else { return }; if choice.yes { do { try await apply(request) } catch { guard live(request) else { return }; self.error = error.localizedDescription } } }
@@ -139,6 +191,7 @@ import TurtleGitCore
         }
     }
     func applyForSettings() async -> Bool {
+        guard !closed, !activating else { return false }
         if changed.isEmpty { return true }
         guard canApply, settingsCompletion == nil else { return false }
         return await withCheckedContinuation { continuation in
@@ -225,13 +278,27 @@ import TurtleGitCore
         guard let window = child.window, presentFetch(owner, window) else { child.close(); return }; child.model.load(remote: remote)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.hasChild && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); fetchDialog?.close(); fetchDialog = nil; if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }; onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        let child = fetchDialog; fetchDialog = nil
+        let sheets = [child?.window].compactMap { $0 }
+        if let view = window?.contentView as? RemoteSettingsNativeView { view.retire(additionalSheets: sheets) }
+        else { model.invalidate(sheets: sheets) }
+        child?.close(); onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class RemoteSettingsNativeView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate {
     private let wordCommands=GitInputWordCommands()
     let model: RemoteSettingsWindowModel
+    let attachmentID = UUID()
+    var onRetired: () -> Void = {}
+    private var retired = false
+    private var ownedPanel: NSOpenPanel?
+    private var ownedQuestion: NSAlert?
+    private var questionReply: (((yes: Bool, suppress: Bool)) -> Void)?
+    private var live: Bool { !retired && model.acceptsAttachment(attachmentID) }
+    let help = NSButton(title: "Help", target: nil, action: nil)
     let table = NSTableView()
     let remoteScroll = NSScrollView()
     private let emptyList = RemoteSettingsEmptyLabel(wrappingLabelWithString: "No remotes configured")
@@ -252,6 +319,8 @@ import TurtleGitCore
     private var shownHint: String?
     init(model: RemoteSettingsWindowModel, embeddedSettings: Bool = false) {
         self.model = model; super.init(frame: .zero)
+        model.attach(attachment: attachmentID)
+        model.retireNativeOwner = { [weak self] in self?.retire() }
         table.headerView = nil; table.delegate = self; table.dataSource = self
         table.rowHeight = 24; table.intercellSpacing = NSSize(width: 0, height: 1)
         table.allowsMultipleSelection = false; table.allowsEmptySelection = true
@@ -295,7 +364,7 @@ import TurtleGitCore
         for view in form.arrangedSubviews.prefix(6) { view.widthAnchor.constraint(equalTo: form.widthAnchor).isActive = true }
         let body = NSStackView(views: [list,form]); body.orientation = .horizontal; body.alignment = .top; body.spacing = 20
         list.heightAnchor.constraint(equalTo: body.heightAnchor).isActive = true; form.heightAnchor.constraint(equalTo: body.heightAnchor).isActive = true
-        let help = NSButton(title: "Help", target: self, action: #selector(helpClicked)); help.bezelStyle = .rounded
+        help.target = self; help.action = #selector(helpClicked); help.bezelStyle = .rounded
         let buttons = NSStackView(views: embeddedSettings ? [help,status,NSView()] : [help,status,NSView(),ok,cancel,apply]); buttons.orientation = .horizontal; buttons.spacing = 8
         let layout = NSStackView(views: [body,buttons]); layout.orientation = .vertical; layout.spacing = 16; layout.translatesAutoresizingMaskIntoConstraints = false; addSubview(layout)
         NSLayoutConstraint.activate([layout.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),layout.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),layout.topAnchor.constraint(equalTo: topAnchor, constant: 16),layout.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -16),body.widthAnchor.constraint(equalTo: layout.widthAnchor),buttons.widthAnchor.constraint(equalTo: layout.widthAnchor)])
@@ -304,13 +373,42 @@ import TurtleGitCore
         if !embeddedSettings { help.nextKeyView = ok; ok.nextKeyView = cancel; cancel.nextKeyView = apply; apply.nextKeyView = table }
         model.updated = { [weak self] in self?.render() }; render()
     }
+    func retire(additionalSheets: [NSWindow] = []) {
+        guard !retired else { return }; retired = true
+        let sheets = additionalSheets + [ownedPanel, ownedQuestion?.window].compactMap { $0 }
+        let answer = questionReply; questionReply = nil; ownedPanel = nil; ownedQuestion = nil
+        let completion = onRetired; onRetired = {}
+        hintPopover?.close(); hintPopover = nil
+        for control in [remote,url,pushURL,key,sshKey] { control.delegate = nil; control.isEnabled = false }
+        for button in [browse,browseSSH,rename,add,remove,help,apply,ok,cancel] { button.target = nil; button.action = nil; button.isEnabled = false }
+        table.delegate = nil
+        if model.ownsAttachment(attachmentID) {
+            model.invalidate(attachment: attachmentID, sheets: sheets, completion: completion, terminal: { answer?((false,false)) })
+        } else {
+            Task { @MainActor in
+                for sheet in sheets { sheet.sheetParent?.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil);sheet.close() }
+                while sheets.contains(where:{$0.sheetParent != nil || $0.attachedSheet != nil}) {try? await Task.sleep(nanoseconds:10_000_000)}
+                answer?((false,false))
+            }
+        }
+    }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow(); guard let window else { hintPopover?.close(); hintPopover = nil; return }
-        model.confirm = { [weak window] prompt in
-            guard let window, window.attachedSheet == nil else { return (false, false) }
+        guard !retired, model.ownsAttachment(attachmentID) else { return }
+        model.confirm = { [weak self, weak window] prompt in
+            guard let self, self.live, let window, window.attachedSheet == nil, self.ownedQuestion == nil else { return (false, false) }
             return await withCheckedContinuation { continuation in
-                let alert = Self.alert(prompt)
-                alert.beginSheetModal(for: window) { continuation.resume(returning: ($0 == .alertFirstButtonReturn, alert.suppressionButton?.state == .on)) }
+                let alert = Self.alert(prompt); self.ownedQuestion = alert
+                alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.appearance
+                self.questionReply = { continuation.resume(returning: $0) }
+                alert.beginSheetModal(for: window) { [weak self] response in
+                    guard let self, self.ownedQuestion === alert else { return }
+                    let reply = self.questionReply; self.questionReply = nil; self.ownedQuestion = nil
+                    Task { @MainActor [self] in
+                        while alert.window.sheetParent != nil || window.attachedSheet === alert.window { try? await Task.sleep(nanoseconds:10_000_000) }
+                        reply?(self.live ? (response == .alertFirstButtonReturn, alert.suppressionButton?.state == .on) : (false,false))
+                    }
+                }
             }
         }
     }
@@ -325,6 +423,7 @@ import TurtleGitCore
         return alert
     }
     func render() {
+        guard !retired, model.ownsAttachment(attachmentID) else { return }
         updating = true; defer { updating = false }
         for (field,value) in [(remote,model.draft.name),(url,model.draft.url),(pushURL,model.draft.pushURL),(key,model.draft.puttyKeyFile),(sshKey,model.draft.sshKeyFile)] { if !field.stringValue.utf8.elementsEqual(value.utf8) { field.stringValue = value }; field.isEnabled = !model.busy && !model.closed && !model.hasChild }
         browse.isEnabled = key.isEnabled; browseSSH.isEnabled = sshKey.isEnabled
@@ -391,9 +490,9 @@ import TurtleGitCore
         cell.textField?.stringValue = renderedNames[row].rawValue; cell.toolTip = renderedNames[row].rawValue
         return cell
     }
-    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool { !model.closed && !model.busy && !model.hasChild && window?.attachedSheet == nil && renderedNames.indices.contains(row) }
+    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool { live && !model.closed && !model.busy && !model.hasChild && window?.attachedSheet == nil && renderedNames.indices.contains(row) }
     func tableViewSelectionDidChange(_ notification: Notification) {
-        guard !updating, !model.closed, !model.busy, !model.hasChild, window?.attachedSheet == nil else { return }
+        guard live, !updating, !model.closed, !model.busy, !model.hasChild, window?.attachedSheet == nil else { return }
         let requested = renderedNames.indices.contains(table.selectedRow) ? renderedNames[table.selectedRow] : nil
         guard requested != model.selected else { return }
         selectionFocusWindow = window?.firstResponder === table ? window : nil
@@ -401,30 +500,40 @@ import TurtleGitCore
         if !model.busy { selectionFocusWindow = nil }
     }
     func control(_ control:NSControl,textView:NSTextView,doCommandBy selector:Selector)->Bool {
-        guard !updating,!model.closed,!model.busy,!model.hasChild,[remote,url,pushURL,key,sshKey].contains(where:{$0 === control}) else{return false}
+        guard live,!updating,!model.closed,!model.busy,!model.hasChild,[remote,url,pushURL,key,sshKey].contains(where:{$0 === control}) else{return false}
         wordCommands.policy=GitInputWordBreak(defaults:model.preferences)
         return wordCommands.handle(control,text:textView,selector:selector,combo:false,owner:self)
     }
     func controlTextDidChange(_ notification: Notification) {
-        guard !updating, let field = notification.object as? NSTextField else { return }; let value = field.stringValue
+        guard live, !updating, let field = notification.object as? NSTextField else { return }; let value = field.stringValue
         if field === remote { model.edit(.name) { $0.name = value } }; if field === url { model.edit(.url) { $0.url = value } }; if field === pushURL { model.edit(.pushURL) { $0.pushURL = value } }; if field === key { model.edit(.puttyKeyFile) { $0.puttyKeyFile = value } }
         if field === sshKey { model.edit(.sshKeyFile) { $0.sshKeyFile = value } }
     }
-    @objc func tagChanged() { let value: RemoteTagPolicy = tags.indexOfSelectedItem == 1 ? .none : tags.indexOfSelectedItem == 2 ? .all : .reachable; model.edit(.tags) { $0.tags = value } }
-    @objc func pruneChanged() { let value: FetchOverride = prune.state == .mixed ? .configured : prune.state == .on ? .enabled : .disabled; model.edit(.prune) { $0.prune = value } }
-    @objc func defaultChanged() { let value = pushDefault.state == .on; model.edit(.pushDefault) { $0.pushDefault = value } }
-    @objc func renameClicked() { model.rename() }
-    @objc func saveClicked() { model.save() }
-    @objc func removeClicked() { model.remove() }
-    @objc func applyClicked() { model.apply() }
-    @objc func okClicked() { model.apply(closeAfter: true) }
-    @objc func cancelClicked() { if !model.busy { model.close() } }
-    @objc func helpClicked() { TurtleGitHelp.show(.settings) }
-    @objc func browseKey() {
+    @objc func tagChanged() { guard live else { return }; let value: RemoteTagPolicy = tags.indexOfSelectedItem == 1 ? .none : tags.indexOfSelectedItem == 2 ? .all : .reachable; model.edit(.tags) { $0.tags = value } }
+    @objc func pruneChanged() { guard live else { return }; let value: FetchOverride = prune.state == .mixed ? .configured : prune.state == .on ? .enabled : .disabled; model.edit(.prune) { $0.prune = value } }
+    @objc func defaultChanged() { guard live else { return }; let value = pushDefault.state == .on; model.edit(.pushDefault) { $0.pushDefault = value } }
+    @objc func renameClicked() { guard live else { return }; model.rename() }
+    @objc func saveClicked() { guard live else { return }; model.save() }
+    @objc func removeClicked() { guard live else { return }; model.remove() }
+    @objc func applyClicked() { guard live else { return }; model.apply() }
+    @objc func okClicked() { guard live else { return }; model.apply(closeAfter: true) }
+    @objc func cancelClicked() { guard live else { return }; if !model.busy { model.close() } }
+    @objc func helpClicked() { guard live else { return }; TurtleGitHelp.show(.settings) }
+    @objc func browseKey() { guard live else { return };
         guard !model.busy, !model.closed, !model.hasChild, let window, window.attachedSheet == nil else { return }
         let panel = NSOpenPanel(); panel.canChooseDirectories = false; panel.allowsMultipleSelection = false; panel.title = "Select PuTTY key file for Windows interoperability"
+        ownedPanel = panel; panel.alphaValue = window.alphaValue; panel.appearance = window.appearance
         model.setChild(true)
-        panel.beginSheetModal(for: window) { [weak self] response in guard let self, !self.model.closed else { return }; self.model.setChild(false); guard response == .OK, let url = panel.url else { return }; self.model.edit(.puttyKeyFile) { $0.puttyKeyFile = url.path } }
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard let self, self.ownedPanel === panel else { return }
+            Task { @MainActor [self] in
+                while panel.sheetParent != nil || window.attachedSheet === panel { try? await Task.sleep(nanoseconds: 10_000_000) }
+                guard self.ownedPanel === panel, self.live else { return }
+                self.ownedPanel = nil; self.model.setChild(false)
+                guard response == .OK, let url = panel.url else { return }
+                self.model.edit(.puttyKeyFile) { $0.puttyKeyFile = url.path }
+            }
+        }
     }
     static func identityPanel(path: String) -> NSOpenPanel {
         let panel = NSOpenPanel(); panel.canChooseFiles = true; panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
@@ -432,22 +541,29 @@ import TurtleGitCore
         if path.hasPrefix("/"), FileManager.default.fileExists(atPath: path) { let url = URL(fileURLWithPath: path); panel.directoryURL = url.deletingLastPathComponent(); panel.nameFieldStringValue = url.lastPathComponent }
         return panel
     }
-    @objc func browseSSHKey() {
+    @objc func browseSSHKey() { guard live else { return };
         guard !model.busy, !model.closed, !model.hasChild, let window, window.attachedSheet == nil else { return }
-        let panel = Self.identityPanel(path: model.draft.sshKeyFile); model.setChild(true)
+        let panel = Self.identityPanel(path: model.draft.sshKeyFile); ownedPanel = panel
+        panel.alphaValue = window.alphaValue; panel.appearance = window.appearance; model.setChild(true)
         panel.beginSheetModal(for: window) { [weak self] response in
-            guard let self, !self.model.closed else { return }; self.model.setChild(false)
-            guard response == .OK, let url = panel.url else { return }; self.model.selectIdentity(url)
+            guard let self, self.ownedPanel === panel else { return }
+            Task { @MainActor [self] in
+                while panel.sheetParent != nil || window.attachedSheet === panel { try? await Task.sleep(nanoseconds: 10_000_000) }
+                guard self.ownedPanel === panel, self.live else { return }
+                self.ownedPanel = nil; self.model.setChild(false)
+                guard response == .OK, let url = panel.url else { return }; self.model.selectIdentity(url)
+            }
         }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
-private struct RemoteSettingsEmbeddedPage: NSViewRepresentable {
+struct RemoteSettingsEmbeddedPage: NSViewRepresentable {
     let model: RemoteSettingsWindowModel
-    func makeNSView(context: Context) -> RemoteSettingsNativeView { RemoteSettingsNativeView(model: model) }
+    var onRetired: () -> Void = {}
+    func makeNSView(context: Context) -> RemoteSettingsNativeView { let view = RemoteSettingsNativeView(model: model); view.onRetired = onRetired; return view }
     func updateNSView(_ view: RemoteSettingsNativeView, context: Context) { view.render() }
-    static func dismantleNSView(_ view: RemoteSettingsNativeView, coordinator: ()) { view.model.invalidate(); if let sheet = view.window?.attachedSheet { view.window?.endSheet(sheet, returnCode: .abort); sheet.close() } }
+    static func dismantleNSView(_ view: RemoteSettingsNativeView, coordinator: ()) { view.retire() }
 }
 struct PushRemoteSettings: View {
     var onClose: (() -> Void)?
@@ -458,9 +574,8 @@ struct PushRemoteSettings: View {
         _settings = StateObject(wrappedValue: RemoteSettingsWindowModel(repository: model.repository, access: model.repositoryAccess, preferences: model.settingsPreferences, noFetch: true))
     }
     var body: some View {
-        RemoteSettingsEmbeddedPage(model: settings).frame(minWidth: 730, minHeight: 440)
+        RemoteSettingsEmbeddedPage(model: settings, onRetired: { if !model.closed { model.refreshRemoteCatalog() } }).frame(minWidth: 730, minHeight: 440)
             .onAppear { settings.close = { if let onClose { onClose() } else { model.managingRemotes = false } }; settings.onRemotesChanged = { model.remotes = $0 }; settings.onReferencesChanged = { model.references = $0 }; settings.load() }
-            .onDisappear { settings.invalidate(); if !model.closed { model.refreshRemoteCatalog() } }
     }
 }
 
