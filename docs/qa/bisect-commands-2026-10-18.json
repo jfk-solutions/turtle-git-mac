@@ -1,0 +1,134 @@
+{
+  "date": "2026-10-18",
+  "scope": "Stateful source Bisect command family, native Start drafts/defaults, custom terms and recovered-session ownership",
+  "base_commit": "a3fb40d3b19a043b827aca6eafa1e23c4e3b7717",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_review": [
+    "Commands/BisectCommand.cpp state-dependent Start and Good/Bad/Skip/Reset precedence",
+    "AppUtils.cpp BisectStart/BisectOperation Start acceptance, Stash/Abort and continuations",
+    "BisectStartDlg.cpp empty Good and branch/HEAD Bad default"
+  ],
+  "implementation": [
+    "Typed request distinguishes option absence/empty Good/Bad and selects action only from fresh session state",
+    "Native/legacy optional Good/Bad values, Start/Skip/Reset flags and active ref; path-file resolution preserves request",
+    "Inactive Start waits for native acceptance; active classification uses source priority and existing custom-term Git backend; Reset ignores ref",
+    "Recovered state publishes even for an inapplicable command, retaining Reset while active",
+    "Repeated valid review retains user edits; initial error is not an existing review; fresh Start after Reset restores source defaults",
+    "Competing pickers/operations refuse new command work; owning preferences reach progress and pickers",
+    "Existing source icons, Stash/Abort, progress, cancellation, partial-session recovery and retirement remain"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "executed": 38,
+      "failures": 0,
+      "classes": [
+        "PrimaryCommandInvocationTests",
+        "BisectTests"
+      ],
+      "log": "build/qa/bisect-commands-core-2026-10-18.log",
+      "full_suite_rerun": false,
+      "rerun_after_native_only_defaults_change": false
+    },
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/bisect-commands-build-2026-10-18.log",
+      "defaults_build_exit": 0,
+      "defaults_build_log": "build/qa/bisect-commands-build-defaults-2026-10-18.log",
+      "review_repair": "Before native execution, separate fresh Start defaults after Reset from a preserved unfinished review. No runtime failure triggered this correction."
+    },
+    "native": {
+      "exit": 0,
+      "distinct_case_engine_passes": 8,
+      "runtime_attempts": 8,
+      "runtime_failures": [],
+      "passed": [
+        "bisect-command/system",
+        "bisect-command/bundled",
+        "bare/system",
+        "bare/bundled",
+        "bisect-lifecycle/system",
+        "bisect-lifecycle/bundled",
+        "bisect-progress/system",
+        "bisect-progress/bundled"
+      ],
+      "logs": [
+        "build/qa/bisect-commands-native-2026-10-18.log",
+        "build/qa/bisect-commands-regression-2026-10-18.log"
+      ],
+      "scope": [
+        "Unknown inactive command reports source error with actual state; subsequent Start applies presets",
+        "Repeated Start retains edits and private progress animation preference",
+        "No mutation before acceptance; declined tracked Stash prompt preserves bytes/session; accepted Start creates session",
+        "Real explicit Good/Bad/Skip and Reset ignoring ref, restoring original branch state",
+        "Actual old/new custom terms and source Start+Good, Bad/Skip/Reset priorities; rejected active Start retains Reset",
+        "Fresh Start after Reset clears stale Good/defaults Bad to main; picker/merge/inactive/retired fences",
+        "Existing lifecycle: live-read/Start cancellation, Reset recovery, owned child reaping, Quit, picker and forced-retirement/stash decision guards",
+        "Existing progress: source layouts/actions/icons, retained Stash, CR/UTF-8 streaming, bounded output, interrupted-session Reset, action log and kill/autoclose/retirement settlement"
+      ],
+      "owned_runtime_pids": [
+        10006,
+        10941,
+        11862,
+        12075,
+        12310,
+        12477,
+        12760,
+        12934
+      ],
+      "owned_compiler_pids": [
+        12301
+      ],
+      "cleanup": "All eight runtime receivers and the reference compiler reaped; independent ps exit 1 with empty stdout. Private repositories/preferences/pasteboards, injected replies and owned helper groups/windows only.",
+      "evidence_extraction_repair": "Initial report assertion counted the reference compiler as a ninth runtime receiver; separated compiler and runtime PIDs without rerunning tests.",
+      "runner_note": "Unrelated unstaged Reflog capture registration remains untouched and excluded from this commit; selected Bisect cases/dependencies unchanged."
+    },
+    "localization": {
+      "write_exit": 0,
+      "check_exit": 0,
+      "languages": 38,
+      "keys": 1284,
+      "write_log": "build/qa/bisect-commands-localizations-2026-10-18.log",
+      "check_log": "build/qa/bisect-commands-localizations-check-2026-10-18.log"
+    },
+    "hosted_observation": {
+      "before_this_push": true,
+      "legacy_run": 39103154393,
+      "build_job": 117603380764,
+      "build_job_conclusion": "success",
+      "test_job": 117603611070,
+      "test_job_status": "in_progress",
+      "test_step": "Git integration tests",
+      "previous_head_run": 39106266667,
+      "previous_head_sha": "a3fb40d3b19a043b827aca6eafa1e23c4e3b7717",
+      "previous_head_status_at_start": "pending",
+      "full_hosted_pass_claimed": false
+    },
+    "dialog_ledger": {
+      "exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_controls": 93,
+      "log": "build/qa/bisect-commands-coverage-2026-10-18.log"
+    },
+    "site": {
+      "exit": 0,
+      "documents": 294,
+      "unresolved_fragments": 0,
+      "log": "build/qa/bisect-commands-site-2026-10-18.log"
+    }
+  },
+  "limits": [
+    "No complete Windows shared-switch/process/exit protocol or every permissive legacy argument form claimed.",
+    "Another process may change state after preflight; existing Git backend revalidates state/revisions at mutation. No cross-process transaction lock.",
+    "Native errors acknowledged through bindings/injected responses; physical alert/picker gestures, VoiceOver, minimum OS and signed sandbox remain open.",
+    "Revision Graph review found listed source routes already implemented; it did not certify graph visuals or signed behavior.",
+    "Current Release/unsigned App Store archive predates this batch. Full hosted pass, current signed distribution, physical Finder and all-dialog parity remain open.",
+    "Custom TurtleGit artwork has not been recovered; packaged artwork remains upstream.",
+    "Full goal remains incomplete."
+  ]
+}

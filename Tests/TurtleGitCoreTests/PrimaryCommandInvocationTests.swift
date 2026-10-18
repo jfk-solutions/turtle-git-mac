@@ -6,6 +6,36 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         let value = try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: cwd)
         return try XCTUnwrap(value)
     }
+    func testBisectCommandOptionalTermsAndPreservedPathList() throws {
+        let start=try parse(["--command=bisect","--start","--good","base","--bad=tip"])
+        XCTAssertEqual(start.request.action,.bisect);XCTAssertEqual(start.bisectCommand, .init(start:true,good:"base",bad:"tip"))
+        let flags=try parse(["/command:bisect","/good","/bad:","/skip","/reset","/ref:HEAD~2"])
+        XCTAssertEqual(flags.bisectCommand,.init(good:"",bad:"",skip:true,reset:true,reference:"HEAD~2"))
+        XCTAssertEqual(try parse(["--command=bisect","--good","--path=folder"]).bisectCommand?.good,"")
+        let folder=try temporaryDirectory();defer {try? FileManager.default.removeItem(at:folder)}
+        let list=folder.appendingPathComponent("paths");try Data("one\ntwo\n".utf8).write(to:list)
+        let value=try parse(["--command=bisect","--start","--bad=tip","--pathfile",list.path])
+        let resolved=try value.resolvingPathFile(cancellation:OperationCancellation())
+        XCTAssertEqual(resolved.bisectCommand,value.bisectCommand);XCTAssertEqual(resolved.request.paths.count,2)
+        XCTAssertEqual(resolved.selecting([folder]).bisectCommand,value.bisectCommand)
+    }
+    func testBisectCommandRejectsInvalidAndForeignOptions() throws {
+        for args in [["/command:bisect","/start:true"],["/command:bisect","/skip:true"],["/command:bisect","/good:-invalid"],["--command=bisect","--bad","bad name"],["/command:bisect","/good","/good:one"],["/command:bisect","/rev:HEAD"],["/command:commit","/good"],["/command:merge","/reset"],["/command:bisect","/ref:-bad"]] {XCTAssertThrowsError(try parse(args),args.joined(separator:" "))}
+    }
+    func testBisectCommandUsesActualStateAndSourcePrecedence() throws {
+        typealias Request=BisectCommandRequest
+        XCTAssertEqual(try Request(start:true).action(active:false),.start(good:nil,bad:nil))
+        XCTAssertEqual(try Request(start:true,good:"",bad:"").action(active:false),.start(good:nil,bad:nil))
+        let all=Request(start:true,good:"base",bad:"tip",skip:true,reset:true,reference:"selected")
+        XCTAssertEqual(try all.action(active:false),.start(good:"base",bad:"tip"))
+        XCTAssertEqual(try all.action(active:true),.operation(.good,revisions:["selected"]))
+        XCTAssertEqual(try Request(bad:"ignored",skip:true,reset:true,reference:"selected").action(active:true),.operation(.bad,revisions:["selected"]))
+        XCTAssertEqual(try Request(skip:true,reset:true,reference:"selected").action(active:true),.operation(.skip,revisions:["selected"]))
+        XCTAssertEqual(try Request(reset:true,reference:"ignored").action(active:true),.operation(.reset,revisions:[]))
+        XCTAssertEqual(try Request(good:"").action(active:true),.operation(.good,revisions:[]))
+        for request in [Request(),Request(good:""),Request(bad:""),Request(skip:true),Request(reset:true)] {XCTAssertThrowsError(try request.action(active:false))}
+        XCTAssertThrowsError(try Request(start:true).action(active:true));XCTAssertThrowsError(try Request().action(active:true))
+    }
     func testPatchCommandFamilyPresetsAndDestination() throws {
         for (command,action) in [("formatpatch",RepositoryAction.formatPatch),("export",.export),("importpatch",.importPatch)] {
             XCTAssertEqual(try parse(["--command="+command]).request.action,action)

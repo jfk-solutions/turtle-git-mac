@@ -3,6 +3,40 @@
 import Foundation
 
 public enum BisectOperation: String, CaseIterable, Sendable { case good, bad, skip, reset }
+/// Pinned BisectCommand.cpp decides between Start and an operation only after
+/// reading the real session state. Presence of good/bad differs from its value.
+public struct BisectCommandRequest: Equatable, Sendable {
+    public let start: Bool
+    public let good: String?
+    public let bad: String?
+    public let skip: Bool
+    public let reset: Bool
+    public let reference: String?
+    public init(start: Bool = false, good: String? = nil, bad: String? = nil, skip: Bool = false, reset: Bool = false, reference: String? = nil) {
+        self.start=start;self.good=good;self.bad=bad;self.skip=skip;self.reset=reset;self.reference=reference
+    }
+    public enum Action: Equatable, Sendable {
+        case start(good: String?, bad: String?)
+        case operation(BisectOperation, revisions: [String])
+    }
+    public func action(active: Bool) throws -> Action {
+        if start && !active {
+            return .start(good:good.flatMap {$0.isEmpty ? nil:$0},bad:bad.flatMap {$0.isEmpty ? nil:$0})
+        }
+        guard active else { throw Failure.notAllowed }
+        let operation: BisectOperation
+        if good != nil { operation = .good }
+        else if bad != nil { operation = .bad }
+        else if skip { operation = .skip }
+        else if reset { operation = .reset }
+        else { throw Failure.notAllowed }
+        return .operation(operation, revisions: operation == .reset ? [] : reference.flatMap {$0.isEmpty ? nil:[$0]} ?? [])
+    }
+    public enum Failure: LocalizedError {
+        case notAllowed
+        public var errorDescription: String? { "Operation unknown or not allowed." }
+    }
+}
 public struct BisectState: Sendable {
     public let active: Bool
     public let originalRevision: String

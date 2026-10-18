@@ -2567,13 +2567,17 @@ import UniformTypeIdentifiers
             self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, sourceLog: refreshPicker ? model : nil)
         }
     }
-    private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, sourceLog: LogWindowModel? = nil, onChanged: (() -> Void)? = nil) {
+    private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, sourceLog: LogWindowModel? = nil, onChanged: (() -> Void)? = nil, command: BisectCommandRequest? = nil) {
         let root = repository.root
         let controller: BisectWindowController
         if let existing = bisectWindows[root.path] {
+            if command != nil && existing.activeOperation {
+                existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
+                error = "Wait for the current bisect operation to finish."; return
+            }
             controller = existing
-            if !existing.activeOperation { existing.model.load(good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart) }
-        } else { controller = BisectWindowController(repository: repository, access: access, good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart) }
+            if !existing.activeOperation { existing.model.load(good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart, command: command, preserveStartDraft: command != nil && existing.model.hasStartReview && !existing.model.showingProgress) }
+        } else { controller = BisectWindowController(repository: repository, access: access, good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart, command: command, preferences: fileComparisonPreferences) }
         if let sourceLog { controller.model.observeLog(sourceLog) }
         controller.onClosed = { [weak self] in self?.bisectWindows.removeValue(forKey: root.path) }
         controller.model.onChanged = { [weak self] output in
@@ -3375,6 +3379,7 @@ import UniformTypeIdentifiers
         case .stash: showStash(repository: repository, access: access, message: invocation.message, commandLaunch: true)
         case .stashApply, .stashPop: showStashRestore(repository: repository, access: access, pop: invocation.request.action == .stashPop)
         case .stashList: showReferenceLog(repository: repository, access: access, reference: "refs/stash")
+        case .bisect: showBisect(repository: repository, access: access, command: invocation.bisectCommand)
         case .formatPatch: showFormatPatch(repository: repository, access: access, preset: invocation.formatPatchPreset, commandLaunch: true)
         case .export: showExport(repository: repository, access: access, revision: invocation.selectedRevision ?? "HEAD", paths: paths, commandLaunch: true)
         case .diff:

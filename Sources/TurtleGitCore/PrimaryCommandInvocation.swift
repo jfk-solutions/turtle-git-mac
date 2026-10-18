@@ -14,6 +14,7 @@ public struct PrimaryCommandInvocation: Sendable {
     public let outputFile: URL?
     public let importTarget: URL?
     public let formatPatchPreset: FormatPatchPreset?
+    public let bisectCommand: BisectCommandRequest?
     public let unified: Bool
     public let line: Int?
     public let sourceURL: String?
@@ -47,8 +48,9 @@ public struct PrimaryCommandInvocation: Sendable {
             return key == "--command" || key.hasPrefix("--command=") || key.hasPrefix("/command:")
         }
         guard hasCommand else { return nil }
-        let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep", "onlymask", "delete", "abort"]
+        let flags: Set<String> = ["wholeproject", "alternative", "findtext", "findregex", "deletepathfile", "pathfile0", "unified", "exactpath", "force", "keep", "onlymask", "delete", "abort", "start", "skip", "reset"]
         let valued: Set<String> = ["command", "path", "path2", "logmsg", "logmsgfile", "bugid", "startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "pathfile", "outfile", "line", "url", "remote", "name", "branch", "ref", "upstream", "msg", "droptarget"]
+        let optionalValues: Set<String> = ["good", "bad"]
         var values: [String: String] = [:], paths: [String] = [], index = 0
         while index < arguments.count {
             let argument = arguments[index]; index += 1
@@ -58,9 +60,15 @@ public struct PrimaryCommandInvocation: Sendable {
             let body = String(argument.dropFirst(legacy ? 1 : 2)), separator: Character = legacy ? ":" : "="
             let parts = body.split(separator: separator, maxSplits: 1, omittingEmptySubsequences: false)
             let key = parts[0].lowercased()
-            guard flags.contains(key) || valued.contains(key) else { throw Failure("Unsupported command option: " + key) }
+            guard flags.contains(key) || valued.contains(key) || optionalValues.contains(key) else { throw Failure("Unsupported command option: " + key) }
             let value: String
-            if flags.contains(key) {
+            if optionalValues.contains(key) {
+                if parts.count == 2 { value = String(parts[1]) }
+                else if !legacy, index < arguments.count, !arguments[index].hasPrefix("--"), !arguments[index].hasPrefix("/") {
+                    value = arguments[index]; index += 1
+                    guard !value.contains("\0") else { throw Failure("Command arguments cannot contain NUL.") }
+                } else { value = "" }
+            } else if flags.contains(key) {
                 guard parts.count == 1 else { throw Failure("Option takes no value: " + key) }
                 value = ""
             } else if parts.count == 2 { value = String(parts[1]) }
@@ -102,6 +110,7 @@ public struct PrimaryCommandInvocation: Sendable {
         case "add": action = .add
         case "rename": action = .rename
         case "remove": action = values["keep"] != nil ? .removeKeep : .remove
+        case "bisect": action = .bisect
         case "formatpatch": action = .formatPatch
         case "export": action = .export
         case "importpatch": action = .importPatch
@@ -121,6 +130,7 @@ public struct PrimaryCommandInvocation: Sendable {
         case .commit: allowed.formUnion(["logmsg", "logmsgfile", "bugid", "wholeproject"])
         case .log: allowed.formUnion(["startrev", "endrev", "revstart", "revend", "range", "rev", "limit", "findstring", "findtype", "findtext", "findregex", "outfile"])
         case .diff: allowed.formUnion(["path2", "alternative", "startrev", "endrev", "unified", "line"])
+        case .bisect: allowed.formUnion(["start", "good", "bad", "skip", "reset", "ref"])
         case .formatPatch: allowed.formUnion(["startrev", "endrev"])
         case .export: allowed.insert("rev")
         case .importPatch: allowed.insert("droptarget")
@@ -186,6 +196,11 @@ public struct PrimaryCommandInvocation: Sendable {
         let selected = try values["rev"].flatMap { $0.isEmpty ? nil : try revision($0) }
         let reflog = try values["ref"].flatMap { $0.isEmpty ? nil : try revision($0) }
         let upstream = try values["upstream"].flatMap { $0.isEmpty ? nil : try revision($0) }
+        let bisect: BisectCommandRequest?
+        if action == .bisect {
+            func term(_ name: String) throws -> String? { try values[name].map { $0.isEmpty ? "" : try revision($0) } }
+            bisect = try BisectCommandRequest(start:values["start"] != nil,good:term("good"),bad:term("bad"),skip:values["skip"] != nil,reset:values["reset"] != nil,reference:reflog)
+        } else { bisect = nil }
         let blameRevision = action == .blame ? try values["endrev"].flatMap { $0.isEmpty ? nil : try revision($0) } : nil
         if values["pathfile"] == nil { try Self.validateSelection(urls, action: action) }
         var limit: HistoryLimitScope?
@@ -209,7 +224,7 @@ public struct PrimaryCommandInvocation: Sendable {
             let mapping: [(UInt16, HistorySearchFields)] = [(1,.messages),(2,.paths),(4,.authors),(8,.revisions),(32,.bugIDs),(64,.subject),(128,.referenceNames),(256,.emails),(512,.notes),(1024,.tagInfo)]
             fields = mapping.reduce(into: HistorySearchFields()) { result, item in if mask & item.0 != 0 { result.formUnion(item.1) } }
         }
-        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceRebase: values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
+        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff].contains(action) ? values["alternative"] != nil : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: try values["outfile"].map(file), importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, unified: values["unified"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, forceRebase: values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
     }
 
     private static func validateSelection(_ urls: [URL], action: RepositoryAction) throws {

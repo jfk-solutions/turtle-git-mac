@@ -426,3 +426,32 @@ state query, allowing RefLog and other metadata consumers to load them normally.
 An active Bisect session still requires a resolvable HEAD. Private regression
 checks preserve the staged index, symbolic branch, working bytes and active marker;
 see [RefLog batch evidence](qa/reflog-native-batch-2026-10-15.json).
+
+## State-driven command entry — October 18, 2026
+
+Source `bisect` entry now captures Start/Good/Bad/Skip/Reset presence, optional
+Good/Bad values and the active-operation `ref`. A typed source decision reads
+fresh Git state before routing: inactive Start opens review, active commands use
+Good/Bad/Skip/Reset precedence, and Reset ignores `ref`. Active Start combined
+with an operation follows that operation; active Start alone and inactive
+classification report the source error without mutation. Empty Bad uses the
+native branch/HEAD default. Common path-file reads preserve the request.
+
+Native loading publishes recovered state even when command eligibility fails,
+keeping Reset available for an active session. Initial invalid entry cannot
+masquerade as an already-edited Start review; valid reviews retain their inputs
+on repeated Start. Existing pickers/operations refuse competing command work.
+Workspace progress/picker preferences are captured by the native controller.
+Current custom terms are still resolved by the existing Git operation backend;
+Start acceptance, dirty Stash/Abort, progress, cancellation, recovery, source
+icons and continuation controls remain that workflow.
+
+[Command guide](COMMAND-LINE.md#stateful-bisect-entry) and
+[batch evidence](qa/bisect-commands-2026-10-18.json) record source decisions, actual
+Git sessions, grouped lifecycle/progress validation and remaining physical/signed
+limits. This is not complete Bisect or application acceptance.
+
+A fresh Start command after a completed/Reset progress view restores empty Good
+and branch/HEAD Bad defaults; a still-open Start review keeps its edited values.
+This distinction prevents a previous search's revisions becoming defaults for a
+new source command while preserving user drafts.

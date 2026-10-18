@@ -1,5 +1,12 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Bisect command family](COMMAND-LINE.md#stateful-bisect-entry)
+adds fresh-state source routing, optional Good/Bad Start presets, active custom-term
+classification, Skip/Reset, preserved native reviews and captured progress/picker
+preferences. Conflicting-state errors retain recovered session ownership and
+Reset availability. [Batch evidence](qa/bisect-commands-2026-10-18.json) separates
+actual Git/lifecycle checks from full source, physical and signed acceptance.
+
 The connected [patch command batch](COMMAND-LINE.md#patch-series-archive-and-mailbox-entry)
 adds source Format Patch, archive Export and mailbox Import entry, revision
 presets, preserved command drafts and owning preferences. External mailbox inputs

@@ -3351,6 +3351,7 @@
         "docs/BISECT-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/bisect-commands-2026-10-18.json",
         "docs/qa/bisect-lifecycle-2026-10-13.json",
         "docs/qa/bisect-progress-2026-10-14.json",
         "docs/qa/reflog-native-batch-2026-10-15.json"

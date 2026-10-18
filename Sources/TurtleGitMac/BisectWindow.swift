@@ -16,7 +16,7 @@ import TurtleGitCore
     }
     var presentPicker: (NSWindow, NSWindow) -> Bool = { parent, child in parent.beginSheet(child); return true }
     var activeOperation: Bool { model.busy || model.hasPicker || model.confirmingCancellation || window?.attachedSheet != nil }
-    init(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, preferences: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, command: BisectCommandRequest? = nil, preferences: UserDefaults = .standard) {
         model = BisectWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 180), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Bisect start", preferences: preferences)
@@ -53,7 +53,7 @@ import TurtleGitCore
                 }
             }
         }
-        model.load(good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart)
+        model.load(good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart, command: command)
 
         DialogGeometry.attach(window, identifier: "BisectWindowController")
     }
@@ -97,6 +97,7 @@ import TurtleGitCore
     var cancelPrompt: () -> Void = {}
     @Published private(set) var confirmingCancellation = false
     @Published private(set) var showingProgress = false
+    private(set) var hasStartReview = false
     @Published private(set) var currentWork = ""
     @Published private(set) var percentage: Int?
     @Published private(set) var cancelled = false
@@ -187,9 +188,10 @@ import TurtleGitCore
     private func requireLive(_ token: OperationCancellation) throws {
         if retired || token.isCancelled { throw OperationCancellationFailure.cancelled }
     }
-    func load(good presetGood: String? = nil, bad presetBad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false) {
+    func load(good presetGood: String? = nil, bad presetBad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, command: BisectCommandRequest? = nil, preserveStartDraft: Bool = false) {
         guard !retired, !hasPicker, !busy else { return }; let token = begin()
         Task {
+            var selectedOperation = operation, selectedRevisions = revisions
             do {
                 try validateAccess()
                 guard try await !repository.isBare(cancellation: token) else { throw BisectFailure.workingTree }
@@ -200,20 +202,32 @@ import TurtleGitCore
                 }
                 let freshState = try await repository.bisectState(cancellation: token)
                 let metadata = try await repository.finderMetadata(cancellation: token)
-                let branch = presetBad == nil && bad.isEmpty ? try await repository.branch(cancellation: token) : ""
                 try requireLive(token)
                 self.choices = choices; state = freshState; hasSubmodules = metadata.hasSubmoduleConfig
                 if freshState.active { showingProgress=true;if output.isEmpty { output=LocalGitCommandProgress.bounded(freshState.log,preferences:preferences) };onProgress() }
-                if requireStart && !freshState.active { showingProgress=false;onOptions() }
-                if requireStart && (freshState.active || metadata.mergeActive) { throw BisectFailure.active }
-                if operation != nil && !freshState.active { throw BisectFailure.inactive }
-                if let presetGood { good = presetGood }
-                if let presetBad { bad = presetBad }
-                else if bad.isEmpty { bad = branch.isEmpty ? "HEAD" : branch }
+                var chosenGood = presetGood, chosenBad = presetBad, startOnly = requireStart
+                var resetStartDefaults = false
+                let commandAction = try command.map { try $0.action(active:freshState.active) }
+                switch commandAction {
+                case .start(let good, let bad):
+                    startOnly = true
+                    if !preserveStartDraft { resetStartDefaults=true;chosenGood=good ?? "";chosenBad=bad }
+                case .operation(let action, let revisions): selectedOperation=action;selectedRevisions=revisions
+                case nil: break
+                }
+                let branch = chosenBad == nil && (resetStartDefaults || bad.isEmpty) ? try await repository.branch(cancellation: token) : ""
+                try requireLive(token)
+                if startOnly && !freshState.active { showingProgress=false;onOptions() }
+                if startOnly && (freshState.active || metadata.mergeActive) { throw BisectFailure.active }
+                if selectedOperation != nil && !freshState.active { throw BisectFailure.inactive }
+                if let chosenGood { good = chosenGood }
+                if let chosenBad { bad = chosenBad }
+                else if resetStartDefaults || bad.isEmpty { bad = branch.isEmpty ? "HEAD" : branch }
                 lastExitCode = nil
+                if !freshState.active && selectedOperation == nil { hasStartReview = true }
             } catch { if !retired { self.error = error.localizedDescription } }
             finish()
-            if !retired, !token.isCancelled, error == nil, let operation { perform(operation, revisions: revisions) }
+            if !retired, !token.isCancelled, error == nil, let selectedOperation { perform(selectedOperation, revisions: selectedRevisions) }
         }
     }
     func start() {

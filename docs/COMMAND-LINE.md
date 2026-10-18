@@ -447,3 +447,45 @@ error/recovery and source icons remain their existing workflows. Source review:
 `Commands/{FormatPatch,Export,ImportPatch}Command.cpp` and
 `AppUtils.cpp::Export`, at the pinned revision. Complete Windows process protocol,
 physical chooser/keyboard/layout and signed sandbox acceptance remain open.
+
+## Stateful Bisect entry
+
+`bisect` accepts source `start`, `good`, `bad`, `skip`, `reset` and `ref` options.
+Good/Bad distinguish a missing option from a present empty value. Native syntax
+accepts `--good`, `--good=revision` or `--good revision`; legacy syntax uses
+`/good` or `/good:revision`. Start/Skip/Reset are flags without values. Common
+path-file input retains the complete request while locating its repository.
+
+```sh
+'/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac' \
+  --command=bisect --path '/absolute/repository' --start \
+  --good 'known-good' --bad 'known-bad'
+
+'/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac' \
+  --command=bisect --path '/absolute/repository' --good --ref HEAD
+```
+
+Routing reads Git's actual session state before deciding the operation. With no
+active session, Start opens the two-revision review and applies its editable
+Good/Bad presets; empty Bad retains the native branch/HEAD default. It does not
+start before native OK. Reopening an existing Start review preserves edited
+inputs. Dirty tracked files retain the existing Stash/Abort acceptance path.
+
+With an active session, the source priority is Good, then Bad, then Skip, then
+Reset. Presence selects Good/Bad; their values are Start presets, while `ref`
+selects the commit for an active classification. Empty or omitted `ref` means
+current HEAD. Reset ignores `ref` and restores the session's original revision.
+An active `start` combined with an operation flag follows that operation;
+`start` alone while active is refused. No operation flag without Start while
+inactive is accepted. Requests with no applicable operation report the source
+“Operation unknown or not allowed.” result without mutating Git.
+
+Good/Bad delegate to the session's custom Git terms. Active operations use the
+existing owned progress, cancellation/recovery and continuation controls. A live
+picker or operation refuses a competing command rather than queuing it. Invalid
+state still publishes the recovered session so Reset remains available. Owning
+workspace preferences reach progress/pickers; retired windows refuse late work.
+Source review is pinned `Commands/BisectCommand.cpp` and
+`AppUtils.cpp::{BisectStart,BisectOperation}`. This does not establish all legacy
+argument permissiveness, cross-process locking, physical interaction or signed
+App Store acceptance.
