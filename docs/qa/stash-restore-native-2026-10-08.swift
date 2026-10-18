@@ -77,10 +77,16 @@ import TurtleGitCore
         let controllerRepo = try await fixture("controller",stash:false), controller = StashRestoreWindowController(repository:controllerRepo,access:nil,pop:true,preferences:prefs)
         var errorAnswer:((Bool,Bool)->Void)?, errorPrompt:StashRestorePrompt?, changed = 0, closed = 0
         controller.onChanged = { _ in changed += 1 }; controller.onClosed = { closed += 1 }; controller.onViewChanges = { preconditionFailure("Error showed status") }; controller.model.onPresent = { errorPrompt = $0; errorAnswer = $1 }
+        // This scenario injects result presentation. Decline its close-triggered
+        // Cancel request too; actual native Cancel sheets are exercised below.
+        controller.model.confirmCancellation = {$0(false)}
         controller.start(); precondition(!controller.windowShouldClose(controller.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
         try await wait { !controller.model.busy }; precondition(changed == 1 && errorPrompt?.kind == .error && errorPrompt?.rememberKey == nil && controller.model.error != nil)
         precondition(!controller.windowShouldClose(controller.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
-        errorAnswer?(true,true); errorAnswer?(true,true); precondition(closed == 1)
+        errorAnswer?(true,true); errorAnswer?(true,true)
+        let closeWindow=controller.window,closeSheet=closeWindow?.attachedSheet
+        func closeButtons(_ view:NSView)->[String] {([view as? NSButton].compactMap {$0?.title})+view.subviews.flatMap(closeButtons)}
+        precondition(closed == 1,"Restore close diagnostic: closed=\(closed), answer=\(errorAnswer != nil), busy=\(controller.model.busy), confirmingQuit=\(controller.model.confirmingQuit), confirmingCancellation=\(controller.model.confirmingCancellation), prompt=\(controller.model.prompt?.message ?? "nil"), error=\(controller.model.error ?? "nil"), visible=\(closeWindow?.isVisible.description ?? "nil"), sheet=\(closeSheet?.title ?? "nil"), sheetButtons=\(closeSheet?.contentView.map(closeButtons) ?? []), sheetParent=\(closeWindow?.sheetParent != nil), releases=\(StashWindowController.activeChildReleases), operations=\(StashRestoreWindowModel.activeOperations)")
         // A dismissed/invalidated result cannot save or open a delayed handoff.
         let delayedRepo = try await fixture("delayed"), delayed = StashRestoreWindowModel(repository:delayedRepo,access:nil,pop:false,preferences:prefs)
         var delayedAnswer:((Bool,Bool)->Void)?; delayed.onPresent = { _,choose in delayedAnswer = choose }; delayed.onViewChanges = { preconditionFailure("Invalidated handoff") }; delayed.start(); try await wait { !delayed.busy }; delayed.invalidate(); delayedAnswer?(true,true)
@@ -88,6 +94,7 @@ import TurtleGitCore
         // Cancellation owns its question and never publishes late success.
         prefs.set(true,forKey:"ConfirmKillProcess")
         let cancelling = StashRestoreWindowController(repository:controllerRepo,access:nil,pop:false,preferences:prefs)
+        cancelling.window?.alphaValue=0
         defer { cancelling.close() }
         var held:CheckedContinuation<StashRestoreResult,Error>?, capturedToken:OperationCancellation?, cancelClosed = 0
         cancelling.model.restore = { _,_,token in capturedToken = token; return try await withCheckedThrowingContinuation { held = $0 } }
@@ -110,12 +117,14 @@ import TurtleGitCore
         try await wait { cancelClosed == 1 }
         // Forced close ends the owned question; Quit still waits for its provider.
         let retired = StashRestoreWindowController(repository:controllerRepo,access:nil,pop:true,preferences:prefs)
+        retired.window?.alphaValue=0
         var lateRestore:CheckedContinuation<StashRestoreResult,Error>?, lateToken:OperationCancellation?, lateChanges = 0
         retired.model.restore = { _,_,token in lateToken = token; return try await withCheckedThrowingContinuation { lateRestore = $0 } }
         retired.onChanged = { _ in lateChanges += 1 }
         retired.start(); try await wait { lateRestore != nil }
         retired.model.cancel(); try await wait { retired.window?.attachedSheet != nil }
-        retired.close(); precondition(retired.window?.attachedSheet == nil && lateToken?.isCancelled == true)
+        retired.close();try await wait {retired.window?.attachedSheet == nil && StashWindowController.activeChildReleases == 0}
+        precondition(lateToken?.isCancelled == true)
         precondition(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
         lateRestore?.resume(returning:StashRestoreResult(output:"retired result",conflicted:false)); lateRestore = nil
         try await wait { StashRestoreWindowModel.activeOperations == 0 }

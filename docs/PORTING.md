@@ -912,7 +912,7 @@ sandbox execution, passing hosted CI on the latest source or App Store readiness
 | Repository Browser | Native lazy folder tree, pinned revisions, sortable Name/Extension/Size, historical file menus, marked comparisons and historical Revert, pinned child Log and historical drag representations | Multi-file Revert acceptance, actual Finder drops, broader submodule acceptance, dark/native action coverage and signed scopes; see REPOSITORY-BROWSER-PARITY.md |
 | Submodule Add | Native source groups/history/browse, Branch/Force, explicit SSH key loading and child remote setting, app/Finder action | Clipboard defaults, displayed UI, complete progress, signed grants and real network; see SUBMODULE-ADD-PARITY.md |
 | Submodule Sync | Original icon/app/Finder action, source non-recursive directory sequence, local URL config effects, owned live progress/cancellation and failure continuation | Displayed/full progress, signed parent/child access and Finder acceptance; broader SyncDlg remains separate; see SUBMODULE-SYNC-PARITY.md |
-| Submodule Update | Native scoped options and separate owned progress, live output/cancellation, captured auto-close and successful bisect post-actions | Full progress, physical/signed/transfer acceptance and large command splitting; see SUBMODULE-UPDATE-PARITY.md |
+| Submodule Update | Native scoped options and separate owned progress, live output/cancellation, captured auto-close and successful bisect post-actions | Full progress and physical/signed/transfer acceptance; explicit command batches and partial recovery are covered in SUBMODULE-UPDATE-RECOVERY-PARITY.md; see SUBMODULE-UPDATE-PARITY.md |
 | Advanced repositories | Native New Worktree and Worktree List with create/lock/unlock/remove/prune; partial submodule workflows | Native column gestures/appearance, Finder drop creation, native/signed acceptance, full submodules, git-svn and LFS |
 | Helper apps | Partial native Blame, text Merge and unified Diff windows | Full helper parity, image diff, revision graph, askpass and revision/template tools |
 
@@ -3093,3 +3093,25 @@ partial source-family checkpoint, not a whole-port, signed Finder or App Store
 acceptance claim. The previous operation batch's Pages run
 [39150619295](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39150619295)
 built and deployed successfully, including bundled Mac Help source validation.
+
+
+### Stash and Submodule recovery family, 2026-10-18
+
+Three parallel owners extended [Stash preparation/completion](STASH-OPERATION-PARITY.md),
+[Submodule Add recovery](SUBMODULE-ADD-RECOVERY-PARITY.md) and
+[Submodule Update/Sync partial results](SUBMODULE-UPDATE-RECOVERY-PARITY.md).
+Stash owns identity Settings repair and closes results before post-actions.
+Submodule Add distinguishes a completed Add from failed child SSH key configuration
+and retries only that configuration against its captured checkout. Update batches
+large explicit selections without widening scope; Update and Sync retain attempted
+results for repository refresh after partial failure or cancellation. Successful
+completion callbacks remain separate. Follow-up Bisect and Working Tree windows
+inherit their originating preferences, and Quit waits for actual workers and
+native sheet release.
+
+The grouped checkpoint is recorded in
+[Stash/Submodule evidence](qa/stash-submodule-workflows-2026-10-18.json).
+The preceding Credential/Merge [Pages run 39152335835](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39152335835)
+built and deployed successfully. Its macOS workflow was still pending when this
+batch began. No full dialog, physical Finder, signed or App Store acceptance is
+inferred from this scoped checkpoint.

@@ -287,7 +287,12 @@ over an older pending position restore.</p>
 <p>Stash Save records the selected working state using its offered options. Stash
 Apply restores a stash without dropping it; Pop also requests removal after
 application. Conflicts still require resolution. Inspect the result before
-assuming that a stash has been removed.</p>
+assuming that a stash has been removed. Save checks your Git name and email and
+opens Git Settings when they need to be completed. The accepted settings are read
+again before saving. Pull, Merge, Pop and Apply follow-up actions close the Save
+result before opening the next operation; View Changes does the same after a
+restore. A pending warning or cancellation question keeps that operation owned
+until you answer it.</p>
 <p>Revert working files restores their selected state; see
 <a href="REVERTING-FILES.html">Reverting working files</a>. The file-selection window supports sortable saved columns, file history/Blame, Open With/export, and same-repository file drops. Context Revert opens its recovery/progress window and refreshes the list when closed. Revert a commit from Log creates
 an inverse change; see <a href="REVERT-COMMIT.html">Reverting a commit</a>.</p>
@@ -298,6 +303,13 @@ are not ordinary editor Undo actions.</p>
 <a name="topic-submodules"></a><a name="topic-worktrees"></a><h2 id="submodules-and-worktrees">Submodules and worktrees</h2>
 <p>Submodule Add asks for the repository, destination path and optional branch.
 Update works on the selected submodules and offered init/recursive/update choices.
+Large explicit selections run in ordered command batches. Progress retains earlier
+results if a later batch fails or is cancelled, and repository views refresh after
+attempted changes. Only a successful Update enables its completion actions.</p>
+<p>When Add succeeds but configuring its SSH key fails, the result distinguishes
+those phases. <strong>Retry key configuration</strong> retries the captured key setup for the
+added submodule without repeating Add. Sync retains results for earlier directories
+when a later command fails or is cancelled.
 Revert can mark a submodule for comparison. With working-copy marks, Submodule Diff compares its indexed commit with the checkout and labels the From group <strong>Index</strong>. Historical renamed gitlinks retain both paths. A submodule is a separate repository. Inspect its own status and commit pointer
 when the superproject reports a change.</p>
 <p>New Worktree creates another checkout attached to the same repository storage.

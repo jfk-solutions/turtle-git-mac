@@ -4,6 +4,8 @@ public struct StashSaveOptions: Sendable {
     public var message = ""
     public var includeUntracked = false
     public var all = false
+    /// User Stash Save has CheckUserData preflight; internal replay saves do not.
+    public var requireIdentity = false
     public init() {}
 }
 public struct StashSaveResult: Sendable {
@@ -18,11 +20,12 @@ public struct StashRestoreResult: Sendable {
     public init(output: String, conflicted: Bool) { self.output = output; self.conflicted = conflicted }
 }
 public enum StashFailure: LocalizedError {
-    case combination, message
+    case combination, message, identity
     public var errorDescription: String? {
         switch self {
         case .combination: return "Include untracked and --all cannot be combined."
         case .message: return "The stash message cannot contain a NUL character."
+        case .identity: return "Configure your Git user name and email before saving a stash."
         }
     }
 }
@@ -87,6 +90,10 @@ extension GitRepository {
         if options.includeUntracked { args.append("--include-untracked") }
         else if options.all { args.append("--all") }
         if !options.message.isEmpty { args += ["-m", options.message] }
+        if options.requireIdentity {
+            let identity = try replayUserIdentity(cancellation: cancellation)
+            guard identity.complete else { throw StashFailure.identity }
+        }
         // Stash uses the magic pathspec :/ in its internal clean subprocess.
         // Whole-repository save accepts no user paths, so preserve Git's own
         // pathspec semantics here; literal mode would silently skip cleanup.

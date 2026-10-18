@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "7418aeee54cebbd5510090a3176aaa03222c2272351de205360590cdfc58c406",
+    "Contents/Info.plist": "56d8f389788d204bea89da51a057b9154fc8b8b00f78cbecc4ba5358d6dbb95f",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "ea62e9255277183fb721ceb36a97a21b113f94329e42eef862414b541f4853fd",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "8431f0108093ba0cc6e3fe9f221e11988b07773f928b428a8c63b5a158ba87f4",
@@ -10,7 +10,7 @@
     "Contents/Resources/en.lproj/COMMIT-CHECKBOX-INDEX.html": "871565da3ad60a404ddb968363c9783366aedfe681563068df4eb1d53b704bca",
     "Contents/Resources/en.lproj/CONFLICT-IDENTITIES.html": "fceecf83506092258f348b48a3a36d150fe8fe34ee26f36e5cf84d4d96b405c7",
     "Contents/Resources/en.lproj/CREDENTIAL-SETTINGS.html": "19bf327ce1d99aa8029b82ea24cf4069b59102336b876cb46441eb9d856f86f4",
-    "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "83b7af30607dd2b3a29154984d3da854cbcb4db66d475acefe1b62865ae2e4ab",
+    "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "ee3057cf2cf123da98ec4b8e87b245cfc2248027c103ce8f7851fd7751950a87",
     "Contents/Resources/en.lproj/EXCEL-COMPARISON.html": "4e4dbf998996c02d74a4499f237017f8a14d522ba08ef3a05779f8fade1440d8",
     "Contents/Resources/en.lproj/GETTING-STARTED.html": "3f5b8800027034ed649c7c48a6d9bfe46910539ef2e99064e567ad64b06b0edc",
     "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "a34926c6954ced39075b069b48ee2804e8e63bb7b056a5c4158435f97dcf4a47",
@@ -70,7 +70,7 @@
     "docs/COMMIT-CHECKBOX-INDEX.md": "59ae109cbde9c4c77a3ffdff3485b1b3ab20c0524cf42cbcc5a3f25303d4681e",
     "docs/CONFLICT-IDENTITIES.md": "5a0f6ac729c78df24e4ed8a6194e2cd9053d2289438b75519f1f21e908ec2213",
     "docs/CREDENTIAL-SETTINGS.md": "b03463f22625ad700bbb600b3777076764d1a722f9f291bd5cb1c12a2b468016",
-    "docs/DIALOG-GUIDE.md": "dd32baa3452ce0178ed6971e95938ab3c8e8ee2811c9e8ed38c354593563f2b4",
+    "docs/DIALOG-GUIDE.md": "46a4c2a238845d52f79e296536198eb297a7cb42053083b69cb28d2ba33b3fa4",
     "docs/EXCEL-COMPARISON.md": "7e3f3a627b2dc6bb807bee992ae0d76830107dea9592c3a02668fc570227ab36",
     "docs/GETTING-STARTED.md": "60e220f777e25f6ca2cd533ea03d061690d98b0f498a399406cf1efddcc45421",
     "docs/GIT-AUTHENTICATION.md": "34a58ad4649d7d7355712907441f35f37d3b9bd29c898002a58a8563361154bb",

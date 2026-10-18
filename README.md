@@ -351,3 +351,9 @@ Standalone Git comparison/merge entry is available through the waiting
 [`turtlegit-merge` wrapper](scripts/turtlegit-merge). See
 [Git difftool/mergetool setup](docs/MERGE-TOOL.md) for native file comparison,
 separate merged output, source arguments and sandbox authorization.
+
+The latest connected workflow batch covers [Stash preparation and completion](docs/STASH-OPERATION-PARITY.md),
+[Submodule Add recovery](docs/SUBMODULE-ADD-RECOVERY-PARITY.md), and
+[Submodule Update/Sync partial results](docs/SUBMODULE-UPDATE-RECOVERY-PARITY.md).
+These are partial source-family audits; remaining physical, visual and signed
+acceptance is tracked alongside each workflow.

@@ -13,8 +13,16 @@ public struct SubmoduleSyncResult: Sendable {
         public let output: String
     }
     public let entries: [Entry]
-    public var exitCode: Int32 { entries.isEmpty ? -1 : entries.reduce(0) { $0 | $1.exitCode } }
-    public var success: Bool { exitCode == 0 }
+    public let cancelled: Bool
+    public init(entries: [Entry], cancelled: Bool = false) { self.entries=entries;self.cancelled=cancelled }
+    public var exitCode: Int32 { cancelled ? 130 : entries.isEmpty ? -1 : entries.reduce(0) { $0 | $1.exitCode } }
+    public var success: Bool { !cancelled && exitCode == 0 }
+    public var output: String { entries.map(\.output).joined(separator: "\n") }
+}
+public struct SubmoduleSyncExecutionFailure: LocalizedError {
+    public let result: SubmoduleSyncResult
+    public let underlying: Error
+    public var errorDescription: String? { underlying.localizedDescription }
 }
 public enum SubmoduleSyncFailure: LocalizedError {
     case selection
@@ -44,14 +52,29 @@ extension GitRepository {
     /// Source RunCmdList continues after ordinary command exit errors and ORs status.
     /// Process launch/validation failures and cancellation stop the sequence.
     public func syncSubmodules(scope: [String] = [], cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> SubmoduleSyncResult {
+        do { return try syncSubmodulesWorkflow(scope: scope, cancellation: cancellation, onOutput: onOutput) }
+        catch let failure as SubmoduleSyncExecutionFailure { throw failure.underlying }
+    }
+    public func syncSubmodulesWorkflow(scope: [String] = [], cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> SubmoduleSyncResult {
         let token = cancellation ?? OperationCancellation()
         let commands = try submoduleSyncPlan(scope: scope, cancellation: token)
         var entries: [SubmoduleSyncResult.Entry] = []
         for command in commands {
-            try token.check(); _ = try submoduleSyncPlan(scope: [command.scope], cancellation: token)
-            onOutput?(GitOutputChunk(stream: .stdout, data: Data(((entries.isEmpty ? "" : "\n") + command.display + "\n").utf8)))
-            let result = try run(["-c", "core.precomposeunicode=false"] + command.arguments, successfulExitCodes: 0...255, cancellation: token, onOutput: onOutput)
-            entries.append(.init(command: command, exitCode: result.exitCode, output: result.text))
+            var submitted = false
+            do {
+                try token.check(); _ = try submoduleSyncPlan(scope: [command.scope], cancellation: token)
+                onOutput?(GitOutputChunk(stream: .stdout, data: Data(((entries.isEmpty ? "" : "\n") + command.display + "\n").utf8)))
+                submitted = true
+                let result = try run(["-c", "core.precomposeunicode=false"] + command.arguments, successfulExitCodes: 0...255, cancellation: token, onOutput: onOutput)
+                entries.append(.init(command: command, exitCode: result.exitCode, output: result.text))
+            } catch {
+                if let interrupted = error as? GitCommandCancellationFailure {
+                    entries.append(.init(command: command, exitCode: interrupted.result.exitCode, output: interrupted.result.text))
+                } else if submitted {
+                    entries.append(.init(command: command, exitCode: -1, output: error.localizedDescription))
+                }
+                throw SubmoduleSyncExecutionFailure(result: .init(entries: entries, cancelled: token.isCancelled), underlying: error)
+            }
         }
         return SubmoduleSyncResult(entries: entries)
     }

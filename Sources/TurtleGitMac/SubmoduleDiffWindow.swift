@@ -45,6 +45,7 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     private(set) var updateOptions: SubmoduleUpdateWindowController?
     private(set) var updateProgress: SubmoduleUpdateProgressWindowController?
     var onUpdated: (String) -> Void = { _ in }
+    var onAttemptCompleted: (SubmoduleUpdateResult) -> Void = { _ in }
     var onBisect: (BisectOperation) -> Void = { _ in }
     private var pendingSheetAction: (() -> Void)?
     private let preferences: UserDefaults
@@ -102,11 +103,9 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
         let progress = SubmoduleUpdateProgressWindowController(repository: model.repository, access: model.access, paths: paths, options: options, preferences: preferences)
         updateProgress = progress
         progress.model.onUpdated = { [weak self] in self?.onUpdated($0) }
+        let attemptCompleted=onAttemptCompleted
+        progress.model.onAttemptCompleted = { attemptCompleted($0) }
         progress.model.onBisect = { [weak self] in self?.onBisect($0) }
-        progress.model.close = { [weak window, weak progress] in
-            guard let progress, !progress.model.activeOperation, let child = progress.window, child.attachedSheet == nil else { return }
-            window?.endSheet(child); child.close()
-        }
         progress.onClosed = { [weak window, weak progress] in
             if let child = progress?.window, window?.attachedSheet === child { window?.endSheet(child) }
         }

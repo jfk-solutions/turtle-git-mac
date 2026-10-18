@@ -207,7 +207,8 @@ import AppKit
         if NetworkSettingsModel.activeSaves > 0 || NetworkSettingsModel.activeReads > 0 || NetworkSettingsModel.activeSSHChoosers > 0 { return .terminateCancel }
         if EmailSettingsModel.activeOperations > 0 || EmailSettingsModel.activeCredentialEditors > 0 { return .terminateCancel }
         if LFSLocksWindowModel.activeOperations > 0 { return .terminateCancel }
-        if StashRestoreWindowModel.activeOperations > 0 { return .terminateCancel }
+        if StashRestoreWindowModel.activeOperations > 0 || StashWindowModel.activePreparations > 0 || StashWindowController.activeChildReleases > 0 { return .terminateCancel }
+        if SubmoduleAddProgressWindowModel.activeOperations > 0 || SubmoduleSyncWindowModel.activeOperations > 0 || SubmoduleUpdateProgressWindowController.activeChildReleases > 0 { return .terminateCancel }
         if ClientHookProcessPool.shared.activeScripts > 0 { return .terminateCancel }
         if HookSettingsModel.activeSaves > 0 { return .terminateCancel }
         if AutotextTesterModel.activeRequests > 0 { return .terminateCancel }
@@ -241,6 +242,8 @@ import AppKit
         if sender.windows.compactMap({ $0.delegate as? ResetProgressWindowController }).contains(where: { $0.model.busy || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? ReferenceBrowserWindowController }).contains(where: { $0.model.busy || $0.model.hasChild || $0.model.renameReference != nil || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? BranchTagWindowController }).contains(where: { $0.model.busy || $0.model.chooser.busy || $0.model.chooser.pickerTarget != nil || $0.model.hasPendingNameConflict || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        if sender.windows.compactMap({ $0.delegate as? StashWindowController }).contains(where: { $0.model.busy || $0.model.preparing || $0.model.hasIdentitySettings || $0.model.confirmingUntracked || $0.model.progress != nil || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        if sender.windows.compactMap({ $0.delegate as? StashSaveProgressWindowController }).contains(where: { $0.model.busy || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? StashRestoreWindowController }).contains(where: { $0.model.busy || $0.model.prompt != nil || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if PatchDocumentSession.activeOperations != 0 { return .terminateCancel }
         if PatchWindowModel.activeOperations != 0 { return .terminateCancel }
@@ -281,6 +284,9 @@ import AppKit
         let fetchesInProgress = sender.windows.compactMap { $0.delegate as? FetchProgressWindowController }
         let merges = sender.windows.compactMap { $0.delegate as? MergeWindowController }
         let mergesInProgress = sender.windows.compactMap { $0.delegate as? MergeProgressWindowController }
+        let stashSaves = sender.windows.compactMap { $0.delegate as? StashWindowController }
+        let stashProgress = sender.windows.compactMap { $0.delegate as? StashSaveProgressWindowController }
+        let stashRestores = sender.windows.compactMap { $0.delegate as? StashRestoreWindowController }
         let addProgress = sender.windows.compactMap { $0.delegate as? AddProgressWindowController }
         let reverts = sender.windows.compactMap { $0.delegate as? RevertWindowController }
         let browsers = sender.windows.compactMap { $0.delegate as? RepositoryBrowserWindowController }
@@ -314,6 +320,9 @@ import AppKit
         for controller in fetchesInProgress { controller.model.confirmingQuit = true }
         for controller in merges { controller.model.confirmingQuit = true }
         for controller in mergesInProgress { controller.model.confirmingQuit = true }
+        for controller in stashSaves { controller.model.confirmingQuit = true }
+        for controller in stashProgress { controller.model.confirmingQuit = true }
+        for controller in stashRestores { controller.model.confirmingQuit = true }
         for controller in imports { controller.setQuitConfirmation(true) }
         for controller in reviews { controller.setQuitConfirmation(true) }
         repositoryModel?.confirmingQuit = true
@@ -413,6 +422,9 @@ import AppKit
             for controller in fetchesInProgress { controller.model.confirmingQuit = false }
             for controller in merges { controller.model.confirmingQuit = false }
             for controller in mergesInProgress { controller.model.confirmingQuit = false }
+            for controller in stashSaves { controller.model.confirmingQuit = false }
+            for controller in stashProgress { controller.model.confirmingQuit = false }
+            for controller in stashRestores { controller.model.confirmingQuit = false }
             confirmingQuit = false
             replyToTermination(sender, allowQuit)
         }
@@ -436,6 +448,9 @@ import AppKit
         let fetchesInProgress = sender.windows.compactMap { $0.delegate as? FetchProgressWindowController }
         let merges = sender.windows.compactMap { $0.delegate as? MergeWindowController }
         let mergesInProgress = sender.windows.compactMap { $0.delegate as? MergeProgressWindowController }
+        let stashSaves = sender.windows.compactMap { $0.delegate as? StashWindowController }
+        let stashProgress = sender.windows.compactMap { $0.delegate as? StashSaveProgressWindowController }
+        let stashRestores = sender.windows.compactMap { $0.delegate as? StashRestoreWindowController }
         for controller in historyReplays { controller.model.revisionMenuLog.confirmingQuit = true }
         for controller in referenceBrowsers { controller.model.confirmingQuit = true }
         for controller in blames { controller.model.confirmingQuit = true }
@@ -445,6 +460,22 @@ import AppKit
         for controller in fetchesInProgress { controller.model.confirmingQuit = true }
         for controller in merges { controller.model.confirmingQuit = true }
         for controller in mergesInProgress { controller.model.confirmingQuit = true }
+        for controller in stashSaves { controller.model.confirmingQuit = true }
+        for controller in stashProgress { controller.model.confirmingQuit = true }
+        for controller in stashRestores { controller.model.confirmingQuit = true }
+        let submoduleSyncs = sender.windows.compactMap { $0.delegate as? SubmoduleSyncWindowController }
+        let submoduleAdds = sender.windows.compactMap { $0.delegate as? SubmoduleAddWindowController }
+        let submoduleAddProgress = sender.windows.compactMap { $0.delegate as? SubmoduleAddProgressWindowController }
+        let updates = sender.windows.compactMap { $0.delegate as? SubmoduleUpdateWindowController }
+        let submoduleDiffs = sender.windows.compactMap { $0.delegate as? SubmoduleDiffWindowController }
+        let updateProgress = sender.windows.compactMap { $0.delegate as? SubmoduleUpdateProgressWindowController }
+        for controller in submoduleSyncs { controller.model.confirmingQuit = true }
+        for controller in submoduleAdds { controller.model.confirmingQuit = true }
+        for controller in submoduleAddProgress { controller.model.confirmingQuit = true }
+        for controller in updates { controller.model.confirmingQuit = true }
+        for controller in submoduleDiffs { controller.model.confirmingQuit = true }
+        for controller in updateProgress { controller.model.confirmingQuit = true }
+        repositoryModel?.confirmingQuit = true
         Task {
             await manager.shutdown()
             for controller in historyReplays { controller.model.revisionMenuLog.confirmingQuit = false }
@@ -456,6 +487,16 @@ import AppKit
             for controller in fetchesInProgress { controller.model.confirmingQuit = false }
             for controller in merges { controller.model.confirmingQuit = false }
             for controller in mergesInProgress { controller.model.confirmingQuit = false }
+            for controller in stashSaves { controller.model.confirmingQuit = false }
+            for controller in stashProgress { controller.model.confirmingQuit = false }
+            for controller in stashRestores { controller.model.confirmingQuit = false }
+            for controller in submoduleSyncs { controller.model.confirmingQuit = false }
+            for controller in submoduleAdds { controller.model.confirmingQuit = false }
+            for controller in submoduleAddProgress { controller.model.confirmingQuit = false }
+            for controller in updates { controller.model.confirmingQuit = false }
+            for controller in submoduleDiffs { controller.model.confirmingQuit = false }
+            for controller in updateProgress { controller.model.confirmingQuit = false }
+            repositoryModel?.confirmingQuit = false
             confirmingQuit=false;replyToTermination(sender,true)
         }
         return .terminateLater

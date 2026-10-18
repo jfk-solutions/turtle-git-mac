@@ -1948,14 +1948,11 @@ import UniformTypeIdentifiers
             controller?.window?.close()
             self?.showConflictEditor(repository: repository, access: access, path: path, preferences: defaults)
         }
-        controller.onUpdated = { [weak self] output in
-            self?.refreshRepositoryLogs(repository.root)
-            self?.statusWindows[repository.root.path]?.model.requestReload()
-            self?.commitWindows[repository.root.path]?.model.reload()
-            self?.rebaseWindows[repository.root.path]?.model.refreshState()
-            if let self, self.root == repository.root { self.output = output; Task { await self.refresh() } }
+        controller.onAttemptCompleted = { [weak self] result in
+            guard !result.entries.isEmpty else { return }
+            self?.refreshAfterSubmoduleMutation(repository.root, output: result.output)
         }
-        controller.onBisect = { [weak self] in self?.showBisect(repository: repository, access: access, operation: $0) }
+        controller.onBisect = { [weak self] in self?.showBisect(repository: repository, access: access, operation: $0, preferences: defaults) }
         submoduleDiffWindows[key] = controller
         if let submoduleDiffPresentation {submoduleDiffPresentation(controller)} else {controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)}
         controller.model.load()
@@ -2207,20 +2204,29 @@ import UniformTypeIdentifiers
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         }
     }
+    private func refreshAfterSubmoduleMutation(_ root: URL, output: String) {
+        refreshRepositoryLogs(root)
+        statusWindows[root.path]?.model.requestReload()
+        commitWindows[root.path]?.model.reload()
+        rebaseWindows[root.path]?.model.refreshState()
+        if self.root == root { self.output = output; Task { await self.refresh() } }
+    }
     private func showSubmoduleSync(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], commandLaunch: Bool = false) {
+        guard !confirmingQuit else { return }
         if let existing = submoduleSyncWindows.values.first(where: { $0.model.repository.root == repository.root && $0.model.activeOperation }) {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             if commandLaunch { error = "A Submodule Sync operation is already running. Wait for it before opening another command." }; return
         }
         let id = UUID(), controller = SubmoduleSyncWindowController(repository: repository, access: access, scope: scope, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.submoduleSyncWindows.removeValue(forKey: id) }
-        controller.model.onSynced = { [weak self] _ in
-            self?.refreshRepositoryLogs(repository.root)
-            if let self, self.root == repository.root { Task { await self.refresh() } }
+        controller.model.onAttemptCompleted = { [weak self] result in
+            guard !result.entries.isEmpty else { return }
+            self?.refreshAfterSubmoduleMutation(repository.root, output: result.output)
         }
         submoduleSyncWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     private func showSubmoduleAdd(repository: GitRepository, access: RepositoryAccessLease?, path: String, commandLaunch: Bool = false) {
+        guard !confirmingQuit else { return }
         let key = repository.root.path
         if commandLaunch, let existing = submoduleAddWindows[key] {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
@@ -2236,17 +2242,17 @@ import UniformTypeIdentifiers
         submoduleAddWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showSubmoduleAddProgress(model: SubmoduleAddProgressWindowModel) {
-        let root = model.repository.root, key = root.path, id = UUID()
+        let root = model.repository.root, id = UUID()
         let controller = SubmoduleAddProgressWindowController(model: model)
         controller.onClosed = { [weak self] in self?.submoduleAddProgressWindows.removeValue(forKey: id) }
-        model.onAdded = { [weak self] output in
-            self?.refreshRepositoryLogs(root)
-            self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
-            if let self, self.root == root { self.output = output; Task { await self.refresh() } }
+        model.onAttemptCompleted = { [weak self] result in
+            guard result.attempted else { return }
+            self?.refreshAfterSubmoduleMutation(root, output: result.output)
         }
         submoduleAddProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); model.start()
     }
     private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], commandLaunch: Bool = false, completion: (() -> Void)? = nil, preferences: UserDefaults? = nil) {
+        guard !confirmingQuit else { return }
         let preferences = preferences ?? fileComparisonPreferences
         let root = repository.root, key = root.path + "\0" + scope.joined(separator: "\0") + "\0" + selected.joined(separator: "\0")
         if commandLaunch, let existing = submoduleUpdateWindows.values.first(where: { $0.model.repository.root == root }) {
@@ -2267,16 +2273,17 @@ import UniformTypeIdentifiers
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showSubmoduleUpdateProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], options: SubmoduleUpdateOptions, completion: (() -> Void)? = nil, preferences: UserDefaults? = nil) {
+        guard !confirmingQuit else { return }
         let root = repository.root, id = UUID()
         let controller = SubmoduleUpdateProgressWindowController(repository: repository, access: access, paths: paths, options: options, preferences: preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.submoduleUpdateProgressWindows.removeValue(forKey: id) }
-        controller.model.onUpdated = { [weak self] output in
-            self?.refreshRepositoryLogs(root)
-            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
-            if let self, self.root == root { self.output = output; Task { await self.refresh() } }
-            completion?()
+        controller.model.onAttemptCompleted = { [weak self] result in
+            guard !result.entries.isEmpty else { return }
+            self?.refreshAfterSubmoduleMutation(root, output: result.output)
         }
-        controller.model.onBisect = { [weak self] operation in self?.showBisect(repository: repository, access: access, operation: operation) }
+        controller.model.onUpdated = { _ in completion?() }
+        let inherited = controller.model.presentationPreferences
+        controller.model.onBisect = { [weak self] operation in self?.showBisect(repository: repository, access: access, operation: operation, preferences: inherited) }
         submoduleUpdateProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     @discardableResult private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, completion: @escaping (Bool) -> Void = { _ in }) -> RevertProgressWindowController {
@@ -2380,6 +2387,7 @@ import UniformTypeIdentifiers
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showStashRestore(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1, preferences: UserDefaults? = nil) {
+        guard !confirmingQuit else { return }
         let root = repository.root, key = repository.root.path + (pop ? ":pop" : ":apply:" + (reference ?? "latest")) + ":show:" + String(showChanges)
         if let existing = stashRestoreWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         guard !stashMutationIsBusy(repository.root) else { error = "Wait for the current stash operation to finish."; return }
@@ -2391,7 +2399,8 @@ import UniformTypeIdentifiers
             self?.commitWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.onViewChanges = { [weak self] in self?.showStatus(repository: repository, access: access) }
+        let inherited = controller.model.preferences
+        controller.onViewChanges = { [weak self] in self?.showStatus(repository: repository, access: access, preferences: inherited) }
         stashRestoreWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
     }
@@ -2761,7 +2770,8 @@ import UniformTypeIdentifiers
             self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, sourceLog: refreshPicker ? model : nil)
         }
     }
-    private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, sourceLog: LogWindowModel? = nil, onChanged: (() -> Void)? = nil, command: BisectCommandRequest? = nil) {
+    private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, sourceLog: LogWindowModel? = nil, onChanged: (() -> Void)? = nil, command: BisectCommandRequest? = nil, preferences: UserDefaults? = nil) {
+        guard !confirmingQuit else { return }
         let root = repository.root
         let controller: BisectWindowController
         if let existing = bisectWindows[root.path] {
@@ -2771,7 +2781,7 @@ import UniformTypeIdentifiers
             }
             controller = existing
             if !existing.activeOperation { existing.model.load(good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart, command: command, preserveStartDraft: command != nil && existing.model.hasStartReview && !existing.model.showingProgress) }
-        } else { controller = BisectWindowController(repository: repository, access: access, good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart, command: command, preferences: fileComparisonPreferences) }
+        } else { controller = BisectWindowController(repository: repository, access: access, good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart, command: command, preferences: preferences ?? fileComparisonPreferences) }
         if let sourceLog { controller.model.observeLog(sourceLog) }
         controller.onClosed = { [weak self] in self?.bisectWindows.removeValue(forKey: root.path) }
         controller.model.onChanged = { [weak self] output in
@@ -2781,7 +2791,8 @@ import UniformTypeIdentifiers
             self.commitWindows[root.path]?.model.reload(); self.statusWindows[root.path]?.model.requestReload()
             if self.root == root { self.output = output; Task { await self.refresh() } }
         }
-        controller.model.onSubmoduleUpdate = { [weak self] in self?.showSubmoduleUpdate(repository: repository, access: access, scope: []) }
+        let inherited = controller.model.preferences
+        controller.model.onSubmoduleUpdate = { [weak self] in self?.showSubmoduleUpdate(repository: repository, access: access, scope: [], preferences: inherited) }
         bisectWindows[root.path] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configureExportInteractions(_ controller: ExportWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
@@ -2877,10 +2888,11 @@ import UniformTypeIdentifiers
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func stashMutationIsBusy(_ root: URL) -> Bool {
-        stashWindows.values.contains { $0.model.repository.root == root && $0.model.busy }
-            || stashRestoreWindows.values.contains { $0.repository.root == root && $0.model.busy }
+        stashWindows.values.contains { $0.model.repository.root == root && ($0.model.busy || $0.model.preparing || $0.model.confirmingUntracked || $0.model.hasIdentitySettings || $0.model.progress != nil) }
+            || stashRestoreWindows.values.contains { $0.repository.root == root && ($0.model.busy || $0.model.prompt != nil) }
     }
     private func showStash(repository: GitRepository, access: RepositoryAccessLease?, followUp: StashSaveFollowUp = StashSaveFollowUp(), message: String? = nil, commandLaunch: Bool = false, preferences: UserDefaults? = nil) {
+        guard !confirmingQuit else { return }
         let preferences = preferences ?? fileComparisonPreferences
         let root = repository.root, key = repository.root.path + "\0" + (commandLaunch ? "command-stash" : UUID().uuidString)
         if let existing = stashWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
@@ -2907,6 +2919,7 @@ import UniformTypeIdentifiers
             }
         }
         stashWindows[key] = controller
+        controller.model.prepare()
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configureCommitInteractions(_ model: CommitWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {

@@ -24,6 +24,9 @@ struct StashRestorePrompt {
     private let showChanges: Int
     let preferences: UserDefaults
     private var started = false, completed = false, invalidated = false
+    @Published var confirmingQuit=false {didSet {if !confirmingQuit,let pending=pendingDecision {pendingDecision=nil;accept(pending.0,show:pending.1,remember:pending.2)}}}
+    private var pendingDecision:(StashRestorePrompt,Bool,Bool)?
+    var finishAndPerform:((@escaping ()->Void)->Void)?
     private var cancellation: OperationCancellation?
     @Published private(set) var cancelled = false
     @Published private(set) var cancelling = false
@@ -51,9 +54,9 @@ struct StashRestorePrompt {
         restoreStreaming = { try await repository.restoreStash(pop: $0, reference: $1, cancellation: $2, onOutput: $3) }
         self.repository = repository; self.access = access; self.pop = pop; self.reference = reference; self.showChanges = showChanges; self.preferences = preferences
     }
-    func invalidate() { invalidated = true; cancellation?.cancel(); confirmingCancellation = false; prompt = nil }
+    func invalidate() { invalidated = true; cancellation?.cancel(); confirmingCancellation = false; prompt = nil;pendingDecision=nil }
     func cancel() {
-        guard !invalidated, busy, !cancelling, !confirmingCancellation, let token = cancellation else { return }
+        guard !invalidated, !confirmingQuit, busy, !cancelling, !confirmingCancellation, let token = cancellation else { return }
         if preferences.object(forKey: "ConfirmKillProcess") as? Bool == false { cancelling = true; token.cancel(); onStateChanged(); return }
         confirmingCancellation = true; onStateChanged()
         confirmCancellation { [weak self] accepted in
@@ -64,7 +67,7 @@ struct StashRestorePrompt {
         }
     }
     func start() {
-        guard !started, !invalidated else { return }; started = true
+        guard !started, !invalidated, !confirmingQuit else { return }; started = true
         let token = OperationCancellation(); cancellation = token; Self.activeOperations += 1
         busy = true; onStateChanged()
         Task { await execute(token) }
@@ -110,13 +113,19 @@ struct StashRestorePrompt {
         prompt = value
         onPresent(value) { [weak self] show, remember in
             guard let self, !self.invalidated, !self.completed, self.prompt?.id == value.id else { return }
-            if let key = value.rememberKey, remember { self.preferences.set(show, forKey: key) }
-            self.finish(show: value.kind == .question && show)
+            self.accept(value,show:show,remember:remember)
         }
     }
+    private func accept(_ value:StashRestorePrompt,show:Bool,remember:Bool) {
+        guard !invalidated,!completed,prompt?.id == value.id else{return}
+        if confirmingQuit {if pendingDecision == nil {pendingDecision=(value,show,remember)};return}
+        if let key=value.rememberKey,remember {preferences.set(show,forKey:key)}
+        finish(show:value.kind == .question && show)
+    }
     private func finish(show: Bool) {
-        guard !completed, !invalidated, !busy else { return }; completed = true; prompt = nil; close()
-        if show { onViewChanges() }
+        guard !completed,!invalidated,!busy,!confirmingQuit else{return};completed=true;prompt=nil
+        let view=onViewChanges,dispatch={if show {view()}}
+        if let finishAndPerform {finishAndPerform(dispatch)} else {close();dispatch()}
     }
 }
 
@@ -134,7 +143,8 @@ struct StashRestorePrompt {
     private var ownedAlert: NSAlert?
     private var ownedReply: ((Bool, Bool) -> Void)?
     private var cancellationAlert = false
-    private var closed = false
+    private var closed = false,finishing=false,releasingAlert=false
+    private var afterAlertRelease:[()->Void]=[]
     init(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1, preferences: UserDefaults = .standard) {
         model = StashRestoreWindowModel(repository: repository, access: access, pop: pop, reference: reference, showChanges: showChanges, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 390), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -152,7 +162,8 @@ struct StashRestorePrompt {
         }
         super.init(window: window); window.delegate = self; window.center()
         cancelButton.target = self; cancelButton.action = #selector(cancelPressed); cancelButton.keyEquivalent = "\u{1b}"
-        model.close = { [weak self] in guard let self, !self.model.busy, self.model.prompt == nil, self.ownedAlert == nil else { return }; self.close() }
+        model.close = { [weak self] in self?.finishResult({}) }
+        model.finishAndPerform = { [weak self] action in self?.finishResult(action) }
         model.onStateChanged = { [weak self] in
             guard let self else { return }
             self.cancelButton.isEnabled = self.model.busy && !self.model.cancelling && !self.model.confirmingCancellation
@@ -165,7 +176,8 @@ struct StashRestorePrompt {
                 self.spinner.stopAnimation(nil)
                 self.running.stringValue = self.model.cancelled ? "Stash operation cancelled" : self.model.error == nil ? "Stash operation finished" : "Stash operation failed"
                 self.waiting.stringValue = ""
-                if self.cancellationAlert { self.endOwnedAlert() }
+                // The next result presentation drains a still-owned cancel sheet.
+                // Do not detach it here and race result presentation.
             }
         }
         model.confirmCancellation = { [weak self] choose in
@@ -191,26 +203,56 @@ struct StashRestorePrompt {
     }
     @objc private func cancelPressed() { model.cancel() }
     private func present(_ alert: NSAlert, cancellation: Bool, choose: @escaping (Bool, Bool) -> Void) {
-        if cancellationAlert && !cancellation { endOwnedAlert() }
+        if releasingAlert {afterAlertRelease.append { [weak self] in self?.present(alert,cancellation:cancellation,choose:choose)};return}
+        if cancellationAlert && !cancellation {endOwnedAlert { [weak self] in self?.present(alert,cancellation:cancellation,choose:choose)};return}
         guard !closed, ownedAlert == nil, let window, window.attachedSheet == nil else { choose(false, false); return }
+        alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
         ownedAlert = alert; cancellationAlert = cancellation
         var answered = false
         let reply: (Bool, Bool) -> Void = { accepted, remember in guard !answered else { return }; answered = true; choose(accepted, remember) }
         ownedReply = reply
         alert.beginSheetModal(for: window) { [weak self] response in
             guard let self, self.ownedAlert === alert, !self.closed else { reply(false, false); return }
-            self.ownedAlert = nil; self.ownedReply = nil; self.cancellationAlert = false
-            reply(cancellation ? response == .alertSecondButtonReturn : response == .alertFirstButtonReturn, alert.suppressionButton?.state == .on)
+            self.releasingAlert=true
+            let release=StashChildRelease(window:alert.window,parent:window) { [self] in
+                guard self.ownedAlert === alert else {reply(false,false);return}
+                self.ownedAlert=nil;self.ownedReply=nil;self.cancellationAlert=false;self.releasingAlert=false
+                if !self.closed {reply(cancellation ? response == .alertSecondButtonReturn : response == .alertFirstButtonReturn,alert.suppressionButton?.state == .on)} else {reply(false,false)}
+                let queued=self.afterAlertRelease;self.afterAlertRelease=[];queued.forEach {$0()}
+            };release.start()
         }
     }
-    private func endOwnedAlert() {
-        let alert = ownedAlert, reply = ownedReply; ownedAlert = nil; ownedReply = nil; cancellationAlert = false
-        if let alert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }
-        reply?(false, false)
+    private func endOwnedAlert(completion:@escaping ()->Void = {}) {
+        if releasingAlert {afterAlertRelease.append(completion);return}
+        let alert=ownedAlert,reply=ownedReply;ownedAlert=nil;ownedReply=nil;cancellationAlert=false
+        guard let alert else{reply?(false,false);completion();return}
+        releasingAlert=true
+        let release=StashChildRelease(window:alert.window,parent:window) { [self] in
+            releasingAlert=false;reply?(false,false);completion()
+            let queued=afterAlertRelease;afterAlertRelease=[];queued.forEach {$0()}
+        };release.start()
+    }
+    private func finishResult(_ action:@escaping ()->Void) {
+        guard !closed,!finishing,!model.confirmingQuit,!model.busy,model.prompt == nil,ownedAlert == nil,!releasingAlert,let window else{return}
+        finishing=true
+        let release=StashChildRelease(window:window,parent:window.sheetParent) { [self] in
+            guard !self.closed else{return}
+            // Close through the owning controller. AppKit may omit willClose for
+            // a window that has never been ordered; retire that detached owner
+            // explicitly so its completion is still delivered exactly once.
+            self.close()
+            if !self.closed,!window.isVisible,window.sheetParent == nil {self.retireClosedWindow()}
+            if self.closed {action()}
+        };release.start()
     }
     func start() { model.start() }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return model.prompt == nil && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { guard !closed else { return }; closed = true; model.invalidate(); endOwnedAlert(); onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {guard !model.confirmingQuit,!finishing else{return false}; if model.busy { model.cancel(); return false }; return model.prompt == nil && sender.attachedSheet == nil }
+    private func retireClosedWindow() {
+        guard !closed else{return};closed=true;model.invalidate();endOwnedAlert()
+        if let window,window.sheetParent != nil {let release=StashChildRelease(window:window,parent:window.sheetParent) {};release.start()}
+        onClosed()
+    }
+    func windowWillClose(_ notification:Notification) {retireClosedWindow()}
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 

@@ -19,6 +19,7 @@ import TurtleGitCore
             window.makeFirstResponder(nil)
             let alert = NSAlert(); alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
         DialogGeometry.attach(window, identifier: "ProgressDlg")
@@ -33,6 +34,7 @@ import TurtleGitCore
 }
 
 @MainActor final class SubmoduleSyncWindowModel: ObservableObject, ActionLogProgress {
+    private(set) static var activeOperations=0
     let repository: GitRepository
     private let access: RepositoryAccessLease?, scope: [String], preferences: UserDefaults, autoClosePolicy: GitProgressAutoClose
     private let token = OperationCancellation()
@@ -53,6 +55,9 @@ import TurtleGitCore
     @Published var exitCode: Int32?
     var close: () -> Void = {}
     var onSynced: (SubmoduleSyncResult) -> Void = { _ in }
+    var onAttemptCompleted: (SubmoduleSyncResult) -> Void = { _ in }
+    @Published private(set) var result: SubmoduleSyncResult?
+    var presentationPreferences: UserDefaults { preferences }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var activeOperation: Bool { busy || confirmingCancellation || confirmingQuit }
     var actionLogRepository: URL { repository.root }
@@ -64,33 +69,42 @@ import TurtleGitCore
     }
     func invalidate() { invalidated = true; token.cancel() }
     func start() {
-        guard !started, !invalidated, !confirmingQuit else { return }; started = true; busy = true; startedAt = ProcessInfo.processInfo.systemUptime
+        guard !started, !invalidated, !confirmingQuit else { return }; started = true; busy = true; startedAt = ProcessInfo.processInfo.systemUptime;Self.activeOperations += 1
         Task {
-            defer { withExtendedLifetime(access) {} }
+            defer { Self.activeOperations -= 1;withExtendedLifetime(access) {} }
+            var receipt:SubmoduleSyncResult?
             do {
                 if GitRuntime.isAppStoreBuild { guard access?.hasSecurityScope == true, access?.contains(repository.root) == true else { throw RepositoryAccessFailure.securityScopeUnavailable } }
                 let parser = GitCliOutputParser(limit: outputState.limit)
                 let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
                 let operation = Task {
                     defer { continuation.finish() }
-                    return try await repository.syncSubmodules(scope: scope, cancellation: token, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+                    return try await repository.syncSubmodulesWorkflow(scope: scope, cancellation: token, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
                 }
                 for await _ in updates { if !invalidated { consume(parser.processPending(), parser: parser) } }
                 if !invalidated { consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser) }
-                let result = try await operation.value
-                guard !invalidated else { busy = false; return }
-                exitCode = result.exitCode; success = result.success
-                if output.isEmpty { output = "No directories to synchronize." }
-                onSynced(result)
+                let result = try await operation.value;receipt=result
+                if !invalidated {
+                    exitCode = result.exitCode; success = result.success
+                    if output.isEmpty { output = "No directories to synchronize." }
+                }
             } catch {
-                guard !invalidated else { busy = false; return }
-                let message = token.isCancelled ? "Submodule synchronization cancelled." : error.localizedDescription
-                output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message
+                if let failure=error as? SubmoduleSyncExecutionFailure {receipt=failure.result;if !invalidated {exitCode=failure.result.exitCode}}
+                if !invalidated {
+                    let message = token.isCancelled ? "Submodule synchronization cancelled." : error.localizedDescription
+                    output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message
+                }
             }
+            if let receipt,!receipt.entries.isEmpty {onAttemptCompleted(receipt)}
+            guard !invalidated else{busy=false;return}
+            result=receipt
+            if token.isCancelled {success=false}
             cancelled = token.isCancelled
             let completion = SubmoduleProgressCompletion(success:success, cancelled:cancelled, exitCode:exitCode, elapsed:ProcessInfo.processInfo.systemUptime - startedAt, preferences:preferences)
             currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to:&output)
-            busy = false; saveActionLog(); finishAutomaticClose()
+            busy = false; saveActionLog()
+            if success,let receipt {onSynced(receipt)}
+            if !invalidated {finishAutomaticClose()}
         }
     }
     private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {

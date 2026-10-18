@@ -354,7 +354,12 @@ over an older pending position restore.
 Stash Save records the selected working state using its offered options. Stash
 Apply restores a stash without dropping it; Pop also requests removal after
 application. Conflicts still require resolution. Inspect the result before
-assuming that a stash has been removed.
+assuming that a stash has been removed. Save checks your Git name and email and
+opens Git Settings when they need to be completed. The accepted settings are read
+again before saving. Pull, Merge, Pop and Apply follow-up actions close the Save
+result before opening the next operation; View Changes does the same after a
+restore. A pending warning or cancellation question keeps that operation owned
+until you answer it.
 
 Revert working files restores their selected state; see
 [Reverting working files](REVERTING-FILES.md). The file-selection window supports sortable saved columns, file history/Blame, Open With/export, and same-repository file drops. Context Revert opens its recovery/progress window and refreshes the list when closed. Revert a commit from Log creates
@@ -369,6 +374,14 @@ are not ordinary editor Undo actions.
 
 Submodule Add asks for the repository, destination path and optional branch.
 Update works on the selected submodules and offered init/recursive/update choices.
+Large explicit selections run in ordered command batches. Progress retains earlier
+results if a later batch fails or is cancelled, and repository views refresh after
+attempted changes. Only a successful Update enables its completion actions.
+
+When Add succeeds but configuring its SSH key fails, the result distinguishes
+those phases. **Retry key configuration** retries the captured key setup for the
+added submodule without repeating Add. Sync retains results for earlier directories
+when a later command fails or is cancelled.
 Revert can mark a submodule for comparison. With working-copy marks, Submodule Diff compares its indexed commit with the checkout and labels the From group **Index**. Historical renamed gitlinks retain both paths. A submodule is a separate repository. Inspect its own status and commit pointer
 when the superproject reports a change.
 

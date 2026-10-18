@@ -1,0 +1,206 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "100e250454a1fbdfe2fd534788e42e18d3459710",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Stash identity Settings repair and final user-save identity recheck; captured native form options and warning ownership",
+    "Save/Restore actual sheet release before once-only follow-ups; actual worker and deferred Quit ownership",
+    "Submodule Add phase receipts and configuration-only retry against captured child Git-directory identity",
+    "Ordered explicit Submodule Update argv batches, partial Update/Sync results and attempted-change refresh distinct from success completion",
+    "Originating preferences through Submodule Bisect and Stash Working Tree handoffs; native user guide/offline Help updates"
+  ],
+  "validation": {
+    "status": "passed scoped grouped checkpoint",
+    "build_attempts": [
+      {
+        "log": "stash-submodule-build-2026-10-18.log",
+        "exit": 65,
+        "scope": "Explicit self captures required inside nested Stash Restore release closure."
+      },
+      {
+        "log": "stash-submodule-build-repair-2026-10-18.log",
+        "exit": 0
+      },
+      {
+        "log": "stash-submodule-build-close-2026-10-18.log",
+        "exit": 0,
+        "scope": "Affected native Restore owner-close contract repair; no Core changes."
+      }
+    ],
+    "core": {
+      "cases": 39,
+      "failures": 0,
+      "logs": [
+        "stash-submodule-core-2026-10-18.log",
+        "stash-submodule-core-remaining-2026-10-18.log"
+      ],
+      "selection_note": "Initial anchored filter matched only the two SSHTransportPreparationTests.testSubmoduleAdd cases. Remaining unanchored class filter ran 37 cases, including four related SynchronizationStashTests selected by StashTests. The first two passing cases were not repeated.",
+      "repeated_after_native_repairs": false
+    },
+    "native": {
+      "cases": [
+        "stash",
+        "stash-save",
+        "stash-restore",
+        "add-recovery",
+        "update-recovery",
+        "update-progress",
+        "sync",
+        "handoffs",
+        "integration-entry",
+        "submodule-entry"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "attempts": [
+        {
+          "log": "stash-submodule-native-2026-10-18.log",
+          "exit": 1,
+          "scope": "Receiver compile needed synchronous beginSheet completionHandler:nil; no native cases started."
+        },
+        {
+          "log": "stash-submodule-native-fixture-2026-10-18.log",
+          "exit": 1,
+          "scope": "Stash and retained Save passed both engines; retained Restore/system failed injected result-close assertion."
+        },
+        {
+          "log": "stash-submodule-native-close-2026-10-18.log",
+          "exit": 1,
+          "scope": "Affected Stash/Save cases passed both after native owner-close/private preference repair. Restore still failed same assertion."
+        },
+        {
+          "log": "stash-submodule-native-restore-diagnostic-2026-10-18.log",
+          "exit": 1,
+          "scope": "Restore/system diagnostic proved the fixture left a Cancel sheet open while bypassing real result presentation. Fixture now explicitly declines that injected cancellation; dedicated native cancellation coverage retained."
+        },
+        {
+          "log": "stash-submodule-native-remaining-2026-10-18.log",
+          "exit": 1,
+          "scope": "Restore passed both engines; Add/system failed before any Git mutation because fixture omitted its required private Browse grant."
+        },
+        {
+          "log": "stash-submodule-native-add-diagnostic-2026-10-18.log",
+          "exit": 1,
+          "scope": "Add/system diagnostic proved phase=preparing, attempted=false, missing SSH key authorization. Fixture now remembers a private Browse-equivalent grant; native permission contract unchanged."
+        },
+        {
+          "log": "stash-submodule-native-submodules-2026-10-18.log",
+          "exit": 0,
+          "scope": "Add recovery and remaining Update/Sync/handoff/root-entry cases; no already-passing Stash cases repeated."
+        }
+      ],
+      "owned_receiver_pids": [
+        49522,
+        49591,
+        49650,
+        49712,
+        49774,
+        50264,
+        50325,
+        50381,
+        50443,
+        50505,
+        50973,
+        51409,
+        52551,
+        53658,
+        53815,
+        53979,
+        54111,
+        54238,
+        54770,
+        55292,
+        55664,
+        56034,
+        56351,
+        56669,
+        56834,
+        56976,
+        57407,
+        57842,
+        58714
+      ],
+      "distinct_case_engine_passes": 20,
+      "owned_receivers_independently_absent": 29,
+      "passing_case_engines": [
+        "add-recovery with /usr/bin/git",
+        "add-recovery with build/git-runtime/Git/bin/git",
+        "handoffs with /usr/bin/git",
+        "handoffs with build/git-runtime/Git/bin/git",
+        "integration-entry with /usr/bin/git",
+        "integration-entry with build/git-runtime/Git/bin/git",
+        "stash with /usr/bin/git",
+        "stash with build/git-runtime/Git/bin/git",
+        "stash-restore with /usr/bin/git",
+        "stash-restore with build/git-runtime/Git/bin/git",
+        "stash-save with /usr/bin/git",
+        "stash-save with build/git-runtime/Git/bin/git",
+        "submodule-entry with /usr/bin/git",
+        "submodule-entry with build/git-runtime/Git/bin/git",
+        "sync with /usr/bin/git",
+        "sync with build/git-runtime/Git/bin/git",
+        "update-progress with /usr/bin/git",
+        "update-progress with build/git-runtime/Git/bin/git",
+        "update-recovery with /usr/bin/git",
+        "update-recovery with build/git-runtime/Git/bin/git"
+      ]
+    },
+    "resources": {
+      "localization": {
+        "mode": "check",
+        "languages": 38,
+        "keys": 1289
+      },
+      "help": {
+        "mode": "check",
+        "documents": 40,
+        "topics": 49,
+        "files": 60
+      },
+      "coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "static_controls": 1659,
+        "mapped_controls": 1566,
+        "pending_control_reviews": 93
+      }
+    },
+    "site": {
+      "log": "stash-submodule-site-2026-10-18.log",
+      "documents": 326,
+      "unresolved_fragments": [],
+      "link_tests": 2,
+      "search_filter_no_match_load_failure": "passed"
+    },
+    "diff_check": "passed"
+  },
+  "hosted_evidence": {
+    "previous_head": "100e250454a1fbdfe2fd534788e42e18d3459710",
+    "pages": {
+      "run": 39152335835,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 39152335866,
+      "status_at_batch_start": "pending",
+      "conclusion": null
+    }
+  },
+  "remaining": [
+    "Complete source/control and displayed light/dark/keyboard/accessibility acceptance across all dialog families",
+    "Physical Finder menus/badges, real credential-bearing transport and signed sandbox acceptance",
+    "Current-head hosted integration and Intel/older SDK acceptance",
+    "Current signed/universal distribution, App Store legal/runtime/package acceptance and store review",
+    "Custom TurtleGit logo replacement remains unresolved; existing generated logo was not recovered in this batch"
+  ],
+  "notes": [
+    "No timer-based testing or full Core-suite repeat. Native fixtures are linked from current app objects and compiled as a grouped cached receiver.",
+    "Owned native windows and children stay invisible; receiver process groups are reaped on pass, failure and timeout.",
+    "Focused passes and audit counts do not establish whole-port feature completion."
+  ]
+}

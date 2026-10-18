@@ -32,6 +32,7 @@ import TurtleGitCore
         panel.canChooseFiles = kind == .key; panel.canChooseDirectories = kind != .key
         panel.allowsMultipleSelection = false; panel.canCreateDirectories = kind == .path
         panel.directoryURL = kind == .path ? model.repository.root : nil
+        panel.alphaValue=window.alphaValue;panel.appearance=window.appearance
         panel.prompt = kind == .key ? "Select OpenSSH key" : "Select folder"
         presentOpenPanel(panel,window) { [weak self, weak panel] response in
             guard let self,let panel,self.pickerID==identity,self.panel === panel else { return }

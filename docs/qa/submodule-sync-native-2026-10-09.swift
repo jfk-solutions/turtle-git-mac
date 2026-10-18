@@ -60,10 +60,11 @@ import Darwin
         empty.invalidate()
         let failedFlag = URL(fileURLWithPath:wrapper.path+".fail-first"); try Data().write(to:failedFlag)
         let partial = SubmoduleSyncWindowModel(repository:repo,access:access,scope:["modules/one","modules/two"],preferences:prefs)
-        var partialCodes: [Int32] = []; partial.onSynced = { partialCodes = $0.entries.map(\.exitCode) }
+        var partialCodes: [Int32] = [], partialSuccesses=0
+        partial.onAttemptCompleted = { partialCodes = $0.entries.map(\.exitCode) };partial.onSynced={_ in partialSuccesses += 1}
         partial.start(); try await wait("Native partial Sync") { !partial.busy }
         let nextSecond = try await parent.run(["config","--get","submodule.two.url"]).text.trimmingCharacters(in:.newlines)
-        try require(!partial.success && partial.exitCode == 7 && partialCodes == [7,0] && nextSecond == "ssh://sync-fixture.invalid/two", "Native ordinary failure stopped a later directory")
+        try require(!partial.success && partial.exitCode == 7 && partialCodes == [7,0] && partialSuccesses == 0 && nextSecond == "ssh://sync-fixture.invalid/two", "Native ordinary failure stopped a later directory")
         partial.invalidate(); try FileManager.default.removeItem(at:failedFlag)
         for policy in [1,2] {
             prefs.set(policy,forKey:"AutoCloseGitProgress")

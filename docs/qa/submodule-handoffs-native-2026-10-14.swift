@@ -53,7 +53,7 @@ import TurtleGitCore
         model.onCompare = { _, _, _ in comparisons += 1; usedAlternate = ComparisonToolInvocation.alternate == true }
         ComparisonToolInvocation.$alternate.withValue(true) { model.compare() }; try await wait { !model.busy }
         try require(usedAlternate, "Shift choice lost during preparation")
-        controller.showWindow(nil)
+        controller.window?.alphaValue=0;controller.showWindow(nil)
         model.update(); try await wait { controller.updateOptions != nil }
         let owned = controller.updateOptions
         model.update(); try require(controller.updateOptions === owned && model.hasUpdateChild, "Duplicate Update replaced owned options")

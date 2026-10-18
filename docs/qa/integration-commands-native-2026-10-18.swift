@@ -1,8 +1,15 @@
 import AppKit
+import ObjectiveC
 import TurtleGitCore
 
 extension PrimaryCommandsVerification {
     @MainActor static func verifyIntegration() async throws {
+        // Scope all ordering interception to this private receiver process so root
+        // command paths and framework-owned sheets stay invisible before ordering.
+        let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!
+        let hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.turtleGitIntegrationOrder(_:relativeTo:)))!
+        method_exchangeImplementations(original,hidden)
+        defer {method_exchangeImplementations(original,hidden)}
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
         let suite="TurtleGit.IntegrationCommands."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         defer {prefs.removePersistentDomain(forName:suite)}
@@ -22,6 +29,11 @@ extension PrimaryCommandsVerification {
         defer {workspace.stopMonitoringForTermination();for window in NSApp.windows {window.close()};host.close()}
         func windows<T>(_ type:T.Type)->[T] {NSApp.windows.filter(\.isVisible).compactMap {$0.delegate as? T}}
         func invoke(_ arguments:[String]) {workspace.handleCommandLine(arguments:arguments,currentDirectory:root.path)}
+        func cleanup() async throws {
+            workspace.stopMonitoringForTermination();for window in NSApp.windows {window.close()};host.close()
+            try await wait {StashWindowModel.activePreparations == 0 && StashWindowController.activeChildReleases == 0 && StashRestoreWindowModel.activeOperations == 0 && LocalGitCommandProgress.activeOperations == 0 && SettingsSheetController.activeSheets == 0 && MergeWindowModel.activeReads == 0 && MergeProgressWindowModel.activeOperations == 0}
+        }
+        do {
         invoke(["--command=merge"])
         try await wait {!workspace.busy && windows(MergeWindowController.self).first?.model.busy==false}
         let merge=try requireOne(windows(MergeWindowController.self))
@@ -50,6 +62,7 @@ extension PrimaryCommandsVerification {
         let message="command message 🐢\n`literal` $(literal)"
         invoke(["--command=stashsave","--msg",message]);try await wait {!workspace.busy && !windows(StashWindowController.self).isEmpty}
         let save=try requireOne(windows(StashWindowController.self))
+        try await wait {save.model.prepared && !save.model.preparing && !save.model.busy}
         try require(save.model.options.message==message && save.model.progress==nil,"Stash message preset lost or launched without acceptance")
         save.model.options.message="kept stash draft 🐢"
         invoke(["--command=stashsave","--msg=must not replace"]);try await wait {!workspace.busy}
@@ -92,6 +105,7 @@ extension PrimaryCommandsVerification {
         // A real pending receiver with injected cancellable backend exposes launch/acceptance races.
         invoke(["--command=stashsave"]);try await wait {!workspace.busy && !windows(StashWindowController.self).isEmpty}
         let pendingSave=try requireOne(windows(StashWindowController.self))
+        try await wait {pendingSave.model.prepared && !pendingSave.model.preparing && !pendingSave.model.busy}
         workspace.stashRestoreWindowFactory={repository,access,pop,reference,show in
             restoreCalls += 1
             let owner=StashRestoreWindowController(repository:repository,access:access,pop:pop,reference:reference,showChanges:show,preferences:prefs)
@@ -102,12 +116,21 @@ extension PrimaryCommandsVerification {
         let running=try requireOne(windows(StashRestoreWindowController.self)),beforeCalls=restoreCalls
         invoke(["--command=stashpop"]);try await wait {!workspace.busy}
         try require(restoreCalls==beforeCalls && windows(StashRestoreWindowController.self).count==1 && workspace.error?.contains("current stash operation")==true,"Concurrent stash launch started a second mutation")
-        pendingSave.model.save();try require(!pendingSave.model.busy && pendingSave.model.progress==nil && pendingSave.model.error != nil,"Existing Save draft bypassed active stash operation")
+        pendingSave.model.save();try await wait {!pendingSave.model.preparing};try require(!pendingSave.model.busy && pendingSave.model.progress==nil && pendingSave.model.error != nil,"Existing Save draft bypassed active stash operation")
         pendingSave.close();running.model.cancel();try await wait {!running.model.busy && StashRestoreWindowModel.activeOperations==0}
         try require(running.model.cancelled,"Injected owned receiver failed to cancel")
         running.close()
         let finalHead=try await repo.run(["rev-parse","HEAD"]).stdout
         try require(finalHead==baseline,"Merge/Stash command family changed HEAD unexpectedly")
+        try await cleanup()
         print("PASS: integration command family: preserved Merge/Abort and Stash drafts; private preferences; accepted real No Commit merge and Abort; Stash Save message/warning generations; actual Apply/Pop/List and result questions; pending duplicate/mutation refusal and cancellation; HEAD preserved and owned windows closed")
+        } catch {let original=error;do {try await cleanup()} catch {throw Failure(description:"\(original); cleanup: \(error)")};throw original}
+    }
+}
+
+private extension NSWindow {
+    @objc func turtleGitIntegrationOrder(_ place:NSWindow.OrderingMode,relativeTo otherWindowNumber:Int) {
+        alphaValue=0
+        turtleGitIntegrationOrder(place,relativeTo:otherWindowNumber)
     }
 }

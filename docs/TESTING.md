@@ -2336,3 +2336,20 @@ boundary. Repair an actual failure and repeat only its affected checks. Native
 process groups and actual sheet/operation counters must drain on every outcome.
 The grouped result, hosted Pages evidence and remaining physical/signed/full-port
 limits are in `qa/credential-merge-workflows-2026-10-18.json`.
+
+
+## Stash and Submodule recovery checkpoint
+
+`scripts/test-stash-submodule-workflows.py` groups Stash identity repair,
+warning/result ownership, captured follow-ups, Submodule Add key-configuration
+recovery, ordered explicit Update batches and partial Sync results in one cached
+native receiver. Retained Save/Restore, Update progress, Sync and Submodule
+handoff and command-entry cases cover the affected consumers. Each case receives private repository,
+preferences and global/XDG configuration; native children stay hidden and owned
+helpers must be reaped on all outcomes.
+
+Run the related Core group once after implementation freezes, followed by the
+native group with system and bundled Git. Repeat only checks affected by a real
+failure or subsequent change. Record actual outcomes and remaining acceptance in
+`qa/stash-submodule-workflows-2026-10-18.json`; this checkpoint does not establish
+whole-port or signed Finder/App Store acceptance.
