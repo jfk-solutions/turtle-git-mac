@@ -1,0 +1,304 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "a291a1b1d68b1f80dccb00f3f5e6274c12730343",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source Blame conversion/matching and original displayed rows",
+    "Reflected Git-relative editor patch headers, ordinary CLI headers unchanged",
+    "Dedicated standalone entry/scene, startup ownership and native menus",
+    "Two/three-file reflected frame continuity and immutable policies"
+  ],
+  "dialogs": [
+    "IDD_OPENDLG"
+  ],
+  "validation": {
+    "core": {
+      "exit": 0,
+      "distinct_cases": 27,
+      "selection": "MergeBlameComparisonTests|MergeBlameWorkingFileTests|MergeReflectedPatchTests|MergeOpenTests",
+      "scope": "8 Blame projection cases, 2 actual three-file encoding/rebind cases, 6 reflected patch cases, 11 retained Open cases. No complete Core repeat."
+    },
+    "build_attempts": [
+      {
+        "log": "merge-frame-build-2026-10-18.log",
+        "exit": 65,
+        "failure": "SwiftUI SceneBuilder rejects conditional scenes."
+      },
+      {
+        "log": "merge-frame-build-scene-affected-2026-10-18.log",
+        "exit": 0,
+        "repair": "Choose between two concrete App types before either App.main creates a scene."
+      },
+      {
+        "log": "merge-frame-build-activation-affected-2026-10-18.log",
+        "exit": 0,
+        "repair": "Explicit one-shot standalone application activation before asynchronous editor presentation."
+      },
+      {
+        "log": "merge-frame-build-menus-affected-2026-10-18.log",
+        "exit": 0,
+        "repair": "Reuse localized standard menu roots semantically; add guarded standalone Close; capture current reflected metadata after Switch Sides. Source-header comments also preserve exact upstream notices."
+      }
+    ],
+    "native": {
+      "initial_group_exit": 0,
+      "distinct_case_engine_receipts": 16,
+      "waiting_wrapper_receipts": 1,
+      "cases": [
+        "comparison",
+        "three-file",
+        "launch",
+        "blame",
+        "continuity",
+        "scene",
+        "reflected"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "activation_affected_scene_exit": 0,
+      "activation_affected_case_engine_receipts": 2,
+      "scope": "14 original case/engine combinations and 2 retained toolbar/engine checks; 1 waiting wrapper. Affected scene/continuity/launch repeats preserve all assertions and do not increase distinct counts. No full Core/native suite repeat.",
+      "final_affected_group_exit": 0,
+      "final_affected_case_engine_receipts": 6,
+      "retained_toolbar_exit": 0,
+      "retained_toolbar_case_engine_receipts": 2
+    },
+    "repairs": [
+      {
+        "failure": "build-help.py --write is unsupported",
+        "repair": "Run generator without flag, then --check. Localization was not rerun for this invocation typo."
+      },
+      {
+        "failure": "Initial real standalone process had no active editor menu contribution; only default menu plus Save All",
+        "repair": "Settings-only Git-launched process needed explicit activation; reuse existing menu lifecycle synchronizer."
+      },
+      {
+        "failure": "After activation, real German macOS showed duplicate system and English native menu roots",
+        "scope": "Fixture-only command checks did not expose physical localized root integration.",
+        "repair": "Reuse AppKit windows/help identities, responder actions and owned standard key semantics, with a narrowly scoped known-app scaffold fallback. Preserve localized titles and existing identifiers; insert Navigate by role. Added private non-English menu/replacement assertions."
+      },
+      {
+        "observation": "Escape from a tracked menu closed the first readonly tool, returning exit0; subsequent CUA observation auto-reopened the private QA bundle without arguments.",
+        "cleanup": "Cancelled its wizard, quit the owned no-argument process82950 and verified absent. Subsequent checks close the explicit window and never observe a dead app."
+      },
+      {
+        "source_review": "OnViewSwitchleft swaps WorkingFile objects including reflected metadata.",
+        "repair": "Capture the current editor orientation before Open; preserve Theirs/Merged frame metadata while using a two-file editor. Native continuity now covers actual three/two/Switch Sides/three handoff."
+      }
+    ],
+    "hosted": {
+      "pages_run": 39133652221,
+      "pages_head": "a291a1b1d68b1f80dccb00f3f5e6274c12730343",
+      "pages_conclusion": "success",
+      "macos_run": 39133652238,
+      "macos_status_at_observation": "pending",
+      "prior_macos_run": 39130261984,
+      "prior_macos_status_at_observation": "in_progress; Git integration tests",
+      "scope": "No hosted macOS pass is claimed; active runs left alone."
+    },
+    "physical": {
+      "scope": "Isolated ad-hoc Debug copies on this arm64/macOS host; no installed/user app replaced.",
+      "final_observed_roots": [
+        "TurtleGit Merge Menus QA",
+        "Ablage",
+        "Bearbeiten",
+        "Navigate",
+        "Darstellung",
+        "Fenster",
+        "Hilfe"
+      ],
+      "observed_single_localized_roots": true,
+      "observed_readonly_original_changed_panes": true,
+      "observed_tool_startup_without_repository_or_wizard": true,
+      "launch_services_wait_exit": 0,
+      "action_acceptance": "Incomplete: CUA reported changed app state during menu actions; target tool exited0, later observation relaunched the private bundle without arguments. Those fallback wizards/workspaces were cancelled and quit. Do not count this as physical File/Open/Close dispatch or keyboard acceptance. Dedicated native fixtures cover those command paths. No inferred crash/user action/tool mechanism is asserted.",
+      "direct_process_statuses": [
+        {
+          "pid": 82932,
+          "exit": 0
+        },
+        {
+          "pid": 83060,
+          "exit": 0
+        },
+        {
+          "pid": 83197,
+          "exit": 0
+        },
+        {
+          "pid": 84015,
+          "exit": 0
+        }
+      ],
+      "fallback_known_pids": [
+        82950,
+        84029
+      ],
+      "all_qa_bundle_processes_absent": true,
+      "private_bundle_copies": [
+        {
+          "folder": "build/qa/merge-frame-live-20261018",
+          "bundle_identifier": "org.turtlegit.macos.qa.merge-frame-20261018",
+          "executable_sha256": "4203690111936c6002ab727369f501aafb428daa16212799aff550754f49865c",
+          "processes_absent": true,
+          "private_app_copy_removed": true
+        },
+        {
+          "folder": "build/qa/merge-frame-live-activation-20261018",
+          "bundle_identifier": "org.turtlegit.macos.qa.merge-active-20261018",
+          "executable_sha256": "0f32a6408475114a00cdbe81a24c54b1a5ea3c6d86711d1df5eb6f94da1f5f82",
+          "processes_absent": true,
+          "private_app_copy_removed": true
+        },
+        {
+          "folder": "build/qa/merge-frame-live-menus-20261018",
+          "bundle_identifier": "org.turtlegit.macos.qa.merge-menus-20261018",
+          "executable_sha256": "fd636e99c831c13c1aa4f9edf5b1ab71a36bc4ff299d36005f7d31414e25b7e2",
+          "processes_absent": true,
+          "private_app_copy_removed": true
+        }
+      ]
+    },
+    "resources": {
+      "localizations": {
+        "write_exit": 0,
+        "check_exit": 0,
+        "languages": 38,
+        "keys": 1289
+      },
+      "help": {
+        "write_exit": 0,
+        "check_exit": 0,
+        "documents": 39,
+        "topics": 48,
+        "files": 59
+      },
+      "scope": "Generated resource checks do not establish full translation, help or visual source parity.",
+      "ledger": {
+        "write_exit": 0,
+        "check_exit": 0,
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "scope": "Resource coverage is not a feature completion percentage."
+      },
+      "site": {
+        "exit": 0,
+        "documents": 303,
+        "unresolved_fragments": 0,
+        "link_tests": 2,
+        "link_test_exit": 0
+      }
+    }
+  },
+  "recorded_owned_pids": [
+    82536,
+    82546,
+    82612,
+    82677,
+    82697,
+    82715,
+    82778,
+    82838,
+    82847,
+    82858,
+    82862,
+    82866,
+    82872,
+    82877,
+    82902,
+    83812,
+    83820,
+    83826,
+    83831,
+    83836,
+    83900,
+    83174,
+    83179,
+    83974,
+    83982,
+    82932,
+    82950,
+    83060,
+    83197,
+    84015,
+    84029
+  ],
+  "logs": [
+    {
+      "path": "build/qa/merge-frame-build-2026-10-18.log",
+      "sha256": "6d4152e55e2c1672812edbafb26febddbd5aeba5e729b603c2ca37d37d7e1223"
+    },
+    {
+      "path": "build/qa/merge-frame-build-activation-affected-2026-10-18.log",
+      "sha256": "062d09808323b4e034aa9e920fce60805937b6b6f6ecba8371236f7324b34572"
+    },
+    {
+      "path": "build/qa/merge-frame-build-menus-affected-2026-10-18.log",
+      "sha256": "fb77ec7213ccfa32459f0af705a45b274efd68bdf091596b205be73617b416bc"
+    },
+    {
+      "path": "build/qa/merge-frame-build-scene-affected-2026-10-18.log",
+      "sha256": "20d63ff8fc3a5eafa053aa3a13319710e1bd5618fc9c31991cb332c15a9c46df"
+    },
+    {
+      "path": "build/qa/merge-frame-core-2026-10-18.log",
+      "sha256": "d81b857cc6ef5f04c6481c83b393dde939a886bf5c3aca45d206336caa2ebff2"
+    },
+    {
+      "path": "build/qa/merge-frame-localizations-2026-10-18.log",
+      "sha256": "9211f166663efcc8bdf089306d84ceeefeda0b0232bacf4fb650e606fa20e703"
+    },
+    {
+      "path": "build/qa/merge-frame-native-2026-10-18.log",
+      "sha256": "a879f9e12cb70b01bff40f4a984dee5c107b578c47c19c6ef68c5bcdda5abe1d"
+    },
+    {
+      "path": "build/qa/merge-frame-native-menus-affected-2026-10-18.log",
+      "sha256": "c024dda4cda490d9bd9b2a10a4490916e1b5539c869ea865a7f62b1d7daf0e6b"
+    },
+    {
+      "path": "build/qa/merge-frame-native-scene-affected-2026-10-18.log",
+      "sha256": "dc15b687f4afe9fe5655d1c49a21f94adec81b197afc2449eb27c36b38bb0762"
+    },
+    {
+      "path": "build/qa/merge-frame-resources-2026-10-18.log",
+      "sha256": "936d7aa1c1dc29b1eff0d45e1bbe392d458d3f4d93e210b587393ab9aa747fe2"
+    },
+    {
+      "path": "build/qa/merge-frame-toolbar-affected-2026-10-18.log",
+      "sha256": "ead0e703ba0757c000e607cfbc87c1595313bbf18a2c4cc9f800efeba389d94e"
+    },
+    {
+      "path": "build/qa/merge-frame-ledger-final-2026-10-18.log",
+      "sha256": "010d7cd20d8a1b3809471da1e6758966965124069b666809114f985a19b3a783"
+    },
+    {
+      "path": "build/qa/merge-frame-site-2026-10-18.log",
+      "sha256": "567a227848ceb68f42402eedf89d6ccf4ea289b54b78b63a0c441f94b12e485a"
+    },
+    {
+      "path": "build/qa/merge-frame-site-links-2026-10-18.log",
+      "sha256": "0314a0664cabbfb6152ba04ffdc21ddc2e665e23c1501923501c443abe9eb9de"
+    }
+  ],
+  "limitations": [
+    "No complete upstream dialog/whole-app certification.",
+    "Remaining reflected-path EditorConfig semantics, complete visual/input/VoiceOver and minimum-OS/Intel acceptance.",
+    "No current universal/archive/signing refresh or signed App Store terminal authorization/submission.",
+    "Historical 2026-10-18 entry evidence preserves its original assumptions; follow-up docs correct nonexistent Blame columns/TryGitUnifiedDiff naming.",
+    "Unrelated native-reference script/reflog fixture remain unstaged."
+  ],
+  "recorded_owned_process_count": 31,
+  "all_recorded_owned_pids_absent": true,
+  "process_scope": "All run_receiver-owned groups reaped. Additional UI-tool-created fallback bundles were quit and verified absent by exact private bundle executable path; not every Launch Services PID was captured. Do not represent this count as all helpers or a feature percentage.",
+  "fixture_sha256": {
+    "docs/qa/merge-reflected-patch-native-2026-10-18.swift": "fdd2b7cb6594562a88ff69e15a17a9cdd79db94212968d940f170d3a73b91c83",
+    "docs/qa/merge-tool-continuity-native-2026-10-18.swift": "d1acc9620c2a4089122c148c2d54cc29f01ef1bba94bc5ebfcff5ee2a1d4f1d0",
+    "docs/qa/merge-tool-scene-native-2026-10-18.swift": "341d4f696d192c01f2773fd101f3e79a4dc272c1bb5ac32c07fa9898f1a1f739",
+    "docs/qa/merge-blame-native-2026-10-18.swift": "af98715b4948908220ab0c06c906b22322f79de53cfad5cd680c864e8ec552ce"
+  }
+}

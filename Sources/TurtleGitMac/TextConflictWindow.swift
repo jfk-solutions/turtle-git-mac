@@ -260,10 +260,26 @@ private enum MergeSourceSide {
     private var ownedEditorConfigReads = 0
     var mergeToolHasPendingWork: Bool { busy || preparing || sourceExporter.hasPendingWork || formatPending || ownedFormatChoices > 0 || ownedEditorConfigReads > 0 }
     private var explicitMergeToolReadOnly = false
+    private var replacementReflectedNames: [String: String] = [:]
+    private var hasMergeToolReplacementPolicy = false
+    private var replacementBlame = false
+    var mergeToolBlame: Bool { mergeToolInvocation?.blame ?? replacementBlame }
     var mergeToolReadOnly: Bool { explicitMergeToolReadOnly || (mergeToolInvocation.map { $0.readOnly || $0.blame } ?? false) }
     func configureMergeToolReadOnly(_ enabled: Bool) {
         guard document == nil, !busy, !retired else { return }
         explicitMergeToolReadOnly = enabled
+    }
+    /// File/Open clears descriptive names, output and required-save state while
+    /// the frame's reflected names and immutable comparison policy survive.
+    func configureMergeToolReplacement(readOnly: Bool, blame: Bool = false,
+                                       reflectedBase: String? = nil, reflectedTheirs: String? = nil,
+                                       reflectedMine: String? = nil, reflectedMerged: String? = nil) {
+        guard document == nil, !busy, !retired, mergeToolInvocation == nil else { return }
+        configureMergeToolReadOnly(readOnly || blame)
+        replacementBlame = blame; hasMergeToolReplacementPolicy = true
+        for (role, name) in [("base", reflectedBase), ("theirs", reflectedTheirs), ("mine", reflectedMine), ("merged", reflectedMerged)] {
+            if let name { replacementReflectedNames[role] = name }
+        }
     }
     func configureMergeTool(_ invocation: MergeToolInvocation) throws {
         guard document == nil, !busy, !retired, mergeToolInvocation == nil, let workingMerge else { throw RevisionComparisonFailure.selection }
@@ -277,11 +293,17 @@ private enum MergeSourceSide {
         let name = result ? invocation.mergedName : mine.map { $0 ? invocation.mineName : invocation.theirsName } ?? invocation.baseName
         return name.flatMap { $0.isEmpty ? nil : $0 } ?? fallback
     }
+    func mergeToolReflectedName(mine: Bool? = nil, result: Bool = false) -> String? {
+        if result { return mergeToolInvocation?.mergedReflectedName ?? replacementReflectedNames["merged"] }
+        if let mine { return mine ? mergeToolInvocation?.mineReflectedName ?? replacementReflectedNames["mine"] : mergeToolInvocation?.theirsReflectedName ?? replacementReflectedNames["theirs"] }
+        return mergeToolInvocation?.baseReflectedName ?? replacementReflectedNames["base"]
+    }
     func mergeToolPaneLocation(mine: Bool? = nil, result: Bool = false) -> String? {
-        guard let invocation = mergeToolInvocation else { return nil }
-        if result { return invocation.mergedReflectedName ?? workingMergeOutput?.path }
-        if let mine { return mine ? invocation.mineReflectedName ?? workingMerge?.mineURL.path : invocation.theirsReflectedName ?? workingMerge?.theirsURL.path }
-        return invocation.baseReflectedName ?? workingMerge?.baseURL.path
+        guard mergeToolInvocation != nil || hasMergeToolReplacementPolicy else { return nil }
+        if let reflected = mergeToolReflectedName(mine: mine, result: result) { return reflected }
+        if result { return workingMergeOutput?.path }
+        if let mine { return mine ? workingMerge?.mineURL.path : workingMerge?.theirsURL.path }
+        return workingMerge?.baseURL.path
     }
     fileprivate func applyMergeToolInitialLine(_ view: MergeTextView) {
         guard !retired, !busy, !preparing, let line = mergeToolInitialLine,
@@ -970,7 +992,7 @@ private enum MergeSourceSide {
         let changingOptions = pendingComparisonOptions != nil
         let options = pendingComparisonOptions ?? MergeComparisonOptions.load(from: comparisonDefaults)
         let profiles = try MergeCommentProfileFile.load(at: commentProfileURL)
-        engine.filter = filter; engine.options = options; engine.commentTokens = profiles.tokens(paths: [path])
+        engine.filter = filter; engine.options = options; engine.commentTokens = profiles.tokens(paths: [path]); engine.blame = mergeToolBlame
         var next: TextConflictDocument
         if mergedResultTarget != nil,workingMerge==nil,let current=document {
             // Once Save As owns the result, the captured source panes remain

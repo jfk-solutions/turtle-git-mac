@@ -164,7 +164,8 @@ extension GitRepository {
         let permissions = workingPermissions ?? (entry.stages.first { $0.number == mineStage }?.mode == "100755" ? 0o755 : 0o644)
         let result: String
         var sources: MergeSourceComparison?
-        if let engine {
+        if var engine {
+            engine.blameEncodings = [sourceEncodings[1], sourceEncodings[mineStage], sourceEncodings[theirsStage]]
             let presentation = try SubversionMergePresentation(plan: engine.plan(base: base, mine: mine, theirs: theirs, cancellation: cancellation))
             result = presentation.result; sources = presentation.sources
         } else {
@@ -277,6 +278,8 @@ public actor WorkingTextMerge {
         let activeMine = savedSources[true]?.url ?? mineURL, activeTheirs = savedSources[false]?.url ?? theirsURL
         let base = try source(baseURL, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding), theirs = try source(activeTheirs, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding), mine = try source(activeMine, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding)
         let output=explicitOutput ? try snapshot(outputURL,absentPermissions:mine.permissions ?? 0o644):nil
+        var engine = engine
+        engine.blameEncodings = [base.encoding, mine.encoding, theirs.encoding]
         let presentation = try SubversionMergePresentation(plan: engine.plan(base: base.text!, mine: mine.text!, theirs: theirs.text!, cancellation: cancellation))
         try cancellation?.check()
         if let output {
@@ -382,6 +385,8 @@ extension TextConflictDocument {
     /// reads source panes whose SaveFileTo target has changed.
     public func replacingSources(mine: ComparisonFileContent?, theirs: ComparisonFileContent?, engine: SubversionMergeConfiguration, cancellation: OperationCancellation? = nil) throws -> Self {
         let mineText = mine?.text ?? self.mine, theirsText = theirs?.text ?? self.theirs
+        var engine = engine
+        engine.blameEncodings = [baseEncoding, mine?.encoding ?? mineEncoding, theirs?.encoding ?? theirsEncoding]
         let presentation = try SubversionMergePresentation(plan: engine.plan(base: base, mine: mineText, theirs: theirsText, cancellation: cancellation))
         var next = Self(entry: entry, base: base, mine: mineText, theirs: theirsText, mineStage: mineStage, theirsStage: theirsStage,
             initialResult: initialResult, generatedResult: presentation.result, workingContents: workingContents, permissions: permissions,
@@ -408,6 +413,8 @@ extension WorkingTreePatchFileComparison {
         func content(_ value:ComparisonFileContent)->ComparisonFileContent {policy?.applying(value) ?? value}
         let base = content(recoveryBase),mine = content(document.base),theirs = content(document.destination)
         guard let baseText = base.text,let mineText = mine.text,let theirsText = theirs.text,let encoding = mine.encoding ?? theirs.encoding else {throw TextConflictFailure.encoding}
+        var engine = engine
+        engine.blameEncodings = [base.encoding, mine.encoding, theirs.encoding]
         let merged = try SubversionMergePresentation(plan:engine.plan(base:baseText,mine:mineText,theirs:theirsText,cancellation:cancellation))
         var result = TextConflictDocument(entry:ConflictEntry(path:document.destination.path,stages:[]),base:baseText,mine:mineText,theirs:theirsText,mineStage:2,theirsStage:3,initialResult:merged.result,generatedResult:merged.result,workingContents:mine.bytes,permissions:mine.permissions ?? 0o644,encoding:encoding,baseEncoding:base.encoding,mineEncoding:mine.encoding,theirsEncoding:theirs.encoding)
         result.mergeSources = merged.sources;return result

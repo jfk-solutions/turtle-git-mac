@@ -8,6 +8,9 @@ public struct SubversionMergeConfiguration: Sendable {
     public var filter: MergeRegexFilter?
     public var options: MergeComparisonOptions
     public var commentTokens: MergeCommentTokens?
+    /// Source /blame ignores the fixed metadata prefix when comparing, while retaining original rows.
+    public var blame = false
+    public var blameEncodings: [ComparisonTextEncoding?]?
     public init(executable: URL, runtimeRoot: URL, regexExecutable: URL? = nil, filter: MergeRegexFilter? = nil, options: MergeComparisonOptions = .exact) {
         self.executable = executable; self.runtimeRoot = runtimeRoot; self.regexExecutable = regexExecutable; self.filter = filter
         self.options = options
@@ -20,7 +23,7 @@ public struct SubversionMergeConfiguration: Sendable {
     }
     public func plan(base: String, mine: String, theirs: String? = nil, cancellation: OperationCancellation? = nil) throws -> SubversionDiffPlan {
         try SubversionMergeDiff.plan(base: base, mine: mine, theirs: theirs, filter: filter, executable: executable, runtimeRoot: runtimeRoot,
-                                    regexExecutable: regexExecutable, options: options, commentTokens: commentTokens, cancellation: cancellation)
+                                    regexExecutable: regexExecutable, options: options, commentTokens: commentTokens, blame: blame, blameEncodings: blameEncodings, cancellation: cancellation)
     }
 }
 public struct SubversionComparisonPresentation: Sendable {

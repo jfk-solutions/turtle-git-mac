@@ -5,9 +5,9 @@ import AppKit
         #if SWIFT_PACKAGE
         if let file = Bundle.module.url(forResource: "ApplicationIcon", withExtension: "png", subdirectory: "Branding"), let icon = NSImage(contentsOf: file) { NSApp.applicationIconImage = icon }
         #endif
-        startupDidFinishLaunching()
         TurtleGitHelp.install()
-        SupportReportService.shared.checkForPreviousCrash()
+        startupDidFinishLaunching()
+        if startupLaunchMode == .workspace { SupportReportService.shared.checkForPreviousCrash() }
     }
     @objc func showHelp(_ sender: Any?) { TurtleGitHelp.showContext() }
     weak var repositoryModel: RepositoryModel? { didSet { deliverStartupCommand() } }
@@ -18,7 +18,40 @@ import AppKit
     private var startupMergeToolActive = false
     private var startupReady = false
     private(set) var startupDelivered = false
-    func startupDidFinishLaunching() { startupReady = true; deliverStartupCommand() }
+    var startupLaunchMode: TurtleGitLaunchMode { TurtleGitLaunchMode.resolve(arguments: startupArguments, currentDirectory: startupDirectory) }
+    // The standalone Scene has no RepositoryWindow.onAppear. Retain its minimal
+    // routing owner here, without starting Finder monitors or opening a workspace.
+    private(set) var standaloneWorkspace: RepositoryModel?
+    private var standaloneAppearance: AppAppearance?
+    private var standaloneActivationRequested = false
+    var activateStandaloneApplication: () -> Void = {
+        // A tool executed directly by Git has no SwiftUI document window to
+        // activate the process. makeKeyAndOrderFront on the later AppKit editor
+        // cannot establish its key-window menu owner while the app is inactive.
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    var makeStandaloneWorkspace: () -> RepositoryModel = { RepositoryModel(startMonitoring: false, initializePreferences: false) }
+    var configureStandaloneServices: (RepositoryModel, AppAppearance) -> Void = { workspace, appearance in
+        appearance.apply()
+        SettingsPresentationService.shared.install(workspace: workspace, appearance: appearance)
+    }
+    func bootstrapStandaloneToolIfNeeded() {
+        guard startupLaunchMode == .mergeTool, repositoryModel == nil, standaloneWorkspace == nil else { return }
+        let workspace = makeStandaloneWorkspace(), appearance = AppAppearance(preferences: .standard)
+        standaloneWorkspace = workspace; standaloneAppearance = appearance
+        configureStandaloneServices(workspace, appearance)
+        repositoryModel = workspace
+    }
+    func startupDidFinishLaunching() {
+        bootstrapStandaloneToolIfNeeded(); startupReady = true
+        if standaloneWorkspace != nil, !standaloneActivationRequested {
+            standaloneActivationRequested = true; activateStandaloneApplication()
+        }
+        deliverStartupCommand()
+    }
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { startupLaunchMode == .workspace }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { startupLaunchMode == .workspace }
     private func deliverStartupCommand() {
         guard startupReady, !startupDelivered, let repositoryModel else { return }
         startupDelivered = true

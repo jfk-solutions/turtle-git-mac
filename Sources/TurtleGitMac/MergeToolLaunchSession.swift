@@ -26,6 +26,7 @@ import TurtleGitCore
     private var retiredOpeners: [MergeOpenWindowController] = []
     private var hasPendingOpenWork: Bool { (opener?.pendingChoices ?? 0) > 0 || retiredOpeners.contains { $0.pendingChoices > 0 } }
     private var hasReplacement = false, abandonedRequestedResult = false
+    private var frameReflectedNames: [String: String] = [:]
     var requiresScopes = GitRuntime.isAppStoreBuild
     var executable: () throws -> URL = { try GitRuntime.executable() }
     var authorize: ((URL, Bool) async throws -> RepositoryAccessLease?)?
@@ -63,6 +64,7 @@ import TurtleGitCore
     }
     init(invocation: MergeToolInvocation, preferences: UserDefaults, owner: NSWindow?, permissions: [RepositoryAccessLease] = []) {
         self.invocation = invocation; self.preferences = preferences; self.owner = owner; self.grants = permissions
+        for (role, value) in [("base", invocation.baseReflectedName), ("theirs", invocation.theirsReflectedName), ("mine", invocation.mineReflectedName), ("merged", invocation.mergedReflectedName)] { frameReflectedNames[role] = value }
         if let owner {
             ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in MainActor.assumeIsolated { if self?.preparing == true { self?.cancel() } } }
         }
@@ -160,10 +162,25 @@ import TurtleGitCore
         }
         replacement.configureBeforeAdopt = { [weak self] next in
             guard let self, !self.retired else { throw OperationCancellationFailure.cancelled }
+            // Capture current frame metadata, including a user's Switch Sides,
+            // rather than replaying the original command's stale orientation.
+            if let previous = self.editor as? FileComparisonWindowController {
+                self.frameReflectedNames["base"] = previous.model.mergeToolReflectedName(base: true)
+                self.frameReflectedNames["mine"] = previous.model.mergeToolReflectedName(base: false)
+            } else if let previous = self.editor as? TextConflictWindowController {
+                self.frameReflectedNames["base"] = previous.model.mergeToolReflectedName()
+                self.frameReflectedNames["theirs"] = previous.model.mergeToolReflectedName(mine: false)
+                self.frameReflectedNames["mine"] = previous.model.mergeToolReflectedName(mine: true)
+                self.frameReflectedNames["merged"] = previous.model.mergeToolReflectedName(result: true)
+            }
             if let pair = next as? FileComparisonWindowController {
                 let oneWay = (self.editor as? FileComparisonWindowController)?.model.onePaneMode ?? self.invocation.oneWay
-                pair.model.configureMergeToolReplacement(readOnly: self.invocation.readOnly, oneWay: oneWay, reflectedBase: self.invocation.baseReflectedName, reflectedMine: self.invocation.mineReflectedName)
-            } else if let merge = next as? TextConflictWindowController { merge.model.configureMergeToolReadOnly(self.invocation.readOnly) }
+                pair.model.configureMergeToolReplacement(readOnly: self.invocation.readOnly, oneWay: oneWay, blame: self.invocation.blame, reflectedBase: self.frameReflectedNames["base"], reflectedMine: self.frameReflectedNames["mine"])
+            } else if let merge = next as? TextConflictWindowController {
+                merge.model.configureMergeToolReplacement(readOnly: self.invocation.readOnly, blame: self.invocation.blame,
+                    reflectedBase: self.frameReflectedNames["base"], reflectedTheirs: self.frameReflectedNames["theirs"],
+                    reflectedMine: self.frameReflectedNames["mine"], reflectedMerged: self.frameReflectedNames["merged"])
+            }
             else if let patch = next as? WorkingTreePatchWindowController { patch.model.mergeToolReadOnly = self.invocation.readOnly }
         }
         replacement.onAdopt = { [weak self] next, previous in

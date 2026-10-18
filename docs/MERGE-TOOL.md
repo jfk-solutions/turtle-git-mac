@@ -34,12 +34,27 @@ Direct examples:
 ~/bin/turtlegit-merge --createunifieddiff --origfile old.txt --modifiedfile new.txt --outfile change.patch
 ```
 
-With no file arguments the tool opens its native Open dialog. A patch without a
+Standalone requests open only the requested Merge editor or chooser, with its
+File, Edit, Navigate, View and Help commands. They do not open a repository
+workspace or start Finder monitoring. With no file arguments the tool opens its
+native Open dialog. A patch without a
 target asks for the target directory; a target without a patch asks for the patch.
 `--wc` uses a supplied patch's containing folder as its default target. Read-only
 and Blame requests retain navigation while refusing file mutations. `--line` is
 one-based. Descriptive names such as `--basename` and `--mergedname` affect
-captions; reflected names affect display metadata, never the filesystem paths.
+captions. Reflected names remain display metadata, never input/output paths or
+access grants. The editor's **Create unified diff file** command uses Git-relative
+reflected header names when both names belong to the same working tree; the
+separate `--createunifieddiff` command retains its ordinary generated headers.
+File/Open resets descriptive labels and the merged-output target while preserving
+read-only/Blame policy and reflected names for the replacement document.
+
+`--blame` compares the fixed-width metadata-prefixed text format used by the
+source tool. Where source encoding, line endings or comparison options require
+conversion, matching omits the first 66 UTF-16 code units of lines longer than
+66 units. The displayed source text and line numbers remain intact. Plain UTF-8
+or ASCII inputs may bypass that source conversion path. This option does not
+request Git history or add Blame columns.
 Missing merge inputs are shown as empty panes. A file appearing or changing while
 an edit is open requires Reload before it can be accepted as the new baseline.
 

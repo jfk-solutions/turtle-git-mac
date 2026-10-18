@@ -446,11 +446,80 @@ extension MergeEditorToolbar {
         createdRoots.removeAll { $0.submenu?.items.isEmpty == true }
         refresh()
     }
+    /// Framework-owned roots are localized by macOS, independently from the
+    /// application's translation catalog. Identify their role, never an English
+    /// spelling (nor a table of translated spellings). Our IDs are assigned only
+    /// to roots which do not already carry a framework identifier.
+    private enum RootRole: String, CaseIterable {
+        case file = "File", edit = "Edit", navigate = "Navigate", view = "View", window = "Window", help = "Help"
+        var identifier: NSUserInterfaceItemIdentifier { .init("org.turtlegit.merge.menu." + rawValue.lowercased()) }
+        var order: Int { Self.allCases.firstIndex(of: self)! }
+    }
+    private func hasRole(_ role: RootRole, item: NSMenuItem) -> Bool {
+        guard let menu = item.submenu else { return false }
+        if item.identifier == role.identifier { return true }
+        if role == .window, menu === NSApp.windowsMenu { return true }
+        if role == .help, menu === NSApp.helpMenu { return true }
+        let selectors: Set<String>
+        switch role {
+        case .file: selectors = ["openDocument:", "saveDocument:", "saveDocumentAs:", "saveAllDocuments:", "performClose:"]
+        case .edit: selectors = ["undo:", "redo:", "cut:", "copy:", "paste:", "selectAll:"]
+        case .view: selectors = ["toggleToolbarShown:", "toggleFullScreen:", "toggleSidebar:"]
+        case .window: selectors = ["performMiniaturize:", "arrangeInFront:", "performZoom:"]
+        case .help: selectors = ["showHelp:"]
+        case .navigate: selectors = []
+        }
+        return menu.items.contains { command in
+            if let action = command.action, selectors.contains(NSStringFromSelector(action)) { return true }
+            let flags = command.keyEquivalentModifierMask.intersection([.command, .control, .option, .shift])
+            let key = command.keyEquivalent.lowercased()
+            switch role {
+            case .file:
+                // SwiftUI uses private action targets, but the application owns
+                // these standard File bindings, including standalone Save All.
+                return ["o", "w", "s"].contains(key) && flags.contains(.command) && !flags.contains(.control)
+            case .edit: return ["x", "c", "v", "a", "z"].contains(key) && flags == .command
+            case .window: return key == "m" && flags == .command
+            case .help: return key == "?" && flags == .command || key == "/" && flags == [.command, .shift]
+            case .view, .navigate: return false
+            }
+        }
+    }
+    private func standardScaffoldRoot(_ role: RootRole, in main: NSMenu) -> NSMenuItem? {
+        guard [.file, .edit, .view].contains(role),
+              let windowsMenu = NSApp.windowsMenu, let helpMenu = NSApp.helpMenu,
+              let applicationIndex = main.items.firstIndex(where: { root in root.submenu?.items.contains(where: { command in
+                  command.action.map(NSStringFromSelector) == "terminate:" || command.keyEquivalent.lowercased() == "q" && command.keyEquivalentModifierMask.intersection([.command, .control, .option, .shift]) == .command
+              }) == true }),
+              let windowIndex = main.items.firstIndex(where: { $0.submenu === windowsMenu }),
+              applicationIndex < windowIndex,
+              main.items.contains(where: { $0.submenu === helpMenu }) else { return nil }
+        // Both concrete App declarations retain the standard macOS scaffold:
+        // App, File, Edit, View, custom commands, Window, Help. This narrowly
+        // handles an empty/default SwiftUI root with no responder actions. It
+        // does not interpret arbitrary foreign menus by their translated title.
+        let standard = main.items[(applicationIndex + 1)..<windowIndex].filter {
+            $0.submenu != nil && $0.identifier != RootRole.navigate.identifier
+        }
+        guard standard.count >= 3 else { return nil }
+        return standard[role == .file ? 0 : role == .edit ? 1 : 2]
+    }
+    private func rootItem(_ role: RootRole, in main: NSMenu) -> NSMenuItem? {
+        let found = main.items.first(where: { $0.identifier == role.identifier }) ??
+            main.items.first(where: { hasRole(role, item: $0) }) ??
+            standardScaffoldRoot(role, in: main) ??
+            main.items.first(where: { $0.title == role.rawValue && $0.submenu != nil })
+        if let found, found.identifier == nil { found.identifier = role.identifier }
+        return found
+    }
     private func root(_ name: String, in main: NSMenu) -> NSMenu {
-        if let found = main.items.first(where:{$0.title == name})?.submenu { return found }
-        let item = NSMenuItem(title:name,action:nil,keyEquivalent:"");item.submenu = NSMenu(title:name)
-        let index = name == "Help" ? main.items.count : (main.items.firstIndex(where:{$0.title == (name == "Navigate" ? "View" : "Window")}) ?? main.items.firstIndex(where:{$0.title == "Window" || $0.title == "Help"}) ?? main.items.count)
-        main.insertItem(item,at:index);createdRoots.append(item);return item.submenu!
+        let role = RootRole(rawValue: name)!
+        if let found = rootItem(role, in: main)?.submenu { return found }
+        let item = NSMenuItem(title: name, action: nil, keyEquivalent: "")
+        item.identifier = role.identifier; item.submenu = NSMenu(title: name)
+        let following = RootRole.allCases.filter { $0.order > role.order }.compactMap { rootItem($0, in: main) }
+        let index = following.compactMap { main.items.firstIndex(of: $0) }.min() ?? main.items.count
+        main.insertItem(item, at: index); createdRoots.append(item); return item.submenu!
     }
     private func append(_ commands: [Command], to menu: NSMenu) {
         let supported = commands.filter { state($0) != nil }

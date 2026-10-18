@@ -10,7 +10,7 @@ from native_receiver import build_receiver, run_receiver
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
-parser.add_argument('--only', choices=['comparison', 'three-file', 'launch'], action='append')
+parser.add_argument('--only', choices=['comparison', 'three-file', 'launch', 'blame', 'continuity', 'scene', 'reflected'], action='append')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 with tempfile.TemporaryDirectory(prefix='tg-merge-tool-entry-') as temporary:
@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory(prefix='tg-merge-tool-entry-') as temporary:
         assert result.returncode == 17 and time.monotonic()-start >= 0.2
         assert json.loads(arguments.read_text()) == ['--merge-tool', *literal]
         print('PASS: waiting wrapper preserves literal arguments and exact child exit status', flush=True)
-    sources = [root/'docs/qa'/name for name in ['merge-tool-comparison-native-2026-10-18.swift', 'merge-tool-three-file-native-2026-10-18.swift', 'merge-tool-launch-native-2026-10-18.swift']]
+    sources = [root/'docs/qa'/name for name in ['merge-tool-comparison-native-2026-10-18.swift', 'merge-tool-three-file-native-2026-10-18.swift', 'merge-tool-launch-native-2026-10-18.swift', 'merge-blame-native-2026-10-18.swift', 'merge-tool-continuity-native-2026-10-18.swift', 'merge-tool-scene-native-2026-10-18.swift', 'merge-reflected-patch-native-2026-10-18.swift']]
     main = folder/'MergeToolMain.swift'
     main.write_text('''import AppKit
 @main struct MergeToolMain {
@@ -37,6 +37,10 @@ with tempfile.TemporaryDirectory(prefix='tg-merge-tool-entry-') as temporary:
    case "comparison": try await TwoFileMergeToolVerification.verify()
    case "three-file": try await ThreeFileMergeToolVerification.verify()
    case "launch": try await MergeToolLaunchVerification.verify()
+   case "blame": try await MergeBlameVerification.verify()
+   case "continuity": try await MergeToolContinuityVerification.verify()
+   case "scene": try await MergeToolSceneVerification.verify()
+   case "reflected": try await MergeReflectedPatchVerification.verify()
    default: fatalError("Unknown Merge entry case")
   }
   print("PASS: Merge entry family case completed")
@@ -45,7 +49,7 @@ with tempfile.TemporaryDirectory(prefix='tg-merge-tool-entry-') as temporary:
 ''')
     receiver = build_receiver(root, sources+[main], folder)
     env = dict(os.environ, DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0')
-    for case in args.only or ['comparison', 'three-file', 'launch']:
+    for case in args.only or ['comparison', 'three-file', 'launch', 'blame', 'continuity', 'scene', 'reflected']:
         for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
             fixture = folder/(case+str(index)); fixture.mkdir()
             env['TURTLEGIT_MERGE_ENTRY_CASE'] = case

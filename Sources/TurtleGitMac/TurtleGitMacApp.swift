@@ -3,21 +3,43 @@ import AppKit
 import TurtleGitCore
 import UniformTypeIdentifiers
 
-@main struct TurtleGitMacApp: App {
-    @NSApplicationDelegateAdaptor(TurtleGitApplicationDelegate.self) private var applicationDelegate
-    @StateObject private var model = RepositoryModel()
-    @StateObject private var hookProcesses = ClientHookProcessPool.shared
-    @StateObject private var appearance = AppAppearance()
-    @StateObject private var blameMenuContext=BlameMenuContext()
-    @StateObject private var patchMenuContext = PatchMenuContext()
-    @StateObject private var statisticsMenuContext = StatisticsMenuContext()
-    init() {
+// Select one concrete SwiftUI App before it creates scenes. SceneBuilder on
+// supported older SDKs has no buildEither; branching belongs in this entry.
+@main struct TurtleGitApplication {
+    @MainActor static func main() {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
         GitConfigurationPermissions.restore()
         ProgressActionLog.install()
         OperationSounds.enabled = true
         DialogGeometry.install()
+        if TurtleGitLaunchMode.resolve(arguments: Array(CommandLine.arguments.dropFirst()), currentDirectory: FileManager.default.currentDirectoryPath) == .mergeTool {
+            TurtleGitMergeToolApp.main()
+        } else {
+            TurtleGitMacApp.main()
+        }
     }
+}
+
+struct TurtleGitMergeToolApp: App {
+    @NSApplicationDelegateAdaptor(TurtleGitApplicationDelegate.self) private var applicationDelegate
+    @StateObject private var mergeToolMenu = MergeToolMenuContext()
+    var body: some Scene {
+        // Settings has no automatic document window. The delegate creates only
+        // the requested AppKit tool/chooser after launch has finished.
+        Settings { EmptyView() }
+            .commands { MergeToolBaseCommands(context: mergeToolMenu) }
+    }
+}
+
+struct TurtleGitMacApp: App {
+    @NSApplicationDelegateAdaptor(TurtleGitApplicationDelegate.self) private var applicationDelegate
+    @StateObject private var workspaceScene = WorkspaceSceneOwner()
+    private var model: RepositoryModel { workspaceScene.model }
+    @StateObject private var hookProcesses = ClientHookProcessPool.shared
+    @StateObject private var appearance = AppAppearance()
+    @StateObject private var blameMenuContext=BlameMenuContext()
+    @StateObject private var patchMenuContext = PatchMenuContext()
+    @StateObject private var statisticsMenuContext = StatisticsMenuContext()
     var body: some Scene {
         WindowGroup("TurtleGit for Mac") {
             RepositoryWindow(model: model)

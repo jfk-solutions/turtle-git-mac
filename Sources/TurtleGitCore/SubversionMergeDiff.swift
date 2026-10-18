@@ -80,6 +80,8 @@ public enum SubversionMergeDiff {
                             executable: URL? = nil, runtimeRoot: URL? = nil, regexExecutable: URL? = nil,
                             options: MergeComparisonOptions = .exact,
                             commentTokens: MergeCommentTokens? = nil,
+                            blame: Bool = false,
+                            blameEncodings: [ComparisonTextEncoding?]? = nil,
                             cancellation: OperationCancellation? = nil) throws -> SubversionDiffPlan {
         let token = cancellation ?? OperationCancellation(); try token.check()
         let helper = try executable ?? Self.executable(), runtime = try runtimeRoot ?? Self.runtimeRoot()
@@ -87,6 +89,8 @@ public enum SubversionMergeDiff {
         let sources = [base, mine] + (theirs.map { [$0] } ?? [])
         let lines = sources.map(MergeRegexFilters.lines)
         let all = lines.flatMap { $0 }
+        let blameMask = blame ? MergeBlameComparison.conversionMask(texts: sources, encodings: blameEncodings, forceConversion: filter != nil || options.ignoreCase || options.ignoreComments) : Array(repeating: false, count: sources.count)
+        let blameLines = zip(lines, blameMask).flatMap { source, converted in Array(repeating: blame && converted, count: source.count) }
         let contents: [String]
         if options.ignoreComments, let commentTokens {
             // Each source has independent block-comment state. Comments are
@@ -97,9 +101,10 @@ public enum SubversionMergeDiff {
         if let filter {
             replacements = try MergeRegexFilters.transformed(contents, filter: filter, executable: regexExecutable, cancellation: token)
         } else { replacements = contents }
-        let transformed = zip(all, replacements).map { original, replaced in
+        let transformed = zip(zip(all, replacements), blameLines).map { pair, stripBlame in
+            let (original, replaced) = pair
             let endingOffset = (MergeLineEndings.droppingFinalEnding(original) as NSString).length
-            return options.key(content: replaced, ending: (original as NSString).substring(from: endingOffset))
+            return options.key(content: stripBlame ? MergeBlameComparison.content(replaced) : replaced, ending: (original as NSString).substring(from: endingOffset))
         }
         let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitMergeDiff-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -179,6 +184,6 @@ public enum SubversionMergeDiff {
             guard let last = parent.resolved.last, last.mineStart + last.mineLength == parent.mine.upperBound,
                   last.theirsStart + last.theirsLength == parent.theirs.upperBound else { throw SubversionMergeDiffFailure.invalidOutput }
         }
-        return .init(segments: segments, base: lines[0], mine: lines[1], theirs: lines.count == 3 ? lines[2] : nil, normalizedComparison: filter != nil || options.whitespace != .compare || options.ignoreCase || options.ignoreEndings || options.ignoreComments, contentFiltered: filter != nil || options.ignoreCase || options.ignoreComments, options: options)
+        return .init(segments: segments, base: lines[0], mine: lines[1], theirs: lines.count == 3 ? lines[2] : nil, normalizedComparison: (blame && blameMask.contains(true)) || filter != nil || options.whitespace != .compare || options.ignoreCase || options.ignoreEndings || options.ignoreComments, contentFiltered: filter != nil || options.ignoreCase || options.ignoreComments, options: options)
     }
 }

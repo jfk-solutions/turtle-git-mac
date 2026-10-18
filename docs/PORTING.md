@@ -2897,3 +2897,45 @@ local resources now check 39 documents/48 topics, without claiming complete help
 or localization coverage. Current hosted CI, dedicated standalone scene/menu
 acceptance, complete visual/input/accessibility review and signed distribution
 remain open. The whole port is not certified complete.
+
+
+### Merge frame, Blame and reflected patch family, 2026-10-18
+
+Three parallel implementation owners completed the connected standalone frame
+family. Command startup chooses between concrete repository and tool App types;
+the tool creates only its requested native editor/chooser and explicitly
+activates the process. Its native commands reuse macOS's localized menu roots,
+retain the existing lifecycle/epoch checks, and include focused Save All and
+Close through the controller's ordinary save/cancellation policy.
+
+Pinned source review corrected two earlier notes: Merge Blame does not add
+columns, and reflected patch rewriting belongs to
+`MainFrm.cpp::OnEditCreateunifieddifffile`, not a `TryGitUnifiedDiff` symbol.
+Blame now matches the source's converted-file gates and fixed 66 UTF-16-unit
+prefix rule while preserving displayed source rows. Three-way readers supply
+actual input encodings on fresh reads and rebound-source comparison. Editor
+unified exports rewrite applicable reflected paths relative to a common working
+tree, preserve hunk bytes, and quote literal path bytes; CLI raw export keeps its
+source header behavior. File/Open retains current reflected frame metadata and
+Blame policy, including after Switch Sides, while clearing old document output,
+descriptive labels, initial line and required-save intent.
+
+All 27 distinct focused Core cases and 17 distinct native/wrapper receipts pass,
+including both Git engines and retained toolbar behavior. The first SceneBuilder
+compile failure, real-process activation/localized-menu defects, source review
+correction and affected-only rechecks are retained in
+[batch evidence](qa/merge-frame-2026-10-18.json). The final real app shows one
+localized menu-root set and no repository window; physical menu-action checking
+was interrupted by UI state changes and remains unproven. Every recorded owned
+process is absent, and all private QA app bundles were closed.
+
+The earlier Pages help repair is confirmed by a successful hosted Pages run for
+`a291a1b1`; no full hosted macOS pass or current signed/universal distribution is
+claimed. See the [frame review](MERGE-TOOL-FRAME-PARITY.md),
+[Blame review](MERGE-BLAME-PARITY.md),
+[reflected export review](MERGE-REFLECTED-PATCH-PARITY.md) and
+[presentation review](MERGE-TOOL-PRESENTATION-PARITY.md). Reflected-path
+EditorConfig semantics, shared installed-app identity/interleaved external
+requests, complete physical visual/input/VoiceOver, minimum-OS/Intel and signed
+App Store terminal-grant acceptance remain open. This is a partial port record,
+not whole-dialog or whole-application certification.

@@ -234,6 +234,8 @@ private extension FileComparisonDocument {
     private var ownedMergeOperations = 0
     var mergeToolHasPendingWork: Bool { loadSession != nil || ownedMergeOperations > 0 }
     private var enforcedMergeToolReadOnly = false
+    private var replacementBlame = false
+    var mergeToolBlame: Bool { mergeToolInvocation?.blame ?? replacementBlame }
     var mergeToolReadOnly: Bool { enforcedMergeToolReadOnly || (mergeToolInvocation.map { $0.readOnly || $0.blame } ?? false) }
     /// Patch children already have a loaded document; apply the same immutable
     /// invocation policy without replacing their patch-owned snapshot or draft.
@@ -249,9 +251,10 @@ private extension FileComparisonDocument {
     /// File/Open keeps the frame's immutable policy and current view choice,
     /// while choosing new files clears source output, save-required, descriptive
     /// names and line intent. Reflected metadata is informational, never a path.
-    func configureMergeToolReplacement(readOnly: Bool, oneWay: Bool, reflectedBase: String? = nil, reflectedMine: String? = nil) {
+    func configureMergeToolReplacement(readOnly: Bool, oneWay: Bool, blame: Bool = false, reflectedBase: String? = nil, reflectedMine: String? = nil) {
         guard document == nil, !busy, !retired, mergeToolInvocation == nil else { return }
-        configureMergeToolReadOnly(readOnly)
+        replacementBlame = blame
+        configureMergeToolReadOnly(readOnly || blame)
         onePaneMode = oneWay; loadedPaneMode = true
         replacementReflectedNames = [:]
         if let reflectedBase { replacementReflectedNames[true] = reflectedBase }
@@ -1116,6 +1119,7 @@ private extension FileComparisonDocument {
         guard canCreateUnifiedPatch, let document, let window, let request = beginOutput() else { return }
         let context = MergeUnifiedPatch.contextLines(from: comparisonDefaults)
         let generator = patchExecutable, directory = snapshot.root, chooser = choosePatchLocation
+        let reflectedBase = mergeToolReflectedName(base: true), reflectedDestination = mergeToolReflectedName(base: false)
         func label(_ content: ComparisonFileContent) -> String {
             content.path.hasPrefix("/") ? (content.path as NSString).lastPathComponent : content.path
         }
@@ -1132,9 +1136,10 @@ private extension FileComparisonDocument {
                 }
                 guard try await authorizeWorkingReplacement(at:target,cancellation:request.cancellation),acceptsOutput(request) else {return}
                 let savedBase = try savedContent(document.base), savedDestination = try savedContent(document.destination)
-                let bytes = try await MergeUnifiedPatch.create(base: savedBase, destination: savedDestination,
+                let generated = try await MergeUnifiedPatch.create(base: savedBase, destination: savedDestination,
                     baseLabel: label(document.base), destinationLabel: label(document.destination), contextLines: context,
                     executable: executable, cancellation: request.cancellation)
+                let bytes = try await MergeReflectedPatch.rewrite(generated, baseReflectedName: reflectedBase, destinationReflectedName: reflectedDestination, executable: executable, cancellation: request.cancellation)
                 guard acceptsOutput(request) else { return }
                 try withExtendedLifetime(permission) { try bytes.write(to: target, options: .atomic) }
             } catch {
@@ -1514,7 +1519,9 @@ private extension FileComparisonDocument {
         // Immediate projection supports native text/Undo coordinate updates.
         // It is unverified while filtering is true; transfers, navigation and
         // inline comparison are gated until Subversion publishes its ranges.
-        alignment = a.flatMap { old in b.map { FileComparisonAlignment(base: old, destination: $0) } }
+        let blameEncodings = [drafts?.encoding(base: true) ?? document.base.encoding, drafts?.encoding(base: false) ?? document.destination.encoding]
+        let blameMask = mergeToolBlame ? MergeBlameComparison.conversionMask(texts: [a ?? "", b ?? ""], encodings: blameEncodings, forceConversion: comparisonOptions.ignoreCase || comparisonOptions.ignoreComments || regexFilterName != nil) : [false, false]
+        alignment = a.flatMap { old in b.map { FileComparisonAlignment(base: old, destination: $0, baseKeys: mergeToolBlame && blameMask[0] ? MergeBlameComparison.keys(in: old) : nil, destinationKeys: mergeToolBlame && blameMask[1] ? MergeBlameComparison.keys(in: $0) : nil) } }
         guard let a, let b, imageComparison == nil, !retired else { return }
         let filter = regexFilters.first(where: { MergeRegexFilters.sameName($0.name,regexFilterName) })
         let current = alignmentGeneration, token = OperationCancellation(), detectMoves = showMovedBlocks
@@ -1524,6 +1531,7 @@ private extension FileComparisonDocument {
                 reloadCommentProfiles = false
             }
             var value = try engineConfiguration ?? SubversionMergeConfiguration.bundled(filter: filter)
+            value.blame = mergeToolBlame; value.blameEncodings = blameEncodings
             value.filter = filter; value.options = comparisonOptions; value.commentTokens = commentTokens; value.regexExecutable = regexExecutable ?? value.regexExecutable
             return value
         }

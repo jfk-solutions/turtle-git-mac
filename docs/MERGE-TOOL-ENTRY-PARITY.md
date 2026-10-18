@@ -202,3 +202,23 @@ full Blame text columns, reflected-name Git-relative patch headers, dedicated
 standalone scene/menus, physical focus/accessibility and signed/minimum-OS
 acceptance remain explicit gaps. These scoped checks certify neither all Merge
 states nor the full application.
+
+
+## Follow-up frame and comparison family
+
+The later [Blame comparison review](MERGE-BLAME-PARITY.md),
+[reflected patch review](MERGE-REFLECTED-PATCH-PARITY.md) and
+[standalone presentation review](MERGE-TOOL-PRESENTATION-PARITY.md) supersede the
+corresponding missing-behavior notes above. Source inspection corrected the older
+claim about missing Blame columns: the pinned Merge tool strips a fixed metadata
+prefix during converted-file comparison; it does not provide a separate column.
+The reflected-header source is `MainFrm.cpp::OnEditCreateunifieddifffile`, rather
+than the previously named, nonexistent `TryGitUnifiedDiff` symbol.
+
+Three-file replacement now retains all four reflected frame names independently
+of the new working inputs. It resets the prior invocation, descriptive names,
+merged output, required-save policy and initial line. Source Blame policy follows
+two/three-file replacements and supplies the actual input encodings to the shared
+engine. The command's original discarded-result status remains failed. The
+follow-up checkpoint is recorded separately; historical results above remain
+scoped to their original source revision.
