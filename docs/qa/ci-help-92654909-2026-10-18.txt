@@ -1,0 +1,11 @@
+Source: https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39130261950
+Job: 117683810647, build; terminal failure at Check bundled Mac help sources.
+Head: 926549098606257555efa11e64d2c8d98a5a6d32
+
+2026-10-18T13:09:04.6560060Z Regenerate help book: Contents/Resources/en.lproj/LFS.html, Contents/Resources/en.lproj/PRIVACY.html, Contents/Info.plist, Contents/Resources/manifest.json
+2026-10-18T13:09:04.6680825Z ##[error]Process completed with exit code 1.
+
+Repair: regenerate the offline book after the LFS/privacy guides changed; include
+the standalone Merge-tool guide. Local generated-resource check passes with 39
+documents, 48 contextual topics and 59 files. This local check does not prove a
+later hosted Pages deployment or the separate macOS integration workflow.

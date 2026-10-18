@@ -888,6 +888,9 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
 }
 
 @MainActor final class WorkingTreePatchWindowModel: ObservableObject {
+    var mergeToolReadOnly = false
+    var mergeToolOriginalLabel: String?
+    var mergeToolPatchedLabel: String?
     static private(set) var activeOperations = 0
     private(set) var retired = false
     private var operation: OperationCancellation?
@@ -900,7 +903,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         guard let comparison,comparison.requiresMerge,comparison.recoveryKind != .text else {return nil}
         return comparison
     }
-    var canResolveSpecial:Bool {editable && !requiresRefresh && specialComparison.map {!appliedPaths.contains(Data($0.document.destination.path.utf8))} == true}
+    var canResolveSpecial:Bool {!mergeToolReadOnly && editable && !requiresRefresh && specialComparison.map {!appliedPaths.contains(Data($0.document.destination.path.utf8))} == true}
     enum DraftChoice { case save, discard, cancel }
     let repository: GitRepository
     let directoryMode: Bool
@@ -1003,8 +1006,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var dirty: Bool { conflictEditor?.dirty == true || editor?.dirty == true }
     var editingEnabled: Bool { editor?.patchEditingEnabled == true }
     var canReplaceComparison: Bool { editable && !dirty && !editingEnabled }
-    var canEditResult: Bool { editable && !requiresRefresh && (editor?.savedPaneURL(base: false) != nil || comparison.map({ !appliedPaths.contains(Data($0.document.destination.path.utf8)) }) == true) && alignment != nil && editor?.canEdit(base: false) == true }
-    var canSaveDraft: Bool { conflictEditor.map {editable && !$0.patchResultCompleted && $0.document != nil} ?? (canEditResult && editingEnabled) }
+    var canEditResult: Bool { !mergeToolReadOnly && editable && !requiresRefresh && (editor?.savedPaneURL(base: false) != nil || comparison.map({ !appliedPaths.contains(Data($0.document.destination.path.utf8)) }) == true) && alignment != nil && editor?.canEdit(base: false) == true }
+    var canSaveDraft: Bool { !mergeToolReadOnly && (conflictEditor.map {editable && !$0.patchResultCompleted && $0.document != nil} ?? (canEditResult && editingEnabled)) }
     @Published private(set) var focusedFile: Int?
     @Published private(set) var comparisonNotice = ""
     @Published var previewTab = 0
@@ -1056,7 +1059,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         previewDocument.retire(); editor?.retireImageLoader(); editorChanges = nil;conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil
         beforeScroll = nil; afterScroll = nil; close = {}; chooseDraft = { .cancel }; onBusyChanged = {}
     }
-    var canApply: Bool { canReplaceComparison && !requiresRefresh && selectedReview?.canApply == true && !selected.isEmpty }
+    var canApply: Bool { !mergeToolReadOnly && canReplaceComparison && !requiresRefresh && selectedReview?.canApply == true && !selected.isEmpty }
     init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1) {
         self._stripCount = Published(initialValue: initialStripCount)
         self.directoryMode = directoryMode; self.isGitWorkingTree = isGitWorkingTree
@@ -1144,6 +1147,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
                 return
             }
             let nextEditor = FileComparisonWindowModel(patchComparison: value, access: access, preferences: preferences)
+            nextEditor.configureMergeToolReadOnly(mergeToolReadOnly)
             nextEditor.window = window; nextEditor.retainPermissions(openPermissions)
             nextEditor.onExportStateChanged = { [weak self] in self?.updateParentState(); self?.onBusyChanged() }
             nextEditor.onRegisterScroll = { [weak self] scroll, base in if base { self?.beforeScroll = scroll } else { self?.afterScroll = scroll } }
@@ -1190,6 +1194,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     private func installConflict(_ comparison:WorkingTreePatchFileComparison) {
         let next = TextConflictWindowModel(repository:repository,access:access,path:comparison.document.destination.path)
+        next.configureMergeToolReadOnly(mergeToolReadOnly)
         next.patchComparison = comparison;next.window = window;next.comparisonDefaults = preferences
         next.workingMergePermissions = [access,fileAccess].compactMap {$0}
         next.patchResultSaver = { [weak self,weak next] text,encoding,cancellation in
@@ -1412,7 +1417,7 @@ struct WorkingTreePatchComparisonView: View {
     private func pane(base: Bool) -> some View {
         let content = base ? (model.editor?.document?.base ?? model.comparison?.document.base) : (model.editor?.document?.destination ?? model.comparison?.document.destination)
         return VStack(alignment: .leading, spacing: 5) {
-            Text(base ? "Before patch" : "After patch").font(.headline)
+            Text(base ? (model.mergeToolOriginalLabel ?? "Before patch") : (model.mergeToolPatchedLabel ?? "After patch")).font(.headline)
             if let content {
                 Text(content.path).font(.caption).lineLimit(1).help(content.path)
                 if let alignment = model.alignment {

@@ -68,9 +68,41 @@ import TurtleGitCore
     private static var live: [UUID: MergeEditorReplacementOwner] = [:]
     private let id = UUID()
     private(set) var current: NSWindowController?
+    /// Policy is applied before any accepted editor or window is detached.
+    /// Throwing rejects the prepared replacement and leaves the old owner live.
+    var configureBeforeAdopt: (NSWindowController) throws -> Void = { _ in }
+    /// Publish the actual owner before its first load and scoped commands start.
+    var onAdopt: (NSWindowController, NSWindowController) -> Void = { _, _ in }
+    private var retiredEditors: [NSWindowController] = []
+    private var retiredPatches: [ReviewPatchWorkflow] = []
+    private var retiredDrain: Task<Void,Never>?
+    var hasPendingRetiredWork: Bool {
+        pendingPatch != nil || retiredEditors.contains { Self.hasPendingWork($0) } || retiredPatches.contains { $0.loading }
+    }
+    private static func hasPendingWork(_ editor: NSWindowController) -> Bool {
+        if let pair = editor as? FileComparisonWindowController { return pair.model.mergeToolHasPendingWork }
+        if let merge = editor as? TextConflictWindowController { return merge.model.mergeToolHasPendingWork }
+        return (editor as? WorkingTreePatchWindowController)?.activeOperation == true
+    }
+    private func retainRetired(_ editor: NSWindowController) {
+        guard Self.hasPendingWork(editor) else { return }
+        retiredEditors.append(editor); beginRetiredDrain()
+    }
+    private func beginRetiredDrain() {
+        guard retiredDrain == nil else { return }
+        retiredDrain = Task { [self] in
+            while hasPendingRetiredWork {
+                retiredEditors.removeAll { !Self.hasPendingWork($0) }
+                retiredPatches.removeAll { !$0.loading }
+                try? await Task.sleep(nanoseconds:10_000_000)
+            }
+            retiredEditors.removeAll(); retiredPatches.removeAll(); retiredDrain = nil
+        }
+    }
     private(set) var pendingPatch: ReviewPatchWorkflow?
     private var parentCloseObserver: NSObjectProtocol?
     var preparingPatch: Bool { pendingPatch != nil }
+    var configurePatchWorkflow: (ReviewPatchWorkflow) -> Void = { _ in }
     var makePatchWorkflow: (URL?, URL?, Data?, [RepositoryAccessLease], UserDefaults) throws -> ReviewPatchWorkflow = { file, target, bytes, grants, preferences in
         ReviewPatchWorkflow(file: file, target: target, preferred: target, grants: grants, executable: try GitRuntime.executable(), preferences: preferences, clipboardBytes: bytes)
     }
@@ -88,6 +120,7 @@ import TurtleGitCore
             next = TextConflictWindowController(repository: GitRepository(root: mine.deletingLastPathComponent(), executable: try GitRuntime.executable()), access: nil, path: mine.lastPathComponent, workingMerge: merge, permissions: permissions, preferences: preferences, deferInitialLoad: true)
         case .patch(let file, let target, let bytes):
             let workflow = try makePatchWorkflow(file, target, bytes, permissions, preferences)
+            configurePatchWorkflow(workflow)
             preparePatch(workflow, window: window, previous: previous, preferences: preferences)
             return
         }
@@ -95,6 +128,8 @@ import TurtleGitCore
     }
     private func adopt(_ next: NSWindowController, window: NSWindow, previous: NSWindowController) throws {
         guard let prepared = next.window, let host = window as? TextConflictNSWindow else { throw RevisionComparisonFailure.selection }
+        do { try configureBeforeAdopt(next) }
+        catch { next.close(); throw error }
         // Detach the accepted Open sheet before changing controller/window roles.
         if let sheet = window.attachedSheet { window.endSheet(sheet) }
         let originalFrame = window.frame
@@ -103,11 +138,13 @@ import TurtleGitCore
         if let pair = previous as? FileComparisonWindowController { pair.detachForReplacement() }
         if let merge = previous as? TextConflictWindowController { merge.detachForReplacement() }
         if let patch = previous as? WorkingTreePatchWindowController { patch.detachForReplacement() }
+        retainRetired(previous)
         previous.window = nil; next.window = window
         DialogGeometry.detach(prepared); prepared.close()
         host.model = nil; host.mergedText = nil; host.patchModel = nil; host.imageKeyModel = nil; host.imageKeysRetired = true
         window.contentViewController = content; window.title = title; window.contentMinSize = minimum
         current = next; Self.live[id] = self
+        onAdopt(next,previous)
         if let pair = next as? FileComparisonWindowController {
             pair.sharedReplacementOwner = self; pair.model.window = window; host.model = pair.model; pair.installEditorToolbar()
             host.openMergeDocument = { [weak pair] in pair?.openMergeDocument(nil) }
@@ -141,8 +178,10 @@ import TurtleGitCore
                   self.pendingPatch === workflow, previous.window === window else { throw OperationCancellationFailure.cancelled }
             try self.adopt(controller, window: window, previous: previous)
         }
-        workflow.onFinished = { [weak self] in
-            guard let self else { return }; self.pendingPatch = nil
+        workflow.onFinished = { [weak self, weak workflow] in
+            guard let self else { return }
+            if let workflow, workflow.loading { self.retiredPatches.append(workflow) }
+            self.pendingPatch = nil; self.beginRetiredDrain()
             if let observer = self.parentCloseObserver { NotificationCenter.default.removeObserver(observer); self.parentCloseObserver = nil }
             if self.current == nil { Self.live.removeValue(forKey: self.id) }
         }

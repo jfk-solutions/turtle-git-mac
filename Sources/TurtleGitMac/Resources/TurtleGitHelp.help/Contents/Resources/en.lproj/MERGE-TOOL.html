@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Use TurtleGitMerge with Git</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="use-turtlegitmerge-with-git">Use TurtleGitMerge with Git</h1>
+<p>TurtleGitMerge can open native two-file comparison, three-file merge, and patch
+review directly from a terminal. The waiting wrapper is
+<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/scripts/turtlegit-merge"><code>scripts/turtlegit-merge</code></a>. By default it uses
+<code>/Applications/TurtleGit for Mac.app</code>; set <code>TURTLEGIT_APP</code> to another app bundle,
+or <code>TURTLEGIT_MERGE_EXECUTABLE</code> to a development executable.</p>
+<p>Use the wrapper's absolute path in your Git configuration. For example, after
+placing it at <code>~/bin/turtlegit-merge</code>:</p>
+<pre><code class="language-sh">git config --global diff.tool turtlegit
+git config --global difftool.turtlegit.cmd '&quot;$HOME/bin/turtlegit-merge&quot; --base &quot;$LOCAL&quot; --mine &quot;$REMOTE&quot; --readonly'
+git config --global merge.tool turtlegit
+git config --global mergetool.turtlegit.cmd '&quot;$HOME/bin/turtlegit-merge&quot; --base &quot;$BASE&quot; --theirs &quot;$REMOTE&quot; --mine &quot;$LOCAL&quot; --merged &quot;$MERGED&quot; --saverequired'
+git config --global mergetool.turtlegit.trustExitCode true
+</code></pre>
+<p>Then use <code>git difftool</code> or <code>git mergetool</code>. Each command starts its own tool
+process, waits for the editor to close and returns its result to Git. A three-file
+merge reports success only after the result was saved, has no remaining conflict
+markers and has no newer unsaved edits. Discarding a requested merge result does
+not mark the Git merge successful. Saving a separate merged output preserves the
+Base/Theirs/Mine inputs. No automatic staging occurs in this standalone editor.</p>
+<p>Direct examples:</p>
+<pre><code class="language-sh">~/bin/turtlegit-merge --base old.txt --mine new.txt --readonly
+~/bin/turtlegit-merge --base base.txt --theirs remote.txt --mine local.txt --merged result.txt --saverequired
+~/bin/turtlegit-merge --diff change.patch --patchpath ./target
+~/bin/turtlegit-merge --diff change.patch --patchpath ./target --reversedpatch
+~/bin/turtlegit-merge --createunifieddiff --origfile old.txt --modifiedfile new.txt --outfile change.patch
+</code></pre>
+<p>With no file arguments the tool opens its native Open dialog. A patch without a
+target asks for the target directory; a target without a patch asks for the patch.
+<code>--wc</code> uses a supplied patch's containing folder as its default target. Read-only
+and Blame requests retain navigation while refusing file mutations. <code>--line</code> is
+one-based. Descriptive names such as <code>--basename</code> and <code>--mergedname</code> affect
+captions; reflected names affect display metadata, never the filesystem paths.
+Missing merge inputs are shown as empty panes. A file appearing or changing while
+an edit is open requires Reload before it can be accepted as the new baseline.</p>
+<p>A sandboxed App Store build requires file/folder authorization for command-line
+paths, including a missing output's parent directory. A terminal path is not a
+security-scoped grant. The tool retains its input/output grants until the
+command finishes. Store distribution and physical signed acceptance remain
+separate release checks.</p>
+<p><code>--deletebasetheirsmineonclose</code> is intended for disposable tool inputs. It removes
+only explicitly supplied input objects whose identity and contents still match
+the captured input, after owned editor work drains; it preserves changed inputs
+and the merged output. It never removes a symlink target. This is a deliberate
+macOS ownership adaptation to the source cleanup flag.</p>
+<p>See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-TOOL-ENTRY-PARITY.html">the source entry review</a> and
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-TOOL-COMPARISON-PARITY.html">two-file behavior review</a> for remaining states and
+platform differences. This does not certify complete TortoiseMerge parity.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

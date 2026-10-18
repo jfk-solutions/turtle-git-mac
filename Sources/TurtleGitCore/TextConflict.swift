@@ -229,6 +229,9 @@ public actor WorkingTextMerge {
     public nonisolated let baseURL: URL
     public nonisolated let theirsURL: URL
     public nonisolated let mineURL: URL
+    public nonisolated let outputURL: URL
+    private let explicitOutput:Bool
+    private let allowMissingInputs:Bool
     private struct Snapshot {
         let bytes: Data?
         let permissions: Int
@@ -258,12 +261,13 @@ public actor WorkingTextMerge {
             return Snapshot(bytes: nil, permissions: absentPermissions, identity: nil)
         }
     }
-    public init(base: URL, theirs: URL, mine: URL) throws {
-        guard [base, theirs, mine].allSatisfy({ $0.isFileURL && !$0.path.contains("\0") }) else { throw TextConflictFailure.unsupported }
+    public init(base: URL, theirs: URL, mine: URL, merged:URL? = nil,allowMissingInputs:Bool = false) throws {
+        guard [base, theirs, mine,merged ?? mine].allSatisfy({ $0.isFileURL && !$0.path.contains("\0") }) else { throw TextConflictFailure.unsupported }
         baseURL = base.standardizedFileURL; theirsURL = theirs.standardizedFileURL; mineURL = mine.standardizedFileURL
+        outputURL=(merged ?? mine).standardizedFileURL;explicitOutput=merged != nil;self.allowMissingInputs=allowMissingInputs
     }
     private func source(_ url: URL, mergePreferUTF8: Bool?, legacyEncoding:ComparisonTextEncoding) throws -> ComparisonFileContent {
-        let raw = try WorkingFileComparison.workingContent(at: url)
+        let raw = allowMissingInputs ? try MergeToolFileInput.read(at:url):try WorkingFileComparison.workingContent(at:url)
         let value = mergePreferUTF8.map { raw.usingMergeEncoding(preferUTF8: $0,legacyEncoding:legacyEncoding) } ?? raw
         guard value.mode != "120000", value.text != nil, value.encoding != nil else { throw TextConflictFailure.encoding }
         return value
@@ -272,18 +276,25 @@ public actor WorkingTextMerge {
         try cancellation?.check()
         let activeMine = savedSources[true]?.url ?? mineURL, activeTheirs = savedSources[false]?.url ?? theirsURL
         let base = try source(baseURL, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding), theirs = try source(activeTheirs, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding), mine = try source(activeMine, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding)
+        let output=explicitOutput ? try snapshot(outputURL,absentPermissions:mine.permissions ?? 0o644):nil
         let presentation = try SubversionMergePresentation(plan: engine.plan(base: base.text!, mine: mine.text!, theirs: theirs.text!, cancellation: cancellation))
         try cancellation?.check()
+        if let output {
+            let currentOutput=try snapshot(outputURL,absentPermissions:output.permissions)
+            guard currentOutput.bytes==output.bytes,currentOutput.permissions==output.permissions,currentOutput.identity==output.identity else {throw TextConflictFailure.changedWorkingFile}
+        }
         for (url, content) in [(baseURL,base), (activeTheirs,theirs), (activeMine,mine)] {
             let value = try snapshot(url, absentPermissions: content.permissions ?? 0o644)
-            guard value.bytes == content.bytes, value.permissions == content.permissions else { throw TextConflictFailure.changedWorkingFile }
+            guard value.bytes == (content.isDeleted ? nil:content.bytes), value.permissions == content.permissions else { throw TextConflictFailure.changedWorkingFile }
             inputs[url.path] = value
             if outputs[url.path] != nil { outputs[url.path] = value }
         }
-        var document = TextConflictDocument(entry: ConflictEntry(path: mineURL.lastPathComponent, stages: []),
+        var workingContents:Data?=mine.isDeleted ? nil:mine.bytes,permissions=mine.permissions ?? 0o644
+        if let output {outputs[outputURL.path]=output;workingContents=output.bytes;permissions=output.permissions}
+        var document = TextConflictDocument(entry: ConflictEntry(path: outputURL.lastPathComponent, stages: []),
             base: base.text!, mine: mine.text!, theirs: theirs.text!, mineStage: 2, theirsStage: 3,
-            initialResult: presentation.result, generatedResult: presentation.result, workingContents: mine.bytes,
-            permissions: mine.permissions ?? 0o644, encoding: mine.encoding!, baseEncoding: base.encoding, mineEncoding: mine.encoding, theirsEncoding: theirs.encoding)
+            initialResult: presentation.result, generatedResult: presentation.result, workingContents: workingContents,
+            permissions: permissions, encoding: mine.encoding!, baseEncoding: base.encoding, mineEncoding: mine.encoding, theirsEncoding: theirs.encoding)
         document.mergeSources = presentation.sources; return document
     }
     /// Explicit output selection; own writes update aliases without accepting external changes.
@@ -297,10 +308,10 @@ public actor WorkingTextMerge {
             try cancellation?.check()
             for (path, expected) in inputs {
                 let current = try snapshot(URL(fileURLWithPath:path), absentPermissions:expected.permissions)
-                guard current.bytes == expected.bytes, current.permissions == expected.permissions else { throw TextConflictFailure.changedWorkingFile }
+                guard current.bytes == expected.bytes, current.permissions == expected.permissions,current.identity == expected.identity else { throw TextConflictFailure.changedWorkingFile }
             }
             let current = try snapshot(output, absentPermissions:original.permissions)
-            guard current.bytes == original.bytes, current.permissions == original.permissions else { throw TextConflictFailure.changedWorkingFile }
+            guard current.bytes == original.bytes, current.permissions == original.permissions,current.identity == original.identity else { throw TextConflictFailure.changedWorkingFile }
         }
         guard !result.utf8.contains(0) else { throw TextConflictFailure.encoding }
         guard options.emptyResult != .delete || result.isEmpty else { throw MergeFileSaveFailure.nonemptyDeletion }
@@ -334,7 +345,7 @@ public actor WorkingTextMerge {
         saved.mergeSources = document.mergeSources; saved.conflictTitles = document.conflictTitles; return saved
     }
     public func save(_ document: TextConflictDocument, result: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> TextConflictDocument {
-        try saveTo(mineURL, document:document, result:result, encoding:encoding, options:options)
+        try saveTo(outputURL, document:document, result:result, encoding:encoding, options:options)
     }
 }
 

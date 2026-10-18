@@ -1,0 +1,14 @@
+#!/bin/sh
+# Run the native Merge tool as a waiting Git tool process.
+set -eu
+if [ -n "${TURTLEGIT_MERGE_EXECUTABLE:-}" ]; then
+    task_merge_binary=$TURTLEGIT_MERGE_EXECUTABLE
+else
+    task_merge_app=${TURTLEGIT_APP:-/Applications/TurtleGit for Mac.app}
+    task_merge_binary=$task_merge_app/Contents/MacOS/TurtleGitMac
+fi
+if [ ! -x "$task_merge_binary" ]; then
+    printf '%s\n' "TurtleGitMerge executable not found: $task_merge_binary" >&2
+    exit 127
+fi
+exec "$task_merge_binary" --merge-tool "$@"

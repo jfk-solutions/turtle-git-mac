@@ -46,6 +46,7 @@ import TurtleGitCore
     var chooseTarget: (() async -> URL?)?
     var presentation: ((WorkingTreePatchWindowController) -> Void)?
     var preparedPresentation: ((WorkingTreePatchWindowController) throws -> Void)?
+    var configureReview: (WorkingTreePatchWindowModel) -> Void = { _ in }
     private var pendingReview: WorkingTreePatchWindowController?
     var onFinished: () -> Void = {}
     init(file: URL?, target: URL?, preferred: URL? = nil, grants: [RepositoryAccessLease] = [], executable: URL, preferences: UserDefaults = .standard, clipboardBytes: Data? = nil, title: String = "Clipboard patch", clipboardLoader: ((OperationCancellation) async throws -> Data)? = nil, pasteboard: NSPasteboard = .general) {
@@ -182,6 +183,7 @@ import TurtleGitCore
             let fileAccess = file.flatMap { file in grants.first { $0.contains(file) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) } }
             let controller = WorkingTreePatchWindowController(repository: repository, access: access, fileAccess: fileAccess,
                 bytes: bytes, title: clipboardBytes == nil ? (file?.lastPathComponent ?? sourceTitle) : sourceTitle, preferences: preferences, directoryMode: true, isGitWorkingTree: isGit, initialStripCount: strip, automaticallyRefresh: preparedPresentation == nil)
+            configureReview(controller.model)
             if let preparedPresentation {
                 pendingReview = controller
                 await withCheckedContinuation { continuation in controller.model.refresh { continuation.resume() } }

@@ -21,6 +21,7 @@ import TurtleGitCore
 /// Native IDD_OPENDLG: preserves both groups while radio controls their gates.
 @MainActor final class MergeOpenWindowController: NSWindowController, NSWindowDelegate, NSTextFieldDelegate {
     static private(set) var activeChoices = 0
+    private(set) var pendingChoices = 0
     enum Slot: Int, CaseIterable { case base, theirs, mine, diff, directory }
     let base = MergeOpenPathField(), theirs = MergeOpenPathField(), mine = MergeOpenPathField(), diff = MergeOpenPathField(), directory = MergeOpenPathField()
     let merging = NSButton(radioButtonWithTitle: "Merging", target: nil, action: nil)
@@ -197,10 +198,10 @@ import TurtleGitCore
               let window, window.attachedSheet == nil else { return }
         let captured = form, identity = UUID()
         let existing = authorize ?? (field(slot).stringValue.isEmpty ? nil : URL(fileURLWithPath: (field(slot).stringValue as NSString).expandingTildeInPath))
-        choiceID = identity; busy = true; Self.activeChoices += 1; updateGates()
+        choiceID = identity; busy = true; Self.activeChoices += 1; pendingChoices += 1; updateGates()
         Task { [self] in
             defer {
-                Self.activeChoices -= 1
+                Self.activeChoices -= 1; pendingChoices -= 1
                 if choiceID == identity { choiceID = nil; picker = nil; busy = false; updateGates() }
             }
             guard !retired, form == captured, self.window === window else { return }

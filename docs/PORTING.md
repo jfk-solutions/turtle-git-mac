@@ -2867,3 +2867,33 @@ selection defect and fixture snapshot-owner mismatch are retained in the evidenc
 Only affected checks repeated; the complete Core suite was not rerun. All 22
 recorded receiver/metadata child processes are absent. Four owned inactive-window
 Commit captures were reviewed in light/dark. Hosted integration remains separate.
+
+
+### Standalone Merge-tool and Git editor entry, 2026-10-18
+
+Ported the connected source/native command family across parser, independent
+merged-output snapshots, missing-input empty panes, source descriptive/reflected
+labels, readonly/Blame mutation policy, initial line and mandatory-save behavior.
+The waiting wrapper now launches native two-/three-file editors, Open fallback,
+reverse/readonly patch review or byte-preserving unified output. Authorization
+retains original preferences and file/folder grants. Startup and approved Quit
+return actual saved/unresolved/unsaved status after owned work drains; discarded
+requested Git results remain failed through File/Open replacement.
+
+Integration review completed the same-window current-controller handoff,
+pre-load readonly patch policy, cancelled retired model/patch/export work,
+ownerless output Save As and empty Open chooser retirement. Explicit temporary
+input cleanup preserves changed objects and merged output. The source command
+options and remaining frame/Blame/reflected-header/platform states are retained in
+[entry review](MERGE-TOOL-ENTRY-PARITY.md), [comparison review](MERGE-TOOL-COMPARISON-PARITY.md)
+and the user-facing [Git tool setup guide](MERGE-TOOL.md).
+
+All 24 distinct focused Core cases and ten distinct native/workflow receipts
+pass; all 21 recorded owned processes are absent. Only checks affected by actual
+repairs repeated. [Evidence](qa/merge-tool-entry-2026-10-18.json) preserves the Core
+Unicode failure, native fixture repairs, integration changes and exact build scope.
+Fixed the prior hosted Pages stale-help failure by regenerating the offline book;
+local resources now check 39 documents/48 topics, without claiming complete help
+or localization coverage. Current hosted CI, dedicated standalone scene/menu
+acceptance, complete visual/input/accessibility review and signed distribution
+remain open. The whole port is not certified complete.

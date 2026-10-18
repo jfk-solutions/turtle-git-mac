@@ -186,7 +186,7 @@ private extension FileComparisonDocument {
     private(set) var paneTargets: [Bool: SavedMergePane] = [:]
     private var originalPaneDocument: FileComparisonDocument?
     func savedPaneURL(base: Bool) -> URL? { paneTargets[base]?.url }
-    private func mutablePane(_ base: Bool) -> Bool { sourceSnapshotRoot == nil || paneTargets[base] != nil }
+    private func mutablePane(_ base: Bool) -> Bool { !mergeToolReadOnly && (sourceSnapshotRoot == nil || paneTargets[base] != nil) }
     private func savingContext(_ document: FileComparisonDocument) -> FileComparisonDocument {
         guard let originalPaneDocument else { return document }
         return paneTargets.keys.reduce(document) { $0.replacingPane(base: $1, content: $1 ? originalPaneDocument.base : originalPaneDocument.destination) }
@@ -223,6 +223,79 @@ private extension FileComparisonDocument {
     lazy var openExternalComparison: (FileComparisonDocument, URL, [RepositoryAccessLease], Bool) async throws -> Bool = { [weak self] document, root, permissions, alternate in
         guard let self, !self.retired else { throw OperationCancellationFailure.cancelled }
         return try await DiffToolApplication.open(document, root: root, permissions: permissions, alternate: alternate, preferences: self.comparisonDefaults, cancellation: self.loadSession?.cancellation, owner: self.window, selection: self.pendingToolSelection, line: self.requestedSourceLine)
+    }
+    private(set) var mergeToolInvocation: MergeToolInvocation?
+    private var mergeToolOutput: MergeToolOutputTarget?
+    private var mergeToolInputs: [Bool: MergeToolOutputTarget] = [:]
+    private var replacementReflectedNames: [Bool:String] = [:]
+    @Published private var mergeToolDidSave = false
+    var mergeToolSaved: Bool { mergeToolDidSave && drafts?.dirtySides.isEmpty != false && !mergeToolSaveRequired }
+    @Published private(set) var mergeToolSaveRequired = false
+    private var ownedMergeOperations = 0
+    var mergeToolHasPendingWork: Bool { loadSession != nil || ownedMergeOperations > 0 }
+    private var enforcedMergeToolReadOnly = false
+    var mergeToolReadOnly: Bool { enforcedMergeToolReadOnly || (mergeToolInvocation.map { $0.readOnly || $0.blame } ?? false) }
+    /// Patch children already have a loaded document; apply the same immutable
+    /// invocation policy without replacing their patch-owned snapshot or draft.
+    func configureMergeToolReadOnly(_ enabled: Bool) {
+        guard !busy, !retired else { return }
+        enforcedMergeToolReadOnly = enabled
+        if mergeToolReadOnly {
+            drafts?.setEditing(false,base:true); drafts?.setEditing(false,base:false)
+            mergeToolSaveRequired = false; resetHistory()
+        }
+        objectWillChange.send()
+    }
+    /// File/Open keeps the frame's immutable policy and current view choice,
+    /// while choosing new files clears source output, save-required, descriptive
+    /// names and line intent. Reflected metadata is informational, never a path.
+    func configureMergeToolReplacement(readOnly: Bool, oneWay: Bool, reflectedBase: String? = nil, reflectedMine: String? = nil) {
+        guard document == nil, !busy, !retired, mergeToolInvocation == nil else { return }
+        configureMergeToolReadOnly(readOnly)
+        onePaneMode = oneWay; loadedPaneMode = true
+        replacementReflectedNames = [:]
+        if let reflectedBase { replacementReflectedNames[true] = reflectedBase }
+        if let reflectedMine { replacementReflectedNames[false] = reflectedMine }
+        useInternalMergeViewer()
+    }
+    private var mergeToolResultSide: Bool { storageSide(false) }
+    /// Configure a source invocation before the deferred first read. Names never
+    /// replace filesystem paths or grant authority to the reflected paths.
+    func configureMergeTool(_ invocation: MergeToolInvocation) throws {
+        guard document == nil, !busy, !retired, mergeToolInvocation == nil else { throw FileComparisonEditFailure.changed }
+        let output = try invocation.merged.map { try MergeToolOutputTarget(capturing: $0) }
+        mergeToolInvocation = invocation; mergeToolOutput = output
+        mergeToolSaveRequired = invocation.saveRequired && !mergeToolReadOnly
+        onePaneMode = invocation.oneWay; loadedPaneMode = true
+        configureSourceLine(invocation.line); useInternalMergeViewer()
+    }
+    func mergeToolDescriptiveName(base: Bool) -> String? {
+        guard let invocation = mergeToolInvocation else { return nil }
+        return storageSide(base) ? invocation.baseName : invocation.mineName
+    }
+    func mergeToolReflectedName(base: Bool) -> String? {
+        guard let invocation = mergeToolInvocation else { return replacementReflectedNames[storageSide(base)] }
+        return storageSide(base) ? invocation.baseReflectedName : invocation.mineReflectedName
+    }
+    func paneTitle(base: Bool) -> String {
+        let name = mergeToolDescriptiveName(base:base).flatMap { $0.isEmpty ? nil : $0 } ?? (base ? "Base" : "Mine")
+        let absent = mergeToolInvocation != nil && mergeToolInputs[storageSide(base)]?.content.isDeleted == true
+        return absent ? name + " " + String(localized:"(not found)") : name
+    }
+    func paneHeader(base: Bool) -> String {
+        let content = base ? document?.base : document?.destination
+        if let name = mergeToolDescriptiveName(base: base), !name.isEmpty { return name }
+        return (content?.path ?? path) + " : " + (content?.revision.label ?? (base ? snapshot.from.label : snapshot.to.label))
+    }
+    func paneHelp(base: Bool) -> String {
+        let content = base ? document?.base : document?.destination
+        return [content?.path, mergeToolReflectedName(base: base)].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+    private var mergeToolNeedsOutput: Bool { mergeToolOutput != nil && !mergeToolSaved && !mergeToolReadOnly }
+    private var saveAllSides: [Bool] {
+        var sides = drafts?.dirtySides ?? []
+        if mergeToolSaveRequired || mergeToolNeedsOutput, !sides.contains(mergeToolResultSide) { sides.append(mergeToolResultSide) }
+        return sides
     }
     private(set) var requestedSourceLine: Int?
     private var sourceLineApplied = false
@@ -542,7 +615,7 @@ private extension FileComparisonDocument {
         let alert = NSAlert(); alert.alertStyle = .warning
         alert.messageText = "Save changes to “" + unsavedFilesDescription + "” before " + reason + "?"
         alert.informativeText = detail + " Any pane you do not save will be reloaded from disk."
-        let sides = drafts?.dirtySides ?? []
+        let sides = saveAllSides
         let choices: [(String,ProjectionChange.Answer)] = sides.count > 1
             ? [("Save left pane",.save([true])),("Save right pane",.save([false])),("Save both panes",.save(sides)),("Don’t Save",.discard),("Cancel",.cancel)]
             : [("Save",.save(sides)),("Don’t Save",.discard),("Cancel",.cancel)]
@@ -686,8 +759,9 @@ private extension FileComparisonDocument {
         guard enabled else { return }
         let read = makeEditorConfigRead(); editorConfigReads[base] = read
         editorConfigLoading.insert(base)
-        let permissions = openPermissions
+        let permissions = openPermissions; ownedMergeOperations += 1
         Task {
+            defer { ownedMergeOperations -= 1 }
             let resolved: Result<MergeEditorConfigProperties?,Error>
             do { resolved = .success(try await read.read(file:file,permissions:permissions,window:window)) }
             catch { resolved = .failure(error) }
@@ -763,8 +837,8 @@ private extension FileComparisonDocument {
         guard mutablePane(base), !retired, !hasPendingEditorChoice || updatingSaveDecision else { return }
         do { try drafts?.update(text: text, base: base) } catch { self.error = error.localizedDescription }
     }
-    func updateAnnotations(_ value: FileComparisonEditing.Annotations, base: Bool) { guard !retired, !hasPendingEditorChoice || updatingSaveDecision else { return }; drafts?.update(annotations: value, base: base) }
-    func recordTypingEdit(base: Bool) { drafts?.setEditRevision(UUID(),base:base) }
+    func updateAnnotations(_ value: FileComparisonEditing.Annotations, base: Bool) { guard !mergeToolReadOnly, !retired, !hasPendingEditorChoice || updatingSaveDecision else { return }; drafts?.update(annotations: value, base: base) }
+    func recordTypingEdit(base: Bool) { guard !mergeToolReadOnly else { return }; drafts?.setEditRevision(UUID(),base:base) }
     @Published var canUndo = false
     @Published var canRedo = false
     @Published var selectedRows: Range<Int>?
@@ -812,7 +886,7 @@ private extension FileComparisonDocument {
     }
     // Undo can supersede an edit's pending comparison request. Restoring its
     // presentation cancels that request and fences any late engine result.
-    private var historyActionsAllowed: Bool { !retired && !busy && !hasPendingEditorChoice && !confirmingQuit && window?.attachedSheet == nil }
+    private var historyActionsAllowed: Bool { !mergeToolReadOnly && !retired && !busy && !hasPendingEditorChoice && !confirmingQuit && window?.attachedSheet == nil }
     var canTransfer: Bool { canTransfer(toBase: activeBase) }
     func canTransfer(toBase base: Bool) -> Bool { mutablePane(base) && drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !hasPendingEditorChoice && !confirmingQuit && !filtering }
     var copyCommandsAllowed: Bool { !retired }
@@ -950,12 +1024,12 @@ private extension FileComparisonDocument {
         init(permissions: [RepositoryAccessLease]) { self.permissions = permissions }
     }
     private var outputRequest: OutputRequest?
-    var canSavePaneAs: Bool { canBeginOutput && document != nil }
+    var canSavePaneAs: Bool { !mergeToolReadOnly && canBeginOutput && document != nil }
     private var canBeginOutput: Bool { !retired && !busy && !hasPendingEditorChoice && !confirmingQuit && window?.attachedSheet == nil }
     private func beginOutput() -> OutputRequest? {
         guard canBeginOutput else { return nil }
         let request = OutputRequest(permissions: openPermissions)
-        outputRequest = request; Self.activePaneExports += 1
+        outputRequest = request; Self.activePaneExports += 1; ownedMergeOperations += 1
         error = nil; exporting = true; busy = true
         return request
     }
@@ -963,7 +1037,7 @@ private extension FileComparisonDocument {
         !retired && outputRequest === request && !request.cancellation.isCancelled
     }
     private func finishOutput(_ request: OutputRequest) {
-        Self.activePaneExports -= 1
+        Self.activePaneExports -= 1; ownedMergeOperations -= 1
         guard outputRequest === request else { return }
         outputRequest = nil; busy = false; exporting = false
         withExtendedLifetime(request.permissions) {}
@@ -998,7 +1072,7 @@ private extension FileComparisonDocument {
     func export(base: Bool) { writePane(base: base, rebind: false) }
     func saveAs(base: Bool) { writePane(base: base, rebind: true) }
     private func writePane(base: Bool, rebind: Bool) {
-        guard canBeginOutput, let window, let document else { return }
+        guard !mergeToolReadOnly, canBeginOutput, let window, let document else { return }
         let content = base ? document.base : document.destination
         do {
             let selectedEncoding = drafts?.encoding(base: base) ?? content.encoding
@@ -1024,6 +1098,9 @@ private extension FileComparisonDocument {
                         paneTargets[base] = target; retainPermissions([permission])
                         self.document = document.replacingPane(base: base, content: target.content)
                         try drafts?.didSaveAs(target.content, base: base)
+                        if base == mergeToolResultSide, mergeToolInvocation != nil {
+                            mergeToolOutput = try MergeToolOutputTarget(capturing: url); mergeToolDidSave = true; mergeToolSaveRequired = false
+                        }
                         updateHistoryState(); rebuildAlignment(); reloadEditorConfig()
                     }
                 } catch { if acceptsOutput(request) { self.error = error.localizedDescription } }
@@ -1067,9 +1144,13 @@ private extension FileComparisonDocument {
     }
     var editableBase: Bool? { canEdit(base: activeBase) ? activeBase : nil }
     var editedFilePath: String { activeBase ? document?.base.path ?? path : document?.destination.path ?? path }
-    var unsavedFilesDescription: String { drafts?.dirtyPaths.joined(separator: "”, “") ?? editedFilePath }
-    var dirty: Bool { drafts?.dirtySides.isEmpty == false }
-    var activeDirty: Bool { drafts?.isDirty(base: activeBase) == true }
+    var unsavedFilesDescription: String {
+        if mergeToolSaveRequired, let output = mergeToolOutput { return output.url.path }
+        let names = drafts?.dirtyPaths ?? []
+        return names.isEmpty ? editedFilePath : names.joined(separator: "”, “")
+    }
+    var dirty: Bool { document != nil && !mergeToolReadOnly && (drafts?.dirtySides.isEmpty == false || mergeToolSaveRequired) }
+    var activeDirty: Bool { !mergeToolReadOnly && (drafts?.isDirty(base: activeBase) == true || activeBase == mergeToolResultSide && (mergeToolSaveRequired || mergeToolNeedsOutput)) }
     func annotations(base: Bool) -> FileComparisonEditing.Annotations { drafts?.annotations(base: base) ?? .init() }
     struct EditorActions {
         var replace: (String, Int, Range<Int>?) -> Void
@@ -1210,13 +1291,13 @@ private extension FileComparisonDocument {
     func applyViewportNavigation() { guard !retired else { return }; for action in viewportNavigation.values { action() } }
     private var synchronizing = false
     var onRegisterScroll: (NSScrollView, Bool) -> Void = { _, _ in }
-    var patchEditingEnabled: Bool { drafts?.editingEnabled(base: false) == true }
+    var patchEditingEnabled: Bool { mutablePane(false) && drafts?.editingEnabled(base: false) == true }
     func setPatchEditing(_ enabled: Bool) {
-        guard !retired, !busy, !hasPendingEditorChoice, !confirmingQuit else { return }
+        guard mutablePane(false), !retired, !busy, !hasPendingEditorChoice, !confirmingQuit else { return }
         drafts?.setEditing(enabled, base: false); activeBase = false; updateHistoryState()
     }
     func acceptPatchSave(_ saved: FileComparisonDocument) throws {
-        guard !retired, let document, document.destination.path == saved.destination.path else { throw FileComparisonEditFailure.changed }
+        guard !mergeToolReadOnly, !retired, let document, document.destination.path == saved.destination.path else { throw FileComparisonEditFailure.changed }
         try drafts?.didSave(saved.destination, base: false)
         drafts?.setEditing(false, base: false)
         self.document = saved; resetHistory(); rebuildAlignment()
@@ -1323,6 +1404,7 @@ private extension FileComparisonDocument {
     func load(discardingDraft: Bool = false) {
         guard !initialLoadDeferred, !retired, !busy, !hasPendingEditorChoice, !confirmingQuit, window?.attachedSheet == nil else { return }
         cancelEditorConfigReads()
+        let reloadingMergeOutput = attemptedAppearanceLoad
         attemptedAppearanceLoad = true
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
         if !singleFileMode { showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults) }
@@ -1330,6 +1412,10 @@ private extension FileComparisonDocument {
         if dirty && !discardingDraft {
             requestProjectionChange(reason: "reloading") {}
             return
+        }
+        if reloadingMergeOutput, let output = mergeToolOutput {
+            do { mergeToolOutput = try MergeToolOutputTarget(capturing:output.url) }
+            catch { self.error = error.localizedDescription; return }
         }
         reloadCommentProfiles = true
         generalPreferences = .load(from: comparisonDefaults); pendingLoadNavigation = generalPreferences.firstDifference
@@ -1349,6 +1435,7 @@ private extension FileComparisonDocument {
             do {
                 try await session.run(selectedCount: 0) { [self] token in
                     var replacements: [Bool: ComparisonFileContent] = [:]
+                    var loadedMergeInputs: [Bool: MergeToolOutputTarget] = [:]
                     for (base, target) in paneTargets {
                         guard !saveFolderAccess.requireScope || openPermissions.contains(where: { $0.permits(target.url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                         replacements[base] = try target.read()
@@ -1369,7 +1456,11 @@ private extension FileComparisonDocument {
                         value = try await repository.comparisonFile(historicalWorkingComparison, replacements: storageReplacements, cancellation: token)
                     } else if let workingComparison {
                         try validateWorkingAccess(workingComparison)
-                        value = try workingComparison.read(replacements: storageReplacements)
+                        if mergeToolInvocation != nil {
+                            loadedMergeInputs = [true:try MergeToolOutputTarget(capturing:workingComparison.base),false:try MergeToolOutputTarget(capturing:workingComparison.destination)]
+                            value = try workingComparison.readForMergeTool(replacements:storageReplacements)
+                            for input in loadedMergeInputs.values { try input.validate() }
+                        } else { value = try workingComparison.read(replacements: storageReplacements) }
                     } else if let repository {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                         value = try await repository.comparisonFile(snapshot, path: path, replacements: storageReplacements, cancellation: token)
@@ -1393,6 +1484,7 @@ private extension FileComparisonDocument {
                 }
                 let adapted = value.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults),legacyEncoding:legacyEncoding)
                 document = adapted
+                if mergeToolInvocation != nil { mergeToolInputs = loadedMergeInputs }
                 for (base, target) in paneTargets { paneTargets[base] = try target.recording(base ? adapted.base : adapted.destination) }
                 imagePresentation.openImages = { [weak self] in self?.chooseImageFiles() }
                 // Source dispatch chooses the viewer before decoding. Failed/empty
@@ -1436,9 +1528,9 @@ private extension FileComparisonDocument {
             return value
         }
         filtering = true; regexCancellation = token
-        MergeRegexOperations.activeRequests += 1
+        MergeRegexOperations.activeRequests += 1; ownedMergeOperations += 1
         Task {
-            defer { MergeRegexOperations.activeRequests -= 1 }
+            defer { MergeRegexOperations.activeRequests -= 1; ownedMergeOperations -= 1 }
             // Editing uses an immediate coordinate projection. Debounce the
             // authoritative engine request so typing does not spawn a helper
             // for every intermediate keystroke; stale requests never publish.
@@ -1493,10 +1585,10 @@ private extension FileComparisonDocument {
         guard let base = editableBase else { completion?(false); return }
         save(sides: [base], completion: completion)
     }
-    func saveAll(completion: ((Bool) -> Void)? = nil) { save(sides: drafts?.dirtySides ?? [], completion: completion) }
+    func saveAll(completion: ((Bool) -> Void)? = nil) { save(sides: saveAllSides, completion: completion) }
     func saveAllForQuit(completion: @escaping (Bool) -> Void) {
         guard confirmingQuit else { completion(false); return }
-        save(sides: drafts?.dirtySides ?? [], ownerInitiated: true, completion: completion)
+        save(sides: saveAllSides, ownerInitiated: true, completion: completion)
     }
     func saveReboundResultFromOwner(completion: @escaping (Bool) -> Void) {
         guard paneTargets[false] != nil else { completion(false); return }
@@ -1521,8 +1613,9 @@ private extension FileComparisonDocument {
     private func saveReadOnlyPane(base:Bool,document:FileComparisonDocument,text:String,request:OperationCancellation) async throws -> Bool {
         guard let window else {return false}
         let content=base ? document.base : document.destination
-        let directory=paneTargets[base]?.url.deletingLastPathComponent() ?? snapshot.root
-        guard let url=await chooseExportLocation(window,(content.path as NSString).lastPathComponent,directory) else {return false}
+        let proposed = base == mergeToolResultSide ? mergeToolOutput?.url : nil
+        let directory=proposed?.deletingLastPathComponent() ?? paneTargets[base]?.url.deletingLastPathComponent() ?? snapshot.root
+        guard let url=await chooseExportLocation(window,((proposed?.path ?? content.path) as NSString).lastPathComponent,directory) else {return false}
         try ensurePaneSave(request)
         let permission=RepositoryAccessLease(url:url)
         if let sourceSnapshotRoot,url.resolvingSymlinksInPath().standardizedFileURL.path.hasPrefix(sourceSnapshotRoot.path + "/") {throw FileComparisonEditFailure.unsupported}
@@ -1536,23 +1629,26 @@ private extension FileComparisonDocument {
         paneTargets[base]=target;retainPermissions([permission])
         self.document=document.replacingPane(base:base,content:target.content)
         try drafts?.didSaveAs(target.content,base:base)
+        if mergeToolInvocation != nil, base == mergeToolResultSide {
+            mergeToolOutput = try MergeToolOutputTarget(capturing:url); mergeToolDidSave = true; mergeToolSaveRequired = false
+        }
         updateHistoryState();rebuildAlignment();reloadEditorConfig()
         return true
     }
     private func save(sides: [Bool], ownerInitiated: Bool = false, completion: ((Bool) -> Void)?) {
         let choiceAllowed = !hasPendingEditorChoice || ownerInitiated && projectionChange != nil && !exporting && formatRequest == nil && paneSave == nil
-        guard paneSave == nil, (!busy && !confirmingQuit || ownerInitiated), choiceAllowed, !retired, window?.attachedSheet == nil, document != nil else { completion?(false); return }
+        guard !mergeToolReadOnly, paneSave == nil, (!busy && !confirmingQuit || ownerInitiated), choiceAllowed, !retired, window?.attachedSheet == nil, document != nil else { completion?(false); return }
         let request = OperationCancellation(), permissions = openPermissions
-        paneSave = request;saveChoices.reset();error=nil; Self.activePaneExports += 1; busy = true
+        paneSave = request;saveChoices.reset();error=nil; Self.activePaneExports += 1; ownedMergeOperations += 1; busy = true
         Task {
             var saved = false
             defer {
                 if paneSave === request { paneSave = nil; busy = false }
-                Self.activePaneExports -= 1; withExtendedLifetime(permissions) {}; completion?(saved)
+                Self.activePaneExports -= 1; ownedMergeOperations -= 1; withExtendedLifetime(permissions) {}; completion?(saved)
             }
             do {
                 try ensurePaneSave(request)
-                for base in sides where drafts?.isDirty(base: base) == true {
+                for base in sides where drafts?.isDirty(base: base) == true || base == mergeToolResultSide && (mergeToolSaveRequired || mergeToolNeedsOutput) {
                     // Upstream FileSave resolves marks in Mine; the writable Base save
                     // and automatic PatchSave use separate paths without this prompt.
                     if !base, !annotations(base: false).marked.isEmpty {
@@ -1564,6 +1660,33 @@ private extension FileComparisonDocument {
                     }
                     guard let document, let text = drafts?.text(base: base) else { throw FileComparisonEditFailure.unsupported }
                     let content=base ? document.base : document.destination
+                    if base == mergeToolResultSide, let output = mergeToolOutput {
+                        for input in mergeToolInputs.values { try input.validate() }
+                        if MergePaneSaveAs.requiresSaveAs(at:output.url,permissions:output.content.permissions,absent:output.content.isDeleted) {
+                            guard try await saveReadOnlyPane(base:base,document:document,text:text,request:request) else { return }
+                            continue
+                        }
+                        guard try await authorizeWorkingReplacement(at:output.url,cancellation:request) else { return }
+                        try ensurePaneSave(request)
+                        let choice: MergeEmptyResult
+                        if text.isEmpty {
+                            if let chooseEmptyResult { choice = await chooseEmptyResult(output.url.path) }
+                            else { guard let answer = await saveChoices.empty(window:window,path:output.url.path) else { return }; choice = answer }
+                        } else { choice = .keep }
+                        try ensurePaneSave(request)
+                        let options = MergeFileSaveOptions(backupOriginal:MergeFileSaveOptions.backupEnabled(from:comparisonDefaults),emptyResult:choice)
+                        for input in mergeToolInputs.values { try input.validate() }
+                        let target = try output.save(text:text,encoding:drafts?.encoding(base:base),options:options)
+                        let savedContent = target.savedPaneContent(like:content)
+                        mergeToolOutput = target
+                        for (side,input) in mergeToolInputs where input.url.resolvingSymlinksInPath().standardizedFileURL.path == target.url.resolvingSymlinksInPath().standardizedFileURL.path {
+                            mergeToolInputs[side] = target
+                        }
+                        self.document = document.replacingPane(base:base,content:savedContent)
+                        try drafts?.didSave(savedContent,base:base)
+                        mergeToolDidSave = true; mergeToolSaveRequired = false
+                        continue
+                    }
                     let file=content.path.hasPrefix("/") ? URL(fileURLWithPath:content.path) : snapshot.root.appendingPathComponent(content.path)
                     if MergePaneSaveAs.requiresSaveAs(at:file,permissions:content.permissions,absent:content.isDeleted) {
                         guard try await saveReadOnlyPane(base:base,document:document,text:text,request:request) else {return}
@@ -1606,6 +1729,13 @@ private extension FileComparisonDocument {
                     self.document = combined
                     let savedContent = base ? result.base : result.destination
                     try drafts?.didSave(savedContent, base: base)
+                    if mergeToolInvocation != nil {
+                        let savedURL = URL(fileURLWithPath:savedContent.path).resolvingSymlinksInPath().standardizedFileURL
+                        for (side,input) in mergeToolInputs where input.url.resolvingSymlinksInPath().standardizedFileURL.path == savedURL.path {
+                            mergeToolInputs[side] = try MergeToolOutputTarget(capturing:input.url)
+                        }
+                    }
+                    if mergeToolInvocation != nil, base == mergeToolResultSide { mergeToolDidSave = true; mergeToolSaveRequired = false }
                     if let target = paneTargets[base] { paneTargets[base] = try target.recording(savedContent) }
                     else { originalPaneDocument = originalPaneDocument?.replacingPane(base: base, content: savedContent) }
                 }
@@ -1792,11 +1922,11 @@ struct FileComparisonPane: View {
         let content = base ? model.document?.base : model.document?.destination
         let header: String
         if model.onePaneActive, let document = model.document {
-            header = document.base.path + " : " + document.base.revision.label + " – " + document.destination.path + " : " + document.destination.revision.label
-        } else { header = (content?.path ?? model.path) + " : " + (content?.revision.label ?? (base ? model.snapshot.from.label : model.snapshot.to.label)) }
+            header = model.paneHeader(base:true) + " – " + model.paneHeader(base:false)
+        } else { header = model.paneHeader(base:base) }
         return VStack(alignment: .leading, spacing: 5) {
-            Text(model.onePaneActive ? "Base – Mine" : base ? "Base" : "Mine").font(.headline)
-            Text(header).font(.system(.caption, design: .monospaced)).lineLimit(1).help(header)
+            Text(model.onePaneActive ? model.paneTitle(base:true) + " – " + model.paneTitle(base:false) : model.paneTitle(base:base)).font(.headline)
+            Text(header).font(.system(.caption, design: .monospaced)).lineLimit(1).help(model.onePaneActive ? model.paneHelp(base:true) + "\n" + model.paneHelp(base:false) : model.paneHelp(base:base))
             if let alignment = model.alignment {
                 FileComparisonEditor(model: model, cells: model.displayCells(base: base), base: base)
             } else if let content {

@@ -9,6 +9,7 @@ import TurtleGitCore
     private(set) var question: NSAlert?
     private weak var window: NSWindow?
     private var retired = false, writing = false
+    var hasPendingWork: Bool { writing || panel != nil || question != nil }
     let saveFolderAccess=MergeSaveFolderAccess()
     var permissions:()->[RepositoryAccessLease] = {[]}
     private var writeCancellation:OperationCancellation?

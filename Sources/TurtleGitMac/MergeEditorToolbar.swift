@@ -292,11 +292,12 @@ extension MergeEditorToolbar {
                 let text = ready && model.sourceToolsAllowed
                 switch command {
                 case .open, .reload, .help: return .init(enabled: ready)
-                case .save: return .init(enabled: text && !model.patchResultCompleted)
-                case .saveAs, .saveLeft, .saveRight, .saveMerged, .compareSources, .compareTheirs, .compareMine: return .init(enabled: text && model.sourceToolsAllowed)
+                case .save: return .init(enabled: text && model.sourceMutationsAllowed && !model.patchResultCompleted)
+                case .saveAs, .saveLeft, .saveRight, .saveMerged: return .init(enabled: text && model.sourceMutationsAllowed)
+                case .compareSources, .compareTheirs, .compareMine: return .init(enabled: text)
                 case .continueResolving: return .init(enabled: text && !model.blocks.isEmpty)
-                case .undo: return .init(enabled: text && model.canUndo)
-                case .redo: return .init(enabled: text && model.canRedo)
+                case .undo: return .init(enabled: text && model.sourceMutationsAllowed && model.canUndo)
+                case .redo: return .init(enabled: text && model.sourceMutationsAllowed && model.canRedo)
                 case .previousDifference: return .init(enabled: text && model.canNavigateBlock(-1,conflictsOnly:false))
                 case .nextDifference: return .init(enabled: text && model.canNavigateBlock(1,conflictsOnly:false))
                 case .previousConflict: return .init(enabled: text && model.canNavigateBlock(-1,conflictsOnly:true))
@@ -700,7 +701,7 @@ extension MergeEditorCommandMenu {
                 guard let model else { return nil };let enabled = ready()
                 switch command {
                 case .toolbar(let value):guard let state = bar?.commandState(value) else { return nil };return .init(enabled:enabled && state.enabled,checked:state.checked)
-                case .saveAs:return .init(enabled:enabled)
+                case .saveAs:return .init(enabled:enabled && model.sourceMutationsAllowed)
                 case .enableEdit:return .init(enabled:false,checked:text()?.isEditable == true)
                 case .useFile,.useBothFirst,.useBothLast,.nextInline,.previousInline,.lineDiff,.lineNumbers,.moved:return nil
                 case .nextPane,.previousPane:return .init(enabled:enabled && MergeMarkedWordInterface.panes(in:window?.contentView).filter{!$0.isHiddenOrHasHiddenAncestor}.count > 1)

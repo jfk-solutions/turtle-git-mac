@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		03DA9821BB1AD77E7629EC93 /* MergeToolLaunchSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66DFE38B38B2FD975CCF874F /* MergeToolLaunchSession.swift */; };
+		33E78B4472C0CC1BD13699BF /* MergeToolInvocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D89471ED34922045290C736E /* MergeToolInvocation.swift */; };
 		C81800000000000000000001 /* PrimaryCommandInvocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81800000000000000000002 /* PrimaryCommandInvocation.swift */; };
 		F2C24D3E5BEC39940CB464A2 /* CommandHistoricalOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6397D474BAAF986488CC5BE8 /* CommandHistoricalOutput.swift */; };
 		9C731A9C27AA484749FBEF24 /* RevisionGraphFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61A9FDCA35621CBB58A0EC8F /* RevisionGraphFormat.swift */; };
@@ -524,6 +526,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		66DFE38B38B2FD975CCF874F /* MergeToolLaunchSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeToolLaunchSession.swift; sourceTree = "<group>"; };
+		D89471ED34922045290C736E /* MergeToolInvocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeToolInvocation.swift; sourceTree = "<group>"; };
 		9C736B7D87B43E2E36549A6B /* LibreOfficeComparisonAutomation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibreOfficeComparisonAutomation.swift; sourceTree = "<group>"; };
 		BB112F7F921AE5646F703B59 /* LibreOfficeComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibreOfficeComparison.swift; sourceTree = "<group>"; };
         C81660000000000000000002 /* CommitCheckboxIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitCheckboxIndex.swift; sourceTree = "<group>"; };
@@ -1007,6 +1011,7 @@
 				AEC571DB776E587D10F568E9 /* AdvancedSettings.swift */,
 				58AC22A1002BEBAD67A07B33 /* AlternativeEditorSettings.swift */,
 				B16F443B326FDAB1414D334B /* Appearance.swift */,
+				66DFE38B38B2FD975CCF874F /* MergeToolLaunchSession.swift */,
 				5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */,
 				FBBD8565B30421DA978B8A58 /* ApplicationIntroduction.swift */,
 				D16465B7DCE5BB303F553610 /* AutotextTester.swift */,
@@ -1297,6 +1302,7 @@
 				534D2BCEF1E4DBDFF070E193 /* FinderContextMenuSettings.swift */,
 				EFA280FD82A687572025B806 /* FinderOverlaySettings.swift */,
 				BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */,
+				D89471ED34922045290C736E /* MergeToolInvocation.swift */,
 				C81800000000000000000002 /* PrimaryCommandInvocation.swift */,
 				6397D474BAAF986488CC5BE8 /* CommandHistoricalOutput.swift */,
 				61A9FDCA35621CBB58A0EC8F /* RevisionGraphFormat.swift */,
@@ -1912,6 +1918,7 @@
 				C6CCA1EF335DB4A2C8B07B25 /* FinderContextMenuSettings.swift in Sources */,
 				31EF8A4E8017B7CAE75B4113 /* FinderOverlaySettings.swift in Sources */,
 				AC1988C449B92C1D5501A8DC /* FinderRequest.swift in Sources */,
+				33E78B4472C0CC1BD13699BF /* MergeToolInvocation.swift in Sources */,
 				C81800000000000000000001 /* PrimaryCommandInvocation.swift in Sources */,
 				F2C24D3E5BEC39940CB464A2 /* CommandHistoricalOutput.swift in Sources */,
 				9C731A9C27AA484749FBEF24 /* RevisionGraphFormat.swift in Sources */,
@@ -2083,6 +2090,7 @@
 				8DA2AEE022FFD2B386F6B6EF /* AdvancedSettings.swift in Sources */,
 				338C2F4E08F8FCB953636C45 /* AlternativeEditorSettings.swift in Sources */,
 				D710492DFFD4B6D5AF1A322E /* Appearance.swift in Sources */,
+				03DA9821BB1AD77E7629EC93 /* MergeToolLaunchSession.swift in Sources */,
 				230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */,
 				11093D5F4B8D1856AE3CE2FF /* ApplicationIntroduction.swift in Sources */,
 				B6DE7C8AE3A9B25FFE8B6982 /* AutotextTester.swift in Sources */,

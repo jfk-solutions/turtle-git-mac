@@ -346,3 +346,8 @@ Signed development builds and actual sandbox checks are described in the
 [Finder development guide](docs/SIGNED-FINDER-DEVELOPMENT.md).
 
 Primary TortoiseProc-style [command-line entry](docs/COMMAND-LINE.md) opens native Commit, Working Tree, Log, Diff, Revert and Resolve dialogs, including editable message/history presets and explicit repository/file authorization. Clone, transport and reference launches also support source presets and multi-repository transport options. Blame, Previous Diff, Add, Rename and Remove/keep also use source-style entry behavior; file-only Add stages the authorized selection immediately. Create Repository, Cleanup and Ignore entry also retain their native options, authorization and review steps. Other legacy commands and automation switches remain open.
+
+Standalone Git comparison/merge entry is available through the waiting
+[`turtlegit-merge` wrapper](scripts/turtlegit-merge). See
+[Git difftool/mergetool setup](docs/MERGE-TOOL.md) for native file comparison,
+separate merged output, source arguments and sandbox authorization.

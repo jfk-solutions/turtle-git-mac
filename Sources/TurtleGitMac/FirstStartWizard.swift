@@ -358,6 +358,7 @@ private struct FirstStartWizardDialog: View {
     var present: (FirstStartWizardController) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
     private var consideredFirstRun = false
     func install() {
+        if (try? MergeToolInvocation.parse(arguments: Array(CommandLine.arguments.dropFirst()), currentDirectory: FileManager.default.currentDirectoryPath)) != nil { return }
         guard !consideredFirstRun else { return }
         consideredFirstRun = true
         // An explicit wizard page must not race the automatic first-run page.

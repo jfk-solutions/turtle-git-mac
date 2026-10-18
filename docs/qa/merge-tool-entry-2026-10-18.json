@@ -1,0 +1,274 @@
+{
+  "date": "2026-10-18",
+  "recorded_at": "2026-10-18T13:50:15.498333+00:00",
+  "base_commit": "926549098606257555efa11e64d2c8d98a5a6d32",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected standalone TurtleGitMerge entry: source/native arguments, two-/three-file editors and outputs, readonly/save policy, missing inputs, authorization, Open replacement, patch/unified commands, wait/exit/Quit and owned retirement/cleanup.",
+  "dialogs": [
+    "IDD_OPENDLG"
+  ],
+  "resources": [
+    "src/Resources/TortoiseMergeENG.rc"
+  ],
+  "source_review": [
+    "TortoiseMerge.cpp InitInstance and ExitInstance/OnClosingMainFrame",
+    "WorkingFile.cpp SetFileName/TransferDetailsFrom",
+    "MainFrm.cpp OnFileOpen/CheckForSave/FileSave/HasUnsavedEdits/LoadViews",
+    "Existing native Merge Open, comparison, patch and source-export owners"
+  ],
+  "validation": {
+    "core": {
+      "initial_command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_COUNT=0 TURTLEGIT_CORE_ONLY=1 swift test --filter 'MergeToolInvocationTests|MergeOpenTests'",
+      "initial_exit": 1,
+      "distinct_cases": 24,
+      "classes": {
+        "MergeToolInvocationTests": 13,
+        "MergeOpenTests": 11
+      },
+      "failure": "One existing exact-byte assertion in the new parser test exposed Foundation NFC-to-NFD path conversion. Other 23 cases passed.",
+      "repair": "Use existing FileTransferPaths exact lexical/fileURL construction and expand only the tilde/home prefix, preserving filename-tail bytes. Keep both NFC/NFD assertions; add tilde-tail assertion and diagnostic messages.",
+      "affected_command": "same environment; swift test --filter MergeToolInvocationTests.testUnifiedOutputAndLiteralByteSpellingsAndMarkedPositionals",
+      "affected_exit": 0,
+      "affected_cases": 1,
+      "distinct_final_passes": 24,
+      "full_suite_repeated": false
+    },
+    "build": {
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "attempt_exits": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "reasons": [
+        "Completed implementation build",
+        "Affected parser path repair plus regenerated help resources",
+        "Affected failed-load completion guard",
+        "Affected replacement/export/owned output-picker repairs",
+        "Affected Open chooser instance-work accounting",
+        "Affected application Quit source-export consumer"
+      ],
+      "scope": "Local arm64 Debug only. Reused native receiver/app caches. Existing warnings, simulator-version and zero-exit diagnostic lines remain; no clean-warning, universal, Intel/minimum-OS or signed claim."
+    },
+    "native": {
+      "git_engines": [
+        "/usr/bin/git 2.54.0 (Apple Git-157)",
+        "build/git-runtime/Git/bin/git 2.55.0"
+      ],
+      "new_distinct_case_engine_passes": 6,
+      "retained_distinct_workflows": 3,
+      "wrapper_passes": 1,
+      "distinct_passes": 10,
+      "initial_command": "python3 scripts/test-merge-tool-entry.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "initial_exit": 0,
+      "initial_scope": "Waiting wrapper plus new comparison/three-file/launch cases, both engines. Later review added ownership checks/repairs below.",
+      "final_new_command": "python3 scripts/test-merge-tool-entry.py --only comparison --only three-file --only launch --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "final_new_exit": 0,
+      "final_new_log": "build/qa/merge-tool-entry-native-ownership-ready-2026-10-18.log",
+      "retained_command": "python3 scripts/test-merge-open-source.py --only open --only replacement --only patch",
+      "retained_initial_exit": 0,
+      "retained_affected_exit": 0,
+      "retained_log": "build/qa/merge-tool-entry-retained-ownership-affected-2026-10-18.log",
+      "coverage": [
+        "Exact paths/descriptive/reflected metadata, source one-way and initial line, immutable readonly/Blame native controls/toolbars/mutations, clean SaveRequired output, unchanged Mine input, later edits and output saves, changed-output refusal/Reload, missing input native empty panes and appearance fencing.",
+        "Three-file existing/absent separate output, real Save, source required-save/conflict states, unresolved/unsaved completion status, changed output, readonly native views, noncooperative retired export writer and picker receipts with actual worker drain.",
+        "Launch integration with original grants/preferences, raw unified output, owned ownerless Save As accept/cancel/late replies, reverse/readonly patch parent/child, same-window replacement/current controller/view policy, failed original result retained across Open, changed-input cleanup, held authorization and empty Open chooser retirement, failed document load returns failure, real startup/approved Quit completion.",
+        "Retained ordinary Open, text-to-patch-to-text replacement, old frame/input preservation, preparation cancellation, Close/Quit and real Git patch failure.",
+        "Wrapper exec preserves literal space/newline arguments, waits for the child and returns injected exit 17. No real user app is launched by the wrapper receipt."
+      ],
+      "failures_and_review_repairs": [
+        {
+          "kind": "code review after initial passes",
+          "repair": "A comparison with no loaded document could close successfully. Central completion now returns failure for unloaded comparisons; new negative assertion retained."
+        },
+        {
+          "kind": "affected launch fixture runtime",
+          "failure": "Standalone Quit bypassed owned completion after newly introduced failed-load case.",
+          "repair": "Acknowledge and settle the preceding failed comparison owned error presentation before the independent startup/Quit check. Expected terminateLater remains unchanged; added detailed reply/window/operation diagnostics. This settlement is not proof of a broader hosted issue."
+        },
+        {
+          "kind": "integration ownership review",
+          "repair": "Replace a local unowned unified Save As helper with retained NSSavePanel continuation, ownerless presentation and exact one-shot retirement; retain noncooperative Open choices by instance until real return."
+        },
+        {
+          "kind": "integration ownership review",
+          "repair": "Publish new File/Open controllers before loading, reset source output/descriptive/line policy, preserve readonly/current view/reflected metadata for comparisons, retain retired models/patch preparations to actual drain. Preserve original requested-result failure when discarded."
+        },
+        {
+          "kind": "integration ownership review",
+          "repair": "Use actual source-export writer/panel/question ownership for model/session and application Quit pending checks, rather than a stale presentation flag after retirement."
+        },
+        {
+          "kind": "new replacement fixture compile",
+          "failure": "New .patch test used target/bytes labels instead of directory/clipboard.",
+          "repair": "Correct typed fixture enum labels; no native receiver ran; no app rebuild."
+        },
+        {
+          "kind": "new replacement fixture runtime",
+          "failure": "Fixture started alignment and then called controller Open entry, which correctly refused a new busy request.",
+          "repair": "Inject that intervening owned work after accepted Open through the existing replacement owner seam. Keep controller busy guard and every publication/retired-work assertion; no product guard weakened or timeout extended."
+        }
+      ]
+    },
+    "owned_processes": {
+      "pids": [
+        78359,
+        78370,
+        78389,
+        78407,
+        78416,
+        78426,
+        78477,
+        78539,
+        78542,
+        78547,
+        78804,
+        79635,
+        79638,
+        79643,
+        79752,
+        79832,
+        79893,
+        79954,
+        79970,
+        79987,
+        80047
+      ],
+      "count": 21,
+      "absent_after_checkpoint": true,
+      "scope": "Every bounded wrapper/native receiver reaped on success/failure. Private files/preferences and owned windows; no unrelated user-owned app termination."
+    },
+    "resources": {
+      "localization_check": {
+        "exit": 0,
+        "languages": 38,
+        "keys": 1289
+      },
+      "help": {
+        "write_exit": 0,
+        "check_exit": 0,
+        "documents": 39,
+        "topics": 48,
+        "files": 59
+      },
+      "scope": "Generated resources and labels do not prove complete localization/help coverage or full UI parity.",
+      "site": {
+        "exit": 0,
+        "documents": 299,
+        "unresolved_fragments": 0,
+        "final_document_refresh_exit": 0
+      },
+      "site_links": {
+        "exit": 0,
+        "tests": 2
+      }
+    },
+    "hosted": {
+      "pages_run": 39130261950,
+      "head": "926549098606257555efa11e64d2c8d98a5a6d32",
+      "job": 117683810647,
+      "conclusion": "failure",
+      "step": "Check bundled Mac help sources",
+      "repair": "Regenerated LFS/privacy help after prior guide edits; added standalone Merge guide to offline book.",
+      "evidence": "docs/qa/ci-help-92654909-2026-10-18.txt",
+      "current_macos_run_observed": 39130261984,
+      "macos_status_at_observation": "in_progress",
+      "scope": "Do not claim a hosted Pages deployment/full macOS pass from these local checks. Live macOS run was not restarted."
+    }
+  },
+  "logs": [
+    {
+      "path": "build/qa/merge-tool-entry-build-2026-10-18.log",
+      "sha256": "6046621f26c69d4a6f01d67358f0487056bd76e82261a536550ff12d3167a070"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-build-affected-2026-10-18.log",
+      "sha256": "a5791da329ef0874a3dd0ea5aea681f8488696870805bc512aeb9bc32cda605a"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-build-chooser-affected-2026-10-18.log",
+      "sha256": "d2cc149358ff22644ddda6522e32db15deb59bd5401d2d467b09b890796cc2a8"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-build-completion-affected-2026-10-18.log",
+      "sha256": "a4f66986a43bdbf32c1d1f2f12801ead1ffcf85be98ea693fde67509d5d68bfa"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-build-export-affected-2026-10-18.log",
+      "sha256": "4a5d2cf77ab6543db7b8c02c0542965e1eff2cd62f8b338f5b86766b4a555d73"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-build-ownership-affected-2026-10-18.log",
+      "sha256": "0ca33d88de94e28b4144cf2ee2727c56bdb8691a6cf0cfdad7b13513a981fc9f"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-core-2026-10-18.log",
+      "sha256": "00dacd94a28ae288ab1365c0310be98a872e42e95f72aca8bf71a3ea9ec7b1f5"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-core-affected-2026-10-18.log",
+      "sha256": "15a2ec85c4867cce3f7dde216f284129e383c39249f16b526a0ab9fe72edb2e0"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-help-2026-10-18.log",
+      "sha256": "54e95e52da8ace085a21be908935a41312ee82bb3e5d01dfa95224cfea318f84"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-native-2026-10-18.log",
+      "sha256": "972997aa6338a4ff3c11842f8dc255a88f1a1c3200a0c2cb849365e3bc64fbc5"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-native-launch-affected-2026-10-18.log",
+      "sha256": "4e56f733fd401fce971cf827ea4bd2639a10f3639dcc702c9a5d7f53833e86e1"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-native-ownership-affected-2026-10-18.log",
+      "sha256": "4160c8b34f6b483ae6ce3879e15a7d91bc853124f9f604674841430bf5813f34"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-native-ownership-fixture-affected-2026-10-18.log",
+      "sha256": "9b255e8fd49fae0cbbcde7877a27f158ae2a4bf5f893d23a603d352d1d5b316e"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-native-ownership-ready-2026-10-18.log",
+      "sha256": "2b0ac54363da7cf36fc662206e2980b615c1a2ee8169f29bf40c59cbab204c13"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-retained-2026-10-18.log",
+      "sha256": "e30210e7b2561c980449bb5b91a6219b338eb7faba5fddd0794edbad86a2c7c4"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-retained-ownership-affected-2026-10-18.log",
+      "sha256": "1e08ed326cce8928e980e16d903a1d7af7e9cbedac442bb4877b56b28813dab2"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-site-2026-10-18.log",
+      "sha256": "ccaf27acdf89dd4b60e6320accac7598f5852d839bbef166825015439c1da231"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-site-links-2026-10-18.log",
+      "sha256": "7521c221722c3345bcb82e9c9609cda3582b243768c7fd3da06a25b61a116a2d"
+    },
+    {
+      "path": "build/qa/merge-tool-entry-site-final-2026-10-18.log",
+      "sha256": "ccaf27acdf89dd4b60e6320accac7598f5852d839bbef166825015439c1da231"
+    }
+  ],
+  "fixture_sha256": {
+    "docs/qa/merge-tool-three-file-native-2026-10-18.swift": "e14bd0b724200ceb75f1887ce91a0a688c3cea21a1fe53ecc28d2cdae56b403b",
+    "docs/qa/merge-tool-launch-native-2026-10-18.swift": "33ca529fcf0e3cec6691a329c458cb4f1cf05e68643fbdb28d6c634827df5fb0",
+    "docs/qa/merge-tool-comparison-native-2026-10-18.swift": "d534229deb1a7c7f8c65f7724ff92d18c04fc7ecbc7fcc6995ff9be69532b129"
+  },
+  "limitations": [
+    "Complete Windows HWND notification/process protocols are explicit unsupported options.",
+    "Blame no-edit policy is implemented; full source blame-text columns remain open.",
+    "Git-root-relative reflected-name patch-header rewriting and three-file reflected-label continuity through subsequent File/Open remain open.",
+    "Dedicated tool-only app scene/menu presentation and physical focus/input/accessibility remain unverified; startup uses the shared app scene.",
+    "No current universal/archive/signing refresh, physical signed Finder/App Store terminal-grant acceptance, distribution export or submission.",
+    "No complete Core repeat or complete hosted CI result. Do not certify all dialogs/the whole port from these cases.",
+    "Unrelated scripts/test-native-reference-batch.py and docs/qa/reflog-capture-native-2026-10-13.swift work stays unstaged."
+  ]
+}

@@ -326,7 +326,8 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/HELP-PARITY.md",
-        "docs/MERGE-OPEN-PARITY.md"
+        "docs/MERGE-OPEN-PARITY.md",
+        "docs/MERGE-TOOL-ENTRY-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/help-book-2026-10-15.json",
@@ -335,6 +336,7 @@
         "docs/qa/merge-open-lifecycle-2026-10-12.json",
         "docs/qa/merge-open-source-family-2026-10-17.json",
         "docs/qa/merge-patch-open-2026-10-14.json",
+        "docs/qa/merge-tool-entry-2026-10-18.json",
         "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
     },

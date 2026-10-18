@@ -77,6 +77,30 @@ import UniformTypeIdentifiers
         }
     }
     private var mergeOpener: MergeOpenWindowController?
+    private(set) var mergeToolLaunches: [UUID: MergeToolLaunchSession] = [:]
+    var configureMergeToolLaunch: (MergeToolLaunchSession) -> Void = { _ in }
+    func closeMergeToolLaunchesAfterApprovedQuit() { for session in Array(mergeToolLaunches.values) { session.closeAfterApprovedQuit() } }
+    @discardableResult func handleMergeToolCommandLine(arguments: [String], currentDirectory: String, completion: ((Int32) -> Void)? = nil) -> Bool {
+        do {
+            guard let invocation = try MergeToolInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) else { return false }
+            guard !retired, !confirmingQuit else { completion?(1); return true }
+            let id = UUID(), session = MergeToolLaunchSession(invocation: invocation, preferences: fileComparisonPreferences, owner: workspaceWindow, permissions: activeAccess.map { [$0] } ?? [])
+            configureMergeToolLaunch(session)
+            session.onError = { [weak self] message in
+                self?.error = message
+                if completion != nil { fputs("TurtleGitMerge: " + message + "\n", stderr) }
+            }
+            session.onFinished = { [weak self, weak session] status in
+                guard let self, let session, self.mergeToolLaunches[id] === session else { return }
+                self.mergeToolLaunches.removeValue(forKey: id); completion?(status)
+            }
+            mergeToolLaunches[id] = session; session.start(); return true
+        } catch {
+            self.error = error.localizedDescription
+            if completion != nil { fputs("TurtleGitMerge: " + error.localizedDescription + "\n", stderr) }
+            completion?(2); return true
+        }
+    }
     func showMergeOpen() {
         guard !busy, !confirmingQuit, workspaceWindow?.attachedSheet == nil else { return }
         if let mergeOpener { mergeOpener.window?.makeKeyAndOrderFront(nil); return }
@@ -321,7 +345,7 @@ import UniformTypeIdentifiers
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
     private var resolutionCommandPreparation: RepositoryWindowOwner?
     private var resolutionCommandFolderChoice: RepositoryCreationFolderChoice?
     private var silentResolveSessions = GitPathMap<FileListComparisonSession>()
@@ -365,7 +389,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -3460,6 +3484,7 @@ import UniformTypeIdentifiers
     }
     func handleCommandLine(arguments: [String], currentDirectory: String) {
         guard !confirmingQuit else { return }
+        if handleMergeToolCommandLine(arguments: arguments, currentDirectory: currentDirectory) { return }
         do {
             guard let invocation = try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) else { return }
             guard !busy, commandRepositoryBatchCancellation == nil else { error = "Wait for the current repository operation before opening a command."; return }

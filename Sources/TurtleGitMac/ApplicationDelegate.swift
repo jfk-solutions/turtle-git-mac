@@ -14,6 +14,8 @@ import AppKit
     var startupArguments = Array(CommandLine.arguments.dropFirst())
     var startupDirectory = FileManager.default.currentDirectoryPath
     var startupCommandHandler: ((RepositoryModel, [String], String) -> Void)?
+    var startupMergeToolExit: (Int32) -> Void = { exit($0) }
+    private var startupMergeToolActive = false
     private var startupReady = false
     private(set) var startupDelivered = false
     func startupDidFinishLaunching() { startupReady = true; deliverStartupCommand() }
@@ -21,7 +23,20 @@ import AppKit
         guard startupReady, !startupDelivered, let repositoryModel else { return }
         startupDelivered = true
         if let startupCommandHandler { startupCommandHandler(repositoryModel, startupArguments, startupDirectory) }
-        else { repositoryModel.handleCommandLine(arguments: startupArguments, currentDirectory: startupDirectory) }
+        else {
+          let mergeTool = repositoryModel.handleMergeToolCommandLine(arguments: startupArguments, currentDirectory: startupDirectory, completion: { [weak self, weak repositoryModel] status in
+            guard let self else { return }
+            Task {
+                self.startupMergeToolActive = false
+                repositoryModel?.stopMonitoringForTermination()
+                await repositoryModel?.finderWatches?.shutdown()
+                self.applicationWillTerminate(Notification(name: NSApplication.willTerminateNotification))
+                self.startupMergeToolExit(status)
+            }
+          })
+          startupMergeToolActive = mergeTool
+          if !mergeTool { repositoryModel.handleCommandLine(arguments: startupArguments, currentDirectory: startupDirectory) }
+        }
     }
     private var confirmingQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
@@ -29,7 +44,7 @@ import AppKit
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if RepositoryModel.activeCommandFileOperations > 0 || repositoryModel?.hasPendingRepositoryWork == true { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? RepositoryAccessWindowController }).contains(where:{ $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
-        if MergeSourceExport.activeExports > 0 || sender.windows.compactMap({ $0.delegate as? TextConflictWindowController }).contains(where: { $0.model.exportingSource }) { return .terminateCancel }
+        if MergeSourceExport.activeExports > 0 || sender.windows.compactMap({ $0.delegate as? TextConflictWindowController }).contains(where: { $0.model.sourceExporter.hasPendingWork }) { return .terminateCancel }
         if MergeEditorOpenWorkflow.activeSaves > 0 || sender.windows.contains(where: { ($0.delegate as? FileComparisonWindowController)?.editorOpenWorkflow != nil || ($0.delegate as? FileComparisonWindowController)?.preparingReplacement == true || ($0.delegate as? TextConflictWindowController)?.editorOpenWorkflow != nil || ($0.delegate as? TextConflictWindowController)?.preparingReplacement == true || ($0.delegate as? WorkingTreePatchWindowController)?.preparingReplacement == true }) { return .terminateCancel }
         if RevertWindowModel.activeOperations > 0 || sender.windows.compactMap({$0.delegate as? RevertWindowController}).contains(where:{$0.model.hasChild || $0.model.commands.busy || $0.window?.attachedSheet != nil}) { return .terminateCancel }
         if ImageComparisonViewModel.activeFileReads > 0 { return .terminateCancel }
@@ -293,6 +308,7 @@ import AppKit
             for controller in lfsLocks { controller.model.confirmingQuit = false }
             for controller in statuses { controller.model.confirmingQuit = false }
             for controller in logs { controller.model.confirmingQuit = false }
+            if allowQuit, startupMergeToolActive { repositoryModel?.closeMergeToolLaunchesAfterApprovedQuit(); return }
             if allowQuit { repositoryModel?.stopMonitoringForTermination();await repositoryModel?.finderWatches?.shutdown() }
             confirmingQuit = false
             replyToTermination(sender, allowQuit)
@@ -300,6 +316,9 @@ import AppKit
         return .terminateLater
     }
     private func finishBackgroundWatches(_ sender:NSApplication) -> NSApplication.TerminateReply {
+        if startupMergeToolActive {
+            confirmingQuit = true; repositoryModel?.closeMergeToolLaunchesAfterApprovedQuit(); return .terminateLater
+        }
         repositoryModel?.stopMonitoringForTermination()
         guard let manager=repositoryModel?.finderWatches else { return .terminateNow }
         let pending=manager.pendingOperations+(manager.backgroundService?.busy == true ? 1 : 0);manager.retire()

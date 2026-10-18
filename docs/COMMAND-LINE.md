@@ -1031,3 +1031,17 @@ cancels pending preparation; changing workspace preferences during a permission
 callback does not retarget the command or its Submodule Diff child Log/Compare.
 This extends the existing dialogs; it does not certify all upstream visual parity,
 physical Finder integration or a signed/App Store distribution.
+
+
+## Standalone Merge-tool entry
+
+The same app executable accepts `--merge-tool` and source Merge arguments such as
+`/base:… /mine:…`, independently of `/command:…` repository dispatch. Run it
+through the waiting [wrapper](../scripts/turtlegit-merge) for Git difftool/mergetool;
+using `open --args` alone does not provide the waiting/result contract.
+[Setup and examples](MERGE-TOOL.md) cover separate merged output, names, readonly,
+initial line, missing-input empty panes, patch chooser/reverse entry and unified
+output. [Source review](MERGE-TOOL-ENTRY-PARITY.md) records the exact accepted
+arguments, remaining Blame/reflected-header/Windows protocol gaps, and completion
+and cleanup adaptations. Native labels and reflected names never replace the
+file paths or grant filesystem access.
