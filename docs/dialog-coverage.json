@@ -2256,6 +2256,7 @@
       "native_sources": [],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/BISECT-OPERATION-PARITY.md",
         "docs/MERGE-PARITY.md",
         "docs/PROGRESS-PARITY.md",
         "docs/SUBMODULE-ADD-RECOVERY-PARITY.md",
@@ -2290,6 +2291,7 @@
         "docs/qa/reset-progress-2026-10-08.json",
         "docs/qa/stash-submodule-workflows-2026-10-18.json",
         "docs/qa/switch-progress-2026-10-08.json",
+        "docs/qa/switch-reset-bisect-workflows-2026-10-18.json",
         "docs/qa/transport-presentation-2026-10-15.json"
       ]
     },
@@ -2476,6 +2478,7 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/HELP-PARITY.md",
+        "docs/SWITCH-OPERATION-PARITY.md",
         "docs/SWITCH-PARITY.md",
         "docs/UI-PARITY.md"
       ],
@@ -2490,6 +2493,7 @@
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/switch-pickers-2026-10-09.json",
         "docs/qa/switch-progress-2026-10-08.json",
+        "docs/qa/switch-reset-bisect-workflows-2026-10-18.json",
         "docs/qa/switch-source-family-2026-10-17.json",
         "docs/qa/temporary-files-2026-10-08.json",
         "docs/qa/unified-byte-buffer-2026-10-17.json"
@@ -2807,6 +2811,7 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/RESET-OPERATION-PARITY.md",
         "docs/RESET-PARITY.md",
         "docs/UI-PARITY.md"
       ],
@@ -2820,6 +2825,7 @@
         "docs/qa/reset-picker-2026-10-09.json",
         "docs/qa/reset-progress-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/switch-reset-bisect-workflows-2026-10-18.json",
         "docs/qa/temporary-files-2026-10-08.json"
       ]
     },
@@ -3409,13 +3415,15 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/BISECT-OPERATION-PARITY.md",
         "docs/BISECT-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/bisect-commands-2026-10-18.json",
         "docs/qa/bisect-lifecycle-2026-10-13.json",
         "docs/qa/bisect-progress-2026-10-14.json",
-        "docs/qa/reflog-native-batch-2026-10-15.json"
+        "docs/qa/reflog-native-batch-2026-10-15.json",
+        "docs/qa/switch-reset-bisect-workflows-2026-10-18.json"
       ]
     },
     {

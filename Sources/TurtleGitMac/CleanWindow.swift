@@ -16,6 +16,7 @@ struct CleanDialogRequest {
     func retire() { retired = true; close = {}; onAccepted = { _ in } }
     let repository: GitRepository
     private let defaults: UserDefaults
+    var presentationPreferences: UserDefaults { defaults }
     private let typeKey: String
     private let directoryKey: String
     private var paths: [String] = []

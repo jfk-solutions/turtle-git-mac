@@ -29,12 +29,20 @@ import TurtleGitCore
         let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
         let tracked = ["mixed", "staged", "unstaged", "added", unusual, "committed-only", "untracked"]
         let bytes = try tracked.map { try Data(contentsOf: root.appendingPathComponent($0)) }
-        let owner = ResetWindowController(repository: repo, access: nil, revision: earlier)
+        let suite="TurtleGit.ResetModifiedFiles.QA."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
+        defer {prefs.removePersistentDomain(forName:suite)}
+        let owner = ResetWindowController(repository: repo, access: nil, revision: earlier, preferences:prefs)
+        owner.window?.alphaValue=0
         defer { owner.close() }
+        func cleanup() async throws {
+            owner.close()
+            try await wait {RevisionComparisonWindowModel.activeFileOperations == 0 && ResetWindowModel.activeReads == 0 && SwitchWindowModel.activeReads == 0 && ResetWindowController.activeChildReleases == 0 && owner.modifiedComparison == nil && owner.window?.attachedSheet == nil && owner.window?.isVisible != true}
+        }
+        do {
         owner.model.load(); try await wait { !owner.model.busy && !owner.model.chooser.busy }
         try require(owner.model.chooser.revision == earlier, "Reset revision preset changed")
         let delegate = TurtleGitApplicationDelegate()
-        var presentations = 0, configured = 0, logs = 0, fileLogs: [String] = []
+        var presentations = 0, configured = 0, logs = 0, ranges:[HistoryRevisionRange]=[], fileLogs: [String] = []
         owner.presentModifiedComparison = { [weak owner] parent, child in
             presentations += 1
             parent.makeFirstResponder(nil)
@@ -43,6 +51,7 @@ import TurtleGitCore
         owner.configureModifiedComparison = { model in
             configured += 1
             model.onLog = { hash in if hash == nil { logs += 1 } }
+            model.onLogRange = { ranges.append($0) }
             model.onFileLog = { path, hash in if hash == nil { fileLogs.append(path) } }
         }
         owner.model.showModifiedFiles()
@@ -58,7 +67,8 @@ import TurtleGitCore
         let plan = try await repo.prepareReset(to: earlier, mode: .mixed); owner.model.apply(plan)
         try require(presentations == 1 && configured == 1 && owner.model.progress == nil && !owner.model.busy, "Duplicate preview or Reset escaped modal gate")
         try require(owner.model.chooser.revision == earlier, "Preview replaced selected Reset revision")
-        first.model.log(); first.model.logFiles([unusual]); try require(logs == 1 && fileLogs == [unusual], "Comparison interactions not configured")
+        first.model.log(); first.model.logFiles([unusual])
+        try require(logs == 0 && ranges == [HistoryRevisionRange(from:head,to:"HEAD")] && fileLogs == [unusual], "Comparison interactions not configured: single-revision=\(logs), ranges=\(ranges), fileLogs=\(fileLogs)")
         let staleClose = first.onClosed
         first.close()
         try require(owner.modifiedComparison == nil && !owner.model.showingModifiedFiles, "Child close did not release parent")
@@ -87,6 +97,12 @@ import TurtleGitCore
         try require(afterHead == head && afterTree == tree && config == Data(contentsOf: root.appendingPathComponent(".git/config")), "Preview changed HEAD, staged tree or config")
         for (index, name) in tracked.enumerated() { try require(bytes[index] == Data(contentsOf: root.appendingPathComponent(name)), "Preview changed working bytes") }
         try require(!FileManager.default.fileExists(atPath: root.appendingPathComponent("deleted").path), "Preview restored deleted file")
+        try await cleanup()
         print("PASS: Reset-owned HEAD/working-tree preview; staged/unstaged/add/delete/Unicode paths, untracked and earlier-only exclusions; parent reset/apply/close/Quit and duplicate gates; Log/file callbacks; close/reopen/stale/failure/bare/busy/forced-close cleanup; unchanged HEAD/staged tree/config/working bytes. Presenter injected; no windows displayed or main app launched.")
+        } catch {
+            let original=error
+            do {try await cleanup()} catch {throw Failure(description:"\(original); cleanup: \(error)")}
+            throw original
+        }
     }
 }

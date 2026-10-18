@@ -55,7 +55,9 @@ import TurtleGitCore
         let quoted = "'" + git.path.replacingOccurrences(of:"'",with:"'\\''") + "'"
         let script = """
         #!/bin/sh
-        if [ "${4-}" = reset ] && [ ! -f "$0.release" ]; then
+        task_reset=
+        for task_argument do if [ "$task_argument" = reset ]; then task_reset=1; fi; done
+        if [ -n "$task_reset" ] && [ ! -f "$0.release" ]; then
           /bin/sleep 30 &
           task_child=$!
           trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT

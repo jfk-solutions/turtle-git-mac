@@ -16,7 +16,7 @@ import TurtleGitCore
         _ = try await repo.run(["config", "user.name", "Switch QA"]); _ = try await repo.run(["config", "user.email", "qa@example.invalid"])
         _ = try await repo.run(["config", "commit.gpgsign", "false"]); _ = try await repo.run(["config", "core.hooksPath", "/dev/null"])
         for n in 0..<3 { try Data("commit \(n)\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "commit \(n)") }
-        let model = ReferenceLogWindowModel(repository: repo, access: nil, reference: "HEAD")
+        let model = ReferenceLogWindowModel(repository: repo, access: nil, reference: "HEAD",preferences:prefs)
         model.reload(); try await wait { model.busy }; precondition(model.error == nil)
         let current = model.entries[0], older = model.entries[1]
         _ = try await repo.run(["branch", "same", current.hash]); _ = try await repo.run(["branch", "topic", older.hash])
@@ -32,7 +32,7 @@ import TurtleGitCore
         for ids: Set<String> in [[], ["invalid"], [older.id, current.id]] { precondition(model.switchBranches(ids).isEmpty); model.switchBranch("refs/heads/topic", ids: ids) }
         model.switchBranch("refs/heads/main", ids: [current.id]); model.switchBranch("refs/remotes/remote/topic", ids: [older.id])
         model.busy = true; model.switchBranch("refs/heads/topic", ids: [older.id]); model.busy = false; precondition(dispatches.count == 1)
-        let chooser = ReferenceLogWindowModel(repository: repo, access: nil, reference: "HEAD", selecting: true)
+        let chooser = ReferenceLogWindowModel(repository: repo, access: nil, reference: "HEAD", selecting: true,preferences:prefs)
         chooser.reload(); try await wait { chooser.busy }; precondition(chooser.switchBranches([older.id]).isEmpty)
         let progress = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/same", preferences: prefs)
         var completed: [Bool] = [], post: [SwitchPostAction] = [], mergeBranch = "", closes = 0

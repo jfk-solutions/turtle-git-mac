@@ -352,8 +352,12 @@ Standalone Git comparison/merge entry is available through the waiting
 [Git difftool/mergetool setup](docs/MERGE-TOOL.md) for native file comparison,
 separate merged output, source arguments and sandbox authorization.
 
-The latest connected workflow batch covers [Stash preparation and completion](docs/STASH-OPERATION-PARITY.md),
+Connected workflow audits cover [Stash preparation and completion](docs/STASH-OPERATION-PARITY.md),
 [Submodule Add recovery](docs/SUBMODULE-ADD-RECOVERY-PARITY.md), and
 [Submodule Update/Sync partial results](docs/SUBMODULE-UPDATE-RECOVERY-PARITY.md).
 These are partial source-family audits; remaining physical, visual and signed
 acceptance is tracked alongside each workflow.
+
+[Switch](docs/SWITCH-OPERATION-PARITY.md), [Reset](docs/RESET-OPERATION-PARITY.md)
+and [Bisect](docs/BISECT-OPERATION-PARITY.md) also retain explicit source mappings,
+operation/recovery behavior and remaining acceptance records.

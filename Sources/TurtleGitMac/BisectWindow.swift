@@ -11,10 +11,14 @@ import TurtleGitCore
     private var stashReply: ((Bool) -> Void)?
     private var retired = false
     private var pickerRequest: UUID?
+    private var pendingSubmodule: (() -> Void)?
+    private var parent:NSWindow?
+    private var release:BisectOwnerRelease?
+    static var activeChildReleases:Int {BisectOwnerRelease.activeCount}
     var makePicker: (GitRepository, RepositoryAccessLease?, String?, UserDefaults, @escaping (LogEntry?) -> Void) -> LogWindowController = { repository, access, revision, preferences, choose in
         LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences, initialRevision: revision)
     }
-    var presentPicker: (NSWindow, NSWindow) -> Bool = { parent, child in parent.beginSheet(child); return true }
+    var presentPicker: (NSWindow, NSWindow) -> Bool = { parent, child in child.alphaValue=parent.alphaValue;child.appearance=parent.appearance;parent.beginSheet(child); return true }
     var activeOperation: Bool { model.busy || model.hasPicker || model.confirmingCancellation || window?.attachedSheet != nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, command: BisectCommandRequest? = nil, preferences: UserDefaults = .standard) {
         model = BisectWindowModel(repository: repository, access: access, preferences: preferences)
@@ -23,7 +27,12 @@ import TurtleGitCore
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 620, height: 180)
         window.contentViewController = NSHostingController(rootView: BisectDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self; window.center()
-        model.close = { [weak window] in window?.performClose(nil) }
+        model.close = { [weak window,weak model] in guard model?.confirmingQuit == false else{return};window?.performClose(nil) }
+        model.presentationAvailable = { [weak window] in window != nil && window?.attachedSheet == nil }
+        model.closeForSubmoduleHandoff = { [weak self] action in
+            guard let self,!self.retired,self.pendingSubmodule == nil,!self.model.activeReview else{return}
+            self.pendingSubmodule=action;self.parent=self.window?.sheetParent;self.window?.close()
+        }
         model.onProgress = { [weak window] in
             guard let window else { return }; RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Bisect", preferences: preferences)
             if window.contentLayoutRect.height < 440 { window.setContentSize(NSSize(width: max(660, window.contentLayoutRect.width), height: 440)) }
@@ -37,6 +46,7 @@ import TurtleGitCore
             guard let window, window.attachedSheet == nil else { reply(false); return }
             let alert=NSAlert();alert.messageText="The process is still running.";alert.informativeText="Are you sure to abort?"
             alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No")
+            alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
             alert.beginSheetModal(for:window) { reply($0 == .alertFirstButtonReturn) }
         }
         model.confirmStash = { [weak self, weak window] in
@@ -47,6 +57,7 @@ import TurtleGitCore
             self.stashAlert = alert
             return await withCheckedContinuation { continuation in
                 self.stashReply = { continuation.resume(returning: $0) }
+                alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
                 alert.beginSheetModal(for: window) { [weak self] response in
                     guard let self, self.stashAlert === alert else { return }
                     self.finishStash(response == .alertSecondButtonReturn && !self.retired)
@@ -61,13 +72,16 @@ import TurtleGitCore
         guard !retired, model.canPickRevision, picker == nil, let window, window.attachedSheet == nil else { return }
         let request=UUID(), revision=good ? model.good : model.bad
         pickerRequest=request; model.hasPicker=true
+        let context=model.formContext
         let child=makePicker(model.repository,model.access,revision.isEmpty ? nil : revision,model.preferences) { [weak self] entry in
             guard let self, !self.retired, self.pickerRequest == request else { return }
+            let accepted=self.model.formContext == context
             self.pickerRequest=nil;self.picker=nil;self.model.hasPicker=false
-            guard self.model.canPickRevision, (good ? self.model.good : self.model.bad) == revision else { return }
+            guard accepted,self.model.canPickRevision, (good ? self.model.good : self.model.bad) == revision else { return }
             if let entry { if good { self.model.good=entry.hash } else { self.model.bad=entry.hash } }
         }
         picker=child
+        child.window?.alphaValue=window.alphaValue;child.window?.appearance=window.appearance
         guard let childWindow=child.window, presentPicker(window,childWindow) else {
             pickerRequest=nil;picker=nil;model.hasPicker=false;child.close();return
         }
@@ -77,26 +91,47 @@ import TurtleGitCore
         if let alert = stashAlert { stashAlert = nil; if let parent = alert.window.sheetParent { parent.endSheet(alert.window) }; alert.window.orderOut(nil) }
         reply?(accepted)
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !activeOperation }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.confirmingQuit else{return false};if model.busy { model.cancel(); return false }; return !activeOperation }
     func windowWillClose(_ notification: Notification) {
         guard !retired else { return }; retired = true; model.saveActionLog(); model.retire(); finishStash(false); pickerRequest=nil
         if let window, let sheet=window.attachedSheet { window.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil) }
         if let child = picker?.window, child.sheetParent === window { window?.endSheet(child) }
-        picker?.close(); picker = nil; model.hasPicker = false; onClosed()
+        picker?.close(); picker = nil; model.hasPicker = false
+        let action=pendingSubmodule;pendingSubmodule=nil
+        guard let window else{onClosed();return}
+        let release=BisectOwnerRelease(window:window,parent:parent ?? window.sheetParent) {[self] in self.release=nil;onClosed();action?()}
+        self.release=release;release.start()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
+enum BisectPostAction: Hashable {
+    case submoduleUpdate, operation(BisectOperation)
+}
 @MainActor final class BisectWindowModel: ObservableObject {
+    struct FormContext:Equatable {let owner:ObjectIdentifier;let revision:UUID}
+    @Published private(set) var formRevision=UUID()
+    var formContext:FormContext {.init(owner:ObjectIdentifier(self),revision:formRevision)}
+    @Published var confirmingQuit=false {didSet {if oldValue != confirmingQuit {formRevision=UUID()}}}
+    @Published private(set) var completionRange:NSRange?
+    private var startedAt:TimeInterval=0
+    private var submoduleDispatched=false
+    var activeReview:Bool {busy || hasPicker || confirmingCancellation || confirmingQuit}
+    var presentationAvailable:()->Bool = {true}
+    var closeForSubmoduleHandoff:((@escaping ()->Void)->Void)?
+    func revision(_ key:ReferenceWritableKeyPath<BisectWindowModel,String>,context:FormContext)->Binding<String> {
+        Binding(get:{self[keyPath:key]},set:{value in guard self.canPickRevision,self.formContext == context else{return};self[keyPath:key]=value})
+    }
+    func pickRevision(good:Bool,context:FormContext) {guard canPickRevision,formContext == context else{return};chooseRevision(good)}
     let progressPresentation: GitCommandPresentation
     private(set) static var activeOperations = 0
     private(set) var retired = false
     private var token: OperationCancellation?
     @Published private(set) var cancelling = false
-    @Published var hasPicker = false
+    @Published var hasPicker = false {didSet {if oldValue != hasPicker {formRevision=UUID()}}}
     var cancelPrompt: () -> Void = {}
     @Published private(set) var confirmingCancellation = false
-    @Published private(set) var showingProgress = false
+    @Published private(set) var showingProgress = false {didSet {if oldValue != showingProgress {formRevision=UUID()}}}
     private(set) var hasStartReview = false
     @Published private(set) var currentWork = ""
     @Published private(set) var percentage: Int?
@@ -104,8 +139,8 @@ import TurtleGitCore
     private var awaitingStash = false
     private var autoClosePolicy: GitProgressAutoClose?
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
-    var canCancel: Bool { !retired && busy && !cancelling && !confirmingCancellation }
-    var canPickRevision: Bool { !retired && !showingProgress && !hasPicker && !busy && !confirmingCancellation && state?.active == false }
+    var canCancel: Bool { !retired && !confirmingQuit && busy && !cancelling && !confirmingCancellation }
+    var canPickRevision: Bool { !retired && !confirmingQuit && !showingProgress && !hasPicker && !busy && !confirmingCancellation && state?.active == false }
     func cancel() {
         guard canCancel, let captured=token else { return }
         if showingProgress && !awaitingStash && preferences.bool(forKey:"ConfirmKillProcess") {
@@ -117,19 +152,26 @@ import TurtleGitCore
             }
         } else { cancelling=true;captured.cancel();cancelPrompt() }
     }
-    func retire() { guard !retired else { return }; retired=true;token?.cancel();cancelPrompt();confirmingCancellation=false;logObservers.removeAll() }
+    func retire() { guard !retired else { return }; retired=true;formRevision=UUID();token?.cancel();cancelPrompt();confirmingCancellation=false;logObservers.removeAll() }
     private func begin(progress: Bool = false) -> OperationCancellation {
-        let value=OperationCancellation();token=value;busy=true;cancelling=false;error=nil;Self.activeOperations += 1
+        let value=OperationCancellation();token=value;busy=true;formRevision=UUID();cancelling=false;error=nil;Self.activeOperations += 1
         if progress {
             ProgressActionLog.nextAttempt(self, savePrevious: showingProgress)
-            showingProgress=true;output="";lastExitCode=nil;cancelled=false;currentWork="";percentage=nil
+            showingProgress=true;output="";lastExitCode=nil;cancelled=false;currentWork="";percentage=nil;completionRange=nil;startedAt=ProcessInfo.processInfo.systemUptime;submoduleDispatched=false
             autoClosePolicy=GitProgressAutoClose(preferences:preferences);onProgress()
         }
         return value
     }
-    private func finish() { token=nil;busy=false;cancelling=false;currentWork="";percentage=nil;Self.activeOperations -= 1;withExtendedLifetime(access) {};finishAutomaticClose() }
+    private func finish() {
+        token=nil;busy=false;cancelling=false;formRevision=UUID()
+        if !retired,showingProgress,lastExitCode != nil {
+            let completion=SubmoduleProgressCompletion(success:lastExitCode == 0 && !cancelled,cancelled:cancelled,exitCode:lastExitCode,elapsed:ProcessInfo.processInfo.systemUptime-startedAt,preferences:preferences)
+            currentWork=completion.currentWork;percentage=100;completionRange=completion.append(to:&output)
+        } else if !retired {currentWork="";percentage=nil}
+        Self.activeOperations -= 1;withExtendedLifetime(access) {};finishAutomaticClose()
+    }
     private func finishAutomaticClose() {
-        guard !retired, !busy, showingProgress, !confirmingCancellation, !awaitingStash, !cancelled, error == nil, lastExitCode == 0 else { return }
+        guard !retired, !confirmingQuit, !busy, showingProgress, !confirmingCancellation, !awaitingStash, !cancelled, error == nil, lastExitCode == 0 else { return }
         let count=(state?.active == true ? 4 : 0) + (hasSubmodules ? 1 : 0)
         if autoClosePolicy?.shouldClose(success:true,postActionCount:count) == true { saveActionLog();close() }
     }
@@ -150,7 +192,7 @@ import TurtleGitCore
     @Published var bad = ""
     @Published var choices: [String] = []
     @Published var state: BisectState?
-    @Published var busy = false
+    @Published var busy = false {didSet {if oldValue != busy {formRevision=UUID()}}}
     @Published var error: String?
     @Published var output = ""
     @Published var lastExitCode: Int32?
@@ -161,6 +203,8 @@ import TurtleGitCore
     var chooseRevision: (Bool) -> Void = { _ in }
     var confirmStash: () async -> Bool = { false }
     var onChanged: (String) -> Void = { _ in }
+    var onAttemptCompleted:(BisectMutationResult)->Void = {_ in}
+    private func mutation(_ result:BisectMutationResult) {if result.attempted {onAttemptCompleted(result)}}
     private final class LogObserver {
         weak var model: LogWindowModel?
         init(_ model: LogWindowModel) { self.model = model }
@@ -177,10 +221,24 @@ import TurtleGitCore
         for observer in logObservers { observer.model?.requestRepositoryRefresh() }
     }
     var onSubmoduleUpdate: (() -> Void)?
-    var canUpdateSubmodules: Bool { !retired && !hasPicker && !busy && !confirmingCancellation && hasSubmodules && lastExitCode == 0 && onSubmoduleUpdate != nil }
-    func updateSubmodules() { guard canUpdateSubmodules else { return }; onSubmoduleUpdate?() }
-    var canStart: Bool { !retired && !showingProgress && !hasPicker && !busy && !confirmingCancellation && state?.active == false && !good.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !bad.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-    func canPerform(_ operation: BisectOperation) -> Bool { !retired && !hasPicker && !busy && !confirmingCancellation && state?.active == true && (operation == .reset || lastExitCode == nil || lastExitCode == 0) }
+    var canUpdateSubmodules: Bool { !retired && !confirmingQuit && !submoduleDispatched && presentationAvailable() && !hasPicker && !busy && !confirmingCancellation && hasSubmodules && lastExitCode == 0 && onSubmoduleUpdate != nil }
+    func updateSubmodules(context:FormContext? = nil) {
+        guard context == nil || context == formContext,canUpdateSubmodules,let action=onSubmoduleUpdate else{return}
+        submoduleDispatched=true
+        if let closeForSubmoduleHandoff {closeForSubmoduleHandoff(action)} else {close();action()}
+    }
+    var postActions:[BisectPostAction] {
+        guard !retired,!busy,showingProgress else{return []}
+        return (hasSubmodules && lastExitCode == 0 && onSubmoduleUpdate != nil ? [.submoduleUpdate]:[]) + postOperations.map {.operation($0)}
+    }
+    func title(_ action:BisectPostAction)->String {switch action {case .submoduleUpdate:return "Submodule Update…";case .operation(let operation):return title(operation)}}
+    func icon(_ action:BisectPostAction)->MenuIcon {switch action {case .submoduleUpdate:return .fetch;case .operation(let operation):return operation.icon}}
+    func perform(_ action:BisectPostAction,context:FormContext) {
+        guard formContext == context,postActions.contains(action) else{return}
+        switch action {case .submoduleUpdate:updateSubmodules(context:context);case .operation(let operation):perform(operation)}
+    }
+    var canStart: Bool { !retired && !confirmingQuit && !showingProgress && !hasPicker && !busy && !confirmingCancellation && state?.active == false && !good.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !bad.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    func canPerform(_ operation: BisectOperation) -> Bool { !retired && !confirmingQuit && !hasPicker && !busy && !confirmingCancellation && state?.active == true && (operation == .reset || lastExitCode == nil || lastExitCode == 0) }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences) }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -189,7 +247,7 @@ import TurtleGitCore
         if retired || token.isCancelled { throw OperationCancellationFailure.cancelled }
     }
     func load(good presetGood: String? = nil, bad presetBad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, command: BisectCommandRequest? = nil, preserveStartDraft: Bool = false) {
-        guard !retired, !hasPicker, !busy else { return }; let token = begin()
+        guard !retired,!confirmingQuit, !hasPicker, !busy else { return }; let token = begin()
         Task {
             var selectedOperation = operation, selectedRevisions = revisions
             do {
@@ -230,8 +288,8 @@ import TurtleGitCore
             if !retired, !token.isCancelled, error == nil, let selectedOperation { perform(selectedOperation, revisions: selectedRevisions) }
         }
     }
-    func start() {
-        guard canStart else { return }
+    func start(context:FormContext? = nil) {
+        guard context == nil || context == formContext,canStart else { return }
         func normalized(_ value:String) -> String { let trimmed=value.trimmingCharacters(in:.whitespacesAndNewlines);return trimmed.hasPrefix("remotes/") ? String(trimmed.dropFirst(8)) : trimmed }
         let good=normalized(self.good),bad=normalized(self.bad)
         let token=begin(progress:true)
@@ -239,17 +297,17 @@ import TurtleGitCore
             defer { finish() }
             do {
                 try validateAccess()
-                let result: BisectExecution
-                do { result=try await stream(token:token,resultText: { $0.output }) { [repository] emit in try await repository.startBisect(good:good,bad:bad,cancellation:token,onOutput:emit) } }
+                let result:BisectWorkflowExecution
+                do { result=try await stream(token:token,resultText:{$0.execution.output}) {[repository] emit in try await repository.startBisectWorkflow(good:good,bad:bad,cancellation:token,onOutput:emit)} }
                 catch BisectFailure.dirty {
                     awaitingStash=true;let accepted=await confirmStash();awaitingStash=false
                     guard accepted else { if !retired && !token.isCancelled { showingProgress=false;onOptions() };return }
                     try requireLive(token); try validateAccess()
-                    let stash=try await stream(token:token,resultText: { $0.output }) { [repository] emit in try await repository.stashBeforeBisect(cancellation:token,onOutput:emit) }
-                    try requireLive(token);changed(stash.output)
-                    result=try await stream(token:token,resultText: { $0.output }) { [repository] emit in try await repository.startBisect(good:good,bad:bad,cancellation:token,onOutput:emit) }
+                    let stash=try await stream(token:token,resultText:{$0.stash.output}) {[repository] emit in try await repository.stashBeforeBisectWorkflow(cancellation:token,onOutput:emit)}
+                    mutation(stash.mutation);try requireLive(token);changed(stash.stash.output)
+                    result=try await stream(token:token,resultText:{$0.execution.output}) {[repository] emit in try await repository.startBisectWorkflow(good:good,bad:bad,cancellation:token,onOutput:emit)}
                 }
-                try await accept(result, token: token)
+                mutation(result.mutation);try await accept(result.execution, token: token)
             } catch { await recover(error) }
         }
     }
@@ -259,8 +317,8 @@ import TurtleGitCore
             defer { finish() }
             do {
                 try validateAccess()
-                let result=try await stream(token:token,resultText: { $0.output }) { [repository] emit in try await repository.bisect(operation,revisions:revisions,cancellation:token,onOutput:emit) }
-                try await accept(result,token:token)
+                let result=try await stream(token:token,resultText:{$0.execution.output}) {[repository] emit in try await repository.bisectWorkflow(operation,revisions:revisions,cancellation:token,onOutput:emit)}
+                mutation(result.mutation);try await accept(result.execution,token:token)
             }
             catch { await recover(error) }
         }
@@ -273,7 +331,9 @@ import TurtleGitCore
         onProgress(); changed(result.output)
         if result.exitCode != 0 { error = result.output.isEmpty ? "Bisect failed (\(result.exitCode))." : result.output }
     }
-    private func recover(_ failure: Error) async {
+    private func recover(_ reported:Error) async {
+        let failure:Error
+        if let partial=reported as? BisectMutationFailure {mutation(partial.mutation);failure=partial.underlying} else {failure=reported}
         guard !retired else { return }
         // Cancellation can leave Git's session active. Read its actual state with
         // a fresh owned token so Reset remains available; never undo it implicitly.
@@ -289,7 +349,7 @@ import TurtleGitCore
         changed(failure.localizedDescription)
     }
     func returnToOptions() {
-        guard !retired, !busy, !hasPicker, !confirmingCancellation, state?.active == false else { return };saveActionLog();showingProgress=false;onOptions()
+        guard !retired,!confirmingQuit, !busy, !hasPicker, !confirmingCancellation, state?.active == false else { return };saveActionLog();formRevision=UUID();showingProgress=false;onOptions()
     }
     var postOperations: [BisectOperation] {
         guard !busy, state?.active == true else { return [] }
@@ -303,27 +363,28 @@ import TurtleGitCore
 private struct BisectDialog: View {
     @ObservedObject var model: BisectWindowModel
     var body: some View {
+        let context=model.formContext
         VStack(alignment: .leading, spacing: 12) {
             if !model.showingProgress { VStack(spacing: 10) {
-                HStack { Text("Last known good:").frame(width: 135, alignment: .leading); BisectCombo(value: $model.good, choices: model.choices, label: "Last known good"); Button { model.chooseRevision(true) } label: { CommandLabel(title:"…",icon:.log) }.accessibilityLabel("Choose last known good commit") }
-                HStack { Text("First known bad:").frame(width: 135, alignment: .leading); BisectCombo(value: $model.bad, choices: model.choices, label: "First known bad"); Button { model.chooseRevision(false) } label: { CommandLabel(title:"…",icon:.log) }.accessibilityLabel("Choose first known bad commit") }
+                HStack { Text("Last known good:").frame(width: 135, alignment: .leading); BisectCombo(value: model.revision(\.good,context:context), choices: model.choices, label: "Last known good"); Button { model.pickRevision(good:true,context:context) } label: { CommandLabel(title:"…",icon:.log) }.accessibilityLabel("Choose last known good commit") }
+                HStack { Text("First known bad:").frame(width: 135, alignment: .leading); BisectCombo(value: model.revision(\.bad,context:context), choices: model.choices, label: "First known bad"); Button { model.pickRevision(good:false,context:context) } label: { CommandLabel(title:"…",icon:.log) }.accessibilityLabel("Choose first known bad commit") }
             }.disabled(!model.canPickRevision) }
             if model.showingProgress {
                 if let hash = model.state?.firstBadCommit { Text("First \(model.state?.badTerm ?? "bad") commit: \(hash)").foregroundStyle(.green).textSelection(.enabled) }
                 else if model.state?.active == true { Text("Testing: \(model.state?.head ?? "")").foregroundStyle(.blue).textSelection(.enabled) }
-                SubmoduleProgressOutputView(text:model.output,completed:!model.busy,success:model.lastExitCode == 0,preferences:model.preferences).frame(minHeight:160)
-                if model.hasSubmodules, model.lastExitCode == 0, !model.busy, model.onSubmoduleUpdate != nil { Button { model.updateSubmodules() } label: { CommandLabel(title: "Submodule Update…", icon: .fetch) }.disabled(!model.canUpdateSubmodules) }
-                HStack {
-                    ForEach(model.postOperations, id: \.rawValue) { operation in
-                        Button { model.perform(operation) } label: { CommandLabel(title: model.title(operation), icon: operation.icon) }.disabled(!model.canPerform(operation))
-                    }
-                }
+                SubmoduleProgressOutputView(text:model.output,completed:!model.busy,completionRange:model.completionRange,success:model.lastExitCode == 0,preferences:model.preferences).frame(minHeight:160)
 
             }
-            HStack { if model.busy { LocalGitProgressIndicator(percentage: model.percentage, animate: model.progressPresentation.animateActivity);Text(model.currentWork).font(.caption) }; Spacer()
-                if !model.showingProgress { Button("OK") { model.start() }.keyboardShortcut(.defaultAction).disabled(!model.canStart) }
-                if model.showingProgress && model.state?.active == false && model.lastExitCode != 0 { Button("Back") { model.returnToOptions() }.disabled(model.busy || model.hasPicker || model.confirmingCancellation) }
-                Button(model.busy ? (model.cancelling ? "Cancelling…" : "Cancel") : model.output.isEmpty ? "Cancel" : "Close") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction).disabled(model.cancelling || model.hasPicker || model.confirmingCancellation)
+            HStack { if model.busy || model.showingProgress { LocalGitProgressIndicator(percentage: model.percentage, animate: model.busy && model.progressPresentation.animateActivity);Text(model.currentWork).font(.caption) }; Spacer()
+                if !model.showingProgress { Button("OK") { model.start(context:context) }.keyboardShortcut(.defaultAction).disabled(!model.canStart) }
+                if let first=model.postActions.first {
+                    HStack(spacing:1) {
+                        Button {model.perform(first,context:context)} label:{CommandLabel(title:model.title(first),icon:model.icon(first),localized:false)}
+                        Menu {ForEach(model.postActions,id:\.self) {action in Button {model.perform(action,context:context)} label:{CommandLabel(title:model.title(action),icon:model.icon(action),localized:false)}}} label:{Image(systemName:"chevron.down").accessibilityLabel("Bisect post-actions")}.menuStyle(.borderlessButton).fixedSize()
+                    }.disabled(model.activeReview)
+                }
+                if model.showingProgress && model.state?.active == false && model.lastExitCode != 0 { Button("Back") { model.returnToOptions() }.disabled(model.activeReview) }
+                Button(model.busy ? (model.cancelling ? "Cancelling…" : "Cancel") : model.output.isEmpty ? "Cancel" : "Close") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction).disabled(model.confirmingQuit || model.cancelling || model.hasPicker || model.confirmingCancellation)
                 Button("Help") { TurtleGitHelp.show(.bisect) }
             }
         }.padding(16)
@@ -355,4 +416,24 @@ private struct BisectCombo: NSViewRepresentable {
 }
 extension BisectOperation {
     var icon: MenuIcon { switch self { case .good: return .bisectGood; case .bad: return .bisectBad; case .skip: return .bisect; case .reset: return .bisectReset } }
+}
+
+@MainActor private final class BisectOwnerRelease {
+    static private(set) var activeCount=0
+    private let window:NSWindow,parent:NSWindow?
+    private var completion:()->Void
+    private var observer:NSObjectProtocol?
+    private var finished=false
+    init(window:NSWindow,parent:NSWindow?,completion:@escaping ()->Void) {self.window=window;self.parent=parent;self.completion=completion}
+    func start() {
+        Self.activeCount += 1
+        if window.sheetParent == nil && parent?.attachedSheet !== window {drain();return}
+        observer=NotificationCenter.default.addObserver(forName:NSWindow.didEndSheetNotification,object:parent,queue:.main) {[self] _ in DispatchQueue.main.async {self.drain()}}
+        window.sheetParent?.endSheet(window);window.orderOut(nil);DispatchQueue.main.async {[self] in drain()}
+    }
+    private func drain() {
+        guard !finished,window.sheetParent == nil,parent?.attachedSheet !== window else{return};finished=true
+        if let observer {NotificationCenter.default.removeObserver(observer);self.observer=nil}
+        Self.activeCount -= 1;let done=completion;completion={};done()
+    }
 }

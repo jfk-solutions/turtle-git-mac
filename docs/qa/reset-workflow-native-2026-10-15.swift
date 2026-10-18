@@ -109,7 +109,7 @@ import TurtleGitCore
         try require(try Data(contentsOf: root.appendingPathComponent(".git/index")) == originalIndex && String(contentsOf: file) == "working\n", "Read/picker/refused workflow changed files")
 
         // Exercise the actual NSAlert -> progress sheet -> acknowledgement route.
-        owner.window?.appearance = NSAppearance(named: .aqua); owner.window?.alphaValue = 1
+        owner.window?.appearance = NSAppearance(named: .aqua); owner.window?.alphaValue = 0
         owner.showWindow(nil); owner.model.chooser.options.target = .commit; owner.model.chooser.commitRevision = base; owner.model.mode = .hard
         var resetCompletions = 0
         owner.model.onReset = { _ in resetCompletions += 1 }
@@ -119,7 +119,7 @@ import TurtleGitCore
         try await wait { owner.model.progress != nil }
         try await wait { owner.model.progress?.busy == false }
         try require(owner.model.progress?.success == true && resetCompletions == 0, "Actual hard-reset handoff failed or acknowledged early")
-        owner.model.progress?.close(); try await wait { owner.model.progress == nil }
+        owner.model.progress?.close(); try await wait { owner.model.progress == nil && owner.window?.attachedSheet == nil && ResetWindowController.activeChildReleases == 0 }
         try require(resetCompletions == 1 && (try String(contentsOf: file)) == "base\n", "Reset result acknowledgement lost completion")
         print("Reset workflow passed: preferences, owned picker drafts, modified comparison, canceled/retired readers and preparation, one-use hard confirmation, refused progress, actual NSAlert/progress/acknowledgment. Owned windows closed.")
     }

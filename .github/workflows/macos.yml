@@ -696,6 +696,8 @@ jobs:
         run: python3 scripts/test-credential-merge-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Check connected Stash and Submodule recovery workflows
         run: python3 scripts/test-stash-submodule-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Check connected Switch, Reset and Bisect workflows
+        run: python3 scripts/test-switch-reset-bisect-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Commit, Rebase message editing and Fetch/Pull completion
         run: python3 scripts/test-operation-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Pull and Fetch cancellation

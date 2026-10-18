@@ -146,6 +146,7 @@ import AppKit
         if PushWindowModel.activePreparationReads > 0 || PushWindowModel.activePushWorkflows > 0 || FetchWindowModel.activePreparationReads > 0 { return .terminateCancel }
         if FetchWindowModel.activeProgressOperations > 0 || FetchWindowController.activeProgressReleases > 0 { return .terminateCancel }
         if MergeProgressWindowModel.activeOperations > 0 || MergeWindowController.activeChildReleases > 0 { return .terminateCancel }
+        if SwitchProgressWindowModel.activeOperations > 0 || SwitchWindowController.activeChildReleases > 0 || ResetProgressWindowModel.activeOperations > 0 || ResetWindowController.activeChildReleases > 0 || BisectWindowController.activeChildReleases > 0 { return .terminateCancel }
         if StatisticsWindowModel.activeOperations > 0 || StatisticsWindowController.activeExports > 0 || sender.windows.compactMap({ $0.delegate as? StatisticsWindowController }).contains(where: { $0.model.hasSheet }) { return .terminateCancel }
         if RevisionGraphFindController.activeOperations > 0 || CommitContainingReferencesWindowController.activeOperations > 0 || RevisionGraphWindowModel.activeOperations > 0 || RevisionGraphFilterController.activeOperations > 0 { return .terminateCancel }
         if FileCopyWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? FileCopyWindowController }).contains(where: { $0.model.question || $0.model.confirmingCancel }) { return .terminateCancel }
@@ -287,6 +288,11 @@ import AppKit
         let stashSaves = sender.windows.compactMap { $0.delegate as? StashWindowController }
         let stashProgress = sender.windows.compactMap { $0.delegate as? StashSaveProgressWindowController }
         let stashRestores = sender.windows.compactMap { $0.delegate as? StashRestoreWindowController }
+        let switches = sender.windows.compactMap { $0.delegate as? SwitchWindowController }
+        let switchProgress = sender.windows.compactMap { $0.delegate as? SwitchProgressWindowController }
+        let resets = sender.windows.compactMap { $0.delegate as? ResetWindowController }
+        let resetProgress = sender.windows.compactMap { $0.delegate as? ResetProgressWindowController }
+        let bisects = sender.windows.compactMap { $0.delegate as? BisectWindowController }
         let addProgress = sender.windows.compactMap { $0.delegate as? AddProgressWindowController }
         let reverts = sender.windows.compactMap { $0.delegate as? RevertWindowController }
         let browsers = sender.windows.compactMap { $0.delegate as? RepositoryBrowserWindowController }
@@ -323,6 +329,11 @@ import AppKit
         for controller in stashSaves { controller.model.confirmingQuit = true }
         for controller in stashProgress { controller.model.confirmingQuit = true }
         for controller in stashRestores { controller.model.confirmingQuit = true }
+        for controller in switches { controller.model.confirmingQuit = true }
+        for controller in switchProgress { controller.model.confirmingQuit = true }
+        for controller in resets { controller.model.confirmingQuit = true }
+        for controller in resetProgress { controller.model.confirmingQuit = true }
+        for controller in bisects { controller.model.confirmingQuit = true }
         for controller in imports { controller.setQuitConfirmation(true) }
         for controller in reviews { controller.setQuitConfirmation(true) }
         repositoryModel?.confirmingQuit = true
@@ -425,6 +436,11 @@ import AppKit
             for controller in stashSaves { controller.model.confirmingQuit = false }
             for controller in stashProgress { controller.model.confirmingQuit = false }
             for controller in stashRestores { controller.model.confirmingQuit = false }
+            for controller in switches { controller.model.confirmingQuit = false }
+            for controller in switchProgress { controller.model.confirmingQuit = false }
+            for controller in resets { controller.model.confirmingQuit = false }
+            for controller in resetProgress { controller.model.confirmingQuit = false }
+            for controller in bisects { controller.model.confirmingQuit = false }
             confirmingQuit = false
             replyToTermination(sender, allowQuit)
         }
@@ -451,6 +467,11 @@ import AppKit
         let stashSaves = sender.windows.compactMap { $0.delegate as? StashWindowController }
         let stashProgress = sender.windows.compactMap { $0.delegate as? StashSaveProgressWindowController }
         let stashRestores = sender.windows.compactMap { $0.delegate as? StashRestoreWindowController }
+        let switches = sender.windows.compactMap { $0.delegate as? SwitchWindowController }
+        let switchProgress = sender.windows.compactMap { $0.delegate as? SwitchProgressWindowController }
+        let resets = sender.windows.compactMap { $0.delegate as? ResetWindowController }
+        let resetProgress = sender.windows.compactMap { $0.delegate as? ResetProgressWindowController }
+        let bisects = sender.windows.compactMap { $0.delegate as? BisectWindowController }
         for controller in historyReplays { controller.model.revisionMenuLog.confirmingQuit = true }
         for controller in referenceBrowsers { controller.model.confirmingQuit = true }
         for controller in blames { controller.model.confirmingQuit = true }
@@ -463,6 +484,11 @@ import AppKit
         for controller in stashSaves { controller.model.confirmingQuit = true }
         for controller in stashProgress { controller.model.confirmingQuit = true }
         for controller in stashRestores { controller.model.confirmingQuit = true }
+        for controller in switches { controller.model.confirmingQuit = true }
+        for controller in switchProgress { controller.model.confirmingQuit = true }
+        for controller in resets { controller.model.confirmingQuit = true }
+        for controller in resetProgress { controller.model.confirmingQuit = true }
+        for controller in bisects { controller.model.confirmingQuit = true }
         let submoduleSyncs = sender.windows.compactMap { $0.delegate as? SubmoduleSyncWindowController }
         let submoduleAdds = sender.windows.compactMap { $0.delegate as? SubmoduleAddWindowController }
         let submoduleAddProgress = sender.windows.compactMap { $0.delegate as? SubmoduleAddProgressWindowController }
@@ -490,6 +516,11 @@ import AppKit
             for controller in stashSaves { controller.model.confirmingQuit = false }
             for controller in stashProgress { controller.model.confirmingQuit = false }
             for controller in stashRestores { controller.model.confirmingQuit = false }
+            for controller in switches { controller.model.confirmingQuit = false }
+            for controller in switchProgress { controller.model.confirmingQuit = false }
+            for controller in resets { controller.model.confirmingQuit = false }
+            for controller in resetProgress { controller.model.confirmingQuit = false }
+            for controller in bisects { controller.model.confirmingQuit = false }
             for controller in submoduleSyncs { controller.model.confirmingQuit = false }
             for controller in submoduleAdds { controller.model.confirmingQuit = false }
             for controller in submoduleAddProgress { controller.model.confirmingQuit = false }

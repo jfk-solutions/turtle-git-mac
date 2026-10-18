@@ -1993,12 +1993,27 @@ import TurtleGitCore
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitBisectNative-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
     defer { try? FileManager.default.removeItem(at: root) }
+    let suite="TurtleGit.RetainedBisect."+UUID().uuidString,preferences=UserDefaults(suiteName:suite)!
+    preferences.set(0,forKey:"AutoCloseGitProgress");preferences.set(false,forKey:"EnableGravatar");preferences.set(true,forKey:"ShowAppContextMenuIcons")
+    DialogGeometry.install(preferences:preferences)
+    defer {preferences.removePersistentDomain(forName:suite);DialogGeometry.install(preferences:.standard)}
+    var retireOwned:[()->Void]=[]
+    func retireAndDrain() async {
+        retireOwned.forEach {$0()}
+        for _ in 0..<2500 {
+            if BisectWindowModel.activeOperations==0 && BisectWindowController.activeChildReleases==0 && LogWindowModel.activeHistoryLoads==0 && LogWindowModel.activeReferenceReads==0 && LogWindowModel.activeActionReads==0 && LogWindowModel.activeFileOpenReads==0 && BlameWindowModel.activeSyntaxRequests==0 && BlameWindowModel.activeHistoryOperations==0 {return}
+            try? await Task.sleep(nanoseconds:10_000_000)
+        }
+        preconditionFailure("Retained Bisect owned operations did not drain")
+    }
+    do {
     let repo = GitRepository(root: root, executable: executable)
     _ = try await repo.run(["init", "-b", "main"])
     _ = try await repo.run(["config", "user.name", "Bisect Native QA"])
     _ = try await repo.run(["config", "user.email", "bisect@example.invalid"])
     _ = try await repo.run(["config", "commit.gpgsign", "false"])
-    let unbornLog = LogWindowModel(repository: repo, access: nil)
+    let unbornLog = LogWindowModel(repository: repo, access: nil,labelDefaults:preferences)
+    retireOwned.append {unbornLog.invalidate()}
     unbornLog.reload()
     let unbornDeadline = Date().addingTimeInterval(30)
     while unbornLog.busy && Date() < unbornDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
@@ -2021,7 +2036,8 @@ import TurtleGitCore
         while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(!model.busy)
     }
-    let controller = BisectWindowController(repository: repo, access: nil); defer { controller.close() }
+    let controller = BisectWindowController(repository: repo, access: nil,preferences:preferences); defer { controller.close() }
+    controller.window?.alphaValue=0;retireOwned.append {controller.close()}
     let model = controller.model; try await wait(model)
     precondition(!model.hasSubmodules)
     guard let window = controller.window else { fatalError("Bisect window missing") }
@@ -2045,10 +2061,14 @@ import TurtleGitCore
     precondition(model.hasSubmodules)
     do { let keptUntracked = try Data(contentsOf: root.appendingPathComponent("untracked")); precondition(keptUntracked == untracked) }
     let stash = try await repo.run(["show", "stash:change"]).stdout; precondition(stash == dirty)
-    let reopened = BisectWindowController(repository: repo, access: nil); defer { reopened.close() }
+    let reopened = BisectWindowController(repository: repo, access: nil,preferences:preferences); defer { reopened.close() }
+    reopened.window?.alphaValue=0;retireOwned.append {reopened.close()}
     try await wait(reopened.model); precondition(reopened.model.state?.active == true && reopened.model.state?.originalRevision == "main")
     var submoduleUpdates = 0
     reopened.model.onSubmoduleUpdate = { submoduleUpdates += 1 }
+    // This retained case verifies eligibility across several classifications.
+    // Actual owner closure/detachment is covered by BisectOperationVerification.
+    reopened.model.closeForSubmoduleHandoff = { action in action() }
     func checkSubmoduleAction() {
         let present = FileManager.default.fileExists(atPath: root.appendingPathComponent(".gitmodules").path)
         precondition(reopened.model.hasSubmodules == present)
@@ -2071,7 +2091,8 @@ import TurtleGitCore
     precondition(reopened.model.state?.firstBadCommit == hashes[4]); reopened.model.perform(.reset); try await wait(reopened.model)
     precondition(reopened.model.state?.active == false && reopened.model.state?.head == hashes[7])
     checkSubmoduleAction(); precondition(!reopened.model.hasSubmodules)
-    reopened.model.good = hashes[0]; reopened.model.bad = "HEAD"; reopened.model.start(); try await wait(reopened.model)
+    reopened.model.load(good:hashes[0],bad:"HEAD",requireStart:true);try await wait(reopened.model)
+    reopened.model.start(); try await wait(reopened.model)
     checkSubmoduleAction(); precondition(reopened.model.hasSubmodules)
     reopened.model.perform(.skip, revisions: Array(hashes[1...6])); try await wait(reopened.model)
     precondition(reopened.model.lastExitCode != 0 && reopened.model.error != nil && reopened.model.canPerform(.reset) && !reopened.model.canPerform(.good))
@@ -2102,8 +2123,8 @@ import TurtleGitCore
     precondition(submoduleUpdates > 0)
     print("Native Bisect submodule progress: checkout adds/removes .gitmodules, Start/classification/Reset refresh availability, failed result and busy callback guards passed. Update callback injected; dialog handoff not activated.")
     // Actual Log menu construction and selected-revision handoff.
-    let log = LogWindowModel(repository: repo, access: nil)
-    defer { log.invalidate() }
+    let log = LogWindowModel(repository: repo, access: nil,labelDefaults:preferences)
+    defer { log.invalidate() };retireOwned.append {log.invalidate()}
     log.endRevision = "main"
     var requests: [LogBisectRequest] = []
     log.onBisect = { requests.append($0) }
@@ -2114,14 +2135,29 @@ import TurtleGitCore
     }
     log.reload(); try await waitLog()
     log.selected = [hashes[0], hashes[7]]
-    let host = NSHostingView(rootView: RevisionTable(model: log)); host.frame = NSRect(x: 0, y: 0, width: 1040, height: 300); host.layoutSubtreeIfNeeded()
+    let host = NSHostingView(rootView: RevisionTable(model: log).defaultAppStorage(preferences)); host.frame = NSRect(x: 0, y: 0, width: 1040, height: 300); host.layoutSubtreeIfNeeded()
     guard let table = findTable(host), let coordinator = table.delegate as? RevisionTable.Coordinator, let menu = table.menu else { fatalError("Bisect Log menu missing") }
     func menuItem(_ command: LogBisectCommand) -> NSMenuItem? {
         coordinator.menuNeedsUpdate(menu); return menu.items.first { $0.title == command.title }
     }
-    precondition(menuItem(.start)?.image != nil && menuItem(.start)?.isEnabled == true && menuItem(.start)?.target === coordinator)
-    coordinator.bisectStart(); try await waitLog()
+    func requireMenu(_ item:NSMenuItem?,_ label:String) throws -> NSMenuItem {
+        guard let item,let action=item.action,let target=item.target as? NSObject,item.image != nil,item.isEnabled,target.responds(to:action) else {
+            let state="item=\(String(describing:item)) image=\(String(describing:item?.image)) enabled=\(String(describing:item?.isEnabled)) action=\(String(describing:item?.action)) target=\(String(describing:item?.target)) invalidated=\(log.isInvalidated) busy=\(log.busy) workingRow=\(log.selectedWorkingTree) selected=\(log.selected) canStart=\(log.canBisect(.start)) bisect=\(log.bisectActive) merge=\(log.mergeActive) bare=\(log.bare)"
+            throw NSError(domain:"RetainedBisectMenu",code:1,userInfo:[NSLocalizedDescriptionKey:label+": "+state])
+        }
+        return item
+    }
+    func sendMenu(_ item:NSMenuItem) throws {
+        guard let action=item.action,let target=item.target,NSApp.sendAction(action,to:target,from:item) else {
+            throw NSError(domain:"RetainedBisectMenu",code:2,userInfo:[NSLocalizedDescriptionKey:"Native menu relay did not dispatch "+item.title])
+        }
+    }
+    // Shipping menus retain a single-use captured-command relay rather than
+    // targeting the mutable table coordinator directly.
+    let startItem=try requireMenu(menuItem(.start),"Bisect Start native command")
+    try sendMenu(startItem); try await waitLog()
     precondition(requests.count == 1 && requests[0].good == hashes[0] && requests[0].bad == "refs/heads/main" && requests[0].operation == nil && requests[0].revisions.isEmpty)
+    try sendMenu(startItem);try await waitLog();precondition(requests.count == 1,"Consumed Bisect popup command dispatched twice")
     reopened.model.load(good: requests[0].good, bad: requests[0].bad, requireStart: true); try await wait(reopened.model)
     precondition(reopened.model.good == hashes[0] && reopened.model.bad == "refs/heads/main" && reopened.model.canStart)
     log.busy = true; precondition(menuItem(.start)?.isEnabled == false); coordinator.bisectStart(); precondition(requests.count == 1); log.busy = false
@@ -2145,8 +2181,8 @@ import TurtleGitCore
     for command in [LogBisectCommand.good, .bad, .skip] { precondition(menuItem(command)?.image != nil && menuItem(command)?.isEnabled == true) }
     precondition(menuItem(.start) == nil)
     reopened.model.observeLog(log); reopened.model.observeLog(log)
-    let bisectPicker = LogWindowController(repository: repo, access: nil, onChoose: { _ in })
-    defer { bisectPicker.close() }
+    let bisectPicker = LogWindowController(repository: repo, access: nil, onChoose: { _ in },labelDefaults:preferences)
+    defer { bisectPicker.close() };bisectPicker.window?.alphaValue=0;retireOwned.append {bisectPicker.close()}
     bisectPicker.model.endRevision = "main"; bisectPicker.model.reload()
     func waitPicker(_ expected: () -> Bool = { true }) async throws {
         let deadline = Date().addingTimeInterval(30)
@@ -2154,7 +2190,7 @@ import TurtleGitCore
         precondition(!bisectPicker.model.busy && expected())
     }
     try await waitPicker(); reopened.model.observeLog(bisectPicker.model)
-    var transient: LogWindowModel? = LogWindowModel(repository: repo, access: nil, selecting: true)
+    var transient: LogWindowModel? = LogWindowModel(repository: repo, access: nil, selecting: true,labelDefaults:preferences)
     weak var weakTransient = transient
     reopened.model.observeLog(transient!); transient = nil; precondition(weakTransient == nil)
     coordinator.bisectGood(); try await waitLog()
@@ -2221,8 +2257,9 @@ import TurtleGitCore
     }
     for action in [RepositoryAction.stash, .stashPop, .stashList, .pull, .fetch] {
         guard let item = workingItem(action) else { fatalError("Missing working-tree command \(action)") }
-        precondition(item.isEnabled && item.image != nil && item.target === coordinator)
-        coordinator.workingCommand(item); try await waitLog(); precondition(workingCommands.last == action)
+        let native=try requireMenu(item,"Working-tree \(action.rawValue) native command"),before=workingCommands.count
+        try sendMenu(native);try await waitLog();precondition(workingCommands.last == action && workingCommands.count == before+1)
+        try sendMenu(native);try await waitLog();precondition(workingCommands.count == before+1,"Consumed working-tree popup command dispatched twice")
     }
     precondition(workingItem(.submoduleUpdate) == nil)
     let commandCount = workingCommands.count
@@ -2306,7 +2343,8 @@ import TurtleGitCore
     log.fileLog(["change"]); precondition(workingFileLogRequests == 1)
     log.blameFile(["change"]); try await waitLog()
     precondition(log.error == nil && blameRequests.last?.0 == "change" && blameRequests.last?.1 == hashes[7])
-    let blameController = BlameWindowController(repository: repo, access: nil, path: "change", revision: blameRequests.last!.1, options: GitBlameOptions())
+    let blameController = BlameWindowController(repository: repo, access: nil, path: "change", revision: blameRequests.last!.1, options: GitBlameOptions(),preferences:preferences)
+    blameController.window?.alphaValue=0;retireOwned.append {blameController.close()}
     var blameClosed = false; blameController.onClosed = { blameClosed = true }
     defer { if !blameClosed { blameController.close() } }
     let blameDeadline = Date().addingTimeInterval(30)
@@ -2383,12 +2421,6 @@ import TurtleGitCore
     log.error = nil
     let copyAfterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), copyAfterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
     precondition(copyAfterIndex == copyIndex && copyAfterHead == copyHead)
-    log.invalidate(); workingSavePath = nil; workingExportPaths = []
-    log.saveHistoricalFile([workingCopyPath]); log.chooseHistoricalExport([workingCopyPath]); log.copyWorkingFiles([workingCopyPath], to: workingSaveURL, save: true)
-    log.compareFilePair(pairIDs); log.markForComparison(["change"]); log.compareWithMarkedFile(["change"])
-    log.blameFile(["change"]); precondition(!log.canBlameFile(["change"]) && blameRequests.count == guardedBlameCount)
-    precondition(workingPairPaths.isEmpty && preparedPairs.count == preparedCount && log.comparisonMark?.path == retainedMark)
-    precondition(!log.busy && workingSavePath == nil && workingExportPaths.isEmpty)
     log.showUnversionedFiles = false; log.reload(); try await waitLog(); log.select([""])
     print("Native working-file Open/Open With/editor handoffs use actual disk URL; Save As/export preserve raw working bytes and unversioned selection, tracked bytes, HEAD/index, busy/selection/invalidation guards, deleted/submodule exclusions and stale missing-file refusal passed. Panels and application launches injected.")
     print("Native working-file pair/prepared comparison: list-order routing, real raw-byte working/working and historical/working comparisons in both directions, missing working side uses pinned HEAD, working mark label, busy/invalidation and deleted/submodule guards passed. Root viewer handoffs injected.")
@@ -2397,7 +2429,8 @@ import TurtleGitCore
         _ = try await repo.run(["init", "--initial-branch=main", unbornRoot.path])
         let unbornRepository = GitRepository(root: unbornRoot, executable: repo.executable)
         try Data("new\n".utf8).write(to: unbornRoot.appendingPathComponent("new")); _ = try await unbornRepository.run(["add", "--", "new"])
-        let unbornLog = LogWindowModel(repository: unbornRepository, access: nil); unbornLog.onBlame = { _, _ in fatalError("Unborn Blame handoff") }
+        let unbornLog = LogWindowModel(repository: unbornRepository, access: nil,labelDefaults:preferences); unbornLog.onBlame = { _, _ in fatalError("Unborn Blame handoff") }
+        retireOwned.append {unbornLog.invalidate()}
         unbornLog.reload(); let unbornDeadline = Date().addingTimeInterval(30)
         while unbornLog.busy && Date() < unbornDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
         unbornLog.select([""]); precondition(!unbornLog.busy && unbornLog.error == nil && unbornLog.selectedWorkingTree && unbornLog.workingTreeSnapshot?.entry.parents.isEmpty == true && !unbornLog.canBlameFile(["new"]))
@@ -2408,7 +2441,7 @@ import TurtleGitCore
     reopened.model.load(good: hashes[0], bad: hashes[7], requireStart: true); try await wait(reopened.model)
     reopened.model.start(); try await wait(reopened.model); try await waitLog()
     log.select([""])
-    for command in [LogBisectCommand.good, .bad, .skip, .reset] { precondition(menuItem(command)?.image != nil && menuItem(command)?.isEnabled == true) }
+    for command in [LogBisectCommand.good, .bad, .skip, .reset] { _ = try requireMenu(menuItem(command),"Active working-row \(command.title)") }
     log.busy = true; let prior = requests.count; coordinator.bisectReset(); precondition(requests.count == prior && menuItem(.reset)?.isEnabled == false); log.busy = false
     for command in [LogBisectCommand.skip, .good, .bad] {
         log.select([""])
@@ -2432,6 +2465,17 @@ import TurtleGitCore
     do { let keptUntracked = try Data(contentsOf: root.appendingPathComponent("untracked")); precondition(keptUntracked == untracked) }
     var closed = false; reopened.onClosed = { closed = true }; reopened.close(); precondition(closed && !window.isVisible)
     print("Native Bisect: real hidden two-combo dialog, defaults/icons, Stash Abort/accept with exact saved bytes and untracked preservation, fresh session reopening, regression classification/Reset, ambiguous Skip recovery, custom labels and owned-window cleanup passed. Prompt replies injected.")
+    // Retire the model only after every live-menu/Bisect workflow. A retired
+    // Log deliberately cannot be resurrected by reload.
+    log.invalidate(); workingSavePath = nil; workingExportPaths = []
+    log.saveHistoricalFile([workingCopyPath]); log.chooseHistoricalExport([workingCopyPath]); log.copyWorkingFiles([workingCopyPath], to: workingSaveURL, save: true)
+    log.compareFilePair(pairIDs); log.markForComparison(["change"]); log.compareWithMarkedFile(["change"])
+    log.blameFile(["change"]); precondition(!log.canBlameFile(["change"]) && blameRequests.count == guardedBlameCount)
+    precondition(workingPairPaths.isEmpty && preparedPairs.count == preparedCount && log.comparisonMark?.path == retainedMark)
+    precondition(!log.busy && workingSavePath == nil && workingExportPaths.isEmpty)
+    await retireAndDrain()
+    } catch {await retireAndDrain();throw error}
+
 }
 
 @MainActor func verify() async throws {

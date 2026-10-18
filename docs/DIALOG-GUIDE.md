@@ -140,7 +140,10 @@ saves that description without recreating the branch or switching again.
 Switch/Checkout chooses the target branch, tag or commit. Review Create New
 Branch, force/overwrite, merge and tracking options when available. Force can
 discard working changes. A checkout failure leaves its Git output available for
-inspection; resolve the reported condition before retrying.
+inspection; resolve the reported condition before retrying. The completed result
+offers the applicable next actions, including Submodule Update, Pull, Commit or
+Stash. A selected action closes the owned result before opening the next dialog.
+Pending tag-name and cancellation questions keep their accepted target and options.
 
 ## Fetch and Pull
 
@@ -366,7 +369,9 @@ Revert working files restores their selected state; see
 an inverse change; see [Reverting a commit](REVERT-COMMIT.md).
 
 Reset selects a revision and reset mode. Review the mode before accepting: changes
-to the index and working tree depend on it. Clean removes selected untracked or
+to the index and working tree depend on it. Hard Reset asks for confirmation
+before discarding local changes. Result actions keep the chosen repository and
+close the result before opening Submodule Update, Cleanup or Bisect. Clean removes selected untracked or
 ignored content according to its options. Review its candidates; these operations
 are not ordinary editor Undo actions.
 
@@ -418,6 +423,11 @@ Start Bisect with a known good and known bad revision. Git chooses a revision to
 test. Mark the tested revision Good, Bad or Skip as appropriate. Continue until
 the result is found, then use Reset to leave the bisect operation. These actions
 can change the checked-out revision; preserve working changes beforehand.
+Completed progress shows its status and optional elapsed time. Its split action
+button keeps the applicable Submodule Update and Good/Bad/Skip/Reset choices
+in one menu. Submodule Update opens after the Bisect window closes. A failed or
+cancelled command can retain changes already made; inspect the refreshed repository
+state before deciding how to continue.
 
 ## Settings
 

@@ -3115,3 +3115,58 @@ The preceding Credential/Merge [Pages run 39152335835](https://github.com/jfk-so
 built and deployed successfully. Its macOS workflow was still pending when this
 batch began. No full dialog, physical Finder, signed or App Store acceptance is
 inferred from this scoped checkpoint.
+
+
+### Switch, Reset and Bisect operations, 2026-10-18
+
+Three parallel owners extended [Switch execution and completion](SWITCH-OPERATION-PARITY.md),
+[Reset preparation and recovery](RESET-OPERATION-PARITY.md), and
+[Bisect review and progress](BISECT-OPERATION-PARITY.md). This connected batch keeps
+captured targets/options, source completion actions, owned confirmation/cancellation
+and actual sheet release through next-operation handoffs. Reset treats stdout as
+its object/reference protocol so successful Git warnings cannot contaminate its
+accepted target. Bisect retains attempted-mutation receipts for refreshed views,
+source split actions and completed progress. Root descendants retain their actual
+originating preferences, including Log, express Switch and Reset Cleanup routes.
+
+The grouped checkpoint is recorded in
+[operation evidence](qa/switch-reset-bisect-workflows-2026-10-18.json).
+The previous Stash/Submodule [Pages run 39154284210](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39154284210)
+built and deployed successfully; its macOS workflow was still pending at this
+batch's start. Dialog/control audit coverage, physical Finder integration,
+current signed/Intel/older-SDK behavior and App Store distribution remain separate
+acceptance work.
+
+
+The Debug build, 23 selected Core cases and 30 distinct native case/engine
+combinations pass. The checkpoint found and repaired early Switch progress-sheet
+acknowledgement. Retained fixtures were also corrected for actual reference
+refresh readiness, Git global-option parsing, captured menu-action targets,
+range-log dispatch and final model invalidation. Their behavioral assertions
+remain. All 40 recorded receiver PIDs are independently absent. Local passing
+cases do not establish a complete current hosted or signed deployment pass.
+
+#### Remaining feature audit at this checkpoint
+
+The 93 pending control reviews are not 93 missing features. The ledger includes
+external Windows examples, DrDump, Plink and test resources, as well as hidden or
+platform-specific controls. Several earlier chronological paragraphs describe
+features implemented in later batches; they are historical findings rather than
+a current missing-feature checklist. This review does not certify the remaining
+controls or all dialog behavior.
+
+Two confirmed functional gaps need explicit treatment: upstream TortoiseIDiff
+advertises WMF/EMF and uses Windows GDI+; the native ImageIO/SVG decoder cannot
+render those metafiles. Native comparison routing also needs the corresponding
+format coverage. Finder drag-destination menus are absent; clipboard Copy/Move
+workflows already exist, while the Explorer drop-menu integration needs a macOS
+design. Neither adding Worktree Move/Repair (absent from the pinned upstream UI)
+nor repeating implemented Settings/Remote work would close those gaps.
+
+Other open work includes source-layout/input/accessibility acceptance across the
+implemented dialogs, remaining workflow completion/recovery behavior, the custom
+TurtleGit artwork, current full hosted integration and current installed signed
+Finder/app acceptance. The signed preview and unsigned App Store archive remain
+evidence for their recorded older source revision. Distribution signing/export
+and App Store acceptance have not been completed. These requirements remain
+part of the full port; this scoped batch does not replace them.

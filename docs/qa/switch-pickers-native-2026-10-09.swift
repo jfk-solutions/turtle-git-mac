@@ -27,7 +27,7 @@ import TurtleGitCore
         for ref in ["refs/heads/nested/topic","refs/remotes/origin/team/topic","refs/notes/custom"] { _ = try await repo.run(["update-ref",ref,prior]) }
         _ = try await repo.run(["tag","release",prior]); _ = try await repo.run(["symbolic-ref","refs/remotes/origin/HEAD","refs/remotes/origin/team/topic"])
         let config = try Data(contentsOf: root.appendingPathComponent(".git/config")), tree = try await repo.run(["write-tree"]).text
-        let owner = SwitchWindowController(repository: repo,access: nil,preferences: prefs); defer { owner.close() }
+        let owner = SwitchWindowController(repository: repo,access: nil,preferences: prefs);owner.window?.alphaValue=0; defer { owner.close() }
         owner.model.load(); try await wait([owner.window!]) { !owner.model.busy && !owner.model.references.isEmpty }
         var presentations = 0, callbacks: [(LogEntry?) -> Void] = []
         owner.presentPicker = { parent, child in presentations += 1; parent.makeFirstResponder(nil); return !parent.isVisible && !child.isVisible }
@@ -100,7 +100,7 @@ import TurtleGitCore
         owner.presentPicker={parent,_ in parent.makeFirstResponder(nil); return true}; owner.model.browse(.branch); guard let final=owner.referencePicker else { throw Failure(description:"Final browser missing") }; try await wait([final.window!]) { !final.model.busy }
         owner.close(); final.model.finish("refs/tags/release"); owner.model.browse(.branch); owner.model.checkout()
         try require(owner.referencePicker == nil && owner.model.pickerTarget == nil && final.model.closed && owner.model.referenceFocusRequest == 0 && owner.model.progress == nil,"Closed parent/late callback escaped")
-        let closing=SwitchWindowController(repository:repo,access:nil,revision:prior,preferences:prefs); defer { closing.close() }
+        let closing=SwitchWindowController(repository:repo,access:nil,revision:prior,preferences:prefs);closing.window?.alphaValue=0; defer { closing.close() }
         closing.model.load(); try await wait([closing.window!]) { !closing.model.busy }
         var lateCallback: ((LogEntry?) -> Void)?
         closing.makeCommitPicker={repo,access,choose,prefs,initialRevision in lateCallback=choose; return LogWindowController(repository:repo,access:access,onChoose:choose,labelDefaults:prefs,savesColumnLayout:false,initialRevision:initialRevision) }

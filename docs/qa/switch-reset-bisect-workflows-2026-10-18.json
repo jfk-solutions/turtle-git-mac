@@ -1,0 +1,300 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "ea108cf9025528c3130553f180da7a68c681cf73",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Switch captured form/validation/tag warning, failure/merge-conflict recovery, actual progress and options closure before once-only postactions",
+    "Reset canonical stdout object/reference parsing, real ambiguous-ref diagnostics, captured review/Hard confirmation and deferred Quit",
+    "Bisect canonical object parsing, typed partial mutation receipts, source split postactions and completed progress/footer, guarded review and owned Submodule handoff",
+    "Actual originating preferences through Log, express Switch, Reset Cleanup and Bisect descendants; operation/release termination fences",
+    "Private grouped native fixtures, relevant retained regression extraction, updated guide/offline Help and source-family records"
+  ],
+  "validation": {
+    "status": "passed scoped grouped checkpoint",
+    "build_attempts": [
+      {
+        "log": "switch-reset-bisect-build-2026-10-18.log",
+        "exit": 0
+      },
+      {
+        "log": "switch-reset-bisect-build-switch-2026-10-18.log",
+        "exit": 0,
+        "scope": "Affected native Switch sheet-completion ordering repair; no Core changes."
+      }
+    ],
+    "core": {
+      "log": "switch-reset-bisect-core-2026-10-18.log",
+      "cases": 23,
+      "failures": 0,
+      "attempts": 1,
+      "selection": "ResetOperationTests|ResetTests|BisectOperationTests|BisectTests",
+      "note": "Unanchored ResetTests selection includes related MergeAbortResetTests; Switch Core was unchanged. No full Core suite run or repeat after native-only repair."
+    },
+    "native": {
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "attempts": [
+        {
+          "log": "switch-reset-bisect-native-2026-10-18.log",
+          "exit": 1,
+          "scope": "New Switch/system timed out waiting owner close after successful postaction. Default endSheet completion acknowledged options before actual controller closure. Native fix makes closed progress controller authoritative; assertions retained."
+        },
+        {
+          "log": "switch-reset-bisect-native-switch-2026-10-18.log",
+          "exit": 0,
+          "scope": "Affected Switch-only recheck with both Git engines."
+        },
+        {
+          "log": "switch-reset-bisect-native-remaining-2026-10-18.log",
+          "exit": 1,
+          "scope": "Reset, Bisect, routing, Switch progress and Switch pickers pass both engines. Retained reference-switch stopped on menu assertion while its asynchronous catalog was still busy."
+        },
+        {
+          "log": "switch-reset-bisect-native-tail-2026-10-18.log",
+          "exit": 1,
+          "scope": "RefLog Switch, Reset progress, Reset picker and Reset workflow pass both engines. Reset Modified Files retained fixture expected old onLog callback instead of canonical onLogRange; fixture now verifies exact range and unchanged file Log callback."
+        },
+        {
+          "log": "switch-reset-bisect-native-reference-diagnostic-2026-10-18.log",
+          "exit": 1,
+          "scope": "Diagnostic-only reference-switch/system preserves menu assertions and confirms chosen remote main, busy=true, canSwitch=false and empty native menu. No missing product artwork was established."
+        },
+        {
+          "log": "switch-reset-bisect-native-final-2026-10-18.log",
+          "exit": 1,
+          "scope": "Reference-switch settled on previous branch after child-close-triggered catalog refresh restored its captured selection. Focused diagnostics confirmed readiness must precede changing the next selected leaf."
+        },
+        {
+          "log": "switch-reset-bisect-native-last-cases-2026-10-18.log",
+          "exit": 1,
+          "scope": "Reset Modified Files, Bisect progress and Bisect lifecycle pass both engines. Retained Bisect asserted the former coordinator menu target; actual current menu uses captured single-use HistoryMenuActionTarget. Fixture repair preserves actual native dispatch, exact targets and replay refusal."
+        },
+        {
+          "log": "reference-switch-focused-diagnostic-2026-10-18.log",
+          "exit": 1,
+          "scope": "Reference refresh diagnostic: earlier selection restored after child-close reload."
+        },
+        {
+          "log": "reference-switch-focused-fixed-2026-10-18.log",
+          "exit": 1,
+          "scope": "Same retained refresh readiness at direct relaunch after rejected presentation."
+        },
+        {
+          "log": "reference-switch-focused-fixed2-2026-10-18.log",
+          "exit": 1,
+          "scope": "Current Branch invoked during pending parent reload. Explicit stale snapshot setup now preserves fresh-read assertion. Slow wrappers updated to parse actual Git global options."
+        },
+        {
+          "log": "reference-switch-focused-fixed3-2026-10-18.log",
+          "exit": 0,
+          "scope": "Focused reference-switch passes both engines; exact icon/command target assertions, actual refresh and Current Branch, forced nested release and helper cancellation retained."
+        },
+        {
+          "log": "retained-bisect-focused-2026-10-18.log",
+          "exit": 1,
+          "scope": "Captured command relay assertions/actual native dispatch passed; later retained code attempted to reuse an explicitly invalidated Log model."
+        },
+        {
+          "log": "retained-bisect-focused-affected-2026-10-18.log",
+          "exit": 0,
+          "scope": "Focused retained Bisect passes both engines; all invalidation assertions preserved at final retirement, actual captured menu dispatch/replay refusal and exact requests retained."
+        }
+      ],
+      "distinct_case_engine_passes": 30,
+      "cases_per_engine": 15,
+      "passed_cases": [
+        "switch",
+        "reset",
+        "bisect",
+        "routing",
+        "switch-progress",
+        "switch-pickers",
+        "reference-switch",
+        "reflog-switch",
+        "reset-progress",
+        "reset-picker",
+        "reset-workflow",
+        "reset-modified",
+        "bisect-progress",
+        "bisect-lifecycle",
+        "retained-bisect"
+      ]
+    },
+    "resources": {
+      "localization": {
+        "mode": "check",
+        "languages": 38,
+        "keys": 1289
+      },
+      "help": {
+        "mode": "check",
+        "documents": 40,
+        "topics": 49,
+        "files": 60
+      }
+    },
+    "documentation": {
+      "site_exit": 0,
+      "documents": 329,
+      "unresolved_fragments": [],
+      "site_docs_tests": 2,
+      "site_docs_exit": 0,
+      "site_search_exit": 0
+    },
+    "cleanup": {
+      "owned_receiver_pids": [
+        63321,
+        63666,
+        63755,
+        63932,
+        64018,
+        64094,
+        64347,
+        64607,
+        64714,
+        64820,
+        65039,
+        65253,
+        65461,
+        65688,
+        66113,
+        66327,
+        66532,
+        66851,
+        67173,
+        67365,
+        67517,
+        67691,
+        67802,
+        67980,
+        68314,
+        68543,
+        68620,
+        68686,
+        68996,
+        69284,
+        69463,
+        69646,
+        70280,
+        70485,
+        70689,
+        70907,
+        72822,
+        73365,
+        73711,
+        76209
+      ],
+      "independently_absent": [
+        63321,
+        63666,
+        63755,
+        63932,
+        64018,
+        64094,
+        64347,
+        64607,
+        64714,
+        64820,
+        65039,
+        65253,
+        65461,
+        65688,
+        66113,
+        66327,
+        66532,
+        66851,
+        67173,
+        67365,
+        67517,
+        67691,
+        67802,
+        67980,
+        68314,
+        68543,
+        68620,
+        68686,
+        68996,
+        69284,
+        69463,
+        69646,
+        70280,
+        70485,
+        70689,
+        70907,
+        72822,
+        73365,
+        73711,
+        76209
+      ],
+      "still_present": [],
+      "scope": "Owned receivers/process groups reaped after success/failure. Fixtures close hidden windows and drain owned work; no user-owned app terminated."
+    },
+    "coverage": {
+      "check_exit": 0,
+      "dialogs": 130,
+      "partial_family_reviews": 120,
+      "certified_complete": 0,
+      "pending_control_reviews": 93,
+      "note": "Audit coverage, not feature completion."
+    }
+  },
+  "hosted_evidence": {
+    "previous_head": "ea108cf9025528c3130553f180da7a68c681cf73",
+    "pages": {
+      "run": 39154284210,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 39154284194,
+      "status_at_batch_start": "pending",
+      "conclusion": null,
+      "status_at_followup": "in_progress",
+      "jobs_observation": {
+        "svn_runtime": "completed success",
+        "build_and_test": "in_progress",
+        "step": "Git integration tests"
+      }
+    }
+  },
+  "remaining": [
+    "Complete displayed light/dark/keyboard/accessibility and upstream control acceptance for every family",
+    "Physical Finder integration, real transport/credentials and installed signed sandbox behavior",
+    "Current-head hosted integration; current Intel/older-SDK/universal signed distribution",
+    "App Store runtime/license/package acceptance and store review",
+    "Unresolved custom TurtleGit logo replacement"
+  ],
+  "notes": [
+    "This is partial operation-family acceptance, not a feature-completion percentage or whole-port claim.",
+    "All test windows/children are hidden before ordering; owned receiver process groups are reaped on pass/failure/timeout.",
+    "Retained Bisect/Log verification is extracted with its existing assertions; the full unrelated Rebase/cherry-pick suite is not rerun. Its owned-operation timeout now explicitly fails.",
+    "Passing unaffected cases and Core results retained across fixture-only repairs; focused linked receivers reuse actual cached Debug app objects. Final two legacy cases checked with extracted source and the same hidden/private process policy."
+  ],
+  "dialogs": [
+    "IDD_GITSWITCH",
+    "IDD_RESET",
+    "IDD_BISECTSTART",
+    "IDD_GITPROGRESS"
+  ],
+  "logs": {
+    "reference-switch-focused-diagnostic-2026-10-18.log": "5d5d70aea39763aa3bc56092722cf10fa374ca3d0180c3277b971c9f3486eaba",
+    "reference-switch-focused-fixed-2026-10-18.log": "151b1cbf58f843b20f36992b54fc3eb6e9ef00cca4ad1afbbd427f0f43808a43",
+    "reference-switch-focused-fixed2-2026-10-18.log": "73d8dc42d32f407d31ee257892926f947a62da23de2fa4560e61bb56e7880215",
+    "reference-switch-focused-fixed3-2026-10-18.log": "6a99f0166547904eaeef223008ddf7435d027f68a9def2849bd611edbc1b50ec",
+    "retained-bisect-focused-2026-10-18.log": "8f6c5c8f957bd0b62ab82f61e997574b75c59d939ead29153c21335513cced81",
+    "retained-bisect-focused-affected-2026-10-18.log": "2a53e53dc30cc02c4c8defb9ed3b1c3119f663d5591c78a51fcb94eb4e03bffe",
+    "switch-reset-bisect-build-2026-10-18.log": "92df5c29ae43155ac7349684f29ce51b06e3a16a188dbf05ec1f23bf5286d488",
+    "switch-reset-bisect-build-switch-2026-10-18.log": "d58d36f5d785b1c25d47ce97cff6763398e33619ceec9ae193e6d6f4967c5c32",
+    "switch-reset-bisect-core-2026-10-18.log": "2e55fdff9e71f8fe890c17598b3af8c367a3b390addfea94344eba392064990d",
+    "switch-reset-bisect-native-2026-10-18.log": "5f15cb1d4f690733ac7883341d554e8511a488890e34bccc930d96aa7507ecfc",
+    "switch-reset-bisect-native-final-2026-10-18.log": "f99ee7fd4677180c15dc89c6df15f2e1328201d658a2aece35fa8f3b9c0c0fc2",
+    "switch-reset-bisect-native-last-cases-2026-10-18.log": "d0cedeefa46e70af2b51714e2025d66b7ee4a3cbf21966fe0e16c1eecf87fe96",
+    "switch-reset-bisect-native-reference-diagnostic-2026-10-18.log": "0cd0e0f77c2e2fe1f85de10cc36fa63982580fedc87bb8b1151000043092c7de",
+    "switch-reset-bisect-native-remaining-2026-10-18.log": "8b1a7ca79779abd47a3ff078828d1510aa18d6d100966c6f3bedb509ac6cae7a",
+    "switch-reset-bisect-native-switch-2026-10-18.log": "f10552c6744b0165c39be54094f51a32c17e2589c61b8b9459d3998edfc4e9c1",
+    "switch-reset-bisect-native-tail-2026-10-18.log": "21a12031b9f38421b71fdef31f93614e0526b4bb431ad4d9f6b2e4b159d999ca",
+    "switch-reset-bisect-site-2026-10-18.log": "236d4e4afeea588293272cc79ef9860fec8f227aba167a0318702175cfd04f6b"
+  }
+}

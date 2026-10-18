@@ -2353,3 +2353,20 @@ native group with system and bundled Git. Repeat only checks affected by a real
 failure or subsequent change. Record actual outcomes and remaining acceptance in
 `qa/stash-submodule-workflows-2026-10-18.json`; this checkpoint does not establish
 whole-port or signed Finder/App Store acceptance.
+
+
+## Switch, Reset and Bisect operation checkpoint
+
+`scripts/test-switch-reset-bisect-workflows.py` groups complete operation-family
+fixtures after implementation freezes. It covers captured Switch/Reset review,
+source completion menus and native sheet release, Reset stdout object identity,
+Bisect progress/continuation and partial-operation receipts, plus originating
+preferences through actual root Log and follow-up routes. Retained progress,
+revision picker and express-switch cases exercise affected consumers. Each case
+uses private repositories, preferences, injected permissions and hidden owners;
+actual child processes and sheet release must drain before teardown.
+
+Run the related Core classes once at this boundary and the grouped native cases
+with system and bundled Git. Repeat only checks affected by a real failure or
+subsequent change. See `qa/switch-reset-bisect-workflows-2026-10-18.json` for actual
+results, fixture repairs and remaining physical/signed/full-port limits.

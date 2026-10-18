@@ -23,17 +23,17 @@ extension GitRepository {
         guard !revision.isEmpty, !revision.contains("\0") else { throw ResetFailure.invalidRevision }
         if mode != .soft, try isBare(cancellation: cancellation) { throw ResetFailure.workingTreeRequired }
         let target: String
-        do { target = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+        do { target = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).stdout.resetProtocolLine }
         catch { try cancellation?.check(); throw ResetFailure.invalidRevision }
-        let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-        let reference = try? run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).stdout.resetProtocolLine
+        let reference = try? run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).stdout.resetProtocolLine
         try cancellation?.check()
         return ResetPlan(revision: target, originalHead: head, originalReference: reference, mode: mode)
     }
     public func reset(_ plan: ResetPlan, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
-        let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-        let reference = try? run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).stdout.resetProtocolLine
+        let reference = try? run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).stdout.resetProtocolLine
         try cancellation?.check()
         guard head == plan.originalHead, reference == plan.originalReference else { throw ResetFailure.changedHead }
         if plan.mode != .soft, try isBare(cancellation: cancellation) { throw ResetFailure.workingTreeRequired }
@@ -68,5 +68,15 @@ extension GitRepository {
         // revision is accepted. Omit --end-of-options for Git 2.37 compatibility.
         let args = mode == .merge ? ["reset", "--merge"] : ["reset", "--" + mode.rawValue, "HEAD", "--"]
         return try run(args, cancellation: cancellation, onOutput: onOutput).text
+    }
+}
+
+// Git protocol responses are stdout records. Successful rev-parse may also emit
+// ambiguity warnings on stderr; they are diagnostics, never object identities.
+private extension Data {
+    var resetProtocolLine:String {
+        var bytes=self
+        if bytes.last == 10 {bytes.removeLast()}
+        return String(decoding:bytes,as:UTF8.self)
     }
 }

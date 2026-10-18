@@ -1263,7 +1263,7 @@ import UniformTypeIdentifiers
         deleteConflictWindows[key] = controller; presentConflictWindow(controller)
     }
     private func configureResetInteractions(_ controller: ResetWindowController, repository: GitRepository, access: RepositoryAccessLease?, completion: (() -> Void)? = nil) {
-        let root = repository.root
+        let root = repository.root, preferences = controller.model.presentationPreferences
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
@@ -1279,17 +1279,18 @@ import UniformTypeIdentifiers
         controller.model.onReset = { _ in completion?() }
         controller.model.onPostAction = { [weak self] action in
             switch action {
-            case .submoduleUpdate: self?.showSubmoduleUpdate(repository: repository, access: access, scope: [])
-            case .clean: self?.showClean(repository: repository, access: access, paths: [])
-            case .bisectGood: self?.showBisect(repository: repository, access: access, operation: .good)
-            case .bisectBad: self?.showBisect(repository: repository, access: access, operation: .bad)
-            case .bisectSkip: self?.showBisect(repository: repository, access: access, operation: .skip)
-            case .bisectReset: self?.showBisect(repository: repository, access: access, operation: .reset)
+            case .submoduleUpdate: self?.showSubmoduleUpdate(repository: repository, access: access, scope: [], preferences: preferences)
+            case .clean: self?.showClean(repository: repository, access: access, paths: [], preferences: preferences)
+            case .bisectGood: self?.showBisect(repository: repository, access: access, operation: .good, preferences: preferences)
+            case .bisectBad: self?.showBisect(repository: repository, access: access, operation: .bad, preferences: preferences)
+            case .bisectSkip: self?.showBisect(repository: repository, access: access, operation: .skip, preferences: preferences)
+            case .bisectReset: self?.showBisect(repository: repository, access: access, operation: .reset, preferences: preferences)
             case .retry: break
             }
         }
     }
     private func showReset(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, mode: ResetMode? = nil, completion: (() -> Void)? = nil, dismissed: (() -> Void)? = nil, preferences: UserDefaults? = nil) {
+        guard !confirmingQuit else { return }
         let root = repository.root, key = root.path + "\0" + (revision.map { $0 + "\0" + UUID().uuidString } ?? "")
         if revision == nil, let existing = resetWindows[key] {
             if let completion { let previous = existing.model.onReset; existing.model.onReset = { output in previous(output); completion() } }
@@ -1831,12 +1832,14 @@ import UniformTypeIdentifiers
                     self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
                     if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
                 }
-                child.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access) }
+                let inherited = child.model.presentationPreferences
+                child.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited) }
             default: break
             }
         }
+        let bisectPreferences = controller.model.preferences
         controller.model.onHistoryBisect = { [weak self, weak controller] request in
-            self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, onChanged: { [weak controller] in controller?.model.refresh() })
+            self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, onChanged: { [weak controller] in controller?.model.refresh() }, preferences: bisectPreferences)
         }
         controller.model.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
         controller.model.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
@@ -1867,18 +1870,20 @@ import UniformTypeIdentifiers
         controller.model.onCommit = { [weak self] in self?.openSession(access ?? RepositoryAccessLease(url: repository.root), selected: FinderRequest(action: .commit, paths: [repository.root]), action: .commit) }
         addProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
-    private func showClean(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], commandLaunch: Bool = false) {
+    private func showClean(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], commandLaunch: Bool = false, preferences: UserDefaults? = nil) {
+        guard !confirmingQuit else { return }
         if commandLaunch, let existing = cleanWindows[repository.root.path] {
             existing.window?.makeKeyAndOrderFront(nil)
             error = "A Cleanup dialog is already open. Close it before opening another command-line Cleanup."; return
         }
         let root = repository.root
-        let controller = cleanWindows[root.path] ?? cleanWindowFactory?(repository) ?? CleanWindowController(repository: repository, defaults: fileComparisonPreferences)
+        let controller = cleanWindows[root.path] ?? cleanWindowFactory?(repository) ?? CleanWindowController(repository: repository, defaults: preferences ?? fileComparisonPreferences)
+        let inherited = controller.model.presentationPreferences
         controller.onClosed = { [weak self] in self?.cleanWindows.removeValue(forKey: root.path) }
         controller.model.setScope(paths)
         controller.model.onAccepted = { [weak self] request in
             guard let self else { return }
-            let id = UUID(), progress = CleanProgressWindowController(repository: repository, access: access, request: request, preferences: fileComparisonPreferences)
+            let id = UUID(), progress = CleanProgressWindowController(repository: repository, access: access, request: request, preferences: inherited)
             progress.onClosed = { [weak self] in self?.cleanProgressWindows.removeValue(forKey: id) }
             progress.model.onFinished = { [weak self] output, changed in
                 guard let self else { return }
@@ -1988,16 +1993,17 @@ import UniformTypeIdentifiers
         revisionGraphWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configureSelectableLog(_ log: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        let preferences = log.colorPreferences
         configureLogMenus(log, repository: repository, access: access)
         configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
         log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         log.onHistoryPush = { [weak self] revision, all in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: all) }
         log.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         log.onCreateReference = { [weak self] tag, revision in self?.showReference(repository: repository, access: access, isTag: tag, revision: revision) }
-        log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+        log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision, preferences: preferences) }
         log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
         configureLogIntegration(log,repository:repository,access:access)
-        log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
+        log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision, preferences: preferences) }
         log.onCherryPick = { [weak self] revisions in self?.showRebase(repository: repository, access: access, cherryPick: revisions) }
         log.onCombineRevisions = { [weak self, weak log] entries, offset, head in self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: log?.window) }
         configureLogRevert(log,repository:repository,access:access)
@@ -2350,6 +2356,7 @@ import UniformTypeIdentifiers
     private func showReferenceLog(repository: GitRepository, access: RepositoryAccessLease?, reference: String) {
         let root = repository.root
         let controller = referenceLogWindows[root.path] ?? ReferenceLogWindowController(repository: repository, access: access, reference: reference, preferences:fileComparisonPreferences)
+        let operationPreferences = controller.model.preferences
         controller.onClosed = { [weak self] in self?.referenceLogWindows.removeValue(forKey: root.path) }
         controller.model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
         controller.model.onLogRange = { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range) }
@@ -2357,11 +2364,11 @@ import UniformTypeIdentifiers
         controller.model.onCreateReference = { [weak self] isTag, hash in self?.showReference(repository: repository, access: access, isTag: isTag, revision: hash) }
         controller.model.onExport = { [weak self] hash in self?.showExport(repository: repository, access: access, revision: hash) }
         controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
-        controller.model.onCheckout = { [weak self] hash in self?.showSwitch(repository: repository, access: access, revision: hash) }
-        controller.model.onReset = { [weak self] hash in self?.showReset(repository: repository, access: access, revision: hash) }
+        controller.model.onCheckout = { [weak self] hash in self?.showSwitch(repository: repository, access: access, revision: hash, preferences: operationPreferences) }
+        controller.model.onReset = { [weak self] hash in self?.showReset(repository: repository, access: access, revision: hash, preferences: operationPreferences) }
         controller.model.onSwitchBranch = { [weak self, weak controller] reference in
             guard let parent = controller?.window, parent.attachedSheet == nil else { return }
-            self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent)
+            self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, preferences: operationPreferences)
         }
         controller.model.onTransport = { [weak self] request in
             switch request.command {
@@ -2370,7 +2377,7 @@ import UniformTypeIdentifiers
             case .svnDCommit: self?.showSVN(.dcommit, repository: repository, access: access)
             }
         }
-        controller.model.onBisect = { [weak self] request in self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil) }
+        controller.model.onBisect = { [weak self] request in self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, preferences: operationPreferences) }
         controller.model.onCombineRevisions = { [weak self, weak controller] entries, offset, head in guard let controller else { return }; self?.showHistoryCombine(repository: repository, access: access, entries: entries, offset: offset, head: head, owner: controller.window) }
         controller.model.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         controller.model.onMergeRevision = { [weak self] hash in self?.showMerge(repository: repository, access: access, revision: hash) }
@@ -2654,6 +2661,7 @@ import UniformTypeIdentifiers
             let completion: (LogEntry?) -> Void = { [weak self] revision in self?.writeCommandSelection(revision, file: output, permission: outputAccess) }
             controller = commandLineSelectionWindowFactory?(repository, access, completion) ?? LogWindowController(repository: repository, access: access, onChoose: completion, labelDefaults: defaults, loadsImmediately: false)
         } else { controller = reusable?.value ?? logWindowFactory?(repository,access) ?? LogWindowController(repository: repository, access: access, labelDefaults: defaults, loadsImmediately: invocation == nil) }
+        let operationPreferences = controller.model.colorPreferences
         controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: key) }
         controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.model.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
@@ -2662,13 +2670,13 @@ import UniformTypeIdentifiers
         configureLogRevert(controller.model,repository:repository,access:access)
         controller.model.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
-        controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+        controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision, preferences: operationPreferences) }
         configureLogMenus(controller.model, repository: repository, access: access)
         controller.model.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
         controller.model.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision, paths: paths) }
         configureLogIntegration(controller.model,repository:repository,access:access)
         configureLogBisect(controller.model, repository: repository, access: access)
-        controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
+        controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision, preferences: operationPreferences) }
         controller.model.onContainingLog = { [weak self] name, select, range in
             self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range)
         }
@@ -2767,7 +2775,7 @@ import UniformTypeIdentifiers
     }
     private func configureLogBisect(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?, refreshPicker: Bool = false) {
         model.onBisect = { [weak self, weak model] request in
-            self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, sourceLog: refreshPicker ? model : nil)
+            self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, sourceLog: refreshPicker ? model : nil, preferences: model?.colorPreferences)
         }
     }
     private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, sourceLog: LogWindowModel? = nil, onChanged: (() -> Void)? = nil, command: BisectCommandRequest? = nil, preferences: UserDefaults? = nil) {
@@ -2784,11 +2792,13 @@ import UniformTypeIdentifiers
         } else { controller = BisectWindowController(repository: repository, access: access, good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart, command: command, preferences: preferences ?? fileComparisonPreferences) }
         if let sourceLog { controller.model.observeLog(sourceLog) }
         controller.onClosed = { [weak self] in self?.bisectWindows.removeValue(forKey: root.path) }
-        controller.model.onChanged = { [weak self] output in
+        controller.model.onAttemptCompleted = { [weak self] result in
+            guard result.attempted else { return }
+            let output = result.output
             onChanged?()
             guard let self else { return }
             self.refreshRepositoryLogs(root)
-            self.commitWindows[root.path]?.model.reload(); self.statusWindows[root.path]?.model.requestReload()
+            self.commitWindows[root.path]?.model.reload(); self.statusWindows[root.path]?.model.requestReload(); self.rebaseWindows[root.path]?.model.refreshState()
             if self.root == root { self.output = output; Task { await self.refresh() } }
         }
         let inherited = controller.model.preferences
@@ -3211,20 +3221,22 @@ import UniformTypeIdentifiers
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access) }
+        let inherited = controller.model.presentationPreferences
+        controller.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited) }
         switchProgressWindows[id] = controller
-        if let window = controller.window { parent.beginSheet(window) { _ in completion?() } }
+        if let window = controller.window { window.alphaValue = parent.alphaValue; window.appearance = parent.appearance; parent.beginSheet(window) { _ in completion?() } }
         controller.model.start(); return controller
     }
-    private func performSwitchPostAction(_ action: SwitchPostAction, previousBranch: String, repository: GitRepository, access: RepositoryAccessLease?) {
+    private func performSwitchPostAction(_ action: SwitchPostAction, previousBranch: String, repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults) {
+        guard !confirmingQuit else { return }
         switch action {
-        case .submoduleUpdate: showSubmoduleUpdate(repository: repository, access: access, scope: [])
-        case .mergePreviousBranch: showMerge(repository: repository, access: access, revision: "refs/heads/" + previousBranch)
-        case .pull: showFetch(repository: repository, access: access, isPull: true)
-        case .commit, .resolve: showCommitDialog(repository: repository, access: access, paths: [])
+        case .submoduleUpdate: showSubmoduleUpdate(repository: repository, access: access, scope: [], preferences: preferences)
+        case .mergePreviousBranch: showMerge(repository: repository, access: access, revision: "refs/heads/" + previousBranch, preferences: preferences)
+        case .pull: showFetch(repository: repository, access: access, isPull: true, preferences: preferences)
+        case .commit, .resolve: showCommitDialog(repository: repository, access: access, paths: [], preferences: preferences)
         case .stash:
             var followUp = StashSaveFollowUp(); followUp.showPull = true
-            showStash(repository: repository, access: access, followUp: followUp)
+            showStash(repository: repository, access: access, followUp: followUp, preferences: preferences)
         case .retry, .switchWithMerge: break
         }
     }
@@ -3272,13 +3284,15 @@ import UniformTypeIdentifiers
             self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.requestReload(); self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access) }
+        let inherited = controller.model.presentationPreferences
+        controller.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited) }
         controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
     }
     private func showSwitch(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults? = nil) {
+        guard !confirmingQuit else { return }
         let root = repository.root
         let key = root.path + ":switch:" + UUID().uuidString
         let controller = switchWindows[key] ?? SwitchWindowController(repository: repository, access: access, revision: revision, preferences:preferences ?? fileComparisonPreferences)

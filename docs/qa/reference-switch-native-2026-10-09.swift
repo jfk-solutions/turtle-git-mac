@@ -9,9 +9,15 @@ import TurtleGitCore
         if let result = view as? T, result.accessibilityLabel() == label { return result }
         for child in view.subviews { if let result = find(type, child, label: label) { return result } }; return nil
     }
-    @MainActor static func wait(_ windows: [NSWindow], _ ready: () -> Bool) async throws {
+    @MainActor static var diagnosticReference=""
+    @MainActor static func wait(_ windows:[NSWindow],line:Int = #line,_ ready:()->Bool) async throws {
         for _ in 0..<3000 { windows.forEach { $0.contentView?.layoutSubtreeIfNeeded() }; if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw Failure(description: "Timed out")
+        let state=windows.map {window -> String in
+            if let owner=window.delegate as? ReferenceBrowserWindowController {return "Browser(folder=\(owner.model.folder.rawValue),selected=\(owner.model.selected?.rawValue ?? "nil"),chosen=\(owner.model.chosen?.name.rawValue ?? "nil"),busy=\(owner.model.busy),child=\(owner.model.hasChild),closed=\(owner.model.closed),error=\(owner.model.error ?? "nil"))"}
+            if let owner=window.delegate as? SwitchWindowController {return "Switch(revision=\(owner.model.revision),busy=\(owner.model.busy),progress=\(owner.model.progress != nil),closed=\(owner.model.closed),error=\(owner.model.error ?? "nil"))"}
+            return window.title
+        }
+        throw Failure(description:"Timed out at reference-switch-native-2026-10-09.swift:\(line), requested=\(diagnosticReference), states=\(state), reads=\(SwitchWindowModel.activeReads),operations=\(SwitchProgressWindowModel.activeOperations),releases=\(SwitchWindowController.activeChildReleases)")
     }
     @MainActor static func main() async { do { try await verify() } catch { print("FAIL: \(error)"); exit(1) } }
     @MainActor static func verify() async throws {
@@ -36,7 +42,7 @@ import TurtleGitCore
         try Data(contents.utf8).write(to: packed)
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout, config = try Data(contentsOf: root.appendingPathComponent(".git/config")), index = try Data(contentsOf: root.appendingPathComponent(".git/index")), file = try Data(contentsOf: root.appendingPathComponent("file"))
         let browser = ReferenceBrowserWindowController(repository: repo, access: nil, initial: "refs/heads/main", preferences: prefs, onChoose: { _ in })
-        defer { browser.close() }; let window = browser.window!
+        defer { browser.close() }; let window = browser.window!;window.alphaValue=0
         var configured = 0; browser.model.configureSwitch = { child in
             configured += 1
             child.configureReferencePicker = { model in model.onLog = { _ in } }
@@ -46,13 +52,23 @@ import TurtleGitCore
         browser.presentSwitch = { parent, _ in parent.makeFirstResponder(nil); return true }
         browser.model.load(); try await wait([window]) { !browser.model.busy && browser.model.snapshot != nil }
         func select(_ reference: String) async throws {
+            diagnosticReference=reference
+            // Closing a Switch child reloads the parent with its old selected
+            // leaf. Wait for that captured read before choosing the next leaf.
+            try await wait([window]) {!browser.model.busy && !browser.model.hasChild}
             let choice = browser.model.snapshot!.initialSelection(reference); browser.model.folder = choice.folder; browser.model.selected = choice.reference
-            try await wait([window]) { browser.model.chosen?.name == GitReferenceName(reference) }
+            // Changing namespace can start an asynchronous catalog/metadata
+            // refresh while the requested leaf is already visible. Menus remain
+            // disabled until that actual read settles.
+            try await wait([window]) {!browser.model.busy && browser.model.chosen?.name == GitReferenceName(reference)}
         }
         func invoke() throws {
             guard let table = find(NSTableView.self, window.contentView!, label: "References"), let menu = table.menu else { throw Failure(description: "Current native menu missing") }
             menu.delegate?.menuNeedsUpdate?(menu)
-            guard let command = menu.items.first(where: { $0.title == "Switch/Checkout to this…" }), command.isEnabled, command.image != nil, command.target != nil else { throw Failure(description: "Original Switch icon/menu missing") }
+            guard let command = menu.items.first(where: { $0.title == "Switch/Checkout to this…" }), command.isEnabled, command.image != nil, command.target != nil else {
+                let items=menu.items.map {"\($0.title){enabled=\($0.isEnabled),icon=\($0.image != nil),target=\($0.target != nil)}"}
+                throw Failure(description:"Original Switch icon/menu missing: chosen=\(browser.model.chosen?.name.rawValue ?? "nil"), type=\(browser.model.chosen?.objectType ?? "nil"), canSwitch=\(browser.model.canSwitch), busy=\(browser.model.busy), child=\(browser.model.hasChild), quit=\(browser.model.confirmingQuit), bare=\(browser.model.bare), nativeRows=\(table.numberOfRows), nativeSelection=\(table.selectedRowIndexes), folder=\(browser.model.folder.rawValue), items=\(items)")
+            }
             try require(NSApplication.shared.sendAction(command.action!, to: command.target, from: command), "Native menu dispatch")
         }
         for (ref, target, create) in [("refs/heads/main", CheckoutTarget.branch, false), ("refs/remotes/origin/main", .branch, true), ("refs/remotes/origin/HEAD", .branch, true), ("refs/tags/release", .tag, false), ("refs/notes/custom", .commit, false), (nfc, .branch, false), (nfd, .branch, false)] {
@@ -79,14 +95,17 @@ import TurtleGitCore
             try await select(reference); try require(!browser.model.canSwitch, "Noncommit gate"); browser.showSwitch(); try require(browser.switchDialog == nil, "Noncommit child rejected")
         }
         let bareRoot = root.appendingPathComponent("bare.git"); _ = try await repo.run(["clone", "--bare", root.path, bareRoot.path])
-        let bare = ReferenceBrowserWindowController(repository: GitRepository(root: bareRoot, executable: repo.executable), access: nil, initial: "refs/heads/main", preferences: prefs, onChoose: { _ in }); defer { bare.close() }
+        let bare = ReferenceBrowserWindowController(repository: GitRepository(root: bareRoot, executable: repo.executable), access: nil, initial: "refs/heads/main", preferences: prefs, onChoose: { _ in });bare.window?.alphaValue=0; defer { bare.close() }
         bare.model.load(); try await wait([bare.window!]) { !bare.model.busy && bare.model.snapshot != nil }; try require(bare.model.bare && !bare.model.canSwitch, "Bare Switch gate"); bare.showSwitch(); try require(bare.switchDialog == nil, "Bare child rejected"); bare.close()
         try await select("refs/heads/main"); browser.presentSwitch = { _, _ in false }; browser.showSwitch(); try require(browser.switchDialog == nil && !browser.model.hasChild, "Rejected presentation cleanup")
+        // Rejected child presentation also triggers the parent's fresh catalog.
+        try await wait([window]) {!browser.model.busy && !browser.model.hasChild}
         browser.presentSwitch = { parent, _ in parent.makeFirstResponder(nil); return true }; browser.showSwitch()
         guard let forced = browser.switchDialog else { throw Failure(description: "Forced child absent") }; try await wait([window, forced.window!]) { !forced.model.busy }
         forced.model.browse(.branch); guard let nested = forced.referencePicker else { throw Failure(description: "Nested full browser absent") }
         try await wait([window, forced.window!, nested.window!]) { !nested.model.busy && nested.model.snapshot != nil }
-        browser.close(); try require(browser.model.closed && browser.switchDialog == nil && forced.referencePicker == nil && nested.model.closed, "Forced parent/nested picker cleanup")
+        browser.close();try await wait([window,forced.window!,nested.window!]) {SwitchWindowController.activeChildReleases == 0 && nested.model.closed}
+        try require(browser.model.closed && browser.switchDialog == nil && forced.referencePicker == nil && nested.model.closed, "Forced parent/nested picker cleanup")
         let after = try await repo.run(["rev-parse", "HEAD"]).stdout; try require(head == after && config == Data(contentsOf: root.appendingPathComponent(".git/config")) && index == Data(contentsOf: root.appendingPathComponent(".git/index")) && file == Data(contentsOf: root.appendingPathComponent("file")), "Opening/cancelling routes leaves repository unchanged")
         print("PHASE: Complete browser-owned checkout and progress acknowledgements")
         let transactionRoot = root.appendingPathComponent("transaction")
@@ -102,7 +121,7 @@ import TurtleGitCore
         for policy in 0...2 {
             _ = try await transaction.run(["checkout", "main"]); prefs.set(policy, forKey: "AutoCloseGitProgress")
             var chosen: String?, choices = 0, changes = 0, switched = 0, post: SwitchPostAction?, previous: String?, ended: (() -> Void)?
-            let parent = ReferenceBrowserWindowController(repository: transaction, access: nil, initial: "refs/heads/older", preferences: prefs) { chosen = $0; choices += 1 }; defer { parent.close() }
+            let parent = ReferenceBrowserWindowController(repository: transaction, access: nil, initial: "refs/heads/older", preferences: prefs) { chosen = $0; choices += 1 };parent.window?.alphaValue=0; defer { parent.close() }
             parent.presentSwitch = { owner, _ in owner.makeFirstResponder(nil); return true }
             parent.model.configureSwitch = { child in
                 child.model.onChanged = { _ in changes += 1 }; child.model.onSwitched = { _ in switched += 1 }
@@ -131,13 +150,20 @@ import TurtleGitCore
             try require(changes == 1 && switched == 1 && !parent.model.hasChild && !child.model.busy && child.model.progress == nil && child.progressController == nil, "Progress acknowledgement did not release owned route")
             ended?(); child.model.checkout(); try require(switched == 1 && changes == 1, "Duplicate progress completion or checkout")
             if policy == 1 { try require(post == .pull && previous == "main", "Owned post-action lost previous branch") }
-            try require(parent.model.snapshot?.currentBranch == "refs/heads/main", "Browser unexpectedly reloaded after Switch")
+            // Source child closure refreshes the catalog. Explicitly prepare a
+            // stale snapshot to verify Current Branch reads live HEAD, rather
+            // than racing or assuming that this refresh never happens.
+            try await wait([parent.window!]) {!parent.model.busy}
+            _ = try await transaction.run(["checkout","main"])
+            parent.model.load();try await wait([parent.window!]) {!parent.model.busy && parent.model.snapshot?.currentBranch == "refs/heads/main"}
+            _ = try await transaction.run(["checkout","older"])
+            try require(parent.model.snapshot?.currentBranch == "refs/heads/main", "Fixture did not retain stale branch metadata for live Current Branch")
             parent.model.currentBranch(); try await wait([parent.window!]) { parent.model.closed }
             try require(chosen == "refs/heads/older" && choices == 1, "Current Branch did not read completed checkout")
         }
         print("PHASE: Rejected owned progress presentation")
         _ = try await transaction.run(["checkout", "main"]); prefs.set(0, forKey: "AutoCloseGitProgress")
-        let rejected = SwitchWindowController(repository: transaction, access: nil, preferences: prefs); defer { rejected.close() }
+        let rejected = SwitchWindowController(repository: transaction, access: nil, preferences: prefs);rejected.window?.alphaValue=0; defer { rejected.close() }
         rejected.presentProgress = { _, _, _ in false }; rejected.model.load(revision: "refs/heads/older")
         try await wait([rejected.window!]) { !rejected.model.busy }; rejected.model.checkout()
         try await wait([rejected.window!]) { !rejected.model.busy }
@@ -150,7 +176,17 @@ import TurtleGitCore
             let quoted = "'" + repo.executable.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
             let script = """
             #!/bin/sh
-            if [ "${4-}" = \(command) ] && [ -f "$0.armed" ] && [ ! -f "$0.release" ]; then
+            task_matches_command() {
+              while [ "$#" -gt 0 ]; do
+                case "$1" in
+                  -c|-C|--git-dir|--work-tree) shift; [ "$#" -gt 0 ] && shift ;;
+                  --literal-pathspecs|--no-literal-pathspecs|--no-optional-locks|--no-pager) shift ;;
+                  *) [ "$1" = \(command) ]; return ;;
+                esac
+              done
+              return 1
+            }
+            if task_matches_command "$@" && [ -f "$0.armed" ] && [ ! -f "$0.release" ]; then
               /bin/sleep 30 &
               task_child=$!
               trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
@@ -162,7 +198,7 @@ import TurtleGitCore
             """
             try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
             let slow = GitRepository(root: transactionRoot, executable: helper)
-            let parent = ReferenceBrowserWindowController(repository: slow, access: nil, initial: "refs/heads/older", preferences: prefs) { _ in }; defer { parent.close() }
+            let parent = ReferenceBrowserWindowController(repository: slow, access: nil, initial: "refs/heads/older", preferences: prefs) { _ in };parent.window?.alphaValue=0; defer { parent.close() }
             parent.presentSwitch = { owner, _ in owner.makeFirstResponder(nil); return true }
             parent.model.load(); try await wait([parent.window!]) { !parent.model.busy && parent.model.chosen != nil }
             try Data().write(to: arm); parent.showSwitch()
@@ -186,7 +222,17 @@ import TurtleGitCore
             let quoted = "'" + repo.executable.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
             let script = """
             #!/bin/sh
-            if [ "${4-}" = \(command) ] && [ -f "$0.armed" ] && [ ! -f "$0.release" ]; then
+            task_matches_command() {
+              while [ "$#" -gt 0 ]; do
+                case "$1" in
+                  -c|-C|--git-dir|--work-tree) shift; [ "$#" -gt 0 ] && shift ;;
+                  --literal-pathspecs|--no-literal-pathspecs|--no-optional-locks|--no-pager) shift ;;
+                  *) [ "$1" = \(command) ]; return ;;
+                esac
+              done
+              return 1
+            }
+            if task_matches_command "$@" && [ -f "$0.armed" ] && [ ! -f "$0.release" ]; then
               /bin/sleep 30 &
               task_child=$!
               trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
@@ -199,7 +245,7 @@ import TurtleGitCore
             try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
             let slow = GitRepository(root: transactionRoot, executable: helper)
             var changes = 0, switched = 0, actions = 0, completed: (() -> Void)?, lateAnswer: ((Bool) -> Void)?
-            let parent = ReferenceBrowserWindowController(repository: slow, access: nil, initial: "refs/heads/older", preferences: prefs) { _ in }; defer { parent.close() }
+            let parent = ReferenceBrowserWindowController(repository: slow, access: nil, initial: "refs/heads/older", preferences: prefs) { _ in };parent.window?.alphaValue=0; defer { parent.close() }
             parent.presentSwitch = { owner, _ in owner.makeFirstResponder(nil); return true }
             parent.model.configureSwitch = { child in
                 child.model.onChanged = { _ in changes += 1 }; child.model.onSwitched = { _ in switched += 1 }; child.model.onPostAction = { _, _ in actions += 1 }

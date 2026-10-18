@@ -112,7 +112,10 @@ saves that description without recreating the branch or switching again.</p>
 <p>Switch/Checkout chooses the target branch, tag or commit. Review Create New
 Branch, force/overwrite, merge and tracking options when available. Force can
 discard working changes. A checkout failure leaves its Git output available for
-inspection; resolve the reported condition before retrying.</p>
+inspection; resolve the reported condition before retrying. The completed result
+offers the applicable next actions, including Submodule Update, Pull, Commit or
+Stash. A selected action closes the owned result before opening the next dialog.
+Pending tag-name and cancellation questions keep their accepted target and options.</p>
 <a name="topic-fetch"></a><a name="topic-pull"></a><h2 id="fetch-and-pull">Fetch and Pull</h2>
 <p>Choose a configured Remote or an Arbitrary URL. Remote Branch narrows the request;
 the browse button selects a remote branch. Manage Remotes opens the repository's
@@ -297,7 +300,9 @@ until you answer it.</p>
 <a href="REVERTING-FILES.html">Reverting working files</a>. The file-selection window supports sortable saved columns, file history/Blame, Open With/export, and same-repository file drops. Context Revert opens its recovery/progress window and refreshes the list when closed. Revert a commit from Log creates
 an inverse change; see <a href="REVERT-COMMIT.html">Reverting a commit</a>.</p>
 <p>Reset selects a revision and reset mode. Review the mode before accepting: changes
-to the index and working tree depend on it. Clean removes selected untracked or
+to the index and working tree depend on it. Hard Reset asks for confirmation
+before discarding local changes. Result actions keep the chosen repository and
+close the result before opening Submodule Update, Cleanup or Bisect. Clean removes selected untracked or
 ignored content according to its options. Review its candidates; these operations
 are not ordinary editor Undo actions.</p>
 <a name="topic-submodules"></a><a name="topic-worktrees"></a><h2 id="submodules-and-worktrees">Submodules and worktrees</h2>
@@ -337,7 +342,12 @@ working tree. See <a href="REVISION-EXPORT.html">Revision Export</a>.</p>
 <p>Start Bisect with a known good and known bad revision. Git chooses a revision to
 test. Mark the tested revision Good, Bad or Skip as appropriate. Continue until
 the result is found, then use Reset to leave the bisect operation. These actions
-can change the checked-out revision; preserve working changes beforehand.</p>
+can change the checked-out revision; preserve working changes beforehand.
+Completed progress shows its status and optional elapsed time. Its split action
+button keeps the applicable Submodule Update and Good/Bad/Skip/Reset choices
+in one menu. Submodule Update opens after the Bisect window closes. A failed or
+cancelled command can retain changes already made; inspect the refreshed repository
+state before deciding how to continue.</p>
 <a name="topic-settings"></a><h2 id="settings">Settings</h2>
 <p>Settings uses a navigation tree. Apply saves changed pages; Cancel discards their
 unsaved drafts. Git, Dialogs 3 and Issue Tracker pages distinguish a read-only
