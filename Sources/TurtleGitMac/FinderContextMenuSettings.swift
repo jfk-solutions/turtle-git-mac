@@ -140,9 +140,9 @@ struct FinderContextMenuSettingsPage: View {
                 Toggle("Enable drag context menu", isOn: .constant(false)).disabled(true)
                     .help("Finder Sync does not provide drag context menus.")
                 Text("Finder Sync does not provide drag context menus.").font(.caption).foregroundStyle(.secondary)
-                GroupBox("macOS clipboard actions") {
-                    Toggle("Show clipboard Copy/Add and Move in Finder folders", isOn: model.binding(\.clipboardTransfers, context: context))
-                        .help("macOS clipboard actions appear in the TurtleGit submenu; source menu masks are preserved.")
+                GroupBox("macOS file transfers") {
+                    Toggle("Show Transfer and clipboard Copy/Add and Move in Finder", isOn: model.binding(\.clipboardTransfers, context: context))
+                        .help("macOS transfer and clipboard actions appear in the TurtleGit submenu; source menu masks are preserved.")
                         .disabled(!model.accepts(context)).padding(8)
                 }
             }

@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "8053f59922c0f1b142a34d668bcbd6ff136eb79e0983ad8a309bd1358699b2cd",
+    "Contents/Info.plist": "73ce672f72189734a0a7da215f4e4bb2021b26a5493f7727099cde946a85adc5",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "ea62e9255277183fb721ceb36a97a21b113f94329e42eef862414b541f4853fd",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "8431f0108093ba0cc6e3fe9f221e11988b07773f928b428a8c63b5a158ba87f4",
@@ -24,7 +24,7 @@
     "Contents/Resources/en.lproj/LOG-FIND.html": "6f557107c2666c5117ca34d1486449389f82e74eade846a50d75a3a676d7b739",
     "Contents/Resources/en.lproj/MERGE-FILTERS.html": "fd3810301986f74435fb161b42c4abff1bb1f53347e5e2cd9eae51f4c8b2a8af",
     "Contents/Resources/en.lproj/MERGE-TOOL.html": "04f0830be9589106a99ab85d2a3dd7a7dbb8d6bcbdaad8248f5d37d33e4347e9",
-    "Contents/Resources/en.lproj/MOVING-AND-COPYING.html": "71958b1b9f698bc2ab50a3d56bd3fe563cafa377f47929bbaa2b4df69ce7a2d6",
+    "Contents/Resources/en.lproj/MOVING-AND-COPYING.html": "76ab47d08eaad445c4ae0fa893f2a3bcf1a93432d4089daa2e1519d8daccc424",
     "Contents/Resources/en.lproj/PRIVACY.html": "2feec9d8edab5687579d581be70f072b9f416e948653ba8daf9c82558ec57262",
     "Contents/Resources/en.lproj/REBASE-CONFLICT-FILES.html": "8ea8e7ea5e9e8ad328bc7215381cfc8c690fc29cba224dfdf5a887b7fe855c83",
     "Contents/Resources/en.lproj/REBASE-REFERENCE-RECOVERY.html": "3eef9aea6018a9c492427ceaf3e9dfbce7e95adc09c1ad7e7c29817dec6028ec",
@@ -83,7 +83,7 @@
     "docs/LOG-FIND.md": "76d55d6d65a79e6bb066468bddd465e81c3a038b4289e2db84a3ded13c5d7e9e",
     "docs/MERGE-FILTERS.md": "c32dbedd77e3f6903bb05bac9d9edc9efbdfad6942bdaad57752a27c7107f028",
     "docs/MERGE-TOOL.md": "016985a213a8bc9cdc571552ebccc1cabe4095ad4d3b30d0a415ec307bd43a05",
-    "docs/MOVING-AND-COPYING.md": "af27ece7f54d23f3a8e43af1144fbde6f794a38d76c6551becfc1909cfc8d7e1",
+    "docs/MOVING-AND-COPYING.md": "763a485e2dd89d0f912db242637f12f821368310a070d784bd122986f38bfe99",
     "docs/PRIVACY.md": "09e932133af3c562d07cc73bf4a51723d1f08b5f85f9d91f061c047470c82d86",
     "docs/REBASE-CONFLICT-FILES.md": "5def68fc819548e2f7316cd25029c0ee47fc1506c590b2107280de1bac2120c0",
     "docs/REBASE-REFERENCE-RECOVERY.md": "be01823a9b9bc4658409fb501620bc13fb2297674d65adf248f74201f35e13af",

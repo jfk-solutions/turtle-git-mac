@@ -50,6 +50,49 @@ import UniformTypeIdentifiers
     func cancel() { owner.cancellation.cancel(); finish(nil) }
 }
 
+/// Finder's source selection outlives its native destination panel. Publish the
+/// accepted URL only after AppKit has detached the actual sheet.
+@MainActor private final class FinderTransferDestinationChoice {
+    let owner: RepositoryWindowOwner
+    let panel = NSOpenPanel()
+    private weak var window: NSWindow?
+    private var completed = false, delivered = false
+    private var accepted: URL?
+    private var releaseObserver: NSObjectProtocol?
+    var onFinished: (URL?) -> Void = { _ in }
+    init(window: NSWindow?, owner: RepositoryWindowOwner) {
+        self.window = window; self.owner = owner
+        panel.alphaValue = window?.alphaValue ?? 1; panel.appearance = window?.appearance
+        owner.onCancelled = { [weak self] in self?.cancel() }
+    }
+    func begin(present: ((NSOpenPanel, NSWindow?, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?, selected: @escaping (NSOpenPanel) -> URL?) {
+        let reply: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            guard let self else { return }
+            self.finish(response == .OK && !self.owner.cancellation.isCancelled ? selected(self.panel) : nil)
+        }
+        if let present { present(panel, window, reply) }
+        else if let window { panel.beginSheetModal(for: window, completionHandler: reply) }
+        else { panel.begin(completionHandler: reply) }
+    }
+    private func finish(_ result: URL?) {
+        guard !completed else { return }; completed = true; accepted = result
+        releaseObserver = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification, object: nil, queue: .main) { [weak self] _ in
+            DispatchQueue.main.async { self?.drain() }
+        }
+        if let parent = panel.sheetParent { parent.endSheet(panel, returnCode: result == nil ? .cancel : .OK) }
+        panel.orderOut(nil); panel.close(); drain()
+        DispatchQueue.main.async { [self] in drain() }
+    }
+    private func drain() {
+        guard completed, !delivered, panel.sheetParent == nil, window?.attachedSheet !== panel else { return }
+        delivered = true
+        if let releaseObserver { NotificationCenter.default.removeObserver(releaseObserver); self.releaseObserver = nil }
+        let reply = onFinished; onFinished = { _ in }
+        reply(owner.cancellation.isCancelled ? nil : accepted)
+    }
+    func cancel() { owner.cancellation.cancel(); finish(nil); drain() }
+}
+
 @MainActor final class RepositoryModel: ObservableObject {
     private let autotextTester = AutotextTesterOwner()
     func showAutotextTester() {
@@ -214,7 +257,7 @@ import UniformTypeIdentifiers
 
     @Published var output = "Open a repository to get started."
     @Published var busy = false { didSet { if busy != oldValue { retireWorkspaceMenus() };repositoryAccessWindow?.model.objectWillChange.send();if !busy { eventRefresh?.kick(); scheduleCompletedRepositoryHandoff() } } }
-    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { retireWorkspaceMenus() };repositoryAccessWindow?.model.objectWillChange.send();if !confirmingQuit { eventRefresh?.kick(); scheduleCompletedRepositoryHandoff() } } }
+    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { retireWorkspaceMenus(); for controller in dropTransfers.values { controller.model.confirmingQuit = confirmingQuit }; for controller in moveWindows.values { controller.model.confirmingQuit = confirmingQuit }; for controller in copyWindows.values { controller.model.confirmingQuit = confirmingQuit } };repositoryAccessWindow?.model.objectWillChange.send();if !confirmingQuit { eventRefresh?.kick(); scheduleCompletedRepositoryHandoff() } } }
     @Published var error: String? { didSet {retireWorkspaceMenus()} }
     @Published var section = RepositoryAction.status { didSet { if section != oldValue {retireWorkspaceMenus()} } }
     @Published var dialog: RepositoryAction? { didSet {retireWorkspaceMenus()} }
@@ -310,6 +353,10 @@ import UniformTypeIdentifiers
     var presentCreationFolderPanel: ((NSOpenPanel, NSWindow?, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
     var selectedCreationFolderURL: (NSOpenPanel) -> URL? = { $0.url }
     private var creationFolderChoice: RepositoryCreationFolderChoice?
+    var presentTransferDestinationPanel: ((NSOpenPanel, NSWindow?, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
+    var selectedTransferDestinationURL: (NSOpenPanel) -> URL? = { $0.url }
+    private var sourceTransferOwner: RepositoryWindowOwner?
+    private var sourceTransferFolderChoice: FinderTransferDestinationChoice?
     var finderTransferPresentation: ((FinderRequest, GitRepository, RepositoryAccessLease) -> Void)?
     private var copyWindows: [UUID: FileCopyWindowController] = [:]
     private(set) var moveWindows: [String: FileMoveWindowController] = [:]
@@ -345,7 +392,7 @@ import UniformTypeIdentifiers
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
     private var resolutionCommandPreparation: RepositoryWindowOwner?
     private var resolutionCommandFolderChoice: RepositoryCreationFolderChoice?
     private var silentResolveSessions = GitPathMap<FileListComparisonSession>()
@@ -389,7 +436,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -673,6 +720,7 @@ import UniformTypeIdentifiers
                     let paths = actionPaths ?? selected?.relativePaths(root: resolved) ?? []
                     if action.isFileTransfer, let request = selected, let repository, let destination = request.paths.first {
                         if let finderTransferPresentation { finderTransferPresentation(request, repository, sessionAccess) }
+                        else if action == .transferFiles { showTransferSelection(repository: repository, access: sessionAccess, sources: request.sources, destination: destination, owner: workspaceWindow, preferences: fileComparisonPreferences) }
                         else if action == .pasteCopy { showCopy(repository: repository, access: sessionAccess, sources: request.sources, paste: true, folder: destination) }
                         else { showMove(repository: repository, access: sessionAccess, paths: [], clipboard: request.sources, destination: destination) }
                     } else if action == .requestPull, let repository {
@@ -834,6 +882,12 @@ import UniformTypeIdentifiers
             let selected = paths.isEmpty ? selectedPaths : paths
             guard selected.count == 1, selected[0] != "." else { error = RenameFailure.source.localizedDescription; return }
             showRename(repository: repository, access: activeAccess, source: selected[0])
+        case .transferFiles:
+            guard let root else { return }
+            let urls = (paths.isEmpty ? selectedPaths : paths).map { root.appendingPathComponent($0) }
+            let request = FinderRequest(action: .transferFiles, paths: urls)
+            guard request.url != nil else { error = "Select files or folders to transfer."; return }
+            prepareFinderSourceTransfer(request)
         case .pasteCopy, .pasteMove:
             showFileTransfer(copy: action == .pasteCopy); return
         case .move:
@@ -1130,16 +1184,88 @@ import UniformTypeIdentifiers
     var configureDropTransfer: (FileDropTransferWindowController) -> Void = { _ in }
     @discardableResult func receiveTransferDrop(_ providers: [NSItemProvider], repository captured: GitRepository? = nil, access capturedAccess: RepositoryAccessLease? = nil, owner capturedOwner: NSWindow? = nil) -> Bool {
         guard !confirmingQuit, captured != nil || canReceiveTransferDrop, !providers.isEmpty, providers.count <= 256, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }), let repository = captured ?? repository, let owner = capturedOwner ?? workspaceWindow, owner.attachedSheet == nil else { return false }
-        let id = UUID(), access = captured == nil ? activeAccess : capturedAccess, controller = FileDropTransferWindowController(repository: repository, access: access)
+        let id = UUID(), access = captured == nil ? activeAccess : capturedAccess, controller = FileDropTransferWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
+        controller.receiveAllowed = { [weak self] in self?.retired == false && self?.confirmingQuit == false }
         controller.onClosed = { [weak self] in self?.dropTransfers.removeValue(forKey: id) }
+        let preferences = fileComparisonPreferences
         controller.onAccepted = { [weak self] choice, urls, folder in
-            guard let self, !self.confirmingQuit else { return }
-            if choice == .copyAdd { self.showCopy(repository: repository, access: access, sources: urls, folder: folder) }
-            else { self.showMove(repository: repository, access: access, paths: [], clipboard: urls, destination: folder, renameFirst: choice == .moveRename, stopOnError: false) }
+            guard let self, !self.retired, !self.confirmingQuit else { return }
+            if choice == .copyAdd { self.showCopy(repository: repository, access: access, sources: urls, folder: folder, preferences: preferences) }
+            else { self.showMove(repository: repository, access: access, paths: [], clipboard: urls, destination: folder, renameFirst: choice == .moveRename, stopOnError: false, preferences: preferences) }
         }
         configureDropTransfer(controller); dropTransfers[id] = controller
         guard controller.present(owner: owner) else { controller.close(); dropTransfers.removeValue(forKey: id); return false }
         controller.model.load(providers); return true
+    }
+    /// Source URLs are captured before the destination panel; neither Finder's
+    /// later selection nor the general clipboard participates in this workflow.
+    func cancelFinderSourceTransfer() { sourceTransferOwner?.cancellation.cancel(); sourceTransferFolderChoice?.cancel() }
+    private func prepareFinderSourceTransfer(_ request: FinderRequest, completion: ((Bool) -> Void)? = nil) {
+        guard request.isTransferSourceSelection, !retired, !confirmingQuit, !busy,
+              sourceTransferOwner == nil, workspaceWindow?.attachedSheet == nil else { completion?(false); return }
+        let sources = request.paths, window = workspaceWindow, preferences = fileComparisonPreferences
+        let owner = RepositoryWindowOwner(window: window)
+        sourceTransferOwner = owner; busy = true
+        Task {
+            var transferred = false
+            defer {
+                if !transferred {
+                    if sourceTransferOwner === owner { sourceTransferOwner = nil; sourceTransferFolderChoice = nil }
+                    busy = false; completion?(false)
+                }
+            }
+            guard !retired, !confirmingQuit, !owner.cancellation.isCancelled else { return }
+            let folder = await withCheckedContinuation { continuation in
+                let choice = FinderTransferDestinationChoice(window: window, owner: owner)
+                choice.panel.title = "Transfer files"; choice.panel.prompt = "Choose destination"
+                choice.panel.message = "Choose the destination working tree (repository root). You can choose a subfolder in the transfer dialog."
+                choice.panel.canChooseFiles = false; choice.panel.canChooseDirectories = true
+                choice.panel.canCreateDirectories = false; choice.panel.directoryURL = root
+                if window == nil {
+                    let appearance = preferences.string(forKey: "appearance") ?? "system"
+                    choice.panel.appearance = appearance == "dark" ? NSAppearance(named: .darkAqua) : appearance == "light" ? NSAppearance(named: .aqua) : nil
+                }
+                sourceTransferFolderChoice = choice
+                choice.onFinished = { continuation.resume(returning: $0) }
+                choice.begin(present: presentTransferDestinationPanel, selected: selectedTransferDestinationURL)
+            }
+            guard !retired, !confirmingQuit, !owner.cancellation.isCancelled, let folder else { return }
+            let destination = FinderRequest(action: .transferFiles, paths: [folder], sources: sources)
+            guard destination.isTransferDestinationReview, destination.url != nil, canChangeSettingsContext() else { return }
+            var permission = RepositoryAccessLease(url: folder)
+            if let activeAccess, activeAccess.contains(folder), !requiresRepositoryScope || activeAccess.hasSecurityScope { permission = activeAccess }
+            else if let store = accessStore {
+                for saved in store.repositories {
+                    if let access = try? store.acquire(saved.id, requireSecurityScope: requiresRepositoryScope), access.contains(folder) { permission = access; break }
+                }
+            }
+            busy = false; transferred = true
+            // openSession performs normal root/metadata/grant checks. The source
+            // files are separately authorized by the accepted copy/move workflow.
+            openSession(permission, selected: destination, onFinished: { [weak self] opened in
+                if self?.sourceTransferOwner === owner { self?.sourceTransferOwner = nil; self?.sourceTransferFolderChoice = nil }
+                completion?(opened)
+            }, handoffOwner: owner, onOpened: { [weak self] in
+                guard let self, !self.retired, !self.confirmingQuit, !owner.cancellation.isCancelled,
+                      let repository = self.repository, let access = self.activeAccess else { return }
+                guard !self.bare else { self.error = "File transfers require a working tree."; return }
+                self.showTransferSelection(repository: repository, access: access, sources: sources, destination: folder, owner: window, preferences: preferences, allowed: { !owner.cancellation.isCancelled })
+            })
+        }
+    }
+    private func showTransferSelection(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], destination: URL, owner: NSWindow?, preferences: UserDefaults, allowed: @escaping () -> Bool = { true }) {
+        guard !retired, !confirmingQuit, !sources.isEmpty, sources.count <= 256, owner?.attachedSheet == nil, allowed() else { return }
+        let id = UUID(), controller = FileDropTransferWindowController(repository: repository, access: access, preferences: preferences, destination: destination)
+        controller.receiveAllowed = { [weak self] in self?.retired == false && self?.confirmingQuit == false && allowed() }
+        controller.onClosed = { [weak self] in self?.dropTransfers.removeValue(forKey: id) }
+        controller.onAccepted = { [weak self] choice, urls, folder in
+            guard let self, !self.retired, !self.confirmingQuit, allowed() else { return }
+            if choice == .copyAdd { self.showCopy(repository: repository, access: access, sources: urls, folder: folder, preferences: preferences) }
+            else { self.showMove(repository: repository, access: access, paths: [], clipboard: urls, destination: folder, renameFirst: choice == .moveRename, stopOnError: false, preferences: preferences) }
+        }
+        configureDropTransfer(controller); dropTransfers[id] = controller
+        guard controller.present(owner: owner) else { controller.close(); return }
+        controller.model.loadSources(sources, destination: destination)
     }
     func showFileTransfer(copy: Bool, repository captured: GitRepository? = nil, access: RepositoryAccessLease? = nil, urls: [URL]? = nil) {
         let snapshot = urls ?? FileTransferClipboard.urls()
@@ -4143,6 +4269,7 @@ import UniformTypeIdentifiers
             if let receipt = request.clipboardPatch { showFinderClipboardPatch(request, receipt: receipt) }
             else { showReviewPatch(files: request.paths) }; return
         }
+        if action == .transferFiles, request.isTransferSourceSelection { handedOff = true; prepareFinderSourceTransfer(request, completion: completion); return }
         if action == .sendMail { showFinderSendMail(files: request.paths); return }
         if action == .clearComparisonMark { clearComparisonMark(); return }
         if action == .diffLater {

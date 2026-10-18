@@ -27,13 +27,13 @@ import TurtleGitCore
             return reply == 0 ? .deleteMetadata : reply == 1 ? .ignore : .abort
         }
         model.chooseName = { [weak self] source, folder, token in
-            guard let self, !self.model.retired, let window = self.window, window.attachedSheet == nil else { return nil }
+            guard let self, !self.model.retired, !self.model.confirmingQuit, let window = self.window, window.attachedSheet == nil else { return nil }
             self.model.question = true
             return await withCheckedContinuation { continuation in
                 let child = FileCopyNameController(repository: repository, source: source, folder: folder, token: token) { [weak self] plan in
                     self?.name = nil; self?.model.question = false; continuation.resume(returning: plan)
                 }
-                self.name = child; if let childWindow = child.window { window.beginSheet(childWindow) }
+                self.name = child; if let childWindow = child.window { childWindow.alphaValue = window.alphaValue; childWindow.appearance = window.appearance; window.beginSheet(childWindow, completionHandler: nil) }
             }
         }
         model.authorizeSources = { [weak self] sources in await self?.authorize(sources) }
@@ -41,17 +41,17 @@ import TurtleGitCore
     }
     private func browse(sources: Bool) {
         guard model.canEdit, let window, window.attachedSheet == nil, panel == nil else { return }
-        let panel = NSOpenPanel(); panel.title = sources ? "Copy and Add files or folders" : "Copy to folder"; panel.canChooseFiles = sources; panel.canChooseDirectories = true; panel.allowsMultipleSelection = sources; panel.canCreateDirectories = !sources; panel.directoryURL = model.folder
+        let panel = NSOpenPanel(); panel.alphaValue = window.alphaValue; panel.appearance = window.appearance; panel.title = sources ? "Copy and Add files or folders" : "Copy to folder"; panel.canChooseFiles = sources; panel.canChooseDirectories = true; panel.allowsMultipleSelection = sources; panel.canCreateDirectories = !sources; panel.directoryURL = model.folder
         self.panel = panel; model.question = true
         panel.beginSheetModal(for: window) { [weak self] response in
             guard let self, self.panel === panel else { return }; self.panel = nil; self.model.question = false
-            if response == .OK, !self.model.retired { if sources { self.model.setSources(panel.urls) } else if let url = panel.url { self.model.folder = url } }
+            if response == .OK, !self.model.retired, !self.model.confirmingQuit { if sources { self.model.setSources(panel.urls) } else if let url = panel.url { self.model.folder = url } }
         }
     }
     private var authorizationReply: (([RepositoryAccessLease]?) -> Void)?
     private func authorize(_ sources: [URL]) async -> [RepositoryAccessLease]? {
-        guard !model.retired, panel == nil, let window, window.attachedSheet == nil else { return nil }
-        let panel = NSOpenPanel(); panel.title = "Authorize copied source files"; panel.prompt = "Authorize sources"; panel.canChooseFiles = true; panel.canChooseDirectories = true; panel.allowsMultipleSelection = true; panel.resolvesAliases = false
+        guard !model.retired, !model.confirmingQuit, panel == nil, let window, window.attachedSheet == nil else { return nil }
+        let panel = NSOpenPanel(); panel.alphaValue = window.alphaValue; panel.appearance = window.appearance; panel.title = "Authorize copied source files"; panel.prompt = "Authorize sources"; panel.canChooseFiles = true; panel.canChooseDirectories = true; panel.allowsMultipleSelection = true; panel.resolvesAliases = false
         panel.directoryURL = sources.first?.deletingLastPathComponent(); panel.message = "Select these same source files or folders to grant access: " + sources.map(\.lastPathComponent).joined(separator: ", ")
         self.panel = panel; model.question = true
         return await withCheckedContinuation { continuation in
@@ -59,7 +59,7 @@ import TurtleGitCore
             panel.beginSheetModal(for: window) { [weak self] response in
                 guard let self, self.panel === panel else { return }; self.panel = nil; self.model.question = false
                 let reply = self.authorizationReply; self.authorizationReply = nil
-                guard !self.model.retired, response == .OK else { reply?(nil); return }
+                guard !self.model.retired, !self.model.confirmingQuit, response == .OK else { reply?(nil); return }
                 guard let selected = FileTransferPaths.authorizedSources(panel.urls,for:sources) else {
                     self.model.error = "Choose exactly the captured source files or folders."; reply?(nil); return
                 }
@@ -69,8 +69,8 @@ import TurtleGitCore
         }
     }
     private func ask(_ title: String, detail: String, buttons: [String], defaultIndex: Int) async -> Int {
-        guard !model.retired, pending == nil, let window, window.attachedSheet == nil else { return buttons.count - 1 }
-        let alert = NSAlert(); alert.messageText = title; alert.informativeText = detail; alert.alertStyle = .warning
+        guard !model.retired, !model.confirmingQuit, pending == nil, let window, window.attachedSheet == nil else { return buttons.count - 1 }
+        let alert = NSAlert(); alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.appearance; alert.messageText = title; alert.informativeText = detail; alert.alertStyle = .warning
         for (index, title) in buttons.enumerated() { let button = alert.addButton(withTitle: title); button.keyEquivalent = index == defaultIndex ? "\r" : "" }
         let id = UUID(); model.question = true
         return await withCheckedContinuation { continuation in
@@ -82,7 +82,7 @@ import TurtleGitCore
         guard let pending, pending.0 == id else { return }; self.pending = nil; model.question = false
         if pending.1.window.sheetParent === window { window?.endSheet(pending.1.window) }; pending.1.window.orderOut(nil); pending.2(answer)
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.question && !model.confirmingCancel }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.confirmingQuit else { return false }; if model.busy { model.cancel(); return false }; return !model.question && !model.confirmingCancel }
     func windowWillClose(_ notification: Notification) {
         guard !model.retired else { return }; model.retire()
         if let pending { settle(pending.0, answer: 2) }
@@ -97,6 +97,8 @@ import TurtleGitCore
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
+    var presentationPreferences: UserDefaults { preferences }
+    @Published var confirmingQuit = false
     let paste: Bool
     private let sourceProvider: any RepositoryBookmarkProvider
     private var sourceAccess: [RepositoryAccessLease] = []
@@ -126,7 +128,7 @@ import TurtleGitCore
     var confirmCancel: () async -> Bool = { false }
     var authorizeSources: ([URL]) async -> [RepositoryAccessLease]? = { _ in nil }
     var requireSourceScopes = GitRuntime.isAppStoreBuild
-    var canEdit: Bool { !retired && !busy && !progress && !question }
+    var canEdit: Bool { !retired && !confirmingQuit && !busy && !progress && !question }
     init(repository: GitRepository, access: RepositoryAccessLease?, sources: [URL], folder: URL?, paste: Bool = false, sourceProvider: any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(), preferences: UserDefaults) {
         self.repository = repository; self.access = access; self.preferences = preferences; self.sourceProvider = sourceProvider; self.paste = paste; self.folder = folder ?? repository.root
         setSources(sources)
@@ -212,10 +214,10 @@ import TurtleGitCore
     }
     private func append(_ text: String) { output = LocalGitCommandProgress.bounded(output + (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + text + "\n", preferences: preferences) }
     func cancel() {
-        guard !retired, busy, !question, !confirmingCancel, let token else { return }
+        guard !retired, !confirmingQuit, busy, !question, !confirmingCancel, let token else { return }
         if !progress || !preferences.bool(forKey: "ConfirmKillProcess") { token.cancel(); return }
         confirmingCancel = true
-        Task { let accepted = await confirmCancel(); confirmingCancel = false; if accepted && !retired && self.token === token { token.cancel() } }
+        Task { let accepted = await confirmCancel(); confirmingCancel = false; if accepted && !retired && !confirmingQuit && self.token === token { token.cancel() } }
     }
     var actionLogRepository: URL { repository.root }
     var actionLogEligible: Bool { progress }
@@ -239,7 +241,7 @@ private struct FileCopyDialog: View {
                 if let error = model.error { Text(error).foregroundStyle(.red) }
                 HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer(); Button("Copy and Add") { model.run() }.keyboardShortcut(.defaultAction).disabled(!model.canEdit || model.sources.isEmpty); Button("Cancel") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction) }
             }
-        }.padding(16)
+        }.padding(16).disabled(model.confirmingQuit)
     }
 }
 @MainActor final class FileCopyNameController: NSWindowController, NSWindowDelegate {

@@ -33,7 +33,7 @@ import TurtleGitCore
         """#
         try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path);setenv("TG_MOVE_GIT",git.path,1);defer {unsetenv("TG_MOVE_GIT")}
         let wrapped=GitRepository(root:root,executable:helper),slow=FileMoveWindowController(repository:wrapped,access:nil,paths:[source],preferences:prefs)
-        defer {slow.close()};slow.model.setFolder(destination);try await wait {!slow.model.busy};slow.model.move()
+        defer {slow.close()};slow.window?.alphaValue = 0;slow.model.setFolder(destination);try await wait {!slow.model.busy};slow.model.move()
         try await wait {FileManager.default.fileExists(atPath:marker.path) && slow.model.output.contains("Unicode 雪")}
         try require(slow.model.output.contains("Move: 35%") && !slow.model.output.contains("Move: 10%") && FileMoveWindowModel.activeOperations > 0,"Live move output/ownership missing")
         try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Quit lost live move")
@@ -43,7 +43,7 @@ import TurtleGitCore
         // Collision uses the real Rename-style name controller and keeps invalid
         // input in the same sheet. Accepted plan preserves staged/working bytes.
         try Data("existing\n".utf8).write(to:destination.appendingPathComponent((source as NSString).lastPathComponent))
-        let moving=FileMoveWindowController(repository:repo,access:nil,paths:[source],preferences:prefs);defer {moving.close()}
+        let moving=FileMoveWindowController(repository:repo,access:nil,paths:[source],preferences:prefs);defer {moving.close()};moving.window?.alphaValue = 0
         moving.model.setFolder(destination);try await wait {!moving.model.busy};var events:[(String,String)]=[];moving.model.onMoved={old,new,_ in events.append((old,new))}
         moving.model.move();try await wait {moving.namePicker != nil}
         let name=moving.namePicker!;name.accept();try await wait {!name.busy && !name.errorLabel.stringValue.isEmpty}
@@ -54,7 +54,7 @@ import TurtleGitCore
         try require(try String(contentsOf:destination.appendingPathComponent((source as NSString).lastPathComponent)) == "existing\n","Collision overwrote existing destination")
         moving.close()
         // Ignore/Abort operates in source order and does not roll back successes.
-        let batch=FileMoveWindowController(repository:repo,access:nil,paths:["not-versioned",second],preferences:prefs);defer {batch.close()}
+        let batch=FileMoveWindowController(repository:repo,access:nil,paths:["not-versioned",second],preferences:prefs);defer {batch.close()};batch.window?.alphaValue = 0
         batch.model.setFolder(destination);try await wait {!batch.model.busy};var ignored:[String]=[]
         batch.model.continueAfterError={path,_ in ignored.append(path);return true};batch.model.move();try await wait {!batch.model.busy}
         try require(ignored == ["not-versioned"] && batch.model.skipped == 1 && batch.model.moved == 1 && FileManager.default.fileExists(atPath:destination.appendingPathComponent("second.txt").path),"Ignore failed to continue ordered batch")
@@ -62,7 +62,7 @@ import TurtleGitCore
         // A held noncooperative command still counts for Quit after forced close;
         // its supplied token rejects the real mutation when released.
         let late=FileMoveWindowController(repository:repo,access:nil,paths:[third],preferences:prefs);var release:(()->Void)?,lateEvents=0
-        late.model.setFolder(destination);try await wait {!late.model.busy}
+        late.window?.alphaValue = 0;late.model.setFolder(destination);try await wait {!late.model.busy}
         late.model.onMoved={_,_,_ in lateEvents += 1}
         late.model.executeMove={plan,token,emit in await withCheckedContinuation {continuation in release={continuation.resume()}};return try await repo.executeFileMove(plan,cancellation:token,onOutput:emit)}
         late.model.move();try await wait {release != nil};late.close();try require(FileMoveWindowModel.activeOperations > 0,"Retirement dropped active command lifetime")

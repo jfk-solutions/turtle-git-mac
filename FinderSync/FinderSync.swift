@@ -65,6 +65,7 @@ import os
             settings: FinderMenuSettings.read(), comparisonMark: try? WorkingComparisonMarkSnapshot.read(),
             target: self, actionSelector: #selector(openAction(_:)), creationDirectory: creation,
             extended: NSEvent.modifierFlags.contains(.shift), toolbar: menuKind == .toolbarItemMenu,
+            sourceSelection: menuKind == .contextualMenuForItems ? selection : [],
             clipboardSources: (NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? [])
         menuDispatch.install(menu)
         return menu
@@ -154,7 +155,7 @@ enum FinderShellMenuLayout {
         [.initialize, .add, .blame, .ignore, .ignoreDelete],
         [.worktreeList, .submoduleAdd, .submoduleUpdate, .submoduleSync],
         [.formatPatch, .importPatch, .reviewPatch, .sendMail],
-        [.pasteCopy, .pasteMove],
+        [.transferFiles, .pasteCopy, .pasteMove],
         [.properties, .settings, .help, .about]
     ]
     static func action(_ item: NSMenuItem) -> RepositoryAction? {
@@ -192,7 +193,7 @@ enum FinderMenuBuilder {
     }
     static func make(paths: [URL], snapshot: FinderSnapshot?, settings: FinderMenuSettings,
                      comparisonMark: WorkingComparisonMarkSnapshot?, target: AnyObject?, actionSelector: Selector,
-                     creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false, clipboardSources: [URL] = [], localizationBundle: Bundle? = nil) -> NSMenu {
+                     creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false, sourceSelection: [URL] = [], clipboardSources: [URL] = [], localizationBundle: Bundle? = nil) -> NSMenu {
         let captions = FinderMenuCaptions(language: settings.language, bundle: localizationBundle ?? Bundle(for: FinderSync.self))
         func image(_ icon: MenuIcon) -> NSImage? { settings.showIcons ? icon.image() : nil }
         let menu = NSMenu(title: "TurtleGit"); menu.autoenablesItems = false
@@ -223,7 +224,7 @@ enum FinderMenuBuilder {
         let knownRepository = paths.first.flatMap { snapshot?.repositoryRoot(for: $0) } != nil
         let sharedRepository = snapshot?.commonRepositoryRoot(for: paths) != nil
         if !submenu.items.isEmpty && knownRepository { submenu.addItem(.separator()) }
-        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && !$0.isLFS && $0.resolveChoice == nil }) {
+        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && $0 != .transferFiles && !$0.isIgnore && !$0.isLFS && $0.resolveChoice == nil }) {
             guard (knownRepository || action.isApplicationUtility || [.sendMail, .reviewPatch].contains(action) || action == .diff && paths.count == 2), FinderShellRules.allows(action, flags: shellFlags) else { continue }
             if action == .diff && paths.count == 2 && paths.contains(where: { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }) { continue }
             let item = NSMenuItem(title: captions.label(action.title), action: actionSelector, keyEquivalent: "")
@@ -275,6 +276,17 @@ enum FinderMenuBuilder {
             let item = NSMenuItem(title: title, action: actionSelector, keyEquivalent: "")
             item.target = target; item.image = image(.compare); item.representedObject = FinderMenuCommand(action: .diffLater, paths: paths)
             submenu.addItem(.separator()); submenu.addItem(item)
+        }
+        // Only real item selections offer the direct source action. Container,
+        // sidebar and toolbar paths describe destinations, never dragged sources.
+        let capturedSources = FinderRequest.normalizedSelection(sourceSelection)
+        if !toolbar, !capturedSources.isEmpty,
+           capturedSources.count == paths.count,
+           capturedSources.allSatisfy({ source in paths.contains { GitReferenceName.equal($0.path, source.path) } }),
+           let request = FinderTransferContext.sourceRequest(selection: sourceSelection, snapshot: snapshot, settings: settings) {
+            let item = NSMenuItem(title: captions.label(request.action.title), action: actionSelector, keyEquivalent: "")
+            item.image = image(request.action.icon); item.target = target
+            item.representedObject = FinderMenuCommand(request: request); submenu.addItem(item)
         }
         if paths.count == 1 {
             for request in FinderTransferContext.requests(destination: paths[0], sources: clipboardSources, snapshot: snapshot, settings: settings) {

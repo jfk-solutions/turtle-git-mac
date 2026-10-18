@@ -22,7 +22,7 @@ import TurtleGitCore
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).text
         let suite = "TurtleGit.DropTransfer." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         prefs.set(false, forKey: "ConfirmKillProcess"); defer { prefs.removePersistentDomain(forName: suite) }
-        let owner = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 450), styleMask: [.titled, .closable], backing: .buffered, defer: false); owner.isReleasedWhenClosed = false; defer { owner.close() }
+        let owner = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 450), styleMask: [.titled, .closable], backing: .buffered, defer: false); owner.isReleasedWhenClosed = false; owner.alphaValue = 0; defer { owner.close() }
         let drop = FileDropTransferWindowController(repository: repo, access: nil, preferences: prefs); defer { drop.close() }
         try require(drop.present(owner: owner), "Owned drop sheet absent")
         drop.model.load([provider(source)]); try await wait { !drop.model.busy }
@@ -31,17 +31,18 @@ import TurtleGitCore
         try require(drop.model.error != nil && drop.model.choices.isEmpty, "Administrative destination accepted")
         drop.model.prepare(folder: folder); try await wait { !drop.model.busy }
         try require(drop.model.folder == folder && drop.model.canChoose(.moveRename) && index == Data(contentsOf: root.appendingPathComponent(".git/index")), "Preparation mutated index or lost destination")
-        drop.close(); try require(owner.attachedSheet == nil && drop.model.retired, "Owned sheet not retired")
-        let multiple = FileDropTransferModel(repository: repo, access: nil); multiple.load([provider(source), provider(second), provider(source)]); try await wait { !multiple.busy }
+        drop.close(); try await wait { owner.attachedSheet == nil && FileDropTransferWindowController.activeReleases == 0 }; try require(owner.attachedSheet == nil && drop.model.retired, "Owned sheet not retired")
+        let multiple = FileDropTransferModel(repository: repo, access: nil, preferences: prefs); multiple.load([provider(source), provider(second), provider(source)]); try await wait { !multiple.busy }
         try require(multiple.sources.count == 2 && multiple.choices == [.move], "Multi-source duplicate/order/rename gate differs"); multiple.retire()
         // Use the production captured-repository handoff, while the workspace has no active repository.
-        let workspace = RepositoryModel(); var choice: FileDropTransferWindowController?
+        let workspace = RepositoryModel(startMonitoring: false, initializePreferences: false, repositoryFactory: { GitRepository(root: $0, executable: git) }, snapshotWriter: { _ in false }); workspace.fileComparisonPreferences = prefs; workspace.requiresRepositoryScope = false; workspace.movePresentation = { $0.window?.alphaValue = 0 }; workspace.copyPresentation = { $0.window?.alphaValue = 0 }; defer { workspace.closeRepository() }; var choice: FileDropTransferWindowController?
         workspace.configureDropTransfer = { choice = $0 }
         try require(workspace.receiveTransferDrop([provider(source)], repository: repo, owner: owner), "Production transfer route refused captured repository")
         guard let choice else { throw Failure(description: "Production drop chooser missing") }
         defer { choice.close() }
         try await wait { !choice.model.busy }; choice.model.prepare(folder: folder); try await wait { !choice.model.busy }
         choice.model.accept(.moveRename)
+        try await wait { NSApp.windows.compactMap({ $0.delegate as? FileMoveWindowController }).contains(where: { $0.model.repository.root == root && !$0.model.retired }) }
         guard let moving = NSApp.windows.compactMap({ $0.delegate as? FileMoveWindowController }).first(where: { $0.model.repository.root == root && !$0.model.retired }) else { throw Failure(description: "Move/Rename handoff missing") }
         defer { moving.close() }; try await wait { !moving.model.busy }
         try require(moving.model.renameFirst && moving.model.folder == folder && moving.model.paths == [source.lastPathComponent] && workspace.root == nil, "Handoff lost captured context/rename choice")
@@ -55,6 +56,7 @@ import TurtleGitCore
         guard let external else { throw Failure(description: "External chooser missing") }; defer { external.close() }; try await wait { !external.model.busy }
         try require(external.model.choices == [.copyAdd] && !external.model.canChoose(.move), "External sources incorrectly move eligible")
         external.model.accept(.copyAdd)
+        try await wait { NSApp.windows.compactMap({ $0.delegate as? FileCopyWindowController }).contains(where: { $0.model.sources == [outside] && !$0.model.retired }) }
         guard let copying = NSApp.windows.compactMap({ $0.delegate as? FileCopyWindowController }).first(where: { $0.model.sources == [outside] && !$0.model.retired }) else { throw Failure(description: "Copy/Add handoff missing") }
         defer { copying.close() }; copying.model.run(); try await wait { !copying.model.busy }
         let copied = try await repo.run(["show", ":" + outside.lastPathComponent]).text
@@ -65,7 +67,7 @@ import TurtleGitCore
         late.model.readURL = { _ in await withCheckedContinuation { release = $0 } }; late.onAccepted = { _, _, _ in accepted = true }
         try require(late.present(owner: owner), "Late sheet absent"); late.model.load([provider(second)]); try await wait { release != nil }; late.close()
         try require(FileDropTransferModel.activePreparations > 0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Retired provider lost counter/Quit lifetime")
-        release?.resume(returning: second); release = nil; try await wait { FileDropTransferModel.activePreparations == 0 }
+        release?.resume(returning: second); release = nil; try await wait { FileDropTransferModel.activePreparations == 0 && FileDropTransferWindowController.activeReleases == 0 }
         try require(late.model.sources.isEmpty && !accepted && late.model.retired, "Late provider published or handed off")
         let finalHead = try await repo.run(["rev-parse", "HEAD"]).text; try require(head == finalHead, "Drop operations committed unexpectedly")
         try require(!workspace.receiveTransferDrop([], repository: repo, owner: owner) && !workspace.receiveTransferDrop([NSItemProvider(object: "text" as NSString)], repository: repo, owner: owner), "Empty/text drops accepted")

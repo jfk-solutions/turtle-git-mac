@@ -22,14 +22,14 @@ import TurtleGitCore
         model.close = { [weak self] in self?.window?.performClose(nil) }
         model.browse = { [weak self] in self?.browse() }
         model.chooseName = { [weak self] source, folder, initial, token in
-            guard let self, !self.model.retired, self.namePicker == nil, let window = self.window, window.attachedSheet == nil else { return nil }
+            guard let self, !self.model.retired, !self.model.confirmingQuit, self.namePicker == nil, let window = self.window, window.attachedSheet == nil else { return nil }
             self.model.hasQuestion = true
             return await withCheckedContinuation { continuation in
                 let child = FileMoveNameController(repository: repository, access: access, source: source, folder: folder, name: initial, cancellation: token) { [weak self] plan in
                     if let child = self?.namePicker?.window, child.sheetParent === self?.window { self?.window?.endSheet(child) }
                     self?.namePicker = nil; self?.model.hasQuestion = false; continuation.resume(returning: plan)
                 }
-                self.namePicker = child; if let childWindow = child.window { window.beginSheet(childWindow) } else { child.retire() }
+                self.namePicker = child; if let childWindow = child.window { childWindow.alphaValue = window.alphaValue; childWindow.appearance = window.appearance; window.beginSheet(childWindow, completionHandler: nil) } else { child.retire() }
             }
         }
         model.continueAfterError = { [weak self] source, message in await self?.ask(title: "Could not move “\(source)”", message: message, buttons: ["Ignore", "Abort"]) ?? false }
@@ -38,17 +38,17 @@ import TurtleGitCore
     }
     private func browse() {
         guard model.canEdit, let window, window.attachedSheet == nil, panel == nil else { return }
-        let panel = NSOpenPanel(); panel.title = "Move to folder"; panel.prompt = "Choose destination"; panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true; panel.allowsMultipleSelection = false; panel.directoryURL = model.folder
+        let panel = NSOpenPanel(); panel.alphaValue = window.alphaValue; panel.appearance = window.appearance; panel.title = "Move to folder"; panel.prompt = "Choose destination"; panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true; panel.allowsMultipleSelection = false; panel.directoryURL = model.folder
         panel.message = "Choose a destination in the same working tree."
         let id = UUID(); self.panel = (id, panel); model.choosingFolder = true
         panel.beginSheetModal(for: window) { [weak self] answer in
             guard let self, self.panel?.0 == id else { return }; self.panel = nil; self.model.choosingFolder = false
-            if !self.model.retired, answer == .OK, let folder = panel.url { self.model.setFolder(folder) }
+            if !self.model.retired, !self.model.confirmingQuit, answer == .OK, let folder = panel.url { self.model.setFolder(folder) }
         }
     }
     private func ask(title: String, message: String, buttons: [String]) async -> Bool {
-        guard !model.retired, question == nil, let window, window.attachedSheet == nil else { return false }
-        let alert = NSAlert(); alert.messageText = title; alert.informativeText = message; alert.alertStyle = .warning
+        guard !model.retired, !model.confirmingQuit, question == nil, let window, window.attachedSheet == nil else { return false }
+        let alert = NSAlert(); alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.appearance; alert.messageText = title; alert.informativeText = message; alert.alertStyle = .warning
         for button in buttons { alert.addButton(withTitle: button) }
         if buttons == ["Ignore", "Abort"] { alert.buttons[0].keyEquivalent = ""; alert.buttons[1].keyEquivalent = "\r" }
         let id = UUID(); model.hasQuestion = true
@@ -62,7 +62,7 @@ import TurtleGitCore
         if pending.1.window.sheetParent === window { window?.endSheet(pending.1.window, returnCode: accepted ? .alertFirstButtonReturn : .alertSecondButtonReturn) }
         pending.1.window.orderOut(nil); pending.2(accepted)
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.hasQuestion && !model.choosingFolder && namePicker == nil && !model.confirmingCancellation }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.confirmingQuit else { return false }; if model.busy { model.cancel(); return false }; return !model.hasQuestion && !model.choosingFolder && namePicker == nil && !model.confirmingCancellation }
     func windowWillClose(_ notification: Notification) {
         guard !model.retired else { return }; model.retire()
         if let pending = question { finishQuestion(pending.0, accepted: false) }
@@ -77,6 +77,8 @@ import TurtleGitCore
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
+    var presentationPreferences: UserDefaults { preferences }
+    @Published var confirmingQuit = false
     @Published private(set) var paths: [String]
     private(set) var retired = false
     private var pasteMode = false
@@ -105,7 +107,7 @@ import TurtleGitCore
     var continueAfterError: (String, String) async -> Bool = { _, _ in false }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var executeMove: ((FileMovePlan, OperationCancellation, @escaping @Sendable (GitOutputChunk) -> Void) async throws -> String)?
-    var canEdit: Bool { !retired && !busy && !progress && !choosingFolder && !hasQuestion }
+    var canEdit: Bool { !retired && !confirmingQuit && !busy && !progress && !choosingFolder && !hasQuestion }
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.preferences = preferences; folder = repository.root
         var seen = GitPathSet(); self.paths = paths.filter { seen.insert($0).inserted }
@@ -181,12 +183,12 @@ import TurtleGitCore
         }
     }
     func cancel() {
-        guard !retired, busy, !hasQuestion, !confirmingCancellation, !cancelling, let token = cancellation else { return }
+        guard !retired, !confirmingQuit, busy, !hasQuestion, !confirmingCancellation, !cancelling, let token = cancellation else { return }
         if !progress || !preferences.bool(forKey: "ConfirmKillProcess") { cancelling = true; token.cancel(); return }
         confirmingCancellation = true; var answered = false
         confirmCancellation { [weak self] accepted in
             guard !answered, let self, !self.retired else { return }; answered = true; self.confirmingCancellation = false
-            if accepted, self.busy, self.cancellation === token { self.cancelling = true; token.cancel() }
+            if accepted, !self.confirmingQuit, self.busy, self.cancellation === token { self.cancelling = true; token.cancel() }
         }
     }
     var actionLogRepository: URL { repository.root }
@@ -215,7 +217,7 @@ private struct FileMoveDialog: View {
                 if let error = model.error { Text(error).foregroundStyle(.red) }
                 HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer(); Button("Move") { model.move() }.keyboardShortcut(.defaultAction).disabled(!model.canEdit || model.paths.isEmpty); Button(model.busy ? "Cancel read" : "Cancel") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction) }
             }
-        }.padding(16)
+        }.padding(16).disabled(model.confirmingQuit)
     }
 }
 

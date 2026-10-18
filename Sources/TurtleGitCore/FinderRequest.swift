@@ -46,6 +46,26 @@ public struct FinderRequest: Sendable {
         let path = components.reversed().reduce(literalParent) { $0 + ($0 == "/" ? "":"/") + $1 }
         return FileTransferPaths.fileURL(path)
     }
+    /// Direct Finder selection and reviewed destination use separate payload forms.
+    /// Neither form conveys source/destination sandbox authority.
+    public var isTransferSourceSelection: Bool {
+        action == .transferFiles && sources.isEmpty && Self.validTransferPayload(action: action, paths: paths, sources: sources) && url != nil
+    }
+    public var isTransferDestinationReview: Bool {
+        action == .transferFiles && !sources.isEmpty && Self.validTransferPayload(action: action, paths: paths, sources: sources) && url != nil
+    }
+    private static func validTransferPayload(action: RepositoryAction, paths: [URL], sources: [URL]) -> Bool {
+        guard action.isFileTransfer else { return sources.isEmpty }
+        let valid: (URL) -> Bool = { url in
+            url.isFileURL && url.path.hasPrefix("/") && !url.path.contains("\0") &&
+                !url.pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame })
+        }
+        guard paths.allSatisfy(valid), sources.allSatisfy(valid) else { return false }
+        if action == .transferFiles && sources.isEmpty {
+            return (1...256).contains(paths.count) && paths.allSatisfy { $0.path != "/" }
+        }
+        return paths.count == 1 && (1...256).contains(sources.count) && sources.allSatisfy { $0.path != "/" }
+    }
     public init?(url: URL) {
         guard url.scheme == "turtlegit", url.host == "action",
               let fields = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
@@ -69,7 +89,8 @@ public struct FinderRequest: Sendable {
               paths.count == fields.filter({ $0.name == "path" }).count else { return nil }
         let sourceFields = fields.filter { $0.name == "source" }, sources = sourceFields.compactMap(\.value)
         guard sources.count == sourceFields.count, sources.allSatisfy({ $0.hasPrefix("/") && !$0.contains("\0") }),
-              action.isFileTransfer ? paths.count == 1 && !sources.isEmpty && sources.count <= 256 && url.absoluteString.utf8.count <= 131072 : sources.isEmpty else { return nil }
+              Self.validTransferPayload(action: action, paths: paths.map { FileTransferPaths.fileURL($0) }, sources: sources.map { FileTransferPaths.fileURL($0) }),
+              !action.isFileTransfer || url.absoluteString.utf8.count <= 131072 else { return nil }
         guard clipboardFields.isEmpty || paths.count == 1 else { return nil }
         self.init(action: action, paths: paths.map { FileTransferPaths.fileURL($0) }, sources: sources.map { FileTransferPaths.fileURL($0) }, alternateTool:alternateTool, requestPullEnd: endFields.first?.value, requestPullURL: urlFields.first?.value, clipboardPatch: clipboardFields.first?.value)
     }
@@ -79,7 +100,7 @@ public struct FinderRequest: Sendable {
               action == .requestPull || (requestPullEnd == nil && requestPullURL == nil),
               [requestPullEnd, requestPullURL].compactMap({ $0 }).allSatisfy({ !$0.contains("\0") }) else { return nil }
         guard paths.allSatisfy({ $0.isFileURL && !$0.path.contains("\0") }), sources.allSatisfy({ $0.isFileURL && !$0.path.contains("\0") }),
-              action.isFileTransfer ? paths.count == 1 && !sources.isEmpty && sources.count <= 256 : sources.isEmpty else { return nil }
+              Self.validTransferPayload(action: action, paths: paths, sources: sources) else { return nil }
         var components = URLComponents()
         components.scheme = "turtlegit"; components.host = "action"
         components.queryItems = [URLQueryItem(name: "command", value: action.rawValue)] + paths.map { URLQueryItem(name: "path", value: $0.path) } + sources.map { URLQueryItem(name: "source", value: $0.path) }

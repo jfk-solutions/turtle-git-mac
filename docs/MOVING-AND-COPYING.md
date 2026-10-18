@@ -4,6 +4,26 @@ TurtleGit uses Git-aware Move so a renamed or relocated versioned file keeps its
 index contents separately from any further working-file edits. These operations
 change files and the index; they do not create a commit.
 
+## Transfer a Finder selection
+
+Select files or folders in Finder and choose **TurtleGit → Transfer…**. Choose the
+destination working tree's repository root, then use the native transfer dialog
+for a subfolder if needed. The source list is captured when the menu opens;
+changing Finder selection or clipboard contents does not retarget it. The
+**Show Transfer and clipboard Copy/Add and Move in Finder** setting controls this Finder entry.
+
+The destination button and **Recent destinations** use the captured working tree.
+Every chosen or remembered folder is checked again before its actions become
+available. History remembers up to twelve destinations per repository. Move and
+single-item Move and Rename require versioned sources in that same working tree;
+external or unversioned sources offer Copy and Add. These buttons open the existing
+operation review window; choosing a destination alone changes no files or index.
+
+Cancel or close the transfer dialog to abandon it. Closing its initiating window
+cancels destination/preparation work. The accepted action starts only after the
+chooser and any destination sheet have actually detached. External file access
+is requested separately by Copy and Add when necessary.
+
 ## Drop files into TurtleGit
 
 Drop local files or folders onto the main workspace file list or a Working Tree
@@ -43,5 +63,6 @@ working tree; Paste Copy and Add copies the captured URLs into the destination.
 Finder's destination-folder clipboard entries require an enabled Finder extension.
 
 The receiving sheet is the current macOS application adaptation of TortoiseGit's
-Windows drag context menu. Finder right-drag menus remain an open integration
-feature. Signed permission delivery and physical drag acceptance are still pending.
+Windows drag context menu. FinderSync has no public drag-destination menu hook;
+the Finder Transfer action and app-owned drop sheet are the macOS adaptations.
+Signed permission delivery and physical drag acceptance are still pending.

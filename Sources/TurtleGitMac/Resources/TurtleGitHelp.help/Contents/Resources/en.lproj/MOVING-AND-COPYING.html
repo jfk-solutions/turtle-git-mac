@@ -3,6 +3,22 @@
 <p>TurtleGit uses Git-aware Move so a renamed or relocated versioned file keeps its
 index contents separately from any further working-file edits. These operations
 change files and the index; they do not create a commit.</p>
+<h2 id="transfer-a-finder-selection">Transfer a Finder selection</h2>
+<p>Select files or folders in Finder and choose <strong>TurtleGit → Transfer…</strong>. Choose the
+destination working tree's repository root, then use the native transfer dialog
+for a subfolder if needed. The source list is captured when the menu opens;
+changing Finder selection or clipboard contents does not retarget it. The
+<strong>Show Transfer and clipboard Copy/Add and Move in Finder</strong> setting controls this Finder entry.</p>
+<p>The destination button and <strong>Recent destinations</strong> use the captured working tree.
+Every chosen or remembered folder is checked again before its actions become
+available. History remembers up to twelve destinations per repository. Move and
+single-item Move and Rename require versioned sources in that same working tree;
+external or unversioned sources offer Copy and Add. These buttons open the existing
+operation review window; choosing a destination alone changes no files or index.</p>
+<p>Cancel or close the transfer dialog to abandon it. Closing its initiating window
+cancels destination/preparation work. The accepted action starts only after the
+chooser and any destination sheet have actually detached. External file access
+is requested separately by Copy and Add when necessary.</p>
 <h2 id="drop-files-into-turtlegit">Drop files into TurtleGit</h2>
 <p>Drop local files or folders onto the main workspace file list or a Working Tree
 window's file list. The receiving sheet shows the captured paths and destination.
@@ -32,6 +48,7 @@ file URLs on the clipboard. Paste Move accepts versioned paths from the same
 working tree; Paste Copy and Add copies the captured URLs into the destination.
 Finder's destination-folder clipboard entries require an enabled Finder extension.</p>
 <p>The receiving sheet is the current macOS application adaptation of TortoiseGit's
-Windows drag context menu. Finder right-drag menus remain an open integration
-feature. Signed permission delivery and physical drag acceptance are still pending.</p>
+Windows drag context menu. FinderSync has no public drag-destination menu hook;
+the Finder Transfer action and app-owned drop sheet are the macOS adaptations.
+Signed permission delivery and physical drag acceptance are still pending.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

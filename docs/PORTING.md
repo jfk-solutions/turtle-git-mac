@@ -3194,3 +3194,21 @@ This is a connected implementation batch with grouped evidence in
 [metafile workflow checks](qa/metafile-workflows-2026-10-18.json). A successful
 scoped checkpoint does not certify every Windows drawing operation, every native
 layout or current signed Finder/App Store deployment.
+
+
+### Direct Finder source transfers, October 18, 2026
+
+Finder's selected-item Transfer action captures source URLs independently of the
+clipboard, then adopts the selected destination working tree through normal root
+and metadata permission checks. A native transfer chooser retains source-style
+Move/Move+Rename/Copy+Add eligibility, a validated destination and bounded recent
+destinations per repository. Accepted operations inherit captured preferences and
+wait for actual chooser/panel detachment; owner close, cancellation and deferred
+Quit fence late work while tokens/grants remain alive through drain.
+
+The [source comparison](FINDER-SOURCE-TRANSFER-PARITY.md) and
+[batch evidence](qa/finder-source-transfer-2026-10-18.json) retain concrete checks
+and remaining gaps. Exact Finder right-drag menu replacement has no public
+FinderSync callback; this batch implements the native selected-source adaptation.
+Physical gestures, current installed signed Finder/grant delivery, every original
+control layout and full App Store distribution remain separate acceptance.

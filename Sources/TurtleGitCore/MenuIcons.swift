@@ -260,7 +260,7 @@ extension RepositoryAction {
         case .stashApply, .stashPop: return .stashPop
         case .clone: return .clone
         case .initialize: return .initialize
-        case .rename, .move, .pasteMove, .dropMove: return .rename
+        case .rename, .move, .pasteMove, .dropMove, .transferFiles: return .rename
         case .pasteCopy: return .copy
         case .remove, .removeKeep: return .remove
         case .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask: return .ignore

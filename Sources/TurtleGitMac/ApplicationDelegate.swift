@@ -118,6 +118,13 @@ import AppKit
     private var confirmingQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
     func applicationWillTerminate(_ notification: Notification) { acceptingOpenURLs = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
+    private func setTransferQuitConfirmation(_ sender: NSApplication, _ value: Bool) {
+        for window in sender.windows {
+            (window.delegate as? FileDropTransferWindowController)?.model.confirmingQuit = value
+            (window.delegate as? FileMoveWindowController)?.model.confirmingQuit = value
+            (window.delegate as? FileCopyWindowController)?.model.confirmingQuit = value
+        }
+    }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if SettingsSheetController.activeSheets > 0 || workspaceOpenHandoff.hasPendingWork || RepositoryModel.activeCommandFileOperations > 0 || repositoryModel?.hasPendingRepositoryWork == true { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? RepositoryAccessWindowController }).contains(where:{ $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
@@ -130,7 +137,7 @@ import AppKit
         if sender.windows.compactMap({ $0.delegate as? CreateRepositoryWindowController }).contains(where: { !$0.model.canClose || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if CommitWindowModel.activeIssueProviderOperations > 0 { return .terminateCancel }
         if RevertProgressWindowModel.activeOperations > 0 { return .terminateCancel }
-        if FileDropTransferModel.activePreparations > 0 { return .terminateCancel }
+        if FileDropTransferModel.activePreparations > 0 || FileDropTransferWindowController.activeReleases > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? FileDropTransferWindowController }).contains(where: { !$0.model.retired }) { return .terminateCancel }
         if ReferenceBrowserWindowModel.activeComparisons > 0 || ReferenceBrowserWindowController.activeChildReleases > 0 || RenameWindowModel.activeOperations > 0 || ReferenceBrowserWindowModel.activeMutations > 0 { return .terminateCancel }
         if RemoveWindowModel.activeOperations > 0 { return .terminateCancel }
@@ -336,7 +343,7 @@ import AppKit
         for controller in bisects { controller.model.confirmingQuit = true }
         for controller in imports { controller.setQuitConfirmation(true) }
         for controller in reviews { controller.setQuitConfirmation(true) }
-        repositoryModel?.confirmingQuit = true
+        setTransferQuitConfirmation(sender, true); repositoryModel?.confirmingQuit = true
         for browser in browsers { browser.model.confirmingQuit = true }
         for comparison in fileComparisons { comparison.model.confirmingQuit = true }
         for diff in submoduleDiffs { diff.model.confirmingQuit = true }
@@ -417,7 +424,7 @@ import AppKit
             for add in adds { add.model.confirmingQuit = false }; for add in addProgress { add.model.confirmingQuit = false }
             for revert in reverts { revert.model.confirmingQuit = false }
             for commit in commits { commit.setQuitConfirmation(false) }
-            repositoryModel?.confirmingQuit = false
+            setTransferQuitConfirmation(sender, false); repositoryModel?.confirmingQuit = false
             for controller in controllers { controller.model.confirmingQuit = false }
             for controller in imports { controller.setQuitConfirmation(false) }
             for controller in reviews { controller.setQuitConfirmation(false) }
@@ -501,7 +508,7 @@ import AppKit
         for controller in updates { controller.model.confirmingQuit = true }
         for controller in submoduleDiffs { controller.model.confirmingQuit = true }
         for controller in updateProgress { controller.model.confirmingQuit = true }
-        repositoryModel?.confirmingQuit = true
+        setTransferQuitConfirmation(sender, true); repositoryModel?.confirmingQuit = true
         Task {
             await manager.shutdown()
             for controller in historyReplays { controller.model.revisionMenuLog.confirmingQuit = false }
@@ -527,7 +534,7 @@ import AppKit
             for controller in updates { controller.model.confirmingQuit = false }
             for controller in submoduleDiffs { controller.model.confirmingQuit = false }
             for controller in updateProgress { controller.model.confirmingQuit = false }
-            repositoryModel?.confirmingQuit = false
+            setTransferQuitConfirmation(sender, false); repositoryModel?.confirmingQuit = false
             confirmingQuit=false;replyToTermination(sender,true)
         }
         return .terminateLater

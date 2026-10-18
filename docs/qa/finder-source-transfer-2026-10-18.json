@@ -1,0 +1,142 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "7e3862286b1a2a3ff98b2cdd77aeefe6c9a28b1d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Finder selected-source Transfer action with immutable bounded URL payload and source/menu/settings/icon integration",
+    "Native destination working-tree selection and normal metadata/root permission adoption, without clipboard dependence",
+    "Captured transfer chooser with validated recent destinations, source Move/MoveRename/CopyAdd eligibility and original Git engines",
+    "Actual picker/sheet/preparation retirement before once-only handoff, owner cancellation and deferred Quit gates with originating preferences"
+  ],
+  "validation": {
+    "status": "Scoped implementation checkpoint passed; physical/signed and full-port acceptance remain open",
+    "build_attempts": [
+      {
+        "log": "finder-source-transfer-build-2026-10-18.log",
+        "exit": 65,
+        "scope": "Compile failed on private NSWindowController owner property name collision; no native checks started."
+      },
+      {
+        "log": "finder-source-transfer-build-affected-2026-10-18.log",
+        "exit": 0,
+        "scope": "Only conflicting private property renamed presentingOwner; batch Debug app/Finder extension build passed. Existing SDK/driver warnings were nonfatal."
+      }
+    ],
+    "core_attempts": [
+      {
+        "log": "finder-source-transfer-core-2026-10-18.log",
+        "exit": 0,
+        "cases": 35,
+        "failures": 0,
+        "classes": [
+          "FinderSourceTransferTests",
+          "FinderTransferTests",
+          "FinderRequestTests",
+          "FinderContextMenuSettingsTests",
+          "FinderShellRulesTests",
+          "MenuIconTests"
+        ],
+        "scope": "Single related Core checkpoint; no repeat after native-only property rename."
+      }
+    ],
+    "native_attempts": [
+      {
+        "log": "finder-source-transfer-native-2026-10-18.log",
+        "exit": 0,
+        "distinct_case_engine_pairs": 10,
+        "cases": [
+          "source",
+          "drop",
+          "move",
+          "copy",
+          "finder"
+        ],
+        "git_engines": [
+          {
+            "path": "/usr/bin/git",
+            "version": "2.54.0 (Apple Git-157)"
+          },
+          {
+            "path": "build/git-runtime/Git/bin/git",
+            "version": "2.55.0"
+          }
+        ],
+        "scope": "Actual app objects and actual FinderSync menu source; immutable source request/adoption, actual review/Move/Rename/Copy/Add Git mutations and index/working bytes, private destination history and stale/admin refusal, real hidden nested picker, actual release/late cancellation/Quit gates plus retained drop/move/copy/clipboard coverage."
+      }
+    ],
+    "cleanup": {
+      "owned_receiver_pids": [
+        91832,
+        92033,
+        92211,
+        92306,
+        92396,
+        92491,
+        92587,
+        92701,
+        92816,
+        92899
+      ],
+      "count": 10,
+      "independently_absent": true,
+      "scope": "kill(pid,0) independently confirms every receiver absent. run_receiver reaps owned process groups; fixtures retire held work, close hidden owned windows, assert preparation/release/Git counters, and use private repositories/preferences/pasteboards. No unrelated app terminated."
+    },
+    "resources": {
+      "localization_check_exit": 0,
+      "languages": 38,
+      "keys": 1289,
+      "help_check_exit": 0,
+      "help_documents": 40,
+      "help_topics": 49,
+      "help_files": 60,
+      "help_bytes": 3573518,
+      "coverage_check_exit": 0,
+      "site_build_exit": 0,
+      "site_documents": 333,
+      "unresolved_site_fragments": []
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "scope": "Recorded source review coverage, not feature completion percentage."
+    },
+    "log_sha256": {
+      "finder-source-transfer-build-2026-10-18.log": "7a5f2e3212de94ae9dd8c908f4a649108e65adc698afdf69dedeb0e1957ceafe",
+      "finder-source-transfer-build-affected-2026-10-18.log": "70e3b8562d4738cab4dfdbf3dc12b62e8688f446ad4502593e2e38cc43501c26",
+      "finder-source-transfer-core-2026-10-18.log": "520a98375e8d73c9b404becda25fb350e4549998a0505b849868ceff6765fefa",
+      "finder-source-transfer-native-2026-10-18.log": "e6b6ff605848bd71c84fa68a82ef1fcba36968111d8ffcd167aa0f7f20d352ca"
+    }
+  },
+  "remaining": [
+    "Exact Finder right-drag interception has no public FinderSync callback; selected-source action and app-owned drop chooser are the native adaptations",
+    "Current installed signed Finder activation and real source/destination security-scope delivery",
+    "Physical drag/keyboard/VoiceOver/compositor/theme parity, minimum macOS and physical Intel",
+    "Full current hosted integration and App Store distribution signing/export/acceptance",
+    "Other dialog-family source parity and unresolved TurtleGit custom artwork"
+  ],
+  "notes": [
+    "Previous goal turn made progress: committed and pushed WMF/EMF family at7e386228. This batch continues end-user Finder port functionality.",
+    "No whole-port completion or full physical/signed acceptance is claimed.",
+    "Unrelated scripts/test-native-reference-batch.py and docs/qa/reflog-capture-native-2026-10-13.swift WIP must remain untouched.",
+    "Two retained Copy cases emitted sandbox_extension_consume failed while using private unsandboxed QA URLs, and still completed all behavioral assertions with exit0. These checks do not prove real signed security-scope issuance."
+  ],
+  "hosted_observation": {
+    "source_commit": "7e386228",
+    "pages": {
+      "run": 39160459382,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 39160459436,
+      "status": "pending",
+      "conclusion": null
+    },
+    "scope": "Prior source revision, observed during implementation; no complete current hosted integration pass inferred."
+  }
+}

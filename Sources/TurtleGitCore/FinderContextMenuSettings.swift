@@ -311,7 +311,7 @@ public enum FinderMenuEntry: String, CaseIterable, Sendable {
         case .submoduleSync: return .submoduleSync
         case .formatPatch: return .formatPatch
         case .importPatch: return .importPatch
-        case .updateCheck, .autotextTest, .introduction, .firstStartWizard, .dropMove, .dropCopyAdd, .requestPull, .reset, .move, .pasteCopy, .pasteMove: return nil
+        case .updateCheck, .autotextTest, .introduction, .firstStartWizard, .dropMove, .dropCopyAdd, .requestPull, .reset, .move, .pasteCopy, .pasteMove, .transferFiles: return nil
         }
     }
     public var availableInFinder: Bool { true }

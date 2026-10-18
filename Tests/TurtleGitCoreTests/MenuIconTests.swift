@@ -103,11 +103,12 @@ final class MenuIconTests: XCTestCase {
         XCTAssertEqual(RepositoryAction.reviewPatch.icon, RepositoryAction.importPatch.icon)
         XCTAssertEqual(RepositoryAction.move.icon, RepositoryAction.rename.icon)
         XCTAssertEqual(RepositoryAction.pasteMove.icon, RepositoryAction.rename.icon)
+        XCTAssertEqual(RepositoryAction.transferFiles.icon, RepositoryAction.rename.icon)
         XCTAssertEqual(RepositoryAction.pasteCopy.icon, .copy)
         XCTAssertEqual(RepositoryAction.commitIsOnRefs.icon, .showBranches)
         XCTAssertEqual(RepositoryAction.cat.icon, .export)
         XCTAssertEqual(RepositoryAction.showCompare.icon, .compare)
-        let distinctActions = RepositoryAction.allCases.filter { ![.updateCheck, .autotextTest, .introduction, .dropMove, .dropCopyAdd, .firstStartWizard, .cat, .showCompare, .move, .pasteMove, .svnDCommit, .svnRebase, .svnFetch, .svnIgnore, .reviewPatch, .lfsLocks, .lfsLock, .lfsUnlock, .previousDiff, .logSubmodule, .referenceBrowser, .submoduleAdd, .requestPull, .bisectStart, .bisectSkip, .worktreeCreate, .worktreeList, .diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
+        let distinctActions = RepositoryAction.allCases.filter { ![.updateCheck, .autotextTest, .introduction, .dropMove, .dropCopyAdd, .firstStartWizard, .cat, .showCompare, .move, .pasteMove, .transferFiles, .svnDCommit, .svnRebase, .svnFetch, .svnIgnore, .reviewPatch, .lfsLocks, .lfsLock, .lfsUnlock, .previousDiff, .logSubmodule, .referenceBrowser, .submoduleAdd, .requestPull, .bisectStart, .bisectSkip, .worktreeCreate, .worktreeList, .diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
         XCTAssertEqual(Set(distinctActions.map { $0.icon.rawValue }).count, distinctActions.count)
     }
 }

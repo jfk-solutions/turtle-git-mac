@@ -2390,3 +2390,15 @@ raster must retain expected dimensions/colors and original source bytes; an
 unsupported record must fail rather than return a misleading partial drawing.
 Physical input/compositor/font equivalence, minimum-OS and installed signed
 App Store acceptance remain separate from these focused checks.
+
+
+### Finder selected-source transfer family
+
+After the related Finder request/menu, native destination/review and operation
+workflow implementation freezes, run the focused Finder source/clipboard/request
+and icon Core classes, then the grouped source/drop/move/copy native receiver with
+system and bundled Git. Captured source URLs must survive Finder/clipboard changes;
+no mutation occurs until an accepted operation runs. Verify actual sheet detach,
+late cancellation, recent-destination revalidation, captured preferences, Quit
+guards and original source/index outcomes in private repositories with hidden
+owned windows. See [batch evidence](qa/finder-source-transfer-2026-10-18.json).
