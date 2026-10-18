@@ -40,6 +40,17 @@ the fallback a different color to detect the wrong representation or double pain
 Matrix Append/Prepend follows GDI+ row-vector order, separately checked with
 noncommuting scale/translation records against Microsoft's documented order.
 
+The [painting interoperability extension](METAFILE-PAINTING-PARITY.md) tracks
+ImageAttributes, destination point encodings and gradient-brush support against
+Microsoft specifications and the independent layout2vector writer. Its current
+batch validation is separate from the earlier grouped evidence. Native CoreSVG
+painting limitations require intrinsic-resolution gradient PNGs clipped by the
+original vector geometry, explicit visible bitmap tiles and separate color
+opacity. Semantic gradient definitions alone are not the display paint; this
+subset does not provide unlimited-resolution gradient zoom. Tile markup reserves
+a bounded aggregate serialized size before expansion, and poorly conditioned
+large-offset radial boundaries are refused rather than approximated.
+
 Known unsupported painting returns an error instead of guessed coordinate geometry,
 a grey bitmap placeholder or a successful blank image. Record-chain preflight
 requires bounded, aligned outer records, complete declared lengths/counts and EOF;
@@ -67,7 +78,8 @@ inputs without a usable extent instead of inventing a default 800×600 viewport.
 This is useful three-format support, not complete GDI compatibility. Remaining
 unsupported features include EMF+ region objects/fills, driver/glyph strings,
 vertical/RTL/tab/trimming StringFormat layouts, custom text tracking, relative
-compressed path encodings, non-solid brushes, transformed/compound/custom-cap
+compressed path encodings, texture/hatch brushes and gradients outside the
+[accepted painting subset](METAFILE-PAINTING-PARITY.md), transformed/compound/custom-cap
 pens, alternate-format/terminal-server records and source-copy compositing.
 Indexed and 16-bit raw EMF+ bitmap formats, nested WMF images and uncommon embedded
 compressed formats remain open. EMF invert/mask/parallelogram/SetDIBitsToDevice
@@ -94,5 +106,7 @@ writers; no WMF writer or metafile import renderer was found in that revision.
 The synthetic writer tests and paint probes provide an independent reference for
 font/string-format objects, image source rectangles, clipping and gradients.
 They are not shipped as TurtleGit's decoder. Default ImageAttributes objects and
-EMF+ gradient brushes expose concrete remaining interoperability work; existing
-web-derived output files have not been copied into the application or fixtures.
+EMF+ gradient brushes exposed the concrete interoperability cases addressed by the
+[painting extension](METAFILE-PAINTING-PARITY.md). That document distinguishes the
+accepted subset, explicit refusals and pending validation. Existing web-derived
+output files have not been copied into the application or fixtures.

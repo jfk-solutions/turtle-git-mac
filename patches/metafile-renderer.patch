@@ -110,10 +110,10 @@ index 28e5b62..e33c033 100644
          const ch = this.canvas.height || 600;
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 new file mode 100644
-index 0000000..c5ab9df
+index 0000000..9c7d866
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,321 @@
+@@ -0,0 +1,312 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -126,6 +126,15 @@ index 0000000..c5ab9df
 +  function f32(b,o) { if(o < 0 || o+4 > b.length) fail('truncated floating-point record'); const v=new DataView(b.buffer,b.byteOffset,b.byteLength).getFloat32(o,true); if(!Number.isFinite(v)||Math.abs(v)>1e9) fail('invalid coordinate'); return v; }
 +  const escape = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 +  const matrix = a => a.map(v => { if(!Number.isFinite(v)||Math.abs(v)>1e12) fail('invalid transform'); return String(v); }).join(' ');
++  function normalizePaintColors(svg) {
++    // CoreSVG interprets rgba alpha 1 as byte 1/255. Separate SVG color and
++    // opacity attributes preserve the captured ARGB value for fills and pens.
++    return svg.replace(/\b(fill|stroke)="rgba\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)"/g,(_,attribute,r,g,b,alpha)=>{
++      const channels=[Number(r),Number(g),Number(b)],opacity=Number(alpha);
++      if(channels.some(v=>!Number.isInteger(v)||v<0||v>255)||!Number.isFinite(opacity)||opacity<0||opacity>1)fail('invalid SVG paint color');
++      return attribute+'="#'+channels.map(v=>v.toString(16).padStart(2,'0')).join('')+'" '+attribute+'-opacity="'+opacity+'"';
++    });
++  }
 +  function state(d) { return d._turtle || (d._turtle={world:identity(),page:1,unit:2,dpiX:96,dpiY:96,clip:null,saves:[],objectParts:null}); }
 +  function baseMatrix(d) {
 +    const t=d.coordinateTransformer, o=t.transform(0,0), x=t.transform(1,0), y=t.transform(0,1);
@@ -153,6 +162,8 @@ index 0000000..c5ab9df
 +    else fail('invalid clip combine mode');
 +  }
 +  const ep=EmfPlusDrawer.prototype, originalDispatch=ep.processEmfPlusRecordType;
++  const paint=require('./turtleGitPaint')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,escape,matrix,currentMatrix});
++  const images=require('./turtleGitImages')({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix});
 +  // Existing drawing routines operate in local coordinates. Wrap each completed
 +  // record in the captured full affine matrix, preserving rotated ellipses/text/pens.
 +  ep._emfPlusMapPoint=function(x,y){return{x,y};};
@@ -226,7 +237,8 @@ index 0000000..c5ab9df
 +      if(flags&3||u32(data,52)||u32(data,56)||u32(data,48)||u32(data,32)||align>2||line>2)fail('unsupported EMF+ vertical/RTL/tab/trimming string format');
 +      this.emfPlusObjects[id]={type:'stringFormat',flags,align,line,leading:f32(data,36),trailing:f32(data,40),tracking:f32(data,44)};return;
 +    }
-+    if(type>7)fail('unsupported EMF+ object type '+type);
++    if(type===8){images.parseAttributes.call(this,id,data);return;}
++    if(type>8)fail('unsupported EMF+ object type '+type);
 +    if(type===2){
 +      const bits=u32(data,8),unit=u32(data,12),width=f32(data,16);let offset=20;
 +      if(bits&~0x1fe)fail('unsupported transformed/compound/custom-cap EMF+ pen');
@@ -244,7 +256,7 @@ index 0000000..c5ab9df
 +      if(read()!==0)fail('unsupported non-solid pen brush');const color=u32(data,offset);pen.color='rgba('+((color>>>16)&255)+','+((color>>>8)&255)+','+(color&255)+','+((color>>>24)/255)+')';
 +      this.emfPlusObjects[id]=pen;return;
 +    }
-+    if(type===1) { const brush=u32(data,4);if(brush!==0)fail('unsupported non-solid EMF+ brush '+brush); }
++    if(type===1){if(paint.parseBrush.call(this,id,data))return;const brush=u32(data,4);if(brush!==0)fail('unsupported non-solid EMF+ brush '+brush);}
 +    if(type===5) {
 +      const imageType=u32(data,4);
 +      if(imageType===1) {
@@ -308,27 +320,6 @@ index 0000000..c5ab9df
 +      if(path.pointTypes[i]&128){if(bezier.length)fail('incomplete Bezier');this.ctx.closePath();}
 +    }
 +    if(bezier.length)fail('incomplete Bezier');
-+  };
-+  ep.processEmfPlusDrawImagePoints=function(flags,data){
-+    const image=this.emfPlusObjects[flags&255];if(!image)fail('missing image object');
-+    if(u32(data,4)!==2)fail('unsupported non-pixel bitmap source units');
-+    if(u32(data,24)!==3)fail('invalid bitmap destination point count');
-+    if(flags&0x800)fail('unsupported relative bitmap destination points');
-+    const compressed=(flags&0x4000)!==0,stride=compressed?4:8;
-+    if(data.length<28+3*stride)fail('truncated bitmap destination points');
-+    const point=i=>{const o=28+i*stride;if(compressed)return{x:(data[o]|data[o+1]<<8)<<16>>16,y:(data[o+2]|data[o+3]<<8)<<16>>16};return{x:f32(data,o),y:f32(data,o+4)};};
-+    const a=point(0),b=point(1),c=point(2),source={x:f32(data,8),y:f32(data,12),w:f32(data,16),h:f32(data,20)};
-+    this._drawImageObj(image,a.x,a.y,b.x,b.y,c.x,c.y,source);
-+  };
-+  const oldImage=ep._drawImageObj;
-+  ep._drawImageObj=function(img,x1,y1,x2,y2,x3,y3,src) {
-+    if(img.type!=='imageData')return oldImage.call(this,img,x1,y1,x2,y2,x3,y3,src);
-+    const sx=src?src.x:0,sy=src?src.y:0,sw=src?src.w:img.width,sh=src?src.h:img.height;
-+    if(!sw||!sh)fail('zero bitmap source rectangle');
-+    const a=(x2-x1)/sw,b=(y2-y1)/sw,c=(x3-x1)/sh,d=(y3-y1)/sh,e=x1-a*sx-c*sy,f=y1-b*sx-d*sy;
-+    const id='turtle-image-clip-'+this.ctx._defs.length;
-+    this.ctx._defs.push('<clipPath id="'+id+'"><rect x="'+sx+'" y="'+sy+'" width="'+sw+'" height="'+sh+'"/></clipPath>');
-+    this.ctx.rawPush('<g transform="matrix('+matrix([a,b,c,d,e,f])+')"><image x="0" y="0" width="'+img.width+'" height="'+img.height+'" href="'+escape(img.href)+'" clip-path="url(#'+id+')" preserveAspectRatio="none"/></g>');
 +  };
 +  SvgContext.prototype.measureText=function(text){const f=this._parseFont();const width=__turtleMeasureText(String(text),f.rawFamily,f.sizeNum,f.weight==='bold',f.style==='italic');if(!Number.isFinite(width)||width<0)fail('invalid text measurement');return{width};};
 +  // Never turn a bitmap that could not be rendered into a plausible grey box.
@@ -431,9 +422,392 @@ index 0000000..c5ab9df
 +    else if(/wmf/.test(parsed.fileType)) {const ext=parsed.records.find(r=>r.functionId===0x20c);if(ext&&ext.data.length>=4){width=Math.abs((ext.data[2]|ext.data[3]<<8)<<16>>16);height=Math.abs((ext.data[0]|ext.data[1]<<8)<<16>>16);}}
 +    if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0||width>32768||height>32768||width*height>67108864)fail('invalid or oversized image bounds');
 +    if(parsed.records.length>1000000)fail('record count limit');
-+    const context=new SvgContext();createDrawer(context,parsed.fileType).draw(parsed,{viewWidth:width,viewHeight:height});const svg=context.getSvg();
++    const context=new SvgContext();createDrawer(context,parsed.fileType).draw(parsed,{viewWidth:width,viewHeight:height});const svg=normalizePaintColors(context.getSvg());
 +    if(typeof svg!=='string'||svg.length>128*1024*1024)fail('output size limit');return svg;
 +  };
++};
+diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
+new file mode 100644
+index 0000000..09d884d
+--- /dev/null
++++ b/src/turtleGitImages.js
+@@ -0,0 +1,116 @@
++// Original TurtleGit adaptation, MIT. MS-EMFPLUS 2.2.1.5, 2.2.2.21/22/37,
++// 2.3.4.8/9. No document-derived resource or executable access.
++module.exports = function installImages({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix}) {
++  const ep=EmfPlusDrawer.prototype, oldImage=ep._drawImageObj;
++  const color=value=>'#'+(value&0xffffff).toString(16).padStart(6,'0');
++  function short(data,offset) {if(offset<0||offset+2>data.length)fail('truncated image point');return(data[offset]|data[offset+1]<<8)<<16>>16;}
++  function tail(data,used) {if(data.length<used||data.length-used>3)fail('invalid image record length');}
++  function attributes(drawer,id) {
++    if(id===0xffffffff)return null;
++    const object=drawer.emfPlusObjects[id];
++    if(id>63||!object||object.type!=='imageAttributes')fail('missing or wrong-type image attributes');
++    return object;
++  }
++  function parameters(drawer,flags,data) {
++    const id=flags&255,image=drawer.emfPlusObjects[id];
++    if(id>63||!image||!['imageData','imageEmf'].includes(image.type))fail('missing or wrong-type image object');
++    if(u32(data,4)!==2)fail('unsupported non-pixel bitmap source units');
++    const source={x:f32(data,8),y:f32(data,12),w:f32(data,16),h:f32(data,20)};
++    if(source.w<=0||source.h<=0)fail('invalid nonpositive image source extent');
++    return{image,source,attrs:attributes(drawer,u32(data,0))};
++  }
++  ep.processEmfPlusDrawImage=function(flags,data) {
++    const p=parameters(this,flags,data),compressed=!!(flags&0x4000),read=compressed?short:f32,stride=compressed?2:4;
++    const x=read(data,24),y=read(data,24+stride),w=read(data,24+stride*2),h=read(data,24+stride*3);
++    tail(data,24+stride*4);
++    this._drawImageObj(p.image,x,y,x+w,y,x,y+h,p.source,p.attrs);
++  };
++  ep.processEmfPlusDrawImagePoints=function(flags,data) {
++    // P=0x0800 is relative, E=0x2000 selects an image effects block; C is
++    // undefined when P is set. Effects cannot silently become ordinary paint.
++    if(flags&0x2000)fail('unsupported image effects');
++    const p=parameters(this,flags,data);if(u32(data,24)!==3)fail('invalid bitmap destination point count');
++    let offset=28,points=[];
++    if(flags&0x0800) {
++      function integer() {
++        if(offset>=data.length)fail('truncated relative image point');const first=data[offset++];
++        if(!(first&128))return(first&127)<<25>>25;
++        if(offset>=data.length)fail('truncated relative image coordinate');
++        return(((first&127)<<8)|data[offset++])<<17>>17;
++      }
++      let x=0,y=0;for(let i=0;i<3;i++){x+=integer();y+=integer();points.push({x,y});}
++    } else {
++      const compressed=!!(flags&0x4000),read=compressed?short:f32,stride=compressed?2:4;
++      for(let i=0;i<3;i++){points.push({x:read(data,offset),y:read(data,offset+stride)});offset+=stride*2;}
++    }
++    tail(data,offset);const[a,b,c]=points;
++    this._drawImageObj(p.image,a.x,a.y,b.x,b.y,c.x,c.y,p.source,p.attrs);
++  };
++  ep._drawImageObj=function(img,x1,y1,x2,y2,x3,y3,src,attrs=null) {
++    if(img.type!=='imageData') {
++      if(attrs)fail('unsupported image attributes on nested metafiles');
++      return oldImage.call(this,img,x1,y1,x2,y2,x3,y3,src);
++    }
++    const sx=src?src.x:0,sy=src?src.y:0,sw=src?src.w:img.width,sh=src?src.h:img.height;
++    if(sw<=0||sh<=0)fail('invalid bitmap source extent');
++    const a=(x2-x1)/sw,b=(y2-y1)/sw,c=(x3-x1)/sh,d=(y3-y1)/sh,e=x1-a*sx-c*sy,f=y1-b*sx-d*sy;
++    const transform=matrix([a,b,c,d,e,f]);if(a*d-b*c===0)return;
++    const ctx=this.ctx,id='turtle-image-clip-'+ctx._defs.length;
++    const rect='<rect x="'+sx+'" y="'+sy+'" width="'+sw+'" height="'+sh+'"/>';
++    ctx._defs.push('<clipPath id="'+id+'" clipPathUnits="userSpaceOnUse">'+rect+'</clipPath>');
++    function image(extra='') {return'<image x="0" y="0" width="'+img.width+'" height="'+img.height+'" href="'+escape(img.href)+'" preserveAspectRatio="none" '+extra+'/>';}
++    let body;
++    if(attrs&&attrs.wrap<4) {
++      const flipX=attrs.wrap===1||attrs.wrap===3,flipY=attrs.wrap===2||attrs.wrap===3;
++      const world=currentMatrix(this),combined=[world[0]*a+world[2]*b,world[1]*a+world[3]*b,world[0]*c+world[2]*d,world[1]*c+world[3]*d,world[0]*e+world[2]*f+world[4],world[1]*e+world[3]*f+world[5]];
++      const det=combined[0]*combined[3]-combined[1]*combined[2];if(!det)return;
++      const inverse=(x,y)=>{x-=combined[4];y-=combined[5];return[(combined[3]*x-combined[2]*y)/det,(-combined[1]*x+combined[0]*y)/det];};
++      const corners=[inverse(-1,-1),inverse(ctx.canvas.width+1,-1),inverse(-1,ctx.canvas.height+1),inverse(ctx.canvas.width+1,ctx.canvas.height+1)];
++      const left=Math.max(sx,Math.min(...corners.map(p=>p[0]))),right=Math.min(sx+sw,Math.max(...corners.map(p=>p[0]))),top=Math.max(sy,Math.min(...corners.map(p=>p[1]))),bottom=Math.min(sy+sh,Math.max(...corners.map(p=>p[1])));
++      if(right<=left||bottom<=top)return;
++      const firstX=Math.floor(left/img.width),lastX=Math.ceil(right/img.width)-1,firstY=Math.floor(top/img.height),lastY=Math.ceil(bottom/img.height)-1;
++      const count=(lastX-firstX+1)*(lastY-firstY+1);
++      if(!Number.isFinite(count)||count>16384)fail('visible bitmap tile count limit');
++      this._turtleImageTiles=(this._turtleImageTiles||0)+count;if(this._turtleImageTiles>65536)fail('metafile bitmap tile count limit');
++      // Each visible copy embeds the PNG. Reserve conservative serialized space
++      // before concatenation, including clip/transform markup, across records.
++      // A small viewport can still request thousands of copies of a large PNG.
++      const projected=count*(escape(img.href).length+4096);
++      this._turtleImageMarkup=(this._turtleImageMarkup||0)+projected;
++      if(!Number.isSafeInteger(this._turtleImageMarkup)||this._turtleImageMarkup>64*1024*1024)fail('metafile bitmap tile markup budget exceeded');
++      body='';
++      // CoreSVG misplaces bitmap pattern cells. Explicit visible copies retain
++      // the actual tile phase, including negative indices and axis reflection.
++      for(let row=firstY;row<=lastY;row++)for(let column=firstX;column<=lastX;column++) {
++        const x=column*img.width,y=row*img.height,fx=flipX&&column%2!==0,fy=flipY&&row%2!==0;
++        const l=Math.max(sx,x)-x,r=Math.min(sx+sw,x+img.width)-x,t=Math.max(sy,y)-y,bot=Math.min(sy+sh,y+img.height)-y;
++        if(r<=l||bot<=t)continue;
++        let clip='';
++        if(l>0||t>0||r<img.width||bot<img.height) {
++          const key='turtle-tile-clip-'+ctx._defs.length;
++          ctx._defs.push('<clipPath id="'+key+'" clipPathUnits="userSpaceOnUse"><rect x="'+(fx?img.width-r:l)+'" y="'+(fy?img.height-bot:t)+'" width="'+(r-l)+'" height="'+(bot-t)+'"/></clipPath>');
++          clip='clip-path="url(#'+key+')"';
++        }
++        body+='<g transform="translate('+(x+(fx?img.width:0))+' '+(y+(fy?img.height:0))+') scale('+(fx?-1:1)+' '+(fy?-1:1)+')">'+image(clip)+'</g>';
++      }
++    } else {
++      body='';
++      if(attrs&&attrs.color>>>24) {
++        // ClampColor applies only outside the intrinsic bitmap, never underneath
++        // translucent bitmap pixels. The outer source clip bounds the XOR path.
++        const outside='M '+sx+' '+sy+' h '+sw+' v '+sh+' h '+(-sw)+' Z M 0 0 H '+img.width+' V '+img.height+' H 0 Z';
++        body='<path d="'+outside+'" fill-rule="evenodd" fill="'+color(attrs.color)+'" fill-opacity="'+((attrs.color>>>24)/255)+'" clip-path="url(#'+id+')"/>';
++      }
++      body+=image('clip-path="url(#'+id+')"');
++    }
++    ctx.rawPush('<g transform="matrix('+transform+')">'+body+'</g>');
++  };
++  return{parseAttributes(id,data) {
++    if(id>63||data.length!==24)fail('invalid image attributes object');
++    const wrap=u32(data,8),color=u32(data,12),clamp=u32(data,16);
++    if(wrap>4)fail('invalid image wrap mode');
++    if(clamp!==0)fail('unsupported bitmap-clamp image attributes');
++    // Reserved1 and Reserved2 are ignored, as required by the wire format.
++    this.emfPlusObjects[id]={type:'imageAttributes',wrap,color,clamp};
++  }};
++};
+diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
+new file mode 100644
+index 0000000..8da16c9
+--- /dev/null
++++ b/src/turtleGitPaint.js
+@@ -0,0 +1,255 @@
++// TurtleGit EMF+ gradient paint servers. MIT, see repository LICENSE.
++// Geometry remains in local drawing coordinates; the record's world/page/device
++// transform is applied by turtleGit.js to the completed drawing node.
++module.exports = function installGradientPaint(helpers) {
++  const {EmfPlusDrawer, SvgContext, fail, u32, f32, matrix, currentMatrix} = helpers;
++  const ep = EmfPlusDrawer.prototype, originalResolve = ep._emfPlusResolveBrush;
++  const identity = () => [1,0,0,1,0,0];
++  const mul = (a,b) => [a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
++  function nonsingular(m) {
++    matrix(m);
++    const scale=Math.max(Math.abs(m[0]),Math.abs(m[1]),Math.abs(m[2]),Math.abs(m[3]));
++    if(!scale || Math.abs(m[0]*m[3]-m[1]*m[2]) <= scale*scale*1e-12) fail('singular gradient transform');
++    return m;
++  }
++  function version(data,offset) {
++    const v=u32(data,offset);
++    if(v!==0xDBC01001 && v!==0xDBC01002) fail('unsupported gradient graphics version');
++  }
++  function reader(data,offset) {
++    return {offset,
++      uint() {const v=u32(data,this.offset);this.offset+=4;return v;},
++      float() {const v=f32(data,this.offset);this.offset+=4;return v;},
++      transform() {return nonsingular(Array.from({length:6},()=>this.float()));},
++      finish() {
++        if(this.offset>data.length || data.length-this.offset>3) fail('unexpected gradient object data');
++        // Alignment padding is ignored on receipt.
++        this.offset=data.length;
++      }
++    };
++  }
++  function color(argb) {return [(argb>>>16)&255,(argb>>>8)&255,argb&255,(argb>>>24)/255];}
++  function blend(a,b,t) {return a.map((v,i)=>v*(1-t)+b[i]*t);}
++  function samples(r,colors) {
++    const count=r.uint();
++    if(count<2 || count>4096) fail('invalid gradient stop count');
++    const positions=Array.from({length:count},()=>r.float());
++    for(let i=0;i<count;i++) if(positions[i]<0 || positions[i]>1 || (i && positions[i]<positions[i-1])) fail('invalid gradient stop position');
++    if(positions[0]!==0 || positions[count-1]!==1) fail('gradient stops must include both endpoints');
++    const values=Array.from({length:count},()=>colors?color(r.uint()):r.float());
++    if(!colors && values.some(v=>v<0 || v>1)) fail('invalid gradient blend factor');
++    return positions.map((position,i)=>({position,value:values[i]}));
++  }
++  function optional(r,flags,start,end,radial) {
++    const transform=flags&2?r.transform():identity();
++    if((flags&4) && (flags&24)) fail('conflicting gradient blend data');
++    let stops;
++    if(flags&4) stops=samples(r,true).map(s=>({position:s.position,color:s.value}));
++    else {
++      // Serialized optional data places vertical factors before horizontal ones.
++      // Windows ignores V: V alone has the default ramp; H+V equals H.
++      if(flags&16) samples(r,false);
++      if(flags&8) stops=samples(r,false).map(s=>({position:s.position,color:blend(start,end,s.value)}));
++      else stops=[{position:0,color:start},{position:1,color:end}];
++    }
++    // GDI+ PathGradientBrush preset/blend positions run boundary -> center.
++    // SVG radial stops run center -> boundary. Default colors already have
++    // center -> boundary ordering and therefore need no reversal.
++    if(radial && (flags&12)) stops=stops.reverse().map(s=>({position:1-s.position,color:s.color}));
++    return {transform,stops};
++  }
++  function stopMarkup(stops,transparentOutside) {
++    let result=stops.map(s=>'<stop offset="'+s.position+'" stop-color="rgb('+s.color.slice(0,3).join(',')+')" stop-opacity="'+s.color[3]+'"/>').join('');
++    // A clamped PathGradientBrush paints only inside its boundary. The last,
++    // coincident transparent stop makes the outside pad transparent while
++    // retaining the actual boundary color immediately inside the ellipse.
++    if(transparentOutside) {
++      const c=stops[stops.length-1].color;
++      result+='<stop offset="1" stop-color="rgb('+c.slice(0,3).join(',')+')" stop-opacity="0"/>';
++    }
++    return result;
++  }
++  function ellipse(data,offset,size) {
++    if(size!==132) fail('unsupported path-gradient boundary encoding');
++    version(data,offset);
++    if(u32(data,offset+4)!==13 || u32(data,offset+8)!==0) fail('unsupported path-gradient boundary path');
++    const p=Array.from({length:13},(_,i)=>[f32(data,offset+12+i*8),f32(data,offset+16+i*8)]);
++    for(let i=0;i<13;i++) if(data[offset+116+i] !== (i===0?0:i===12?0x83:3)) fail('path gradient requires one closed cubic ellipse');
++    // The final three path-alignment bytes have no drawing semantics.
++    const c=p[0].map((v,i)=>(v+p[6][i])/2),u=p[0].map((v,i)=>(v-p[6][i])/2),v=p[3].map((x,i)=>(x-p[9][i])/2),k=.5522847498307936;
++    const coefficients=[[1,0],[1,k],[k,1],[0,1],[-k,1],[-1,k],[-1,0],[-1,-k],[-k,-1],[0,-1],[k,-1],[1,-k],[1,0]];
++    const magnitude=Math.max(...p.flat().map(Math.abs)), radius=Math.max(...u.map(Math.abs),...v.map(Math.abs));
++    // Coordinate offsets must never turn Float32 roundoff into permission to
++    // approximate a visibly different boundary or focus. abs(det)/Frobenius
++    // norm is a conservative lower bound for the smaller affine ellipse axis.
++    // Require both the canonical relative allowance and two-ULP coordinate
++    // allowance to fit within 100 ppm of that minimum axis; otherwise refuse
++    // this encoding rather than treating unresolvable geometry as an ellipse.
++    const minimumAxis=Math.abs(u[0]*v[1]-u[1]*v[0])/Math.hypot(...u,...v);
++    const maximumTolerance=minimumAxis*1e-4;
++    const canonicalAllowance=radius*2e-5;
++    const coordinateAllowance=magnitude*Math.pow(2,-22);
++    if(!Number.isFinite(maximumTolerance)||maximumTolerance<=0 || canonicalAllowance>maximumTolerance || coordinateAllowance>maximumTolerance) fail('insufficient Float32 precision for canonical ellipse gradient');
++    const tolerance=Math.max(canonicalAllowance,coordinateAllowance);
++    for(let i=0;i<13;i++) for(let axis=0;axis<2;axis++) if(Math.abs(p[i][axis]-(c[axis]+coefficients[i][0]*u[axis]+coefficients[i][1]*v[axis]))>tolerance) fail('unsupported non-ellipse path gradient');
++    return {center:c,tolerance,transform:nonsingular([u[0],u[1],v[0],v[1],c[0],c[1]])};
++  }
++  function parseBrush(id,data) {
++    const type=u32(data,4);
++    if(type!==3 && type!==4) return false;
++    if(id>63)fail('invalid gradient object ID');
++    version(data,0);
++    const r=reader(data,8),flags=r.uint(),wrap=r.uint();
++    if(wrap>4) fail('invalid gradient wrap mode');
++    let definition, descriptor;
++    const name='turtle-gradient-'+this.ctx._defs.length;
++    if(type===4) {
++      if(flags&~0x1e) fail('unsupported linear-gradient brush flags (including gamma correction)');
++      const x=r.float(),y=r.float(),width=r.float(),height=r.float();
++      if(width<=0 || height<=0) fail('invalid linear-gradient rectangle');
++      const first=r.uint(),last=r.uint();
++      if(r.uint()!==first || r.uint()!==last) fail('inconsistent linear-gradient reserved colors');
++      const paint=optional(r,flags,color(first),color(last),false);r.finish();
++      // GDI+ playback uses the brush rectangle's horizontal axis. Y reflection
++      // does not change a linear ramp; X reflection reverses alternate tiles.
++      const spread=wrap===4?'pad':(wrap===1||wrap===3?'reflect':'repeat');
++      descriptor={kind:'linear',transform:paint.transform,stops:paint.stops,wrap,x,width};
++      definition='<linearGradient id="'+name+'" gradientUnits="userSpaceOnUse" x1="'+x+'" y1="'+y+'" x2="'+(x+width)+'" y2="'+y+'" spreadMethod="'+spread+'" color-interpolation="sRGB" gradientTransform="matrix('+matrix(paint.transform)+')">'+stopMarkup(paint.stops,false)+'</linearGradient>';
++    } else {
++      if(flags&~0xf || !(flags&1)) fail('unsupported path-gradient brush flags/boundary (including focus/gamma)');
++      if(wrap!==4) fail('unsupported tiled path gradient');
++      const centerColor=color(r.uint()),center=[r.float(),r.float()],count=r.uint();
++      if(count<1 || count>4096) fail('invalid path-gradient surrounding color count');
++      const surround=r.uint();
++      for(let i=1;i<count;i++) if(r.uint()!==surround) fail('unsupported multicolor path-gradient boundary');
++      const size=r.uint(),boundary=ellipse(data,r.offset,size);r.offset+=size;
++      if(center.some((value,i)=>Math.abs(value-boundary.center[i])>boundary.tolerance)) fail('unsupported off-center path gradient');
++      // For radial factors, start/end are boundary/center according to GDI+.
++      const paint=optional(r,flags,flags&8?color(surround):centerColor,flags&8?centerColor:color(surround),true);r.finish();
++      const transform=nonsingular(mul(paint.transform,boundary.transform));
++      descriptor={kind:'radial',transform,stops:paint.stops,wrap};
++      definition='<radialGradient id="'+name+'" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1" fx="0" fy="0" spreadMethod="pad" color-interpolation="sRGB" gradientTransform="matrix('+matrix(transform)+')">'+stopMarkup(paint.stops,true)+'</radialGradient>';
++    }
++    this.ctx._defs.push(definition);
++    this.emfPlusObjects[id]={type:'turtleGradientBrush',paint:'url(#'+name+')',descriptor};
++    return true;
++  }
++  ep._emfPlusResolveBrush=function(flags,id,...args) {
++    const brush=this.emfPlusObjects[id>>>0];
++    if(!(flags&0x8000) && brush && brush.type==='turtleGradientBrush') {
++      if(!this.ctx._turtlePaints) this.ctx._turtlePaints=new Map();
++      this.ctx._turtlePaints.set(brush.paint,{owner:this,brush});
++      return brush.paint;
++    }
++    return originalResolve.call(this,flags,id,...args);
++  };
++  function inverse(m) {
++    nonsingular(m);
++    const determinant=m[0]*m[3]-m[1]*m[2];
++    return [m[3]/determinant,-m[1]/determinant,-m[2]/determinant,m[0]/determinant,(m[2]*m[5]-m[3]*m[4])/determinant,(m[1]*m[4]-m[0]*m[5])/determinant];
++  }
++  function interpolate(stops,t) {
++    if(t<stops[0].position) return stops[0].color;
++    let low=0,high=stops.length;
++    while(low<high) {const middle=(low+high)>>>1;if(stops[middle].position<=t)low=middle+1;else high=middle;}
++    if(low===stops.length) return stops[stops.length-1].color;
++    const a=stops[low-1],b=stops[low];
++    return blend(a.color,b.color,(t-a.position)/(b.position-a.position));
++  }
++  function rasterPaint(ctx,receipt,bounds) {
++    if(typeof currentMatrix!=='function' || typeof globalThis.__turtleBitmap!=='function') fail('native gradient raster adapter unavailable');
++    const world=currentMatrix(receipt.owner),d=receipt.brush.descriptor;
++    let left=0,top=0,right=Math.ceil(ctx.canvas.width),bottom=Math.ceil(ctx.canvas.height);
++    if(bounds) {
++      const corners=[[bounds[0],bounds[1]],[bounds[2],bounds[1]],[bounds[0],bounds[3]],[bounds[2],bounds[3]]].map(p=>[world[0]*p[0]+world[2]*p[1]+world[4],world[1]*p[0]+world[3]*p[1]+world[5]]);
++      left=Math.max(0,Math.floor(Math.min(...corners.map(p=>p[0])))-1);
++      top=Math.max(0,Math.floor(Math.min(...corners.map(p=>p[1])))-1);
++      right=Math.min(right,Math.ceil(Math.max(...corners.map(p=>p[0])))+1);
++      bottom=Math.min(bottom,Math.ceil(Math.max(...corners.map(p=>p[1])))+1);
++    }
++    if(right<=left || bottom<=top) return null;
++    const logicalWidth=right-left,logicalHeight=bottom-top;
++    // Native SVG decodes images at 2x before the consumer downsamples them.
++    // Sample wrapped ramps at that resolution to prevent interpolation across
++    // a repeat discontinuity from contaminating the first pixel of each tile.
++    const scale=d.kind==='linear'&&d.wrap!==4&&logicalWidth*logicalHeight*4<=16777216?2:1;
++    const width=logicalWidth*scale,height=logicalHeight*scale;
++    if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<1||height<1||width>32768||height>32768||width*height>16777216) fail('gradient raster viewport exceeds limit');
++    const key=[left,top,width,height,...world].join(',');
++    if(d.cached && d.cached.key===key) return {href:d.cached.href,world,left,top,width:logicalWidth,height:logicalHeight};
++    ctx._turtleGradientPixels=(ctx._turtleGradientPixels||0)+width*height;
++    if(ctx._turtleGradientPixels>67108864) fail('aggregate gradient raster budget exceeded');
++    const inv=inverse(mul(world,d.transform));
++    const pixels=new Uint8Array(width*height*4);
++    for(let y=0;y<height;y++) for(let x=0;x<width;x++) {
++      const px=left+(x+.5)/scale,py=top+(y+.5)/scale;
++      const bx=inv[0]*px+inv[2]*py+inv[4],by=inv[1]*px+inv[3]*py+inv[5];
++      let t=d.kind==='radial'?Math.sqrt(bx*bx+by*by):(bx-d.x)/d.width;
++      if(d.kind==='radial' && t>1) continue;
++      if(d.kind==='linear' && d.wrap!==4) {
++        const period=Math.floor(t);t-=period;
++        if((d.wrap===1||d.wrap===3) && Math.abs(period%2)===1) t=1-t;
++      }
++      t=Math.max(0,Math.min(1,t));
++      const c=interpolate(d.stops,t),i=(y*width+x)*4;
++      pixels[i]=Math.round(c[2]);pixels[i+1]=Math.round(c[1]);pixels[i+2]=Math.round(c[0]);pixels[i+3]=Math.round(c[3]*255);
++    }
++    const href=globalThis.__turtleBitmap(pixels,width,height,width*4,0x26200A);
++    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,')) fail('native gradient raster encoding failed');
++    d.cached={key,href};
++    return {href,world,left,top,width:logicalWidth,height:logicalHeight};
++  }
++  // AppKit's SVG backend ignores repeat/reflect and converts gradient colors
++  // differently from solid/bitmap paints. Rasterize only the brush at the
++  // comparison's intrinsic device resolution; preserve the original vector
++  // path/rectangle/text as the actual clip. No browser pattern implementation
++  // or unsupported SVG gradient behavior participates in the painted result.
++  function include(ctx,x,y) {
++    if(!Number.isFinite(x)||!Number.isFinite(y)) fail('invalid gradient path bounds');
++    const b=ctx._turtlePaintBounds;
++    if(!b)ctx._turtlePaintBounds=[x,y,x,y];else{b[0]=Math.min(b[0],x);b[1]=Math.min(b[1],y);b[2]=Math.max(b[2],x);b[3]=Math.max(b[3],y);}
++  }
++  const originalBegin=SvgContext.prototype.beginPath;
++  SvgContext.prototype.beginPath=function(...args){this._turtlePaintBounds=null;return originalBegin.apply(this,args);};
++  for(const method of ['moveTo','lineTo','bezierCurveTo','rect','ellipse','arc']) {
++    const original=SvgContext.prototype[method];
++    SvgContext.prototype[method]=function(...a) {
++      if(method==='rect'){include(this,a[0],a[1]);include(this,a[0]+a[2],a[1]+a[3]);}
++      else if(method==='ellipse'||method==='arc') {
++        const rx=Math.abs(a[2]),ry=method==='arc'?rx:Math.abs(a[3]);
++        const rotation=method==='arc'?0:a[4],c=Math.cos(rotation),sn=Math.sin(rotation);
++        const dx=Math.hypot(rx*c,ry*sn),dy=Math.hypot(rx*sn,ry*c);
++        include(this,a[0]-dx,a[1]-dy);include(this,a[0]+dx,a[1]+dy);
++      } else for(let i=0;i<a.length;i+=2) include(this,a[i],a[i+1]);
++      return original.apply(this,a);
++    };
++  }
++  for(const method of ['fill','fillRect','fillText']) {
++    const original=SvgContext.prototype[method];
++    SvgContext.prototype[method]=function(...args) {
++      const receipt=this._turtlePaints && this._turtlePaints.get(this.fillStyle);
++      if(!receipt) return original.apply(this,args);
++      const first=this._nodes.length,paint=this.fillStyle;
++      this.fillStyle='#ffffff';
++      try {original.apply(this,args);} finally {this.fillStyle=paint;}
++      if(this._nodes.length===first) return;
++      const geometry=this._nodes.splice(first).join('').replace(/ fill-rule=/g,' clip-rule=');
++      const bounds=method==='fillRect'?[Math.min(args[0],args[0]+args[2]),Math.min(args[1],args[1]+args[3]),Math.max(args[0],args[0]+args[2]),Math.max(args[1],args[1]+args[3])]:method==='fill'?this._turtlePaintBounds:null;
++      const image=rasterPaint(this,receipt,bounds);
++      if(!image)return;
++      const id='turtle-gradient-clip-'+this._defs.length;
++      // AppKit ignores grouped children/text inside clipPath and evaluates an
++      // image clip in its parent's local user space before the image transform.
++      // Keep concrete path/rect geometry local; text needs a luminance mask.
++      const isText=method==='fillText';
++      if(isText) {
++        const inv=inverse(image.world),corners=[[0,0],[this.canvas.width,0],[0,this.canvas.height],[this.canvas.width,this.canvas.height]].map(p=>[inv[0]*p[0]+inv[2]*p[1]+inv[4],inv[1]*p[0]+inv[3]*p[1]+inv[5]]);
++        const x=Math.min(...corners.map(p=>p[0]))-1,y=Math.min(...corners.map(p=>p[1]))-1;
++        const w=Math.max(...corners.map(p=>p[0]))-x+1,h=Math.max(...corners.map(p=>p[1]))-y+1;
++        this._defs.push('<mask id="'+id+'" maskUnits="userSpaceOnUse" x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" style="mask-type:luminance">'+geometry+'</mask>');
++      } else this._defs.push('<clipPath id="'+id+'" clipPathUnits="userSpaceOnUse">'+geometry+'</clipPath>');
++      this._nodes.push('<image x="'+image.left+'" y="'+image.top+'" width="'+image.width+'" height="'+image.height+'" preserveAspectRatio="none" opacity="'+Math.max(0,Math.min(1,this.globalAlpha))+'" href="'+image.href+'" transform="matrix('+matrix(inverse(image.world))+')" '+(isText?'mask':'clip-path')+'="url(#'+id+')"/>');
++    };
++  }
++  return {parseBrush};
 +};
 diff --git a/src/utils/nestedMetafilePlayer.js b/src/utils/nestedMetafilePlayer.js
 index 01b1fc8..69ebdef 100644

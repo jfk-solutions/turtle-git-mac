@@ -36,13 +36,13 @@ rs=[ep(0x4025,U(17)),ep(0x402D,F(12,4),0x2000),ep(0x4032,F(0,0,16,16)),ep(0x400A
 image=U(0xdbc01002,1)+I(2,2,8)+U(0x26200a,0)+pixels
 face='Helvetica'.encode('utf-16le');font=U(0xdbc01002)+F(12)+U(2,0,0,len(face)//2)+face
 text='TurtleGit'.encode('utf-16le')
-rs=[ep(0x4008,image,0x500),ep(0x401A,U(0,2)+F(0,0,2,2)+F(4,4,32,32)),ep(0x4008,font,0x601),ep(0x401C,U(0xff000000,0xffffffff,len(text)//2)+F(40,8,52,24)+text,0x8001)]
+rs=[ep(0x4008,image,0x500),ep(0x401A,U(0xffffffff,2)+F(0,0,2,2)+F(4,4,32,32)),ep(0x4008,font,0x601),ep(0x401C,U(0xff000000,0xffffffff,len(text)//2)+F(40,8,52,24)+text,0x8001)]
 (P/'plus-bitmap-text.emf').write_bytes(plus(rs))
 # Compressed PNG path has ignored zero width/height in EMF+ Bitmap metadata.
 def chunk(t,b):return struct.pack('>I',len(b))+t+b+struct.pack('>I',zlib.crc32(t+b)&0xffffffff)
 png=b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',2,2,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(b'\0'+bytes([255,0,0,255,0,255,0,255])+b'\0'+bytes([0,0,255,255,255,255,255,255])))+chunk(b'IEND',b'')
 image=U(0xdbc01002,1)+I(0,0,0)+U(0,1)+png
-rs=[ep(0x4008,image,0x500),ep(0x401B,U(0,2)+F(1,0,1,2)+U(3)+F(8,8,40,8,8,40))]
+rs=[ep(0x4008,image,0x500),ep(0x401B,U(0xffffffff,2)+F(1,0,1,2)+U(3)+F(8,8,40,8,8,40))]
 (P/'plus-compressed-crop.emf').write_bytes(plus(rs))
 # Placeable WMF clip rectangle + solid red brush. All logical units are pixels at96dpi.
 def wr(t,b=b''):
@@ -76,5 +76,103 @@ rs=[ep(0x4008,path,0x302),ep(0x4027,F(32,8,32,32,0,0,16,16)+U(6),2),ep(0x4014,U(
 (P/'plus-path-container.emf').write_bytes(plus(rs))
 # Each continued fragment carries total size, including the final flagged fragment.
 raw=U(0xdbc01002,1)+I(2,2,8)+U(0x26200a,0)+pixels
-rs=[ep(0x4008,U(len(raw))+raw[:20],0x8500),ep(0x4008,U(len(raw))+raw[20:],0x8500),ep(0x401A,U(0,2)+F(0,0,2,2)+F(4,4,32,32))]
+rs=[ep(0x4008,U(len(raw))+raw[:20],0x8500),ep(0x4008,U(len(raw))+raw[20:],0x8500),ep(0x401A,U(0xffffffff,2)+F(0,0,2,2)+F(4,4,32,32))]
 (P/'plus-continued-bitmap.emf').write_bytes(plus(rs))
+
+# Painting-family fixtures, independently authored from MS-EMFPLUS structures.
+# ImageAttributesID UINT_MAX is the optional-object sentinel; ID0 is our image,
+# so it must never masquerade as ImageAttributes. ID3 below is a real type8.
+compressed_image=U(0xdbc01002,1)+I(0,0,0)+U(0,1)+png
+def attr(wrap=4,color=0,clamp=0):return U(0xdbc01002,0,wrap,color,clamp,0)
+def image_objects(attributes=None):
+ return [ep(0x4008,compressed_image,0x500)]+([] if attributes is None else [ep(0x4008,attributes,0x803)])
+def image_rect(attributes=0xffffffff,source=(0,0,2,2),dest=(8,8,32,32)):
+ return ep(0x401A,U(attributes,2)+F(*source)+F(*dest))
+(P/'plus-image-attributes.emf').write_bytes(plus(image_objects(attr())+[image_rect(3)]))
+# Explicit magenta clamp color must paint both out-of-source sides; interior
+# green remains the original image pixel (no recoloring of in-bounds pixels).
+(P/'plus-image-clamp.emf').write_bytes(plus(image_objects(attr(color=0xffff00ff))+[image_rect(3,(-1,0,4,2),(8,8,64,32))]))
+# Two rows cover Tile and TileFlipX image attributes. Source pixels cross both
+# negative and positive image boundaries; centers analytically map to x8+16n.
+rs=image_objects(attr(wrap=0))+[image_rect(3,(-2,0,6,2),(0,8,96,16)),ep(0x4008,attr(wrap=1),0x803),image_rect(3,(-2,0,6,2),(0,36,96,16))]
+(P/'plus-image-wrap.emf').write_bytes(plus(rs))
+# PointR uses signed 7/15-bit scalars, high bit first-byte length. Unlike usual
+# little-endian Int16, Integer15's payload high seven bits precede its low byte.
+def relative_scalar(value):
+ assert -16384<=value<=16383
+ if -64<=value<=63:return bytes([value&0x7f])
+ value &= 0x7fff
+ return bytes([0x80|(value>>8),value&255])
+relative_points=b''.join(relative_scalar(v) for v in (160,8,-128,0,128,32))
+# C is deliberately also set: P makes C undefined/ignored. Both signs and widths
+# occur. World scale then translation maps red/green/blue centers to68,20/36,20/68,36.
+rs=image_objects()+[ep(0x402A,F(.5,0,0,1,4,4)),ep(0x401B,pad(U(0xffffffff,2)+F(0,0,2,2)+U(3)+relative_points),0x4800)]
+(P/'plus-image-relative.emf').write_bytes(plus(rs))
+# C without P means signed absolute Int16, including a negative initial x.
+points=struct.pack('<hhhhhh',-16,8,48,8,-16,40)
+rs=image_objects()+[ep(0x402D,F(24,4)),ep(0x401B,U(0xffffffff,2)+F(0,0,2,2)+U(3)+points,0x4000)]
+(P/'plus-image-int16.emf').write_bytes(plus(rs))
+# E(0x2000) is an effect flag, NOT relative point encoding. A missing/unsupported
+# effect pipeline must refuse this draw rather than silently render unmodified.
+(P/'unsupported-image-effect.emf').write_bytes(plus(image_objects()+[ep(0x401B,U(0xffffffff,2)+F(0,0,2,2)+U(3)+F(8,8,40,8,8,40),0x2000)]))
+(P/'unsupported-image-attributes.emf').write_bytes(plus(image_objects(attr(clamp=1))+[image_rect(3)]))
+(P/'unsupported-image-wrap.emf').write_bytes(plus(image_objects(attr(wrap=5))+[image_rect(3)]))
+(P/'unsupported-image-attribute-type.emf').write_bytes(plus(image_objects()+[image_rect(0)]))
+# Three precise preset colors; no copied CSS, pictures, expected SVG or fonts.
+def preset(stops):return U(len(stops))+F(*(p for p,c in stops))+U(*(c for p,c in stops))
+colors=[(0,0xffff0000),(.5,0xff00ff00),(1,0xff0000ff)]
+def linear(wrap=0,transform=None,stops=colors):
+ flags=4|(2 if transform is not None else 0)
+ return U(0xdbc01002,4,flags,wrap)+F(0,0,1,1)+U(stops[0][1],stops[-1][1],stops[0][1],stops[-1][1])+(F(*transform) if transform is not None else b'')+preset(stops)
+# Brush rotation/scaling/translation and separate world translation are both
+# required. Diagonal normalized sample fractions give unambiguous color stops.
+rs=[ep(0x4008,linear(transform=(0,48,-24,0,64,4)),0x100),ep(0x402D,F(8,4)),ep(0x400A,U(0,1)+F(40,4,24,48))]
+(P/'plus-gradient-transform.emf').write_bytes(plus(rs))
+# Same second-period location is red for Tile, blue for TileFlipX. Bands keep
+# world origins separate and distinguish repeated from reflected stop order.
+rs=[ep(0x4008,linear(wrap=0,transform=(16,0,0,16,0,0)),0x100),ep(0x4025,U(5)),ep(0x402D,F(8,4)),ep(0x400A,U(0,1)+F(0,0,80,20)),ep(0x4026,U(5)),ep(0x4008,linear(wrap=1,transform=(16,0,0,16,0,0)),0x100),ep(0x402D,F(8,36)),ep(0x400A,U(0,1)+F(0,0,80,20))]
+(P/'plus-gradient-wrap.emf').write_bytes(plus(rs))
+# Invalid stop order cannot yield an approximate or successful blank painting.
+(P/'unsupported-gradient-stops.emf').write_bytes(plus([ep(0x4008,linear(stops=[(0,0xffff0000),(.75,0xff00ff00),(.5,0xff0000ff)]),0x100),ep(0x400A,U(0,1)+F(0,0,96,64))]))
+# Centered elliptical path gradient: preset positions run boundary0 -> center1
+# in GDI+, so the radial expected center is red, middle green, boundary blue.
+# Endpoint plateaus make endpoint color assertions exact; the source center is
+# half-pixel aligned so device pixel(54,38) samples the exact center(54.5,38.5).
+k=.5522847498307936;cx,cy,rx,ry=48.5,32.5,24,20
+ellipse=[(cx+rx,cy),(cx+rx,cy+ry*k),(cx+rx*k,cy+ry),(cx,cy+ry),(cx-rx*k,cy+ry),(cx-rx,cy+ry*k),(cx-rx,cy),(cx-rx,cy-ry*k),(cx-rx*k,cy-ry),(cx,cy-ry),(cx+rx*k,cy-ry),(cx+rx,cy-ry*k),(cx+rx,cy)]
+path=U(0xdbc01002,len(ellipse),0)+F(*(v for point in ellipse for v in point))+pad(bytes([0]+[3]*11+[0x83]))
+radial=U(0xdbc01002,3,1|2|4,4,0xffff0000)+F(cx,cy)+U(1,0xff0000ff,len(path))+path+F(1,0,0,1,2,2)+preset([(0,0xff0000ff),(.1,0xff0000ff),(.5,0xff00ff00),(.9,0xffff0000),(1,0xffff0000)])
+rs=[ep(0x4008,radial,0x100),ep(0x402D,F(4,4)),ep(0x400E,U(0)+F(26.5,14.5,48,40))]
+(P/'plus-gradient-radial.emf').write_bytes(plus(rs))
+# BlendFactorsH specifies end-color weights, not additional preset colors.
+# Plateau intervals remain exactly red/blue; the midpoint mixes both equally.
+blend=U(0xdbc01002,4,2|8,0)+F(0,0,1,1)+U(0xffff0000,0xff0000ff,0xffff0000,0xff0000ff)+F(80,0,0,32,8,8)+U(4)+F(0,.25,.75,1)+F(0,0,1,1)
+(P/'plus-gradient-blend.emf').write_bytes(plus([ep(0x4008,blend,0x100),ep(0x400A,U(0,1)+F(8,8,80,32))]))
+# SVG backend must retain ARGB alpha for both real Pen objects and inline Brush
+# colors. Opaque red width4 line, then half-alpha red rectangle on white.
+pen=U(0xdbc01002,0,0,2)+F(4)+U(0,0xffff0000)
+rs=[ep(0x4008,pen,0x200),ep(0x400D,U(2)+F(8,8,40,8)),ep(0x400A,U(0x80ff0000,1)+F(8,20,32,24),0x8000)]
+(P/'plus-alpha-pen.emf').write_bytes(plus(rs))
+# Ordered tile count is valid (100x100 <16384), but duplicating this deterministic
+# noisy image into every SVG tile would exceed the aggregate64MiB payload budget.
+noise=bytearray();state=0x74757274
+for y in range(128):
+ noise.append(0)
+ for x in range(128):
+  for channel in range(3):
+   state=(1664525*state+1013904223)&0xffffffff;noise.append(state>>24)
+  noise.append(255)
+noise_png=b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',128,128,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(bytes(noise)))+chunk(b'IEND',b'')
+noise_image=U(0xdbc01002,1)+I(0,0,0)+U(0,1)+noise_png
+rs=[ep(0x4008,noise_image,0x500),ep(0x4008,attr(wrap=0),0x803),image_rect(3,(0,0,12800,12800),(0,0,96,64))]
+(P/'unsupported-image-tile-budget.emf').write_bytes(plus(rs))
+# Float32 precision at a huge offset must not turn a visibly distorted ellipse
+# into an accepted canonical radial gradient. Old maxCoordinate*3e-7 tolerance
+# (~270) admitted this256-unit control shift; world scale makes it7.68pixels.
+large=900000000;radius=1024
+large_ellipse=[(large+radius,large),(large+radius,large+radius*k),(large+radius*k,large+radius),(large,large+radius),(large-radius*k,large+radius),(large-radius,large+radius*k),(large-radius,large),(large-radius,large-radius*k),(large-radius*k,large-radius),(large,large-radius),(large+radius*k,large-radius),(large+radius,large-radius*k),(large+radius,large)]
+large_ellipse[1]=(large_ellipse[1][0]+256,large_ellipse[1][1])
+large_path=U(0xdbc01002,13,0)+F(*(v for point in large_ellipse for v in point))+pad(bytes([0]+[3]*11+[0x83]))
+large_radial=U(0xdbc01002,3,1,4,0xffff0000)+F(large,large)+U(1,0xff0000ff,len(large_path))+large_path
+rs=[ep(0x4008,large_radial,0x100),ep(0x402A,F(.03,0,0,.03,48-large*.03,32-large*.03)),ep(0x400E,U(0)+F(large-radius,large-radius,2*radius,2*radius))]
+(P/'unsupported-gradient-precision.emf').write_bytes(plus(rs))

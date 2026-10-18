@@ -1,0 +1,181 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "6f5dfa4a88086f926650d368c80d9bcf4366e8df",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "writer_reference": "node-projects/layout2vector@2e0a96b9f87f2a8c0ff649963a67dfccd73bf5bb",
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "scope": [
+    "Transformed linear preset/factor gradients and ellipse radial gradients",
+    "Referenced ImageAttributes, clamp color, tile/axis flips",
+    "DrawImage and DrawImagePoints float/Int16/relative signed7/15 source/destination placement",
+    "Actual native comparison/drop/Open/conflict consumers retain source bytes and owned lifetimes"
+  ],
+  "validation": {
+    "status": "passed scoped local checkpoint",
+    "runtime_all_architectures": {
+      "log": "build/qa/metafile-painting-runtime-check.log",
+      "exit": 0,
+      "scope": "Source reconstruction, universal slices, system-only links and actual WMF conversion/rejection on arm64 and x86_64. This preceded the later native-backend painting repairs; not an Intel full-corpus pixel proof."
+    },
+    "app_builds": [
+      {
+        "log": "build/qa/metafile-painting-app-build.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/metafile-painting-app-repair.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/metafile-painting-app-final.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/metafile-painting-app-reviewed.log",
+        "exit": 0
+      }
+    ],
+    "core_attempts": [
+      {
+        "log": "build/qa/metafile-painting-core.log",
+        "executed": 17,
+        "assertion_failures": 65,
+        "failed_methods": 9,
+        "exit": 1,
+        "findings": [
+          "Bitmap clip on transformed SVG group produced white native output.",
+          "Linear fixtures used zero reserved colors, conflicting with the pinned producer and documented Windows GDI+ behavior.",
+          "Radial endpoint assertions initially sampled between stops; corrected original fixture aligns actual center/plateaus without changing thresholds."
+        ]
+      },
+      {
+        "log": "build/qa/metafile-painting-core-repair.log",
+        "executed": 9,
+        "assertion_failures": 30,
+        "failed_methods": 5,
+        "exit": 1,
+        "scope": "Only prior failed cases repeated; bitmap colors/crop/continued/relative cases passed. Remaining actual native SVG gradient profile/spread, image pattern phase and rgba alpha behavior under repair."
+      },
+      {
+        "log": "build/qa/metafile-painting-core-final.log",
+        "executed": 6,
+        "assertion_failures": 2,
+        "failed_methods": 1,
+        "exit": 1,
+        "scope": "All gradients and alpha passed; both clamp-color failures traced to NSBitmapImageRep.colorAt losing PNG profile identity. Actual CGContext pixels were pure magenta. Correcting sampler to explicit sRGB byte reads without changing thresholds."
+      },
+      {
+        "log": "build/qa/metafile-painting-core-reviewed.log",
+        "executed": 18,
+        "assertion_failures": 0,
+        "failed_methods": 0,
+        "exit": 0,
+        "scope": "All 18 metafile methods repeated because the shared color sampler changed; added tile budget and ellipse precision refusals included. No complete Core integration suite rerun."
+      }
+    ],
+    "native": {
+      "log": "build/qa/metafile-painting-native.log",
+      "exit": 0,
+      "case": "consumers",
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "distinct_case_engine_pairs": 2,
+      "successful_image_samples_per_run": 8,
+      "owned_receiver_pids_reaped": [
+        7670,
+        7890
+      ],
+      "independently_absent_after_run": [
+        7670,
+        7890
+      ],
+      "scope": "Actual default IDiff, Open/drop, unsupported-side and explicit Merge routing, three-stage conflict decode/reload, cancellation, late results, session/grant/Quit ownership, unchanged original corpus/repository bytes. Receiver windows hidden. Other native image families not rerun."
+    },
+    "runtime_builds": [
+      {
+        "log": "build/qa/metafile-painting-runtime-build.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/metafile-painting-runtime-final.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/metafile-painting-runtime-reviewed.log",
+        "exit": 0,
+        "scope": "Latest reviewed patch reconstructed and universal helper structure/provenance verified."
+      }
+    ],
+    "resource_checks": [
+      {
+        "log": "build/qa/metafile-painting-localizations.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/metafile-painting-help.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/metafile-painting-coverage.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/metafile-painting-coverage-check.log",
+        "exit": 0
+      },
+      {
+        "log": "build/qa/metafile-painting-site.log",
+        "exit": 0,
+        "scope": "335 documents; no unresolved fragments"
+      }
+    ]
+  },
+  "diagnostics": {
+    "bitmap_clip": "build/qa/metafile-clip-diagnostic-raster.log: same captured SVG, group clipping yielded white, image clipping/no clipping yielded primary red/green/blue after actual96x64CGContext raster. Raw192x128CGImage samples were explicitly corrected in the diagnostic.",
+    "gradient": "build/qa/metafile-gradient-diagnostic.json and metafile-gradient-roundtrip-diagnostic.json: native SVG ignores repeat/reflect and paints gradient endpoint blue differently from solid blue; PNG roundtrip matches failing Core secondary channel0.3191795.",
+    "clamp_and_pattern": "build/qa/metafile-fixture-contract: rgba alpha1 rendered as byte1/255; hex plus separate opacity fixed clamp. Explicit tiles preserved expected source phase where native SVG patterns did not.",
+    "gradient_repair": "build/qa/metafile-gradient-repair-proof.json: four gradient strong pixel contracts plus bounded gradient text diagnostic passed with private helper; does not replace final Core/native checkpoint.",
+    "clamp_profile": "build/qa/metafile-fixture-contract/profile.swift: actual raw magenta pixels preserved; AppKit colorAt returned calibrated generic color, whose conversion introduced exact green0.25276762247. Test sampler changed to explicit sRGB CGContext bytes."
+  },
+  "preserved_unrelated_wip": {
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3",
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f"
+  },
+  "remaining": [
+    "Full current hosted macOS integration result",
+    "Physical native parity/input/accessibility across upstream dialogs",
+    "Current installed signed Finder/app/service and App Store distribution acceptance",
+    "Remaining explicit GDI records, path-gradient variants and Windows font/pixel equivalence in format parity docs",
+    "Earlier intermittent EMF+ native consumer assertion remains historical and unexplained; a later pass alone does not identify its cause."
+  ],
+  "review_repairs": [
+    "Reserve aggregate tile serialized bytes before concatenation to prevent embedded PNG expansion beyond 64 MiB.",
+    "Refuse ellipse coordinates whose Float32/canonical precision exceeds 100 ppm of the conservative minimum axis; a large translation cannot conceal off-center/general geometry."
+  ],
+  "final_runtime": {
+    "binary_sha256": "dc2caf5467f77818c1b5ddbf85686320c099b20ec26ef63a6e2910627986423e",
+    "renderer_sha256": "7f26b2e9293890efb06d6eb396bf7ab15d3678dc7bed6caeb81be77e0da27c69",
+    "source_sha256": {
+      "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+      "Configuration/MetafileRuntime.json": "037a2f0f944ea3c65226bbd7d4843ba0f10d1b84fd21d7ba2c8c30383c803848",
+      "Sources/TurtleGitMetafile/main.swift": "8e95c282dcb53e9d8879b5b0d3555709c564926df264823dda86333aca63ea23",
+      "patches/metafile-renderer.patch": "ac333d3e5bdcedf5d84e2590fd5bd5d1f8d994491546ffcdba21454a24253c93",
+      "scripts/build-metafile-runtime.py": "3e1d0a3f4dd23acf25060b9c03359633317427e2ca99ea089baacc4df725846f",
+      "scripts/validate-metafile-runtime.py": "1b07e9b0142ccaf024c6fd67f8258d97afc1fb4dc5beb23a385b3c56e17f611f",
+      "scripts/embed-metafile-runtime.py": "79d1afb77de6027dba108f0977c90c2394522d2a9262ccf42819125356117a4b",
+      "scripts/pinned_download.py": "c9bfbd05a830f235e78521a3f0ba4ed5454c7389a96195939df2ea1110168b40",
+      "scripts/runtime_bundle_layout.py": "624a54cfda00a71d287e56719b83ebe26900e21e10c798f4b14e90a4dc28ac4c",
+      "scripts/git_lfs_runtime.py": "07ee6decd30776eeaf35aa7de12c766638b957a6029315ad454dc1315266790c"
+    },
+    "cache_key": "07dc7e4fc10f0cd5ae3e382f79222e3d09502a9cae6072853aeeb194d1f6ac6e",
+    "signed": false
+  },
+  "corpus": {
+    "new_original_fixtures": 17,
+    "core_methods": 18,
+    "successful_native_samples_per_engine": 8,
+    "unsupported_native_samples": "all unsupported-prefixed corpus entries"
+  }
+}

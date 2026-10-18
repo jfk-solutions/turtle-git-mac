@@ -3231,3 +3231,21 @@ affected consumers. [Recorded local evidence](qa/settings-teardown-2026-10-18.js
 covers 24 distinct case/engine pairs, actual failed attempts and independent
 receiver cleanup. Hosted Intel/SDK execution, current installed signed workflows, physical
 layout/input acceptance and complete Settings parity remain separate requirements.
+
+
+### Metafile painting interoperability, October 18, 2026
+
+The user-provided layout2vector EMF/EMF+ writers supplied an independent source
+comparison for reusable ImageAttributes, transformed bitmap placement and gradient
+brush records. TurtleGit now handles the documented subset of linear presets and
+blend factors, centered elliptical radial gradients, tile/axis flips, clamp colors,
+float/Int16/relative image destinations and separate ARGB opacity. Original source
+bytes remain authoritative for comparisons and conflict results.
+
+Native SVG limitations require bounded gradient raster paints with vector clips
+and explicit visible bitmap copies. Serialized tile budgets and radial precision
+guards reject inputs that cannot be rendered within the documented limits. The
+[source comparison](METAFILE-PAINTING-PARITY.md) and [batch evidence](qa/metafile-painting-2026-10-18.json)
+record implementation, actual failures/repairs and final focused checks. This
+extends the accepted format subset; the remaining record/font/painting gaps,
+full hosted integration and current signed distribution acceptance remain open.

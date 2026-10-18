@@ -9,8 +9,22 @@ final class MetafileImageTests: XCTestCase {
     private func data(_ name: String) throws -> Data { try Data(contentsOf: fixtures.appendingPathComponent(name)) }
     private func image(_ name: String) throws -> ComparisonImage { try XCTUnwrap(ComparisonImage(bytes: data(name)), "Could not render \(name)") }
     private func rgb(_ image: ComparisonImage, _ x: Int, _ y: Int) throws -> [CGFloat] {
-        let color = try XCTUnwrap(NSBitmapImageRep(cgImage: image.pixels).colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB))
-        return [color.redComponent, color.greenComponent, color.blueComponent]
+        // NSBitmapImageRep.colorAt can return generic calibrated RGB despite an
+        // sRGB CGImage profile; converting that NSColor changes pure magenta.
+        // Normalize the actual image to a named sRGB byte buffer instead.
+        let width = image.pixels.width, height = image.pixels.height
+        XCTAssertTrue((0..<width).contains(x) && (0..<height).contains(y))
+        var bytes = [UInt8](repeating: 0, count: width * height * 4)
+        return try bytes.withUnsafeMutableBytes { storage in
+            let space = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+            let context = try XCTUnwrap(CGContext(data: storage.baseAddress, width: width, height: height,
+                bitsPerComponent: 8, bytesPerRow: width * 4, space: space,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
+            context.draw(image.pixels, in: CGRect(x: 0, y: 0, width: width, height: height))
+            let components = storage.bindMemory(to: UInt8.self), offset = (y * width + x) * 4
+            let alpha = CGFloat(components[offset + 3]) / 255
+            return (0..<3).map { alpha > 0 ? CGFloat(components[offset + $0]) / (255 * alpha) : 0 }
+        }
     }
     private func primary(_ image: ComparisonImage, _ channel: Int, _ x: Int, _ y: Int, file: StaticString = #filePath, line: UInt = #line) throws {
         let color = try rgb(image,x,y)
@@ -90,8 +104,102 @@ final class MetafileImageTests: XCTestCase {
         let svg = String(decoding: try XCTUnwrap(MetafileImageDecoder.convert(data("plus-compressed-crop.emf"))),as:UTF8.self)
         XCTAssertTrue(svg.contains("turtle-image-clip"));XCTAssertTrue(svg.contains("width=\"2\""))
     }
+    func testLinearGradientPresetColorsComposeBrushAndWorldTransforms() throws {
+        let value = try image("plus-gradient-transform.emf")
+        XCTAssertEqual(value.size, CGSize(width: 96, height: 64))
+        // Normalized horizontal-axis fractions through brush [0,48,-24,0,64,4]
+        // then world Translate(8,4), independent of renderer-generated SVG.
+        try primary(value, 0, 70, 10)
+        try primary(value, 1, 60, 32)
+        try primary(value, 2, 49, 54)
+        XCTAssertTrue(try rgb(value, 44, 30).allSatisfy { $0 > 0.9 }, "Brush/world transforms misplaced the painted rectangle")
+        let svg = String(decoding: try XCTUnwrap(MetafileImageDecoder.convert(data("plus-gradient-transform.emf"))), as: UTF8.self)
+        XCTAssertTrue(svg.contains("<linearGradient"), "Gradient was flattened to a solid color")
+    }
+    func testEllipticalPathGradientUsesBoundaryToCenterPresetOrderAndTransforms() throws {
+        let value = try image("plus-gradient-radial.emf")
+        // The boundary path is a four-Bezier ellipse (24x20 radii), not an
+        // output-derived image. Brush/world translations align center(54.5,38.5)
+        // with pixel(54,38); endpoint plateaus avoid testing near-stop blends.
+        try primary(value, 0, 54, 38)
+        try primary(value, 1, 66, 38)
+        try primary(value, 2, 76, 38)
+        XCTAssertTrue(try rgb(value, 20, 20).allSatisfy { $0 > 0.9 })
+        let svg = String(decoding: try XCTUnwrap(MetafileImageDecoder.convert(data("plus-gradient-radial.emf"))), as: UTF8.self)
+        XCTAssertTrue(svg.contains("<radialGradient"))
+    }
+    func testLinearGradientHorizontalBlendFactorsRetainPlateausAndMidpoint() throws {
+        let value = try image("plus-gradient-blend.emf")
+        try primary(value, 0, 16, 24)
+        try primary(value, 2, 80, 24)
+        let middle = try rgb(value, 48, 24)
+        XCTAssertGreaterThan(middle[0], 0.35); XCTAssertGreaterThan(middle[2], 0.35)
+        XCTAssertLessThan(middle[1], 0.25)
+        XCTAssertEqual(middle[0], middle[2], accuracy: 0.08)
+    }
+    func testLinearGradientTileAndFlipRetainDifferentStopOrders() throws {
+        let value = try image("plus-gradient-wrap.emf")
+        // Each sample is just inside the second period at the same normalized
+        // horizontal position: Tile restarts red; TileFlipX reflects from blue.
+        try primary(value, 0, 24, 20)
+        try primary(value, 2, 24, 52)
+        XCTAssertTrue(try rgb(value, 92, 30).allSatisfy { $0 > 0.9 })
+    }
+    func testImageAttributesDefaultClampColorAndTileFlipPreserveOriginalPixels() throws {
+        let plain = try image("plus-image-attributes.emf")
+        try primary(plain, 0, 16, 16)
+        try primary(plain, 1, 32, 16)
+        try primary(plain, 2, 16, 32)
+        let clamped = try image("plus-image-clamp.emf")
+        for x in [16, 64] {
+            let color = try rgb(clamped, x, 16)
+            XCTAssertGreaterThan(color[0], 0.8); XCTAssertLessThan(color[1], 0.25); XCTAssertGreaterThan(color[2], 0.8)
+        }
+        try primary(clamped, 0, 32, 16)
+        try primary(clamped, 1, 48, 16)
+        let wrapped = try image("plus-image-wrap.emf")
+        let tile = [0, 1, 0, 1, 0, 1], reflected = [1, 0, 0, 1, 1, 0]
+        for index in 0..<6 {
+            try primary(wrapped, tile[index], 8 + 16 * index, 12)
+            try primary(wrapped, reflected[index], 8 + 16 * index, 40)
+        }
+    }
+    func testRelativeSigned7And15AndAbsoluteInt16ImagePointsUseActualFlags() throws {
+        let relative = try image("plus-image-relative.emf")
+        // P=0x0800 wins over C=0x4000. Delta pairs (160,8),(-128,0),
+        // (128,32) include both scalar widths/signs; world transform maps them.
+        try primary(relative, 0, 68, 20)
+        try primary(relative, 1, 36, 20)
+        try primary(relative, 2, 68, 36)
+        let absolute = try image("plus-image-int16.emf")
+        // C alone means signed absolute Int16, including initial x=-16.
+        try primary(absolute, 0, 24, 20)
+        try primary(absolute, 1, 56, 20)
+        try primary(absolute, 2, 24, 36)
+        XCTAssertTrue(try rgb(absolute, 88, 52).allSatisfy { $0 > 0.9 })
+    }
+    func testOpaquePenAndHalfAlphaBrushPreserveSeparateSVGOpacity() throws {
+        let value = try image("plus-alpha-pen.emf")
+        try primary(value, 0, 20, 8)
+        let translucent = try rgb(value, 20, 32)
+        XCTAssertGreaterThan(translucent[0], 0.9)
+        for channel in [1, 2] {
+            XCTAssertGreaterThan(translucent[channel], 0.3)
+            XCTAssertLessThan(translucent[channel], 0.85)
+        }
+        let svg = String(decoding: try XCTUnwrap(MetafileImageDecoder.convert(data("plus-alpha-pen.emf"))), as: UTF8.self)
+        XCTAssertTrue(svg.contains("stroke=\"#ff0000\""))
+        XCTAssertTrue(svg.contains("stroke-opacity=\"1\""))
+        XCTAssertTrue(svg.contains("fill=\"#ff0000\""))
+        let expression = try NSRegularExpression(pattern: #"fill-opacity="([0-9.]+)""#)
+        let opacities = expression.matches(in: svg, range: NSRange(svg.startIndex..., in: svg)).compactMap { match -> Double? in
+            guard let range = Range(match.range(at: 1), in: svg) else { return nil }
+            return Double(svg[range])
+        }
+        XCTAssertTrue(opacities.contains { abs($0 - 128.0 / 255.0) < 0.0001 }, "Inline ARGB brush alpha was not preserved as separate SVG opacity")
+    }
     func testMalformedAndUnsupportedPaintingFailInsteadOfSuccessfulBlank() throws {
-        for name in ["unsupported-region.emf","unsupported-rop.emf"] {
+        for name in ["unsupported-region.emf", "unsupported-rop.emf", "unsupported-image-effect.emf", "unsupported-image-attributes.emf", "unsupported-image-wrap.emf", "unsupported-image-attribute-type.emf", "unsupported-gradient-stops.emf", "unsupported-image-tile-budget.emf", "unsupported-gradient-precision.emf"] {
             XCTAssertThrowsError(try MetafileImageDecoder.convert(data(name)))
             XCTAssertNil(ComparisonImage(bytes: try data(name)))
         }

@@ -64,7 +64,9 @@ Quit during this handoff; cancelled or retired owners cannot launch a late reloa
 `qa/metafile-consumers-native-2026-10-18.swift`, entry
 `MetafileConsumersVerification.verify()`, accepts a private workspace, Git path
 and `Tests/TurtleGitCoreTests/Fixtures/Metafile` directory. It selects the six
-representative 96×64 successful corpus files explicitly; extra physical-geometry
+original representative 96×64 successful corpus files explicitly; the painting
+extension adds `plus-gradient-transform.emf` and `plus-image-attributes.emf`.
+Extra physical-geometry
 or DPI fixtures belong to the Core renderer checks. It also checks the explicit
 unsupported-record fixtures in IDiff without requiring an image result.
 
@@ -87,3 +89,32 @@ consumer assertion. Complete WMF/EMF record coverage and exact GDI+ equivalence,
 all animation/vector formats, physical keyboard/VoiceOver/drag gestures, current
 hosted CI, signed sandbox grants and compositor screenshots remain separate
 acceptance work.
+
+## Painting extension
+
+The [EMF+ painting batch](METAFILE-PAINTING-PARITY.md) extends the decoder used by
+these same panes. Default ImageAttributes, gradient objects and additional image
+destination encodings do not select a different viewer, add authority to a dropped
+file, or change conflict/save bytes. These additions require their own recorded
+Core painting and native consumer evidence. The earlier consumer passes and the
+unresolved intermittent observation above remain historical evidence, not proof
+of the new painting subset or an explanation of that observation.
+
+Gradient brush paint is a bounded intrinsic-resolution display PNG with vector
+fill clips or a text luminance mask. Preview zoom can enlarge that paint raster;
+it does not recreate a resolution-independent gradient. Bitmap wrapping uses
+explicit visible copies rather than native SVG patterns. These renderer repairs
+preserve the same decoded-image publication, original-byte and cancellation
+contracts described above. Initial painting failures and focused repairs must
+remain in the [current batch evidence](qa/metafile-painting-2026-10-18.json).
+The final consumer group passed with system and bundled Git; both owned receiver
+processes were reaped and independently absent afterward.
+
+Visible bitmap tiles additionally reserve their projected inline markup against a
+64 MiB aggregate limit before construction. Excessive Float32 uncertainty in a
+radial boundary is an unsupported side, preserving the ordinary undecodable-side
+policy. Core painting pixel inspection uses explicit sRGB bytes rather than
+profile-losing `NSBitmapImageRep.colorAt` access; the existing color thresholds
+remain unchanged. All 18 metafile Core methods passed after these repairs.
+Hosted integration, physical Windows equivalence and current signed distribution
+acceptance remain separate.

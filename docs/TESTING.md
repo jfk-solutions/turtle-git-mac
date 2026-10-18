@@ -2419,3 +2419,23 @@ as well as success. Use `--only` for affected repairs, not a new full-suite run.
 This native-only repair does not require another Core suite. Local ARM execution
 does not establish hosted Intel/SDK acceptance or current signed deployment.
 See [source comparison](SETTINGS-TEARDOWN-PARITY.md).
+
+
+### Metafile painting interoperability extension
+
+Freeze the related gradient, ImageAttributes and placement implementation before
+building the pinned helper and embedding it in Debug. Run `TURTLEGIT_CORE_ONLY=1
+swift test --filter MetafileImageTests` and the affected native consumer group:
+`python3 scripts/test-metafile-workflows.py --only consumers --git /usr/bin/git
+--git build/git-runtime/Git/bin/git`. The latter covers actual IDiff, Open/drop,
+unsupported-side and three-stage conflict consumers with hidden owned windows.
+Other retained image families need repeating only when affected.
+
+The painting corpus includes transformed gradients, actual default image
+attributes, clamp and tile/flip behavior, mixed signed relative points, opaque
+pens and half-alpha fills. Deliberately unsupported fixtures exercise image
+effects, wrong types, BitmapClamp, invalid stops/wraps, excessive tile markup and
+insufficient radial coordinate precision. Pixel assertions normalize the actual
+CGImage into named sRGB bytes, avoiding `NSBitmapImageRep.colorAt` profile loss;
+thresholds remain unchanged. See [actual batch evidence](qa/metafile-painting-2026-10-18.json)
+for failed attempts, focused repairs, final scope and remaining acceptance.
