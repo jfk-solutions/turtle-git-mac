@@ -34,8 +34,8 @@ with submitted options; success offers Show Log then Show in Finder in a split
 action button, plus Close. Normal
 and bare clones are adopted when the workspace is idle and their resolved roots
 are saved to recents. Bare repositories now open in the workspace and Log with
-worktree actions disabled; see [Create Repository parity](INIT-PARITY.md). Native
-bare-clone adoption and signed recent-permission renewal remain unverified.
+worktree actions disabled; see [Create Repository parity](INIT-PARITY.md). Normal/bare native adoption is covered by the workspace handoff receiver below;
+signed recent-permission renewal remains unverified.
 
 The Windows Pageant/PuTTY row is adapted to **Auto-load SSH key** using OpenSSH.
 Like pinned CloneCommand, native Clone loads the selected identity before cloning
@@ -222,3 +222,35 @@ post-clone key configuration. Physical and signed acceptance remain open.
 The [repository input continuation](REPOSITORY-INPUT-DEFAULTS-PARITY.md) adds the
 source clipboard/first-history defaults shared with Submodule Add. Explicit caller
 URLs keep priority; prefill supplies no authorization or automatic submission.
+
+## Workspace completion handoffs — October 18, 2026
+
+Clone results keep the initiating workspace window, resolved root, permissions and
+completion output. If that workspace is busy, the latest completed creation waits
+for the current operation to release ownership. Completion does not change the
+running adoption's generation or poll the busy flag. A captured transport batch is
+cancelled before it can prepare another root. Already opened transport windows
+keep their own repository and permissions.
+
+The completed root goes through the ordinary repository-open path: metadata
+permissions, discovery, authoritative bare/status metadata, Recents and rollback.
+A retained compound lease supplies existing Git-directory/object-store grants;
+it does not prompt again merely because the primary folder excludes metadata.
+An explicit Open/Close accepted before handoff starts supersedes the pending
+result. Closing the initiating workspace cancels queued or in-flight adoption and
+rejects a later result, even when another workspace window has become current.
+Closing the completed Clone result window alone does not discard its workspace
+handoff. A retired Clone dialog drops browsing/result permissions and callbacks;
+its active worker or pending handoff retains its independently captured grants. Pending results participate in the application's Quit gate; termination
+retires them and rejects callbacks arriving afterward. Failed adoption leaves the
+previous repository open and reports its error without rerunning Clone.
+
+This is a macOS workspace adaptation of pinned `Commands/CloneCommand.cpp`,
+`CloneDlg.cpp` and the Clone result actions. Windows uses a separate modal command
+process and does not share this native workspace's asynchronous adoption state.
+The focused receiver and actual failures are recorded in
+[handoff batch evidence](qa/repository-handoffs-2026-10-18.json).
+Signed sandbox behavior, physical Launch Services, unusual network filesystems,
+and completion while the initial root authorization panel is modal remain outside
+this batch's acceptance scope. No all-dialog visual or whole-port completion is
+claimed.

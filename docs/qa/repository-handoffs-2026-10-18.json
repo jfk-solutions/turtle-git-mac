@@ -1,0 +1,201 @@
+{
+  "date": "2026-10-18",
+  "scope": "Clone/Init workspace completion, normal Open/Close, captured transport batches and native window ownership",
+  "base_commit": "05c55d939fcb47dd5529839585833e8d74d857f0",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_review": [
+    "Commands/CloneCommand.cpp Clone dialog/result lifetime and selected directory",
+    "Commands/CreateRepositoryCommand.cpp normal/bare initialization, warnings and result confirmation",
+    "Native asynchronous shared workspace is a macOS adaptation; upstream commands use separate modal processes"
+  ],
+  "implementation": [
+    "Captured result root/access/output and initiating window; latest completed creation waits for current busy owner without polling or premature generation changes",
+    "Normal Open discovery/metadata/Recents/rollback path reused for normal and bare creation results",
+    "Retained compound metadata grants reused; accepted explicit Open/Close supersedes pending result",
+    "Transport batch cancellation prevents another root/form from being prepared after a creation result takes priority",
+    "Queued/in-flight owner closure cancels adoption; termination rejects late result callbacks; pending work participates in Quit ownership",
+    "Retired Clone dialog drops browsing/result permissions and callbacks; running workers and queued handoffs retain independently captured grants"
+  ],
+  "validation": {
+    "reproduction": {
+      "exit": 1,
+      "log": "build/qa/repository-handoffs-reproduction-2026-10-18.log",
+      "result": "Current pre-change app never settled after captured Clone completion during held Open metadata reply; receiver 87943 reaped"
+    },
+    "core": {
+      "rerun": false,
+      "reason": "No Core source changed; batch changes native orchestration and lifecycle"
+    },
+    "native": {
+      "exit": 0,
+      "log": "build/qa/repository-handoffs-native-scope-release-2026-10-18.log",
+      "distinct_case_engine_passes": 6,
+      "passed": [
+        "handoffs/system",
+        "handoffs/bundled",
+        "completion/system",
+        "completion/bundled",
+        "ownership/system",
+        "ownership/bundled"
+      ],
+      "scope": [
+        "Original held metadata Open/Clone deadlock",
+        "Real normal/bare Clone and Init completion during held workspace operation",
+        "Latest result and explicit Open/Close ordering",
+        "Closing Clone result preserves handoff but releases retired dialog grants",
+        "Workspace closure before/after pending result and during metadata read; replacement workspace does not retarget initiating owner",
+        "Pending Quit gate and termination rejects late callbacks",
+        "Failed adoption rolls back previous root/index, then later result can open",
+        "Already retained compound metadata grant reuse",
+        "Completed creation cancels held multi-root transport preparation and prevents next-root authorization",
+        "Existing Clone history, failed/invalid submission timing, inspection retry, SSH warning, chooser ownership and metadata cancellation",
+        "Existing ordinary/linked/submodule/shared metadata access, saved/stale grants, native access manager, rollback/late owner and fake scope release"
+      ]
+    },
+    "native_history": [
+      {
+        "log": "build/qa/repository-handoffs-native-2026-10-18.log",
+        "exit": 1,
+        "phase": "fixture compile",
+        "reason": "Private helper parameter visibility and nonexistent GitResult.stdoutString fixture API",
+        "runtime_started": false
+      },
+      {
+        "log": "build/qa/repository-handoffs-native-fixture-2026-10-18.log",
+        "exit": 1,
+        "phase": "fixture compile",
+        "reason": "Private helper visibility still required repair after API correction",
+        "runtime_started": false
+      },
+      {
+        "log": "build/qa/repository-handoffs-native-fixture-fixed-2026-10-18.log",
+        "exit": 1,
+        "reason": "Expected exact Clone destination, but normal URL autofill appended source name; original held-Open scenario passed"
+      },
+      {
+        "log": "build/qa/repository-handoffs-native-diagnostic-2026-10-18.log",
+        "exit": 1,
+        "reason": "Exact root assertion reports real-clone/source with no product error; fixture configured exactpath afterward",
+        "assertions_removed": false
+      },
+      {
+        "log": "build/qa/repository-handoffs-native-exact-destination-2026-10-18.log",
+        "exit": 1,
+        "reason": "Fixture expected all scopes released with a live Clone dialog; corrected to retain child scope and check complete release after closing"
+      },
+      {
+        "log": "build/qa/repository-handoffs-native-scope-ownership-2026-10-18.log",
+        "exit": 1,
+        "reason": "Actual closed Clone dialog still retained destination permission while controller/model stayed alive; repaired model retirement to release permissions/callbacks; retained final zero-scope assertion"
+      }
+    ],
+    "debug_builds": [
+      {
+        "exit": 0,
+        "log": "build/qa/repository-handoffs-build-2026-10-18.log"
+      },
+      {
+        "exit": 0,
+        "log": "build/qa/repository-handoffs-build-scope-release-2026-10-18.log",
+        "reason": "Actual closed-dialog permission retention repair"
+      }
+    ],
+    "network_regression": {
+      "exit": 0,
+      "log": "build/qa/repository-handoffs-network-2026-10-18.log",
+      "distinct_case_engine_passes": 2,
+      "passed": [
+        "network/system",
+        "network/bundled"
+      ],
+      "scope": "Eleven native launch handlers, deferred Force preparation, three two-root transport batches, root/grant refusal and unchanged Git state"
+    },
+    "localizations": {
+      "write_exit": 0,
+      "check_exit": 0,
+      "languages": 38,
+      "keys": 1284,
+      "log": "build/qa/repository-handoffs-localizations-2026-10-18.log",
+      "generated_changes": false
+    },
+    "help": {
+      "write_exit": 0,
+      "check_exit": 0,
+      "documents": 38,
+      "topics": 48,
+      "files": 58,
+      "bytes": 3552552,
+      "log": "build/qa/repository-handoffs-help-2026-10-18.log"
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "pending_control_reviews": 93,
+      "mapped_controls": 1566,
+      "statuses": {
+        "pending-review": 10,
+        "partial-native-replacement": 89,
+        "partial": 24,
+        "native-partial": 1,
+        "partial-workflow-replacement": 3,
+        "partial-native": 3
+      },
+      "not_a_completion_percentage": true
+    },
+    "hosted_observation": {
+      "current_pushed_commit": "05c55d93",
+      "macos_run": 39082345257,
+      "macos_status": "pending",
+      "pages_run": 39082345201,
+      "pages_conclusion": "success",
+      "older_run": 39077058557,
+      "older_commit": "cd2c131d",
+      "older_status": "in_progress",
+      "older_active_step": "Inline engine native consumers",
+      "full_current_head_pass_claimed": false
+    },
+    "native_cumulative": {
+      "distinct_case_engine_passes": 8,
+      "runtime_attempts": 13,
+      "owned_receiver_pids": [
+        87943,
+        88342,
+        88570,
+        88703,
+        89110,
+        89727,
+        90173,
+        90632,
+        90660,
+        90696,
+        90978,
+        91270,
+        91874
+      ],
+      "cleanup": "Every receiver reported reaped; independent ps exit 1 and empty stdout",
+      "unrepaired_failures": [],
+      "full_core_rerun": false,
+      "unaffected_cases_repeated": false
+    },
+    "warnings": [
+      "Known macOS CoreSimulator version diagnostic appeared during successful Debug builds; terminal exit 0",
+      "Existing AppKit zero-bounds NSSplitView arranged-frame diagnostic while creating hidden Rebase owner in network checks; broader layout acceptance remains open",
+      "Existing private fixture weak-variable warnings in ownership receiver; no fixture assertions removed"
+    ],
+    "site": {
+      "exit": 0,
+      "documents": 294,
+      "unresolved_fragments": 0,
+      "log": "build/qa/repository-handoffs-site-2026-10-18.log"
+    }
+  },
+  "limits": [
+    "Signed App Store/Finder and physical Launch Services behavior remain unverified",
+    "No new visual layout changes; this does not certify all-dialog parity",
+    "Initial root authorization panel modal concurrency, unusual filesystems and all external transport combinations remain unverified",
+    "No current-head full hosted integration pass claimed"
+  ]
+}

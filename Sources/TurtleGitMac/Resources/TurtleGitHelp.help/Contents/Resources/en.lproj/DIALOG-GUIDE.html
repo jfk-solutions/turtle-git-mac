@@ -11,7 +11,12 @@ The progress window reports Git's output and offers cancellation. A cancelled or
 failed clone can leave files in its destination; inspect them before retrying.</p>
 <p>Create Repository initializes Git in the selected folder. Choose a bare repository
 only when you want repository storage without a working tree. Authorize the
-folder when macOS requests access. Open the resulting repository to work with it.</p>
+folder when macOS requests access. After Clone or Create Repository succeeds,
+TurtleGit opens the result when the workspace finishes its current operation.
+If several creations finish while it is busy, the latest result opens. Choosing
+Open Repository or Close Repository before that handoff takes priority. Closing
+the workspace cancels its automatic handoff; the new repository remains on disk
+and can be opened later.</p>
 <a name="topic-workingTree"></a><a name="topic-add"></a><a name="topic-ignore"></a><h2 id="working-tree-and-add">Working Tree and Add</h2>
 <p>Working Tree lists changes and offers the same kinds of status filters as
 TortoiseGit. Show Whole Project expands a file/folder invocation to the repository.

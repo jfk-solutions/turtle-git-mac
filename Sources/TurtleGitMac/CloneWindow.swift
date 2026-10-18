@@ -114,6 +114,12 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         invalidated = true; panelGeneration = UUID(); operationCancellation?.cancel(); progress?.invalidate(); keyAccess = nil
         if let panel = openPanel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }
         openPanel = nil; let reply = panelReply; panelReply = nil; reply?.resume(returning: nil)
+        // Running workers and a queued workspace handoff retain their captured
+        // leases. A retired dialog no longer needs browsing/result permissions.
+        destinationAccess = nil; sourceAccess = nil; pendingInspection = nil
+        clonedRepository = nil; progress = nil
+        onCloned = { _, _, _, _, _ in }; onLog = { _, _ in }
+        onProgress = nil; onExplore = { _ in }; close = {}
     }
     func finish(_ result: CloneProgressWindowModel) {
         guard progress === result, !result.busy, !result.confirmingCancellation else { return }

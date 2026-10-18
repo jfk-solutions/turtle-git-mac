@@ -14,7 +14,12 @@ failed clone can leave files in its destination; inspect them before retrying.
 
 Create Repository initializes Git in the selected folder. Choose a bare repository
 only when you want repository storage without a working tree. Authorize the
-folder when macOS requests access. Open the resulting repository to work with it.
+folder when macOS requests access. After Clone or Create Repository succeeds,
+TurtleGit opens the result when the workspace finishes its current operation.
+If several creations finish while it is busy, the latest result opens. Choosing
+Open Repository or Close Repository before that handoff takes priority. Closing
+the workspace cancels its automatic handoff; the new repository remains on disk
+and can be opened later.
 
 ## Working Tree and Add
 

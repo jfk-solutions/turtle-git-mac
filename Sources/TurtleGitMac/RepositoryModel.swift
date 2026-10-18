@@ -3,6 +3,24 @@ import SwiftUI
 import TurtleGitCore
 import UniformTypeIdentifiers
 
+/// A creation result belongs to the workspace window that launched it, even
+/// when that window closes before Clone/Init reports completion.
+@MainActor private final class RepositoryHandoffOwner {
+    let cancellation = OperationCancellation()
+    var onCancelled: () -> Void = {}
+    private var observer: NSObjectProtocol?
+    init(window: NSWindow?) {
+        if let window {
+            let token = cancellation
+            observer = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+                token.cancel()
+                Task { @MainActor [weak self] in self?.onCancelled() }
+            }
+        }
+    }
+    deinit { if let observer { NotificationCenter.default.removeObserver(observer) } }
+}
+
 @MainActor final class RepositoryModel: ObservableObject {
     private let autotextTester = AutotextTesterOwner()
     func showAutotextTester() {
@@ -136,8 +154,8 @@ import UniformTypeIdentifiers
     }
 
     @Published var output = "Open a repository to get started."
-    @Published var busy = false { didSet { if busy != oldValue { retireWorkspaceMenus() };repositoryAccessWindow?.model.objectWillChange.send();if !busy { eventRefresh?.kick() } } }
-    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { retireWorkspaceMenus() };repositoryAccessWindow?.model.objectWillChange.send();if !confirmingQuit { eventRefresh?.kick() } } }
+    @Published var busy = false { didSet { if busy != oldValue { retireWorkspaceMenus() };repositoryAccessWindow?.model.objectWillChange.send();if !busy { eventRefresh?.kick(); scheduleCompletedRepositoryHandoff() } } }
+    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { retireWorkspaceMenus() };repositoryAccessWindow?.model.objectWillChange.send();if !confirmingQuit { eventRefresh?.kick(); scheduleCompletedRepositoryHandoff() } } }
     @Published var error: String? { didSet {retireWorkspaceMenus()} }
     @Published var section = RepositoryAction.status { didSet { if section != oldValue {retireWorkspaceMenus()} } }
     @Published var dialog: RepositoryAction? { didSet {retireWorkspaceMenus()} }
@@ -249,6 +267,17 @@ import UniformTypeIdentifiers
     private var ignoreWindows: [String: IgnoreWindowController] = [:]
     private var removeWindows: [String: RemoveWindowController] = [:]
     private var adoptionGeneration = 0
+    private var retired = false
+    private struct CompletedRepositoryHandoff {
+        let id = UUID()
+        let generation: Int
+        let root: URL
+        let access: RepositoryAccessLease
+        let owner: RepositoryHandoffOwner
+        let output: String
+    }
+    private var completedRepositoryHandoff: CompletedRepositoryHandoff?
+    var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
     private var cloneKeyAccess: [String: RepositoryAccessLease] = [:]
     private let repositoryFactory:((URL) throws -> GitRepository)?
     private let snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)?
@@ -260,7 +289,7 @@ import UniformTypeIdentifiers
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; completedRepositoryHandoff = nil; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -404,6 +433,7 @@ import UniformTypeIdentifiers
     func closeRepository() {
         guard !busy, !confirmingQuit else { return }
         stopFileMonitoring()
+        completedRepositoryHandoff = nil
         adoptionGeneration += 1; hasGitSVN = false; bare = false; mergeActive = false
         repository = nil; activeAccess = nil; root = nil; entries = []; selection = []
         branch = ""; message = ""; output = "Open a repository to get started."
@@ -421,7 +451,7 @@ import UniformTypeIdentifiers
         }
         for _ in 0..<64 {
             try cancellation.check()
-            let folders=([primary]+scopes).filter(\.hasSecurityScope).map(\.url)
+            let folders=([primary]+scopes).flatMap { $0.permittedFolders() }
             let requirement=try await Task.detached(priority:.userInitiated) { try RepositoryMetadataAccess.next(at:location,authorizedFolders:folders,cancellation:cancellation) }.value
             try cancellation.check()
             guard let requirement else { return (scopes,newFolders) }
@@ -440,23 +470,24 @@ import UniformTypeIdentifiers
         }
         throw RepositoryMetadataAccessFailure.tooManyDependencies
     }
-    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandRootOnly: Bool = false, onFinished: ((Bool) -> Void)? = nil, onOpened: (() -> Void)? = nil) {
-        guard !busy, !confirmingQuit else { onFinished?(false); return }
+    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandRootOnly: Bool = false, onFinished: ((Bool) -> Void)? = nil, handoffOwner: RepositoryHandoffOwner? = nil, onOpened: (() -> Void)? = nil) {
+        guard !busy, !confirmingQuit, !retired, handoffOwner?.cancellation.isCancelled != true else { onFinished?(false); return }
         let restoreState:()->Void = { [repository,activeAccess,root,entries,selection,branch,bare,hasGitSVN,mergeActive,conflictRebase,submodules,section,output] in
             self.repository=repository;self.activeAccess=activeAccess;self.root=root;self.entries=entries;self.selection=selection
             self.branch=branch;self.bare=bare;self.hasGitSVN=hasGitSVN;self.mergeActive=mergeActive;self.conflictRebase=conflictRebase;self.submodules=submodules;self.section=section;self.output=output
         }
+        completedRepositoryHandoff = nil
         stopFileMonitoring()
         adoptionGeneration += 1
         let adoption = adoptionGeneration
         busy = true
-        let cancellation=OperationCancellation();adoptionCancellation=cancellation
+        let cancellation=handoffOwner?.cancellation ?? OperationCancellation();adoptionCancellation=cancellation
         let owner=workspaceWindow
         let ownerObserver=owner.map { NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:$0,queue:.main) { _ in cancellation.cancel() } }
         Task {
             var opened = false
             defer { onFinished?(opened) }
-            defer { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) };if adoptionCancellation === cancellation { adoptionCancellation=nil };withExtendedLifetime(lease) {} }
+            defer { if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) };if adoptionCancellation === cancellation { adoptionCancellation=nil;busy=false };withExtendedLifetime(lease) {} }
             do {
                 var commandSelectedRevision: String?
                 let commandMessage: String?
@@ -535,7 +566,7 @@ import UniformTypeIdentifiers
                 guard adoption == adoptionGeneration else { return }
                 restoreState()
                 if !cancellation.isCancelled { self.error=error.localizedDescription }
-                if monitoringEnabled,let repository,let directories=try? await repository.finderWatchDirectories() { monitorFiles(directories) }
+                if !retired,monitoringEnabled,let repository,let directories=try? await repository.finderWatchDirectories() { monitorFiles(directories) }
                 busy=false
             }
         }
@@ -814,35 +845,54 @@ import UniformTypeIdentifiers
             if resolved.stale { UserDefaults.standard.set(try provider.create(for: resolved.url), forKey: "Clone.KeyBookmark." + root.path) }
         } catch { self.error = "The clone’s SSH-key permission could not be renewed.\n" + error.localizedDescription }
     }
+    var cloneWindowFactory: ((URL?, RepositoryAccessLease?) -> CloneWindowController)?
     var creationClipboardText:()->String? = {NSPasteboard.general.string(forType:.string)}
     private func showClone(directory: URL? = nil, source: String? = nil, exactPath: Bool = false) {
-        let id = UUID(), controller = CloneWindowController(directory: directory ?? root, access: activeAccess,preferences:fileComparisonPreferences,clipboardText:source == nil ? creationClipboardText():nil)
+        let id = UUID(), controller = cloneWindowFactory?(directory ?? root, activeAccess) ?? CloneWindowController(directory: directory ?? root, access: activeAccess,preferences:fileComparisonPreferences,clipboardText:source == nil ? creationClipboardText():nil)
         controller.onClosed = { [weak self] in self?.cloneWindows.removeValue(forKey: id) }
         controller.model.onLog = { [weak self] repository, access in self?.showLog(repository: repository, access: access, paths: []) }
-        controller.model.onCloned = { [weak self] repo, access, keyAccess, bare, result in
-            guard let self else { return }
+        let handoffOwner = RepositoryHandoffOwner(window: workspaceWindow)
+        controller.model.onCloned = { [weak self] repo, access, keyAccess, _, result in
+            guard let self, !self.retired, !handoffOwner.cancellation.isCancelled else { return }
             if let keyAccess {
                 self.cloneKeyAccess[repo.root.path] = keyAccess
                 do { UserDefaults.standard.set(try SystemRepositoryBookmarkProvider().create(for: keyAccess.url), forKey: "Clone.KeyBookmark." + repo.root.path) }
                 catch { self.error = "The clone completed, but its SSH-key permission could not be saved.\n" + error.localizedDescription }
             }
-            self.adoptRepository(repo, access: access, bare: bare, output: result)
+            self.adoptRepository(repo, access: access, output: result, owner: handoffOwner)
         }
         cloneWindows[id] = controller
         controller.model.configureLaunch(source: source, exactPath: exactPath)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func adoptRepository(_ repo: GitRepository, access: RepositoryAccessLease, bare: Bool, output: String) {
-        rememberAccess(access, repositoryRoot: repo.root)
-        adoptionGeneration += 1; let generation = adoptionGeneration
-        Task {
-            // Let an operation on the previous repository finish before switching
-            // workspace state. An explicit Open/Close supersedes this handoff.
-            while busy && generation == adoptionGeneration { try? await Task.sleep(nanoseconds: 50_000_000) }
-            guard generation == adoptionGeneration else { return }
-            repository = repo; activeAccess = access; root = repo.root; self.bare = bare
-            entries = []; selection = []; branch = ""; mergeActive = false; section = bare ? .log : .status; self.output = output
-            await refresh()
+    private func adoptRepository(_ repo: GitRepository, access: RepositoryAccessLease, output: String, owner: RepositoryHandoffOwner) {
+        guard !retired, !owner.cancellation.isCancelled else { return }
+        let handoff = CompletedRepositoryHandoff(generation: adoptionGeneration, root: repo.root, access: access, owner: owner, output: output)
+        completedRepositoryHandoff = handoff
+        let id = handoff.id
+        owner.onCancelled = { [weak self] in
+            if self?.completedRepositoryHandoff?.id == id { self?.completedRepositoryHandoff = nil }
+        }
+        // Keep the current operation's generation and busy ownership intact.
+        // Stop a transport batch before it can adopt another captured root.
+        if commandRepositoryBatchCancellation != nil {
+            commandRepositoryBatchCancellation?.cancel()
+            adoptionCancellation?.cancel()
+            repositoryPermissionPrompt?.cancel()
+        }
+        scheduleCompletedRepositoryHandoff()
+    }
+    private func scheduleCompletedRepositoryHandoff() {
+        guard let pending = completedRepositoryHandoff, !busy, !confirmingQuit, !retired else { return }
+        let id = pending.id
+        // Defer until the releasing operation has completed its callbacks and
+        // cleanup. An accepted Open/Close in the meantime supersedes this result.
+        Task { @MainActor [weak self] in
+            guard let self, let handoff = self.completedRepositoryHandoff, handoff.id == id else { return }
+            guard !self.busy, !self.confirmingQuit else { return }
+            self.completedRepositoryHandoff = nil
+            guard !self.retired, handoff.generation == self.adoptionGeneration, !handoff.owner.cancellation.isCancelled else { return }
+            self.openSession(handoff.access, selected: FinderRequest(action: .status, paths: [handoff.root]), handoffOwner: handoff.owner, onOpened: { [weak self] in self?.output = handoff.output })
         }
     }
     private func showCreateRepository(folder preferred: URL? = nil) {
@@ -868,7 +918,10 @@ import UniformTypeIdentifiers
         let controller = createWindows[folder.path] ?? CreateRepositoryWindowController(folder: folder, access: lease)
         let fresh = createWindows[folder.path] == nil
         controller.onClosed = { [weak self] in self?.createWindows.removeValue(forKey: folder.path) }
-        controller.model.onInitialized = { [weak self] repo, access, bare, output in self?.adoptRepository(repo, access: access, bare: bare, output: output) }
+        if fresh {
+            let handoffOwner = RepositoryHandoffOwner(window: workspaceWindow)
+            controller.model.onInitialized = { [weak self] repo, access, _, output in self?.adoptRepository(repo, access: access, output: output, owner: handoffOwner) }
+        }
         createWindows[folder.path] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         if fresh { controller.model.prepare() }

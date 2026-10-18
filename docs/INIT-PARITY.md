@@ -68,3 +68,16 @@ still reports the process running. Neither observation is proof of successful
 workspace adoption. Native Proceed in an occupied bare folder, special-folder Abort,
 Help navigation, failure/retry, dark-dialog capture and signed sandbox/Finder/recent
 workflows still require QA. No full upstream parity or App Store readiness is claimed.
+
+## Shared creation handoff ownership — October 18, 2026
+
+Successful normal/bare Init shares Clone's
+[captured workspace handoff](CLONE-PARITY.md#workspace-completion-handoffs--october-18-2026).
+It waits for an existing operation to finish, reopens the completed root through
+normal permissions/metadata discovery and preserves the previous workspace on
+failure. Reusing an existing Init dialog preserves its original workspace owner;
+closing that workspace rejects a later completion. Acknowledging Init's success
+and closing its result window does not invalidate an already queued handoff.
+Pending handoffs block Quit until settled or retired. The existing native Init
+layout, warnings and confirmation remain the source baseline from
+`Commands/CreateRepositoryCommand.cpp` and `IDD_CREATEREPO`.

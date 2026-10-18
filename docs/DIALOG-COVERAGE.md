@@ -73,7 +73,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSBUGTRAQADV` | partial-native-replacement | 12/12 mapped; 0 pending | [NATIVE-ISSUE-PROVIDER-PARITY](NATIVE-ISSUE-PROVIDER-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_AUTOTEXTTESTDLG` | partial | 9/9 mapped; 0 pending | [AUTOTEXT-TESTER-PARITY](AUTOTEXT-TESTER-PARITY.md); 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGS_CONFIG` | partial | 2/2 mapped; 0 pending | [ADVANCED-SETTINGS-PARITY](ADVANCED-SETTINGS-PARITY.md); 7 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_CLONE` | partial-native-replacement | 34/34 mapped; 0 pending | [CLONE-PARITY](CLONE-PARITY.md), [UI-PARITY](UI-PARITY.md); 10 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_CLONE` | partial-native-replacement | 34/34 mapped; 0 pending | [CLONE-PARITY](CLONE-PARITY.md), [UI-PARITY](UI-PARITY.md); 11 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_GITPROGRESS` | partial-native | 6/7 mapped; 1 pending | [MERGE-PARITY](MERGE-PARITY.md), [PROGRESS-PARITY](PROGRESS-PARITY.md); 27 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_PULLFETCH` | partial-native-replacement | 25/25 mapped; 0 pending | [FETCH-PARITY](FETCH-PARITY.md), [HELP-PARITY](HELP-PARITY.md), [PULL-PARITY](PULL-PARITY.md), [UI-PARITY](UI-PARITY.md); 21 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_PUSH` | partial-native-replacement | 29/29 mapped; 0 pending | [HELP-PARITY](HELP-PARITY.md), [PUSH-PARITY](PUSH-PARITY.md), [UI-PARITY](UI-PARITY.md); 21 QA records |

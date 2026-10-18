@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Clone/Init workspace handoff family](CLONE-PARITY.md#workspace-completion-handoffs--october-18-2026)
+replaces busy polling with captured completion ownership, unifies permission and
+rollback behavior with ordinary Open, preserves compound grants and stops
+superseded transport batches. Explicit Open/Close, workspace closure and
+termination retire queued results. The original reproduced stall and grouped
+validation are recorded in [batch evidence](qa/repository-handoffs-2026-10-18.json):
+eight distinct native case/engine passes after the actual closed-dialog grant
+release repair, with all thirteen owned runtime attempts reaped.
+Signed Finder/App Store and all-dialog acceptance remain open.
+
 The [network/reference launch family](COMMAND-LINE.md#clone-transport-and-reference-dialog-launches)
 connects eleven further command handlers to native options and browser windows,
 including Clone exact-path handling, reference names/base revisions, RefLog and
