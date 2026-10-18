@@ -2537,3 +2537,29 @@ comparison/conflict consumers, original-byte checks and owned process cleanup.
 It does not certify physical Windows output, all native gestures, signed-parent
 execution or full hosted integration. The dated record preserves initial failures
 and only the affected rechecks; authored fixtures alone are not passing evidence.
+
+
+## Main Sync and Add/Resolve progress family
+
+After implementing the connected family, run the focused Core group once:
+
+```sh
+TURTLEGIT_CORE_ONLY=1 swift test --filter 'SynchronizationCommandCompletionTests|MenuIconTests.testAllBundledUpstreamIconsDecodeAtMenuAndRetinaSizes'
+```
+
+After the Debug app build, run the grouped native receiver:
+
+```sh
+python3 scripts/test-inline-file-progress-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+```
+
+Five cases per engine cover the new inline Sync and Add/Resolve progress and
+retained Sync command, Resolve progress and Add-list behavior. Receivers use
+private repositories/configuration/preferences/pasteboards and hidden native
+windows. Command receipts cover real Git completion before metadata, failure and
+cancellation. Native checks cover source progress notifications, captured menus,
+actual-close-before-Commit ownership, cancellation questions, deferred Quit and
+owned process draining. New cases save content-only light/dark captures during
+the normal run; these do not establish physical desktop, VoiceOver or Windows
+visual acceptance. Repeat only failed cases or checks affected by actual repairs.
+Full hosted CI and signed Finder/App Store acceptance remain separate.

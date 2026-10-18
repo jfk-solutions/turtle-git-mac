@@ -6,7 +6,13 @@ import UniformTypeIdentifiers
 
 @MainActor final class ResolveWindowController: NSWindowController, NSWindowDelegate {
     var commandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
+    static private(set) var activeReleases=0
     let model: ResolveWindowModel
+    let progressFiles:FileOperationProgressFiles
+    var externalAvailability:()->Bool {get{model.externalAvailability}set{model.externalAvailability=newValue}}
+    var onProgressLog:(String)->Void = {_ in}
+    private var finishing=false
+    private var commitHandoff:(()->Void)?
     var onClosed: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
     var onCommit: () -> Void = {}
@@ -23,6 +29,7 @@ import UniformTypeIdentifiers
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice? = nil, preferences: UserDefaults = .standard, commandOptions: ResolveCommandOptions? = nil) {
         model = ResolveWindowModel(repository: repository, access: access, paths: paths, quick: quick, preferences: preferences, commandOptions: commandOptions)
+        progressFiles=FileOperationProgressFiles(repository:repository,access:access)
         let size = quick == nil ? NSSize(width: 780, height: 450) : NSSize(width: 480, height: 110)
         let window = ResolveCommandWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Resolve", preferences: preferences)
@@ -102,6 +109,11 @@ import UniformTypeIdentifiers
             let id = UUID()
             self.fileUnifiedWindows[id] = UnifiedDiffApplication.presentBuiltin(bytes,repository:repository,access:access,existing:nil,title:"Conflict changes",onClosed:{ [weak self] in self?.fileUnifiedWindows.removeValue(forKey:id) })
         }
+        progressFiles.window=window;progressFiles.available={ [weak model] in model?.progressOwnerAvailable==true }
+        progressFiles.onBusy={ [weak model] in model?.progressFileActionBusy=$0 }
+        progressFiles.onLog={ [weak self] in self?.onProgressLog($0) }
+        progressFiles.onError={ [weak model] in model?.error=$0 }
+        model.onProgressFileAction={ [weak self] action,path in self?.progressFiles.perform(action,path:path) }
         DialogGeometry.attach(window, identifier: quick == nil ? "ResolveDialog" : "QuickResolveDialog", legacyName: "ResolveDialog")
     }
     private func confirm(_ choice: ResolveChoice, entries: [ConflictEntry]) {
@@ -115,7 +127,7 @@ import UniformTypeIdentifiers
     }
     private func ask(title: String, message: String, buttons: [String]) async -> NSApplication.ModalResponse? {
         guard !retired, question == nil, let window, window.attachedSheet == nil else { return nil }
-        let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = title; alert.informativeText = message
+        let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = title; alert.informativeText = message;alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
         buttons.forEach { alert.addButton(withTitle: $0) }
         let id = UUID(); model.hasQuestion = true
         return await withCheckedContinuation { continuation in
@@ -124,24 +136,40 @@ import UniformTypeIdentifiers
         }
     }
     private func finishQuestion(_ id: UUID, answer: NSApplication.ModalResponse?) {
-        guard let pending = question, pending.0 == id else { return }; question = nil; model.hasQuestion = false
-        if pending.1.window.sheetParent === window { window?.endSheet(pending.1.window, returnCode: answer ?? .abort) }
-        pending.1.window.orderOut(nil); pending.2(answer)
+        guard let pending = question, pending.0 == id else { return }; question = nil
+        Task { [self] in
+            await FileOperationWindowDrain.detach(pending.1.window)
+            model.hasQuestion=false;pending.2(answer)
+        }
     }
     func commit() {
-        guard !retired, model.success, !model.busy, !model.hasQuestion, !model.hasChild, !model.confirmingCancellation else { return }
-        let callback = onCommit; model.closeProgress(commit: true); callback()
+        guard !retired,!finishing,model.progressActionsAvailable,model.success,!model.cancelled,window?.attachedSheet==nil else{return}
+        finishing=true;model.handoffPending=true;commitHandoff=onCommit
+        model.saveActionLog();window?.orderOut(nil);close()
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if model.busy { model.cancel(); return false }
-        return !model.hasQuestion && !model.hasChild && !model.confirmingCancellation && sender.attachedSheet == nil
+    func windowShouldClose(_ sender:NSWindow)->Bool {
+        if model.busy{model.cancel();return false}
+        return !model.confirmingQuit && !model.handoffPending && !model.hasQuestion && !model.hasChild && !model.progressFileActionBusy && !model.confirmingCancellation && sender.attachedSheet==nil
     }
-    func windowWillClose(_ notification: Notification) {
-        guard !retired else { return }; retired = true;ResolveSelectionMarkProbe.retire(in:window?.contentView); model.invalidate(); baseComparison?.close(); baseComparison = nil
-        applicationPanel?.cancel(nil);applicationPanel = nil
-        Array(fileUnifiedWindows.values).forEach{$0.close()};fileUnifiedWindows = [:]
-        if let pending = question { finishQuestion(pending.0, answer: nil) }
-        onClosed()
+    override func close(){super.close();retireClosedWindow()}
+    func windowWillClose(_ notification:Notification){retireClosedWindow()}
+    private func retireClosedWindow(){
+        guard !retired else{return};retired=true
+        let callback=commitHandoff;commitHandoff=nil
+        let sheets=[window?.attachedSheet,applicationPanel,question?.1.window].compactMap{$0}
+        ResolveSelectionMarkProbe.retire(in:window?.contentView);model.invalidate();progressFiles.retire();baseComparison?.close();baseComparison=nil
+        applicationPanel?.cancel(nil);applicationPanel=nil
+        Array(fileUnifiedWindows.values).forEach{$0.close()};fileUnifiedWindows=[:]
+        if let pending=question{finishQuestion(pending.0,answer:nil)}
+        Self.activeReleases += 1
+        Task { [self] in
+            defer{Self.activeReleases -= 1;model.handoffPending=false}
+            for sheet in sheets{await FileOperationWindowDrain.detach(sheet)}
+            if let window{await FileOperationWindowDrain.detach(window)}
+            while model.busy || model.confirmingCancellation || progressFiles.busy{try? await Task.sleep(nanoseconds:5_000_000)}
+            onClosed()
+            if finishing,!model.confirmingQuit,model.externalAvailability(){callback?()}
+        }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -157,6 +185,17 @@ struct ResolveConflictRow: Identifiable {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     let preferences: UserDefaults
+    let progress:FileOperationProgressState
+    var externalAvailability:()->Bool = {true}
+    @Published var confirmingQuit=false
+    @Published var handoffPending=false
+    @Published var progressFileActionBusy=false
+    @Published private(set) var completionRange:NSRange?
+    private var progressStarted:Date?
+    var onProgressFileAction:(FileOperationProgressAction,String)->Void = {_,_ in}
+    var progressOwnerAvailable:Bool {active && showingProgress && !busy && !confirmingQuit && !handoffPending && !hasQuestion && !hasChild && !confirmingCancellation && externalAvailability()}
+    var progressActionsAvailable:Bool {progressOwnerAvailable && !progressFileActionBusy}
+    var actionLogOutput:String {progress.output+"\n"+output}
     let quick: ResolveChoice?
     let commandOptions: ResolveCommandOptions?
     private var commandStarted = false
@@ -249,15 +288,15 @@ struct ResolveConflictRow: Identifiable {
     }
     lazy var submoduleFileLog = SubmoduleWorkingLogSession(repository:repository,access:access)
     var readFileMenuConflicts: (([String],OperationCancellation) async throws -> [ConflictEntry])?
-    var canInteract: Bool { active && !busy && !showingProgress && !hasQuestion && !hasChild }
+    var canInteract: Bool { active && !confirmingQuit && !handoffPending && externalAvailability() && !busy && !showingProgress && !hasQuestion && !hasChild }
     var canCancel: Bool { active && busy && !cancelling && !confirmingCancellation && !hasQuestion && !hasChild }
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?, preferences: UserDefaults = .standard, commandOptions: ResolveCommandOptions? = nil) {
-        self.repository = repository; self.access = access; self.paths = paths; self.quick = quick; self.commandOptions = commandOptions; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences)
+        self.repository = repository; self.access = access; self.paths = paths; self.quick = quick; self.commandOptions = commandOptions; self.preferences = preferences; self.progress=FileOperationProgressState(preferences:preferences); progressPresentation = GitCommandPresentation(defaults: preferences)
     }
     func invalidate() {
-        invalidateFileMenus();cancelFileChoice();submoduleFileLog.retire();retireMutationChild()
+        progress.retire();invalidateFileMenus();cancelFileChoice();submoduleFileLog.retire();retireMutationChild()
         droppedProviders = [];dropTask?.cancel()
-        if busy { cancelled = true }; saveActionLog(); active = false; generation = UUID(); cancellation?.cancel(); refreshCancellation?.cancel(); pendingResolution = nil; reloadQueued = false; patch = nil
+        if busy { cancelled = true } else {saveActionLog()}; active = false; generation = UUID(); cancellation?.cancel(); refreshCancellation?.cancel(); pendingResolution = nil; reloadQueued = false; patch = nil
     }
     private func begin() -> OperationCancellation {
         let token = OperationCancellation(); cancellation = token; generation = UUID(); busy = true; error = nil
@@ -267,7 +306,13 @@ struct ResolveConflictRow: Identifiable {
     private func finish(_ token: OperationCancellation) {
         Self.activeOperations -= 1
         if cancellation === token {
-            cancellation = nil; busy = false; cancelling = false; currentWork = ""; percentage = nil
+            cancellation = nil; busy = false; cancelling = false
+            if showingProgress,!hasChild,let started=progressStarted {
+                progress.finish(success:success,cancelled:cancelled,started:started)
+                let completion=SubmoduleProgressCompletion(success:success,cancelled:cancelled,exitCode:nil,elapsed:Date().timeIntervalSince(started),preferences:preferences,showTimings:true)
+                currentWork=completion.currentWork;percentage=100;completionRange=completion.append(to:&output);progressStarted=nil
+                saveActionLog()
+            }
             if active, silentAttempt, success, !cancelled { close(); return }
             finishAutomaticClose()
             if canReceiveFileDrop,!droppedProviders.isEmpty { startFileDrop(); return }
@@ -300,9 +345,9 @@ struct ResolveConflictRow: Identifiable {
         }
     }
     private func startUnreviewedProgress() {
-        guard active, !commandStarted, !busy, !hasQuestion, !hasChild else { return }
+        guard active,!confirmingQuit,!handoffPending,externalAvailability(), !commandStarted, !busy, !hasQuestion, !hasChild else { return }
         commandStarted = true; closeAfterResolution = true
-        let token = begin(); showingProgress = true; output = ""; success = false
+        let token = begin(); showingProgress = true; output = ""; success = false;cancelled=false;progressStarted=Date();progress.begin("Resolve");completionRange=nil
         autoClosePolicy = GitProgressAutoClose(preferences: preferences); onProgress()
         LocalGitCommandProgress.begin()
         Task {
@@ -312,10 +357,10 @@ struct ResolveConflictRow: Identifiable {
                 // Source noquestion bypasses CResolveDlg's status population;
                 // bare argv paths have no UNMERGED action bit and are skipped.
                 let selected = try await repository.resolveCommandPaths(paths, cancellation: token)
-                for path in selected { try token.check(); output += "Skipped: " + path + "\n"; await Task.yield() }
+                for path in selected { try token.check(); output += "Skipped: " + path + "\n";progress.append("Skipped",path,kind:.skipped);await Task.yield() }
                 try token.check(); guard live(token) else { return }
                 success = true; onFinished(0)
-            } catch { if live(token) { cancelled = token.isCancelled; output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences) } }
+            } catch { if live(token) { cancelled = token.isCancelled; output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences);progress.append(cancelled ? "User cancelled":"Error",error.localizedDescription,kind:.error) } }
         }
     }
     func setFileChecked(_ path: String, value: Bool) {
@@ -332,7 +377,7 @@ struct ResolveConflictRow: Identifiable {
     }
     func rejectConfirmation() { pendingResolution = nil; if quick != nil { close() } else if reloadQueued { reloadQueued = false; load() } }
     func apply(_ selected: [ConflictEntry], using choice: ResolveChoice) {
-        guard active, !busy, !hasQuestion, !hasChild else { return }
+        guard active,!confirmingQuit,!handoffPending,externalAvailability(), !busy, !hasQuestion, !hasChild else { return }
         if let pendingResolution {
             guard pendingResolution.0 == generation, pendingResolution.1 == selected, pendingResolution.2 == choice else { return }
         }
@@ -344,23 +389,24 @@ struct ResolveConflictRow: Identifiable {
         silentAttempt = commandOptions?.silent == true && closeAfterResolution
         let token = begin(); showingProgress = !silentAttempt; output = ""; success = false; cancelled = false; resolvedCount = 0; patch = nil
         autoClosePolicy = silentAttempt ? nil : GitProgressAutoClose(preferences: preferences)
-        if showingProgress { onProgress() }; LocalGitCommandProgress.begin()
+        if showingProgress {progressStarted=Date();progress.begin("Resolve");completionRange=nil;onProgress()}; LocalGitCommandProgress.begin()
         Task {
             defer { LocalGitCommandProgress.end(); finish(token); withExtendedLifetime(access) {} }
             do {
-                let progress: @Sendable (ConflictResolutionProgress) -> Void = { [weak self] event in
-                    Task { @MainActor in
-                        guard let self, self.live(token) else { return }
-                        self.resolvedCount = max(self.resolvedCount, event.completed)
-                        if self.busy { self.currentWork = event.path; self.percentage = event.total > 0 ? event.completed * 100 / event.total : nil }
+                let (events,continuation)=AsyncStream<ConflictResolutionProgress>.makeStream()
+                let operation=Task { [self] in
+                    defer{continuation.finish()}
+                    return try await LocalGitCommandProgress.stream(preferences:preferences,update:{ [weak self] state in guard let self,self.live(token) else{return};self.output=state.output},resultText:{$0}){ [self] emit in
+                        if let executeResolution{return try await executeResolution(selected,choice,token,emit,{continuation.yield($0)})}
+                        return try await repository.resolveConflicts(selected,using:choice,confirmSubmoduleDeletion:confirmSubmoduleDeletion,cancellation:token,onOutput:emit,onProgress:{continuation.yield($0)})
                     }
                 }
-                let text = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
-                    guard let self, self.live(token) else { return }; self.output = state.output
-                }, resultText: { $0 }) { [self] emit in
-                    if let executeResolution { return try await executeResolution(selected, choice, token, emit, progress) }
-                    return try await repository.resolveConflicts(selected, using: choice, confirmSubmoduleDeletion: confirmSubmoduleDeletion, cancellation: token, onOutput: emit, onProgress: progress)
+                for await event in events {
+                    guard live(token) else{continue};resolvedCount=max(resolvedCount,event.completed)
+                    if busy{currentWork=event.path;percentage=event.total>0 ? event.completed*100/event.total:nil}
+                    if event.finished,showingProgress{progress.append("Resolved",event.path,kind:.file)}
                 }
+                let text=try await operation.value
                 guard live(token) else { return }
                 resolvedCount = selected.count
                 // A cancellation arriving after Git settled must still refresh the
@@ -385,6 +431,7 @@ struct ResolveConflictRow: Identifiable {
                 guard live(token) else { return }
                 cancelled = token.isCancelled || error is OperationCancellationFailure || error is GitCommandCancellationFailure || (error as? ResolveFailure).map { if case .cancelled = $0 { return true }; return false } == true
                 output = LocalGitCommandProgress.failure(error, existing: output, preferences: preferences)
+                if showingProgress{progress.append(cancelled ? "User cancelled":"Error",error.localizedDescription,kind:.error)}
                 if cancelled { output = LocalGitCommandProgress.bounded(output + "\nResolution aborted. Earlier resolved items remain resolved.", preferences: preferences) }
                 onChanged(output)
             }
@@ -409,18 +456,19 @@ struct ResolveConflictRow: Identifiable {
         if !showingProgress || !preferences.bool(forKey: "ConfirmKillProcess") { cancelling = true; token.cancel();dropTask?.cancel(); refreshCancellation?.cancel(); return }
         confirmingCancellation = true; var answered = false
         confirmCancellation { [weak self] accepted in
-            guard !answered, let self, self.active else { return }; answered = true; self.confirmingCancellation = false
+            guard !answered, let self else { return }; answered = true; self.confirmingCancellation = false
+            guard self.active else{return}
             if accepted, self.busy, self.cancellation === token { self.cancelling = true; token.cancel(); self.refreshCancellation?.cancel() }
             self.finishAutomaticClose()
         }
     }
     private func finishAutomaticClose() {
-        guard active, showingProgress, !busy, !hasQuestion, !hasChild, !confirmingCancellation, success, !cancelled,
+        guard active,!confirmingQuit,!handoffPending,externalAvailability(),showingProgress, !busy, !hasQuestion, !hasChild, !progressFileActionBusy,!confirmingCancellation, success, !cancelled,
               autoClosePolicy?.shouldClose(success: true, postActionCount: 1) == true else { return }
         closeProgress()
     }
     func closeProgress(commit: Bool = false) {
-        guard active, !busy, !confirmingCancellation, !hasQuestion, !hasChild else { return }
+        guard active,!confirmingQuit,!handoffPending,externalAvailability(), !busy, !confirmingCancellation, !hasQuestion, !hasChild,!progressFileActionBusy else { return }
         saveActionLog()
         if commit || quick != nil || commandOptions?.noQuestion == true || (success && closeAfterResolution) { close() }
         else { showingProgress = false; load() }
@@ -463,7 +511,8 @@ private struct ResolveDialog: View {
             if model.showingProgress {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(model.busy ? "Resolving selected conflicts…" : model.success ? "Resolved \(model.resolvedCount) files." : model.cancelled ? "Resolution aborted. Earlier resolved items remain resolved." : "Resolution failed.").font(.headline)
-                    SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.preferences)
+                    FileOperationProgressTable(state:model.progress,icon:.resolveBackdrop,available:model.progressActionsAvailable,repository:model.repository.root,keyboardAvailable:model.active && !model.confirmingQuit && !model.handoffPending && model.externalAvailability(),perform:model.onProgressFileAction)
+                    if !model.output.isEmpty{SubmoduleProgressOutputView(text:model.output,completed:!model.busy,success:model.success,preferences:model.preferences).frame(height:90)}
                     Text("Reminder: Commit your change after resolve").font(.caption).foregroundStyle(.secondary)
                     HStack {
                         if model.busy { LocalGitProgressIndicator(percentage: model.percentage, animate: model.progressPresentation.animateActivity); Text(model.cancelling ? "Cancelling…" : model.currentWork).font(.caption) }
@@ -471,8 +520,8 @@ private struct ResolveDialog: View {
                         if model.busy { Button("Cancel") { model.cancel() }.disabled(!model.canCancel) }
                         else if model.hasChild { Button("Back") { model.dismissSubmoduleReset() } }
                         else {
-                            if model.success { Button { commit() } label: { CommandLabel(title: "Commit…", icon: .commit) } }
-                            Button(model.quick == nil && model.commandOptions?.noQuestion != true && (!model.success || !model.closeAfterResolution) ? "Back" : "Close") { model.closeProgress() }.keyboardShortcut(.defaultAction).disabled(model.hasQuestion || model.confirmingCancellation)
+                            if model.success { Button { commit() } label: { CommandLabel(title: "Commit…", icon: .commit) }.disabled(!model.progressActionsAvailable) }
+                            Button(model.quick == nil && model.commandOptions?.noQuestion != true && (!model.success || !model.closeAfterResolution) ? "Back" : "Close") { model.closeProgress() }.keyboardShortcut(.defaultAction).disabled(model.hasQuestion || model.confirmingCancellation || model.progressFileActionBusy || model.confirmingQuit || model.handoffPending)
                         }
                     }
                 }.padding(16)
@@ -552,7 +601,7 @@ enum ConflictListRefreshPolicy {
 }
 
 extension ResolveWindowModel {
-    var canReceiveFileDrop:Bool { active && quick == nil && !showingProgress && !fileMutationActive && !hasQuestion && !hasChild && !cancelling && !confirmingCancellation }
+    var canReceiveFileDrop:Bool { active && !confirmingQuit && !handoffPending && externalAvailability() && quick == nil && !showingProgress && !fileMutationActive && !hasQuestion && !hasChild && !cancelling && !confirmingCancellation }
     @discardableResult func receiveFileDrop(_ providers:[NSItemProvider])->Bool {
         guard canReceiveFileDrop,!providers.isEmpty,providers.allSatisfy({$0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)}) else {return false}
         droppedProviders.append(contentsOf:providers)

@@ -346,6 +346,8 @@ final class SynchronizationNativeWindow: NSWindow {
 }
 
 @MainActor final class SynchronizationWindowController: NSWindowController, NSWindowDelegate {
+    private(set) static var activeInlineReleases = 0
+    private var retiredPresentation = false
     var configureExport: (ExportWindowController) -> Void = { _ in }
     private static var placementSequence = 0
     private var conflictApplicationPanel: NSOpenPanel?
@@ -680,10 +682,15 @@ final class SynchronizationNativeWindow: NSWindow {
             let alert = NSAlert(); alert.messageText = "Cancel synchronization?"
             alert.informativeText = "Git may have already updated remote-tracking references."
             alert.addButton(withTitle: "Keep Running"); alert.addButton(withTitle: "Cancel Operation")
-            self.cancellationAlert = alert
-            alert.beginSheetModal(for: window) { [weak self, weak alert] response in
-                if self?.cancellationAlert === alert { self?.cancellationAlert = nil }
-                reply(response == .alertSecondButtonReturn)
+            alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.appearance
+            self.cancellationAlert = alert; Self.activeInlineReleases += 1
+            alert.beginSheetModal(for: window) { [weak self] response in
+                Task { @MainActor in
+                    defer { Self.activeInlineReleases -= 1 }
+                    await Self.detachInlineSheet(alert.window)
+                    if self?.cancellationAlert === alert { self?.cancellationAlert = nil }
+                    reply(response == .alertSecondButtonReturn)
+                }
             }
         }
         model.onApplyPatch = { [weak self] oldHead in self?.showImportPatch(oldHead: oldHead) }
@@ -927,7 +934,21 @@ final class SynchronizationNativeWindow: NSWindow {
         window.alphaValue = owner.alphaValue; window.appearance = owner.appearance
         owner.beginSheet(window); start()
     }
-    func windowWillClose(_ notification: Notification) {
+    private static func detachInlineSheet(_ child: NSWindow) async {
+        let parent = child.sheetParent
+        parent?.endSheet(child, returnCode: .abort); child.orderOut(nil)
+        while child.sheetParent != nil || parent?.attachedSheet === child {
+            try? await Task.sleep(nanoseconds: 5_000_000)
+        }
+    }
+    override func close() { super.close(); retirePresentation() }
+    func windowWillClose(_ notification: Notification) { retirePresentation() }
+    private func retirePresentation() {
+        guard !retiredPresentation else { return }; retiredPresentation = true
+        let ownedSheets = [window?.attachedSheet, cancellationAlert?.window, pullAlert?.window, historyDeletionAlert?.window,
+                           emailAlert?.window, conflictApplicationPanel].compactMap { $0 }
+        Self.activeInlineReleases += 1
+
         NotificationCenter.default.removeObserver(self); branchPickerRequest = nil; branchPickerCompletion = nil; branchPickerFocus = nil
         model.invalidate()
         let answer = historyDeletionAnswer; historyDeletionAnswer = nil
@@ -974,7 +995,12 @@ final class SynchronizationNativeWindow: NSWindow {
         Array(model.comparison.unifiedWindows.values).forEach { $0.close() }
         Array(model.incomingComparison.comparisonWindows.values).forEach { $0.close() }
         Array(model.incomingComparison.unifiedWindows.values).forEach { $0.close() }
-        onClosed()
+        Task { [self] in
+            defer { Self.activeInlineReleases -= 1 }
+            for sheet in ownedSheets { await Self.detachInlineSheet(sheet) }
+            while model.hasPendingInlineWork { try? await Task.sleep(nanoseconds: 5_000_000) }
+            onClosed()
+        }
     }
 }
 
@@ -1007,7 +1033,43 @@ enum SynchronizationHistoryDiff {
     }
 }
 
+private final class SynchronizationInlineReceipt: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: SynchronizationCommandCompletion?
+    func record(_ completion: SynchronizationCommandCompletion) {
+        lock.lock(); defer { lock.unlock() }
+        if value == nil { value = completion }
+    }
+    func read() -> SynchronizationCommandCompletion? {
+        lock.lock(); defer { lock.unlock() }; return value
+    }
+}
+
+/// One captured main Sync workflow owns its actual reads, Git producer and
+/// follow-up stages independently of whether its window is still presented.
+@MainActor private final class SynchronizationInlineAttempt {
+    let identity = UUID(), dockOwner = UUID(), cancellation: OperationCancellation
+    let displaysCommand: Bool
+    let receipt = SynchronizationInlineReceipt()
+    var completedWork = ""
+    var startedAt = ProcessInfo.processInfo.systemUptime
+    var finishedAt: Date?, elapsed: TimeInterval?
+    var completed = false
+    init(cancellation: OperationCancellation, displaysCommand: Bool) {
+        self.cancellation = cancellation; self.displaysCommand = displaysCommand
+    }
+    func startCommand() { startedAt = ProcessInfo.processInfo.systemUptime }
+    func producerFinished() {
+        guard finishedAt == nil else { return }
+        finishedAt = Date(); elapsed = ProcessInfo.processInfo.systemUptime - startedAt
+    }
+}
+
 @MainActor final class SynchronizationWindowModel: ObservableObject {
+    private(set) static var activeInlineOperations = 0
+    private var inlineAttempts: [UUID: SynchronizationInlineAttempt] = [:]
+    var hasPendingInlineWork: Bool { !inlineAttempts.isEmpty }
+
     private(set) static var activePushWorkflows=0
     lazy var clientHooks=ClientHookSession(preferences:preferences)
     private(set) static var activeHistoryDeletions = 0
@@ -1311,20 +1373,105 @@ enum SynchronizationHistoryDiff {
         else if tab == 6 { conflictFileActionsStorage?.requestReload() }
     } }
     @Published private(set) var error: String?
-    @Published private(set) var transportRunning = false
-    @Published private(set) var confirmingCancellation = false
+    @Published private(set) var transportRunning = false { didSet { updateInlineDock() } }
+    @Published private(set) var confirmingCancellation = false { didSet { updateInlineDock() } }
     @Published private(set) var cancelling = false
     @Published private(set) var commandOutput = ""
     @Published private(set) var commandSucceeded = false
-    @Published private(set) var commandCompleted = false {
-        didSet {
-            if commandCompleted && !oldValue && !closed {
-                OperationSounds.report(failed: !commandSucceeded, preferences: preferences)
-            }
+    @Published private(set) var commandCompleted = false
+    @Published private(set) var completionRange: NSRange?
+    @Published private(set) var commandCancelled = false
+    @Published private(set) var inlineCommandFinished = false
+    @Published private(set) var inlineCompletionSucceeded = false
+    @Published private(set) var percentage: Int? { didSet { updateInlineDock() } }
+    @Published private(set) var currentWork = ""
+    var showsInlineProgress: Bool { transportRunning && inlineAttempts.values.contains { $0.displaysCommand } }
+    var inlineDockProgress: DockProgressState? {
+        guard !closed else { return nil }
+        if inlineCommandFinished { return inlineCompletionSucceeded ? nil : .init(.failed, percentage: 100) }
+        guard showsInlineProgress else { return nil }
+        return .command(busy: true, success: false, waiting: confirmingCancellation, percentage: percentage)
+    }
+    private func updateInlineDock() {
+        for attempt in inlineAttempts.values where attempt.displaysCommand {
+            // Retired UI cannot release a still-running producer's Dock owner.
+            let value: DockProgressState?
+            if closed { value = attempt.receipt.read() == nil && !attempt.completed ? .init(.running, percentage: percentage) : nil }
+            else { value = inlineDockProgress }
+            DockProgressRegistry.shared.update(attempt.dockOwner, value)
         }
     }
-    @Published private(set) var percentage: Int?
-    @Published private(set) var currentWork = ""
+    private func beginInlineAttempt(_ request: OperationCancellation, command: Bool) -> SynchronizationInlineAttempt {
+        let attempt = SynchronizationInlineAttempt(cancellation: request, displaysCommand: command)
+        window?.makeFirstResponder(nil)
+        inlineAttempts[attempt.identity] = attempt; Self.activeInlineOperations += 1
+        if command {
+            completionRange = nil; commandCancelled = false; inlineCommandFinished = false; inlineCompletionSucceeded = false
+            percentage = nil; currentWork = "Preparing synchronization…"
+            DockProgressRegistry.shared.update(attempt.dockOwner, .init(.running))
+        }
+        return attempt
+    }
+    private func releaseInlineAttempt(_ attempt: SynchronizationInlineAttempt) {
+        guard inlineAttempts.removeValue(forKey: attempt.identity) != nil else { return }
+        DockProgressRegistry.shared.remove(attempt.dockOwner); Self.activeInlineOperations -= 1
+        withExtendedLifetime(access) {}
+    }
+    private func clippedInlineText(_ text: String, bytes limit: Int) -> String {
+        let data = Data(text.utf8); guard data.count > max(0,limit) else { return text }
+        var end = max(0,limit)
+        while end > 0, data[end] & 0xc0 == 0x80 { end -= 1 }
+        return String(decoding: data.prefix(end), as: UTF8.self)
+    }
+    private func boundedInlineBody(_ text: String, bytes limit: Int) -> String {
+        guard text.utf8.count > max(0,limit) else { return text }
+        let marker = "\n[Output truncated at about \(outputState.limit / 1024) KiB]\n"
+        return clippedInlineText(text, bytes: max(0,limit-marker.utf8.count)) + clippedInlineText(marker, bytes: max(0,limit))
+    }
+    private func appendInlineDiagnostic(_ text: String) {
+        guard !text.isEmpty else { return }
+        if let range = completionRange {
+            let value = commandOutput as NSString
+            guard range.location >= 0, NSMaxRange(range) <= value.length else { return }
+            let footer = value.substring(with: range), suffix = value.substring(from: NSMaxRange(range))
+            let diagnostic = GitProgressFailureOutput.renderDetails(text, existing: suffix, limit: max(256,outputState.limit-footer.utf8.count))
+            let prefix = boundedInlineBody(value.substring(to: range.location), bytes: outputState.limit-footer.utf8.count-diagnostic.utf8.count)
+            commandOutput = prefix + footer + diagnostic
+            completionRange = NSRange(location: (prefix as NSString).length, length: (footer as NSString).length)
+        } else {
+            commandOutput = GitProgressFailureOutput.renderDetails(text, existing: commandOutput, limit: outputState.limit)
+        }
+    }
+    private func completeInlineCommand(_ attempt: SynchronizationInlineAttempt, success: Bool, cancelled: Bool, exitCode: Int32?) {
+        guard !closed, inlineAttempts[attempt.identity] === attempt, attempt.displaysCommand, !attempt.completed else { return }
+        attempt.producerFinished(); attempt.completed = true
+        let receipt = attempt.receipt.read()
+        let succeeded = receipt?.success ?? success, cancelled = receipt?.cancelled ?? cancelled
+        let code = receipt == nil ? exitCode : receipt?.exitCode
+        let completion = SubmoduleProgressCompletion(success: succeeded, cancelled: cancelled, exitCode: code,
+            elapsed: receipt?.elapsed ?? attempt.elapsed ?? 0, finished: receipt?.finished ?? attempt.finishedAt ?? Date(), preferences: preferences, showTimings: true)
+        commandOutput = boundedInlineBody(commandOutput, bytes: outputState.limit-completion.text.utf8.count)
+        completionRange = completion.append(to: &commandOutput)
+        commandCancelled = cancelled; inlineCompletionSucceeded = succeeded; inlineCommandFinished = true
+        attempt.completedWork = completion.currentWork; currentWork = completion.currentWork; percentage = 100
+        OperationSounds.report(failed: !succeeded, preferences: preferences)
+    }
+    private func failInlineCommand(_ attempt: SynchronizationInlineAttempt, error: Error, request: OperationCancellation) {
+        guard !closed, inlineAttempts[attempt.identity] === attempt else { return }
+        let cancelled = request.isCancelled || error is OperationCancellationFailure || error is GitCommandCancellationFailure
+        let message: String
+        if cancelled { message = "Synchronization cancelled." }
+        else if let failure = error as? GitFailure, outputState.hasOutput { message = "Git command failed (\(failure.code))." }
+        else { message = error.localizedDescription }
+        if attempt.completed { appendInlineDiagnostic(message) }
+        else {
+            commandOutput = GitProgressFailureOutput.render(error, existing: commandOutput, limit: outputState.limit)
+            if cancelled || error is GitFailure && outputState.hasOutput { appendInlineDiagnostic(message) }
+            let exitCode = (error as? GitFailure)?.code ?? (error as? GitCommandCancellationFailure)?.result.exitCode
+            completeInlineCommand(attempt, success: false, cancelled: cancelled, exitCode: exitCode)
+        }
+        self.error = message
+    }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var onTransportFinished: (String) -> Void = { _ in }
     private var outputState: GitProgressOutputState
@@ -1518,7 +1665,7 @@ enum SynchronizationHistoryDiff {
         case nil: return ""
         }
     }
-    func invalidate() { combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll();closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll();closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
         guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
         token?.cancel()
@@ -1529,7 +1676,9 @@ enum SynchronizationHistoryDiff {
         let local = localBranch, selectedRemote = remote, selectedBranch = remoteBranch, forced = force
         let selectedChoice = remoteWasSelected
         if refreshRemoteSelection { urlHistory = FetchDialogHistory.load(preferences, key: historyKey + ".urls", caseSensitive: true, maxItems: Int(Int32.max)) }
+        let attempt = beginInlineAttempt(request, command: false)
         Task {
+            defer { releaseInlineAttempt(attempt) }
             defer { if token === request { token = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -1580,7 +1729,9 @@ enum SynchronizationHistoryDiff {
     func applyPatch() {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         let request = OperationCancellation(); token = request; busy = true; error = nil
+        let attempt = beginInlineAttempt(request, command: false)
         Task {
+            defer { releaseInlineAttempt(attempt) }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let hash = try await repository.run(["rev-parse", "--verify", "HEAD^{commit}"], cancellation: request).text.trimmingCharacters(in: .newlines)
@@ -1596,7 +1747,9 @@ enum SynchronizationHistoryDiff {
         guard canEmailPatch else { return }
         let request = OperationCancellation(); token = request; busy = true; emailingPatches = true; error = nil
         let local = localBranch, selectedRemote = remote, branch = remoteBranch
+        let attempt = beginInlineAttempt(request, command: false)
         Task {
+            defer { releaseInlineAttempt(attempt) }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let result = try await repository.synchronizationEmailPatches(localBranch: local, remote: selectedRemote, remoteBranch: branch, cancellation: request)
@@ -1623,7 +1776,9 @@ enum SynchronizationHistoryDiff {
         let request = OperationCancellation(); token?.cancel(); token = request; busy = true; error = nil
         comparingTags = false; tagSnapshot = nil
         incomingFromPatch = true; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil
+        let attempt = beginInlineAttempt(request, command: false)
         Task {
+            defer { releaseInlineAttempt(attempt) }
             do {
                 let result = try await repository.synchronizationIncoming(from: oldHead, to: "HEAD", cancellation: request)
                 guard !closed, token === request, !request.isCancelled else { return }
@@ -1691,10 +1846,14 @@ enum SynchronizationHistoryDiff {
         if shift { return }
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
         comparingTags = true; tagSnapshot = nil; tab = 7; error = nil; commandOutput = ""; referenceChanges = []
+        completionRange = nil; commandCancelled = false; inlineCommandFinished = false; inlineCompletionSucceeded = false
+        commandCompleted = false; percentage = nil; currentWork = ""
         incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
         let selectedRemote = remote
         sshSettings.save(preferences, key: historyKey + ".autoload")
+        let attempt = beginInlineAttempt(request, command: false)
         Task {
+            defer { releaseInlineAttempt(attempt) }
             defer { if token === request { token = nil; busy = false; transportRunning = false } }
             do {
                 try checkTagAccess()
@@ -1720,7 +1879,9 @@ enum SynchronizationHistoryDiff {
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true; error = nil
         let factory = sshSettings.capture()
         sshSettings.save(preferences, key: historyKey + ".autoload")
+        let attempt = beginInlineAttempt(request, command: false)
         Task {
+            defer { releaseInlineAttempt(attempt) }
             let coordinator = action == .deleteLocal ? factory?() : nil
             defer { coordinator?.close() }
             var finalRequest = request
@@ -1800,7 +1961,9 @@ enum SynchronizationHistoryDiff {
             let request = OperationCancellation(); token = request; busy = true; transportRunning = true; cancelling = false; error = nil
             let source = PushSourcePresentation.normalized(localBranch)
             Self.activePushWorkflows += 1
+            let attempt = beginInlineAttempt(request, command: false)
             Task {
+                defer { releaseInlineAttempt(attempt) }
                 defer { Self.activePushWorkflows -= 1;withExtendedLifetime(access) {} }
                 defer { if token === request { token = nil; busy = false; transportRunning = false; cancelling = false } }
                 do {
@@ -1835,28 +1998,31 @@ enum SynchronizationHistoryDiff {
         cancelling = false; commandCompleted = false; commandSucceeded = false
         outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
         let forced = force
+        let attempt = beginInlineAttempt(request, command: true)
         Task {
+            defer { releaseInlineAttempt(attempt) }
             defer { if transportID == operationID { token = nil; busy = false; transportRunning = false; cancelling = false; transportID = nil } }
             let parser = GitCliOutputParser(limit: outputState.limit)
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+                attempt.startCommand(); let receipt = attempt.receipt
                 let operation = Task {
-                    defer { continuation.finish() }
+                    defer { attempt.producerFinished(); continuation.finish() }
                     return try await repository.synchronizeSubmodules(selected, force: forced, cancellation: request,
-                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) },
+                        onCommandFinished: { completion in receipt.record(completion); continuation.yield(()) })
                 }
-                for await _ in updates { consume(parser.processPending(), parser: parser, request: request) }
-                consume(parser.processPending(), parser: parser, request: request); consume(parser.finish(), parser: parser, request: request)
+                for await _ in updates { consume(parser.processPending(), parser: parser, request: request, attempt: attempt) }
+                consume(parser.processPending(), parser: parser, request: request, attempt: attempt); consume(parser.finish(), parser: parser, request: request, attempt: attempt)
                 let result = try await operation.value
                 guard !closed, token === request else { return }
-                if !outputState.hasOutput { commandOutput = result.text }
+                if !outputState.hasOutput, !attempt.completed { commandOutput = GitProgressFailureOutput.renderDetails(result.text, existing: "", limit: outputState.limit) }
                 commandSucceeded = true
+                completeInlineCommand(attempt, success: true, cancelled: false, exitCode: result.exitCode)
             } catch {
                 guard !closed, token === request else { return }
-                let message = request.isCancelled ? "Synchronization cancelled." : error.localizedDescription
-                commandOutput += (commandOutput.isEmpty || commandOutput.hasSuffix("\n") ? "" : "\n") + message
-                self.error = message
+                failInlineCommand(attempt, error: error, request: request)
             }
             guard !closed, token === request else { return }
             commandCompleted = true; cancelling = false; transportRunning = false; busy = false; token = nil; transportID = nil
@@ -1875,31 +2041,34 @@ enum SynchronizationHistoryDiff {
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
         cancelling = false; commandCompleted = false; commandSucceeded = false
         outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
+        let attempt = beginInlineAttempt(request, command: true)
         Task {
+            defer { releaseInlineAttempt(attempt) }
             defer { if transportID == operationID { token = nil; busy = false; transportRunning = false; cancelling = false; transportID = nil } }
             let parser = GitCliOutputParser(limit: outputState.limit)
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+                attempt.startCommand(); let receipt = attempt.receipt
                 let operation = Task {
-                    defer { continuation.finish() }
+                    defer { attempt.producerFinished(); continuation.finish() }
                     return try await repository.synchronizationStash(selected, cancellation: request,
-                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) },
+                        onCommandFinished: { completion in receipt.record(completion); continuation.yield(()) })
                 }
-                for await _ in updates { consume(parser.processPending(), parser: parser, request: request) }
-                consume(parser.processPending(), parser: parser, request: request); consume(parser.finish(), parser: parser, request: request)
+                for await _ in updates { consume(parser.processPending(), parser: parser, request: request, attempt: attempt) }
+                consume(parser.processPending(), parser: parser, request: request, attempt: attempt); consume(parser.finish(), parser: parser, request: request, attempt: attempt)
                 let result = try await operation.value
                 guard !closed, token === request else { return }
-                if !outputState.hasOutput { commandOutput = result.command.text }
+                if !outputState.hasOutput, !attempt.completed { commandOutput = GitProgressFailureOutput.renderDetails(result.command.text, existing: "", limit: outputState.limit) }
                 commandSucceeded = result.command.exitCode == 0
                 if !commandSucceeded { self.error = result.conflictCheckError ?? "Git exited with status \(result.command.exitCode)." }
-                if let message = result.conflictCheckError { commandOutput += "\nChecking for conflicts failed: " + message }
+                completeInlineCommand(attempt, success: result.command.exitCode == 0, cancelled: false, exitCode: result.command.exitCode)
+                if let message = result.conflictCheckError { appendInlineDiagnostic("Checking for conflicts failed: " + message) }
                 conflicts = result.conflicts; if !conflicts.isEmpty { tab = 6 }
             } catch {
                 guard !closed, token === request else { return }
-                let message = request.isCancelled ? "Synchronization cancelled." : error.localizedDescription
-                commandOutput += (commandOutput.isEmpty || commandOutput.hasSuffix("\n") ? "" : "\n") + message
-                self.error = message
+                failInlineCommand(attempt, error: error, request: request)
             }
             guard !closed, token === request else { return }
             commandCompleted = true; cancelling = false; transportRunning = false; busy = false; token = nil; transportID = nil
@@ -1916,13 +2085,16 @@ enum SynchronizationHistoryDiff {
         cancelling = false; commandCompleted = false; commandSucceeded = false; referenceChanges = []
         incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
         outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
+        if shift { completionRange = nil; commandCancelled = false; inlineCommandFinished = false; inlineCompletionSucceeded = false }
         var options = SynchronizationTransportOptions(action: action)
         options.localBranch = localBranch; options.remote = remote; options.remoteBranch = remoteBranch; options.force = force
         options.fetchVerbose = GitCommandPresentation(defaults: preferences).fetchVerbose
         let factory = sshSettings.capture()
         sshSettings.save(preferences, key: historyKey + ".autoload")
         if pushing { Self.activePushWorkflows += 1 }
+        let attempt = beginInlineAttempt(request, command: !shift)
         Task {
+            defer { releaseInlineAttempt(attempt) }
             defer { if pushing { Self.activePushWorkflows -= 1 };withExtendedLifetime(access) {} }
             let coordinator = factory?(); defer { coordinator?.close() }
             defer { if transportID == operationID { token = nil; busy = false; transportRunning = false; transportID = nil } }
@@ -2001,21 +2173,25 @@ enum SynchronizationHistoryDiff {
                 } else {
                     pushAttempted=pushing
                     let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+                    attempt.startCommand(); let receipt = attempt.receipt
                     let operation = Task {
-                        defer { continuation.finish() }
+                        defer { attempt.producerFinished(); continuation.finish() }
                         if let checkout {
                             return try await repository.synchronize(checkout, cancellation: request,
-                                onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation)
+                                onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation,
+                                onCommandFinished: { completion in receipt.record(completion); continuation.yield(()) })
                         }
                         return try await repository.synchronize(plan, deletionAuthorized: deletionAuthorized, cancellation: request,
-                            onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation)
+                            onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation,
+                                onCommandFinished: { completion in receipt.record(completion); continuation.yield(()) })
                     }
-                    for await _ in updates { consume(parser.processPending(), parser: parser, request: request) }
-                    consume(parser.processPending(), parser: parser, request: request)
-                    consume(parser.finish(), parser: parser, request: request)
+                    for await _ in updates { consume(parser.processPending(), parser: parser, request: request, attempt: attempt) }
+                    consume(parser.processPending(), parser: parser, request: request, attempt: attempt)
+                    consume(parser.finish(), parser: parser, request: request, attempt: attempt)
                     let result = try await operation.value
                     guard !closed, token === request else { return }
-                    if !outputState.hasOutput { commandOutput = result.command.text }
+                    if !outputState.hasOutput, !attempt.completed { commandOutput = GitProgressFailureOutput.renderDetails(result.command.text, existing: "", limit: outputState.limit) }
+                    completeInlineCommand(attempt, success: true, cancelled: false, exitCode: result.command.exitCode)
                     var followUpSucceeded = true
                     if action == .pull, let target = result.rebaseTarget, result.rebaseMode != .none {
                         try await runRebase(target, true, result.rebaseMode == .preserveMerges)
@@ -2032,7 +2208,7 @@ enum SynchronizationHistoryDiff {
                                 guard let performFastForward else { throw SynchronizationFailure.invalidInput }
                                 let merge = await performFastForward(state, request)
                                 guard !closed, token === request else { return }
-                                if case .failure(let error) = merge { followUpSucceeded = false; self.error = error.localizedDescription; commandOutput += "\nFast-forward failed.\n" + error.localizedDescription }
+                                if case .failure(let error) = merge { followUpSucceeded = false; self.error = error.localizedDescription; appendInlineDiagnostic("Fast-forward failed.\n" + error.localizedDescription) }
                                 incomingRevision = "HEAD"
                             } else if choice == 2 {
                                 try await repository.validateSynchronizationRebaseState(state, cancellation: request)
@@ -2046,12 +2222,7 @@ enum SynchronizationHistoryDiff {
                 }
             } catch {
                 guard !closed, token === request else { return }
-                let message: String
-                if request.isCancelled || error is OperationCancellationFailure { message = "Synchronization cancelled." }
-                else if let failure = error as? GitFailure, outputState.hasOutput { message = "Git command failed (\(failure.code))." }
-                else { message = error.localizedDescription }
-                commandOutput += (commandOutput.isEmpty || commandOutput.hasSuffix("\n") ? "" : "\n") + message
-                self.error = message
+                failInlineCommand(attempt, error: error, request: request)
             }
             guard !closed, token === request else { return }
             // A normal cancellation may still move refs. Inspect with a fresh
@@ -2066,7 +2237,7 @@ enum SynchronizationHistoryDiff {
                     tab = 3
                 } catch {
                     guard !closed, token === inspection else { return }
-                    commandOutput += "\nReading reference changes failed.\n" + error.localizedDescription
+                    appendInlineDiagnostic("Reading reference changes failed.\n" + error.localizedDescription)
                 }
                 guard !closed, token === inspection else { return }
             }
@@ -2089,12 +2260,12 @@ enum SynchronizationHistoryDiff {
                     }
                 } catch {
                     guard !closed, token === inspection else { return }
-                    commandOutput += "\nReading Pull results failed.\n" + error.localizedDescription
+                    appendInlineDiagnostic("Reading Pull results failed.\n" + error.localizedDescription)
                 }
                 guard !closed, token === inspection else { return }
             }
             if let ignoredPreHook {
-                commandOutput += "\nPre-push hook failure was continued.\n" + (ignoredPreHook.error.isEmpty ? ignoredPreHook.output : ignoredPreHook.error)
+                appendInlineDiagnostic("Pre-push hook failure was continued.\n" + (ignoredPreHook.error.isEmpty ? ignoredPreHook.output : ignoredPreHook.error))
             }
             // RunPostAction executes after both successful and failed/cancelled
             // Push commands; forced owner exit suppresses it. A fresh token lets
@@ -2105,9 +2276,9 @@ enum SynchronizationHistoryDiff {
                 catch {
                     guard !closed,token === postRequest else { return }
                     let text=postRequest.isCancelled ? "Post-push hook cancelled. Push effects are retained." : (commandSucceeded ? "The push succeeded, but its post-push hook failed.\n\n" : "The post-push hook failed.\n\n") + error.localizedDescription
-                    commandOutput += "\n"+text;self.error=(self.error.map { $0+"\n\n" } ?? "")+text
+                    appendInlineDiagnostic(text);self.error=(self.error.map { $0+"\n\n" } ?? "")+text
                 }
-                guard !closed,token === postRequest else { return };currentWork=""
+                guard !closed,token === postRequest else { return };currentWork=attempt.completedWork
             }
             commandCompleted = true; cancelling = false; transportRunning = false; busy = false; token = nil; transportID = nil
             onTransportFinished(commandOutput)
@@ -2116,10 +2287,19 @@ enum SynchronizationHistoryDiff {
             reload(preserveError: true)
         }
     }
-    private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser, request: OperationCancellation) {
-        guard !closed, token === request else { return }
+    private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser, request: OperationCancellation, attempt: SynchronizationInlineAttempt) {
+        if closed, attempt.receipt.read() != nil { DockProgressRegistry.shared.remove(attempt.dockOwner) }
+        guard !closed, token === request, inlineAttempts[attempt.identity] === attempt, !attempt.completed else { return }
         outputState.consume(emission, parser: parser)
+        if attempt.receipt.read() != nil {
+            // Core emitted the receipt only after draining all producer output.
+            // Flush the parser now even if its follow-up metadata read is held.
+            outputState.consume(parser.processPending(), parser: parser); outputState.consume(parser.finish(), parser: parser)
+        }
         commandOutput = outputState.output; percentage = outputState.percentage; currentWork = outputState.currentWork
+        if let receipt = attempt.receipt.read() {
+            completeInlineCommand(attempt, success: receipt.success, cancelled: receipt.cancelled, exitCode: receipt.exitCode)
+        }
     }
     func cancelTransport() {
         guard !closed, !confirmingQuit, transportRunning, !cancelling, !confirmingCancellation, let request = token else { return }
@@ -2148,6 +2328,19 @@ private struct SynchronizationDialog: View {
     }
     var body: some View {
         VStack(spacing: 10) {
+            if model.showsInlineProgress {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 12) {
+                        GitCommandActivity(animate: model.progressPresentation.animateActivity).frame(width: 24, height: 24)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(model.cancelling ? "Cancelling…" : model.currentWork.isEmpty ? "Running Git…" : model.currentWork)
+                                .lineLimit(1).help(model.currentWork)
+                            GitCommandProgressBar(percentage: model.percentage, animate: model.progressPresentation.animateActivity)
+                                .accessibilityLabel("Git synchronization progress")
+                        }
+                    }
+                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            } else {
             GroupBox {
                 VStack(spacing: 10) {
                     DialogCommandRows {
@@ -2176,7 +2369,8 @@ private struct SynchronizationDialog: View {
                         Toggle("Force", isOn: Binding(get: { model.force }, set: { model.force = $0; model.reload() }))
                     }.padding(.leading, 100)
                 }.padding(6)
-            }.disabled(model.transportRunning || model.hasBlockingChild)
+            }.disabled(model.transportRunning || model.hasBlockingChild || model.confirmingCancellation)
+            }
             if model.tab == 7 {
                 SynchronizationTagTable(model: model)
                     .overlay { if model.tagRows.isEmpty { Text(model.busy ? "Please wait…" : "No differences found.").foregroundStyle(.secondary).allowsHitTesting(false) } }
@@ -2188,10 +2382,8 @@ private struct SynchronizationDialog: View {
                         }
                     }
             } else if model.tab == 2 {
-                SubmoduleProgressOutputView(text: model.commandOutput, completed: model.commandCompleted, success: model.commandSucceeded, preferences: model.preferences)
-                if model.transportRunning {
-                    GitCommandProgressBar(percentage: model.percentage, animate: model.progressPresentation.animateActivity)
-                }
+                SubmoduleProgressOutputView(text: model.commandOutput, completed: model.inlineCommandFinished,
+                    completionRange: model.completionRange, success: model.inlineCompletionSucceeded, preferences: model.preferences)
             } else if model.tab == 0 || model.tab == 4 {
                 SynchronizationHistoryTable(model: model)
                     .id(model.tab)
@@ -2274,6 +2466,7 @@ private struct SynchronizationDialog: View {
                 Button("Help") { TurtleGitHelp.show(.synchronization) }
             }
         }.padding(12).disabled(model.confirmingQuit).onAppear { model.reload(initial: true) }
+        .gitDockProgress(model.inlineDockProgress)
     }
 }
 

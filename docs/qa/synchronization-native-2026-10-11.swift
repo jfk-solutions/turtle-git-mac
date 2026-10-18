@@ -13,6 +13,25 @@ import TurtleGitCore
         }
         preconditionFailure("Synchronization did not settle at fixture line \(line)")
     }
+    struct StashPreparationFailure:Error,CustomStringConvertible {let description:String}
+    @MainActor static func awaitStashForm(_ owner:StashWindowController)async throws {
+        if !owner.model.prepared && !owner.model.preparing {owner.model.prepare()}
+        for _ in 0..<6000 {
+            owner.window?.contentView?.layoutSubtreeIfNeeded()
+            if owner.model.canEditForm {return}
+            if owner.model.closed || owner.model.error != nil {throw StashPreparationFailure(description:"Stash form preparation failed: \(owner.model.error ?? "owner closed")")}
+            try await Task.sleep(nanoseconds:5_000_000)
+        }
+        throw StashPreparationFailure(description:"Stash identity preparation did not settle")
+    }
+    @MainActor static func awaitStashProgress(_ owner:StashWindowController)async throws->StashSaveProgressWindowModel {
+        for _ in 0..<6000 {
+            if let progress=owner.model.progress {return progress}
+            if owner.model.closed || owner.model.error != nil {throw StashPreparationFailure(description:"Stash submission preparation failed: \(owner.model.error ?? "owner closed")")}
+            try await Task.sleep(nanoseconds:5_000_000)
+        }
+        throw StashPreparationFailure(description:"Stash submission did not produce progress after identity preparation")
+    }
     @MainActor static func verifyTransport(repo: GitRepository, root: URL, preferences: UserDefaults) async throws {
         let server = root.appendingPathComponent("qa server 雪.git"), authorRoot = root.appendingPathComponent("qa-author")
         _ = try await repo.run(["clone", "--bare", "--template=", "--", root.path, server.path])
@@ -1090,6 +1109,11 @@ import TurtleGitCore
     }
 
     @MainActor static func verifyStash(root: URL, preferences: UserDefaults) async throws {
+        // This fixture's explicit Cancel requires the direct no-question policy,
+        // independent of the prior transport fixture's private Kill preference.
+        let savedKillPreference=preferences.object(forKey:"ConfirmKillProcess")
+        preferences.set(false,forKey:"ConfirmKillProcess")
+        defer {if let savedKillPreference {preferences.set(savedKillPreference,forKey:"ConfirmKillProcess")} else {preferences.removeObject(forKey:"ConfirmKillProcess")}}
         let directory = root.deletingLastPathComponent().appendingPathComponent("qa-sync-stash-" + UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let git = URL(fileURLWithPath: CommandLine.arguments[2]), parent = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
@@ -1122,8 +1146,18 @@ import TurtleGitCore
         model.stash(.pop,shift:false); try await settle { !model.busy }
         precondition(!model.commandSucceeded && model.conflicts.map(\.path) == ["file"] && model.tab == 6 && finished == 6 && model.outgoing!.remoteReference == projection && model.incomingCommits == nil)
         let stashBeforeShift = try await repo.run(["rev-parse","refs/stash"]).stdout
+        // Showing the real Conflicts tab starts its owned status/metadata read.
+        // The transport has finished, but source commands remain gated until
+        // that child work drains. Wait for the actual command-availability gate
+        // before exercising Shift dispatch; retain every original assertion.
+        var idleSamples = 0
+        try await settle {
+            owner.window?.contentView?.layoutSubtreeIfNeeded()
+            idleSamples = !model.busy && !model.hasBlockingChild && owner.window?.attachedSheet == nil ? idleSamples + 1 : 0
+            return idleSamples >= 2
+        }
         for action in [SynchronizationStashAction.pop,.apply] { model.stash(action,shift:true); precondition(!model.busy && shifted == 0 && finished == 6) }
-        model.stash(.save,shift:true); precondition(!model.busy && shifted == 1 && finished == 6)
+        model.stash(.save,shift:true); precondition(!model.busy && shifted == 1 && finished == 6,"Shift Stash Save dispatch: busy=\(model.busy), child=\(model.hasBlockingChild), shifted=\(shifted), finished=\(finished)")
         let stashAfterShift = try await repo.run(["rev-parse","refs/stash"]).stdout
         precondition(stashBeforeShift == stashAfterShift)
         let fresh = SynchronizationWindowModel(repository:repo,access:nil,preferences:preferences)
@@ -1157,9 +1191,10 @@ import TurtleGitCore
         }
         shiftOwner.model.stash(.save,shift:true); precondition(child != nil && !shiftOwner.model.busy)
         shiftOwner.close(); precondition(child!.window!.isVisible && !child!.model.busy)
+        try await awaitStashForm(child!)
         try Data("full options work\n".utf8).write(to:file)
         child!.model.options.message = "Shift snapshot 雪"; child!.model.save()
-        let progress = child!.model.progress!
+        let progress = try await awaitStashProgress(child!)
         try await settle { !progress.busy }
         precondition(progress.success && childSaves == 1 && child!.window!.attachedSheet != nil && child!.model.busy)
         let subject = try await repo.run(["show","-s","--format=%s","refs/stash"]).text
@@ -1172,10 +1207,11 @@ import TurtleGitCore
         let blockedChild = StashWindowController(repository:GitRepository(root:directory,executable:shim),access:nil,preferences:preferences)
         blockedChild.window!.alphaValue = 0; blockedChild.showWindow(nil); defer { blockedChild.close() }
         var childReplies = 0; blockedChild.model.onSaved = { _ in childReplies += 1 }; blockedChild.model.onFailed = { _ in childReplies += 1 }
-        blockedChild.model.save(); let blockedProgress = blockedChild.model.progress!
+        try await awaitStashForm(blockedChild)
+        blockedChild.model.save(); let blockedProgress = try await awaitStashProgress(blockedChild)
         try await settle { FileManager.default.fileExists(atPath:marker.path) && blockedChild.window!.attachedSheet != nil }
         let sheet = blockedChild.window!.attachedSheet!, childPID = pid_t(try String(contentsOf:marker).trimmingCharacters(in:.newlines))!
-        blockedChild.close(); try await settle { kill(childPID,0) == -1 && errno == ESRCH }
+        blockedChild.close(); try await settle { kill(childPID,0) == -1 && errno == ESRCH && sheet.sheetParent == nil && !sheet.isVisible && blockedChild.window?.attachedSheet == nil }
         precondition(!blockedProgress.busy && blockedProgress.result == nil && blockedProgress.output.isEmpty && childReplies == 0 && !sheet.isVisible && blockedChild.window!.attachedSheet == nil && blockedChild.model.progress == nil && !blockedChild.model.busy)
 
         for target in [1,2] {
@@ -1189,11 +1225,12 @@ import TurtleGitCore
             let refChild = StashWindowController(repository:GitRepository(root:directory,executable:referenceShim),access:nil,preferences:preferences)
             refChild.window!.alphaValue = 0; refChild.showWindow(nil); defer { refChild.close() }
             var referenceReplies = 0; refChild.model.onSaved = { _ in referenceReplies += 1 }; refChild.model.onFailed = { _ in referenceReplies += 1 }
-            refChild.model.save(); let refProgress = refChild.model.progress!
+            try await awaitStashForm(refChild)
+            refChild.model.save(); let refProgress = try await awaitStashProgress(refChild)
             try await settle { FileManager.default.fileExists(atPath:referenceMarker.path) }
             let referencePID = pid_t(try String(contentsOf:referenceMarker).trimmingCharacters(in:.newlines))!
             if target == 1 {
-                refChild.close(); try await settle { kill(referencePID,0) == -1 && errno == ESRCH }
+                refChild.close(); try await settle { kill(referencePID,0) == -1 && errno == ESRCH && refChild.window?.attachedSheet == nil && refChild.model.progress == nil && StashWindowController.activeChildReleases == 0 }
                 precondition(!refProgress.busy && !refProgress.success && refProgress.result == nil && referenceReplies == 0 && refChild.window!.attachedSheet == nil && refChild.model.progress == nil)
             } else {
                 refProgress.cancel(); try await settle { !refProgress.busy && kill(referencePID,0) == -1 && errno == ESRCH }

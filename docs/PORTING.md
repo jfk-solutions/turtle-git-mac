@@ -3332,3 +3332,28 @@ was preserved. Relative/RLE region paths, negative region rectangles, singular
 region fills, nested-metafile textures, older format gaps, full Windows rendering
 acceptance, current hosted integration and signed App Store acceptance remain
 open. This is real format coverage, not complete GDI/GDI+ or whole-port parity.
+
+
+### Main Synchronization and Add/Resolve progress, October 19, 2026
+
+The connected progress family now distinguishes upstream Sync's inline command
+surface from GitProgressList's Action/Path notifications. Sync replaces the input
+band while running, preserves phase and percentage, and records actual Git
+completion before reference/conflict metadata. Its colored timed footer and Dock
+state retain the command outcome independently of workflow completion.
+
+Add and Resolve have native Action/Path tables, original background artwork,
+source file menus, distinct keyboard/menu clipboard text, finished timing and
+action logging. Add captures kill-confirmation and automatic-close settings;
+Resolve drains file notifications before completion. Commit captures repository
+access, preferences and appearance and waits for actual result-window, sheet and
+worker release. Root and Rebase continuations share those ownership gates. Quit
+counts owned work even after forced window closure.
+
+The [source comparison](SYNC-ADD-RESOLVE-PROGRESS-PARITY.md) separates these
+changes from full upstream dialog, physical input/Dock/VoiceOver, installed signed
+Finder and App Store acceptance. [Dated grouped evidence](qa/sync-add-resolve-progress-2026-10-19.json) records
+four focused Core methods, Debug build and ten native case/engine pairs passing,
+with actual failures and focused repairs retained. All receivers were reaped;
+unusable optional content captures were not published. No screen or fixture
+count certifies the whole port.

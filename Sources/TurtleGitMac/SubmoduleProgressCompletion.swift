@@ -5,12 +5,12 @@ import Foundation
 struct SubmoduleProgressCompletion {
     let currentWork: String
     let text: String
-    init(success: Bool, cancelled: Bool, exitCode: Int32?, elapsed: TimeInterval, finished: Date = Date(), preferences: UserDefaults) {
+    init(success: Bool, cancelled: Bool, exitCode: Int32?, elapsed: TimeInterval, finished: Date = Date(), preferences: UserDefaults, showTimings: Bool? = nil) {
         if success { currentWork = "Success" }
         else if cancelled { currentWork = "User cancelled" }
         else if let exitCode { currentWork = "git did not exit cleanly (exit code \(exitCode))" }
         else { currentWork = "Operation failed" }
-        let timings = (preferences.object(forKey:"ShowGitexeTimings") as? NSNumber)?.boolValue ?? true
+        let timings = showTimings ?? ((preferences.object(forKey:"ShowGitexeTimings") as? NSNumber)?.boolValue ?? true)
         let milliseconds = Int64(max(0, min(elapsed.isFinite ? elapsed : 0, Double(Int64.max / 2000))) * 1000)
         let stamp: String
         if (preferences.object(forKey:"UseSystemLocaleForDates") as? NSNumber)?.boolValue ?? true {

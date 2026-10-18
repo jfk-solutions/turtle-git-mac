@@ -1,6 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 
+/// The requested Sync command's settled subprocess boundary, captured before
+/// reference/rebase/conflict inspection. Validation and authorization reads do
+/// not emit a command completion. The callback never transports an Error value.
+public struct SynchronizationCommandCompletion: Sendable {
+    public let success: Bool
+    public let cancelled: Bool
+    public let exitCode: Int32?
+    public let finished: Date
+    public let elapsed: TimeInterval
+    fileprivate init(success: Bool, cancelled: Bool, exitCode: Int32?, started: TimeInterval) {
+        self.success = success; self.cancelled = cancelled; self.exitCode = exitCode
+        finished = Date(); elapsed = max(0, ProcessInfo.processInfo.systemUptime - started)
+    }
+}
+
 public enum SynchronizationStashAction: Int, CaseIterable, Sendable {
     case save, pop, apply
     public var arguments: [String] {
@@ -18,12 +33,14 @@ public enum SynchronizationStashFailure: LocalizedError {
 }
 extension GitRepository {
     public func synchronizationStash(_ action: SynchronizationStashAction, cancellation: OperationCancellation? = nil,
-                                     onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> SynchronizationStashResult {
+                                     onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
+                                     onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)? = nil) throws -> SynchronizationStashResult {
         let token = cancellation ?? OperationCancellation()
         guard try !isBare(cancellation: token) else { throw SynchronizationStashFailure.workingTree }
         // Save accepts no user pathspecs. Its internal :/ cleanup must retain
         // Git's magic pathspec semantics, as in the standalone Save workflow.
-        let result = try run(action.arguments, literalPathspecs: action != .save, successfulExitCodes: 0...255, cancellation: token, onOutput: onOutput)
+        let result = try runSynchronizationCommand(action.arguments, literalPathspecs: action != .save, successfulExitCodes: 0...255,
+            cancellation: token, onOutput: onOutput, onCommandFinished: onCommandFinished)
         var conflicts: [StatusEntry] = [], checkError: String?
         if result.exitCode != 0 && action != .save {
             do { conflicts = try status(refreshIndex: false, cancellation: token).filter { $0.state == .conflicted } }
@@ -46,15 +63,33 @@ public enum SynchronizationSubmoduleAction: Int, CaseIterable, Sendable {
 }
 
 extension GitRepository {
+    private func runSynchronizationCommand(_ arguments: [String], environmentOverrides: [String: String] = [:],
+        literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation,
+        onOutput: (@Sendable (GitOutputChunk) -> Void)?, onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)?) throws -> GitResult {
+        try cancellation.check()
+        let started = ProcessInfo.processInfo.systemUptime
+        do {
+            let result = try run(arguments, environmentOverrides: environmentOverrides, literalPathspecs: literalPathspecs,
+                successfulExitCodes: successfulExitCodes, cancellation: cancellation, onOutput: onOutput)
+            onCommandFinished?(.init(success: result.exitCode == 0, cancelled: false, exitCode: result.exitCode, started: started))
+            return result
+        } catch {
+            let cancelled = cancellation.isCancelled || error is OperationCancellationFailure || error is GitCommandCancellationFailure
+            let exitCode = (error as? GitFailure)?.code ?? (error as? GitCommandCancellationFailure)?.result.exitCode
+            onCommandFinished?(.init(success: false, cancelled: cancelled, exitCode: exitCode, started: started))
+            throw error
+        }
+    }
     /// Runs the source all-project command, retaining Git's configured update
     /// mode. Full-options callers use their separate reviewed path selection.
     public func synchronizeSubmodules(_ action: SynchronizationSubmoduleAction, force: Bool = false,
                                      cancellation: OperationCancellation? = nil,
-                                     onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+                                     onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
+                                     onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)? = nil) throws -> GitResult {
         let token = cancellation ?? OperationCancellation()
         // Reuse the reviewed superproject/gitlink path and non-bare validation.
         _ = try submoduleSyncPlan(scope: [], cancellation: token)
-        return try run(action.arguments(force: force), cancellation: token, onOutput: onOutput)
+        return try runSynchronizationCommand(action.arguments(force: force), cancellation: token, onOutput: onOutput, onCommandFinished: onCommandFinished)
     }
 }
 
@@ -441,9 +476,10 @@ extension GitRepository {
     /// native post-fetch Rebase choices remain the caller's owned workflow.
     public func synchronize(_ plan: SynchronizationTransportPlan, checkoutAuthorized: Bool = false, deletionAuthorized: Bool = false,
                             cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
-                            prepareTransport: SSHTransportPreparation? = nil) async throws -> SynchronizationTransportResult {
+                            prepareTransport: SSHTransportPreparation? = nil,
+                            onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)? = nil) async throws -> SynchronizationTransportResult {
         try await executeSynchronization(plan, checkout: nil, checkoutAuthorized: checkoutAuthorized, deletionAuthorized: deletionAuthorized,
-                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport)
+                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommandFinished: onCommandFinished)
     }
     /// Runs only the approved checkout, allowing the native owner to present
     /// source-style separate progress before tracking and transport questions.
@@ -466,13 +502,15 @@ extension GitRepository {
     /// even when a post-checkout hook changed the actual branch attachment.
     public func synchronize(_ checkout: SynchronizationPullCheckout, cancellation: OperationCancellation? = nil,
                             onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
-                            prepareTransport: SSHTransportPreparation? = nil) async throws -> SynchronizationTransportResult {
+                            prepareTransport: SSHTransportPreparation? = nil,
+                            onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)? = nil) async throws -> SynchronizationTransportResult {
         try await executeSynchronization(checkout.plan, checkout: checkout, checkoutAuthorized: true, deletionAuthorized: false,
-                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport)
+                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommandFinished: onCommandFinished)
     }
     private func executeSynchronization(_ plan: SynchronizationTransportPlan, checkout: SynchronizationPullCheckout?,
                                         checkoutAuthorized: Bool, deletionAuthorized: Bool, cancellation: OperationCancellation?,
-                                        onOutput: (@Sendable (GitOutputChunk) -> Void)?, prepareTransport: SSHTransportPreparation?) async throws -> SynchronizationTransportResult {
+                                        onOutput: (@Sendable (GitOutputChunk) -> Void)?, prepareTransport: SSHTransportPreparation?,
+                                        onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)?) async throws -> SynchronizationTransportResult {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard !plan.optionsOnly else { throw SynchronizationFailure.invalidInput }
         guard plan.root == root else { throw SynchronizationTransportFailure.repositoryChanged }
@@ -500,7 +538,8 @@ extension GitRepository {
         // preparation. Rebuild its command from the same selected fields then;
         // the original plan still owns the pre-checkout HEAD for incoming tabs.
         let execution = plan.options.action == .pull ? try buildSynchronizationTransportPlan(plan.options, cancellation: token, checkoutCompleted: true) : plan
-        let result = try run(execution.arguments, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput)
+        let result = try runSynchronizationCommand(execution.arguments, environmentOverrides: session?.transportEnvironment ?? [:],
+            cancellation: token, onOutput: onOutput, onCommandFinished: onCommandFinished)
         var target: String?
         if let reference = execution.rebaseReference {
             do {

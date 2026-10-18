@@ -40,7 +40,12 @@ act on the captured selected paths.
 
 Add lists files eligible for the chosen Add operation. Check the paths to add,
 then choose OK. Header menus control optional columns. Adding records content in
-Git's index; it does not create a commit. Use Commit to finish the change.
+Git's index; it does not create a commit. Add progress shows Action and Path
+notifications, followed by a colored Finished result with elapsed time. Its running
+bar disappears when finished. Use a file row's menu for Log, Open, Open With or
+Explore to. Keyboard Copy includes Action and Path; the menu copies Path only.
+Commit closes the result and its owned activity before opening the captured
+repository's Commit window. Use Commit to finish the change.
 
 Ignore offers repository ignore-file or local exclusion choices for the selected
 patterns. Review the path and pattern before saving. Ignoring a tracked file does
@@ -174,6 +179,15 @@ Launch Rebase After Fetch opens the native Rebase flow after the fetch. A branch
 configured to require rebase can select that behavior automatically. Read the
 progress and conflict result before starting another integration operation.
 
+## Synchronization progress
+
+Synchronization replaces its branch/remote inputs with phase and progress while
+an inline command runs. The output retains 100 percent and a colored completion
+footer with the actual Git command's elapsed time and finish date. A later
+reference or conflict lookup can report its own error without changing the
+completed command's result. Cancellation waits for owned Git activity and its
+confirmation sheet to settle before releasing the workflow.
+
 ## Push
 
 In Ref, choose the local source and remote destination, or Push all branches.
@@ -219,6 +233,11 @@ intended result and mark it resolved. Continue the parent operation only after
 reviewing the remaining conflicts. [Conflict identities](CONFLICT-IDENTITIES.md)
 explains the side captions, and [Save As targets](SAVE-AS-TARGETS.md) explains
 how an exported copy differs from the actual merge result.
+
+Resolve's operation progress uses a separate Action/Path notification list with
+a timed Finished row. Its file rows offer Log, Open, Open With and Explore to.
+Commit waits until the result window and its activity close, then opens Commit
+for that repository with the same presentation preferences.
 
 In Resolve, drop files or folders from the same repository to extend the displayed
 conflicts. Dropping a folder includes its conflicted descendants; dropping the

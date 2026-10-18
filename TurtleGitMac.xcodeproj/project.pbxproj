@@ -427,6 +427,7 @@
 		D7C442B7B51E53DF203B3DED /* LocalizationCredits.txt in Resources */ = {isa = PBXBuildFile; fileRef = 696F71712EA2A3BA32CF5A86 /* LocalizationCredits.txt */; };
 		C21010160000000000000201 /* Finder Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B6A118BB321240B0BBC7C7CD /* Localizable.xcstrings */; };
 		C21010160000000000000211 /* RegexFilter.ini in Resources */ = {isa = PBXBuildFile; fileRef = C21010160000000000000212 /* RegexFilter.ini */; };
+		8C7617B67305479B6FAB700C /* FileOperationProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16F6D821E4B2C42D554F4D9A /* FileOperationProgress.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -951,6 +952,7 @@
 		82D09E622E81DE3113C5517C /* LocalizationManifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "Resources/LocalizationManifest.json"; sourceTree = "<group>"; };
 		696F71712EA2A3BA32CF5A86 /* LocalizationCredits.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Resources/LocalizationCredits.txt"; sourceTree = "<group>"; };
 		C21010160000000000000212 /* RegexFilter.ini */ = {isa = PBXFileReference; lastKnownFileType = text; name = RegexFilter.ini; path = Sources/TurtleGitCore/Resources/RegexFilter.ini; sourceTree = SOURCE_ROOT; };
+		16F6D821E4B2C42D554F4D9A /* FileOperationProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOperationProgress.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1025,6 +1027,7 @@
 				C210101600000000000001A1 /* ApplicationAssets.xcassets */,
 				1AB2F5FDA0673FDECA2C7F25 /* AddFileTable.swift */,
 				0492C8BA1A8FA506ECB53A3A /* AddProgressTable.swift */,
+				16F6D821E4B2C42D554F4D9A /* FileOperationProgress.swift */,
 				8F84A36C85062FC9FF018CB1 /* AddProgressWindow.swift */,
 				AC47297BEF6EC885B5BAF7A5 /* AddRemoteWindow.swift */,
 				8BB0FD3A5C49E748AA9A42AC /* AddWindow.swift */,
@@ -2118,6 +2121,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8C7617B67305479B6FAB700C /* FileOperationProgress.swift in Sources */,
 				30E029F3769B8ECF4E2BE561 /* AddFileTable.swift in Sources */,
 				E61342FEBDA63EF108372279 /* AddProgressTable.swift in Sources */,
 				A7F9B61AFDD2F69ADE7A35C7 /* AddProgressWindow.swift in Sources */,

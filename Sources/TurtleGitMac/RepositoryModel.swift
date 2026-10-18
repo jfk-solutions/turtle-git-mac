@@ -264,6 +264,9 @@ import UniformTypeIdentifiers
             for controller in moveWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in copyWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in worktreeCreateWindows.values {controller.model.confirmingQuit=confirmingQuit}
+            for controller in addProgressWindows.values {controller.model.confirmingQuit=confirmingQuit}
+            for controller in resolveWindows.values {controller.model.confirmingQuit=confirmingQuit}
+            for controller in synchronizationWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in worktreeListWindows.values {controller.createWindow?.model.confirmingQuit=confirmingQuit}
             if confirmingQuit {cancelFinderWorktreeCreation()}
         }
@@ -345,6 +348,8 @@ import UniformTypeIdentifiers
     private(set) var finderMailWorkflows: [UUID: SendMailWorkflow] = [:]
     var finderMailPresentation: ((NSWindowController) -> Void)?
     private var addProgressWindows: [UUID: AddProgressWindowController] = [:]
+    var addProgressWindowFactory: ((GitRepository, RepositoryAccessLease?, [String], WorkingFileAddMode, UserDefaults) -> AddProgressWindowController)?
+    var addProgressWindowPresentation: ((AddProgressWindowController) -> Void)?
     private var cleanWindows: [String: CleanWindowController] = [:]
     var cleanWindowFactory:((GitRepository)->CleanWindowController)?
     private var cleanProgressWindows: [UUID: CleanProgressWindowController] = [:]
@@ -1561,10 +1566,16 @@ import UniformTypeIdentifiers
         controller.model.onFileBlame = { [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision) }
         controller.model.onFileSubmoduleLog = { [weak self] child in self?.showLog(repository:child,access:access,paths:[]) }
         controller.model.onFilePair = { [weak self,weak controller] paths in self?.showWorkingFilePair(repository:repository,access:access,paths:paths,owner:controller?.window) }
-        controller.onCommit = { [weak self] in
-            guard let self else { return }
-            if self.root == root { self.activate(.commit) }
-            else if let access { self.openSession(access, action: .commit) }
+        let capturedPreferences = controller.model.preferences
+        controller.model.confirmingQuit = confirmingQuit
+        controller.model.externalAvailability = { [weak self] in self?.retired == false && self?.confirmingQuit == false }
+        controller.onProgressLog = { [weak self] path in
+            guard let self, !self.retired, !self.confirmingQuit else { return }
+            self.showLog(repository: repository, access: access, paths: [path], preferences: capturedPreferences)
+        }
+        controller.onCommit = { [weak self, weak controller] in
+            guard let self, !self.retired, !self.confirmingQuit else { return }
+            self.showCommitDialog(repository: repository, access: access, paths: [], preferences: capturedPreferences, sourceWindow: controller?.window)
         }
         resolveWindows[key] = controller
         if let resolveWindowPresentation { resolveWindowPresentation(controller) }
@@ -1603,7 +1614,8 @@ import UniformTypeIdentifiers
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
         } catch { self.error = error.localizedDescription }
     }
-    private func showCommitDialog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], invocation: PrimaryCommandInvocation? = nil, commandMessage: String? = nil, preferences: UserDefaults? = nil) {
+    private func showCommitDialog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], invocation: PrimaryCommandInvocation? = nil, commandMessage: String? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let root = repository.root
         if invocation != nil, let existing = commitWindows[root.path] {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
@@ -1612,6 +1624,7 @@ import UniformTypeIdentifiers
         }
         let controller = commitWindows[root.path] ?? commitWindowFactory?(repository,access) ?? CommitWindowController(repository: repository, access: access, defaults: preferences ?? fileComparisonPreferences)
         let preferences = controller.presentationPreferences, access = controller.model.access
+        if let sourceWindow { controller.window?.alphaValue = sourceWindow.alphaValue; controller.window?.appearance = sourceWindow.effectiveAppearance }
         controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, preferences: preferences) }
         controller.onClosed = { [weak self] in self?.commitWindows.removeValue(forKey: root.path) }
         controller.model.onCommitted = { [weak self] output in
@@ -2088,16 +2101,34 @@ import UniformTypeIdentifiers
     }
 
     private func showAddProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal) {
-        let id = UUID(), controller = AddProgressWindowController(repository: repository, access: access, paths: paths, mode: mode, preferences: fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.addProgressWindows.removeValue(forKey: id) }
+        guard !retired, !confirmingQuit else { return }
+        let id = UUID(), preferences = fileComparisonPreferences
+        let controller = addProgressWindowFactory?(repository, access, paths, mode, preferences) ?? AddProgressWindowController(repository: repository, access: access, paths: paths, mode: mode, preferences: preferences)
+        let capturedPreferences = controller.model.preferences
+        controller.model.confirmingQuit = confirmingQuit
+        controller.model.externalAvailability = { [weak self] in self?.retired == false && self?.confirmingQuit == false }
+        controller.onClosed = { [weak self, weak controller] in
+            guard let self, let controller, self.addProgressWindows[id] === controller else { return }
+            self.addProgressWindows.removeValue(forKey: id)
+        }
         controller.model.onFinished = { [weak self] text, _ in
             self?.refreshRepositoryLogs(repository.root)
             self?.statusWindows[repository.root.path]?.model.requestReload()
             self?.commitWindows[repository.root.path]?.model.reload()
             if self?.root?.path == repository.root.path { self?.output = text; Task { await self?.refresh() } }
         }
-        controller.model.onCommit = { [weak self] in self?.openSession(access ?? RepositoryAccessLease(url: repository.root), selected: FinderRequest(action: .commit, paths: [repository.root]), action: .commit) }
-        addProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
+        controller.model.onCommit = { [weak self, weak controller] in
+            guard let self, !self.retired, !self.confirmingQuit else { return }
+            self.showCommitDialog(repository: repository, access: access, paths: [], preferences: capturedPreferences, sourceWindow: controller?.window)
+        }
+        controller.onProgressLog = { [weak self] path in
+            guard let self, !self.retired, !self.confirmingQuit else { return }
+            self.showLog(repository: repository, access: access, paths: [path], preferences: capturedPreferences)
+        }
+        addProgressWindows[id] = controller
+        if let presentation = addProgressWindowPresentation { presentation(controller) }
+        else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+        controller.model.start()
     }
     private func showClean(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], commandLaunch: Bool = false, preferences: UserDefaults? = nil) {
         guard !confirmingQuit else { return }

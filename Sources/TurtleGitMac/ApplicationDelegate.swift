@@ -123,6 +123,8 @@ import AppKit
             (window.delegate as? FileDropTransferWindowController)?.model.confirmingQuit = value
             (window.delegate as? FileMoveWindowController)?.model.confirmingQuit = value
             (window.delegate as? FileCopyWindowController)?.model.confirmingQuit = value
+            (window.delegate as? ResolveWindowController)?.model.confirmingQuit = value
+            (window.delegate as? AddProgressWindowController)?.model.confirmingQuit = value
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -147,7 +149,7 @@ import AppKit
         if RebaseWindowModel.activePreparationReads > 0 || RebaseWindowController.activeReferencePickers > 0 || RebaseWindowController.activeCommitPickers > 0 { return .terminateCancel }
         if RebaseWindowModel.activeColumnReads > 0 { return .terminateCancel }
         if RebaseWindowModel.activeStashRestorations > 0 { return .terminateCancel }
-        if SynchronizationProgressModel.activeOperations > 0 || SynchronizationWindowModel.activePushWorkflows > 0 { return .terminateCancel }
+        if SynchronizationProgressModel.activeOperations > 0 || SynchronizationWindowModel.activePushWorkflows > 0 || SynchronizationWindowModel.activeInlineOperations > 0 || SynchronizationWindowController.activeInlineReleases > 0 { return .terminateCancel }
         if LogWindowModel.activeActionReads > 0 || LogWindowModel.activeWorkingCommandReads > 0 { return .terminateCancel }
         if ReferenceLogWindowModel.activeRevisionReads > 0 || ReferenceLogWindowModel.activeOwnedOperations > 0 { return .terminateCancel }
         if WorktreeListWindowModel.activeOperations > 0 || WorktreeCreateWindowModel.activeOperations > 0 { return .terminateCancel }
@@ -160,10 +162,10 @@ import AppKit
         if FileCopyWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? FileCopyWindowController }).contains(where: { $0.model.question || $0.model.confirmingCancel }) { return .terminateCancel }
         if FileMoveWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? FileMoveWindowController }).contains(where: { $0.model.hasQuestion || $0.model.choosingFolder || $0.model.confirmingCancellation }) { return .terminateCancel }
         if ConflictReviewOperation.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? DeleteConflictWindowController }).contains(where: { !$0.model.operation.canClose }) || sender.windows.compactMap({ $0.delegate as? SubmoduleConflictWindowController }).contains(where: { !$0.model.operation.canClose }) { return .terminateCancel }
-        if ResolveWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? ResolveWindowController }).contains(where: { $0.model.hasQuestion || $0.model.hasChild || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        if ResolveWindowModel.activeOperations > 0 || ResolveWindowController.activeReleases > 0 || sender.windows.compactMap({ $0.delegate as? ResolveWindowController }).contains(where: { $0.model.hasQuestion || $0.model.hasChild || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if IgnoreWindowModel.activeOperations > 0 { return .terminateCancel }
         if LogMessageView.Coordinator.activeOperations > 0 { return .terminateCancel }
-        if AddWindowModel.activeOperations > 0 { return .terminateCancel }
+        if AddWindowModel.activeOperations > 0 || AddProgressWindowModel.activeOperations > 0 || AddProgressWindowController.activeReleases > 0 { return .terminateCancel }
         if CommitWindowModel.activeCommitPreflights > 0 { return .terminateCancel }
         if CommitWindowModel.activeReloads > 0 || CommitWindowModel.activeFileOperations > 0 || CommitWindowModel.activePreferenceOperations > 0 || CommitWindowModel.activeMetadataOperations > 0 { return .terminateCancel }
         if CommitWindowModel.activeFileDrops > 0 { return .terminateCancel }

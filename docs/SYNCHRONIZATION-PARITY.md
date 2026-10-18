@@ -1767,3 +1767,10 @@ acceptance remain open.
 [Primary command bands](PRIMARY-COMMAND-BANDS.md) continue the native layout
 with retained control identity and wrapping at constrained widths. The source
 command order and existing behavior remain; full dialog acceptance stays open.
+
+
+## Main inline progress — October 19, 2026
+
+Main Sync replaces its input band during inline commands, retains streamed phase/percentage and a timed colored footer, and separates actual Git completion from later metadata and workflow completion. Dock state follows command outcome while independent worker/release counters keep Quit blocked through actual drain. The source does not persist the main Sync transcript through GitProgressList action logging.
+
+See the [connected progress family](SYNC-ADD-RESOLVE-PROGRESS-PARITY.md) for source distinctions, scoped validation and remaining physical, signed and whole-dialog requirements. This continuation does not certify the whole family or port.

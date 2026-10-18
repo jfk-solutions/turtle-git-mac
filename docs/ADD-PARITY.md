@@ -345,3 +345,10 @@ An Add result refreshes its captured repository's dialogs and updates workspace
 output only while that repository is still current. The existing checklist,
 colored file states, icon menus and normal/executable/symlink progress actions
 remain the native implementation; full Add/progress visual parity remains open.
+
+
+## Notification-list progress — October 19, 2026
+
+Add now has the source Action/Path notification list, original backdrop, timed Finished row, captured file menus, keyboard/menu clipboard formats, kill confirmation, automatic close and action logging. Commit retains the repository grant, preferences and appearance and opens only after the old result, sheets and workers close.
+
+See the [connected progress family](SYNC-ADD-RESOLVE-PROGRESS-PARITY.md) for source distinctions, scoped validation and remaining physical, signed and whole-dialog requirements. This continuation does not certify the whole family or port.

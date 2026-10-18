@@ -36,7 +36,7 @@ public enum MenuIcon: String, CaseIterable {
     case combine = "menucombine"
     case patch = "menupatch", sendMail = "menusendmail"
     case repositoryBrowser = "menurepobrowse", executableOverlay = "executableovl", symlinkOverlay = "symlinkovl", externalOverlay = "externalovl"
-    case repositoryBackdrop = "RepoBrowserBackground", addBackdrop = "AddBackground", revertBackdrop = "RevertBackground"
+    case repositoryBackdrop = "RepoBrowserBackground", addBackdrop = "AddBackground", revertBackdrop = "RevertBackground", resolveBackdrop = "ResolveBackground"
     case lockBackdrop = "LockBackground", unlockBackdrop = "UnlockBackground"
     case compare = "menucompare", unifiedDiff = "menudiff", pull = "pull1", push = "Push", fetch = "menuupdate"
     case branch = "menucopy", tag = "tag", checkout = "menuswitch", merge = "menumerge", mergeAbort = "menumergeabort", rebase = "menurebase"

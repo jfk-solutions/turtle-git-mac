@@ -1621,6 +1621,11 @@
       "asset": "TortoiseMerge.ico",
       "source": "src/Resources/TortoiseMerge.ico",
       "sha256": "a68790ceaae5324677956e6c2ea73f641ccaaf4826b511d1e2028f463713a402"
+    },
+    {
+      "asset": "ResolveBackground.ico",
+      "source": "src/Resources/ResolveBackground.ico",
+      "sha256": "11865f1be86fadac27a755cbee7b0228156529f24399eab6ef7c97b0eebea8c5"
     }
   ]
 }

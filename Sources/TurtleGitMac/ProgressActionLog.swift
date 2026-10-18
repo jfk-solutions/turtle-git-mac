@@ -36,6 +36,7 @@ import TurtleGitCore
 }
 @MainActor protocol ActionLogProgress: AnyObject {
     var actionLogRepository: URL { get }
+    var actionLogOutput: String { get }
     var busy: Bool { get }
     var actionLogFailed: Bool { get }
     var output: String { get }
@@ -43,9 +44,10 @@ import TurtleGitCore
     var actionLogEligible: Bool { get }
 }
 extension ActionLogProgress {
+    var actionLogOutput: String { output }
     var actionLogEligible: Bool { true }
     var actionLogFailed: Bool { false }
-    func saveActionLog() { guard actionLogEligible else { return }; ProgressActionLog.record(owner: self, repository: actionLogRepository, output: output, cancelled: actionLogCancelled, failed: actionLogFailed, notify: !busy) }
+    func saveActionLog() { guard actionLogEligible else { return }; ProgressActionLog.record(owner: self, repository: actionLogRepository, output: actionLogOutput, cancelled: actionLogCancelled, failed: actionLogFailed, notify: !busy) }
 }
 extension CloneProgressWindowModel: ActionLogProgress { var actionLogFailed: Bool { !success }; var actionLogRepository: URL { destination }; var actionLogCancelled: Bool { cancelled } }
 extension FetchProgressWindowModel: ActionLogProgress { var actionLogFailed: Bool { !success }; var actionLogRepository: URL { repository.root }; var actionLogCancelled: Bool { cancelled } }

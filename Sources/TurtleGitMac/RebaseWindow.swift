@@ -255,19 +255,17 @@ import TurtleGitCore
         model.presentConflictAdd={ [weak self] paths,mode,validate in
             guard let self,!self.model.retired,self.conflictAddWindow == nil,let owner=self.window,owner.attachedSheet == nil else {return}
             await withCheckedContinuation { continuation in
-                let child=AddProgressWindowController(repository:repository,access:access,paths:paths,mode:mode)
+                let child=AddProgressWindowController(repository:repository,access:access,paths:paths,mode:mode,preferences:preferences)
+                child.model.externalAvailability={ [weak model=self.model] in model?.retired == false && model?.revisionMenuLog.confirmingQuit == false }
+                child.onProgressLog={ [weak model=self.model] path in guard let model,!model.retired,!model.revisionMenuLog.confirmingQuit else {return};model.onConflictFileLog(path) }
                 child.model.allowsCommit=false;child.model.validateMutation=validate
                 child.model.onFinished={ [weak model=self.model] text,_ in if let model,!model.retired {model.output += text+"\n"} }
-                child.model.close={ [weak child] in
-                    guard let child,!child.model.busy,!child.model.confirmingQuit,let sheet=child.window else {return}
-                    sheet.sheetParent?.endSheet(sheet);sheet.orderOut(nil);child.close()
-                }
                 child.onClosed={ [weak self,weak child] in
                     if let sheet=child?.window {sheet.sheetParent?.endSheet(sheet);sheet.orderOut(nil)}
                     if self?.conflictAddWindow === child {self?.conflictAddWindow=nil};continuation.resume()
                 }
                 self.conflictAddWindow=child;self.configureConflictAdd(child.model)
-                if let sheet=child.window {owner.beginSheet(sheet);child.model.start()} else {child.close()}
+                if let sheet=child.window {sheet.alphaValue=owner.alphaValue;sheet.appearance=owner.effectiveAppearance;owner.beginSheet(sheet);child.model.start()} else {child.close()}
             }
         }
         model.presentConflictIgnore={ [weak self] action,paths,validate in

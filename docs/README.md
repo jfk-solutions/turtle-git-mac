@@ -266,3 +266,5 @@ reviewed full-window light/dark captures.
 - [Trying the local preview](LOCAL-PREVIEW.md): packaged app/ZIP, source manifest and the separate signed Finder channel.
 
 - [EMF+ region and pattern painting](METAFILE-REGION-PATTERN-PARITY.md)
+
+- [Synchronization, Add and Resolve progress](SYNC-ADD-RESOLVE-PROGRESS-PARITY.md)

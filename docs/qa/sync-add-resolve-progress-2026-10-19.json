@@ -1,0 +1,282 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "7c4db13c50aadfd11bc20a7af6ee718cd7452117",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Main Synchronization source running-header replacement, streamed phase/percent, actual-command receipt before metadata, timed colored footer and Dock state",
+    "Shared source Action/Path notification tables, original Add/Resolve backgrounds, captured file menus and source clipboard semantics",
+    "Add cancellation/autoclose/logging and Resolve ordered notifications, captured Commit after actual window/sheet/worker drain, Root/Rebase/Quit ownership"
+  ],
+  "validation": {
+    "core": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "tests": 4,
+        "failures": 0,
+        "scope": "Three real-Git SynchronizationCommandCompletionTests plus one all-icon native-size decoding method",
+        "log": "build/qa/sync-add-resolve-core-2026-10-19.log"
+      }
+    ],
+    "build": [
+      {
+        "attempt": 1,
+        "exit": 65,
+        "log": "build/qa/sync-add-resolve-build-2026-10-19.log",
+        "diagnostic": "Root manually retained generated Xcode entries to avoid unrelated ID churn, but inserted new native helper in Core sources instead of app target. Corrected only target membership; Core checks already passed."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/sync-add-resolve-build-repair-2026-10-19.log",
+        "scope": "Correct app target membership; actual Debug app completed with existing compiler/toolchain warnings."
+      },
+      {
+        "attempt": 3,
+        "scope": "Only repaired Add/Resolve timing consumers and restored XcodeGen-rewritten unrelated original app plist/Finder entitlement",
+        "log": "build/qa/sync-add-resolve-build-timing-2026-10-19.log",
+        "exit": 0
+      }
+    ],
+    "native": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "log": "build/qa/sync-add-resolve-native-2026-10-19.log",
+        "completed_pairs": 0,
+        "failed_case": "sync-inline",
+        "git": "/usr/bin/git",
+        "receiver_pid": 27840,
+        "reaped": true,
+        "diagnostic": "End-of-case raw index byte comparison failed after intentional real Git stash; fixture investigation pending."
+      },
+      {
+        "attempt": 2,
+        "exit": 1,
+        "log": "build/qa/sync-add-resolve-native-repair-2026-10-19.log",
+        "passed_pairs": [
+          [
+            "sync-inline",
+            "/usr/bin/git",
+            28153
+          ],
+          [
+            "sync-inline",
+            "build/git-runtime/Git/bin/git",
+            28361
+          ]
+        ],
+        "failed_case": "add-resolve",
+        "git": "/usr/bin/git",
+        "receiver_pid": 28554,
+        "reaped": true,
+        "diagnostic": "Production Add/Resolve secondary completion text still obeyed ShowGitexeTimings although source Finished notification always includes timing; forced timing in those two actual completion paths. Sync source unchanged and both pairs already passed."
+      },
+      {
+        "attempt": 3,
+        "exit": 1,
+        "log": "build/qa/sync-add-resolve-native-timing-2026-10-19.log",
+        "passed_pairs": [
+          [
+            "add-resolve",
+            "/usr/bin/git",
+            29935
+          ],
+          [
+            "add-resolve",
+            "build/git-runtime/Git/bin/git",
+            30077
+          ]
+        ],
+        "failed_case": "sync-retained",
+        "git": "/usr/bin/git",
+        "receiver_pid": 30200,
+        "reaped": true,
+        "diagnostic": "Retained Stash Shift-option assertion failed after conflict projection; investigating pending owned conflict-row metadata read before dispatch."
+      },
+      {
+        "attempt": 4,
+        "exit": 1,
+        "log": "build/qa/sync-add-resolve-native-retained-2026-10-19.log",
+        "completed_pairs": 0,
+        "failed_case": "sync-retained",
+        "git": "/usr/bin/git",
+        "receiver_pid": 30762,
+        "reaped": true,
+        "diagnostic": "Conflict read readiness repaired without dropping assertions. Next retained fixture assumed Stash progress exists synchronously before existing asynchronous identity preflight; agent repairing related waits together."
+      },
+      {
+        "attempt": 5,
+        "exit": 1,
+        "log": "build/qa/sync-add-resolve-native-retained-preflight-2026-10-19.log",
+        "failed_case": "sync-retained",
+        "git": "/usr/bin/git",
+        "receiver_pid": 31423,
+        "reaped": true,
+        "diagnostic": "Fixture readiness helper awaited canEditForm without invoking the manually constructed child's required prepare(). Root corrected helper to call real prepare when not already prepared/preparing; existing assertions unchanged."
+      },
+      {
+        "attempt": 6,
+        "exit": 0,
+        "log": "build/qa/sync-add-resolve-native-retained-ready-2026-10-19.log",
+        "passed_pairs": [
+          [
+            "sync-retained",
+            "/usr/bin/git",
+            32079
+          ],
+          [
+            "sync-retained",
+            "build/git-runtime/Git/bin/git",
+            33045
+          ],
+          [
+            "resolve-retained",
+            "/usr/bin/git",
+            34016
+          ],
+          [
+            "resolve-retained",
+            "build/git-runtime/Git/bin/git",
+            34086
+          ],
+          [
+            "add-list-retained",
+            "/usr/bin/git",
+            34153
+          ],
+          [
+            "add-list-retained",
+            "build/git-runtime/Git/bin/git",
+            34194
+          ]
+        ],
+        "reaped": true,
+        "scope": "Only three remaining cases; no repetition of passing new Sync/AddResolve pairs or Core after fixture-only changes."
+      }
+    ],
+    "status": "Scoped Core, Debug app and ten distinct native case/engine pairs passed. Complete hosted, physical and signed acceptance remain open.",
+    "distinct_passed_native_pairs": 10,
+    "unusable_captures_not_published": true,
+    "cleanup": [
+      {
+        "pid": 27840,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 28153,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 28361,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 28554,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 29935,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 30077,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 30200,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 30762,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 31423,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 32079,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 33045,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 34016,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 34086,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 34153,
+        "pid_absent": true,
+        "pgid_absent": true
+      },
+      {
+        "pid": 34194,
+        "pid_absent": true,
+        "pgid_absent": true
+      }
+    ],
+    "resources": {
+      "localizations": {
+        "languages": 38,
+        "keys": 1292,
+        "check_exit": 0
+      },
+      "help": {
+        "documents": 40,
+        "topics": 49,
+        "files": 60,
+        "check_exit": 0
+      },
+      "coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_controls": 1566,
+        "pending_control_reviews": 93,
+        "completion_percentage": false
+      },
+      "site": {
+        "documents": 340,
+        "unresolved_fragments": [],
+        "exit": 0
+      }
+    }
+  },
+  "remaining": [
+    "Complete upstream dialog layout and physical input/VoiceOver acceptance",
+    "Physical Dock and installed signed Finder integration",
+    "All upstream status engines and full hosted integration",
+    "Signed App Store distribution",
+    "Atomic Add publishes successful file notifications after index acceptance rather than speculative incremental source-engine events"
+  ],
+  "unrelated_wip_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ],
+  "captures": {
+    "kind": "Hidden NSView cacheDisplay native content",
+    "published": false,
+    "reason": "Viewed four Sync PNGs: SwiftUI composited labels/background absent or masked; unsuitable for visual parity/site publication. No additional screenshot acceptance claimed."
+  }
+}

@@ -329,3 +329,10 @@ repairs. Windows HWND refresh messages, process exit status, arbitrary invalid
 UTF-8 names, physical source geometry/keyboard/VoiceOver/theme comparison and
 current real sandbox/Finder/App Store acceptance remain open. This continuation
 does not certify every Resolve dialog or the complete port.
+
+
+## Notification-list progress — October 19, 2026
+
+Resolve now drains ordered file notifications into the source Action/Path progress list before adding its timed Finished row. File menus and action logs retain their producing attempt. Commit retains the captured repository grant, preferences and appearance and waits for actual result-window/sheet/worker closure. Cancellation question replies also wait for sheet detachment.
+
+See the [connected progress family](SYNC-ADD-RESOLVE-PROGRESS-PARITY.md) for source distinctions, scoped validation and remaining physical, signed and whole-dialog requirements. This continuation does not certify the whole family or port.
