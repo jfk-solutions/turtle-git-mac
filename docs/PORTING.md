@@ -1,5 +1,11 @@
 # TurtleGit for Mac — full port tracking
 
+The [captured Settings sheet family](SETTINGS-SHEET-PARITY.md) repairs real
+Close/OK/Cancel across Rebase, Git Properties and Unified Diff. It preserves
+captured preferences, property drafts and queued dirty-document decisions through
+actual sheet detachment. [Batch evidence](qa/settings-sheets-2026-10-18.json)
+records grouped native checks and remaining physical, hosted and signed gates.
+
 The connected [Resolve review/automation family](RESOLVE-PARITY.md#resolve-command-modes-and-shared-ownership--october-18-2026)
 adds all four `silent`/`noquestion` entry modes, literal force-staging with first
 failure/cancellation semantics, source side-file cleanup, retained reviews and

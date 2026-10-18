@@ -641,3 +641,7 @@ Undo/Redo across saves. The document session captures immutable bytes plus their
 accepted display before any chooser/write. Earlier whole-file codepage and dirty
 NUL limitations are superseded within this documented scope; unknown projections,
 all physical Scintilla gestures and signed acceptance remain open.
+
+The connected [captured Settings sheet family](SETTINGS-SHEET-PARITY.md) shares
+guarded Close/OK/Cancel and actual-detachment ownership across Properties,
+Unified Diff and Rebase, preserving their original preferences and pending work.

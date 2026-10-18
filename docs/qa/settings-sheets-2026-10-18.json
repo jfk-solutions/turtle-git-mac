@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "a33dfa8700b3baaeb063dc5a1024f254133888fa",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Shared captured Settings sheet lifecycle for Rebase identity, Git Properties and Unified Diff",
+    "Original private preferences and repository/access retention",
+    "Real footer/explicit close, held-save refusal, actual-detachment accounting and Quit fencing",
+    "Property draft preservation and queued dirty-document replacement/retirement"
+  ],
+  "validation": {
+    "debug_build": {
+      "log": "settings-sheets-build-2026-10-18.log",
+      "exit": 0,
+      "diagnostics": "Existing actor-isolation warnings, simulator-version warning and SwiftCompile exit-code-0/no-output diagnostic lines were emitted; xcodebuild returned 0. Native receivers link current app objects."
+    },
+    "core": "Not rerun: no Core implementation changes in this native-only connected batch.",
+    "native": {
+      "status": "passed",
+      "log": "settings-sheets-native-2026-10-18.log",
+      "planned_cases": [
+        "properties",
+        "patch",
+        "replay",
+        "properties-retained",
+        "document-retained"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "exit": 0,
+      "distinct_case_engine_receipts": 10,
+      "scope": "Five real/retained caller workflows with each engine. No native failures or repeats."
+    },
+    "failures": [
+      {
+        "kind": "documentation environment",
+        "log": "settings-sheets-site-2026-10-18.log",
+        "reason": "System Python lacks markdown_it; use existing build/site-venv Python for the affected docs checks. No app or test behavior changed."
+      }
+    ],
+    "resources": {
+      "languages": 38,
+      "keys": 1289,
+      "write_exit": 0,
+      "check_exit": 0
+    },
+    "documentation": {
+      "coverage_write_exit": 0,
+      "coverage_check_exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1566,
+      "pending_control_reviews": 93,
+      "site_build_exit": 0,
+      "site_documents": 310,
+      "unresolved_fragments": [],
+      "site_link_cases": 2,
+      "site_link_exit": 0,
+      "log": "settings-sheets-site-affected-2026-10-18.log",
+      "scope": "Audit mappings are not feature completion percentages."
+    }
+  },
+  "ownership": {
+    "presentation": "Activation prohibited; parent and child alpha zero; no capture environment. Private repositories and preference suites. run_receiver terminates and reaps only owned process groups on every outcome.",
+    "recorded_receiver_pids": [
+      98152,
+      98188,
+      98218,
+      98233,
+      98247,
+      98362,
+      98477,
+      98568,
+      98713,
+      98734
+    ],
+    "recorded_receiver_count": 10,
+    "all_recorded_receivers_absent": true
+  },
+  "limitations": [
+    "No physical mouse/keyboard/VoiceOver certification",
+    "No complete hosted CI result or Intel/minimum-macOS result",
+    "No signed Finder, permission, deployment or App Store certification",
+    "No claim of visual/source parity for every Settings page or full application completion"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/SettingsSheetController.swift": "5eae9553af614ba9da1c85f60ac6d5eb3b028c0e8dbe0a9d22fd6a0042aa9d7a",
+    "Sources/TurtleGitMac/GitPropertiesWindow.swift": "92c6897ae9ef0c73efff21d52e3235dac4d265d02f5e3a9c3462ee4bf6756175",
+    "Sources/TurtleGitMac/PatchDocumentSession.swift": "2f1ef5c999f61111ace7a37e9884e7f93afcb53cba38ce664c37669529498bb3",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "676d48e3d669e871285375733a222cf24a450cbcfca31c404283890b4d880a2f",
+    "docs/qa/settings-sheet-family-native-2026-10-18.swift": "cbc4493cae84fa28a6b95488c477477bc5db752ce5716b5c83a0e78159eabeb0"
+  }
+}

@@ -11,7 +11,7 @@ import TurtleGitCore
     private var revisionFilePresenter:RevisionFileActionPresenter?
     var onClosed: () -> Void = {}
     private var replayQuestion: (UUID, NSAlert, (Int) -> Void)?
-    private var identitySettings: ReplayIdentitySettingsController?
+    private var identitySettings: SettingsSheetController?
     var replayIdentitySettingsWindow: NSWindow? { identitySettings?.window }
     var replayIdentityNavigation: SettingsNavigationController? { identitySettings?.navigation }
     private(set) var conflictBaseViewer: FileComparisonWindowController?
@@ -263,8 +263,9 @@ import TurtleGitCore
     /// the four values again, and may offer this repair again as upstream does.
     func showReplayIdentitySettings() async -> Bool {
         guard !model.retired, identitySettings == nil, let window, window.attachedSheet == nil else { return false }
-        let child = ReplayIdentitySettingsController(repository: model.repository, access: model.repositoryAccess, preferences: model.columnPreferences)
-        child.window?.alphaValue = window.alphaValue
+        let workspace = RepositoryModel(startMonitoring: false, initializePreferences: false)
+        workspace.root = model.repository.root; workspace.settingsContextOverride = (model.repository, model.repositoryAccess, true)
+        let child = SettingsSheetController(workspace: workspace, preferences: model.columnPreferences, initialPage: .git, title: "Settings – TurtleGit for Mac")
         identitySettings = child; model.hasReplayQuestion = true
         return await withCheckedContinuation { continuation in
             child.onClosed = { [weak self, weak child] accepted in
@@ -2261,72 +2262,5 @@ struct RebaseConflictFileKeys: NSViewRepresentable {
             }
             return event
         }
-    }
-}
-
-
-@MainActor private final class ReplayIdentitySettingsController: NSWindowController, NSWindowDelegate {
-    let navigation: SettingsNavigationController
-    private let workspace: RepositoryModel
-    var onClosed: (Bool) -> Void = { _ in }
-    private var retired = false, finished = false, closing = false
-    private weak var sheetOwner: NSWindow?
-    private var sheetObserver: NSObjectProtocol?
-    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults) {
-        workspace = RepositoryModel(startMonitoring: false, initializePreferences: false)
-        workspace.root = repository.root; workspace.settingsContextOverride = (repository, access, true)
-        navigation = SettingsNavigationController(workspace: workspace, appearance: AppAppearance(), preferences: preferences, initialPage: .git)
-        let window = ReplayIdentitySettingsWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 740), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false; window.title = "Settings – TurtleGit for Mac"; window.contentMinSize = NSSize(width: 860, height: 540)
-        super.init(window: window); window.delegate = self; window.contentViewController = navigation
-        window.canClose = { [weak self] in self.map { !$0.retired && !$0.closing && !$0.finished && $0.navigation.canDismiss } ?? false }
-    }
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    func presentSheet(for owner: NSWindow) {
-        guard let window, !closing, !finished else { return }
-        sheetOwner = owner
-        sheetObserver = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification, object: owner, queue: .main) { [weak self] _ in
-            DispatchQueue.main.async { self?.drain() }
-        }
-        owner.beginSheet(window)
-    }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { navigation.canDismiss }
-    func windowWillClose(_ notification: Notification) { finish() }
-    func retire() {
-        guard !finished else { return }; retired = true
-        if !closing { close() }
-        finish()
-    }
-    private func finish() {
-        guard !finished else { return }
-        if !closing {
-            closing = true; navigation.invalidate()
-            if let window { window.sheetParent?.endSheet(window, returnCode: retired ? .abort : .OK); window.orderOut(nil) }
-        }
-        // Keep the transaction/window/continuation through AppKit's actual sheet
-        // release. The source repair loop can immediately need another question.
-        DispatchQueue.main.async { [self] in drain() }
-    }
-    private func drain() {
-        guard closing, !finished, window?.sheetParent == nil, sheetOwner?.attachedSheet !== window else { return }
-        finished = true
-        if let sheetObserver { NotificationCenter.default.removeObserver(sheetObserver); self.sheetObserver = nil }
-        let reply = onClosed; onClosed = { _ in }
-        reply(!retired && sheetOwner != nil && sheetOwner?.attachedSheet == nil)
-        withExtendedLifetime(workspace) {}
-    }
-    deinit { if let sheetObserver { NotificationCenter.default.removeObserver(sheetObserver) } }
-}
-
-
-/// AppKit disables an attached sheet's title-bar close button. Its ordinary
-/// performClose therefore refuses even the Settings footer's OK/Cancel action.
-/// This owned sheet keeps the same transaction/delegate policy while allowing
-/// those explicit close actions to finish their existing handoff.
-@MainActor private final class ReplayIdentitySettingsWindow: NSWindow {
-    var canClose: () -> Bool = { false }
-    override func performClose(_ sender: Any?) {
-        guard canClose(), delegate?.windowShouldClose?(self) != false else { return }
-        close()
     }
 }

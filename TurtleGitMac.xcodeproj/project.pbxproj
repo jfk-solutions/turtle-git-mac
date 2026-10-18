@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BE462FE53C0B4B66B33BB003 /* SettingsSheetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE462FE53C0B4B66B33BB004 /* SettingsSheetController.swift */; };
 		BE462FE53C0B4B66B33BB001 /* HistoryContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE462FE53C0B4B66B33BB002 /* HistoryContextMenu.swift */; };
 		9D9CD3871BA00B95799144DB /* WorkspaceOpenHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = F683B62C4ED5B1A44ABABE5B /* WorkspaceOpenHandoff.swift */; };
 		E7EE2E498E66943F441996F1 /* MergeToolPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D232D8E07E63FE16A8D390A /* MergeToolPresentation.swift */; };
@@ -531,6 +532,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		BE462FE53C0B4B66B33BB004 /* SettingsSheetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheetController.swift; sourceTree = "<group>"; };
 		BE462FE53C0B4B66B33BB002 /* HistoryContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryContextMenu.swift; sourceTree = "<group>"; };
 		F683B62C4ED5B1A44ABABE5B /* WorkspaceOpenHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceOpenHandoff.swift; sourceTree = "<group>"; };
 		5D232D8E07E63FE16A8D390A /* MergeToolPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeToolPresentation.swift; sourceTree = "<group>"; };
@@ -1168,6 +1170,7 @@
 				53A34FF11AFBC8CA0823CFB5 /* SendPatchList.swift */,
 				6823801F16A03836426285A5 /* SendPatchWindow.swift */,
 				8F4B173754C0AE48CB0FAAF8 /* SettingsNavigation.swift */,
+				BE462FE53C0B4B66B33BB004 /* SettingsSheetController.swift */,
 				B07F1FB47DC4A875FEE5ECD4 /* SettingsTransaction.swift */,
 				1018E4684A7F74369EE313B3 /* SSHAuthenticationStore.swift */,
 				7D861E87DCA7F3D938BFDF07 /* SSHKeyGenerationWindow.swift */,
@@ -2257,6 +2260,7 @@
 				EF9005F8A36E739565A165F7 /* SendPatchList.swift in Sources */,
 				EC51E4CE03738676EE135A62 /* SendPatchWindow.swift in Sources */,
 				7A77EBE205DF3100F7F1D1ED /* SettingsNavigation.swift in Sources */,
+				BE462FE53C0B4B66B33BB003 /* SettingsSheetController.swift in Sources */,
 				2F166DC70EEE317B9A6F3FF2 /* SettingsTransaction.swift in Sources */,
 				20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */,
 				7C3A58D7BEF989C5FE0D1C4D /* StashWindow.swift in Sources */,

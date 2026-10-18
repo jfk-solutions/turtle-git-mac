@@ -18,7 +18,7 @@ struct GitPropertiesContext {
     @Published var hasSettings = false
     @Published var error: String?
     private(set) var retired = false
-    private let preferences: UserDefaults
+    let preferences: UserDefaults
     private let invocationContexts: [GitPropertiesContext]
     private let requiresScopes: Bool
     private var generation = 0
@@ -144,8 +144,9 @@ struct GitPropertiesContext {
 @MainActor final class GitPropertiesWindowController: NSWindowController, NSWindowDelegate {
     let model: GitPropertiesWindowModel
     var onClosed: () -> Void = {}
-    private var settings: (window:NSWindow, navigation:SettingsNavigationController, workspace:RepositoryModel)?
-    private var settingsObserver: NSObjectProtocol?
+    private var settings: SettingsSheetController?
+    var settingsWindow: NSWindow? { settings?.window }
+    var settingsNavigation: SettingsNavigationController? { settings?.navigation }
     init(contexts: [GitPropertiesContext], preferences: UserDefaults = .standard, requiresScopes: Bool = GitRuntime.isAppStoreBuild) {
         model = GitPropertiesWindowModel(contexts:contexts,preferences:preferences,requiresScopes:requiresScopes)
         let window = NSWindow(contentRect:NSRect(x:0,y:0,width:680,height:680),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
@@ -164,8 +165,7 @@ struct GitPropertiesContext {
     func windowShouldClose(_ sender:NSWindow) -> Bool { !model.busy && !model.hasSettings && sender.attachedSheet == nil }
     func windowWillClose(_ notification:Notification) {
         model.retire()
-        if let child = settings { child.navigation.invalidate(); window?.endSheet(child.window); child.window.close() }
-        if let settingsObserver { NotificationCenter.default.removeObserver(settingsObserver) }; settingsObserver = nil; settings = nil
+        settings?.retire()
         onClosed()
     }
     private func showSettings(_ context:GitPropertiesContext) {
@@ -173,19 +173,14 @@ struct GitPropertiesContext {
         let workspace = RepositoryModel(startMonitoring:false,initializePreferences:false)
         workspace.root = context.repository.root
         workspace.settingsContextOverride = (context.repository,context.access,true)
-        let navigation = SettingsNavigationController(workspace:workspace,appearance:AppAppearance())
-        let child = NSWindow(contentRect:NSRect(x:0,y:0,width:980,height:700),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
-        child.title = "Settings – " + context.repository.root.lastPathComponent; child.isReleasedWhenClosed = false; child.contentViewController = navigation
-        settings = (child,navigation,workspace); model.hasSettings = true
-        settingsObserver = NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:child,queue:.main) { [weak self,weak child] _ in
-            MainActor.assumeIsolated {
-                guard let self, self.settings?.window === child else { return }
-                if let child { self.window?.endSheet(child); child.orderOut(nil) }
-                self.settings?.navigation.invalidate(); self.settings = nil; self.model.hasSettings = false
-                if let token = self.settingsObserver { NotificationCenter.default.removeObserver(token) }; self.settingsObserver = nil
-            }
+        let child = SettingsSheetController(workspace: workspace, preferences: model.preferences, initialPage: .general,
+            title: "Settings – " + context.repository.root.lastPathComponent, contentSize: NSSize(width: 980, height: 700))
+        settings = child; model.hasSettings = true
+        child.onClosed = { [weak self, weak child] _ in
+            guard let self, self.settings === child else { return }
+            self.settings = nil; self.model.hasSettings = false
         }
-        window.beginSheet(child)
+        child.presentSheet(for: window)
     }
 }
 private struct GitPropertiesDialog: View {

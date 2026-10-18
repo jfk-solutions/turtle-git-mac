@@ -32,9 +32,9 @@ import UniformTypeIdentifiers
     private var replacing = false
     private var updates: AnyCancellable?
     private(set) var reviewWorkflow: ReviewPatchWorkflow?
-    private(set) var settingsWindow: NSWindow?
-    private(set) var settingsNavigation: SettingsNavigationController?
-    private var settingsObserver: NSObjectProtocol?
+    private var settings: SettingsSheetController?
+    var settingsWindow: NSWindow? { settings?.window }
+    var settingsNavigation: SettingsNavigationController? { settings?.navigation }
     var configureReview: (ReviewPatchWorkflow) -> Void = { _ in }
     var presentReview: (ReviewPatchWorkflow) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
 
@@ -168,22 +168,16 @@ import UniformTypeIdentifiers
         guard enabled, !working, let owner, !owner.model.busy, !owner.model.confirmingQuit, owner.model.error == nil, let window = owner.window, window.attachedSheet == nil else { return }
         let preferences = owner.model.appearancePreferences
         let workspace = RepositoryModel(startMonitoring: false, initializePreferences: false)
-        let navigation = SettingsNavigationController(workspace: workspace, appearance: AppAppearance(preferences: preferences), globalOnly: true, preferences: preferences, initialPage: .unifiedDiff)
-        let child = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 740), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        child.isReleasedWhenClosed = false; child.contentMinSize = NSSize(width: 980, height: 700)
-        child.title = "Unified Diff Settings – TurtleGit"; child.contentViewController = navigation
-        settingsWindow = child; settingsNavigation = navigation; owner.model.busy = true
-        settingsObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: child, queue: .main) { [weak self, weak child] _ in
-            MainActor.assumeIsolated {
-                guard let self, self.settingsWindow === child else { return }
-                if let child { self.owner?.window?.endSheet(child); child.orderOut(nil) }
-                self.settingsNavigation?.invalidate(); self.settingsNavigation = nil; self.settingsWindow = nil
-                self.owner?.model.busy = false
-                if let token = self.settingsObserver { NotificationCenter.default.removeObserver(token) }; self.settingsObserver = nil
-                self.pumpReplacement()
-            }
+        let child = SettingsSheetController(workspace: workspace, preferences: preferences, initialPage: .unifiedDiff,
+            title: "Unified Diff Settings – TurtleGit", globalOnly: true, minimumSize: NSSize(width: 980, height: 700))
+        settings = child; owner.model.busy = true
+        child.onClosed = { [weak self, weak child] _ in
+            guard let self, self.settings === child else { return }
+            self.settings = nil
+            guard !self.retired else { return }
+            self.owner?.model.busy = false; self.pumpReplacement()
         }
-        window.beginSheet(child)
+        child.presentSheet(for: window)
     }
     func resolveChanges() async -> Bool {
         guard !retired, let owner, !owner.model.busy, let window = owner.window, window.attachedSheet == nil else { return false }
@@ -256,11 +250,10 @@ import UniformTypeIdentifiers
     }
     func retire() {
         guard !retired else { return }; retired = true; generation += 1; cancellation?.cancel()
-        if let window = owner?.window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.close() }
+        settings?.retire()
+        if let window = owner?.window, let sheet = window.attachedSheet, sheet !== settingsWindow { window.endSheet(sheet, returnCode: .cancel); sheet.close() }
         pendingReplacement = nil; updates = nil
         reviewWorkflow?.cancel(); reviewWorkflow = nil
-        settingsNavigation?.invalidate(); settingsWindow?.close(); settingsNavigation = nil; settingsWindow = nil
-        if let token = settingsObserver { NotificationCenter.default.removeObserver(token) }; settingsObserver = nil
         fileAccess = nil
     }
 }

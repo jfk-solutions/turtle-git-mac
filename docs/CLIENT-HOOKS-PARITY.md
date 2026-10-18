@@ -166,3 +166,7 @@ through actual parent/child sheet detachment, including forced parent retirement
 The invisible fixture exercises Close, real OK/Cancel footer dispatch, held-save
 refusal and late-reader drain with both Git engines. This fixes that owned sheet;
 it is not a claim about every Settings host or signed platform behavior.
+
+The connected [captured Settings sheet family](SETTINGS-SHEET-PARITY.md) shares
+guarded Close/OK/Cancel and actual-detachment ownership across Properties,
+Unified Diff and Rebase, preserving their original preferences and pending work.

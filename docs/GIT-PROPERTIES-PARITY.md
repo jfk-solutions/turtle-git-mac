@@ -105,3 +105,7 @@ performance benchmark.
 Validation results and limitations are recorded in the dated
 [batch evidence](qa/git-properties-parents-2026-10-15.json). Native scope tests use
 injected lease providers; they do not establish signed App Store acceptance.
+
+The connected [captured Settings sheet family](SETTINGS-SHEET-PARITY.md) shares
+guarded Close/OK/Cancel and actual-detachment ownership across Properties,
+Unified Diff and Rebase, preserving their original preferences and pending work.
