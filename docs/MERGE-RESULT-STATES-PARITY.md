@@ -276,3 +276,12 @@ adds attached result-owner gates and synchronous result color/fold/ruler install
 across native edits and Undo/Redo. Seven grouped native cases pass, including
 immediate metadata/colors, whole-source stale-menu and detach/reattach checks.
 The hosted conflict-menu Undo failure still requires a current hosted result.
+
+
+## Independent three-way hide metadata — October 19, 2026
+
+The [three-way continuation](MERGE-THREE-WAY-HIDE-PARITY.md) corrects normalized
+common row colors and retains independent hide flags through result runs,
+projection, source choices and Undo/Redo. State promotion for ignored conflicts
+preserves its original Hidden/Shown value. Folding follows the result flags,
+while Save warnings and unresolved-conflict gates continue to use conflict state.

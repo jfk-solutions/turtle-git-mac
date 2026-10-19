@@ -357,6 +357,14 @@ restores its unresolved state even when choosing Mine did not change any bytes.
 Choosing a side counts as a modified result until saved, including that same-byte
 Mine choice, so Close and Quit still offer to save it. Save warns while such conflicts remain; Mark as resolved stays unavailable.
 
+Common rows in a three-way merge keep their normal colors even when whitespace,
+case, comment or regex options make their original text compare equal. Collapse
+uses separate visibility metadata shared by all three panes. It can hide a common
+ignored conflict; **Continue resolving conflicts** reveals it for an explicit
+choice. Collapsing or expanding a row does not resolve or save it. Source block
+choices retain the copied visibility, while newly typed result rows remain shown.
+
+
 
 When first-difference navigation is enabled, Compare opens with the first state
 block selected, including neutral rows in combined view. Block transfer commands

@@ -95,3 +95,14 @@ compilation/process. They verify Cancel versus successful persistence, option
 choices and the existing native editing/save/cancellation paths. Settings controls
 compiled; their physical Apply/Cancel interaction remains unverified. All owned
 windows/helpers exited. See `qa/comparison-options-2026-10-12.json`.
+
+
+## Three-way common rows and independent visibility — October 19, 2026
+
+The [three-way state/visibility continuation](MERGE-THREE-WAY-HIDE-PARITY.md)
+keeps normalized common merge rows Normal + Hidden rather than assigning the
+two-way green filtered role. Ignored conflicts promote state without discarding
+source hide flags. Explicit flags survive result projection, source choices,
+manual edits and document history; result-led folding synchronizes all panes.
+The two-way authoritative presentation was already correct and is retained.
+See the continuation and its checkpoint for actual checks and remaining limits.

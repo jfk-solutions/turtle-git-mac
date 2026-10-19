@@ -429,25 +429,33 @@ private enum MergeSourceSide {
         folding.setCollapsed(value); resultFolding.setCollapsed(value)
     }
     func updateFolding() {
-        let result = alignedResultProjection?.cells
-        folding.update(unchanged: sourceComparison?.rows.enumerated().map { row,source in
-            source.mine.state.isUnchanged && source.theirs.state.isUnchanged && (result == nil || result!.indices.contains(row) && result![row].state.isUnchanged)
-        } ?? [])
+        // DiffData::HideUnchangedSections starts with the result's independent
+        // HideState and synchronizes the source panes. Color alone cannot tell
+        // an ignored common conflict from an explicitly shown changed record.
+        if let cells = alignedResultProjection?.cells {
+            folding.update(unchanged: cells.map(\.hiddenByComparison))
+        } else {
+            let hidden = resultPresentation.hiddenByComparison()
+            let mapping = resultPresentation.foldAnchors.resultRows(in: result)
+            folding.update(unchanged: sourceComparison?.rows.indices.map { row in
+                guard let resultRow = mapping[row], hidden.indices.contains(resultRow) else { return false }
+                return hidden[resultRow]
+            } ?? [])
+        }
         synchronizeResultFolding()
     }
     private func synchronizeResultFolding() {
         if let projection = alignedResultProjection {
-            resultFolding.install(visibility:projection.cells.indices.map { row in
-                let unchanged = projection.cells[row].state.isUnchanged
-                return unchanged && folding.folding.visibility.indices.contains(row) ? folding.folding.visibility[row] : .shown
+            resultFolding.install(visibility: projection.cells.indices.map { row in
+                folding.folding.visibility.indices.contains(row) ? folding.folding.visibility[row] : .shown
             })
             return
         }
-        let states = resultStates
+        let hidden = resultPresentation.hiddenByComparison()
         let mapping = resultPresentation.foldAnchors.resultRows(in: result)
-        var visibility = Array(repeating: MergeFolding.Visibility.shown, count: states.count)
-        for (source, row) in mapping where folding.folding.visibility.indices.contains(source) && states.indices.contains(row) {
-            if states[row] == .normal || states[row] == .filtered { visibility[row] = folding.folding.visibility[source] }
+        var visibility = Array(repeating: MergeFolding.Visibility.shown, count: hidden.count)
+        for (source, row) in mapping where folding.folding.visibility.indices.contains(source) && hidden.indices.contains(row) {
+            if hidden[row] { visibility[row] = folding.folding.visibility[source] }
         }
         // If an edit invalidates the original marker anchor, retain an
         // expandable marker at the start of the surviving hidden result run.
@@ -1215,7 +1223,7 @@ private enum MergeSourceSide {
                 mergeToolInitialLoad = false
             }
         }
-        document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.generatedResult, states: comparison.resultLocator?.states ?? [], foldAnchors: .init(offsets: comparison.resultAnchors), ignoredConflicts: comparison.ignoredConflicts, navigationMap: comparison.navigationMap).reconciling(next.initialResult); result = next.initialResult; encoding = next.encoding
+        document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.generatedResult, comparison: comparison).reconciling(next.initialResult); result = next.initialResult; encoding = next.encoding
         savedIgnoredConflicts = resultPresentation.ignoredConflicts
         savedSourceChoiceRevision = resultPresentation.sourceChoiceRevision
         resultLineEnding = MergeLineEndings.predominantStyle(in:next.mine); savedResultLineEnding = resultLineEnding

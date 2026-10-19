@@ -54,3 +54,33 @@ final class MergeResultPresentationTests: XCTestCase {
         XCTAssertEqual(matches.map(\.location),[0,14])
     }
 }
+
+extension MergeResultPresentationTests {
+    func testEqualResultStatesKeepIndependentVisibilityRunsAndUntouchedFlags() throws {
+        let original = MergeResultPresentation(text: "first 🐢\r\nshown\r\nlast", states: [.normal, .normal, .normal], hiddenByComparison: [true, false, true])
+        XCTAssertEqual(original.runs.count, 3, "Equal state must not merge different source hide flags")
+        XCTAssertEqual(original.hiddenByComparison(), [true, false, true])
+        let changed = try XCTUnwrap(original.replacing((original.text as NSString).range(of: "shown"), with: "manual"))
+        XCTAssertEqual(changed.states(conflicts: []), [.normal, .edited, .normal])
+        XCTAssertEqual(changed.hiddenByComparison(), [true, false, true])
+        let resolved = try XCTUnwrap(original.replacing((original.text as NSString).range(of: "first 🐢"), with: "picked 🐢", state: .resolved))
+        XCTAssertEqual(resolved.states(conflicts: []), [.resolved, .normal, .normal])
+        XCTAssertEqual(resolved.hiddenByComparison(), [false, false, true])
+        XCTAssertEqual(original.hiddenByComparison(), [true, false, true])
+        XCTAssertEqual(original.text, "first 🐢\r\nshown\r\nlast")
+    }
+}
+
+
+extension MergeResultPresentationTests {
+    func testRecordedAndInferredHideMetadataCannotShareAProjectionCacheIdentity() throws {
+        let cell = MergeSourceCell(text: "x\n", lineNumber: 1, state: .normal, hiddenByComparison: false)
+        let map = MergeNavigationMap(entries: [.init(sourceRows: 0..<1, resultRange: NSRange(location: 0, length: 2))])
+        let source = MergeSourceComparison(rows: [.init(mine: cell, theirs: cell)], navigationMap: map, alignedResultRows: [cell])
+        let inferred = MergeResultPresentation(text: "x\n", states: [.normal], navigationMap: map)
+        let recorded = MergeResultPresentation(text: "x\n", states: [.normal], hiddenByComparison: [true], navigationMap: map)
+        XCTAssertNotEqual(inferred, recorded, "The same state can have different checked hide provenance")
+        XCTAssertFalse(try XCTUnwrap(MergeAlignedResultProjection(comparison: source, presentation: inferred)).cells[0].hiddenByComparison)
+        XCTAssertTrue(try XCTUnwrap(MergeAlignedResultProjection(comparison: source, presentation: recorded)).cells[0].hiddenByComparison)
+    }
+}

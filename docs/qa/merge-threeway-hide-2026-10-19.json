@@ -1,0 +1,160 @@
+{
+  "date": "2026-10-19",
+  "family": "Three-way common record classification and independent hide metadata",
+  "implementation_base": "abff567bd3f3bd4c3a420f396477d6b287f0dc9e",
+  "pinned_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": [
+    "TortoiseMerge/DiffData.cpp:705-716 common Normal + Hidden",
+    "TortoiseMerge/DiffData.cpp:905 latest unchanged Mine Shown",
+    "TortoiseMerge/DiffData.cpp:940 modified unchanged Theirs Hidden",
+    "TortoiseMerge/DiffData.cpp:969-1008 ignored conflict state-only promotion",
+    "TortoiseMerge/DiffData.cpp:1014 HideUnchangedSections result-led synchronization",
+    "TortoiseMerge/ViewData.h::SetState",
+    "TortoiseMerge/BottomView.cpp::UseBlock complete viewdata copies"
+  ],
+  "implementation": [
+    "Three-way common rows retain Normal instead of deriving two-way FilteredDiff from unequal original bytes",
+    "Ignored conflict state promotion retains independent common/identical-added hide flags",
+    "Explicit asymmetric partner-row flags and result-led synchronized folding",
+    "Source-aware result runs retain UTF-16 hide provenance through aligned and serialized projections",
+    "Edits, formatting, copied source choices and history preserve untouched flags; typed records shown; resolved source copies retain copied flags",
+    "Visible-block navigation retained; Continue resolving reveals hidden ignored conflicts; unresolved Save and staging gates remain"
+  ],
+  "validation": [
+    {
+      "scope": "Relevant Core group: SubversionMergePresentationTests, MergeResultPresentationTests, MergeSourceBlockEditTests",
+      "status": "passed",
+      "executed": 59,
+      "failures": 0,
+      "duration_seconds": 3.359,
+      "new_methods": 6,
+      "log": "build/qa/merge-threeway-hide-core-2026-10-19.log"
+    },
+    {
+      "scope": "Help and locale resource consistency",
+      "status": "passed",
+      "details": {
+        "help_documents": 42,
+        "help_topics": 50,
+        "help_files": 62,
+        "localization_languages": 38,
+        "localization_keys": 1299
+      },
+      "limit": "Resource counts do not claim complete localization or port parity"
+    },
+    {
+      "scope": "Initial Debug app build",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/merge-threeway-hide-app-build-2026-10-19.log",
+      "diagnostics": "Local SDK emitted known misleading failed-with-exit-code-0 messages alongside warnings; enclosing xcodebuild exit was 0"
+    },
+    {
+      "scope": "Initial grouped native attempt, options/system Git",
+      "status": "failed",
+      "owned_receiver_pid": 7023,
+      "log": "build/qa/merge-threeway-hide-native-2026-10-19.log",
+      "finding": "Immediate text-storage hide assertion ran after model visibility publication but before all native attributed snapshots settled",
+      "repair": "Await actual hidden attributes in all three panes before retaining the same per-pane assertions; no timeout/assertion relaxed"
+    },
+    {
+      "scope": "Native options/system Git after awaiting attributed presentation",
+      "status": "failed",
+      "log": "build/qa/merge-threeway-hide-native-repair-2026-10-19.log",
+      "finding": "Actual native colors and all-pane hidden attributes passed; combined preservation assertion assumed standalone generated merge starts clean although a Theirs-only change already requires saving",
+      "repair": "Capture initial dirty/Undo flags and require exact preservation through collapse and Undo; keep source/result/flag equality assertions"
+    },
+    {
+      "scope": "Focused native options family, system Git",
+      "status": "failed",
+      "log": "build/qa/merge-threeway-hide-native-options-final-2026-10-19.log",
+      "passed_matrix_members": [
+        "whitespace",
+        "endings",
+        "case",
+        "comments"
+      ],
+      "finding": "Regex selection encountered the existing dirty standalone Save/reload guard; fixture had not supplied its available chooseReload response, so the old exact presentation remained",
+      "repair": "Inject discard for this private reload and await actual selected regex publication; all original Normal/Hidden/color/byte assertions retained"
+    },
+    {
+      "scope": "Options matrix with both system and bundled Git",
+      "status": "passed",
+      "matrix": [
+        "whitespace",
+        "endings",
+        "case",
+        "comments",
+        "regex"
+      ],
+      "owned_receiver_pids": [
+        7193,
+        7203
+      ],
+      "log": "build/qa/merge-threeway-hide-native-options-reload-2026-10-19.log"
+    },
+    {
+      "scope": "First pending ignored-conflict/native system Git case",
+      "status": "failed",
+      "owned_receiver_pid": 7227,
+      "log": "build/qa/merge-threeway-hide-native-remaining-2026-10-19.log",
+      "finding": "Fixture compared full block selection to NSTextView text caret; MergeBlockSelection intentionally stores its block separately and keeps a zero-length caret",
+      "repair": "Assert production MergeBlockSelecting.mergeSelectedBlockRange in display coordinates, retaining conflict-choice and synchronized reveal requirements; add timeout diagnostics"
+    },
+    {
+      "scope": "Pending native ignored and retained two-pane families with system and bundled Git",
+      "status": "passed",
+      "cases": [
+        "ignored/system Git",
+        "two-pane/system Git",
+        "ignored/bundled Git",
+        "two-pane/bundled Git"
+      ],
+      "log": "build/qa/merge-threeway-hide-native-remaining-repair-2026-10-19.log",
+      "details": "Synchronized hidden ignored conflict, native block/caret distinction, warning ownership and staging gate, source-copy resolution and Undo/Redo flags, unchanged HEAD/index/working bytes; retained two-pane colors/options/Find/folding/export/edit/Undo/Redo/Save"
+    },
+    {
+      "scope": "Native receiver ownership",
+      "status": "passed",
+      "receipts": {
+        "merge-threeway-hide-native-2026-10-19.log": [
+          7023
+        ],
+        "merge-threeway-hide-native-repair-2026-10-19.log": [
+          7087
+        ],
+        "merge-threeway-hide-native-options-final-2026-10-19.log": [
+          7124
+        ],
+        "merge-threeway-hide-native-options-reload-2026-10-19.log": [
+          7193,
+          7203
+        ],
+        "merge-threeway-hide-native-remaining-2026-10-19.log": [
+          7227
+        ],
+        "merge-threeway-hide-native-remaining-repair-2026-10-19.log": [
+          7455,
+          7508,
+          7524,
+          7587
+        ]
+      },
+      "details": "Every listed PID reported reaped and was independently confirmed absent; new and retained receiver windows/sheets transparent and offscreen; private preferences/repos/TMPDIR and private Copy pasteboard"
+    },
+    {
+      "scope": "Documentation site and dialog ledger",
+      "status": "passed",
+      "site_log": "build/qa/merge-threeway-hide-site-2026-10-19.log",
+      "ledger_log": "build/qa/merge-threeway-hide-ledger-2026-10-19.log",
+      "site_unresolved_fragments": [],
+      "ledger_counts_are_not_feature_completion": true
+    }
+  ],
+  "limits": [
+    "No complete Merge editor or full application certification",
+    "No new physical/VoiceOver/minimum-OS/signed Finder or App Store acceptance",
+    "Windows locale and complete whitespace-state enum behavior remain separate",
+    "A local grouped pass is not a complete hosted CI pass"
+  ]
+}

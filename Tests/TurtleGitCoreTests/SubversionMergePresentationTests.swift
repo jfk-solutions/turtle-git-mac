@@ -11,7 +11,7 @@ final class SubversionMergePresentationTests: XCTestCase {
         try .init(plan: configuration(filter).plan(base: base, mine: mine, theirs: theirs))
     }
     private func resultPresentation(_ value:SubversionMergePresentation) -> MergeResultPresentation {
-        .init(text:value.result,states:value.sources.resultLocator!.states,ignoredConflicts:value.sources.ignoredConflicts,navigationMap:value.sources.navigationMap)
+        .init(text:value.result,comparison:value.sources)
     }
     func testAlignedEditCommonKeepsRemovedRowsAndExactMarkerBytes() throws {
         let value = try presentation("head\nold1\nold2\ntail\n","head\nmine1\nmine2\ntail\n","head\ntheirs1\ntheirs2\ntail\n")
@@ -570,5 +570,161 @@ extension SubversionMergePresentationTests {
         let noEnding = try MergeAlignedResultTransform(comparison:edit.comparison,presentation:edit.presentation,operation:.cycleLineEnding(row:projection.cells.count - 1))
         XCTAssertTrue(noEnding.changedRows.isEmpty)
         XCTAssertEqual(noEnding.presentation,edit.presentation)
+    }
+}
+
+extension SubversionMergePresentationTests {
+    /// DiffData::DoThreeWayDiff emits Normal/Hidden common rows before its
+    /// ignored-conflict post-pass. The two-pane FilteredDiff rule is different.
+    func testThreeWayCommonNormalizationKeepsNeutralHiddenRowsAndOriginalBytes() throws {
+        struct Sample {
+            let label: String
+            let base: String
+            let mine: String
+            let theirs: String
+            let options: MergeComparisonOptions
+            var filter: MergeRegexFilter? = nil
+            var comments: MergeCommentTokens? = nil
+        }
+        let tokens = MergeCommentTokens(line: "//", blockStart: "/*", blockEnd: "*/")
+        let versions = MergeRegexFilter(name: "Versions", expression: "[0-9]+", replacement: "")
+        let samples: [Sample] = [
+            .init(label: "space runs", base: "a  b\n", mine: "a b\n", theirs: "a  b\n", options: .init(whitespace: .ignoreChanges)),
+            .init(label: "missing spaces and endings", base: "a b\r\n", mine: "ab\n", theirs: "ab\r\n", options: .init(whitespace: .ignoreAll)),
+            .init(label: "endings", base: "same\r\n", mine: "same\n", theirs: "same\r\n", options: .init()),
+            .init(label: "case", base: "TITLE\n", mine: "title\n", theirs: "TITLE\n", options: .init(ignoreCase: true)),
+            .init(label: "comments", base: "code // one\n", mine: "code // two\n", theirs: "code // one\n", options: .init(ignoreComments: true), comments: tokens),
+            .init(label: "regex", base: "v1\n", mine: "v2\n", theirs: "v1\n", options: .exact, filter: versions),
+            .init(label: "combined", base: "VALUE x1 // one\r\n", mine: "valuex2 // two\n", theirs: "VALUE x1 // one\r\n", options: .init(whitespace: .ignoreAll, ignoreCase: true, ignoreComments: true), filter: versions, comments: tokens),
+        ]
+        for sample in samples {
+            var engine = configuration(sample.filter)
+            engine.options = sample.options; engine.commentTokens = sample.comments
+            let plan = try engine.plan(base: sample.base, mine: sample.mine, theirs: sample.theirs)
+            XCTAssertEqual(plan.segments.map(\.kind), [.common], sample.label)
+            XCTAssertEqual(plan.base.joined(), sample.base, sample.label)
+            XCTAssertEqual(plan.mine.joined(), sample.mine, sample.label)
+            XCTAssertEqual(plan.theirs?.joined(), sample.theirs, sample.label)
+            let value = try SubversionMergePresentation(plan: plan)
+            XCTAssertEqual(value.result, sample.mine, sample.label)
+            XCTAssertTrue(value.sources.ignoredConflicts.isEmpty, sample.label)
+            XCTAssertEqual(value.sources.rows.map(\.mine.state), [.normal], sample.label)
+            XCTAssertEqual(value.sources.rows.map(\.theirs.state), [.normal], sample.label)
+            XCTAssertEqual(value.sources.rows.map(\.mine.hiddenByComparison), [true], sample.label)
+            XCTAssertEqual(value.sources.rows.map(\.theirs.hiddenByComparison), [true], sample.label)
+            XCTAssertEqual(value.sources.alignedResultRows?.map(\.state), [.normal], sample.label)
+            XCTAssertEqual(value.sources.alignedResultRows?.map(\.hiddenByComparison), [true], sample.label)
+            XCTAssertEqual(value.sources.resultAnchors[0], 0, sample.label)
+            XCTAssertEqual(value.sources.navigationMap.exactResultRange(sourceRows: 0..<1), NSRange(location: 0, length: sample.mine.utf16.count), sample.label)
+            let result = MergeResultPresentation(text: value.result, comparison: value.sources)
+            XCTAssertEqual(result.states(conflicts: []), [.normal], sample.label)
+            XCTAssertEqual(result.hiddenByComparison(), [true], sample.label)
+            let projected = try XCTUnwrap(MergeAlignedResultProjection(comparison: value.sources, presentation: result), sample.label)
+            XCTAssertEqual(projected.cells.map(\.text), [sample.mine], sample.label)
+            XCTAssertEqual(projected.cells.map(\.hiddenByComparison), [true], sample.label)
+        }
+    }
+
+    func testThreeWayIgnoredConflictPostpassChangesStateWithoutRevealingCommonRows() throws {
+        struct Sample {
+            let base: String
+            let mine: String
+            let theirs: String
+            let options: MergeComparisonOptions
+            var filter: MergeRegexFilter? = nil
+            var comments: MergeCommentTokens? = nil
+        }
+        let samples: [Sample] = [
+            .init(base: "a b\r\n", mine: "ab\r\n", theirs: "a  b\r\n", options: .init(whitespace: .ignoreAll)),
+            .init(base: "same\n", mine: "same\r\n", theirs: "same\r", options: .init()),
+            .init(base: "Title\n", mine: "TITLE\n", theirs: "title\n", options: .init(ignoreCase: true)),
+            .init(base: "v1\n", mine: "v2\n", theirs: "v3\n", options: .exact, filter: .init(name: "Version", expression: "[0-9]+", replacement: "")),
+            .init(base: "code // one\n", mine: "code // two\n", theirs: "code // three\n", options: .init(ignoreComments: true), comments: .init(line: "//", blockStart: "/*", blockEnd: "*/")),
+        ]
+        for sample in samples {
+            var engine = configuration(sample.filter)
+            engine.options = sample.options; engine.commentTokens = sample.comments
+            let value = try SubversionMergePresentation(plan: engine.plan(base: sample.base, mine: sample.mine, theirs: sample.theirs))
+            XCTAssertEqual(value.result, sample.mine)
+            XCTAssertFalse(MergeText.hasMarkers(value.result))
+            XCTAssertEqual(value.sources.rows.map(\.mine.state), [.conflictAdded])
+            XCTAssertEqual(value.sources.rows.map(\.theirs.state), [.conflictAdded])
+            XCTAssertEqual(value.sources.rows.map(\.mine.hiddenByComparison), [true])
+            XCTAssertEqual(value.sources.rows.map(\.theirs.hiddenByComparison), [true])
+            XCTAssertEqual(value.sources.alignedResultRows?.map(\.state), [.conflictedIgnored])
+            XCTAssertEqual(value.sources.alignedResultRows?.map(\.hiddenByComparison), [true])
+            let result = MergeResultPresentation(text: value.result, comparison: value.sources)
+            XCTAssertEqual(result.states(conflicts: []), [.conflictedIgnored])
+            XCTAssertEqual(result.hiddenByComparison(), [true])
+            let projected = try XCTUnwrap(MergeAlignedResultProjection(comparison: value.sources, presentation: result))
+            XCTAssertEqual(projected.cells.map(\.state), [.conflictedIgnored])
+            XCTAssertEqual(projected.cells.map(\.hiddenByComparison), [true])
+            let ignored = try XCTUnwrap(result.conflicts().first)
+            XCTAssertEqual(ignored.range, NSRange(location: 0, length: sample.mine.utf16.count))
+            XCTAssertEqual(ignored.mine, sample.mine); XCTAssertEqual(ignored.base, sample.base); XCTAssertEqual(ignored.theirs, sample.theirs)
+            XCTAssertEqual(value.sources.navigationMap.exactResultRange(sourceRows: 0..<1), ignored.range)
+        }
+    }
+
+    func testThreeWayOneSidedNormalPartnersKeepSourceAsymmetricVisibility() throws {
+        let base = "head\nold\ntail"
+        for mineChanges in [false, true] {
+            let mine = mineChanges ? "head\nnew\ntail" : base
+            let theirs = mineChanges ? base : "head\nnew\ntail"
+            let value = try presentation(base, mine, theirs)
+            let removed = try XCTUnwrap(value.sources.rows.firstIndex { $0.mine.state.isRemoval || $0.theirs.state.isRemoval })
+            let partner = mineChanges ? value.sources.rows[removed].theirs : value.sources.rows[removed].mine
+            XCTAssertEqual(partner.state, .normal)
+            XCTAssertEqual(partner.hiddenByComparison, mineChanges, "Mine's unchanged partner is Shown; Theirs' unchanged partner is Hidden")
+            XCTAssertEqual(partner.text, "old\n"); XCTAssertEqual(partner.lineNumber, 2)
+            XCTAssertEqual(value.sources.alignedResultRows?[removed].hiddenByComparison, false)
+            XCTAssertTrue(value.sources.alignedResultRows?.first?.hiddenByComparison == true)
+            XCTAssertTrue(value.sources.alignedResultRows?.last?.hiddenByComparison == true)
+            XCTAssertEqual(value.sources.rows.compactMap { $0.mine.lineNumber == nil ? nil : $0.mine.text }.joined(), mine)
+            XCTAssertEqual(value.sources.rows.compactMap { $0.theirs.lineNumber == nil ? nil : $0.theirs.text }.joined(), theirs)
+            let result = MergeResultPresentation(text: value.result, comparison: value.sources)
+            let edit = try MergeAlignedSourceBlockEdit(comparison: value.sources, presentation: result, rows: removed..<(removed + 1), choice: mineChanges ? .theirs : .mine)
+            let projection = try XCTUnwrap(MergeAlignedResultProjection(comparison: edit.comparison, presentation: edit.presentation))
+            XCTAssertEqual(edit.presentation.text, "head\nold\nnew\ntail")
+            XCTAssertEqual(projection.cells[removed].state, .normal)
+            XCTAssertEqual(projection.cells[removed].hiddenByComparison, mineChanges)
+            XCTAssertTrue(projection.cells.first?.hiddenByComparison == true)
+            XCTAssertTrue(projection.cells.last?.hiddenByComparison == true)
+            XCTAssertEqual(edit.presentation.navigationMap.exactResultRange(sourceRows: removed..<(removed + 1)), NSRange(location: 5, length: 4))
+        }
+    }
+
+    func testThreeWayHiddenResultMetadataSurvivesEditsChoicesAndRestoredSnapshots() throws {
+        var engine = configuration(); engine.options = .init(whitespace: .ignoreAll)
+        let value = try SubversionMergePresentation(plan: engine.plan(base: "head 🐢\r\na b\r\ntail", mine: "head 🐢\r\nab\r\ntail", theirs: "head 🐢\r\na  b\r\ntail"))
+        let initial = MergeResultPresentation(text: value.result, comparison: value.sources)
+        let initialProjection = try XCTUnwrap(MergeAlignedResultProjection(comparison: value.sources, presentation: initial))
+        XCTAssertEqual(initialProjection.cells.map(\.hiddenByComparison), [true, true, true])
+        let edit = try MergeAlignedResultEdit(comparison: value.sources, presentation: initial, range: NSRange(location: 0, length: 4), replacement: "HEAD")
+        let edited = try XCTUnwrap(MergeAlignedResultProjection(comparison: edit.comparison, presentation: edit.presentation))
+        XCTAssertEqual(edited.cells.map(\.hiddenByComparison), [false, true, true])
+        XCTAssertEqual(edited.cells.map(\.state), [.edited, .conflictedIgnored, .normal])
+        XCTAssertEqual(edit.comparison.rows.map(\.mine.hiddenByComparison), [true, true, true])
+        XCTAssertEqual(edit.presentation.ignoredConflicts, initial.ignoredConflicts)
+        let choice = try MergeAlignedSourceBlockEdit(comparison: edit.comparison, presentation: edit.presentation, rows: 1..<2, choice: .mine)
+        let chosen = try XCTUnwrap(MergeAlignedResultProjection(comparison: choice.comparison, presentation: choice.presentation))
+        XCTAssertEqual(choice.presentation.text, edit.presentation.text, "Resolving an ignored conflict can retain every original byte")
+        XCTAssertEqual(chosen.cells.map(\.state), [.edited, .resolved, .normal])
+        XCTAssertEqual(chosen.cells.map(\.hiddenByComparison), [false, true, true], "Source choices copy HideState before resolving their state")
+        XCTAssertTrue(choice.presentation.ignoredConflicts.isEmpty)
+        // Native Undo retains these complete immutable comparison/result pairs.
+        // Restoring the pre-choice and original pairs must restore visibility as
+        // well as bytes; no new engine read is allowed to stand in for history.
+        let undoChoice = try XCTUnwrap(MergeAlignedResultProjection(comparison: edit.comparison, presentation: edit.presentation))
+        XCTAssertEqual(undoChoice.cells.map(\.hiddenByComparison), [false, true, true])
+        XCTAssertEqual(undoChoice.cells[1].state, .conflictedIgnored)
+        let undoTyping = try XCTUnwrap(MergeAlignedResultProjection(comparison: value.sources, presentation: initial))
+        XCTAssertEqual(undoTyping.cells.map(\.hiddenByComparison), initialProjection.cells.map(\.hiddenByComparison))
+        XCTAssertEqual(initial.text, value.result)
+        XCTAssertEqual(initial.ignoredConflicts.count, 1)
+        let redoChoice = try XCTUnwrap(MergeAlignedResultProjection(comparison: choice.comparison, presentation: choice.presentation))
+        XCTAssertEqual(redoChoice.cells.map(\.hiddenByComparison), [false, true, true])
+        XCTAssertEqual(choice.comparison.rows.map(\.mine.text), value.sources.rows.map(\.mine.text))
+        XCTAssertEqual(choice.comparison.rows.map(\.theirs.text), value.sources.rows.map(\.theirs.text))
     }
 }

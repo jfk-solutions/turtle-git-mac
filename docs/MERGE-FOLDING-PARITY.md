@@ -163,3 +163,14 @@ fold map and unchanged text/carets. Every owned receiver, including the pre-chan
 baseline, was reaped and independently absent. Core was unchanged and not rerun.
 This is local unsigned evidence; the active hosted run had not reached its editor
 gate at the final observation, so hosted resolution is not claimed.
+
+
+## Three-way result hide metadata — October 19, 2026
+
+The [three-way continuation](MERGE-THREE-WAY-HIDE-PARITY.md) replaces color-state
+folding predicates with the result's explicit hide flags. Common ignored conflicts
+can remain hidden as in the pinned source; Continue resolving conflicts reveals
+them without resolving their metadata. Source partners, copied block flags,
+aligned result rows and serialized fallback all use the same independent map.
+This supersedes earlier state-based three-pane folding descriptions. Evidence
+and physical/signed limits remain in the dated checkpoint.

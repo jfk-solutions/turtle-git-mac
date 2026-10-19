@@ -19,6 +19,19 @@ public struct MergeResultPresentation: Sendable, Equatable {
     public struct Run: Sendable, Equatable {
         public let range: Range<Int>
         public let state: MergeSourceState
+        /// DiffData's HideState survives independently of color/state changes.
+        public let hiddenByComparison: Bool
+        // nil distinguishes a legacy state-only inference from recorded source
+        // HideState when an initial aligned record supplies the missing channel.
+        fileprivate let recordedHiddenByComparison: Bool?
+        public static func == (a:Self,b:Self) -> Bool {
+            a.range == b.range && a.state == b.state && a.hiddenByComparison == b.hiddenByComparison && a.recordedHiddenByComparison == b.recordedHiddenByComparison
+        }
+        public init(range: Range<Int>, state: MergeSourceState, hiddenByComparison: Bool? = nil) {
+            self.range = range; self.state = state
+            self.recordedHiddenByComparison = hiddenByComparison
+            self.hiddenByComparison = hiddenByComparison ?? state.isUnchanged
+        }
     }
     public let text: String
     public let runs: [Run]
@@ -27,22 +40,58 @@ public struct MergeResultPresentation: Sendable, Equatable {
     public let navigationMap: MergeNavigationMap
     public let sourceChoiceRevision: UInt64
     public static func == (a: Self, b: Self) -> Bool { a.text.utf8.elementsEqual(b.text.utf8) && a.runs == b.runs && a.foldAnchors == b.foldAnchors && a.ignoredConflicts == b.ignoredConflicts && a.navigationMap == b.navigationMap && a.sourceChoiceRevision == b.sourceChoiceRevision }
-    public init(text: String, states: [MergeSourceState], foldAnchors: MergeFoldAnchors = .init(), ignoredConflicts: [IgnoredMergeConflict] = [], navigationMap: MergeNavigationMap = .init()) {
+    public init(text: String, states: [MergeSourceState], hiddenByComparison: [Bool]? = nil, foldAnchors: MergeFoldAnchors = .init(), ignoredConflicts: [IgnoredMergeConflict] = [], navigationMap: MergeNavigationMap = .init()) {
         self.text = text; self.foldAnchors = foldAnchors; self.navigationMap = navigationMap; self.sourceChoiceRevision = 0
         let count = text.utf16.count, source = text as NSString
         self.ignoredConflicts = ignoredConflicts.filter { item in
             item.range.location >= 0 && item.range.length > 0 && item.range.location <= count && item.range.length <= count - item.range.location && source.substring(with:item.range).utf8.elementsEqual(item.mine.utf8)
         }.sorted { $0.range.location < $1.range.location }
         runs = Self.compact(MergeLineEndings.lineRanges(in: text).enumerated().map { index, range in
-            Run(range: range.location..<NSMaxRange(range), state: states.indices.contains(index) && states[index] != .conflictedIgnored ? states[index] : .normal)
+            Run(range: range.location..<NSMaxRange(range), state: states.indices.contains(index) && states[index] != .conflictedIgnored ? states[index] : .normal,
+                hiddenByComparison: hiddenByComparison.flatMap { $0.indices.contains(index) ? $0[index] : nil })
         })
+    }
+    /// Capture the initial serialized presentation from the same source/result
+    /// rows as the aligned editor. In particular, ignored common conflicts keep
+    /// Hidden while ignored identical additions keep their original Shown flag.
+    public init(text: String, comparison: MergeSourceComparison) {
+        let flags: [Bool]?, length = text.utf16.count
+        if let rows = comparison.alignedResultRows, rows.count == comparison.rows.count {
+            let runs = comparison.navigationMap.entries.compactMap { entry -> Run? in
+                guard !entry.sourceRows.isEmpty, entry.sourceRows.lowerBound >= 0,
+                      entry.sourceRows.upperBound <= rows.count, entry.resultRange.location >= 0,
+                      entry.resultRange.length > 0, entry.resultRange.location <= length,
+                      entry.resultRange.length <= length - entry.resultRange.location else { return nil }
+                return Run(range:entry.resultRange.location..<NSMaxRange(entry.resultRange),state:.normal,
+                    hiddenByComparison:entry.sourceRows.allSatisfy { rows[$0].hiddenByComparison })
+            }.sorted { $0.range.lowerBound < $1.range.lowerBound }
+            flags = Self.hiddenLines(in:text,runs:runs)
+        } else { flags = nil }
+        self.init(text:text,states:comparison.resultLocator?.states ?? [],hiddenByComparison:flags,
+            foldAnchors:.init(offsets:comparison.resultAnchors),ignoredConflicts:comparison.ignoredConflicts,navigationMap:comparison.navigationMap)
+    }
+    /// Serialized fallback for a result whose free edits no longer admit a
+    /// checked aligned projection. Any Shown part keeps its whole line shown.
+    public func hiddenByComparison() -> [Bool] { Self.hiddenLines(in:text,runs:runs) }
+    private static func hiddenLines(in text:String,runs:[Run]) -> [Bool] {
+        var cursor = 0
+        return MergeLineEndings.lineRanges(in:text).map { line in
+            while cursor < runs.count, runs[cursor].range.upperBound <= line.location { cursor += 1 }
+            var index = cursor, covered = line.location, hidden = true
+            while index < runs.count, runs[index].range.lowerBound < NSMaxRange(line) {
+                let run = runs[index]
+                if run.range.lowerBound > covered || !run.hiddenByComparison { hidden = false }
+                covered = max(covered,run.range.upperBound);index += 1
+            }
+            return line.length > 0 && covered >= NSMaxRange(line) && hidden
+        }
     }
     private init(text: String, runs: [Run], foldAnchors: MergeFoldAnchors, ignoredConflicts: [IgnoredMergeConflict], navigationMap: MergeNavigationMap, sourceChoiceRevision: UInt64) { self.sourceChoiceRevision = sourceChoiceRevision; self.navigationMap = navigationMap; self.text = text; self.runs = Self.compact(runs); self.foldAnchors = foldAnchors; self.ignoredConflicts = ignoredConflicts }
     private static func compact(_ runs: [Run]) -> [Run] {
         var result: [Run] = []
         for run in runs where !run.range.isEmpty {
-            if let previous = result.last, previous.state == run.state, previous.range.upperBound == run.range.lowerBound {
-                result[result.count - 1] = Run(range: previous.range.lowerBound..<run.range.upperBound, state: run.state)
+            if let previous = result.last, previous.state == run.state, previous.recordedHiddenByComparison == run.recordedHiddenByComparison, previous.range.upperBound == run.range.lowerBound {
+                result[result.count - 1] = Run(range: previous.range.lowerBound..<run.range.upperBound, state: run.state, hiddenByComparison:run.recordedHiddenByComparison)
             } else { result.append(run) }
         }
         return result
@@ -68,9 +117,9 @@ public struct MergeResultPresentation: Sendable, Equatable {
         var before: [Run] = [], after: [Run] = []
         for run in runs {
             let leftEnd = min(run.range.upperBound, range.location)
-            if run.range.lowerBound < leftEnd { before.append(Run(range: run.range.lowerBound..<leftEnd, state: run.state)) }
+            if run.range.lowerBound < leftEnd { before.append(Run(range: run.range.lowerBound..<leftEnd, state: run.state, hiddenByComparison:run.recordedHiddenByComparison)) }
             let rightStart = max(run.range.lowerBound, end)
-            if rightStart < run.range.upperBound { after.append(Run(range: rightStart + delta..<run.range.upperBound + delta, state: run.state)) }
+            if rightStart < run.range.upperBound { after.append(Run(range: rightStart + delta..<run.range.upperBound + delta, state: run.state, hiddenByComparison:run.recordedHiddenByComparison)) }
         }
         if replacementLength > 0 { before.append(Run(range: range.location..<range.location + replacementLength, state: state)) }
         var output = before + after
@@ -80,9 +129,9 @@ public struct MergeResultPresentation: Sendable, Equatable {
             if let index = output.firstIndex(where: { $0.range.contains(point) }) {
                 let run = output.remove(at: index)
                 var parts: [Run] = []
-                if run.range.lowerBound < point { parts.append(Run(range: run.range.lowerBound..<point, state: run.state)) }
+                if run.range.lowerBound < point { parts.append(Run(range: run.range.lowerBound..<point, state: run.state, hiddenByComparison:run.recordedHiddenByComparison)) }
                 parts.append(Run(range: point..<point + 1, state: state))
-                if point + 1 < run.range.upperBound { parts.append(Run(range: point + 1..<run.range.upperBound, state: run.state)) }
+                if point + 1 < run.range.upperBound { parts.append(Run(range: point + 1..<run.range.upperBound, state: run.state, hiddenByComparison:run.recordedHiddenByComparison)) }
                 output.insert(contentsOf: parts, at: index)
             }
         }
@@ -162,7 +211,7 @@ public struct MergeSourceBlockEdit: Sendable {
                     if MergeLineEndings.hasFinalEnding(cell.text) || row < comparison.rows.count - 1 { line += ending }
                 }
                 let length = line.utf16.count
-                if length > 0 { runs.append(.init(range:offset..<(offset + length),state:cell.state.isConflict ? .resolved : cell.state)) }
+                if length > 0 { runs.append(.init(range:offset..<(offset + length),state:cell.state.isConflict ? .resolved : cell.state,hiddenByComparison:cell.hiddenByComparison)) }
                 entries.append(.init(sourceRows:row..<(row + 1),resultRange:NSRange(location:range.location + offset,length:length)))
                 value += line; offset += length
             }
@@ -170,7 +219,7 @@ public struct MergeSourceBlockEdit: Sendable {
         }
         func joined(_ first: (String,[MergeResultPresentation.Run],[MergeNavigationMap.Entry]), _ second: (String,[MergeResultPresentation.Run],[MergeNavigationMap.Entry])) -> (String,[MergeResultPresentation.Run],[MergeNavigationMap.Entry]?) {
             let offset = first.0.utf16.count
-            return (first.0 + second.0, first.1 + second.1.map { .init(range:($0.range.lowerBound + offset)..<($0.range.upperBound + offset),state:$0.state) },nil)
+            return (first.0 + second.0, first.1 + second.1.map { .init(range:($0.range.lowerBound + offset)..<($0.range.upperBound + offset),state:$0.state,hiddenByComparison:$0.recordedHiddenByComparison) },nil)
         }
         let text: (String,[MergeResultPresentation.Run],[MergeNavigationMap.Entry]?)
         switch choice {
@@ -194,10 +243,10 @@ extension MergeResultPresentation {
         let inserted = NSRange(location:edit.range.location,length:edit.replacement.utf16.count)
         var runs: [Run] = []
         for run in next.runs {
-            if run.range.lowerBound < inserted.location { runs.append(.init(range:run.range.lowerBound..<min(run.range.upperBound,inserted.location),state:run.state)) }
-            if run.range.upperBound > NSMaxRange(inserted) { runs.append(.init(range:max(run.range.lowerBound,NSMaxRange(inserted))..<run.range.upperBound,state:run.state)) }
+            if run.range.lowerBound < inserted.location { runs.append(.init(range:run.range.lowerBound..<min(run.range.upperBound,inserted.location),state:run.state,hiddenByComparison:run.recordedHiddenByComparison)) }
+            if run.range.upperBound > NSMaxRange(inserted) { runs.append(.init(range:max(run.range.lowerBound,NSMaxRange(inserted))..<run.range.upperBound,state:run.state,hiddenByComparison:run.recordedHiddenByComparison)) }
         }
-        runs += edit.runs.map { .init(range:($0.range.lowerBound + inserted.location)..<($0.range.upperBound + inserted.location),state:$0.state) }
+        runs += edit.runs.map { .init(range:($0.range.lowerBound + inserted.location)..<($0.range.upperBound + inserted.location),state:$0.state,hiddenByComparison:$0.recordedHiddenByComparison) }
         return Self(text:next.text,runs:runs.sorted { $0.range.lowerBound < $1.range.lowerBound },foldAnchors:next.foldAnchors,ignoredConflicts:next.ignoredConflicts,navigationMap:map,sourceChoiceRevision:sourceChoiceRevision &+ 1)
     }
 }
@@ -212,10 +261,10 @@ public struct MergeAlignedResultProjection: Sendable {
         guard let initial = comparison.alignedResultRows, initial.count == comparison.rows.count else { return nil }
         let source = presentation.text as NSString, conflicts = presentation.conflicts()
         var cells: [MergeSourceCell] = [], ranges: [NSRange] = [], expected = 0, serializedEnd = 0, number = 0, runIndex = 0
-        func append(_ text: String, state: MergeSourceState, range: NSRange) {
+        func append(_ text: String, state: MergeSourceState, range: NSRange, hidden: Bool? = nil) {
             let numbered = !state.isExcludedFromResult
             if numbered { number += 1 }
-            cells.append(.init(text:text,lineNumber:numbered ? number : nil,state:state)); ranges.append(range)
+            cells.append(.init(text:text,lineNumber:numbered ? number : nil,state:state,hiddenByComparison:hidden)); ranges.append(range)
         }
         for entry in presentation.navigationMap.entries.sorted(by: { $0.sourceRows.lowerBound < $1.sourceRows.lowerBound }) {
             guard entry.sourceRows.lowerBound == expected, !entry.sourceRows.isEmpty, entry.sourceRows.upperBound <= initial.count,
@@ -227,14 +276,14 @@ public struct MergeAlignedResultProjection: Sendable {
                 guard entry.sourceRows.contains(where: { initial[$0].state == .conflicted }) else { return nil }
                 for row in entry.sourceRows {
                     let cell = initial[row]
-                    if cell.state.isRemoval { append(cell.text,state:cell.state,range:NSRange(location:entry.resultRange.location,length:0)) }
-                    else { append("",state:.conflicted,range:conflict.range) }
+                    if cell.state.isRemoval { append(cell.text,state:cell.state,range:NSRange(location:entry.resultRange.location,length:0),hidden:cell.hiddenByComparison) }
+                    else { append("",state:.conflicted,range:conflict.range,hidden:cell.hiddenByComparison) }
                 }
             } else if entry.resultRange.length == 0 {
                 for row in entry.sourceRows {
                     let original = initial[row]
                     let retained = original.state.isRemoval || original.state == .resolvedEmpty || [MergeSourceState.normal,.filtered,.edited,.resolved].contains(original.state) && original.lineNumber != nil && original.text.isEmpty
-                    append(retained ? original.text : "",state:retained ? original.state : .empty,range:entry.resultRange)
+                    append(retained ? original.text : "",state:retained ? original.state : .empty,range:entry.resultRange,hidden:retained ? original.hiddenByComparison : false)
                 }
             } else {
                 // A multi-row/multi-copy group needs a complete view mutation
@@ -244,15 +293,27 @@ public struct MergeAlignedResultProjection: Sendable {
                 guard MergeLineEndings.lineRanges(in:payload).count == 1 else { return nil }
                 while runIndex < presentation.runs.count, presentation.runs[runIndex].range.upperBound <= entry.resultRange.location { runIndex += 1 }
                 var state = runIndex < presentation.runs.count ? presentation.runs[runIndex].state : .normal
-                var cursor = runIndex
+                var cursor = runIndex, covered = entry.resultRange.location, hidden = true, hasRecordedHide = false
                 while cursor < presentation.runs.count, presentation.runs[cursor].range.lowerBound < NSMaxRange(entry.resultRange) {
-                    let current = presentation.runs[cursor].state
-                    if current == .edited { state = .edited; break }
-                    if current == .resolved || state == .normal { state = current }
+                    let run = presentation.runs[cursor], current = run.state
+                    hasRecordedHide = hasRecordedHide || run.recordedHiddenByComparison != nil
+                    if run.range.lowerBound > covered || !run.hiddenByComparison { hidden = false }
+                    covered = max(covered,run.range.upperBound)
+                    if current == .edited { state = .edited }
+                    else if state != .edited && (current == .resolved || state == .normal) { state = current }
                     cursor += 1
                 }
+                if covered < NSMaxRange(entry.resultRange) { hidden = false }
                 if presentation.ignoredConflicts.contains(where: { NSIntersectionRange($0.range,entry.resultRange).length > 0 }) { state = .conflictedIgnored }
-                append(payload,state:state,range:entry.resultRange)
+                let original = initial[entry.sourceRows.lowerBound]
+                if !hasRecordedHide, state == original.state, state != .edited && state != .resolved,
+                   payload.utf8.elementsEqual(original.text.utf8) {
+                    // Older callers may have created their serialized runs from
+                    // states alone. An untouched aligned view record remains
+                    // authoritative for its independent initial HideState.
+                    hidden = original.hiddenByComparison
+                }
+                append(payload,state:state,range:entry.resultRange,hidden:hidden)
             }
         }
         guard expected == initial.count, serializedEnd == source.length else { return nil }
@@ -377,10 +438,10 @@ private struct MergeAlignedResultSnapshot {
         let originalConflicts = presentation.conflicts().filter { !$0.isIgnored }
         let raw = presentation.text as NSString
         var text = "", entries:[MergeNavigationMap.Entry] = [], runs:[MergeResultPresentation.Run] = [], ignored:[IgnoredMergeConflict] = [], row = 0
-        func append(_ value:String,state:MergeSourceState) {
+        func append(_ value:String,state:MergeSourceState,hidden:Bool? = nil) {
             let start = text.utf16.count
             text += value
-            if !value.isEmpty { runs.append(.init(range:start..<text.utf16.count,state:state)) }
+            if !value.isEmpty { runs.append(.init(range:start..<text.utf16.count,state:state,hiddenByComparison:hidden)) }
         }
         while row < cells.count {
             let cell = cells[row], start = text.utf16.count
@@ -408,7 +469,7 @@ private struct MergeAlignedResultSnapshot {
             } else {
                 let included = !cell.state.isExcludedFromResult
                 let payload = included ? cell.text : ""
-                append(payload,state:cell.state)
+                append(payload,state:cell.state,hidden:cell.hiddenByComparison)
                 let target = NSRange(location:start,length:payload.utf16.count)
                 entries.append(.init(sourceRows:row..<(row + 1),resultRange:target))
                 if cell.state == .conflictedIgnored, let old = origins[row], projection.serializedRanges.indices.contains(old),
@@ -447,7 +508,7 @@ public struct MergeAlignedSourceBlockEdit: Sendable {
             cells.append(.init(text: resolved.text, lineNumber: included ? number : nil, state: resolved.state, hiddenByComparison: resolved.hiddenByComparison))
             sources.append(row)
             entries.append(.init(sourceRows: position..<(position + 1), resultRange: NSRange(location: start, length: text.utf16.count - start)))
-            if text.utf16.count > start { runs.append(.init(range: start..<text.utf16.count, state: resolved.state)) }
+            if text.utf16.count > start { runs.append(.init(range: start..<text.utf16.count, state: resolved.state, hiddenByComparison: resolved.hiddenByComparison)) }
         }
         let map = MergeNavigationMap(entries: entries)
         self.comparison = .init(rows: sources, navigationMap: map, alignedResultRows: cells)
@@ -459,7 +520,7 @@ public struct MergeAlignedSourceBlockEdit: Sendable {
         if normalize, MergeLineEndings.hasFinalEnding(text) || row < count - 1 && cell.state != .conflictEmpty && cell.state != .identicalRemoved {
             text = cell.displayText + ending
         }
-        return .init(text: text, lineNumber: cell.lineNumber, state: cell.state.resolvedState)
+        return .init(text: text, lineNumber: cell.lineNumber, state: cell.state.resolvedState, hiddenByComparison:cell.hiddenByComparison)
     }
     public init(comparison:MergeSourceComparison,presentation:MergeResultPresentation,rows:Range<Int>,choice:MergeBlockChoice,lineEnding:MergeLineEnding? = nil) throws {
         guard !rows.isEmpty, rows.lowerBound >= 0, rows.upperBound <= comparison.rows.count,
@@ -472,7 +533,7 @@ public struct MergeAlignedSourceBlockEdit: Sendable {
         let gap = MergeSourceCell(text:"",lineNumber:nil,state:.empty)
         func original(_ row:Int,mine:Bool) -> MergeSourceCell { mine ? comparison.rows[row].mine : comparison.rows[row].theirs }
         func source(_ cell:MergeSourceCell,state:MergeSourceState) -> MergeSourceCell {
-            .init(text:cell.text,lineNumber:cell.lineNumber,state:cell.state.isViewEmpty ? cell.state : state)
+            .init(text:cell.text,lineNumber:cell.lineNumber,state:cell.state.isViewEmpty ? cell.state : state,hiddenByComparison:cell.hiddenByComparison)
         }
         var cells = projection.cells, sources = comparison.rows, origins:[Int?] = comparison.rows.indices.map { $0 }
         let firstCells = rows.map { Self.resolved(original($0,mine:firstMine),row:$0,count:comparison.rows.count,ending:ending,normalize:true) }
@@ -495,7 +556,7 @@ public struct MergeAlignedSourceBlockEdit: Sendable {
             !$0.state.isViewEmpty && (both || $0.state != .identicalRemoved)
         }), previous > 0, !MergeLineEndings.hasFinalEnding(cells[previous].text) {
             let cell = cells[previous]
-            cells[previous] = .init(text:cell.text + ending,lineNumber:cell.lineNumber,state:cell.state)
+            cells[previous] = .init(text:cell.text + ending,lineNumber:cell.lineNumber,state:cell.state,hiddenByComparison:cell.hiddenByComparison)
         }
         let snapshot = try MergeAlignedResultSnapshot(sources:sources,cells:cells,origins:origins,comparison:comparison,presentation:presentation)
         self.comparison = snapshot.comparison; self.presentation = snapshot.presentation

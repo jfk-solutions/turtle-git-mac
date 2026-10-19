@@ -117,18 +117,18 @@ public struct SubversionMergePresentation: Sendable {
         var ignoredConflicts: [IgnoredMergeConflict] = []
         var navigation: [MergeNavigationMap.Entry] = []
         var resultRows: [MergeSourceCell] = [], resultLine = 0
-        func appendResultRow(_ text: String, state: MergeSourceState) {
+        func appendResultRow(_ text: String, state: MergeSourceState, hidden: Bool? = nil) {
             let numbered = !state.isRemoval && state != .empty && state != .conflictEmpty
             if numbered { resultLine += 1 }
-            resultRows.append(.init(text:text,lineNumber:numbered ? resultLine : nil,state:state))
+            resultRows.append(.init(text:text,lineNumber:numbered ? resultLine : nil,state:state,hiddenByComparison:hidden))
         }
         func append(_ text: String, state: MergeSourceState) {
             let count = text.utf16.count
             if count > 0 { spans.append((outputLength..<outputLength + count, state)); outputLength += count }
             output += text
         }
-        func cell(_ source: [String], _ index: Int, _ state: MergeSourceState) -> MergeSourceCell {
-            .init(text: source[index], lineNumber: index + 1, state: state)
+        func cell(_ source: [String], _ index: Int, _ state: MergeSourceState, hidden: Bool? = nil) -> MergeSourceCell {
+            .init(text: source[index], lineNumber: index + 1, state: state, hiddenByComparison: hidden)
         }
         func gap(_ state: MergeSourceState = .empty) -> MergeSourceCell { .init(text: "", lineNumber: nil, state: state) }
         func equal(_ a: String, _ b: String) -> Bool { a.utf8.elementsEqual(b.utf8) }
@@ -158,15 +158,20 @@ public struct SubversionMergePresentation: Sendable {
                 let firstRow = rows.count
                 for offset in 0..<segment.base.count {
                     let b = segment.base.lowerBound + offset, m = segment.mine.lowerBound + offset, t = segment.theirs.lowerBound + offset
-                    let state: MergeSourceState = ignored(b,m,t) ? .conflictAdded : equal(plan.base[b], plan.mine[m]) && equal(plan.mine[m], theirs[t]) ? .normal : .filtered
-                    rows.append(.init(mine: cell(plan.mine, m, state), theirs: cell(theirs, t, state)))
-                    appendResultRow(plan.mine[m],state:ignored(b,m,t) ? .conflictedIgnored : state)
+                    // DoThreeWayDiff creates common view records as Normal /
+                    // Hidden, even when options made their raw payloads differ.
+                    // Its ignored-conflict post-pass changes only the state;
+                    // color and HideState remain independent channels.
+                    let hiddenConflict = ignored(b,m,t)
+                    let state: MergeSourceState = hiddenConflict ? .conflictAdded : .normal
+                    rows.append(.init(mine: cell(plan.mine, m, state, hidden: true), theirs: cell(theirs, t, state, hidden: true)))
+                    appendResultRow(plan.mine[m],state:hiddenConflict ? .conflictedIgnored : .normal,hidden:true)
                 }
                 for offset in 0..<segment.mine.count {
                     let m = segment.mine.lowerBound + offset, b = segment.base.lowerBound + offset, t = segment.theirs.lowerBound + offset
                     anchors[firstRow + offset] = outputLength
                     navigation.append(.init(sourceRows:(firstRow + offset)..<(firstRow + offset + 1),resultRange:NSRange(location:outputLength,length:plan.mine[m].utf16.count)))
-                    appendIgnored(base:b,mine:m,other:t,ordinaryState:equal(plan.base[b], plan.mine[m]) && equal(plan.mine[m], theirs[t]) ? .normal : .filtered)
+                    appendIgnored(base:b,mine:m,other:t,ordinaryState:.normal)
                 }
                 continue
             }
@@ -179,8 +184,8 @@ public struct SubversionMergePresentation: Sendable {
                 let removedState: MergeSourceState = segment.kind == .modified ? .yoursRemoved : segment.kind == .latest ? .theirsRemoved : .identicalRemoved
                 let removed = MergeSourceCell(text: offset < segment.base.count ? plan.base[segment.base.lowerBound + offset] : "", lineNumber: nil, state: removedState)
                 rows.append(.init(
-                    mine: segment.kind == .latest ? cell(plan.mine, segment.mine.lowerBound + offset, .normal) : removed,
-                    theirs: segment.kind == .modified ? cell(theirs, segment.theirs.lowerBound + offset, .normal) : removed))
+                    mine: segment.kind == .latest ? cell(plan.mine, segment.mine.lowerBound + offset, .normal, hidden: false) : removed,
+                    theirs: segment.kind == .modified ? cell(theirs, segment.theirs.lowerBound + offset, .normal, hidden: true) : removed))
                 appendResultRow(removed.text,state:removedState)
             }
             let mineAdded = segment.kind == .latest ? 0 : segment.mine.count

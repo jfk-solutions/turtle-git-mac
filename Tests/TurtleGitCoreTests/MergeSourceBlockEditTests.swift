@@ -62,7 +62,7 @@ final class MergeSourceBlockEditTests: XCTestCase {
     func testSameTextChoiceRetainsSourceColorsAndUndoableRevision() throws {
         let cell = MergeSourceCell(text:"same\n",lineNumber:1,state:.normal)
         let source = MergeSourceComparison(rows:[.init(mine:cell,theirs:cell)])
-        let before = MergeResultPresentation(text:"same\n",states:[.normal],navigationMap:.init(entries:[.init(sourceRows:0..<1,resultRange:NSRange(location:0,length:5))]))
+        let before = MergeResultPresentation(text:"same\n",states:[.normal],hiddenByComparison:[true],navigationMap:.init(entries:[.init(sourceRows:0..<1,resultRange:NSRange(location:0,length:5))]))
         let edit = try XCTUnwrap(MergeSourceBlockEdit(comparison:source,presentation:before,rows:0..<1,choice:.mine))
         let next = try XCTUnwrap(before.applyingSourceBlock(edit))
         XCTAssertEqual(next.text,before.text); XCTAssertEqual(next.runs,before.runs)
