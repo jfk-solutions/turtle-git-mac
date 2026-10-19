@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-19",
+  "baseline": "aeca1cff",
+  "source_commit": "6532c599",
+  "hosted": {
+    "run": 39250447617,
+    "job": 118057676054,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39250447617",
+    "status": "completed",
+    "conclusion": "failure",
+    "step": 74,
+    "step_name": "Git integration tests",
+    "methods": 2130,
+    "skips": 2,
+    "failures": 1,
+    "case": "GitDaemonTests.testWorkerCleanupAfterNaturalExitAndCancellation",
+    "assertion": "GitDaemonTests.swift109 XCTUnwrap expected non-nil Int32",
+    "local_excerpt": "build/qa/daemon-worker-hosted-excerpt-2026-10-19.log"
+  },
+  "cause": "Shell redirection created/truncated final PID marker before echo completed; file-exists readiness could parse an empty marker. A thrown unwrap also bypassed cancellation/await for the cancellation branch.",
+  "change": "Fixture writes a unique same-directory temporary marker and atomically moves it into place, waits for a valid positive Int32, and always cancels/awaits owned worker on readiness or task-sleep failure before throwing. Both natural/nonzero and cancellation branches, descendant PID-death assertions and marker cleanup remain. Production GitDaemon unchanged.",
+  "check": {
+    "command": "TURTLEGIT_CORE_ONLY=1 TURTLEGIT_GROUP_TEST_GIT=<Debug app>/Contents/Helpers/Git/bin/git swift test --jobs 4 --filter GitDaemonTests/testWorkerCleanupAfterNaturalExitAndCancellation",
+    "log": "build/qa/daemon-worker-marker-2026-10-19.log",
+    "exit": 0,
+    "executed_methods": 1,
+    "failures": 0,
+    "skips": 0,
+    "test_seconds": 0.992
+  },
+  "scope": "Focused repair of authoritative hosted test blocker after the substantive Commit/Blame implementation batch; no full Core/native/app rebuild repeated. Current hosted integration remains unverified."
+}

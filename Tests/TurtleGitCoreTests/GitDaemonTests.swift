@@ -96,18 +96,37 @@ final class GitDaemonTests: XCTestCase {
         let pidFile = root.appendingPathComponent(".git/worker-pid")
         for naturalExit in [true, false] {
             // A helper remains in the owned group even if its leader exits.
-            // Quoting is unnecessary: the generated temporary path has no quotes.
-            let script = "#!/bin/sh\n/bin/sleep 60 &\necho $! > '" + pidFile.path + "'\n" + (naturalExit ? "exit 7\n" : "wait\n")
+            // Publish readiness only after the complete PID has been written.
+            // File existence alone can observe shell redirection's empty file.
+            let temporaryPID = root.appendingPathComponent(".git/worker-pid-" + UUID().uuidString)
+            func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'" }
+            defer { try? FileManager.default.removeItem(at: temporaryPID); try? FileManager.default.removeItem(at: pidFile) }
+            let script = "#!/bin/sh\n/bin/sleep 60 &\nworker=$!\nprintf '%s\\n' \"$worker\" > " + quote(temporaryPID.path) + " && /bin/mv " + quote(temporaryPID.path) + " " + quote(pidFile.path) + "\n" + (naturalExit ? "exit 7\n" : "wait\n")
             try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
             let repo = GitRepository(root: root, executable: wrapper), token = OperationCancellation()
-            let run = Task.detached { Result { try GitDaemon.run(repository: repo, cancellation: token, onOutput: { _ in }) } }
-            for _ in 0..<100 {
-                if FileManager.default.fileExists(atPath: pidFile.path) { break }
-                try await Task.sleep(nanoseconds: 10_000_000)
+            let output = Output()
+            let run = Task.detached { Result { try GitDaemon.run(repository: repo, cancellation: token, onOutput: output.append) } }
+            var workerPID: Int32?, readinessError: Error?
+            do {
+                for _ in 0..<100 {
+                    if let text = try? String(contentsOf: pidFile), let pid = Int32(text.trimmingCharacters(in: .whitespacesAndNewlines)), pid > 0 {
+                        workerPID = pid; break
+                    }
+                    try await Task.sleep(nanoseconds: 10_000_000)
+                }
+                guard workerPID != nil else {
+                    throw NSError(domain: "GitDaemonTests", code: 1, userInfo: [NSLocalizedDescriptionKey: "The owned daemon did not publish a complete worker PID.\n" + output.text])
+                }
+            } catch {
+                readinessError = error
+                token.cancel()
             }
-            let pidText = try String(contentsOf: pidFile).trimmingCharacters(in: .whitespacesAndNewlines)
-            let pid = try XCTUnwrap(Int32(pidText)); if !naturalExit { token.cancel() }
+            if !naturalExit { token.cancel() }
+            // Even a readiness/Task cancellation failure must retire the actual
+            // process group before this test releases its repository and files.
             let result = await run.value
+            if let readinessError { throw readinessError }
+            let pid = try XCTUnwrap(workerPID)
             if naturalExit, case .success = result { XCTFail("Nonzero natural exit must report failure") }
             // macOS may retain a killed orphan briefly until launchd reaps it.
             for _ in 0..<100 {
@@ -115,7 +134,6 @@ final class GitDaemonTests: XCTestCase {
                 try await Task.sleep(nanoseconds: 10_000_000)
             }
             XCTAssertNotEqual(kill(pid, 0), 0, "Daemon worker survived its owner")
-            try FileManager.default.removeItem(at: pidFile)
         }
     }
 }
