@@ -670,6 +670,13 @@ inspection follow-up adds DER SHA-1/SHA-256, original artwork and an owned read-
 Open certificate sheet. Live server, other callers and signed/physical acceptance
 remain open.
 
+The native SMTP caller now connects its actual TLS handshake to certificate
+review, including same-connection STARTTLS, default Cancel, exact temporary
+acceptance and an owned read-only inspector with DER/PEM export. Authentication
+and upload wait for the decision; cancellation and Quit retain actual worker
+and sheet ownership. See [SMTP certificate parity](SMTP-CERTIFICATE-PARITY.md)
+for the grouped validation record and separate Git HTTPS/signed/physical gaps.
+
 Native Issue Tracker Integration now connects its formerly missing association
 page/editor and embedded provider to Commit, with project fallback, owned selection,
 message/ID results, pre-commit checks and completion interfaces. The two settings

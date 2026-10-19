@@ -191,6 +191,7 @@ import AppKit
         if SupportReportWindowModel.activeReads > 0 || SupportReportWindowModel.activeWrites > 0 || SupportReportWindowController.activePickers > 0 { return .terminateCancel }
         if SVNWindowModel.activeOperations > 0 { return .terminateCancel }
         if SendPatchWindowModel.activeLoads > 0 || SendPatchWindowController.activeTargetReads > 0 {return .terminateCancel}
+        if SendPatchProgressModel.activeSubmissions > 0 || SendPatchProgressWindowController.activeReleases > 0 {return .terminateCancel}
         if ImportPatchWindowModel.activeWorkers > 0 {return .terminateCancel}
         if ReviewPatchWorkflow.activeLoads > 0 { return .terminateCancel }
         if ImageConflictWindowModel.activeOperations > 0 { return .terminateCancel }
@@ -304,6 +305,7 @@ import AppKit
         let clonesInProgress = sender.windows.compactMap { $0.delegate as? CloneProgressWindowController }
         let creations = sender.windows.compactMap { $0.delegate as? CreateRepositoryWindowController }
         let requestPulls = sender.windows.compactMap { $0.delegate as? RequestPullWindowController }
+        let mailProgresses = sender.windows.compactMap { $0.delegate as? SendPatchProgressWindowController }
         let formatPatches = sender.windows.compactMap { $0.delegate as? FormatPatchWindowController }
         let exports = sender.windows.compactMap { $0.delegate as? ExportWindowController }
         let exportsInProgress = sender.windows.compactMap { $0.delegate as? ExportProgressWindowController }
@@ -353,6 +355,7 @@ import AppKit
         for controller in clonesInProgress { controller.model.confirmingQuit = true }
         for controller in creations { controller.model.confirmingQuit = true }
         for controller in requestPulls { controller.model.confirmingQuit = true }
+        for controller in mailProgresses { controller.model.confirmingQuit = true }
         for controller in formatPatches { controller.model.confirmingQuit = true }
         for controller in exports { controller.model.confirmingQuit = true }
         for controller in exportsInProgress { controller.model.confirmingQuit = true }
@@ -469,6 +472,7 @@ import AppKit
             for controller in clonesInProgress { controller.model.confirmingQuit = false }
             for controller in creations { controller.model.confirmingQuit = false }
             for controller in requestPulls { controller.model.confirmingQuit = false }
+            for controller in mailProgresses { controller.model.confirmingQuit = false }
             for controller in formatPatches { controller.model.confirmingQuit = false }
             for controller in exports { controller.model.confirmingQuit = false }
             for controller in exportsInProgress { controller.model.confirmingQuit = false }
@@ -508,6 +512,7 @@ import AppKit
         let clonesInProgress = sender.windows.compactMap { $0.delegate as? CloneProgressWindowController }
         let creations = sender.windows.compactMap { $0.delegate as? CreateRepositoryWindowController }
         let requestPulls = sender.windows.compactMap { $0.delegate as? RequestPullWindowController }
+        let mailProgresses = sender.windows.compactMap { $0.delegate as? SendPatchProgressWindowController }
         let formatPatches = sender.windows.compactMap { $0.delegate as? FormatPatchWindowController }
         let exports = sender.windows.compactMap { $0.delegate as? ExportWindowController }
         let exportsInProgress = sender.windows.compactMap { $0.delegate as? ExportProgressWindowController }
@@ -533,6 +538,7 @@ import AppKit
         for controller in clonesInProgress { controller.model.confirmingQuit = true }
         for controller in creations { controller.model.confirmingQuit = true }
         for controller in requestPulls { controller.model.confirmingQuit = true }
+        for controller in mailProgresses { controller.model.confirmingQuit = true }
         for controller in formatPatches { controller.model.confirmingQuit = true }
         for controller in exports { controller.model.confirmingQuit = true }
         for controller in exportsInProgress { controller.model.confirmingQuit = true }
@@ -573,6 +579,7 @@ import AppKit
             for controller in clonesInProgress { controller.model.confirmingQuit = false }
             for controller in creations { controller.model.confirmingQuit = false }
             for controller in requestPulls { controller.model.confirmingQuit = false }
+            for controller in mailProgresses { controller.model.confirmingQuit = false }
             for controller in formatPatches { controller.model.confirmingQuit = false }
             for controller in exports { controller.model.confirmingQuit = false }
             for controller in exportsInProgress { controller.model.confirmingQuit = false }

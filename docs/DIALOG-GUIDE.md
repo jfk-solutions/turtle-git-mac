@@ -521,6 +521,12 @@ review. If opening fails, **Open request** retries the generated document.
 Authenticated repository checks use the normal Git/SSH prompts; credentials
 and mail-client permissions depend on the selected transport/delivery method.
 
+If the SMTP server certificate cannot be validated, review its hostname, issuer
+and fingerprints before choosing **Accept certificate**. **Cancel** is the default.
+**Open certificate** offers a read-only inspector and certificate export. See
+[SMTP certificate review](SMTP-CERTIFICATE-REVIEW.md) for temporary acceptance and
+cancellation behavior.
+
 Apply Patch Serial applies a patch series through Git's corresponding operation.
 Review/apply single patch uses the comparison/review workflow. Its source-file chooser offers Use Clipboard Patch, capturing the copied diff before target selection. Finder’s existing eligible Review action also uses registered patch clipboard data when the selected file is not a patch. Opening a review does not apply it. Resolve a failed
 or conflicted application in its owning dialog before continuing. A Unified Diff

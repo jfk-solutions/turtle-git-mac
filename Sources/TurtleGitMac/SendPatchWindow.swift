@@ -676,20 +676,22 @@ enum SendPatchSMTPDelivery {
     @MainActor static func send(_ request: SendPatchRequest, repository: GitRepository, access: RepositoryAccessLease?,
                                applicationContext: ApplicationMailContext? = nil,
                                credentials: any SMTPTransportCredentialSource = SMTPKeychainStore(),
-                               directSubmission: @escaping DirectSubmission = { messages, sender, token, progress in
-                                   try await PatchMailSMTP.sendDirectSeries(messages: messages, sender: sender, cancellation: token, onProgress: progress)
-                               },
+                               directSubmission: DirectSubmission? = nil,
                                cancellation: OperationCancellation,
-                               onProgress: @escaping @Sendable (SMTPSeriesProgress) -> Void) async throws -> [SMTPReceipt] {
+                               onProgress: @escaping @Sendable (SMTPSeriesProgress) -> Void,
+                               reviewCertificate:SMTPCertificateReview? = nil,
+                               certificateApprovals:SMTPCertificateAcceptanceCache? = nil) async throws -> [SMTPReceipt] {
         if GitRuntime.isAppStoreBuild {
             guard applicationContext?.permits(repository) == true || access?.hasSecurityScope == true && access?.contains(repository.root) == true else { throw RepositoryAccessFailure.securityScopeUnavailable }
         }
         defer { withExtendedLifetime(access) {} }
         return try await send(request, credentials: credentials, cancellation: cancellation, onProgress: onProgress,
-                              sender: { try await repository.patchMailSender(cancellation: $0) }, direct: directSubmission,
+                              sender: { try await repository.patchMailSender(cancellation: $0) }, direct: directSubmission ?? {messages,sender,token,progress in
+            try await PatchMailSMTP.sendDirectSeries(messages:messages,sender:sender,cancellation:token,onProgress:progress,reviewCertificate:reviewCertificate,certificateApprovals:certificateApprovals)
+        },
                               transport: { messages, sender, server, authentication, token, progress in
             try await PatchMailSMTP.sendSeries(messages: messages, sender: sender, server: server,
-                                               authentication: authentication, cancellation: token, onProgress: progress)
+                                               authentication: authentication, cancellation: token, onProgress: progress,reviewCertificate:reviewCertificate,certificateApprovals:certificateApprovals)
         })
     }
     static func send(_ request: SendPatchRequest, credentials: any SMTPTransportCredentialSource,
@@ -768,7 +770,20 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
     private let files: [URL], combined: Bool, mailClient: Bool
     @Published private(set) var notifications: [SendPatchNotification] = []
     var notificationPreferences: UserDefaults { preferences }
-    private let submission: Submission, preferences: UserDefaults, policy: GitProgressAutoClose
+    private let submission: Submission?
+    private let preferences:UserDefaults,policy:GitProgressAutoClose
+    private let request:SendPatchRequest,access:RepositoryAccessLease?,applicationContext:ApplicationMailContext?
+    private let certificateApprovals=SMTPCertificateAcceptanceCache()
+    private(set) static var activeSubmissions=0
+    @Published private(set) var pendingOperations=0
+    var hasPendingWork:Bool{pendingOperations>0}
+    var workDidDrain:(()->Void)?
+    var isRetired:Bool{invalidated}
+    private(set) var quitEpoch=0
+    @Published var confirmingQuit=false{didSet{if oldValue != confirmingQuit{quitEpoch += 1;availabilityChanged();if !confirmingQuit{finishAutomaticClose()}}}}
+    var availabilityChanged:()->Void={}
+    var cancelCertificateReview:()->Bool={false}
+    var reviewCertificate:SMTPCertificateReview={_,_ in false}
     private let token = OperationCancellation()
     private var started = false, invalidated = false, logBytes = 0
     private let logLimit: Int
@@ -786,27 +801,27 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
     @Published private(set) var confirmingCancellation = false
     var close: () -> Void = {}
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
-    var activeOperation: Bool { busy || confirmingCancellation }
+    var activeOperation: Bool { busy || hasPendingWork || confirmingCancellation }
     var actionLogRepository: URL { repository.root }
     var actionLogCancelled: Bool { cancelled }
     var actionLogEligible: Bool { started && !busy && !invalidated }
     init(request: SendPatchRequest, repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, applicationContext: ApplicationMailContext? = nil, submission: Submission? = nil) {
-        self.repository = repository; total = request.messages.count; self.preferences = preferences
+        self.repository = repository; total = request.messages.count; self.preferences = preferences;self.request=request;self.access=access;self.applicationContext=applicationContext
         files = request.files; combined = request.options.combine; mailClient = request.delivery.delivery == .mailClient
         policy = GitProgressAutoClose(preferences: preferences); logLimit = GitProgressOutputState(preferences: preferences).limit
-        self.submission = submission ?? { token, progress in
-            if request.delivery.delivery == .mailClient {
-                return try await SendPatchMailClientDelivery.send(request, repository: repository, access: access, applicationContext: applicationContext, cancellation: token, onProgress: progress)
-            }
-            return try await SendPatchSMTPDelivery.send(request, repository: repository, access: access, applicationContext: applicationContext, cancellation: token, onProgress: progress)
-        }
+        self.submission = submission
     }
     func start() {
-        guard !started, !invalidated else { return }; started = true; busy = true; currentWork = "Preparing mail…"
+        guard !started, !invalidated,!confirmingQuit else { return }; started = true; busy = true;pendingOperations += 1;Self.activeSubmissions += 1;currentWork = "Preparing mail…"
+        let submission:Submission=self.submission ?? { [self] token,progress in
+            if self.request.delivery.delivery == .mailClient{return try await SendPatchMailClientDelivery.send(self.request,repository:self.repository,access:self.access,applicationContext:self.applicationContext,cancellation:token,onProgress:progress)}
+            return try await SendPatchSMTPDelivery.send(self.request,repository:self.repository,access:self.access,applicationContext:self.applicationContext,cancellation:token,onProgress:progress,reviewCertificate:self.reviewCertificate,certificateApprovals:self.certificateApprovals)
+        }
         notify(action: "Command", path: "Send Email", kind: .command)
         let began = ProcessInfo.processInfo.systemUptime, mailbox = SendPatchProgressMailbox()
         let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
         Task {
+            defer{pendingOperations -= 1;Self.activeSubmissions -= 1;withExtendedLifetime(access){};if !hasPendingWork{workDidDrain?();finishAutomaticClose()}}
             let work = Task {
                 defer { continuation.finish() }
                 return try await submission(token, { event in mailbox.append(event); continuation.yield(()) })
@@ -878,23 +893,34 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
         }
     }
     func cancel() {
-        guard busy, !invalidated, !cancelling, !confirmingCancellation else { return }
+        guard busy, !invalidated,!confirmingQuit, !cancelling, !confirmingCancellation else { return }
+        if cancelCertificateReview(){cancelling=true;currentWork="Cancelling…";token.cancel();return}
         if preferences.bool(forKey: "ConfirmKillProcess") {
             confirmingCancellation = true; var answered = false
             confirmCancellation { [weak self] accepted in
                 guard !answered, let self, !self.invalidated else { return }; answered = true; self.confirmingCancellation = false
+                guard !self.confirmingQuit else{return}
                 if self.busy && accepted { self.cancelling = true; self.currentWork = "Cancelling…"; self.token.cancel() }
                 self.finishAutomaticClose()
             }
         } else { cancelling = true; currentWork = "Cancelling…"; token.cancel() }
     }
-    func invalidate() { invalidated = true; confirmingCancellation = false; token.cancel() }
-    private func finishAutomaticClose() { if !activeOperation, !invalidated, policy.shouldClose(success: success, postActionCount: 0) { close() } }
+    func invalidate() { invalidated = true; confirmingCancellation = false; token.cancel();availabilityChanged() }
+    private func finishAutomaticClose() { if !activeOperation, !invalidated,!confirmingQuit, policy.shouldClose(success: success, postActionCount: 0) { close() } }
 }
 
 @MainActor final class SendPatchProgressWindowController: NSWindowController, NSWindowDelegate {
     let model: SendPatchProgressModel
     var onClosed: () -> Void = {}
+    static var activeReleases:Int{SMTPCertificateSheetDrain.activeCount}
+    var canReuse:Bool{!retired && !model.isRetired}
+    private var retired=false
+    private var release:SMTPCertificateSheetDrain?
+    private(set) var certificateReviewController:SMTPCertificateReviewWindowController?
+    var configureCertificateReview:(SMTPCertificateReviewWindowController)->Void={_ in}
+    var presentCertificateReview:(NSWindow,NSWindow)->Bool={parent,child in guard parent.attachedSheet == nil else{return false};parent.beginSheet(child);return true}
+    private var cancellationAlert:NSAlert?
+    private var cancellationAnswer:((NSApplication.ModalResponse)->Void)?
     init(model: SendPatchProgressModel) {
         self.model = model
         let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -902,18 +928,55 @@ private final class SendPatchProgressMailbox: @unchecked Sendable {
         let host=NSHostingController(rootView:SendPatchProgressDialog(model:model).defaultAppStorage(model.notificationPreferences));host.sizingOptions=[]
         window.contentViewController=host;window.setContentSize(NSSize(width:760,height:430));window.contentMinSize=NSSize(width:600,height:320);constrainSendContent(window,minimum:NSSize(width:600,height:320))
         super.init(window: window); window.delegate = self; window.center()
-        model.close = { [weak self] in guard let self, !self.model.activeOperation, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.close = { [weak self] in guard let self,!self.retired,!self.model.confirmingQuit, !self.model.activeOperation, self.window?.attachedSheet == nil else { return }; self.close() }
         window.escapeAction = { [weak model] in if model?.busy == true { model?.cancel() } else { model?.close() } }
-        model.confirmCancellation = { [weak window] choose in
-            guard let window, window.attachedSheet == nil else { choose(false); return }
+        model.reviewCertificate={ [weak self] challenge,token in await self?.reviewCertificate(challenge,cancellation:token) ?? false }
+        model.cancelCertificateReview={ [weak self] in guard let child=self?.certificateReviewController else{return false};child.invalidate();return true }
+        model.availabilityChanged={ [weak self] in guard let self else{return};if self.model.isRetired || self.model.confirmingQuit{self.certificateReviewController?.invalidate();self.cancellationAnswer?(.abort)} }
+        model.confirmCancellation = { [weak self] choose in
+            guard let self,!self.retired,!self.model.confirmingQuit,let window=self.window, window.attachedSheet == nil else { choose(false); return }
             let alert = NSAlert(); alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
             alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
-            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+            MergeWindowPresentation(window).apply(to:alert.window);self.cancellationAlert=alert
+            let epoch=self.model.quitEpoch;var answered=false
+            let answer:(NSApplication.ModalResponse)->Void={ [weak self] response in
+                guard let self,!answered,self.cancellationAlert === alert else{return};answered=true
+                let release=SMTPCertificateSheetDrain(window:alert.window){ [self] in
+                    self.cancellationAlert=nil;self.cancellationAnswer=nil;alert.window.close()
+                    choose(!self.retired && !self.model.confirmingQuit && self.model.quitEpoch==epoch && response == .alertFirstButtonReturn)
+                };release.start()
+            };self.cancellationAnswer=answer;alert.beginSheetModal(for:window,completionHandler:answer)
         }
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.activeOperation && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
+    private func reviewCertificate(_ challenge:SMTPCertificateChallenge,cancellation:OperationCancellation)async->Bool{
+        guard !retired,!model.isRetired,!model.confirmingQuit,!cancellation.isCancelled,certificateReviewController == nil,let window,window.attachedSheet == nil else{return false}
+        let epoch=model.quitEpoch
+        return await withCheckedContinuation{ continuation in
+            do{
+                let child=try SMTPCertificateReviewWindowController(hostname:challenge.host,der:challenge.certificateDER,validationError:challenge.validationError,accepts:{ [weak self] in guard let self else{return false};return !self.retired && !self.model.isRetired && !self.model.confirmingQuit && self.model.quitEpoch==epoch && !cancellation.isCancelled }){ [weak self] accepted in
+                    self?.certificateReviewController=nil;continuation.resume(returning:accepted)
+                }
+                certificateReviewController=child;configureCertificateReview(child)
+                guard !retired,!model.isRetired,!model.confirmingQuit,model.quitEpoch==epoch,!cancellation.isCancelled else{child.invalidate();return}
+                guard let sheet=child.window else{child.invalidate();return};MergeWindowPresentation(window).apply(to:sheet)
+                guard presentCertificateReview(window,sheet) else{child.invalidate();return}
+                Task{ @MainActor [weak self,weak child] in
+                    while let self,let child,self.certificateReviewController === child{
+                        if cancellation.isCancelled || self.retired || self.model.isRetired || self.model.confirmingQuit || self.model.quitEpoch != epoch{child.invalidate();return}
+                        try? await Task.sleep(nanoseconds:10_000_000)
+                    }
+                }
+            }catch{continuation.resume(returning:false)}
+        }
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {guard !model.confirmingQuit else{return false};if model.busy { model.cancel(); return false }; return !model.activeOperation && sender.attachedSheet == nil }
+    override func close(){super.close();if !retired,window?.isVisible != true{retire()}}
+    func windowWillClose(_ notification: Notification) {guard notification.object as? NSWindow === window else{return};retire()}
+    private func retire(){
+        guard !retired else{return};retired=true;model.saveActionLog();model.invalidate();certificateReviewController?.invalidate();cancellationAnswer?(.abort)
+        let release=SMTPCertificateSheetDrain(window:window,ready:{ [self] in !self.model.hasPendingWork && self.certificateReviewController == nil && self.cancellationAlert == nil }){ [self] in self.release=nil;let done=self.onClosed;self.onClosed={};done() };self.release=release;release.start()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 private struct SendPatchProgressDialog: View {

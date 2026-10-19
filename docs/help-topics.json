@@ -130,6 +130,10 @@
       "fragment": "patches-and-export"
     },
     {
+      "id": "smtpCertificateReview",
+      "document": "SMTP-CERTIFICATE-REVIEW.md"
+    },
+    {
       "id": "export",
       "document": "REVISION-EXPORT.md"
     },

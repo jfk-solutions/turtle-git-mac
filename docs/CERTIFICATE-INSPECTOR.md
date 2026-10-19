@@ -1,4 +1,9 @@
-# Inspecting and exporting an SVN server certificate
+# Inspecting and exporting a server certificate
+
+Native Send Mail also offers **Open certificate** when an SMTP TLS certificate
+fails validation. See [SMTP certificate review](SMTP-CERTIFICATE-REVIEW.md). Its
+inspector supports the same read-only viewing, fingerprint copying and DER/PEM
+export. The screenshots and historical verification below describe the SVN helper.
 
 In **SVN Certificate Check**, choose **Open certificate**. The **Certificate**
 page uses macOS's expandable native certificate view for the subject, issuer,

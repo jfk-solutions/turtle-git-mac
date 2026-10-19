@@ -3944,13 +3944,27 @@
         {
           "path": "Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift",
           "anchor": "struct GitSVNAuthenticationPrompt"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SMTPCertificateReviewWindow.swift",
+          "anchor": "class SMTPCertificateReviewWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitCore/SMTPCertificateTransport.swift",
+          "anchor": "enum SMTPCertificateTransport"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SendPatchWindow.swift",
+          "anchor": "class SendPatchProgressWindowController"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/SMTP-CERTIFICATE-PARITY.md",
         "docs/SVN-AUTHENTICATION-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/smtp-certificate-2026-10-19.json",
         "docs/qa/svn-authentication-2026-10-14.json",
         "docs/qa/svn-certificate-details-2026-10-14.json"
       ]

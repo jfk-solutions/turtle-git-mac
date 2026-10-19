@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AB1C5E8CEF08C47DCDF25198 /* SecurityInterface.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB0CB365EEFF6DBDAC30CD93 /* SecurityInterface.framework */; };
+		6E9C211F63BF121EEBABF693 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 388C1314131AD02CE01C4045 /* Security.framework */; };
+		99BEB818AE916B4F613CFBCA /* Network.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC01522DAA88EDA69EC39985 /* Network.framework */; };
+		F338A5A635E1EA0F64ADF694 /* SMTPCertificateReviewWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD915C3966A70BBEC96420EC /* SMTPCertificateReviewWindow.swift */; };
+		A7C474571496517A0BA42FB2 /* SMTPCertificateTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C67F27BFB40588DC92B4F276 /* SMTPCertificateTransport.swift */; };
 		D0F1E91CE2294F308CD12503 /* MergeExternalReload.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F1E91CE2294F308CD12504 /* MergeExternalReload.swift */; };
 		D0F1E91CE2294F308CD12501 /* MergeExternalSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F1E91CE2294F308CD12502 /* MergeExternalSource.swift */; };
 		BE462FE53C0B4B66B33BB003 /* SettingsSheetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE462FE53C0B4B66B33BB004 /* SettingsSheetController.swift */; };
@@ -537,6 +542,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		DB0CB365EEFF6DBDAC30CD93 /* SecurityInterface.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SecurityInterface.framework; path = System/Library/Frameworks/SecurityInterface.framework; sourceTree = SDKROOT; };
+		388C1314131AD02CE01C4045 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		AC01522DAA88EDA69EC39985 /* Network.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Network.framework; path = System/Library/Frameworks/Network.framework; sourceTree = SDKROOT; };
+		AD915C3966A70BBEC96420EC /* SMTPCertificateReviewWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMTPCertificateReviewWindow.swift; sourceTree = "<group>"; };
+		C67F27BFB40588DC92B4F276 /* SMTPCertificateTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMTPCertificateTransport.swift; sourceTree = "<group>"; };
 		D0F1E91CE2294F308CD12504 /* MergeExternalReload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeExternalReload.swift; sourceTree = "<group>"; };
 		D0F1E91CE2294F308CD12502 /* MergeExternalSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeExternalSource.swift; sourceTree = "<group>"; };
 		BE462FE53C0B4B66B33BB004 /* SettingsSheetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheetController.swift; sourceTree = "<group>"; };
@@ -992,6 +1002,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6E9C211F63BF121EEBABF693 /* Security.framework in Frameworks */,
+				99BEB818AE916B4F613CFBCA /* Network.framework in Frameworks */,
 				2315A73DC53BA20B462CE821 /* TurtleGitSMTP.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1000,6 +1012,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AB1C5E8CEF08C47DCDF25198 /* SecurityInterface.framework in Frameworks */,
 				F4D94506F25F14CFDBD68746 /* TurtleGitCore.framework in Frameworks */,
 				4F838A5A9747585DC8B737C1 /* TurtleGitSMTP.framework in Frameworks */,
 			);
@@ -1022,6 +1035,7 @@
 		0B0ED7640D942B979726B592 /* TurtleGitMac */ = {
 			isa = PBXGroup;
 			children = (
+				AD915C3966A70BBEC96420EC /* SMTPCertificateReviewWindow.swift */,
 				C210101600000000000001A5 /* TurtleGitPatch.icns */,
 				C210101600000000000001A3 /* Branding */,
 				C210101600000000000001A1 /* ApplicationAssets.xcassets */,
@@ -1251,6 +1265,9 @@
 		41526AFF357D400FE5EBF721 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				DB0CB365EEFF6DBDAC30CD93 /* SecurityInterface.framework */,
+				388C1314131AD02CE01C4045 /* Security.framework */,
+				AC01522DAA88EDA69EC39985 /* Network.framework */,
 				2C6981A4005FA865E41C8FBC /* libcurl.tbd */,
 			);
 			name = Frameworks;
@@ -1288,6 +1305,7 @@
 		9216CD741C27CC93A27DDCBF /* TurtleGitCore */ = {
 			isa = PBXGroup;
 			children = (
+				C67F27BFB40588DC92B4F276 /* SMTPCertificateTransport.swift */,
 				173811DDB174801ACF738211 /* ActionLog.swift */,
 				04D3808CD4999B158EA66D0B /* Add.swift */,
 				BEA9844D056250E1264A3B15 /* AdvancedSettings.swift */,
@@ -1910,6 +1928,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A7C474571496517A0BA42FB2 /* SMTPCertificateTransport.swift in Sources */,
 				737A5C831F62BBA90DDF08B4 /* ActionLog.swift in Sources */,
 				9016DF6825447C08B8190B7A /* Add.swift in Sources */,
 				A34C626DE662BD2D7FC24EC4 /* AdvancedSettings.swift in Sources */,
@@ -2121,6 +2140,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F338A5A635E1EA0F64ADF694 /* SMTPCertificateReviewWindow.swift in Sources */,
 				8C7617B67305479B6FAB700C /* FileOperationProgress.swift in Sources */,
 				30E029F3769B8ECF4E2BE561 /* AddFileTable.swift in Sources */,
 				E61342FEBDA63EF108372279 /* AddProgressTable.swift in Sources */,

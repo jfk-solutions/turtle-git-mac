@@ -81,12 +81,16 @@ targets:
       - path: Sources/TurtleGitCore/Resources/Completion
         type: folder
         buildPhase: resources
+      - path: Sources/TurtleGitCore/Resources/RegexFilter.ini
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos.core
         GENERATE_INFOPLIST_FILE: YES
         SKIP_INSTALL: YES
     dependencies:
+      - sdk: Network.framework
+      - sdk: Security.framework
       - target: TurtleGitSMTP
         embed: false
   TurtleGitCache:
@@ -113,11 +117,25 @@ targets:
       - path: Sources/TurtleGitMac/Resources/TurtleGitHelp.help
         type: folder
         buildPhase: resources
+      - path: Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets
+        buildPhase: resources
+      - path: Sources/TurtleGitMac/Resources/Branding
+        type: folder
+        buildPhase: resources
+      - path: Sources/TurtleGitMac/Resources/Branding/TurtleGitPatch.icns
+        buildPhase: resources
+      - path: Sources/TurtleGitMac/Resources/Localizable.xcstrings
+        buildPhase: resources
+      - path: Sources/TurtleGitMac/Resources/LocalizationCredits.txt
+        buildPhase: resources
+      - path: Sources/TurtleGitMac/Resources/LocalizationManifest.json
+        buildPhase: resources
       - path: LICENSE
         buildPhase: resources
       - path: NOTICE
         buildPhase: resources
     dependencies:
+      - sdk: SecurityInterface.framework
       - target: TurtleGitCore
         embed: true
       - target: TurtleGitSMTP
@@ -132,26 +150,6 @@ targets:
         embed: false
       - target: TurtleGitWCRev
         embed: false
-    info:
-      path: Configuration/App-Info.plist
-      properties:
-        CFBundleName: TurtleGit
-        CFBundleHelpBookFolder: TurtleGitHelp.help
-        CFBundleHelpBookName: org.turtlegit.macos.help
-        CFBundleDisplayName: TurtleGit for Mac
-        CFBundleShortVersionString: '0.1.0'
-        CFBundleVersion: '1'
-        LSMinimumSystemVersion: '13.0'
-        NSHighResolutionCapable: true
-        NSAppleEventsUsageDescription: TurtleGit prepares drafts in Apple Mail with your selected recipients, message and attachments. You review and send them in Mail.
-        LSApplicationCategoryType: public.app-category.developer-tools
-        UTExportedTypeDeclarations:
-          - UTTypeIdentifier: org.turtlegit.unified-diff
-            UTTypeDescription: TurtleGit Unified Diff
-            UTTypeConformsTo: [public.data]
-        CFBundleURLTypes:
-          - CFBundleURLName: org.turtlegit.macos.action
-            CFBundleURLSchemes: [turtlegit]
     postBuildScripts:
       - name: Index bundled Mac help
         script: /usr/bin/python3 "$SRCROOT/scripts/index-help.py" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
@@ -172,6 +170,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos
+        INFOPLIST_FILE: Configuration/App-Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: Configuration/App.entitlements
       configs:
         AppStore:
@@ -179,27 +179,18 @@ targets:
   TurtleGitFinder:
     type: app-extension
     platform: macOS
-    sources: [FinderSync]
+    sources:
+      - path: FinderSync
+      - path: Sources/TurtleGitMac/Resources/Localizable.xcstrings
+        buildPhase: resources
     dependencies:
       - target: TurtleGitCore
         embed: false
-    info:
-      path: Configuration/Finder-Info.plist
-      properties:
-        CFBundleDisplayName: TurtleGit Finder
-        CFBundleShortVersionString: '0.1.0'
-        CFBundleVersion: '1'
-        NSExtension:
-          NSExtensionPointIdentifier: com.apple.FinderSync
-          NSExtensionPrincipalClass: '$(PRODUCT_MODULE_NAME).FinderSync'
-    entitlements:
-      path: Configuration/Finder.entitlements
-      properties:
-        com.apple.security.app-sandbox: true
-        com.apple.security.application-groups: [group.org.turtlegit.macos]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos.finder
+        INFOPLIST_FILE: Configuration/Finder-Info.plist
+        CODE_SIGN_ENTITLEMENTS: Configuration/Finder.entitlements
         APPLICATION_EXTENSION_API_ONLY: YES
         LD_RUNPATH_SEARCH_PATHS: '$(inherited) @executable_path/../../../../Frameworks'
 schemes:

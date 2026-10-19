@@ -582,7 +582,7 @@
       "resource": "src/Resources/TortoiseProcENG.rc",
       "id": "IDD_CERTCHECK",
       "status": "partial-native-replacement",
-      "parity_document": "docs/SVN-AUTHENTICATION-PARITY.md",
+      "parity_document": "docs/SMTP-CERTIFICATE-PARITY.md",
       "native_sources": [
         {
           "path": "Sources/TurtleGitGitAskpass/SVNPromptWindow.swift",
@@ -591,6 +591,18 @@
         {
           "path": "Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift",
           "anchor": "struct GitSVNAuthenticationPrompt"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SMTPCertificateReviewWindow.swift",
+          "anchor": "class SMTPCertificateReviewWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitCore/SMTPCertificateTransport.swift",
+          "anchor": "enum SMTPCertificateTransport"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SendPatchWindow.swift",
+          "anchor": "class SendPatchProgressWindowController"
         }
       ]
     },

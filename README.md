@@ -155,6 +155,10 @@ Finder files, including files outside a repository; opening it does not send mai
 See the [LFS/mail handoff notes](docs/FINDER-LFS-MAIL-PARITY.md) for permissions
 and remaining acceptance work.
 
+SMTP delivery offers a native certificate check before authentication or upload,
+with default Cancel, exact temporary acceptance, a read-only inspector and public
+DER/PEM export. See [SMTP certificate review](docs/SMTP-CERTIFICATE-REVIEW.md).
+
 An [older development-signed candidate](docs/qa/finder-installed-2026-10-17.json)
 passed installed activation, live ignored/modified/normal badges, repository access,
 service registration, background refresh with the app quit, and a file-context

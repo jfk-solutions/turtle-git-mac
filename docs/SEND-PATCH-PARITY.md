@@ -54,6 +54,17 @@ leaves work active, and Yes cancels owned work. Quit guards active operations an
 credential edits. Captured delivery settings and prepared bytes are not altered by
 later preference/file edits. Action-log and auto-close settings apply to completion.
 
+## SMTP certificate review
+
+Configured/direct native delivery now binds the source certificate decision to the
+actual TLS handshake, including same-connection STARTTLS. Default Cancel,
+hostname/error, Common Name/Issuer, both fingerprints and Open certificate are
+connected to an owned read-only inspector with Copy and DER/PEM export. Temporary
+acceptance is exact to one workflow, host, port and certificate bytes. Cancellation,
+forced close and Quit wait for actual worker/window/export cleanup.
+[SMTP certificate parity](SMTP-CERTIFICATE-PARITY.md) records source mappings,
+validation scope and remaining acceptance.
+
 ## Source mapping and evidence
 
 | Upstream | Native adaptation |

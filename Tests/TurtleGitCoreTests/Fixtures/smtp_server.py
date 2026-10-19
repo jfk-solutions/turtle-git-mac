@@ -17,9 +17,10 @@ def publish_json(name, value):
     temporary.write_text(json.dumps(value), encoding='utf-8')
     temporary.replace(destination)
 
-server = socket.socket(); server.bind(('127.0.0.1', 0)); server.listen(1); server.settimeout(float(sys.argv[3]) if len(sys.argv) > 3 else 15)
+server = socket.socket(); server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); server.bind(('127.0.0.1', int(sys.argv[4]) if len(sys.argv) > 4 else 0)); server.listen(1); server.settimeout(float(sys.argv[3]) if len(sys.argv) > 3 else 15)
 publish_json('ready.json', {'port': server.getsockname()[1]})
 state = {'mail': [], 'recipients': [], 'data': 0, 'accepted': 0, 'auth': 0, 'tls': False, 'ehlo': 0}
+publish_json('state.json', state)
 connection = None
 try:
     connection, _ = server.accept(); connection.settimeout(10)
@@ -36,6 +37,7 @@ try:
         reply('220 localhost private SMTP fixture\r\n')
         authenticated = False
         while True:
+            publish_json('state.json', state)
             line = stream.readline()
             if not line: break
             command = line.decode('ascii', errors='replace').rstrip('\r\n')
@@ -66,7 +68,7 @@ try:
                 reply('235 Authentication successful\r\n' if authenticated else '535 Authentication rejected\r\n')
             elif upper.startswith('MAIL FROM:'):
                 state['mail'].append(command)
-                if mode in ('auth-required', 'implicit-auth') and not authenticated: reply('530 Authentication required\r\n')
+                if mode in ('auth-required', 'implicit-auth', 'implicit-drop-final') and not authenticated: reply('530 Authentication required\r\n')
                 else: reply('250 Sender accepted\r\n')
             elif upper.startswith('RCPT TO:'):
                 state['recipients'].append(command)
@@ -83,7 +85,7 @@ try:
                 message = BytesParser(policy=policy.default).parsebytes(bytes(body))
                 parts = list(message.iter_parts()) if message.is_multipart() else [message]
                 state['parts'] = [{'filename': part.get_filename(), 'payload': base64.b64encode(part.get_payload(decode=True)).decode('ascii')} for part in parts]
-                if mode == 'drop-final': break
+                if mode in ('drop-final', 'implicit-drop-final'): break
                 state['accepted'] += 1; reply('250 Message accepted\r\n')
             elif upper == 'QUIT': reply('221 Bye\r\n'); break
             elif upper == 'RSET': reply('250 Reset\r\n')
@@ -92,4 +94,4 @@ except (OSError, ssl.SSLError, EOFError) as error:
     state['error_type'] = type(error).__name__
 finally:
     if connection is not None: connection.close()
-    server.close(); publish_json('result.json', state)
+    server.close(); publish_json('state.json', state); publish_json('result.json', state)

@@ -62,12 +62,15 @@ public enum PatchMailSMTP {
                             date: Date = Date(), identifier: UUID = UUID(),
                             cancellation: OperationCancellation? = nil,
                             envelopeRecipients: [String]? = nil,
-                            onProgress: (@Sendable (SMTPUploadProgress) -> Void)? = nil) async throws -> SMTPReceipt {
+                            onProgress: (@Sendable (SMTPUploadProgress) -> Void)? = nil,
+                            reviewCertificate: SMTPCertificateReview? = nil,
+                            certificateApprovals: SMTPCertificateAcceptanceCache? = nil) async throws -> SMTPReceipt {
         let token = cancellation ?? OperationCancellation()
         return try await withTaskCancellationHandler(operation: {
             try await Task.detached {
                 try submit(message: message, sender: sender, server: server, authentication: authentication,
-                           bodyCharset: bodyCharset, date: date, identifier: identifier, envelopeRecipients: envelopeRecipients, token: token, progress: onProgress)
+                           bodyCharset: bodyCharset, date: date, identifier: identifier, envelopeRecipients: envelopeRecipients, token: token, progress: onProgress,
+                           reviewCertificate: reviewCertificate, certificateApprovals: certificateApprovals)
             }.value
         }, onCancel: { token.cancel() })
     }
@@ -86,7 +89,8 @@ public enum PatchMailSMTP {
     }
     private static func submit(message: PatchMailMessage, sender: PatchMailSender, server: SMTPServer,
                                authentication: SMTPAuthentication?, bodyCharset: PatchMailBodyCharset,
-                               date: Date, identifier: UUID, envelopeRecipients: [String]?, token: OperationCancellation, progress: (@Sendable (SMTPUploadProgress) -> Void)?) throws -> SMTPReceipt {
+                               date: Date, identifier: UUID, envelopeRecipients: [String]?, token: OperationCancellation, progress: (@Sendable (SMTPUploadProgress) -> Void)?,
+                               reviewCertificate: SMTPCertificateReview?, certificateApprovals: SMTPCertificateAcceptanceCache?) throws -> SMTPReceipt {
         try token.check()
         try validate(server: server, authentication: authentication)
         let host = server.host, ipv6 = host.contains(":")
@@ -98,6 +102,10 @@ public enum PatchMailSMTP {
         // patch author or render display-name header words into the envelope.
         let from = try PatchMailMIME.envelopeAddress(sender.email)
         try token.check()
+        if let reviewCertificate {
+            return try SMTPCertificateTransport.send(payload: bytes, sender: from, recipients: recipients, server: server,
+                authentication: authentication, token: token, progress: progress, review: reviewCertificate, approvals: certificateApprovals)
+        }
         let url = "\(server.encryption == .tls ? "smtps" : "smtp")://\(ipv6 ? "[" + host + "]" : host):\(server.port)"
         let allocated = recipients.map { strdup($0) }
         defer { allocated.forEach { free($0) } }
@@ -152,8 +160,11 @@ extension PatchMailSMTP {
     public static func sendSeries(messages: [PatchMailMessage], sender: PatchMailSender, server: SMTPServer,
                                   authentication: SMTPAuthentication? = nil, bodyCharset: PatchMailBodyCharset = .utf8,
                                   cancellation: OperationCancellation? = nil,
-                                  onProgress: (@Sendable (SMTPSeriesProgress) -> Void)? = nil) async throws -> [SMTPReceipt] {
+                                  onProgress: (@Sendable (SMTPSeriesProgress) -> Void)? = nil,
+                                  reviewCertificate: SMTPCertificateReview? = nil,
+                                  certificateApprovals: SMTPCertificateAcceptanceCache? = nil) async throws -> [SMTPReceipt] {
         let token = cancellation ?? OperationCancellation()
+        let approvals = certificateApprovals ?? SMTPCertificateAcceptanceCache()
         return try await withTaskCancellationHandler(operation: {
             try token.check()
             let stamps = messages.map { _ in (Date(), UUID()) }
@@ -172,7 +183,7 @@ extension PatchMailSMTP {
             }, submit: { index, progress in
                 try await send(message: messages[index], sender: sender, server: server, authentication: authentication,
                                bodyCharset: bodyCharset, date: stamps[index].0, identifier: stamps[index].1,
-                               cancellation: token, onProgress: progress)
+                               cancellation: token, onProgress: progress, reviewCertificate: reviewCertificate, certificateApprovals: approvals)
             })
         }, onCancel: { token.cancel() })
     }
@@ -192,8 +203,8 @@ extension PatchMailSMTP {
                     break
                 } catch {
                     let retry: Bool
-                    if case SMTPFailure.transfer(_, _, let uncertain) = error {
-                        retry = !uncertain && !cancellation.isCancelled && !Task.isCancelled && attempt < 3
+                    if case SMTPFailure.transfer(let code, _, let uncertain) = error {
+                        retry = code != 60 && !uncertain && !cancellation.isCancelled && !Task.isCancelled && attempt < 3
                     } else if let direct = error as? SMTPDirectFailure {
                         retry = direct.retryable && !cancellation.isCancelled && !Task.isCancelled && attempt < 3
                     } else { retry = false }
@@ -306,7 +317,7 @@ public struct SMTPDirectFailure: LocalizedError {
         return false
     }
     fileprivate var retryable: Bool {
-        if case SMTPFailure.transfer(_, _, let uncertain) = cause { return !uncertain }
+        if case SMTPFailure.transfer(let code, _, let uncertain) = cause { return code != 60 && !uncertain }
         if case SMTPMXFailure.query = cause { return true }
         if case SMTPDirectRouteFailure.noMX = cause { return true }
         return false
@@ -332,12 +343,16 @@ extension PatchMailSMTP {
     }
     public static func sendDirectSeries(messages: [PatchMailMessage], sender: PatchMailSender,
                                         cancellation: OperationCancellation? = nil,
-                                        onProgress: (@Sendable (SMTPSeriesProgress) -> Void)? = nil) async throws -> [SMTPReceipt] {
-        try await sendDirectSeries(messages: messages, sender: sender, cancellation: cancellation ?? OperationCancellation(),
+                                        onProgress: (@Sendable (SMTPSeriesProgress) -> Void)? = nil,
+                                        reviewCertificate: SMTPCertificateReview? = nil,
+                                        certificateApprovals: SMTPCertificateAcceptanceCache? = nil) async throws -> [SMTPReceipt] {
+        let approvals = certificateApprovals ?? SMTPCertificateAcceptanceCache()
+        return try await sendDirectSeries(messages: messages, sender: sender, cancellation: cancellation ?? OperationCancellation(),
             onProgress: onProgress, resolver: { try await SMTPMXResolver.lookup(domain: $0, cancellation: $1) },
             transport: { message, sender, server, recipients, date, identifier, token, progress in
                 try await send(message: message, sender: sender, server: server, date: date, identifier: identifier,
-                               cancellation: token, envelopeRecipients: recipients, onProgress: progress)
+                               cancellation: token, envelopeRecipients: recipients, onProgress: progress,
+                               reviewCertificate: reviewCertificate, certificateApprovals: approvals)
             }, wait: { token in
                 for _ in 0..<100 { try token.check(); try await Task.sleep(nanoseconds: 20_000_000) }
             })
@@ -394,8 +409,8 @@ private actor DirectSMTPState {
                                                       stamps[index].0, stamps[index].1, token, progress)
                         break
                     } catch {
-                        if case SMTPFailure.transfer(_, _, let uncertain) = error {
-                            if uncertain { throw error }
+                        if case SMTPFailure.transfer(let code, _, let uncertain) = error {
+                            if uncertain || code == 60 { throw error }
                             lastError = error
                         } else { throw error }
                     }

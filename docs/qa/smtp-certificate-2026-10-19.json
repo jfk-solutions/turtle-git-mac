@@ -1,0 +1,199 @@
+{
+  "date": "2026-10-19",
+  "baseline": "526c6b716eca054266be60d582badfafbdf84a35",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected native SMTP certificate review/inspector/export and actual TLS/STARTTLS transport with cancellation/temporary acceptance",
+  "status": "scoped batch passed; whole port and hosted/signed/physical acceptance unproven",
+  "source_sha256": {
+    "Sources/TurtleGitCore/SMTPCertificateTransport.swift": "a99aa6398444d5e86538b0a2dcf616119791c066ce6c15bb69ff9e6f9aaac6bb",
+    "Sources/TurtleGitCore/PatchMailSMTP.swift": "17099b75e311f7b82bf36151d342abdded7c15cd02ac8d5e77e2e50835ce3d06",
+    "Sources/TurtleGitMac/SMTPCertificateReviewWindow.swift": "adaaf0b8de7c1a687b2af49a725becdc97aa173a1b5e338e8079a3914d765aca",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "6c0688a15d7420fce1a5abe53b87f4bd4bf272f97b3773e292b62ed0241e1808",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "0879800736cba4a2ca7f5a8aa41d233e221dee4c185065da5d37fa80db1f1ab6",
+    "Tests/TurtleGitCoreTests/SMTPCertificateReviewTests.swift": "215f28001ae4163c4518cb4abada5a311188356154f3a8c0815ea5031a90680f",
+    "Tests/TurtleGitCoreTests/Fixtures/smtp_server.py": "dd1f864d4b120697bed7a3936446b5316f0b862adf307a8a5df0e16551379af8",
+    "docs/qa/smtp-certificate-native-2026-10-19.swift": "453d9921202e3033a20ab79879baafb5a7b8ecd8423593ee3fc59258aae079f9",
+    "scripts/test-smtp-certificate-native.py": "7f0dba3034064410d3d34825efdf3c41b5d952daceeee5217f0a393d8d4b0fdc",
+    "Package.swift": "9262a7c365827ce7ce15faa6470235cfe065f07c560348608668acfa8423d92d",
+    "project.yml": "c757b9603de0119eb84956174f82d3b4773b35600c5e3dd68706d59b763b8e3a",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "3f608e6309ba5c90b9d5461acaf0b6001a11b69aa80b26ecd5a71c7ae9942eb3"
+  },
+  "core": {
+    "initial": {
+      "log": "build/qa/smtp-certificate-core-2026-10-19.log",
+      "exit": 1,
+      "methods": 25,
+      "failed_methods": 1,
+      "failed_assertions": 2,
+      "cause": "Explicit implicit-TLS rejection became timeout28/retry3 when Network verify completion(false) did not promptly emit failed."
+    },
+    "repair": {
+      "log": "build/qa/smtp-certificate-core-rejection-repair-2026-10-19.log",
+      "exit": 0,
+      "methods": 4,
+      "failed_assertions": 0,
+      "change": "Explicit trustRejected is terminal60 independently of NW state. Actual callback/connection drain retained; synchronous lock helpers avoid async lock warnings."
+    },
+    "retained_passes": 21,
+    "distinct_current_methods_passing": 25,
+    "scope": [
+      "actual implicit TLS and mandatory/optional STARTTLS/plain fallback",
+      "exact MIME/authentication envelope",
+      "private CA trust and hostname validation",
+      "default reject before AUTH/DATA and no retry",
+      "held review pauses own deadline; cancellation awaits real callback drain",
+      "exact host+port+DER reuse, changed peer/host/port re-review",
+      "lost final acknowledgement uncertain/no automatic retry",
+      "existing configured SMTP, MIME and direct-delivery tests"
+    ],
+    "full_core_suite_repeated": false
+  },
+  "builds": [
+    {
+      "log": "build/qa/smtp-certificate-debug-2026-10-19.log",
+      "exit": 0,
+      "note": "Initial build; subsequent production rejection/layout changes and generator omission make this non-final evidence."
+    },
+    {
+      "log": "build/qa/smtp-certificate-debug-repair-2026-10-19.log",
+      "exit": 0,
+      "note": "Rejection/layout repair compiled. Existing resource/metadata omissions from stale xcodegen specification then found; restored tracked resource phases/metadata and corrected spec."
+    },
+    {
+      "log": "build/qa/smtp-certificate-debug-resources-2026-10-19.log",
+      "exit": 0,
+      "note": "Current production rejection/source-layout repair with existing tracked resources and metadata restored. Final bundle resource/metadata assertions passed."
+    },
+    {
+      "log": "build/qa/smtp-certificate-debug-layout-2026-10-19.log",
+      "exit": 0,
+      "note": "Focused native identity-grid layout repair only; Core behavior unchanged."
+    }
+  ],
+  "native": {
+    "attempts": [
+      {
+        "log": "build/qa/smtp-certificate-native-2026-10-19.log",
+        "exit": 1,
+        "cases_passed": [],
+        "receiver_pids_reaped": [
+          93438
+        ],
+        "failure": "Fixture searched wire MIME text for cleartext UTF8 body, although Content-Transfer-Encoding is base64."
+      },
+      {
+        "log": "build/qa/smtp-certificate-native-mime-oracle-repair-2026-10-19.log",
+        "exit": 0,
+        "cases_passed": [
+          "acceptance",
+          "ownership",
+          "uncertain"
+        ],
+        "receiver_pids_reaped": [
+          93592,
+          93603,
+          93622
+        ],
+        "change": "Independent Python email.parser decoded body asserted equal to exact original bytes; behavior assertions retained.",
+        "visual_observation": "Raw captures exposed identity-grid vertical stretching plus optional capture transparency/stale appearance artifacts. Production layout and optional capture repair pending; other behavioral passes retained."
+      },
+      {
+        "log": "build/qa/smtp-certificate-native-layout-repair-2026-10-19.log",
+        "exit": 0,
+        "cases_passed": [
+          "ownership"
+        ],
+        "receiver_pids_reaped": [
+          93885
+        ],
+        "changes": [
+          "Fixed identity grid to compact source-shaped rows",
+          "Optional capture settles actual AppKit appearance and renders real native content on resolved window background"
+        ],
+        "scope": "Repeat only affected native ownership/layout case; acceptance and uncertain-delivery passes retained."
+      }
+    ],
+    "captures_initial": "build/qa/smtp-certificate-native-captures-initial",
+    "status": "three distinct native cases pass cumulatively",
+    "captures_current": "build/qa/smtp-certificate-native-captures",
+    "visual_review": {
+      "review": "Both light/dark reviewed: heading/hostname/error, compact identity rows, named SHA1 and wrapped SHA256, original artwork and source-ordered buttons readable. Published actual review captures only.",
+      "inspector": "Both raw captures inspected; certificate fields and export controls are visible. Selected-tab caption is absent in offscreen cache rendering and SecurityInterface disclosure/status layout differs by appearance; compositor/physical inspector acceptance remains open. Inspector captures not published as accepted screenshots."
+    },
+    "cleanup": {
+      "all_receivers_reaped": [
+        93438,
+        93592,
+        93603,
+        93622,
+        93885
+      ],
+      "independently_absent": true,
+      "loopback_server_processes_remaining": false,
+      "owned_windows_and_sheets_drained": true,
+      "private_state": [
+        "repositories/configuration",
+        "preference domains and geometry",
+        "pasteboard",
+        "TLS certificates and mock credentials",
+        "loopback server processes"
+      ],
+      "user_apps_terminated": false
+    }
+  },
+  "resources": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1298
+    },
+    "help": {
+      "documents": 41,
+      "topics": 50,
+      "files": 61
+    },
+    "project_repair": "Preserve existing build resources, app icon/UTI/AppleEvents metadata and team-qualified Finder entitlement; add only two SMTP sources and three framework references to tracked project. Generator source includes previously missing resources and references maintained plist/entitlement files instead of overwriting them.",
+    "checks": {
+      "localizations_check": "passed",
+      "help_check": "passed",
+      "final_bundle_resources_and_metadata": "passed",
+      "project_phase_diff": "build/qa/smtp-certificate-project-phase-diff.json; no existing phase entries removed"
+    }
+  },
+  "limits": [
+    "Not a complete current hosted CI pass",
+    "No public SMTP/MX mail sent or user Keychain accessed",
+    "No current signed sandbox/save-grant or App Store acceptance",
+    "No complete certificate-chain inspector",
+    "No physical keyboard/VoiceOver acceptance",
+    "Optional source libgit2 Clone/Fetch/Sync backend remains unported; default CLI backend follows upstream default clone/fetch mask"
+  ],
+  "unrelated_wip_preserved": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  },
+  "captures_sha256": {
+    "docs/site/assets/smtp-certificate-review-dark.png": "d74b2f55369bb675ef15e11035d1ca58b6a25e22aceedf76fc697932c39ecfd8",
+    "docs/site/assets/smtp-certificate-review-light.png": "b27d26548d669198f46f71426d535bbcc93cd675b5fe111cb1bde5baf75aee29"
+  },
+  "hosted_snapshot": {
+    "pages_run": 39232228058,
+    "pages_sha": "526c6b716eca054266be60d582badfafbdf84a35",
+    "pages_conclusion": "success",
+    "macOS_run": 39232227940,
+    "macOS_status_when_observed": "pending",
+    "no_current_full_hosted_pass_claimed": true
+  },
+  "documentation": {
+    "site_build": "build/qa/smtp-certificate-site-final-2026-10-19.log; exit0, no unresolved fragments",
+    "localizations_check": "38 languages, 1298 keys; exit0",
+    "help_check": "41 documents, 50 topics, 61 files; exit0",
+    "coverage_reconciled": "130 dialogs, 120 partial family reviews, zero certified complete; not a feature percentage",
+    "diff_check": "passed"
+  },
+  "validation_platform": {
+    "scope": "local macOS ARM Debug, unbundled Core XCTest and linked actual Debug native objects",
+    "native_git": "/usr/bin/git provides private window context only; these TLS cases do not mutate repositories or depend on Git-engine behavior",
+    "swift_driver": "1.168.6",
+    "hosted_sdk_acceptance": "unproven"
+  }
+}

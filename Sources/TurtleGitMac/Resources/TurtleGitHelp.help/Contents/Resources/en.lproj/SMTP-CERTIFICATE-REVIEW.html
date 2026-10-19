@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Reviewing an SMTP server certificate</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-smtpCertificateReview"></a><h1 id="reviewing-an-smtp-server-certificate">Reviewing an SMTP server certificate</h1>
+<p>When Send Mail cannot validate the certificate presented by an SMTP server,
+<strong>Certificate verification failed!</strong> shows the server hostname, the validation
+error, Common Name, Issuer and SHA-1/SHA-256 fingerprints. <strong>Cancel</strong> is the default
+button. Cancelling rejects this connection before authentication or message upload.</p>
+<p>Choose <strong>Open certificate</strong> to inspect the public certificate in macOS's native
+certificate viewer or its selectable Text page. Trust editing is disabled.
+<strong>Copy fingerprints</strong> copies both named fingerprints. <strong>Export…</strong> saves the exact
+public certificate as DER (.cer) or PEM (.pem), using a native Save panel. This
+neither accepts the connection nor changes Keychain trust. An accepted export
+finishes before its owning inspector and certificate decision are released.</p>
+<p>After checking the server with its administrator, <strong>Accept certificate</strong> permits
+this connection. The exception is temporary: the same Send Mail workflow can
+reuse it only for exactly the same hostname, port and certificate bytes. A changed
+certificate, another host or another port requires a new decision. The exception
+is not saved in Settings, Git configuration or Keychain and is not shared with
+other Send Mail windows.</p>
+<p>The review applies to configured SMTP and direct SMTP, including a STARTTLS
+upgrade on the connection that presented the certificate. Authentication and
+message content wait for the decision. Encryption <strong>None</strong> retains opportunistic
+STARTTLS when advertised and can use plain SMTP when it is absent. Select
+<strong>STARTTLS</strong> or <strong>TLS</strong> in Email settings when encryption is required.</p>
+<p>Cancel or closing the progress window aborts an active review and its owned
+inspector/picker. A late acceptance cannot resume a cancelled submission. A save
+already accepted is allowed to finish while closing waits. Quit also waits for
+owned transport and window cleanup. A lost final server reply may mean a message
+was accepted; TurtleGit reports uncertain delivery and does not automatically
+resend it.</p>
+<p>This SMTP decision is separate from <a href="GIT-AUTHENTICATION.html">Git authentication</a>
+and <a href="SVN-AUTHENTICATION.html">SVN certificate authentication</a>. The existing
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/CERTIFICATE-INSPECTOR.html">certificate inspector screenshots</a> show the SVN helper;
+they are not captures of the SMTP review window.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>
