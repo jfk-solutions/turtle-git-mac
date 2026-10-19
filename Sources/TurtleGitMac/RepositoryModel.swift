@@ -1579,6 +1579,10 @@ private enum HistoricalMaterializationContext {
     }
     func configureResetInteractions(_ controller: ResetWindowController, repository: GitRepository, access: RepositoryAccessLease?, completion: (() -> Void)? = nil) {
         let root = repository.root, preferences = controller.model.presentationPreferences
+        controller.model.onNotificationLog={ [weak self] child,grant,paths,old,new in
+            guard let self,!self.retired,!self.confirmingQuit else{return}
+            self.showLog(repository:child,access:grant,paths:paths,endRevision:old == nil ? new:nil,revisionRange:old.map{HistoryRevisionRange(from:$0,to:new ?? "HEAD")},preferences:preferences)
+        }
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
@@ -2783,7 +2787,7 @@ private enum HistoricalMaterializationContext {
         controller.model.onMergeRevision = { [weak self] hash in self?.showMerge(repository: repository, access: access, revision: hash) }
         controller.model.onRebaseRevision = { [weak self] upstream in self?.showRebase(repository: repository, access: access, upstream: upstream) }
         controller.model.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
-        controller.model.onRevertRevisions = { [weak self, weak controller] entries, mainline in guard let controller else { return }; self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: controller.window) }
+        controller.model.onRevertRevisions = { [weak self, weak controller] entries, mainline in guard let controller else { return }; self?.showHistoryRevert(repository: repository, access: access, entries: entries, mainline: mainline, owner: controller.window,preferences:operationPreferences) }
         controller.model.onApply = { [weak self] hash in self?.showStashRestore(repository: repository, access: access, pop: false, reference: hash) }
         controller.model.onChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root)
@@ -3037,15 +3041,15 @@ private enum HistoricalMaterializationContext {
         for replay in rebaseWindows.values where replay.model.repository.root == root && !replay.model.retired { replay.model.refreshRevisionHistoryContext() }
         for graph in revisionGraphWindows.values where graph.model.repository.root == root && !graph.model.closed { graph.requestRepositoryRefresh() }
     }
-    private func showHistoryRevert(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], mainline: Int?, owner: NSWindow?) {
+    private func showHistoryRevert(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], mainline: Int?, owner: NSWindow?,preferences:UserDefaults) {
         guard owner?.attachedSheet == nil else { return }
         let id = UUID(), root = repository.root
-        let child = HistoryRevertWindowController(repository: repository, access: access, entries: entries, mainline: mainline, preferences: .standard)
+        let child = HistoryRevertWindowController(repository: repository, access: access, entries: entries, mainline: mainline, preferences: preferences)
         child.model.onChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        child.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
+        child.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: [],preferences:preferences) }
         child.onClosed = { [weak self, weak owner, weak child] in
             if let window = child?.window, window.sheetParent === owner { owner?.endSheet(window) }
             self?.historyRevertWindows.removeValue(forKey: id)
@@ -3347,7 +3351,7 @@ private enum HistoricalMaterializationContext {
     }
     func configureLogRevert(_ log:LogWindowModel,repository:GitRepository,access:RepositoryAccessLease?) {
         log.onPreparedRevert={ [weak self,weak log] selection in
-            self?.showHistoryRevert(repository:repository,access:access,entries:selection.rows,mainline:selection.mainline,owner:log?.window)
+            self?.showHistoryRevert(repository:repository,access:access,entries:selection.rows,mainline:selection.mainline,owner:log?.window,preferences:log?.colorPreferences ?? self?.fileComparisonPreferences ?? .standard)
         }
     }
     func configureLogIntegration(_ log:LogWindowModel,repository:GitRepository,access:RepositoryAccessLease?) {

@@ -509,6 +509,22 @@ Submodule Update, Clean and Bisect children inherit the same preferences,
 appearance and repository access. Forcibly closing progress cannot start a queued
 post-action.
 
+When Reset is configured to use libgit2, its progress window also shows sortable
+Action/Path rows with the source Checkout icon. You can copy selected rows or
+paths and open their file history, Open/Open With, or reveal them in Finder.
+These notifications describe files selected for checkout; a later error can leave
+a partial result. With recycling enabled, Hard Reset moves an existing notified
+item to Trash before allowing its overwrite. A recycling failure stops the
+operation; files already moved remain recoverable. Files removed without a
+checkout notification follow the selected engine's reset behavior. Retry keeps
+the accepted engine and recycling choice. The ordinary command-line backend
+retains its existing output presentation.
+
+Log's commit-revert workflow likewise retains the backend selected when you
+accept the operation, including across its Skip/Abort decisions. The selected
+libgit2 engine retains its native conflict index and message state. Review any
+conflicts in the working tree and Commit window before creating a commit.
+
 ## Submodules and worktrees
 
 Submodule Add asks for the repository, destination path and optional branch.

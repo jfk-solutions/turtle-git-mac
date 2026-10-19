@@ -2452,12 +2452,13 @@ struct LogCommandRequest: Identifiable {
         case .cherryPick: commandRequest = nil; requestCherryPick(); return
         case .revert: args = ["revert", "--no-commit", hash]
         }
+        let revertBackend:GitLibGit2Configuration? = request.command == .revert ? .load(from:labelDefaults):nil
         commandRequest = nil; busy = true
         Task {
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let result: GitResult
-                if request.command == .revert { result = try await repository.revertLogRevision(revision: hash, mainline: request.mainline) }
+                if request.command == .revert { result = try await repository.revertLogRevision(revision: hash, mainline: request.mainline,backend:revertBackend) }
                 else { result = try await repository.run(args) }
                 onRevisionChanged(result.text)
                 if request.command == .revert {

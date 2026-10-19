@@ -171,6 +171,8 @@ import TurtleGitCore
     let entries: [LogEntry]
     let mainline: Int?
     let preferences: UserDefaults
+    private(set) var backend:GitLibGit2Configuration?
+    var captureBackend:(()->GitLibGit2Configuration)?
     @Published private(set) var currentWork=""
     @Published private(set) var percentage: Int?
     private var originalOutput=""
@@ -202,6 +204,7 @@ import TurtleGitCore
             let accepted = await self.ask("Revert the selected commit(s)?", "", "Yes", "No")
             self.confirming = false
             guard !self.invalidated, accepted else { self.busy = false; if !self.invalidated { self.close() }; return }
+            self.backend=self.captureBackend?() ?? .load(from:self.preferences)
             var changed = false, messages = ""
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(self.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -214,7 +217,7 @@ import TurtleGitCore
                     self.append(entry.hash + " " + entry.subject + "\n")
                     do {
                         let repository=self.repository,token=self.cancellation,parent=self.entries.count == 1 ? self.mainline:nil,allowsRoot=self.entries.count>1
-                        let result=try await self.stream { emit in try await repository.revertLogRevision(revision:entry.hash,mainline:parent,allowRoot:allowsRoot,cancellation:token,onOutput:emit) }
+                        let result=try await self.stream { emit in try await repository.revertLogRevision(revision:entry.hash,mainline:parent,allowRoot:allowsRoot,cancellation:token,onOutput:emit,backend:self.backend) }
                         self.originalOutput += result.text
                         changed = true
                         if let message = try? String(contentsOf: messageURL, encoding: .utf8) {

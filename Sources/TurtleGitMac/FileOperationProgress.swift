@@ -26,6 +26,7 @@ enum FileOperationProgressAction { case log, open, openWith, explore }
     init(preferences:UserDefaults) {self.preferences=preferences}
     func begin(_ command:String) {generation=UUID();rows=[];append("Command",command,kind:.command)}
     func append(_ action:String,_ path:String,kind:FileOperationProgressRow.Kind) {rows.append(.init(action:action,path:path,kind:kind))}
+    func appendCheckout(path:String) {rows.append(.init(action:"Checkout",path:path,kind:.file,filePath:path))}
     func record(id:UUID,action:String,path:String,status:String) {
         let row=FileOperationProgressRow(action:action,path:path,kind:.file,status:status,id:id)
         if let index=rows.firstIndex(where:{$0.id==id}) {rows[index]=row} else {rows.append(row)}
@@ -65,6 +66,7 @@ struct FileOperationProgressTable: NSViewRepresentable {
     let repository:URL
     var keyboardAvailable=true
     var fileRowIcons=false
+    var backgroundIcon:MenuIcon?
     var actionAvailability:()->Bool = {true}
     var keyboardAvailability:(()->Bool)?
     var keyboardAllowed:Bool {keyboardAvailable && (keyboardAvailability?() ?? actionAvailability())}
@@ -114,7 +116,7 @@ struct FileOperationProgressTable: NSViewRepresentable {
             }
             return result
         }
-        init(_ parent:FileOperationProgressTable) {self.parent=parent;generation=parent.state.generation;table=FileOperationProgressNativeTable(icon:parent.icon,defaults:parent.state.preferences)}
+        init(_ parent:FileOperationProgressTable) {self.parent=parent;generation=parent.state.generation;table=FileOperationProgressNativeTable(icon:parent.backgroundIcon ?? parent.icon,defaults:parent.state.preferences)}
         func make()->NSScrollView {
             let scroll=NSScrollView();scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.borderType = .bezelBorder
             displayedRowIDs=rows.map(\.id)

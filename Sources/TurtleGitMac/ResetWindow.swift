@@ -241,6 +241,7 @@ struct ResetChooserDraft: Equatable {
     @Published private(set) var progress: ResetProgressWindowModel?
     var onProgress: ((ResetProgressWindowModel) -> Void)?
     var onPostAction: ((ResetPostAction) -> Void)?
+    var onNotificationLog:RemoteProgressLogHandler = {_,_,_,_,_ in}
     var onChanged: (String) -> Void = { _ in }
     func finish(_ result: ResetProgressWindowModel) {
         guard !invalidated, progress === result, !result.busy, !result.confirmingCancellation else { return }
@@ -388,11 +389,12 @@ struct ResetChooserDraft: Equatable {
         if let onProgress {
             let result = ResetProgressWindowModel(repository: chooser.repository, plan: plan, preferences: preferences, access: access)
             result.close = { [weak self, weak result] in guard let result else { return }; self?.finish(result) }
-            result.onChanged = onChanged
+            result.onChanged = onChanged; result.onNotificationLog = onNotificationLog
             let actionCallback=onPostAction,afterClose=afterClose
             result.onPostAction = { action in if let afterClose {afterClose {actionCallback?(action)}} else {actionCallback?(action)} }
             progress = result; onProgress(result); if progress === result { result.start() }
         } else {
+            let backend=GitLibGit2Configuration.load(from:preferences),recycle=preferences.object(forKey:"RevertWithRecycleBin") == nil || preferences.bool(forKey:"RevertWithRecycleBin")
             let request = OperationCancellation(); resetCancellation = request; LocalGitCommandProgress.begin()
             Task { [self, access, repository = chooser.repository] in
                 var completedOutput: String?
@@ -405,7 +407,7 @@ struct ResetChooserDraft: Equatable {
                     }
                 }
                 do {
-                    let output = try await repository.reset(plan, cancellation: request)
+                    let output = try await repository.reset(plan, cancellation: request, backend:backend,recycle:recycle)
                     guard !invalidated, resetCancellation === request, !request.isCancelled else { return }
                     completedOutput = output
                 } catch { if !invalidated, resetCancellation === request, !request.isCancelled { self.error = error.localizedDescription } }
@@ -497,7 +499,28 @@ enum ResetPostAction: String, Hashable {
     var title: String { switch self { case .retry: return "Retry"; case .submoduleUpdate: return "Submodule Update…"; case .bisectGood: return "Bisect good"; case .bisectBad: return "Bisect bad"; case .bisectSkip: return "Bisect skip"; case .bisectReset: return "Bisect reset"; case .clean: return "Clean up…" } }
     var icon: MenuIcon { switch self { case .retry: return .refresh; case .submoduleUpdate: return .fetch; case .bisectGood: return .bisectGood; case .bisectBad: return .bisectBad; case .bisectSkip: return .bisect; case .bisectReset: return .bisectReset; case .clean: return .clean } }
 }
+private final class ResetNotificationBuffer:@unchecked Sendable {
+    private let lock=NSLock()
+    private var values:[GitResetNotification]=[]
+    func append(_ value:GitResetNotification){lock.lock();values.append(value);lock.unlock()}
+    func take()->[GitResetNotification]{lock.lock();defer{lock.unlock()};let copy=values;values=[];return copy}
+}
 @MainActor final class ResetProgressWindowModel: ObservableObject {
+    let backend:GitLibGit2Configuration
+    let recycle:Bool
+    let notifications:FileOperationProgressState
+    var showsNotifications:Bool {backend.requests(.reset)}
+    var actionLogOutput:String {showsNotifications ? notifications.output+"\n\n"+output:output}
+    @Published var fileActionBusy=false
+    @Published private(set) var notificationWarnings:[String]=[]
+    var presentationAvailable:()->Bool = {true}
+    var notificationOwnerAvailable:Bool {showsNotifications && active && !abandoned && !busy && !hasPendingWork && !confirmingQuit && !confirmingCancellation && !dispatched && presentationAvailable()}
+    var notificationActionsAvailable:Bool {notificationOwnerAvailable && !fileActionBusy}
+    var notificationKeyboardAvailable:Bool {showsNotifications && active && !abandoned && !confirmingQuit && !fileActionBusy && presentationAvailable()}
+    var onNotificationFileAction:(FileOperationProgressAction,FileOperationProgressRow)->Void = {_,_ in}
+    var onNotificationLog:RemoteProgressLogHandler = {_,_,_,_,_ in}
+    func notificationFailure(_ text:String){appendDiagnostic(text)}
+
     private(set) static var activeOperations=0
     @Published private(set) var pendingOperations=0
     var hasPendingWork:Bool {pendingOperations > 0}
@@ -539,10 +562,10 @@ enum ResetPostAction: String, Hashable {
     var onPostAction: ((ResetPostAction) -> Void)?
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var canCancel: Bool { active && busy && !commandFinished && !confirmingQuit && !cancelling && !confirmingCancellation }
-    init(repository: GitRepository, plan: ResetPlan, preferences: UserDefaults = .standard, access: RepositoryAccessLease? = nil) { self.access = access; self.repository = repository; self.plan = plan; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
-    func invalidate() { invalidated = true; cancellation.cancel(); confirmingCancellation = false; postActions = [];if !hasPendingWork {busy=false} }
+    init(repository: GitRepository, plan: ResetPlan, preferences: UserDefaults = .standard, access: RepositoryAccessLease? = nil,backend:GitLibGit2Configuration? = nil) { self.access = access; self.repository = repository; self.plan = plan; self.preferences = preferences;self.backend = backend ?? .load(from:preferences);recycle=preferences.object(forKey:"RevertWithRecycleBin") == nil || preferences.bool(forKey:"RevertWithRecycleBin");notifications=FileOperationProgressState(preferences:preferences); progressPresentation = GitCommandPresentation(defaults: preferences); self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
+    func invalidate() { notifications.retire();invalidated = true; cancellation.cancel(); confirmingCancellation = false; postActions = [];if !hasPendingWork {busy=false} }
     func abandonPresentation() { abandoned = true; cancellation.cancel() }
-    private func resetAttempt(){busy=true;success=false;cancelled=false;cancelling=false;output="";rawOutput="";currentWork="";percentage=nil;postActions=[];completionRange=nil;commandFinished=false;commandSucceeded=false}
+    private func resetAttempt(){notifications.begin("Reset "+plan.mode.rawValue+" "+plan.revision);notificationWarnings=[];busy=true;success=false;cancelled=false;cancelling=false;output="";rawOutput="";currentWork="";percentage=nil;postActions=[];completionRange=nil;commandFinished=false;commandSucceeded=false}
     func start() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute()}}
     func run() async {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();await execute()}
     private func bounded(_ text:String,bytes limit:Int)->String {
@@ -571,19 +594,51 @@ enum ResetPostAction: String, Hashable {
         let prefix=bounded(previous.substring(to:range.location),bytes:progressPresentation.outputLimit-footer.utf8.count-suffix.utf8.count)
         output=prefix+footer+suffix;completionRange=NSRange(location:(prefix as NSString).length,length:(footer as NSString).length)
     }
+    private func streamReset(_ token:OperationCancellation) async throws->String {
+        let buffer=ResetNotificationBuffer(),started=Date()
+        let (events,continuation)=AsyncStream<Void>.makeStream(bufferingPolicy:.bufferingNewest(1))
+        func drain(){
+            let values=buffer.take();guard !invalidated,cancellation===token else{return}
+            for value in values {
+                switch value {
+                case .file(let path): notifications.appendCheckout(path:path)
+                case .progress(let completed,let total): percentage=total>0 ? Int(min(100,Double(completed)/Double(total)*100)):nil
+                case .issue(let issue):notificationWarnings.append(issue.message);notifications.append("Warning",issue.message,kind:.error)
+                }
+            }
+        }
+        let pump=Task { @MainActor in for await _ in events {drain()} }
+        let notification:(@Sendable(GitResetNotification)->Void)?
+        if showsNotifications {notification={value in buffer.append(value);continuation.yield(())}} else {notification=nil}
+        let update:(GitProgressOutputState)->Void = { [weak self] state in
+            guard let self,!self.invalidated,self.cancellation===token else{return}
+            self.output=state.output;self.currentWork=state.currentWork
+            if !self.showsNotifications {self.percentage=state.percentage}
+        }
+        let operation:(@escaping @Sendable(GitOutputChunk)->Void) async throws->String = { [self] emit in
+            if let runReset {return try await runReset(plan,token,emit)}
+            let command:@Sendable(GitCommandInvocation)->Void = {invocation in emit(GitOutputChunk(stream:.stdout,data:invocation.preamble))}
+            return try await repository.reset(plan,cancellation:token,onOutput:emit,onCommand:command,backend:backend,recycle:recycle,onNotification:notification)
+        }
+        let resultText:(String)->String = {text in text}
+        do {
+            let result:String=try await LocalGitCommandProgress.stream(preferences:preferences,update:update,resultText:resultText,operation:operation)
+            continuation.finish();await pump.value;drain()
+            if showsNotifications,!invalidated {notifications.finish(success:true,cancelled:false,started:started)}
+            return result
+        }catch{
+            continuation.finish();await pump.value;drain()
+            if showsNotifications,!invalidated {notifications.append("Error",GitProgressFailureOutput.render(error,existing:"",limit:progressPresentation.outputLimit),kind:.error);notifications.finish(success:false,cancelled:token.isCancelled,started:started)}
+            throw error
+        }
+    }
     private func execute() async {
         defer {endWork();withExtendedLifetime(access) {};if !invalidated,!hasPendingWork {cancelling=false;finishAutomaticClose()}}
         guard !invalidated else { return }
         let token=cancellation,startedAt=ProcessInfo.processInfo.systemUptime
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-            rawOutput = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
-                guard let self, !self.invalidated, self.cancellation === token else { return }
-                self.output = state.output; self.currentWork = state.currentWork; self.percentage = state.percentage
-            }, resultText: { $0 }, operation: { [self] emit in
-                if let runReset {return try await runReset(plan,token,emit)}
-                return try await repository.reset(plan,cancellation:token,onOutput:emit,onCommand:{emit(GitOutputChunk(stream:.stdout,data:$0.preamble))})
-            })
+            rawOutput = try await streamReset(token)
             guard !invalidated, cancellation === token else { return }; success = true
             completeOutput(succeeded:true,startedAt:startedAt)
             if plan.mode == .hard, FileManager.default.fileExists(atPath: repository.root.appendingPathComponent(".gitmodules").path) { postActions.append(.submoduleUpdate) }
@@ -608,7 +663,7 @@ enum ResetPostAction: String, Hashable {
         guard !invalidated, cancellation === token else { return }
         onChanged(rawOutput)
     }
-    private func finishAutomaticClose() { if !busy,!hasPendingWork, !confirmingQuit, !confirmingCancellation, !invalidated, abandoned || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() } }
+    private func finishAutomaticClose() { if !busy,!hasPendingWork, !confirmingQuit, !confirmingCancellation, !fileActionBusy, !invalidated, abandoned || notificationWarnings.isEmpty && autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() } }
     func cancel() {
         guard canCancel, !invalidated else { return }
         let token = cancellation,generation=interactionGeneration
@@ -623,7 +678,7 @@ enum ResetPostAction: String, Hashable {
         } else { cancelling = true; token.cancel() }
     }
     func perform(_ action: ResetPostAction) {
-        guard !busy,!hasPendingWork, !confirmingQuit, !invalidated, !confirmingCancellation, !dispatched, postActions.contains(action) else { return }
+        guard !busy,!hasPendingWork, !fileActionBusy, !confirmingQuit, !invalidated, !confirmingCancellation, !dispatched, postActions.contains(action) else { return }
         if action == .retry {
             ProgressActionLog.nextAttempt(self);
             cancellation=OperationCancellation();resetAttempt();beginWork()
@@ -634,6 +689,7 @@ enum ResetPostAction: String, Hashable {
 }
 @MainActor final class ResetProgressWindowController: NSWindowController, NSWindowDelegate {
     let model: ResetProgressWindowModel
+    let notificationFiles:RemoteProgressFileActions
     private var pendingHandoff:(()->Void)?
     private var release:ResetChildRelease?
     private var finished=false,closingForHandoff=false
@@ -646,11 +702,18 @@ enum ResetPostAction: String, Hashable {
     var onClosing:(NSWindow)->Void={_ in}
     init(model:ResetProgressWindowModel) {
         self.model=model
-        let window=NSWindow(contentRect:NSRect(x:0,y:0,width:760,height:430),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
+        notificationFiles=RemoteProgressFileActions(repository:model.repository,access:model.repositoryAccess)
+        let window=NSWindow(contentRect:NSRect(x:0,y:0,width:model.showsNotifications ? 920:760,height:model.showsNotifications ? 560:430),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
         RepositoryWindowTitles.set(window,repository:model.repository.root,dialog:"Reset",preferences:model.preferences)
-        window.minSize=NSSize(width:650,height:320);window.isReleasedWhenClosed=false
+        window.minSize=NSSize(width:650,height:model.showsNotifications ? 560:320);window.isReleasedWhenClosed=false
         window.contentViewController=NSHostingController(rootView:ResetProgressDialog(model:model))
         super.init(window:window);window.delegate=self
+        model.presentationAvailable={ [weak window] in window?.attachedSheet==nil }
+        notificationFiles.window=window;notificationFiles.available={ [weak model] in model?.notificationOwnerAvailable==true }
+        notificationFiles.onBusy={ [weak self,weak model] value in model?.fileActionBusy=value;if !value,self?.pendingHandoff != nil {self?.closeIfReady()} }
+        notificationFiles.onError={ [weak model] in model?.notificationFailure($0) }
+        notificationFiles.onLog={ [weak model] repository,access,paths,old,new in model?.onNotificationLog(repository,access,paths,old,new) }
+        model.onNotificationFileAction={ [weak self] in self?.notificationFiles.perform($0,$1) }
         model.close={ [weak self] in self?.closeIfReady() }
         model.workDidDrain={ [weak self] in guard let self,self.pendingHandoff != nil else{return};self.closeIfReady() }
         model.closeForHandoff={ [weak self] action in
@@ -681,23 +744,23 @@ enum ResetPostAction: String, Hashable {
         DialogGeometry.attach(window,identifier:"ProgressDlg")
     }
     private func closeIfReady() {
-        guard !finished,model.active,!model.confirmingQuit,!model.busy,!model.hasPendingWork,!model.confirmingCancellation,cancellationAlert==nil,let window,window.attachedSheet==nil else{return}
+        guard !finished,model.active,!model.confirmingQuit,!model.busy,!model.hasPendingWork,!model.fileActionBusy,!model.confirmingCancellation,cancellationAlert==nil,let window,window.attachedSheet==nil else{return}
         presentationParent=window.sheetParent;closingForHandoff=pendingHandoff != nil;window.close()
     }
     func windowShouldClose(_ sender:NSWindow)->Bool {
         guard !model.confirmingQuit,cancellationAlert==nil,!model.confirmingCancellation else{return false}
         if model.busy {model.cancel();return false}
-        return !model.hasPendingWork && sender.attachedSheet==nil
+        return !model.hasPendingWork && !model.fileActionBusy && sender.attachedSheet==nil
     }
     func windowWillClose(_ notification:Notification) {
         guard notification.object as? NSWindow === window,!finished else{return};finished=true
         if let window {onClosing(window)}
-        model.invalidate();model.closeForHandoff=nil;model.workDidDrain=nil
+        notificationFiles.retire();model.invalidate();model.closeForHandoff=nil;model.workDidDrain=nil
         cancellationAnswer?(.abort)
         if let window,let sheet=window.attachedSheet,sheet !== questionWindow {window.endSheet(sheet,returnCode:.abort);sheet.close()}
         let handoff=closingForHandoff ? pendingHandoff:nil;pendingHandoff=nil
         guard let window else{onClosed();return}
-        let release=ResetChildRelease(window:window,parent:presentationParent ?? window.sheetParent,ready:{ [self] in !model.hasPendingWork && cancellationAlert==nil }) { [self] in
+        let release=ResetChildRelease(window:window,parent:presentationParent ?? window.sheetParent,ready:{ [self] in !model.hasPendingWork && !notificationFiles.busy && cancellationAlert==nil }) { [self] in
             self.release=nil;model.saveActionLog();onClosed();handoff?()
         }
         self.release=release;release.start()
@@ -708,7 +771,13 @@ struct ResetProgressDialog: View {
     @ObservedObject var model: ResetProgressWindowModel
     var body: some View {
         VStack(alignment:.leading,spacing:12) {
+            if model.showsNotifications {
+                FileOperationProgressTable(state:model.notifications,icon:.reset,available:model.notificationActionsAvailable,repository:model.repository.root,keyboardAvailable:model.notificationKeyboardAvailable,fileRowIcons:true,backgroundIcon:.updateBackdrop,actionAvailability:{model.notificationActionsAvailable},keyboardAvailability:{model.notificationKeyboardAvailable},performRow:model.onNotificationFileAction)
+                    .frame(minHeight:300,maxHeight:.infinity).layoutPriority(1)
+                SubmoduleProgressOutputView(text:model.output,completed:model.commandFinished,completionRange:model.completionRange,success:model.commandSucceeded,preferences:model.preferences,clipboard:model.outputClipboard).frame(height:100)
+            } else {
             SubmoduleProgressOutputView(text: model.output, completed: model.commandFinished, completionRange: model.completionRange, success: model.commandSucceeded, preferences: model.preferences, clipboard:model.outputClipboard).frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
             if model.commandFinished {ProgressView(value:100,total:100).tint(model.commandSucceeded ? Color.accentColor:Color.red)}
             else {LocalGitProgressIndicator(percentage:model.percentage,animate:model.progressPresentation.animateActivity)}
             HStack { Text(model.cancelling ? "Cancelling…" : model.currentWork.isEmpty ? "Resetting…" : model.currentWork).foregroundStyle(model.commandFinished ? model.commandSucceeded ? Color.primary : Color.red : Color.primary); Spacer() }

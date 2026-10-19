@@ -3813,3 +3813,14 @@ source panes keep navigation with their read-only protection. Explicit Find,
 Go To Line and history reveal remain separate from ordinary movement. The
 [source contract and checkpoint](MERGE-PANE-INPUT-PARITY.md) record the actual
 validation and remaining physical/signed/editor parity limits.
+
+### Selected Reset and Log commit-revert backend — October 20, 2026
+
+The connected selected-engine family adds Reset5 and Revert6 dispatch, captured
+preferences, Hard Reset pre-overwrite recycling, typed checkout/progress records
+and owned native result actions. Parent-side macOS Trash acknowledgments retain
+literal targets and partial outcomes through refusal/cancellation. Log preserves
+its commit-level Skip/Abort loop, message aggregation and Commit review, including
+the pinned library's zero-result conflict state. The [source contract](RESET-REVERT-BACKEND-PARITY.md)
+and [dated checkpoint](qa/reset-revert-backend-2026-10-20.json) distinguish actual
+validation from physical, signed and remaining source acceptance.

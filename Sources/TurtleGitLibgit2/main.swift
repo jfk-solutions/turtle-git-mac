@@ -34,6 +34,7 @@ struct Arguments{
     var command="",directory=FileManager.default.currentDirectoryPath,configs:[String]=[]
     var source="",destination="",branch:String?,origin:String?,ssh:String?,bare=false,noCheckout=false,recursive=false
     var listRefs=false,listTags=false,listHeads=false,filters=false,transferNotifications=false
+    var resetNotifications=false,resetMode:Int32=2,resetModeSpecified=false,revertNoCommit=false,revertNoEdit=false,mainline:UInt32=0,mainlineSpecified=false,revision=""
     var blobPath:String?,blobOID=""
     var privateIndex:String?,addMode:Int32=0,addModeSpecified=false,addStdin=false,addModeOnly=false
     var remote="origin",refspecs:[String]=[],all=false,tags=0,prune=0,depth=0,force=false,verbose=false
@@ -50,18 +51,27 @@ struct Arguments{
             let arg=try next()
             if arg == "--literal-pathspecs" || arg == "--no-literal-pathspecs"{continue}
             if arg == "--turtlegit-transfer-notifications"{guard !transferNotifications else{try refuse("Repeated transfer notification request")};transferNotifications=true;continue}
+            if arg == "--turtlegit-reset-notifications"{guard !resetNotifications else{try refuse("Repeated Reset notification request")};resetNotifications=true;continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         guard !transferNotifications || command == "clone" || command == "fetch" else{try refuse("Transfer notifications require Clone or Fetch")}
+        guard !resetNotifications || command == "reset" else{try refuse("Reset notifications require Reset")}
+        guard environment["TURTLEGIT_RESET_RECYCLE_DIRECTORY"] == nil || (resetNotifications && command == "reset") else{try refuse("Recycle exchange requires explicit Reset notifications")}
         var operands:[String]=[],options=true
         while index<arguments.count{
             let arg=try next()
             if options && arg == "--"{options=false;continue}
             if options && arg.hasPrefix("-"){
                 switch arg{
+                case "--soft" where command == "reset", "--mixed" where command == "reset", "--hard" where command == "reset":
+                    guard !resetModeSpecified else{try refuse("Repeated Reset mode")};resetModeSpecified=true;resetMode=arg == "--soft" ? 1:arg == "--mixed" ? 2:3
+                case "--no-edit" where command == "revert":guard !revertNoEdit else{try refuse("Repeated Revert no-edit option")};revertNoEdit=true
+                case "--no-commit" where command == "revert", "-n" where command == "revert":guard !revertNoCommit else{try refuse("Repeated Revert no-commit option")};revertNoCommit=true
+                case "--mainline" where command == "revert", "-m" where command == "revert":
+                    guard !mainlineSpecified,let value=UInt32(try next()),value>0 else{try refuse("Invalid Revert mainline")};mainlineSpecified=true;mainline=value
                 case "--progress" where command == "clone" || command == "fetch" || command == "push":break
                 case "-v" where command == "clone" || command == "fetch" || command == "push", "--verbose" where command == "clone" || command == "fetch" || command == "push":verbose=true
                 case "--bare" where command == "clone":bare=true
@@ -95,7 +105,10 @@ struct Arguments{
             }else{operands.append(arg)}
         }
         guard configs.count<=2048 else{try refuse("Too many command configuration values")}
-        if command == "clone"{
+        if command == "reset" || command == "revert" {
+            guard operands.count==1,!operands[0].isEmpty,!operands[0].contains("\0"),operands[0].utf8.count<=1_048_576,command != "revert" || revertNoCommit else{try refuse("Reset/Revert requires one explicit revision; Revert requires --no-commit")};revision=operands[0]
+            guard environment["TURTLEGIT_RESET_RECYCLE_DIRECTORY"] == nil || resetMode==3 else{try refuse("Recycle exchange requires Hard Reset")}
+        }else if command == "clone"{
             guard operands.count==2,!(bare && noCheckout),!(bare && recursive),origin?.isEmpty != true,branch?.isEmpty != true else{try refuse("Invalid clone option combination")}
             source=operands[0];destination=operands[1]
             guard !source.isEmpty,!destination.isEmpty else{try refuse("Missing clone source or destination")}
@@ -165,6 +178,68 @@ final class CallbackContext{
             // mutation or exposing unsupported filename bytes in diagnostics.
             try? FileHandle.standardOutput.write(contentsOf:Data("TurtleGit Transfer unavailable\n".utf8))
         }
+    }
+    private var recycleID:UInt64=0
+    func resetNotification(_ body:()throws->[String:Any],required:Bool=false)->Bool {
+        notificationLock.lock();defer{notificationLock.unlock()}
+        if notificationFailed && !required{return true}
+        do {
+            guard !cancelled() else{try refuse("Reset cancelled")}
+            let data=try JSONSerialization.data(withJSONObject:body(),options:[.sortedKeys])
+            let frame=Data(("TurtleGit Reset v1:"+data.base64EncodedString()+"\n").utf8)
+            guard frame.count<=2*1024*1024,notificationCount<100_000,frame.count<=64*1024*1024-notificationBytes else{try refuse("Reset metadata budget exceeded")}
+            try FileHandle.standardOutput.write(contentsOf:frame);notificationCount+=1;notificationBytes+=frame.count;return true
+        } catch {
+            if !notificationFailed {try? FileHandle.standardOutput.write(contentsOf:Data("TurtleGit Reset unavailable\n".utf8))}
+            notificationFailed=true;return !required
+        }
+    }
+    func resetFile(_ pointer:UnsafePointer<CChar>?)throws {
+        func literalPath()throws->String {
+            let path=try notificationString(pointer)
+            guard !path.isEmpty,!path.hasPrefix("/"),!path.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0.isEmpty || $0=="." || $0==".." || $0.lowercased()==".git"}) else{try refuse("Invalid Reset path")}
+            return path
+        }
+        guard let exchange=environment["TURTLEGIT_RESET_RECYCLE_DIRECTORY"] else {
+            _=resetNotification({["kind":"file","path":try literalPath()]});return
+        }
+        let path=try literalPath()
+        do {
+            let fd=open(exchange,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC)
+            guard fd>=0 else{try refuse("Cannot open Reset recycle exchange")};defer{close(fd)}
+            var directoryInfo=stat()
+            guard fstat(fd,&directoryInfo)==0,(directoryInfo.st_mode&S_IFMT)==S_IFDIR,directoryInfo.st_uid==geteuid(),directoryInfo.st_mode&0o777==0o700 else{try refuse("Unsafe Reset recycle exchange")}
+            let target=URL(fileURLWithPath:directory,isDirectory:true).appendingPathComponent(path).path
+            var witness=stat();let found=lstat(target,&witness)
+            guard found==0 || errno==ENOENT else{try refuse("Cannot inspect Reset recycle target")}
+            recycleID += 1;let id=recycleID
+            var request:[String:Any]=["kind":"recycle","id":id,"path":path,"exists":found==0]
+            if found==0 {request["device"]=UInt64(UInt32(bitPattern:witness.st_dev));request["inode"]=UInt64(witness.st_ino);request["mode"]=UInt32(witness.st_mode)}
+            guard resetNotification({request},required:true) else{try refuse("Cannot deliver Reset recycle request")}
+            let deadline=DispatchTime.now().uptimeNanoseconds+120_000_000_000
+            while true {
+                var abortInfo=stat(),currentDirectory=stat()
+                guard !cancelled(),fstatat(fd,"abort",&abortInfo,AT_SYMLINK_NOFOLLOW) != 0,errno==ENOENT,
+                      lstat(exchange,&currentDirectory)==0,currentDirectory.st_dev==directoryInfo.st_dev,currentDirectory.st_ino==directoryInfo.st_ino else{try refuse("Reset recycle exchange cancelled or replaced")}
+                let ack=openat(fd,"\(id).ack",O_RDONLY|O_NONBLOCK|O_NOFOLLOW|O_CLOEXEC)
+                if ack>=0 {
+                    let handle=FileHandle(fileDescriptor:ack,closeOnDealloc:true);defer{try? handle.close()}
+                    var info=stat()
+                    guard fstat(ack,&info)==0,(info.st_mode&S_IFMT)==S_IFREG,info.st_uid==geteuid(),info.st_mode&0o777==0o600,info.st_nlink==1,info.st_size>0,info.st_size<=4096 else{try refuse("Unsafe Reset recycle acknowledgment")}
+                    let data=try handle.read(upToCount:4097) ?? Data()
+                    struct Acknowledgment:Decodable {let id:UInt64;let accepted:Bool}
+                    guard data.count==Int(info.st_size),data.count<=4096,let fields=try JSONSerialization.jsonObject(with:data) as? [String:Any],Set(fields.keys)==Set(["id","accepted"]) else{try refuse("Invalid Reset recycle acknowledgment")}
+                    let value=try JSONDecoder().decode(Acknowledgment.self,from:data)
+                    guard value.id==id,value.accepted,!cancelled(),fstatat(fd,"abort",&abortInfo,AT_SYMLINK_NOFOLLOW) != 0,errno==ENOENT else{try refuse("Reset recycle request refused")}
+                    var replacement=stat()
+                    guard lstat(target,&replacement) != 0,errno==ENOENT else{try refuse("Reset recycle target was not removed or was replaced")}
+                    break
+                }
+                guard errno==ENOENT,DispatchTime.now().uptimeNanoseconds<deadline else{try refuse("Reset recycle acknowledgment unavailable")}
+                usleep(10_000)
+            }
+        }
+        _=resetNotification({["kind":"file","path":path]})
     }
     var currentURL="",credentialRealm=Data(),credentials:(String,String)?,credentialUses=0,prompts=0
     var accepted:Set<Data>=[]
@@ -399,8 +474,22 @@ func run()throws->Int32{
             }
         }
     }
+    if args.resetNotifications {
+        options.reset_file={path,raw in
+            do{try context(raw).resetFile(path);return 0}catch{output("Reset: "+error.localizedDescription+"\n");return -1}
+        }
+        options.reset_progress={completed,total,raw in
+            let owner=context(raw)
+            _=owner.resetNotification {
+                guard completed>=0,total>=0,completed<=total else{try refuse("Invalid Reset progress")}
+                return ["kind":"progress","completed":UInt64(completed),"total":UInt64(total)]
+            }
+        }
+    }
     let result:Int32=withStrings(args.configs){config,count in
         options.config_values=config;options.config_count=count
+        if args.command == "reset"{return tg_reset(args.directory,args.revision,args.resetMode,&options)}
+        if args.command == "revert"{return tg_revert(args.directory,args.revision,args.mainline,&options)}
         if args.command == "turtlegit-prepare-index"{return withStrings(prepareOperations){operations,count in withStrings(addPaths){paths,_ in prepareModes.withUnsafeBufferPointer{modes in tg_prepare_index(args.directory,args.privateIndex!,operations,paths,modes.baseAddress,count,&options)}}}}
         if args.command == "add"{return withStrings(addPaths){paths,count in tg_add(args.directory,args.privateIndex!,args.addMode,args.addModeOnly ? 1:0,paths,count,&options)}}
         if args.command == "clone"{

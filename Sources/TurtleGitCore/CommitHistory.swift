@@ -992,8 +992,9 @@ extension GitRepository {
     /// Source GitRevert: reverse the chosen mainline into index/worktree without committing.
     /// Source multi-selection may include a root even though its single-row menu
     /// is omitted. Keep that allowance explicit; ordinary callers remain strict.
-    public func revertLogRevision(revision: String, mainline: Int? = nil, allowRoot:Bool = false, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+    public func revertLogRevision(revision: String, mainline: Int? = nil, allowRoot:Bool = false, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, backend:GitLibGit2Configuration? = nil) throws -> GitResult {
         try cancellation?.check()
+        let executor=try (backend ?? libgit2Configuration ?? .load()).executor(for:.revert)
         guard try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) != "true" else { throw LogRevertFailure.bare }
         guard try !logMergeActive(cancellation: cancellation) else { throw LogRevertFailure.mergeActive }
         let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
@@ -1004,7 +1005,7 @@ extension GitRepository {
         var arguments = ["revert", "--no-edit", "--no-commit"]
         if let mainline { arguments += ["--mainline", String(mainline)] }
         arguments.append(hash)
-        return try run(arguments, cancellation: cancellation, onOutput: onOutput)
+        return try run(arguments,cancellation:cancellation,onOutput:onOutput,executorOverride:executor)
     }
     /// Read the active notes ref, independently of additional log display refs.
     public func editableCommitNote(revision: String, cancellation: OperationCancellation? = nil) throws -> CommitNoteSnapshot {

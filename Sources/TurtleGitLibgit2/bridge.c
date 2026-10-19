@@ -401,3 +401,82 @@ int tg_prepare_index(const char *path,const char *private_index,const char *cons
  }
  done:if(descriptor>=0)close(descriptor);git_buf_dispose(&actual);git_index_free(index);git_repository_free(repository);active_context=NULL;return result;
 }
+
+// Reset notification is a pre-overwrite UPDATED receipt, not checkout progress.
+// The parent must acknowledge any requested Trash operation before we return.
+static int reset_notify(git_checkout_notify_t why,const char *path,const git_diff_file *base,const git_diff_file *target,const git_diff_file *work,void *payload){
+ (void)base;(void)target;(void)work;context *ctx=payload;
+ if(stopped(ctx))return GIT_EUSER;
+ if((why&GIT_CHECKOUT_NOTIFY_UPDATED)&&ctx->callbacks->reset_file&&ctx->callbacks->reset_file(path,ctx->callbacks->payload)<0){git_error_set_str(GIT_ERROR_CHECKOUT,"Reset overwrite notification or recycle request was refused");return GIT_EUSER;}
+ return stopped(ctx)?GIT_EUSER:0;
+}
+static void reset_progress(const char *path,size_t completed,size_t total,void *payload){
+ (void)path;context *ctx=payload;if(!stopped(ctx)&&ctx->callbacks->reset_progress)ctx->callbacks->reset_progress(completed,total,ctx->callbacks->payload);
+}
+// Pinned checkout's absent-workdir TYPECHANGE branch omits blob/link writes.
+// Capture only that case before Reset changes HEAD; never infer recycle work
+// from this diff. Recycling remains exclusively in real UPDATED callbacks.
+static int reset_missing_typechanges(git_strarray *paths,git_repository *repository,git_tree *target,context *ctx){
+ git_reference *head=NULL;git_tree *before=NULL;git_diff *diff=NULL;int result=0;size_t bytes=0;
+ const char *root=git_repository_workdir(repository);if(!root)return 0;
+ result=git_repository_head(&head,repository);
+ if(result==GIT_EUNBORNBRANCH||result==GIT_ENOTFOUND){git_error_clear();result=0;goto done;}
+ if(result<0||(result=git_reference_peel((git_object **)&before,head,GIT_OBJECT_TREE))<0)goto done;
+ git_diff_options options=GIT_DIFF_OPTIONS_INIT;options.flags=GIT_DIFF_INCLUDE_TYPECHANGE|GIT_DIFF_INCLUDE_TYPECHANGE_TREES;
+ if((result=git_diff_tree_to_tree(&diff,repository,before,target,&options))<0)goto done;
+ for(size_t i=0;i<git_diff_num_deltas(diff);i++){
+  if(stopped(ctx)){result=GIT_EUSER;goto done;}
+  const git_diff_delta *delta=git_diff_get_delta(diff,i);
+  if(delta->status!=GIT_DELTA_TYPECHANGE||(delta->new_file.mode!=GIT_FILEMODE_BLOB&&delta->new_file.mode!=GIT_FILEMODE_BLOB_EXECUTABLE&&delta->new_file.mode!=GIT_FILEMODE_LINK))continue;
+  const char *relative=delta->new_file.path;size_t length=strlen(relative),root_length=strlen(root);
+  if(length>1048576||paths->count>=100000||length+1>67108864-bytes){git_error_set_str(GIT_ERROR_CHECKOUT,"Reset missing type-change repair exceeds bounds");result=-1;goto done;}
+  char *full=malloc(root_length+length+1);if(!full){result=-1;goto done;}memcpy(full,root,root_length);memcpy(full+root_length,relative,length+1);
+  struct stat info;int found=lstat(full,&info),inspection_error=errno;free(full);
+  if(found==0)continue;
+  if(inspection_error!=ENOENT){git_error_set_str(GIT_ERROR_CHECKOUT,"Cannot inspect Reset type-change repair path");result=-1;goto done;}
+  char **grown=realloc(paths->strings,(paths->count+1)*sizeof(char *));if(!grown){result=-1;goto done;}paths->strings=grown;
+  char *copy=strdup(relative);if(!copy){result=-1;goto done;}paths->strings[paths->count++]=copy;bytes+=length+1;
+ }
+ done:git_diff_free(diff);git_tree_free(before);git_reference_free(head);return result;
+}
+static int reset_recreate_typechanges(git_repository *repository,git_tree *target,git_strarray *paths,git_checkout_options *options,context *ctx){
+ const char *root=git_repository_workdir(repository);size_t kept=0;int result=0;
+ for(size_t i=0;i<paths->count;i++){
+  if(stopped(ctx)){result=GIT_EUSER;goto compact_done;}
+  size_t length=strlen(root)+strlen(paths->strings[i])+1;char *full=malloc(length);if(!full){result=-1;goto compact_done;}snprintf(full,length,"%s%s",root,paths->strings[i]);
+  struct stat info;int found=lstat(full,&info),inspection_error=errno;free(full);
+  if(found!=0&&inspection_error!=ENOENT){git_error_set_str(GIT_ERROR_CHECKOUT,"Cannot recheck Reset type-change repair path");result=-1;goto compact_done;}
+  if(found!=0){char *value=paths->strings[i];paths->strings[i]=NULL;paths->strings[kept++]=value;}
+  else {free(paths->strings[i]);paths->strings[i]=NULL;}
+ }
+ compact_done:
+ if(result<0){for(size_t i=kept;i<paths->count;i++)free(paths->strings[i]);paths->count=kept;return result;}
+ paths->count=kept;if(!kept)return 0;
+ options->checkout_strategy=GIT_CHECKOUT_FORCE|GIT_CHECKOUT_RECREATE_MISSING|GIT_CHECKOUT_DISABLE_PATHSPEC_MATCH;
+ options->baseline=target;options->paths=*paths;
+ if(stopped(ctx))return GIT_EUSER;
+ return git_checkout_tree(repository,(git_object *)target,options);
+}
+int tg_reset(const char *path,const char *revision,int mode,tg_callbacks *callbacks){
+ context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX};git_repository *repository=NULL;git_object *target=NULL;git_tree *target_tree=NULL;git_strarray missing={0};int result=-1;
+ if(mode<1||mode>3){git_error_set_str(GIT_ERROR_INVALID,"Unsupported reset mode");return -1;}
+ active_context=&ctx;if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ if((result=git_repository_open(&repository,path))<0||(result=configure_repository(repository,&ctx))<0||(result=git_revparse_single(&target,repository,revision))<0)goto done;
+ if(mode==GIT_RESET_HARD&&((result=git_object_peel((git_object **)&target_tree,target,GIT_OBJECT_TREE))<0||(result=reset_missing_typechanges(&missing,repository,target_tree,&ctx))<0))goto done;
+ git_checkout_options options=GIT_CHECKOUT_OPTIONS_INIT;options.notify_flags=GIT_CHECKOUT_NOTIFY_ALL;options.notify_cb=reset_notify;options.notify_payload=&ctx;options.progress_cb=reset_progress;options.progress_payload=&ctx;
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ result=git_reset(repository,target,(git_reset_t)mode,&options);
+ if(result==0&&mode==GIT_RESET_HARD&&missing.count)result=reset_recreate_typechanges(repository,target_tree,&missing,&options,&ctx);
+ done:git_strarray_dispose(&missing);git_tree_free(target_tree);git_object_free(target);git_repository_free(repository);active_context=NULL;return result;
+}
+int tg_revert(const char *path,const char *revision,unsigned int mainline,tg_callbacks *callbacks){
+ context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX};git_repository *repository=NULL;git_object *object=NULL;git_commit *commit=NULL;int result=-1;
+ active_context=&ctx;if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ if((result=git_repository_open(&repository,path))<0||(result=configure_repository(repository,&ctx))<0||(result=git_revparse_single(&object,repository,revision))<0||(result=git_object_peel((git_object **)&commit,object,GIT_OBJECT_COMMIT))<0)goto done;
+ git_revert_options options=GIT_REVERT_OPTIONS_INIT;options.mainline=mainline;
+ // Preserve DEFAULT merge/checkout semantics; callbacks only fence cancellation.
+ options.checkout_opts.notify_flags=GIT_CHECKOUT_NOTIFY_ALL;options.checkout_opts.notify_cb=checkout_notify;options.checkout_opts.notify_payload=&ctx;
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ result=git_revert(repository,commit,&options);
+ done:git_commit_free(commit);git_object_free(object);git_repository_free(repository);active_context=NULL;return result;
+}

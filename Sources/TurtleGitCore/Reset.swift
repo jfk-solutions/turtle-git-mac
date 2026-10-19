@@ -30,17 +30,29 @@ extension GitRepository {
         try cancellation?.check()
         return ResetPlan(revision: target, originalHead: head, originalReference: reference, mode: mode)
     }
-    public func reset(_ plan: ResetPlan, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil) throws -> String {
-        try cancellation?.check()
+    public func reset(_ plan: ResetPlan, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil, backend:GitLibGit2Configuration? = nil, recycle:Bool = true, onNotification:(@Sendable(GitResetNotification)->Void)? = nil) throws -> String {
+        try reset(plan,cancellation:cancellation,onOutput:onOutput,onCommand:onCommand,backend:backend,recycle:recycle,onNotification:onNotification,recycler:{location in
+            var trashed:NSURL?
+            try FileManager.default.trashItem(at:location,resultingItemURL:&trashed)
+            return trashed as URL?
+        })
+    }
+    /// Injectable filesystem service boundary also supports private integration
+    /// repositories without putting test files into the user's Trash.
+    func reset(_ plan:ResetPlan,cancellation:OperationCancellation? = nil,onOutput:(@Sendable(GitOutputChunk)->Void)? = nil,onCommand:(@Sendable(GitCommandInvocation)->Void)? = nil,backend:GitLibGit2Configuration? = nil,recycle:Bool = true,onNotification:(@Sendable(GitResetNotification)->Void)? = nil,recycler:@escaping(URL)throws->URL?)throws->String {
+        let cancellation=cancellation ?? OperationCancellation()
+        let executor=try (backend ?? libgit2Configuration ?? .load()).executor(for:.reset)
+        try cancellation.check()
         let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).stdout.resetProtocolLine
         let reference = try? run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).stdout.resetProtocolLine
-        try cancellation?.check()
+        try cancellation.check()
         guard head == plan.originalHead, reference == plan.originalReference else { throw ResetFailure.changedHead }
         if plan.mode != .soft, try isBare(cancellation: cancellation) { throw ResetFailure.workingTreeRequired }
-        try cancellation?.check()
+        try cancellation.check()
         let arguments = ["reset", "--" + plan.mode.rawValue, plan.revision, "--"]
         onCommand?(commandInvocation(arguments))
-        return try run(arguments, cancellation: cancellation, onOutput: onOutput).text
+        if let executor {return try runReset(arguments,executor:executor,cancellation:cancellation,recycle:recycle && plan.mode == .hard,onOutput:onOutput,onNotification:onNotification,recycler:recycler).text}
+        return try run(arguments,cancellation:cancellation,onOutput:onOutput).text
     }
     public func submoduleResetTarget(_ entry: ConflictEntry, using choice: ResolveChoice, cancellation: OperationCancellation? = nil) throws -> (URL, String) {
         guard let current = try conflicts(cancellation: cancellation).first(where: { $0.path == entry.path }), current == entry,

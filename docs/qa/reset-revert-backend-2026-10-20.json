@@ -1,0 +1,267 @@
+{
+  "date": "2026-10-20",
+  "family": "Source-selected libgit2 Reset and Log commit-revert",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Reset5/Revert6 backend snapshots with unchanged default-mask CLI selection",
+    "Hard Reset UPDATED prewrite notifications, separate progress and checked parent-side Trash acknowledgment",
+    "Bounded literal private framing, inode/type witnesses, confinement, refusal/cancellation and real partial outcomes",
+    "Native Action/Path rows, source icons, copy/sorting, captured file/Log actions and saved action logs",
+    "Retained native Reset cancellation/retry/post-actions and Close/Quit/owned-worker drain",
+    "Log selected-batch backend/preferences/lease capture with existing Skip/Abort, MERGE_MSG and Commit review",
+    "Pinned libgit2 zero-return conflict state retained rather than mapped to CLI failure"
+  ],
+  "validation": [
+    {
+      "scope": "Pinned universal helper build and embedded runtime structure verification",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/reset-revert-helper-build-2026-10-20.log",
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "native_slices": "Reused exact pinned static libgit2 slices; compiled changed bridge/helper for both architectures",
+      "limit": "Structure/licences/SDK dependencies verified by build; not signed sandbox or full application acceptance"
+    },
+    {
+      "scope": "Initial focused Core checkpoint",
+      "status": "failed",
+      "executed": 27,
+      "failures": 1,
+      "unexpected": 1,
+      "duration_seconds": 29.129,
+      "log": "build/qa/reset-revert-backend-core-2026-10-20.log",
+      "passed_methods": 26,
+      "finding": "Directory-to-file Hard Reset with recycling moved the directory before libgit2 workdir iteration; library then failed opening the removed directory.",
+      "source_analysis": "Pinned checkout_action_with_wd_dir calls UPDATED before descending/advancing the existing directory; upstream synchronous CTGitPath.Delete removes it in the same order.",
+      "repair_state": "Retain source real failure/partial effects, assert recoverable copies and unchanged HEAD, then explicit checked Retry. Initial assumption of first-attempt success was invalid; no production workaround or skipped recycling."
+    },
+    {
+      "scope": "Initial Debug app build",
+      "status": "failed",
+      "exit_code": 65,
+      "log": "build/qa/reset-revert-backend-app-2026-10-20.log",
+      "finding": "Swift compiler failed to infer complex optional callback/async stream expression at ResetWindow.swift611",
+      "repair": "Split into explicitly typed notification, progress, async operation and result handlers; no behavior change"
+    },
+    {
+      "scope": "Affected directory recovery method after source-order oracle correction",
+      "status": "failed",
+      "executed": 1,
+      "failures": 2,
+      "unexpected": 2,
+      "duration_seconds": 1.934,
+      "log": "build/qa/reset-revert-directory-recovery-core-2026-10-20.log",
+      "passed_before_failure": "First actual failure, recovered originals, unchanged HEAD and accepted source notifications",
+      "finding": "Fresh selected-library Reset returned0 and moved HEAD/index yet left originally missing typechanged regular targets absent",
+      "repair_state": "Bounded helper materialization of originally missing typechanged blobs/links against accepted target baseline; same native checkout callbacks, filters, cancellation and literal paths, no CLI mutation fallback; final bytes assertions retained."
+    },
+    {
+      "scope": "Debug app after explicit stream handler repair",
+      "status": "failed",
+      "exit_code": 65,
+      "log": "build/qa/reset-revert-backend-app-inference-repair-2026-10-20.log",
+      "finding": "RefLog caller incorrectly used Log-only colorPreferences property",
+      "repair": "Pass existing captured operationPreferences from ReferenceLogWindowModel.preferences; no behavior change to originating preference ownership"
+    },
+    {
+      "scope": "Debug app after captured ReferenceLog preferences repair",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/reset-revert-backend-app-reference-repair-2026-10-20.log",
+      "phase": "Native/Core implementation final; embedded helper predates bounded missing-typechange completion repair. Final runtime embedding still required."
+    },
+    {
+      "scope": "Universal helper after bounded missing-typechange completion repair",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/reset-revert-helper-missing-repair-build-2026-10-20.log",
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "native_slices": "Unchanged pinned static slices reused"
+    },
+    {
+      "scope": "Changed helper embedded into already-built current Debug app",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/reset-revert-helper-embed-2026-10-20.log",
+      "command": "python3 scripts/embed-libgit2-runtime.py build/libgit2-runtime/LibGit2 build/Build/Products/Debug/TurtleGitMac.app",
+      "limit": "Only affected runtime embedding repeated; native/Core binaries already built"
+    },
+    {
+      "scope": "Affected Reset methods after bounded helper repair",
+      "status": "passed",
+      "executed": 6,
+      "failures": 0,
+      "duration_seconds": 8.179,
+      "log": "build/qa/reset-revert-missing-repair-core-2026-10-20.log",
+      "coverage": "Directory/symlink first failure and literal missing-typechange Retry with exact final HEAD/index/worktree bytes; all reset modes/default CLI; missing/pure-remove notification scope; prewrite recycling/refusal and cancellation",
+      "full_core_repeated": false
+    },
+    {
+      "scope": "Initial grouped native Reset, Log revert and lifecycle workflows",
+      "status": "passed",
+      "engine_invocations": 6,
+      "cases": [
+        "reset",
+        "revert",
+        "lifecycle"
+      ],
+      "git": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/reset-revert-backend-native-2026-10-20.log",
+      "receiver_pids": [
+        85239,
+        85425,
+        85494,
+        85557,
+        85627,
+        85666
+      ],
+      "cleanup": "All owned receivers reaped and independently absent",
+      "coverage": "Real selected/default Reset modes, typed paths/icons/menus/copy/sort/Log/saved actions; captured Log single/multi Skip/Abort and actual zero-return conflicts; held-helper cancel/retry, held file launch, Close/Quit and worker drain",
+      "phase": "Before visual-only source artwork/viewport repair; movement/Git/ownership implementation unchanged afterward"
+    },
+    {
+      "scope": "Actual light/dark capture review",
+      "status": "failed visual parity",
+      "captures": [
+        "reset-checkout-results-light.png",
+        "reset-checkout-results-dark.png"
+      ],
+      "finding": "Result list used enlarged Reset command glyph instead of pinned IDI_UPDATE_BKG green arrow; short empty region clipped artwork",
+      "repair": "Add exact pinned UpdateBackground.ico with provenance, use dedicated updateBackdrop, and reserve300point list/560point selected minimum window. Repeat only affected Reset native/capture cases."
+    },
+    {
+      "scope": "Native translations and bundled Help consistency",
+      "status": "passed",
+      "localizations": {
+        "languages": 38,
+        "keys": 1301,
+        "command": "python3 scripts/build-localizations.py --check"
+      },
+      "help": {
+        "documents": 42,
+        "topics": 50,
+        "files": 62,
+        "bytes": 3616486,
+        "command": "build/site-venv/bin/python scripts/build-help.py --check"
+      }
+    },
+    {
+      "scope": "App build after pinned Update background and list-height repair",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/reset-revert-backend-app-artwork-repair-2026-10-20.log"
+    },
+    {
+      "scope": "Affected Reset workflows after initial artwork repair",
+      "status": "passed",
+      "engine_invocations": 2,
+      "log": "build/qa/reset-revert-backend-native-artwork-repair-2026-10-20.log",
+      "receiver_pids": [
+        87274,
+        87345
+      ],
+      "cleanup": "Owned receivers reaped",
+      "visual_review": "Full source green-arrow background now fits; review found shared icon parameter also faded file-row glyphs.",
+      "repair": "Separate optional table backgroundIcon from row command icon, retaining existing defaults in all other consumers. Final affected Reset/capture check pending."
+    },
+    {
+      "scope": "Final Debug app after separated watermark/row glyphs",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/reset-revert-backend-app-row-artwork-repair-2026-10-20.log"
+    },
+    {
+      "scope": "Final affected Reset native cases and light/dark review",
+      "status": "passed",
+      "engine_invocations": 2,
+      "log": "build/qa/reset-revert-backend-native-row-artwork-repair-2026-10-20.log",
+      "receiver_pids": [
+        87525,
+        87597
+      ],
+      "cleanup": "Both owned receivers reaped",
+      "captures": [
+        "docs/site/assets/reset-checkout-results-light.png",
+        "docs/site/assets/reset-checkout-results-dark.png"
+      ],
+      "review": "Individually reviewed actual inactive native captures: full pinned green-arrow watermark fits below rows, strong separate row glyphs, colorful rows and completion, transcript and post-actions fit; no compositor chrome."
+    },
+    {
+      "scope": "Documentation website generation",
+      "status": "passed",
+      "documents": 365,
+      "unresolved_fragments": [],
+      "log": "build/qa/reset-revert-backend-site-2026-10-20.log"
+    }
+  ],
+  "remaining_acceptance": [
+    "Physical signed/sandboxed macOS Trash behavior and App Store deployment",
+    "Exact Windows recycle-bin appearance and complete upstream dialog pixel parity",
+    "All other optional libgit2 mask consumers",
+    "Complete hosted CI for this commit and physical Finder integration",
+    "Directory-to-file first-attempt recycle/iterator failure remains a visible source-order limitation; preserved original items and explicit Retry are covered."
+  ],
+  "adaptations": [
+    "A source-notified missing target is a no-op recycle before recreation; upstream Delete can refuse absent paths.",
+    "macOS Trash and native parent-owned file actions replace Windows shell APIs.",
+    "Checkout rows describe accepted pre-write notifications; later failure may leave partial worktree/index state."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitLibGit2.swift": "588d8b53784ff70b7d609347fd3fcb0546a79f7211180c0deebadb23d4e1f813",
+    "Sources/TurtleGitCore/Reset.swift": "168bb48fed623951e49f12793551dfd7d6e1371e7ccb9dde94dcd64ad748447f",
+    "Sources/TurtleGitCore/CommitHistory.swift": "df9edeb4a734361c6a4367384017820d0d965cb7398e38e0a4a6466804d375a4",
+    "Sources/TurtleGitCore/GitResetNotifications.swift": "703f80446f50d3d17d700eb33967a805586a2b690547f19295b82df0d4ed2906",
+    "Sources/TurtleGitLibgit2/main.swift": "8732fea0b942ade89553c66c0988faa11dee2e2a19dbade66ff438a3dd2fa467",
+    "Sources/TurtleGitLibgit2/bridge.c": "716d31e19a33385d1aa6b5799ac594ef27882c14b70213f18fd3df0ea5c6269e",
+    "Sources/TurtleGitLibgit2/bridge.h": "2c0c48a3d42793f82cd65d191952d6878b3a4434f6e8a31fda91f97c2b568661",
+    "Sources/TurtleGitMac/ResetWindow.swift": "2fa61956547ab3278db11db674e3493487fafc79eb714a86b4ef76aac2da27e1",
+    "Sources/TurtleGitMac/HistoryWorkflowWindow.swift": "6a30f7cb38033d8c7b7d76f002b51f3fb14bf355a824e38f050161f524cc7b8b",
+    "Sources/TurtleGitMac/LogWindow.swift": "259d00ba911f7d0bd90b7c4db68d486ab74e78ded1ba9c227e5e372a23df1340",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "2c492d5fd7c6c991d464787868588686efd536dff4e31dbefc69177542dcaa15",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "94cc24f425c5b5a56616a37217ff676e7ac6eedcb4830fcc78239fbe0d2a16c9",
+    "Sources/TurtleGitMac/FileOperationProgress.swift": "f57a87abe9cdd0fb509b2252f148788e6324cbb19e269e22ddb670e4789b7670",
+    "Sources/TurtleGitCore/MenuIcons.swift": "98d903313a64a70659a03543f09d9cdb34f83e19f85842f23a803831106f5670",
+    "Sources/TurtleGitCore/Resources/Icons/UpdateBackground.ico": "4d198ad20f998cff1205ea48f315b607dd030026d95a684cc1a205750278b10f",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "817e190c3a5a494ae42a712c7d0fdd2b684ac643f110823e8398f48ccb51002c",
+    "Tests/TurtleGitCoreTests/ResetMutationEngineTests.swift": "fc32bf2470a3bd30504e36e40cae76295bd877159785ae6aa3419a74431fd706",
+    "docs/qa/reset-backend-notifications-native-2026-10-19.swift": "faa384c670e53d02376e153801aef2522e81414a0ebba5e63afa31162fc0c543",
+    "scripts/test-reset-backend-notifications.py": "9f2318812890b61574a0adecaf65fee8b0dc22ad8d9b40737ffbc20902b18c80"
+  },
+  "checkpoint_summary": {
+    "status": "passed scoped checkpoint",
+    "core_methods_initial": 27,
+    "initial_passed": 26,
+    "affected_core_methods_after_repair": 6,
+    "native_distinct_case_engine_pairs": 6,
+    "cases": [
+      "reset",
+      "revert",
+      "lifecycle"
+    ],
+    "final_visual_rechecks": "Only two affected Reset cases repeated; no repeat of passed Log/lifecycle/full Core.",
+    "limit": "No full hosted CI, signed macOS Trash, Finder or complete dialog/port certification"
+  },
+  "receiver_cleanup": "Every listed native receiver was reaped and independently absent in final ps snapshot. Native fixture drains operation/release counters and owned hidden windows; no unrelated app was terminated.",
+  "dialog_reconciliation": {
+    "dialogs": 130,
+    "partial_family_audits": 120,
+    "pending_family_reviews": 10,
+    "certified_complete": 0,
+    "static_controls": 1659,
+    "mapped_controls": 1572,
+    "pending_control_reviews": 87,
+    "limit": "Resource coverage, not feature-completion percentage"
+  },
+  "capture_sha256": {
+    "docs/site/assets/reset-checkout-results-light.png": "5da3b75b2b3cf723a5067280ae674a894dab5d4b8ae03e3f4e0e6256732c2dac",
+    "docs/site/assets/reset-checkout-results-dark.png": "44413e256ec667cc9d3db1d50ab5b5278a206375e1e92ce99119f9c08b2ec28f"
+  }
+}
