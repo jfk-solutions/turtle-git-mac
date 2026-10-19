@@ -118,3 +118,12 @@ The [grouped checkpoint](qa/credential-merge-workflows-2026-10-18.json) records
 24 passing selected Core cases and 14 distinct passing native case/engine
 combinations, including focused repairs and retained unaffected results. This
 scoped pass does not remove the remaining acceptance limits above.
+
+
+## Exact credential URL and field spelling — October 19, 2026
+
+The [connected exact-text settings family](SETTINGS-EXACT-TEXT-PARITY.md)
+addresses canonical-Unicode aliases in edited values, captured save guards and
+Git config arguments. Its dated record separates grouped checks from remaining
+physical, signed and full-source acceptance. Existing source write order,
+permissions and partial-failure behavior remain in effect.

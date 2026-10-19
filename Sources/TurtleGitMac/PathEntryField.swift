@@ -70,11 +70,11 @@ struct PathEntryField: NSViewRepresentable {
     func updateNSView(_ field: Field, context: Context) {
         let coordinator = context.coordinator
         let identities = permissions.map(ObjectIdentifier.init)
-        if coordinator.base != base || coordinator.permissionIDs != identities || field.stringValue != text || !enabled { coordinator.cancel() }
+        if coordinator.base != base || coordinator.permissionIDs != identities || !GitReferenceName.equal(field.stringValue,text) || !enabled { coordinator.cancel() }
         coordinator.field = field; coordinator.base = base; coordinator.permissions = permissions; coordinator.permissionIDs = identities
         coordinator.changed = { text = $0 }; coordinator.currentText = { text }; coordinator.mayEdit = mayEdit; coordinator.preferences = preferences
         field.isEnabled = enabled; field.placeholderString = label; field.setAccessibilityLabel(label)
-        if field.stringValue != text { field.stringValue = text }
+        if !GitReferenceName.equal(field.stringValue,text) { field.stringValue = text }
         if focus && !coordinator.focused {
             DispatchQueue.main.async { [weak coordinator, weak field] in
                 guard let coordinator, !coordinator.retired, !coordinator.focused, coordinator.acceptsInput, let field, field.isEnabled, let window = field.window, window.attachedSheet == nil else { return }

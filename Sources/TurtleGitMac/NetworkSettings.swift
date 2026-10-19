@@ -202,6 +202,7 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
             if proxy != savedProxy {
                 guard let files else { throw GitConfigurationFailure.destination }
                 for file in [files.global, files.xdg].compactMap({ $0 }) { guard await permission(file), active, generation == request else { return false } }
+                guard self.proxy==proxy,self.ssh==ssh else{return false}
                 acceptedWrite=request
                 try await cache.save(proxy.password)
                 preferences.set(proxy.server, forKey: "TurtleGit.ProxyServer"); preferences.set(proxy.port, forKey: "TurtleGit.ProxyPort"); preferences.set(proxy.username, forKey: "TurtleGit.ProxyUsername")
@@ -212,10 +213,10 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
                 let token = OperationCancellation()
                 let version: String
                 if let sshVersion { version = try await sshVersion(ssh, token) } else { version = try await Task.detached { try ssh.version(cancellation: token) }.value }
-                guard acceptedWrite==request || active && generation==request else {return false}
+                guard acceptedWrite==request || active && generation==request && self.proxy==proxy && self.ssh==ssh else {return false}
                 acceptedWrite=request
                 try ssh.save(to:preferences)
-                if active,generation==request {savedSSH=ssh;self.version=version}
+                if active,generation==request {savedSSH=ssh;if self.ssh==ssh{self.version=version}}
             }
             return true
         } catch {if active,generation==request {self.error=error.localizedDescription};return false}

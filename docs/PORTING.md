@@ -3623,3 +3623,18 @@ Quit epochs and forced closure fence stale continuations.
 [batch evidence](qa/request-pull-workflow-2026-10-19.json) distinguish the selected
 checks from public transports, real editor/Apple Mail/TCC/credentials, physical
 visual/input parity and signed/App Store acceptance.
+
+
+### Connected exact-text settings family, October 19, 2026
+
+Git identity, credential grouping/selection/field masks, proxy credentials and
+SSH preferences now distinguish exact entered Unicode spellings. Invocation-local
+Git config argument handling preserves those values even when the repository's
+stored precompose preference is enabled. Shared save confirmation, captured
+drafts, stale snapshot refusal, source write order, included origins and unknown
+credential fields remain connected to their existing native settings consumers.
+
+[Source behavior and remaining gaps](SETTINGS-EXACT-TEXT-PARITY.md) and
+[batch evidence](qa/settings-exact-text-2026-10-19.json) separate the grouped
+private-state checks from production Keychain, live transports, signed grants,
+physical controls and complete source/App Store acceptance.

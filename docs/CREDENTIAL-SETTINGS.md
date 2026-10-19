@@ -15,7 +15,9 @@ URLs or configuration files are listed. Choose Advanced to keep separate rules.
 The Helpers list groups rules by configuration file, scope and URL. Select a row
 to edit its Config type, URL, Helper, Username and Use HTTP path component fields.
 Config type selects the destination file; included files and other origins remain
-visible as distinct entries. System files require write access. The app does not
+visible as distinct entries. URL spelling and entered helper/username text are
+preserved exactly; visually identical Unicode spellings can be separate Git
+rules. Select the intended row before applying or removing it. System files require write access. The app does not
 start a privileged helper to bypass file permissions.
 
 ## Apply edits or save a new rule

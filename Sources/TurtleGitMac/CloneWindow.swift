@@ -497,7 +497,7 @@ struct CloneHistoryCombo: NSViewRepresentable {
             if let editable=combo as? EditableHistoryCombo {editable.replaceHistory(choices)} else {combo.removeAllItems();combo.addItems(withObjectValues:choices)}
             coordinator.choices=choices
         }
-        if combo.stringValue != value { combo.stringValue = value }
+        if !GitReferenceName.equal(combo.stringValue,value) { combo.stringValue = value }
         combo.isEnabled = enabled; combo.setAccessibilityLabel(label)
     }
     static func dismantleNSView(_ combo:NSComboBox,coordinator:Coordinator) {combo.delegate=nil;(combo as? EditableHistoryCombo)?.deleteHistory=nil}

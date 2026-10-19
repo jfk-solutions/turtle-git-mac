@@ -163,3 +163,12 @@ standalone production Network window or signed/physical acceptance.
 ![Network Settings page, light](site/assets/network-settings-light.png)
 
 [Network Settings page, dark](site/assets/network-settings-dark.png).
+
+
+## Exact proxy and SSH drafts — October 19, 2026
+
+The [connected exact-text settings family](SETTINGS-EXACT-TEXT-PARITY.md)
+addresses canonical-Unicode aliases in edited values, captured save guards and
+Git config arguments. Its dated record separates grouped checks from remaining
+physical, signed and full-source acceptance. Existing source write order,
+permissions and partial-failure behavior remain in effect.

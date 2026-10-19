@@ -20,7 +20,7 @@ import TurtleGitCore
     @Published var destination: GitConfigurationSource = .global { didSet { if oldValue != destination { advanceEditor() } } }
     @Published var draft = GitCredentialDraft()
     @Published var error: String?
-    @Published var mode = "advanced" { didSet { if oldValue != mode { advanceEditor() } } }
+    @Published var mode = "advanced" { didSet { if !GitReferenceName.equal(oldValue,mode) { advanceEditor() } } }
     private var savedMode = "advanced"
     private var saved = GitCredentialDraft()
     @Published private var editedFields: GitCredentialFields = []
@@ -51,10 +51,13 @@ import TurtleGitCore
         self.repository = repository; self.access = access; self.localAvailable = localAvailable
         destination = localAvailable ? .local : .global; savedDestination = destination
     }
-    var modified: Bool { mode != savedMode || mode == "advanced" && (draft != saved || destination != savedDestination || !editedFields.isEmpty) }
+    var modified: Bool { !GitReferenceName.equal(mode,savedMode) || mode == "advanced" && (draft != saved || destination != savedDestination || !editedFields.isEmpty) }
+    var helperIdentities:[GitReferenceName]{helpers.map{GitReferenceName($0)}}
+    var modeIdentity:String{GitPathRowIdentity.encode(mode)}
+    func editModeIdentity(_ id:String,identity:UUID){guard let value=GitPathRowIdentity.decode(id) else{return};editMode(value,identity:identity)}
     var group: GitCredentialGroup? { snapshot?.groups.first { $0.id == selected } }
     var target: URL? {
-        if let group, group.url == draft.url,
+        if let group, GitReferenceName.equal(group.url,draft.url),
            group.scope == destination.rawValue.lowercased() || (group.scope == "worktree" && destination == .local) { return group.file }
         switch destination { case .local: return files?.local; case .global: return files?.global; case .system: return files?.system; case .effective: return nil }
     }
@@ -75,17 +78,17 @@ import TurtleGitCore
     }
     var editsExistingOrigin: Bool {
         guard let group else { return false }
-        return group.url == draft.url && group.file == target && destination == savedDestination
+        return GitReferenceName.equal(group.url,draft.url) && group.file == target && destination == savedDestination
     }
     var canAdd: Bool { draft.fieldsValid && draft.helpers.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } && writable }
     var advancedValid: Bool { draft.fieldsValid && writable && (editsExistingOrigin || canAdd) }
     func editHelper(_ text:String,identity:UUID) {
         guard canEditFields,editorIdentity==identity,editorReceipt==identity else {return}
         let helpers = text.isEmpty ? [] : [text]
-        if helpers != draft.helpers { editedFields.insert(.helper) }; draft.helpers=helpers
+        if !helpers.elementsEqual(draft.helpers,by:{GitReferenceName.equal($0,$1)}) { editedFields.insert(.helper) }; draft.helpers=helpers
     }
     func editURL(_ text:String,identity:UUID) { guard canEditFields,editorIdentity==identity,editorReceipt==identity else {return};draft.url=text }
-    func editUsername(_ text:String,identity:UUID) { guard canEditFields,editorIdentity==identity,editorReceipt==identity else {return};if draft.username != text {editedFields.insert(.username)};draft.username=text }
+    func editUsername(_ text:String,identity:UUID) { guard canEditFields,editorIdentity==identity,editorReceipt==identity else {return};if !GitReferenceName.equal(draft.username,text) {editedFields.insert(.username)};draft.username=text }
     func editHTTPPath(_ value:Bool,identity:UUID) { guard canEditFields,editorIdentity==identity,editorReceipt==identity else {return};if draft.useHTTPPath != value {editedFields.insert(.useHTTPPath)};draft.useHTTPPath=value }
     func editDestination(_ value:GitConfigurationSource,identity:UUID) { guard canEditFields,editorIdentity==identity,editorReceipt==identity else {return};destination=value }
     func editMode(_ value:String,identity:UUID) { guard active,!busy,snapshot != nil,editorIdentity==identity,editorReceipt==identity else {return};mode=value }
@@ -173,7 +176,7 @@ import TurtleGitCore
         if mode == "advanced" { return modified && !advancedValid ? "Choose a writable configuration file. A new credential URL or destination requires a helper." : nil }
         if mode == "none" { return nil }
         let parts = mode.split(separator: ":", maxSplits: 1).map(String.init)
-        guard parts.count == 2, helpers.contains(parts[1]),
+        guard parts.count == 2, helpers.contains(where:{GitReferenceName.equal($0,parts[1])}),
               parts[0] == "global" || parts[0] == "local" && localAvailable || parts[0] == "system" && files?.system != nil else { return "Choose an available credential helper and configuration scope." }
         return nil
     }
@@ -206,7 +209,7 @@ import TurtleGitCore
     private func simpleMode(_ snapshot: GitCredentialSnapshot) -> String {
         if snapshot.entries.isEmpty { return "none" }
         if snapshot.entries.count == 1, let entry = snapshot.entries.first,
-           entry.key == "credential.helper", helpers.contains(entry.value),
+           entry.key == "credential.helper", helpers.contains(where:{GitReferenceName.equal($0,entry.value)}),
            ["local", "global", "system"].contains(entry.scope),
            entry.file == (entry.scope == "local" ? files?.local : entry.scope == "global" ? files?.global : files?.system) {
             return entry.scope + ":" + entry.value
@@ -270,12 +273,14 @@ import TurtleGitCore
             }
             guard active,generation==request,selectionRequest==choice else {return}
             if draft != saved || destination != savedDestination || !editedFields.isEmpty {
+                let reviewedDraft=draft,reviewedDestination=destination,reviewedMode=mode
                 let decision = await pendingChangesDecision()
-                guard active, generation == request, selectionRequest == choice else { return }
+                guard active, generation == request, selectionRequest == choice,draft==reviewedDraft,destination==reviewedDestination,GitReferenceName.equal(mode,reviewedMode) else { return }
                 switch decision {
                 case .cancel: return
                 case .discard: break
-                case .save: guard await persistAdvanced(explicit: false, selectionOwned: true) else { return }
+                case .save:
+                    guard await persistAdvanced(explicit: false, selectionOwned: true),!modified else { return }
                 }
             }
             guard active, generation == request, selectionRequest == choice else { return }
@@ -312,12 +317,12 @@ import TurtleGitCore
         guard active, (!busy || selectionOwned && selectionRequest != nil), explicit ? canAdd : advancedValid, let file = target else {
             error = "Choose a writable configuration file. A new credential URL or destination requires a helper."; return false
         }
-        let value = draft, destination = destination, request = generation, expected = snapshot, identity = editorIdentity
+        let value = draft, destination = destination, request = generation, expected = snapshot, identity = editorIdentity,submittedMode=mode,submittedSelection=selected
         var fields: GitCredentialFields = explicit ? .all : value.changedFields(from: saved).union(editedFields)
         // SaveSettings' URL/config-type bit writes the helper, but does not
         // turn untouched optional fields into an explicit full replacement.
         if !explicit && !editsExistingOrigin { fields.insert(.helper) }
-        let existing = expected?.groups.first { $0.file == file && $0.url == value.url }
+        let existing = expected?.groups.first { $0.file == file && GitReferenceName.equal($0.url,value.url) }
         // OnBnClickedButtonAdd omits blank optional fields for a new URL.
         if explicit && existing == nil {
             if value.username.isEmpty { fields.remove(.username) }
@@ -325,7 +330,7 @@ import TurtleGitCore
         }
         busy = true; saving = true; Self.activeSaves += 1
         defer { if !selectionOwned || generation != request {busy=false}; saving = false;acceptedWrite=nil; Self.activeSaves -= 1 }
-        func current() -> Bool {active && generation==request && (acceptedWrite==request || editorIdentity==identity && editorReceipt==identity)}
+        func current() -> Bool {active && generation==request && (acceptedWrite==request || editorIdentity==identity && editorReceipt==identity && draft==value && self.destination==destination && GitReferenceName.equal(mode,submittedMode) && selected==submittedSelection)}
         do {
             try checkAccess()
             if explicit, existing != nil {
@@ -340,16 +345,24 @@ import TurtleGitCore
             guard current() else { return true }
             let snapshot = try await read()
             guard current() else { return true }
-            self.snapshot = snapshot; saved = value; savedDestination = destination; savedMode = mode
-            if let group = snapshot.groups.first(where: { $0.file == file && $0.url == value.url }) { load(group) }
-            else { clearDraft() }
+            let unchanged=draft==value && self.destination==destination && GitReferenceName.equal(mode,submittedMode) && selected==submittedSelection
+            self.snapshot = snapshot; saved = value; savedDestination = destination; savedMode = submittedMode
+            let writtenGroup=snapshot.groups.first(where: { $0.file == file && GitReferenceName.equal($0.url,value.url) })
+            if unchanged {
+                if let writtenGroup {load(writtenGroup)}else{clearDraft()}
+            }else{
+                // The accepted bytes are the saved baseline; a later draft is
+                // still unsaved and must survive asynchronous catalog readback.
+                if selected==submittedSelection {selected=writtenGroup?.id}
+                editedFields=draft.changedFields(from:value);advanceEditor()
+            }
             return true
         } catch { if current() { self.error = error.localizedDescription }; return false }
     }
     private func applySimple() async -> Bool {
         guard active, !busy, let snapshot else { return false }
         if let validationError { error = validationError; return false }
-        let mode = mode, request = generation
+        let mode = mode, request = generation,submittedDraft=draft,submittedDestination=destination,submittedSelection=selected
         let parts = mode.split(separator: ":", maxSplits: 1).map(String.init)
         let helper = mode == "none" ? nil : parts.last
         let file = parts.first == "local" ? files?.local : parts.first == "system" ? files?.system : files?.global
@@ -363,28 +376,34 @@ import TurtleGitCore
             guard active, generation == request else { return false }
             var files = snapshot.groups.compactMap(\.file); if let file, helper != nil { files.append(file) }
             for file in Set(files) { guard await permission(file), active, generation == request else { return false } }
+            guard GitReferenceName.equal(self.mode,mode),draft==submittedDraft,destination==submittedDestination,selected==submittedSelection else{return false}
             acceptedWrite=request
             try await repository.simplifyCredentials(expected: snapshot, helper: helper, file: file)
             guard active, generation == request else { return true }
             let result = try await read()
             guard active, generation == request else { return true }
-            self.snapshot=result;savedMode=mode;clearDraft();return true
+            self.snapshot=result;savedMode=mode
+            if GitReferenceName.equal(self.mode,mode),draft==submittedDraft,destination==submittedDestination,selected==submittedSelection{clearDraft()}
+            return true
         } catch { if active, generation == request { self.error = error.localizedDescription }; return false }
     }
     func remove(identity: UUID? = nil) {
         guard identity == nil || identity == editorIdentity && identity == editorReceipt else { return }
         guard active, !busy, let group, let file = group.file else { return }
-        let request = generation
+        let request = generation,submittedDraft=draft,submittedDestination=destination,submittedMode=mode,expected=snapshot
         busy = true; saving = true; Self.activeSaves += 1
         Task {
             defer {busy=false;saving=false;acceptedWrite=nil;Self.activeSaves -= 1}
             do {
                 guard await confirm("Remove this credential configuration?", detail: "Remove \(group.url.isEmpty ? "default credentials" : group.url) from \(file.path). Stored passwords in Keychain remain available.", action: "Remove"), active, generation == request else { return }
                 guard await permission(file), active, generation == request else { return }
-                try checkAccess();acceptedWrite=request;try await repository.removeCredential(group, expected: snapshot)
+                guard selected==group.id,draft==submittedDraft,destination==submittedDestination,GitReferenceName.equal(mode,submittedMode) else{return}
+                try checkAccess();acceptedWrite=request;try await repository.removeCredential(group, expected: expected)
                 guard active, generation == request else { return }
                 let snapshot = try await read()
-                guard active,generation==request else {return};self.snapshot=snapshot;clearDraft()
+                guard active,generation==request else {return};self.snapshot=snapshot
+                if selected==group.id,draft==submittedDraft,destination==submittedDestination,GitReferenceName.equal(mode,submittedMode){clearDraft()}
+                else if selected==group.id{selected=nil;saved=GitCredentialDraft();editedFields=draft.changedFields(from:saved);advanceEditor()}
             } catch { if active, generation == request { self.error = error.localizedDescription } }
         }
     }
@@ -403,13 +422,14 @@ struct CredentialSettingsPage: View {
     var body: some View {
         let identity=model.editorIdentity
         VStack(alignment: .leading, spacing: 14) {
-            Picker("Credential helper:", selection: Binding(get:{model.mode},set:{model.editMode($0,identity:identity)})) {
-                Text("Advanced configuration").tag("advanced")
-                Text("None").tag("none")
-                ForEach(model.helpers, id: \.self) { helper in
-                    if model.localAvailable { Text("Local: " + helper).tag("local:" + helper) }
-                    Text("Global: " + helper).tag("global:" + helper)
-                    if model.files?.system != nil { Text("System: " + helper).tag("system:" + helper) }
+            Picker("Credential helper:", selection: Binding(get:{model.modeIdentity},set:{model.editModeIdentity($0,identity:identity)})) {
+                Text("Advanced configuration").tag(GitPathRowIdentity.encode("advanced"))
+                Text("None").tag(GitPathRowIdentity.encode("none"))
+                ForEach(model.helperIdentities, id: \.self) { helperName in
+                    let helper=helperName.rawValue
+                    if model.localAvailable { Text("Local: " + helper).tag(GitPathRowIdentity.encode("local:" + helper)) }
+                    Text("Global: " + helper).tag(GitPathRowIdentity.encode("global:" + helper))
+                    if model.files?.system != nil { Text("System: " + helper).tag(GitPathRowIdentity.encode("system:" + helper)) }
                 }
             }.disabled(model.busy || model.snapshot == nil)
             HStack(alignment: .top, spacing: 18) {
@@ -465,7 +485,7 @@ struct CredentialSettingsPage: View {
         }
         .onChange(of: model.draft) { _ in transaction?.notify() }
         .onChange(of: model.busy) { _ in transaction?.notify() }
-        .onChange(of: model.mode) { _ in transaction?.notify() }
+        .onChange(of: GitReferenceName(model.mode)) { _ in transaction?.notify() }
         .onChange(of: model.destination) { _ in transaction?.notify() }
         .onDisappear {model.detachPresentation(presentation)}
     }

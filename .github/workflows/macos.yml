@@ -504,6 +504,11 @@ jobs:
         run: python3 scripts/test-credential-source-family.py
       - name: Native Network source layout and SSH ownership
         run: python3 scripts/test-network-source-family.py
+      - name: Grouped native exact-text Git identity, credentials and Network settings
+        run: >-
+          python3 scripts/test-settings-exact-text-native.py
+          --git /usr/bin/git
+          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Email settings and owned credential editor
         run: python3 scripts/test-email-credential-family.py
       - name: Configured SMTP through built frameworks with private loopback server

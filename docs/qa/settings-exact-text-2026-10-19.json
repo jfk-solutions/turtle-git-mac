@@ -1,0 +1,135 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "c8fd1320192f620c6c90278397acd7852135cc52",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Exact editable identity, credential entries/groups/drafts/field masks and stale snapshots",
+    "Literal config key/value/file arguments with invocation-local macOS precomposition override and unchanged full config viewer",
+    "Native credential row/helper/path selection, captured confirmation and accepted-save readback, proxy cache and SSH preferences"
+  ],
+  "frozen_inputs": {
+    "base_commit": "c8fd1320192f620c6c90278397acd7852135cc52",
+    "files": {
+      "Sources/TurtleGitCore/GitConfiguration.swift": "16c5899364bc710cbd58574728724d74a1baaffa8dd62a00e0989adfbc636bdb",
+      "Sources/TurtleGitCore/GitCredentials.swift": "750ec2844375030628583860172f4211bc4b5faa028e126196a6285525f32018",
+      "Sources/TurtleGitCore/NetworkSettings.swift": "bb33f28bd2dd8decc49b489ff12e2db549b214b4402b759233484080577d83f1",
+      "Sources/TurtleGitMac/CredentialSettings.swift": "ff7c8ddb992e08f1603a1ff08ca72dfae8f57bf702f1a3749de85c1b2bb34d5b",
+      "Sources/TurtleGitMac/NetworkSettings.swift": "165730fd7fe1d848326a0a5c7d6eb95e87efe01bee5f385ba680c8950d43358f",
+      "Sources/TurtleGitMac/CloneWindow.swift": "774c8962d59ec8bf5a4d39b1e1c5e6767d04d3702673732504aaf4a6523739e9",
+      "Sources/TurtleGitMac/PathEntryField.swift": "cbee915b8066f4a6f47be84c5a02de9cfe7be18a832e28899ea7e739903a379e",
+      "Tests/TurtleGitCoreTests/ExactTextGitSettingsTests.swift": "19f86aa82a2af62ae55a967f0b9c97af46a902165aa22ea610e9b0c379b0e44b",
+      "docs/qa/settings-exact-text-native-2026-10-19.swift": "bebcc79042f446509b4a86af75ee293f8887da89c38f7c213494394dfecec279",
+      "scripts/test-settings-exact-text-native.py": "5c88a3def6d2dde366119c70f7dc5305c84d5b8e15d726d0f21d31a91ae34b19",
+      ".github/workflows/macos.yml": "3d22e75829047204bd8525c7d896d08e765ad80569bcc1166dddf7ed3c0a3dc4"
+    }
+  },
+  "git_parse_order_source": {
+    "version": "2.55.0",
+    "source_directory": "build/git-svn-runtime/work/1068724eedbf78b0c882a9a96707063861fcc065d4b4f7cc2b53293aa594885d/arm64/sources/git/git-2.55.0",
+    "files": {
+      "git.c": "a68ca263efac91c8e1bc22b268cee7277d38f1a8027dbe5e18e8109be4d6fd34",
+      "config.c": "469091d3af18e3b7c6c8e16923e8d90614767598dce0ef96e33261f6f91fff32",
+      "compat/precompose_utf8.c": "c01659de1cf7fb94830021c5e767cecac19b74668bac4e2b249589b4a5bcdcea"
+    },
+    "ordering": "git.c handle_options:956 before run_argv:986; config builtin RUN_SETUP_GENTLY:559; run_builtin setup before precompose_argv_prefix:488; compat/precompose_utf8.c:80-84 reads command-visible config before normalizing argv; config command parameters override persisted config."
+  },
+  "validation": {
+    "core": {
+      "exit": 0,
+      "methods": 20,
+      "new_methods": 4,
+      "log": "build/qa/settings-exact-text-core-2026-10-19.log",
+      "engines": "system Git in new private fixtures; native checks separately use system and bundled Git",
+      "filter": "ExactTextGitSettingsTests|GitConfigurationTests|CredentialAdvancedEditingTests|AuthenticationSettingsBatchTests.test(Credential|AdvancedCredential|StaleAdvanced|RemoveTargets)|NetworkFinderSettingsBatchTests.test(Proxy|InvalidProxy|SSHSelection)"
+    },
+    "build": [
+      {
+        "attempt": 1,
+        "exit": 65,
+        "log": "build/qa/settings-exact-text-build-2026-10-19.log",
+        "failure": "CredentialSettings two ambiguous GitReferenceName.init mapping expressions caused failed-to-produce-diagnostic and SwiftUI type-check timeout."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/settings-exact-text-build-repair-2026-10-19.log",
+        "repair": "Used explicit exact elementsEqual comparator and typed helperIdentities model property; repeated only failed native build, retaining Core20."
+      }
+    ],
+    "status": "20 selected Core methods passed; Debug build passed after recorded native expression repair; all six native case/engine pairs passed on first native attempt.",
+    "native": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "log": "build/qa/settings-exact-text-native-2026-10-19.log",
+        "passed": [
+          "identity/system",
+          "identity/bundled",
+          "credentials/system",
+          "credentials/bundled",
+          "network/system",
+          "network/bundled"
+        ],
+        "owned_receiver_pids": [
+          84366,
+          84420,
+          84466,
+          84529,
+          84582,
+          84605
+        ],
+        "scope": [
+          "Actual identity Apply/config bytes, native cross-source confirmation refuses changed exact draft, accepted immutable write preserves newer draft",
+          "Hosted credential helper binding/display sync, distinct URL ids/selection, helper+username masks and repeated fields, stale editor/confirmation/snapshot refusal, exact Remove and accepted readback",
+          "Private proxy credentials/config/password actor and disabled reload, held-permission refusal, hosted SSH path exact display/save, private real OpenSSH-shaped executable, unrelated cache preservation, immutable write and Cancel"
+        ]
+      }
+    ],
+    "cleanup": {
+      "owned_receiver_pids": [
+        84366,
+        84420,
+        84466,
+        84529,
+        84582,
+        84605
+      ],
+      "receivers_reaped": true,
+      "independent_pid_and_process_group_absence": true,
+      "state": "Temporary repositories/global config/XDG directories, private UserDefaults and geometry domains, injected password actor; no user Keychain or live server. Every owned window/sheet invisible or offscreen; fixtures deactivate models and drain read/save/selection/sheet/SSH/path counters on success/failure. run_receiver owns process-group timeout/reaping.",
+      "source_preservation": "Core cases retain unrelated config/include bytes and stored precompose=true; native repeated helper/username/HTTP-path fields and neighboring exact URL rules preserved.",
+      "unrelated_apps": "No shipping GUI instance or user-owned app terminated."
+    },
+    "engines": {
+      "/usr/bin/git": "git version 2.54.0 (Apple Git-157)",
+      "bundled Debug Git": "git version 2.55.0"
+    },
+    "resources_and_docs": {
+      "localizations": "1294 keys/38 languages; --write before build and --check passed; not full localization certification",
+      "help": "40 documents/49 topics/60 files regenerated before build; final --check passed",
+      "coverage": "Reconciled 130 pinned dialogs,120 partial family audits,10 pending families,0 certified complete; counts are not completion percentages",
+      "site": "342 documents built with no unresolved fragments",
+      "diff_check": "passed"
+    }
+  },
+  "final_inputs": {
+    "Sources/TurtleGitCore/GitConfiguration.swift": "16c5899364bc710cbd58574728724d74a1baaffa8dd62a00e0989adfbc636bdb",
+    "Sources/TurtleGitCore/GitCredentials.swift": "750ec2844375030628583860172f4211bc4b5faa028e126196a6285525f32018",
+    "Sources/TurtleGitCore/NetworkSettings.swift": "bb33f28bd2dd8decc49b489ff12e2db549b214b4402b759233484080577d83f1",
+    "Sources/TurtleGitMac/CredentialSettings.swift": "93ddfec836e0c1d6616cc5fa16dff5b64a9be326d622e09738db8c064d7bfb5c",
+    "Sources/TurtleGitMac/NetworkSettings.swift": "165730fd7fe1d848326a0a5c7d6eb95e87efe01bee5f385ba680c8950d43358f",
+    "Sources/TurtleGitMac/CloneWindow.swift": "774c8962d59ec8bf5a4d39b1e1c5e6767d04d3702673732504aaf4a6523739e9",
+    "Sources/TurtleGitMac/PathEntryField.swift": "cbee915b8066f4a6f47be84c5a02de9cfe7be18a832e28899ea7e739903a379e",
+    "Tests/TurtleGitCoreTests/ExactTextGitSettingsTests.swift": "19f86aa82a2af62ae55a967f0b9c97af46a902165aa22ea610e9b0c379b0e44b",
+    "docs/qa/settings-exact-text-native-2026-10-19.swift": "bebcc79042f446509b4a86af75ee293f8887da89c38f7c213494394dfecec279",
+    "scripts/test-settings-exact-text-native.py": "5c88a3def6d2dde366119c70f7dc5305c84d5b8e15d726d0f21d31a91ae34b19",
+    ".github/workflows/macos.yml": "3d22e75829047204bd8525c7d896d08e765ad80569bcc1166dddf7ed3c0a3dc4"
+  },
+  "limits": [
+    "This scoped check does not certify every upstream dialog, the full Core suite or current hosted integration.",
+    "Production Keychain, public remotes/authentication and live external SSH services were not used.",
+    "Native receivers use private configs/preferences/password actor and invisible/offscreen windows; physical keyboard/VoiceOver/complete light-dark layout remains unverified.",
+    "Multi-key config writes retain source order and file locks, not atomic rollback; external edits after initial snapshot acceptance remain a documented limit.",
+    "Existing signed development candidate is based on bfa1fafe, not this later native/source state; current signed grants, physical Finder and App Store distribution acceptance remain open."
+  ]
+}

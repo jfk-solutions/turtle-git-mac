@@ -17,9 +17,19 @@ public struct GitCredentialEntry: Equatable, Sendable {
     public let key: String
     public let value: String
     public let hasValue: Bool
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.hasValue == rhs.hasValue && GitReferenceName.equal(lhs.scope, rhs.scope) &&
+        GitReferenceName.equal(lhs.origin, rhs.origin) && GitReferenceName.equal(lhs.key, rhs.key) &&
+        GitReferenceName.equal(lhs.value, rhs.value)
+    }
     public var file: URL? {
         guard origin.hasPrefix("file:"), String(origin.dropFirst(5)).hasPrefix("/") else { return nil }
-        return URL(fileURLWithPath: String(origin.dropFirst(5)))
+        // fileURLWithPath may normalize the filesystem spelling on macOS.
+        // Keep Git's original UTF-8 path in both the identity and write argv.
+        let allowed = CharacterSet(charactersIn: "/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        guard let path = String(origin.dropFirst(5)).addingPercentEncoding(withAllowedCharacters: allowed) else { return nil }
+        guard let file = URL(string: "file://" + path), file.host?.isEmpty != false else { return nil }
+        return file
     }
     public var subsection: String? {
         guard key.hasPrefix("credential."), let last = key.lastIndex(of: ".") else { return nil }
@@ -31,7 +41,11 @@ public struct GitCredentialEntry: Equatable, Sendable {
 public struct GitCredentialGroup: Identifiable, Equatable, Sendable {
     public let scope: String, origin: String, url: String
     public let entries: [GitCredentialEntry]
-    public var id: String { scope + "\0" + origin + "\0" + url }
+    public var id: String { GitPathRowIdentity.encode(scope + "\0" + origin + "\0" + url) }
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        GitReferenceName.equal(lhs.scope, rhs.scope) && GitReferenceName.equal(lhs.origin, rhs.origin) &&
+        GitReferenceName.equal(lhs.url, rhs.url) && lhs.entries == rhs.entries
+    }
     public var file: URL? { entries.first?.file }
     public var helpers: [String] { entries.filter { $0.field == "helper" }.map(\.value) }
     public var username: String { entries.last { $0.field == "username" }?.value ?? "" }
@@ -48,12 +62,17 @@ public struct GitCredentialSnapshot: Equatable, Sendable {
         var result: [GitCredentialGroup] = []
         for entry in entries {
             guard let url = entry.subsection else { continue }
-            if let index = result.firstIndex(where: { $0.scope == entry.scope && $0.origin == entry.origin && $0.url == url }) {
+            if let index = result.firstIndex(where: { GitReferenceName.equal($0.scope, entry.scope) && GitReferenceName.equal($0.origin, entry.origin) && GitReferenceName.equal($0.url, url) }) {
                 let old = result[index]
                 result[index] = .init(scope: old.scope, origin: old.origin, url: old.url, entries: old.entries + [entry])
             } else { result.append(.init(scope: entry.scope, origin: entry.origin, url: url, entries: [entry])) }
         }
-        return result.sorted { ($0.scope + ":" + $0.url + ":" + $0.origin) < ($1.scope + ":" + $1.url + ":" + $1.origin) }
+        return result.sorted {
+            for (lhs, rhs) in [($0.scope, $1.scope), ($0.url, $1.url), ($0.origin, $1.origin)] {
+                if !GitReferenceName.equal(lhs, rhs) { return lhs.utf8.lexicographicallyPrecedes(rhs.utf8) }
+            }
+            return false
+        }
     }
     public static func parse(_ data: Data, root: URL) throws -> Self {
         guard data.isEmpty || data.last == 0 else { throw GitConfigurationFailure.output }
@@ -68,7 +87,13 @@ public struct GitCredentialSnapshot: Equatable, Sendable {
             let pair = record.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
             guard pair[0].hasPrefix("credential.") else { throw GitConfigurationFailure.output }
             if origin.hasPrefix("file:"), !origin.dropFirst(5).hasPrefix("/") {
-                origin = "file:" + root.appendingPathComponent(String(origin.dropFirst(5))).standardizedFileURL.path
+                var components: [Substring] = []
+                for component in (root.path + "/" + String(origin.dropFirst(5))).split(separator: "/") {
+                    if component == "." { continue }
+                    if component == ".." { if !components.isEmpty { components.removeLast() } }
+                    else { components.append(component) }
+                }
+                origin = "file:/" + components.joined(separator: "/")
             }
             entries.append(.init(scope: scope, origin: origin, key: String(pair[0]), value: pair.count == 2 ? String(pair[1]) : "", hasValue: pair.count == 2))
         }
@@ -91,6 +116,10 @@ public struct GitCredentialDraft: Equatable, Sendable {
     public var username = ""
     public var useHTTPPath = false
     public init() {}
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        GitReferenceName.equal(lhs.url, rhs.url) && lhs.helpers.map({ GitReferenceName($0) }) == rhs.helpers.map({ GitReferenceName($0) }) &&
+        GitReferenceName.equal(lhs.username, rhs.username) && lhs.useHTTPPath == rhs.useHTTPPath
+    }
     public var valid: Bool {
         !helpers.isEmpty && fieldsValid
     }
@@ -100,8 +129,8 @@ public struct GitCredentialDraft: Equatable, Sendable {
     }
     public func changedFields(from saved: Self) -> GitCredentialFields {
         var result: GitCredentialFields = []
-        if helpers != saved.helpers { result.insert(.helper) }
-        if username != saved.username { result.insert(.username) }
+        if helpers.map({ GitReferenceName($0) }) != saved.helpers.map({ GitReferenceName($0) }) { result.insert(.helper) }
+        if !GitReferenceName.equal(username, saved.username) { result.insert(.username) }
         if useHTTPPath != saved.useHTTPPath { result.insert(.useHTTPPath) }
         return result
     }
@@ -120,11 +149,11 @@ extension GitRepository {
         }
         for group in groups { try removeCredential(group) }
         if let helper, let file {
-            _ = try run(["config", "--file", file.path, "--no-includes", "--replace-all", "--", "credential.helper", helper])
+            _ = try run(GitSettingsCommand.config + ["--file", file.path, "--no-includes", "--replace-all", "--", "credential.helper", helper])
         }
     }
     public func credentialConfiguration(cancellation: OperationCancellation? = nil) throws -> GitCredentialSnapshot {
-        let result = try run(["config", "--includes", "--show-scope", "--show-origin", "--null", "--get-regexp", "^credential[.]"], successfulExitCodes: 0...1, cancellation: cancellation)
+        let result = try run(GitSettingsCommand.config + ["--includes", "--show-scope", "--show-origin", "--null", "--get-regexp", "^credential[.]"], successfulExitCodes: 0...1, cancellation: cancellation)
         return try GitCredentialSnapshot.parse(result.stdout, root: root)
     }
     /// Exact file writes also support XDG and included configuration. No other
@@ -132,7 +161,7 @@ extension GitRepository {
     public func saveCredential(_ draft: GitCredentialDraft, file: URL, expected: GitCredentialSnapshot? = nil, fields: GitCredentialFields = .all) throws {
         guard draft.fieldsValid, fields.subtracting(.all).isEmpty, file.isFileURL, file.path.hasPrefix("/"), !file.path.contains("\0") else { throw GitConfigurationFailure.invalidValue }
         if let expected, try credentialConfiguration() != expected { throw GitCredentialFailure.changed }
-        let scope = ["config", "--file", file.path, "--no-includes"]
+        let scope = GitSettingsCommand.config + ["--file", file.path, "--no-includes"]
         func write(_ key: String, _ value: String?) throws {
             do {
                 if let value { _ = try run(scope + ["--replace-all", "--", key, value]) }
@@ -158,8 +187,8 @@ extension GitRepository {
     public func removeCredential(_ group: GitCredentialGroup, expected: GitCredentialSnapshot? = nil) throws {
         guard let file = group.file, ["local", "global", "system", "worktree"].contains(group.scope) else { throw GitConfigurationFailure.destination }
         if let expected, try credentialConfiguration() != expected { throw GitCredentialFailure.changed }
-        for key in Set(group.entries.map(\.key)).sorted() {
-            let args = ["config", "--file", file.path, "--no-includes", "--unset-all", "--", key]
+        for key in Set(group.entries.map { GitReferenceName($0.key) }).map(\.rawValue).sorted(by: { $0.utf8.lexicographicallyPrecedes($1.utf8) }) {
+            let args = GitSettingsCommand.config + ["--file", file.path, "--no-includes", "--unset-all", "--", key]
             do {
                 let result = try run(args, successfulExitCodes: 0...5)
                 guard result.exitCode == 0 || result.exitCode == 5 else { throw GitFailure(arguments: args, code: result.exitCode, message: result.text) }

@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Foundation
 
+/// Git's macOS argv precomposition also affects configuration values and file
+/// paths. Keep these commands literal without changing the stored preference.
+enum GitSettingsCommand {
+    static let config = ["-c", "core.precomposeunicode=false", "config"]
+}
+
 /// Sources offered by SettingGitConfig; .tgitconfig is deliberately absent:
 /// this upstream page does not honor project config for ordinary Git settings.
 public enum GitConfigurationSource: String, CaseIterable, Sendable {
@@ -21,6 +27,9 @@ public struct GitConfigurationIdentity: Equatable, Sendable {
     public var value: String
     public var inherit: Bool
     public init(value: String = "", inherit: Bool = true) { self.value = value; self.inherit = inherit }
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.inherit == rhs.inherit && GitReferenceName.equal(lhs.value, rhs.value)
+    }
 }
 public struct GitConfigurationSettings: Equatable, Sendable {
     public var name = GitConfigurationIdentity()
@@ -64,7 +73,7 @@ public enum GitConfigurationFailure: LocalizedError {
 }
 extension GitRepository {
     private func configurationValue(_ key: String, source: GitConfigurationSource, boolean: Bool = false, cancellation: OperationCancellation?) throws -> String? {
-        let result = try run(["config"] + source.arguments + ["--includes", "--null"] + (boolean ? ["--bool"] : []) + ["--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
+        let result = try run(GitSettingsCommand.config + source.arguments + ["--includes", "--null"] + (boolean ? ["--bool"] : []) + ["--get", key], successfulExitCodes: 0...1, cancellation: cancellation)
         if result.exitCode == 1 { return nil }
         guard result.stdout.last == 0, let value = String(data: result.stdout.dropLast(), encoding: .utf8) else { throw GitConfigurationFailure.output }
         return value
@@ -134,11 +143,11 @@ extension GitRepository {
             try cancellation?.check()
             do {
                 if let value {
-                    _ = try run(["config"] + destination.arguments + ["--replace-all", "--", key, value], cancellation: cancellation)
+                    _ = try run(GitSettingsCommand.config + destination.arguments + ["--replace-all", "--", key, value], cancellation: cancellation)
                 } else {
                     // Missing keys are already inherited. --unset-all also clears
                     // repeated values, without following includes for writes.
-                    let args = ["config"] + destination.arguments + ["--unset-all", "--", key]
+                    let args = GitSettingsCommand.config + destination.arguments + ["--unset-all", "--", key]
                     let result = try run(args, successfulExitCodes: 0...5, cancellation: cancellation)
                     guard result.exitCode == 0 || result.exitCode == 5 else {
                         throw GitFailure(arguments: args, code: result.exitCode, message: result.text)
@@ -151,6 +160,8 @@ extension GitRepository {
         }
     }
     public func gitConfigurationText(source: GitConfigurationSource, cancellation: OperationCancellation? = nil) throws -> String {
+        // There is no user text in these arguments. A command-scope override
+        // here would itself appear as a misleading row in the config viewer.
         let result = try run(["config"] + source.arguments + ["--includes", "--show-origin", "--list"], cancellation: cancellation)
         guard let text = String(data: result.stdout, encoding: .utf8) else { throw GitConfigurationFailure.output }
         return text
@@ -269,7 +280,7 @@ extension GitRepository {
                     return [:]
                 }
             }
-            let bytes = try run(["config"] + arguments + ["--includes", "--null", "--get-regexp", pattern], successfulExitCodes: 0...1, cancellation: cancellation).stdout
+            let bytes = try run(GitSettingsCommand.config + arguments + ["--includes", "--null", "--get-regexp", pattern], successfulExitCodes: 0...1, cancellation: cancellation).stdout
             var result: [String: String] = [:]
             for record in bytes.split(separator: 0) {
                 guard let separator = record.firstIndex(of: 10) else {
@@ -316,7 +327,7 @@ extension GitRepository {
         // Git for macOS otherwise precomposes every argv value, including
         // config text. Preserve the submitted bytes without changing the
         // repository's persistent filesystem/path preference.
-        let command = ["-c", "core.precomposeUnicode=false", "config"]
+        let command = GitSettingsCommand.config
         for (key, value) in values {
             try cancellation?.check()
             do {
@@ -343,7 +354,7 @@ public struct FirstStartConfiguration: Sendable {
 }
 extension GitRepository {
     public func firstStartConfiguration(cancellation: OperationCancellation? = nil) throws -> FirstStartConfiguration {
-        let output = try run(["config", "--includes", "--null", "--get-regexp", "^(user[.](name|email)|credential[.].*helper)$"], successfulExitCodes: 0...1, cancellation: cancellation)
+        let output = try run(GitSettingsCommand.config + ["--includes", "--null", "--get-regexp", "^(user[.](name|email)|credential[.].*helper)$"], successfulExitCodes: 0...1, cancellation: cancellation)
         var entries: [(String, String)] = []
         for record in output.stdout.split(separator: 0) {
             guard let text = String(data: Data(record), encoding: .utf8) else { throw GitConfigurationFailure.output }
@@ -367,17 +378,17 @@ extension GitRepository {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines), email = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, !email.isEmpty, !name.contains("\0"), !email.contains("\0") else { throw GitConfigurationFailure.invalidValue }
         for (key, value) in [("user.name", name), ("user.email", email)] {
-            do { _ = try run(["config", "--global", "--replace-all", "--", key, value]) }
+            do { _ = try run(GitSettingsCommand.config + ["--global", "--replace-all", "--", key, value]) }
             catch { throw GitConfigurationFailure.save(key: key, detail: error.localizedDescription) }
         }
     }
     public func saveFirstStartCredentialHelper(_ helper: String) throws {
         guard !helper.contains("\0") else { throw GitConfigurationFailure.invalidValue }
         if helper.isEmpty {
-            let arguments = ["config", "--global", "--unset-all", "--", "credential.helper"]
+            let arguments = GitSettingsCommand.config + ["--global", "--unset-all", "--", "credential.helper"]
             let result = try run(arguments, successfulExitCodes: 0...5)
             guard result.exitCode == 0 || result.exitCode == 5 else { throw GitFailure(arguments: arguments, code: result.exitCode, message: result.text) }
-        } else { _ = try run(["config", "--global", "--replace-all", "--", "credential.helper", helper]) }
+        } else { _ = try run(GitSettingsCommand.config + ["--global", "--replace-all", "--", "credential.helper", helper]) }
     }
 }
 

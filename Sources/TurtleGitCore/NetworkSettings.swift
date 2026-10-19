@@ -17,6 +17,11 @@ public struct GitProxySettings: Equatable, Sendable {
     public var username = ""
     public var password = ""
     public init() {}
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.enabled == rhs.enabled && GitReferenceName.equal(lhs.server, rhs.server) &&
+        GitReferenceName.equal(lhs.port, rhs.port) && GitReferenceName.equal(lhs.username, rhs.username) &&
+        GitReferenceName.equal(lhs.password, rhs.password)
+    }
     public init(configuration: String?) throws {
         self.init()
         guard let configuration, !configuration.isEmpty else { return }
@@ -57,6 +62,9 @@ public struct SSHClientPreferences: Equatable, Sendable {
     public var path = ""
     public var bookmark: Data?
     public init() {}
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        GitReferenceName.equal(lhs.path, rhs.path) && lhs.bookmark == rhs.bookmark
+    }
     public func executable() throws -> URL? {
         if path.isEmpty { return nil }
         var engine = GitEnginePreferences(); engine.choice = .custom; engine.path = path; engine.bookmark = bookmark
@@ -98,7 +106,7 @@ public struct SSHClientPreferences: Equatable, Sendable {
 }
 extension GitRepository {
     public func proxyConfiguration(source: GitConfigurationSource = .effective, cancellation: OperationCancellation? = nil) throws -> GitProxySettings {
-        let result = try run(["config"] + source.arguments + ["--includes", "--null", "--get", "http.proxy"], successfulExitCodes: 0...1, cancellation: cancellation)
+        let result = try run(GitSettingsCommand.config + source.arguments + ["--includes", "--null", "--get", "http.proxy"], successfulExitCodes: 0...1, cancellation: cancellation)
         if result.exitCode == 1 { return GitProxySettings() }
         guard result.stdout.last == 0, let value = String(data: result.stdout.dropLast(), encoding: .utf8) else { throw GitConfigurationFailure.output }
         return try GitProxySettings(configuration: value)
@@ -107,10 +115,10 @@ extension GitRepository {
         if let value = try settings.value() {
             // Do not expose the arguments or Git diagnostics: proxy userinfo may
             // contain a password. The UI reports only the key on write failure.
-            do { _ = try run(["config", "--global", "--replace-all", "--", "http.proxy", value]) }
+            do { _ = try run(GitSettingsCommand.config + ["--global", "--replace-all", "--", "http.proxy", value]) }
             catch { throw GitConfigurationFailure.save(key: "http.proxy", detail: "Could not save global proxy configuration.") }
         } else {
-            let arguments = ["config", "--global", "--unset-all", "--", "http.proxy"]
+            let arguments = GitSettingsCommand.config + ["--global", "--unset-all", "--", "http.proxy"]
             do {
                 let result = try run(arguments, successfulExitCodes: 0...5)
                 guard result.exitCode == 0 || result.exitCode == 5 else { throw NetworkSettingsFailure.proxy }

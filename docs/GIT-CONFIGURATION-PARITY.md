@@ -131,3 +131,12 @@ persistent preference is retained. The 12 focused configuration/issue/hook check
 and two-engine native consumer checks are recorded in
 [the connected Issue Tracker batch](qa/issue-tracker-source-family-2026-10-17.json).
 This is scoped writer behavior, not a global change to Git path policy.
+
+
+## Identity and captured drafts — October 19, 2026
+
+The [connected exact-text settings family](SETTINGS-EXACT-TEXT-PARITY.md)
+addresses canonical-Unicode aliases in edited values, captured save guards and
+Git config arguments. Its dated record separates grouped checks from remaining
+physical, signed and full-source acceptance. Existing source write order,
+permissions and partial-failure behavior remain in effect.
