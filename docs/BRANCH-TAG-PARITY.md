@@ -32,7 +32,7 @@ Four real Git integration tests cover branch descriptions with mixed staged/late
 unstaged changes, lightweight and annotated tags, forced tag replacement,
 unchecked signing configuration, signing-message validation, remote tracking,
 shared branch/tag names, invalid names/revisions and checked-out branch protection.
-The complete Swift suite has 76 passing tests.
+The historical Swift suite at that checkpoint had 76 passing tests; this is not a current full-suite claim.
 
 Native QA on the disposable documentation repository created a branch with a
 multiline description, an annotated tag with a multiline message, and a second
@@ -235,3 +235,45 @@ layout warnings remain in the hidden picker harness. Signed tag/key prompts,
 complete physical/keyboard/VoiceOver, all Git/version/locale/FS boundaries and
 signed sandbox/App Store acceptance remain open. No full port certification is
 claimed.
+
+## Source acceptance and native creation lifetime — October 19, 2026
+
+Pinned `CreateBranchTagDlg::OnBnClickedOk` validates the signed-message/name,
+existing-name and cross-type-name form first. Continue/Abort defaults to Abort.
+Only accepted forms save `NewBranchSwitchTo`/`PushTag`; base resolution and the
+actual `CAppUtils::CreateBranchTag` Git operation happen afterward. Native creation
+now separates those phases instead of writing checkbox defaults before validation.
+An invalid name or cross-name Abort leaves them untouched. An accepted form still
+remembers its captured choice when later base resolution or mutation fails.
+
+Core exposes immutable validated-form/prepared-plan boundaries. Options callers
+retain the original convenience API, which follows the same validation and Git
+argument construction. Preparing a form/plan does not create references or write
+branch descriptions. Local/tag plans retain their resolved hash; remote tracking
+retains the captured remote refname so Git continues to honor its tracking policy.
+An external writer can move that remote between preparation and execution; this
+is not an atomic ref/config transaction. Exact UTF-8 names/messages and existing
+Force/Sign/annotation/tracking semantics remain.
+
+Native cross-name, error and kill questions are controller-owned, one-shot and
+matched to the current form/owner. Accepted replies wait for actual sheet detach;
+Abort/error acknowledgment restores name editing/focus where applicable. The
+macOS error acknowledgment adapts the source edit balloon. Quit generations,
+forced closure and duplicate/stale replies cannot accept another form or handoff.
+Per-instance queued-work ownership retains actual load/create/description and
+chooser/Switch work after invalidation; native releases retain detached question
+and picker completion. A retired form's `onClosed` waits for real drain.
+
+A created branch retains its captured Switch/description sequence, including the
+description-only retry after a config failure. Real owned Switch acknowledgement
+comes from its actual closed/drained controller, rather than an early forced-owner
+continuation. Tag Push captures the full created tag, original permissions and
+preferences, and an appearance/opacity value before closing. It dispatches only
+after intended creation-window/native-child closure. Forced closure drops a
+queued Push; repository creation notification remains once-only.
+
+[Grouped evidence](qa/branch-tag-creation-family-2026-10-19.json) records actual
+validation after the implementation freeze. Physical balloons/keyboard/VoiceOver,
+all visual/source variants, signed GPG/key/transport prompts, signed sandbox/Finder
+and App Store acceptance remain open. No generic command-progress window or new
+post-action is added to this source direct-Git creation workflow.

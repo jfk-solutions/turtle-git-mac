@@ -11,8 +11,23 @@ public struct ReferenceCreationOptions: Sendable {
     public var allowNameConflict = false
     public init() {}
 }
+/// An accepted dialog form, before resolving its chosen base revision.
+public struct ReferenceCreationForm:Sendable {
+    public let options:ReferenceCreationOptions
+    public let writesBranchDescription:Bool
+    fileprivate let repositoryRoot:URL
+}
+/// Local/tag targets are resolved once; a remote branch base retains its
+/// reference name so Git preserves native tracking rules.
+public struct ReferenceCreationPlan:Sendable {
+    public let options:ReferenceCreationOptions
+    public let writesBranchDescription:Bool
+    public let resolvedHash:String
+    public let arguments:[String]
+    fileprivate let repositoryRoot:URL
+}
 public enum ReferenceCreationFailure: LocalizedError {
-    case invalidName, invalidRevision, exists, nameConflict, signingMessageRequired
+    case invalidName, invalidRevision, exists, nameConflict, signingMessageRequired, preparedRepositoryMismatch
     public var errorDescription: String? {
         switch self {
         case .invalidName: return "Enter a valid branch or tag name."
@@ -20,6 +35,7 @@ public enum ReferenceCreationFailure: LocalizedError {
         case .exists: return "This reference already exists. Choose another name or enable Force."
         case .nameConflict: return "A branch and tag will share this name. Short revision names will be ambiguous. Continue?"
         case .signingMessageRequired: return "A signed tag requires a message."
+        case .preparedRepositoryMismatch: return "This reference was prepared for another repository."
         }
     }
 }
@@ -31,10 +47,22 @@ extension GitRepository {
         catch let failure as GitFailure { throw GitFailure(arguments: arguments, code: failure.code, message: failure.message) }
     }
     public func createReference(_ options: ReferenceCreationOptions, writeDescription: Bool = true, cancellation: OperationCancellation? = nil) throws -> String {
+        try createReference(prepareReferenceCreation(options,cancellation:cancellation),writeDescription:writeDescription,cancellation:cancellation)
+    }
+    /// Performs validation without changing references, HEAD, the index or config.
+    public func prepareReferenceCreation(_ options:ReferenceCreationOptions,cancellation:OperationCancellation?=nil) throws -> ReferenceCreationPlan {
+        try prepareReferenceCreation(prepareReferenceCreationForm(options,cancellation:cancellation),cancellation:cancellation)
+    }
+    /// Source OnOK accepts these controls before persisting Switch/Push. Resolving
+    /// the base revision and the actual Git creation command happen afterward.
+    public func prepareReferenceCreationForm(_ options:ReferenceCreationOptions,cancellation:OperationCancellation?=nil) throws -> ReferenceCreationForm {
         try cancellation?.check()
         func exists(_ ref: String) throws -> Bool {
             try creationCommand(["show-ref", "--verify", "--quiet", ref], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0
         }
+        // The source dialog reports a missing signed-tag message before name errors.
+        let message = options.message.replacingOccurrences(of: "\r", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if options.isTag,options.sign,message.isEmpty {throw ReferenceCreationFailure.signingMessageRequired}
         let name = options.name.trimmingCharacters(in: .whitespacesAndNewlines)
         let prefix = options.isTag ? "refs/tags/" : "refs/heads/"
         do {
@@ -45,6 +73,13 @@ extension GitRepository {
         if !options.force, try exists(prefix + name) { throw ReferenceCreationFailure.exists }
         let other = options.isTag ? "refs/heads/" : "refs/tags/"
         if !options.allowNameConflict, try exists(other + name) { throw ReferenceCreationFailure.nameConflict }
+        var normalized=options;normalized.name=name;normalized.message=message
+        return ReferenceCreationForm(options:normalized,writesBranchDescription:!options.isTag && !options.message.isEmpty,repositoryRoot:root)
+    }
+    public func prepareReferenceCreation(_ form:ReferenceCreationForm,cancellation:OperationCancellation?=nil) throws -> ReferenceCreationPlan {
+        try cancellation?.check()
+        guard root.path.utf8.elementsEqual(form.repositoryRoot.path.utf8) else {throw ReferenceCreationFailure.preparedRepositoryMismatch}
+        let options=form.options,name=options.name,message=options.message
         let hash: String
         do {
             let output = try creationCommand(["rev-parse", "--verify", "--end-of-options", options.revision + "^{commit}"], cancellation: cancellation).stdout
@@ -52,26 +87,32 @@ extension GitRepository {
             guard [40, 64].contains(hash.count), hash.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw ReferenceCreationFailure.invalidRevision }
         }
         catch { try cancellation?.check(); throw ReferenceCreationFailure.invalidRevision }
-        let message = options.message.replacingOccurrences(of: "\r", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         var args = [options.isTag ? "tag" : "branch"]
         if options.force { args.append("--force") }
         if options.isTag {
-            if options.sign && message.isEmpty { throw ReferenceCreationFailure.signingMessageRequired }
             // Override tag.gpgSign for the unchecked Sign option, matching the dialog.
             args = ["-c", "tag.gpgSign=false"] + args
             args.append(options.sign ? "--sign" : "--no-sign")
             if !message.isEmpty { args += ["--annotate", "--message", message] }
             args += ["--", name, hash]
         } else {
-            let remote = try options.revision.hasPrefix("refs/remotes/") && exists(options.revision)
+            let remote = try options.revision.hasPrefix("refs/remotes/") && creationCommand(["show-ref","--verify","--quiet",options.revision],successfulExitCodes:0...1,cancellation:cancellation).exitCode == 0
             if remote {
                 if options.tracking == .track { args.append("--track") }
                 if options.tracking == .noTrack { args.append("--no-track") }
             } else { args.append("--no-track") }
             args += ["--", name, remote ? options.revision : hash]
         }
-        let output = try creationCommand(args, cancellation: cancellation).text
-        if writeDescription, !options.isTag, !message.isEmpty { _ = try creationCommand(["config", "--local", "branch." + name + ".description", message], cancellation: cancellation) }
+        return ReferenceCreationPlan(options:options,writesBranchDescription:form.writesBranchDescription,resolvedHash:hash,arguments:args,repositoryRoot:root)
+    }
+    /// Uses the accepted submission without re-reading mutable native form state.
+    /// As in Git/source, a captured remote base may move before branch creation.
+    public func createReference(_ plan:ReferenceCreationPlan,writeDescription:Bool=true,cancellation:OperationCancellation?=nil) throws -> String {
+        try cancellation?.check()
+        guard root.path.utf8.elementsEqual(plan.repositoryRoot.path.utf8) else {throw ReferenceCreationFailure.preparedRepositoryMismatch}
+        let options=plan.options
+        let output = try creationCommand(plan.arguments, cancellation: cancellation).text
+        if writeDescription,plan.writesBranchDescription {try updateBranchDescription(options.name,message:options.message,cancellation:cancellation)}
         return output
     }
     /// Source CreateBranchTag writes the description after PerformSwitch returns,

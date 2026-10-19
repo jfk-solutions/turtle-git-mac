@@ -59,8 +59,8 @@ struct BranchTagSourceVerification {
         model.options.name="topic-e\u{301}";model.options.message="Description e\u{301}";model.options.tracking = .noTrack
         if let path=ProcessInfo.processInfo.environment["TURTLEGIT_BRANCH_SOURCE_CAPTURE"] {try await capture(owner.window!,name:"create-branch-source",folder:URL(fileURLWithPath:path))}
         let name=model.options.name,message=model.options.message,staleForce=model.option(\.force,context:model.formContext)
-        var closes=0,created=0;model.close={closes+=1};model.onCreated={_ in created+=1};model.create()
-        try await wait {!model.busy && BranchTagWindowModel.activeCreations==0}
+        var closes=0,created=0;owner.onClosed={closes+=1};model.onCreated={_ in created+=1};model.create()
+        try await wait {!model.busy && BranchTagWindowModel.activeCreations==0 && closes==1}
         try require(closes==1 && created==1 && model.createdBranch?.utf8.elementsEqual(name.utf8)==true,"Branch creation did not settle once")
         let catalog=try await repo.checkoutReferences();try require(catalog.contains{GitReferenceName.equal($0.name,"refs/heads/"+name)},"Branch spelling changed")
         let description=try await repo.run(["-c","core.precomposeunicode=false","config","--local","--get","branch."+name+".description"]).text
@@ -75,8 +75,8 @@ struct BranchTagSourceVerification {
         tag.model.boolean(\.pushAfterCreation,context:tag.model.formContext).wrappedValue=true
         try require(!tag.model.remote && tag.model.canSign,"Tag-specific options not loaded")
         if let path=ProcessInfo.processInfo.environment["TURTLEGIT_BRANCH_SOURCE_CAPTURE"] {try await capture(tag.window!,name:"create-tag-source",folder:URL(fileURLWithPath:path))}
-        var push:String?,tagCreated=0;tag.model.close={};tag.model.onPushTag={push=$0};tag.model.onCreated={_ in tagCreated+=1};tag.model.create()
-        try await wait {!tag.model.busy && BranchTagWindowModel.activeCreations==0}
+        var push:String?,tagCreated=0;tag.model.onPushTag={push=$0};tag.model.onCreated={_ in tagCreated+=1};tag.model.create()
+        try await wait {!tag.model.busy && BranchTagWindowModel.activeCreations==0 && push != nil}
         try require(tagCreated==1 && push?.utf8.elementsEqual("refs/tags/release-e\u{301}".utf8)==true,"Tag Push handoff changed spelling or duplicated")
         var options=PushOptions();options.remote="origin";options.source=push!;options.destination="source-published"
         _=try await repo.push(options)

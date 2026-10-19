@@ -3526,3 +3526,23 @@ workspace and prevents reopening an already retiring cached Init controller.
 implementation and actual verification scope. Physical/all-source UI parity,
 Finder folder artwork, live authentication/git-svn, signed sandbox/App Store and
 whole-port acceptance remain open.
+
+### Branch/Tag acceptance and captured creation family, October 19, 2026
+
+Creation now follows the source form-acceptance boundary before remembering its
+Switch/Push checkbox. Invalid name/cross-name Abort preserve saved defaults;
+accepted forms remember their choice before later base/Git errors. Immutable Core
+form/plan phases preserve existing exact names, prepared local/tag hashes and Git
+remote tracking semantics, without pretending to provide an atomic transaction.
+
+Native source-default cross-name, error and cancellation questions settle after
+actual sheet detach. Actual queued create/load/description/chooser/Switch and
+native child release retain owner/Quit lifetime after forced closure. Description
+recovery does not recreate or re-checkout a branch. Tag Push opens only after an
+intended drained creation close with captured full ref, preferences, access and
+appearance; forced or stale/Quit replies cannot dispatch it. Source controls,
+icons, option order and direct-Git result behavior remain.
+
+[Source comparison](BRANCH-TAG-PARITY.md) and
+[grouped record](qa/branch-tag-creation-family-2026-10-19.json) distinguish actual
+checks from physical/full visual/signing/transport/sandbox/App Store acceptance.

@@ -3581,29 +3581,35 @@ import UniformTypeIdentifiers
             }
         }
     }
-    private func configureReferenceInteractions(_ controller: BranchTagWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
-        let root = repository.root
+    func configureReferenceInteractions(_ controller: BranchTagWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
+        let root = repository.root, preferences = controller.model.presentationPreferences
         controller.model.onCreated = { [weak self] output in
             self?.refreshRepositoryLogs(root)
             self?.refreshStatusWindows(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onSwitch = { [weak self, weak controller] reference, done in
-            guard let self, let parent = controller?.window, parent.attachedSheet == nil else { done(); return }
-            let progress = self.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, preferences: controller?.model.presentationPreferences ?? .standard, completion: done)
-            controller?.model.cancelSwitchPresentation = { [weak progress] in progress?.close() }
+            guard let self, !self.retired, !self.confirmingQuit, let controller, controller.model.active, !controller.model.confirmingQuit, let parent = controller.window, parent.attachedSheet == nil else { done(); return }
+            let progress = self.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, preferences: preferences, completion: done)
+            controller.model.awaitSwitchCloseOnRetirement = progress != nil
+            controller.model.cancelSwitchPresentation = { [weak progress] in progress?.close() }
         }
-        controller.model.onPushTag = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+        controller.model.onPushTag = { [weak self, weak model = controller.model] source in
+            guard let self, !self.retired, !self.confirmingQuit, let model else { return }
+            self.showPush(repository: repository, access: access, source: source, preferences: preferences, presentation: model.handoffPresentation)
+        }
         controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
     }
-    private func showReference(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, revision: String? = nil, name: String? = nil, preferences: UserDefaults? = nil) {
+    private func showReference(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, revision: String? = nil, name: String? = nil, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let key = repository.root.path + (isTag ? ":tag:" : ":branch:") + UUID().uuidString
         let controller = referenceWindows[key] ?? BranchTagWindowController(repository: repository, access: access, isTag: isTag, preferences:preferences ?? fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.referenceWindows.removeValue(forKey: key) }
+        controller.onClosed = { [weak self, weak controller] in if self?.referenceWindows[key] === controller { self?.referenceWindows.removeValue(forKey: key) } }
         configureReferenceInteractions(controller, repository: repository, access: access)
+        presentation?.apply(to: controller.window)
         referenceWindows[key] = controller; controller.model.load(revision: revision, name: name)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
@@ -3621,7 +3627,7 @@ import UniformTypeIdentifiers
         let inherited = controller.model.presentationPreferences
         controller.model.onPostAction = { [weak self, weak model = controller.model] action, branch in guard let model else { return }; self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation) }
         switchProgressWindows[id] = controller
-        if let window = controller.window { window.alphaValue = parent.alphaValue; window.appearance = parent.appearance; parent.beginSheet(window) }
+        if let window = controller.window { MergeWindowPresentation(parent).apply(to: window); parent.beginSheet(window) }
         controller.model.start(); return controller
     }
     private func performSwitchPostAction(_ action: SwitchPostAction, previousBranch: String, repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults, presentation: MergeWindowPresentation? = nil) {

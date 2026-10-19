@@ -178,6 +178,13 @@ when configured, confirm the running-process question first. A branch or tag
 already created is retained. If only its description failed, **Retry description**
 saves that description without recreating the branch or switching again.
 
+If a branch and tag would share the same name, review Continue/Abort; Abort is
+the default. Cancelling that warning or entering an invalid name leaves the saved
+Switch/Push choice unchanged. Once the form is accepted, that choice is remembered
+even if resolving the base or creating the reference fails. A creation error stays
+with this window for acknowledgment and correction. Tag Push releases the creation
+window first and opens Push for the captured full tag name with the same settings.
+
 Switch/Checkout chooses the target branch, tag or commit. Review Create New
 Branch, force/overwrite, merge and tracking options when available. Force can
 discard working changes. A checkout failure leaves its Git output available for

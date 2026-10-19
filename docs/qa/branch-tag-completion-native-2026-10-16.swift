@@ -106,6 +106,8 @@ import TurtleGitCore
         try require(description.retryDescription && description.createdBranch == "description" && description.error != nil && closes == 0 && notifications == 1, "Standalone description failure lost created reference/retry phase: retry=\(description.retryDescription), ref=\(description.createdBranch ?? "nil"), error=\(description.error ?? "nil"), closes=\(closes), notices=\(notifications)")
         let ref = try await repo.run(["rev-parse", "refs/heads/description"]).stdout
         try FileManager.default.removeItem(at: root.appendingPathComponent(".git/config.lock")); try gate("idle", held: false)
+        // Model-only receiver acknowledges the error before selecting Retry.
+        description.error = nil
         description.options.name = "wrong"; description.options.message = "wrong message"; description.create(); try await ready(description)
         let finalRef = try await repo.run(["rev-parse", "refs/heads/description"]).stdout, value = try await repo.run(["config", "--get", "branch.description.description"]).stdout
         try require(finalRef == ref && value == Data("captured description\n".utf8) && closes == 1 && notifications == 1, "Description retry recreated/retargeted branch or repeated notification")
@@ -115,7 +117,7 @@ import TurtleGitCore
         checkout.options.name = "older"; checkout.switchAfterCreation = true; checkout.create(); try await ready(checkout)
         try require(checkout.createdBranch == "older" && checkout.error?.contains("checkout failed") == true, "Fallback checkout recovery missing")
         checkout.options.name = "do-not-create"; checkout.switchAfterCreation = false
-        checkout.create(); try await ready(checkout)
+        checkout.error = nil; checkout.create(); try await ready(checkout)
         let wrong = try await exists("refs/heads/do-not-create")
         try require(checkout.error?.contains("checkout failed") == true && !wrong, "Retry changed captured checkout/create intent")
         checkout.invalidate()

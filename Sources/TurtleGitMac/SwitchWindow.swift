@@ -202,6 +202,8 @@ extension UserDefaults {
 }
 
 @MainActor final class SwitchWindowModel: ObservableObject, VersionPickerModel {
+    @Published private(set) var pendingReferenceReads=0
+    var hasPendingReferenceReads:Bool {pendingReferenceReads > 0}
     private(set) static var activeReads = 0
     @Published var confirmingQuit=false {didSet {
         if confirmingQuit != oldValue {formRevision=UUID()};progress?.confirmingQuit=confirmingQuit
@@ -288,10 +290,10 @@ extension UserDefaults {
         guard !confirmingQuit, !invalidated, !finished, pickerTarget == .branch else { return }
         referenceSelectionToken?.cancel(); let token = OperationCancellation(); referenceSelectionToken = token; busy = true
         let requested = name ?? revision, draft = commitRevision, selectionDraft = versionPickerDraft
-        Self.activeReads += 1
+        Self.activeReads += 1;pendingReferenceReads += 1
         Task {
             var applied = false
-            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; formRevision = UUID(); if applied { referenceFocusRequest += 1 }; completion() } }
+            defer { Self.activeReads -= 1;pendingReferenceReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; formRevision = UUID(); if applied { referenceFocusRequest += 1 }; completion() } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
@@ -327,9 +329,9 @@ extension UserDefaults {
         guard !confirmingQuit, !busy, pickerTarget == nil, progress == nil, !hasPendingTagConflict, !invalidated, !finished else { return }; formRevision = UUID(); busy = true
         let token = OperationCancellation(); initialLoadToken = token
         let revision = preset ?? initialRevision
-        Self.activeReads += 1
+        Self.activeReads += 1;pendingReferenceReads += 1
         Task {
-            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if initialLoadToken === token { initialLoadToken = nil; busy = false; formRevision = UUID(); if !invalidated && !token.isCancelled && error == nil { initialFocusRequest += 1 } }; onInitialReadSettled() }
+            defer { Self.activeReads -= 1;pendingReferenceReads -= 1; withExtendedLifetime(access) {}; if initialLoadToken === token { initialLoadToken = nil; busy = false; formRevision = UUID(); if !invalidated && !token.isCancelled && error == nil { initialFocusRequest += 1 } }; onInitialReadSettled() }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let (catalog, current) = try await readInitialReferences(token)
@@ -400,9 +402,9 @@ extension UserDefaults {
         if let onBrowsePicker { guard canBrowse(target) else { return }; onBrowsePicker(target); return }
         guard presentationAvailable,!busy,progress == nil,pickerTarget == nil,!hasPendingTagConflict else{return}
         if target != .commit {browser=target;return}
-        busy=true;let token=OperationCancellation();historyToken=token;Self.activeReads += 1
+        busy=true;let token=OperationCancellation();historyToken=token;Self.activeReads += 1;pendingReferenceReads += 1
         Task { [self,access] in
-            defer {Self.activeReads -= 1;withExtendedLifetime(access) {};if historyToken === token {historyToken=nil;busy=false}}
+            defer {Self.activeReads -= 1;pendingReferenceReads -= 1;withExtendedLifetime(access) {};if historyToken === token {historyToken=nil;busy=false}}
             do {var history=HistoryOptions();history.useMailmap=preferences.usesMailmap;history.allBranches=true;history.limit=200
                 let entries=try await repository.history(options:history,cancellation:token)
                 guard presentationAvailable,historyToken === token,!token.isCancelled else{return};commits=entries;browser=target
@@ -416,10 +418,10 @@ extension UserDefaults {
         else if hasPendingTagConflict { return }
         conflictSnapshot = nil; tagConflict = false
         formRevision = UUID(); busy = true; error = nil
-        let token = OperationCancellation(); checkoutToken = token;Self.activeReads += 1
+        let token = OperationCancellation(); checkoutToken = token;Self.activeReads += 1;pendingReferenceReads += 1
         Task {
             defer {
-                Self.activeReads -= 1;withExtendedLifetime(access) {}
+                Self.activeReads -= 1;pendingReferenceReads -= 1;withExtendedLifetime(access) {}
                 if checkoutToken === token {checkoutToken=nil;if progress == nil {busy=false;formRevision=UUID()};if let decision=pendingTagDecision {pendingTagDecision=nil;answerTagConflict(decision.0,accepted:decision.1)}}
             }
             do {

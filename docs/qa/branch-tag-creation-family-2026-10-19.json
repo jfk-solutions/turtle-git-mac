@@ -1,0 +1,152 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "ee4b45465516b36bfac3029ff422f652cdc7948d",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source Branch/Tag form acceptance and immutable prepared mutation phases, accepted-checkbox persistence timing without mutation during form/name warning",
+    "Owned native cross-name/error/cancel questions with source defaults, exact form and one-shot lifetime guards, actual queued load/create/description/Switch and native detach drain",
+    "Real captured Branch Switch/description and Tag Push preference/access/appearance handoffs after intentional creation-window closure, forced retirement/Quit suppression"
+  ],
+  "validation": {
+    "core": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "tests": 14,
+        "failures": 0,
+        "filter": "TurtleGitCoreTests\\.(ReferenceCreationPlanTests|ReferenceCreationTests|ReferenceCreationUnicodeTests)/",
+        "log": "build/qa/branch-tag-creation-core-2026-10-19.log"
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "tests": 4,
+        "failures": 0,
+        "filter": "ReferenceCreationPlanTests",
+        "log": "build/qa/branch-tag-creation-core-priority-2026-10-19.log",
+        "scope": "Only affected plan group after aligning signed-message/name error priority; ten other initial passes retained. Fourteen distinct methods passed."
+      }
+    ],
+    "resources": {
+      "exit": 0,
+      "log": "build/qa/branch-tag-creation-resources-2026-10-19.log",
+      "localizations": {
+        "languages": 38,
+        "keys": 1293
+      },
+      "help": {
+        "documents": 40,
+        "topics": 49,
+        "files": 60
+      },
+      "coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_controls": 1566,
+        "pending_control_reviews": 93
+      },
+      "site": {
+        "documents": 340,
+        "unresolved_fragments": []
+      }
+    },
+    "build": [
+      {
+        "attempt": 1,
+        "exit": 65,
+        "log": "build/qa/branch-tag-creation-build-2026-10-19.log",
+        "diagnostic": "Native sheet-release nested capture requires explicit self members. Repaired capture references. Source review additionally aligned simultaneous empty signed-message/invalid-name error priority with OnOK; only affected four plan methods repeated, existing ten passes retained."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/branch-tag-creation-build-repair-2026-10-19.log"
+      },
+      {
+        "attempt": 3,
+        "exit": 0,
+        "log": "build/qa/branch-tag-creation-build-cancellation-2026-10-19.log",
+        "scope": "Native-only cancellation-question/worker busy separation; no Core or resource repeat."
+      }
+    ],
+    "native": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "log": "build/qa/branch-tag-creation-native-2026-10-19.log",
+        "passed_pairs": [
+          "plans/system",
+          "plans/packaged"
+        ],
+        "receiver_pids": [
+          60011,
+          60103,
+          60186
+        ],
+        "failed_pair": "root-routes/system",
+        "diagnostic": "New Root Tag Push fixture asserted asynchronously loaded options.source before awaiting Push preparation. Moved existing readiness wait before unchanged grant/preferences/source/appearance assertions and added per-field diagnostics. Product/Core/build unchanged; only failed/unrun pairs continued."
+      },
+      {
+        "attempt": 2,
+        "exit": 1,
+        "log": "build/qa/branch-tag-creation-native-fixture-2026-10-19.log",
+        "passed_pairs": [
+          "root-routes/system",
+          "root-routes/packaged",
+          "source-retained/system",
+          "source-retained/packaged"
+        ],
+        "receiver_pids": [
+          60313,
+          60383,
+          60451,
+          60519,
+          60587
+        ],
+        "failed_pair": "completion-retained/system",
+        "diagnostic": "Retained completion check exposed cancellation-question ownership keeping busy true after actual Git finished. Separate question lifetime from worker busy state; retain global creation ownership and retirement drain until actual answer. Assertions unchanged. Only affected completion checks repeated on both engines after native repair/build."
+      },
+      {
+        "attempt": 3,
+        "exit": 0,
+        "log": "build/qa/branch-tag-creation-native-cancellation-2026-10-19.log",
+        "passed_pairs": [
+          "completion-retained/system",
+          "completion-retained/packaged"
+        ],
+        "receiver_pids": [
+          61089,
+          61417
+        ],
+        "scope": "Only affected completion/cancellation group repeated. Six other distinct case/engine passes retained; eight distinct pairs passed overall. Original cancellation/lifetime assertions retained."
+      }
+    ],
+    "cleanup": {
+      "checked_receiver_pids_and_process_groups": [
+        60011,
+        60103,
+        60186,
+        60313,
+        60383,
+        60451,
+        60519,
+        60587,
+        61089,
+        61417
+      ],
+      "survivors": [],
+      "native_windows": "Grouped receivers require all owned windows invisible and sheets detached before success; helper shutdown assertions retained."
+    }
+  },
+  "remaining": [
+    "Prepared plans capture input and local/tag hash; remote tracking retains captured refname and Git tracking behavior. No atomic multi-ref/config guarantee or external writer lock is added.",
+    "macOS owned error acknowledgment/focus restoration adapts source edit balloons and Windows modal command lifetime.",
+    "Physical full source geometry/keyboard/VoiceOver, live signed tag/key prompts, real transport, signed Finder/App Store and complete hosted CI/whole port require separate evidence."
+  ],
+  "unrelated_work_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

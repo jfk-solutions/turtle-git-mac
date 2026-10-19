@@ -2,13 +2,27 @@
 // Native adaptation of CreateBranchTagDlg, TortoiseGit 2008-2025.
 import AppKit
 import SwiftUI
+import Combine
 import TurtleGitCore
+
+enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellation }
 
 @MainActor final class BranchTagWindowController: NSWindowController, NSWindowDelegate {
     let model: BranchTagWindowModel
     var onClosed: () -> Void = {}
+    static var activeReleases: Int { BranchTagRelease.activeCount }
     private var pickers: VersionPickerCoordinator!
+    private var observations: Set<AnyCancellable> = []
+    private var question: BranchTagQuestionSession?
+    var questionWindow: NSWindow? { question?.alert.window }
     private(set) var cancellationAlert: NSAlert?
+    var presentQuestion: ((BranchTagQuestion, NSAlert, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
+    private var retiring = false, closed = false, finishing = false, closingForHandoff = false
+    private var questionEpoch = 0, observedQuit = false
+    private var pendingAction: (() -> Void)?
+    private var release: BranchTagRelease?
+    private var pickerRetirements: [BranchTagPickerRetirement] = []
+    private var presentationParent: NSWindow?
     var referencePicker: ReferenceBrowserWindowController? { pickers.referencePicker }
     var commitPicker: LogWindowController? { pickers.commitPicker }
     var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void { get { pickers.configureReferencePicker } set { pickers.configureReferencePicker = newValue } }
@@ -28,41 +42,181 @@ import TurtleGitCore
         pickers.contextualDraft = { [weak model] in guard let model else { return [] }; return [String(model.useHead), model.options.name, model.options.message, String(model.options.force), String(model.options.sign), model.options.tracking.rawValue, String(model.switchAfterCreation), String(model.pushAfterCreation)].map { GitReferenceName($0) } }
         pickers.onSelection = { [weak model] in if model?.useHead == false { model?.changedBase() } }
         window.setContentSize(NSSize(width: 660, height: 560)); window.center()
-        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.chooser.busy, self.model.chooser.pickerTarget == nil, !self.model.hasPendingNameConflict, !self.model.confirmingCancellation, self.window?.attachedSheet == nil else { return }; self.window?.close() }
-
-        model.confirmCancellation = { [weak self, weak window] answer in
-            guard let self, let window, window.attachedSheet == nil else { answer(false); return }
+        model.close = { [weak self] in self?.finishResult({}) }
+        model.finishAndPerform = { [weak self] action in self?.finishResult(action) }
+        model.workDidDrain = { [weak self] in self?.refreshQuestions(); self?.closeIfReady() }
+        model.presentationAvailable = { [weak self] in
+            guard let self else { return false }
+            return !self.retiring && !self.closed && !self.finishing && self.question == nil && self.window?.attachedSheet == nil
+        }
+        model.confirmCancellation = { [weak self] answer in
+            guard let self, !self.retiring, !self.closed, !self.model.confirmingQuit, self.model.hasActiveCreation else { answer(false); return }
             let alert = NSAlert(); alert.alertStyle = .informational
             alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
-            alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+            let yes = alert.addButton(withTitle: "Yes"), no = alert.addButton(withTitle: "No")
+            alert.layout(); yes.keyEquivalent = "\r"; no.keyEquivalent = "\u{1b}"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             self.cancellationAlert = alert
-            alert.beginSheetModal(for: window) { [weak self, weak window] response in
+            self.ask(.cancellation, alert: alert) { [weak self] response, accepted in
                 self?.cancellationAlert = nil
-                Task { @MainActor in
-                    // Defer the follow-up close/Push until AppKit detaches the sheet.
-                    while window?.attachedSheet === alert.window { await Task.yield() }
-                    answer(response == .alertFirstButtonReturn)
-                }
+                answer(accepted && response == .alertFirstButtonReturn)
             }
         }
+        model.$confirmingQuit.dropFirst().sink { [weak self] value in
+            guard let self else { return }
+            if self.observedQuit != value { self.questionEpoch += 1; self.observedQuit = value }
+            self.scheduleRefresh()
+        }.store(in: &observations)
+        model.objectWillChange.sink { [weak self] _ in self?.scheduleRefresh() }.store(in: &observations)
+        model.chooser.objectWillChange.sink { [weak self] _ in self?.scheduleRefresh() }.store(in: &observations)
         DialogGeometry.attach(window, identifier: "BranchTagWindowController")
     }
+    private func scheduleRefresh() {
+        Task { @MainActor [weak self] in await Task.yield(); self?.refreshQuestions(); self?.closeIfReady() }
+    }
+    private func refreshQuestions() {
+        guard !closed, !retiring, !finishing, !model.confirmingQuit, !model.hasPendingWork, !model.busy,
+              !model.chooser.busy, !model.confirmingCancellation, model.chooser.pickerTarget == nil,
+              referencePicker == nil, commitPicker == nil, question == nil,
+              let window, window.attachedSheet == nil else { return }
+        if model.hasPendingNameConflict {
+            let context = model.formContext
+            let alert = NSAlert(); alert.alertStyle = .warning
+            alert.messageText = "Branch and tag share a name"; alert.informativeText = ReferenceCreationFailure.nameConflict.localizedDescription
+            let proceed = alert.addButton(withTitle: "Continue"), abort = alert.addButton(withTitle: "Abort")
+            alert.layout(); proceed.keyEquivalent = ""; abort.keyEquivalent = "\r"; alert.window.defaultButtonCell = abort.cell as? NSButtonCell
+            ask(.nameConflict, alert: alert) { [weak self] response, accepted in
+                guard let self, !self.retiring, !self.closed, self.model.hasPendingNameConflict else { return }
+                if accepted, self.model.formContext == context, response == .alertFirstButtonReturn { self.model.create(allowNameConflict: true) }
+                else { self.model.abortNameConflict(); self.model.requestNameFocus() }
+            }
+        } else if let message = model.error ?? model.chooser.error {
+            let modelError = model.error.map { Data($0.utf8) }, chooserError = model.chooser.error.map { Data($0.utf8) }
+            let alert = NSAlert(); alert.alertStyle = .critical
+            alert.messageText = "Create reference failed"; alert.informativeText = message; alert.addButton(withTitle: "OK")
+            ask(.error(message), alert: alert) { [weak self] _, accepted in
+                guard let self, accepted else { return }
+                if self.model.error.map({ Data($0.utf8) }) == modelError { self.model.error = nil }
+                if self.model.chooser.error.map({ Data($0.utf8) }) == chooserError { self.model.chooser.error = nil }
+                self.model.requestNameFocus()
+            }
+        }
+    }
+    private func ask(_ kind: BranchTagQuestion, alert: NSAlert, completion: @escaping (NSApplication.ModalResponse, Bool) -> Void) {
+        guard !closed, !retiring, !model.confirmingQuit, question == nil, let window, window.attachedSheet == nil else { completion(.abort, false); return }
+        let request = BranchTagQuestionSession(alert: alert, parent: window), epoch = questionEpoch
+        question = request; alert.window.appearance = window.effectiveAppearance; alert.window.alphaValue = window.alphaValue
+        request.answer = { [weak self, weak request] response in
+            guard let self, let request, !request.answered else { return }; request.answered = true
+            let release = BranchTagRelease(window: alert.window, parent: window, closeWindow: true) { [self, request] in
+                let accepted = !self.retiring && !self.closed && !self.model.confirmingQuit && self.questionEpoch == epoch && self.question === request
+                if self.question === request { self.question = nil }; request.answer = nil; request.release = nil
+                completion(response, accepted); self.scheduleRefresh()
+            }
+            request.release = release; release.start()
+        }
+        if let presentQuestion { presentQuestion(kind, alert, window, request.answer!) }
+        else { alert.beginSheetModal(for: window, completionHandler: request.answer!) }
+    }
+    private func finishResult(_ action: @escaping () -> Void) {
+        guard !closed, !retiring, !finishing, !model.confirmingQuit else { return }
+        finishing = true; pendingAction = action; closeIfReady()
+    }
+    private func closeIfReady() {
+        guard finishing, !closed, !retiring, !model.confirmingQuit, !model.hasPendingWork, !model.busy,
+              !model.chooser.busy, !model.awaitingSwitch, !model.confirmingCancellation,
+              !model.hasPendingNameConflict, question == nil, referencePicker == nil, commitPicker == nil,
+              model.chooser.pickerTarget == nil else { return }
+        guard let window else { closingForHandoff = true; retireClosedWindow(); return }
+        guard window.attachedSheet == nil else { return }
+        presentationParent = window.sheetParent; model.handoffPresentation = MergeWindowPresentation(window)
+        closingForHandoff = true; window.close()
+        if !retiring, !window.isVisible { retireClosedWindow() }
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if model.hasActiveCreation { model.cancel(); return false }
-        return !model.busy && !model.confirmingCancellation && !model.chooser.busy && model.chooser.pickerTarget == nil && !model.hasPendingNameConflict && sender.attachedSheet == nil
+        guard !closed, !retiring, !finishing, !model.confirmingQuit, question == nil, sender.attachedSheet == nil else { return false }
+        model.cancel(); return false
     }
-    func windowWillClose(_ notification: Notification) {
-        model.invalidate(); pickers.invalidate()
-        if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }
-        cancellationAlert = nil; onClosed()
+    private func retireClosedWindow() {
+        guard !closed, !retiring else { return }; retiring = true
+        let action = closingForHandoff ? pendingAction : nil, epoch = questionEpoch; pendingAction = nil
+        if let child = referencePicker {
+            let retirement = BranchTagPickerRetirement(window: child.window); pickerRetirements.append(retirement)
+            let done = child.onClosed; child.onClosed = { done(); retirement.closed = true }
+        }
+        if let child = commitPicker {
+            let retirement = BranchTagPickerRetirement(window: child.window); pickerRetirements.append(retirement)
+            let done = child.onClosed; child.onClosed = { done(); retirement.closed = true }
+        }
+        model.invalidate(); model.finishAndPerform = nil; model.close = {}; model.workDidDrain = nil
+        pickers.invalidate(); question?.answer?(.abort)
+        if let window, let sheet = window.attachedSheet, sheet !== questionWindow { window.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }
+        let finish: () -> Void = { [self] in
+            release = nil; closed = true; observations.removeAll(); pickerRetirements.removeAll()
+            let done = onClosed; onClosed = {}; done()
+            if !model.confirmingQuit, questionEpoch == epoch { action?() }
+        }
+        let release = BranchTagRelease(window: window, parent: presentationParent ?? window?.sheetParent, ready: { [self] in
+            !model.hasPendingWork && question == nil && pickerRetirements.allSatisfy { $0.closed && $0.window?.sheetParent == nil && $0.window?.attachedSheet == nil }
+        }, completion: finish)
+        self.release = release; release.start()
     }
+    func windowWillClose(_ notification: Notification) { guard notification.object as? NSWindow === window else { return }; retireClosedWindow() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+
+@MainActor private final class BranchTagPickerRetirement {
+    let window: NSWindow?
+    var closed: Bool
+    init(window: NSWindow?) { self.window = window; closed = window == nil }
+}
+@MainActor private final class BranchTagQuestionSession {
+    let alert: NSAlert, parent: NSWindow
+    var answered = false
+    var answer: ((NSApplication.ModalResponse) -> Void)?
+    var release: BranchTagRelease?
+    init(alert: NSAlert, parent: NSWindow) { self.alert = alert; self.parent = parent }
+}
+@MainActor private final class BranchTagRelease {
+    static private(set) var activeCount = 0
+    private let window: NSWindow?, parent: NSWindow?
+    private let closeWindow: Bool, ready: () -> Bool
+    private var completion: () -> Void
+    private var waiter: Task<Void, Never>?
+    private var started = false, finished = false
+    init(window: NSWindow?, parent: NSWindow?, closeWindow: Bool = false, ready: @escaping () -> Bool = { true }, completion: @escaping () -> Void) {
+        self.window = window; self.parent = parent; self.closeWindow = closeWindow; self.ready = ready; self.completion = completion
+    }
+    func start() {
+        guard !started else { return }; started = true; Self.activeCount += 1
+        if let window, window.sheetParent != nil || parent?.attachedSheet === window { (window.sheetParent ?? parent)?.endSheet(window); window.orderOut(nil) }
+        drain()
+        if !finished { waiter = Task { @MainActor [self] in while !finished { try? await Task.sleep(nanoseconds: 5_000_000); drain() } } }
+    }
+    private func drain() {
+        guard !finished, window?.attachedSheet == nil, window?.sheetParent == nil, window == nil || parent?.attachedSheet !== window, ready() else { return }
+        finished = true; waiter?.cancel(); waiter = nil; Self.activeCount -= 1
+        if closeWindow { window?.close() }; let done = completion; completion = {}; done()
+    }
 }
 
 @MainActor final class BranchTagWindowModel: ObservableObject {
     private(set) static var activeReads = 0
     private(set) static var activeCreations = 0
+    @Published private(set) var pendingOperations=0
+    private var pendingQuestions = 0
+    var hasPendingWork:Bool {pendingOperations > 0 || pendingQuestions > 0 || chooser.hasPendingReferenceReads}
+    var active:Bool {!invalidated}
+    var workDidDrain:(()->Void)?
+    private func beginWork(read:Bool=false){pendingOperations += 1;if read {Self.activeReads += 1}else{Self.activeCreations += 1};busy=true}
+    private func endWork(read:Bool=false){pendingOperations -= 1;if read {Self.activeReads -= 1}else{Self.activeCreations -= 1};busy=pendingOperations > 0;formRevision=UUID();if !hasPendingWork {workDidDrain?()};finishCloseWhenReady()}
     var presentationPreferences: UserDefaults { preferences }
+    var handoffPresentation:MergeWindowPresentation?
+    var finishAndPerform:((@escaping()->Void)->Void)?
+    var presentationAvailable:()->Bool={true}
+    private var interactionGeneration=0
+    @Published var confirmingQuit=false {didSet {if oldValue != confirmingQuit {interactionGeneration += 1;formRevision=UUID()};chooser.confirmingQuit=confirmingQuit;if !confirmingQuit {finishCloseWhenReady()}}}
+    @Published private(set) var nameFocusRequest=UUID()
+    func requestNameFocus(){guard active,!confirmingQuit else{return};nameFocusRequest=UUID()}
     var hasActiveCreation: Bool { creationToken != nil }
     @Published private(set) var confirmingCancellation = false
     @Published private(set) var cancelling = false
@@ -77,6 +231,10 @@ import TurtleGitCore
     private var createdOutput = ""
     private var notifiedCreation = false
     private var createdShouldSwitch = false, createdShouldPush = false
+    private var createdWritesDescription=false
+    private var creationGeneration=0
+    private var chooserReadOwned=false
+    var awaitSwitchCloseOnRetirement=false
     let chooser: SwitchWindowModel
     let isTag: Bool
     private let access: RepositoryAccessLease?
@@ -85,20 +243,22 @@ import TurtleGitCore
     private var creationToken: OperationCancellation?
     private var invalidated = false, finished = false
     @Published private(set) var formRevision = UUID()
-    private var conflictSnapshot: (ReferenceCreationOptions, Bool, Bool, Bool)?
+    private var conflictSnapshot: (ReferenceCreationOptions, Bool, Bool, Bool, Int)?
     private var descriptionSnapshot: ReferenceCreationOptions?
     var hasPendingNameConflict: Bool { nameConflict || conflictSnapshot != nil }
     var retryDescription: Bool { descriptionSnapshot != nil }
     var onSwitch: ((String, @escaping () -> Void) -> Void)?
+    var prepareForm:(ReferenceCreationOptions,OperationCancellation) async throws->ReferenceCreationForm
+    var prepareReference:(ReferenceCreationForm,OperationCancellation) async throws->ReferenceCreationPlan
+    var performReference:(ReferenceCreationPlan,OperationCancellation) async throws->String
     func invalidate() {
         guard !invalidated else { return }; invalidated = true; formRevision = UUID()
-        loadToken?.cancel(); creationToken?.cancel(); conflictSnapshot = nil
-        let answer = cancelAnswer; cancelAnswer = nil; answer?(false)
+        loadToken?.cancel(); creationToken?.cancel(); conflictSnapshot = nil;nameConflict=false
         let stop = cancelSwitchPresentation; cancelSwitchPresentation = nil; stop?()
-        let finish = switchAnswer; switchAnswer = nil; finish?()
-        chooser.invalidate(); busy = false; completionReady = false; pendingPush = nil
+        if !awaitSwitchCloseOnRetirement {let finish=switchAnswer;switchAnswer=nil;finish?()}
+        chooser.invalidate(); busy = pendingOperations > 0; completionReady = false; pendingPush = nil
     }
-    var canCancel: Bool { !invalidated && !finished && (!chooser.busy || chooser.initialReadActive) && !confirmingCancellation && !cancelling && !awaitingSwitch && chooser.pickerTarget == nil && !hasPendingNameConflict }
+    var canCancel: Bool {presentationAvailable() && error == nil && chooser.error == nil && !confirmingQuit && !invalidated && !finished && (!chooser.busy || chooser.initialReadActive) && !confirmingCancellation && !cancelling && !awaitingSwitch && chooser.pickerTarget == nil && !hasPendingNameConflict }
     func cancel() {
         guard canCancel else { return }
         guard let token = creationToken else {
@@ -108,46 +268,56 @@ import TurtleGitCore
             } else { close() }
             return
         }
+        let generation=interactionGeneration
         let stop: (Bool) -> Void = { [weak self] approved in
-            guard let self, !self.invalidated, approved else { return }
+            guard let self, !self.invalidated,!self.confirmingQuit,self.interactionGeneration==generation, approved,self.creationToken === token else { return }
             self.closeWhenIdle = true; self.abortNameConflict()
             if self.creationToken === token { self.cancelling = true; token.cancel() }
             self.finishCloseWhenReady()
         }
         guard preferences.bool(forKey: "ConfirmKillProcess") else { stop(true); return }
-        confirmingCancellation = true; Self.activeCreations += 1
+        // A native question owns retirement/Quit lifetime without keeping a finished Git worker busy.
+        confirmingCancellation = true; pendingQuestions += 1; Self.activeCreations += 1
         var answered = false
-        let answer: (Bool) -> Void = { [weak self] approved in
-            guard !answered else { return }; answered = true; Self.activeCreations -= 1
-            guard let self else { return }; self.cancelAnswer = nil; self.confirmingCancellation = false
-            stop(approved); self.finishCloseWhenReady(); withExtendedLifetime(self.access) {}
+        let answer: (Bool) -> Void = { [self] approved in
+            guard !answered else { return }; answered = true
+            self.cancelAnswer = nil; self.confirmingCancellation = false
+            stop(approved)
+            self.pendingQuestions -= 1; Self.activeCreations -= 1
+            if !self.hasPendingWork { self.workDidDrain?() }
+            self.finishCloseWhenReady(); withExtendedLifetime(self.access) {}
         }
         cancelAnswer = answer; confirmCancellation(answer)
     }
     private func finishCloseWhenReady() {
-        guard !invalidated, !busy, loadToken == nil, creationToken == nil, !chooser.busy, !confirmingCancellation, !awaitingSwitch else { return }
+        guard !confirmingQuit,!invalidated, !busy,!hasPendingWork, loadToken == nil, creationToken == nil, !chooser.busy, !confirmingCancellation, !awaitingSwitch else { return }
         guard completionReady || closeWhenIdle else { return }
         completionReady = false; closeWhenIdle = false; cancelling = false
         let push = pendingPush; pendingPush = nil
-        close(); if let push { onPushTag(push) }
+        let generation=creationGeneration
+        if let push {
+            let callback=onPushTag
+            let dispatch={ [self] in guard !confirmingQuit,interactionGeneration==generation else{return};callback(push)}
+            if let finishAndPerform {finishAndPerform(dispatch)}else{close();dispatch()}
+        }else{close()}
     }
     private func complete(push: String? = nil) {
         finished = true; completionReady = true; pendingPush = push
     }
-    private func notifyCreated() { if !notifiedCreation { notifiedCreation = true; onCreated(createdOutput) } }
+    private func notifyCreated() { if !notifiedCreation,!confirmingQuit,interactionGeneration==creationGeneration { notifiedCreation = true; onCreated(createdOutput) } }
     private func handoffSwitch(_ reference: String, using route: (String, @escaping () -> Void) -> Void) async {
         awaitingSwitch = true
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             var answered = false
             let done: () -> Void = { [weak self] in
                 guard !answered else { return }; answered = true
-                self?.switchAnswer = nil; self?.cancelSwitchPresentation = nil; self?.awaitingSwitch = false
+                self?.switchAnswer = nil; self?.cancelSwitchPresentation = nil; self?.awaitSwitchCloseOnRetirement=false;self?.awaitingSwitch = false
                 continuation.resume()
             }
             switchAnswer = done; route(reference, done)
         }
     }
-    func abortNameConflict() { nameConflict = false; conflictSnapshot = nil; formRevision = UUID() }
+    func abortNameConflict() { nameConflict = false; conflictSnapshot = nil; formRevision = UUID();requestNameFocus() }
     @Published var options = ReferenceCreationOptions() { didSet { if !options.name.utf8.elementsEqual(oldValue.name.utf8) { nameChanged() } } }
     @Published var useHead = true
     @Published var currentBranch = ""
@@ -164,7 +334,7 @@ import TurtleGitCore
     var onPushTag: (String) -> Void = { _ in }
     struct FormContext: Equatable { let owner: ObjectIdentifier; let revision: UUID }
     var formContext: FormContext { .init(owner: ObjectIdentifier(self), revision: formRevision) }
-    var canEditForm: Bool { !busy && !chooser.busy && chooser.pickerTarget == nil && !hasPendingNameConflict && createdBranch == nil && !invalidated && !finished && !confirmingCancellation && !cancelling && !awaitingSwitch }
+    var canEditForm: Bool { !confirmingQuit && presentationAvailable() && error == nil && chooser.error == nil && !busy && !hasPendingWork && !chooser.busy && chooser.pickerTarget == nil && !hasPendingNameConflict && createdBranch == nil && !invalidated && !finished && !confirmingCancellation && !cancelling && !awaitingSwitch }
     private func accepts(_ context: FormContext) -> Bool { canEditForm && context == formContext }
     func option<Value>(_ key: WritableKeyPath<ReferenceCreationOptions,Value>, context: FormContext) -> Binding<Value> {
         Binding(get: { self.options[keyPath:key] }, set: { if self.accepts(context) { self.options[keyPath:key] = $0 } })
@@ -188,41 +358,50 @@ import TurtleGitCore
     func focusBase(_ reference: NSControl, target: CheckoutTarget, context: FormContext) {
         guard accepts(context), !useHead, chooser.options.target == target else { return }; chooser.focusReference(reference,target:target)
     }
-    var canPickBase: Bool { !busy && !chooser.busy && !useHead && !hasPendingNameConflict && createdBranch == nil && !invalidated && !finished && !confirmingCancellation && !cancelling }
+    var canPickBase: Bool {canEditForm && !useHead}
     var remote: Bool { !isTag && !useHead && chooser.remote }
     private var previousSuggestion = ""
     init(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, preferences: UserDefaults = .standard) {
         self.isTag = isTag; self.access = access; self.preferences = preferences; chooser = SwitchWindowModel(repository: repository, access: access, preferences: preferences)
-        chooser.onInitialReadSettled = { [weak self] in self?.formRevision = UUID(); self?.changedBase(); self?.finishCloseWhenReady() }
+        prepareForm={options,token in try await repository.prepareReferenceCreationForm(options,cancellation:token)}
+        prepareReference={form,token in try await repository.prepareReferenceCreation(form,cancellation:token)}
+        performReference={plan,token in try await repository.createReference(plan,writeDescription:false,cancellation:token)}
     }
     func load(revision: String?, name: String? = nil) {
-        guard !busy, !chooser.busy, chooser.pickerTarget == nil, !hasPendingNameConflict, createdBranch == nil, !invalidated, !finished, !confirmingCancellation, !cancelling else { return }
-        formRevision = UUID(); chooser.load(revision: revision); options = ReferenceCreationOptions(); options.isTag = isTag; options.name = name ?? ""
+        guard presentationAvailable(),error == nil,chooser.error == nil,!confirmingQuit,!busy,!hasPendingWork, !chooser.busy, chooser.pickerTarget == nil, !hasPendingNameConflict, createdBranch == nil, !invalidated, !finished, !confirmingCancellation, !cancelling else { return }
+        formRevision = UUID();chooserReadOwned=true;beginWork(read:true)
+        chooser.onInitialReadSettled = { [self] in
+            chooser.onInitialReadSettled={}
+            if chooserReadOwned {chooserReadOwned=false;endWork(read:true)}
+            formRevision=UUID();changedBase();finishCloseWhenReady()
+        }
+        chooser.load(revision: revision); options = ReferenceCreationOptions(); options.isTag = isTag; options.name = name ?? ""
         createdBranch = nil; previousSuggestion = ""
         useHead = revision == nil || revision == "HEAD" || revision?.isEmpty == true
         switchAfterCreation = preferences.bool(forKey: "NewBranchSwitchTo")
         pushAfterCreation = preferences.bool(forKey: "PushTag")
-        busy = true; let token = OperationCancellation(); loadToken = token
-        Self.activeReads += 1
+        let token = OperationCancellation(); loadToken = token;let generation=interactionGeneration
+        beginWork(read:true)
         Task {
-            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if loadToken === token { loadToken = nil; busy = false; formRevision = UUID() }; changedBase(); finishCloseWhenReady() }
+            defer {withExtendedLifetime(access) {};if loadToken === token {loadToken=nil};endWork(read:true);changedBase()}
+            guard !invalidated,!confirmingQuit,interactionGeneration==generation,!token.isCancelled else{return}
             do {
                 try checkAccess()
                 let current = try await chooser.repository.branch(cancellation: token)
                 let workingTree = !(try await chooser.repository.isBare(cancellation: token))
                 let signing = !((try? await chooser.repository.run(["config", "--get", "user.signingkey"], cancellation: token).stdout).map { String(decoding: $0, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines) } ?? "").isEmpty
-                guard !invalidated, loadToken === token, !token.isCancelled else { return }
+                guard !confirmingQuit,interactionGeneration==generation,!invalidated, loadToken === token, !token.isCancelled else { return }
                 currentBranch = current; canSwitch = workingTree; canSign = signing
-            } catch { if !invalidated, loadToken === token, !token.isCancelled { self.error = error.localizedDescription } }
+            } catch { if !confirmingQuit,interactionGeneration==generation,!invalidated, loadToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func changedBase() {
-        guard !invalidated, !finished, !busy, !chooser.busy, chooser.pickerTarget == nil, createdBranch == nil, remote, let reference = chooser.references.first(where: { GitReferenceName.equal($0.name, chooser.branchRevision) }) else { return }
+        guard !confirmingQuit,!invalidated, !finished, !busy, !chooser.busy, chooser.pickerTarget == nil, createdBranch == nil, remote, let reference = chooser.references.first(where: { GitReferenceName.equal($0.name, chooser.branchRevision) }) else { return }
         if options.name.isEmpty || GitReferenceName.equal(options.name,previousSuggestion) { options.name = reference.suggestedBranch }
         previousSuggestion = reference.suggestedBranch
     }
     func nameChanged() {
-        guard !invalidated, !finished, !busy, !chooser.busy, chooser.pickerTarget == nil, createdBranch == nil, remote,
+        guard !confirmingQuit,!invalidated, !finished, !busy, !chooser.busy, chooser.pickerTarget == nil, createdBranch == nil, remote,
               let reference = chooser.references.first(where: { GitReferenceName.equal($0.name, chooser.branchRevision) }) else { return }
         let suffix = Array(("/" + options.name).utf16)
         if !reference.name.utf16.suffix(suffix.count).elementsEqual(suffix) { options.tracking = .noTrack }
@@ -231,49 +410,58 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(chooser.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func create(allowNameConflict: Bool = false) {
-        guard !busy, !chooser.busy, chooser.pickerTarget == nil, !invalidated, !finished, !confirmingCancellation, !cancelling else { return }
+        guard presentationAvailable(),!confirmingQuit,error == nil,chooser.error == nil,!busy,!hasPendingWork, !chooser.busy, chooser.pickerTarget == nil, !invalidated, !finished, !confirmingCancellation, !cancelling else { return }
         if let snapshot = descriptionSnapshot { saveDescription(snapshot); return }
         var snapshot = options; snapshot.revision = useHead ? "HEAD" : chooser.revision; snapshot.allowNameConflict = allowNameConflict
         snapshot.name = snapshot.name.trimmingCharacters(in: .whitespacesAndNewlines)
         var shouldSwitch = !isTag && canSwitch && switchAfterCreation, shouldPush = isTag && pushAfterCreation, switchPreference = switchAfterCreation
-        if allowNameConflict, let captured = conflictSnapshot { snapshot = captured.0; snapshot.allowNameConflict = true; shouldSwitch = captured.1; shouldPush = captured.2; switchPreference = captured.3 }
+        if allowNameConflict, let captured = conflictSnapshot {guard captured.4==interactionGeneration else{abortNameConflict();return};snapshot = captured.0; snapshot.allowNameConflict = true; shouldSwitch = captured.1; shouldPush = captured.2; switchPreference = captured.3 }
         else if hasPendingNameConflict { return }
         conflictSnapshot = nil; nameConflict = false
-        if !isTag { preferences.set(switchPreference, forKey: "NewBranchSwitchTo") }
-        else { preferences.set(shouldPush, forKey: "PushTag") }
         if let createdOptions {
             snapshot = createdOptions; shouldSwitch = createdShouldSwitch; shouldPush = createdShouldPush
         }
         let routedSwitch = shouldSwitch ? onSwitch : nil
-        formRevision = UUID(); busy = true; error = nil; let token = OperationCancellation(); creationToken = token; Self.activeCreations += 1
+        let generation=interactionGeneration
+        formRevision = UUID();error = nil;let token = OperationCancellation();creationToken=token;beginWork()
         Task {
-            defer { Self.activeCreations -= 1; if creationToken === token { creationToken = nil; busy = false; formRevision = UUID() }; finishCloseWhenReady(); withExtendedLifetime(access) {} }
+            defer {if creationToken === token {creationToken=nil};endWork();withExtendedLifetime(access) {}}
+            guard !invalidated,!confirmingQuit,interactionGeneration==generation,!token.isCancelled else{return}
             do {
                 try checkAccess()
                 if createdOptions == nil {
-                    let output = try await chooser.repository.createReference(snapshot, writeDescription: false, cancellation: token)
+                    let accepted=try await prepareForm(snapshot,token)
+                    guard !confirmingQuit,interactionGeneration==generation,!invalidated,creationToken === token,!token.isCancelled else{return}
+                    // OnOK saves after form validation and cross-name Continue,
+                    // before resolving the base and attempting the Git command.
+                    if isTag {preferences.set(shouldPush,forKey:"PushTag")}else{preferences.set(switchPreference,forKey:"NewBranchSwitchTo")}
+                    let plan=try await prepareReference(accepted,token)
+                    guard !confirmingQuit,interactionGeneration==generation,!invalidated,creationToken === token,!token.isCancelled else{return}
+                    snapshot=plan.options;creationGeneration=generation
+                    let output=try await performReference(plan,token)
                     guard !invalidated, creationToken === token, !token.isCancelled else { return }
-                    createdOutput = output; createdShouldSwitch = shouldSwitch; createdShouldPush = shouldPush
+                    createdOutput = output; createdShouldSwitch = shouldSwitch; createdShouldPush = shouldPush;createdWritesDescription=plan.writesBranchDescription
                     // Remember the mutation before any later suspension or phase.
                     // Retrying checkout/description must never create it again.
                     createdOptions = snapshot; createdBranch = snapshot.name
                 }
                 guard !invalidated, creationToken === token, !token.isCancelled, let created = createdOptions else { return }
-                if let routedSwitch {
+                var checkoutFailure:String?
+                if let routedSwitch,!confirmingQuit,interactionGeneration==generation {
                     notifyCreated()
                     guard !invalidated, creationToken === token, !token.isCancelled else { return }
                     await handoffSwitch("refs/heads/" + created.name, using: routedSwitch)
                     guard !invalidated, creationToken === token, !token.isCancelled else { return }
-                } else if shouldSwitch {
+                } else if shouldSwitch,!confirmingQuit,interactionGeneration==generation {
                     var checkout = CheckoutOptions(); checkout.revision = "refs/heads/" + created.name
                     do { createdOutput += try await chooser.repository.checkout(checkout, cancellation: token) }
                     catch {
                         guard !invalidated, creationToken === token, !token.isCancelled else { return }
-                        notifyCreated(); self.error = "Branch \(created.name) was created, but checkout failed. Resolve the working-tree changes and retry checkout, or close this dialog.\n\n" + error.localizedDescription; return
+                        checkoutFailure="Branch \(created.name) was created, but checkout failed. Resolve the working-tree changes and retry checkout, or close this dialog.\n\n" + error.localizedDescription
                     }
                 }
                 guard !invalidated, creationToken === token, !token.isCancelled else { return }
-                if !isTag && !created.message.isEmpty {
+                if createdWritesDescription {
                     descriptionSnapshot = created
                     do { try checkAccess(); try await chooser.repository.updateBranchDescription(created.name, message: created.message, cancellation: token); descriptionSnapshot = nil }
                     catch {
@@ -281,20 +469,23 @@ import TurtleGitCore
                         notifyCreated(); self.error = "Branch \(created.name) was created, but its description could not be saved. Retry the description or close this dialog.\n\n" + error.localizedDescription; return
                     }
                 }
-                notifyCreated(); guard !invalidated else { return }; complete(push: shouldPush ? "refs/tags/" + created.name : nil)
-            } catch ReferenceCreationFailure.nameConflict { guard !invalidated, creationToken === token else { return }; conflictSnapshot = (snapshot, shouldSwitch, shouldPush, switchPreference); nameConflict = true }
-            catch { if !invalidated, creationToken === token, !token.isCancelled { self.error = error.localizedDescription } }
+                notifyCreated(); guard !invalidated else { return }
+                if let checkoutFailure {self.error=checkoutFailure;return}
+                complete(push: shouldPush ? "refs/tags/" + created.name : nil)
+            } catch ReferenceCreationFailure.nameConflict { guard !confirmingQuit,interactionGeneration==generation,!invalidated, creationToken === token,!token.isCancelled else { return }; conflictSnapshot = (snapshot, shouldSwitch, shouldPush, switchPreference,generation); nameConflict = true }
+            catch { if !confirmingQuit,interactionGeneration==generation,!invalidated, creationToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     private func saveDescription(_ snapshot: ReferenceCreationOptions) {
-        formRevision = UUID(); busy = true; error = nil; let token = OperationCancellation(); creationToken = token; Self.activeCreations += 1
+        formRevision = UUID();error = nil;let token=OperationCancellation(),generation=interactionGeneration;creationToken=token;beginWork()
         Task {
-            defer { Self.activeCreations -= 1; if creationToken === token { creationToken = nil; busy = false; formRevision = UUID() }; finishCloseWhenReady(); withExtendedLifetime(access) {} }
+            defer {if creationToken === token {creationToken=nil};endWork();withExtendedLifetime(access) {}}
+            guard !invalidated,!confirmingQuit,interactionGeneration==generation,!token.isCancelled else{return}
             do {
                 try checkAccess(); try await chooser.repository.updateBranchDescription(snapshot.name, message: snapshot.message, cancellation: token)
                 guard !invalidated, creationToken === token, !token.isCancelled else { return }
                 descriptionSnapshot = nil; notifyCreated(); guard !invalidated else { return }; complete()
-            } catch { if !invalidated, creationToken === token, !token.isCancelled { self.error = error.localizedDescription } }
+            } catch { if !confirmingQuit,interactionGeneration==generation,!invalidated, creationToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
 
@@ -352,8 +543,8 @@ struct BranchTagDialog: View {
         .onChange(of: model.busy) { busy in if busy { nameFocused = false } else if model.canEditForm { nameFocused = true } }
         .onChange(of: chooser.busy) { busy in if busy { nameFocused = false } else if model.canEditForm { nameFocused = true } }
         .onChange(of: model.useHead) { _ in model.changedBase() }
-        .alert("Create reference failed", isPresented: Binding(get: { !model.confirmingCancellation && (model.error != nil || chooser.error != nil) }, set: { if !$0 { model.error = nil; chooser.error = nil } })) { Button("OK") { model.error = nil; chooser.error = nil } } message: { Text(model.error ?? chooser.error ?? "") }
-        .alert("Branch and tag share a name", isPresented: Binding(get: { model.nameConflict && !model.confirmingCancellation }, set: { model.nameConflict = $0 })) { Button("Continue") { model.create(allowNameConflict: true) }; Button("Abort", role: .cancel) { model.abortNameConflict() } } message: { Text(ReferenceCreationFailure.nameConflict.localizedDescription) }
+        .onChange(of: model.nameFocusRequest) { _ in if model.canEditForm { nameFocused = true } }
+        .disabled(model.confirmingQuit)
         .sheet(item: $chooser.browser) { target in SwitchReferenceChooser(model: chooser, target: target) }
     }
 }
