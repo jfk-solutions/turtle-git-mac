@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "7f1238cff92a7980a68ccf8a7d3742ca9ebde31d",
+  "hosted_failure": {
+    "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39219406773",
+    "job": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39219406773/job/117951353036",
+    "source_commit": "3bc6529bf9ccce9cb4a77d8fc7f44dcc4fad8bd1",
+    "step": "Application and embedded Finder extension",
+    "exit": 65,
+    "compiler": "Apple Swift6.1.2, Xcode16.4, macOS15.5SDK, x86_64",
+    "errors": [
+      "BranchTagWindow.swift:154: cannot assign to value: 'release' is a 'let' constant",
+      "BranchTagWindow.swift:154: 'nil' cannot be assigned to type 'BranchTagRelease'"
+    ],
+    "log": "build/qa/ci-branch-tag-117951353036.log"
+  },
+  "repair": "Qualify the retained controller property as self.release before the later local let release declaration. No lifetime/control/Git behavior changed.",
+  "related_source_review": "Clone/Init/BranchTag/Switch/Reset/Export/Stash/Submodule release closures reviewed; other corresponding property writes already explicitly qualify self.release. No additional confirmed ambiguity.",
+  "validation": {
+    "status": "Focused current local Debug compile passed. Swift6.1.2 hosted build and complete suite remain pending.",
+    "core_native": "Prior relevant runtime/Core/native evidence retained; no behavior changed and no full suite repeat planned.",
+    "build": {
+      "exit": 0,
+      "log": "build/qa/ci-branch-tag-compiler-build-2026-10-19.log"
+    },
+    "coverage": {
+      "exit": 0,
+      "log": "build/qa/ci-branch-tag-compiler-coverage-2026-10-19.log"
+    }
+  },
+  "unrelated_work_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

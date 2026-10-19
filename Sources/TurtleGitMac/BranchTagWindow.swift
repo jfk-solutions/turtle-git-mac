@@ -151,7 +151,7 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
         pickers.invalidate(); question?.answer?(.abort)
         if let window, let sheet = window.attachedSheet, sheet !== questionWindow { window.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }
         let finish: () -> Void = { [self] in
-            release = nil; closed = true; observations.removeAll(); pickerRetirements.removeAll()
+            self.release = nil; closed = true; observations.removeAll(); pickerRetirements.removeAll()
             let done = onClosed; onClosed = {}; done()
             if !model.confirmingQuit, questionEpoch == epoch { action?() }
         }
