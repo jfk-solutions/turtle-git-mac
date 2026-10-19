@@ -1,5 +1,11 @@
 # TurtleGit for Mac — full port tracking
 
+The [Rebase/Cherry Pick execution recovery family](REBASE-EXECUTION-RECOVERY-PARITY.md)
+connects ordinary failed-Pick decisions, checked Retry/Skip, per-replay remembered
+Skip and retained cleanup intent. Empty-result, conflict and Edit/Squash recovery
+remain distinct. The family record separates implementation and actual validation
+from unsupported setup failures and remaining platform/source acceptance.
+
 The [Finder cache persistence and restart family](FINDER-CACHE-PERSISTENCE.md)
 connects source CacheSave to native Settings, foreground/watched publishers and
 the independent helper. Warm data, process-session live status, shutdown drain,

@@ -1,0 +1,219 @@
+{
+  "date": "2026-10-19",
+  "family": "Rebase and Cherry Pick ordinary failed-Pick execution recovery",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "src/TortoiseProc/RebaseDlg.cpp": "92f8f3d666bcc43a83b311e6e35d84feb895be05",
+    "Languages/Tortoise.pot": "5f9bcca2ac872bf55098b6dfa53c477a03378534"
+  },
+  "implementation": [
+    "Native source-order/default Skip/Retry/Cancel and rest checkbox; cleanup Retry/Abort with bounded selectable diagnostic/exact command and source artwork",
+    "Typed ordinary Pick classification excludes conflicts, became-empty, Edit/Squash/split and structural Merge",
+    "Captured HEAD, session identity, occurrence, todo/metadata, index and tracked working payload reject changed recovery intent",
+    "Applied and clean/staged rescheduled Retry preserves exactly-once commit and updateRefs semantics",
+    "Approved Skip intent atomically joins v2 done/todo metadata; interrupted publication repairs old or new side",
+    "Failed cleanup retains Skip across reopening/Continue; main Abort remains rollback; cleanup Abort stops decision",
+    "Replay-scoped Skip rest, cancellation/retirement and owned prompt/worker/Quit lifetime"
+  ],
+  "validation": [
+    {
+      "scope": "Initial grouped Debug app build",
+      "status": "failed",
+      "exit_code": 65,
+      "log": "build/qa/rebase-execution-recovery-app-build-2026-10-19.log",
+      "findings": [
+        "Throwing short-circuit guard needs outer try",
+        "Nested saveIntent closure loses actor isolation under Swift5; move persistence helper to isolated repository method"
+      ],
+      "limit": "Core compile stopped build; no native execution or Core test method ran"
+    },
+    {
+      "scope": "Incremental Debug app build after compile repair",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/rebase-execution-recovery-app-repair-build-2026-10-19.log",
+      "repair": "Precomputed throwing guard operand and moved persistence helper to actor-isolated repository method"
+    },
+    {
+      "scope": "Initial connected Core group",
+      "status": "failed",
+      "executed": 39,
+      "failed_methods": 4,
+      "failures": 14,
+      "duration_seconds": 104.147,
+      "log": "build/qa/rebase-execution-recovery-core-2026-10-19.log",
+      "retained_passes": 35,
+      "finding": "Git persists gpg_sign_opt from replay startup; disabling commit.gpgsign did not remove the saved signature request, unlike source fresh per-Pick command",
+      "repair": "Refresh saved sign option from current effective signing preference after receipt validation; keep signatures when still requested"
+    },
+    {
+      "scope": "Initial native fixture compile",
+      "status": "failed",
+      "log": "build/qa/rebase-execution-recovery-native-2026-10-19.log",
+      "finding": "NSApplication legacy endSheet requires Int response; two constants now use explicit ModalResponse.rawValue",
+      "limit": "No receiver launched"
+    },
+    {
+      "scope": "Native fixture after response-type repair",
+      "status": "failed",
+      "log": "build/qa/rebase-execution-recovery-native-repair-2026-10-19.log",
+      "passed_scenarios": [
+        "source prompt/defaults/icons/Cancel-rest/Quit ownership with system Git"
+      ],
+      "finding": "Same persisted signing option caused repeated Retry until fixture waitdeadline",
+      "owned_receiver_reaped": 20850,
+      "limit": "Stopped during system Retry; remaining system scenarios and packaged run not executed"
+    },
+    {
+      "scope": "Incremental app build with effective signing preference recovery",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/rebase-execution-recovery-signing-app-build-2026-10-19.log"
+    },
+    {
+      "scope": "Only four failed Core methods and new requested-signature preservation regression",
+      "status": "passed",
+      "executed": 5,
+      "failures": 0,
+      "duration_seconds": 16.164,
+      "log": "build/qa/rebase-execution-recovery-core-signing-repair-2026-10-19.log",
+      "retained_evidence": "Other 35 initial group methods passed and were not repeated"
+    },
+    {
+      "scope": "Planned offscreen prompt image inspection",
+      "status": "failed",
+      "finding": "Zero initial accessory frame let 500pt diagnostic overflow a narrow native alert. Transparent cache capture also omitted appearance background and some layer-backed button rendering.",
+      "repair": "Explicit accessory fitting geometry and appearance-aware offscreen capture before final native validation",
+      "limit": "Only failed-Pick capture reached before initial runtime Retry failure; cleanup capture not yet available"
+    },
+    {
+      "scope": "Native-only app rebuild for explicit alert accessory geometry",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/rebase-execution-recovery-native-layout-build-2026-10-19.log",
+      "limit": "Core unchanged after five-method repaired pass"
+    },
+    {
+      "scope": "Final grouped native workflow with source prompt geometry assertions",
+      "status": "passed",
+      "scenarios_per_git": 9,
+      "git_runtimes": [
+        "/usr/bin/git (2.54.0)",
+        "build/git-runtime/Git/bin/git (2.55.0)"
+      ],
+      "log": "build/qa/rebase-execution-recovery-native-final-2026-10-19.log",
+      "owned_receivers_reaped": [
+        30989,
+        34069
+      ],
+      "scope_detail": [
+        "source controls/defaults/icons and Cancel/rest safety",
+        "same-occurrence Rebase/Cherry Pick Retry",
+        "remembered Skip across three failed occurrences with final Skip/progress rows",
+        "cleanup Retry preserves remembered Skip",
+        "cleanup Abort, reopened Continue and main Abort rollback",
+        "changed tracked payload and retired late reply refusal",
+        "owned worker/preparation/column drain and unchanged relevant HEAD/index"
+      ],
+      "limit": "Original image caching remained incomplete; affected capture-only acceptance is recorded separately"
+    },
+    {
+      "scope": "First explicit opaque offscreen capture surface",
+      "status": "failed",
+      "log": "build/qa/rebase-execution-recovery-capture-repair-2026-10-19.log",
+      "finding": "Three-channel RGB bitmap does not provide supported AppKit drawing context; use explicit four-channel context",
+      "owned_receiver_reaped": 37097
+    },
+    {
+      "scope": "Capture-only native prompts with appearance-aware source-over composition",
+      "status": "passed-with-image-repair-needed",
+      "log": "build/qa/rebase-execution-recovery-capture-final-2026-10-19.log",
+      "owned_receiver_reaped": 37349,
+      "finding": "Actual labels and colors now render, but context coordinates required Retina pixel-to-point scaling; added explicit scale before final export"
+    },
+    {
+      "scope": "Only affected prompt capture acceptance after explicit Retina scaling",
+      "status": "passed",
+      "log": "build/qa/rebase-execution-recovery-capture-scale-2026-10-19.log",
+      "owned_receiver_reaped": 38126,
+      "git_runtime": "/usr/bin/git",
+      "cases": [
+        "failed-Pick prompt/Cancel/rest ownership",
+        "failed-Skip cleanup Retry/rest ownership"
+      ],
+      "visual_inspection": "All four actual AppKit content renders inspected: correct light/dark opaque backgrounds, readable labels, diagnostic/control containment and colored source icons",
+      "limit": "Inactive offscreen content renders; no compositor chrome, physical keyboard or Windows pixel-match acceptance"
+    }
+  ],
+  "git_runtimes": {
+    "system": "2.54.0 Apple Git-157",
+    "packaged": "2.55.0"
+  },
+  "core_new_methods": 14,
+  "native_scenarios": 9,
+  "status": "focused checkpoint passed; full port acceptance remains open",
+  "remaining_limits": [
+    "Pre-sequencer setup failures use corrected-cause Start retry",
+    "Structural Merge, external/apply/custom sessions without owned occurrence identities and terminal non-Pick failures retain existing routes",
+    "Two updateRefs Core cases require Git >=2.38",
+    "Physical keyboard/VoiceOver and full upstream dialog visual parity not proven",
+    "Signed sandbox deployment, installed Finder and App Store acceptance not proven",
+    "Complete hosted CI pass for this batch not proven"
+  ],
+  "captures": {
+    "rebase-failed-pick-light.png": {
+      "width": 1064,
+      "height": 864,
+      "kind": "offscreen inactive AppKit content render"
+    },
+    "rebase-failed-pick-dark.png": {
+      "width": 1064,
+      "height": 864,
+      "kind": "offscreen inactive AppKit content render"
+    },
+    "rebase-cleanup-retry-light.png": {
+      "width": 1064,
+      "height": 620,
+      "kind": "offscreen inactive AppKit content render"
+    },
+    "rebase-cleanup-retry-dark.png": {
+      "width": 1064,
+      "height": 620,
+      "kind": "offscreen inactive AppKit content render"
+    }
+  },
+  "ownership": "Private repositories, UserDefaults domains, Git global config, TMPDIR and injected responses. All automated receiver windows/sheets invisible/offscreen. Owned Git readers/preparation/columns drain before cleanup. Owned receiver process groups reaped on success/failure/timeout. No unrelated apps terminated.",
+  "resources": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1300,
+      "status": "passed",
+      "write": "build/qa/rebase-execution-recovery-localizations-write-2026-10-19.log",
+      "check": "build/qa/rebase-execution-recovery-localizations-check-2026-10-19.log"
+    },
+    "help": {
+      "status": "passed",
+      "write": "build/qa/rebase-execution-recovery-help-write-2026-10-19.log",
+      "check": "build/qa/rebase-execution-recovery-help-check-2026-10-19.log"
+    },
+    "dialog_ledger": {
+      "status": "passed",
+      "log": "build/qa/rebase-execution-recovery-ledger-final-2026-10-19.log",
+      "limit": "Partial audit ledger, not a feature completion percentage"
+    },
+    "site": {
+      "status": "passed",
+      "documents": 360,
+      "unresolved_fragments": [],
+      "log": "build/qa/rebase-execution-recovery-site-2026-10-19.log"
+    }
+  },
+  "ci_enrollment": {
+    "workflow": ".github/workflows/macos.yml",
+    "new_steps": [
+      "Rebase and Cherry Pick failed-Pick recovery",
+      "Finder cache persistence, shutdown and restart"
+    ],
+    "limit": "Enrollment is not a hosted CI pass; complete hosted integration remains unproven"
+  }
+}

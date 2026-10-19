@@ -441,6 +441,12 @@ and upstream are valid. Cancel during Add keeps the previous complete plan or
 draft. Cherry Pick asks which parent to use for a merge commit; cancelling the
 question keeps the plan available without starting replay.
 
+A Pick failure without conflicts offers **Skip**, **Retry**, **Cancel**, and
+**Do the same for the rest**. The remembered Skip choice belongs to this replay;
+Retry clears it. A failed cleanup has its own Retry/Abort decision. See
+[execution recovery](REBASE-EXECUTION-RECOVERY-PARITY.md). Empty commits, conflicts
+and Edit/Squash pauses retain their separate paths.
+
 When replay stops, inspect its message and Conflict Files, resolve and save the
 required files, then continue through the owning replay window. Use Abort when
 you intend to abandon the unfinished replay. Closing a window is not a substitute

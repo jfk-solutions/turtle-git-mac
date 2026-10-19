@@ -210,6 +210,10 @@ work that remains.
 
 ## Screenshots and website
 
+The [Rebase execution recovery review](docs/REBASE-EXECUTION-RECOVERY-PARITY.md)
+tracks failed-Pick Skip/Retry/Cancel, per-replay remembered Skip, cleanup retry,
+and the checks that prevent applying a changed occurrence.
+
 The [Rebase action-control review](docs/REBASE-ACTION-CONTROLS.md) includes native
 light/dark captures of the remembered bulk split action and Edit/Split footer.
 

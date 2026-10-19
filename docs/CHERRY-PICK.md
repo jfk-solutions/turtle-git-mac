@@ -36,9 +36,18 @@ An **Edit** action stops after applying the commit. You can adjust and stage fil
 in **Open Working Tree**, change the message and choose **Amend**, then **Continue**.
 For conflicts, resolve and stage the files in Working Tree, refresh the state and
 continue. **Skip** discards the current commit and its resolution edits; **Abort**
-restores the destination branch and HEAD captured when the plan started. Dirty
-working trees are rejected by the replay backend; automatic stash/restore is still
-pending.
+restores the destination branch and HEAD captured when the plan started. Before replay, a dirty working tree uses the owning window's stash decision
+(or the configured automatic choice). Review any stash restoration failure in
+Working Tree before continuing other work.
+
+An ordinary Pick that fails without conflicts has a separate recovery decision:
+**Skip**, **Retry** or **Cancel**. **Do the same for the rest** remembers Skip for
+later failed Picks in this replay; Retry clears that choice. Skip discards the
+failed occurrence's changes. If its cleanup fails, Retry repeats that cleanup
+rather than applying the original commit again. Cancel and cleanup Abort stop
+this recovery decision; use the main replay Abort action to roll back the replay. Empty results, conflicts and
+Edit/Squash pauses keep their separate recovery paths. See
+[execution recovery](REBASE-EXECUTION-RECOVERY-PARITY.md) for state checks and limits.
 
 Interrupted operations retain Git's replay state. Opening Rebase or Cherry Pick
 again recovers the operation in Cherry Pick mode, with the original selected

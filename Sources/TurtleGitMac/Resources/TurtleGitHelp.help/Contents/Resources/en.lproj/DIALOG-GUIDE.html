@@ -363,6 +363,11 @@ list and can repeat earlier commits. You can build an editable draft before bran
 and upstream are valid. Cancel during Add keeps the previous complete plan or
 draft. Cherry Pick asks which parent to use for a merge commit; cancelling the
 question keeps the plan available without starting replay.</p>
+<p>A Pick failure without conflicts offers <strong>Skip</strong>, <strong>Retry</strong>, <strong>Cancel</strong>, and
+<strong>Do the same for the rest</strong>. The remembered Skip choice belongs to this replay;
+Retry clears it. A failed cleanup has its own Retry/Abort decision. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/REBASE-EXECUTION-RECOVERY-PARITY.html">execution recovery</a>. Empty commits, conflicts
+and Edit/Squash pauses retain their separate paths.</p>
 <p>When replay stops, inspect its message and Conflict Files, resolve and save the
 required files, then continue through the owning replay window. Use Abort when
 you intend to abandon the unfinished replay. Closing a window is not a substitute

@@ -16,6 +16,16 @@
     <div class="links"><a class="primary" href="@@REPOSITORY_URL@@">Explore the source</a><a href="#preview">See native windows →</a><a href="manual/GETTING-STARTED.html">Read the guides →</a><a href="manual/PORTING.html">Port progress →</a><a href="manual/DIALOG-COVERAGE.html">All dialog audits →</a></div>
     <p class="notice"><strong>Development preview.</strong> The complete app has not been ported. No signed release or App Store download is available yet.</p>
   </section>
+  <section id="rebase-execution-recovery">
+    <h2>Rebase and Cherry Pick execution recovery</h2>
+    <p>An ordinary failed Pick offers Skip, Retry, Cancel and Do the same for the rest. Cleanup failures retain the requested Skip and show the failed command and diagnostic with Retry/Abort. These are offscreen renders of inactive AppKit sheet content from private failure fixtures. <a href="manual/REBASE-EXECUTION-RECOVERY-PARITY.html">Source behavior, evidence and remaining acceptance →</a></p>
+    <div class="grid">
+      <figure><a href="assets/rebase-failed-pick-light.png"><img loading="lazy" src="assets/rebase-failed-pick-light.png" width="1064" height="864" alt="Failed-Pick choices and remembered Skip, light appearance."></a><figcaption>Failed-Pick choices and remembered Skip, light appearance.</figcaption></figure>
+      <figure><a href="assets/rebase-failed-pick-dark.png"><img loading="lazy" src="assets/rebase-failed-pick-dark.png" width="1064" height="864" alt="Failed-Pick choices and remembered Skip, dark appearance."></a><figcaption>Failed-Pick choices and remembered Skip, dark appearance.</figcaption></figure>
+      <figure><a href="assets/rebase-cleanup-retry-light.png"><img loading="lazy" src="assets/rebase-cleanup-retry-light.png" width="1064" height="620" alt="Cleanup command, diagnostic and Retry/Abort, light appearance."></a><figcaption>Cleanup command, diagnostic and Retry/Abort, light appearance.</figcaption></figure>
+      <figure><a href="assets/rebase-cleanup-retry-dark.png"><img loading="lazy" src="assets/rebase-cleanup-retry-dark.png" width="1064" height="620" alt="Cleanup command, diagnostic and Retry/Abort, dark appearance."></a><figcaption>Cleanup command, diagnostic and Retry/Abort, dark appearance.</figcaption></figure>
+    </div>
+  </section>
   <section id="branding">
     <h2>Our TurtleGit identity</h2>
     <p>A green turtle with Git on its shell identifies the app, Finder menus, About views and authentication prompts. Command glyphs and status overlays retain their familiar TortoiseGit artwork. <a href="manual/APPLICATION-IDENTITY.html">Artwork source and native checks →</a></p>

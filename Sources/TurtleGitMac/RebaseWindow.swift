@@ -331,6 +331,15 @@ import TurtleGitCore
             let answer = await self?.askReplay("The current commit will be empty", detail: "Skip the commit or keep the message-only commit?", buttons: ["Commit", "Skip", "Cancel"], defaultIndex: 2) ?? 2
             return answer == 0 ? .commit : answer == 1 ? .skip : .cancel
         }
+        model.chooseFailedPickRecovery = { [weak self] failed in
+            let remember=NSButton(checkboxWithTitle:"Do the same for the rest",target:nil,action:nil)
+            let accessory=Self.recoveryDiagnosticAccessory(failed.diagnostic,checkbox:remember)
+            let answer=await self?.askReplay("Cherry-pick failed", detail:"Cherry-pick failed (please see log in the cherry pick/rebase dialog for details)! Skip this commit?\n\n"+failed.entry.commit.hash+" — "+String(failed.entry.commit.subject.prefix(256)),buttons:["Skip","Retry","Cancel"],defaultIndex:0,accessory:accessory,icons:[.rebaseSkip,.refresh,nil]) ?? 2
+            return answer == 0 ? .skip(remember:remember.state == .on) : answer == 1 ? .retry : .cancel
+        }
+        model.chooseFailedPickCleanup = { [weak self] failed in
+            await self?.askReplay("Git command failed",detail:failed.cleanupCommand ?? "",buttons:["Retry","Abort"],defaultIndex:0,accessory:Self.recoveryDiagnosticAccessory(failed.diagnostic),icons:[.refresh,.mergeAbort]) == 0
+        }
         model.confirmConflictHints = { [weak self] in
             let remember = NSButton(checkboxWithTitle: "Do not show again", target: nil, action: nil)
             let answer = await self?.askReplay("Conflict hints remain in the commit message", detail: "The message contains Git's commented conflict list. Ignore the warning to continue, or abort to edit the message.", buttons: ["Ignore", "Abort"], defaultIndex: 1, accessory: remember)
@@ -362,11 +371,32 @@ import TurtleGitCore
             child.presentSheet(for: window)
         }
     }
-    private func askReplay(_ title: String, detail: String = "", buttons: [String], defaultIndex: Int, accessory: NSView? = nil) async -> Int {
+    private static func recoveryDiagnosticAccessory(_ diagnostic:String,checkbox:NSButton?=nil)->NSView {
+        let width:CGFloat=500,diagnosticHeight:CGFloat=140,footer:CGFloat=checkbox == nil ? 0:32
+        // NSAlert measures accessory.frame before laying out its own content.
+        // A zero-frame constraint-only stack can overrun the sheet's right edge.
+        let accessory=NSView(frame:NSRect(x:0,y:0,width:width,height:diagnosticHeight+footer))
+        let text=NSTextView(frame:NSRect(x:0,y:0,width:width,height:diagnosticHeight))
+        text.string=String(diagnostic.suffix(4000));text.isEditable=false;text.isSelectable=true
+        text.font=NSFont.monospacedSystemFont(ofSize:11,weight:.regular);text.textContainerInset=NSSize(width:8,height:8)
+        text.isVerticallyResizable=true;text.isHorizontallyResizable=false;text.autoresizingMask = [.width]
+        text.textContainer?.widthTracksTextView=true
+        let scroll=NSScrollView(frame:NSRect(x:0,y:footer,width:width,height:diagnosticHeight))
+        scroll.documentView=text;scroll.hasVerticalScroller=true;scroll.borderType = .bezelBorder
+        accessory.addSubview(scroll)
+        if let checkbox {checkbox.frame=NSRect(x:0,y:0,width:width,height:24);accessory.addSubview(checkbox)}
+        return accessory
+    }
+    private func askReplay(_ title: String, detail: String = "", buttons: [String], defaultIndex: Int, accessory: NSView? = nil, icons: [MenuIcon?] = []) async -> Int {
         guard !model.retired, replayQuestion == nil, let window, window.attachedSheet == nil else { return Int.max }
-        let alert = NSAlert(); alert.messageText = title; alert.informativeText = detail; alert.accessoryView = accessory
-        for (index, title) in buttons.enumerated() { let button = alert.addButton(withTitle: title); button.keyEquivalent = index == defaultIndex ? "\r" : "" }
+        let alert = NSAlert(); alert.messageText = title; alert.informativeText = detail; alert.accessoryView = accessory;alert.window.alphaValue=window.alphaValue
+        for (index, title) in buttons.enumerated() {
+            let button = alert.addButton(withTitle:title);button.keyEquivalent=index == defaultIndex ? "\r":""
+            if icons.indices.contains(index),let icon=icons[index] {button.image=icon.image();button.imagePosition = .imageLeading}
+            if title=="Cancel" || title=="Abort" {button.keyEquivalent="\u{1b}"}
+        }
         if alert.buttons.indices.contains(defaultIndex) {alert.window.defaultButtonCell=alert.buttons[defaultIndex].cell as? NSButtonCell}
+        alert.layout();alert.window.contentView?.layoutSubtreeIfNeeded()
         let id = UUID(); model.hasReplayQuestion = true
         return await withCheckedContinuation { continuation in
             replayQuestion = (id, alert, { continuation.resume(returning: $0) })
@@ -874,6 +904,12 @@ struct RebaseReferenceRequest {
     @Published var scrollRevisionRequest = 0
     var onShowRevisionLog: ((String) -> Void)?
     var pickAdditionalCommits: () -> Void = {}
+    enum FailedPickDecision { case retry, skip(remember:Bool), cancel }
+    var chooseFailedPickRecovery: (RebaseFailedPickRecovery) async -> FailedPickDecision = { _ in .cancel }
+    var chooseFailedPickCleanup: (RebaseFailedPickRecovery) async -> Bool = { _ in false }
+    private(set) var automaticallySkipFailedPicks=false
+    private var failedPickSkipSession:String?
+    private(set) var failedPickRecoveryCancelled=false
     var chooseEmptyResult: () async -> RebaseEmptyChoice = { .cancel }
     var confirmConflictHints: () async -> Bool = { false }
     var chooseMainline: (LogEntry, [LogParentChoice]) async -> Int? = { _, _ in nil }
@@ -2004,6 +2040,8 @@ struct RebaseReferenceRequest {
         let stripComments=messageDefaults.bool(forKey:"StripCommentedLines")
         let sanitizeMessage=messageDefaults.object(forKey:"SanitizeCommitMsg") as? Bool ?? true
         let suppressConflictHints=messageDefaults.bool(forKey:"CommitMessageContainsConflictHint")
+        if action=="start" {automaticallySkipFailedPicks=false;failedPickSkipSession=nil}
+        failedPickRecoveryCancelled=false
         busy = true; tab = 2
         let preparation = OperationCancellation(); replayPreparationCancellation = preparation; replaying = true; cancellingReplay = false; replayStopped = false
         Self.beginReplayWork(); LocalGitCommandProgress.begin()
@@ -2076,7 +2114,7 @@ struct RebaseReferenceRequest {
                         result=try await repository.continueRebase(squashMessage:captured.squashMessage == nil ? nil:text,editMessage:captured.isEditPause ? text:nil,expectedReplayState:captured,expectedReplayHead:head,cancellation:preparation,onOutput:emit)
                     }
                 }
-                    return result
+                    return try await recoverExecutionFailures(result,cancellation:preparation,onOutput:emit)
                 }
                 guard !retired else { return }
                 try preparation.check(); state = result.state; finished = result.exitCode == 0 && !result.state.active; completedSuccessfully = finished && action != "abort";if completedSuccessfully {completionAction = .log}; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
@@ -2084,10 +2122,13 @@ struct RebaseReferenceRequest {
                 if finished, action != "abort" { replayRows = replayRows.map { var row = $0; row.progress = .completed; return row } }
                 try await loadConflictFiles()
                 if active { restoreSessionContext(); recovered = try await repository.remainingRebaseEntries(); replayRows = try await repository.rebaseReplayEntries(); if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; selection = Set(state?.stoppedEntryID.isEmpty == false ? [state!.stoppedEntryID] : []) }
-                if result.exitCode != 0, state?.needsFileRecovery == true, supportsConflictSelection, state?.split == nil, state?.conflicts.isEmpty == true, conflictRows.isEmpty { followEmpty = true; error = nil }
+                if failedPickRecoveryCancelled { replayStopped=true;completion="Replay stopped; review the current state." }
+                if finished || action=="abort" {automaticallySkipFailedPicks=false;failedPickSkipSession=nil}
+                if !failedPickRecoveryCancelled, result.exitCode != 0, state?.needsFileRecovery == true, supportsConflictSelection, state?.split == nil, state?.conflicts.isEmpty == true, conflictRows.isEmpty { followEmpty = true; error = nil }
                 if result.state.squashMessage != nil { tab = 1 }
-                else if fileRecovery { tab = 0; if result.exitCode != 0 && !followEmpty { error = result.output } }
-                else if result.exitCode != 0 { error = result.output }
+                else if fileRecovery { tab = 0; if result.exitCode != 0 && !followEmpty && !failedPickRecoveryCancelled { error = result.output } }
+                else if result.exitCode != 0 && !failedPickRecoveryCancelled { error = result.output }
+                if failedPickRecoveryCancelled {tab=2;error=nil}
                 onChanged()
                 if action == "abort", finished { busy = false; finishingReplay = true; finishReplay(); return }
                 if action == "continue", state?.split?.conflictRecovery == true { followRecovery = true }
@@ -2099,6 +2140,44 @@ struct RebaseReferenceRequest {
                 catch { if !retired { self.error = error.localizedDescription } }
             }
         }
+    }
+    /// This loop keeps the existing replay/access/Quit owner until the source
+    /// failure decision and its checked Git recovery have both settled.
+    private func recoverExecutionFailures(_ initial:RebaseExecution,cancellation:OperationCancellation,
+        onOutput:@escaping @Sendable (GitOutputChunk)->Void) async throws -> RebaseExecution {
+        var result=initial
+        while result.exitCode != 0 {
+            try cancellation.check();guard !retired else {throw OperationCancellationFailure.cancelled}
+            guard let failed=try await repository.failedPickRecovery(after:result,cancellation:cancellation) else {return result}
+            if failedPickSkipSession != failed.sessionIdentity {automaticallySkipFailedPicks=false;failedPickSkipSession=failed.sessionIdentity}
+            state=result.state;recovered=try await repository.remainingRebaseEntries(cancellation:cancellation)
+            replayRows=try await repository.rebaseReplayEntries(cancellation:cancellation)
+            try cancellation.check();guard !retired else {throw OperationCancellationFailure.cancelled}
+            selection=[failed.entry.id];tab=2;error=nil
+            let answer:FailedPickDecision
+            if failed.pendingAction == .skip {
+                hasReplayQuestion=true
+                answer=await chooseFailedPickCleanup(failed) ? .retry:.cancel
+                hasReplayQuestion=false
+            } else if automaticallySkipFailedPicks {answer = .skip(remember:true)}
+            else {
+                hasReplayQuestion=true
+                answer=await chooseFailedPickRecovery(failed)
+                hasReplayQuestion=false
+            }
+            try cancellation.check();guard !retired else {throw OperationCancellationFailure.cancelled}
+            let action:RebaseFailedPickAction
+            switch answer {
+            case .cancel:failedPickRecoveryCancelled=true;return result
+            case .retry:if failed.pendingAction != .skip {automaticallySkipFailedPicks=false};action = .retry
+            case .skip(let remember):automaticallySkipFailedPicks=remember;action = .skip
+            }
+            result=try await repository.recoverFailedPick(failed,action:action,cancellation:cancellation,onOutput:onOutput)
+            if action == .skip || failed.pendingAction == .skip,result.exitCode==0 || result.state.stoppedEntryID != failed.state.stoppedEntryID {
+                replayRows=replayRows.map {row in var row=row;if row.id==failed.entry.id {row.action = .skip;row.progress = .completed};return row}
+            }
+        }
+        return result
     }
     var canSplit: Bool { !revisionHistoryBlocked && !retired && pendingConfirmation == nil && confirmation == nil && !busy && !revisionFiles.busy && !selectingSplit && state?.canSplit == true }
     private func prepareEditMessageContinuation() {

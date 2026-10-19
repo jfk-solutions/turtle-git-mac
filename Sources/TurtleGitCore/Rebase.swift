@@ -1,7 +1,7 @@
 import Foundation
 import Darwin
 
-public enum RebaseAction: String, CaseIterable, Sendable { case pick, skip = "drop", edit, squash }
+public enum RebaseAction: String, CaseIterable, Codable, Sendable { case pick, skip = "drop", edit, squash }
 public enum RebaseEntryProgress: Sendable { case pending, current, completed }
 public enum RebaseEmptyChoice: Sendable { case commit, skip, cancel }
 public enum RebaseSquashDate: Int, Codable, Sendable { case first = 0, latest = 1, current = 2 }
@@ -85,7 +85,7 @@ public struct RebasePlan: Sendable {
     public var entries: [RebaseEntry]
     public var hasAddedCommits = false
 }
-public struct RebaseState: Sendable {
+public struct RebaseState: Codable, Sendable {
     public let active: Bool
     public let isCherryPick: Bool
     public let branch: String
@@ -107,7 +107,8 @@ public struct RebaseState: Sendable {
     public let hasStructuralMergeResult: Bool
     public let needsFileRecovery: Bool
     public let session: RebaseSessionContext?
-    public var canSplit: Bool { active && conflicts.isEmpty && (isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true) }
+    public var hasFailedPickCleanup = false
+    public var canSplit: Bool { !hasFailedPickCleanup && active && conflicts.isEmpty && (isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true) }
 }
 /// Identifies the stopped occurrence and original session, not just its step number.
 public struct RebaseConflictIdentity:Equatable,Sendable {
@@ -118,7 +119,7 @@ public struct RebaseConflictIdentity:Equatable,Sendable {
         GitReferenceName.equal(a.originalHead,b.originalHead) && GitReferenceName.equal(a.branch,b.branch) && GitReferenceName.equal(a.onto,b.onto) && GitReferenceName.equal(a.entry,b.entry) && a.step == b.step && a.splitParts == b.splitParts && a.cherryPick == b.cherryPick
     }
     public init?(_ state:RebaseState) {
-        guard state.active,state.squashMessage?.skipBaseHead == nil else {return nil}
+        guard state.active,!state.hasFailedPickCleanup,state.squashMessage?.skipBaseHead == nil else {return nil}
         originalHead=state.originalHead;branch=state.branch;onto=state.onto;entry=state.stoppedEntryID
         step=state.currentStep;splitParts=state.split?.parts ?? 0;cherryPick=state.isCherryPick
     }
@@ -142,7 +143,7 @@ public struct RebaseMessageIdentity: Codable, Equatable, Sendable {
     public let originalHead: String, branch: String, onto: String, entry: String, head: String, phase: String
     public let step: Int
     public init?(state: RebaseState, head: String) {
-        guard state.active, !head.isEmpty, state.needsFileRecovery || state.isEditPause || state.squashMessage != nil || state.split != nil else { return nil }
+        guard state.active, !state.hasFailedPickCleanup, !head.isEmpty, state.needsFileRecovery || state.isEditPause || state.squashMessage != nil || state.split != nil else { return nil }
         originalHead = state.originalHead; branch = state.branch; onto = state.onto; entry = state.stoppedEntryID; self.head = head; step = state.currentStep
         phase = state.squashMessage != nil ? "squash" : state.split?.conflictRecovery == true ? "amend-selection" : state.split != nil ? "split" : state.isEditPause ? "edit" : "conflict"
     }
@@ -161,6 +162,11 @@ public struct RebaseExecution: Sendable {
     public let output: String
     public let exitCode: Int32
     public let state: RebaseState
+    public let witnessedHead: String?
+    public let witnessedSession: String?
+    public init(output: String, exitCode: Int32, state: RebaseState, witnessedHead: String? = nil, witnessedSession: String? = nil) {
+        self.output=output;self.exitCode=exitCode;self.state=state;self.witnessedHead=witnessedHead;self.witnessedSession=witnessedSession
+    }
 }
 public enum RebaseFailure: LocalizedError {
     case revision, active, inactive, changed, plan, squash, preservePlan, message, mainline, emptyResult, actionEditLocked
@@ -422,7 +428,7 @@ extension GitRepository {
         let activeSplit = split?.step == step && split?.entryID == stoppedIdentity ? split : nil
         let mergeResult = active && structural && (editPause || pending != nil) ? try rebaseCommit("HEAD", cancellation: cancellation).parents.count > 1 : false
         try cancellation?.check()
-        return RebaseState(active: active, isCherryPick: active && manager.fileExists(atPath: metadataURL.path), branch: line("head-name"), originalHead: line("orig-head"), onto: line("onto"),
+        var result = RebaseState(active: active, isCherryPick: active && manager.fileExists(atPath: metadataURL.path), branch: line("head-name"), originalHead: line("orig-head"), onto: line("onto"),
                            stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, mergeParents: active ? ((try? String(contentsOf:rebasePath("MERGE_HEAD", cancellation: cancellation),encoding:.utf8)) ?? "").split(whereSeparator: \.isWhitespace).map(String.init) : [], message: mergeEdit || activeSplit?.conflictRecovery == true || activeSplit?.conflictRecoveryReturn != nil ? try rebaseCommit("HEAD", cancellation: cancellation).message : try readMessage(), currentStep: step,
                            total: referenceUpdates || structural ? identities.count : Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
                            remainingCommands: structural ? commands.compactMap { command in
@@ -431,7 +437,9 @@ extension GitRepository {
                                if fields.first == "merge", fields.count >= 3 { return "pick " + fields[2] }
                                return nil
                            } : commands, squashMessage: pending, stoppedAction: action, split: activeSplit,
-                           isEditPause: editPause, isStructuralMergeEdit: mergeEdit, hasStructuralMergeResult: mergeResult, needsFileRecovery: active && (!conflicts.isEmpty || !originalStopped.isEmpty && !editPause && pending == nil && activeSplit == nil), session: session)
+                           isEditPause: editPause, isStructuralMergeEdit: mergeEdit, hasStructuralMergeResult: mergeResult, needsFileRecovery: active && !manager.fileExists(atPath:directory.appendingPathComponent(Self.failedPickIntentName).path) && (!conflicts.isEmpty || !originalStopped.isEmpty && !editPause && pending == nil && activeSplit == nil), session: session)
+        result.hasFailedPickCleanup = active && manager.fileExists(atPath:directory.appendingPathComponent(Self.failedPickIntentName).path)
+        return result
     }
     private func replayIdentities(_ directory: URL) -> [RebaseReplayIdentity] {
         (try? JSONDecoder().decode([RebaseReplayIdentity].self, from: Data(contentsOf: directory.appendingPathComponent("turtlegit-replay-identities.json")))) ?? []
@@ -749,7 +757,7 @@ extension GitRepository {
             let directory = FileManager.default.fileExists(atPath: merge.path) ? merge : try rebasePath("rebase-apply")
             let context = RebaseSessionContext(options: plan.options, afterFetch: afterFetch, autoStart: autoStart, fromLog: fromLog)
             try JSONEncoder().encode(context).write(to: directory.appendingPathComponent("turtlegit-session.json"), options: .atomic)
-            return RebaseExecution(output: result.output, exitCode: result.exitCode, state: try rebaseState())
+            return RebaseExecution(output: result.output, exitCode: result.exitCode, state: try rebaseState(), witnessedHead:result.witnessedHead,witnessedSession:result.witnessedSession)
         }
         return result
     }
@@ -775,7 +783,7 @@ extension GitRepository {
               actual.originalHead == expected.originalHead, actual.branch == expected.branch, actual.onto == expected.onto,
               actual.stoppedEntryID == expected.stoppedEntryID, actual.stoppedCommit == expected.stoppedCommit,
               actual.currentStep == expected.currentStep, actual.stoppedAction == expected.stoppedAction,
-              actual.isEditPause == expected.isEditPause, actual.remainingCommands == expected.remainingCommands,
+              actual.hasFailedPickCleanup == expected.hasFailedPickCleanup, actual.isEditPause == expected.isEditPause, actual.remainingCommands == expected.remainingCommands,
               actual.mergeParents == expected.mergeParents, actual.total == expected.total,
               actual.isStructuralMergeEdit == expected.isStructuralMergeEdit, actual.hasStructuralMergeResult == expected.hasStructuralMergeResult,
               actual.conflicts.map({GitReferenceName($0)}) == expected.conflicts.map({GitReferenceName($0)}), actual.message == expected.message, sameSquash, sameSplit,
@@ -793,6 +801,10 @@ extension GitRepository {
             try requireRebaseContinuation(state, expected: expectedReplayState, expectedHead: expectedReplayHead)
         }
         guard state.active else { throw RebaseFailure.inactive }
+        if state.hasFailedPickCleanup {
+            guard let recovery=try failedPickRecovery(after:.init(output:"",exitCode:1,state:state,witnessedHead:try rebaseRevision("HEAD"),witnessedSession:try failedPickSessionIdentity(rebasePath("rebase-merge")))) else {throw RebaseFailure.changed}
+            return try recoverFailedPick(recovery,action:.retry)
+        }
         if let split = state.split {
             guard split.parts > 0, try rebaseRevision("HEAD") == split.expectedHead, !(try rebaseSplitHasRemainingChanges()) else { throw RebaseFailure.plan }
             if split.conflictRecovery != true { try FileManager.default.removeItem(at: rebasePath("rebase-merge/turtlegit-split.json")) }
@@ -838,16 +850,17 @@ extension GitRepository {
             try FileManager.default.removeItem(at: request)
         }
         let result = try recoverRebase("--continue")
-        return RebaseExecution(output: output + result.output, exitCode: result.exitCode, state: result.state)
+        return RebaseExecution(output: output + result.output, exitCode: result.exitCode, state: result.state,witnessedHead:result.witnessedHead,witnessedSession:result.witnessedSession)
     }
-    private func skipRebaseOwned() throws -> RebaseExecution {
+    private func skipRebaseOwned(bookkeepingStep: Int? = nil) throws -> RebaseExecution {
         let before = try rebaseState()
         guard before.active else { throw RebaseFailure.inactive }
-        guard FileManager.default.fileExists(atPath: try rebasePath("rebase-merge/turtlegit-message-editor.json").path) else { return try recoverRebase("--skip") }
+        let hasMessageConfiguration=FileManager.default.fileExists(atPath:try rebasePath("rebase-merge/turtlegit-message-editor.json").path)
+        guard bookkeepingStep != nil || hasMessageConfiguration else { return try recoverRebase("--skip") }
         let path = try rebasePath("rebase-merge/turtlegit-skipped-steps.json")
         var skipped = FileManager.default.fileExists(atPath: path.path) ? try JSONDecoder().decode(Set<Int>.self, from: Data(contentsOf: path)) : []
         let old = skipped, beforeHead = try rebaseRevision("HEAD")
-        skipped.insert(before.currentStep)
+        skipped.insert(bookkeepingStep ?? before.currentStep)
         try JSONEncoder().encode(skipped).write(to: path, options: .atomic)
         let result: RebaseExecution
         do { result = try recoverRebase("--skip") }
@@ -873,8 +886,13 @@ extension GitRepository {
         return try executeRebase(["-c", "i18n.logOutputEncoding=UTF-8", "rebase", action], environment: ["GIT_EDITOR": config?.editorCommand ?? "/usr/bin/true"])
     }
     private func executeRebase(_ arguments: [String], environment: [String: String]) throws -> RebaseExecution {
-        do { let output = try run(arguments, environmentOverrides: environment).text; return RebaseExecution(output: output, exitCode: 0, state: try rebaseState()) }
-        catch let failure as GitFailure { return RebaseExecution(output: failure.message, exitCode: failure.code, state: try rebaseState()) }
+        func execution(_ output:String,_ exitCode:Int32) throws -> RebaseExecution {
+            let head=try? rebaseRevision("HEAD"),state=try rebaseState()
+            let session=state.active ? (try? failedPickSessionIdentity(rebasePath("rebase-merge"))) : nil
+            return RebaseExecution(output:output,exitCode:exitCode,state:state,witnessedHead:head,witnessedSession:session)
+        }
+        do {return try execution(run(arguments,environmentOverrides:environment).text,0)}
+        catch let failure as GitFailure {return try execution(failure.message,failure.code)}
     }
     private func amendRebaseCommitOwned(message: String) throws -> String {
         guard try rebaseState().active else { throw RebaseFailure.inactive }
@@ -1157,15 +1175,17 @@ extension GitRepository {
         try withActionEditLock(directory) {
             guard let bytes = try actionEditFile(directory, Self.actionEditJournal).bytes else { return }
             let journal = try JSONDecoder().decode(RebaseActionEditJournal.self, from: bytes)
-            guard journal.version == 1, Set(journal.before.keys) == Set(Self.actionEditNames), Set(journal.after.keys) == Set(Self.actionEditNames),
-                  journal.before["done"] == journal.after["done"] else { throw RebaseFailure.plan }
-            let actual = try actionEditFiles(directory)
+            let names=Set(journal.before.keys),ordinary=Set(Self.actionEditNames)
+            guard (1...2).contains(journal.version),names == Set(journal.after.keys),
+                  names==ordinary || journal.version==2 && (names==ordinary.union(["message","stopped-sha"]) || names==ordinary.union([Self.failedPickIntentName])),
+                  (journal.version==2 || journal.before["done"] == journal.after["done"]) else { throw RebaseFailure.plan }
+            let actual=try Dictionary(uniqueKeysWithValues:names.map {($0,try actionEditFile(directory,$0))})
             let useNew = actual["git-rebase-todo"] == journal.after["git-rebase-todo"]
             guard useNew || actual["git-rebase-todo"] == journal.before["git-rebase-todo"],
-                  actual["done"] == journal.before["done"],
-                  Self.actionEditNames.allSatisfy({ actual[$0] == journal.before[$0] || actual[$0] == journal.after[$0] }) else { throw RebaseFailure.changed }
+                  (actual["done"] == journal.before["done"] || journal.version==2 && actual["done"] == journal.after["done"]),
+                  names.allSatisfy({ actual[$0] == journal.before[$0] || actual[$0] == journal.after[$0] }) else { throw RebaseFailure.changed }
             let chosen = useNew ? journal.after : journal.before
-            for name in Self.actionEditNames where name != "git-rebase-todo" && name != "done" {
+            for name in names where name != "git-rebase-todo" && (name != "done" || journal.version==2) {
                 try actionEditWrite(chosen[name]!, directory: directory, name: name)
             }
             try FileManager.default.removeItem(at: url)
@@ -1327,6 +1347,222 @@ extension GitRepository {
                 }
             }
             return try replayUncancelled { try rebaseSessionSnapshot(retaining: previous) }
+        }
+    }
+}
+
+public enum RebaseFailedPickAction: String, Codable, Sendable { case retry, skip }
+fileprivate enum RebaseFailedPickPhase: String, Codable, Sendable { case applied, rescheduled }
+/// A failed Pick receipt belongs to one occurrence and its captured tracked
+/// state. Hook/config repairs and removal of untracked obstructions are allowed;
+/// changed HEAD, index, tracked payload or replay commands retire the receipt.
+public struct RebaseFailedPickRecovery: Sendable {
+    public let state: RebaseState
+    public let head: String
+    public let entry: RebaseEntry
+    public let diagnostic: String
+    public let pendingAction: RebaseFailedPickAction?
+    public let cleanupCommand: String?
+    public let sessionIdentity: String
+    fileprivate let phase: RebaseFailedPickPhase
+    fileprivate let directory: URL
+    fileprivate let files: [String: RebaseActionEditFile]
+    fileprivate let index: Data, worktree: Data
+}
+private struct RebaseFailedPickIntent: Codable {
+    let version: Int
+    let state: RebaseState
+    let head: String, hash: String, diagnostic: String
+    let occurrence: Int
+    let prepared: Bool
+    let sessionIdentity: String
+    let phase: RebaseFailedPickPhase
+    let files: [String: RebaseActionEditFile]
+    let index: Data, worktree: Data
+}
+extension GitRepository {
+    private static let failedPickIntentName = "turtlegit-failed-pick.json"
+    private func failedPickSessionIdentity(_ directory: URL) throws -> String {
+        var info=stat();guard lstat(directory.path,&info)==0,info.st_mode & S_IFMT == S_IFDIR else {throw RebaseFailure.changed}
+        return [String(info.st_dev),String(info.st_ino),String(info.st_birthtimespec.tv_sec),String(info.st_birthtimespec.tv_nsec)].joined(separator:":")
+    }
+    private func failedPickPayload() throws -> (index: Data, worktree: Data) {
+        let environment=["GIT_OPTIONAL_LOCKS":"0"]
+        return (try run(["ls-files","--stage","-v","-z"],environmentOverrides:environment).stdout,
+                try run(["diff","--binary","--no-ext-diff","--no-textconv","--"],environmentOverrides:environment).stdout)
+    }
+    private func failedPickIntent(_ directory: URL) throws -> RebaseFailedPickIntent? {
+        guard let bytes=try actionEditFile(directory,Self.failedPickIntentName).bytes else {return nil}
+        let intent=try JSONDecoder().decode(RebaseFailedPickIntent.self,from:bytes)
+        guard intent.version==1 else {throw RebaseFailure.plan};return intent
+    }
+    private func failedPickCleanupCommand() -> String {
+        ([executable.path,"--literal-pathspecs","-C",root.path,"-c","i18n.logOutputEncoding=UTF-8","rebase","--skip"])
+            .map {"'"+$0.replacingOccurrences(of:"'",with:"'\\''")+"'"}.joined(separator:" ")
+    }
+    public func failedPickRecovery(after execution: RebaseExecution, cancellation: OperationCancellation? = nil) throws -> RebaseFailedPickRecovery? {
+        try withReplayIO(cancellation:cancellation,onOutput:nil) {
+            guard execution.exitCode != 0,execution.state.active else {return nil}
+            let state=try rebaseState(),head=try rebaseRevision("HEAD"),directory=try rebasePath("rebase-merge")
+            guard FileManager.default.fileExists(atPath:directory.path) else {return nil}
+            let sessionIdentity=try failedPickSessionIdentity(directory)
+            guard execution.witnessedHead==head,execution.witnessedSession==sessionIdentity else {throw RebaseFailure.changed}
+            try requireRebaseContinuation(state,expected:execution.state,expectedHead:head)
+            guard state.conflicts.isEmpty,!state.isEditPause,state.squashMessage==nil,state.split==nil,!state.isStructuralMergeEdit,
+                  FileManager.default.fileExists(atPath:directory.path) else {return nil}
+            let files=try actionEditFiles(directory),payload=try failedPickPayload()
+            if let pending=try failedPickIntent(directory) {
+                guard pending.sessionIdentity==sessionIdentity else {throw RebaseFailure.changed}
+                if pending.prepared {
+                    guard state.originalHead==pending.state.originalHead,state.branch==pending.state.branch,state.onto==pending.state.onto,
+                          state.isCherryPick==pending.state.isCherryPick,head==pending.head else {throw RebaseFailure.changed}
+                } else {try requireRebaseContinuation(state,expected:pending.state,expectedHead:pending.head)}
+                guard pending.files==files,pending.index==payload.index,pending.worktree==payload.worktree else {throw RebaseFailure.changed}
+                var entry=RebaseEntry(commit:try rebaseCommit(pending.hash));entry.occurrence=pending.occurrence;entry.progress = .current
+                return RebaseFailedPickRecovery(state:state,head:head,entry:entry,diagnostic:pending.diagnostic,pendingAction:.skip,cleanupCommand:failedPickCleanupCommand(),sessionIdentity:sessionIdentity,phase:pending.phase,directory:directory,files:files,index:payload.index,worktree:payload.worktree)
+            }
+            let identities=replayIdentities(directory)
+            guard identities.indices.contains(state.currentStep-1),identities[state.currentStep-1].action==RebaseAction.pick.rawValue else {return nil}
+            let identity=identities[state.currentStep-1]
+            let mapping=(try? JSONDecoder().decode([String:String].self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-cherry-pick.json")))) ?? [:]
+            func command(_ text: String) -> [String] {RebaseEditor.canonicalLine(text).split(separator:" ",maxSplits:2).map(String.init)}
+            func lines(_ file: String) -> [String] {String(decoding:files[file]?.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n").filter {!$0.trimmingCharacters(in:.whitespaces).isEmpty && !$0.hasPrefix("#")}}
+            guard let last=lines("done").last else {return nil}
+            let done=command(last)
+            guard done.count>=2,done[0]=="pick" else {return nil}
+            let executing=try rebaseRevision(done[1]),original=mapping[executing] ?? executing
+            guard original==identity.hash else {return nil}
+            let phase:RebaseFailedPickPhase
+            let dirty=try run(["diff","--cached","--quiet","HEAD","--"],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],successfulExitCodes:0...1).exitCode != 0
+            let nextFields=lines("git-rebase-todo").first.map(command) ?? []
+            let nextHash=nextFields.count>=2 ? (try? rebaseRevision(nextFields[1])) : nil
+            let resumedStaged=FileManager.default.fileExists(atPath:directory.appendingPathComponent("message").path) &&
+                (try? rebaseRevision("REBASE_HEAD"))==executing && dirty && nextHash != executing
+            if !state.stoppedCommit.isEmpty || resumedStaged {
+                guard (state.stoppedCommit.isEmpty || state.stoppedCommit==original),state.stoppedAction == .pick else {return nil}
+                if !dirty {
+                    let object=try rebaseCommit(executing)
+                    let base: String
+                    if let parent=object.parents.first {base=parent} else {base=try run(["mktree"]).text.trimmingCharacters(in:.newlines)}
+                    let originallyEmpty=try run(["diff","--quiet",base,executing,"--"],successfulExitCodes:0...1).exitCode==0
+                    guard originallyEmpty else {return nil} // A real became-empty stop keeps its Commit/Skip/Cancel route.
+                }
+                phase = .applied
+            } else {
+                guard let first=lines("git-rebase-todo").first else {return nil}
+                let scheduled=command(first)
+                guard scheduled.count>=2,scheduled[0]=="pick",try rebaseRevision(scheduled[1])==executing,
+                      (try? rebaseRevision("REBASE_HEAD"))==executing else {return nil}
+                phase = .rescheduled
+            }
+            var entry=RebaseEntry(commit:try rebaseCommit(identity.hash));entry.occurrence=identity.occurrence;entry.progress = .current
+            try requireRebaseContinuation(rebaseState(),expected:state,expectedHead:head)
+            let finalPayload=try failedPickPayload()
+            guard files == (try actionEditFiles(directory)),payload.index == finalPayload.index,payload.worktree == finalPayload.worktree else {throw RebaseFailure.changed}
+            return RebaseFailedPickRecovery(state:state,head:head,entry:entry,diagnostic:execution.output,pendingAction:nil,cleanupCommand:nil,sessionIdentity:sessionIdentity,phase:phase,directory:directory,files:files,index:payload.index,worktree:payload.worktree)
+        }
+    }
+    private func saveFailedPickIntent(_ result: RebaseExecution, expected: RebaseFailedPickRecovery, directory: URL) throws {
+        try replayUncancelled {
+            let captured=try failedPickPayload()
+            var intentState=result.state;intentState.hasFailedPickCleanup=true
+            let intent=RebaseFailedPickIntent(version:1,state:intentState,head:try rebaseRevision("HEAD"),hash:expected.entry.commit.hash,diagnostic:result.output,occurrence:expected.entry.occurrence,prepared:false,sessionIdentity:expected.sessionIdentity,phase:expected.phase,files:try actionEditFiles(directory),index:captured.index,worktree:captured.worktree)
+            try JSONEncoder().encode(intent).write(to:directory.appendingPathComponent(Self.failedPickIntentName),options:.atomic)
+        }
+    }
+    /// Tortoise runs a fresh Pick command after Retry/Skip and therefore reads
+    /// the repaired signing configuration. Git's rebase sequencer instead saves
+    /// -S at startup; refresh that owned option without disabling signatures
+    /// which are still requested by the current effective configuration.
+    private func refreshFailedPickSigning(_ directory: URL) throws {
+        let configured=try run(["config","--type=bool","--get","commit.gpgsign"],successfulExitCodes:0...1)
+        let sign=String(decoding:configured.stdout,as:UTF8.self).trimmingCharacters(in:.whitespacesAndNewlines)=="true"
+        _ = try actionEditFile(directory,"gpg_sign_opt")
+        try actionEditWrite(.init(bytes:sign ? Data("-S\n".utf8):nil),directory:directory,name:"gpg_sign_opt")
+    }
+    public func recoverFailedPick(_ expected: RebaseFailedPickRecovery, action requested: RebaseFailedPickAction,
+                                  cancellation: OperationCancellation? = nil,onOutput: (@Sendable (GitOutputChunk)->Void)? = nil) throws -> RebaseExecution {
+        try withReplayIO(cancellation:cancellation,onOutput:onOutput) {
+            let directory=try rebasePath("rebase-merge")
+            guard directory==expected.directory,try failedPickSessionIdentity(directory)==expected.sessionIdentity else {throw RebaseFailure.changed}
+            try requireRebaseContinuation(rebaseState(),expected:expected.state,expectedHead:expected.head)
+            let payload=try failedPickPayload()
+            guard expected.files == (try actionEditFiles(directory)),expected.index==payload.index,expected.worktree==payload.worktree else {throw RebaseFailure.changed}
+            let action=expected.pendingAction ?? requested
+            try refreshFailedPickSigning(directory)
+            if expected.pendingAction==nil,expected.phase == .rescheduled {
+                try withActionEditLock(directory) {
+                    try requireRebaseContinuation(rebaseState(),expected:expected.state,expectedHead:expected.head)
+                    guard expected.files == (try actionEditFiles(directory)) else {throw RebaseFailure.changed}
+                    var before=expected.files,after=expected.files
+                    let staged=try run(["diff","--cached","--quiet","HEAD","--"],successfulExitCodes:0...1).exitCode != 0
+                    var todo=String(decoding:after["git-rebase-todo"]?.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
+                    guard let first=todo.firstIndex(where:{!$0.trimmingCharacters(in:.whitespaces).isEmpty && !$0.hasPrefix("#")}) else {throw RebaseFailure.changed}
+                    if action == .retry && staged {
+                        // A negative sequencer failure may have staged the patch
+                        // before rescheduling it. Convert to Git's commit-resume
+                        // form rather than reapplying that same patch.
+                        before["message"]=try actionEditFile(directory,"message")
+                        before["stopped-sha"]=try actionEditFile(directory,"stopped-sha")
+                        let message=try actionEditFile(try rebasePath("MERGE_MSG").deletingLastPathComponent(),"MERGE_MSG")
+                        guard message.bytes != nil else {throw RebaseFailure.plan}
+                        after["message"]=message
+                        let fields=RebaseEditor.canonicalLine(todo[first]).split(separator:" ",maxSplits:2)
+                        guard fields.count>=2 else {throw RebaseFailure.changed}
+                        after["stopped-sha"] = .init(bytes:Data((try rebaseRevision(String(fields[1]))+"\n").utf8))
+                        todo.remove(at:first)
+                    } else {
+                        var done=String(decoding:after["done"]?.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
+                        guard let last=done.lastIndex(where:{!$0.trimmingCharacters(in:.whitespaces).isEmpty && !$0.hasPrefix("#")}) else {throw RebaseFailure.changed}
+                        done.remove(at:last);after["done"] = .init(bytes:Data(done.joined(separator:"\n").utf8))
+                        if action == .skip {
+                            let fields=RebaseEditor.canonicalLine(todo[first]).split(separator:" ",maxSplits:1)
+                            guard fields.count==2,fields[0]=="pick" else {throw RebaseFailure.changed}
+                            todo[first]="drop "+fields[1]
+                        }
+                    }
+                    after["git-rebase-todo"] = .init(bytes:Data(todo.joined(separator:"\n").utf8))
+                    if action == .skip {
+                        let marker=try actionEditFile(directory,Self.failedPickIntentName)
+                        guard marker.bytes==nil else {throw RebaseFailure.changed}
+                        let intent=RebaseFailedPickIntent(version:1,state:expected.state,head:expected.head,hash:expected.entry.commit.hash,
+                            diagnostic:expected.diagnostic,occurrence:expected.entry.occurrence,prepared:true,sessionIdentity:expected.sessionIdentity,
+                            phase:expected.phase,files:after,index:expected.index,worktree:expected.worktree)
+                        before[Self.failedPickIntentName]=marker
+                        after[Self.failedPickIntentName] = .init(bytes:try JSONEncoder().encode(intent))
+                    }
+                    try replayCancellation?.check()
+                    let journal=RebaseActionEditJournal(version:2,before:before,after:after)
+                    let journalURL=directory.appendingPathComponent(Self.actionEditJournal)
+                    try JSONEncoder().encode(journal).write(to:journalURL,options:.atomic)
+                    for name in after.keys where name != "git-rebase-todo" {try actionEditWrite(after[name]!,directory:directory,name:name)}
+                    try actionEditWrite(after["git-rebase-todo"]!,directory:directory,name:"git-rebase-todo")
+                    try FileManager.default.removeItem(at:journalURL)
+                }
+            }
+            let preparedState=try replayUncancelled {try rebaseState()}
+            let bookkeepingStep=replayIdentities(directory).firstIndex(where:{$0.id==expected.entry.id}).map {$0+1}
+            let intentURL=directory.appendingPathComponent(Self.failedPickIntentName)
+            if action == .skip {try saveFailedPickIntent(.init(output:expected.diagnostic,exitCode:1,state:preparedState),expected:expected,directory:directory)}
+            let result:RebaseExecution
+            do {
+                if action == .skip {result=try skipRebaseOwned(bookkeepingStep:bookkeepingStep)} else {result=try continueRebaseOwned()}
+            } catch {
+                if action == .skip {
+                    try? replayUncancelled {
+                        let actual=try rebaseState()
+                        if actual.active,actual.currentStep==preparedState.currentStep,actual.originalHead==expected.state.originalHead,try rebaseRevision("HEAD")==expected.head {
+                            try saveFailedPickIntent(.init(output:error.localizedDescription,exitCode:1,state:actual),expected:expected,directory:directory)
+                        }
+                    }
+                }
+                throw error
+            }
+            if action == .skip,result.exitCode != 0,result.state.active,result.state.currentStep==preparedState.currentStep,
+               result.state.originalHead==expected.state.originalHead,result.state.onto==expected.state.onto,
+               try rebaseRevision("HEAD")==expected.head {try saveFailedPickIntent(result,expected:expected,directory:directory)}
+            else if FileManager.default.fileExists(atPath:intentURL.path) {try FileManager.default.removeItem(at:intentURL)}
+            return RebaseExecution(output:result.output,exitCode:result.exitCode,state:try rebaseState(),witnessedHead:result.witnessedHead,witnessedSession:result.witnessedSession)
         }
     }
 }
