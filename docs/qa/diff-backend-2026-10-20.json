@@ -1,0 +1,141 @@
+{
+  "date": "2026-10-20",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "validation": [
+    {
+      "scope": "Initial universal helper build",
+      "status": "failed",
+      "exit_code": 1,
+      "log": "build/qa/diff-backend-helper-build-2026-10-20.log",
+      "finding": "Nine unsupported GIT_ERROR_DIFF diagnostic classes in pinned libgit2 headers",
+      "repair": "Use supported GIT_ERROR_INVALID diagnostic class; behavior unchanged"
+    },
+    {
+      "scope": "Universal helper after diagnostic class repair",
+      "status": "passed",
+      "exit_code": 0,
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "log": "build/qa/diff-backend-helper-repair-2026-10-20.log",
+      "limit": "Structure, source licences and dependencies; not signed runtime acceptance"
+    },
+    {
+      "scope": "Relevant Core diff/history classes in grouped checkpoint",
+      "status": "passed",
+      "executed": 20,
+      "failures": 0,
+      "classes": {
+        "GitDiffEngineTests": 11,
+        "HistoryFileCacheTests": 5,
+        "HistoryWorkflowTests": 4
+      },
+      "log": "build/qa/diff-word-core-2026-10-20.log",
+      "limit": "Combined run failed separately in word CRLF assertions; these 20 methods all passed"
+    },
+    {
+      "scope": "Initial Debug app build",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/diff-word-app-2026-10-20.log",
+      "limit": "Began before subsequent word Core CRLF repair and final Help freeze; final build below is acceptance artifact"
+    },
+    {
+      "scope": "Final incremental Debug app after CRLF repair and Help freeze",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/diff-word-app-final-2026-10-20.log",
+      "framework_sha256": "439de4f7f56dd3136257d469ffc493515ed90a1b11b98a014f6ffd316662f8b2",
+      "embedded_framework_matches": true
+    },
+    {
+      "scope": "Grouped actual native workflows",
+      "status": "passed",
+      "exit_code": 0,
+      "cases": [
+        "log",
+        "working",
+        "lifecycle"
+      ],
+      "git_engines": [
+        "system Apple Git 2.54",
+        "bundled Git 2.55.0"
+      ],
+      "case_engine_pairs": 6,
+      "log": "build/qa/diff-backend-native-2026-10-20.log",
+      "receiver_pids": [
+        92397,
+        92518,
+        92639,
+        92753,
+        92867,
+        92998
+      ],
+      "all_receivers_reaped_and_independently_absent": true,
+      "windows": "Private repositories/preferences, prohibited activation, swizzled hidden/offscreen windows including sheets; cleanup on all exits"
+    }
+  ],
+  "remaining_acceptance": [
+    "Full hosted CI",
+    "Physical keyboard/menu and accessibility interaction",
+    "Signed sandbox/Finder deployment and App Store distribution",
+    "Complete upstream application parity"
+  ],
+  "family": "Source-selected unified diff4 and history file lists15",
+  "implementation": [
+    "Scoped unified display readers with captured native owning preferences",
+    "Typed actual-parent metadata, full object IDs/modes/statistics and source rename/copy handling",
+    "Independent simple changed-path union for filtering/Find",
+    "Persistent and native cache backend identities; cancellation and late-publication gates",
+    "Unchanged default-mask CLI behavior and explicit index/staging CLI boundary"
+  ],
+  "checkpoint_summary": {
+    "status": "passed scoped checkpoint",
+    "no_complete_port_claim": true,
+    "repeated_checks": "Only helper build after unsupported diagnostic class and word Core after CRLF failure; final incremental app required changed Core/Help. Passed diff/history Core not repeated. Native group passed first attempt."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitDiffEngine.swift": "c977ccc95a0708c4a746e10b59b90f8c0d2769492ee39d5e992fe26e04d91aec",
+    "Sources/TurtleGitCore/CommitHistory.swift": "15f591aa53ffa9bb6b5f6a2cbff2ece081210701a859a40dfbb9d57b5e4b759c",
+    "Sources/TurtleGitCore/HistoryFileCache.swift": "c9b85a30e6c82103c679b217742b0416f11e66b27e3c0923c81585d747b7882e",
+    "Sources/TurtleGitLibgit2/main.swift": "49264b3f3a39a9ab054d95bef43ac3ba8c6b9033ec786fbbf2ac02a58b961b38",
+    "Sources/TurtleGitLibgit2/bridge.c": "a8bf5297ab875be7e49cf550b6e3261dfa79b3f33a2e36e2b109c332f31c8853",
+    "Sources/TurtleGitLibgit2/bridge.h": "1b8cc240a307141ef088c8b296b99db38a83e40fc1038915184fac75c3f4cbda",
+    "Sources/TurtleGitMac/UnifiedDiffViewerSettings.swift": "b3dde5691734552b043b644077fc75dd0dec854675cbfd377ec2612bac42d436",
+    "Sources/TurtleGitMac/LogWindow.swift": "192c6f273b4d92ad35c3cb85dead9d59362d1dce6108b9dec2886f7707fea706",
+    "Tests/TurtleGitCoreTests/GitDiffEngineTests.swift": "9d2a92ffa805064ad61ef0f590f4c6943e0386dbd8e24cd8f3898f96fd5601e2",
+    "docs/qa/diff-backend-native-2026-10-20.swift": "083185f00db5720b4585355fac6f52fafda001977c1f95333d5d7247ac5d2590",
+    "scripts/test-diff-backend.py": "ab3acb2aab723c90a4feca993ec46e10332e95d46d26ffc93802df698f31fcc8"
+  },
+  "documentation_checks": {
+    "localization": {
+      "status": "passed",
+      "languages": 38,
+      "keys": 1301
+    },
+    "bundled_help": {
+      "status": "passed",
+      "documents": 42,
+      "topics": 50,
+      "files": 62,
+      "bytes": 3618411
+    },
+    "site": {
+      "status": "passed",
+      "documents": 367,
+      "unresolved_fragments": [],
+      "log": "build/qa/diff-word-site-2026-10-20.log"
+    },
+    "dialog_coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1572,
+      "pending_control_reviews": 87,
+      "limit": "Resource coverage, not feature completion"
+    }
+  }
+}

@@ -932,6 +932,7 @@ import UniformTypeIdentifiers
     /// message completions, preferences or LFS locks. Publish one coherent index
     /// snapshot only after every cancellable read has completed.
     func refreshStagingState(refreshPatch: Bool = true) {
+        let repository=self.repository.capturingDiffBackend(preferences:dialogDefaults)
         guard stagingEnabled else { reload(); return }
         guard messageFocusAvailable, !busy, !pendingReloadCancel else { return }
         let position = fileListRefresh.begin(preferences:dialogDefaults,selectedIDs:selection)
@@ -1361,6 +1362,7 @@ import UniformTypeIdentifiers
         if let issueID = invocation.issueID { self.issueID = issueID }
     }
     func reload(paths: [String]? = nil) {
+        let repository=self.repository.capturingDiffBackend(preferences:dialogDefaults)
         guard messageFocusAvailable, !issueProviderBusy, !busy, !pendingReloadCancel, !unversionedPromptVisible else { return }
         unversionedPromptPending=false;fileListReadError=nil;fileListReadCancelled=false
         fileMenuGeneration = UUID(); busy = true
@@ -1788,6 +1790,7 @@ import UniformTypeIdentifiers
         guard !paths.isEmpty else { return }; onCompare(paths, amendToParent)
     }
     func diff(paths selected: some Sequence<String>, staged: Bool? = nil, alternate: Bool = false) { let selected = GitPathSet(selected);
+        let repository=self.repository.capturingDiffBackend(preferences:dialogDefaults)
         guard fileListAvailable, !unifiedViewerBusy else { return }
         let paths = entries.filter { selected.contains($0.id) }.map(\.path)
         guard !paths.isEmpty else { return }
@@ -1805,13 +1808,13 @@ import UniformTypeIdentifiers
                         let head = try? await repository.run(["rev-parse", "--verify", "HEAD"], cancellation: token)
                         let base = amendToParent ? try await repository.commitComparisonBase(amendToParent: true, cancellation: token) : "HEAD"
                         let args = ["diff", "--no-ext-diff", "--no-color"] + (head == nil ? ["--cached"] : [base]) + ["--"] + paths
-                        bytes = try await repository.run(args, cancellation: token).stdout
+                        bytes = try await repository.unifiedDiffData(arguments:args,cancellation:token)
                 }
                 guard messageFocusAvailable, !confirmingQuit, !token.isCancelled else { return }
                 if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                 else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: dialogDefaults, title: staged == true ? "Index changes" : staged == false ? "Working tree changes" : "Commit changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
                     guard messageFocusAvailable, !confirmingQuit, !token.isCancelled else { return }
-                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: staged == true ? "Index changes" : staged == false ? "Working tree changes" : "Commit changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: staged == true ? "Index changes" : staged == false ? "Working tree changes" : "Commit changes", preferences: dialogDefaults, onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
                 }
             } catch { if messageFocusAvailable, !session.cancellation.isCancelled { self.error = error.localizedDescription } }

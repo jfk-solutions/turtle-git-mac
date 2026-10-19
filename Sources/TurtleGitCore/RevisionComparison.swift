@@ -211,12 +211,12 @@ extension GitRepository {
     public func revisionComparisonPatch(_ snapshot: RevisionComparisonSnapshot, paths: [String] = []) throws -> String {
         String(decoding: try revisionComparisonPatchData(snapshot, paths: paths), as: UTF8.self)
     }
-    public func revisionComparisonPatchData(_ snapshot: RevisionComparisonSnapshot, paths: [String] = [], cancellation: OperationCancellation? = nil) throws -> Data {
+    public func revisionComparisonPatchData(_ snapshot: RevisionComparisonSnapshot, paths: [String] = [], cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration? = nil) throws -> Data {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard snapshot.root == root, paths.allSatisfy({ path in snapshot.files.contains { GitReferenceName.equal($0.path,path) } }) else { throw RevisionComparisonFailure.selection }
         let selected = paths.isEmpty ? snapshot.scopePaths : snapshot.files.filter { GitPathSet(paths).contains($0.path) }.flatMap { [$0.path] + ($0.oldPath.map { [$0] } ?? []) }
         for path in selected { _ = try restoreLocation(path) }
-        return try run(comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options, detection: snapshot.diffDetection, cancellation: token) + ["--"] + GitPathSet(selected).sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }, cancellation: token).stdout
+        return try unifiedDiffData(arguments:comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options, detection: snapshot.diffDetection, cancellation: token) + ["--"] + GitPathSet(selected).sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) },cancellation:token,backend:backend)
     }
     private func comparisonDetails(_ side: ComparisonRevision, useMailmap: Bool, cancellation: OperationCancellation? = nil) throws -> ComparisonRevisionDetails? {
         guard case .revision(let hash) = side else { return nil }

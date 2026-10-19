@@ -2479,6 +2479,7 @@ private enum HistoricalMaterializationContext {
     }
     func showPreviousDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, owner: NSWindow? = nil, unified: Bool = false) {
         let alternate = ComparisonToolInvocation.capture, preferences = fileComparisonPreferences
+        let repository=repository.capturingDiffBackend(preferences:preferences)
         prepareFileComparisons(repository: repository, access: access, selectedCount: 1, owner: owner) { [self] token in
             let base = try await repository.previousDiffBase(path: path, cancellation: token)
             guard !confirmingQuit, !token.isCancelled else { return }
@@ -4163,6 +4164,7 @@ private enum HistoricalMaterializationContext {
         })
     }
     private func showCommandComparison(_ invocation: PrimaryCommandInvocation, repository: GitRepository, access: RepositoryAccessLease, owner: NSWindow?, preferences: UserDefaults) {
+        let repository=repository.capturingDiffBackend(preferences:preferences)
         guard !retired, !confirmingQuit, let first = invocation.request.paths.first else { return }
         let primary = FinderRequest(action: .diff, paths: [first]).relativePaths(root: repository.root)
         guard primary.count == 1 else { error = "Choose comparison paths inside this repository."; return }
@@ -4500,6 +4502,7 @@ private enum HistoricalMaterializationContext {
             guard let file = invocation.outputFile, let permission = outputAccess, let revision = invocation.catRevision, let path = paths.first else { return }
             writeCommandHistoricalFile(repository: repository, access: access, revision: revision, path: path, file: file, permission: permission)
         case .showCompare:
+            let preferences=fileComparisonPreferences,repository=repository.capturingDiffBackend(preferences:fileComparisonPreferences)
             let from = invocation.diffFrom.map(ComparisonRevision.revision) ?? .workingTree
             let to = invocation.diffTo.map(ComparisonRevision.revision) ?? .workingTree
             let scope = paths.filter { $0 != "." }
@@ -4507,7 +4510,7 @@ private enum HistoricalMaterializationContext {
                 prepareFileComparisons(repository: repository, access: access, selectedCount: paths.count, owner: workspaceWindow) { [self] token in
                     let snapshot = try await repository.revisionFileComparison(from: from, to: to, paths: scope, cancellation: token)
                     let bytes = try await repository.revisionComparisonPatchData(snapshot, cancellation: token)
-                    try await presentCommandUnifiedDiff(bytes, title: from.label + " → " + to.label, repository: repository, access: access, alternate: invocation.request.alternateTool ?? false, preferences: fileComparisonPreferences, cancellation: token)
+                    try await presentCommandUnifiedDiff(bytes, title: from.label + " → " + to.label, repository: repository, access: access, alternate: invocation.request.alternateTool ?? false, preferences: preferences, cancellation: token)
                 }
             } else {
                 var directory: ObjCBool = false

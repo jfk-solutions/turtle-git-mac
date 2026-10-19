@@ -308,8 +308,8 @@ extension NSAttributedString.Key {
 @MainActor protocol MergeEditorPresentationProviding { var presentationCache: MergeEditorPresentationCache { get } }
 
 /// All selectors, whether dispatched by a key binding or NSApp.sendAction,
-/// share the same source caret and fold ownership. TextKit still proposes word,
-/// grapheme and wrapped-line movement; folding only redirects its destination.
+/// share the same source caret and fold ownership. Source separators define word
+/// movement; TextKit supplies native grapheme and visual-line geometry.
 @MainActor protocol MergePaneInputProviding:AnyObject {var paneInputLayout:MergeFoldTextLayout {get}}
 @MainActor class MergePaneInputTextView:NSTextView,MergePaneInputProviding {
     var paneInputLayout:MergeFoldTextLayout {fatalError("A pane owns its fold layout")}
@@ -321,6 +321,19 @@ extension NSAttributedString.Key {
     private struct Receipt {let range:NSRange,anchor:Int,head:Int,revision:Int,foldRevision:Int,length:Int}
     private var inputReceipt:Receipt?
     private var goalX:CGFloat?
+    private var cachedWordDocument:(revision:Int,length:Int,aligned:Bool,value:MergePaneInput.WordDocument)?
+    private var wordDocument:MergePaneInput.WordDocument? {
+        let length=string.utf16.count,aligned=paneInputCells != nil
+        if let cached=cachedWordDocument,cached.revision==paneInputRevision,cached.length==length,cached.aligned==aligned {return cached.value}
+        guard let value=MergePaneInput.WordDocument(text:string,cells:paneInputCells) else{return nil}
+        cachedWordDocument=(paneInputRevision,length,aligned,value);return value
+    }
+    private var wordSeparators:String {MergeFindOptions.load(from:(self as? MergeFindProviding)?.mergeFindDefaults ?? .standard).wordSeparators}
+    private var wordHiddenRows:Set<Int> {
+        guard let controller=paneInputLayout.controller,controller.collapsed else{return []}
+        return Set(controller.folding.visibility.indices.filter{controller.folding.visibility[$0] != .shown})
+    }
+    override func didChangeText() {cachedWordDocument=nil;super.didChangeText()}
     override func setSelectedRange(_ charRange:NSRange) {
         clearExternalInput();super.setSelectedRange(charRange)
     }
@@ -408,7 +421,7 @@ extension NSAttributedString.Key {
         layout.ensureLayout(for:container)
         return layout.characterIndex(for:NSPoint(x:point.x-textContainerOrigin.x,y:point.y-textContainerOrigin.y),in:container,fractionOfDistanceBetweenInsertionPoints:nil)
     }
-    private func navigate(forward:Bool,modify:Bool=false,vertical:Bool=false,home:Bool=false,page:Bool=false,propose:()->Void) {
+    private func navigate(forward:Bool,modify:Bool=false,vertical:Bool=false,home:Bool=false,page:Bool=false,word:Bool=false,propose:()->Void) {
         if paneInputLayout.suppressesInputReveal {propose();return}
         guard paneInputAllowed,window?.attachedSheet==nil else{return}
         if hasMarkedText() {propose();return}
@@ -425,8 +438,8 @@ extension NSAttributedString.Key {
         defer {paneInputLayout.endPaneInput(selection:settled)}
         if !vertical {goalX=nil}
         if vertical,goalX==nil {goalX=caretPoint(head)?.x}
-        // Extending from a collapsed moving end gives TextKit its usual word and
-        // visual-line proposal without relying on its private selection anchor.
+        // Extend from the moving end without relying on TextKit's private
+        // selection anchor; word boundaries use the same source geometry.
         if modify {super.setSelectedRange(NSRange(location:head,length:0))}
         var destination:Int
         var destinationAffinity=selectionAffinity
@@ -443,6 +456,9 @@ extension NSAttributedString.Key {
             if let target=verticalTarget(from:head,forward:forward,x:goalX ?? caretPoint(head)?.x ?? textContainerOrigin.x) {
                 destination=target.offset;destinationAffinity=target.affinity
             } else {destination=head}
+        } else if word {
+            guard let target=wordDocument?.destination(from:head,forward:forward,wordSeparators:wordSeparators,hiddenRows:wordHiddenRows) else{super.setSelectedRange(before);return}
+            destination=target
         } else {propose();destination=selectedRange().location}
         destination=min(max(0,destination),lastCaret)
         guard let visible=paneInputLayout.visibleInputOffset(destination,forward:forward,in:self) else {super.setSelectedRange(before);return}
@@ -456,16 +472,19 @@ extension NSAttributedString.Key {
         inputReceipt=Receipt(range:settled,anchor:modify ? anchor:destination,head:destination,revision:paneInputRevision,foldRevision:foldRevision,length:length)
         scrollRangeToVisible(NSRange(location:destination,length:0))
     }
-    private func deletePane(backward:Bool,propose:()->Void) {
+    private func deletePane(backward:Bool,word:Bool=false,propose:()->Void) {
         guard paneInputMutationAllowed,window?.attachedSheet==nil else{return}
         if hasMarkedText() {propose();return}
         paneInputBegan();clearExternalInput()
         paneInputLayout.beginPaneInput()
         defer {paneInputLayout.endPaneInput(selection:selectedRange())}
-        guard let cells=paneInputCells else{propose();return}
-        let selected=selectedRange()
-        guard var range=MergePaneInput.deletionRange(in:string,cells:cells,selection:selected,backward:backward) else{return}
-        if selected.length==0 {
+        let cells=paneInputCells,selected=selectedRange()
+        let requested:NSRange?
+        if word {requested=wordDocument?.deletionRange(selection:selected,backward:backward,wordSeparators:wordSeparators,hiddenRows:wordHiddenRows)}
+        else if let cells {requested=MergePaneInput.deletionRange(in:string,cells:cells,selection:selected,backward:backward)}
+        else {propose();return}
+        guard var range=requested else{return}
+        if selected.length==0,let cells {
             guard let start=paneInputLayout.visibleInputOffset(range.location,forward:false,in:self),let end=paneInputLayout.visibleInputOffset(NSMaxRange(range),forward:true,in:self) else{return}
             range=NSRange(location:min(start,end),length:abs(end-start))
             guard let normalized=MergePaneInput.normalizedReplacementRange(in:string,cells:cells,selection:range),normalized.length>0 else{return}
@@ -476,8 +495,13 @@ extension NSAttributedString.Key {
     }
     override func deleteBackward(_ sender:Any?){deletePane(backward:true){super.deleteBackward(sender)}}
     override func deleteForward(_ sender:Any?){deletePane(backward:false){super.deleteForward(sender)}}
+    override func deleteWordBackward(_ sender:Any?){deletePane(backward:true,word:true){super.deleteWordBackward(sender)}}
+    override func deleteWordForward(_ sender:Any?){deletePane(backward:false,word:true){super.deleteWordForward(sender)}}
     override func keyDown(with event:NSEvent) {
         let modifiers=event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if modifiers == .control,event.keyCode==51 || event.keyCode==117 {
+            if event.keyCode==51 {deleteWordBackward(nil)}else{deleteWordForward(nil)};return
+        }
         if event.keyCode==115,modifiers.isEmpty || modifiers == .shift {
             if modifiers == .shift {moveToBeginningOfLineAndModifySelection(nil)}else{moveToBeginningOfLine(nil)};return
         }
@@ -491,14 +515,14 @@ extension NSAttributedString.Key {
     override func moveBackwardAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,vertical:false){super.moveBackward(sender)}}
     override func moveForward(_ sender:Any?){navigate(forward:true,modify:false,vertical:false){super.moveForward(sender)}}
     override func moveForwardAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:false){super.moveForward(sender)}}
-    override func moveWordLeft(_ sender:Any?){navigate(forward:false,modify:false,vertical:false){super.moveWordLeft(sender)}}
-    override func moveWordLeftAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,vertical:false){super.moveWordLeft(sender)}}
-    override func moveWordRight(_ sender:Any?){navigate(forward:true,modify:false,vertical:false){super.moveWordRight(sender)}}
-    override func moveWordRightAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:false){super.moveWordRight(sender)}}
-    override func moveWordBackward(_ sender:Any?){navigate(forward:false,modify:false,vertical:false){super.moveWordBackward(sender)}}
-    override func moveWordBackwardAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,vertical:false){super.moveWordBackward(sender)}}
-    override func moveWordForward(_ sender:Any?){navigate(forward:true,modify:false,vertical:false){super.moveWordForward(sender)}}
-    override func moveWordForwardAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:false){super.moveWordForward(sender)}}
+    override func moveWordLeft(_ sender:Any?){navigate(forward:false,modify:false,vertical:false,word:true){super.moveWordLeft(sender)}}
+    override func moveWordLeftAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,vertical:false,word:true){super.moveWordLeft(sender)}}
+    override func moveWordRight(_ sender:Any?){navigate(forward:true,modify:false,vertical:false,word:true){super.moveWordRight(sender)}}
+    override func moveWordRightAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:false,word:true){super.moveWordRight(sender)}}
+    override func moveWordBackward(_ sender:Any?){navigate(forward:false,modify:false,vertical:false,word:true){super.moveWordBackward(sender)}}
+    override func moveWordBackwardAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,vertical:false,word:true){super.moveWordBackward(sender)}}
+    override func moveWordForward(_ sender:Any?){navigate(forward:true,modify:false,vertical:false,word:true){super.moveWordForward(sender)}}
+    override func moveWordForwardAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:false,word:true){super.moveWordForward(sender)}}
     override func moveUp(_ sender:Any?){navigate(forward:false,modify:false,vertical:true){super.moveUp(sender)}}
     override func moveUpAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,vertical:true){super.moveUp(sender)}}
     override func moveDown(_ sender:Any?){navigate(forward:true,modify:false,vertical:true){super.moveDown(sender)}}

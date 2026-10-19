@@ -1126,6 +1126,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         Task { defer { comparisonRead = false; finish(token) }; await loadComparison(token) }
     }
     private func loadComparison(_ token: OperationCancellation) async {
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         guard (try? ensure(token)) != nil else { return }
         comparison = nil;specialSavedResult = nil;specialResolutionChoice = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil; beforeScroll = nil; afterScroll = nil; comparisonNotice = ""; difference = -1
         guard let review else { focusedFile = nil; return }

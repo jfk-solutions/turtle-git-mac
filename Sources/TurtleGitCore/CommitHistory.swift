@@ -673,20 +673,24 @@ public struct CommitFile: Identifiable, Hashable, Codable, Sendable {
     public let removed: Int?
     public let hasStatistics: Bool
     public let isSubmodule: Bool
-    public init(path: String, oldPath: String?, action: String, added: Int?, removed: Int?, hasStatistics: Bool, isSubmodule: Bool, parentIndex: Int? = nil) {
+    /// Captured object provenance supplied by the selected history diff engine.
+    public let oldObjectID:String?,newObjectID:String?
+    public let oldMode:UInt32?,newMode:UInt32?
+    public init(path: String, oldPath: String?, action: String, added: Int?, removed: Int?, hasStatistics: Bool, isSubmodule: Bool, parentIndex: Int? = nil,oldObjectID:String? = nil,newObjectID:String? = nil,oldMode:UInt32? = nil,newMode:UInt32? = nil) {
+        self.oldObjectID=oldObjectID;self.newObjectID=newObjectID;self.oldMode=oldMode;self.newMode=newMode
         self.path = path; self.oldPath = oldPath; self.action = action
         self.added = added; self.removed = removed; self.hasStatistics = hasStatistics
         self.isSubmodule = isSubmodule; self.parentIndex = parentIndex
     }
     public static func == (lhs:Self,rhs:Self) -> Bool {
-        GitReferenceName.equal(lhs.path,rhs.path) && lhs.oldPath.map { GitReferenceName($0) } == rhs.oldPath.map { GitReferenceName($0) } && lhs.parentIndex == rhs.parentIndex && lhs.action == rhs.action && lhs.added == rhs.added && lhs.removed == rhs.removed && lhs.hasStatistics == rhs.hasStatistics && lhs.isSubmodule == rhs.isSubmodule
+        GitReferenceName.equal(lhs.path,rhs.path) && lhs.oldPath.map { GitReferenceName($0) } == rhs.oldPath.map { GitReferenceName($0) } && lhs.parentIndex == rhs.parentIndex && lhs.action == rhs.action && lhs.added == rhs.added && lhs.removed == rhs.removed && lhs.hasStatistics == rhs.hasStatistics && lhs.isSubmodule == rhs.isSubmodule && lhs.oldObjectID == rhs.oldObjectID && lhs.newObjectID == rhs.newObjectID && lhs.oldMode == rhs.oldMode && lhs.newMode == rhs.newMode
     }
     public func hash(into hasher:inout Hasher) {
         hasher.combine(GitReferenceName(path)); hasher.combine(oldPath.map { GitReferenceName($0) }); hasher.combine(parentIndex)
-        hasher.combine(action); hasher.combine(added); hasher.combine(removed); hasher.combine(hasStatistics); hasher.combine(isSubmodule)
+        hasher.combine(action); hasher.combine(added); hasher.combine(removed); hasher.combine(hasStatistics); hasher.combine(isSubmodule);hasher.combine(oldObjectID);hasher.combine(newObjectID);hasher.combine(oldMode);hasher.combine(newMode)
     }
     public func inParentGroup(_ index: Int) -> Self {
-        Self(path: path, oldPath: oldPath, action: action, added: added, removed: removed, hasStatistics: hasStatistics, isSubmodule: isSubmodule, parentIndex: index)
+        Self(path: path, oldPath: oldPath, action: action, added: added, removed: removed, hasStatistics: hasStatistics, isSubmodule: isSubmodule, parentIndex: index,oldObjectID:oldObjectID,newObjectID:newObjectID,oldMode:oldMode,newMode:newMode)
     }
     public var status: String {
         switch action.first {
@@ -1363,7 +1367,7 @@ extension GitRepository {
     public func findNextHistoryMatch(in entries: [LogEntry], after previous: Int?, query: String,
                                      regex: Bool = false, caseSensitive: Bool = false,
                                      cachedFiles: [String: [CommitFile]] = [:], dateSettings: HistoryDateSettings = .load(),
-                                     regexExecutable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> (index: Int, wrapped: Bool)? {
+                                     regexExecutable: URL? = nil, cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration? = nil) throws -> (index: Int, wrapped: Bool)? {
         try cancellation?.check()
         guard !entries.isEmpty else { return nil }
         let previous = previous.flatMap { entries.indices.contains($0) ? $0 : nil }
@@ -1373,7 +1377,7 @@ extension GitRepository {
             try cancellation?.check()
             let position = start + offset, index = position % entries.count
             let matches = try findHistoryMatches(in: [entries[index]], query: query, regex: regex, caseSensitive: caseSensitive,
-                                                 cachedFiles: cachedFiles, dateSettings: dateSettings, regexExecutable: regexExecutable, cancellation: cancellation)
+                                                 cachedFiles: cachedFiles, dateSettings: dateSettings, regexExecutable: regexExecutable, cancellation: cancellation,backend:backend)
             if matches.first == true { return (index, position >= entries.count) }
         }
         return nil
@@ -1386,7 +1390,8 @@ extension GitRepository {
     public func findHistoryMatches(in entries: [LogEntry], query: String, regex: Bool = false,
                                   caseSensitive: Bool = false, cachedFiles: [String: [CommitFile]] = [:],
                                   dateSettings: HistoryDateSettings = .load(), regexExecutable: URL? = nil,
-                                  cancellation: OperationCancellation? = nil) throws -> [Bool] {
+                                  cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration? = nil) throws -> [Bool] {
+        let selected=backend ?? libgit2Configuration ?? .load()
         try cancellation?.check()
         guard entries.allSatisfy({ entry in
             entry.hash.isEmpty || ((entry.hash.count == 40 || entry.hash.count == 64) && entry.hash.allSatisfy { $0.isASCII && $0.isHexDigit })
@@ -1409,9 +1414,13 @@ extension GitRepository {
             } else {
                 // --no-renames matches SafeGetSimpleList's tree diff: a rename
                 // contributes both its deleted old path and added new path.
+                if selected.requests(.logListDiff) {
+                    fields += try historyDiff(revision:entry.hash,simple:true,backend:selected,cancellation:cancellation).paths
+                } else {
                 let paths = try run(["diff-tree", "--root", "-m", "--no-commit-id", "--name-only", "-z", "-r", "--no-renames", "--no-ext-diff", "--no-textconv", "--no-color", entry.hash, "--"],
                                     environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
                 fields += paths.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
+                }
             }
             try cancellation?.check()
             texts.append(fields.joined(separator: "\n") + "\n")
@@ -1420,14 +1429,26 @@ extension GitRepository {
         return try texts.map { text in try cancellation?.check(); return filter.matches(text) }
     }
 
-    public func files(in entry: LogEntry, cache: HistoryFileCache? = nil, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
+    public func files(in entry: LogEntry, cache: HistoryFileCache? = nil, cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration? = nil) throws -> [CommitFile] {
+        let selected=backend ?? libgit2Configuration ?? .load()
+        _ = try selected.executor(for:.logListDiff)
         try cancellation?.check()
-        let context = cache.flatMap { _ in try? historyFileCacheContext(entry, cancellation: cancellation) }
+        let context = cache.flatMap { _ in try? historyFileCacheContext(entry, cancellation: cancellation,backend:selected) }
         if let cache, let context, let record = cache.read(context.key, cancellation: cancellation), record.context == context.context,
            let attributes = try? historyFileAttributesFingerprint(record.files, info: context.infoAttributes, global: context.globalAttributes, cancellation: cancellation), attributes == record.attributes {
             try cancellation?.check(); return record.files
         }
         try cancellation?.check()
+        if selected.requests(.logListDiff) {
+            let output=try historyDiff(revision:entry.hash,simple:false,backend:selected,cancellation:cancellation)
+            let index:Int
+            if let parent=entry.parents.first {guard let found=output.parents.firstIndex(of:parent) else{throw GitDiffEngineFailure.metadata};index=found} else {index=0}
+            let files=output.groups[index]
+            if let cache,let context,let attributes=try? historyFileAttributesFingerprint(files,info:context.infoAttributes,global:context.globalAttributes,cancellation:cancellation),let settled=try? historyFileCacheContext(entry,cancellation:cancellation,backend:selected),settled.context==context.context {
+                cache.write(.init(key:context.key,context:context.context,attributes:attributes,files:files),cancellation:cancellation)
+            }
+            try cancellation?.check();return files
+        }
         var args = ["diff-tree", "--root", "--no-commit-id", "-r"] + diffDetection.historyArguments + ["--no-ext-diff", "--no-color"]
         if let parent = entry.parents.first { args.append(parent) }
         args += [entry.hash, "--"]
@@ -1452,7 +1473,7 @@ extension GitRepository {
             try cancellation?.check()
             // Do not publish results under a configuration/index/tree context
             // which changed while the three Git diff reads were running.
-            if let settled = try? historyFileCacheContext(entry, cancellation: cancellation), settled.context == context.context {
+            if let settled = try? historyFileCacheContext(entry, cancellation: cancellation,backend:selected), settled.context == context.context {
                 cache.write(.init(key: context.key, context: context.context, attributes: attributes, files: files), cancellation: cancellation)
             }
         }
@@ -1461,7 +1482,16 @@ extension GitRepository {
     /// GitRevLoglist::GetFiles reads every actual parent in commit order.
     /// Resolve metadata from the pinned commit rather than a caller's cached
     /// parent list; preserve empty groups and duplicate paths across groups.
-    public func logFileGroups(in entry: LogEntry, cache: HistoryFileCache? = nil, cancellation: OperationCancellation? = nil) throws -> [LogFileGroup] {
+    public func logFileGroups(in entry: LogEntry, cache: HistoryFileCache? = nil, cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration? = nil) throws -> [LogFileGroup] {
+        let selected=backend ?? libgit2Configuration ?? .load()
+        if selected.requests(.logListDiff) {
+            let output=try historyDiff(revision:entry.hash,simple:false,backend:selected,cancellation:cancellation)
+            return output.groups.enumerated().map { index,files in
+                let parent=output.parents.indices.contains(index) ? output.parents[index]:nil
+                var scoped=entry;scoped.parents=parent.map{[$0]} ?? []
+                return LogFileGroup(id:index,parent:parent,entry:scoped,files:files)
+            }
+        }
         try cancellation?.check()
         guard (entry.hash.count == 40 || entry.hash.count == 64), entry.hash.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw RevisionComparisonFailure.range }
         let metadata = try run(["show", "-s", "--no-notes", "--format=%H%x00%P", entry.hash, "--"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
@@ -1472,7 +1502,7 @@ extension GitRepository {
         for (index, parent) in (parents.isEmpty ? [nil] : parents.map(Optional.some)).enumerated() {
             try cancellation?.check()
             var scoped = entry; scoped.parents = parent.map { [$0] } ?? []
-            let changed = try files(in: scoped, cache: cache, cancellation: cancellation)
+            let changed = try files(in: scoped, cache: cache, cancellation: cancellation,backend:selected)
             try cancellation?.check()
             groups.append(LogFileGroup(id: index, parent: parent, entry: scoped, files: changed))
         }
@@ -1534,11 +1564,11 @@ extension GitRepository {
     }
     /// Upstream status-list unified diff concatenates each selected file's
     /// patch in visible list order, without including unselected changes.
-    public func revisionFileDiff(_ entry: LogEntry, files: [CommitFile], workingTree: Bool = false) throws -> String {
-        String(decoding: try revisionFileDiffData(entry, files: files, workingTree: workingTree), as: UTF8.self)
+    public func revisionFileDiff(_ entry: LogEntry, files: [CommitFile], workingTree: Bool = false,backend:GitLibGit2Configuration? = nil) throws -> String {
+        String(decoding: try revisionFileDiffData(entry, files: files, workingTree: workingTree,backend:backend), as: UTF8.self)
     }
     /// Preserve Git's patch bytes for external unified-diff viewers.
-    public func revisionFileDiffData(_ entry: LogEntry, files: [CommitFile], workingTree: Bool = false, cancellation: OperationCancellation? = nil) throws -> Data {
+    public func revisionFileDiffData(_ entry: LogEntry, files: [CommitFile], workingTree: Bool = false, cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration? = nil) throws -> Data {
         try cancellation?.check()
         func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
             try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
@@ -1561,15 +1591,15 @@ extension GitRepository {
                 else { args = ["show", "--format=", "--no-ext-diff", "--no-color", entry.hash] }
                 args.insert(contentsOf: workingTree ? diffDetection.comparisonArguments : diffDetection.historyArguments, at: 1)
                 args += ["--", oldPath, file.path]
-                patch.append(try read(args).stdout)
-            } else { patch.append(try revisionDiffData(scoped, path: file.path, workingTree: workingTree, cancellation: cancellation)) }
+                patch.append(try unifiedDiffData(arguments:args,cancellation:cancellation,backend:backend))
+            } else { patch.append(try revisionDiffData(scoped, path: file.path, workingTree: workingTree, cancellation: cancellation,backend:backend)) }
         }
         return patch
     }
-    public func revisionDiff(_ entry: LogEntry, path: String? = nil, workingTree: Bool = false) throws -> String {
-        String(decoding: try revisionDiffData(entry, path: path, workingTree: workingTree), as: UTF8.self)
+    public func revisionDiff(_ entry: LogEntry, path: String? = nil, workingTree: Bool = false,backend:GitLibGit2Configuration? = nil) throws -> String {
+        String(decoding: try revisionDiffData(entry, path: path, workingTree: workingTree,backend:backend), as: UTF8.self)
     }
-    public func revisionDiffData(_ entry: LogEntry, path: String? = nil, paths: [String] = [], workingTree: Bool = false, mode: LogRevisionDiffMode = .firstParent, cancellation: OperationCancellation? = nil) throws -> Data {
+    public func revisionDiffData(_ entry: LogEntry, path: String? = nil, paths: [String] = [], workingTree: Bool = false, mode: LogRevisionDiffMode = .firstParent, cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration? = nil) throws -> Data {
         try cancellation?.check()
         func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
             try run(args, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
@@ -1593,10 +1623,10 @@ extension GitRepository {
         }
         args.insert(contentsOf: workingTree ? diffDetection.comparisonArguments : diffDetection.historyArguments, at: 1)
         args.append("--"); args += path.map { [$0] } ?? paths
-        return try read(args).stdout
+        return try unifiedDiffData(arguments:args,cancellation:cancellation,backend:backend)
     }
     /// FillPatchView: whole changes with stats, or selected versioned rows in list order.
-    public func logPatchPreviewData(_ entry: LogEntry, files: [CommitFile]? = nil, cancellation: OperationCancellation? = nil) throws -> Data {
+    public func logPatchPreviewData(_ entry: LogEntry, files: [CommitFile]? = nil, cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration? = nil) throws -> Data {
         func read(_ args: [String], codes: ClosedRange<Int32> = 0...0) throws -> GitResult {
             try run(args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: codes, cancellation: cancellation)
         }
@@ -1631,12 +1661,12 @@ extension GitRepository {
                     guard parents.indices.contains(parent) else { throw RevisionComparisonFailure.selection }
                     args = ["diff"] + flags + [parents[parent], hash, "--"]
                 }
-                output.append(try read(args + (file.oldPath.map { [$0, file.path] } ?? [file.path])).stdout)
+                output.append(try unifiedDiffData(arguments:args + (file.oldPath.map { [$0, file.path] } ?? [file.path]),cancellation:cancellation,backend:backend))
             }
             return output
         }
-        if working { return try read(["diff", "--stat", "-p"] + flags + [hash, "--"]).stdout }
-        return try read(["diff-tree", "-r", "-p", "--stat"] + flags + [parents[0], hash, "--"]).stdout
+        if working { return try unifiedDiffData(arguments:["diff", "--stat", "-p"] + flags + [hash, "--"],cancellation:cancellation,backend:backend) }
+        return try unifiedDiffData(arguments:["diff-tree", "-r", "-p", "--stat"] + flags + [parents[0], hash, "--"],cancellation:cancellation,backend:backend)
     }
 }
 

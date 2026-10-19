@@ -85,3 +85,8 @@ explicit reveal and owner refusal. Physical keyboard layouts, IME composition,
 VoiceOver, exact Windows page geometry, signed runtime access and every editor
 state remain separate acceptance work. This family does not certify the entire
 editor or application.
+
+The [word-input continuation](MERGE-WORD-INPUT-PARITY.md) replaces the initial
+AppKit word-boundary proposal with the source separator rules and adds owned
+word deletion. The October 19 checkpoint above predates that continuation and
+does not prove its subsequent changes.

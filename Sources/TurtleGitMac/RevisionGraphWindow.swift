@@ -234,6 +234,7 @@ final class RevisionGraphSurface: NSView {
         }
     }
     func unified(head: Bool, alternate:Bool? = nil) {
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         guard !busy, !closed, let first = selection.first, head ? selection.count == 1 : selection.count == 2 else { return }
         let from = friendName(first), to = head ? "HEAD" : friendName(selection[1])
         let alternate=alternate ?? ComparisonToolInvocation.capture,selectionRequest=selectionGeneration
@@ -246,7 +247,7 @@ final class RevisionGraphSurface: NSView {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let a = try await repository.run(["rev-parse", "--verify", "--end-of-options", from + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)
                 let b = try await repository.run(["rev-parse", "--verify", "--end-of-options", to + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)
-                let bytes = try await repository.run(["diff", "--no-ext-diff", "--no-color", a, b, "--"], cancellation: token).stdout
+                let bytes = try await repository.unifiedDiffData(arguments:["diff", "--no-ext-diff", "--no-color", a, b, "--"],cancellation:token)
                 guard !closed, request == generation,selectionRequest==selectionGeneration, !token.isCancelled else { return }
                 try await onUnified(bytes,alternate)
             } catch {
@@ -1172,7 +1173,7 @@ final class RevisionGraphFindWindow: NSWindow {
         }
         let index = searchIndex()
         let previous: Int? = hashes.indices.contains(index) ? index : nil
-        let repo = repository, helper = regexExecutable
+        let repo = repository.capturingDiffBackend(preferences:preferences), helper = regexExecutable
         let cancellation = OperationCancellation(), generation = UUID(); token = cancellation; request = generation; busy = true; status.stringValue = "Searching…"; updateAvailability()
         Self.activeOperations += 1
         worker = Task { [weak self, access] in

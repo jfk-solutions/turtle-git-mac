@@ -7,7 +7,7 @@ import tempfile
 from native_receiver import build_receiver, run_receiver
 
 parser = argparse.ArgumentParser(description=__doc__)
-cases = ['navigation', 'editing', 'ownership', 'typing', 'history']
+cases = ['navigation', 'editing', 'ownership', 'typing', 'history', 'words', 'word-editing', 'word-ownership']
 parser.add_argument('--git', type=Path, action='append')
 parser.add_argument('--only', choices=cases, action='append')
 args = parser.parse_args()
@@ -15,7 +15,7 @@ root = Path(__file__).resolve().parent.parent
 inputs = root/'build/qa/merge-pane-input-sources'
 inputs.mkdir(parents=True, exist_ok=True)
 sources = []
-for name in ['merge-pane-input-native-2026-10-19.swift', 'merge-typing-native-2026-10-16.swift',
+for name in ['merge-pane-input-native-2026-10-19.swift', 'merge-word-input-native-2026-10-20.swift', 'merge-typing-native-2026-10-16.swift',
              'merge-edit-history-native-2026-10-18.swift', 'merge-menu-lifecycle-native-2026-10-16.swift',
              'two-pane-engine-native-2026-10-12.swift', 'three-pane-engine-native-2026-10-12.swift']:
     target = inputs/name
@@ -44,6 +44,7 @@ private extension NSWindow {
    switch test {
    case "typing":try await MergeTypingVerification.verify()
    case "history":try await MergeEditHistoryVerification.verify()
+   case "words","word-editing","word-ownership":try await MergeWordInputVerification.verify(test)
    default:try await MergePaneInputVerification.verify(test)
    }
    try await MergePaneInputVerification.drain()

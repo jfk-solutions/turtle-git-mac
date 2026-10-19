@@ -473,7 +473,7 @@ final class LogHistoryWindow: NSWindow {
         child.searchIndex = { [weak model] in model?.findSearchIndex ?? 0 }
         child.didFindIndex = { [weak model] in model?.findSearchIndex = $0 }
         child.logFiles = { [weak model] in
-            guard let model, let hash = model.selectedWorkingTree ? "" : model.revision?.hash else { return [:] }
+            guard let model,model.fileReadBackendIdentity == NativeDiffBackendIdentity(model.repository.capturingDiffBackend(preferences:model.colorPreferences).libgit2Configuration),let hash = model.selectedWorkingTree ? "" : model.revision?.hash else { return [:] }
             return model.files.isEmpty ? [:] : [hash: model.files]
         }
         child.logDateSettings = .load(defaults: findPreferences)
@@ -1733,6 +1733,7 @@ struct LogCommandRequest: Identifiable {
     }
     private var followedPath: String? { historyWalk.followRenames && !showWholeProject && historyPaths.count == 1 ? historyPaths.first : nil }
     private func compareFollowed(from: ComparisonRevision, to: ComparisonRevision, parentOf: String? = nil) {
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         guard canStartHistoryTransport, let path = followedPath, let onFollowedFileComparison else { return }
         let rows = entries, selected = self.selected, request = generation, detail = detailGeneration
         let session = FileListComparisonSession(window: window, preferences: labelDefaults)
@@ -1804,6 +1805,7 @@ struct LogCommandRequest: Identifiable {
         patchPreviewTask?.cancel(); patchPreviewTask = nil; patchPreviewLoading = false
     }
     func refreshPatchPreview() {
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         cancelPatchPreview()
         guard patchPreviewVisible, !isInvalidated else { return }
         patchPreviewData = Data(); patchPreviewError = nil; onPatchPreviewContent?(Data())
@@ -2087,7 +2089,12 @@ struct LogCommandRequest: Identifiable {
         actionCancellation?.cancel(); actionCancellation = nil
         actionQueue = []; activeActionHashes = []; actionGeneration += 1
     }
+    private var actionBackendIdentity:NativeDiffBackendIdentity?
+    private(set) var fileReadBackendIdentity:NativeDiffBackendIdentity?
     func requestActions(_ entry: LogEntry) {
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
+        let identity=NativeDiffBackendIdentity(repository.libgit2Configuration)
+        if actionBackendIdentity != identity {cancelActionReads();revisionActions=[:];actionFailures=[];actionBackendIdentity=identity}
         if entry.hash.isEmpty { if revisionActions[""] == nil, let snapshot = workingTreeSnapshot { revisionActions[""] = .classify(snapshot.files) }; return }
         guard !busy, !isInvalidated, revisionActions[entry.hash] == nil, !actionFailures.contains(entry.hash),
             !activeActionHashes.contains(entry.hash), !actionQueue.contains(where: { $0.hash == entry.hash }) else { return }
@@ -2154,6 +2161,7 @@ struct LogCommandRequest: Identifiable {
         generation += 1; detailGeneration += 1
     }
     func reload() {
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         guard !isInvalidated, !referencePickerBlocked, !busy || loadingHistory else { return }
         cancelReferenceDescriptionRead()
         cancelSearchFilter()
@@ -2272,6 +2280,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func select(_ hashes: Set<String>,mark:String? = nil,recordNavigation:Bool = true) {
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         selectionMark = mark.flatMap {hashes.contains($0) ? $0:nil} ?? selectionMark.flatMap {hashes.contains($0) ? $0:nil} ?? entries.first(where:{hashes.contains($0.hash)})?.hash
         messageLinkGeneration = UUID()
         if hashes != selected { cancelWorkingCommandRead(); cancelFollowedComparison(); cancelIntegrationRead() }
@@ -2282,6 +2291,7 @@ struct LogCommandRequest: Identifiable {
         }
         cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
+        fileReadBackendIdentity=NativeDiffBackendIdentity(repository.libgit2Configuration)
         selected = hashes; branchRevisionNumber = nil; describedRevision = nil; refreshGravatar(); selectedFiles = []; fileSelectionMark = nil;focusedChangedFile=nil; files = []; fileGroups = []
         detailGeneration += 1; let request = detailGeneration
         if selectedWorkingTree { updateWorkingFiles(); return }
@@ -2479,6 +2489,7 @@ struct LogCommandRequest: Identifiable {
         clipboard.clearContents(); clipboard.setString(text, forType: .string)
     }
     func diff(workingTree: Bool = false, path: String? = nil, alternate: Bool = false, mode:LogRevisionDiffMode = .firstParent) {
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         guard !busy, !isInvalidated, !unifiedViewerBusy, !workingTree || !bare else { return }
         if includesWorkingTree { workingTreeDiff(path: path, alternate: alternate); return }
         let revisions = self.revisions
@@ -2516,7 +2527,7 @@ struct LogCommandRequest: Identifiable {
                     } else if revisions.count == 2, !workingTree {
                         var args = ["diff", "--no-ext-diff", "--no-color", revisions[1].hash, revisions[0].hash, "--"]
                         args += scope
-                        bytes = try await repository.run(args, cancellation: token).stdout
+                        bytes = try await repository.unifiedDiffData(arguments:args,cancellation:token)
                     } else { bytes = try await repository.revisionDiffData(revisions[0], paths:scope, workingTree:workingTree, mode:mode, cancellation:token) }
                     guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
                     if mode == .extraMergeChanges, String(decoding:bytes,as:UTF8.self).split(separator:"\n").count <= 1 {
@@ -2525,7 +2536,7 @@ struct LogCommandRequest: Identifiable {
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                     else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: "Selected revision changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
                         guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
-                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected revision changes", preferences: labelDefaults, onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
                 }
             } catch { if request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
@@ -3077,6 +3088,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func selectedFileDiff(_ ids: some Sequence<String>, alternate: Bool = false) {
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         let ids = GitPathSet(ids)
         guard !busy, !isInvalidated, !unifiedViewerBusy, selectedWorkingTree || revision != nil else { return }
         let working = selectedWorkingTree, revision = self.revision
@@ -3099,7 +3111,7 @@ struct LogCommandRequest: Identifiable {
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                     else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: working ? "Selected working-tree changes" : "Selected revision changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
                         guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated, !token.isCancelled else { return }
-                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: working ? "Selected working-tree changes" : "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: working ? "Selected working-tree changes" : "Selected revision changes", preferences: labelDefaults, onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
                 }
             } catch { if request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
@@ -3187,6 +3199,7 @@ struct LogCommandRequest: Identifiable {
         else { onCompare?(from, to) }
     }
     private func workingTreeDiff(path: String?, alternate: Bool) {
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         guard selected.count <= 2, let base = revisions.first?.hash ?? workingTreeSnapshot?.entry.parents.first else { return }
         let request = generation, selection = selected, detail = detailGeneration
         let followed = path == nil ? followedPath : nil, rows = entries
@@ -3204,13 +3217,13 @@ struct LogCommandRequest: Identifiable {
                         bytes = try await repository.revisionComparisonPatchData(snapshot, cancellation: token)
                     } else {
                         let args = ["diff", "--no-ext-diff", "--no-textconv", "--no-color", base, "--"] + scope
-                        bytes = try await repository.run(args, cancellation: token).stdout
+                        bytes = try await repository.unifiedDiffData(arguments:args,cancellation:token)
                     }
                     guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                     else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: "Working tree changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
                         guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
-                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Working tree changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Working tree changes", preferences: labelDefaults, onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
                 }
             } catch { if request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }

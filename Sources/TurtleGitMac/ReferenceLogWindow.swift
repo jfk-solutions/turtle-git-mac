@@ -709,6 +709,7 @@ import TurtleGitCore
         }
     }
     func inspect(_ ids: Set<String>, mode: ReferenceLogDiffMode = .parent(1), alternate: Bool = false) {
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         guard canInspect(ids, mode: mode) else { return }
         let chosen=entries.filter{ids.contains($0.id)},request=generation,(operation,token)=startOwned()
         busy=true;information=nil
@@ -729,7 +730,7 @@ import TurtleGitCore
                 if let onUnifiedDiff { try await onUnifiedDiff(bytes, viewerAlternate) }
                 else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: viewerAlternate, preferences: preferences, title: "Selected RefLog changes", permissions: access.map { [$0] } ?? []) {
                     guard !invalidated,!token.isCancelled,request==generation else { return }
-                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected RefLog changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected RefLog changes", preferences: preferences, onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
             } catch { if !invalidated,!token.isCancelled,request==generation { self.error = error.localizedDescription } }
         }

@@ -407,6 +407,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         switch input.lowercased() { case "working tree": return .workingTree; case "empty tree": return .emptyTree; default: return .revision(input) }
     }
     func load(inlineErrors: Bool = false) {
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         guard !closed, !busy, !confirmingQuit else { return }; cancelPendingInput(); busy = true; inputMessage = ""; error = nil
         let token = OperationCancellation(); loadToken = token;actionGeneration=UUID()
         let old = side(from), new = side(to), settings = options
@@ -526,7 +527,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     func togglePatch() {
         guard !closed, !busy, !confirmingQuit, patchWindow?.model.busy != true, patchWindow?.window?.attachedSheet == nil else { return }
         if showingPatch { patchWindow?.close(); return }
-        let controller = PatchWindowController(repository: repository, access: access)
+        let controller = PatchWindowController(repository: repository, access: access, preferences:preferences)
         RepositoryWindowTitles.set(controller.window, repository: repository.root, dialog: "Unified Diff", preferences: preferences)
         controller.model.readOnly = true
         controller.model.readOnlyInformation = "Read-only comparison. Select files in Changed Files to inspect their patch."
@@ -542,6 +543,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); updatePatch()
     }
     func showPatch(_ ids: some Sequence<String>, alternate: Bool) {
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         let ids = GitPathSet(ids)
         guard !closed, !busy, !confirmingQuit, let snapshot, !unifiedWindows.values.contains(where: { $0.model.busy }) else { return }
         let files = visibleFiles.filter { ids.contains($0.path) }
@@ -555,7 +557,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                     let bytes = try await repository.revisionComparisonPatchData(snapshot, paths: [file.path], cancellation: token)
                     guard !closed, !token.isCancelled else { return }
                     if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))", permissions: access.map { [$0] } ?? [], cancellation: token), !closed, !token.isCancelled {
-                        let controller = unifiedWindows[file.path] ?? PatchWindowController(repository: repository, access: access)
+                        let controller = unifiedWindows[file.path] ?? PatchWindowController(repository: repository, access: access, preferences:preferences)
                         controller.presentDocument(bytes, title: "\(file.path) – Unified Diff – TurtleGit",
                             comparison: "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))",
                             information: "Unified diff for \(file.path). Right-click to save the patch.", paths: [file.path], refreshAvailable: true, refresh: { [weak self, weak controller] in
@@ -563,11 +565,12 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                                 let identity = controller.documentSession.documentIdentity
                                 controller.model.busy = true
                                 let refresh = UUID(), token = OperationCancellation(); self.patchTokens[refresh] = token
+                                let repository=self.repository.capturingDiffBackend(preferences:self.preferences)
                                 Task {
                                     defer { self.patchTokens.removeValue(forKey: refresh); if !self.closed { controller.model.busy = false } }
                                     do {
                                         try self.checkPatchAccess()
-                                        let bytes = try await self.repository.revisionComparisonPatchData(snapshot, paths: [file.path], cancellation: token)
+                                        let bytes = try await repository.revisionComparisonPatchData(snapshot, paths: [file.path], cancellation: token)
                                         guard !self.closed, !token.isCancelled, controller.documentSession.documentIdentity == identity else { return }
                                         controller.documentSession.replace(bytes)
                                     } catch { if !self.closed, !token.isCancelled { controller.model.error = error.localizedDescription } }
@@ -585,6 +588,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func updatePatch() {
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         guard !closed, showingPatch, let controller = patchWindow, let snapshot else { return }
         patchGeneration += 1; let request = patchGeneration
         let paths = visibleFiles.filter { selection.contains($0.path) }.map(\.path)

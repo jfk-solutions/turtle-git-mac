@@ -480,3 +480,97 @@ int tg_revert(const char *path,const char *revision,unsigned int mainline,tg_cal
  result=git_revert(repository,commit,&options);
  done:git_commit_free(commit);git_object_free(object);git_repository_free(repository);active_context=NULL;return result;
 }
+
+// Source-selected unified output deliberately uses default diff options: no
+// rename finding, merge/context switches or old-working-copy reversal.
+typedef struct {context *ctx;size_t bytes;} diff_output;
+static int diff_bytes(diff_output *out,const char *bytes,size_t count){
+ if(stopped(out->ctx))return GIT_EUSER;
+ if(count>134217728-out->bytes){git_error_set_str(GIT_ERROR_INVALID,"Unified diff output exceeds bounds");return -1;}
+ if(out->ctx->callbacks->result&&count)out->ctx->callbacks->result(bytes,count,out->ctx->callbacks->payload);out->bytes+=count;return 0;
+}
+static int unified_line(const git_diff_delta *delta,const git_diff_hunk *hunk,const git_diff_line *line,void *payload){
+ (void)delta;(void)hunk;diff_output *out=payload;int result;
+ if(line->origin==GIT_DIFF_LINE_CONTEXT||line->origin==GIT_DIFF_LINE_ADDITION||line->origin==GIT_DIFF_LINE_DELETION){if((result=diff_bytes(out,&line->origin,1))<0)return result;}
+ return diff_bytes(out,line->content,line->content_len);
+}
+static int diff_cancel(const git_diff *diff,const git_diff_delta *delta,const char *matched,void *payload){(void)diff;(void)delta;(void)matched;return stopped(payload)?GIT_EUSER:0;}
+static int diff_progress(const git_diff *diff,const char *old_path,const char *new_path,void *payload){(void)diff;(void)old_path;(void)new_path;return stopped(payload)?GIT_EUSER:0;}
+static int source_tree(git_tree **out,git_repository *repository,const char *revision){
+ git_object *object=NULL;int result=git_revparse_single(&object,repository,revision);if(result<0)return result;
+ switch(git_object_type(object)){
+ case GIT_OBJECT_TREE:*out=(git_tree *)object;return 0;
+ case GIT_OBJECT_COMMIT:result=git_commit_tree(out,(git_commit *)object);break;
+ default:git_error_set_str(GIT_ERROR_INVALID,"Unified diff endpoint is not a tree or commit");result=GIT_ENOTFOUND;break;
+ }
+ git_object_free(object);return result;
+}
+int tg_unified_diff(const char *path,const char *old_revision,const char *new_revision,const char *const *paths,size_t count,int no_prefix,tg_callbacks *callbacks){
+ context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX};git_repository *repository=NULL;git_tree *old_tree=NULL,*new_tree=NULL;git_diff *diff=NULL,*work=NULL;git_diff_stats *stats=NULL;git_buf stat=GIT_BUF_INIT;int result=-1;diff_output out={&ctx,0};
+ active_context=&ctx;if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ if((result=git_repository_open(&repository,path))<0||(result=configure_repository(repository,&ctx))<0)goto done;
+ result=git_repository_head_unborn(repository);if(result==1){result=0;goto done;}if(result!=0)goto done;
+ git_diff_options options=GIT_DIFF_OPTIONS_INIT;options.pathspec.strings=(char **)paths;options.pathspec.count=count;options.flags|=GIT_DIFF_DISABLE_PATHSPEC_MATCH;options.notify_cb=diff_cancel;options.progress_cb=diff_progress;options.payload=&ctx;
+ if(no_prefix){options.old_prefix="";options.new_prefix="";}
+ if(!strcmp(old_revision,"WORKTREE")||!strcmp(new_revision,"WORKTREE")){
+  const char *base=!strcmp(old_revision,"WORKTREE")?new_revision:old_revision;
+  if(!*base){git_error_set_str(GIT_ERROR_INVALID,"Working diff requires a revision endpoint");result=-1;goto done;}
+  if(strcmp(base,"WORKTREE")&&(result=source_tree(&old_tree,repository,base))<0)goto done;
+  if((result=git_diff_tree_to_index(&diff,repository,old_tree,NULL,&options))<0||(result=git_diff_index_to_workdir(&work,repository,NULL,&options))<0||(result=git_diff_merge(diff,work))<0)goto done;
+ }else{
+  const char *after=new_revision,*before=old_revision;if(!*after){after=before;before="";}
+  if(!*after){git_error_set_str(GIT_ERROR_INVALID,"Unified diff requires a revision");result=-1;goto done;}
+  if((result=source_tree(&new_tree,repository,after))<0)goto done;
+  if(*before){if((result=source_tree(&old_tree,repository,before))<0)goto done;}
+  else {size_t length=strlen(after)+3;char *parent=malloc(length);if(!parent){result=-1;goto done;}snprintf(parent,length,"%s~1",after);(void)source_tree(&old_tree,repository,parent);free(parent);git_error_clear();}
+  if((result=git_diff_tree_to_tree(&diff,repository,old_tree,new_tree,&options))<0)goto done;
+ }
+ if((result=git_diff_get_stats(&stats,diff))<0||(result=git_diff_stats_to_buf(&stat,stats,GIT_DIFF_STATS_FULL,0))<0||(result=diff_bytes(&out,stat.ptr,stat.size))<0||(result=diff_bytes(&out,"\n",1))<0)goto done;
+ for(size_t i=0;i<git_diff_num_deltas(diff);i++){
+  git_patch *patch=NULL;if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+  result=git_patch_from_diff(&patch,diff,i);if(result==0&&!patch){git_error_set_str(GIT_ERROR_INVALID,"Unified patch is unavailable");result=-1;}if(result==0)result=git_patch_print(patch,unified_line,&out);git_patch_free(patch);if(result<0)goto done;
+ }
+ result=0;
+ done:git_buf_dispose(&stat);git_diff_stats_free(stats);git_diff_free(work);git_diff_free(diff);git_tree_free(old_tree);git_tree_free(new_tree);git_repository_free(repository);active_context=NULL;return result;
+}
+int tg_history_diff(const char *path,const char *revision,int simple,unsigned int threshold,tg_callbacks *callbacks){
+ context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX};git_repository *repository=NULL;git_commit *commit=NULL;git_tree *tree=NULL;git_oid oid;char **parents=NULL;size_t parent_count=0,emitted=0;int result=-1;
+ active_context=&ctx;if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ if(threshold>100||git_oid_fromstr(&oid,revision)<0){git_error_set_str(GIT_ERROR_INVALID,"Invalid history diff request");goto done;}
+ if((result=git_repository_open(&repository,path))<0||(result=configure_repository(repository,&ctx))<0||(result=git_commit_lookup(&commit,repository,&oid))<0||(result=git_commit_tree(&tree,commit))<0)goto done;
+ parent_count=git_commit_parentcount(commit);if(parent_count>4096){git_error_set_str(GIT_ERROR_INVALID,"History parent count exceeds bounds");result=-1;goto done;}
+ parents=calloc(parent_count?parent_count:1,sizeof(char *));if(!parents){result=-1;goto done;}
+ for(size_t p=0;p<parent_count;p++){parents[p]=malloc(GIT_OID_MAX_HEXSIZE+1);if(!parents[p]){result=-1;goto done;}git_oid_tostr(parents[p],GIT_OID_MAX_HEXSIZE+1,git_commit_parent_id(commit,(unsigned int)p));}
+ if(callbacks->history_header&&(result=callbacks->history_header(revision,(const char *const *)parents,parent_count,callbacks->payload))<0)goto done;
+ for(size_t p=0;p<(parent_count?parent_count:1);p++){
+  git_commit *parent=NULL;git_tree *before=NULL;git_diff *diff=NULL;
+  if(stopped(&ctx)){result=GIT_EUSER;goto parent_done;}
+  if(parent_count&&((result=git_commit_parent(&parent,commit,(unsigned int)p))<0||(result=git_commit_tree(&before,parent))<0))goto parent_done;
+  git_diff_options options=GIT_DIFF_OPTIONS_INIT;options.notify_cb=diff_cancel;options.progress_cb=diff_progress;options.payload=&ctx;
+  if((result=git_diff_tree_to_tree(&diff,repository,before,tree,&options))<0)goto parent_done;
+  if(!simple&&threshold){git_diff_find_options find=GIT_DIFF_FIND_OPTIONS_INIT;find.flags=GIT_DIFF_FIND_COPIES|GIT_DIFF_FIND_RENAMES;find.rename_threshold=find.copy_threshold=(uint16_t)threshold;if((result=git_diff_find_similar(diff,&find))<0)goto parent_done;}
+  for(size_t i=0;i<git_diff_num_deltas(diff);i++){
+   git_patch *patch=NULL;const git_diff_delta *delta=git_diff_get_delta(diff,i);tg_history_delta value={0};char old_oid[GIT_OID_MAX_HEXSIZE+1],new_oid[GIT_OID_MAX_HEXSIZE+1];
+   if(stopped(&ctx)){result=GIT_EUSER;goto parent_done;}
+   if(emitted++>=100000){git_error_set_str(GIT_ERROR_INVALID,"History delta count exceeds bounds");result=-1;goto parent_done;}
+   value.path=delta->new_file.path;value.old_path=delta->old_file.path;value.parent_index=(unsigned int)p;value.parent_hash=parent_count?parents[p]:"";value.status=delta->status;value.old_mode=delta->old_file.mode;value.new_mode=delta->new_file.mode;
+   git_oid_tostr(old_oid,sizeof(old_oid),&delta->old_file.id);git_oid_tostr(new_oid,sizeof(new_oid),&delta->new_file.id);value.old_hash=old_oid;value.new_hash=new_oid;
+   if(!simple){
+    if((result=git_patch_from_diff(&patch,diff,i))<0)goto parent_done;
+    if(!patch){git_error_set_str(GIT_ERROR_INVALID,"History patch is unavailable");result=-1;goto parent_done;}
+    delta=git_patch_get_delta(patch);value.binary=(delta->flags&GIT_DIFF_FLAG_BINARY)!=0;value.counts_known=!value.binary;value.is_directory=((delta->status==GIT_DELTA_DELETED?delta->old_file.mode:delta->new_file.mode)&S_IFDIR)==S_IFDIR;
+    if(value.counts_known&&(result=git_patch_line_stats(NULL,&value.additions,&value.deletions,patch))<0){git_patch_free(patch);goto parent_done;}
+    const git_diff_delta *next=i+1<git_diff_num_deltas(diff)?git_diff_get_delta(diff,i+1):NULL;
+    if(next&&!strcmp(delta->new_file.path,next->new_file.path)&&((delta->status==GIT_DELTA_DELETED&&next->status==GIT_DELTA_ADDED)||(delta->status==GIT_DELTA_ADDED&&next->status==GIT_DELTA_DELETED))){
+     const git_diff_delta *added=delta->status==GIT_DELTA_ADDED?delta:next,*deleted=delta->status==GIT_DELTA_DELETED?delta:next;
+     value.status=GIT_DELTA_MODIFIED;value.binary=0;value.counts_known=0;value.old_mode=deleted->old_file.mode;value.new_mode=added->new_file.mode;git_oid_tostr(old_oid,sizeof(old_oid),&deleted->old_file.id);git_oid_tostr(new_oid,sizeof(new_oid),&added->new_file.id);i++;
+    }
+   }
+   result=callbacks->history_delta?callbacks->history_delta(&value,callbacks->payload):0;git_patch_free(patch);if(result<0)goto parent_done;
+  }
+  result=0;
+  parent_done:git_diff_free(diff);git_tree_free(before);git_commit_free(parent);if(result<0)goto done;
+ }
+ result=0;
+ done:if(parents){for(size_t p=0;p<parent_count;p++)free(parents[p]);free(parents);}git_tree_free(tree);git_commit_free(commit);git_repository_free(repository);active_context=NULL;return result;
+}

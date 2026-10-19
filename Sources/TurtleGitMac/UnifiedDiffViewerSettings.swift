@@ -3,6 +3,19 @@ import SwiftUI
 import UniformTypeIdentifiers
 import TurtleGitCore
 
+/// Freeze the owning dialog's backend policy before an asynchronous read. Keep
+/// executable, rename policy, askpass and any injected runtime together.
+struct NativeDiffBackendIdentity:Equatable {
+    let enabled:Bool,mask:UInt32,helper:Data?
+    init(_ backend:GitLibGit2Configuration?) {enabled=backend?.enabled ?? true;mask=backend?.mask ?? GitLibGit2Configuration.defaultMask;helper=backend?.helperURL.map{Data($0.path.utf8)}}
+}
+extension GitRepository {
+    @MainActor func capturingDiffBackend(preferences:UserDefaults)->GitRepository {
+        let backend=GitLibGit2Configuration.load(from:preferences,helperURL:libgit2Configuration?.helperURL)
+        return GitRepository(root:root,executable:executable,askpass:askpass,diffDetection:diffDetection,libgit2Configuration:backend)
+    }
+}
+
 @MainActor enum UnifiedDiffPreviewFiles {
     private static var files: [URL: UnifiedDiffPreview] = [:]
     static func retain(_ preview: UnifiedDiffPreview) { files[preview.file] = preview }

@@ -118,11 +118,12 @@ extension GitRepository {
     public func workingTreeDiff(paths: [String]) throws -> String {
         String(decoding: try workingTreeDiffData(paths: paths), as: UTF8.self)
     }
-    public func workingTreeDiffData(paths: [String], cancellation: OperationCancellation? = nil) throws -> Data {
+    public func workingTreeDiffData(paths: [String], cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration? = nil) throws -> Data {
         try cancellation?.check()
         let head = try run(["rev-parse", "--verify", "HEAD"], successfulExitCodes: 0...128, cancellation: cancellation)
         try cancellation?.check()
-        return try run(["diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + (head.exitCode == 0 ? ["HEAD"] : ["--cached"]) + ["--"] + paths, cancellation: cancellation).stdout
+        if head.exitCode != 0,(backend ?? libgit2Configuration ?? .load()).requests(.diff) {return Data()}
+        return try unifiedDiffData(arguments:["diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + (head.exitCode == 0 ? ["HEAD"] : ["--cached"]) + ["--"] + paths,cancellation:cancellation,backend:backend)
     }
 
 }

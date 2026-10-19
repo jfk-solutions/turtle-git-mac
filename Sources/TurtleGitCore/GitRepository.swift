@@ -176,15 +176,15 @@ public actor GitRepository {
         try history()
     }
 
-    public func diff(path: String? = nil, staged: Bool = false) throws -> String {
-        try diff(paths: path.map { [$0] } ?? [], staged: staged)
+    public func diff(path: String? = nil, staged: Bool = false,backend:GitLibGit2Configuration? = nil) throws -> String {
+        try diff(paths: path.map { [$0] } ?? [], staged: staged,backend:backend)
     }
-    public func diff(paths: [String], staged: Bool = false) throws -> String {
+    public func diff(paths: [String], staged: Bool = false,backend:GitLibGit2Configuration? = nil) throws -> String {
         var args = ["-c","core.precomposeunicode=false","diff", "--no-ext-diff", "--no-color"]
         if staged { args.append("--cached") }
         args.append("--")
         args += paths
-        return try run(args).text
+        return String(decoding:try unifiedDiffData(arguments:args,backend:backend),as:UTF8.self)
     }
     public func stage(_ paths: [String], cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check(); guard !paths.isEmpty else { return }

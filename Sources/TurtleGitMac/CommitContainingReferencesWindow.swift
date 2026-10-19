@@ -286,6 +286,7 @@ extension CommitContainingReferencesWindowController: NSMenuDelegate {
         case "compare" where names.count == 2: onCompare?(.revision(names[0].rawValue), .revision(names[1].rawValue))
         case "range", "symmetric": if let range = ReferenceBrowserRange(references: names, lastSelected: lastSelected) { onLog?(nil, false, range.history(symmetric: command == "symmetric")) }
         case "unified" where names.count == 2:
+            let repository=self.repository.capturingDiffBackend(preferences:preferences)
             let alternate = NSApp.currentEvent?.modifierFlags.contains(.shift) == true
             performRead { [weak self] token in
                 guard let self else { return }
@@ -294,7 +295,7 @@ extension CommitContainingReferencesWindowController: NSMenuDelegate {
                 guard externalAvailability(), !closed, !token.isCancelled else { return }
                 if let onUnified { try await onUnified(bytes, alternate) }
                 else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: names.map(\.rawValue).joined(separator: ":"), permissions: access.map { [$0] } ?? [], cancellation: token), externalAvailability(), !closed, !token.isCancelled {
-                    unifiedViewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedViewer, title: names.map(\.rawValue).joined(separator: ":"), onClosed: { [weak self] in self?.unifiedViewer = nil })
+                    unifiedViewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedViewer, title: names.map(\.rawValue).joined(separator: ":"), preferences: preferences, onClosed: { [weak self] in self?.unifiedViewer = nil })
                 }
             }
         default: break

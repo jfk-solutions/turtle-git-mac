@@ -4,6 +4,8 @@ TurtleGit includes an optional libgit2 engine for checkbox Commit preparation, A
 operations in Synchronization, including Fetch & Rebase and fetching a tag.
 It also lists remote references, deletes remote tags/branches, and materializes
 historical files when their corresponding source command-mask bits are enabled.
+Selected Reset, Log commit reversion, unified patch display and history changed-file
+lists also have their own captured source-engine branches.
 The normal Clone/Fetch defaults remain Git commands, matching TortoiseGit's
 per-command defaults. SVN, ordinary Pull/Merge, Push, Prune and Remote Update
 continue through their existing command workflows.
@@ -18,6 +20,22 @@ A requested engine
 that is missing reports an error; it does not silently change the selected engine.
 The backend choice is captured when an operation starts, so editing Settings
 cannot change an operation already waiting for a folder, key or credential.
+
+Unified patch display uses Diff bit `0x10`; historical changed-file lists and
+history file searches use LogListDiff bit `0x8000`. Both are off in the source
+default mask. Selected unified output includes source full statistics and patch
+bytes; its context, merge and rename defaults differ from Git command output.
+Index-only and editable staging patches keep their existing Git reader. History
+lists retain actual merge-parent groups, renamed paths, binary counts and object
+metadata; changing engines cannot reuse a cache belonging to the other engine.
+See the [diff/history source scope](DIFF-BACKEND-PARITY.md).
+
+Reset uses bit `0x20` and Log commit reversion uses bit `0x40`, also off by
+default. Their accepted attempt captures its engine before work starts. Hard
+Reset can recycle originals through checked prewrite notifications, and its
+result list retains actual updated paths. Source-library conflict and partial
+failure behavior is retained for explicit review/recovery. See
+[Reset/revert scope](RESET-REVERT-BACKEND-PARITY.md).
 
 Add uses bit `0x400` (decimal `1024`), already enabled in the source default
 mask. Its normal, executable and symlink actions apply the selected engine to the

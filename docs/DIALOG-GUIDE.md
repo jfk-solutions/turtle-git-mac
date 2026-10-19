@@ -863,6 +863,13 @@ the first non-space/tab character and the beginning of the logical line; add
 Shift to extend the selection. Command-Home still moves to the document start.
 Find, Go To Line and explicit section expansion continue to reveal their targets.
 
+Option-arrow word movement and Shift selection use the configured Merge word
+separators, including punctuation runs. Option-Delete and Option-forward-Delete
+remove to the same boundary; delivered Control-Backspace/Delete events use those
+commands too. Existing selections are deleted as selected. Word movement crosses
+empty lines and alignment gaps until the next word boundary. Native composed
+characters stay intact. See [word input behavior](MERGE-WORD-INPUT-PARITY.md).
+
 Backspace and forward Delete join real lines across alignment gaps; an actual
 blank line remains file content. A selection across a collapsed section includes
 its underlying text, so deleting across that section removes that text too.

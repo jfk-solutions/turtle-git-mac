@@ -473,6 +473,7 @@ final class StatusNativeWindow: NSWindow {
         }
     }
     func reload() {
+        let repository=self.repository.capturingDiffBackend(preferences:defaults)
         guard !retired, !busy, !confirmingQuit else { return }
         if let embeddedReload {embeddedReload();return}
         menuGeneration = UUID(); refreshRequested = false
@@ -541,6 +542,7 @@ final class StatusNativeWindow: NSWindow {
         }, completed: { [self] in reload(); onChanged() }, failed: { [self] in reload(); onChanged() })
     }
     func diff(_ ids: some Sequence<String>, saving: Bool = false) { let ids = GitPathSet(ids);
+        let repository=self.repository.capturingDiffBackend(preferences:defaults)
         guard !retired, !busy, !confirmingQuit else { return }
         if !saving {
             let paths = sortedRows.filter { ids.contains($0.id) }.map(\.id)
@@ -561,6 +563,7 @@ final class StatusNativeWindow: NSWindow {
         presentUnifiedDiff(paths: paths, alternate: alternate)
     }
     private func presentUnifiedDiff(paths: [String], alternate: Bool) {
+        let repository=self.repository.capturingDiffBackend(preferences:defaults)
         guard !unifiedViewerBusy else { return }
         let owner = comparisonWindow
         runOperation("Preparing unified diff…", operation: { [self] token in
@@ -571,7 +574,7 @@ final class StatusNativeWindow: NSWindow {
                 if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                 else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: defaults, title: "HEAD → Working tree", permissions: access.map { [$0] } ?? [], cancellation: token) {
                     guard isLive(token) else { return }
-                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "HEAD → Working tree", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "HEAD → Working tree", preferences: defaults, onClosed: { [weak self] in self?.unifiedWindow = nil })
             }
             }
         })

@@ -151,7 +151,7 @@ extension GitRepository {
     /// Hash the inputs which can change the interpretation of a commit's trees.
     /// Attributes are fingerprinted using the cached paths on lookup and the new
     /// paths after a miss, including every parent directory and renamed source.
-    func historyFileCacheContext(_ entry: LogEntry, cancellation: OperationCancellation?) throws -> (key: String, context: String, infoAttributes: URL, globalAttributes: URL) {
+    func historyFileCacheContext(_ entry: LogEntry, cancellation: OperationCancellation?,backend:GitLibGit2Configuration? = nil) throws -> (key: String, context: String, infoAttributes: URL, globalAttributes: URL) {
         let hashes = [entry.hash] + (entry.parents.first.map { [$0] } ?? [])
         guard hashes.allSatisfy({ ($0.count == 40 || $0.count == 64) && $0.allSatisfy { $0.isASCII && $0.isHexDigit } }) else { throw RevisionComparisonFailure.range }
         func metadataPath(_ name: String) throws -> URL {
@@ -172,13 +172,17 @@ extension GitRepository {
         let home = environment["HOME"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser
         let xdg = environment["XDG_CONFIG_HOME"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0) } ?? home.appendingPathComponent(".config")
         let global = configured.isEmpty ? xdg.appendingPathComponent("git/attributes") : (configured.hasPrefix("/") ? URL(fileURLWithPath: configured) : root.appendingPathComponent(configured))
-        let engine = try FileManager.default.attributesOfItem(atPath: executable.path)
-        let key = HistoryFileCache.digest([root.resolvingSymlinksInPath().path, executable.path] + hashes)
+        let selected=backend ?? libgit2Configuration ?? .load()
+        let helper=try selected.executor(for:.logListDiff)
+        let engineURL=helper ?? executable
+        let engine = try FileManager.default.attributesOfItem(atPath: engineURL.path)
+        let engineIdentity=(helper == nil ? "git:":"libgit2-history15:")+engineURL.path
+        let key = HistoryFileCache.digest([root.resolvingSymlinksInPath().path, executable.path,engineIdentity] + hashes)
         let indexDigest: String
         do { indexDigest = HistoryFileCache.digest(try HistoryFileCache.readFile(index.path, cancellation: cancellation)) }
         catch let error as NSError where error.domain == NSPOSIXErrorDomain && error.code == Int(ENOENT) { indexDigest = "absent" }
         let diffEnvironment = ["GIT_DIFF_OPTS", "GIT_ATTR_SOURCE", "GIT_ATTR_NOSYSTEM"].map { $0 + "=" + (environment[$0] ?? "") }
-        let context = HistoryFileCache.digest(trees + ["diff-detection-v1=" + diffDetection.historyArguments.joined(separator: ","), HistoryFileCache.digest(config), indexDigest, String(describing: engine[.modificationDate]), String(describing: engine[.size])] + diffEnvironment)
+        let context = HistoryFileCache.digest(trees + [engineIdentity,"diff-detection-v1=" + diffDetection.historyArguments.joined(separator: ","), HistoryFileCache.digest(config), indexDigest, String(describing: engine[.modificationDate]), String(describing: engine[.size])] + diffEnvironment)
         return (key, context, info, global)
     }
     func historyFileAttributesFingerprint(_ files: [CommitFile], info: URL, global: URL, cancellation: OperationCancellation?) throws -> String {

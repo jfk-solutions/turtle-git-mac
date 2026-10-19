@@ -655,6 +655,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         if unified { onUnifiedPair?(pair, alternate) } else { onComparePair?(pair) }
     }
     func generateUnified(_ pair: ReferenceBrowserComparison, alternate: Bool, present: @escaping (Data, Bool) async throws -> Void) {
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         guard canComparePair else { return }
         let request = OperationCancellation(); token = request; busy = true; generatingUnified = true
         Self.activeComparisons += 1

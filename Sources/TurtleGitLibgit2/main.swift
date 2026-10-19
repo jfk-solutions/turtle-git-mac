@@ -54,7 +54,7 @@ struct Arguments{
             if arg == "--turtlegit-reset-notifications"{guard !resetNotifications else{try refuse("Repeated Reset notification request")};resetNotifications=true;continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         guard !transferNotifications || command == "clone" || command == "fetch" else{try refuse("Transfer notifications require Clone or Fetch")}
@@ -105,7 +105,9 @@ struct Arguments{
             }else{operands.append(arg)}
         }
         guard configs.count<=2048 else{try refuse("Too many command configuration values")}
-        if command == "reset" || command == "revert" {
+        if command == "turtlegit-unified-diff" || command == "turtlegit-history-diff" {
+            guard operands.isEmpty else{try refuse("Private diff command requires only a stdin request")}
+        }else if command == "reset" || command == "revert" {
             guard operands.count==1,!operands[0].isEmpty,!operands[0].contains("\0"),operands[0].utf8.count<=1_048_576,command != "revert" || revertNoCommit else{try refuse("Reset/Revert requires one explicit revision; Revert requires --no-commit")};revision=operands[0]
             guard environment["TURTLEGIT_RESET_RECYCLE_DIRECTORY"] == nil || resetMode==3 else{try refuse("Recycle exchange requires Hard Reset")}
         }else if command == "clone"{
@@ -131,6 +133,30 @@ struct Arguments{
                 guard parts.count==2 else{return value};let target=String(parts[1]);return String(parts[0])+":"+((target.hasPrefix("remotes/") || target.hasPrefix("heads/") || target.hasPrefix("tags/")) ? "refs/"+target:target)
             }}
             guard !remote.isEmpty,refspecs.count<=4096 else{try refuse("Invalid fetch remote/refspec")}
+        }
+    }
+}
+
+struct PrivateDiffRequest {
+    struct Unified:Decodable {let version:Int;let old:String;let new:String;let paths:[String];let noPrefix:Bool}
+    struct History:Decodable {let version:Int;let revision:String;let simple:Bool;let threshold:UInt32}
+    let unified:Unified?,history:History?
+    static func fullOID(_ value:String)->Bool {value.utf8.count==40 && value.utf8.allSatisfy{(48...57).contains($0)||(65...70).contains($0)||(97...102).contains($0)}}
+    init(command:String)throws {
+        var data=Data()
+        while let part=try FileHandle.standardInput.read(upToCount:65536),!part.isEmpty {guard !cancelled(),part.count<=2_097_152-data.count else{try refuse("Diff request exceeds bounds or was cancelled")};data.append(part)}
+        guard let fields=try JSONSerialization.jsonObject(with:data) as? [String:Any] else{try refuse("Invalid diff request")}
+        if command == "turtlegit-unified-diff" {
+            guard Set(fields.keys)==Set(["version","old","new","paths","noPrefix"]) else{try refuse("Invalid unified diff request fields")}
+            let value=try JSONDecoder().decode(Unified.self,from:data)
+            guard value.version==1,(!value.old.isEmpty || !value.new.isEmpty),[value.old,value.new].allSatisfy({$0.isEmpty || $0=="WORKTREE" || Self.fullOID($0)}),value.paths.count<=100_000,
+                  value.paths.allSatisfy({!$0.isEmpty && !$0.contains("\0") && $0.utf8.count<=1_048_576 && !$0.hasPrefix("/") && !$0.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0==".."})}) else{try refuse("Invalid unified diff endpoints or paths")}
+            unified=value;history=nil
+        }else {
+            guard Set(fields.keys)==Set(["version","revision","simple","threshold"]) else{try refuse("Invalid history diff request fields")}
+            let value=try JSONDecoder().decode(History.self,from:data)
+            guard value.version==1,Self.fullOID(value.revision),value.threshold<=100 else{try refuse("Invalid history diff request")}
+            unified=nil;history=value
         }
     }
 }
@@ -240,6 +266,49 @@ final class CallbackContext{
             }
         }
         _=resetNotification({["kind":"file","path":path]})
+    }
+    var historySimple=false
+    private var historyCount=0,historyBytes=0,historyFailed=false
+    private var historyPaths:[Data:String]=[:]
+    private var historyPathBytes=0
+    func historyRecord(_ object:[String:Any])throws {
+        guard !cancelled(),!historyFailed else{try refuse("History diff cancelled or failed")}
+        let data=try JSONSerialization.data(withJSONObject:object,options:[.sortedKeys])
+        let frame=Data(("TurtleGit HistoryDiff v1:"+data.base64EncodedString()+"\n").utf8)
+        guard frame.count<=2_097_152,historyCount<100_000,frame.count<=67_108_864-historyBytes else{historyFailed=true;try refuse("History diff output exceeds bounds")}
+        try FileHandle.standardOutput.write(contentsOf:frame);historyCount+=1;historyBytes+=frame.count
+    }
+    func historyHeader(_ revision:UnsafePointer<CChar>?,parents:UnsafePointer<UnsafePointer<CChar>?>?,count:Int)throws {
+        guard count>=0,count<=4096,count==0 || parents != nil else{try refuse("Invalid history parent metadata")}
+        let revision=try notificationString(revision)
+        let values=try (0..<count).map{try notificationString(parents![$0])}
+        guard PrivateDiffRequest.fullOID(revision),values.allSatisfy(PrivateDiffRequest.fullOID) else{try refuse("Invalid history object IDs")}
+        try historyRecord(["kind":"header","revision":revision,"parents":values])
+    }
+    func historyDelta(_ pointer:UnsafePointer<tg_history_delta>?)throws {
+        guard let value=pointer?.pointee else{try refuse("Missing history delta")}
+        let path=try notificationString(value.path)
+        guard !path.isEmpty,!path.contains("\0"),!path.hasPrefix("/"),!path.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0.isEmpty || $0=="." || $0==".."}) else{try refuse("Invalid history path")}
+        if historySimple {
+            let key=Data(path.utf8)
+            guard historyPaths.count<100_000 || historyPaths[key] != nil,key.count<=67_108_864-historyPathBytes else{try refuse("History simple paths exceed bounds")}
+            if historyPaths[key]==nil {historyPaths[key]=path;historyPathBytes+=key.count};return
+        }
+        let statuses=[1:"A",2:"D",3:"M",4:"R",5:"C",8:"T"]
+        guard let status=statuses[Int(value.status)] else{try refuse("Unsupported history delta status")}
+        let oldPath=try notificationString(value.old_path),oldOID=try notificationString(value.old_hash),newOID=try notificationString(value.new_hash)
+        guard PrivateDiffRequest.fullOID(oldOID),PrivateDiffRequest.fullOID(newOID) else{try refuse("Invalid history delta object IDs")}
+        let none=NSNull()
+        try historyRecord(["kind":"delta","parentIndex":value.parent_index,"status":status,"path":path,"oldPath":oldPath.utf8.elementsEqual(path.utf8) ? none:oldPath as Any,"oldOID":oldOID,"newOID":newOID,"oldMode":value.old_mode,"newMode":value.new_mode,"binary":value.binary != 0,"added":value.counts_known != 0 ? UInt64(value.additions) as Any:none,"deleted":value.counts_known != 0 ? UInt64(value.deletions) as Any:none])
+    }
+    func finishHistory()throws {
+        if historySimple {
+            let paths=historyPaths.values.sorted{$0.utf16.lexicographicallyPrecedes($1.utf16)}
+            historyPaths=[:]
+            for path in paths {try historyRecord(["kind":"path","path":path])}
+        }
+        // Exclude the header; end is a framing receipt, not a result row.
+        try historyRecord(["kind":"end","count":max(0,historyCount-1)])
     }
     var currentURL="",credentialRealm=Data(),credentials:(String,String)?,credentialUses=0,prompts=0
     var accepted:Set<Data>=[]
@@ -454,6 +523,7 @@ func run()throws->Int32{
             }
         }
     }
+    let diffRequest=try (args.command == "turtlegit-unified-diff" || args.command == "turtlegit-history-diff") ? PrivateDiffRequest(command:args.command):nil
     let owner=CallbackContext(directory:args.directory,configs:args.configs);var options=callbacks(owner);options.verbose=args.verbose ? 1:0;options.force_fetch=args.force ? 1:0
     if args.transferNotifications {
         options.reference_updated={repository,name,old,new,change,count,raw in
@@ -486,8 +556,19 @@ func run()throws->Int32{
             }
         }
     }
+    if let request=diffRequest?.history {
+        owner.historySimple=request.simple
+        options.history_header={revision,parents,count,raw in
+            do{try context(raw).historyHeader(revision,parents:parents,count:count);return 0}catch{output("History diff: "+error.localizedDescription+"\n");return -1}
+        }
+        options.history_delta={delta,raw in
+            do{try context(raw).historyDelta(delta);return 0}catch{output("History diff: "+error.localizedDescription+"\n");return -1}
+        }
+    }
     let result:Int32=withStrings(args.configs){config,count in
         options.config_values=config;options.config_count=count
+        if let request=diffRequest?.unified {return withStrings(request.paths){paths,count in tg_unified_diff(args.directory,request.old,request.new,paths,count,request.noPrefix ? 1:0,&options)}}
+        if let request=diffRequest?.history {return tg_history_diff(args.directory,request.revision,request.simple ? 1:0,request.threshold,&options)}
         if args.command == "reset"{return tg_reset(args.directory,args.revision,args.resetMode,&options)}
         if args.command == "revert"{return tg_revert(args.directory,args.revision,args.mainline,&options)}
         if args.command == "turtlegit-prepare-index"{return withStrings(prepareOperations){operations,count in withStrings(addPaths){paths,_ in prepareModes.withUnsafeBufferPointer{modes in tg_prepare_index(args.directory,args.privateIndex!,operations,paths,modes.baseAddress,count,&options)}}}}
@@ -501,6 +582,7 @@ func run()throws->Int32{
         return withStrings(args.refspecs){refs,count in tg_fetch(args.directory,args.remote,refs,count,args.all ? 1:0,Int32(args.tags),Int32(args.prune),Int32(args.depth),&options)}
     }
     if result<0{output("libgit2: "+String(cString:tg_git_error())+"\n");return cancelled() ? 130:1}
+    if diffRequest?.history != nil {try owner.finishHistory()}
     return 0
 }
 do{exit(try run())}catch{output("turtlegit-libgit2: "+error.localizedDescription+"\n");exit(cancelled() ? 130:2)}

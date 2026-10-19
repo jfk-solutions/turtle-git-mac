@@ -1,0 +1,129 @@
+{
+  "date": "2026-10-20",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "validation": [
+    {
+      "scope": "Initial grouped Core checkpoint",
+      "status": "failed",
+      "executed": 38,
+      "failures": 6,
+      "unexpected": 0,
+      "log": "build/qa/diff-word-core-2026-10-20.log",
+      "finding": "Six assertions in one word method exposed Foundation NSString accepting the interior CRLF position as a composed-character boundary",
+      "repair": "Explicitly refuse the position between CR and LF in word caret validation; retained every assertion",
+      "other_passes": {
+        "diff_history_methods": 20,
+        "existing_pane_input_methods": 7,
+        "word_methods": 10
+      }
+    },
+    {
+      "scope": "Affected word class after CRLF repair",
+      "status": "passed",
+      "executed": 11,
+      "failures": 0,
+      "log": "build/qa/merge-word-core-crlf-repair-2026-10-20.log",
+      "duration_seconds": 0.004
+    },
+    {
+      "scope": "Initial Debug app build",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/diff-word-app-2026-10-20.log",
+      "limit": "Began before subsequent word Core CRLF repair and final Help freeze; final build below is acceptance artifact"
+    },
+    {
+      "scope": "Final incremental Debug app after CRLF repair and Help freeze",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/diff-word-app-final-2026-10-20.log",
+      "framework_sha256": "439de4f7f56dd3136257d469ffc493515ed90a1b11b98a014f6ffd316662f8b2",
+      "embedded_framework_matches": true
+    },
+    {
+      "scope": "Grouped actual native workflows",
+      "status": "passed",
+      "exit_code": 0,
+      "cases": [
+        "navigation",
+        "words",
+        "word-editing",
+        "word-ownership"
+      ],
+      "git_engines": [
+        "system Apple Git 2.54",
+        "bundled Git 2.55.0"
+      ],
+      "case_engine_pairs": 8,
+      "log": "build/qa/merge-word-native-2026-10-20.log",
+      "receiver_pids": [
+        92439,
+        92536,
+        92628,
+        92659,
+        92686,
+        92804,
+        92922,
+        92981
+      ],
+      "all_receivers_reaped_and_independently_absent": true,
+      "windows": "Private repositories/preferences, prohibited activation, swizzled hidden/offscreen windows including sheets; cleanup on all exits"
+    }
+  ],
+  "remaining_acceptance": [
+    "Full hosted CI",
+    "Physical keyboard/menu and accessibility interaction",
+    "Signed sandbox/Finder deployment and App Store distribution",
+    "Complete upstream application parity"
+  ],
+  "family": "Source-configured Compare and Merge word movement, selection and deletion",
+  "implementation": [
+    "Source separator transitions and line-edge/blank-row behavior",
+    "Actual word selectors, Shift aliases and delivered Control-delete commands",
+    "Cached source geometry with dynamic owning separators and edit/Undo invalidation",
+    "Empty-aware aligned deletion, folded source spans and existing peer/history ownership",
+    "Native composed-character and atomic CRLF adaptation; malformed caret refusal"
+  ],
+  "checkpoint_summary": {
+    "status": "passed scoped checkpoint",
+    "no_complete_port_claim": true,
+    "repeated_checks": "Only helper build after unsupported diagnostic class and word Core after CRLF failure; final incremental app required changed Core/Help. Passed diff/history Core not repeated. Native group passed first attempt."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/MergePaneInput.swift": "673c569e943717ce1c55b9c3fae8af4e63464940c9a0377dd2d45f2fdd9f80aa",
+    "Sources/TurtleGitMac/MergeFoldingController.swift": "8b39b11d2fb0a90fd247d074fb140462ba9a4577d00e9b778d11ed0472984cc8",
+    "Tests/TurtleGitCoreTests/MergePaneWordInputTests.swift": "fc8821d36112726a5de823aaa2d8f941e84e39641aca9a3b83d07f634f11209a",
+    "docs/qa/merge-word-input-native-2026-10-20.swift": "80e23930af6321341e859cf04fe44cdb6e9e397c2441f0c885352f46e6ed4f1a",
+    "scripts/test-merge-pane-input.py": "c6c8b01923b9d4eced64530fdb1587391aff5927e383005636012bd34092db4a"
+  },
+  "documentation_checks": {
+    "localization": {
+      "status": "passed",
+      "languages": 38,
+      "keys": 1301
+    },
+    "bundled_help": {
+      "status": "passed",
+      "documents": 42,
+      "topics": 50,
+      "files": 62,
+      "bytes": 3618411
+    },
+    "site": {
+      "status": "passed",
+      "documents": 367,
+      "unresolved_fragments": [],
+      "log": "build/qa/diff-word-site-2026-10-20.log"
+    },
+    "dialog_coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1572,
+      "pending_control_reviews": 87,
+      "limit": "Resource coverage, not feature completion"
+    }
+  }
+}

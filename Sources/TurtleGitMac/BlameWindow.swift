@@ -373,17 +373,21 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     var readSourceParents:((String,String,OperationCancellation) async throws -> [GitBlameParentComparison])?
     var readHistoryPatch:((RevisionComparisonSnapshot,OperationCancellation) async throws -> Data)?
     private var historyParentCache:[String:[GitBlameParentComparison]]=[:]
+    private var historyParentBackendIdentity:NativeDiffBackendIdentity?
     private var historyParentToken:OperationCancellation?
     private var historyParentRequest=UUID()
     private var sourceParentToken:OperationCancellation?
     @Published private(set) var readingHistoryParents=false
     func cachedHistoryParents(_ target:HistoryTarget)->[GitBlameParentComparison] {
-        guard acceptsHistory(target),target.entries.count==1 else { return [] };return historyParentCache[target.entries[0].hash] ?? []
+        guard acceptsHistory(target),target.entries.count==1,historyParentBackendIdentity == NativeDiffBackendIdentity(repository.capturingDiffBackend(preferences:labelDefaults).libgit2Configuration) else { return [] };return historyParentCache[target.entries[0].hash] ?? []
     }
     private var unifiedReadTokens:[UUID:OperationCancellation]=[:]
     func prepareHistoryParents(_ target:HistoryTarget,completion:@escaping ([GitBlameParentComparison])->Void) {
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         guard acceptsHistory(target),target.entries.count==1,let snapshot else { completion([]);return }
         let hash=target.entries[0].hash
+        let backendIdentity=NativeDiffBackendIdentity(repository.libgit2Configuration)
+        if historyParentBackendIdentity != backendIdentity {historyParentCache=[:];historyParentBackendIdentity=backendIdentity}
         historyParentToken?.cancel();historyParentToken=nil;historyParentRequest=UUID();let request=historyParentRequest
         readingHistoryParents=false
         if let choices=historyParentCache[hash] { completion(choices);return }
@@ -401,6 +405,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     enum ParentAction { case previous,compare,unified }
     func performHistoryParent(_ target:HistoryTarget,choices:[GitBlameParentComparison],action:ParentAction,alternate:Bool = false,originalLine:Int = 1) {
+        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         guard acceptsHistory(target),target.entries.count==1,!choices.isEmpty,
               choices.allSatisfy({ choice in
                   choice.parentNumber>0 && choice.comparison.root==repository.root && choice.comparison.from == .revision(choice.revision) && choice.comparison.to == .revision(target.entries[0].hash) && choice.comparison.files.count==1 && choice.comparison.files.first.map { GitReferenceName.equal(choice.path,$0.oldPath ?? $0.path) } == true

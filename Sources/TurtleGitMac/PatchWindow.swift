@@ -303,6 +303,7 @@ import UniformTypeIdentifiers
         return "Select changed lines, or place the caret in a hunk. Right-click for staging actions."
     }
     func reload(paths: [String], staged: Bool, discardingEdits: Bool = false,displayLegacyEncoding:ComparisonTextEncoding? = nil) {
+        let repository=self.repository.capturingDiffBackend(preferences:appearancePreferences)
         guard !retired, !applying, !confirmingQuit, !showPageSetup else { return }
         let legacy=displayLegacyEncoding ?? .legacyEncoding(from:appearancePreferences)
         if documentDirty && !discardingEdits {requestReload?(paths,staged,legacy);return}
