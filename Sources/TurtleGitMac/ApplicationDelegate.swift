@@ -125,6 +125,7 @@ import AppKit
             (window.delegate as? FileCopyWindowController)?.model.confirmingQuit = value
             (window.delegate as? ResolveWindowController)?.model.confirmingQuit = value
             (window.delegate as? AddProgressWindowController)?.model.confirmingQuit = value
+            (window.delegate as? RevertProgressWindowController)?.model.confirmingQuit = value
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -141,7 +142,7 @@ import AppKit
         if BranchTagWindowController.activeReleases > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? CreateRepositoryWindowController }).contains(where: { !$0.model.canClose || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if CommitWindowModel.activeIssueProviderOperations > 0 { return .terminateCancel }
-        if RevertProgressWindowModel.activeOperations > 0 { return .terminateCancel }
+        if RevertProgressWindowModel.activeOperations > 0 || RevertProgressWindowController.activeReleases > 0 || sender.windows.compactMap({$0.delegate as? RevertProgressWindowController}).contains(where:{$0.model.fileActionBusy || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil}) { return .terminateCancel }
         if FileDropTransferModel.activePreparations > 0 || FileDropTransferWindowController.activeReleases > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? FileDropTransferWindowController }).contains(where: { !$0.model.retired }) { return .terminateCancel }
         if ReferenceBrowserWindowModel.activeComparisons > 0 || ReferenceBrowserWindowController.activeChildReleases > 0 || RenameWindowModel.activeOperations > 0 || ReferenceBrowserWindowModel.activeMutations > 0 { return .terminateCancel }

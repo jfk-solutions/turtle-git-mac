@@ -11,18 +11,33 @@ private final class RevertProgressNativeWindow: NSWindow {
 }
 
 @MainActor final class RevertProgressWindowController: NSWindowController, NSWindowDelegate {
+    static private(set) var activeReleases=0
     let model: RevertProgressWindowModel
+    let progressFiles:FileOperationProgressFiles
+    var onProgressLog:(String)->Void = {_ in}
+    private var closed=false,finishing=false
+    private var handoff:((Bool)->Void)?
+    var presentQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool = {window,alert,reply in guard window.attachedSheet==nil else{return false};alert.beginSheetModal(for:window,completionHandler:reply);return true}
     var onClosed: () -> Void = {}
     private var question: (UUID, NSAlert, (Bool) -> Void)?
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool, againstHead: Bool, autoCloseSuccess: Bool, preferences: UserDefaults = .standard) {
         model = RevertProgressWindowModel(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess, preferences: preferences)
+        progressFiles=FileOperationProgressFiles(repository:repository,access:access)
         let window = RevertProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 550), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Revert Progress", preferences: preferences)
         window.contentMinSize = NSSize(width: 800, height: 410); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: RevertProgressDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: RevertProgressDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: 1000, height: 550)); window.center()
-        model.close = { [weak window] in window?.performClose(nil) }
+        model.close = { [weak self] in self?.finish() }
+        model.finishAndPerform = { [weak self] reply in guard let self else {reply(false);return};self.finish(reply) }
+        progressFiles.window=window
+        progressFiles.available={ [weak model] in model?.progressOwnerAvailable==true }
+        progressFiles.onBusy={ [weak model] in model?.fileActionBusy=$0 }
+        progressFiles.onLog={ [weak self] in self?.onProgressLog($0) }
+        progressFiles.onError={ [weak model] in model?.information=$0 }
+        model.onProgressFileAction={ [weak self] action,path in self?.progressFiles.perform(action,path:path) }
+        model.revealSavedCopies={ [weak self] in self?.progressFiles.reveal($0) }
         model.confirmCancellation = { [weak self] in await self?.askCancellation() ?? false }
         window.escape = { [weak model] in guard let model else { return }; if model.busy { model.cancel() } else { model.close() } }
 
@@ -31,15 +46,40 @@ private final class RevertProgressNativeWindow: NSWindow {
     private func askCancellation() async -> Bool {
         guard !model.retired, question == nil, let window, window.attachedSheet == nil else { return false }
         let alert = NSAlert(); alert.messageText = "The operation is still running."; alert.informativeText = "Stop Revert after its current filesystem or Git step? Completed changes remain recoverable through the result."; alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+        alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
         let id = UUID()
-        return await withCheckedContinuation { continuation in question = (id, alert, { continuation.resume(returning: $0) }); alert.beginSheetModal(for: window) { [weak self] response in self?.finishQuestion(id, accepted: response == .alertFirstButtonReturn) } }
+        return await withCheckedContinuation { continuation in
+            question = (id, alert, { continuation.resume(returning: $0) })
+            if !presentQuestion(window,alert,{ [weak self] response in self?.finishQuestion(id,accepted:response == .alertFirstButtonReturn) }) {finishQuestion(id,accepted:false)}
+        }
     }
     private func finishQuestion(_ id: UUID, accepted: Bool) {
         guard let pending = question, pending.0 == id else { return }; question = nil
-        if pending.1.window.sheetParent === window { window?.endSheet(pending.1.window) }; pending.1.window.orderOut(nil); pending.2(accepted)
+        Task {await FileOperationWindowDrain.detach(pending.1.window);pending.2(accepted)}
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.confirmingCancellation && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.retire(); if let pending = question { finishQuestion(pending.0, accepted: false) }; onClosed() }
+    private func finish(_ reply:((Bool)->Void)?=nil) {
+        guard !closed,!finishing,model.progressActionsAvailable,window?.attachedSheet==nil else {reply?(false);return}
+        finishing=true;handoff=reply;window?.orderOut(nil);close()
+    }
+    func windowShouldClose(_ sender:NSWindow)->Bool {
+        if model.busy {model.cancel();return false}
+        guard model.progressActionsAvailable,sender.attachedSheet==nil else{return false};finish();return false
+    }
+    override func close(){super.close();retireClosedWindow()}
+    func windowWillClose(_ notification:Notification){retireClosedWindow()}
+    private func retireClosedWindow() {
+        guard !closed else{return};closed=true
+        let accepted=finishing,reply=handoff,sheet=window?.attachedSheet;handoff=nil
+        model.retire();progressFiles.retire();if let pending=question{finishQuestion(pending.0,accepted:false)}
+        Self.activeReleases += 1
+        Task { [self] in
+            defer {Self.activeReleases -= 1}
+            if let sheet {await FileOperationWindowDrain.detach(sheet)}
+            if let window {await FileOperationWindowDrain.detach(window)}
+            while model.busy || model.confirmingCancellation || progressFiles.busy {try? await Task.sleep(nanoseconds:5_000_000)}
+            onClosed();reply?(accepted && !model.confirmingQuit && model.externalAvailability())
+        }
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -51,6 +91,7 @@ private struct RevertProgressRow: Identifiable {
 }
 
 @MainActor final class RevertProgressWindowModel: ObservableObject, ActionLogProgress {
+    let progress:FileOperationProgressState
     let progressPresentation: GitCommandPresentation
     static private(set) var activeOperations = 0
     let repository: GitRepository
@@ -67,6 +108,15 @@ private struct RevertProgressRow: Identifiable {
     private var completedSuccessfully = false
     private var rowIndices: GitPathMap<Int> = [:]
     @Published fileprivate var rows: [RevertProgressRow] = []
+    var externalAvailability:()->Bool = {true}
+    @Published var confirmingQuit=false
+    @Published var fileActionBusy=false
+    @Published private(set) var handoffPending=false
+    var progressOwnerAvailable:Bool {!busy && !retired && !confirmingQuit && !confirmingCancellation && !handoffPending && externalAvailability()}
+    var progressActionsAvailable:Bool {progressOwnerAvailable && !busy && !fileActionBusy}
+    var onProgressFileAction:(FileOperationProgressAction,String)->Void = {_,_ in}
+    var finishAndPerform:((@escaping(Bool)->Void)->Void) = {$0(false)}
+    var revealSavedCopies:([URL])->Void = {NSWorkspace.shared.activateFileViewerSelecting($0)}
     @Published var busy = true
     @Published private(set) var confirmingCancellation = false
     @Published var cancelRequested = false
@@ -86,9 +136,10 @@ private struct RevertProgressRow: Identifiable {
     var onFinished: (String, Bool) -> Void = { _, _ in }
     var execute: (([StatusEntry], OperationCancellation, @escaping @Sendable (WorkingFileRevertProgress) -> Void, @escaping @Sendable (GitOutputChunk) -> Void) async throws -> WorkingFileRevertResult)?
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool, againstHead: Bool, autoCloseSuccess: Bool, preferences: UserDefaults = .standard) {
+        progress=FileOperationProgressState(preferences:preferences)
         self.repository = repository; self.access = access; self.entries = entries; self.amend = amend; self.againstHead = againstHead; self.autoCloseSuccess = autoCloseSuccess; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); autoClosePolicy = GitProgressAutoClose(preferences: preferences)
     }
-    func retire() { guard !retired else { return }; if busy { cancelled = true }; saveActionLog(); retired = true; cancellation?.cancel() }
+    func retire() { guard !retired else { return }; if busy { cancelled = true }; saveActionLog(); retired = true; progress.retire();cancellation?.cancel();if !started {busy=false} }
     func cancel() {
         guard !retired, busy, !cancelRequested, !confirmingCancellation, let request = cancellation else { return }
         if !preferences.bool(forKey: "ConfirmKillProcess") { stop(request); return }
@@ -96,7 +147,7 @@ private struct RevertProgressRow: Identifiable {
         Task {
             defer { Self.activeOperations -= 1 }
             let accepted = await confirmCancellation()
-            guard !retired else { return }; confirmingCancellation = false
+            confirmingCancellation = false;guard !retired else { return }
             if busy, cancellation === request, accepted { stop(request) }
             finishAutomaticClose()
         }
@@ -107,16 +158,19 @@ private struct RevertProgressRow: Identifiable {
         let key = event.step.rawValue + "\0" + event.path
         if let index = rowIndices[key] { rows[index].status = event.finished ? "Completed" : "In progress" }
         else { rowIndices[key] = rows.count; rows.append(RevertProgressRow(action: event.step.rawValue, path: event.path, status: event.finished ? "Completed" : "In progress")) }
+        if let index=rowIndices[key] {let row=rows[index];progress.record(id:row.id,action:row.action,path:row.path,status:row.status)}
         completed = event.completed; total = event.total
         if !cancelRequested { current = event.step.rawValue + ": " + event.path }
     }
     func start() { guard !started, !retired else { return }; started = true; run(refreshSelection: false) }
-    func retry() { guard !retired, !busy, !confirmingCancellation, failed || cancelled else { return }; run(refreshSelection: true) }
+    func retry() { guard progressActionsAvailable, failed || cancelled else { return }; run(refreshSelection: true) }
     private func run(refreshSelection: Bool) {
+        let attemptStarted=Date()
+        progress.begin("Revert")
         ProgressActionLog.nextAttempt(self); let request = OperationCancellation(); cancellation = request; busy = true; cancelRequested = false; failed = false; cancelled = false; completedSuccessfully = false; information = ""; commandOutput = ""; rows = []; rowIndices = [:]; completed = 0; total = 0; current = refreshSelection ? "Refreshing selected paths…" : "Preparing Revert…"; submodulePaths = []
         Self.activeOperations += 1
         Task {
-            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {}; if cancellation === request { cancellation = nil; if !retired { busy = false; saveActionLog(); finishAutomaticClose() } } }
+            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {}; if cancellation === request { cancellation = nil;busy=false; if !retired {progress.finish(success:completedSuccessfully,cancelled:cancelled,started:attemptStarted);saveActionLog(); finishAutomaticClose() } } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let selected = refreshSelection ? try await repository.workingFileRevertSelection(entries, amend: amend, againstHead: againstHead, cancellation: request) : entries
@@ -143,20 +197,26 @@ private struct RevertProgressRow: Identifiable {
                 current = cancelled ? "Cancelled" : "Revert failed"; information = error.localizedDescription
                 if cancelled { information += "\n\nEarlier working-file changes remain; review current status before retrying." }
                 commandOutput = LocalGitCommandProgress.failure(error, existing: commandOutput, preferences: preferences)
-                for index in rows.indices where rows[index].status == "In progress" { rows[index].status = cancelled ? "Cancelled" : "Failed" }
+                for index in rows.indices where rows[index].status == "In progress" { rows[index].status = cancelled ? "Cancelled" : "Failed";let row=rows[index];progress.record(id:row.id,action:row.action,path:row.path,status:row.status) }
                 onFinished(information, false)
             }
         }
     }
     private func retainCopies(_ urls: [URL]) { var seen = GitPathSet(trashedFiles.map(\.path)); trashedFiles += urls.filter { seen.insert($0.path).inserted } }
     private func finishAutomaticClose() {
-        guard !retired, !busy, !confirmingCancellation, completedSuccessfully else { return }
+        guard progressActionsAvailable, completedSuccessfully else { return }
         if autoCloseSuccess && submodulePaths.isEmpty || autoClosePolicy.shouldClose(success: true, postActionCount: submodulePaths.isEmpty ? 0 : 1) { close() }
     }
-    func handleSubmodules() { guard !retired, !busy, !confirmingCancellation, !failed, !cancelled, !submodulePaths.isEmpty, let revision = comparisonRevision else { return }; let paths = submodulePaths, callback = onHandleSubmodules; saveActionLog(); close(); callback(revision, paths) }
-    func revealCopies() { guard !retired, !trashedFiles.isEmpty else { return }; NSWorkspace.shared.activateFileViewerSelecting(trashedFiles) }
-    var clipboardOutput: String { rows.map { [$0.action, $0.path].joined(separator: "\t") }.joined(separator: "\n") + "\n\n" + commandOutput + "\n" + information + "\n" + trashedFiles.map { "Moved to Trash: " + $0.path }.joined(separator: "\n") }
-    func copyOutput() { guard !retired else { return }; NSPasteboard.general.clearContents(); NSPasteboard.general.setString(clipboardOutput, forType: .string) }
+    func handleSubmodules() {
+        guard progressActionsAvailable,!failed,!cancelled,!submodulePaths.isEmpty,let revision=comparisonRevision else{return}
+        let paths=submodulePaths,callback=onHandleSubmodules
+        saveActionLog()
+        // The controller validates and drains the closing result before handing off.
+        finishAndPerform {accepted in if accepted {callback(revision,paths)}}
+    }
+    func revealCopies() {guard progressActionsAvailable,!trashedFiles.isEmpty else{return};revealSavedCopies(trashedFiles)}
+    var clipboardOutput:String {rows.map{[$0.action,$0.path].joined(separator:"\t")}.joined(separator:"\n")+"\n\n"+commandOutput+"\n"+information+"\n"+trashedFiles.map{"Moved to Trash: "+$0.path}.joined(separator:"\n")}
+    func copyOutput() {guard progressActionsAvailable else{return};progress.publishClipboard(clipboardOutput)}
     var output: String { clipboardOutput }
     var actionLogRepository: URL { repository.root }
     var actionLogEligible: Bool { started && (!rows.isEmpty || !information.isEmpty || !commandOutput.isEmpty) }
@@ -168,11 +228,7 @@ private struct RevertProgressDialog: View {
     @ObservedObject var model: RevertProgressWindowModel
     var body: some View {
         VStack(spacing: 10) {
-            RevertProgressTable(model: model).contextMenu {
-                TurtleGitContextMenu {
-                    Button { model.copyOutput() } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }
-                }
-            }
+            RevertProgressTable(model:model)
             HStack {
                 Text(model.current).lineLimit(1).help(model.current).foregroundStyle(model.failed ? Color.red : model.cancelled ? Color.orange : Color.primary)
                 Spacer()
@@ -184,59 +240,25 @@ private struct RevertProgressDialog: View {
                 ScrollView { Text(model.information).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).foregroundStyle(model.failed ? Color.red : Color.primary) }.frame(maxHeight: 110)
             }
             HStack {
-                if !model.trashedFiles.isEmpty { Button { model.revealCopies() } label: { CommandLabel(title: "Show saved copies in Finder", icon: .explore) } }
+                if !model.trashedFiles.isEmpty { Button { model.revealCopies() } label: { CommandLabel(title: "Show saved copies in Finder", icon: .explore) }.disabled(!model.progressActionsAvailable) }
                 if !model.busy && !model.failed && !model.cancelled && !model.submodulePaths.isEmpty {
-                    Button { model.handleSubmodules() } label: { CommandLabel(title: "Handle submodules", icon: .compare) }
+                    Button { model.handleSubmodules() } label: { CommandLabel(title: "Handle submodules", icon: .compare) }.disabled(!model.progressActionsAvailable)
                 }
-                if !model.busy && (model.failed || model.cancelled) { Button { model.retry() } label: { CommandLabel(title: "Retry", icon: .refresh) }.disabled(model.confirmingCancellation) }
+                if !model.busy && (model.failed || model.cancelled) { Button { model.retry() } label: { CommandLabel(title: "Retry", icon: .refresh) }.disabled(!model.progressActionsAvailable) }
+                Button {model.copyOutput()} label:{CommandLabel(title:"Copy Output",icon:.copy)}.disabled(!model.progressActionsAvailable)
                 Spacer()
                 if model.total > 0 { Text("\(model.completed) / \(model.total) operations").font(.caption).foregroundStyle(.secondary) }
-                Button("OK") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.busy || model.confirmingCancellation)
+                Button("OK") { model.close() }.keyboardShortcut(.defaultAction).disabled(!model.progressActionsAvailable)
                 Button("Cancel") { model.cancel() }.disabled(!model.busy || model.cancelRequested || model.confirmingCancellation)
             }
         }.padding(12)
     }
 }
 
-/// The shared upstream progress list has Action and Path columns. Keep worker
-/// state in tooltips and color rather than adding a third visible column.
-struct RevertProgressTable: NSViewRepresentable {
-    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
-    @ObservedObject var model: RevertProgressWindowModel
-    func makeCoordinator() -> Coordinator { Coordinator(model: model) }
-    func makeNSView(context: Context) -> NSScrollView { context.coordinator.make() }
-    func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.table.reloadData() }
-    @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
-        let model: RevertProgressWindowModel
-        let table = NSTableView()
-        init(model: RevertProgressWindowModel) { self.model = model }
-        func make() -> NSScrollView {
-            let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder
-            table.dataSource = self; table.delegate = self; table.rowHeight = 22
-            table.allowsMultipleSelection = true; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
-            for (id, title, width) in [("action", "Action", 180.0), ("path", "Path", 650.0)] {
-                let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = NSLocalizedString(title,comment:""); column.width = width; table.addTableColumn(column)
-            }
-            scroll.documentView = table; return scroll
-        }
-        func numberOfRows(in tableView: NSTableView) -> Int { model.rows.count }
-        func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-            guard model.rows.indices.contains(row), let tableColumn else { return nil }
-            let item = model.rows[row]
-            let field = NSTextField(labelWithString: tableColumn.identifier.rawValue == "action" ? item.action : item.path)
-            field.lineBreakMode = .byTruncatingMiddle; field.toolTip = item.path + "\n" + item.status
-            switch item.status {
-            case "Completed": field.textColor = NSColor(FileState.modified.textColor)
-            case "Failed": field.textColor = NSColor(FileState.conflicted.textColor)
-            case "Cancelled": field.textColor = .systemOrange
-            default: field.textColor = .labelColor
-            }
-            guard tableColumn.identifier.rawValue == "action" else { return field }
-            let cell = NSTableCellView(frame: NSRect(x: 0, y: 0, width: tableColumn.width, height: 22))
-            let image = NSImageView(frame: NSRect(x: 2, y: 3, width: 16, height: 16)); image.image = MenuIcon.revert.image()
-            cell.imageView = image; cell.textField = field; cell.toolTip = field.toolTip
-            cell.addSubview(image); field.frame = NSRect(x: 23, y: 2, width: max(0, tableColumn.width - 26), height: 18)
-            field.autoresizingMask = [.width]; cell.addSubview(field); return cell
-        }
+/// Use the same notification actions and attempt receipts as Add and Resolve.
+struct RevertProgressTable:View {
+    @ObservedObject var model:RevertProgressWindowModel
+    var body:some View {
+        FileOperationProgressTable(state:model.progress,icon:.revert,available:model.progressActionsAvailable,repository:model.repository.root,keyboardAvailable:model.progressActionsAvailable,fileRowIcons:true,actionAvailability:{model.progressActionsAvailable},perform:model.onProgressFileAction)
     }
 }

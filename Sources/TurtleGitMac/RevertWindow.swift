@@ -65,6 +65,8 @@ private final class RevertNativeWindow:NSWindow {
         model.onRevert = { [weak self] rows in
             guard let self,!self.model.retired,self.revertProgress == nil else {return}
             let progress = RevertProgressWindowController(repository:repository,access:access,entries:rows,amend:false,againstHead:false,autoCloseSuccess:false,preferences:preferences)
+            progress.model.externalAvailability={ [weak model=self.model] in model?.retired == false && model?.confirmingQuit == false }
+            progress.onProgressLog={ [weak model=self.model] path in guard let model,!model.retired,!model.confirmingQuit else{return};model.onFileLog(path) }
             self.revertProgress = progress;self.model.hasChild = true
             progress.model.onFinished = { [weak model=self.model] _,_ in if model?.retired == false {model?.onChanged()} }
             progress.model.onHandleSubmodules = { [weak model=self.model] revision,paths in if model?.retired == false {model?.onHandleSubmodules(revision,paths)} }

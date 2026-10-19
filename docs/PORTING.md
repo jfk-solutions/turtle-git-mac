@@ -3776,3 +3776,15 @@ implementation families in a shared grouped checkpoint. Commit owns its separate
 source engine choice/cleaned tree and Blame gains native selected-value and author
 controls. [Evidence](qa/commit-index-blame-details-2026-10-19.json) separates actual
 checks from the remaining full hosted, physical/signed and source-layout gates.
+
+
+### Revert completed-result workflow — October 19, 2026
+
+The Revert result family now connects the shared native file-progress surface:
+source-ordered file menus, double-click open/reveal, independent selected-path
+and action/path copying, post-completion sorting and status colors. Captured
+result attempts, chooser/launch lifetime, sheet detachment and Quit ownership
+cover standalone and workspace, Resolve and Rebase callers. The existing Trash,
+Retry and submodule post-actions retain their operation boundary. Source scope
+and grouped verification are tracked in the [Revert result parity guide](REVERT-RESULT-ACTIONS-PARITY.md); this
+implementation does not establish full physical, signed or source-layout parity.

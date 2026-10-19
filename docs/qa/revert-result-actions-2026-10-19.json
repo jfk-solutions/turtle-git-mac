@@ -1,0 +1,131 @@
+{
+  "date": "2026-10-19",
+  "family": "Revert completed-result file actions and ownership",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Source-ordered per-file Show Log/Open/Open With/Explore and native double-click",
+    "Independent selected-path context Copy, Action: Path keyboard Copy and full diagnostic Copy Output",
+    "Post-completion Action/Path contiguous-block sorting, stable selected row identity and fresh attempt order",
+    "Attempt/selection/parent Quit/busy/retirement action receipts and original row icons/status colors",
+    "Native path validation, missing Reveal fallback, leaf symlink spelling and target identity after Open With",
+    "Owned path preflight/panel/launch lifetimes, sheet detach and application Quit fences across Revert/workspace/Resolve/Rebase",
+    "Captured submodule revision/path handoff after result closure/drain"
+  ],
+  "validation": [
+    {
+      "scope": "Focused existing Core path Open/Reveal contracts used by new shared consumer",
+      "status": "passed",
+      "executed": 3,
+      "failures": 0,
+      "duration_seconds": 0.972,
+      "log": "build/qa/revert-result-core-2026-10-19.log",
+      "limit": "Core implementation unchanged; this is not a full Core suite run"
+    },
+    {
+      "scope": "Initial Debug application build",
+      "status": "failed",
+      "exit_code": 65,
+      "log": "build/qa/revert-result-app-build-2026-10-19.log",
+      "finding": "Resolve child availability closure referenced nonexistent ResolveWindowModel.retired",
+      "repair": "Read retirement from weak owning ResolveWindowController and Quit state from its model; no path/Core behavior changed"
+    },
+    {
+      "scope": "Debug application build after owning-controller repair",
+      "status": "passed",
+      "log": "build/qa/revert-result-app-build-repair-2026-10-19.log",
+      "exit_code": 0
+    },
+    {
+      "scope": "Initial grouped native receiver compilation",
+      "status": "failed",
+      "log": "build/qa/revert-result-native-2026-10-19.log",
+      "finding": "New fixture attempted to construct StatusEntry through its internal initializer; remaining closure inference errors were cascading",
+      "repair": "Use public workingFileRevertSelection to obtain an actual current clean tracked selection for the held-read case",
+      "limit": "No receiver process started; production sources unchanged"
+    },
+    {
+      "scope": "New Revert result actions, system Git after fixture API repair",
+      "status": "failed",
+      "log": "build/qa/revert-result-native-repair-2026-10-19.log",
+      "receiver_pid": 45269,
+      "cleanup": "Owned receiver reaped; independently absent",
+      "finding": "Completed result popup unavailable after an Open action"
+    },
+    {
+      "scope": "Affected result actions with call-site/state diagnostic",
+      "status": "failed",
+      "log": "build/qa/revert-result-native-diagnostic-2026-10-19.log",
+      "receiver_pid": 45350,
+      "cleanup": "Owned receiver reaped; independently absent",
+      "finding": "At line132 after Open completes, selectedRowIndexes is empty while static/dynamic availability are true and six rows remain",
+      "repair": "Shared coordinator now retains displayed row UUIDs and restores selected IDs across ordinary reloads and sorting; new attempts still clear selection/sort; no fixture reselect workaround"
+    },
+    {
+      "scope": "Debug app build after shared selection preservation repair",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/revert-result-app-selection-repair-2026-10-19.log"
+    },
+    {
+      "scope": "Affected result actions after selection preservation",
+      "status": "failed",
+      "log": "build/qa/revert-result-native-selection-repair-2026-10-19.log",
+      "receiver_pid": 45599,
+      "cleanup": "Owned receiver reaped",
+      "finding": "Open and Explore preserve selected rows; subsequent offscreen synthetic physical double-click did not dispatch before wait expired at line134",
+      "repair": "Dispatch actual NSApp doubleAction/target with receiver-private clickedRow injection; physical mouse acceptance remains explicitly unproved"
+    }
+  ],
+  "review_repairs_before_checkpoint": [
+    "Guard ownership after each awaited Core path read before presenting Open With",
+    "Reset accepted sort state and selected rows when a new result attempt begins; reject busy header changes without stale arrows"
+  ],
+  "native_checkpoint": {
+    "status": "passed",
+    "cases": [
+      "result-actions",
+      "retained-operation",
+      "retained-add-resolve"
+    ],
+    "git_engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "scope": "Private repositories/preferences/pasteboard/action logs; hidden/offscreen windows; injected LaunchServices/Finder requests; all owned receivers and windows drained",
+    "log": "build/qa/revert-result-native-dispatch-repair-2026-10-19.log",
+    "case_engine_combinations": 6,
+    "receiver_pids": [
+      45696,
+      45876,
+      46056,
+      46110,
+      46157,
+      46277
+    ],
+    "cleanup": "All six successful owned receivers reaped by wrapper and independently absent via ps",
+    "double_click_scope": "Actual AppKit target/doubleAction dispatch with receiver-private clickedRow injection; physical offscreen mouse sequencing did not dispatch and is not certified"
+  },
+  "retained_limits": [
+    "Pinned source drag implementation is disabled and is not implemented as a live feature",
+    "Native LaunchServices and chooser adapt Windows shell actions",
+    "Physical Finder/external application behavior, signed sandbox grants, accessibility, full source layout and hosted CI acceptance remain separate",
+    "This batch does not prove complete progress-consumer or whole-application parity"
+  ],
+  "resource_checks": {
+    "localizations": "Generated and checked: 38 languages / 1300 keys",
+    "help": "Generated before app build and checked; included REVERTING-FILES and DIALOG-GUIDE updates",
+    "protected_user_work": "scripts/test-native-reference-batch.py and docs/qa/reflog-capture-native-2026-10-13.swift excluded from commit",
+    "legacy_add_fixture": "Direct Revert table fixture adapted to shared Coordinator while preserving file icon, tooltip, palette and copied-row assertions; not separately executed in this batch",
+    "site": "Built 362 documents with no unresolved fragments; build/qa/revert-result-site-2026-10-19.log",
+    "dialog_ledger": "Reconciled after final source parity documentation; no dialog/control coverage count changes"
+  },
+  "captures": {
+    "files": [
+      "site/assets/revert-completed-results-light.png",
+      "site/assets/revert-completed-results-dark.png"
+    ],
+    "source": "Actual hidden inactive AppKit content, both inspected, 2000x1100",
+    "review": "Action/Path order, original icons and watermark, selected rows, status colors, completion/output/recovery/footer visible in both appearances",
+    "limit": "Light capture includes the settling native progress animation; dark capture shows the completed bar. No physical/active-window/full-layout certification."
+  }
+}

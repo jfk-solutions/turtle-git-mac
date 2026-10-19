@@ -227,14 +227,12 @@ import TurtleGitCore
             guard let self,!self.model.retired,self.conflictRevertWindow == nil,let window=self.window,window.attachedSheet == nil else {return}
             await withCheckedContinuation { continuation in
                 let child=RevertProgressWindowController(repository:repository,access:access,entries:entries,amend:false,againstHead:true,autoCloseSuccess:true,preferences:preferences)
+                child.model.externalAvailability={ [weak model=self.model] in model?.retired == false && model?.revisionMenuLog.confirmingQuit == false }
+                child.onProgressLog={ [weak model=self.model] path in guard let model,!model.retired,!model.revisionMenuLog.confirmingQuit else{return};model.onConflictFileLog(path) }
                 var firstAttempt=true
                 child.model.execute={ selected,token,progress,output in
                     try await validate(token,firstAttempt);firstAttempt=false
                     return try await repository.revertWorkingFiles(selected,cancellation:token,progress:progress,onOutput:output)
-                }
-                child.model.close={ [weak child] in
-                    guard let child,!child.model.busy,!child.model.confirmingCancellation,let sheet=child.window,sheet.attachedSheet == nil else {return}
-                    sheet.sheetParent?.endSheet(sheet);sheet.orderOut(nil);child.close()
                 }
                 child.model.onFinished={ [weak model=self.model] text,_ in if let model,!model.retired {model.output += text+"\n"} }
                 child.model.onHandleSubmodules={ [weak model=self.model] revision,paths in if let model,!model.retired {model.onConflictRevertSubmodules(revision,paths)} }

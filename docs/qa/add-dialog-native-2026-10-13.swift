@@ -437,11 +437,12 @@ import TurtleGitCore
         try await waitForRevert()
         let revertedAddedBytes = try Data(contentsOf: folder.appendingPathComponent(revertAdded)); precondition(revertedAddedBytes == revertAddedBytes && !model.checked.contains(revertAdded) && model.entries.first { $0.path == revertAdded }?.state == .untracked)
         precondition(revertClosed == 1 && !revertWorkers[0].failed && revertWorkers[0].trashedFiles.isEmpty)
-        let revertTable = RevertProgressTable.Coordinator(model: revertWorkers[0]), revertScroll = revertTable.make()
+        let revertTable = FileOperationProgressTable.Coordinator(FileOperationProgressTable(state:revertWorkers[0].progress,icon:.revert,available:true,repository:folder,fileRowIcons:true)), revertScroll = revertTable.make()
         precondition(revertScroll.documentView === revertTable.table && revertTable.table.allowsMultipleSelection)
         precondition(revertTable.table.tableColumns.map(\.title) == ["Action", "Path"])
-        let revertRowCount = revertTable.numberOfRows(in: revertTable.table); precondition(revertRowCount > 0)
-        for row in 0..<revertRowCount {
+        let revertRowCount = revertTable.numberOfRows(in: revertTable.table), revertFileRows = revertTable.rows.indices.filter {revertTable.rows[$0].kind == .file}; precondition(revertRowCount > 0 && !revertFileRows.isEmpty)
+        precondition(revertTable.rows.first?.kind == .command && revertTable.rows.last?.kind == .finished)
+        for row in revertFileRows {
             let action = revertTable.tableView(revertTable.table, viewFor: revertTable.table.tableColumns[0], row: row) as! NSTableCellView
             let path = revertTable.tableView(revertTable.table, viewFor: revertTable.table.tableColumns[1], row: row) as! NSTextField
             precondition(action.imageView?.image != nil && !action.textField!.stringValue.isEmpty && path.stringValue == revertAdded)
@@ -450,7 +451,7 @@ import TurtleGitCore
                 var actual: NSColor?, expected: NSColor?
                 NSAppearance(named: name)!.performAsCurrentDrawingAppearance {
                     actual = path.textColor?.usingColorSpace(.sRGB)
-                    expected = NSColor(FileState.modified.textColor).usingColorSpace(.sRGB)
+                    expected = StatusTextPalette.text(.modified,preferences:revertWorkers[0].preferences).usingColorSpace(.sRGB)
                 }
                 guard let actual, let expected else { preconditionFailure("Revert colors must resolve to RGB") }
                 precondition(abs(actual.redComponent - expected.redComponent) < 0.000001 && abs(actual.greenComponent - expected.greenComponent) < 0.000001 && abs(actual.blueComponent - expected.blueComponent) < 0.000001 && abs(actual.alphaComponent - expected.alphaComponent) < 0.000001)
@@ -458,7 +459,7 @@ import TurtleGitCore
         }
         precondition(revertTable.tableView(revertTable.table, viewFor: revertTable.table.tableColumns[0], row: -1) == nil)
         let revertCopiedRows = revertWorkers[0].clipboardOutput.components(separatedBy: "\n\n")[0].components(separatedBy: "\n")
-        precondition(revertCopiedRows.count == revertRowCount && revertCopiedRows.allSatisfy { $0.components(separatedBy: "\t").count == 2 && $0.hasSuffix("\t" + revertAdded) })
+        precondition(revertCopiedRows.count == revertFileRows.count && revertCopiedRows.allSatisfy { $0.components(separatedBy: "\t").count == 2 && $0.hasSuffix("\t" + revertAdded) })
         let indexedAdded = try await repo.trackedPaths(); precondition(!indexedAdded.contains(revertAdded))
         model.highlighted = [revertAdded]; model.selectionMark = revertAdded; receiver.refresh(); receiver.revertItem(); precondition(!receiver.canRevert && revertRequests.count == 1)
         model.setScope([".gitignore", restoreOther]); try await model.read(); model.highlighted = [".gitignore"]; model.selectionMark = ".gitignore"; receiver.refresh()

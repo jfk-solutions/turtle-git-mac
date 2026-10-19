@@ -71,6 +71,8 @@ import UniformTypeIdentifiers
             guard let self,!self.retired,self.fileRevertWindow == nil,let window=self.window,window.attachedSheet == nil else {return nil}
             return await withCheckedContinuation {continuation in
                 let child = RevertProgressWindowController(repository:repository,access:access,entries:rows,amend:false,againstHead:true,autoCloseSuccess:true,preferences:preferences)
+                child.model.externalAvailability={ [weak self] in self?.retired == false && self?.model.confirmingQuit == false }
+                child.onProgressLog={ [weak self] path in guard let self,!self.retired,!self.model.confirmingQuit else{return};self.onProgressLog(path) }
                 var first = true,output = ""
                 child.model.execute = {selected,token,progress,emit in
                     try await validate(token,first);first = false
@@ -78,10 +80,6 @@ import UniformTypeIdentifiers
                 }
                 child.model.onFinished = {text,_ in output = text}
                 child.model.onHandleSubmodules = { [weak model=self.model] revision,paths in model?.onFileSubmoduleRevert?(revision,paths) }
-                child.model.close = { [weak child] in
-                    guard let child,!child.model.busy,!child.model.confirmingCancellation,let sheet=child.window,sheet.attachedSheet == nil else {return}
-                    sheet.sheetParent?.endSheet(sheet);sheet.orderOut(nil);child.close()
-                }
                 child.onClosed = { [weak self,weak child] in
                     if let sheet=child?.window {sheet.sheetParent?.endSheet(sheet);sheet.orderOut(nil)}
                     if self?.fileRevertWindow === child {self?.fileRevertWindow = nil;self?.model.hasChild = false}

@@ -10,6 +10,18 @@ baseline options and confirm. The progress table records Action and Path while
 Git output appears below it. The final result includes any error or cancellation
 and retains recovery locations.
 
+When Revert has stopped, select a file result and open its context menu for
+**Show Log**, **Open**, **Open With** or **Explore to**. Double-click opens the
+working file; a directory opens in Finder. Explore can locate the nearest
+existing folder when a result path no longer exists. Open With lets you choose
+an application and can be cancelled without opening anything.
+
+Click **Action** or **Path** to sort completed file results. Command-C copies
+selected action/path lines; **Copy to Clipboard** in the context menu copies
+selected paths. Command-A selects all rows. Retry starts a fresh result selection,
+so an old menu cannot operate on a newer attempt. File actions pause while Revert
+runs, a chooser is open or the window is closing.
+
 The selection window also offers **Save As…** for the current working file and
 **Mark for comparison** / **Compare with…** for comparing two working files.
 These actions use the file where the context menu was opened. Save As copies

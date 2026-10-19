@@ -488,7 +488,7 @@ or forcibly closing the result waits for owned work and sheets to finish. It
 cannot start a queued follow-up. Apply/Pop keep their separate result questions.
 
 Revert working files restores their selected state; see
-[Reverting working files](REVERTING-FILES.md). The file-selection window supports sortable saved columns, file history/Blame, Open With/export, and same-repository file drops. Context Revert opens its recovery/progress window and refreshes the list when closed. Revert a commit from Log creates
+[Reverting working files](REVERTING-FILES.md). The file-selection window supports sortable saved columns, file history/Blame, Open With/export, and same-repository file drops. Context Revert opens its recovery/progress window and refreshes the list when closed. Completed results offer per-file history, Open/Open With and Finder reveal, sortable Action/Path columns and selected-row copying. Revert a commit from Log creates
 an inverse change; see [Reverting a commit](REVERT-COMMIT.md).
 
 Reset selects a revision and reset mode. Review the mode before accepting: changes

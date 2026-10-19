@@ -271,6 +271,7 @@ private enum HistoricalMaterializationContext {
             for controller in copyWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in worktreeCreateWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in addProgressWindows.values {controller.model.confirmingQuit=confirmingQuit}
+            for controller in revertProgressWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in resolveWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in synchronizationWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in formatPatchWindows.values {controller.model.confirmingQuit=confirmingQuit}
@@ -2669,7 +2670,14 @@ private enum HistoricalMaterializationContext {
     }
     @discardableResult private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, completion: @escaping (Bool) -> Void = { _ in }) -> RevertProgressWindowController {
         let root = repository.root, id = UUID()
-        let controller = RevertProgressWindowController(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess)
+        let controller = RevertProgressWindowController(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess, preferences:fileComparisonPreferences)
+        controller.model.confirmingQuit=confirmingQuit
+        controller.model.externalAvailability={ [weak self] in self?.retired == false && self?.confirmingQuit == false }
+        let preferences=controller.model.preferences
+        controller.onProgressLog={ [weak self] path in
+            guard let self,!self.retired,!self.confirmingQuit else{return}
+            self.showLog(repository:repository,access:access,paths:[path],preferences:preferences)
+        }
         controller.onClosed = { [weak self] in self?.revertProgressWindows.removeValue(forKey: id) }
         controller.model.onFinished = { [weak self] output, succeeded in
             completion(succeeded)
