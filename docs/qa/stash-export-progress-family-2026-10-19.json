@@ -1,0 +1,134 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "d866b582a41325d680920eb24ad493b6eb1065dc",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Stash Save and Export actual Core command preambles/receipts before metadata and atomic finalization, styled bounded completion/footer100 with captured output preferences/pasteboard",
+    "Actual synchronous queued-work ownership, cancellation/forced closure/native question and result detach, intentional once-only followup/reveal after closure",
+    "Stash Pull/Merge/Pop/Apply and Restore Working Tree presentation/preference/access inheritance, preference-scoped Working Tree cache with root refresh/rename fanout, Export Quit fencing"
+  ],
+  "validation": {
+    "core": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "tests": 10,
+        "failures": 0,
+        "filter": "TurtleGitCoreTests\\.(StashArchiveCommandCompletionTests|StashTests|RevisionArchiveTests)/",
+        "log": "build/qa/stash-export-progress-core-2026-10-19.log",
+        "scope": "Four new receipt/order/preflight/failure/cancellation methods plus existing Stash and RevisionArchive groups; private empty Git config; no full Core suite."
+      }
+    ],
+    "build": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "log": "build/qa/stash-export-progress-build-2026-10-19.log"
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/stash-export-progress-build-repair-2026-10-19.log",
+        "scope": "Native-only pre-start abandonment and presented-owner callback repair; no Core or resource change."
+      }
+    ],
+    "resources": {
+      "exit": 0,
+      "log": "build/qa/stash-export-progress-resources-2026-10-19.log",
+      "localizations": {
+        "languages": 38,
+        "keys": 1292
+      },
+      "help": {
+        "documents": 40,
+        "topics": 49,
+        "files": 60
+      },
+      "coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_controls": 1566,
+        "pending_control_reviews": 93
+      },
+      "site": {
+        "documents": 340,
+        "unresolved_fragments": []
+      }
+    },
+    "native": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "log": "build/qa/stash-export-progress-native-2026-10-19.log",
+        "passed_pairs": [
+          "stash/system",
+          "stash/packaged",
+          "export/system",
+          "export/packaged",
+          "stash-retained/system",
+          "stash-retained/packaged"
+        ],
+        "receiver_pids": [
+          52952,
+          53311,
+          53680,
+          53737,
+          53791,
+          53867,
+          53935
+        ],
+        "failed_pair": "export-retained/system",
+        "diagnostic": "Retained pre-start abandonment assertion found native model admission guard skipped busy release and once-only abandoned callback. Repair invalidates unstarted exports synchronously without spawning Git; presented options release remains controller-owned after actual detach. Core unchanged; only affected Export native cases and app build repeated."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/stash-export-progress-native-repair-2026-10-19.log",
+        "passed_pairs": [
+          "export/system",
+          "export/packaged",
+          "export-retained/system",
+          "export-retained/packaged"
+        ],
+        "receiver_pids": [
+          54592,
+          54654,
+          54702,
+          54738
+        ],
+        "scope": "Only affected Export cases on both engines; initial Stash passes retained, no full group/Core repeat."
+      }
+    ],
+    "native_final": {
+      "distinct_case_engine_pairs_passed": 8,
+      "all_owned_pids_and_pgids_absent": true,
+      "receiver_pids": [
+        52952,
+        53311,
+        53680,
+        53737,
+        53791,
+        53867,
+        53935,
+        54592,
+        54654,
+        54702,
+        54738
+      ],
+      "scope": "Actual command preambles/receipt ordering/styled private Copy, held metadata/finalization/kill questions, forced close/Quit/drain, real Root Pull/Merge/Apply and Restore Working Tree A/B/A preference owners, actual options-to-Explore, retained Stash Git contents/actions and archive/error/pre-start abandonment."
+    }
+  },
+  "remaining": [
+    "POSIX quoting, native Dock/window behavior and atomic sibling/rename Export are macOS adaptations; displayed argv is never executed.",
+    "No-result preflight/cancel status differs from a real process exit receipt.",
+    "Bounded output may truncate very large preambles while preserving completion ranges.",
+    "Apply/Pop intentionally retain source system-progress/result-question behavior; external-process stash coordination and crash recovery remain open.",
+    "Scoped local evidence does not establish full hosted CI, exhaustive visual/physical/keyboard/VoiceOver parity, physical Finder integration, signed grants/App Store distribution or completion of the whole port."
+  ],
+  "unrelated_work_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

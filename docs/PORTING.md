@@ -3477,3 +3477,29 @@ define this scope; no passing validation is claimed before results are recorded.
 Physical menus/questions/keyboard/VoiceOver, all recovery combinations, complete
 source geometry/rendering, signed grants, Windows libgit2-progress equivalence
 and whole-application acceptance remain open.
+
+### Stash Save/Export results and follow-up ownership, October 19, 2026
+
+Stash Save and Export now prepend the actual Core command invocation and retain
+styled completion ranges, timing/date and 100 percent after command settlement.
+Save's final stash-reference read and Export's atomic destination replacement
+remain distinct owned phases. Later metadata/finalization diagnostics preserve the
+actual Git receipt, and completion actions require full workflow success. Both
+native output views receive captured preferences and private clipboard ownership.
+Save's source Pull/Merge/Pop/Apply order and Export's success-only Explore action
+remain; Apply/Pop retain their source system-progress/result-question workflow.
+
+Queued start reserves work before scheduling; invalidation/forced closure retains
+actual worker/read/finalization drain. One-shot kill questions and result/options
+callbacks wait for real sheet detachment. Intended child/reveal handoffs follow
+actual closure; forced closure and Quit cannot dispatch stale work. Stash child
+factories and Restore→Working Tree carry appearance/opacity snapshots, preference
+identity and repository grants. Different Working Tree preference owners retain
+independent drafts/cache entries, and repository refresh/rename fan out to all
+owners of that root. Export options and results participate in Quit fencing.
+
+[Stash comparison](STASH-PARITY.md), [Export comparison](EXPORT-PARITY.md) and
+[grouped evidence](qa/stash-export-progress-family-2026-10-19.json) distinguish
+source behavior, native adaptations and actual validation. This scoped work does
+not establish exhaustive visual/physical/Finder/signed/App Store acceptance,
+complete hosted CI or completion of the entire port.

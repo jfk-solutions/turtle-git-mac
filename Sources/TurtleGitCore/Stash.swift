@@ -14,6 +14,18 @@ public struct StashSaveResult: Sendable {
     public let current: String?
     public var created: Bool { current != nil && current != previous }
 }
+/// The requested stash-push process has drained, before reading its resulting
+/// stash reference. Validation/reference preflight reads never emit this receipt.
+public struct StashSaveCommandCompletion:Sendable {
+    public let success:Bool
+    public let cancelled:Bool
+    public let exitCode:Int32?
+    public let finished:Date
+    public let elapsed:TimeInterval
+    public init(success:Bool,cancelled:Bool,exitCode:Int32?,finished:Date=Date(),elapsed:TimeInterval) {
+        self.success=success;self.cancelled=cancelled;self.exitCode=exitCode;self.finished=finished;self.elapsed=max(0,elapsed)
+    }
+}
 public struct StashRestoreResult: Sendable {
     public let output: String
     public let conflicted: Bool
@@ -78,7 +90,9 @@ extension GitRepository {
             throw failure
         }
     }
-    public func saveStash(_ options: StashSaveOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> StashSaveResult {
+    public func saveStash(_ options: StashSaveOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
+                          onCommand:(@Sendable(GitCommandInvocation)->Void)? = nil,
+                          onCommandFinished:(@Sendable(StashSaveCommandCompletion)->Void)? = nil) throws -> StashSaveResult {
         try cancellation?.check()
         guard !(options.includeUntracked && options.all) else { throw StashFailure.combination }
         guard !options.message.contains("\0") else { throw StashFailure.message }
@@ -97,7 +111,20 @@ extension GitRepository {
         // Stash uses the magic pathspec :/ in its internal clean subprocess.
         // Whole-repository save accepts no user paths, so preserve Git's own
         // pathspec semantics here; literal mode would silently skip cleanup.
-        let output = try run(args, literalPathspecs: false, cancellation: cancellation, onOutput: onOutput).text
+        try cancellation?.check()
+        onCommand?(commandInvocation(args,literalPathspecs:false))
+        let started=ProcessInfo.processInfo.systemUptime
+        let command:GitResult
+        do {
+            command=try run(args,literalPathspecs:false,cancellation:cancellation,onOutput:onOutput)
+            onCommandFinished?(.init(success:command.exitCode == 0,cancelled:false,exitCode:command.exitCode,elapsed:ProcessInfo.processInfo.systemUptime-started))
+        } catch {
+            let killed=error as? GitCommandCancellationFailure
+            onCommandFinished?(.init(success:false,cancelled:cancellation?.isCancelled == true || error is OperationCancellationFailure || error is CancellationError || killed != nil,
+                exitCode:killed?.result.exitCode ?? (error as? GitFailure)?.code,elapsed:ProcessInfo.processInfo.systemUptime-started))
+            throw error
+        }
+        let output=command.text
         let current = (try? run(["rev-parse", "--verify", "refs/stash"], cancellation: cancellation).text.trimmingCharacters(in: .newlines))
         try cancellation?.check()
         return StashSaveResult(output: output, previous: previous, current: current)

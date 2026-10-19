@@ -14,12 +14,25 @@ public enum RevisionArchiveFailure: LocalizedError {
     }
 }
 
+/// Actual archive-process settlement, before the atomic destination replacement.
+public struct RevisionArchiveCommandCompletion:Sendable {
+    public let success:Bool
+    public let cancelled:Bool
+    public let exitCode:Int32?
+    public let elapsed:TimeInterval
+    public let finished:Date
+    public init(success:Bool,cancelled:Bool,exitCode:Int32?,elapsed:TimeInterval,finished:Date=Date()){
+        self.success=success;self.cancelled=cancelled;self.exitCode=exitCode;self.elapsed=elapsed;self.finished=finished
+    }
+}
+
 extension GitRepository {
     /// Export committed contents using Git's ZIP writer, including its archive
     /// attributes, executable modes and symlink handling. The native caller owns
     /// destination access and overwrite confirmation. Failure or cancellation
     /// leaves an existing destination intact; no index or working files change.
-    @discardableResult public func archiveRevision(_ revision: String = "HEAD", directory: String = "", to destination: URL, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+    @discardableResult public func archiveRevision(_ revision: String = "HEAD", directory: String = "", to destination: URL, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
+        onCommand:(@Sendable(GitCommandInvocation)->Void)?=nil,onCommandFinished:(@Sendable(RevisionArchiveCommandCompletion)->Void)?=nil,beforeFinalization:(@Sendable()throws->Void)?=nil) throws -> String {
         try cancellation?.check()
         guard !revision.isEmpty, !revision.utf8.contains(0) else { throw RevisionArchiveFailure.revision }
         let object: String
@@ -35,7 +48,7 @@ extension GitRepository {
         var arguments: [String] = []
         if !directory.isEmpty {
             let folder = root.appendingPathComponent(directory).resolvingSymlinksInPath()
-            guard try !isBare(), RepositoryAccessLease.pathIsContained(folder, by: root),
+            guard try !isBare(cancellation:cancellation), RepositoryAccessLease.pathIsContained(folder, by: root),
                   !folder.pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }),
                   try folder.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true else { throw RevisionArchiveFailure.directory }
             // Upstream runs archive from the selected directory. Git strips that
@@ -61,7 +74,20 @@ extension GitRepository {
         }
         let temporary = parent.appendingPathComponent(".TurtleGitArchive-" + UUID().uuidString + ".zip")
         defer { try? manager.removeItem(at: temporary) }
-        let result = try run(arguments + ["archive", "--format=zip", "--output=" + temporary.path, "--verbose", "--end-of-options", object], cancellation: cancellation, onOutput: onOutput)
+        let command=arguments+["archive","--format=zip","--output="+temporary.path,"--verbose","--end-of-options",object]
+        try cancellation?.check()
+        onCommand?(commandInvocation(command))
+        let started=ProcessInfo.processInfo.systemUptime,result:GitResult
+        do{
+            result=try run(command,cancellation:cancellation,onOutput:onOutput)
+            onCommandFinished?(.init(success:true,cancelled:false,exitCode:result.exitCode,elapsed:ProcessInfo.processInfo.systemUptime-started))
+        }catch{
+            let cancelled=cancellation?.isCancelled==true || error is OperationCancellationFailure || error is GitCommandCancellationFailure
+            let code=(error as? GitCommandCancellationFailure)?.result.exitCode ?? (error as? GitFailure)?.code
+            onCommandFinished?(.init(success:false,cancelled:cancelled,exitCode:code,elapsed:ProcessInfo.processInfo.systemUptime-started))
+            throw error
+        }
+        try beforeFinalization?()
         try cancellation?.check()
         guard Darwin.rename(temporary.path, target.path) == 0 else {
             throw GitFailure(arguments: ["archive", revision], code: 1, message: String(cString: strerror(errno)))

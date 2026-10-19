@@ -26,6 +26,7 @@ struct StashRestorePrompt {
     private var started = false, completed = false, invalidated = false
     @Published var confirmingQuit=false {didSet {if !confirmingQuit,let pending=pendingDecision {pendingDecision=nil;accept(pending.0,show:pending.1,remember:pending.2)}}}
     private var pendingDecision:(StashRestorePrompt,Bool,Bool)?
+    var handoffPresentation: MergeWindowPresentation?
     var finishAndPerform:((@escaping ()->Void)->Void)?
     private var cancellation: OperationCancellation?
     @Published private(set) var cancelled = false
@@ -234,7 +235,7 @@ struct StashRestorePrompt {
     }
     private func finishResult(_ action:@escaping ()->Void) {
         guard !closed,!finishing,!model.confirmingQuit,!model.busy,model.prompt == nil,ownedAlert == nil,!releasingAlert,let window else{return}
-        finishing=true
+        finishing=true;model.handoffPresentation=MergeWindowPresentation(window)
         let release=StashChildRelease(window:window,parent:window.sheetParent) { [self] in
             guard !self.closed else{return}
             // Close through the owning controller. AppKit may omit willClose for

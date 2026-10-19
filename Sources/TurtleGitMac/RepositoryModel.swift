@@ -766,7 +766,7 @@ import UniformTypeIdentifiers
         guard !busy, !confirmingQuit else { return }
         busy = true; defer { busy = false }
         do { try await reload() } catch { self.error = error.localizedDescription }
-        if refreshStatus, let root { statusWindows[root.path]?.model.requestReload() }
+        if refreshStatus, let root { refreshStatusWindows(root) }
     }
     private func reload(cancellation:OperationCancellation? = nil) async throws {
         guard let repository, let root else { return }
@@ -811,7 +811,7 @@ import UniformTypeIdentifiers
             defer { busy = false; withExtendedLifetime(access) {} }
             do { output = try await operation(repository); try await reload() }
             catch { self.error = error.localizedDescription; try? await reload() }
-            if let root { statusWindows[root.path]?.model.requestReload() }
+            if let root { refreshStatusWindows(root) }
         }
     }
     func stage(paths requested:[String]? = nil) { let paths = requested ?? selectedPaths; guard !paths.isEmpty else {return}; perform { try await $0.stage(paths); return "Staged \(paths.count) file(s)." } }
@@ -1162,7 +1162,7 @@ import UniformTypeIdentifiers
         controller.onClosed = { [weak self] in self?.renameWindows.removeValue(forKey: key) }
         controller.model.onRenamed = { [weak self] old, new, output in
             guard let self else { return }
-            self.revertWindows[root.path]?.model.didRename(old,to:new); self.statusWindows[root.path]?.model.didRename(old, to: new)
+            self.revertWindows[root.path]?.model.didRename(old,to:new); self.renameStatusPaths(root, from: old, to: new)
             self.commitWindows[root.path]?.model.didRename(old, to: new)
             if self.root == root {
                 self.didMoveWorkspacePath(old,to:new)
@@ -1170,7 +1170,7 @@ import UniformTypeIdentifiers
             }
         }
         controller.model.onChanged = { [weak self] in
-            self?.revertWindows[root.path]?.model.requestReload(); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            self?.revertWindows[root.path]?.model.requestReload(); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             if self?.root == root { Task { await self?.refresh() } }
         }
         renameWindows[key] = controller
@@ -1181,11 +1181,11 @@ import UniformTypeIdentifiers
         let controller = moveWindows[key] ?? FileMoveWindowController(repository: repository, access: access, paths: paths, preferences: preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.moveWindows.removeValue(forKey: key) }
         controller.model.onMoved = { [weak self] old, new, text in
-            guard let self else { return }; self.revertWindows[root.path]?.model.didRename(old,to:new); self.statusWindows[root.path]?.model.didRename(old, to: new); self.commitWindows[root.path]?.model.didRename(old, to: new)
+            guard let self else { return }; self.revertWindows[root.path]?.model.didRename(old,to:new); self.renameStatusPaths(root, from: old, to: new); self.commitWindows[root.path]?.model.didRename(old, to: new)
             if self.root == root { self.didMoveWorkspacePath(old,to:new); self.output = text.isEmpty ? "Moved \(old) to \(new)." : text }
         }
         controller.model.onChanged = { [weak self] in
-            self?.revertWindows[root.path]?.model.requestReload(); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
+            self?.revertWindows[root.path]?.model.requestReload(); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState(); self?.refreshRepositoryLogs(root)
             if self?.root == root { Task { await self?.refresh() } }
         }
         moveWindows[key] = controller
@@ -1197,7 +1197,7 @@ import UniformTypeIdentifiers
         let controller = FileCopyWindowController(repository: repository, access: access, sources: sources, folder: folder, paste: paste, sourceProvider: fileCopySourceProvider, preferences: preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.copyWindows.removeValue(forKey: id) }
         controller.model.onChanged = { [weak self] in
-            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+            self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
             if self?.root == root { Task { await self?.refresh() } }
         }
         copyWindows[id] = controller
@@ -1506,7 +1506,7 @@ import UniformTypeIdentifiers
             self?.configureRevisionComparisonInteractions(model, repository: repository, access: access)
         }
         controller.model.onChanged = { [weak self] output in
-            self?.referenceLogWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.requestReload()
+            self?.referenceLogWindows[root.path]?.model.reload(); self?.refreshStatusWindows(root)
             self?.refreshRepositoryLogs(root); self?.commitWindows[root.path]?.model.reload()
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
         }
@@ -1540,7 +1540,7 @@ import UniformTypeIdentifiers
     }
     private func refreshAfterConflictChange(_ root:URL) {
         ConflictListRefreshPolicy.perform(preferences:fileComparisonPreferences) {
-            revertWindows[root.path]?.model.requestReload(); statusWindows[root.path]?.model.requestReload();commitWindows[root.path]?.model.reload()
+            revertWindows[root.path]?.model.requestReload(); refreshStatusWindows(root);commitWindows[root.path]?.model.reload()
             for resolve in resolveWindows.values where resolve.model.repository.root == root {resolve.model.load()}
             synchronizationWindows[root.path]?.model.refreshConflictFiles()
         }
@@ -1595,7 +1595,7 @@ import UniformTypeIdentifiers
             controller.onClosed = { [weak self] in self?.ignoreWindows.removeValue(forKey: key) }
             controller.onChanged = { [weak self] output in
                 self?.refreshRepositoryLogs(root)
-                self?.revertWindows[root.path]?.model.requestReload(); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+                self?.revertWindows[root.path]?.model.requestReload(); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
                 guard let self, self.root == root else { return }
                 self.output = output; Task { await self.refresh() }
             }
@@ -1610,7 +1610,7 @@ import UniformTypeIdentifiers
             let controller = removeWindows[key] ?? removeWindowFactory?(repository, access, request) ?? RemoveWindowController(repository: repository, access: access, request: request, preferences: fileComparisonPreferences)
             controller.onClosed = { [weak self] in self?.removeWindows.removeValue(forKey: key) }
             controller.onChanged = { [weak self] output in
-                self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+                self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
                 guard let self, self.root == root else { return }
                 self.output = output; Task { await self.refresh() }
             }
@@ -1633,7 +1633,7 @@ import UniformTypeIdentifiers
         controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, preferences: preferences) }
         controller.onClosed = { [weak self] in self?.commitWindows.removeValue(forKey: root.path) }
         controller.model.onCommitted = { [weak self] output in
-            self?.statusWindows[root.path]?.model.requestReload(); self?.refreshRepositoryLogs(root)
+            self?.refreshStatusWindows(root); self?.refreshRepositoryLogs(root)
             guard let self, self.root == root else { return }
             self.output = output
             Task { await self.refresh() }
@@ -1675,7 +1675,7 @@ import UniformTypeIdentifiers
                 controller.model.onAccepted = { [weak self] paths in self?.showAddProgress(repository: repository, access: access, paths: paths) }
                 controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
                 controller.model.onLFSChanged = { [weak self] in
-                    self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
+                    self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
                     if let self, self.root == repository.root { Task { await self.refresh() } }
                 }
                 controller.model.onPreview = { [weak self, weak controller] path in guard let controller else { return }; self?.showWorkingFiles(repository: repository, access: access, paths: [path], owner: controller.window) }
@@ -1691,7 +1691,7 @@ import UniformTypeIdentifiers
                 controller.model.onLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
                 controller.model.onBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
                 controller.model.onIgnoreChanged = { [weak self] output in
-                    self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
+                    self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
                     if let self, self.root == repository.root { self.output = output; Task { await self.refresh() } }
                 }
                 controller.model.onRevert = { [weak self] entries, done in
@@ -1795,7 +1795,7 @@ import UniformTypeIdentifiers
                 controller.model.onPullAfterLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
                 controller.onClosed = { [weak self] in
                     guard let self else { return }; self.lfsFileOperations.removeValue(forKey: id)
-                    self.statusWindows[repository.root.path]?.model.requestReload(); self.commitWindows[repository.root.path]?.model.reload()
+                    self.refreshStatusWindows(repository.root); self.commitWindows[repository.root.path]?.model.reload()
                     if self.root == repository.root { Task { await self.refresh() } }
                 }
                 lfsFileOperations[id] = controller
@@ -1847,7 +1847,7 @@ import UniformTypeIdentifiers
         workflow.presentation = { [weak self] controller in
             let root = controller.model.repository.root
             let refresh: () -> Void = { [weak self] in
-                self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+                self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
                 if self?.root == root { Task { await self?.refresh() } }
             }
             controller.model.onMutationStopped = refresh
@@ -2064,20 +2064,20 @@ import UniformTypeIdentifiers
             case let child as HistoryCombineWindowController:
                 child.configureCommit = { [weak self] commit in self?.configureCommitInteractions(commit.model, repository: repository, access: access) }
                 child.model.onChanged = { [weak self] output in
-                    self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
+                    self?.refreshRepositoryLogs(repository.root); self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
                     if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
                 }
             case let child as HistoryNotesWindowController:
                 child.model.onChanged = { [weak self] _ in self?.refreshRepositoryLogs(repository.root) }
             case let child as HistoryRevertWindowController:
                 child.model.onChanged = { [weak self] output in
-                    self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
+                    self?.refreshRepositoryLogs(repository.root); self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
                     if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
                 }
                 child.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
             case let child as SwitchProgressWindowController:
                 child.model.onFinished = { [weak self] output, _ in
-                    self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
+                    self?.refreshRepositoryLogs(repository.root); self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
                     if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
                 }
                 let inherited = child.model.presentationPreferences
@@ -2092,7 +2092,7 @@ import UniformTypeIdentifiers
         controller.model.onHistoryPush = { [weak self] revision, preserveAllBranches in self?.showPush(repository: repository, access: access, source: revision, preserveAllBranches: preserveAllBranches) }
         controller.model.onHistoryPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.model.onHistoryReferenceChanged = { [weak self] output in
-            self?.refreshRepositoryLogs(repository.root); self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
+            self?.refreshRepositoryLogs(repository.root); self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
             if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onHistoryFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
@@ -2119,7 +2119,7 @@ import UniformTypeIdentifiers
         }
         controller.model.onFinished = { [weak self] text, _ in
             self?.refreshRepositoryLogs(repository.root)
-            self?.statusWindows[repository.root.path]?.model.requestReload()
+            self?.refreshStatusWindows(repository.root)
             self?.commitWindows[repository.root.path]?.model.reload()
             if self?.root?.path == repository.root.path { self?.output = text; Task { await self?.refresh() } }
         }
@@ -2158,7 +2158,7 @@ import UniformTypeIdentifiers
             progress.model.onFinished = { [weak self] output, changed in
                 guard let self else { return }
                 if changed {
-                    self.statusWindows[root.path]?.model.requestReload()
+                    self.refreshStatusWindows(root)
                     self.commitWindows[root.path]?.model.reload()
                     self.refreshRepositoryLogs(root)
                     if self.root == root { Task { await self.refresh() } }
@@ -2204,7 +2204,7 @@ import UniformTypeIdentifiers
             }
         }
         controller.model.onChanged = { [weak self] in
-            self?.refreshRepositoryLogs(root);self?.statusWindows[root.path]?.model.requestReload();self?.commitWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root);self?.refreshStatusWindows(root);self?.commitWindows[root.path]?.model.reload()
         }
 
         revertWindows[root.path] = controller
@@ -2305,7 +2305,7 @@ import UniformTypeIdentifiers
         log.onRevisionChanged={ [weak self] output in
             guard let self else {return}
             self.refreshRepositoryLogs(repository.root)
-            self.statusWindows[repository.root.path]?.model.requestReload();self.commitWindows[repository.root.path]?.model.reload();self.rebaseWindows[repository.root.path]?.model.refreshState()
+            self.refreshStatusWindows(repository.root);self.commitWindows[repository.root.path]?.model.reload();self.rebaseWindows[repository.root.path]?.model.refreshState()
             if self.root==repository.root {self.output=output;Task{await self.refresh()}}
         }
     }
@@ -2316,7 +2316,7 @@ import UniformTypeIdentifiers
         model.onBlame={ [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision,preferences:preferences) }
         model.onSubmoduleLog={ [weak self] checkout,revision in self?.showLog(repository:GitRepository(root:checkout,executable:repository.executable),access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:preferences) }
         model.onFilesChanged={ [weak self] in
-            self?.refreshRepositoryLogs(repository.root);self?.statusWindows[repository.root.path]?.model.requestReload();self?.commitWindows[repository.root.path]?.model.reload()
+            self?.refreshRepositoryLogs(repository.root);self?.refreshStatusWindows(repository.root);self?.commitWindows[repository.root.path]?.model.reload()
             if self?.root==repository.root {Task{await self?.refresh()}}
         }
         model.onLogRange = { [weak self] range in self?.showLog(repository:repository,access:access,paths:[],revisionRange:range,preferences:preferences) }
@@ -2500,7 +2500,7 @@ import UniformTypeIdentifiers
     }
     private func refreshAfterSubmoduleMutation(_ root: URL, output: String) {
         refreshRepositoryLogs(root)
-        statusWindows[root.path]?.model.requestReload()
+        refreshStatusWindows(root)
         commitWindows[root.path]?.model.reload()
         rebaseWindows[root.path]?.model.refreshState()
         if self.root == root { self.output = output; Task { await self.refresh() } }
@@ -2592,7 +2592,7 @@ import UniformTypeIdentifiers
         controller.model.onFinished = { [weak self] output, succeeded in
             completion(succeeded)
             self?.refreshRepositoryLogs(root)
-            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
@@ -2603,12 +2603,24 @@ import UniformTypeIdentifiers
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
         return controller
     }
-    private func showStatus(repository: GitRepository, access: RepositoryAccessLease?, paths: [String] = [], preferences: UserDefaults? = nil) {
-        let root = repository.root
+    private func refreshStatusWindows(_ root: URL) {
+        for controller in statusWindows.values where controller.model.repository.root == root { controller.model.requestReload() }
+    }
+    private func renameStatusPaths(_ root: URL, from source: String, to destination: String) {
+        for controller in statusWindows.values where controller.model.repository.root == root { controller.model.didRename(source, to: destination) }
+    }
+    private func showStatus(repository: GitRepository, access: RepositoryAccessLease?, paths: [String] = [], preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
+        let root = repository.root, preferences = preferences ?? fileComparisonPreferences
         section = .status
-        let controller = statusWindows[root.path] ?? StatusWindowController(repository: repository, access: access, defaults: preferences ?? fileComparisonPreferences)
+        let reusable = statusWindows.first { _, controller in
+            controller.model.repository.root == root && controller.model.repository.executable == repository.executable &&
+            controller.model.colorPreferences === preferences && !controller.model.retired
+        }
+        let key = reusable?.key ?? (statusWindows[root.path] == nil ? root.path : root.path + "\0" + UUID().uuidString)
+        let controller = reusable?.value ?? StatusWindowController(repository: repository, access: access, defaults: preferences)
         controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
-        controller.onClosed = { [weak self] in self?.statusWindows.removeValue(forKey: root.path) }
+        controller.onClosed = { [weak self, weak controller] in if self?.statusWindows[key] === controller { self?.statusWindows.removeValue(forKey: key) } }
         controller.model.onCopyAdd = { [weak self] paths in self?.showCopy(repository: repository, access: access, sources: paths.map { repository.root.appendingPathComponent($0) }) }
         controller.model.onPasteFiles = { [weak self] copy, urls in self?.showFileTransfer(copy: copy, repository: repository, access: access, urls: urls) }
         controller.model.onTransferDrop = { [weak self, weak controller] providers in
@@ -2623,9 +2635,9 @@ import UniformTypeIdentifiers
             switch action {
             case .remove, .removeKeep: self.showRemove(repository: repository, access: access, paths: paths, keepLocal: action == .removeKeep); return
             case .move: self.showMove(repository: repository, access: access, paths: paths); return
-            case .stash: self.showStash(repository: repository, access: access); return
-            case .stashPop: self.showStashRestore(repository: repository, access: access, pop: true, showChanges: 2); return
-            case .stashApply: self.showStashRestore(repository: repository, access: access, pop: false, showChanges: 0); return
+            case .stash: self.showStash(repository: repository, access: access, preferences: preferences); return
+            case .stashPop: self.showStashRestore(repository: repository, access: access, pop: true, showChanges: 2, preferences: preferences); return
+            case .stashApply: self.showStashRestore(repository: repository, access: access, pop: false, showChanges: 0, preferences: preferences); return
             case .stashList: self.showReferenceLog(repository: repository, access: access, reference: "refs/stash"); return
             case .switchBranch: self.showSwitch(repository: repository, access: access); return
             case .commit: self.showCommitDialog(repository: repository, access: access, paths: paths); return
@@ -2642,7 +2654,8 @@ import UniformTypeIdentifiers
         controller.model.onBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
         controller.model.onCompareTwoFiles = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
-        statusWindows[root.path] = controller
+        presentation?.apply(to: controller.window)
+        statusWindows[key] = controller
         controller.model.setScope(paths)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
@@ -2688,19 +2701,26 @@ import UniformTypeIdentifiers
     }
     private func showStashRestore(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
-        let root = repository.root, key = repository.root.path + (pop ? ":pop" : ":apply:" + (reference ?? "latest")) + ":show:" + String(showChanges)
-        if let existing = stashRestoreWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        let preferences = preferences ?? fileComparisonPreferences
+        let root = repository.root, baseKey = repository.root.path + (pop ? ":pop" : ":apply:" + (reference ?? "latest")) + ":show:" + String(showChanges)
+        if let existing = stashRestoreWindows.first(where: { key, controller in
+            (key == baseKey || key.hasPrefix(baseKey + "\0")) && controller.model.preferences === preferences
+        })?.value { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         guard !stashMutationIsBusy(repository.root) else { error = "Wait for the current stash operation to finish."; return }
-        let controller = stashRestoreWindowFactory?(repository, access, pop, reference, showChanges) ?? StashRestoreWindowController(repository: repository, access: access, pop: pop, reference: reference, showChanges: showChanges, preferences: preferences ?? fileComparisonPreferences)
+        let key = stashRestoreWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString
+        let controller = stashRestoreWindowFactory?(repository, access, pop, reference, showChanges) ?? StashRestoreWindowController(repository: repository, access: access, pop: pop, reference: reference, showChanges: showChanges, preferences: preferences)
         controller.onClosed = { [weak self, weak controller] in if self?.stashRestoreWindows[key] === controller { self?.stashRestoreWindows.removeValue(forKey: key) } }
         controller.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
-            self?.statusWindows[root.path]?.model.requestReload(); self?.refreshRepositoryLogs(root)
+            self?.refreshStatusWindows(root); self?.refreshRepositoryLogs(root)
             self?.commitWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         let inherited = controller.model.preferences
-        controller.onViewChanges = { [weak self] in self?.showStatus(repository: repository, access: access, preferences: inherited) }
+        controller.onViewChanges = { [weak self, weak model = controller.model] in
+            guard let self, !self.retired, !self.confirmingQuit, let model else { return }
+            self.showStatus(repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation)
+        }
         presentation?.apply(to: controller.window)
         stashRestoreWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
@@ -2781,12 +2801,12 @@ import UniformTypeIdentifiers
         }
         let controller = importPatchWindows[key] ?? ImportPatchWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
         controller.model.onMutationStopped = { [weak self] in
-            self?.statusWindows[key]?.model.requestReload(); self?.commitWindows[key]?.model.reload()
+            self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
             if self?.root?.path == key { Task { await self?.refresh() } }
         }
         controller.onClosed = { [weak self] in self?.importPatchWindows.removeValue(forKey: key) }
         controller.model.onChanged = { [weak self] output in
-            self?.statusWindows[key]?.model.requestReload()
+            self?.refreshStatusWindows(repository.root)
             if self?.root?.path == key { self?.output = output; Task { await self?.refresh() } }
         }
         var existingPaths = GitPathSet(controller.model.items.map { FileTransferPaths.lexicalPath($0.file.path) })
@@ -2812,7 +2832,7 @@ import UniformTypeIdentifiers
         controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.onClosed = { [weak self] in self?.formatPatchWindows.removeValue(forKey: key) }
         controller.model.onOutputChanged = { [weak self] output in
-            self?.statusWindows[rootKey]?.model.requestReload()
+            self?.refreshStatusWindows(repository.root)
             if self?.root?.path == rootKey { self?.output = output; Task { await self?.refresh() } }
         }
         formatPatchWindows[key] = controller
@@ -2838,7 +2858,7 @@ import UniformTypeIdentifiers
         controller.model.onCompare = { [weak self, weak controller] path, hash in guard let controller, controller.model.active else { return }; self?.showHistoricalFiles(repository: repository, access: access, from: .revision(hash), to: .workingTree, paths: [path], owner: controller.window, preferences: defaults) }
         controller.model.onChanged = { [weak self] in
             guard let self else { return }
-            self.statusWindows[repository.root.path]?.model.requestReload()
+            self.refreshStatusWindows(repository.root)
             self.commitWindows[repository.root.path]?.model.reload()
             if self.root == repository.root { Task { await self.refresh() } }
         }
@@ -2919,7 +2939,7 @@ import UniformTypeIdentifiers
         let id = UUID(), root = repository.root
         let child = HistoryRevertWindowController(repository: repository, access: access, entries: entries, mainline: mainline, preferences: .standard)
         child.model.onChanged = { [weak self] output in
-            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         child.model.onCommit = { [weak self] in self?.showCommitDialog(repository: repository, access: access, paths: []) }
@@ -2938,7 +2958,7 @@ import UniformTypeIdentifiers
         let child = HistoryCombineWindowController(repository: repository, access: access, entries: entries, firstOffset: offset, expectedHead: head, preferences: .standard)
         child.configureCommit = { [weak self] commit in self?.configureCommitInteractions(commit.model, repository: repository, access: access) }
         child.model.onChanged = { [weak self] output in
-            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         child.onClosed = { [weak self, weak owner, weak child] in
@@ -2959,7 +2979,7 @@ import UniformTypeIdentifiers
         controller.onClosed = { [weak self,weak controller] in guard self?.gitPropertyWindows[key] === controller else { return }; self?.gitPropertyWindows.removeValue(forKey:key) }
         controller.model.onLog = { [weak self] context in self?.showLog(repository:context.repository,access:context.access,paths:context.paths == ["."] ? [] : context.paths) }
         controller.model.onChanged = { [weak self] changed in
-            self?.statusWindows[changed.root.path]?.model.requestReload(); self?.commitWindows[changed.root.path]?.model.reload()
+            self?.refreshStatusWindows(changed.root); self?.commitWindows[changed.root.path]?.model.reload()
             if self?.root == changed.root { Task { await self?.refresh() } }
         }
         gitPropertyWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -3035,7 +3055,7 @@ import UniformTypeIdentifiers
         controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
         controller.model.onRevisionChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root)
-            self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
@@ -3133,7 +3153,7 @@ import UniformTypeIdentifiers
             onChanged?()
             guard let self else { return }
             self.refreshRepositoryLogs(root)
-            self.commitWindows[root.path]?.model.reload(); self.statusWindows[root.path]?.model.requestReload(); self.rebaseWindows[root.path]?.model.refreshState()
+            self.commitWindows[root.path]?.model.reload(); self.refreshStatusWindows(root); self.rebaseWindows[root.path]?.model.refreshState()
             if self.root == root { self.output = output; Task { await self.refresh() } }
         }
         let inherited = controller.model.preferences
@@ -3141,11 +3161,12 @@ import UniformTypeIdentifiers
         presentation?.apply(to: controller.window)
         bisectWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func configureExportInteractions(_ controller: ExportWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
+    func configureExportInteractions(_ controller: ExportWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
         controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
     }
-    private func showExport(repository: GitRepository, access: RepositoryAccessLease?, revision: String, paths: [String] = [], commandLaunch: Bool = false, preferences: UserDefaults? = nil) {
+    private func showExport(repository: GitRepository, access: RepositoryAccessLease?, revision: String, paths: [String] = [], commandLaunch: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let defaults = preferences ?? fileComparisonPreferences
         let commandKey = repository.root.path + "\0command-export"
         if commandLaunch, let existing = exportWindows[commandKey] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
@@ -3160,7 +3181,8 @@ import UniformTypeIdentifiers
         let key = commandLaunch ? commandKey : reusable?.key ?? (exportWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
         let controller = reusable?.value ?? ExportWindowController(repository: repository, access: access, revision: revision, directory: directory, preferences: defaults)
         configureExportInteractions(controller, repository: repository, access: access)
-        controller.onClosed = { [weak self] in self?.exportWindows.removeValue(forKey: key) }
+        controller.onClosed = { [weak self, weak controller] in if self?.exportWindows[key] === controller { self?.exportWindows.removeValue(forKey: key) } }
+        presentation?.apply(to: controller.window)
         exportWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showMergeAbort(repository: GitRepository, access: RepositoryAccessLease?, commandLaunch: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
@@ -3173,7 +3195,7 @@ import UniformTypeIdentifiers
         controller.configureModifiedComparison={ [weak self] model in self?.configureRevisionComparisonInteractions(model,repository:repository,access:access) }
         controller.onClosed = { [weak self] in self?.mergeAbortWindows.removeValue(forKey: id) }
         controller.model.onChanged = { [weak self] output in
-            self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.requestReload()
+            self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.refreshStatusWindows(root)
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
@@ -3192,7 +3214,7 @@ import UniformTypeIdentifiers
         let root = repository.root, preferences = controller.model.presentationPreferences
         controller.model.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
-            self?.statusWindows[root.path]?.model.requestReload(); self?.refreshRepositoryLogs(root)
+            self?.refreshStatusWindows(root); self?.refreshRepositoryLogs(root)
             self?.commitWindows[root.path]?.model.reload()
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
@@ -3256,27 +3278,33 @@ import UniformTypeIdentifiers
         if let message { controller.model.options.message = message }
         controller.model.canStart = { [weak self] in self.map { !$0.stashMutationIsBusy(root) } ?? false }
         controller.onClosed = { [weak self] in self?.stashWindows.removeValue(forKey: key) }
+        configureStashInteractions(controller, repository: repository, access: access)
+        controller.model.followUp = followUp
+        presentation?.apply(to: controller.window)
+        stashWindows[key] = controller
+        controller.model.prepare()
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    func configureStashInteractions(_ controller: StashWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
+        let root = repository.root, preferences = controller.model.preferences
         let changed: (String) -> Void = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
-            self?.statusWindows[root.path]?.model.requestReload(); self?.refreshRepositoryLogs(root)
+            self?.refreshStatusWindows(root); self?.refreshRepositoryLogs(root)
             self?.commitWindows[root.path]?.model.reload()
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
         controller.model.onSaved = { result in changed(result.output) }
         controller.model.onFailed = changed
-        controller.model.followUp = followUp
-        controller.model.onPostAction = { [weak self] action, request in
+        controller.model.onPostAction = { [weak self, weak model = controller.model] action, request in
+            guard let self, !self.retired, !self.confirmingQuit, let model else { return }
+            let presentation = model.handoffPresentation
             switch action {
-            case .pull: self?.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(stashSave: request), preferences: preferences)
-            case .merge: if let revision = request.mergeRevision { self?.showMerge(repository: repository, access: access, revision: revision, showStashPop: true, preferences: preferences) }
-            case .pop, .apply: self?.showStashRestore(repository: repository, access: access, pop: action == .pop, preferences: preferences)
+            case .pull: self.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(stashSave: request), preferences: preferences, presentation: presentation)
+            case .merge: if let revision = request.mergeRevision { self.showMerge(repository: repository, access: access, revision: revision, showStashPop: true, preferences: preferences, presentation: presentation) }
+            case .pop, .apply: self.showStashRestore(repository: repository, access: access, pop: action == .pop, preferences: preferences, presentation: presentation)
             }
         }
-        presentation?.apply(to: controller.window)
-        stashWindows[key] = controller
-        controller.model.prepare()
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configureCommitInteractions(_ model: CommitWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
         let preferences = model.colorPreferences
@@ -3344,7 +3372,7 @@ import UniformTypeIdentifiers
             self?.rebaseWindows.removeValue(forKey: root.path); onResult?(completed); onDismissed?()
         }
         controller.model.onChanged = { [weak self] in
-            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             if self?.root == root { Task { await self?.refresh() } }
         }
         controller.model.onShowStatus = { [weak self] in
@@ -3439,12 +3467,12 @@ import UniformTypeIdentifiers
         controller.model.onFetched = { [weak self, weak controller] output in
             guard controller?.model.progress == nil, controller?.model.fetchProgress == nil else { return }
             self?.refreshRepositoryLogs(root)
-            self?.statusWindows[root.path]?.model.requestReload()
+            self?.refreshStatusWindows(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.followUp = followUp
         controller.model.onChanged = { [weak self] output in
-            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onPullPostAction = { [weak self] action, result in
@@ -3507,7 +3535,7 @@ import UniformTypeIdentifiers
         controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         let root = repository.root
         controller.model.onTransportResult = { [weak self] output, _ in
-            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.requestReload(); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onPostAction = { [weak self] action, options, superproject in
@@ -3539,7 +3567,7 @@ import UniformTypeIdentifiers
         let root = repository.root
         controller.model.onCreated = { [weak self] output in
             self?.refreshRepositoryLogs(root)
-            self?.statusWindows[root.path]?.model.requestReload()
+            self?.refreshStatusWindows(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onSwitch = { [weak self, weak controller] reference, done in
@@ -3568,7 +3596,7 @@ import UniformTypeIdentifiers
         controller.onClosed = { [weak self] in self?.switchProgressWindows.removeValue(forKey: id); completion?() }
         controller.model.onFinished = { [weak self] output, _ in
             self?.referenceLogWindows[root.path]?.model.reload()
-            self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.requestReload()
+            self?.commitWindows[root.path]?.model.reload(); self?.refreshStatusWindows(root)
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
@@ -3626,13 +3654,13 @@ import UniformTypeIdentifiers
         controller.model.onSwitched = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
             self?.commitWindows[root.path]?.model.reload()
-            self?.statusWindows[root.path]?.model.requestReload()
+            self?.refreshStatusWindows(root)
             self?.refreshRepositoryLogs(root)
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
         controller.model.onChanged = { [weak self] output in
-            self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.requestReload(); self?.refreshRepositoryLogs(root)
+            self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.refreshStatusWindows(root); self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         let inherited = controller.model.presentationPreferences

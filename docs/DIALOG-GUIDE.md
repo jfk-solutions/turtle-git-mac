@@ -434,6 +434,13 @@ result before opening the next operation; View Changes does the same after a
 restore. A pending warning or cancellation question keeps that operation owned
 until you answer it.
 
+Save progress shows the actual quoted command, colored completion status and
+optional execution timing/date. The bar stays at 100 percent while the final stash
+reference is read. Follow-up actions become available only after that read settles;
+a later read error does not rewrite the completed Git command's status. Cancelling
+or forcibly closing the result waits for owned work and sheets to finish. It
+cannot start a queued follow-up. Apply/Pop keep their separate result questions.
+
 Revert working files restores their selected state; see
 [Reverting working files](REVERTING-FILES.md). The file-selection window supports sortable saved columns, file history/Blame, Open With/export, and same-repository file drops. Context Revert opens its recovery/progress window and refreshes the list when closed. Revert a commit from Log creates
 an inverse change; see [Reverting a commit](REVERT-COMMIT.md).
@@ -502,6 +509,15 @@ Straße also matches STRASSE. Search does not merge different Unicode spellings.
 
 Revision Export saves the selected revision/subtree. It does not switch the
 working tree. See [Revision Export](REVISION-EXPORT.md).
+
+Export progress shows the actual archive invocation and its completion footer.
+The archive is prepared in a temporary sibling file before replacing the chosen
+ZIP. A completed Git command can show 100 percent while that replacement is still
+pending; Show in Finder is available only after the whole export succeeds. If
+replacement fails, its diagnostic remains visible and the previous destination
+is retained. Show in Finder closes the owned result and options before revealing
+the captured ZIP. Cancellation waits for command and temporary-file cleanup.
+
 
 ## Bisect
 

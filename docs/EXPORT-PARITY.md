@@ -138,3 +138,36 @@ passed. See the dated record for exact scope and receiver PIDs.
 Export now uses the shared [editable revision session combo](VERSION-COMBO-PARITY.md)
 for its Commit row. The underlying captured ZIP export/picker workflow is unchanged.
 Full physical/signed acceptance remains open.
+
+## Command settlement, atomic finalization and result ownership — October 19
+
+Pinned `CAppUtils::Export` (`AppUtils.cpp:1055–1113`) uses generic command progress
+and a success-only Explore action. The native result retains that action and
+source icon, captured ZIP/revision/scope/permissions and existing options/pickers.
+The streamed preamble now comes from Core's actual executable/argv rather than a
+separate display reconstruction. It truthfully names the owned temporary archive
+path used by the native atomic-export adaptation. Display quoting is POSIX;
+metadata probes and binary archive bytes are not presented as command output.
+
+A command receipt follows actual archive process/output drain before destination
+replacement. The existing styled footer/timing and completed 100 percent are
+retained through finalization. Command success and workflow success are separate:
+an atomic replacement failure adds a diagnostic and offers no Explore action,
+without claiming that Git failed. Cancellation after command completion can still
+prevent finalization, preserving an old ZIP and removing the owned temporary.
+The output view now receives the original private preferences and pasteboard.
+
+Start reserves actual queued work before scheduling. Invalidated or forcibly
+closed results retain worker/finalization ownership until cleanup settles;
+result/options callbacks wait for actual native detach and question release.
+One-shot No/Yes replies cannot revive a retired result, cancel settled command
+work or act during Quit. Show in Finder is dispatched only after an intended
+result/options close, once; forced closure drops a queued reveal. Options progress
+inherits the parent's appearance/opacity value. Normal and background Quit gates
+include actual workers and outstanding native release transitions.
+
+The [grouped record](qa/stash-export-progress-family-2026-10-19.json) preserves
+actual validation attempts. The atomic sibling/rename behavior remains a macOS
+adaptation. Physical Finder reveal, rendered dialog geometry/themes, keyboard/
+VoiceOver, signed repository/destination grants, hosted CI and complete port
+acceptance require separate evidence.

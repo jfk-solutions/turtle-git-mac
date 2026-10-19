@@ -287,3 +287,39 @@ from a cancelled warning accepting a later snapshot. See
 [command entry](COMMAND-LINE.md#merge-and-stash-command-entry) and
 [batch evidence](qa/integration-commands-2026-10-18.json) for actual Git validation
 and remaining platform limits.
+
+## Save command receipt and owned follow-ups — October 19, 2026
+
+Pinned `CAppUtils::StashSave` (`AppUtils.cpp:106–158`) constructs a generic
+`CProgressDlg`, not Apply/Pop's system-progress/result-question workflow. Save
+retains the message, Include Untracked/All exclusivity and existing warning,
+identity preflight, source icons and post-action order. Successful Save offers
+configured Pull/Merge first and Pop/Apply only when the stash reference changed.
+No Save Retry menu is introduced.
+
+Core emits the actual executable/argv immediately before `stash push`, with Git's
+own pathspec semantics retained. A separate command receipt follows actual process
+and output drain, before the final `refs/stash` read. Native output uses captured
+preferences/pasteboard, styled completion range, actual timing/date and retained
+100 percent. Metadata failure or cancellation keeps its own diagnostic boundary;
+it cannot rewrite an already successful Git process receipt. Follow-up actions
+still require a successful, fully settled workflow. Optional display quoting is
+POSIX syntax for macOS; it is never executed.
+
+Start reserves per-instance and Quit ownership before scheduling. Invalidation
+cancels but retains actual worker/read ownership. Result and parent callbacks wait
+for real work, owned questions and native sheet detachment. No/Yes answers are
+one-shot and matched to the active owner; a retired, duplicate or late Yes cannot
+cancel settled work or open a child. Intended result closure snapshots appearance
+and opacity before dispatching Pull, Merge, Pop or Apply, retaining the original
+preferences and repository access. Forced closure drops a pending handoff.
+Restore's View Changes similarly carries its captured presentation into Working
+Tree. Working Tree owners with different preference instances retain separate
+drafts; repository refresh/rename notices reach every owner for that root.
+
+[Grouped evidence](qa/stash-export-progress-family-2026-10-19.json) records the
+actual checks after the implementation freeze. Complete physical keyboard/menu/
+VoiceOver and visual parity, unrelated external stash writers, crash recovery,
+full source geometry, signed grants/Finder/App Store acceptance and the whole port
+remain unverified. Apply/Pop's source spinner/questions are not converted to a
+Save-style footer.
