@@ -3576,3 +3576,17 @@ Ordinary command glyphs and Finder status overlays retain their source artwork.
 [Application identity](APPLICATION-IDENTITY.md) records the actual source,
 consumer and bundle checks, previews and remaining physical/signed/App Store
 acceptance. Historical screenshots are not retouched to imply newer captures.
+
+
+### Current signed metafile runtime, October 19, 2026
+
+The universal development-signed AppStore candidate now includes the packaged
+metafile helper and custom TurtleGit artwork. Actual disposable sandbox parents
+pass Git/Lexilla/App Group sharing and denial, and native loading of eight
+WMF/EMF/EMF+ images spanning vector/text/bitmap/gradient/region/hatch and selected
+indexed4/RGB565 texture behavior. Malformed refusal, a post-launch helper deadline,
+source preservation and private/process cleanup pass. The complete shipping
+candidate inventory stays unchanged. [Dated evidence](qa/signed-metafile-2026-10-19.json)
+retains measured dirty inputs and exact scope. Installed shipping GUI/Finder,
+all-format fidelity, physical Intel/minimum macOS and distribution/App Store
+acceptance remain open; the older preview/archive were not regenerated.

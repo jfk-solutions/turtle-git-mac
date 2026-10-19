@@ -118,3 +118,15 @@ EMF+ gradient brushes exposed the concrete interoperability cases addressed by t
 [painting extension](METAFILE-PAINTING-PARITY.md). That document distinguishes the
 accepted subset, explicit refusals and pending validation. Existing web-derived
 output files have not been copied into the application or fixtures.
+
+
+## Selected signed-parent acceptance, October 19
+
+[Actual signed runtime evidence](qa/signed-metafile-2026-10-19.json) now covers
+the packaged inherited-sandbox helper and native image loader in a disposable
+Apple Development AppStore parent. Eight WMF/EMF/EMF+ samples check vector, text,
+bitmap, gradient, region, hatch, indexed4 and RGB565 texture output. Malformed
+refusal, an actual post-launch deadline, source-byte preservation, private
+request-directory removal and owned-process drainage pass. No shipping GUI or
+installed Finder workflow was launched. This selected corpus does not establish
+all-record graphics fidelity or App Store distribution acceptance.

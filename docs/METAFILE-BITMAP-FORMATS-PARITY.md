@@ -52,7 +52,7 @@ Negative dimensions, extended 16-bit grayscale, 48/64-bit channel formats,
 nested WMF images, complex
 text/pen behavior and the other documented graphics gaps remain unsupported.
 This extension does not certify every metafile, Windows pixel identity, physical
-image-window gestures, current signed helper execution, Finder grants or an
+image-window gestures, all-format signed helper execution, Finder grants or an
 App Store release. Original image/conflict bytes remain the comparison and save
 inputs; decoding only prepares the display representation.
 
@@ -67,3 +67,12 @@ Only those two methods were repeated; twenty-eight earlier passes and both
 native passes were retained. Failed attempts and the accidentally empty first
 focused filter are recorded in the linked evidence. Both owned receivers were
 reaped and their PIDs/process groups independently checked absent.
+
+
+The later [signed-parent checkpoint](qa/signed-metafile-2026-10-19.json) runs the
+actual packaged helper and native image loader inside an Apple Development
+AppStore sandbox. Indexed4 with signed rows and RGB565 texture/clamp cases pass
+alongside vector/text/gradient/region/hatch samples, malformed refusal and a real
+post-launch deadline. It retains exact source bytes, private-directory cleanup
+and owned-process drainage. Other indexed/16-bit combinations retain their prior
+Core/native evidence; they were not each repeated in the signed corpus.

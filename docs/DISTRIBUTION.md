@@ -7,10 +7,11 @@ The full port, signed runtime tests and licensing clearance remain incomplete.
 Development builds can use the installed Git executable. The App Store
 configuration requires a prepared pinned runtime and refuses external fallback.
 
-## Current local artifacts — 18 October 2026
+## Current local artifacts — 19 October 2026
 
-The current local Release preview, unsigned AppStore archive and Apple Development
-candidate use application source revision `16380893`. [Dated evidence](qa/distribution-16380893-2026-10-18.json)
+The local Release preview and unsigned AppStore archive use application source
+revision `16380893`. The development-signed candidate was refreshed separately
+on October 19 from measured `bfa1fafe` inputs; see below. [Dated evidence](qa/distribution-16380893-2026-10-18.json)
 retains measured inputs, dirty script state, inventory hashes, failed attempts and
 actual results. This includes the connected command-entry, patch, Bisect and
 Compare history continuations after the [earlier ae48b26a package](qa/distribution-current-preview-2026-10-18.json).
@@ -22,10 +23,14 @@ Compare history continuations after the [earlier ae48b26a package](qa/distributi
   contain arm64 and x86_64; the archive inventory has 6,303 members.
 - Development-signed candidate:
   `build/signed-development/Build/Products/AppStore/TurtleGitMac.app`.
-  Three peer signatures and group entitlements, all eight universal components,
-  the 204-item runtime layout and the complete code seal pass. A real sandboxed
-  parent runs its packaged Git and Lexilla; independent group read, nonmember
-  denial and fixture cleanup pass. See [signed execution](SIGNED-FINDER-DEVELOPMENT.md#current-signed-runtime-checkpoint).
+  Refreshed at measured `bfa1fafe` inputs, including explicit dirty script state,
+  current custom artwork and the metafile helper. Three peer signatures/groups,
+  all eight universal components, the 205-item runtime layout, branding and the
+  complete code seal pass. Real sandboxed parents run packaged Git, Lexilla and
+  Metafile; native image loading, malformed refusal, helper deadline, independent
+  group read, nonmember denial and cleanup pass. The 6,302-member candidate
+  inventory stays unchanged. See [signed execution](SIGNED-FINDER-DEVELOPMENT.md#current-signed-runtime-checkpoint)
+  and [dated evidence](qa/signed-metafile-2026-10-19.json).
 
 The packager verified the ad-hoc app and extracted ZIP against matching complete
 inventories. The packaged WCRev helper returned the expected demo revision and

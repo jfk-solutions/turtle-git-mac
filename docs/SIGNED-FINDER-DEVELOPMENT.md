@@ -52,11 +52,20 @@ python3 scripts/test-signed-finder-runtime.py \
 
 The check first verifies actual Apple signatures, peer teams, sandbox/group
 entitlements, the generated service name and inherited sandbox signing on the
-packaged Git executable. It then creates disposable copies with unique QA bundle
+packaged Git and Metafile executables. It then creates disposable copies with unique QA bundle
 identifiers. These run directly as sandboxed processes, without registering a
 Finder extension or background job. A writer runs the packaged inherited-sandbox Lexilla helper and Git and publishes
 a private fixture snapshot. A separate reader verifies its content. A negative
 process without the group entitlement must fail to read that snapshot.
+
+A separate mode receives captured metafile bytes through bounded arguments, with
+no external repository file grants. It runs the packaged inherited-sandbox
+Metafile helper and native comparison image loader for WMF, EMF and EMF+ vector,
+text, bitmap, gradient, region and hatch cases, including selected indexed and
+RGB565 texture images. It checks actual dimensions and sampled colors, malformed
+input refusal, a deadline after helper launch, private-directory removal and
+owned helper process/group drainage. This selected corpus does not certify all
+metafile record types or Windows pixel equivalence.
 
 The check removes only its UUID-named fixture directory through an entitled
 process and reaps its processes. The shipping candidate stays unchanged. It does
@@ -74,7 +83,7 @@ Inherited-sandbox helpers cannot be launched by an ordinary unsandboxed build
 script. Embedding runs functional checks on the verified source payload before
 signing, then audits the signed copy's bytes, architecture, linkage and exact
 inheritance entitlements. The signed sandbox probe supplies the real parent for
-Lexilla's version check and Git's repository operations.
+Lexilla's version check, Git's repository operations and Metafile conversion.
 
 
 ## Installed development checkpoint
@@ -88,7 +97,7 @@ watch/recent/helper grants were removed, the agent unregistered and owned app/
 extension processes closed. This is development acceptance, not App Store export,
 minimum-version acceptance or certification of every Finder command.
 
-## Current signed runtime checkpoint
+## October 18 signed runtime checkpoint
 
 The [October 18 checkpoint at 16380893](qa/distribution-16380893-2026-10-18.json)
 refreshes the universal Apple Development candidate at
@@ -98,7 +107,7 @@ existing profiles with `DEVELOPMENT_TEAM=A49SCA5S8K` and
 An initial exact-certificate override failed because the targets use automatic
 signing. Actual signatures establish team `A49SCA5S8K` for all three peers.
 
-The current bundle passes deep/strict code verification, universal app component
+That bundle passed deep/strict code verification, universal app component
 checks, the 204-item runtime code/data audit and cache-service packaging. Four
 owned sandbox probe processes pass writer, independent reader, denied nonmember
 and cleanup. The writer runs the actual packaged inherited-sandbox Git and
@@ -113,3 +122,31 @@ signed audit and runtime probe passed; this is not a complete unsigned-validator
 pass on signed code. It does not renew the older installed checkpoint, launch
 the shipping main GUI, register a service/extension, export or submit an archive,
 or certify external folder grants and every signed workflow.
+
+
+## Current signed runtime checkpoint
+
+The [October 19 checkpoint](qa/signed-metafile-2026-10-19.json) replaces the local
+development-signed candidate at the same path with measured inputs based on
+`bfa1fafe`, including the current metafile renderer and custom TurtleGit artwork.
+The record retains the dirty script inputs and their complete input digest.
+Existing Apple Development profiles establish team `A49SCA5S8K`; no provisioning
+update, export or submission was requested.
+
+Deep/strict seals, all eight universal app components, the 205-item runtime
+layout, branding, cache packaging and exact metafile source reconstruction pass.
+The 6,302-member candidate inventory is identical before and after the probes.
+Five owned signed processes pass writer, reader, denied nonmember, metafile and
+cleanup modes. Eight images render with expected dimensions/colors, text/bitmap
+content, gradient, region, hatch and selected indexed4/RGB565 texture behavior.
+A malformed palette index is refused; a positive deadline expires after actual
+helper launch. Captured bytes remain unchanged and request directories are removed.
+The observer captured one actual helper PID/group; it and all five receiver
+PIDs/groups are independently absent afterward. The private group fixture and
+disposable clones are removed.
+
+This is actual selected sandbox execution on Apple Silicon. It does not renew
+the older installed Finder checkpoint, launch the shipping GUI, certify physical
+Intel/minimum macOS or every graphics format, or establish distribution signing,
+licensing clearance and App Store acceptance. The older Release preview and
+unsigned archive are unchanged.
