@@ -1,0 +1,12 @@
+{
+  "asset": "TurtleGitIconSource.png",
+  "sha256": "003dcbe28ea8b86e17b5176b2a14a95103018a55646437b28795b9fdb7c825f4",
+  "prompt": "Create a single original macOS application mascot icon for 'TurtleGit for Mac', a Git desktop client. Deliver one square 1024x1024 RGBA PNG with genuinely transparent background, no external canvas or surrounding card. Composition: one friendly stylized green turtle in three-quarter side view, facing right. Bold simple recognizable silhouette, jade and emerald shell with a few clean shell plates, warm light green head and feet, dark charcoal outlines with subtle polished 3D icon shading. The shell prominently carries the exact word 'Git' in large clean bold white sans-serif letters, capital G lowercase it. Keep 'Git' clearly legible; no other words or letters. Give the turtle a confident calm expression, small black eye, four simple feet. The shell and head should fill the central 84 percent of the canvas with generous transparent margins and no clipping. Designed to remain identifiable at 16/32/64 pixels, avoid tiny detail. This is new TurtleGit branding: do not reproduce the existing grey TortoiseGit/Windows turtle logo, do not add a computer, Windows flag, Apple logo, GitHub cat, photography, scenery, watermark, mockup, or surrounding UI. No shadow extending far beyond the silhouette; maintain transparency.",
+  "generator": "OpenAI built-in image_gen.imagegen",
+  "created": "2026-10-19",
+  "width": 1254,
+  "height": 1254,
+  "transparent_background": true,
+  "license": "Distributed with TurtleGit for Mac under GPL-2.0-or-later; generated artwork, not adapted from upstream TortoiseGit assets.",
+  "notes": "Prompt requested 1024 square; actual generated source is preserved unchanged at1254 square. Deterministic packaging derives required native icon sizes. This replaces repository upstream-brand conversions; no earlier custom source could be recovered from this checkout/history."
+}

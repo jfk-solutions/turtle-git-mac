@@ -24,8 +24,8 @@ not embed this tool: use the Xcode bundle or an installed credential helper.
 The helper is an accessory process with one native window and no persistent Dock
 instance. It exits after OK or Cancel. Its process belongs to the Git operation’s
 owned process group; cancellation uses that existing ownership. The app’s chosen
-light/dark appearance is passed to the helper. The dialog uses the original
-TortoiseSmall artwork from the packaged icon resources.
+light/dark appearance is passed to the helper. The dialog uses the shared TurtleGit turtle/Git artwork from the packaged icon
+resources, matching the app and Finder menus.
 
 This implements Git CLI responses, including the generic fallback used by HTTPS
 operations. Certificate dialogs,

@@ -7,7 +7,9 @@ resource and their version/credit controls.
 The application About entry and Finder About command now open a native TurtleGit
 window instead of the macOS standard About panel. App menu → About Tools opens
 separate Merge, Blame, Image Diff and Unified Diff windows. Each uses the renamed
-tool title, original artwork, purpose and upstream attribution. Tool variants
+tool title, shared TurtleGit artwork, purpose and upstream attribution. The
+[application identity](APPLICATION-IDENTITY.md) records the custom source and
+derivatives; earlier screenshots retain their capture-date artwork. Tool variants
 share the native layout and show the fork's packaged version information; they
 are not separate standalone executable distributions.
 

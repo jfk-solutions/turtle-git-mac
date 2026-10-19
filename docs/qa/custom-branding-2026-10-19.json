@@ -1,0 +1,101 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "3bc6529bf9ccce9cb4a77d8fc7f44dcc4fad8bd1",
+  "scope": [
+    "Original generated turtle/Git source and exact generation record",
+    "Native appcatalog/document/sharedmenu/Finder/cache/auth/About/FirstStart/introduction and website identity",
+    "Deterministic derivatives/source and packaged hash validation, native light/dark asset previews"
+  ],
+  "validation": {
+    "status": "Asset derivation, Debug app build, packaged identity audit and one grouped native branding consumer check passed. Native previews individually reviewed; full physical/signed/AppStore and port acceptance remain open.",
+    "generation": [
+      {
+        "exit": 0,
+        "log": "build/qa/custom-branding-generation-2026-10-19.log",
+        "scope": "Initial custom-source app/document/shared derivatives."
+      },
+      {
+        "exit": 0,
+        "log": "build/qa/custom-branding-generation-web-2026-10-19.log",
+        "scope": "Final derivatives after completing efficient256px site artwork/32pxfavicon. No app/native checks preceded this generation."
+      }
+    ],
+    "resources": {
+      "exit": 0,
+      "log": "build/qa/custom-branding-resources-2026-10-19.log",
+      "help_documents": 40,
+      "help_topics": 49,
+      "help_files": 60,
+      "locale_keys": 1293,
+      "languages": 38,
+      "coverage": "130dialogs,120partialfamilyaudits,10pending,0certified; not a feature-completion percentage."
+    },
+    "build": {
+      "exit": 0,
+      "log": "build/qa/custom-branding-build-2026-10-19.log",
+      "configuration": "Debug macOS; unsigned/ad-hoc development configuration. No current AppStore archive claimed."
+    },
+    "identity": {
+      "exit": 0,
+      "log": "build/qa/custom-branding-identity-2026-10-19.log",
+      "scope": "Packaged original source/prompt and hashes; realalpha/dimensions;10catalogslots; compiledcatalog/ICNSdeclarations; customdocument512/1024frames; shared512; website256/favicon32; alternatepatchhandler."
+    },
+    "native": {
+      "exit": 0,
+      "log": "build/qa/custom-branding-native-2026-10-19.log",
+      "receiver_pid": 67173,
+      "scope": "Exactshared/legacyaliaspixels16/32/40/48/64/128/512 in Aqua/DarkAqua; actualFinderroot/showicons;5actualAboutartwork/nativeheadersorbanners; actualauthheader; privateFirstStart/introductionconstruction; command/statusmappingsretained. NoGitmutations."
+    },
+    "core": "Not repeated: no Git/Core behavior changed; shared image and tool artwork routes covered by native group.",
+    "previews": [
+      {
+        "path": "docs/site/assets/branding-native-light.png",
+        "width": 1640,
+        "height": 500,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/branding-native-dark.png",
+        "width": 1640,
+        "height": 500,
+        "reviewed": true
+      }
+    ],
+    "cleanup": {
+      "receiver_pid_and_process_group_checked_absent": [
+        67173
+      ],
+      "survivors": [],
+      "owned_windows": "All closed; hidden/offscreen, private preferences/pasteboard/geometry. Native work drained before successful receiver exit."
+    },
+    "site": {
+      "exit": 0,
+      "log": "build/qa/custom-branding-site-2026-10-19.log",
+      "documents": 341,
+      "unresolved_fragments": [],
+      "scope": "Current source/header/favicon and two reviewed native component previews; GitHub deployment separate."
+    },
+    "coverage_final": {
+      "exit": 0,
+      "log": "build/qa/custom-branding-coverage-final-2026-10-19.log"
+    }
+  },
+  "remaining": [
+    "Physical Finder/Dock/LaunchServices refresh and actual signed helper invocation not established by resource/receiver checks.",
+    "Unsigned builds and artwork do not certify AppStore acceptance or wholeport parity."
+  ],
+  "unrelated_work_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ],
+  "artwork": {
+    "source": "Sources/TurtleGitMac/Resources/Branding/TurtleGitIconSource.png",
+    "prompt_record": "Sources/TurtleGitMac/Resources/Branding/TurtleGitIconSource.provenance.json",
+    "generator": "OpenAI built-in image_gen.imagegen",
+    "original_dimensions": [
+      1254,
+      1254
+    ],
+    "source_sha256": "003dcbe28ea8b86e17b5176b2a14a95103018a55646437b28795b9fdb7c825f4"
+  }
+}

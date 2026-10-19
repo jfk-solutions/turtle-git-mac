@@ -561,9 +561,9 @@ enum TurtleGitAboutTool: String, CaseIterable {
     var purpose: String {
         switch self { case .application: return "A macOS fork of TortoiseGit"; case .merge: return "A native diff/patch and merge editor"; case .blame: return "A native source attribution viewer"; case .image: return "A native image comparison tool"; case .unified: return "A native unified-diff viewer" }
     }
-    var artworkName:String {
-        switch self {case .application:return MenuIcon.turtle.rawValue;case .merge:return "TortoiseMerge";case .blame:return "TortoiseGitBlame";case .image:return "TortoiseIDiff";case .unified:return "TortoiseUDiff"}
-    }
+    // These tools are native views within TurtleGit, sharing the fork's identity.
+    // Their command icons retain the separate pinned upstream artwork.
+    var artworkName:String { MenuIcon.turtle.rawValue }
     func artwork(size:CGFloat)->NSImage? {MenuIcon.originalImage(resource:artworkName,size:size)}
     var hasBanner:Bool {self == .application || self == .merge}
     var aboutSize:NSSize {

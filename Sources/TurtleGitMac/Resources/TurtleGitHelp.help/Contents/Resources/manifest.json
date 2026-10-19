@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "cd2838db33da85ce39f8835b9968ae9e7d36181c6c44a61b186b336991d3ca38",
+    "Contents/Info.plist": "8963c9383d07f4c13c441fc829f2f2c66b3e8dc7212bf89d4453efb81c53c8c0",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "5aebb64642c7e2f417ae4b2f24f483f6276e8364fbfb8beefbf8a1ec3f9998c6",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "8431f0108093ba0cc6e3fe9f221e11988b07773f928b428a8c63b5a158ba87f4",
@@ -13,7 +13,7 @@
     "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "3d2cfff60864f141cdfdf9fb97dc823f3a3e3c5885ac5b949f1cf9c0548b9806",
     "Contents/Resources/en.lproj/EXCEL-COMPARISON.html": "4e4dbf998996c02d74a4499f237017f8a14d522ba08ef3a05779f8fade1440d8",
     "Contents/Resources/en.lproj/GETTING-STARTED.html": "62ea6aa01057762cf2411b54ad0b19809b3186124aec7e4c123eb66a4242e1a1",
-    "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "a34926c6954ced39075b069b48ee2804e8e63bb7b056a5c4158435f97dcf4a47",
+    "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "cd9e31faffc1970e3878f03dab88cf3d6ea4c196a0a52b96b9ddb459aaaf4000",
     "Contents/Resources/en.lproj/GIT-NOTES.html": "52816feaad67206716db305e4d1ff3d5afa91e313dd34a4d670315ce4e421120",
     "Contents/Resources/en.lproj/GIT-PROPERTIES.html": "4e71c861dc0f1c93cd123f477e231545fca537150a8e050fbdedfdef204d46a8",
     "Contents/Resources/en.lproj/IMAGE-COMPARISON.html": "8aa4664432980143e7f6dc999c3a58e6cf898d250ceac69e14b3806e0c68e6fe",
@@ -73,7 +73,7 @@
     "docs/DIALOG-GUIDE.md": "2399e86562dfb91528271449e80a444ff7a61b04cc11b912c15e1202c57b978b",
     "docs/EXCEL-COMPARISON.md": "7e3f3a627b2dc6bb807bee992ae0d76830107dea9592c3a02668fc570227ab36",
     "docs/GETTING-STARTED.md": "27ee5b00814ad2e15aa582ec2c2f1d357a0fdf992d8fb074ad6e131cc4a8c74a",
-    "docs/GIT-AUTHENTICATION.md": "34a58ad4649d7d7355712907441f35f37d3b9bd29c898002a58a8563361154bb",
+    "docs/GIT-AUTHENTICATION.md": "74d8ecd9a6a378f3a6c263263bbdabb682e1a0626b1495fc675b8f25ec695812",
     "docs/GIT-NOTES.md": "a2fe3e80da5ad3987ded76f1400801c0c4d9707b8a94ca3a93c11e22feec551c",
     "docs/GIT-PROPERTIES.md": "612ac979b47e69e263e308337f2ee7529d9620e73175167a72a1ff043f4d4605",
     "docs/IMAGE-COMPARISON.md": "c7990b0f5af1efbe2a4980801560ca2357fbc353e8836e3314b7ae00b38a23ac",

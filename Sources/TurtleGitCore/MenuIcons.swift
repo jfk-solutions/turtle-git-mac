@@ -6,7 +6,8 @@ public enum MenuPresentationSettings {
     }
 }
 
-/// Original upstream artwork. Ribbon BMP alpha is decoded explicitly; ICO retains
+/// Pinned upstream command artwork and the custom TurtleGit application mascot.
+/// Ribbon BMP alpha is decoded explicitly; ICO retains
 /// its multiple sizes and alpha masks. AppKit
 /// chooses a representation for the display scale. Monochrome Log, Help and
 /// cherry-pick glyphs use template tinting to remain visible in both appearances.

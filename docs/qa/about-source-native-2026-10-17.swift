@@ -58,7 +58,7 @@ import TurtleGitCore
             guard let versions=descendants.compactMap({$0 as? NSTextView}).first(where:{$0.accessibilityLabel()=="Version Information"}),let ok=buttons.first(where:{$0.title=="OK"}),let project=buttons.first(where:{$0.title=="Project website"}) else {throw Failure(description:"Source About controls missing")}
             try require(versions.string==owner.diagnosticText && !versions.isEditable && versions.isSelectable && (ok.keyEquivalent=="\r" || owner.window?.defaultButtonCell === ok.cell),"Report/selectability/default OK: equal=\(versions.string==owner.diagnosticText), editable=\(versions.isEditable), selectable=\(versions.isSelectable), key=\(ok.keyEquivalent.debugDescription), default=\(owner.window?.defaultButtonCell === ok.cell)")
             try require((owner.banner != nil)==tool.hasBanner && tool.artwork(size:48) != nil,"Tool artwork/banner variant")
-            try require(tool == .image ? tool.artworkName=="TortoiseIDiff":tool == .merge ? tool.artworkName=="TortoiseMerge":true,"About used an action icon for the application artwork")
+            try require(tool.artworkName==MenuIcon.turtle.rawValue,"About did not use the custom TurtleGit mascot")
             try require((versions.enclosingScrollView?.bounds.width ?? 0)>=owner.window!.contentView!.bounds.width-80,"Version pane did not fill source group width")
             for button in buttons {
                 let frame=button.convert(button.bounds,to:owner.window!.contentView!)

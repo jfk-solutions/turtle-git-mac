@@ -3561,3 +3561,18 @@ their existing background decoder, rather than introducing another UI.
 [Format contracts and remaining graphics behavior](METAFILE-BITMAP-FORMATS-PARITY.md)
 and [batch evidence](qa/metafile-bitmap-formats-2026-10-19.json) distinguish this
 implementation from complete GDI+/physical/signed/App Store acceptance.
+
+
+### Custom TurtleGit application identity, October 19, 2026
+
+New generated turtle/Git artwork replaces the earlier upstream-derived app
+branding across the ten native application icon slots, patch-document ICNS,
+shared menu/Finder/cache/authentication image, launch introduction and all five
+About variants. The unmodified high-resolution RGBA source and exact generation
+prompt/hash remain tracked. Deterministic packaging derives the native sizes
+and website artwork; pinned upstream originals remain separately attributed.
+Ordinary command glyphs and Finder status overlays retain their source artwork.
+
+[Application identity](APPLICATION-IDENTITY.md) records the actual source,
+consumer and bundle checks, previews and remaining physical/signed/App Store
+acceptance. Historical screenshots are not retouched to imply newer captures.

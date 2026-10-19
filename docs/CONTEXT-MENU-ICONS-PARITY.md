@@ -96,3 +96,14 @@ localizes command and group captions from the extension's compiled catalogs.
 Captured actions, routing payloads, first-level Git placement, source order and
 icons remain independent of translated text. Filenames, masks and marked paths
 are never translated as keys. Full installed Finder acceptance remains open.
+
+
+## TurtleGit application branding — October 19, 2026
+
+The application/Finder root mascot and legacy TortoiseSmall lookup now use the
+custom green TurtleGit turtle with Git on its shell. App icons, native About
+views and standalone authentication prompts share that source. This is fork
+branding; command icons, status colors and Finder badge artwork retain their
+pinned upstream assets. The existing application/Finder icon preferences still
+control whether the corresponding context-menu images appear.
+See [source and evidence](APPLICATION-IDENTITY.md).

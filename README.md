@@ -1,5 +1,7 @@
 # TurtleGit for Mac
 
+<img src="docs/site/assets/application-icon.png" alt="TurtleGit turtle with Git on its shell" width="128" height="128">
+
 *A macOS fork of TortoiseGit*
 
 A native macOS port in progress, based on the workflows and source of

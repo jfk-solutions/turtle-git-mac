@@ -1,29 +1,57 @@
 # Application and patch-document identity
 
-The application asset catalog now packages all ten macOS AppIcon slots (16, 32,
-128, 256 and 512 points at 1×/2×). It uses pinned upstream
-`src/Resources/Tortoise.ico`, the `IDR_MAINFRAME` artwork. Patch/diff documents use
-`src/TortoiseUDiff/TortoiseUDiff.ico` through a native ICNS. This follows the user's
-request to retain the same original artwork. No new mascot or generated redesign
-replaces it. Application slots use the complete 256-pixel turtle/Git frame at
-every size, keeping the same silhouette as the large application icon. This
-avoids the different older turtle/cart design in the upstream small ICO frames.
-Document slots keep exact small frames where available. Larger slots resample
-the original maximum 256-pixel representation. A 1024-pixel slot therefore does
-not claim newly drawn high-resolution detail.
+TurtleGit for Mac uses its own green turtle with **Git** on its shell. The
+unmodified generated source is `Branding/TurtleGitIconSource.png` (1254×1254,
+RGBA). Its [generation record](../Sources/TurtleGitMac/Resources/Branding/TurtleGitIconSource.provenance.json)
+retains the exact prompt, built-in imagegen generator, actual dimensions and
+SHA-256. It is new project artwork; no earlier custom source could be recovered
+from this checkout or its Git history. Upstream resource copies remain separately
+identified for provenance and the original command/status artwork.
 
-`swift scripts/build-application-icons.swift "$PWD"` regenerates the catalog,
-ICNS, development-launch PNG, web icon and provenance. The original ICO files,
-resource license, upstream revision/source paths and output SHA-256 values are
-included in `Contents/Resources/Branding`. NOTICE retains the TortoiseGit and
-TortoiseSVN attribution and GPL alternative. The shared command/status icons and
-Finder overlays retain their separate original provenance. This project remains
-an independent fork with no upstream endorsement.
+![TurtleGit application artwork](site/assets/application-icon.png)
+
+`swift scripts/build-application-icons.swift "$PWD"` derives the 1024-pixel
+application PNG, all ten macOS AppIcon catalog slots, the 512-pixel shared menu
+image, patch/diff ICNS, 256-pixel website header and 32-pixel favicon from that
+source. It preserves transparency and records output hashes. The original generated source is never
+overwritten by resizing. The patch-document icon shares the fork's mascot rather
+than the former upstream UDiff image; handler registration remains alternate.
+
+First Start, About and the Merge/Blame/Image/Unified Diff About pages, launch
+introduction, cache menu, Finder root entries and standalone authentication
+prompts use this common identity. The legacy `TortoiseSmall` lookup routes to the
+same shared PNG. Original command glyphs and Finder status overlays retain their
+separate pinned provenance and colors. Source attribution and component licenses
+remain available through LICENSE, NOTICE and the vendored resources.
 
 Xcode Debug and AppStore configurations share the compiled catalog and document
-icon. SwiftPM development launches set their application image from the same
-bundled PNG; SwiftPM itself does not create an installable application bundle.
-The website header/favicon use the identical original application artwork.
+icon. SwiftPM development launches set their application image from the bundled
+PNG; SwiftPM does not create an installable application bundle. Updating these
+assets does not install a Finder extension or reset the user's Launch Services
+cache/default file associations.
+
+## Current branding evidence
+
+[Batch evidence](qa/custom-branding-2026-10-19.json) records asset derivation,
+source/bundle identity checks, app build and native consumer checks. Light/dark
+native icon plates are artwork previews, not full dialog screenshots or physical
+Finder/Dock acceptance. Existing dated screenshots retain the artwork actually
+present at their capture date. Signed deployment and App Store submission remain
+separate acceptance requirements.
+
+![Light native branding asset preview](site/assets/branding-native-light.png)
+
+![Dark native branding asset preview](site/assets/branding-native-dark.png)
+
+The current Debug build and packaged identity audit passed. One native receiver
+verified colored shared resources and the legacy alias at seven sizes in both
+appearances, the real Finder root menu and icon preference, all five About
+artwork routes and native headers/banners, and the actual authentication header.
+First Start and launch introduction constructed against private preferences.
+Both native component previews were individually reviewed. The receiver closed
+its owned windows, drained work and was reaped. No repository operation or
+standalone authentication/Finder application was launched. No Core suite or
+new unsigned AppStore build was required for this asset/UI branding change.
 
 ## Finder file-open route
 
@@ -50,8 +78,9 @@ questions use the shared standalone document session. It remains isolated from
 index/HEAD/working-tree changes. Opening a patch through Finder is distinct from
 automatically applying it.
 
-## Acceptance
+## Historical identity acceptance — October 16, 2026
 
+The following checkpoint used the preceding upstream-derived icons.
 Debug and unsigned AppStore builds and both identity audits passed. The initial
 native case required the existing post-Save native input-readiness wait before
 Undo; the original assertions were retained. Six grouped native cases then
@@ -67,11 +96,11 @@ Physical Finder/Open With/proxy-icon
 interoperability, Launch Services cache refresh across installs, all default-app
 combinations, true signed sandbox file grants, App Store submission and complete
 application parity remain open. Unsigned AppStore packaging is not signed runtime
-or App Store approval. The original ICO's maximum resolution remains a visual
-polish limit.
+or App Store approval. That older source ICO had a 256-pixel resolution limit; the current custom source
+is recorded above.
 
 
-## Consistent in-app branding, 17 October 2026
+## Historical shared branding, 17 October 2026
 
 The shared TurtleGit branding image now uses the same complete turtle with Git
 on its shell as `Branding/ApplicationIcon.png`. First Start, application About,
@@ -96,7 +125,8 @@ folder action. A failed launch remains visible. Repeated entry reuses the window
 closure retires its callbacks. Ordinary native startup still opens the workspace.
 This is the macOS client adaptation of a Windows shell-extension explanation.
 
-The shared application artwork is reused; no recovered/custom TurtleGit artwork
-is claimed. See [service command evidence](qa/service-commands-2026-10-18.json) for
+At that October 18 checkpoint, the shared upstream-derived application artwork
+was reused. The current custom source and exact generation record are described
+above. See [service command evidence](qa/service-commands-2026-10-18.json) for
 local checks and outstanding physical Help/Finder, rendered/keyboard and signed
 acceptance.
