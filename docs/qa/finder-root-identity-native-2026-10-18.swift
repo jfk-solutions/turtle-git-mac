@@ -29,6 +29,9 @@ import TurtleGitCore
         let merge=input["merge"] == "1"
         let snapshot=FinderSnapshot(roots:[root],states:[root:.normal,root+"/file":merge ? .modified:.conflicted],repositories:[root:.init(bisectActive:!merge,mergeActive:merge)],overlayEntries:[root+"/file":merge ? .modified:.conflicted])
         try require(try store.publish(ticket,snapshots:[snapshot]).published,"Independent exact-root worker lost its ticket")
+        try Data().write(to:directory.appendingPathComponent("published"))
+        try await wait {FileManager.default.fileExists(atPath:directory.appendingPathComponent("release").path)}
+        withExtendedLifetime(store) {}
     }
     @MainActor static func verify() async throws {
         let directory=URL(fileURLWithPath:CommandLine.arguments[1]),cache=FinderSnapshotStore(url:directory.appendingPathComponent("root-cache/status.json"))
@@ -48,9 +51,9 @@ import TurtleGitCore
         }
         try await wait {(0..<2).allSatisfy {FileManager.default.fileExists(atPath:directory.appendingPathComponent("exact-worker-\($0)/ready").path)}}
         for index in 0..<2 {try Data().write(to:directory.appendingPathComponent("exact-worker-\(index)/go"))}
-        try await wait {workers.allSatisfy {!$0.isRunning}}
-        for worker in workers {worker.waitUntilExit();try require(worker.terminationStatus==0,"Exact root worker failed");print("Exact-root worker reaped: \(worker.processIdentifier)")}
-        let snapshot=try JSONDecoder().decode(FinderSnapshot.self,from:Data(contentsOf:cache.url))
+        try await wait {(0..<2).allSatisfy {FileManager.default.fileExists(atPath:directory.appendingPathComponent("exact-worker-\($0)/published").path)}}
+        try require(workers.allSatisfy {$0.isRunning},"Exact root worker exited before live identity check")
+        guard let snapshot=FinderSnapshot.readLive(from:cache.url) else {throw Failure(description:"Missing live exact-root snapshot")}
         try require(snapshot.repositories.count==2 && snapshot.repositories[a]?.mergeActive == true && snapshot.repositories[b]?.bisectActive == true,"Cross-process metadata identity collapsed")
         let target=RootIdentityTarget(),selector=#selector(RootIdentityTarget.invoke(_:))
         var settings=FinderMenuSettings();settings.extendedOnlyMask=0;settings.topLevelMask=0
@@ -76,11 +79,16 @@ import TurtleGitCore
         try require(FinderTransferContext.requests(destination:aURL,sources:[FileTransferPaths.fileURL(b+"/file")],snapshot:snapshot,settings:settings).map(\.action) == [.pasteCopy],"Canonical peer permitted Paste Move across owners")
         let aliasChild=FinderSnapshot(roots:[directory.path,a],states:[a:.normal],repositories:[directory.path:.init(),a:.init(submoduleParentRoot:directory.path)],overlayEntries:[a:.normal])
         try require(FinderTransferContext.requests(destination:directory,sources:[bURL],snapshot:aliasChild,settings:settings).map(\.action) == [.pasteCopy,.pasteMove],"Unique submodule alias lost its parent transfer owner")
+        try Data().write(to:directory.appendingPathComponent("exact-worker-1/release"))
+        try await wait {!workers[1].isRunning};workers[1].waitUntilExit();try require(workers[1].terminationStatus==0,"Exact root worker failed")
         let pending=try cache.begin(root:bURL),removed=try cache.remove(root:bURL)
         try require(removed.repositories[a]?.mergeActive == true && removed.repositories[b]==nil,"Removal erased peer metadata")
         let stale=FinderSnapshot(roots:[b],states:[b:.normal],repositories:[b:.init()])
         try require(try !cache.publish(pending,snapshots:[stale]).published,"Removed root revived through old ticket")
         try require(try Data(contentsOf:FileTransferPaths.fileURL(a+"/file"))==Data("original\n".utf8),"Finder family changed file bytes")
+        try Data().write(to:directory.appendingPathComponent("exact-worker-0/release"))
+        try await wait {workers.allSatisfy {!$0.isRunning}}
+        for worker in workers {worker.waitUntilExit();try require(worker.terminationStatus==0,"Exact root worker failed");print("Exact-root worker reaped: \(worker.processIdentifier)")}
         print("Finder exact roots: lossless concurrent wire/cache, native menu eligibility/icons and captured URI, mixed-owner refusal, primitive once-only dispatch, badge state and exact removal passed")
     }
 }

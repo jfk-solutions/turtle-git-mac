@@ -107,7 +107,8 @@ public struct FinderServiceAccess {
         guard scope.contains(root) else { throw FinderServiceAuthorizationFailure.invalidRequest }
         let suffix=rootPath==scopePath ? "" : String(rootPath.dropFirst(scopePath=="/" ? 1 : scopePath.count+1))
         let components=suffix.isEmpty ? [] : suffix.components(separatedBy:"/")
-        return FinderServicePersistentGrant(id:id,bookmark:try provider.create(for:scope.url),repositoryComponents:components,additionalBookmarks:try additionalScopes.map { try provider.create(for:$0.url) })
+        let additional = try additionalScopes.map { try provider.create(for:$0.url) }
+        return FinderServicePersistentGrant(id:id,bookmark:try provider.create(for:scope.url),repositoryComponents:components,additionalBookmarks:additional.isEmpty ? nil : additional)
     }
 }
 
@@ -187,7 +188,7 @@ public struct FinderServicePersistentGrant:Codable,Sendable,Equatable {
                 let additional=try value.acquireAdditional(provider:provider,requireSecurityScope:requireSecurityScope)
                 // Refresh receiver-private bookmarks while all scopes are live.
                 let bookmarks=try additional.map { try provider.create(for:$0.url) }
-                renewed[index]=FinderServicePersistentGrant(id:value.id,bookmark:resolved.stale ? try provider.create(for:resolved.url) : value.bookmark,repositoryComponents:value.repositoryComponents,additionalBookmarks:bookmarks.isEmpty ? nil : bookmarks)
+                renewed[index]=FinderServicePersistentGrant(id:value.id,bookmark:resolved.stale ? try provider.create(for:resolved.url) : value.bookmark,repositoryComponents:value.repositoryComponents,additionalBookmarks:bookmarks.isEmpty ? value.additionalBookmarks : bookmarks)
                 accesses.append(FinderServicePersistentAccess(id:value.id,root:root,lease:lease,additionalLeases:additional))
             } catch { failures[value.id]=error.localizedDescription }
         }
@@ -238,8 +239,13 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     public let roots: [Root]
     public let cleanupFailures: [String: String]
     public let legacy: Bool
-    public init(running: Bool, roots: [Root], cleanupFailures: [String: String] = [:], legacy: Bool = false) {
+    /// Optional additions retain compatibility with version-one diagnostic replies.
+    public let cacheSave: Bool?
+    public let cacheFailure: String?
+    public init(running: Bool, roots: [Root], cleanupFailures: [String: String] = [:], legacy: Bool = false,
+                cacheSave: Bool? = nil, cacheFailure: String? = nil) {
         version = 1; self.running = running; self.roots = roots; self.cleanupFailures = cleanupFailures; self.legacy = legacy
+        self.cacheSave = cacheSave; self.cacheFailure = cacheFailure
     }
     public static func decode(_ data: Data) throws -> Self {
         guard data.count <= 16_777_216 else { throw FinderServiceAuthorizationFailure.invalidRequest }
@@ -265,12 +271,24 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         var refresh:RepositoryEventRefresh?
         var token:OperationCancellation?
         var task:Task<Void,Never>?
+        private var drainWaiters:[CheckedContinuation<Void,Never>]=[]
         var active=true
         var watchFailure:String?
         var lastPublication:Date?
         var cachedDirectories:GitPathSet=[]
         init(_ access:FinderServicePersistentAccess,repository:GitRepository) { self.access=access;self.repository=repository }
         func retire() { active=false;monitor?.stop();monitor=nil;refresh?.retire();refresh=nil;token?.cancel();task?.cancel() }
+        /// The scheduler wrapper owns the access as well as its collector task.
+        /// Join that wrapper's completion before releasing the process lease.
+        func drain() async {
+            guard token != nil else { return }
+            await withCheckedContinuation { drainWaiters.append($0) }
+        }
+        func finishedReading() {
+            task=nil;token=nil
+            let waiters=drainWaiters;drainWaiters=[]
+            for waiter in waiters { waiter.resume() }
+        }
         deinit { monitor?.stop();token?.cancel();task?.cancel() }
     }
     private var activity=FinderCacheActivityLog()
@@ -285,7 +303,19 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         FinderCacheServiceReport(running: running, roots: permissions.grants.map { grant in
             let session = sessions[grant.id]
             return .init(id: grant.id, refreshing: session?.token != nil, lastPublication: session?.lastPublication, failure: rootFailures[grant.id])
-        }.sorted { $0.id.uuidString < $1.id.uuidString }, cleanupFailures: Dictionary(uniqueKeysWithValues: cleanupFailures.map { ($0.key.uuidString, $0.value) }))
+        }.sorted { $0.id.uuidString < $1.id.uuidString }, cleanupFailures: Dictionary(uniqueKeysWithValues: cleanupFailures.map { ($0.key.uuidString, $0.value) }),
+            cacheSave: appliedCacheSave, cacheFailure: cacheFailure)
+    }
+    private var publicationSession: FinderPublicationSession?
+    private var retiredPublicationSessions: [FinderPublicationSession] = []
+    private var appliedCacheSave: Bool?
+    private var policyFailure: String?
+    private var warmFailure: String?
+    private var lifecycleFailure: String?
+    private var restorationFailure: String?
+    private var cacheFailure: String? {
+        let values = [policyFailure, warmFailure, lifecycleFailure, restorationFailure].compactMap { $0 }
+        return values.isEmpty ? nil : values.joined(separator: "\n")
     }
     public private(set) var running=false
     private var rootFailures:[UUID:String]=[:]
@@ -301,15 +331,27 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     private var retiring:[Session]=[]
     private var pendingRemovals:GitPathMap<UUID>=[:]
     private var generation=0
+    private var shutdownTask:Task<Void,Never>?
+    private var requireSecurityScope=true
+    // A collector dependency permits deterministic ownership/cancellation checks
+    // while production retains its authorized Git collection and watcher setup.
+    var collectionOverride:((GitRepository,FinderServicePersistentAccess,OperationCancellation) async throws -> FinderRepositoryCollection)?
     public init(permissions:FinderServicePermissionStore,cache:FinderSnapshotStore,
                 repository:@escaping (URL)->GitRepository = { GitRepository(root:$0) },
                 notify:@escaping ()->Void = {},changed:@escaping ()->Void = {}) {
         self.permissions=permissions;self.cache=cache;factory=repository;self.notify=notify;self.changed=changed
     }
     public func start(requireSecurityScope:Bool = true) throws {
-        guard !running,!transitioning else { throw FinderCacheServiceFailure.transitioning }
+        guard !running,!transitioning,shutdownTask==nil else { throw FinderCacheServiceFailure.transitioning }
         let restored=try permissions.restore(requireSecurityScope:requireSecurityScope)
-        running=true;generation += 1;rootFailures=restored.failures
+        reloadCachePolicy();retryRetiredPublications()
+        do {
+            let session = try cache.startSession()
+            publicationSession = session; warmFailure = session.persistenceFailure
+        }
+        catch { lifecycleFailure = error.localizedDescription; changed(); throw error }
+        running=true;generation += 1;rootFailures=restored.failures;restorationFailure=nil
+        self.requireSecurityScope = requireSecurityScope
         recordActivity("Status cache started")
         attach(restored.accesses);changed()
     }
@@ -318,14 +360,15 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     public func replace(_ request:FinderServiceAuthorization,
                         transfer:any RepositoryTransferBookmarkProvider = SystemRepositoryTransferBookmarks(),
                         requireSecurityScope:Bool = true) async throws {
-        guard running,!transitioning else { throw FinderCacheServiceFailure.transitioning }
+        guard running,!transitioning,shutdownTask==nil else { throw FinderCacheServiceFailure.transitioning }
         let accesses=try permissions.install(request,transfer:transfer,requireSecurityScope:requireSecurityScope)
+        self.requireSecurityScope = requireSecurityScope
         transitioning=true;generation += 1;let identity=generation
         let old=Array(sessions.values);sessions.removeAll();retiring=old
         for session in old { session.retire() }
-        for session in old { await session.task?.value }
+        for session in old { await session.drain() }
         // Shutdown may have happened while Git readers were settling.
-        guard running,generation==identity else { retiring=[];transitioning=false;return }
+        guard running,generation==identity else { return }
         rootFailures=[:]
         let retained=GitPathSet(accesses.map { FileTransferPaths.lexicalPath($0.root.path) })
         for session in old where !retained.contains(FileTransferPaths.lexicalPath(session.access.root.path)) {
@@ -333,18 +376,64 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         }
         retiring=[];transitioning=false;attach(accesses);cleanup();changed()
     }
+    /// Reconcile the published preference without retiring readers or their tickets.
+    /// A failed warm-cache write/delete is retained for an explicit or later retry.
+    public func reloadCachePolicy() {
+        do {
+            let preference = try cache.persistence()
+            appliedCacheSave = preference.cacheSave
+            try cache.setPersistence(preference)
+            policyFailure = nil; warmFailure = nil
+        } catch { policyFailure = error.localizedDescription }
+        changed()
+    }
     public func refresh(_ id:UUID? = nil) {
         guard running,!transitioning else { return }
-        cleanup()
+        reloadCachePolicy();retryRetiredPublications();cleanup()
+        // Permission failures on launch are retriable without replacing the
+        // receiver's durable grant registry or interrupting healthy roots.
+        do {
+            let restored=try permissions.restore(requireSecurityScope:requireSecurityScope)
+            restorationFailure=nil
+            let missing=restored.accesses.filter { sessions[$0.id]==nil && (id==nil || id==$0.id) }
+            for (key,failure) in restored.failures where sessions[key]==nil { rootFailures[key]=failure }
+            for access in missing { rootFailures.removeValue(forKey:access.id) }
+            attach(missing)
+        } catch { restorationFailure=error.localizedDescription;changed() }
         for (key,session) in sessions where id==nil || id==key { session.refresh?.invalidate() }
     }
+    private func retryRetiredPublications() {
+        var failures:[String]=[],retained:[FinderPublicationSession]=[]
+        for session in retiredPublicationSessions {
+            do {
+                let snapshot = try cache.endSession(session)
+                warmFailure = snapshot.persistenceFailure; notify()
+            }
+            catch { retained.append(session);failures.append(error.localizedDescription) }
+        }
+        retiredPublicationSessions=retained
+        lifecycleFailure=failures.isEmpty ? nil : failures.joined(separator:"\n")
+    }
     public func shutdown() async {
+        if let shutdownTask { await shutdownTask.value;return }
         recordActivity("Stopping status cache…")
         running=false;generation += 1;transitioning=true
-        let old=Array(sessions.values)+retiring;sessions.removeAll()
+        let identity=generation,old=Array(sessions.values)+retiring
+        sessions.removeAll();retiring=old
+        // Capture and detach the ending lease before suspension. A second caller
+        // joins this exact barrier; it cannot retire a later process generation.
+        let endingPublication=publicationSession;publicationSession=nil
         for session in old { session.retire() }
-        for session in old { await session.task?.value }
-        retiring=[];transitioning=false;changed()
+        let operation=Task { [self] in
+            for session in old { await session.drain() }
+            if let endingPublication { retiredPublicationSessions.append(endingPublication) }
+            retryRetiredPublications()
+            guard generation==identity else { return }
+            retiring=[];transitioning=false;changed()
+        }
+        shutdownTask=operation
+        await operation.value
+        if generation==identity { shutdownTask=nil }
     }
     private func attach(_ accesses:[FinderServicePersistentAccess]) {
         for access in accesses {
@@ -357,7 +446,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
                 session.task=Task { [weak self] in
                     guard let self else { return };await self.collect(session,token:token)
                 }
-                await session.task?.value;session.task=nil;session.token=nil; self.changed()
+                await session.task?.value;session.finishedReading();self.changed()
             })
             session.refresh?.invalidate()
         }
@@ -365,10 +454,18 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     private func collect(_ session:Session,token:OperationCancellation) async {
         recordActivity("Crawling folder: " + session.access.root.path)
         do {
-            let ticket=try cache.begin(root:session.access.root,cancellation:token)
-            let collection=try await session.repository.collectFinderRepository(authorizedRoot:session.access.lease.url,additionalAuthorizedRoots:session.access.additionalLeases.map(\.url),cancellation:token,watchReady:{ [weak self,weak session] paths in
-                await self?.watch(session,paths:paths)
-            })
+            reloadCachePolicy()
+            guard let publicationSession else { throw FinderCacheServiceFailure.transitioning }
+            let ticket=try cache.begin(root:session.access.root,session:publicationSession,cancellation:token)
+            if let warning=ticket.persistenceFailure { warmFailure=warning;changed() }
+            let collection:FinderRepositoryCollection
+            if let collectionOverride {
+                collection=try await collectionOverride(session.repository,session.access,token)
+            } else {
+                collection=try await session.repository.collectFinderRepository(authorizedRoot:session.access.lease.url,additionalAuthorizedRoots:session.access.additionalLeases.map(\.url),cancellation:token,watchReady:{ [weak self,weak session] paths in
+                    await self?.watch(session,paths:paths)
+                })
+            }
             try token.check()
             guard running,session.active,sessions[session.access.id]===session else { return }
             // An unauthorized shared Git directory must not be silently monitored.
@@ -376,6 +473,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
             if let failure=session.watchFailure { throw NSError(domain:"TurtleGit.FinderWatcher",code:1,userInfo:[NSLocalizedDescriptionKey:failure]) }
             let publication=try cache.publish(ticket,snapshots:collection.snapshots,cancellation:token)
             if publication.published {
+                warmFailure = publication.persistenceFailure
                 session.lastPublication = Date()
                 var directories=GitPathSet(collection.snapshots.flatMap(\.roots))
                 for snapshot in collection.snapshots {
@@ -415,7 +513,12 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         cleanupFailures=[:]
         for (root,id) in pendingRemovals {
             if active.contains(root) { pendingRemovals.removeValue(forKey:root);continue }
-            do { _ = try cache.remove(root:FileTransferPaths.fileURL(root));pendingRemovals.removeValue(forKey:root);notify() }
+            do {
+                guard let publicationSession else { throw FinderCacheServiceFailure.transitioning }
+                let snapshot = try cache.remove(root:FileTransferPaths.fileURL(root),session:publicationSession)
+                warmFailure = snapshot.persistenceFailure
+                pendingRemovals.removeValue(forKey:root);notify()
+            }
             catch { cleanupFailures[id]=error.localizedDescription }
         }
     }

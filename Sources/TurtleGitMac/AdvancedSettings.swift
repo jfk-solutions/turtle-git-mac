@@ -3,20 +3,25 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class AdvancedSettingsModel: ObservableObject {
+    static let cachePersistencePendingKey = "TurtleGit.CacheSavePublicationPending"
     let store: AdvancedSettingsStore
     private let defaults: UserDefaults
     private let publishFinderMenu: (FinderMenuSettings) throws -> Void
+    private let publishCachePersistence: (FinderCachePersistencePreferences) throws -> Void
+    @Published private(set) var cachePersistencePublicationPending = false
     private let publishCacheTray: (FinderCacheTrayPreferences) throws -> Void
     @Published var values: [String: String]
     @Published var error: String?
     @Published private var original: [String: String]
     var onApplied: () -> Void = {}
-    var modified: Bool { values != original }
+    var modified: Bool { values != original || cachePersistencePublicationPending }
     init(defaults: UserDefaults = .standard,
          publishFinderMenu: @escaping (FinderMenuSettings) throws -> Void = { _ = try $0.write() },
+         publishCachePersistence: @escaping (FinderCachePersistencePreferences) throws -> Void = { if try $0.write() { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCachePersistencePreferences.notification),object:nil) } },
          publishCacheTray: @escaping (FinderCacheTrayPreferences) throws -> Void = { if try $0.write() { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCacheTrayPreferences.notification),object:nil) } }) {
-        self.defaults = defaults; self.publishFinderMenu = publishFinderMenu; self.publishCacheTray = publishCacheTray
+        self.defaults = defaults; self.publishFinderMenu = publishFinderMenu; self.publishCacheTray = publishCacheTray; self.publishCachePersistence = publishCachePersistence
         store = AdvancedSettingsStore(defaults: defaults); let initial = store.values(); original = initial; values = initial
+        cachePersistencePublicationPending=defaults.bool(forKey:Self.cachePersistencePendingKey)
     }
     func edit(_ name: String, text: String) -> Bool {
         guard let setting = AdvancedSettingDefinition.all.first(where: { $0.name == name }), setting.accepts(text) else { return false }
@@ -26,6 +31,15 @@ import TurtleGitCore
         do {
             let changes = values.filter { original[$0.key] != $0.value }
             try store.apply(changes); original = values; error = nil; RepositoryWindowTitles.refreshAll(); onApplied()
+            if changes["CacheSave"] != nil || cachePersistencePublicationPending {
+                cachePersistencePublicationPending = true
+                defaults.set(true,forKey:Self.cachePersistencePendingKey)
+                do {
+                    try publishCachePersistence(FinderCachePersistencePreferences.from(defaults:defaults))
+                    cachePersistencePublicationPending = false
+                    defaults.removeObject(forKey:Self.cachePersistencePendingKey)
+                } catch { self.error = "Settings saved, but cache persistence preferences could not be updated. Apply again to retry: " + error.localizedDescription }
+            }
             if changes["CacheTrayIcon"] != nil || changes["ShowAppContextMenuIcons"] != nil {
                 do { try publishCacheTray(FinderCacheTrayPreferences.from(defaults:defaults)) }
                 catch { self.error = "Settings saved, but cache menu preferences could not be updated: " + error.localizedDescription }
@@ -103,7 +117,8 @@ struct AdvancedSettingsTable: NSViewRepresentable {
         func tableView(_ tableView: NSTableView, toolTipFor cell: NSCell, rect: NSRectPointer, tableColumn: NSTableColumn?, row: Int, mouseLocation: NSPoint) -> String {
             guard AdvancedSettingDefinition.all.indices.contains(row) else { return "" }
             let setting = AdvancedSettingDefinition.all[row]
-            let effective: Set<String> = ["UseCustomWordBreak", "RefreshFileListAfterResolvingConflict", "ReaddUnselectedAddedFilesAfterCommit", "CacheTrayIcon", "DialogTitles", "ShowListFullPathTooltip", "ShortHashLengthForHyperLinkInLogMessage", "DownloadAnimation", "FetchVerbose", "ConflictDontGuessBranchNames", "MaxRefHistoryItems", "DiffSimilarityIndexThreshold", "AutoCompleteMinChars", "AutocompleteParseMaxSize", "AutocompleteParseUnversioned", "AutocompleteRemovesExtensions", "StyleCommitMessages", "ShowListBackgroundImage", "ShowAppContextMenuIcons", "ShowContextMenuIcons", "LogIncludeBoundaryCommits", "LogIncludeWorkingTreeChanges", "LogFontForLogCtrl", "LogFontForFileListCtrl", "NoSortLocalBranchesFirst", "LogTooManyItemsThreshold", "NumDiffWarning", "LogShowSuperProjectSubmodulePointer", "NamedRemoteFetchAll", "RememberFileListPosition", "SanitizeCommitMsg", "SquashDate", "StyleGitOutput", "VersionCheck", "VersionCheckPreview"]
+            let effective: Set<String> = ["CacheSave", "UseCustomWordBreak", "RefreshFileListAfterResolvingConflict", "ReaddUnselectedAddedFilesAfterCommit", "CacheTrayIcon", "DialogTitles", "ShowListFullPathTooltip", "ShortHashLengthForHyperLinkInLogMessage", "DownloadAnimation", "FetchVerbose", "ConflictDontGuessBranchNames", "MaxRefHistoryItems", "DiffSimilarityIndexThreshold", "AutoCompleteMinChars", "AutocompleteParseMaxSize", "AutocompleteParseUnversioned", "AutocompleteRemovesExtensions", "StyleCommitMessages", "ShowListBackgroundImage", "ShowAppContextMenuIcons", "ShowContextMenuIcons", "LogIncludeBoundaryCommits", "LogIncludeWorkingTreeChanges", "LogFontForLogCtrl", "LogFontForFileListCtrl", "NoSortLocalBranchesFirst", "LogTooManyItemsThreshold", "NumDiffWarning", "LogShowSuperProjectSubmodulePointer", "NamedRemoteFetchAll", "RememberFileListPosition", "SanitizeCommitMsg", "SquashDate", "StyleGitOutput", "VersionCheck", "VersionCheckPreview"]
+            if setting.name=="CacheSave" { return "Save completed Finder status for the next cache session. Disabling this keeps current badges and watched repositories active, but discards saved warm status." }
             if setting.name=="UseLibgit2" { return "Optional libgit2 engine, selected by UseLibgit2_mask, for Add, checkbox Commit preparation, Clone, Fetch, remote-reference listing/deletion and historical file output. Source defaults use libgit2 for Add and filtered historical output and retain Git for checkbox Commit preparation and remote operations; ordinary Push uses Git." }
             if setting.name=="UseCustomWordBreak" {return "URL/path word navigation: 0 uses macOS behavior; 1 customizes path/branch/author fields; 2 also customizes editable history controls. Other nonzero values customize plain fields only."}
             return effective.contains(setting.name) ? setting.name : "This preference has no effect on TurtleGit yet."

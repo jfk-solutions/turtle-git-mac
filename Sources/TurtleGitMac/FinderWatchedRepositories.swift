@@ -26,6 +26,19 @@ struct FinderWatchRow:Identifiable {
     private(set) var active=true
     private let permissions:RepositoryAccessStore
     private let cache:FinderSnapshotStore?
+    private var cacheSession:FinderPublicationSession?
+    private var publicationRetirement:Task<Void,Never>?
+    var hasPendingFinderPublication:Bool { cacheSession != nil || pendingOperations>0 }
+    private func publicationSession(_ cache:FinderSnapshotStore,cancellation:OperationCancellation) throws -> FinderPublicationSession {
+        guard active else { throw OperationCancellationFailure.cancelled }
+        if let cacheSession { return cacheSession }
+        let session=try cache.startSession(cancellation:cancellation);cacheSession=session;return session
+    }
+    private func removePublication(_ root:URL,cache:FinderSnapshotStore,cancellation:OperationCancellation) async throws {
+        let session=try publicationSession(cache,cancellation:cancellation)
+        let updated=try await Task.detached { try cache.remove(root:root,session:session,cancellation:cancellation) }.value
+        if let failure=updated.persistenceFailure { error="Finder live status updated, but saved cache could not be updated: "+failure }
+    }
     private let requireScope:Bool
     private let scopeProvider:any RepositoryBookmarkProvider
     private let repositoryFactory:(URL) throws -> GitRepository
@@ -96,21 +109,30 @@ struct FinderWatchRow:Identifiable {
             if !session.permissionReady {
                 if let old=permissions.repositories.first(where:{ $0.id==session.id }),old.lastKnownPath != root.path,let cache {
                     let previous=URL(fileURLWithPath:old.lastKnownPath,isDirectory:true)
-                    _ = try await Task.detached { try cache.remove(root:previous,cancellation:token) }.value
+                    try await removePublication(previous,cache:cache,cancellation:token)
                     guard active,session.active,!token.isCancelled else { return };notify()
                 }
                 guard active,session.active,!token.isCancelled else { return }
                 _ = try permissions.replace(session.id,with:session.lease.url);session.permissionReady=true;serviceRevision += 1;render()
             }
             var ticket:FinderPublicationTicket?
-            if let cache { ticket=try await Task.detached { try cache.begin(root:root,cancellation:token) }.value }
+            if let cache {
+                let session=try publicationSession(cache,cancellation:token)
+                ticket=try await Task.detached { try cache.begin(root:root,session:session,cancellation:token) }.value
+            }
             let result=try await session.repository.collectFinderRepository(authorizedRoot:session.lease.url,additionalAuthorizedRoots:session.additionalLeases.map(\.url),cancellation:token,watchReady:{ [weak self,weak session] paths in if let self,let session { await self.install(session,paths) } })
             guard active,session.active,!token.isCancelled,sessions[session.id] === session else { return }
             if let cache,let ticket {
                 let published=try await Task.detached { try cache.publish(ticket,snapshots:result.snapshots,cancellation:token) }.value
                 guard active,session.active,!token.isCancelled else { return }
                 if !published.published { statuses[session.id]="Refresh superseded";session.scheduler?.invalidate() }
-                else { statuses[session.id]=result.failures.isEmpty ? "Updated" : "Updated; \(result.failures.count) child repositories unavailable";notify() }
+                else {
+                    statuses[session.id]=result.failures.isEmpty ? "Updated" : "Updated; \(result.failures.count) child repositories unavailable"
+                    if let failure=published.persistenceFailure {
+                        statuses[session.id,default:"Updated"] += "; saved cache unavailable: "+failure
+                    }
+                    notify()
+                }
             } else { statuses[session.id]="Updated; Finder integration unavailable" }
             render()
         } catch { if active,session.active,!token.isCancelled { statuses[session.id]=error.localizedDescription;render() } }
@@ -134,7 +156,7 @@ struct FinderWatchRow:Identifiable {
                 sessions.removeValue(forKey:old.id)?.retire()
                 if let cache {
                     let path=URL(fileURLWithPath:old.lastKnownPath,isDirectory:true)
-                    _ = try await Task.detached { try cache.remove(root:path,cancellation:token) }.value
+                    try await removePublication(path,cache:cache,cancellation:token)
                     guard active,!token.isCancelled else { return };notify()
                 }
             }
@@ -154,7 +176,7 @@ struct FinderWatchRow:Identifiable {
         do {
             if let cache {
                 let root=URL(fileURLWithPath:saved.lastKnownPath,isDirectory:true)
-                _ = try await Task.detached { try cache.remove(root:root,cancellation:token) }.value
+                try await removePublication(root,cache:cache,cancellation:token)
                 guard active,!token.isCancelled else { return };notify()
             }
             try permissions.forget(id);serviceRevision += 1;statuses[id]=nil;render()
@@ -187,8 +209,22 @@ struct FinderWatchRow:Identifiable {
         }.sorted { $0.0.uuidString<$1.0.uuidString }
         return try FinderServiceAuthorization.capture(values,provider:provider)
     }
-    func retire() { guard active else { return };active=false;backgroundService?.retire();mutation?.cancel();sessions.values.forEach { $0.retire() };sessions=[:] }
-    func shutdown() async { retire();while pendingOperations>0 { try? await Task.sleep(nanoseconds:10_000_000) };await backgroundService?.settle() }
+    func retire() {
+        guard active else { return }
+        active=false;backgroundService?.retire();mutation?.cancel();sessions.values.forEach { $0.retire() };sessions=[:]
+        publicationRetirement=Task { [self] in
+            while pendingOperations>0 { try? await Task.sleep(nanoseconds:10_000_000) }
+            if let cache,let session=cacheSession {
+                cacheSession=nil
+                do {
+                    let updated=try await Task.detached { try cache.endSession(session) }.value
+                    if let failure=updated.persistenceFailure { error="Finder live status retired, but saved cache could not be updated: "+failure }
+                    notify()
+                } catch { self.error="Finder cache shutdown unavailable: "+error.localizedDescription }
+            }
+        }
+    }
+    func shutdown() async { retire();await publicationRetirement?.value;await backgroundService?.settle() }
 }
 
 /// The page owns its chooser/question; the application owns accepted watches.

@@ -20,7 +20,7 @@ import TurtleGitCore
         let models=repos.map { _ in RepositoryModel(startMonitoring:true,initializePreferences:false,repositoryFactory:{ GitRepository(root:$0,executable:engine) },snapshotStore:store) }
         defer { models.forEach { $0.closeRepository() } }
         var notifications=0,notificationBeforeWrite=false
-        func read() -> FinderSnapshot? { guard let bytes=try? Data(contentsOf:store.url) else { return nil };return try? JSONDecoder().decode(FinderSnapshot.self,from:bytes) }
+        func read() -> FinderSnapshot? { FinderSnapshot.readLive(from:store.url) }
         for (index,model) in models.enumerated() {
             model.notifyFinder={ notifications += 1;if read()?.roots.contains(repos[index].root.path) != true { notificationBeforeWrite=true } }
             model.open(repos[index].root)
@@ -42,15 +42,21 @@ import TurtleGitCore
         }
         try await wait { (0..<2).allSatisfy { FileManager.default.fileExists(atPath:folder.appendingPathComponent("worker-\($0)/ready").path) } }
         for index in 0..<2 { try Data().write(to:folder.appendingPathComponent("worker-\(index)/go")) }
-        try await wait { workers.allSatisfy { !$0.isRunning } };for worker in workers { worker.waitUntilExit();try require(worker.terminationStatus==0,"Worker publication failed") }
-        try require(read()?.roots.count==4,"Separate processes lost another root")
+        try await wait { (0..<2).allSatisfy { FileManager.default.fileExists(atPath:folder.appendingPathComponent("worker-\($0)/published").path) } }
+        try require(workers.allSatisfy { $0.isRunning } && read()?.roots.count==4,"Separate live processes lost another root")
         try require(repos.allSatisfy { read()?.states[$0.root.appendingPathComponent("file").path] == .modified },"Workers overwrote app roots")
+        for index in 0..<2 { try Data().write(to:folder.appendingPathComponent("worker-\(index)/release")) }
+        try await wait { workers.allSatisfy { !$0.isRunning } };for worker in workers { worker.waitUntilExit();try require(worker.terminationStatus==0,"Worker publication failed") }
+        try require(read()?.roots.count==2,"Exited workers retained authoritative live roots")
+        models[0].stopMonitoringForTermination();await models[0].shutdownFinderPublication()
+        let own=try store.begin(root:repos[0].root)
+        _ = try store.publish(own,snapshots:[FinderSnapshot(roots:[repos[0].root.path],states:[repos[0].root.appendingPathComponent("file").path:.modified])])
         let pending=try store.begin(root:repos[0].root)
         let removed=try store.remove(root:repos[0].root)
         try require(!removed.roots.contains(repos[0].root.path) && removed.roots.contains(repos[1].root.path),"Removal scope")
         let stale=FinderSnapshot(roots:[repos[0].root.path],states:[repos[0].root.path:.modified])
         try require(try !store.publish(pending,snapshots:[stale]).published,"Removed root revived")
-        models.forEach { $0.closeRepository() }
+        for model in models {model.closeRepository();model.stopMonitoringForTermination();await model.shutdownFinderPublication()}
         print("Finder publication: two real app models retain independent root changes; notifications follow atomic writes; two separate owned processes merge roots; removal rejects late reads and preserves other roots. Existing snapshot JSON remains readable. Private store only; owned workers reaped.")
     }
 }

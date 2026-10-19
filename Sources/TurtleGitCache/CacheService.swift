@@ -8,6 +8,7 @@ import TurtleGitCore
     private var signals:[DispatchSourceSignal]=[]
     private var tray:FinderCacheTrayController?
     private var stopTask:Task<Void,Never>?
+    private var policyObserver:NSObjectProtocol?
     init(configuration:Void) throws {
         // Both peers require an Apple-signed identity from the same team. Unsigned
         // development bundles fail closed rather than weakening production IPC.
@@ -27,6 +28,14 @@ import TurtleGitCore
     }
     func start() throws {
         try runtime.start();listener.resume();NSApp.delegate=self
+        policyObserver=DistributedNotificationCenter.default().addObserver(
+            forName:NSNotification.Name(FinderCachePersistencePreferences.notification),object:nil,queue:.main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self,self.stopTask==nil else { return }
+                self.runtime.reloadCachePolicy()
+            }
+        }
         tray=FinderCacheTrayController(snapshot:{ [weak self] in self?.runtime.activitySnapshot ?? .init(running:false) },exitService:{ [weak self] in await self?.stopAndExit() })
         for number in [SIGTERM,SIGINT] {
             signal(number,SIG_IGN)
@@ -40,7 +49,11 @@ import TurtleGitCore
     private func stopAndExit() async {
         if let stopTask { await stopTask.value; return }
         let operation=Task { [self] in
-            tray?.beginStopping();listener.invalidate();await runtime.shutdown();tray?.retire();exit(0)
+            tray?.beginStopping()
+            if let policyObserver { DistributedNotificationCenter.default().removeObserver(policyObserver);self.policyObserver=nil }
+            listener.invalidate();await runtime.shutdown()
+            if let failure=runtime.report.cacheFailure { fputs("TurtleGit cache shutdown: \(failure)\n",stderr) }
+            tray?.retire();exit(0)
         }
         stopTask=operation;await operation.value
     }

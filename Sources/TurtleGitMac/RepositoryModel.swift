@@ -459,6 +459,39 @@ private enum HistoricalMaterializationContext {
     private let repositoryFactory:((URL) throws -> GitRepository)?
     private let snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)?
     private let snapshotStore:FinderSnapshotStore?
+    private var finderPublicationSession:FinderPublicationSession?
+    private var finderPublicationReads:[UUID:OperationCancellation]=[:]
+    private(set) var finderPublicationShutdownPending = false
+    private var finderPublicationShutdownTask:Task<Void,Never>?
+    var hasPendingFinderPublication:Bool { !finderPublicationReads.isEmpty || finderPublicationSession != nil || finderPublicationShutdownPending }
+    private func publicationSession(_ store:FinderSnapshotStore,cancellation:OperationCancellation) throws -> FinderPublicationSession {
+        if let finderPublicationSession { return finderPublicationSession }
+        let session=try store.startSession(cancellation:cancellation)
+        finderPublicationSession=session;return session
+    }
+    /// Keep the live writer lease until every owned Git reader and publication
+    /// settles. Retiring this owner must preserve other active app/helper owners.
+    func shutdownFinderPublication() async {
+        if let finderPublicationShutdownTask { await finderPublicationShutdownTask.value;return }
+        let task=Task { [self] in await finishFinderPublication() }
+        finderPublicationShutdownTask=task
+        await task.value
+    }
+    private func finishFinderPublication() async {
+        finderPublicationShutdownPending=true
+        defer { finderPublicationShutdownPending=false }
+        for token in finderPublicationReads.values { token.cancel() }
+        while !finderPublicationReads.isEmpty { try? await Task.sleep(nanoseconds:10_000_000) }
+        if let store=snapshotStore,let session=finderPublicationSession {
+            finderPublicationSession=nil
+            do {
+                let updated=try await Task.detached { try store.endSession(session) }.value
+                if let failure=updated.persistenceFailure { finderStatus="Finder live status retired; saved cache unavailable: "+failure }
+                notifyFinder()
+            }
+            catch { finderStatus="Finder cache shutdown unavailable: "+error.localizedDescription }
+        }
+    }
     var notifyFinder:()->Void = { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification),object:nil) }
     private(set) var finderWatches:FinderWatchManager?
     private let monitoringEnabled:Bool
@@ -466,7 +499,7 @@ private enum HistoricalMaterializationContext {
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -518,7 +551,8 @@ private enum HistoricalMaterializationContext {
         return eligible && (!action.ignoresByExtension || selected.contains { !($0.path as NSString).pathExtension.isEmpty })
     }
 
-    init(startMonitoring: Bool = true,initializePreferences:Bool = true,repositoryFactory:((URL) throws -> GitRepository)? = nil,snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)? = nil,snapshotStore:FinderSnapshotStore? = nil,finderWatches:FinderWatchManager? = nil,savedAccessStore:RepositoryAccessStore? = nil,comparisonMarks:WorkingComparisonMarkStore? = nil) {
+    init(startMonitoring: Bool = true,initializePreferences:Bool = true,repositoryFactory:((URL) throws -> GitRepository)? = nil,snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)? = nil,snapshotStore:FinderSnapshotStore? = nil,finderWatches:FinderWatchManager? = nil,savedAccessStore:RepositoryAccessStore? = nil,comparisonMarks:WorkingComparisonMarkStore? = nil,cachePersistenceDefaults:UserDefaults = .standard,
+         publishCachePersistence:(FinderCachePersistencePreferences) throws -> Void = { if try $0.write() { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCachePersistencePreferences.notification),object:nil) } }) {
         comparisonMarkStore=comparisonMarks ?? WorkingComparisonMarkStore(storageURL:WorkingComparisonMarkStore.defaultStorageURL)
         self.accessStore=savedAccessStore;recentRepositories=savedAccessStore?.repositories ?? []
         self.finderWatches=finderWatches
@@ -527,6 +561,11 @@ private enum HistoricalMaterializationContext {
         if self.snapshotStore != nil { finderStatus = "Finder cache ready" }
         monitoringEnabled=startMonitoring
         guard startMonitoring && initializePreferences else { return }
+        cachePersistenceDefaults.set(true,forKey:AdvancedSettingsModel.cachePersistencePendingKey)
+        do {
+            try publishCachePersistence(FinderCachePersistencePreferences.from(defaults:cachePersistenceDefaults))
+            cachePersistenceDefaults.removeObject(forKey:AdvancedSettingsModel.cachePersistencePendingKey)
+        } catch { finderStatus="Finder cache persistence preferences unavailable: "+error.localizedDescription }
         do { if self.finderWatches==nil { self.finderWatches=try FinderWatchManager.production() };self.finderWatches?.restore() }
         catch { finderStatus="Watched repositories unavailable: "+error.localizedDescription }
         do { _ = try FinderMenuSettings.from().write() }
@@ -541,7 +580,7 @@ private enum HistoricalMaterializationContext {
             accessStore = store; recentRepositories = store.repositories
         } catch { self.error = "Saved repository permissions could not be loaded: " + error.localizedDescription }
         Task {
-            if let snapshot = await Task.detached(operation: { FinderSnapshot.read() }).value, root == nil {
+            if let snapshot = await Task.detached(operation: { FinderSnapshot.readLive() }).value, root == nil {
                 cacheStates = snapshot.states; monitoredRoots = snapshot.roots; cacheRepositories = snapshot.repositories
                 cacheOverlayEntries = snapshot.overlayEntries
                 cacheIndexFlags = snapshot.indexFlags
@@ -781,13 +820,20 @@ private enum HistoricalMaterializationContext {
         if refreshStatus, let root { refreshStatusWindows(root) }
     }
     private func reload(cancellation:OperationCancellation? = nil) async throws {
-        guard let repository, let root else { return }
-        let token=cancellation ?? OperationCancellation()
+        guard !retired,let repository, let root else { return }
+        let token=cancellation ?? OperationCancellation(),readID=UUID()
+        finderPublicationReads[readID]=token
+        defer { finderPublicationReads.removeValue(forKey:readID) }
         let store=snapshotStore
-        var ticket:FinderPublicationTicket?,publicationError:String?
+        var ticket:FinderPublicationTicket?,publicationError:String?,persistenceWarning:String?
         if snapshotWriter==nil,let store {
-            do { ticket=try await Task.detached { try store.begin(root:root,cancellation:token) }.value }
+            do {
+                let session=try publicationSession(store,cancellation:token)
+                persistenceWarning=session.persistenceFailure
+                ticket=try await Task.detached { try store.begin(root:root,session:session,cancellation:token) }.value
+            }
             catch { publicationError=error.localizedDescription }
+            persistenceWarning=ticket?.persistenceFailure ?? persistenceWarning
         }
         let collected=try await repository.collectFinderRepository(authorizedRoot:activeAccess?.url ?? root,cancellation:token,watchReady:{ [weak self] directories in if !token.isCancelled { await self?.monitorFiles(directories) } })
         try token.check()
@@ -806,13 +852,14 @@ private enum HistoricalMaterializationContext {
             else if let store,let ticket {
                 let update=try await Task.detached { try store.publish(ticket,snapshots:collected.snapshots,cancellation:token) }.value
                 cached=update.snapshot
+                persistenceWarning=update.persistenceFailure
                 monitoredRoots=cached.roots;cacheStates=cached.states;cacheRepositories=cached.repositories
                 cacheOverlayEntries=cached.overlayEntries;cacheIndexFlags=cached.indexFlags
                 guard update.published else { finderStatus="Finder cache update superseded";return }
                 written=true
             } else { written=false }
             finderStatus = written ? (collected.failures.isEmpty ? "Finder cache updated" : "Finder cache updated; \(collected.failures.count) submodule scan(s) failed: " + collected.failures.sorted { $0.key < $1.key }.map { $0.key + ": " + $0.value }.joined(separator: "; ")) : "Finder cache unavailable: App Group access required"
-            if written { notifyFinder() }
+            if written { if let persistenceWarning { finderStatus += "; saved cache unavailable: "+persistenceWarning };notifyFinder() }
         } catch { finderStatus = "Finder cache unavailable: " + error.localizedDescription }
     }
     func perform(_ operation: @escaping (GitRepository) async throws -> String) {
@@ -1856,7 +1903,7 @@ private enum HistoricalMaterializationContext {
         }
         guard !finderPatchReceipts.contains(receipt) else { return }
         finderPatchReceipts.append(receipt); if finderPatchReceipts.count > 128 { finderPatchReceipts.removeFirst() }
-        let known = FinderSnapshot.read()?.roots.first { selected.path == $0 || selected.path.hasPrefix($0 + "/") }
+        let known = FinderSnapshot.readLive()?.roots.first { selected.path == $0 || selected.path.hasPrefix($0 + "/") }
             ?? root.flatMap { selected.path == $0.path || selected.path.hasPrefix($0.path + "/") ? $0.path : nil }
         let target = known == nil ? nil : selected.deletingLastPathComponent()
         var grants = activeAccess.map { [$0] } ?? []
@@ -1898,7 +1945,7 @@ private enum HistoricalMaterializationContext {
         guard files.count <= 1 else { error = "Select one patch file to review."; return }
         let first = files.first
         let knownRoot = first.flatMap { first in
-            FinderSnapshot.read()?.roots.sorted { $0.count > $1.count }.first { first.path == $0 || first.path.hasPrefix($0 + "/") }
+            FinderSnapshot.readLive()?.roots.sorted { $0.count > $1.count }.first { first.path == $0 || first.path.hasPrefix($0 + "/") }
                 ?? root.flatMap { first.path == $0.path || first.path.hasPrefix($0.path + "/") ? $0.path : nil }
         }
         let patchFile = first.flatMap { ["patch", "diff"].contains($0.pathExtension.lowercased()) ? $0 : nil }
@@ -1947,7 +1994,7 @@ private enum HistoricalMaterializationContext {
         let requireScope = requiresRepositoryScope, preferences = fileComparisonPreferences, presentation = finderMailPresentation
         let token = owner.cancellation
         let inspect = mailFileInspection, permission = mailFilePermission
-        let knownRoot = FinderSnapshot.read()?.roots.sorted { $0.count > $1.count }.first { first.path == $0 || first.path.hasPrefix($0 + "/") }
+        let knownRoot = FinderSnapshot.readLive()?.roots.sorted { $0.count > $1.count }.first { first.path == $0 || first.path.hasPrefix($0 + "/") }
             ?? root.flatMap { first.path == $0.path || first.path.hasPrefix($0.path + "/") ? $0.path : nil }
         let rootURL = knownRoot.map { URL(fileURLWithPath: $0, isDirectory: true) }
         let targets = files + (rootURL.map { [$0] } ?? [])
@@ -4575,7 +4622,7 @@ private enum HistoricalMaterializationContext {
         let action = request.action
         if action == .settings {
             let knownRoot = request.paths.first.flatMap { selected in
-                FinderSnapshot.read()?.roots.sorted { $0.count > $1.count }.first { selected.path == $0 || selected.path.hasPrefix($0 + "/") }
+                FinderSnapshot.readLive()?.roots.sorted { $0.count > $1.count }.first { selected.path == $0 || selected.path.hasPrefix($0 + "/") }
                     ?? root.flatMap { selected.path == $0.path || selected.path.hasPrefix($0.path + "/") ? $0.path : nil }
             }
             if knownRoot == nil { onSettings(true); return }
@@ -4604,7 +4651,7 @@ private enum HistoricalMaterializationContext {
         var permissionTargets = action == .blame ? request.paths.map { $0.standardizedFileURL.deletingLastPathComponent() } : request.paths
         if let discovery = invocation?.submoduleDiscoveryURL { permissionTargets.append(discovery) }
         if action == .rename || action == .remove || action == .submoduleSync || action == .logSubmodule || action == .properties,
-           let parent = FinderSnapshot.read()?.repositories[candidate.standardizedFileURL.path]?.submoduleParentRoot {
+           let parent = FinderSnapshot.readLive()?.repositories[candidate.standardizedFileURL.path]?.submoduleParentRoot {
             let parentURL = URL(fileURLWithPath: parent, isDirectory: true)
             if parentURL.path != candidate.path && candidate.standardizedFileURL.path.hasPrefix(parentURL.path.hasSuffix("/") ? parentURL.path : parentURL.path + "/") {
                 permissionTargets.append(parentURL)

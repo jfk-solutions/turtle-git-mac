@@ -55,3 +55,14 @@ writers are outside this protocol and should not be used by the future service.
 Independent service packaging/startup, watched-root management, bookmark renewal,
 physical Finder activation, signed App Group/security scopes and App Store
 acceptance remain open. No complete Finder integration is certified.
+
+## Live ownership and restart continuation — October 19, 2026
+
+[Cache persistence and publisher lifetime](FINDER-CACHE-PERSISTENCE.md) now separate
+the optional warm archive from current Finder publication. Version-three control
+records retain exact-root contributions per live session. Retirement and crash
+filtering preserve other active publishers, while root removal fences owned
+subtree claims. Readers cache projection work and probe kernel leases without
+waiting for writer locks. Earlier file-survival evidence does not establish live
+ownership; updated native workers remain alive during concurrent-root checks and
+are then released/reaped before stale-root assertions.

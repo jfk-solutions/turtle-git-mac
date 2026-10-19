@@ -636,6 +636,11 @@ cache service. Check Status reports its actual publication or access failures;
 Synchronize transfers updated folder grants. Disabling the service stops its
 background job. The app and helper retain their own private folder permissions.
 
+Advanced **CacheSave** controls the separate warm cache used across restarts;
+its default is true. Disabling it keeps live badges and refreshes running. Failed
+Apply retains the saved choice and can be retried after reopening Settings.
+See [cache persistence and recovery](FINDER-CACHE-PERSISTENCE.md).
+
 Finder actions keep the selected paths. A Finder command does not grant file
 access; TurtleGit asks you to authorize a repository if no saved grant covers it.
 The signed development checkpoint verifies activation, live badges and independent

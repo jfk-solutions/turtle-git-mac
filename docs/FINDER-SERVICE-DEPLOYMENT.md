@@ -11,8 +11,10 @@ the shared group contains status, not authority.
 Watched Repositories offers **Refresh after TurtleGit quits**, **Synchronize** and
 **Login Items**. Enabling uses `SMAppService.agent`; system approval is represented
 in the page. It is not registered just by building or opening the page. Only a
-valid Apple signing team can enable it. Disabling unregisters it; existing cached
-status and private saved grants remain available for a later enable.
+valid Apple signing team can enable it. Disabling unregisters it and ends its live
+publication; other active publishers remain available. Private saved grants stay
+available for later enable. The separate warm archive follows
+[CacheSave and publisher-lifetime rules](FINDER-CACHE-PERSISTENCE.md).
 
 Both NSXPC peers set signing requirements before resume, pinning the other bundle
 identifier and the current signing team under `anchor apple generic`. Unsigned or

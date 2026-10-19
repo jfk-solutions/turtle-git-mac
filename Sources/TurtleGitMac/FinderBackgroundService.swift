@@ -115,6 +115,7 @@ import TurtleGitCore
         report = next; reportRevision = revision; lastChecked = Date(); failure = nil
         let failed = next.roots.filter { $0.failure != nil }.count + next.cleanupFailures.count
         if next.legacy { message = "Older background service: detailed status is unavailable. Reopen the current TurtleGit build." }
+        else if let cacheFailure = next.cacheFailure { message = "Background cache needs attention: " + cacheFailure + " Retry to apply the saved setting and refresh status." }
         else if !next.running { message = "Background service is stopped." }
         else if failed > 0 { message = "Background service reports \(failed) repository or cleanup problem(s)." }
         else { message = "Background service ready for \(next.roots.count) watched repository(s)." }

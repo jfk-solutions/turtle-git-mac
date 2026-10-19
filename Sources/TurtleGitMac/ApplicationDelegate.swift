@@ -53,7 +53,7 @@ import AppKit
         Task { [self] in
             if !mergeToolShutdownPrepared {
                 repositoryModel?.stopMonitoringForTermination()
-                await repositoryModel?.finderWatches?.shutdown()
+                await repositoryModel?.finderWatches?.shutdown();await repositoryModel?.shutdownFinderPublication()
                 mergeToolShutdownPrepared = true
             }
             completingMergeToolExit = false
@@ -437,7 +437,7 @@ import AppKit
             }
             if allowQuit { for commit in commits { commit.model.restoreCopies.removeAll() } }
             if allowQuit, startupMergeToolActive { repositoryModel?.closeMergeToolLaunchesAfterApprovedQuit(); return }
-            if allowQuit { repositoryModel?.stopMonitoringForTermination();await repositoryModel?.finderWatches?.shutdown() }
+            if allowQuit { repositoryModel?.stopMonitoringForTermination();await repositoryModel?.finderWatches?.shutdown();await repositoryModel?.shutdownFinderPublication() }
             for browser in browsers { browser.model.confirmingQuit = false }
             for diff in submoduleDiffs { diff.model.confirmingQuit = false }
             for comparison in fileComparisons { comparison.model.confirmingQuit = false }
@@ -494,9 +494,12 @@ import AppKit
             confirmingQuit = true; repositoryModel?.closeMergeToolLaunchesAfterApprovedQuit(); return .terminateLater
         }
         repositoryModel?.stopMonitoringForTermination()
-        guard let manager=repositoryModel?.finderWatches else { return .terminateNow }
-        let pending=manager.pendingOperations+(manager.backgroundService?.busy == true ? 1 : 0);manager.retire()
-        guard pending>0 else { return .terminateNow }
+        let manager=repositoryModel?.finderWatches
+        let pending=(manager?.pendingOperations ?? 0)+(manager?.backgroundService?.busy == true ? 1 : 0)
+        manager?.retire()
+        // A live foreground writer must be retired before process exit even if
+        // its last scan finished and no watched-root operation remains.
+        guard pending>0 || manager?.hasPendingFinderPublication == true || repositoryModel?.hasPendingFinderPublication == true else { return .terminateNow }
         confirmingQuit=true
         let historyReplays = sender.windows.compactMap { $0.delegate as? RebaseWindowController }
         let referenceBrowsers = sender.windows.compactMap { $0.delegate as? ReferenceBrowserWindowController }
@@ -564,7 +567,7 @@ import AppKit
         for controller in updateProgress { controller.model.confirmingQuit = true }
         setTransferQuitConfirmation(sender, true); repositoryModel?.confirmingQuit = true
         Task {
-            await manager.shutdown()
+            await manager?.shutdown();await repositoryModel?.shutdownFinderPublication()
             for controller in historyReplays { controller.model.revisionMenuLog.confirmingQuit = false }
             for controller in referenceBrowsers { controller.model.confirmingQuit = false }
             for controller in blames { controller.model.confirmingQuit = false }

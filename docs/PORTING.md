@@ -1,5 +1,12 @@
 # TurtleGit for Mac — full port tracking
 
+The [Finder cache persistence and restart family](FINDER-CACHE-PERSISTENCE.md)
+connects source CacheSave to native Settings, foreground/watched publishers and
+the independent helper. Warm data, process-session live status, shutdown drain,
+owner-aware removal, crash fencing and persistence-failure recovery have explicit
+contracts and validation boundaries. Catalogue presence alone is not a completion
+claim for other Advanced preferences or the full Finder extension.
+
 The [EMF+ pen stroke family](METAFILE-PEN-PARITY.md) connects all nine stroke
 commands to bounded native geometry and the existing brush pipeline. Linear nib
 transforms, compound bands, independent caps, four joins, dashes, physical/world

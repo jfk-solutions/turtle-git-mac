@@ -246,3 +246,14 @@ source default GetOneFile backend to historical opening/editors, Save As and
 selected/recursive output. Accepted operations retain their engine choice through
 panels and delayed file delivery. Raw comparison and Blame readers remain distinct;
 source filter semantics and actual grouped evidence are recorded in that family.
+
+## Finder cache persistence and live-session family — October 19, 2026
+
+`CacheSave` now controls the connected app/extension/helper cache lifecycle. Its
+source default true gates warm restore/save, while live IPC, active badges and
+watched permissions remain independent. Apply publishes the shared policy; failed
+publication retains the saved choice and durable retry eligibility across Settings
+reopening. Startup republishes the choice. Owned sessions, process-exit fencing,
+retired-read refusal, owner-aware removal and helper diagnostics/retry are described
+in [cache persistence](FINDER-CACHE-PERSISTENCE.md). Other dormant entries retain
+their own consumer status; this does not certify full Settings or Finder parity.

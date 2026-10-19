@@ -1,0 +1,195 @@
+{
+  "date": "2026-10-19",
+  "family": "Finder CacheSave persistence and live publisher lifecycle",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Default-true CacheSave controls separate warm archive without disabling live Finder status",
+    "Process-session advisory leases, crash fencing, overlapping owner fallback and exact Unicode root identity",
+    "Native Advanced Settings saved policy and durable Apply retry across window reopening",
+    "Foreground and watched-root drain, independent helper restart/shutdown, separate persistence diagnostics and retry without replacing grants",
+    "Strict retained Finder reader avoids writer lock waits and revalidates session ownership"
+  ],
+  "validation": [
+    {
+      "scope": "Initial focused Core group",
+      "status": "failed",
+      "executed": 38,
+      "failed_methods": 4,
+      "failures": 7,
+      "unexpected": 1,
+      "duration_seconds": 7.761,
+      "log": "build/qa/finder-cache-persistence-core-2026-10-19.log",
+      "findings": [
+        "Native URL constructor decomposed a canonical Unicode test root; fixture now uses lossless FileTransferPaths.fileURL and asserts exact ticket bytes",
+        "Empty additional bookmark arrays were rewritten on restore; creation now normalizes empties and restore preserves legacy representation",
+        "Helper shutdown joined collector but scheduler wrapper still held access; drain now joins wrapper completion"
+      ],
+      "retained_evidence": "Other 34 methods passed; complete group was not repeated"
+    },
+    {
+      "scope": "Four affected Core methods after fixture and production repairs",
+      "status": "passed",
+      "executed": 4,
+      "failures": 0,
+      "duration_seconds": 3.057,
+      "log": "build/qa/finder-cache-persistence-core-repair-2026-10-19.log"
+    },
+    {
+      "scope": "Debug app incremental build after service repairs",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/finder-cache-persistence-app-repair-build-2026-10-19.log"
+    },
+    {
+      "scope": "Grouped native Settings and initial lifecycle check",
+      "status": "partial-failure",
+      "log": "build/qa/finder-cache-persistence-native-2026-10-19.log",
+      "passed": [
+        "settings /usr/bin/git",
+        "settings bundled Git"
+      ],
+      "finding": "Lifecycle fixture expected the word persistence; actual native heading was Background cache needs attention. Changed assertion to require exact heading, matching report error and inclusion of actual diagnostic. No production label changed.",
+      "owned_receivers_reaped": [
+        17237,
+        17338,
+        17406
+      ],
+      "owned_crash_worker_reaped": 17418
+    },
+    {
+      "scope": "Affected native lifecycle and remaining roots/publication checks",
+      "status": "passed",
+      "log": "build/qa/finder-cache-persistence-native-repair-2026-10-19.log",
+      "git_runtimes": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "cases": [
+        "separate process crash and older live owner fallback",
+        "stale session ticket refusal",
+        "independent helper cold restart, warm failure, live badges and native retry",
+        "saved grant and Git HEAD/index byte preservation",
+        "canonical root ownership, Finder menu/icons/URI/badge dispatch",
+        "two actual foreground models and two separate publisher processes"
+      ],
+      "owned_receivers_reaped": [
+        17591,
+        17651,
+        17710,
+        17831
+      ],
+      "owned_workers_reaped": [
+        17603,
+        17663,
+        17711,
+        17712,
+        17832,
+        17833
+      ],
+      "limit": "Precedes subsequent concurrent-shutdown race repair; affected lifecycle check repeated separately"
+    },
+    {
+      "scope": "Only two new review regressions: concurrent shutdown and nested owner precedence",
+      "status": "passed",
+      "executed": 2,
+      "failures": 0,
+      "duration_seconds": 2.261,
+      "log": "build/qa/finder-cache-persistence-review-core-2026-10-19.log"
+    },
+    {
+      "scope": "Final incremental Debug app build after both review repairs",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/finder-cache-persistence-final-app-build-2026-10-19.log"
+    },
+    {
+      "scope": "Final affected native lifecycle and exact-root/publication checks after both review repairs",
+      "status": "passed",
+      "log": "build/qa/finder-cache-persistence-native-final-2026-10-19.log",
+      "git_runtimes": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "cases": [
+        "lifecycle",
+        "roots"
+      ],
+      "owned_receivers_reaped": [
+        18520,
+        18585,
+        18647,
+        18747
+      ],
+      "owned_workers_reaped": [
+        18532,
+        18597,
+        18648,
+        18649,
+        18748,
+        18749
+      ],
+      "retained_evidence": "Settings passed with both Git runtimes before these service/store review repairs; repeated only affected lifecycle/root cases"
+    }
+  ],
+  "ownership": "Private repositories/preferences/bookmarks/TMPDIR. Native windows invisible/offscreen. No login-item installation or unrelated app termination. Receiver wrapper reaps owned process groups on success/failure/timeout.",
+  "not_proven": [
+    "Installed physical Finder timing and menu acceptance",
+    "Authenticated signed XPC, login item approval and sandbox bookmark transfer",
+    "Minimum supported macOS behavior",
+    "Complete hosted CI run for this commit",
+    "Every upstream dialog behavior/layout",
+    "App Store approval"
+  ],
+  "remaining_family_limits": [
+    "Crash may leave an unlocked empty session receipt file; readers exclude it",
+    "Warm status can be stale until an authorized fresh scan completes; it is never an access grant",
+    "Control format 3 requires app, extension and helper from same build"
+  ],
+  "review_repairs": [
+    "Concurrent runtime shutdown callers join one reader drain and cannot reopen before the ending session is retired",
+    "Removing nested data preserves original parent publication precedence while independently advancing reader revision"
+  ],
+  "hosted_observation": {
+    "source": "public GitHub Actions API",
+    "commit": "78ed4edbfe5c914a012c9c5c0f0ab32f44356f2b",
+    "pages": {
+      "run": 39310259814,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 39310259836,
+      "status": "pending"
+    },
+    "older_macos": {
+      "run": 39304374728,
+      "status": "in_progress"
+    },
+    "limit": "Precedes current uncommitted batch; no complete hosted CI pass claimed"
+  },
+  "resources": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1299,
+      "write": "build/qa/finder-cache-persistence-localizations-write-2026-10-19.log",
+      "check": "build/qa/finder-cache-persistence-localizations-check-2026-10-19.log",
+      "status": "passed"
+    },
+    "help": {
+      "write": "build/qa/finder-cache-persistence-help-write-2026-10-19.log",
+      "check": "build/qa/finder-cache-persistence-help-check-2026-10-19.log",
+      "status": "passed"
+    },
+    "dialog_ledger": {
+      "log": "build/qa/finder-cache-persistence-ledger-final-2026-10-19.log",
+      "status": "passed",
+      "limit": "Coverage ledger is not a completion percentage"
+    },
+    "site": {
+      "documents": 359,
+      "unresolved_fragments": [],
+      "log": "build/qa/finder-cache-persistence-site-2026-10-19.log",
+      "status": "passed"
+    }
+  }
+}

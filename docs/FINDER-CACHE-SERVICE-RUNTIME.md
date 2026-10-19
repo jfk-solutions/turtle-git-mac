@@ -31,14 +31,18 @@ shared cache. Cleanup failures are separate from read failures and retry on manu
 refresh or the next replacement. Multiple moved paths are retained for cleanup.
 Grant persistence and shared-cache cleanup are separate transactions.
 
-Shutdown fences queued callbacks, cancels and awaits active readers, and retains
-published status without writing after it returns. The host must explicitly await
-shutdown before exiting. Concurrent shutdown also awaits readers already retiring
-for a registration replacement.
+Shutdown fences queued callbacks, cancels and awaits active readers, then ends
+only its own live publication session. Other active publishers remain eligible.
+The optional warm archive follows the shared default-true CacheSave policy;
+current status is not trusted merely because its file survived a process exit.
+The host must explicitly await shutdown before exiting. Concurrent shutdown also
+awaits readers already retiring for a registration replacement. See
+[cache persistence and publisher lifetime](FINDER-CACHE-PERSISTENCE.md).
 
-This is the reusable runtime, not an installed login service. Authenticated IPC,
-service target/registration, signed sandbox transfer, additional independent
-administration grants and physical Finder acceptance remain open. Unavailable old
+The reusable runtime is hosted by the [embedded cache agent](FINDER-SERVICE-DEPLOYMENT.md).
+Its signed development checkpoint covers selected installed behavior; denied peers,
+all additional administration scopes, minimum-OS execution and distribution
+approval retain separate acceptance requirements. Unavailable old
 registrations have no resolved path to tombstone; cleanup retries are currently
 in-memory and do not survive a process crash. The shared cache is not a substitute
 for permission authority.

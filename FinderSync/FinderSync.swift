@@ -7,6 +7,7 @@ import os
 @objc(FinderSync) final class FinderSync: FIFinderSync {
     private let menuDispatch = FinderMenuDispatch()
     private static let handoffLog = Logger(subsystem: "org.turtlegit.macos.finder", category: "handoff")
+    private let liveReader = FinderIntegration.snapshotURL.map { FinderSnapshotLiveReader(url:$0) }
     private var snapshot: FinderSnapshot?
     private var badges: GitPathMap<FinderOverlayBadge> = [:]
     private var iconSet: FinderOverlayIconSet?
@@ -22,9 +23,17 @@ import os
         }
     }
     deinit { DistributedNotificationCenter.default().removeObserver(self); NSWorkspace.shared.notificationCenter.removeObserver(self) }
-    @objc private func reload() {
+    @objc private func reload() { install(try? liveReader?.read()) }
+    private func revalidateLivePublication() {
+        let live = try? liveReader?.read()
+        // Live ownership can change without changing the stored timestamp.
+        if live?.liveRevision != snapshot?.liveRevision {
+            install(live)
+        }
+    }
+    private func install(_ live: FinderSnapshot?) {
         let old = badges
-        snapshot = FinderSnapshot.read()
+        snapshot = live
         let settings = FinderOverlaySettings.read(), changedIcons = iconSet != settings.iconSet
         let controller = FIFinderSyncController.default()
         let menuSettings = FinderMenuSettings.read()
@@ -50,12 +59,16 @@ import os
         }
     }
     override func requestBadgeIdentifier(for url: URL) {
+        // A publisher can exit without a distributed notification. Revalidate
+        // process leases before serving a previously cached badge.
+        revalidateLivePublication()
         FIFinderSyncController.default().setBadgeIdentifier(badgeLookup.badge(for: url.path, caseSensitive: fileSystem.volume(url.path).caseSensitive)?.rawValue ?? "", for: url)
     }
     override var toolbarItemName: String { "TurtleGit" }
     override var toolbarItemToolTip: String { "TurtleGit for Mac" }
     override var toolbarItemImage: NSImage { MenuIcon.turtle.image() ?? NSImage() }
     override func menu(for menuKind: FIMenuKind) -> NSMenu? {
+        revalidateLivePublication()
         let controller = FIFinderSyncController.default()
         let selection = controller.selectedItemURLs() ?? []
         let targetURL = controller.targetedURL()

@@ -11,6 +11,10 @@ import TurtleGitCore
             guard FileManager.default.fileExists(atPath:folder.appendingPathComponent("go").path) else { throw FinderPublicationFailure.lockTimeout }
             let snapshot=FinderSnapshot(roots:[root.path],states:[root.appendingPathComponent("file").path:.added],repositories:[root.path:FinderRepositoryMetadata()])
             guard try store.publish(ticket,snapshots:[snapshot]).published else { throw FinderPublicationFailure.invalidUpdate }
+            try Data().write(to:folder.appendingPathComponent("published"))
+            for _ in 0..<2000 { if FileManager.default.fileExists(atPath:folder.appendingPathComponent("release").path) { break };try await Task.sleep(nanoseconds:10_000_000) }
+            guard FileManager.default.fileExists(atPath:folder.appendingPathComponent("release").path) else { throw FinderPublicationFailure.lockTimeout }
+            withExtendedLifetime(store) {}
         } catch { fputs("Owned publication worker failed: \(error)\n",stderr);exit(1) }
     }
 }
