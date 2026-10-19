@@ -109,7 +109,7 @@ final class LibGit2CommitIndexTests: XCTestCase {
             XCTAssertTrue(tree.hasPrefix(mode + " ")); XCTAssertEqual(data, Data("latest target".utf8))
             XCTAssertEqual(try Data(contentsOf: f.repo.root.appendingPathComponent(name)), data)
         }
-        let names = try await f.repo.run(["ls-tree", "-r", "--name-only", "-z", "HEAD"]).stdout.split(separator: 0).map(Data.init)
+        let names = try await f.repo.run(["ls-tree", "-r", "--name-only", "-z", "HEAD"]).stdout.split(separator: UInt8(0)).map { (bytes: Data.SubSequence) in Data(bytes) }
         XCTAssertTrue(names.contains(Data(literal.utf8))); XCTAssertTrue(names.contains(Data("renamed".utf8))); XCTAssertFalse(names.contains(Data("old".utf8))); XCTAssertFalse(names.contains(Data("deleted".utf8)))
         XCTAssertEqual(try Data(contentsOf: f.repo.root.appendingPathComponent("deleted")), Data("deleted\n".utf8))
         let linkBytes = try await blob(f.repo, "actual-link"); XCTAssertEqual(linkBytes, Data("../../never-follow-target".utf8))

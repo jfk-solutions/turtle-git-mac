@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-19",
+  "scope": "Hosted Swift 6.1.2 test-source overload resolution in four byte-distinct Git pathname assertions",
+  "authoritative_failure": {
+    "run": 39268255748,
+    "job": 118118385419,
+    "head": "0060e1b3",
+    "step": 74,
+    "name": "Git integration tests",
+    "phase": "Core test compilation; no test execution for this run",
+    "toolchain": "Xcode 16.4 / Swift 6.1.2",
+    "excerpt": "build/qa/hosted-byte-split-excerpt-2026-10-19.log",
+    "files": {
+      "Tests/TurtleGitCoreTests/LibGit2AddTests.swift": [
+        207,
+        216,
+        222
+      ],
+      "Tests/TurtleGitCoreTests/LibGit2CommitIndexTests.swift": [
+        112
+      ]
+    },
+    "reason": "Data split chained to overloaded Data.init left both Sequence.split and Collection.split viable."
+  },
+  "change": "The NUL separator is explicitly UInt8 and map input explicitly Data.SubSequence, selecting Collection.split without decoding, normalizing or changing the pathname assertions.",
+  "validation": [
+    {
+      "log": "build/qa/hosted-byte-split-2026-10-19.log",
+      "scope": "Two affected methods passed after explicit byte separator/closure replacement."
+    },
+    {
+      "log": "build/qa/hosted-byte-split-final-2026-10-19.log",
+      "scope": "Two affected methods rerun after final explicit Data.SubSequence closure annotation; actual terminal result recorded below.",
+      "result": "passed",
+      "executed": 2,
+      "failures": 0,
+      "seconds": 2.743
+    }
+  ],
+  "not_run": [
+    "No native app build or UI checks for this test-source-only change",
+    "No complete local integration suite",
+    "No local Swift 6.1.2 compiler available; hosted CI must confirm the actual older toolchain and complete suite"
+  ],
+  "assertions": "All exact UTF8 path, Unicode peer, mode, rename/deletion, index and working-byte assertions retained.",
+  "status": "local affected checks passed; hosted older-toolchain/full CI confirmation pending"
+}

@@ -204,7 +204,7 @@ final class LibGit2AddTests: XCTestCase {
         try await f.repo.addWorkingFiles(paths: [nfc], backend: f.backend)
         let changed = try await blob(f.repo, nfc), peer = try await blob(f.repo, nfd)
         XCTAssertEqual(changed, Data("new NFC target\n".utf8)); XCTAssertEqual(peer, Data("peer original\n".utf8))
-        let names = try await f.repo.run(["-c", "core.precomposeunicode=false", "ls-files", "-z"]).stdout.split(separator: 0).map(Data.init)
+        let names = try await f.repo.run(["-c", "core.precomposeunicode=false", "ls-files", "-z"]).stdout.split(separator: UInt8(0)).map { (bytes: Data.SubSequence) in Data(bytes) }
         XCTAssertTrue(names.contains(Data(nfc.utf8))); XCTAssertTrue(names.contains(Data(nfd.utf8)))
         let afterFlags = try await f.repo.run(["ls-files", "-v", "-z", "--", "base"]).stdout; XCTAssertEqual(afterFlags, flags)
         let folder = f.repo.root.appendingPathComponent("directory")
@@ -213,13 +213,13 @@ final class LibGit2AddTests: XCTestCase {
         _ = try await f.repo.run(["-c", "core.precomposeunicode=false", "update-index", "--add", "--cacheinfo", "100644," + original + "," + indexed])
         try Data("folder update\n".utf8).write(to: f.repo.root.appendingPathComponent(physical))
         try await f.repo.addWorkingFiles(paths: ["directory"], backend: f.backend)
-        let directoryNames = try await f.repo.run(["-c", "core.precomposeunicode=false", "ls-files", "-z", "--", "directory"]).stdout.split(separator: 0).map(Data.init)
+        let directoryNames = try await f.repo.run(["-c", "core.precomposeunicode=false", "ls-files", "-z", "--", "directory"]).stdout.split(separator: UInt8(0)).map { (bytes: Data.SubSequence) in Data(bytes) }
         XCTAssertEqual(directoryNames, [Data(indexed.utf8)], "Directory enumeration retargeted the existing Git spelling")
         let directoryBlob = try await blob(f.repo, indexed); XCTAssertEqual(directoryBlob, Data("folder update\n".utf8))
         _ = try await f.repo.run(["-c", "core.precomposeunicode=false", "update-index", "--add", "--cacheinfo", "100644," + original + "," + physical])
         try Data("both selected folder peers\n".utf8).write(to: f.repo.root.appendingPathComponent(physical))
         try await f.repo.addWorkingFiles(paths: ["directory"], backend: f.backend)
-        let both = try await f.repo.run(["-c", "core.precomposeunicode=false", "ls-files", "-z", "--", "directory"]).stdout.split(separator: 0).map(Data.init)
+        let both = try await f.repo.run(["-c", "core.precomposeunicode=false", "ls-files", "-z", "--", "directory"]).stdout.split(separator: UInt8(0)).map { (bytes: Data.SubSequence) in Data(bytes) }
         XCTAssertEqual(Set(both), Set([Data(indexed.utf8), Data(physical.utf8)]))
         for name in [indexed, physical] { let data = try await blob(f.repo, name); XCTAssertEqual(data, Data("both selected folder peers\n".utf8)) }
     }
