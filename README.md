@@ -159,11 +159,13 @@ SMTP delivery offers a native certificate check before authentication or upload,
 with default Cancel, exact temporary acceptance, a read-only inspector and public
 DER/PEM export. See [SMTP certificate review](docs/SMTP-CERTIFICATE-REVIEW.md).
 
-[Optional libgit2 transport and checkout filters](docs/LIBGIT2-TRANSPORT.md) connects Clone, Fetch,
+[Optional libgit2 index and transport filters](docs/LIBGIT2-TRANSPORT.md) connects Add, Clone, Fetch,
 Sync Fetch, remote-reference listings and remote tag/branch deletions to the
 pinned engine, source-style native credentials and actual HTTPS certificate review.
 Temporary certificate acceptance carries across calls in the running app, scoped
-to the exact host, port and certificate. Normal command-line defaults are retained.
+to the exact host, port and certificate. Source defaults use libgit2 for Add and
+historical file output, with Git commands for Clone and Fetch. Add uses configured
+one-shot clean filters and owned progress, including Commit and Rebase file menus.
 
 An [older development-signed candidate](docs/qa/finder-installed-2026-10-17.json)
 passed installed activation, live ignored/modified/normal badges, repository access,

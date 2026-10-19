@@ -2,6 +2,13 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+private final class AddPathReceipts: @unchecked Sendable {
+    private let lock=NSLock()
+    private var paths:[String]=[]
+    func append(_ path:String){lock.lock();paths.append(path);lock.unlock()}
+    func take()->[String]{lock.lock();defer{lock.unlock()};let result=paths;paths.removeAll();return result}
+}
+
 @MainActor final class AddProgressWindowController: NSWindowController, NSWindowDelegate {
     static private(set) var activeReleases=0
     let model:AddProgressWindowModel
@@ -12,13 +19,13 @@ import TurtleGitCore
     private var handoff:((Bool)->Void)?
     private var question:(NSAlert,(Bool)->Void)?
     var presentQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool = {window,alert,reply in guard window.attachedSheet==nil else{return false};alert.beginSheetModal(for:window,completionHandler:reply);return true}
-    init(repository:GitRepository,access:RepositoryAccessLease?,paths:[String],mode:WorkingFileAddMode = .normal,preferences:UserDefaults = .standard) {
-        model=AddProgressWindowModel(repository:repository,access:access,paths:paths,mode:mode,preferences:preferences)
+    init(repository:GitRepository,access:RepositoryAccessLease?,paths:[String],mode:WorkingFileAddMode = .normal,preferences:UserDefaults = .standard,backend:GitLibGit2Configuration? = nil,preservePathOrder:Bool = false) {
+        model=AddProgressWindowModel(repository:repository,access:access,paths:paths,mode:mode,preferences:preferences,backend:backend,preservePathOrder:preservePathOrder)
         progressFiles=FileOperationProgressFiles(repository:repository,access:access)
         let window=NSWindow(contentRect:NSRect(x:0,y:0,width:800,height:460),styleMask:[.titled,.closable,.miniaturizable,.resizable],backing:.buffered,defer:false)
         RepositoryWindowTitles.set(window,repository:repository.root,dialog:"Add",preferences:preferences);window.isReleasedWhenClosed=false;window.contentMinSize=NSSize(width:580,height:330)
         window.contentViewController=NSHostingController(rootView:AddProgressView(model:model).defaultAppStorage(preferences));super.init(window:window);window.delegate=self;window.center()
-        model.close={ [weak self] in self?.window?.performClose(nil)}
+        model.close={ [weak self] in self?.finish()}
         model.finishAndPerform={ [weak self] reply in guard let self else{reply(false);return};self.finish(reply)}
         model.confirmCancellation={ [weak self] reply in self?.askCancellation(reply) ?? reply(false)}
         progressFiles.window=window;progressFiles.available={ [weak model] in model?.commandsAvailable==true && model?.busy==false}
@@ -38,7 +45,7 @@ import TurtleGitCore
         Task {await FileOperationWindowDrain.detach(alert.window);reply(accepted)}
     }
     private func finish(_ reply:((Bool)->Void)?=nil) {
-        guard !closed,!finishing,!model.busy,!model.confirmingCancellation,!model.fileActionBusy,window?.attachedSheet==nil else{reply?(false);return}
+        guard !closed,!finishing,!model.confirmingQuit,model.externalAvailability(),!model.busy,!model.confirmingCancellation,!model.fileActionBusy,window?.attachedSheet==nil else{reply?(false);return}
         finishing=true;handoff=reply;window?.orderOut(nil);close()
     }
     func windowShouldClose(_ sender:NSWindow)->Bool {
@@ -63,6 +70,8 @@ import TurtleGitCore
     static private(set) var activeOperations=0
     let repository:GitRepository,paths:[String],mode:WorkingFileAddMode
     let preferences:UserDefaults
+    let backend:GitLibGit2Configuration
+    let preservePathOrder:Bool
     let progress:FileOperationProgressState
     let progressPresentation:GitCommandPresentation
     private let access:RepositoryAccessLease?
@@ -70,6 +79,8 @@ import TurtleGitCore
     private(set) var retired=false
     private var workerStarted:Date?
     private var autoClosePolicy:GitProgressAutoClose?
+    private var addReceipts:AddPathReceipts?
+    private var addedPaths=GitPathSet()
     var allowsCommit=true
     var externalAvailability:()->Bool={true}
     var validateMutation:(OperationCancellation,Bool)async throws->Void={_,_ in}
@@ -94,7 +105,7 @@ import TurtleGitCore
     var finishAndPerform:(@escaping(Bool)->Void)->Void={$0(false)}
     var confirmCancellation:(@escaping(Bool)->Void)->Void={$0(false)}
     var onProgressFileAction:(FileOperationProgressAction,String)->Void={_,_ in}
-    init(repository:GitRepository,access:RepositoryAccessLease?,paths:[String],mode:WorkingFileAddMode = .normal,preferences:UserDefaults = .standard){self.repository=repository;self.access=access;self.paths=paths;self.mode=mode;self.preferences=preferences;self.progress=FileOperationProgressState(preferences:preferences);progressPresentation=GitCommandPresentation(defaults:preferences);information=mode.rawValue+"…"}
+    init(repository:GitRepository,access:RepositoryAccessLease?,paths:[String],mode:WorkingFileAddMode = .normal,preferences:UserDefaults = .standard,backend:GitLibGit2Configuration? = nil,preservePathOrder:Bool = false){self.repository=repository;self.access=access;self.paths=paths;self.mode=mode;self.preferences=preferences;self.backend=backend ?? .load(from:preferences);self.preservePathOrder=preservePathOrder;self.progress=FileOperationProgressState(preferences:preferences);progressPresentation=GitCommandPresentation(defaults:preferences);information=mode.rawValue+"…"}
     func retire(){guard !retired else{return};if busy{cancelled=true};retired=true;cancellation.cancel();progress.retire();if !started{busy=false}}
     func cancel(){
         guard busy,!retired,!confirmingCancellation,!cancelling else{return};let token=cancellation
@@ -114,15 +125,20 @@ import TurtleGitCore
         currentWork=footer.currentWork;percentage=100;completionRange=footer.append(to:&information)
     }
     private func finishAutomaticClose(){guard commandsAvailable,!busy,!fileActionBusy,!confirmingCancellation,success,!cancelled,autoClosePolicy?.shouldClose(success:true,postActionCount:(allowsCommit ? 1:0)+(mode == .normal ? 2:0))==true else{return};close()}
+    private func drainAdded(_ receipts:AddPathReceipts){
+        guard addReceipts === receipts,!retired else{return}
+        for path in receipts.take(){if addedPaths.insert(path).inserted{progress.append("Added",path,kind:.file)}}
+    }
     func run()async {
         guard !started,!retired else{return};started=true;Self.activeOperations += 1;LocalGitCommandProgress.begin()
-        defer{Self.activeOperations -= 1;LocalGitCommandProgress.end();busy=false;cancelling=false;withExtendedLifetime(access){};saveActionLog();if !retired{onFinished(information,success);finishAutomaticClose()}}
+        let receipts=AddPathReceipts();addReceipts=receipts
+        defer{drainAdded(receipts);addReceipts=nil;Self.activeOperations -= 1;LocalGitCommandProgress.end();busy=false;cancelling=false;withExtendedLifetime(access){};saveActionLog();if !retired{onFinished(information,success);finishAutomaticClose()}}
         do{
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true){throw RepositoryAccessFailure.securityScopeUnavailable}
             try await validateMutation(cancellation,true);try cancellation.check();guard commandsAvailable else{return};begin(mode.rawValue)
-            let text:String;if let execute{text=try await execute(cancellation)}else{text=try await repository.addReviewedPaths(paths,mode:mode,cancellation:cancellation)}
-            guard !retired else{return};success=true;cancelled=false;for path in paths{progress.append("Added",path,kind:.file)};information="\(paths.count) item(s) added."+(text.isEmpty ? "":"\n"+text)
-        }catch{cancelled=cancellation.isCancelled || error is OperationCancellationFailure;success=false;information=cancelled ? "Cancelled. The index was not replaced.":error.localizedDescription;if workerStarted != nil{progress.append(cancelled ? "User cancelled":"Error",information,kind:.error)}}
+            let text:String;if let execute{text=try await execute(cancellation)}else{text=try await repository.addReviewedPaths(paths,mode:mode,cancellation:cancellation,onAdded:{ [weak self] path in receipts.append(path);Task{@MainActor [weak self] in self?.drainAdded(receipts)}},backend:backend,preservePathOrder:preservePathOrder)}
+            drainAdded(receipts);guard !retired else{return};success=true;cancelled=false;if execute != nil && addedPaths.isEmpty{for path in paths where addedPaths.insert(path).inserted{progress.append("Added",path,kind:.file)}};information="\(addedPaths.count) item(s) added."+(text.isEmpty ? "":"\n"+text)
+        }catch{drainAdded(receipts);cancelled=cancellation.isCancelled || error is OperationCancellationFailure;success=false;information=cancelled ? "Cancelled. The index was not replaced.":error.localizedDescription;if workerStarted != nil{progress.append(cancelled ? "User cancelled":"Error",information,kind:.error)}}
         if !retired{complete()}
     }
     func changeMode(_ mode:WorkingFileAddMode)async {
@@ -130,7 +146,7 @@ import TurtleGitCore
         saveActionLog();ProgressActionLog.nextAttempt(self,savePrevious:false);cancellation=OperationCancellation();busy=true;cancelled=false;success=false;workerStarted=nil;Self.activeOperations += 1;LocalGitCommandProgress.begin()
         defer{Self.activeOperations -= 1;LocalGitCommandProgress.end();busy=false;cancelling=false;withExtendedLifetime(access){};saveActionLog();if !retired{onFinished(information,success);finishAutomaticClose()}}
         do{if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true){throw RepositoryAccessFailure.securityScopeUnavailable};try await validateMutation(cancellation,false);try cancellation.check();guard commandsAvailable else{return};begin(mode.rawValue)
-            if let executeMode{try await executeMode(mode,cancellation)}else{try await repository.setAddedFileMode(paths:paths,mode:mode,cancellation:cancellation)}
+            if let executeMode{try await executeMode(mode,cancellation)}else{try await repository.setAddedFileMode(paths:paths,mode:mode,cancellation:cancellation,backend:backend)}
             guard !retired else{return};success=true;information=mode.rawValue+": staged file modes updated.";for path in paths{progress.append(mode.rawValue,path,kind:.file)}
         }catch{cancelled=cancellation.isCancelled;information=cancelled ? "Mode change cancelled. The index was not replaced.":error.localizedDescription;progress.append(cancelled ? "User cancelled":"Error",information,kind:.error)}
         if !retired{complete()}

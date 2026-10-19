@@ -252,10 +252,10 @@ import TurtleGitCore
         model.cancelConflictFileDialog={ [weak self] in
             self?.conflictAddWindow?.model.cancel();self?.conflictIgnoreWindow?.model.cancel()
         }
-        model.presentConflictAdd={ [weak self] paths,mode,validate in
+        model.presentConflictAdd={ [weak self] paths,mode,backend,validate in
             guard let self,!self.model.retired,self.conflictAddWindow == nil,let owner=self.window,owner.attachedSheet == nil else {return}
             await withCheckedContinuation { continuation in
-                let child=AddProgressWindowController(repository:repository,access:access,paths:paths,mode:mode,preferences:preferences)
+                let child=AddProgressWindowController(repository:repository,access:access,paths:paths,mode:mode,preferences:preferences,backend:backend,preservePathOrder:true)
                 child.model.externalAvailability={ [weak model=self.model] in model?.retired == false && model?.revisionMenuLog.confirmingQuit == false }
                 child.onProgressLog={ [weak model=self.model] path in guard let model,!model.retired,!model.revisionMenuLog.confirmingQuit else {return};model.onConflictFileLog(path) }
                 child.model.allowsCommit=false;child.model.validateMutation=validate
@@ -509,7 +509,7 @@ struct RebaseReferenceRequest {
     var cancelConflictFileDialog:()->Void = {}
     private(set) var conflictDeletionResult:WorkingFileDeleteResult?
     var confirmConflictDeletion:([String],Bool) async -> Bool = {_,_ in false}
-    var presentConflictAdd:([String],WorkingFileAddMode,@escaping (OperationCancellation,Bool) async throws -> Void) async -> Void = {_,_,_ in}
+    var presentConflictAdd:([String],WorkingFileAddMode,GitLibGit2Configuration,@escaping (OperationCancellation,Bool) async throws -> Void) async -> Void = {_,_,_,_ in}
     var presentConflictIgnore:(RepositoryAction,[String],@escaping (OperationCancellation,Bool) async throws -> Void) async throws -> Void = {_,_,_ in}
     var onConflictRevertSubmodules:(String,[String])->Void = {_,_ in}
     @Published var conflictFileColumns:StatusListColumnSettings
@@ -1064,10 +1064,11 @@ struct RebaseReferenceRequest {
     }
     func addConflictFiles(_ menu:ConflictFileMenu,mode:WorkingFileAddMode) {
         guard canAddConflictFiles(menu,mode:mode) else {return}
+        let backend=GitLibGit2Configuration.load(from:messageDefaults)
         runConflictFileMenu(menu) { [self] token in
             try token.check();presentingConflictFileDialog=true
             defer {presentingConflictFileDialog=false;if !retired {pendingSessionRefresh=true;onChanged()}}
-            await presentConflictAdd(menu.paths,mode) { [self] request,initial in
+            await presentConflictAdd(menu.paths,mode,backend) { [self] request,initial in
                 try await validateConflictFileMenu(menu,token:request,validateRows:initial)
             }
         }

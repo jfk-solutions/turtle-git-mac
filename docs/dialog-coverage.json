@@ -581,12 +581,25 @@
           "anchor": "struct AddFileTable"
         },
         {
+          "path": "Sources/TurtleGitCore/Add.swift",
+          "anchor": "func addReviewedPaths"
+        },
+        {
+          "path": "Sources/TurtleGitCore/WorkingFileAdd.swift",
+          "anchor": "func addWorkingFiles"
+        },
+        {
+          "path": "Sources/TurtleGitMac/AddProgressWindow.swift",
+          "anchor": "class AddProgressWindowModel"
+        },
+        {
           "path": "Sources/TurtleGitMac/SelectionAllCheckbox.swift",
           "origin": "recorded-control-mapping"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/ADD-INDEX-FILTERS-PARITY.md",
         "docs/ADD-PARITY.md"
       ],
       "qa_records": [
@@ -599,6 +612,7 @@
         "docs/qa/add-flags-2026-10-06.json",
         "docs/qa/add-history-2026-10-06.json",
         "docs/qa/add-ignore-2026-10-06.json",
+        "docs/qa/add-index-filters-2026-10-19.json",
         "docs/qa/add-list-family-2026-10-15.json",
         "docs/qa/add-missing-pair-2026-10-06.json",
         "docs/qa/add-restore-2026-10-06.json",
@@ -1149,13 +1163,32 @@
       "mapped_controls": 6,
       "pending_control_reviews": 2,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/AddProgressWindow.swift",
+          "anchor": "class AddProgressWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitMac/CommitWindow.swift",
+          "anchor": "presentAddProgress"
+        },
+        {
+          "path": "Sources/TurtleGitCore/WorkingFileAdd.swift",
+          "anchor": "func addWorkingFiles"
+        },
+        {
+          "path": "Sources/TurtleGitLibgit2/bridge.c",
+          "anchor": "int tg_add("
+        }
+      ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/ADD-INDEX-FILTERS-PARITY.md",
         "docs/REVERT-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/add-index-filters-2026-10-19.json",
         "docs/qa/add-revert-file-flow-2026-10-17.json",
         "docs/qa/add-revert-identities-2026-10-17.json",
         "docs/qa/dialog-geometry-2026-10-08.json",

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Audit the pinned universal libgit2 helper, reconstruction and SDK-only linkage."""
-import argparse,hashlib,json,os,pathlib,plistlib,re,subprocess,tempfile
+import argparse,base64,hashlib,json,os,pathlib,plistlib,re,shlex,shutil,subprocess,tempfile
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 def digest(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def main():
@@ -124,6 +124,34 @@ def main():
                     destination=root/name;result=clone_filtered(filtered,destination,flag);assert result.returncode==0,result.stderr.decode(errors='replace')
                     assert not (destination/'payload').exists()
                 assert global_config.read_bytes()==original
+                # Add uses one explicitly attached private index, never the live
+                # index. Clean receives that index while preserving raw disk data.
+                private_index=root/'private-add-index';shutil.copyfile(clone/'.git/index',private_index);private_index.chmod(0o600)
+                private_before=private_index.read_bytes();live_before=(clone/'.git/index').read_bytes()
+                add_path="ignored '雪.clean";disk=b'local\x00content\r\n'
+                (clone/add_path).write_bytes(disk);(clone/'.gitignore').write_text('*.clean\n')
+                with (clone/'.gitattributes').open('a') as stream:stream.write('*.clean filter=addfixture -text\n')
+                capture=root/'clean-index-env'
+                clean="printf '%%s' \"$GIT_INDEX_FILE\" > "+shlex.quote(str(capture))+"; printf clean:; cat"
+                def add_to_private(paths,mode='normal',mode_only=False,command=clean):
+                    argv=prefix+[str(binary),'-C',str(clone),'-c','core.precomposeunicode=false','-c','filter.addfixture.clean='+command,'-c','filter.addfixture.required=true','add','--turtlegit-index='+str(private_index),'--turtlegit-mode='+mode,'--stdin']
+                    if mode_only:argv+=['--turtlegit-mode-only']
+                    return subprocess.run(argv,input=b''.join(path.encode()+b'\0' for path in paths),env=env,capture_output=True,timeout=30)
+                result=add_to_private([add_path],mode='executable');assert result.returncode==0,result.stderr.decode(errors='replace')
+                assert result.stdout==b'TurtleGit Add v1:'+base64.b64encode(add_path.encode())+b'\n'
+                assert capture.read_bytes()==str(private_index).encode()
+                staged_env=dict(env,GIT_INDEX_FILE=str(private_index))
+                staged=subprocess.check_output(['/usr/bin/git','-C',str(clone),'ls-files','--stage','-z','--',add_path],env=staged_env)
+                entry=staged.split(b'\t',1)[0].split();assert entry[0]==b'100755';oid=entry[1].decode()
+                assert git('-C',clone,'cat-file','blob',oid)==b'clean:'+disk
+                (clone/add_path).write_bytes(b'newer unstaged disk')
+                result=add_to_private([add_path],mode='symlink',mode_only=True);assert result.returncode==0,result.stderr.decode(errors='replace')
+                staged=subprocess.check_output(['/usr/bin/git','-C',str(clone),'ls-files','--stage','-z','--',add_path],env=staged_env)
+                assert staged.split(b'\t',1)[0].split()==[b'120000',entry[1],b'0']
+                saved=private_index.read_bytes();result=add_to_private([add_path],command='exit 7')
+                assert result.returncode!=0 and private_index.read_bytes()==saved
+                assert (clone/'.git/index').read_bytes()==live_before and (clone/add_path).read_bytes()==b'newer unstaged disk'
+                assert git('-C',clone,'rev-parse','HEAD')==head and global_config.read_bytes()==original
 
-    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with actual clone/fetch/list/deletion/filtered historical blobs and initial/recursive checkout.'))
+    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with actual clone/fetch/list/deletion/historical/checkout filters and private-index Add.'))
 if __name__=='__main__':main()

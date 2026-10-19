@@ -6,11 +6,11 @@ final class AddTests: XCTestCase {
         let (root,repo,path)=try await GitPatchTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
         try FileManager.default.removeItem(at:root.appendingPathComponent(path))
         let direct=try await repo.addSelectionIsFiles([path]);XCTAssertTrue(direct)
-        _ = try await repo.addReviewedPaths([path])
+        _ = try await repo.addReviewedPaths([path], backend: .init(enabled: false))
         let indexed=try await repo.trackedPaths();XCTAssertFalse(indexed.contains(path))
         let before=try Data(contentsOf:root.appendingPathComponent(".git/index"))
         let missing=try await repo.addSelectionIsFiles(["unknown.txt"]);XCTAssertTrue(missing)
-        do {_ = try await repo.addReviewedPaths(["unknown.txt"]);XCTFail("Missing untracked path succeeded")} catch {}
+        do {_ = try await repo.addReviewedPaths(["unknown.txt"], backend: .init(enabled: false));XCTFail("Missing untracked path succeeded")} catch {}
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),before)
     }
     func testFolderSelectionIgnoredDefaultsAndLiteralCheckedAdd() async throws {
@@ -27,7 +27,7 @@ final class AddTests: XCTestCase {
         let visible = try await repo.addDialogSelection(paths: ["."], includeIgnored: true)
         XCTAssertTrue(visible.entries.contains { $0.path == ignored }); XCTAssertFalse(visible.initiallyChecked.contains(ignored))
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout
-        _ = try await repo.addReviewedPaths([file, ignored])
+        _ = try await repo.addReviewedPaths([file, ignored], backend: .init())
         let staged = try await repo.run(["diff", "--cached", "--name-only", "-z"]).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
         XCTAssertEqual(Set(staged), [file, ignored])
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(file)), Data(file.utf8))
@@ -71,9 +71,9 @@ final class AddTests: XCTestCase {
         let whole = try await repo.addSelectionIsFiles(["."]); XCTAssertFalse(whole)
         let token = OperationCancellation(); token.cancel()
         do { _ = try await repo.addSelectionIsFiles(["first.txt"], cancellation: token); XCTFail("Cancelled Add preparation succeeded") } catch {}
-        do { _ = try await repo.addReviewedPaths(["first.txt"], cancellation: token); XCTFail("Cancelled add succeeded") } catch {}
+        do { _ = try await repo.addReviewedPaths(["first.txt"], cancellation: token, backend: .init()); XCTFail("Cancelled add succeeded") } catch {}
         let before = try await repo.trackedPaths(); XCTAssertTrue(before.isEmpty)
-        _ = try await repo.addReviewedPaths(["first.txt"])
+        _ = try await repo.addReviewedPaths(["first.txt"], backend: .init())
         let after = try await repo.trackedPaths(); XCTAssertEqual(after, ["first.txt"])
     }
     func testForeignNestedFileAndInvalidPathsRejectBeforeIndexChange() async throws {
@@ -83,7 +83,7 @@ final class AddTests: XCTestCase {
         _ = try await repo.run(["init", nested.path]); try Data("foreign".utf8).write(to: nested.appendingPathComponent("file"))
         let index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
         for paths in [[], ["."], ["../outside"], [".git/config"], ["nested/file"]] {
-            do { _ = try await repo.addReviewedPaths(paths); XCTFail("Invalid paths accepted: \(paths)") } catch {}
+            do { _ = try await repo.addReviewedPaths(paths, backend: .init()); XCTFail("Invalid paths accepted: \(paths)") } catch {}
         }
         let after = try await repo.run(["ls-files", "--stage", "-z"]).stdout; XCTAssertEqual(after, index)
     }

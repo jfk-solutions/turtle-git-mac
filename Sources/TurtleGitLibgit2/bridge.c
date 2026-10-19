@@ -19,7 +19,7 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 
-typedef struct {tg_callbacks *callbacks;const char *origin;const char *ssh_command;unsigned int received,indexed,completed;unsigned int recursion;const char *configuration_directory;unsigned int push_rejections;} context;
+typedef struct {tg_callbacks *callbacks;const char *origin;const char *ssh_command;unsigned int received,indexed,completed;unsigned int recursion;const char *configuration_directory;unsigned int push_rejections;const char *private_index;} context;
 static int stopped(context *ctx);
 static context *active_context;
 static int register_smudge(void);
@@ -215,7 +215,7 @@ int tg_delete_remote(const char *path,const char *name,const char *const *refspe
 // Registered once for helper checkout and historical materialization. The
 // actual filter source repository supplies cwd, including nested submodules.
 static int smudge_check(git_filter *self,void **payload,const git_filter_source *src,const char **values){
- (void)self;if(git_filter_source_mode(src)!=GIT_FILTER_TO_WORKTREE)return GIT_PASSTHROUGH;if(!values||!values[0]||GIT_ATTR_IS_TRUE(values[0])||GIT_ATTR_IS_FALSE(values[0])||GIT_ATTR_IS_UNSPECIFIED(values[0]))return GIT_PASSTHROUGH;
+ (void)self;(void)src;if(!values||!values[0]||GIT_ATTR_IS_TRUE(values[0])||GIT_ATTR_IS_FALSE(values[0])||GIT_ATTR_IS_UNSPECIFIED(values[0]))return GIT_PASSTHROUGH;
  *payload=strdup(values[0]);return *payload?0:-1;
 }
 static void smudge_cleanup(git_filter *self,void *payload){(void)self;free(payload);}
@@ -227,11 +227,11 @@ static int smudge_apply(git_filter *self,void **payload,git_buf *to,const git_bu
  if((result=git_repository_config_snapshot(&config,repository))<0){ctx->configuration_directory=previous;return result;}
  size_t keysize=strlen((char *)*payload)+32;key=malloc(keysize);if(!key){result=-1;goto done;}
  snprintf(key,keysize,"filter.%s.required",(char *)*payload);result=git_config_get_bool(&required,config,key);if(result<0&&result!=GIT_ENOTFOUND)goto done;
- snprintf(key,keysize,"filter.%s.smudge",(char *)*payload);result=git_config_get_string_buf(&command,config,key);
- if(result==GIT_ENOTFOUND){if(required){git_error_set_str(GIT_ERROR_FILTER,"Required smudge filter command is missing");result=-1;}else result=GIT_PASSTHROUGH;goto done;}if(result<0)goto done;
- result=ctx->callbacks->filter?ctx->callbacks->filter(command.ptr,git_filter_source_path(src),ctx->configuration_directory,(const unsigned char *)from->ptr,from->size,&bytes,&length,ctx->callbacks->payload):-1;
+ snprintf(key,keysize,"filter.%s.%s",(char *)*payload,git_filter_source_mode(src)==GIT_FILTER_TO_WORKTREE?"smudge":"clean");result=git_config_get_string_buf(&command,config,key);
+ if(result==GIT_ENOTFOUND){if(required){git_error_set_str(GIT_ERROR_FILTER,"Required external filter command is missing");result=-1;}else result=GIT_PASSTHROUGH;goto done;}if(result<0)goto done;
+ result=ctx->callbacks->filter?ctx->callbacks->filter(command.ptr,git_filter_source_path(src),ctx->configuration_directory,git_filter_source_mode(src)==GIT_FILTER_TO_ODB?ctx->private_index:NULL,(const unsigned char *)from->ptr,from->size,&bytes,&length,ctx->callbacks->payload):-1;
  if(stopped(ctx)){result=GIT_EUSER;goto done;}
- if(result<0){if(required)git_error_set_str(GIT_ERROR_FILTER,"Required smudge filter failed");else result=GIT_PASSTHROUGH;goto done;}
+ if(result<0){if(required)git_error_set_str(GIT_ERROR_FILTER,"Required external filter failed");else result=GIT_PASSTHROUGH;goto done;}
  result=git_buf_set(to,bytes,length);
  done:ctx->configuration_directory=previous;free(bytes);free(key);git_buf_dispose(&command);git_config_free(config);return result;
 }
@@ -285,4 +285,56 @@ int tg_run_filter(const char *command,const char *directory,int input,int output
  // Recheck after acquisition: Core publishes cancellation before taking locks.
  int result=-1;if(!callbacks->cancelled||!callbacks->cancelled(callbacks->payload))result=run_filter_process(command,directory,input,output,error,environment,callbacks);
  if(lock>=0){flock(lock,LOCK_UN);close(lock);}return result;
+}
+
+// AddProgressCommand uses explicit per-path adds and one final write. The
+// supplied private index is attached directly; caller GIT_INDEX_FILE is ignored.
+int tg_add(const char *path,const char *private_index,int mode,int mode_only,const char *const *paths,size_t count,tg_callbacks *callbacks){
+ context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX};ctx.private_index=private_index;
+ git_repository *repository=NULL;git_index *index=NULL;git_buf actual=GIT_BUF_INIT;int result=-1,descriptor=-1;struct stat info,real_info;
+ active_context=&ctx;if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ descriptor=open(private_index,O_RDONLY|O_NOFOLLOW|O_CLOEXEC);
+ if(descriptor<0||fstat(descriptor,&info)<0||!S_ISREG(info.st_mode)||info.st_uid!=geteuid()||(info.st_mode&0777)!=0600||info.st_nlink!=1){git_error_set_str(GIT_ERROR_INDEX,"Private Add index must be an owned regular 0600 file");goto done;}
+ if((result=git_repository_open(&repository,path))<0)goto done;
+ if((result=git_repository_item_path(&actual,repository,GIT_REPOSITORY_ITEM_INDEX))<0)goto done;
+ if(stat(actual.ptr,&real_info)==0&&info.st_dev==real_info.st_dev&&info.st_ino==real_info.st_ino){git_error_set_str(GIT_ERROR_INDEX,"Add must not write the live repository index");result=-1;goto done;}
+ if((result=configure_repository(repository,&ctx))<0)goto done;
+ if((result=git_index_open(&index,private_index))<0)goto done;
+ if((result=git_repository_set_index(repository,index))<0)goto done;
+ if((result=git_index_read(index,1))<0)goto done;
+ for(size_t i=0;i<count;i++){
+  if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+  if(mode_only){
+   const git_index_entry *existing=git_index_get_bypath(index,paths[i],0);
+   if(!existing){
+    size_t position;if(git_index_find_prefix(&position,index,paths[i])==0){const git_index_entry *child=git_index_get_byindex(index,position);size_t length=strlen(paths[i]);if(child&&strlen(child->path)>length&&!strncmp(child->path,paths[i],length)&&child->path[length]=='/')continue;}
+    git_error_set_str(GIT_ERROR_INDEX,"Could not update the staged file mode");result=-1;goto done;
+   }
+   if(existing->mode==GIT_FILEMODE_COMMIT)continue;
+   git_index_entry entry=*existing;entry.mode=mode==1?GIT_FILEMODE_BLOB_EXECUTABLE:GIT_FILEMODE_LINK;
+   if((result=git_index_add(index,&entry))<0)goto done;
+  }else if((result=git_index_add_bypath(index,paths[i]))<0)goto done;
+  if(mode&&!mode_only){
+   const char *workdir=git_repository_workdir(repository);size_t length=(workdir?strlen(workdir):0)+strlen(paths[i])+2;char *location=malloc(length);
+   if(!location){result=-1;goto done;}snprintf(location,length,"%s%s",workdir?workdir:"",paths[i]);struct stat disk;int found=lstat(location,&disk);free(location);
+   if(found<0){git_error_set_str(GIT_ERROR_OS,"Cannot inspect Add file mode");result=-1;goto done;}
+   if(!S_ISDIR(disk.st_mode)){
+    const git_index_entry *existing=git_index_get_bypath(index,paths[i],0);if(!existing){git_error_set_str(GIT_ERROR_INDEX,"Added index entry is missing");result=-1;goto done;}
+    git_index_entry entry=*existing;entry.mode=mode==1?GIT_FILEMODE_BLOB_EXECUTABLE:GIT_FILEMODE_LINK;
+    if((result=git_index_add(index,&entry))<0)goto done;
+   }
+  }
+  if(callbacks->added)callbacks->added(paths[i],callbacks->payload);
+  if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ }
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ // Detect replacement of the reviewed private inode before committing it.
+ struct stat current;if(lstat(private_index,&current)<0||!S_ISREG(current.st_mode)||current.st_dev!=info.st_dev||current.st_ino!=info.st_ino){git_error_set_str(GIT_ERROR_INDEX,"Private Add index changed during operation");result=-1;goto done;}
+ result=git_index_write(index);
+ if(result==0){
+  int written=open(private_index,O_RDONLY|O_NOFOLLOW|O_CLOEXEC);struct stat final;
+  if(written<0||fstat(written,&final)<0||!S_ISREG(final.st_mode)||final.st_uid!=geteuid()||final.st_nlink!=1||fchmod(written,0600)<0){git_error_set_str(GIT_ERROR_INDEX,"Cannot preserve private Add index permissions");result=-1;}
+  if(written>=0)close(written);
+ }
+ done:if(descriptor>=0)close(descriptor);git_buf_dispose(&actual);git_index_free(index);git_repository_free(repository);active_context=NULL;return result;
 }

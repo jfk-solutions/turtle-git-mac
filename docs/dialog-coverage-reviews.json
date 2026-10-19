@@ -481,6 +481,18 @@
         {
           "path": "Sources/TurtleGitMac/AddFileTable.swift",
           "anchor": "struct AddFileTable"
+        },
+        {
+          "path": "Sources/TurtleGitCore/Add.swift",
+          "anchor": "func addReviewedPaths"
+        },
+        {
+          "path": "Sources/TurtleGitCore/WorkingFileAdd.swift",
+          "anchor": "func addWorkingFiles"
+        },
+        {
+          "path": "Sources/TurtleGitMac/AddProgressWindow.swift",
+          "anchor": "class AddProgressWindowModel"
         }
       ],
       "parity_document": "docs/ADD-PARITY.md",
@@ -953,6 +965,30 @@
       ],
       "parity_document": "docs/CLIENT-HOOKS-PARITY.md",
       "status": "partial"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SVNPROGRESS",
+      "status": "partial",
+      "parity_document": "docs/ADD-INDEX-FILTERS-PARITY.md",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/AddProgressWindow.swift",
+          "anchor": "class AddProgressWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitMac/CommitWindow.swift",
+          "anchor": "presentAddProgress"
+        },
+        {
+          "path": "Sources/TurtleGitCore/WorkingFileAdd.swift",
+          "anchor": "func addWorkingFiles"
+        },
+        {
+          "path": "Sources/TurtleGitLibgit2/bridge.c",
+          "anchor": "int tg_add("
+        }
+      ]
     }
   ]
 }

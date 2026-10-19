@@ -134,3 +134,15 @@ source credential form layout, username-dependent focus and validation, readable
 certificate issuer/error fields and temporary certificate acceptance across
 helper launches. It retains the existing prompt/export cancellation handshake
 and has separate grouped evidence and acceptance limits.
+
+
+### Source-selected Add/index family — October 19, 2026
+
+The [Add/index continuation](ADD-INDEX-FILTERS-PARITY.md) connects source-default
+Add10 selection, configured clean filters, private-index publication and mode
+post-actions to the native Add/status family. Commit's explicit Add now owns the
+shared progress sheet; Rebase and workspace entry retain accepted backend and
+preference snapshots. Per-path receipts, actual worker cancellation and final
+publication remain owned. General Commit staging and its separate backend bit
+retain their independent contracts. Grouped evidence and remaining acceptance
+are recorded with that family.

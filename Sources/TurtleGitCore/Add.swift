@@ -60,20 +60,23 @@ extension GitRepository {
         }
         return AddDialogSelection(entries: rows.values.sorted { let order = $0.path.localizedStandardCompare($1.path);return order == .orderedSame ? $0.path.utf8.lexicographicallyPrecedes($1.path.utf8):order == .orderedAscending }, initiallyChecked: checked)
     }
-    /// Original CLI AddProgressCommand uses add -f for the explicitly reviewed list.
-    public func addReviewedPaths(_ paths: [String], mode: WorkingFileAddMode = .normal, cancellation: OperationCancellation? = nil) async throws -> String {
+    /// Pin the Add engine before validating the explicitly reviewed path list.
+    public func addReviewedPaths(_ paths: [String], mode: WorkingFileAddMode = .normal, cancellation: OperationCancellation? = nil, onAdded: (@Sendable (String) -> Void)? = nil, backend: GitLibGit2Configuration? = nil, preservePathOrder: Bool = false) async throws -> String {
+        let backend = backend ?? libgit2Configuration ?? .load()
+        var seen = GitPathSet()
+        let paths = preservePathOrder ? paths.filter { seen.insert($0).inserted } : paths
         try cancellation?.check()
-        guard !paths.isEmpty, GitPathSet(paths).count == paths.count, try !isBare() else { throw AddFailure.selection }
+        guard !paths.isEmpty, GitPathSet(paths).count == paths.count, try !isBare(cancellation: cancellation) else { throw AddFailure.selection }
         var parents = GitPathSet()
         for path in paths {
             try cancellation?.check()
             let location = try restoreLocation(path)
             guard parents.insert(location.deletingLastPathComponent().path).inserted else { continue }
             let parent = GitRepository(root: location.deletingLastPathComponent(), executable: executable)
-            let owner = try await parent.discoverRoot()
+            let owner = try await parent.discoverRoot(cancellation: cancellation)
             guard owner.path == root.path else { throw AddFailure.outsideRepository }
         }
-        try addWorkingFiles(paths: paths, mode: mode, cancellation: cancellation)
+        try addWorkingFiles(paths: paths, mode: mode, cancellation: cancellation, onAdded: onAdded, backend: backend, preservePathOrder: preservePathOrder)
         return ""
     }
 }

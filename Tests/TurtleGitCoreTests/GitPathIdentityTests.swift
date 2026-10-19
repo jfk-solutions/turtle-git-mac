@@ -174,16 +174,16 @@ final class GitPathIdentityTests: XCTestCase {
         let blob = try await repo.run(["hash-object","-w","--stdin"],input:bytes("base\n")).text.trimmingCharacters(in:.newlines)
         _ = try await repo.run(["update-index","-z","--index-info"],input:bytes([a,b].map {"100644 \(blob)\t\($0)\0"}.joined()))
         let head = try await repo.run(["rev-parse","HEAD"]).stdout
-        try await repo.setAddedFileMode(paths:[b],mode:.executable)
+        try await repo.setAddedFileMode(paths:[b],mode:.executable,backend:.init())
         func has(_ records:Data,_ mode:String,_ hash:String,_ path:String)->Bool {records.split(separator:0).contains {$0.elementsEqual(bytes("\(mode) \(hash) 0\t\(path)"))}}
         var staged = try await repo.run(["ls-files","--stage","-z"]).stdout
         XCTAssertTrue(has(staged,"100644",blob,a));XCTAssertTrue(has(staged,"100755",blob,b))
-        try await repo.setAddedFileMode(paths:[a,b],mode:.symlink)
+        try await repo.setAddedFileMode(paths:[a,b],mode:.symlink,backend:.init())
         staged = try await repo.run(["ls-files","--stage","-z"]).stdout
         XCTAssertTrue(has(staged,"120000",blob,a));XCTAssertTrue(has(staged,"120000",blob,b))
         try bytes("new working bytes\n").write(to:root.appendingPathComponent(b))
         let working = try Data(contentsOf:root.appendingPathComponent(b))
-        _ = try await repo.addReviewedPaths([b],mode:.executable)
+        _ = try await repo.addReviewedPaths([b],mode:.executable,backend:.init())
         staged = try await repo.run(["ls-files","--stage","-z"]).stdout
         let newBlob = try await repo.run(["hash-object","--stdin"],input:working).text.trimmingCharacters(in:.newlines)
         XCTAssertTrue(has(staged,"120000",blob,a));XCTAssertTrue(has(staged,"100755",newBlob,b))

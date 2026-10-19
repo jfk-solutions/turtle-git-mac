@@ -3,15 +3,15 @@ import Foundation
 import Darwin
 
 public enum GitLibGit2Operation: UInt32, Sendable {
-    case clone = 1, fetch = 2, getOneFile = 9, push = 11
+    case clone = 1, fetch = 2, getOneFile = 9, add = 10, push = 11
     public var mask: UInt32 { 1 << rawValue }
 }
 public enum GitLibGit2Failure: LocalizedError {
     case runtimeMissing
-    public var errorDescription: String? { "The requested libgit2 transport runtime is unavailable. Install a build containing the libgit2 helper or disable this operation's libgit2 setting." }
+    public var errorDescription: String? { "The requested libgit2 runtime is unavailable. Install a build containing the libgit2 helper." }
 }
-/// Capture once for an accepted operation, before transport preparation suspends.
-/// Source Git.h uses command indices (clone1/fetch2), not bit values1/2.
+/// Capture once for an accepted operation before asynchronous preparation.
+/// Source Git.h stores command indices (Clone1/Fetch2/Add10), rather than bit masks.
 public struct GitLibGit2Configuration: Sendable {
     public static let defaultMask: UInt32 = 0x66780
     public let enabled: Bool

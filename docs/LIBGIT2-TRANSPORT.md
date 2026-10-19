@@ -1,6 +1,6 @@
-# Optional libgit2 transport
+# Optional libgit2 engine
 
-TurtleGit includes an optional libgit2 engine for Clone, Fetch and the Fetch
+TurtleGit includes an optional libgit2 engine for Add, Clone, Fetch and the Fetch
 operations in Synchronization, including Fetch & Rebase and fetching a tag.
 It also lists remote references, deletes remote tags/branches, and materializes
 historical files when their corresponding source command-mask bits are enabled.
@@ -12,10 +12,20 @@ The Advanced **UseLibgit2** preference is the master switch. Like upstream,
 `UseLibgit2_mask` is a separate expert preference rather than an additional
 Advanced table row. Clone uses bit `0x2`, Fetch uses bit `0x4`; enabling both while
 retaining the source default mask means `0x66786` (decimal `419718`). Disabling the
-master switch chooses Git commands regardless of the mask. A requested engine
+master switch chooses Git commands for these selectable operations regardless of
+the mask. Add progress mode post-actions keep their source index-adapter path.
+A requested engine
 that is missing reports an error; it does not silently change the selected engine.
 The backend choice is captured when an operation starts, so editing Settings
 cannot change an operation already waiting for a folder, key or credential.
+
+Add uses bit `0x400` (decimal `1024`), already enabled in the source default
+mask. Its normal, executable and symlink actions apply the selected engine to the
+reviewed paths. The default libgit2 branch uses configured one-shot clean filters;
+disabling Add's bit or the master switch uses Git's `add -f` workflow. Both keep
+working files intact and publish the prepared index only after successful work.
+Progress mode post-actions update existing staged objects through the bundled
+index adapter. See the [Add/index source comparison](ADD-INDEX-FILTERS-PARITY.md).
 
 Remote reference/tag listing uses the Fetch bit `0x4`. Remote-reference deletion
 uses the source Push bit `0x800`; enabling it with Clone/Fetch while retaining the
@@ -72,7 +82,8 @@ host-key workflow. See [SSH authentication](SSH-AUTHENTICATION.md) and
 [source and validation record](LIBGIT2-TRANSPORT-PARITY.md) distinguishes implemented
 behavior from public-server, signed sandbox and complete upstream acceptance.
 
-The optional engine applies configured one-shot smudge commands during Clone
+The optional engine applies configured one-shot clean commands during Add and
+smudge commands during Clone
 checkout and historical-file materialization. It does not implement Git
 filter-process drivers or ordinary Git hooks. Fetch reads objects/references
 without checking out files. Repository template files are copied, but copying a hook

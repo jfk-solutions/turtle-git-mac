@@ -47,6 +47,8 @@ import UniformTypeIdentifiers
     var hasMessagePicker: Bool { historyWindow != nil || logPicker != nil }
     private(set) var issueProviderOwner: CommitIssueProviderOwner?
     private var progressController: CommitProgressWindowController?
+    private(set) var addProgressController:AddProgressWindowController?
+    var configureAddProgress:(AddProgressWindowModel)->Void={_ in}
     var onPullAfterLFSLock: () -> Void = {}
     private var lfsOperation: LFSFileOperationController?
     var makeLFSOperation: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { LFSFileOperationController(repository: $0, access: $1) }
@@ -60,6 +62,26 @@ import UniformTypeIdentifiers
         window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model).defaultAppStorage(defaults))
         super.init(window: window); model.comparisonWindow = window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
+        model.presentAddProgress={ [weak self] paths,mode,backend,token in
+            guard let self,!self.closingCommit,!self.model.confirmingQuit,self.addProgressController==nil,let owner=self.window,owner.attachedSheet==nil,!token.isCancelled else{return false}
+            return await withCheckedContinuation { continuation in
+                let child=AddProgressWindowController(repository:repository,access:access,paths:paths,mode:mode,preferences:defaults,backend:backend,preservePathOrder:true)
+                child.model.allowsCommit=false
+                child.model.externalAvailability={ [weak self] in self?.closingCommit==false && self?.model.confirmingQuit==false }
+                child.onProgressLog={ [weak self] path in guard let self,!self.closingCommit,!self.model.confirmingQuit else{return};self.model.onFileLog(path)}
+                var settled=false
+                child.onClosed={ [weak self,weak child] in
+                    guard !settled else{return};settled=true
+                    if self?.addProgressController === child{self?.addProgressController=nil}
+                    continuation.resume(returning:child?.model.success==true && child?.model.cancelled==false && !token.isCancelled)
+                }
+                self.addProgressController=child;self.configureAddProgress(child.model)
+                if let sheet=child.window{sheet.alphaValue=owner.alphaValue;sheet.appearance=owner.effectiveAppearance;owner.beginSheet(sheet);child.model.start()}else{child.close()}
+                Task{@MainActor [weak child] in
+                    while !settled{if token.isCancelled{child?.close();return};try? await Task.sleep(nanoseconds:10_000_000)}
+                }
+            }
+        }
         model.presentStagingHint={ [weak self,weak window] in
             guard let self,!self.closingCommit,let window,window.isVisible,window.attachedSheet==nil else {return nil}
             let alert=NSAlert();alert.alertStyle = .informational;alert.messageText="Staging support";alert.informativeText=CommitWindowModel.stagingHint
@@ -280,7 +302,7 @@ import UniformTypeIdentifiers
         }
         answer?(nil)
     }
-    func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
+    func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending;addProgressController?.model.confirmingQuit=pending }
     func windowWillClose(_ notification: Notification) {
         // End-sheet callbacks may run synchronously while native children retire.
         // Fence owner actions before dismissing any of those children.
@@ -293,7 +315,8 @@ import UniformTypeIdentifiers
         if let child = historyWindow {
             historyWindow = nil; window?.endSheet(child); child.orderOut(nil); child.close()
         }
-        logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close(); onClosed()
+        logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close()
+        if let child=addProgressController{child.close();Task{@MainActor [self] in while addProgressController != nil{try? await Task.sleep(nanoseconds:10_000_000)};onClosed()}}else{onClosed()}
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.submoduleLog.isReading { model.submoduleLog.cancel(); return false }
@@ -1183,10 +1206,13 @@ import UniformTypeIdentifiers
         busy = true
         if !onLFSOperation(selected.map(\.path), locked) { busy = false }
     }
+    var presentAddProgress:(([String],WorkingFileAddMode,GitLibGit2Configuration,OperationCancellation)async->Bool)?
     func addFiles(_ selected: [StatusEntry], mode: WorkingFileAddMode) {
         let paths = selected.map(\.path); guard fileListAvailable,!paths.isEmpty else { return }
+        let backend = GitLibGit2Configuration.load(from: dialogDefaults)
         runFileOperation(mode.rawValue, operation: { [self] token, _ in
-            try await repository.addWorkingFiles(paths: paths, mode: mode, cancellation: token)
+            if let presentAddProgress{guard await presentAddProgress(paths,mode,backend,token) else{return}}
+            else{try await repository.addWorkingFiles(paths: paths, mode: mode, cancellation: token, backend: backend,preservePathOrder:true)}
             guard isFileOperationLive(token) else { return }; checked.formUnion(paths)
         }, completed: { [self] in reload() }, failed: { [self] in reload() })
     }

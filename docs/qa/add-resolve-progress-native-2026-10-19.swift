@@ -52,8 +52,8 @@ private struct FileProgressScopes:RepositoryBookmarkProvider {
         host.isReleasedWhenClosed=false;host.alphaValue=0;host.appearance=NSAppearance(named:.darkAqua);host.orderFront(nil);workspace.workspaceWindow=host
         var adds:[AddProgressWindowController]=[],resolves:[ResolveWindowController]=[],commits:[CommitWindowController]=[],otherOwners:[NSWindowController]=[]
         var addGrant:RepositoryAccessLease?,heldAdd:CheckedContinuation<String,Error>?,heldMode:CheckedContinuation<Void,Error>?,heldResolve:CheckedContinuation<String,Error>?
-        workspace.addProgressWindowFactory={repository,access,paths,mode,preferences in
-            let value=AddProgressWindowController(repository:repository,access:access,paths:paths,mode:mode,preferences:preferences);addGrant=access;adds.append(value);return value
+        workspace.addProgressWindowFactory={repository,access,paths,mode,preferences,backend,preservePathOrder in
+            let value=AddProgressWindowController(repository:repository,access:access,paths:paths,mode:mode,preferences:preferences,backend:backend,preservePathOrder:preservePathOrder);addGrant=access;adds.append(value);return value
         }
         workspace.addProgressWindowPresentation={owner in owner.window?.alphaValue=0;owner.window?.appearance=host.appearance;owner.showWindow(nil)}
         workspace.resolveWindowPresentation={owner in owner.window?.alphaValue=0;owner.window?.appearance=host.appearance;resolves.append(owner);owner.showWindow(nil)}

@@ -352,3 +352,15 @@ remain the native implementation; full Add/progress visual parity remains open.
 Add now has the source Action/Path notification list, original backdrop, timed Finished row, captured file menus, keyboard/menu clipboard formats, kill confirmation, automatic close and action logging. Commit retains the repository grant, preferences and appearance and opens only after the old result, sheets and workers close.
 
 See the [connected progress family](SYNC-ADD-RESOLVE-PROGRESS-PARITY.md) for source distinctions, scoped validation and remaining physical, signed and whole-dialog requirements. This continuation does not certify the whole family or port.
+
+
+### Source-selected Add/index family — October 19, 2026
+
+The [Add/index continuation](ADD-INDEX-FILTERS-PARITY.md) connects source-default
+Add10 selection, configured clean filters, private-index publication and mode
+post-actions to the native Add/status family. Commit's explicit Add now owns the
+shared progress sheet; Rebase and workspace entry retain accepted backend and
+preference snapshots. Per-path receipts, actual worker cancellation and final
+publication remain owned. General Commit staging and its separate backend bit
+retain their independent contracts. Grouped evidence and remaining acceptance
+are recorded with that family.

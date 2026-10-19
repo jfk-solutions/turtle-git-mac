@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Optional libgit2 transport</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="optional-libgit2-transport">Optional libgit2 transport</h1>
-<p>TurtleGit includes an optional libgit2 engine for Clone, Fetch and the Fetch
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Optional libgit2 engine</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="optional-libgit2-engine">Optional libgit2 engine</h1>
+<p>TurtleGit includes an optional libgit2 engine for Add, Clone, Fetch and the Fetch
 operations in Synchronization, including Fetch &amp; Rebase and fetching a tag.
 It also lists remote references, deletes remote tags/branches, and materializes
 historical files when their corresponding source command-mask bits are enabled.
@@ -11,10 +11,19 @@ continue through their existing command workflows.</p>
 <code>UseLibgit2_mask</code> is a separate expert preference rather than an additional
 Advanced table row. Clone uses bit <code>0x2</code>, Fetch uses bit <code>0x4</code>; enabling both while
 retaining the source default mask means <code>0x66786</code> (decimal <code>419718</code>). Disabling the
-master switch chooses Git commands regardless of the mask. A requested engine
+master switch chooses Git commands for these selectable operations regardless of
+the mask. Add progress mode post-actions keep their source index-adapter path.
+A requested engine
 that is missing reports an error; it does not silently change the selected engine.
 The backend choice is captured when an operation starts, so editing Settings
 cannot change an operation already waiting for a folder, key or credential.</p>
+<p>Add uses bit <code>0x400</code> (decimal <code>1024</code>), already enabled in the source default
+mask. Its normal, executable and symlink actions apply the selected engine to the
+reviewed paths. The default libgit2 branch uses configured one-shot clean filters;
+disabling Add's bit or the master switch uses Git's <code>add -f</code> workflow. Both keep
+working files intact and publish the prepared index only after successful work.
+Progress mode post-actions update existing staged objects through the bundled
+index adapter. See the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/ADD-INDEX-FILTERS-PARITY.html">Add/index source comparison</a>.</p>
 <p>Remote reference/tag listing uses the Fetch bit <code>0x4</code>. Remote-reference deletion
 uses the source Push bit <code>0x800</code>; enabling it with Clone/Fetch while retaining the
 other source defaults gives <code>0x66f86</code> (decimal <code>421766</code>). Ordinary Push and Sync tag
@@ -62,7 +71,8 @@ host-key workflow. See <a href="SSH-AUTHENTICATION.html">SSH authentication</a> 
 <a href="REPOSITORY-FOLDER-ACCESS.html">repository folder access</a>. The
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LIBGIT2-TRANSPORT-PARITY.html">source and validation record</a> distinguishes implemented
 behavior from public-server, signed sandbox and complete upstream acceptance.</p>
-<p>The optional engine applies configured one-shot smudge commands during Clone
+<p>The optional engine applies configured one-shot clean commands during Add and
+smudge commands during Clone
 checkout and historical-file materialization. It does not implement Git
 filter-process drivers or ordinary Git hooks. Fetch reads objects/references
 without checking out files. Repository template files are copied, but copying a hook

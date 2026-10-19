@@ -50,7 +50,13 @@ notifications, followed by a colored Finished result with elapsed time. Its runn
 bar disappears when finished. Use a file row's menu for Log, Open, Open With or
 Explore to. Keyboard Copy includes Action and Path; the menu copies Path only.
 Commit closes the result and its owned activity before opening the captured
-repository's Commit window. Use Commit to finish the change.</p>
+repository's Commit window. Commit's own explicit Add menu opens this shared
+progress sheet and returns to the same Commit window. Add's engine choice is
+captured before validation; subsequent Settings changes do not change that work.
+The source default uses libgit2 and configured one-shot clean filters. Disabling
+that Add bit or the master switch uses Git commands. A failure or cancellation
+preserves the previous index; inspect the result before retrying. See
+<a href="LIBGIT2-TRANSPORT.html">the engine guide</a>.</p>
 <p>Ignore offers repository ignore-file or local exclusion choices for the selected
 patterns. Review the path and pattern before saving. Ignoring a tracked file does
 not remove it from Git; use the applicable remove/keep-local workflow separately.</p>

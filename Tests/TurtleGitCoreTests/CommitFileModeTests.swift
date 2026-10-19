@@ -14,7 +14,7 @@ final class CommitFileModeTests: XCTestCase {
             try Data("first-target".utf8).write(to: file)
             let permissions = mode == .executable ? 0o645 : 0o644
             try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: file.path)
-            try await repository.addWorkingFiles(paths: [path], mode: mode)
+            try await repository.addWorkingFiles(paths: [path], mode: mode, backend: .init())
             let latest = Data("later-target 雪".utf8)
             try latest.write(to: file)
             _ = try await repository.commitSelected(message: "selected mode", paths: [path])
@@ -40,7 +40,7 @@ final class CommitFileModeTests: XCTestCase {
                 try await repository.stage(["base"]); _ = try await repository.commit(message: "second")
             }
             try Data("target".utf8).write(to: root.appendingPathComponent("link"))
-            try await repository.addWorkingFiles(paths: ["link"], mode: .symlink)
+            try await repository.addWorkingFiles(paths: ["link"], mode: .symlink, backend: .init())
             var options = CommitOptions(); options.amend = parentAmend; options.amendDiffToLastCommit = false
             _ = try await repository.commitSelected(message: "link commit", paths: ["link"], options: options)
             let tree = try await repository.run(["ls-tree", "HEAD", "--", "link"]).text
@@ -69,7 +69,7 @@ final class CommitFileModeTests: XCTestCase {
         XCTAssertTrue(String(decoding: tree, as: UTF8.self).hasPrefix("100644 "))
         XCTAssertEqual(blob, latest)
         XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: file.path)[.posixPermissions] as? Int, 0o755)
-        try await repository.addWorkingFiles(paths: [path])
+        try await repository.addWorkingFiles(paths: [path], backend: .init())
         _ = try await repository.commitSelected(message: "normal add uses disk mode", paths: [path])
         let resetTree = try await repository.run(["ls-tree", "-z", "HEAD", "--", path]).stdout
         XCTAssertTrue(String(decoding: resetTree, as: UTF8.self).hasPrefix("100755 "))

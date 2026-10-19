@@ -297,6 +297,7 @@ private final class AddNativeWindow: NSWindow {
     private var cancellation = OperationCancellation()
     var close: () -> Void = {}
     var onAccepted: ([String]) -> Void = { _ in }
+    private(set) var acceptedBackend: GitLibGit2Configuration?
     private var accepted = false
     var onPreview: (String) -> Void = { _ in }
     var onCompare: ([String]) -> Void = { _ in }
@@ -577,7 +578,7 @@ private final class AddNativeWindow: NSWindow {
     func apply() {
         guard canApply else {return}
         let paths = GitPathOperationOrder.sorted(entries.filter {checked.contains($0.path)}.map(\.path))
-        guard !paths.isEmpty else {return};accepted = true;onAccepted(paths);close()
+        guard !paths.isEmpty else {return};acceptedBackend = .load(from: defaults);accepted = true;onAccepted(paths);close()
     }
     var canReceiveFileDrop: Bool { !retired && !busy && !confirmingQuit && loaded }
     @discardableResult func addDropped(_ urls: [URL]) -> Bool {

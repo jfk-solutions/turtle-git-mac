@@ -3729,3 +3729,15 @@ operation-private exchanges and prompt/export retirement preserve cancellation
 ownership. Password persistence and permanent trust are outside the selected
 source callback. Grouped evidence records the verified scope; physical/signed,
 public-provider and full hosted acceptance remain open.
+
+
+### Source-selected Add/index family — October 19, 2026
+
+The [Add/index continuation](ADD-INDEX-FILTERS-PARITY.md) connects source-default
+Add10 selection, configured clean filters, private-index publication and mode
+post-actions to the native Add/status family. Commit's explicit Add now owns the
+shared progress sheet; Rebase and workspace entry retain accepted backend and
+preference snapshots. Per-path receipts, actual worker cancellation and final
+publication remain owned. General Commit staging and its separate backend bit
+retain their independent contracts. Grouped evidence and remaining acceptance
+are recorded with that family.

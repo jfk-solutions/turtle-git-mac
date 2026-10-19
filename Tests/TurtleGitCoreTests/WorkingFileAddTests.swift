@@ -15,7 +15,7 @@ final class WorkingFileAddTests: XCTestCase {
             let bytes = Data([0, 255, 13, 10, UInt8(offset)])
             let url = root.appendingPathComponent(path)
             try bytes.write(to: url); try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: url.path)
-            try await repository.addWorkingFiles(paths: [path, path], mode: mode)
+            try await repository.addWorkingFiles(paths: [path, path], mode: mode, backend: .init())
             let staged = try await repository.run(["ls-files", "--stage", "-z", "--", path]).stdout
             XCTAssertTrue(String(decoding: staged, as: UTF8.self).hasPrefix((mode.indexMode ?? "100644") + " "))
             let blob = try await repository.run(["show", ":" + path]).stdout
@@ -34,12 +34,12 @@ final class WorkingFileAddTests: XCTestCase {
         let index = root.appendingPathComponent(".git/index"), original = try Data(contentsOf: index)
         try Data([42]).write(to: root.appendingPathComponent("new"))
         for paths in [[String](), ["../escape"], [".git/index"], ["new", "missing"]] {
-            do { try await repository.addWorkingFiles(paths: paths); XCTFail("Invalid selection accepted") } catch {}
+            do { try await repository.addWorkingFiles(paths: paths, backend: .init()); XCTFail("Invalid selection accepted") } catch {}
             XCTAssertEqual(try Data(contentsOf: index), original)
         }
         let lock = root.appendingPathComponent(".git/index.lock")
         try Data([99]).write(to: lock)
-        do { try await repository.addWorkingFiles(paths: ["new"]); XCTFail("Existing lock overwritten") } catch {}
+        do { try await repository.addWorkingFiles(paths: ["new"], backend: .init()); XCTFail("Existing lock overwritten") } catch {}
         XCTAssertEqual(try Data(contentsOf: index), original); XCTAssertEqual(try Data(contentsOf: lock), Data([99]))
     }
     func testUnbornIndexAndDirectoryModeOverrides() async throws {
@@ -49,10 +49,10 @@ final class WorkingFileAddTests: XCTestCase {
         let repository = GitRepository(root: root)
         _ = try await repository.run(["init", "-b", "main"])
         try Data([1]).write(to: root.appendingPathComponent("folder/file"))
-        try await repository.addWorkingFiles(paths: ["folder"], mode: .executable)
+        try await repository.addWorkingFiles(paths: ["folder"], mode: .executable, backend: .init())
         let staged = try await repository.run(["ls-files", "--stage", "-z"]).stdout
         XCTAssertTrue(String(decoding: staged, as: UTF8.self).hasPrefix("100644 "), "Upstream leaves directory children’s modes unchanged")
-        try await repository.setAddedFileMode(paths: ["folder"], mode: .symlink)
+        try await repository.setAddedFileMode(paths: ["folder"], mode: .symlink, backend: .init())
         let afterMode = try await repository.run(["ls-files", "--stage", "-z"]).stdout
         XCTAssertEqual(afterMode, staged)
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".git/index.lock").path))
@@ -63,16 +63,16 @@ final class WorkingFileAddTests: XCTestCase {
         let path = ":(glob)雪,\npost.txt", file = root.appendingPathComponent(path)
         let original = Data("staged target\n".utf8)
         try original.write(to: file)
-        try await repository.addWorkingFiles(paths: [path])
+        try await repository.addWorkingFiles(paths: [path], backend: .init())
         let other = try await repository.run(["ls-files", "--stage", "-z", "--", tracked]).stdout
         try Data("later disk edit\n".utf8).write(to: file)
-        try await repository.setAddedFileMode(paths: [path], mode: .executable)
+        try await repository.setAddedFileMode(paths: [path], mode: .executable, backend: .init())
         let executable = try await repository.run(["ls-files", "--stage", "-z", "--", path]).stdout
         let blob = try await repository.run(["show", ":" + path]).stdout
         XCTAssertTrue(String(decoding: executable, as: UTF8.self).hasPrefix("100755 ")); XCTAssertEqual(blob, original)
         XCTAssertEqual(try Data(contentsOf: file), Data("later disk edit\n".utf8))
         try FileManager.default.removeItem(at: file)
-        try await repository.setAddedFileMode(paths: [path], mode: .symlink)
+        try await repository.setAddedFileMode(paths: [path], mode: .symlink, backend: .init())
         let symlink = try await repository.run(["ls-files", "--stage", "-z", "--", path]).stdout
         let finalBlob = try await repository.run(["show", ":" + path]).stdout
         let finalOther = try await repository.run(["ls-files", "--stage", "-z", "--", tracked]).stdout
@@ -80,11 +80,11 @@ final class WorkingFileAddTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
         let index = root.appendingPathComponent(".git/index"), before = try Data(contentsOf: index)
         for paths in [[path, "missing"], ["../escape"], [".git/index"], []] {
-            do { try await repository.setAddedFileMode(paths: paths, mode: .executable); XCTFail("Invalid mode selection accepted") } catch {}
+            do { try await repository.setAddedFileMode(paths: paths, mode: .executable, backend: .init()); XCTFail("Invalid mode selection accepted") } catch {}
             XCTAssertEqual(try Data(contentsOf: index), before)
         }
         let token = OperationCancellation(); token.cancel()
-        do { try await repository.setAddedFileMode(paths: [path], mode: .executable, cancellation: token); XCTFail("Cancellation ignored") } catch {}
+        do { try await repository.setAddedFileMode(paths: [path], mode: .executable, cancellation: token, backend: .init()); XCTFail("Cancellation ignored") } catch {}
         XCTAssertEqual(try Data(contentsOf: index), before)
         XCTAssertFalse(FileManager.default.fileExists(atPath: index.path + ".lock"))
     }
@@ -96,7 +96,7 @@ final class WorkingFileAddTests: XCTestCase {
         let original = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         try Data("target\n".utf8).write(to: linked.appendingPathComponent("link"))
         let other = GitRepository(root: linked)
-        try await other.addWorkingFiles(paths: ["link"], mode: .symlink)
+        try await other.addWorkingFiles(paths: ["link"], mode: .symlink, backend: .init())
         let staged = try await other.run(["ls-files", "--stage", "-z", "--", "link"]).stdout
         XCTAssertTrue(String(decoding: staged, as: UTF8.self).hasPrefix("120000 "))
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), original)

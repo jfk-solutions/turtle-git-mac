@@ -35,6 +35,7 @@ struct Arguments{
     var source="",destination="",branch:String?,origin:String?,ssh:String?,bare=false,noCheckout=false,recursive=false
     var listRefs=false,listTags=false,listHeads=false,filters=false
     var blobPath:String?,blobOID=""
+    var privateIndex:String?,addMode:Int32=0,addModeSpecified=false,addStdin=false,addModeOnly=false
     var remote="origin",refspecs:[String]=[],all=false,tags=0,prune=0,depth=0,force=false,verbose=false
     init(_ arguments:[String])throws{
         if let old=environment["GIT_CONFIG_PARAMETERS"]{for value in try quotedWords(old){configs.append(try configuration(value))}}
@@ -50,7 +51,7 @@ struct Arguments{
             if arg == "--literal-pathspecs" || arg == "--no-literal-pathspecs"{continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["clone","fetch","ls-remote","push","cat-file"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["clone","fetch","ls-remote","push","cat-file","add"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         var operands:[String]=[],options=true
@@ -69,6 +70,8 @@ struct Arguments{
                 case "--depth" where command == "clone" || command == "fetch":depth=try depthValue(next())
                 case "--config" where command == "clone":
                     let value=try next();guard value.hasPrefix("core.sshCommand=") else{try refuse("Unsupported persistent clone configuration")};ssh=String(value.dropFirst("core.sshCommand=".count))
+                case "--stdin" where command == "add":guard !addStdin else{try refuse("Repeated Add input option")};addStdin=true
+                case "--turtlegit-mode-only" where command == "add":guard !addModeOnly else{try refuse("Repeated Add mode-only option")};addModeOnly=true
                 case "--filters" where command == "cat-file":filters=true
                 case "--refs" where command == "ls-remote":listRefs=true
                 case "-t" where command == "ls-remote", "--tags" where command == "ls-remote":listTags=true
@@ -80,7 +83,12 @@ struct Arguments{
                 case "--prune" where command == "fetch":prune=1
                 case "--no-prune" where command == "fetch":prune=2
                 default:
-                    if command == "cat-file" && arg.hasPrefix("--path="){guard blobPath == nil else{try refuse("Repeated blob path")};blobPath=String(arg.dropFirst(7))}else if (command == "clone" || command == "fetch") && arg.hasPrefix("--depth="){depth=try depthValue(String(arg.dropFirst(8)))}else{try refuse("Unsupported libgit2 option: "+arg)}
+                    if command == "add" && arg.hasPrefix("--turtlegit-index="){
+                        guard privateIndex == nil else{try refuse("Repeated private Add index")};privateIndex=String(arg.dropFirst("--turtlegit-index=".count))
+                    }else if command == "add" && arg.hasPrefix("--turtlegit-mode="){
+                        guard !addModeSpecified else{try refuse("Repeated Add mode")};addModeSpecified=true
+                        switch String(arg.dropFirst("--turtlegit-mode=".count)){case "normal":addMode=0;case "executable":addMode=1;case "symlink":addMode=2;default:try refuse("Unsupported Add mode")}
+                    }else if command == "cat-file" && arg.hasPrefix("--path="){guard blobPath == nil else{try refuse("Repeated blob path")};blobPath=String(arg.dropFirst(7))}else if (command == "clone" || command == "fetch") && arg.hasPrefix("--depth="){depth=try depthValue(String(arg.dropFirst(8)))}else{try refuse("Unsupported libgit2 option: "+arg)}
                 }
             }else{operands.append(arg)}
         }
@@ -89,6 +97,8 @@ struct Arguments{
             guard operands.count==2,!(bare && noCheckout),!(bare && recursive),origin?.isEmpty != true,branch?.isEmpty != true else{try refuse("Invalid clone option combination")}
             source=operands[0];destination=operands[1]
             guard !source.isEmpty,!destination.isEmpty else{try refuse("Missing clone source or destination")}
+        }else if command == "add"{
+            guard addStdin,addModeSpecified,operands.isEmpty,let privateIndex,privateIndex.hasPrefix("/"),!privateIndex.contains("\0"),!addModeOnly || addMode != 0 else{try refuse("Add requires an explicit private index, mode and literal stdin packet")}
         }else if command == "cat-file"{
             guard filters,let path=blobPath,!path.isEmpty,!path.contains("\0"),!path.hasPrefix("/"),(path == "." || !path.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0 == ".." || $0 == "." || $0.isEmpty})),operands.count==1,operands[0].utf8.count==40,operands[0].utf8.allSatisfy({(48...57).contains($0)||(65...70).contains($0)||(97...102).contains($0)}) else{try refuse("Filtered blob requires one full object ID and literal repository-relative path")};blobOID=operands[0]
         }else if command == "ls-remote"{
@@ -131,7 +141,7 @@ final class CallbackContext{
     var acceptanceHandle:FileHandle?,acceptanceCount=0
     var currentURL="",credentialRealm=Data(),credentials:(String,String)?,credentialUses=0,prompts=0
     var accepted:Set<Data>=[]
-    func smudge(command:String,path:String,directory:String,input:Data)throws->Data{
+    func externalFilter(command:String,path:String,directory:String,index privateIndex:String?,input:Data)throws->Data{
         guard !cancelled() else{try refuse("Filter cancelled")}
         // Adapt source %f expansion to POSIX shell quoting; path bytes never
         // become shell syntax. %% remains one literal percent.
@@ -154,6 +164,7 @@ final class CallbackContext{
         // override, owns checkout (especially recursive submodule/LFS smudges).
         for key in ["TURTLEGIT_LIBGIT2_CERTIFICATE_ACCEPTANCES","GIT_DIR","GIT_COMMON_DIR","GIT_WORK_TREE","GIT_INDEX_FILE","GIT_OBJECT_DIRECTORY","GIT_ALTERNATE_OBJECT_DIRECTORIES","GIT_GRAFT_FILE","GIT_SHALLOW_FILE","GIT_PREFIX","GIT_INTERNAL_SUPER_PREFIX","GIT_NAMESPACE","GIT_QUARANTINE_PATH","GIT_IMPLICIT_WORK_TREE"]{childEnvironment.removeValue(forKey:key)}
         for key in Array(childEnvironment.keys) where key == "GIT_CONFIG_PARAMETERS" || key == "GIT_CONFIG_COUNT" || key.hasPrefix("GIT_CONFIG_KEY_") || key.hasPrefix("GIT_CONFIG_VALUE_"){childEnvironment.removeValue(forKey:key)}
+        if let privateIndex{childEnvironment["GIT_INDEX_FILE"]=privateIndex}
         var search:[String]=[]
         if let git=environment["TURTLEGIT_LIBGIT2_GIT_EXECUTABLE"],git.hasPrefix("/"){search.append(URL(fileURLWithPath:git).deletingLastPathComponent().path)}
         if let exec=environment["GIT_EXEC_PATH"],exec.hasPrefix("/"){search.append(exec)}
@@ -293,12 +304,14 @@ func callbacks(_ owner:CallbackContext)->tg_callbacks{
             proxy.pointee=configuration.proxy.flatMap{strdup($0)};return 0
         }catch{output("HTTP configuration: "+error.localizedDescription+"\n");return -1}
     }
-    value.filter={command,path,directory,input,count,result,length,raw in
+    value.filter={command,path,directory,index,input,count,result,length,raw in
         guard let command,let path,let directory,let result,let length else{return -1}
-        do{let bytes=try context(raw).smudge(command:String(cString:command),path:String(cString:path),directory:String(cString:directory),input:count>0 ? Data(bytes:input!,count:count):Data())
+        do{let bytes=try context(raw).externalFilter(command:String(cString:command),path:String(cString:path),directory:String(cString:directory),index:index.map{String(cString:$0)},input:count>0 ? Data(bytes:input!,count:count):Data())
             guard let copy=malloc(bytes.count+1) else{return -1};bytes.copyBytes(to:copy.assumingMemoryBound(to:UInt8.self),count:bytes.count);copy.assumingMemoryBound(to:UInt8.self)[bytes.count]=0;result.pointee=copy.assumingMemoryBound(to:UInt8.self);length.pointee=bytes.count;return 0
-        }catch{output("Smudge filter: "+error.localizedDescription+"\n");return -1}
-    };return value
+        }catch{output("External filter: "+error.localizedDescription+"\n");return -1}
+    }
+    value.added={path,_ in if let path{let bytes=Data(String(cString:path).utf8);FileHandle.standardOutput.write(Data(("TurtleGit Add v1:"+bytes.base64EncodedString()+"\n").utf8))}}
+    return value
 }
 func withStrings<T>(_ values:[String],_ body:(UnsafePointer<UnsafePointer<CChar>?>?,Int)->T)->T{
     let copies=values.map{strdup($0)};defer{copies.forEach{free($0)}}
@@ -311,9 +324,21 @@ func run()throws->Int32{
     let args=try Arguments(Array(CommandLine.arguments.dropFirst()))
     guard FileManager.default.changeCurrentDirectoryPath(args.directory) else{try refuse("Cannot enter requested repository directory")}
     guard tg_git_init()>=0 else{try refuse("Cannot initialize libgit2")};defer{tg_git_shutdown()}
+    var addPaths:[String]=[]
+    if args.command == "add"{
+        var packet=Data()
+        while let chunk=try FileHandle.standardInput.read(upToCount:65_536),!chunk.isEmpty{guard !cancelled(),packet.count+chunk.count<=33_554_432 else{try refuse("Add packet was cancelled or exceeds bounds")};packet.append(chunk)}
+        guard packet.last==0 else{try refuse("Add requires a terminated NUL path packet")}
+        let paths=packet.dropLast().split(separator:0,omittingEmptySubsequences:false)
+        guard !paths.isEmpty,paths.count<=100_000 else{try refuse("Invalid Add path count")}
+        addPaths=try paths.map{bytes in
+            guard !bytes.isEmpty,bytes.count<=1_048_576,let path=String(data:Data(bytes),encoding:.utf8),!path.hasPrefix("/"),!path.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0.isEmpty || $0 == "." || $0 == ".."}) else{try refuse("Add packet contains an invalid literal path")};return path
+        }
+    }
     let owner=CallbackContext(directory:args.directory,configs:args.configs);var options=callbacks(owner);options.verbose=args.verbose ? 1:0;options.force_fetch=args.force ? 1:0
     let result:Int32=withStrings(args.configs){config,count in
         options.config_values=config;options.config_count=count
+        if args.command == "add"{return withStrings(addPaths){paths,count in tg_add(args.directory,args.privateIndex!,args.addMode,args.addModeOnly ? 1:0,paths,count,&options)}}
         if args.command == "clone"{
             return withOptionalString(args.branch){branch in withOptionalString(args.origin){origin in withOptionalString(args.ssh){ssh in tg_clone(args.source,args.destination,args.bare ? 1:0,args.noCheckout ? 1:0,args.recursive ? 1:0,branch,origin,Int32(args.depth),ssh,&options)}}}
         }

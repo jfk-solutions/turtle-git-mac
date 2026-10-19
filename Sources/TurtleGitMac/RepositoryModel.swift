@@ -356,7 +356,7 @@ private enum HistoricalMaterializationContext {
     private(set) var finderMailWorkflows: [UUID: SendMailWorkflow] = [:]
     var finderMailPresentation: ((NSWindowController) -> Void)?
     private var addProgressWindows: [UUID: AddProgressWindowController] = [:]
-    var addProgressWindowFactory: ((GitRepository, RepositoryAccessLease?, [String], WorkingFileAddMode, UserDefaults) -> AddProgressWindowController)?
+    var addProgressWindowFactory: ((GitRepository, RepositoryAccessLease?, [String], WorkingFileAddMode, UserDefaults, GitLibGit2Configuration, Bool) -> AddProgressWindowController)?
     var addProgressWindowPresentation: ((AddProgressWindowController) -> Void)?
     private var cleanWindows: [String: CleanWindowController] = [:]
     var cleanWindowFactory:((GitRepository)->CleanWindowController)?
@@ -1679,6 +1679,7 @@ private enum HistoricalMaterializationContext {
     }
     private func showAdd(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], commandLaunch: Bool = false) {
         let id = UUID(), owner = RepositoryWindowOwner(window: workspaceWindow)
+        let backend = GitLibGit2Configuration.load(from: fileComparisonPreferences)
         addPreparations[id] = owner
         let preflight = addSelectionPreflight
         Task { [self, access] in
@@ -1691,7 +1692,7 @@ private enum HistoricalMaterializationContext {
                 if let preflight { files = try await preflight(repository, paths, owner.cancellation) }
                 else { files = try await repository.addSelectionIsFiles(paths, cancellation: owner.cancellation) }
                 try owner.cancellation.check(); guard !retired, !confirmingQuit else { return }
-                if files { showAddProgress(repository: repository, access: access, paths: paths); return }
+                if files { showAddProgress(repository: repository, access: access, paths: paths, backend: backend); return }
                 let key = repository.root.path
                 if commandLaunch, let existing = addWindows[key] {
                     existing.window?.makeKeyAndOrderFront(nil)
@@ -1701,7 +1702,10 @@ private enum HistoricalMaterializationContext {
                 let controller = addWindows[key] ?? AddWindowController(repository: repository, access: access, defaults: fileComparisonPreferences)
                 guard !controller.model.busy else { controller.window?.makeKeyAndOrderFront(nil); return }
                 controller.onClosed = { [weak self] in self?.addWindows.removeValue(forKey: key) }
-                controller.model.onAccepted = { [weak self] paths in self?.showAddProgress(repository: repository, access: access, paths: paths) }
+                controller.model.onAccepted = { [weak self, weak controller] paths in
+                    guard let backend = controller?.model.acceptedBackend else { return }
+                    self?.showAddProgress(repository: repository, access: access, paths: paths, backend: backend)
+                }
                 controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
                 controller.model.onLFSChanged = { [weak self] in
                     self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
@@ -2135,10 +2139,11 @@ private enum HistoricalMaterializationContext {
         synchronizationWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
 
-    private func showAddProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal) {
+    private func showAddProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal, backend: GitLibGit2Configuration? = nil, preservePathOrder: Bool = false) {
         guard !retired, !confirmingQuit else { return }
         let id = UUID(), preferences = fileComparisonPreferences
-        let controller = addProgressWindowFactory?(repository, access, paths, mode, preferences) ?? AddProgressWindowController(repository: repository, access: access, paths: paths, mode: mode, preferences: preferences)
+        let capturedBackend = backend ?? GitLibGit2Configuration.load(from: preferences)
+        let controller = addProgressWindowFactory?(repository, access, paths, mode, preferences, capturedBackend, preservePathOrder) ?? AddProgressWindowController(repository: repository, access: access, paths: paths, mode: mode, preferences: preferences, backend: capturedBackend, preservePathOrder: preservePathOrder)
         let capturedPreferences = controller.model.preferences
         controller.model.confirmingQuit = confirmingQuit
         controller.model.externalAvailability = { [weak self] in self?.retired == false && self?.confirmingQuit == false }
@@ -2679,7 +2684,7 @@ private enum HistoricalMaterializationContext {
             self.activate(action, paths: paths)
             if action != .clean && action != .add && action != .diff && action != .submoduleSync && action != .submoduleAdd && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .mergeAbort && action != .export && action != .bisect && action != .bisectStart && action.bisectOperation == nil && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
-        controller.model.onAddFiles = { [weak self] paths, mode in self?.showAddProgress(repository:repository, access:access, paths:paths, mode:mode) }
+        controller.model.onAddFiles = { [weak self] paths, mode in self?.showAddProgress(repository:repository, access:access, paths:paths, mode:mode, preservePathOrder:true) }
         controller.model.onSubmoduleLog = { [weak self] child in self?.showLog(repository: child, access: access, paths: []) }
         controller.model.onBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
         controller.model.onCompareTwoFiles = { [weak self, weak controller] paths in guard let controller else { return }; self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: controller.window) }
@@ -3074,7 +3079,7 @@ private enum HistoricalMaterializationContext {
             else if action == .revert { self?.showRevert(repository: repository, access: access, paths: paths) }
         }
         controller.model.onWorkingAdd = { [weak self] paths, mode in
-            self?.showAddProgress(repository: repository, access: access, paths: paths, mode: mode)
+            self?.showAddProgress(repository: repository, access: access, paths: paths, mode: mode, preservePathOrder:true)
         }
         controller.model.onIgnoreFiles = { [weak self] action, paths in
             self?.showIgnore(repository: repository, access: access, paths: paths, action: action)
