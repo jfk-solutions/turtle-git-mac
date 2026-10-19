@@ -184,6 +184,7 @@ struct ResolveConflictRow: Identifiable {
     static private(set) var activeOperations = 0
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    var repositoryAccess: RepositoryAccessLease? { access }
     let preferences: UserDefaults
     let progress:FileOperationProgressState
     var externalAvailability:()->Bool = {true}

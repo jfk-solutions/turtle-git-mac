@@ -547,3 +547,66 @@ Stash entry family preserves edited Save drafts and result-question behavior.
 See [command entry](COMMAND-LINE.md#merge-and-stash-command-entry) and
 [batch evidence](qa/integration-commands-2026-10-18.json). Command wiring and
 focused native passes do not certify every source control or signed deployment.
+
+## Primary Merge progress and recovery family — October 19, 2026
+
+This connected continuation follows pinned `AppUtils.cpp::DoMerge`,
+`ProgressDlg.cpp::OnProgressUpdateUI/OnBnClickedOk/OnBnClickedButton1`,
+`CAppUtils::StyleWarningsErrors/StyleURLs` and `IDD_GITPROGRESS`. The primary
+`MergeProgressWindowModel`, controller and dialog in `MergeWindow.swift` now use
+the shared native read-only output control and completion presentation already
+used by Abort Merge. This supersedes the primary Merge plain-text result gap;
+it does not reopen or certify every Abort Merge behavior.
+
+Completed output honors captured diagnostic styling, native links, context icons,
+Copy and Copy all information without moving the reader's selection or viewport.
+`StyleGitOutput` controls diagnostic prefixes; URL styling remains independent,
+as in the source. Success/error completion ranges retain the source light/dark
+colors and high-contrast success fallback. The current-work label changes to the
+terminal status and the completed bar retains 100 percent. The elapsed clock and
+finish date are captured at Git completion, before conflict/recovery reads and
+questions. `ShowGitexeTimings` controls the timing suffix, while disabling it
+retains the status line; `UseSystemLocaleForDates` controls native date formatting.
+Original repository-refresh output remains separate from presentation records.
+When Git returns a cancellation result, the UI completion uses its actual nonzero
+exit code, as the source progress dialog does. A cancelled preflight or injected
+operation without a process result uses the native `User cancelled` fallback;
+an ordinary failure without an exit code uses `Operation failed`. These explicit
+fallbacks do not invent a Git exit code. The source separately adds its cancelled
+record when writing the action log. A failed conflict-status read retains a
+diagnostic in native output rather than silently claiming a clean work tree;
+this replaces the source's separate error message box.
+
+The existing source result choices remain: conflicts offer Resolve and Commit;
+missing common history offers an unrelated-history retry, followed by Stash;
+success may first offer Stash Pop. No Commit or Squash then offers Commit and
+returns without branch removal, Push or SVN DCommit. A normal committed local
+branch offers Remove branch, and branch targets offer Push; Git-SVN adds DCommit
+independently of a branch/tag/commit target. Remove branch is the source's plain
+`git branch -D` action with a separate Delete/Abort question and an error result,
+not a new source progress command.
+
+Conflict reminders, kill confirmation and branch-deletion questions retain their
+captured attempt through actual native sheet detachment. Duplicate replies,
+retired owners and Quit cannot start a stale action or persist stale suppression.
+Result closure and post-action handoffs also wait for actual producer/read work
+and native children to drain. The model's per-instance pending-work count and
+`workDidDrain` callback keep ownership distinct from a visible Busy label.
+Forced closure cancels actual work, answers an owned question once and retains
+the release until that work and the question have settled; it never runs a queued
+post-action. Only an explicitly accepted live handoff can dispatch a child.
+Commit, Resolve, Abort, Stash Save/Pop, Push and SVN children retain the originating
+repository grant and preference domain. Appearance and opacity are captured from
+the closing progress window as values; retaining its native window is unnecessary.
+The root forwards that snapshot to each actual child factory. A new retry
+owns a fresh output/completion record. Source Close preserves a conflicted result;
+Cancel/title-bar dismissal freshly checks conflicts and opens Abort Merge only
+when conflicts remain. Native detachment and actual-worker draining replace the
+Windows modal/producer-wait mechanics rather than copying HWND behavior.
+
+[The grouped record](qa/merge-progress-family-2026-10-19.json) will identify the
+actual build/check scope and failures after validation; no pass is claimed here
+before that evidence is recorded. Physical menus/default-button/Escape/VoiceOver,
+all merge/recovery combinations, complete source geometry, signed sandbox/Finder
+and whole-application acceptance remain open. Windows taskbar/animation rendering
+and Alt accelerator equivalence are not established by native delegate checks.

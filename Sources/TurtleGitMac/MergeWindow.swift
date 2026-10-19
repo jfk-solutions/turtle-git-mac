@@ -2,6 +2,13 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+@MainActor struct MergeWindowPresentation {
+    let appearance: NSAppearance
+    let alpha: CGFloat
+    init(_ window: NSWindow) { appearance = window.effectiveAppearance; alpha = window.alphaValue }
+    func apply(to window: NSWindow?) { window?.appearance = appearance; window?.alphaValue = alpha }
+}
+
 @MainActor final class MergeWindowController: NSWindowController, NSWindowDelegate {
     let model: MergeWindowModel
     var onClosed: () -> Void = {}
@@ -38,6 +45,7 @@ import TurtleGitCore
             guard let self else { progress.invalidate(); return }
             guard let window = self.window, window.attachedSheet == nil else { self.model.abandonProgressPresentation(progress); return }
             let controller = MergeProgressWindowController(model: progress)
+            controller.onClosing = { [weak model = self.model] window in model?.handoffPresentation = MergeWindowPresentation(window) }
             controller.onClosed = { [weak self, weak progress, weak controller] in
                 guard let self, let progress, let controller, self.progressController === controller else { return }
                 self.progressController = nil; self.model.finish(progress)
@@ -182,6 +190,7 @@ import TurtleGitCore
     var onPostAction: ((MergePostAction, MergeOptions) -> Void)?
     var messageEditorPreferences: UserDefaults { preferences }
     var presentationPreferences: UserDefaults { preferences }
+    var handoffPresentation: MergeWindowPresentation?
     private let preferences: UserDefaults
     private var loadToken: OperationCancellation?
     private var invalidated = false
@@ -396,6 +405,14 @@ enum MergePostAction: String, CaseIterable, Hashable {
 }
 @MainActor final class MergeProgressWindowModel: ObservableObject {
     private(set) static var activeOperations=0
+    @Published private(set) var pendingOperations=0
+    var hasPendingWork:Bool {pendingOperations > 0}
+    var active:Bool {!invalidated}
+    var workDidDrain:(()->Void)?
+    private func beginWork(){pendingOperations += 1;Self.activeOperations += 1}
+    private func endWork(){pendingOperations -= 1;Self.activeOperations -= 1;if !hasPendingWork {busy=false;workDidDrain?()}}
+    var runMerge:((MergeOptions,OperationCancellation) async throws->String)?
+    var readStatus:((OperationCancellation) async throws->[StatusEntry])?
     @Published var confirmingQuit=false
     var presentationAvailable:()->Bool = {true}
     var closeForHandoff:((@escaping ()->Void)->Void)?
@@ -405,6 +422,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
     let target: CheckoutTarget
     let showStashPop: Bool
     private let access: RepositoryAccessLease?
+    var repositoryAccess:RepositoryAccessLease? {access}
     private var cancellation = OperationCancellation()
     private var started = false, invalidated = false, dispatched = false
     private var inspectionCancellation: OperationCancellation?
@@ -432,13 +450,19 @@ enum MergePostAction: String, CaseIterable, Hashable {
     @Published private(set) var output = ""
     @Published private(set) var percentage: Int?
     @Published private(set) var currentWork = ""
+    @Published private(set) var completionRange:NSRange?
+    @Published private(set) var commandFinished=false
+    @Published private(set) var commandSucceeded=false
+    private var deletingBranch=false
     @Published private(set) var cancelling = false
     @Published private(set) var confirmingCancellation = false
     private(set) var rawOutput = ""
     private var outputState: GitProgressOutputState
     var progressPresentation: GitCommandPresentation { outputState.presentation }
     var outputLimit: Int { outputState.limit }
-    var canCancel: Bool { !confirmingQuit && busy && !cancelling && !confirmingCancellation && !confirmingConflictHint }
+    var outputPreferences:UserDefaults {preferences}
+    var outputClipboard:NSPasteboard = .general
+    var canCancel: Bool { !confirmingQuit && busy && (!commandFinished || deletingBranch) && !cancelling && !confirmingCancellation && !confirmingConflictHint }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     @Published private(set) var postActions: [MergePostAction] = []
     @Published private(set) var confirmingDeletion = false
@@ -448,11 +472,16 @@ enum MergePostAction: String, CaseIterable, Hashable {
     var onPostAction: ((MergePostAction, MergeOptions) -> Void)?
     var confirmDeletion: (String, @escaping (Bool) -> Void) -> Void = { _, choose in choose(false) }
     init(repository: GitRepository, access: RepositoryAccessLease?, options: MergeOptions, target: CheckoutTarget, showStashPop: Bool, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.options = options; self.target = target; self.showStashPop = showStashPop; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); outputState = GitProgressOutputState(preferences: preferences) }
-    func start() { Task { await run() } }
-    func run() async { guard !started, !invalidated else { return }; started = true; await execute(options) }
+    private func resetAttempt() {
+        busy=true;success=false;cancelled=false;cancelling=false;outputState.reset();output="";rawOutput="";percentage=nil;currentWork="";postActions=[]
+        completionRange=nil;commandFinished=false;commandSucceeded=false
+    }
+    func start() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute(options)}}
+    func run() async {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();await execute(options)}
     func invalidate() {
         invalidated = true; cancellation.cancel(); inspectionCancellation?.cancel(); dismissalCancellation?.cancel()
-        confirmingCancellation = false; confirmingConflictHint = false; confirmingDeletion = false; checkingDismissal = false; busy = false
+        confirmingCancellation = false; confirmingConflictHint = false; confirmingDeletion = false
+        if !hasPendingWork {checkingDismissal=false;busy=false}
     }
     func cancel() {
         guard canCancel, !invalidated else { return }; let token = cancellation
@@ -467,7 +496,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
         } else { cancelling = true; token.cancel() }
     }
     private func finishResult() {
-        guard !invalidated, !busy, !confirmingCancellation, !confirmingConflictHint else { return }
+        guard !invalidated, !busy, !hasPendingWork, !confirmingCancellation, !confirmingConflictHint else { return }
         if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
         else if cancelled, onAbortRequested != nil { cancelResult() }
     }
@@ -475,6 +504,35 @@ enum MergePostAction: String, CaseIterable, Hashable {
         guard !invalidated else { return }
         outputState.consume(emission, parser: parser)
         output = outputState.output; percentage = outputState.percentage; currentWork = outputState.currentWork
+    }
+    private func bounded(_ text:String,bytes limit:Int)->String {
+        let bytes=Data(text.utf8),limit=max(0,limit)
+        guard bytes.count > limit else{return text}
+        let marker="\n[Output truncated at about \(outputState.limit / 1024) KiB]\n"
+        var count=max(0,limit-marker.utf8.count)
+        while count > 0,bytes[count] & 0xc0 == 0x80 {count -= 1}
+        return String(decoding:bytes.prefix(count),as:UTF8.self) + String(decoding:marker.utf8.prefix(limit-count),as:UTF8.self)
+    }
+    private func completeOutput(succeeded:Bool,error:Error? = nil,startedAt:TimeInterval) {
+        guard !invalidated,!commandFinished else{return}
+        let cancellationFailure=error as? GitCommandCancellationFailure
+        let code=cancellationFailure?.result.exitCode ?? (error as? GitFailure)?.code
+        let completion=SubmoduleProgressCompletion(success:succeeded,cancelled:cancelled && cancellationFailure == nil,exitCode:code,
+            elapsed:ProcessInfo.processInfo.systemUptime-startedAt,finished:Date(),preferences:preferences)
+        output=bounded(output,bytes:outputState.limit-completion.text.utf8.count)
+        completionRange=completion.append(to:&output);currentWork=completion.currentWork;percentage=100
+        commandSucceeded=succeeded;commandFinished=true
+        OperationSounds.report(failed:!succeeded,preferences:preferences)
+    }
+    private func appendDiagnostic(_ text:String) {
+        guard !text.isEmpty else{return}
+        guard let range=completionRange else{output=GitProgressFailureOutput.renderDetails(text,existing:output,limit:outputState.limit);return}
+        let previous=output as NSString
+        guard NSMaxRange(range) <= previous.length else{return}
+        let footer=previous.substring(with:range)
+        let suffix=GitProgressFailureOutput.renderDetails(text,existing:previous.substring(from:NSMaxRange(range)),limit:max(256,outputState.limit-footer.utf8.count))
+        let prefix=bounded(previous.substring(to:range.location),bytes:outputState.limit-footer.utf8.count-suffix.utf8.count)
+        output=prefix+footer+suffix;completionRange=NSRange(location:(prefix as NSString).length,length:(footer as NSString).length)
     }
     private func streamMerge(_ snapshot: MergeOptions) async throws -> String {
         let parser = GitCliOutputParser(limit: outputState.limit)
@@ -491,20 +549,23 @@ enum MergePostAction: String, CaseIterable, Hashable {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func execute(_ snapshot: MergeOptions) async {
+        defer {endWork();withExtendedLifetime(access) {};if !invalidated,!hasPendingWork {cancelling=false;finishResult()}}
         guard !invalidated else { return }
-        Self.activeOperations += 1;defer {Self.activeOperations -= 1;withExtendedLifetime(access) {}}
-        busy = true; success = false; cancelled = false; cancelling = false; outputState.reset(); output = ""; rawOutput = ""; percentage = nil; currentWork = ""; postActions = []
+        let startedAt=ProcessInfo.processInfo.systemUptime
         do { try validateAccess() }
-        catch { guard !invalidated else { return }; output = error.localizedDescription; rawOutput = output; busy = false; onChanged(rawOutput); return }
+        catch { guard !invalidated else { return }; output = error.localizedDescription; rawOutput = output;completeOutput(succeeded:false,error:error,startedAt:startedAt);onChanged(rawOutput); return }
         do {
-            let result = try await streamMerge(snapshot)
+            let result:String
+            if let runMerge {result=try await runMerge(snapshot,cancellation)} else {result=try await streamMerge(snapshot)}
             guard !invalidated else { return }
             rawOutput = result; if !outputState.hasOutput { output = rawOutput }; success = true
+            completeOutput(succeeded:true,startedAt:startedAt)
         } catch {
             guard !invalidated else { return }
             if let failure = error as? GitCommandCancellationFailure { rawOutput = failure.result.text + "\n" + failure.localizedDescription }
             else { rawOutput = error.localizedDescription }
-            output=GitProgressFailureOutput.render(error,existing:output,limit:outputState.limit); cancelled = cancellation.isCancelled
+            output=GitProgressFailureOutput.render(error,existing:output,limit:outputState.limit); cancelled = cancellation.isCancelled || error is OperationCancellationFailure || error is CancellationError || error is GitCommandCancellationFailure
+            completeOutput(succeeded:false,error:error,startedAt:startedAt)
         }
         var actions: [MergePostAction] = []
         if success {
@@ -520,7 +581,10 @@ enum MergePostAction: String, CaseIterable, Hashable {
             // Forced cleanup cancels this read as well as the original merge.
             let inspection = OperationCancellation(); inspectionCancellation = inspection
             defer { if inspectionCancellation === inspection { inspectionCancellation = nil } }
-            let conflicts = (try? await repository.status(refreshIndex: false, cancellation: inspection).contains { $0.state == .conflicted }) == true
+            let entries:[StatusEntry]?
+            do {if let readStatus {entries=try await readStatus(inspection)} else {entries=try await repository.status(refreshIndex:false,cancellation:inspection)}}
+            catch {entries=nil;if !invalidated,!inspection.isCancelled {appendDiagnostic("Checking for conflicts failed.\n" + error.localizedDescription)}}
+            let conflicts=entries?.contains {$0.state == .conflicted} == true
             guard !invalidated else { return }
             if conflicts {
                 if !preferences.bool(forKey: Self.conflictHintPreference), let presentConflictHint {
@@ -541,29 +605,31 @@ enum MergePostAction: String, CaseIterable, Hashable {
             actions.append(.stash)
         }
         guard !invalidated else { return }
-        postActions = actions; busy = false; cancelling = false; onChanged(rawOutput); finishResult()
+        postActions = actions; onChanged(rawOutput)
     }
     func cancelResult() {
-        guard !invalidated, !confirmingQuit, !busy, !confirmingCancellation, !confirmingConflictHint, !confirmingDeletion, !checkingDismissal else { return }
-        checkingDismissal = true
+        guard !invalidated, !confirmingQuit, !busy, !hasPendingWork, !confirmingCancellation, !confirmingConflictHint, !confirmingDeletion, deletionError == nil, !checkingDismissal else { return }
+        checkingDismissal = true;busy=true
         let token = OperationCancellation(); dismissalCancellation = token
-        Self.activeOperations += 1
+        beginWork()
         Task {
-            defer {Self.activeOperations -= 1;withExtendedLifetime(access) {}}
+            var handoff:(()->Void)?
+            defer {if dismissalCancellation === token {dismissalCancellation=nil};checkingDismissal=false;endWork();withExtendedLifetime(access) {};if !invalidated,let handoff {finishAndPerform(handoff)}}
             var conflicts = false
-            do { try validateAccess(); conflicts = try await repository.status(refreshIndex: false, cancellation: token).contains { $0.state == .conflicted } } catch {}
+            do {try validateAccess();let entries:[StatusEntry];if let readStatus {entries=try await readStatus(token)} else {entries=try await repository.status(refreshIndex:false,cancellation:token)};conflicts=entries.contains {$0.state == .conflicted}}
+            catch {if !invalidated,!token.isCancelled {appendDiagnostic("Checking for conflicts failed.\n" + error.localizedDescription)};return}
             guard !invalidated, dismissalCancellation === token, !token.isCancelled else { return }
             dismissalCancellation = nil; checkingDismissal = false
             let abort=onAbortRequested
-            finishAndPerform {if conflicts {abort?()}}
+            handoff={if conflicts {abort?()}}
         }
     }
     func perform(_ action: MergePostAction) {
-        guard !invalidated, !confirmingQuit, presentationAvailable(), !dispatched, !busy, !confirmingCancellation, !confirmingDeletion, !checkingDismissal, postActions.contains(action) else { return }
+        guard !invalidated, !confirmingQuit, presentationAvailable(), !dispatched, !busy, !hasPendingWork, !confirmingCancellation, !confirmingConflictHint, !confirmingDeletion, deletionError == nil, !checkingDismissal, postActions.contains(action) else { return }
         if action == .mergeUnrelated {
             ProgressActionLog.nextAttempt(self)
             var snapshot = options; snapshot.allowUnrelatedHistories = true
-            busy = true; cancellation = OperationCancellation()
+            cancellation = OperationCancellation();resetAttempt();beginWork()
             Task { await execute(snapshot) }
         } else if action == .removeBranch {
             confirmingDeletion = true; var answered = false
@@ -575,29 +641,48 @@ enum MergePostAction: String, CaseIterable, Hashable {
         } else if let onPostAction { dispatched = true; let options=self.options;finishAndPerform {onPostAction(action, options)} }
     }
     private func deleteBranch() {
-        guard !invalidated, !confirmingQuit, !busy, options.revision.hasPrefix("refs/heads/") else { return }; busy = true
+        guard !invalidated, !confirmingQuit, !busy,!hasPendingWork, options.revision.hasPrefix("refs/heads/") else { return }; busy = true;deletingBranch=true
         let token = OperationCancellation(); cancellation = token
-        Self.activeOperations += 1
+        beginWork()
         Task {
-            defer {Self.activeOperations -= 1;withExtendedLifetime(access) {}}
+            defer {deletingBranch=false;cancelling=false;endWork();withExtendedLifetime(access) {}}
             do {
                 try validateAccess()
                 let result = try await repository.run(["branch", "-D", "--", String(options.revision.dropFirst("refs/heads/".count))], cancellation: token)
                 guard !invalidated, cancellation === token else { return }
-                rawOutput += "\n" + result.text; output += "\n" + result.text
+                rawOutput += "\n" + result.text;appendDiagnostic(result.text)
                 postActions.removeAll { $0 == .removeBranch }; deletionError = nil
-            } catch { guard !invalidated, cancellation === token else { return }; deletionError = error.localizedDescription; rawOutput += "\n" + error.localizedDescription; output += "\n" + error.localizedDescription }
-            busy = false; cancelling = false; onChanged(rawOutput)
+            } catch { guard !invalidated, cancellation === token else { return }; deletionError = error.localizedDescription; rawOutput += "\n" + error.localizedDescription;appendDiagnostic(error.localizedDescription) }
+            onChanged(rawOutput)
         }
     }
 }
+enum MergeProgressQuestion: Equatable {
+    case conflictHint, cancellation, deleteBranch(String)
+}
+@MainActor private final class MergeProgressQuestionSession {
+    let alert: NSAlert
+    let parent: NSWindow
+    var answered = false
+    var answer: ((NSApplication.ModalResponse) -> Void)?
+    var release: MergeChildRelease?
+    var completion: ((NSApplication.ModalResponse) -> Void)?
+    init(alert: NSAlert, parent: NSWindow, completion: @escaping (NSApplication.ModalResponse) -> Void) {
+        self.alert = alert; self.parent = parent; self.completion = completion
+    }
+}
 @MainActor final class MergeProgressWindowController: NSWindowController, NSWindowDelegate {
-    private var pendingHandoff:(()->Void)?
-    private var release:MergeChildRelease?
-    private var presentationParent:NSWindow?
-    private var finished=false
+    private var pendingHandoff: (() -> Void)?
+    private var release: MergeChildRelease?
+    private var presentationParent: NSWindow?
+    private var finished = false
+    private var closingForHandoff = false
+    private var question: MergeProgressQuestionSession?
+    var questionWindow: NSWindow? { question?.alert.window }
+    var presentQuestion: ((MergeProgressQuestion, NSAlert, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
     let model: MergeProgressWindowModel
     var onClosed: () -> Void = {}
+    var onClosing: (NSWindow) -> Void = { _ in }
     init(model: MergeProgressWindowModel) {
         self.model = model
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 780, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -605,58 +690,93 @@ enum MergePostAction: String, CaseIterable, Hashable {
         window.contentMinSize = NSSize(width: 560, height: 300); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: MergeProgressDialog(model: model))
         super.init(window: window); window.delegate = self
-        model.close = { [weak self] in
-            guard let self, !self.model.confirmingQuit, !self.model.busy, !self.model.confirmingDeletion, !self.model.confirmingCancellation, !self.model.checkingDismissal, self.window?.attachedSheet == nil else { return }
-            if let window = self.window {self.presentationParent=window.sheetParent;window.close()}
+        model.close = { [weak self] in self?.closeIfReady() }
+        model.workDidDrain = { [weak self] in
+            guard let self, self.pendingHandoff != nil else { return }
+            self.closeIfReady()
         }
-        model.presentationAvailable = { [weak window] in window != nil && window?.attachedSheet == nil }
+        model.presentationAvailable = { [weak self] in
+            guard let self else { return false }
+            return !self.finished && self.question == nil && self.window != nil && self.window?.attachedSheet == nil
+        }
         model.closeForHandoff = { [weak self] action in
-            guard let self,!self.finished,self.pendingHandoff == nil else{return};self.pendingHandoff=action;self.model.close()
+            guard let self, !self.finished, self.pendingHandoff == nil, !self.model.confirmingQuit else { return }
+            self.pendingHandoff = action; self.closeIfReady()
         }
-        model.presentConflictHint = { [weak window] in
-            guard let window, window.attachedSheet == nil else { return false }
+        model.presentConflictHint = { [weak self] in
+            guard let self else { return false }
             return await withCheckedContinuation { continuation in
                 let alert = NSAlert(); alert.alertStyle = .informational
                 alert.messageText = "TurtleGit"; alert.informativeText = MergeProgressWindowModel.conflictHint
                 alert.addButton(withTitle: "OK")
                 alert.showsSuppressionButton = true; alert.suppressionButton?.title = "Don't show this message again"
-                alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
-                alert.beginSheetModal(for: window) { _ in continuation.resume(returning: alert.suppressionButton?.state == .on) }
+                self.ask(.conflictHint, alert: alert) { response in
+                    continuation.resume(returning: response == .alertFirstButtonReturn && alert.suppressionButton?.state == .on)
+                }
             }
         }
-        model.confirmCancellation = { [weak window] choose in
-            guard let window, window.attachedSheet == nil else { choose(false); return }
+        model.confirmCancellation = { [weak self] choose in
+            guard let self else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
-            let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
-            alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
-            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+            let yes = alert.addButton(withTitle: "Yes"), no = alert.addButton(withTitle: "No")
+            alert.layout(); yes.keyEquivalent = "\r"; no.keyEquivalent = "\u{1b}"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            self.ask(.cancellation, alert: alert) { choose($0 == .alertFirstButtonReturn) }
         }
-        model.confirmDeletion = { [weak window] branch, choose in
-            guard let window, window.attachedSheet == nil else { choose(false); return }
+        model.confirmDeletion = { [weak self] branch, choose in
+            guard let self else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = "Delete branch \"\(branch)\"?"
             alert.addButton(withTitle: "Delete"); alert.addButton(withTitle: "Abort")
-            alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
-            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+            self.ask(.deleteBranch(branch), alert: alert) { choose($0 == .alertFirstButtonReturn) }
         }
-
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
+    private func ask(_ kind: MergeProgressQuestion, alert: NSAlert, completion: @escaping (NSApplication.ModalResponse) -> Void) {
+        guard !finished, model.active, !model.confirmingQuit, question == nil, let window, window.attachedSheet == nil else { completion(.abort); return }
+        let request = MergeProgressQuestionSession(alert: alert, parent: window, completion: completion)
+        question = request
+        alert.window.alphaValue = window.alphaValue; alert.window.appearance = window.effectiveAppearance
+        let answer: (NSApplication.ModalResponse) -> Void = { [weak self, weak request] response in
+            guard let self, let request, !request.answered else { return }
+            request.answered = true
+            let release = MergeChildRelease(window: request.alert.window, parent: request.parent, closeWindow: true) { [self, request] in
+                let accepted = !self.finished && self.model.active && !self.model.confirmingQuit && self.question === request
+                if self.question === request { self.question = nil }
+                let callback = request.completion; request.completion = nil; request.answer = nil; request.release = nil
+                callback?(accepted ? response : .abort)
+                if self.pendingHandoff != nil { self.closeIfReady() }
+            }
+            request.release = release; release.start()
+        }
+        request.answer = answer
+        if let presentQuestion { presentQuestion(kind, alert, window, answer) }
+        else { alert.beginSheetModal(for: window, completionHandler: answer) }
+    }
+    private func closeIfReady() {
+        guard !finished, model.active, !model.confirmingQuit, !model.hasPendingWork, !model.busy,
+              !model.confirmingDeletion, !model.confirmingCancellation, !model.confirmingConflictHint,
+              !model.checkingDismissal, model.deletionError == nil, question == nil, let window, window.attachedSheet == nil else { return }
+        presentationParent = window.sheetParent; closingForHandoff = pendingHandoff != nil; window.close()
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if model.confirmingQuit || model.confirmingConflictHint || model.confirmingCancellation { return false }
+        if model.confirmingQuit || question != nil || model.confirmingConflictHint || model.confirmingCancellation { return false }
         if model.busy { model.cancel(); return false }
-        guard !model.confirmingDeletion, !model.checkingDismissal, sender.attachedSheet == nil else { return false }
+        guard !model.hasPendingWork, !model.confirmingDeletion, !model.checkingDismissal, model.deletionError == nil, sender.attachedSheet == nil else { return false }
         model.cancelResult(); return false
     }
     func windowWillClose(_ notification: Notification) {
-        guard !finished else{return};finished=true
-        model.saveActionLog();model.invalidate();model.closeForHandoff=nil
-        guard let window else{onClosed();return}
-        if let sheet=window.attachedSheet {window.endSheet(sheet,returnCode:.abort);sheet.close()}
-        let action=pendingHandoff;pendingHandoff=nil
-        let release=MergeChildRelease(window:window,parent:presentationParent ?? window.sheetParent) { [self] in
-            self.release=nil;onClosed();action?()
+        guard notification.object as? NSWindow === window, !finished else { return }; finished = true
+        if let window { onClosing(window) }
+        model.invalidate(); model.closeForHandoff = nil; model.workDidDrain = nil
+        question?.answer?(.abort)
+        guard let window else { onClosed(); return }
+        if let sheet = window.attachedSheet, sheet !== questionWindow { window.endSheet(sheet, returnCode: .abort); sheet.close() }
+        let action = closingForHandoff ? pendingHandoff : nil; pendingHandoff = nil
+        let release = MergeChildRelease(window: window, parent: presentationParent ?? window.sheetParent, ready: { [self] in
+            !model.hasPendingWork && question == nil
+        }) { [self] in
+            self.release = nil; model.saveActionLog(); onClosed(); action?()
         }
-        self.release=release;release.start()
+        self.release = release; release.start()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -665,14 +785,13 @@ struct MergeProgressDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Merge \(model.options.revision)").font(.headline)
-            ScrollViewReader { reader in
-                ScrollView { VStack(alignment: .leading, spacing: 0) { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading); Color.clear.frame(height: 1).id("merge-output-end") } }
-                    .onChange(of: model.output) { _ in reader.scrollTo("merge-output-end", anchor: .bottom) }
-            }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
-            if model.busy, let percentage = model.percentage { ProgressView(value: Double(percentage), total: 100).tint(.green) }
+            SubmoduleProgressOutputView(text: model.output, completed: model.commandFinished, completionRange: model.completionRange, success: model.commandSucceeded, preferences: model.outputPreferences, clipboard: model.outputClipboard)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if model.commandFinished { ProgressView(value: 100, total: 100).tint(model.commandSucceeded ? Color.accentColor : Color.red) }
+            else { GitCommandProgressBar(percentage: model.percentage, animate: model.progressPresentation.animateActivity) }
             if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
             HStack {
-                if model.busy { if model.percentage == nil { GitCommandActivity(animate: model.progressPresentation.animateActivity) }; Text(model.cancelling ? "Cancelling…" : "Running…") }
+                if model.busy { Text(model.cancelling ? "Cancelling…" : "Running…") }
                 else { Text(model.cancelled ? "Cancelled" : model.success ? "Finished" : "Merge failed").foregroundStyle(model.success ? Color.green : Color.red) }
                 Spacer()
             }
@@ -681,18 +800,18 @@ struct MergeProgressDialog: View {
                     HStack(spacing: 2) {
                         Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }
                         Menu { ForEach(model.postActions, id: \.self) { action in Button { model.perform(action) } label: { CommandLabel(title: action.title, icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Merge post-actions") }.menuStyle(.borderlessButton).fixedSize()
-                    }.disabled(model.busy || model.confirmingCancellation || model.confirmingDeletion || model.checkingDismissal)
+                    }.disabled(!model.presentationAvailable() || model.busy || model.hasPendingWork || model.confirmingQuit || model.confirmingConflictHint || model.confirmingCancellation || model.confirmingDeletion || model.checkingDismissal)
                 }
                 Spacer()
                 if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
                 else {
-                    if !model.success { Button("Cancel") { model.cancelResult() }.keyboardShortcut(.cancelAction).disabled(model.confirmingCancellation || model.confirmingDeletion || model.checkingDismissal) }
-                    Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.confirmingCancellation || model.confirmingDeletion || model.checkingDismissal)
+                    if !model.success { Button("Cancel") { model.cancelResult() }.keyboardShortcut(.cancelAction).disabled(model.hasPendingWork || model.confirmingQuit || model.confirmingConflictHint || model.confirmingCancellation || model.confirmingDeletion || model.checkingDismissal) }
+                    Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.hasPendingWork || model.confirmingQuit || model.confirmingConflictHint || model.confirmingCancellation || model.confirmingDeletion || model.checkingDismissal)
                 }
             }
         }.padding(12)
         .alert("Delete branch failed", isPresented: Binding(get: { model.deletionError != nil }, set: { if !$0 { model.deletionError = nil } })) { Button("OK") { model.deletionError = nil } } message: { Text(model.deletionError ?? "") }
-        .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation || model.confirmingDeletion, percentage: model.percentage))
+        .gitDockProgress(.command(busy: model.busy && !model.commandFinished, success: model.commandSucceeded, waiting: model.confirmingCancellation || model.confirmingConflictHint || model.confirmingDeletion || model.checkingDismissal, percentage: model.percentage))
     }
 }
 
@@ -709,6 +828,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
 @MainActor final class MergeAbortWindowModel: ObservableObject {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    var repositoryAccess: RepositoryAccessLease? { access }
     private var invalidated = false
     private var cancellation = OperationCancellation()
     private var operationMode = MergeAbortMode.merge
@@ -1005,18 +1125,30 @@ private struct MergeAbortDialog: View {
     static private(set) var activeCount=0
     private let window:NSWindow,parent:NSWindow?
     private let closeWindow:Bool
+    private let ready:()->Bool
     private var completion:()->Void
     private var observer:NSObjectProtocol?
+    private var waiter:Task<Void,Never>?
     private var finished=false
-    init(window:NSWindow,parent:NSWindow?,closeWindow:Bool=false,completion:@escaping ()->Void) {self.window=window;self.parent=parent;self.closeWindow=closeWindow;self.completion=completion}
+    private var started=false
+    init(window:NSWindow,parent:NSWindow?,closeWindow:Bool=false,ready:@escaping ()->Bool={true},completion:@escaping ()->Void) {self.window=window;self.parent=parent;self.closeWindow=closeWindow;self.ready=ready;self.completion=completion}
     func start() {
+        guard !started else{return};started=true
         Self.activeCount += 1
-        if window.sheetParent == nil && parent?.attachedSheet !== window {drain();return}
-        observer=NotificationCenter.default.addObserver(forName:NSWindow.didEndSheetNotification,object:parent,queue:.main) { [self] _ in DispatchQueue.main.async {self.drain()} }
-        window.sheetParent?.endSheet(window);window.orderOut(nil);DispatchQueue.main.async { [self] in drain()}
+        if window.sheetParent != nil || parent?.attachedSheet === window {
+            observer=NotificationCenter.default.addObserver(forName:NSWindow.didEndSheetNotification,object:parent,queue:.main) { [self] _ in DispatchQueue.main.async {self.drain()} }
+            window.sheetParent?.endSheet(window);window.orderOut(nil)
+        }
+        drain()
+        if !finished {
+            waiter=Task { @MainActor [self] in
+                while !finished {try? await Task.sleep(nanoseconds:5_000_000);drain()}
+            }
+        }
     }
     private func drain() {
-        guard !finished,window.sheetParent == nil,parent?.attachedSheet !== window else{return};finished=true
+        guard !finished,window.sheetParent == nil,parent?.attachedSheet !== window,ready() else{return};finished=true
+        waiter?.cancel();waiter=nil
         if let observer {NotificationCenter.default.removeObserver(observer);self.observer=nil}
         Self.activeCount -= 1;if closeWindow {window.close()};let done=completion;completion={};done()
     }

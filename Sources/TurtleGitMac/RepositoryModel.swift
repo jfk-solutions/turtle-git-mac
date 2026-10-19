@@ -1544,10 +1544,11 @@ import UniformTypeIdentifiers
         }
         rebaseWindows[root.path]?.model.refreshState();refreshRepositoryLogs(root)
     }
-    private func showResolve(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?, preferences: UserDefaults? = nil, commandOptions: ResolveCommandOptions? = nil) {
+    private func showResolve(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?, preferences: UserDefaults? = nil, commandOptions: ResolveCommandOptions? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let root = repository.root, defaults = preferences ?? fileComparisonPreferences
         let mode = commandOptions.map { "\0command:\($0.silent):\($0.noQuestion)" } ?? ""
-        let key = root.path + "\0" + String(quick?.rawValue ?? -1) + "\0" + paths.joined(separator: "\0") + mode
+        let key = root.path + "\0" + String(quick?.rawValue ?? -1) + "\0" + paths.joined(separator: "\0") + mode + "\0preferences:" + String(describing: ObjectIdentifier(defaults))
         let controller = resolveWindows[key] ?? ResolveWindowController(repository: repository, access: access, paths: paths, quick: quick, preferences: defaults, commandOptions: commandOptions)
         controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.resolveWindows[key] === controller else { return }; self.resolveWindows.removeValue(forKey: key) }
         controller.onChanged = { [weak self] output in
@@ -1577,6 +1578,7 @@ import UniformTypeIdentifiers
             guard let self, !self.retired, !self.confirmingQuit else { return }
             self.showCommitDialog(repository: repository, access: access, paths: [], preferences: capturedPreferences, sourceWindow: controller?.window)
         }
+        presentation?.apply(to: controller.window)
         resolveWindows[key] = controller
         if let resolveWindowPresentation { resolveWindowPresentation(controller) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
@@ -1614,7 +1616,7 @@ import UniformTypeIdentifiers
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
         } catch { self.error = error.localizedDescription }
     }
-    private func showCommitDialog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], invocation: PrimaryCommandInvocation? = nil, commandMessage: String? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil) {
+    private func showCommitDialog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], invocation: PrimaryCommandInvocation? = nil, commandMessage: String? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
         let root = repository.root
         if invocation != nil, let existing = commitWindows[root.path] {
@@ -1624,6 +1626,7 @@ import UniformTypeIdentifiers
         }
         let controller = commitWindows[root.path] ?? commitWindowFactory?(repository,access) ?? CommitWindowController(repository: repository, access: access, defaults: preferences ?? fileComparisonPreferences)
         let preferences = controller.presentationPreferences, access = controller.model.access
+        presentation?.apply(to: controller.window)
         if let sourceWindow { controller.window?.alphaValue = sourceWindow.alphaValue; controller.window?.appearance = sourceWindow.effectiveAppearance }
         controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, preferences: preferences) }
         controller.onClosed = { [weak self] in self?.commitWindows.removeValue(forKey: root.path) }
@@ -1705,8 +1708,8 @@ import UniformTypeIdentifiers
         guard !busy, !confirmingQuit, !bare, let repository else { return }
         showSVN(operation, repository: repository, access: activeAccess)
     }
-    func showSVN(_ operation: GitSVNOperation, repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults? = nil) {
-        guard !confirmingQuit else { return }
+    func showSVN(_ operation: GitSVNOperation, repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let key = repository.root.path
         if let existing = svnWindows[key] {
             if existing.model.busy || existing.model.hasQuestion || existing.model.confirmingCancellation || existing.model.phase == .options || existing.window?.attachedSheet != nil {
@@ -1736,6 +1739,7 @@ import UniformTypeIdentifiers
                 self.showRebase(repository: repository, access: access, upstream: String(reference.dropFirst("refs/".count)), owner: window, onResult: { continuation.resume(returning: $0) }, onRequestedLog: { [weak controller] in controller?.model.pendingRebaseLog = true }, preferences: inherited)
             }
         }
+        presentation?.apply(to: controller.window)
         svnWindows[key] = controller
         if let svnPresentation { svnPresentation(controller) } else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
         controller.model.load()
@@ -2672,8 +2676,8 @@ import UniformTypeIdentifiers
         controller.model.reference = reference; controller.model.reload()
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showStashRestore(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1, preferences: UserDefaults? = nil) {
-        guard !confirmingQuit else { return }
+    private func showStashRestore(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let root = repository.root, key = repository.root.path + (pop ? ":pop" : ":apply:" + (reference ?? "latest")) + ":show:" + String(showChanges)
         if let existing = stashRestoreWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         guard !stashMutationIsBusy(repository.root) else { error = "Wait for the current stash operation to finish."; return }
@@ -2687,6 +2691,7 @@ import UniformTypeIdentifiers
         }
         let inherited = controller.model.preferences
         controller.onViewChanges = { [weak self] in self?.showStatus(repository: repository, access: access, preferences: inherited) }
+        presentation?.apply(to: controller.window)
         stashRestoreWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
     }
@@ -3140,7 +3145,8 @@ import UniformTypeIdentifiers
         controller.onClosed = { [weak self] in self?.exportWindows.removeValue(forKey: key) }
         exportWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showMergeAbort(repository: GitRepository, access: RepositoryAccessLease?, commandLaunch: Bool = false, preferences: UserDefaults? = nil) {
+    private func showMergeAbort(repository: GitRepository, access: RepositoryAccessLease?, commandLaunch: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
         if commandLaunch, let existing = mergeAbortWindows.values.first(where: { $0.model.repository.root == repository.root }) {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return
         }
@@ -3158,9 +3164,10 @@ import UniformTypeIdentifiers
             else if action == .submoduleUpdate { self?.showSubmoduleUpdate(repository: repository, access: access, scope: []) }
             else if action == .clean { self?.showClean(repository: repository, access: access, paths: []) }
         }
+        presentation?.apply(to: controller.window)
         mergeAbortWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func configureMergeInteractions(_ controller: MergeWindowController, repository: GitRepository, access: RepositoryAccessLease?, showStashPop: Bool = false) {
+    func configureMergeInteractions(_ controller: MergeWindowController, repository: GitRepository, access: RepositoryAccessLease?, showStashPop: Bool = false) {
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
@@ -3174,17 +3181,22 @@ import UniformTypeIdentifiers
         }
         controller.model.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.model.showStashPop = showStashPop
-        controller.model.onAbortRequested = { [weak self] in self?.showMergeAbort(repository: repository, access: access, preferences: preferences) }
-        controller.model.onPostAction = { [weak self] action, request in
+        controller.model.onAbortRequested = { [weak self, weak model = controller.model] in
+            guard let self, !self.retired, !self.confirmingQuit, let model else { return }
+            self.showMergeAbort(repository: repository, access: access, preferences: preferences, presentation: model.handoffPresentation)
+        }
+        controller.model.onPostAction = { [weak self, weak model = controller.model] action, request in
+            guard let self, !self.retired, !self.confirmingQuit, let model else { return }
+            let presentation = model.handoffPresentation
             switch action {
-            case .resolve: self?.showResolve(repository: repository, access: access, paths: [], quick: nil, preferences: preferences)
-            case .commit: self?.showCommitDialog(repository: repository, access: access, paths: [], preferences: preferences)
+            case .resolve: self.showResolve(repository: repository, access: access, paths: [], quick: nil, preferences: preferences, presentation: presentation)
+            case .commit: self.showCommitDialog(repository: repository, access: access, paths: [], preferences: preferences, presentation: presentation)
             case .stash:
                 var followUp = StashSaveFollowUp(); followUp.mergeRevision = request.revision
-                self?.showStash(repository: repository, access: access, followUp: followUp, preferences: preferences)
-            case .stashPop: self?.showStashRestore(repository: repository, access: access, pop: true, preferences: preferences)
-            case .push: self?.showPush(repository: repository, access: access, preferences: preferences)
-            case .svnDCommit: self?.showSVN(.dcommit, repository: repository, access: access, preferences: preferences)
+                self.showStash(repository: repository, access: access, followUp: followUp, preferences: preferences, presentation: presentation)
+            case .stashPop: self.showStashRestore(repository: repository, access: access, pop: true, preferences: preferences, presentation: presentation)
+            case .push: self.showPush(repository: repository, access: access, preferences: preferences, presentation: presentation)
+            case .svnDCommit: self.showSVN(.dcommit, repository: repository, access: access, preferences: preferences, presentation: presentation)
             case .mergeUnrelated, .removeBranch: break
             }
         }
@@ -3214,8 +3226,8 @@ import UniformTypeIdentifiers
         stashWindows.values.contains { $0.model.repository.root == root && ($0.model.busy || $0.model.preparing || $0.model.confirmingUntracked || $0.model.hasIdentitySettings || $0.model.progress != nil) }
             || stashRestoreWindows.values.contains { $0.repository.root == root && ($0.model.busy || $0.model.prompt != nil) }
     }
-    private func showStash(repository: GitRepository, access: RepositoryAccessLease?, followUp: StashSaveFollowUp = StashSaveFollowUp(), message: String? = nil, commandLaunch: Bool = false, preferences: UserDefaults? = nil) {
-        guard !confirmingQuit else { return }
+    private func showStash(repository: GitRepository, access: RepositoryAccessLease?, followUp: StashSaveFollowUp = StashSaveFollowUp(), message: String? = nil, commandLaunch: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let preferences = preferences ?? fileComparisonPreferences
         let root = repository.root, key = repository.root.path + "\0" + (commandLaunch ? "command-stash" : UUID().uuidString)
         if let existing = stashWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
@@ -3241,6 +3253,7 @@ import UniformTypeIdentifiers
             case .pop, .apply: self?.showStashRestore(repository: repository, access: access, pop: action == .pop, preferences: preferences)
             }
         }
+        presentation?.apply(to: controller.window)
         stashWindows[key] = controller
         controller.model.prepare()
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -3456,12 +3469,14 @@ import UniformTypeIdentifiers
         fetchWindows[key] = controller; controller.model.load(remote: remote, allRemotes: allRemotes)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showPush(repository: GitRepository, access: RepositoryAccessLease?, source: String? = nil, preserveAllBranches: Bool = false, preferences: UserDefaults? = nil) {
+    private func showPush(repository: GitRepository, access: RepositoryAccessLease?, source: String? = nil, preserveAllBranches: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let root = repository.root, key = repository.root.path + ":push:" + UUID().uuidString
         let controller = PushWindowController(repository: repository, access: access, preferences: preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.pushWindows.removeValue(forKey: key) }
         configurePushInteractions(controller, repository: repository, access: access)
         controller.model.clipboardText = transportClipboardText
+        presentation?.apply(to: controller.window)
         pushWindows[key] = controller; controller.model.load(source: source, preserveAllBranches: preserveAllBranches)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }

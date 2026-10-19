@@ -892,7 +892,7 @@ sandbox execution, passing hosted CI on the latest source or App Store readiness
 | Push | Native upstream control order, branch/tag scope, remote/URL, force/lease, tags, upstream, recursion, server option; local Git tests and native branch/tag pushes | Full choosers/settings, progress, cancellation, authentication and broader UI QA; see PUSH-PARITY.md |
 | Switch/Checkout | Native branch/tag/commit rows, create/force/merge/tracking/override options, real Git checkout tests | Complete choosers, progress and broader native QA; see SWITCH-PARITY.md |
 | Branch / tag | Native name/revision/options/message controls; descriptions, annotated tags, optional checkout, force and tracking | Full choosers, signing prompts and broader native QA; see BRANCH-TAG-PARITY.md |
-| Merge | Native revision/options/message window; real Git option/conflict tests and native No Commit → staging Commit verified | Message history, full choosers, progress/post-actions and native conflict recovery; see MERGE-PARITY.md |
+| Merge | Native revision/options/message/history/choosers; real Git options/conflicts, source-style completed output and timing, retained result progress, owned conflict/kill/delete questions and drained captured recovery/post-action handoffs | Full physical/visual/accessibility and signed acceptance, all merge/post-action combinations and remaining upstream parity; see MERGE-PARITY.md |
 | RefLog | Native five-column list, modeless Find, Log/Browser/Branch/Tag/Export revision handoffs, working-tree, selected-entry and previous-revision comparisons, clipboard formats, stash Apply and guarded general/stash deletion with partial-failure continuation | Full context menus/order, persistence, physical window/menu acceptance and broader native QA; see REFLOG-PARITY.md |
 | Stash | Native Save options/warning plus direct Apply/Pop result prompts and Working Tree handoff; Git effects verified | RefLog list/inspection/selected Apply, guarded Drop/Clear and native replay Save/Pop implemented; reopened-session restoration, displayed acceptance and signed runtime QA pending; see STASH-PARITY.md |
 | Finder | Original icons, separate menu preferences, cache badges, selection dispatch, scoped Diff/Log, source file/folder/selection clauses, direct two-file comparisons, recursive foreground submodule caches and root Rename/Remove, folder creation entries and targetless toolbar creation routing | Signed QA, remaining shell commands, watched-root management, cache daemon/FSEvents |
@@ -3415,3 +3415,36 @@ use remain an unavoidable race in this path-based Git workflow.
 scope; no passing build or check is claimed here before results are recorded.
 Physical menus/focus, Finder delivery, VoiceOver, exhaustive submodule/Revert
 combinations, signed grants and complete Browser/application parity remain open.
+
+### Primary Merge progress and recovery handoffs, October 19, 2026
+
+Primary Merge now uses the shared native selectable progress output, including
+source diagnostic/URL styling, icon-aware Copy/Copy All, terminal status and the
+timing/date suffix. Timing is captured at Git completion before recovery reads or
+questions; disabling timings retains the status. The current-work label changes
+to the result and the completed progress bar retains 100 percent. Original Git
+output remains separate for repository refresh and error classification.
+Cancelled Git results keep their real exit code. Cancellation before a process
+result uses the explicit native User cancelled fallback; failures without an exit
+code use Operation failed. Failed conflict-status reads remain visible diagnostics.
+
+The source result/recovery choices retain their order and conditions. No Commit
+and Squash offer Commit without adding committed-branch Push/removal/SVN actions.
+Conflict reminders, process-cancellation questions and branch-deletion questions
+settle after actual sheet detachment; duplicate/late/retired/Quit replies cannot
+start stale work. Post-actions wait for result-window, child and actual worker/read
+drain, carrying their originating repository permission, preferences and appearance.
+Per-instance pending-work accounting and `workDidDrain` keep forced closure owned
+until actual producers and one-shot questions settle. A forced close cannot run
+a queued handoff. Commit, Resolve, Abort, Stash Save/Pop, Push and SVN receive an
+appearance/opacity value snapshot from the closing progress window, avoiding
+retention of that window merely to present the next child.
+Unrelated-history retry keeps its own attempt/completion boundary. Close keeps
+the merge result; Cancel/title-bar dismissal checks conflicts before Abort Merge.
+
+[Source comparison](MERGE-PARITY.md) and the forthcoming
+[grouped evidence](qa/merge-progress-family-2026-10-19.json) describe the scope;
+no passing validation is claimed before results are recorded. Physical output/
+question/menu/default/Escape/VoiceOver acceptance, complete source geometry,
+all recovery/post-action combinations, signed sandbox/Finder and whole-port
+acceptance remain open. Windows taskbar and native Dock rendering differ.

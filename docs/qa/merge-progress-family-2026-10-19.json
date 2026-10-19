@@ -1,0 +1,154 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "51137c99163e107fc5cf40e56846621fc2224db1",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Primary Merge native colored/copyable output, source completion record/timings and retained100 before recovery inspection",
+    "Actual queued worker/read ownership, cancellation, immediate retry receipt reset and output/action-log boundaries",
+    "One-shot conflict/kill/branch-delete native questions and actual sheet detachment before replies",
+    "Actual command/result close and captured Commit/Resolve/Abort/Stash/Pop/Push/SVN presentation after actual drain; forced-close late handoff suppression"
+  ],
+  "validation": {
+    "core": "No Core implementation changed; no Core suite rerun. Grouped native checks execute real Git merge/recovery behavior with both Git engines.",
+    "build": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "log": "build/qa/merge-progress-build-2026-10-19.log"
+      }
+    ],
+    "native": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "log": "build/qa/merge-progress-native-2026-10-19.log",
+        "passed_pairs": [
+          [
+            "family",
+            "/usr/bin/git",
+            44169
+          ],
+          [
+            "family",
+            "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git",
+            44263
+          ]
+        ],
+        "failed_case": "questions",
+        "git": "/usr/bin/git",
+        "receiver_pid": 44359,
+        "reaped": true,
+        "diagnostic": "Held-worker fixture expected argv[1]=merge, but actual repository runner prepends --literal-pathspecs -C root; wrapper forwarded real merge without holding. Fixture repair will recognize actual scoped command while preserving argv. No production failure inferred; passing family not repeated."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/merge-progress-questions-repair-2026-10-19.log",
+        "passed_pairs": [
+          [
+            "questions",
+            "/usr/bin/git",
+            44561
+          ],
+          [
+            "questions",
+            "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git",
+            45127
+          ],
+          [
+            "retained",
+            "/usr/bin/git",
+            45653
+          ],
+          [
+            "retained",
+            "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git",
+            45869
+          ]
+        ],
+        "reaped": true,
+        "scope": "Only failed questions and previously unrun retained case on both engines. Actual process cancellation/streamed percentage, held recovery read, conflict/kill/delete detachment and retired replies, full parent load/merge pipeline plus actual Root Commit/Resolve/Abort/Stash/Push targets/preferences/permissions/appearance. Passing family and app build not repeated."
+      }
+    ],
+    "resources": {
+      "localizations": {
+        "exit": 0,
+        "languages": 38,
+        "keys": 1292
+      },
+      "help": {
+        "exit": 0,
+        "documents": 40,
+        "topics": 49,
+        "files": 60
+      },
+      "coverage": [
+        {
+          "attempt": 1,
+          "exit": 1,
+          "diagnostic": "Ledger was generated before the new batch QA record existed, so its evidence-reference list was stale; regenerated from final documentation and QA filenames."
+        },
+        {
+          "attempt": 2,
+          "mode": "write",
+          "exit": 0,
+          "dialogs": 130,
+          "certified_complete": 0
+        },
+        {
+          "attempt": 2,
+          "mode": "check",
+          "exit": 0
+        }
+      ]
+    },
+    "site": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "documents": 340,
+        "unresolved_fragments": [],
+        "log": "build/qa/merge-progress-site-2026-10-19.log",
+        "scope": "Before ledger evidence-reference regeneration; website refresh follows because its coverage input changed."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "documents": 340,
+        "unresolved_fragments": [],
+        "log": "build/qa/merge-progress-site-ledger-2026-10-19.log",
+        "scope": "Website refreshed after ledger evidence-reference regeneration; no app rebuild or native/Core repetitions."
+      }
+    ],
+    "native_distinct_case_engine_pairs_passed": 6,
+    "owned_receiver_cleanup": {
+      "pids": [
+        44169,
+        44263,
+        44359,
+        44561,
+        45127,
+        45653,
+        45869
+      ],
+      "pid_and_pgid_absent": true,
+      "native_assertions": "All grouped actual work/release counters and child-family workers drained; no attached/visible test sheets/windows."
+    }
+  },
+  "remaining": [
+    "Full command preamble is still missing: pinned ProgressDlg.cpp:226\u2013234 emits actual command; native Merge.swift:94\u2013131 constructs argv while MergeWindow streams only process output with a revision heading. Gray-specific command styling was not verified. Include command presentation with the next Switch/Reset workflow batch.",
+    "Native fallback cancellation without an actual Git process result retains User cancelled label; real killed Git result uses its exit code in UI footer.",
+    "Plain branch deletion retains the merge receipt and appends bounded diagnostics; this is an explicit native output adaptation.",
+    "Physical key dispatch, exhaustive visual parity, physical Finder integration, hosted CI and signed sandbox/App Store deployment are not established by scoped native checks.",
+    "The complete macOS port remains incomplete; this batch covers primary Merge progress/recovery, not every downstream Abort/Stash/Push dialog workflow."
+  ],
+  "unrelated_work_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ],
+  "unrelated_work_sha256": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  },
+  "status": "Scoped primary Merge batch validated; whole port remains incomplete."
+}

@@ -248,6 +248,27 @@ including merges selected by a tag or commit. This opens the existing SVN workfl
 with its own options and confirmation. A conflict leaves an unfinished merge in
 the repository; it is not resolved by dismissing progress.
 
+Merge progress retains selectable native output with **Copy** and **Copy all
+information to clipboard**. Completed output styles diagnostic prefixes and
+links; the final status, elapsed time and finish date follow the captured progress
+preferences. Turning off **Show Git execution timings and timestamp** keeps the status
+line. The completed bar reaches 100 percent, and the current-work label reports
+the result instead of retaining an old transfer phase.
+Cancellation shows Git's returned exit status when available. Cancellation before
+a process result uses **User cancelled**; a failure without a process exit code
+uses **Operation failed**.
+
+Post-actions depend on the result: conflicts offer Resolve and Commit; an
+unrelated-history failure can offer a new Merge attempt; a successful No Commit
+or Squash merge offers Commit. A normal committed branch merge can offer Remove
+branch and Push. Review branch deletion separately before accepting it. The
+conflict reminder, running-process cancellation and deletion questions finish
+closing before work continues. Child actions retain this merge's repository,
+preferences and appearance and wait for the result window and owned work to drain.
+Forcibly closing a window cancels its owned work and cannot launch a queued child.
+Closing a completed conflict result leaves it in place; Cancel/title-bar dismissal
+checks for remaining conflicts and can open Abort Merge.
+
 Use Resolve or the conflict-file context menu to open the appropriate text,
 image, delete/modify or submodule workflow. Compare the named sides, save the
 intended result and mark it resolved. Continue the parent operation only after
