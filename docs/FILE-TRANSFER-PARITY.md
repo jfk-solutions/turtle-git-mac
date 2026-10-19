@@ -127,3 +127,15 @@ Move/Rename and Copy/Add commands. Existing native menu/clipboard reviews remain
 Owning preferences now reach the shared Move and Copy/Add consumers. Actual
 validation and remaining acceptance are recorded in
 [the command batch evidence](qa/transfer-commands-2026-10-18.json).
+
+## Hosted handoff checkpoint — October 19, 2026
+
+The completed hosted `d6c487f9` run failed the transfer-identity receiver because
+it checked the drop result in the same MainActor turn as acceptance. Production
+hands off its captured receipt after actual preparation and native window/sheet
+retirement. The fixture now waits for callback delivery and that retirement,
+then checks single delivery, captured choice, exact destination and the existing
+ordered byte-exact source paths. [Focused evidence](qa/file-transfer-handoff-ci-2026-10-19.json)
+records the affected system/bundled Git cases and cleanup. Core and production
+native sources were unchanged; their broader suites were not repeated. A full
+current hosted pass remains separate.

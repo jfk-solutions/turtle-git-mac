@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-19",
+  "baseline": "ea5e8b097b516e887e2ae8ac49466210bbef8e33",
+  "scope": "Hosted transfer-identity fixture callback delivery and actual window retirement",
+  "hosted_failure": {
+    "run": 39235459621,
+    "revision": "d6c487f94635f7c4de8204d055d8f951fe8b0b0d",
+    "job": 118020543868,
+    "step": 85,
+    "message": "Transfer identity failure: Drop handoff changed captured sources",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39235459621/job/118020543868"
+  },
+  "cause": "The native fixture asserted accepted sources on the same MainActor turn that called accept. Production delivers the captured receipt in a later MainActor task after preparation and actual sheets/window drain, so the callback had not run yet.",
+  "change": "Capture sources, choice and destination unconditionally; wait for callback delivery plus activeReleases zero and actual window/sheet retirement; retain the exact ordered GitReferenceName source assertion and add explicit single-delivery/choice/exact destination checks.",
+  "related_review": "The drop and Finder source-transfer fixtures already await actual handoffs and cover retirement, Quit, pending preparation and duplicate acceptance.",
+  "production_changes": false,
+  "status": "both focused native engine cases passed; current complete hosted workflow remains unproven",
+  "attempts": [
+    {
+      "log": "build/qa/file-transfer-handoff-ci-2026-10-19.log",
+      "exit": 0,
+      "cases": [
+        {
+          "engine": "system /usr/bin/git",
+          "receiver_reaped": 67204
+        },
+        {
+          "engine": "packaged Git",
+          "receiver_reaped": 67266
+        }
+      ],
+      "scope": "Both full transfer-identity receiver cases; fixture only compiled using native app compilation cache. No app rebuild or Core repetition."
+    }
+  ],
+  "limits": [
+    "This focused local check does not prove the complete current hosted workflow.",
+    "Physical Finder/drag interaction and signed sandbox acceptance remain open."
+  ],
+  "source_sha256": {
+    "docs/qa/file-transfer-identities-native-2026-10-17.swift": "baac165579e02d95986b4a889ca64d968cfce1fe4606e55749cf1e7503565114",
+    "Sources/TurtleGitMac/FileDropTransferWindow.swift": "02992e7b0282af5121b8cc2c20a9bbf2dd50028234f1251f168341e88c39f98d",
+    "scripts/test-file-transfer-family.py": "66ae491043fca27e88a91540f7746da9b484f4cb03b9ae90e50a724895882c80"
+  },
+  "cleanup": {
+    "private_repositories_preferences_pasteboard": true,
+    "owned_windows_closed": true,
+    "owned_receiver_pids_reaped": true,
+    "pid_absence_independently_checked": true
+  },
+  "diagnostics": "Unsigned clipboard sandbox_extension_consume diagnostics retained; these local cases do not establish signed grant delivery."
+}

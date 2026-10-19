@@ -52,11 +52,16 @@ import TurtleGitCore
         try require(move.model.paths.map {GitReferenceName($0)} == [GitReferenceName(a),GitReferenceName(b)] && copy.model.sources.count == 2,"Native source models merged peers")
         let drop = FileDropTransferWindowController(repository:repo,access:nil,preferences:prefs)
         defer {drop.close()};drop.window!.alphaValue = 0;drop.window!.orderFront(nil)
-        var accepted:[URL] = [];drop.onAccepted = {choice,sources,destination in if choice == .copyAdd && destination == root {accepted = sources}}
+        var accepted:[URL] = [], acceptedChoice:FileDropTransferModel.Choice?, acceptedDestination:URL?, callbackDelivered = false, callbackCount = 0
+        drop.onAccepted = {choice,sources,destination in
+            accepted = sources;acceptedChoice = choice;acceptedDestination = destination;callbackDelivered = true;callbackCount += 1
+        }
         let providers = (urls+[urls[0]]).map {NSItemProvider(item:$0.dataRepresentation as NSData,typeIdentifier:UTType.fileURL.identifier)}
         drop.model.load(providers);try await wait(drop.window) {!drop.model.busy && drop.model.ready}
         try require(drop.model.sources.count == 2 && !drop.model.canMove && drop.model.choices == [.copyAdd],"Drop lost sources or enabled ambiguous Move")
         drop.model.accept(.copyAdd)
+        try await wait(drop.window) {callbackDelivered && FileDropTransferWindowController.activeReleases == 0 && drop.window?.sheetParent == nil && drop.window?.attachedSheet == nil && drop.window?.isVisible == false}
+        try require(callbackCount == 1 && acceptedChoice == .copyAdd && acceptedDestination.map {GitReferenceName($0.path)} == GitReferenceName(root.path),"Drop handoff changed captured choice or destination")
         try require(accepted.map {GitReferenceName($0.path)} == urls.map {GitReferenceName($0.path)},"Drop handoff changed captured sources")
         move.close();copy.close()
         let movingOwner = FileMoveWindowController(repository:repo,access:nil,paths:[moving],preferences:prefs,savesGeometry:false)
