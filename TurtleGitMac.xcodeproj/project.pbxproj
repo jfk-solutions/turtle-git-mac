@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FA2C9AC03D84CADCE4990222 /* GitRemoteAuthenticationPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46938DDFD48D330EE215308F /* GitRemoteAuthenticationPrompt.swift */; };
+		D70CBD079255C3E3C124A40A /* GitRemoteAuthenticationPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46938DDFD48D330EE215308F /* GitRemoteAuthenticationPrompt.swift */; };
+		1AD4A71DA5508AEAEE2943EB /* GitLibGit2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C600950836DC1172081DEF0 /* GitLibGit2.swift */; };
 		AB1C5E8CEF08C47DCDF25198 /* SecurityInterface.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB0CB365EEFF6DBDAC30CD93 /* SecurityInterface.framework */; };
 		6E9C211F63BF121EEBABF693 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 388C1314131AD02CE01C4045 /* Security.framework */; };
 		99BEB818AE916B4F613CFBCA /* Network.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC01522DAA88EDA69EC39985 /* Network.framework */; };
@@ -542,6 +545,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		46938DDFD48D330EE215308F /* GitRemoteAuthenticationPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRemoteAuthenticationPrompt.swift; sourceTree = "<group>"; };
+		3C600950836DC1172081DEF0 /* GitLibGit2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitLibGit2.swift; sourceTree = "<group>"; };
 		DB0CB365EEFF6DBDAC30CD93 /* SecurityInterface.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SecurityInterface.framework; path = System/Library/Frameworks/SecurityInterface.framework; sourceTree = SDKROOT; };
 		388C1314131AD02CE01C4045 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		AC01522DAA88EDA69EC39985 /* Network.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Network.framework; path = System/Library/Frameworks/Network.framework; sourceTree = SDKROOT; };
@@ -1305,6 +1310,8 @@
 		9216CD741C27CC93A27DDCBF /* TurtleGitCore */ = {
 			isa = PBXGroup;
 			children = (
+				46938DDFD48D330EE215308F /* GitRemoteAuthenticationPrompt.swift */,
+				3C600950836DC1172081DEF0 /* GitLibGit2.swift */,
 				C67F27BFB40588DC92B4F276 /* SMTPCertificateTransport.swift */,
 				173811DDB174801ACF738211 /* ActionLog.swift */,
 				04D3808CD4999B158EA66D0B /* Add.swift */,
@@ -1928,6 +1935,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D70CBD079255C3E3C124A40A /* GitRemoteAuthenticationPrompt.swift in Sources */,
+				1AD4A71DA5508AEAEE2943EB /* GitLibGit2.swift in Sources */,
 				A7C474571496517A0BA42FB2 /* SMTPCertificateTransport.swift in Sources */,
 				737A5C831F62BBA90DDF08B4 /* ActionLog.swift in Sources */,
 				9016DF6825447C08B8190B7A /* Add.swift in Sources */,
@@ -2354,6 +2363,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FA2C9AC03D84CADCE4990222 /* GitRemoteAuthenticationPrompt.swift in Sources */,
 				A8FB6D064D4AC3D589BEC6BA /* DocumentationCapture.swift in Sources */,
 				408F4C4B2799D45011844A32 /* GitAskpassPrompt.swift in Sources */,
 				66CF44BB23FCD175E3AAAF17 /* GitSVNAuthenticationPrompt.swift in Sources */,

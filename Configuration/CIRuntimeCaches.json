@@ -170,5 +170,33 @@
       "scripts/validate-metafile-runtime.py",
       "build/metafile-runtime/Metafile"
     ]
+  },
+  "libgit2": {
+    "path": "build/libgit2-runtime/LibGit2",
+    "inputs": [
+      "LICENSE",
+      "Configuration/LibGit2Runtime.json",
+      "Sources/TurtleGitLibgit2/main.swift",
+      "Sources/TurtleGitLibgit2/bridge.c",
+      "Sources/TurtleGitLibgit2/bridge.h",
+      "Sources/TurtleGitLibgit2/module.modulemap",
+      "patches/libgit2-authority.patch",
+      "scripts/build-libgit2-runtime.py",
+      "scripts/validate-libgit2-runtime.py",
+      "scripts/embed-libgit2-runtime.py",
+      "scripts/pinned_download.py",
+      "scripts/runtime_bundle_layout.py",
+      "scripts/git_lfs_runtime.py",
+      "NOTICE",
+      "Sources/TurtleGitLibgit2/HTTPConfiguration.swift",
+      "Sources/TurtleGitCore/GitAskpassPrompt.swift",
+      "Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift",
+      "Sources/TurtleGitCore/GitRemoteAuthenticationPrompt.swift"
+    ],
+    "validate": [
+      "python3",
+      "scripts/validate-libgit2-runtime.py",
+      "build/libgit2-runtime/LibGit2"
+    ]
   }
 }

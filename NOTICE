@@ -43,6 +43,19 @@ third-party notices and reconstruction scripts are included under
 Contents/Helpers/Git/share/licenses/git/. Configuration/GitRuntime.json records
 the version, source URL and checksum. macOS system libraries are not redistributed.
 
+The optional LibGit2 transport helper statically embeds libgit2 1.9.4 at the
+TortoiseGit gitlink f7164261c9bc0a7e0ebf767c584e5192810a8b24. Its original GPL v2
+text and linking exception, contributor list and bundled dependency notices,
+including llhttp and PCRE, are retained under Contents/Helpers/LibGit2/Licenses/.
+The complete publisher source archive, private HTTP-authority/configuration patch,
+helper/bridge sources and reconstruction/validation scripts are included under
+Contents/Helpers/LibGit2/Sources/. Configuration/LibGit2Runtime.json records exact
+source and patch checksums. The private patch adds actual endpoint authority and
+request configuration hooks; built-in TLS hostname validation is retained. The
+adapter uses macOS Security/SecureTransport and external OpenSSH, with no system
+libraries redistributed. See docs/LIBGIT2-TRANSPORT-PARITY.md for source mapping,
+actual validation and remaining backend/distribution acceptance.
+
 All Xcode configurations now bundle pinned OpenSSH clients/agent tools with
 statically linked OpenSSL. OpenSSH retains its BSD and other permissive notices;
 OpenSSL retains Apache License 2.0. Original license texts, complete publisher

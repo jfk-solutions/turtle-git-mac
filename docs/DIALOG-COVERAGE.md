@@ -118,7 +118,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_MERGEABORT` | partial-native-replacement | 9/9 mapped; 0 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSDIALOGS3` | partial-native-replacement | 31/33 mapped; 2 pending | [CONFIGURATION-LIFECYCLE-PARITY](CONFIGURATION-LIFECYCLE-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_BUGTRAQREGEXTESTER` | partial-native-replacement | 8/8 mapped; 0 pending | [ISSUE-TRACKER-PARITY](ISSUE-TRACKER-PARITY.md); 10 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_CERTCHECK` | partial-native-replacement | 10/16 mapped; 6 pending | [SMTP-CERTIFICATE-PARITY](SMTP-CERTIFICATE-PARITY.md), [SVN-AUTHENTICATION-PARITY](SVN-AUTHENTICATION-PARITY.md); 3 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_CERTCHECK` | partial-native-replacement | 10/16 mapped; 6 pending | [LIBGIT2-TRANSPORT-PARITY](LIBGIT2-TRANSPORT-PARITY.md), [SMTP-CERTIFICATE-PARITY](SMTP-CERTIFICATE-PARITY.md), [SVN-AUTHENTICATION-PARITY](SVN-AUTHENTICATION-PARITY.md); 4 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSUDIFF` | partial-native | 29/29 mapped; 0 pending | [APPEARANCE](APPEARANCE.md), [UNIFIED-DIFF-VIEWER-PARITY](UNIFIED-DIFF-VIEWER-PARITY.md); 23 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_RESOLVESUBMODULECONFLICT` | partial | 26/26 mapped; 0 pending | [SUBMODULE-CONFLICT-PARITY](SUBMODULE-CONFLICT-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_FINDBAR` | partial-native-replacement | 6/6 mapped; 0 pending | [UNIFIED-DIFF-VIEWER-PARITY](UNIFIED-DIFF-VIEWER-PARITY.md); 12 QA records |

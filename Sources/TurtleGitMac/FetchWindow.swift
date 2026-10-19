@@ -999,6 +999,7 @@ enum FetchRebasePrompt: String, CaseIterable {
 }
 struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
 @MainActor final class FetchProgressWindowModel: ObservableObject {
+    let backend:GitLibGit2Configuration
     private(set) static var activeOperations = 0
     @Published var confirmingQuit = false
     var presentationAvailable: () -> Bool = { true }
@@ -1059,7 +1060,8 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     var onRebase: (String, Bool, Bool) -> Void = { _, _, _ in }
     var onOwnedRebase: ((String, Bool, Bool) async throws -> Void)?
     var presentRebasePrompt: (FetchRebasePrompt) async -> FetchRebaseAnswer = { prompt in FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
-    init(repository: GitRepository, access: RepositoryAccessLease?, options: FetchOptions, preferences: UserDefaults = .standard, rebaseMode: FetchRebaseMode = .none, preserveMerges: Bool = false) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, options: FetchOptions, preferences: UserDefaults = .standard, rebaseMode: FetchRebaseMode = .none, preserveMerges: Bool = false,backend:GitLibGit2Configuration?=nil) {
+        self.backend = backend ?? .load(from:preferences)
         self.repository = repository; self.access = access; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.outputState = GitProgressOutputState(preferences: preferences)
         self.rebaseMode = rebaseMode; self.preserveMerges = preserveMerges
     }
@@ -1175,8 +1177,9 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         let operation = Task<(String, FetchRebaseResult?), Error> {
             defer { continuation.finish() }
             let observer: @Sendable (GitOutputChunk) -> Void = { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }
-            if rebaseMode == .none { return (try await repository.fetch(options, cancellation: cancellation, onOutput: observer, prepareTransport: preparation), nil) }
-            let result = try await repository.fetchForRebase(options, cancellation: cancellation, onOutput: observer, prepareTransport: preparation)
+            let command:@Sendable(GitCommandInvocation)->Void={observer(GitOutputChunk(stream:.stdout,data:$0.preamble))}
+            if rebaseMode == .none { return (try await repository.fetch(options, cancellation: cancellation, onOutput: observer, prepareTransport: preparation,onCommand:command,backend:backend), nil) }
+            let result = try await repository.fetchForRebase(options, cancellation: cancellation, onOutput: observer, prepareTransport: preparation,onCommand:command,backend:backend)
             return (result.output, result)
         }
         for await _ in updates { consume(parser.processPending(), parser: parser) }

@@ -166,6 +166,7 @@ final class ApplicationAboutInformationTests: XCTestCase {
         }
         try json("Contents/Helpers/Git/runtime-manifest.json", ["version":"2.55.0", "svn_component":["version":"1.14.5", "perl":"5.44.0"]])
         try json("Contents/Helpers/Git/git-lfs-manifest.json", ["version":"3.8.0"])
+        try json("Contents/Helpers/LibGit2/provenance.json", ["pins":["libgit2":["version":"1.9.4"]]])
         try json("Contents/Helpers/OpenSSH/provenance.json", ["pin":["openssh":["version":"10.6p1"],"openssl":["version":"3.5.9"]]])
         try json("Contents/Frameworks/TurtleGitCore.framework/Resources/Icons/provenance.json", ["commit":"source-pin"])
         let resources = root.appendingPathComponent("Contents/Resources"); try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
@@ -175,6 +176,7 @@ final class ApplicationAboutInformationTests: XCTestCase {
         XCTAssertEqual(info.upstreamCommit, "source-pin"); XCTAssertEqual(info.license, resources.appendingPathComponent("LICENSE")); XCTAssertNil(info.notices)
         XCTAssertEqual(info.components.first { $0.name == "Subversion" }?.version, "1.14.5")
         XCTAssertEqual(info.components.first { $0.name == "Perl" }?.version, "5.44.0")
+        XCTAssertEqual(info.components.first { $0.name == "libgit2" }?.version, "1.9.4")
     }
     func testMalformedOrOversizeMetadataDoesNotBecomeTrustedVersion() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

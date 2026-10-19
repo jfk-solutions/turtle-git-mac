@@ -32,28 +32,31 @@ public actor GitRepository {
     var replayCancellation: OperationCancellation?
     var replayOutput: (@Sendable (GitOutputChunk) -> Void)?
     public nonisolated let diffDetection: GitDiffDetection
-    public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git"), askpass: URL? = GitAskpassRuntime.bundled(), diffDetection: GitDiffDetection = .load()) {
+    public nonisolated let libgit2Configuration: GitLibGit2Configuration?
+    public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git"), askpass: URL? = GitAskpassRuntime.bundled(), diffDetection: GitDiffDetection = .load(), libgit2Configuration: GitLibGit2Configuration? = nil) {
         self.root = root.standardizedFileURL; self.executable = executable; self.askpass = askpass; self.diffDetection = diffDetection
+        self.libgit2Configuration = libgit2Configuration
     }
-    func commandInvocation(_ arguments: [String], literalPathspecs: Bool = true) -> GitCommandInvocation {
-        GitCommandInvocation(executable: executable, directory: root,
+    func commandInvocation(_ arguments: [String], literalPathspecs: Bool = true, executorOverride: URL? = nil) -> GitCommandInvocation {
+        GitCommandInvocation(executable: executorOverride ?? executable, directory: root,
             arguments: (literalPathspecs ? ["--literal-pathspecs"] : ["--no-literal-pathspecs"]) + ["-C", root.path] + arguments)
     }
     /// With retainStandardOutput false, stdout is delivered only through onOutput;
     /// stderr and exit/cancellation diagnostics remain in the returned result.
-    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, input: Data? = nil, retainStandardOutput: Bool = true, consumeOutput: ((GitOutputChunk) throws -> Void)? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, input: Data? = nil, retainStandardOutput: Bool = true, consumeOutput: ((GitOutputChunk) throws -> Void)? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, executorOverride: URL? = nil) throws -> GitResult {
         let cancellation = cancellation ?? replayCancellation
         let onOutput = onOutput ?? replayCommandOutput(arguments)
         try cancellation?.check()
         let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true, attributes: [.posixPermissions:0o700])
         defer { try? FileManager.default.removeItem(at: temporary) }
         let out = temporary.appendingPathComponent("stdout"), err = temporary.appendingPathComponent("stderr")
         FileManager.default.createFile(atPath: out.path, contents: nil)
         FileManager.default.createFile(atPath: err.path, contents: nil)
         let output = try FileHandle(forWritingTo: out), error = try FileHandle(forWritingTo: err)
         defer { try? output.close(); try? error.close() }
-        let commandArguments = commandInvocation(arguments, literalPathspecs: literalPathspecs).arguments
+        let commandArguments = commandInvocation(arguments, literalPathspecs: literalPathspecs, executorOverride: executorOverride).arguments
+        let promptCancellation = try executorOverride.map { _ in try GitRemotePromptCancellation(directory: temporary) }
         var inputReader:FileHandle?
         if let input {
             let file=temporary.appendingPathComponent("stdin")
@@ -88,6 +91,16 @@ public actor GitRepository {
         } else {
             environment.removeValue(forKey: "TURTLEGIT_SVN_NATIVE_PROMPTS"); environment.removeValue(forKey: "TURTLEGIT_SVN_CERT_DIRECTORY")
         }
+        if let promptCancellation {
+            environment.merge(promptCancellation.environment) { _, own in own }
+            environment["TURTLEGIT_LIBGIT2_GIT_EXECUTABLE"] = executable.path
+            // libgit2 owns a native credential/certificate callback, independent
+            // of the CLI's core.askPass or credential helper selection.
+            if let askpass, FileManager.default.isExecutableFile(atPath: askpass.path), environment["TURTLEGIT_DISABLE_ASKPASS"] != "1" {
+                environment["TURTLEGIT_LIBGIT2_ASKPASS"] = askpass.path
+                if environment["TURTLEGIT_ASKPASS_APPEARANCE"] == nil { environment["TURTLEGIT_ASKPASS_APPEARANCE"] = UserDefaults.standard.string(forKey:"appearance") ?? "system" }
+            } else { environment.removeValue(forKey: "TURTLEGIT_LIBGIT2_ASKPASS") }
+        }
         // Disk-backed streams avoid pipe deadlock with large diffs and command output.
         let status: Int32
         var outputWasDelivered=false
@@ -118,14 +131,14 @@ public actor GitRepository {
                     if !drain { return }
                 } while true
             }
-            status = try CancellableGitProcess.run(executable: executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor, input:inputReader?.fileDescriptor, cancellation: processCancellation, pollOutput: {
+            status = try CancellableGitProcess.run(executable: executorOverride ?? executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor, input:inputReader?.fileDescriptor, cancellation: processCancellation, pollOutput: {
                 if cancellation?.isCancelled==true { processCancellation.cancel() }
                 read(outputReader, stream:.stdout);read(errorReader, stream:.stderr)
-            })
+            }, cancellationReady: promptCancellation.map { gate in { gate.cancellationReady() } })
             read(outputReader, stream: .stdout, drain: true); read(errorReader, stream: .stderr, drain: true)
             if let consumerError { throw consumerError }
         } else {
-            status = try CancellableGitProcess.run(executable: executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor,input:inputReader?.fileDescriptor)
+            status = try CancellableGitProcess.run(executable: executorOverride ?? executable, arguments: commandArguments, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor,input:inputReader?.fileDescriptor)
         }
         let result = GitResult(exitCode: status, stdout: retainStandardOutput ? try Data(contentsOf: out) : Data(), stderr: try Data(contentsOf: err))
         if cancellation?.isCancelled == true { throw GitCommandCancellationFailure(result: result,outputWasDelivered:outputWasDelivered) }

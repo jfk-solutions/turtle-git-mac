@@ -159,6 +159,10 @@ SMTP delivery offers a native certificate check before authentication or upload,
 with default Cancel, exact temporary acceptance, a read-only inspector and public
 DER/PEM export. See [SMTP certificate review](docs/SMTP-CERTIFICATE-REVIEW.md).
 
+[Optional libgit2 transport](docs/LIBGIT2-TRANSPORT.md) connects Clone, Fetch and
+Sync Fetch to the pinned engine, native credentials and actual HTTPS certificate
+review. Normal command-line defaults are retained.
+
 An [older development-signed candidate](docs/qa/finder-installed-2026-10-17.json)
 passed installed activation, live ignored/modified/normal badges, repository access,
 service registration, background refresh with the app quit, and a file-context

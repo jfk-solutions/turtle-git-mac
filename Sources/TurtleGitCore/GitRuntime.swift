@@ -143,12 +143,14 @@ public struct ApplicationAboutInformation: Sendable {
         let lfs = json("Contents/Helpers/Git/git-lfs-manifest.json")
         let ssh = json("Contents/Helpers/OpenSSH/provenance.json")
         let editor = json("Contents/Helpers/EditorConfig/provenance.json")
+        let libgit2 = json("Contents/Helpers/LibGit2/provenance.json")
         components = [("Git", string(git, ["version"])), ("Git LFS", string(lfs, ["version"])),
                       ("Subversion", string(git, ["svn_component", "version"])),
                       ("Perl", string(git, ["svn_component", "perl"])),
                       ("OpenSSH", string(ssh, ["pin", "openssh", "version"])),
                       ("OpenSSL", string(ssh, ["pin", "openssl", "version"])),
-                      ("EditorConfig", string(editor, ["pins", "editorconfig", "version"]))]
+                      ("EditorConfig", string(editor, ["pins", "editorconfig", "version"])),
+                      ("libgit2", string(libgit2, ["pins", "libgit2", "version"]))]
         let provenance = json("Contents/Frameworks/TurtleGitCore.framework/Resources/Icons/provenance.json")
         upstreamCommit = provenance["commit"] as? String
         let sourceLicense = application.appendingPathComponent("Contents/Resources/LICENSE"), sourceNotices = application.appendingPathComponent("Contents/Resources/NOTICE")

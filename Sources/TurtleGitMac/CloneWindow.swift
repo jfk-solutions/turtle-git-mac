@@ -311,7 +311,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
             }
             if useKey { guard key.hasPrefix("/"), supportsKey else { throw CloneFailure.value }; guard sshAvailable else { throw CloneFailure.keyRuntime }; options.sshKey = URL(fileURLWithPath: key); options.loadSSHKeyWithAgent = true }
             _ = try options.arguments(destination: destination)
-            let capturedOptions = options,capturedKeyText=key,preparationToken=OperationCancellation()
+            let capturedOptions = options,capturedKeyText=key,preparationToken=OperationCancellation(),capturedBackend=GitLibGit2Configuration.load(from:preferences)
             operationCancellation=preparationToken
             beginWork()
             Task { [self] in
@@ -339,7 +339,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
             recordSubmission(snapshot,destination:destination,keyText:capturedKeyText)
             busy = true; output = nil; error = nil
             if let onProgress {
-                let result = CloneProgressWindowModel(options: snapshot, destination: destination, executable: executable, destinationAccess: access, sourceAccess: capturedSourceAccess, keyAccess: capturedKeyAccess, preferences: preferences)
+                let result = CloneProgressWindowModel(options: snapshot, destination: destination, executable: executable, destinationAccess: access, sourceAccess: capturedSourceAccess, keyAccess: capturedKeyAccess, preferences: preferences,backend:capturedBackend)
                 result.makeSSHCoordinator = sshFactory
                 result.onCloned = { [weak self] repo, output in self?.recordClone(repo, output: output, options: snapshot, destination: destination, access: access, keyAccess: capturedKeyAccess) }
                 let generation=interactionGeneration,log=onLog,explore=onExplore
@@ -359,7 +359,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
                         let runner = GitRepository(root: cwd, executable: executable)
                         let coordinator = sshFactory?(runner); defer { coordinator?.close() }
                         if snapshot.svn { _ = try await runner.run(["svn", "--version"], cancellation: token) }
-                        let outcome = try await runner.cloneOutcome(snapshot,to:destination,cancellation:token,prepareTransport:snapshot.sshKey.flatMap {coordinator?.explicitPreparation(path:$0.path)})
+                        let outcome = try await runner.cloneOutcome(snapshot,to:destination,cancellation:token,prepareTransport:snapshot.sshKey.flatMap {coordinator?.explicitPreparation(path:$0.path)},backend:capturedBackend)
                         guard !invalidated else {return}
                         output=outcome.summary;pendingInspection=(outcome,snapshot,destination,access,capturedKeyAccess)
                         try await finishDirectInspection(cancellation:token)
@@ -522,6 +522,7 @@ enum ClonePostAction: String, Hashable {
     var icon: MenuIcon { switch self { case .retry,.inspect: return .refresh; case .log: return .log; case .explore: return .explore } }
 }
 @MainActor final class CloneProgressWindowModel: ObservableObject {
+    let backend:GitLibGit2Configuration
     static var activeOperations = 0
     private final class CommandReceipt:@unchecked Sendable {
         private let lock=NSLock()
@@ -585,7 +586,8 @@ enum ClonePostAction: String, Hashable {
     var onPostAction: ((ClonePostAction, GitRepository) -> Void)?
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var canCancel: Bool { active && !confirmingQuit && busy && !commandFinished && !cancelling && !confirmingCancellation }
-    init(options: CloneOptions, destination: URL, executable: URL, destinationAccess: RepositoryAccessLease, sourceAccess: RepositoryAccessLease?, keyAccess: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+    init(options: CloneOptions, destination: URL, executable: URL, destinationAccess: RepositoryAccessLease, sourceAccess: RepositoryAccessLease?, keyAccess: RepositoryAccessLease?, preferences: UserDefaults = .standard,backend:GitLibGit2Configuration?=nil) {
+        self.backend=backend ?? .load(from:preferences)
         self.options = options; self.destination = destination; self.executable = executable; self.destinationAccess = destinationAccess; self.sourceAccess = sourceAccess; self.keyAccess = keyAccess; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences); progressPresentation = GitCommandPresentation(defaults: preferences); outputLimit = progressPresentation.outputLimit;outputState=GitProgressOutputState(preferences:preferences)
     }
     var makeSSHCoordinator: SSHCloneTransportFactory?
@@ -622,7 +624,7 @@ enum ClonePostAction: String, Hashable {
                 defer { continuation.finish() }
                 let emit:@Sendable(GitOutputChunk)->Void={chunk in parser.appendChunk(chunk.data);continuation.yield(())}
                 return try await runner.cloneOutcome(options,to:destination,cancellation:cancellation,onOutput:emit,prepareTransport:preparation,
-                    onCommand:{emit(GitOutputChunk(stream:.stdout,data:$0.preamble))},onCommandFinished:{receipt.record($0)})
+                    onCommand:{emit(GitOutputChunk(stream:.stdout,data:$0.preamble))},onCommandFinished:{receipt.record($0)},backend:backend)
             }
             for await _ in updates {
                 consume(parser.processPending(),parser:parser)

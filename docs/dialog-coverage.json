@@ -3789,6 +3789,10 @@
         {
           "path": "Sources/TurtleGitMac/EmailSettings.swift",
           "anchor": "class SMTPCredentialWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitCore/GitRemoteAuthenticationPrompt.swift",
+          "anchor": "enum GitRemoteAuthenticationPrompt"
         }
       ],
       "missing_native_references": [],
@@ -3956,14 +3960,20 @@
         {
           "path": "Sources/TurtleGitMac/SendPatchWindow.swift",
           "anchor": "class SendPatchProgressWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitCore/GitRemoteAuthenticationPrompt.swift",
+          "anchor": "enum GitRemoteAuthenticationPrompt"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/LIBGIT2-TRANSPORT-PARITY.md",
         "docs/SMTP-CERTIFICATE-PARITY.md",
         "docs/SVN-AUTHENTICATION-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/libgit2-transport-2026-10-19.json",
         "docs/qa/smtp-certificate-2026-10-19.json",
         "docs/qa/svn-authentication-2026-10-14.json",
         "docs/qa/svn-certificate-details-2026-10-14.json"

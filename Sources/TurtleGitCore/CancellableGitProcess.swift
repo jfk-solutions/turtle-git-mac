@@ -5,7 +5,7 @@ import Darwin
 /// Cancellation targets that group while its leader PID is still unreaped, so
 /// helper children stop too and the numeric ID cannot be reused by another job.
 enum CancellableGitProcess {
-    static func run(executable: URL, arguments: [String], environment: [String: String], output: Int32, error: Int32, input: Int32? = nil, cancellation: OperationCancellation? = nil, pollOutput: (() -> Void)? = nil, terminateDescendantsOnExit: Bool = false, workingDirectory: URL? = nil, didStart: (() -> Void)? = nil) throws -> Int32 {
+    static func run(executable: URL, arguments: [String], environment: [String: String], output: Int32, error: Int32, input: Int32? = nil, cancellation: OperationCancellation? = nil, pollOutput: (() -> Void)? = nil, terminateDescendantsOnExit: Bool = false, workingDirectory: URL? = nil, didStart: (() -> Void)? = nil, cancellationReady: (() -> Bool)? = nil) throws -> Int32 {
         try cancellation?.check()
         func check(_ code: Int32) throws {
             guard code == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(code)) }
@@ -69,6 +69,7 @@ enum CancellableGitProcess {
         while true {
             pollOutput?()
             if cancellation?.isCancelled == true {
+                if cancellationReady?() == false { usleep(10_000); continue }
                 // Give Git a brief chance to handle interruption, then enforce
                 // termination like upstream's Ctrl-C plus KillProcessTree.
                 // Do not reap the leader before the final group signal.

@@ -65,12 +65,12 @@ public enum SynchronizationSubmoduleAction: Int, CaseIterable, Sendable {
 extension GitRepository {
     private func runSynchronizationCommand(_ arguments: [String], environmentOverrides: [String: String] = [:],
         literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation,
-        onOutput: (@Sendable (GitOutputChunk) -> Void)?, onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)?) throws -> GitResult {
+        onOutput: (@Sendable (GitOutputChunk) -> Void)?, onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)?, executorOverride: URL? = nil) throws -> GitResult {
         try cancellation.check()
         let started = ProcessInfo.processInfo.systemUptime
         do {
             let result = try run(arguments, environmentOverrides: environmentOverrides, literalPathspecs: literalPathspecs,
-                successfulExitCodes: successfulExitCodes, cancellation: cancellation, onOutput: onOutput)
+                successfulExitCodes: successfulExitCodes, cancellation: cancellation, onOutput: onOutput, executorOverride: executorOverride)
             onCommandFinished?(.init(success: result.exitCode == 0, cancelled: false, exitCode: result.exitCode, started: started))
             return result
         } catch {
@@ -477,9 +477,9 @@ extension GitRepository {
     public func synchronize(_ plan: SynchronizationTransportPlan, checkoutAuthorized: Bool = false, deletionAuthorized: Bool = false,
                             cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
                             prepareTransport: SSHTransportPreparation? = nil,
-                            onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)? = nil) async throws -> SynchronizationTransportResult {
+                            onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)? = nil, backend: GitLibGit2Configuration? = nil) async throws -> SynchronizationTransportResult {
         try await executeSynchronization(plan, checkout: nil, checkoutAuthorized: checkoutAuthorized, deletionAuthorized: deletionAuthorized,
-                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommandFinished: onCommandFinished)
+                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommandFinished: onCommandFinished, backend: backend)
     }
     /// Runs only the approved checkout, allowing the native owner to present
     /// source-style separate progress before tracking and transport questions.
@@ -503,14 +503,15 @@ extension GitRepository {
     public func synchronize(_ checkout: SynchronizationPullCheckout, cancellation: OperationCancellation? = nil,
                             onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
                             prepareTransport: SSHTransportPreparation? = nil,
-                            onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)? = nil) async throws -> SynchronizationTransportResult {
+                            onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)? = nil, backend: GitLibGit2Configuration? = nil) async throws -> SynchronizationTransportResult {
         try await executeSynchronization(checkout.plan, checkout: checkout, checkoutAuthorized: true, deletionAuthorized: false,
-                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommandFinished: onCommandFinished)
+                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommandFinished: onCommandFinished, backend: backend)
     }
     private func executeSynchronization(_ plan: SynchronizationTransportPlan, checkout: SynchronizationPullCheckout?,
                                         checkoutAuthorized: Bool, deletionAuthorized: Bool, cancellation: OperationCancellation?,
                                         onOutput: (@Sendable (GitOutputChunk) -> Void)?, prepareTransport: SSHTransportPreparation?,
-                                        onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)?) async throws -> SynchronizationTransportResult {
+                                        onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)?, backend: GitLibGit2Configuration?) async throws -> SynchronizationTransportResult {
+        let backend = backend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard !plan.optionsOnly else { throw SynchronizationFailure.invalidInput }
         guard plan.root == root else { throw SynchronizationTransportFailure.repositoryChanged }
@@ -538,8 +539,9 @@ extension GitRepository {
         // preparation. Rebuild its command from the same selected fields then;
         // the original plan still owns the pre-checkout HEAD for incoming tabs.
         let execution = plan.options.action == .pull ? try buildSynchronizationTransportPlan(plan.options, cancellation: token, checkoutCompleted: true) : plan
+        let executor = GitCommandIdentity(execution.arguments).command == "fetch" ? try backend.executor(for: .fetch) : nil
         let result = try runSynchronizationCommand(execution.arguments, environmentOverrides: session?.transportEnvironment ?? [:],
-            cancellation: token, onOutput: onOutput, onCommandFinished: onCommandFinished)
+            cancellation: token, onOutput: onOutput, onCommandFinished: onCommandFinished, executorOverride: executor)
         var target: String?
         if let reference = execution.rebaseReference {
             do {
@@ -728,8 +730,10 @@ extension GitRepository {
     public func synchronizeTag(_ action: SynchronizationTagAction, row: SynchronizationTagRow, snapshot: SynchronizationTagSnapshot,
                                deletionAuthorized: Bool = false, cancellation: OperationCancellation? = nil,
                                onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
-                               prepareTransport: SSHTransportPreparation? = nil) async throws -> GitResult {
+                               prepareTransport: SSHTransportPreparation? = nil, backend: GitLibGit2Configuration? = nil) async throws -> GitResult {
+        let backend = backend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
+        let executor = action == .fetch ? try backend.executor(for: .fetch) : nil
         guard snapshot.repository === self, snapshot.root == root else { throw SynchronizationTransportFailure.repositoryChanged }
         guard snapshot.rows.contains(row), row.allows(action) else { throw SynchronizationFailure.invalidInput }
         let reference = "refs/tags/" + row.tag.rawValue
@@ -758,6 +762,6 @@ extension GitRepository {
         case .deleteRemote: args = ["push", "--", snapshot.remote, ":" + reference]
         case .deleteLocal: throw SynchronizationFailure.invalidInput
         }
-        return try run(["-c", "core.precomposeunicode=false"] + args, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput)
+        return try run(["-c", "core.precomposeunicode=false"] + args, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput, executorOverride: executor)
     }
 }

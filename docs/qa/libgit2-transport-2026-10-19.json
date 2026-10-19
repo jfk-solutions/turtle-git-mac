@@ -1,0 +1,259 @@
+{
+  "date": "2026-10-19",
+  "baseline": "d6c487f94635f7c4de8204d055d8f951fe8b0b0d",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Optional actual pinned libgit2 Clone/Fetch/Sync routing, native credential/certificate decisions, per-request HTTP configuration and owned cancellation",
+  "status": "scoped grouped batch passed with recorded focused repairs; full port and hosted/signed/physical acceptance unproven",
+  "implementation": {
+    "source_default_mask": "0x66780",
+    "clone_bit": "0x2",
+    "fetch_bit": "0x4",
+    "helper": "Contents/Helpers/LibGit2/bin/turtlegit-libgit2",
+    "libgit2_commit": "f7164261c9bc0a7e0ebf767c584e5192810a8b24",
+    "http_configuration": "captured original Git reads, actual request URL, private memory overlay",
+    "transfer": "libgit2; no implicit CLI fallback"
+  },
+  "attempts": [
+    {
+      "kind": "runtime build",
+      "log": "build/qa/libgit2-runtime-build-2026-10-19.log",
+      "exit": 1,
+      "cause": "Bridge called git_error_set_str without pinned advanced-errors declaration; libgit2 static arm64 library had compiled.",
+      "repair": "Include git2/sys/errors.h; affected build repeated."
+    },
+    {
+      "kind": "runtime build repair1",
+      "log": "build/qa/libgit2-runtime-build-repair1-2026-10-19.log",
+      "exit": 1,
+      "cause": "Swift Security error mapping used two unavailable constant names.",
+      "repair": "Use SDK-declared errSecInvalidRoot and errSecCreateChainFailed with errSecNotTrusted."
+    },
+    {
+      "kind": "runtime build repair2",
+      "log": "build/qa/libgit2-runtime-build-repair2-2026-10-19.log",
+      "exit": 0,
+      "scope": "Actual pinned static libgit2, C bridge and Swift helper compiled for arm64/x86_64, reconstruction/license/linkage structure check passed."
+    },
+    {
+      "kind": "runtime grouped behavior repair",
+      "log": "build/qa/libgit2-runtime-behavior-repair-2026-10-19.log",
+      "exit": 0,
+      "changes": [
+        "Repair custom-origin branch tracking after pinned clone hardcodes origin",
+        "Classify remote names before anonymous URL/path fetch",
+        "Initialize submodule URL before preparing its repository"
+      ]
+    }
+  ],
+  "open": [
+    "Other upstream libgit2 command-mask consumers",
+    "External Git filter/LFS process drivers and normal Git hooks in optional engine",
+    "Conventional custom askpass and credential helpers in optional engine",
+    "All HTTP authentication providers/server configurations",
+    "Physical and VoiceOver acceptance",
+    "Current signed/installed SSH and HTTPS acceptance",
+    "Complete current hosted CI",
+    "App Store signing/export/submission",
+    "Cross-authority redirect and changed-proxy credentials/header behavior beyond the static review and same-authority HTTPS fixture"
+  ],
+  "resource_generation": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1298
+    },
+    "help": {
+      "documents": 42,
+      "topics": 50,
+      "files": 62
+    },
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "fully_certified": 0
+    }
+  },
+  "hosted_observation": {
+    "pages": {
+      "run": 39235459657,
+      "sha": "d6c487f9",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 39235459621,
+      "sha": "d6c487f9",
+      "status": "pending"
+    },
+    "earlier_macos": {
+      "run": 39228756148,
+      "sha": "c8fd1320",
+      "status": "in_progress"
+    }
+  },
+  "validation_limits": "Planned Core actual TLS/auth tests and direct native prompt/model checks are separate scopes; neither proves physical public-server/signed/Finder/App Store acceptance.",
+  "cache_contract": {
+    "log": "build/qa/libgit2-cache-contract-2026-10-19.log",
+    "exit": 0
+  },
+  "project_plist_lint": {
+    "exit": 0
+  },
+  "runtime_validation": {
+    "log": "build/qa/libgit2-runtime-validator-2026-10-19.log",
+    "exit": 0,
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "scope": [
+      "Real private clone/fetch",
+      "Shorthand tracking refspec destination",
+      "HEAD/worktree/global configuration invariants",
+      "Transient configuration does not persist",
+      "Unsupported command refusal",
+      "Pinned source, patch, complete licenses, macOS13 SDK-only linkage"
+    ],
+    "final_log": "build/qa/libgit2-runtime-behavior-validator-2026-10-19.log",
+    "final_exit": 0
+  },
+  "source_sha256": {
+    "Configuration/LibGit2Runtime.json": "5cb0cd6573054765b22289b41fca83e20d517072526da436c027a96fee1d9459",
+    "Sources/TurtleGitCore/CancellableGitProcess.swift": "eebabfe571b9e67b81fc4030e25ed03110efd219dc1f2e6a7b2cb8e735ce5d1a",
+    "Sources/TurtleGitCore/Clone.swift": "10eeb750aab1f23852d35087a0578208fd56de99f14976723349a4d211843895",
+    "Sources/TurtleGitCore/Fetch.swift": "fb91ff3c065fe2e8d561b17173e7c7edfcbcd18aac3dab360aec7a9a09d518f9",
+    "Sources/TurtleGitCore/GitLibGit2.swift": "bd8e26d2e4616fd776049688a7cb51a4243fa49021f13b8e848470beb5278bde",
+    "Sources/TurtleGitCore/GitRemoteAuthenticationPrompt.swift": "a36ed2b0e79d96adecce3e3cbffa42e42bcaa0a19b282e878a924dd059e64ecc",
+    "Sources/TurtleGitCore/GitRepository.swift": "9f9cfe3d8954191386792f8e1ee01a66e54747119e7125ab55867125d2e04c92",
+    "Sources/TurtleGitCore/GitRuntime.swift": "b18b9c8876da585d07d20d0da457aa0488153298dbd3e22b0a5cd447ecfeff9f",
+    "Sources/TurtleGitCore/Synchronization.swift": "f7f8a66b1277573dc11720696717ffcde59fd439af5465cba46c0eb59b1a2ac0",
+    "Sources/TurtleGitGitAskpass/SVNPromptWindow.swift": "d0d2fc3980e3326a1fdd77bdedfdad2a870d0e5967427d8ba776bdfdb05bee62",
+    "Sources/TurtleGitGitAskpass/TurtleGitGitAskpass.swift": "fe1fd25e577a8af47cdd925622558e3e38e11ecc8bc6dc48925417483d4bee36",
+    "Sources/TurtleGitLibgit2/HTTPConfiguration.swift": "2fa77765f678235f6a5c3368fe5f963aec819f1422dc39f5b73e159196c816a4",
+    "Sources/TurtleGitLibgit2/bridge.c": "bb45d74408abacb5076a83b371c9263db796a86f04c82cb4bba08e353d17094d",
+    "Sources/TurtleGitLibgit2/bridge.h": "47092c83c468291b195cf378390d5304c283d626cf65a81394308ba446770c55",
+    "Sources/TurtleGitLibgit2/main.swift": "55122123cedf8f40ae4b8595d3a1834c43602e04a45a9c3940e3ce0e800f47d8",
+    "Sources/TurtleGitLibgit2/module.modulemap": "d50abe8e9d99d0538766dadbc04cc20f743fb0aebeae617eea5d64420ceeccf2",
+    "Sources/TurtleGitMac/CloneWindow.swift": "198fe0a962d4f77d428e984dd3cd257f02a39460cf69af4782a4456eadda58e6",
+    "Sources/TurtleGitMac/FetchWindow.swift": "eec5aec3b4c04b1c86b11b3f58ed4f970f9706fdb36c600123d091c17d0420e4",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "b419a362b63d8b1548a4964d16d1bbd9bb194258d90f6281171a73ee3343399d",
+    "Tests/TurtleGitCoreTests/Fixtures/git_https_server.py": "4a5b90f16145234c073745ad823a6536d7fb5bb038f13fa42e86c29518db12f6",
+    "Tests/TurtleGitCoreTests/GitLibGit2Tests.swift": "230f4255960d4bb35e98af91d8911cf1875b62ca02d09aaa12c78b8fabbfbf06",
+    "Tests/TurtleGitCoreTests/SyncLibGit2Tests.swift": "1cec6f87aaba53a8db1cb69074e38b8e4c8764ed2ecd31c81d38781af4fb7a50",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "54f2eb72358299a9f4b41d3113b1c6998eb638b9925dffba932ed5b4253ed1bf",
+    "docs/qa/libgit2-native-2026-10-19.swift": "f212fc6276900e693f46660289dbc8367cbba8c3d9cdaeb3baf56fc326ba5026",
+    "patches/libgit2-authority.patch": "9326aaa3d66de9f2d3844f85331b47a9639fe33ed8bf9233fbb229b1c0e05b71",
+    "scripts/test-libgit2-native.py": "ca7350a3645b472690474ef2f5a959ce3e1522ff3fa2b3e3ae66c7acda509532"
+  },
+  "runtime_binary_sha256": "a83229a6b0c55a03759f8c85bcca43cfeae77de38f3e038b768a00602e976105",
+  "core": {
+    "initial": {
+      "log": "build/qa/libgit2-core-2026-10-19.log",
+      "exit": 1,
+      "methods": 73,
+      "failed_methods": 3,
+      "retained_passes": 70,
+      "failures": [
+        "Custom clone origin remained origin",
+        "Arbitrary file URL fetch was rejected as invalid remote name",
+        "Recursive submodule initialization URL was not visible"
+      ]
+    },
+    "full_suite_repeated": false,
+    "repair": {
+      "log": "build/qa/libgit2-core-repair-2026-10-19.log",
+      "exit": 0,
+      "methods": 3,
+      "scope": "Only the three failed methods; no assertions removed."
+    },
+    "distinct_current_methods_passing": 73,
+    "retained_passes": 70
+  },
+  "builds": [
+    {
+      "log": "build/qa/libgit2-debug-2026-10-19.log",
+      "exit": 65,
+      "cause": "Native targets compiled; runtime embed rejected stale Metafile reconstruction NOTICE hash after shared license notice changed.",
+      "repair": "Reconstruct that runtime with the current NOTICE, then repeat affected app build."
+    },
+    {
+      "log": "build/qa/libgit2-debug-repair-2026-10-19.log",
+      "exit": 0,
+      "scope": "Debug app/native helpers compiled; current runtime embedded/relocated and ad-hoc signed; packaged provenance traces original validated universal helper."
+    }
+  ],
+  "metafile_notice_refresh": {
+    "log": "build/qa/libgit2-metafile-notice-refresh-2026-10-19.log",
+    "exit": 0,
+    "scope": "Reconstruction carries current shared NOTICE; no metafile behavior changed and no metafile Core tests repeated."
+  },
+  "native": {
+    "log": "build/qa/libgit2-native-2026-10-19.log",
+    "exit": 0,
+    "receiver_pid": 25241,
+    "receiver_reaped": true,
+    "git": "/usr/bin/git",
+    "helper": "build/libgit2-runtime/LibGit2/bin/turtlegit-libgit2",
+    "scope": [
+      "Private defaults/master-mask snapshot",
+      "Actual local native Clone/Fetch model routing and reference results",
+      "Combined credentials, no persistence, single response and secret clear",
+      "Source certificate controls/default Cancel",
+      "Read-only inspector/private pasteboard",
+      "Accepted export held through parent cancellation and real sheet/write retirement",
+      "No owned windows/sheets or active Clone/Fetch workers remain"
+    ],
+    "not_proven": [
+      "Physical/compositor and VoiceOver acceptance",
+      "Public remote/SSH transport",
+      "New signed parent/sandbox deployment"
+    ],
+    "captures": {
+      "docs/site/assets/git-transport-certificate-dark.png": "532d4fbf22c3a1946f7f5cf92e9f3eb147c557d06bf009c977212440a10368b6",
+      "docs/site/assets/git-transport-certificate-light.png": "8c12630ef0b031bc02f9aca77ef16dfbcb6ad41d711b2f0323543a82ca5accff",
+      "docs/site/assets/git-transport-credentials-dark.png": "1c548afd9f290d1151295d1dcfea7e1adffa825d7a62071728820105518ada1c",
+      "docs/site/assets/git-transport-credentials-light.png": "c08469248e491f1ed72da6b80b43b8c56215bc129bcb4ed591b0b82cdb146911"
+    },
+    "capture_review": "All four actual offscreen native content images visually inspected; full field/fingerprint captions and light/dark appearance readable."
+  },
+  "packaged_helper": {
+    "binary_sha256": "c47d348b6db5945dec08d4def3233f844f8e2fbbf224fa8c5bd4a20e2daf1175",
+    "unsigned_binary_sha256": "a83229a6b0c55a03759f8c85bcca43cfeae77de38f3e038b768a00602e976105",
+    "signed": "ad-hoc, no sandbox inheritance",
+    "structure_validation_exit": 0,
+    "actual_version": "turtlegit-libgit2 1.9.4",
+    "inspection_repair": "Initial byte-equality assumption failed because final relocation ad-hoc signs the executable; final checks verify signed digest and original unsigned provenance instead."
+  },
+  "cleanup_observation": {
+    "receiver_25241": "absent from process table",
+    "matching_https_servers": "none",
+    "unrelated_user_apps_terminated": false,
+    "unrelated_worktree_files": "Original SHA256 values preserved and excluded from commit"
+  },
+  "final_static_checks": {
+    "site": {
+      "exit": 0,
+      "documents": 346,
+      "unresolved_fragments": []
+    },
+    "localizations": {
+      "exit": 0,
+      "languages": 38,
+      "keys": 1298
+    },
+    "help": {
+      "exit": 0,
+      "documents": 42,
+      "topics": 50,
+      "files": 62
+    },
+    "dialog_ledger": {
+      "exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "certified_complete": 0
+    },
+    "diff_check": {
+      "exit": 0
+    }
+  }
+}

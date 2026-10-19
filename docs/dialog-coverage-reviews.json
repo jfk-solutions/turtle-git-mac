@@ -575,6 +575,10 @@
         {
           "path": "Sources/TurtleGitMac/EmailSettings.swift",
           "anchor": "class SMTPCredentialWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitCore/GitRemoteAuthenticationPrompt.swift",
+          "anchor": "enum GitRemoteAuthenticationPrompt"
         }
       ]
     },
@@ -603,6 +607,10 @@
         {
           "path": "Sources/TurtleGitMac/SendPatchWindow.swift",
           "anchor": "class SendPatchProgressWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitCore/GitRemoteAuthenticationPrompt.swift",
+          "anchor": "enum GitRemoteAuthenticationPrompt"
         }
       ]
     },

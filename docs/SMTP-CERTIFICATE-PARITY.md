@@ -54,13 +54,10 @@ timeout, while actual connection failure and cancellation still reject the revie
 
 The user-facing behavior is described in [SMTP certificate review](SMTP-CERTIFICATE-REVIEW.md).
 The existing [SVN implementation](SVN-AUTHENTICATION-PARITY.md) remains a separate
-caller of the same source dialog. Git CLI HTTPS certificate override/review is a
-separate remaining backend integration; it is not implemented by this SMTP work.
-Upstream optionally uses libgit2 for Clone/Fetch/Sync certificate callbacks, while
-its default mask excludes Clone/Fetch. Native operations currently invoke Git CLI;
-the stored UseLibgit2 option has no backend consumer. Full optional-backend parity
-therefore still needs a pinned implementation and actual-connection credential/
-certificate callbacks, progress and option coverage.
+caller of the same source dialog. The [optional libgit2 Clone/Fetch/Sync backend](LIBGIT2-TRANSPORT-PARITY.md) now
+connects actual HTTPS certificate callbacks to its native helper. The default Git
+CLI route retains Git's own TLS failure/credential behavior; the SMTP transport
+and its callback are separate.
 
 ## Evidence and limits
 

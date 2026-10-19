@@ -13,7 +13,7 @@ let package = Package(
         .target(name: "TurtleGitSMTP", linkerSettings: [.linkedLibrary("curl")]),
         .target(name: "TurtleGitCore", dependencies: ["TurtleGitSMTP"], resources: [.copy("Resources/Icons"), .copy("Resources/Completion"), .copy("Resources/RegexFilter.ini")], linkerSettings: [.linkedFramework("Network"), .linkedFramework("Security")]),
         .executableTarget(name: "TurtleGitWCRev", dependencies: ["TurtleGitCore"]),
-        .testTarget(name: "TurtleGitCoreTests", dependencies: ["TurtleGitCore"], exclude: ["Fixtures/WorkingCopyRevision"], resources: [.copy("Fixtures/GitOutput"), .copy("Fixtures/Certificates"), .copy("Fixtures/WaterEffect"), .copy("Fixtures/Metafile"), .copy("Fixtures/smtp_server.py")])
+        .testTarget(name: "TurtleGitCoreTests", dependencies: ["TurtleGitCore"], exclude: ["Fixtures/WorkingCopyRevision"], resources: [.copy("Fixtures/GitOutput"), .copy("Fixtures/Certificates"), .copy("Fixtures/WaterEffect"), .copy("Fixtures/Metafile"), .copy("Fixtures/smtp_server.py"), .copy("Fixtures/git_https_server.py")])
     ] + (coreOnly ? [] : [.executableTarget(name: "TurtleGitMac", dependencies: ["TurtleGitCore"], exclude: ["Resources/ApplicationAssets.xcassets", "Resources/Localizable.xcstrings", "Resources/LocalizationManifest.json", "Resources/LocalizationCredits.txt"], resources: [.copy("Resources/TurtleGitHelp.help"), .copy("Resources/Branding")], linkerSettings: [.linkedFramework("SecurityInterface")])]),
     swiftLanguageModes: [.v5]
 )

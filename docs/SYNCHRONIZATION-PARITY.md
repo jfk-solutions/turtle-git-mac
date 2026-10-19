@@ -1774,3 +1774,13 @@ command order and existing behavior remain; full dialog acceptance stays open.
 Main Sync replaces its input band during inline commands, retains streamed phase/percentage and a timed colored footer, and separates actual Git completion from later metadata and workflow completion. Dock state follows command outcome while independent worker/release counters keep Quit blocked through actual drain. The source does not persist the main Sync transcript through GitProgressList action logging.
 
 See the [connected progress family](SYNC-ADD-RESOLVE-PROGRESS-PARITY.md) for source distinctions, scoped validation and remaining physical, signed and whole-dialog requirements. This continuation does not certify the whole family or port.
+
+## Optional libgit2 transport continuation — October 19, 2026
+
+The [connected Clone/Fetch/Sync backend](LIBGIT2-TRANSPORT-PARITY.md) consumes the
+source global switch and per-command mask, retaining upstream CLI defaults.
+It connects native progress, actual-connection HTTPS certificate review and
+combined credentials to a pinned private helper. Accepted certificate exports
+retain their operation lock through cancellation. The linked batch record states
+actual validation and the remaining optional-backend, public and signed gaps;
+older evidence above does not prove this continuation.

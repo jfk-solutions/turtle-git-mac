@@ -253,6 +253,7 @@
     "COMMIT-CHECKBOX-INDEX.md",
     "LIBREOFFICE-COMPARISON.md",
     "MERGE-FILTERS.md",
-    "MERGE-TOOL.md"
+    "MERGE-TOOL.md",
+    "LIBGIT2-TRANSPORT.md"
   ]
 }

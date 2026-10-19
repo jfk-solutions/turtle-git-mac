@@ -129,6 +129,7 @@ extension SynchronizationTagKind {
     private(set) static var activeOperations = 0
     let progressPresentation: GitCommandPresentation
     let repository: GitRepository, operation: SynchronizationProgressOperation, preferences: UserDefaults
+    let backend:GitLibGit2Configuration
     private let cancellation: OperationCancellation
     private let autoClosePolicy: GitProgressAutoClose
     private let transportFactory: SSHTransportFactory?
@@ -179,6 +180,7 @@ extension SynchronizationTagKind {
         ProgressActionLog.record(owner: self, repository: repository.root, output: output, cancelled: cancelled, failed: !success)
     }
     init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, access: RepositoryAccessLease? = nil, transportFactory: SSHTransportFactory? = nil) {
+        backend = .load(from:preferences)
         self.access = access; self.transportFactory = transportFactory; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
         self.repository = repository; self.operation = operation; self.cancellation = cancellation; self.preferences = preferences
         outputState = GitProgressOutputState(preferences: preferences); progressPresentation = outputState.presentation
@@ -240,7 +242,7 @@ extension SynchronizationTagKind {
                     return SynchronizationProgressResult.tags(try await repository.synchronizationTags(remote: remote, cancellation: cancellation, prepareTransport: coordinator?.preparation))
                 case .tag(let action, let row, let snapshot, let authorized):
                     let command = try await repository.synchronizeTag(action, row: row, snapshot: snapshot, deletionAuthorized: authorized, cancellation: cancellation,
-                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation)
+                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation,backend:backend)
                     if action == .deleteRemote {
                         // The source keeps its system progress dialog open through
                         // Fill. A failed deletion never enters the refill phase.
@@ -2089,7 +2091,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         var options = SynchronizationTransportOptions(action: action)
         options.localBranch = localBranch; options.remote = remote; options.remoteBranch = remoteBranch; options.force = force
         options.fetchVerbose = GitCommandPresentation(defaults: preferences).fetchVerbose
-        let factory = sshSettings.capture()
+        let factory = sshSettings.capture(),capturedBackend=GitLibGit2Configuration.load(from:preferences)
         sshSettings.save(preferences, key: historyKey + ".autoload")
         if pushing { Self.activePushWorkflows += 1 }
         let attempt = beginInlineAttempt(request, command: !shift)
@@ -2179,11 +2181,11 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
                         if let checkout {
                             return try await repository.synchronize(checkout, cancellation: request,
                                 onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation,
-                                onCommandFinished: { completion in receipt.record(completion); continuation.yield(()) })
+                                onCommandFinished: { completion in receipt.record(completion); continuation.yield(()) },backend:capturedBackend)
                         }
                         return try await repository.synchronize(plan, deletionAuthorized: deletionAuthorized, cancellation: request,
                             onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation,
-                                onCommandFinished: { completion in receipt.record(completion); continuation.yield(()) })
+                                onCommandFinished: { completion in receipt.record(completion); continuation.yield(()) },backend:capturedBackend)
                     }
                     for await _ in updates { consume(parser.processPending(), parser: parser, request: request, attempt: attempt) }
                     consume(parser.processPending(), parser: parser, request: request, attempt: attempt)

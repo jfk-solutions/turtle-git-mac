@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Optional libgit2 transport</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="optional-libgit2-transport">Optional libgit2 transport</h1>
+<p>TurtleGit includes an optional libgit2 engine for Clone, Fetch and the Fetch
+operations in Synchronization, including Fetch &amp; Rebase and fetching a tag.
+The normal Clone/Fetch defaults remain Git commands, matching TortoiseGit's
+per-command defaults. SVN, ordinary Pull/Merge, Push, Prune and Remote Update
+continue through their existing command workflows.</p>
+<p>The Advanced <strong>UseLibgit2</strong> preference is the master switch. Like upstream,
+<code>UseLibgit2_mask</code> is a separate expert preference rather than an additional
+Advanced table row. Clone uses bit <code>0x2</code>, Fetch uses bit <code>0x4</code>; enabling both while
+retaining the source default mask means <code>0x66786</code> (decimal <code>419718</code>). Disabling the
+master switch chooses Git commands regardless of the mask. A requested engine
+that is missing reports an error; it does not silently change the selected engine.
+The backend choice is captured when an operation starts, so editing Settings
+cannot change an operation already waiting for a folder, key or credential.</p>
+<p>Both engines use the existing Clone/Fetch forms. Branch, origin, bare/no-checkout,
+recursive submodules, shallow depth, fetch destinations, tags, pruning and the
+pinned Rebase handoff retain their corresponding operation choices. Progress and
+cancellation remain owned by the window that started the operation. Fetch updates
+references and FETCH_HEAD; it does not itself merge, switch or overwrite working
+files. Follow-up Rebase/Merge remains a separate reviewed action.</p>
+<p>An HTTP authentication challenge opens a native combined Username/Password dialog.
+This is libgit2's own credential callback. Git commands retain their existing
+credential-helper/askpass workflow. Password answers from this dialog are not
+written to progress output.
+The new callback does not save credentials or edit Keychain trust.</p>
+<p>When the actual HTTPS connection presents an invalid certificate, <strong>Certificate
+verification failed!</strong> shows its hostname, issuer and fingerprints. <strong>Cancel</strong> is
+the default. <strong>Open certificate</strong> opens the native read-only inspector with public
+DER/PEM export. <strong>Accept certificate</strong> is temporary and exact to the actual host,
+port and certificate bytes in this operation; redirects to another authority
+cannot inherit it. Authentication and Git object transfer wait for the decision.</p>
+<p>Cancelling an operation dismisses its owned authentication question. A certificate
+export already accepted finishes before the prompt releases its operation lock
+and before the transport process group is terminated. A late acceptance cannot
+restart a cancelled operation. Merely viewing or exporting a certificate does not
+accept it, install it in Keychain or change Git configuration.</p>
+<p>SSH transport uses the bundled OpenSSH integration and its existing key/agent and
+host-key workflow. See <a href="SSH-AUTHENTICATION.html">SSH authentication</a> and
+<a href="REPOSITORY-FOLDER-ACCESS.html">repository folder access</a>. The
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LIBGIT2-TRANSPORT-PARITY.html">source and validation record</a> distinguishes implemented
+behavior from public-server, signed sandbox and complete upstream acceptance.</p>
+<p>The optional engine does not currently run external Git filter/LFS process drivers
+or ordinary Git hooks. Repository template files are copied, but copying a hook
+is separate from executing it. Conventional custom <code>GIT_ASKPASS</code> programs and
+Git credential helpers are not consumed by this engine; use its native prompt or
+the default Git engine for those workflows. URL-specific HTTP headers, proxy and
+CA settings are resolved for the actual request URL, including redirects.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

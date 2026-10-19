@@ -1,0 +1,23 @@
+{
+  "libgit2": {
+    "version": "1.9.4",
+    "commit": "f7164261c9bc0a7e0ebf767c584e5192810a8b24",
+    "url": "https://codeload.github.com/libgit2/libgit2/tar.gz/f7164261c9bc0a7e0ebf767c584e5192810a8b24",
+    "sha256": "3607e8782b5b13a4fbfcf8d6a65b570644c4b7cee50a2321855270ff73483876",
+    "license": "GPL-2.0-only WITH libgit2-linking-exception"
+  },
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "deployment_target": "13.0",
+  "tls": "SecureTransport",
+  "ssh": "exec",
+  "sha1": "CollisionDetection",
+  "http_parser": "builtin",
+  "regex": "builtin",
+  "patch": "patches/libgit2-authority.patch",
+  "patch_sha256": "9326aaa3d66de9f2d3844f85331b47a9639fe33ed8bf9233fbb229b1c0e05b71",
+  "certificate_callback_authority": "Actual HTTP TLS host, TAB, decimal port; private static library only; built-in TLS hostname validation is unchanged.",
+  "http_configuration": "Private static HTTP request callback reads captured original Git URL-matched headers/proxy/CA for actual request URLs; cross-origin redirects clear prior credentials."
+}

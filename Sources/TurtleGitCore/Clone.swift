@@ -120,27 +120,29 @@ extension GitRepository {
         }
     }
     public func clone(_ options: CloneOptions, to destination: URL, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil,
-                      onCommand:(@Sendable(GitCommandInvocation)->Void)? = nil,onCommandFinished:(@Sendable(CloneCommandCompletion)->Void)? = nil) async throws -> String {
-        try await cloneOutcome(options,to:destination,cancellation:cancellation,onOutput:onOutput,prepareTransport:prepareTransport,onCommand:onCommand,onCommandFinished:onCommandFinished).summary
+                      onCommand:(@Sendable(GitCommandInvocation)->Void)? = nil,onCommandFinished:(@Sendable(CloneCommandCompletion)->Void)? = nil, backend: GitLibGit2Configuration? = nil) async throws -> String {
+        try await cloneOutcome(options,to:destination,cancellation:cancellation,onOutput:onOutput,prepareTransport:prepareTransport,onCommand:onCommand,onCommandFinished:onCommandFinished,backend:backend).summary
     }
     /// Git command failure throws; post-clone configuration failure is retained
     /// separately, matching CloneCommand's StorePuttyKey acknowledgment.
     public func cloneOutcome(_ options: CloneOptions, to destination: URL, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil,
-                             onCommand:(@Sendable(GitCommandInvocation)->Void)? = nil,onCommandFinished:(@Sendable(CloneCommandCompletion)->Void)? = nil) async throws -> CloneOutcome {
+                             onCommand:(@Sendable(GitCommandInvocation)->Void)? = nil,onCommandFinished:(@Sendable(CloneCommandCompletion)->Void)? = nil, backend: GitLibGit2Configuration? = nil) async throws -> CloneOutcome {
+        let backend = backend ?? libgit2Configuration ?? .load()
         let token=cancellation ?? OperationCancellation();try token.check()
         try validateClone(options,to:destination,cancellation:token)
         let args=try options.arguments(destination:destination)
+        let executor = options.svn ? nil : try backend.executor(for: .clone)
         let session = try await prepareSSHTransport([], cancellation: token, preparation: prepareTransport)
         defer { withExtendedLifetime(session) {} }
         if options.loadSSHKeyWithAgent && session == nil { throw CloneFailure.keyRuntime }
         var environment = session?.transportEnvironment ?? [:]
         if let command = try options.sshCommand() { environment["GIT_SSH_COMMAND"] = command }
         try token.check()
-        onCommand?(commandInvocation(args,literalPathspecs:false))
+        onCommand?(commandInvocation(args,literalPathspecs:false,executorOverride:executor))
         let started=ProcessInfo.processInfo.systemUptime
         let command:GitResult
         do {
-            command=try run(args,environmentOverrides:environment,literalPathspecs:false,cancellation:token,onOutput:onOutput)
+            command=try run(args,environmentOverrides:environment,literalPathspecs:false,cancellation:token,onOutput:onOutput,executorOverride:executor)
             onCommandFinished?(.init(success:command.exitCode == 0,cancelled:false,exitCode:command.exitCode,elapsed:ProcessInfo.processInfo.systemUptime-started))
         } catch {
             let killed=error as? GitCommandCancellationFailure

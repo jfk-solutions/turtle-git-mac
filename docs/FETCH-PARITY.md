@@ -468,3 +468,12 @@ unchanged and was not repeated. See [batch evidence](qa/transport-source-family-
 for exact attempts, raw capture provenance and scope. Complete physical dropdown/key/focus/VoiceOver/IME,
 source sorting at every locale, signed nested sheets and network credentials,
 Finder activation, sandbox/App Store and full application acceptance remain open.
+
+## Optional libgit2 transport continuation — October 19, 2026
+
+Fetch and its pinned Rebase preparation now consume the source master switch and
+operation mask through the [optional libgit2 backend](LIBGIT2-TRANSPORT-PARITY.md).
+Named/arbitrary/all-remotes, tag/prune/depth options, actual TLS decisions and
+owned credential/cancellation progress use the selected engine. The default
+remains Git CLI. Consult the linked batch QA for actual validation and remaining
+provider, public-server and signed acceptance.

@@ -3661,3 +3661,17 @@ guess, and retains pixel, alpha, phase, geometry and resource-limit assertions.
 the terminal hosted failure, local grouped scope and remaining hosted/Intel,
 physical and current signed distribution acceptance. Earlier local checks alone
 do not establish cross-platform rendering parity.
+
+
+### Optional libgit2 Clone/Fetch/Sync transport — October 19, 2026
+
+The previously stored UseLibgit2 master switch now has connected Clone/Fetch
+consumers with the source operation mask and unchanged command-line defaults.
+The actual pinned engine, native combined credentials, same-connection HTTPS
+certificate review, source-shaped fields, temporary authority/certificate
+exceptions, progress and cancellation/export ownership are connected through
+Clone, Fetch, Fetch & Rebase and Sync tag fetch. The universal private runtime
+carries source, patch, licensing and reconstruction metadata. See
+[scope and QA](LIBGIT2-TRANSPORT-PARITY.md). Other libgit2 command consumers,
+complete HTTP/provider compatibility and public/signed/physical/App Store
+acceptance remain open; this is not complete backend or whole-app parity.
