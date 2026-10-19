@@ -382,6 +382,10 @@ file; <strong>Abort</strong> stops and retains earlier completed changes. The re
 how many files were reverted. Root comparisons offer <strong>Revert to empty tree</strong>,
 which removes selected entries from the index without moving HEAD. Export saves
 the destination revision; it does not need the Base file's contents.</p>
+<p>If a staged file disappears from the working tree, Commit and Working Tree offer
+<strong>Restore from index</strong>, <strong>Remove from index</strong> and <strong>Ignore</strong>, with
+<strong>Do the same for the rest</strong> for this read. A completed recovery asks for an
+explicit refresh with F5. See <a href="MISSING-STAGED-FILES.html">missing staged files</a>.</p>
 <p>Commit, Working Tree and Revert keep the file-list reading position through
 refresh. <strong>RememberFileListPosition</strong> in Advanced Settings controls restoring
 scroll position, highlighted files and focus; turning it off returns to the top.

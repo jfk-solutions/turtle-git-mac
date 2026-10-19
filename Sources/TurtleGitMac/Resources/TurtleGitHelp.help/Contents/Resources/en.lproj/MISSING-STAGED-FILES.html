@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Missing staged files</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="missing-staged-files">Missing staged files</h1>
+<p>Commit and Working Tree can encounter a file whose staged version still exists
+in Git's index but whose working copy has disappeared. For example, a newly
+added file may have been deleted in Finder after staging it.</p>
+<p>When the dialog reads its changes, it offers the same recovery choices as
+TortoiseGit:</p>
+<ul>
+<li><strong>Restore from index</strong> restores the staged version to the working tree. It
+retains the staged contents, rather than restoring the last commit's version.</li>
+<li><strong>Remove from index</strong> removes the missing path from staging. For a previously
+committed path, this stages its deletion; for a newly added path, it removes
+the addition. It does not delete an existing working copy.</li>
+<li><strong>Ignore</strong> leaves this path unchanged and continues reading the list.</li>
+</ul>
+<p><strong>Do the same for the rest</strong> applies the selected choice to the remaining missing
+files in this read. It is not saved as a preference for later refreshes. An error
+reports the affected file and continues through the remaining candidates.</p>
+<p>After a successful restore or removal, the dialog asks you to refresh, for
+example with <strong>F5</strong>. Its current list describes the snapshot it already read;
+it does not silently present that old snapshot as fresh status. Refresh before
+choosing further file actions or committing.</p>
+<p>Recovery checks the captured index entry and missing destination before acting.
+If another application changes that entry or recreates the file while a choice
+is pending, recovery refuses the stale operation. Refresh and review the new
+state. Cancellation stops the remaining files; an already completed restore or
+removal remains in effect.</p>
+<p>This recovery concerns missing staged additions, modifications and replacements.
+It does not resolve unmerged index stages or restore every deleted file. Use
+normal Revert and conflict-resolution workflows where appropriate.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

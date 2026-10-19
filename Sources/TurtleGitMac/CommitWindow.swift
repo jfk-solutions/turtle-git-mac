@@ -61,7 +61,7 @@ import UniformTypeIdentifiers
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Commit", preferences: defaults)
         window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model).defaultAppStorage(defaults))
-        super.init(window: window); model.comparisonWindow = window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
+        super.init(window: window); model.comparisonWindow = window; model.missingStagedRecovery.ownerWindow = window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
         model.presentAddProgress={ [weak self] paths,mode,backend,token in
             guard let self,!self.closingCommit,!self.model.confirmingQuit,self.addProgressController==nil,let owner=self.window,owner.attachedSheet==nil,!token.isCancelled else{return false}
             return await withCheckedContinuation { continuation in
@@ -319,6 +319,7 @@ import UniformTypeIdentifiers
         if let child=addProgressController{child.close();Task{@MainActor [self] in while addProgressController != nil{try? await Task.sleep(nanoseconds:10_000_000)};onClosed()}}else{onClosed()}
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.missingStagedRecovery.busy { model.missingStagedRecovery.cancel(); return false }
         if model.submoduleLog.isReading { model.submoduleLog.cancel(); return false }
         guard sender.attachedSheet == nil, !hasMessagePicker, partial?.model.busy != true, partial?.window?.attachedSheet == nil, !model.unifiedViewerBusy else { return false }
         model.cancel(); return false
@@ -951,6 +952,8 @@ import UniformTypeIdentifiers
                 let current = try await readReload(token) { try await queryStagingStates(retainedEntries, base, token) }
                 let staged = try await readReload(token) { try await repository.stagingFiles(staged: true, base: base, cancellation: token) }
                 let unstaged = try await readReload(token) { try await repository.stagingFiles(staged: false, cancellation: token) }
+                try await recoverMissingStagedFiles(retainedEntries, repository: repository, token: token,
+                    scope: scopePaths, wholeProject: showWholeProject)
                 stagingStates = current.mapValues { state in
                     switch state { case .unstaged: return .off; case .partial: return .mixed; case .staged: return .on }
                 }
@@ -967,6 +970,7 @@ import UniformTypeIdentifiers
     }
     private(set) static var activeReloads = 0
     let fileListRefresh = FileListRefreshCoordinator()
+    let missingStagedRecovery = MissingStagedFileRecoverySession()
     private var filterPosition:FileListRefreshCoordinator.Ticket?
     private(set) static var activeFileOperations = 0
     private var fileMenuGeneration = UUID()
@@ -1450,6 +1454,8 @@ import UniformTypeIdentifiers
                     }
                 }
                 if !loadedMessage, let commandLineIssueID { nextIssueID = commandLineIssueID }
+                try await recoverMissingStagedFiles(nextEntries, repository: repository, token: token,
+                    scope: requestedScope, wholeProject: requestedWholeProject)
                 _ = try await readReload(token) { () }
                 // No suspension until every field and dependent command target
                 // belongs to the same accepted read. Native row settlement follows.
@@ -1536,6 +1542,20 @@ import UniformTypeIdentifiers
         let seed = try await repository.commitMessageSeed(includeOperationMessages: includeOperationMessages, template: selection, cancellation: cancellation)
         try check()
         return CommitMessageSeed(template: seed.template, message: seed.message, warnings: seed.warnings + (warning.map { [$0] } ?? []))
+    }
+    private func recoverMissingStagedFiles(_ entries: [StatusEntry], repository: GitRepository,
+                                          token: OperationCancellation, scope: [String], wholeProject: Bool) async throws {
+        // Commit includes staged paths beyond the selected Finder scope, matching
+        // the same policy as its visibleEntries and included-staged source list.
+        let included = entries.filter { entry in
+            entry.staged || wholeProject || scope.contains {
+                GitReferenceName.equal($0, entry.path) || entry.path.utf8.starts(with: ($0 + "/").utf8)
+            }
+        }
+        try await missingStagedRecovery.process(repository: repository, entries: included, token: token) { [weak self] in
+            guard let self else { return false }
+            return self.messageFocusAvailable && self.reloadCancellation === token && !self.confirmingQuit && !self.pendingReloadCancel
+        }
     }
     /// Check on both sides of every suspension: even an injected read that
     /// ignores cancellation cannot publish into a closed Commit window.
@@ -1693,6 +1713,7 @@ import UniformTypeIdentifiers
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
     func invalidateForClose() {
+        missingStagedRecovery.retire()
         preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
         unversionedPromptRequest=UUID();unversionedPromptPending=false;unversionedPromptVisible=false;cancelUnversionedFilesPrompt()
         stagingHintRequest=UUID();stagingHintVisible=false;stagingHintPending=false
@@ -2043,6 +2064,7 @@ import UniformTypeIdentifiers
     }
     private func cancel(closeWindow: Bool, completion: ((Bool) -> Void)?, confirmationAccepted: Bool) {
         guard messageFocusAvailable else { completion?(false); return }
+        if missingStagedRecovery.busy { missingStagedRecovery.cancel(); completion?(false); return }
         guard !stagingHintVisible,!unversionedPromptVisible else {completion?(false);return}
         if let task=preferenceTask {
             preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
@@ -2063,7 +2085,7 @@ import UniformTypeIdentifiers
                 guard let self, self.messageFocusAvailable, self.pendingReloadCancel else { completion?(false); return }
                 if !approved { self.pendingReloadCancel = false; completion?(false); return }
                 self.invalidateMetadataLoads()
-                token.cancel();fileListRefresh.cancel(); task.cancel()
+                token.cancel();missingStagedRecovery.cancel();fileListRefresh.cancel(); task.cancel()
                 Task { [weak self] in
                     await task.value
                     guard let self, self.messageFocusAvailable else { completion?(false); return }

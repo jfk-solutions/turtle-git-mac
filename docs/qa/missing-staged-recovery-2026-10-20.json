@@ -1,0 +1,190 @@
+{
+  "date": "2026-10-20",
+  "family": "Commit and Working Tree missing staged-file recovery",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": {
+    "path": "src/Git/GitStatusListCtrl.cpp",
+    "method": "UpdateFileList",
+    "lines": "4130\u20134193",
+    "callers": [
+      "src/TortoiseProc/CommitDlg.cpp",
+      "src/TortoiseProc/ChangedDlg.cpp"
+    ]
+  },
+  "batch_scope": [
+    "Shared captured literal stage-zero recovery candidates",
+    "Restore staged filtered contents without overwriting recreated files",
+    "Remove captured index entry while preserving unrelated entries",
+    "Native Restore / Remove / Ignore plus per-read Do same for rest",
+    "Per-item failure continuation and explicit refresh-required notice",
+    "Connected initial/refresh/scope/amend/staging reads and ownership/cancellation/Quit drain"
+  ],
+  "validation": [
+    {
+      "scope": "Grouped Core checkpoint",
+      "status": "failed",
+      "executed": 15,
+      "failures": 1,
+      "duration_seconds": 14.17,
+      "log": "build/qa/missing-staged-core-2026-10-20.log",
+      "passed_classes": {
+        "CommitAmendTests": 5
+      },
+      "family_methods": 10,
+      "failed_method": "testUnbornLiteralAddedPathsRestoreExactBytesWithoutChangingIndex",
+      "finding": "Foundation fixture file creation normalized composed Unicode to decomposed on-disk spelling; byte-preserving Git argv with core.precomposeunicode=false did not stage the original literal filename. Recovery correctly excluded a file absent from index.",
+      "repair": "Create the fixture file via POSIX open with literal UTF-8 path and assert exact staged path bytes before recovery. Production and passing 14 methods retained."
+    },
+    {
+      "scope": "Debug app after implementation/resource freeze",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/missing-staged-app-2026-10-20.log",
+      "limit": "Unsigned local build; hosted SDK/signed runtime acceptance not established"
+    },
+    {
+      "scope": "Only affected exact-Unicode fixture method after POSIX creation repair",
+      "status": "passed",
+      "executed": 1,
+      "failures": 0,
+      "duration_seconds": 0.681,
+      "log": "build/qa/missing-staged-core-fixture-repair-2026-10-20.log",
+      "retained_passes": 14,
+      "distinct_core_methods_now_passing": 15,
+      "production_changed": false
+    },
+    {
+      "scope": "Initial grouped native receiver compilation",
+      "status": "failed",
+      "receivers_started": 0,
+      "log": "build/qa/missing-staged-native-2026-10-20.log",
+      "finding": "Fixture nested UI owner types did not inherit enclosing enum MainActor isolation",
+      "repair": "Explicit actor isolation on fixture types and stored UI closures; production unchanged"
+    },
+    {
+      "scope": "Native first Commit read after fixture compilation repair",
+      "status": "failed",
+      "receiver_pid": 517,
+      "owned_receiver_reaped": true,
+      "log": "build/qa/missing-staged-native-fixture-repair-2026-10-20.log",
+      "finding": "Repository-owner URL equality included directory-flag metadata when actor/root URL was captured before directory creation; the same actual Git root was refused.",
+      "cases_reached": [
+        "commit:/usr/bin/git"
+      ],
+      "repair": "Compare resolved actual directory device/inode identities, retaining literal confinement, nofollow ancestry and nested-repository refusal. Add regression for actor-before-directory creation with Restore, Remove and real nested-repository rejection."
+    },
+    {
+      "scope": "Only new repository-owner identity regression",
+      "status": "passed",
+      "executed": 1,
+      "failures": 0,
+      "duration_seconds": 0.449,
+      "log": "build/qa/missing-staged-core-owner-repair-2026-10-20.log",
+      "retained_distinct_core_passes": 15,
+      "distinct_core_methods_now_passing": 16,
+      "checks": [
+        "Repository actor captured before directory creation",
+        "Restore and cached Remove",
+        "Actual nested-repository refusal"
+      ]
+    },
+    {
+      "scope": "Affected Debug app after owner-identity repair",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/missing-staged-app-owner-repair-2026-10-20.log"
+    },
+    {
+      "scope": "Grouped native Commit / Working Tree / choices / ownership",
+      "status": "passed",
+      "case_engine_pairs": 8,
+      "git_executables": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/missing-staged-native-owner-repair-2026-10-20.log",
+      "receiver_pids": [
+        1032,
+        1471,
+        1903,
+        2071,
+        2219,
+        2587,
+        2951,
+        3294
+      ],
+      "checks": [
+        "Initial/F5/full scope/amend-parent/amend-last/staging-toggle/incremental staging reads",
+        "Exact restored binary and staged bytes; retained stale rows until explicit F5",
+        "Restore / Remove / Ignore and per-read sticky reset",
+        "Per-item real index lock failure then continued next items",
+        "Actual native three-button/suppression sheet, refresh notice and red-close cancellation",
+        "Injected late cancellation and forced-close reply refusal, Quit/drain",
+        "HEAD and unrelated index preservation"
+      ]
+    },
+    {
+      "scope": "Frozen documentation/resource checkpoint",
+      "status": "passed",
+      "localization": {
+        "languages": 38,
+        "keys": 1303
+      },
+      "help": {
+        "documents": 44,
+        "topics": 51,
+        "files": 64,
+        "bytes": 3627742
+      },
+      "site": {
+        "documents": 371,
+        "unresolved_fragments": [],
+        "log": "build/qa/missing-staged-site-2026-10-20.log"
+      },
+      "coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_controls": 1572,
+        "pending_controls": 87
+      },
+      "diff_whitespace": "passed",
+      "coverage_is_completion_percentage": false
+    }
+  ],
+  "explicit_gaps": [
+    "Physical keyboard and VoiceOver acceptance",
+    "Installed/signed Finder entry points",
+    "External filter/provider combinations",
+    "Full hosted integration suite",
+    "Complete upstream dialog/application parity"
+  ],
+  "no_complete_port_claim": true,
+  "cleanup": {
+    "all_receiver_pids": [
+      517,
+      1032,
+      1471,
+      1903,
+      2071,
+      2219,
+      2587,
+      2951,
+      3294
+    ],
+    "independently_observed_alive": [],
+    "owned_receivers_reaped": true,
+    "unrelated_apps_terminated": false
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/MissingStagedFileRecovery.swift": "7d21f0ea7e0e3c5e6ca0e4dca65a2b6b94e891717d1a41cea3e5e5d9b4274970",
+    "Sources/TurtleGitMac/MissingStagedFileRecovery.swift": "e7af384e1f27ed735f5ed44d13c5890b5248884fb30a7d1c58df9939c63368f4",
+    "Sources/TurtleGitMac/CommitWindow.swift": "bec3cc77de6bf1d1ccc4de003070c9a12ebfd316b1a6254774f47857b242f68d",
+    "Sources/TurtleGitMac/StatusWindow.swift": "1b9d1f5961657ac64c3ed77f70d7222f889be791a04e9f8dd213cefc88e7a5fb",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "6920bd5527290f7b8e38d7dd38ffd21eeb10b20cb28a53bdb43917b724246fe4",
+    "Tests/TurtleGitCoreTests/MissingStagedFileRecoveryTests.swift": "81cc8622149e992d42ca8b4a33f72391bbf6b1d70fcc6ebce7e3645df933b0fb",
+    "docs/qa/missing-staged-recovery-native-2026-10-20.swift": "d6f31760e4b661f1d4325c75d30a3816f0d3f9ce6d9eec21ea07bd5e0ed48e05",
+    "scripts/test-missing-staged-recovery.py": "40a0560378ce3fe5dda05cf59563dec0e24424aaac4e7c75a333b678db93ed3a"
+  }
+}

@@ -118,7 +118,7 @@ final class StatusNativeWindow: NSWindow {
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Working Tree", preferences: defaults)
         window.minSize = NSSize(width: 960, height: 540); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: StatusDialog(model: model).defaultAppStorage(defaults))
-        super.init(window: window); model.comparisonWindow = window; window.delegate = self
+        super.init(window: window); model.comparisonWindow = window; model.missingStagedRecovery.ownerWindow = window; window.delegate = self
         model.updateTitle = { [weak window] location in RepositoryWindowTitles.set(window, repository: repository.root, location: location, dialog: "Working Tree", preferences: defaults) }
         window.refresh = { [weak model] in model?.reload() }
         window.cancel = { [weak model] in guard let model else {return};if !model.cancelOperation() {model.close()} }
@@ -200,6 +200,7 @@ final class StatusNativeWindow: NSWindow {
 @MainActor final class StatusWindowModel: ObservableObject {
     private(set) static var activeOperations = 0
     let fileListRefresh = FileListRefreshCoordinator()
+    let missingStagedRecovery = MissingStagedFileRecoverySession()
     private(set) var retired = false
     private var operationCancellation: OperationCancellation?
     private var refreshRequested = false
@@ -438,10 +439,10 @@ final class StatusNativeWindow: NSWindow {
     }
     @discardableResult func cancelOperation() -> Bool {
         guard let token = operationCancellation else { return cancelLFSOwnerQuery() }
-        cancelling = true; token.cancel();fileListRefresh.cancel(); ownerCancellation?.cancel(); submoduleLog.cancel(); return true
+        cancelling = true; token.cancel();missingStagedRecovery.cancel();fileListRefresh.cancel(); ownerCancellation?.cancel(); submoduleLog.cancel(); return true
     }
     func invalidate() {
-        guard !retired else { return }; retired = true;fileListRefresh.retire(); refreshRequested = false; pendingScope = nil
+        guard !retired else { return }; retired = true;missingStagedRecovery.retire();fileListRefresh.retire(); refreshRequested = false; pendingScope = nil
         operationCancellation?.cancel(); ownerCancellation?.cancel(); submoduleLog.retire()
         unifiedWindow?.close(); unifiedWindow = nil
     }
@@ -480,7 +481,8 @@ final class StatusNativeWindow: NSWindow {
         let resetPosition = resetPositionOnReload || pendingScope != nil
         if let pendingScope { self.pendingScope = nil; applyScope(pendingScope) }
         let position = fileListRefresh.begin(preferences:defaults,reset:resetPosition,selectedIDs:selection)
-        let scopePaths = filter.paths
+        let acceptedFilter = filter
+        let scopePaths = acceptedFilter.paths
         runOperation("Refreshing working tree…",reportCancellation:false,operation: { [self] token in
             defer {fileListRefresh.finish(position)}
             // Publish one complete snapshot. A failed/cancelled read retains the prior table.
@@ -497,6 +499,11 @@ final class StatusNativeWindow: NSWindow {
             let nextStatistics = try await repository.workingTreeFiles(cancellation: token)
             let nextLocks:[LFSLock]
             if nextLFS && showLFSOwners {nextLocks = try await queryLFSOwners(token)} else {nextLocks = []}
+            try await missingStagedRecovery.process(repository: repository,
+                entries: nextFiles.filter { acceptedFilter.includes($0) }.map(\.entry), token: token) { [weak self] in
+                    guard let self else { return false }
+                    return self.isLive(token) && !self.confirmingQuit && self.actionOwnerAvailable()
+                }
             guard isLive(token) else { return }
             resetPositionOnReload = false
             invocation = nextInvocation; hasStash = nextStash; hasHead = nextHasHead; updateScopeTitle()

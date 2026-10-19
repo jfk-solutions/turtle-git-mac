@@ -62,6 +62,8 @@ for baseline and update rules.
 
 ## Working files and commits
 
+- [Missing staged-file recovery](MISSING-STAGED-FILES.md)
+- [Missing staged-file source parity](MISSING-STAGED-FILES-PARITY.md)
 - [Working Tree dialog parity](STATUS-PARITY.md)
 - [Commit dialog parity](COMMIT-PARITY.md)
 - [Revision Graph source parity and remaining work](REVISION-GRAPH-PARITY.md)

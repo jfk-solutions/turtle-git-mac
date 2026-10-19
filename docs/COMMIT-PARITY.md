@@ -2705,3 +2705,10 @@ reconciliation preserves unchecked rows/modes and owns failure, restoration and
 cancellation. Source defaults remain Git for this command; staging-area commits
 retain their raw index and partial-file behavior. The dated grouped evidence
 records actual checks and remaining complete source, physical and signed gates.
+
+## Missing staged-file recovery
+
+The connected status-read recovery is tracked in
+[missing staged-file parity](MISSING-STAGED-FILES-PARITY.md), with the source
+three-choice prompt, per-read apply-to-rest and explicit refresh notice. Its
+grouped checkpoint remains separate from older dialog checks above.
