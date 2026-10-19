@@ -34,13 +34,15 @@ import TurtleGitCore
         observation = model.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async {self?.errorOwner?.update()} }
         model.close = { [weak self] in self?.dismiss(nil) }
         model.accept = { [weak self] value in self?.dismiss(value) }
-        model.query = { [weak self] remote, token in
+        let model = self.model
+        model.query = { [weak self,weak model] remote, token in
+            guard let model else { throw OperationCancellationFailure.cancelled }
             let coordinator = self?.makeSSH?(); defer { coordinator?.close() }
             if let coordinator { coordinator.present = { [weak self] prompt in
                 guard let owner = self?.window, owner.attachedSheet == nil, let child = prompt.window else { return false }
                 child.alphaValue = owner.alphaValue; child.appearance = owner.appearance; owner.beginSheet(child); return true
             } }
-            return try await repository.remoteReferenceChoices(remote: remote, cancellation: token, prepareTransport: coordinator?.preparation)
+            return try await repository.remoteReferenceChoices(remote: remote, cancellation: token, prepareTransport: coordinator?.preparation, backend: model.operationBackend)
         }
         DialogGeometry.attach(window, identifier: "SelectRemoteRefDlg"); window.center()
     }
@@ -67,6 +69,8 @@ import TurtleGitCore
     let access: RepositoryAccessLease?
     let remote: String
     let preferences:UserDefaults
+    private(set) var operationBackend:GitLibGit2Configuration
+    var captureBackend:()->GitLibGit2Configuration
     @Published private(set) var formContext=UUID()
     private(set) var retired = false
     private var token: OperationCancellation?
@@ -86,11 +90,16 @@ import TurtleGitCore
     func acknowledgeError(context:UUID) {guard context == formContext,!retired,!busy else {return};error=nil;formContext=UUID()}
     var canAccept: Bool { canEdit && !refs.isEmpty }
     init(repository: GitRepository, access: RepositoryAccessLease?, remote: String, preferences:UserDefaults = .standard) {
-        self.repository = repository; self.access = access; self.remote = remote;self.preferences=preferences
-        query = { try await repository.remoteReferenceChoices(remote: $0,cancellation: $1) }
+        self.repository = repository; self.access = access; self.remote = remote;self.preferences=preferences;operationBackend = .load(from:preferences);captureBackend={.load(from:preferences)}
+        query = { _,_ in throw OperationCancellationFailure.cancelled }
+        query = { [weak self] remote,token in
+            guard let self else { throw OperationCancellationFailure.cancelled }
+            return try await repository.remoteReferenceChoices(remote:remote,cancellation:token,backend:self.operationBackend)
+        }
     }
     func refresh() {
         guard canEdit else { return }
+        operationBackend = captureBackend()
         let token = OperationCancellation(); self.token = token; formContext=UUID(); busy = true; cancelling = false; refs = []; branch = ""; error = nil
         Self.activeOperations += 1
         let query = query, remote = remote, access = access, repository = repository

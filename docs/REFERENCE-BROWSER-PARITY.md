@@ -769,3 +769,13 @@ parity. Working-tree comparison's Shift/alternative route, all Windows menu/defa
 painting details and platform-specific shortcuts remain separate review work.
 
 Actual grouped build/check outcomes: [history action batch evidence](qa/history-actions-2026-10-18.json).
+
+
+## Optional remote-reference engine — October 19, 2026
+
+The [remote-reference workflow continuation](REMOTE-REFERENCE-ENGINE-PARITY.md)
+connects source-selected libgit2 reference/tag reads and remote-ref deletions,
+including the branch picker's source-specific HEAD choice, captured native
+preferences and post-delete refill. Ordinary Push stays on its CLI source path.
+Actual grouped evidence and remaining certificate-cache, public/signed/physical
+and complete source acceptance are recorded with that family.

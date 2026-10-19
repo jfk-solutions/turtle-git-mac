@@ -6,6 +6,9 @@ def digest(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('runtime',type=pathlib.Path);parser.add_argument('--structure-only',action='store_true');parser.add_argument('--all-architectures',action='store_true');args=parser.parse_args();runtime=args.runtime.resolve()
     manifest=json.loads((runtime/'provenance.json').read_text());pin=json.loads((ROOT/'Configuration/LibGit2Runtime.json').read_text());assert manifest['pins']==pin
+    assert re.fullmatch('[0-9a-f]{64}',manifest['native_cache_key'])
+    assert set(manifest['native_library_sha256'])==set(pin['architectures'])
+    assert all(re.fullmatch('[0-9a-f]{64}',value) for value in manifest['native_library_sha256'].values())
     binary=runtime/'bin/turtlegit-libgit2';assert digest(binary)==manifest['binary_sha256'];assert os.access(binary,os.X_OK)
     assert digest(runtime/'Sources/libgit2.tar.gz')==pin['libgit2']['sha256'];assert digest(ROOT/pin['patch'])==pin['patch_sha256']
     for relative,expected in manifest['source_sha256'].items():
@@ -34,7 +37,7 @@ def main():
                 def git(*argv):return subprocess.check_output(['/usr/bin/git',*map(str,argv)],env=env,stderr=subprocess.PIPE)
                 version=subprocess.check_output(prefix+[str(binary),'--version'],env=env,text=True);assert pin['libgit2']['version'] in version
                 bad=subprocess.run(prefix+[str(binary),'push','--all'],env=env,capture_output=True,timeout=10);assert bad.returncode!=0 and bad.stderr
-                git('init','--initial-branch=main',source);(source/'file').write_text('first\n');git('-C',source,'add','file');git('-C',source,'commit','-m','first')
+                git('init','--initial-branch=main',source);(source/'file').write_text('first\n');git('-C',source,'add','file');git('-C',source,'commit','-m','first');git('-C',source,'tag','-a','v1','-m','annotated')
                 original=global_config.read_bytes()
                 result=subprocess.run(prefix+[str(binary),'--no-literal-pathspecs','-C',str(root),'-c','transfer.fixture=true','clone','--progress','-v','--origin','source','--',str(source),str(clone)],env=env,capture_output=True,timeout=30);assert result.returncode==0,result.stderr.decode(errors='replace')
                 assert (clone/'file').read_text()=='first\n';assert git('-C',clone,'config','--local','--get','remote.source.url').strip()==str(source).encode()
@@ -42,5 +45,22 @@ def main():
                 (source/'file').write_text('second\n');git('-C',source,'commit','-am','second');head=git('-C',clone,'rev-parse','HEAD')
                 result=subprocess.run(prefix+[str(binary),'--literal-pathspecs','-C',str(clone),'fetch','--progress','--force','--','source','main:remotes/source/main'],env=env,capture_output=True,timeout=30);assert result.returncode==0,result.stderr.decode(errors='replace')
                 assert git('-C',clone,'rev-parse','refs/remotes/source/main')==git('-C',source,'rev-parse','HEAD');assert git('-C',clone,'rev-parse','HEAD')==head;assert (clone/'file').read_text()=='first\n';assert global_config.read_bytes()==original
-    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with actual clone/fetch.'))
+                for flags in [[],['--refs'],['-t'],['--heads']]:
+                    result=subprocess.run(prefix+[str(binary),'--literal-pathspecs','-C',str(root),'ls-remote',*flags,'--',str(source)],env=env,capture_output=True,timeout=30)
+                    assert result.returncode==0,result.stderr.decode(errors='replace')
+                    expected=git('ls-remote',*flags,'--',source)
+                    assert result.stdout==expected,(flags,result.stdout,expected)
+                target=root/'target.git';git('clone','--bare',source,target)
+                clone_config=(clone/'.git/config').read_bytes();clone_index=(clone/'.git/index').read_bytes()
+                result=subprocess.run(prefix+[str(binary),'--literal-pathspecs','-C',str(clone),'-c','core.precomposeunicode=false','push','--',str(target),':refs/tags/v1'],env=env,capture_output=True,timeout=30)
+                assert result.returncode==0,result.stderr.decode(errors='replace');assert b'[deleted]' in result.stderr
+                assert subprocess.run(['/usr/bin/git','-C',target,'show-ref','--quiet','--verify','refs/tags/v1'],env=env,capture_output=True).returncode==1
+                assert git('-C',source,'rev-parse','refs/tags/v1')==git('-C',clone,'rev-parse','refs/tags/v1')
+                refused=subprocess.run(prefix+[str(binary),'--literal-pathspecs','-C',str(clone),'push','--',str(target),'HEAD:refs/heads/injected'],env=env,capture_output=True,timeout=10)
+                assert refused.returncode!=0 and refused.stderr
+                assert subprocess.run(['/usr/bin/git','-C',target,'show-ref','--quiet','--verify','refs/heads/injected'],env=env,capture_output=True).returncode==1
+                assert (clone/'.git/config').read_bytes()==clone_config and (clone/'.git/index').read_bytes()==clone_index
+                assert git('-C',clone,'rev-parse','HEAD')==head and (clone/'file').read_text()=='first\n' and global_config.read_bytes()==original
+
+    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with actual clone/fetch/list/deletion.'))
 if __name__=='__main__':main()

@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "bd91d46eff6ff50f4f5b27d9f4b6cd0ca17d6ce753ad81d2ef4e2b2f9bab01b6",
+    "Contents/Info.plist": "8bf77c9e035a2be5ba1f3e6d38de42d00313f7f6270c692808d8aad0a55e2c51",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "01d9789d13afd9ece8aac7c7a97615b55f0e9e37f5211445b613f67b4d166d39",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "8431f0108093ba0cc6e3fe9f221e11988b07773f928b428a8c63b5a158ba87f4",
@@ -20,7 +20,7 @@
     "Contents/Resources/en.lproj/InfoPlist.strings": "436e0d7f17990db122633ab657a3a406a252ad892449860b7157494614595b02",
     "Contents/Resources/en.lproj/LANGUAGES.html": "3352490c128dfe47372f3c7f238b476138fd9b14641f61f9954fd1e67af517a4",
     "Contents/Resources/en.lproj/LFS.html": "010f0cc3bf9d14ae7b5ef9e20925e40f5644744cf33841df574d2f6f022c0b72",
-    "Contents/Resources/en.lproj/LIBGIT2-TRANSPORT.html": "82b4f5b9117db84b9c15009f4e32ab5ff2c418a2bb419364cad8a5afc749d025",
+    "Contents/Resources/en.lproj/LIBGIT2-TRANSPORT.html": "935d2242962f6e091d88d342e30dadae79a7173a0b764e731864e5deba378f6c",
     "Contents/Resources/en.lproj/LIBREOFFICE-COMPARISON.html": "e451291b0f37adf06688ea828a60151aa49859948cf576e20961989fd3b9e236",
     "Contents/Resources/en.lproj/LOG-FIND.html": "6f557107c2666c5117ca34d1486449389f82e74eade846a50d75a3a676d7b739",
     "Contents/Resources/en.lproj/MERGE-FILTERS.html": "fd3810301986f74435fb161b42c4abff1bb1f53347e5e2cd9eae51f4c8b2a8af",
@@ -81,7 +81,7 @@
     "docs/IMAGE-COMPARISON.md": "c7990b0f5af1efbe2a4980801560ca2357fbc353e8836e3314b7ae00b38a23ac",
     "docs/LANGUAGES.md": "ed51f9133b61e064168e2b44843d47a7378d4fc054c86507b742b4a855257611",
     "docs/LFS.md": "8359a2e1d91661d2fb3f93ba2d5e34aa1fbc53ee8f30e63f89e9bb03d90aa774",
-    "docs/LIBGIT2-TRANSPORT.md": "80eac4c22ff7481e1906a0f2370869f8c4fa3279af01aacab33a08ad40a01048",
+    "docs/LIBGIT2-TRANSPORT.md": "9963db33ab26477bda025c65f2bb057a52efea81bad5c1f0bca4918c4093e472",
     "docs/LIBREOFFICE-COMPARISON.md": "8ec86dfbadbfd8d76f9feaca94e331c8fed7fca41886cf256a380da5db0533bc",
     "docs/LOG-FIND.md": "76d55d6d65a79e6bb066468bddd465e81c3a038b4289e2db84a3ded13c5d7e9e",
     "docs/MERGE-FILTERS.md": "c32dbedd77e3f6903bb05bac9d9edc9efbdfad6942bdaad57752a27c7107f028",

@@ -90,6 +90,10 @@ private final class RemoteTagNativeWindow: NSWindow {
     let sshSettings: SSHTransportSettings
     let access: RepositoryAccessLease?
     let remote: String
+    let preferences:UserDefaults
+    private(set) var operationBackend:GitLibGit2Configuration
+    var captureBackend:()->GitLibGit2Configuration
+    private var operationSortReversed=false
     private var token: OperationCancellation?
     private(set) var closed = false
     @Published private(set) var tags: [RemoteTag] = []
@@ -104,15 +108,18 @@ private final class RemoteTagNativeWindow: NSWindow {
     var remove: ([GitReferenceName], OperationCancellation) async throws -> Void
     var close: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, remote: String, preferences: UserDefaults) {
-        self.repository = repository; self.access = access; self.remote = remote
+        self.repository = repository; self.access = access; self.remote = remote;self.preferences=preferences;operationBackend = .load(from:preferences);captureBackend={.load(from:preferences)}
         let settings = SSHTransportSettings(repository: repository); settings.enabled = settings.available; sshSettings = settings
-        query = { token in
+        query = { _ in throw OperationCancellationFailure.cancelled };remove = { _,_ in throw OperationCancellationFailure.cancelled }
+        query = { [weak self] token in
+            guard let self else { throw OperationCancellationFailure.cancelled }
             let coordinator = settings.capture()?(); defer { coordinator?.close() }
-            return try await repository.remoteTags(remote: remote, reversed: preferences.bool(forKey: "SortTagsReversed"), cancellation: token, prepareTransport: coordinator?.preparation)
+            return try await repository.remoteTags(remote: remote, reversed: self.operationSortReversed, cancellation: token, prepareTransport: coordinator?.preparation, backend:self.operationBackend)
         }
-        remove = { tags, token in
+        remove = { [weak self] tags, token in
+            guard let self else { throw OperationCancellationFailure.cancelled }
             let coordinator = settings.capture()?(); defer { coordinator?.close() }
-            try await repository.deleteRemoteTags(remote: remote, tags: tags, cancellation: token, prepareTransport: coordinator?.preparation)
+            try await repository.deleteRemoteTags(remote: remote, tags: tags, cancellation: token, prepareTransport: coordinator?.preparation, backend:self.operationBackend)
         }
     }
     private var formRevision=UUID()
@@ -132,6 +139,7 @@ private final class RemoteTagNativeWindow: NSWindow {
     func invalidate() { closed = true; token?.cancel(); phase = nil }
     private func perform(_ body: @escaping (OperationCancellation) async -> Void) {
         guard !closed, !busy else { return }
+        operationBackend = captureBackend();operationSortReversed=preferences.bool(forKey:"SortTagsReversed")
         let request = OperationCancellation(); token = request; busy = true; error = nil; Self.activeOperations += 1
         Task { [self, access] in
             defer {

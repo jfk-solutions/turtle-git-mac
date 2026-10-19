@@ -376,6 +376,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     let sshSettings: SSHTransportSettings
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
+    var captureRemoteBackend:()->GitLibGit2Configuration
     private let initial: String
     let scope: ReferenceBrowserScope
     let picking: Bool
@@ -567,7 +568,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         guard !invalidated, !confirmingQuit, !busy, !hasChild, renameReference == nil, !references.isEmpty, let confirmDeletion else { return }
         let names = Set(references)
         let hashes = Dictionary(uniqueKeysWithValues: rows.filter { names.contains($0.reference.name) }.map { ($0.reference.name, $0.reference.hash) })
-        let factory = sshSettings.capture()
+        let factory = sshSettings.capture(),backend=captureRemoteBackend()
         ProgressActionLog.nextAttempt(self); let request = OperationCancellation(); token = request; deletingReference = true; busy = true; error = nil; mutationTitle = "Delete references"; mutationFailed = false; mutationCancelled = false; renameOutput = ""; cancellingRename = false
         Self.activeMutations += 1; LocalGitCommandProgress.begin()
         Task {
@@ -582,7 +583,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
                 attempted = true
                 let coordinator = factory?(); defer { coordinator?.close() }
                 _ = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] progress in guard let self, !self.invalidated, self.token === request else { return }; self.renameOutput = progress.output }, resultText: { $0 }) { [self] emit in
-                    try await repository.deleteBrowserReferences(references, cancellation: request, prepareTransport: coordinator?.preparation, expectedHashes: hashes, onOutput: emit)
+                    try await repository.deleteBrowserReferences(references, cancellation: request, prepareTransport: coordinator?.preparation, expectedHashes: hashes, onOutput: emit,backend:backend)
                     return "Deleted \(references.count) reference(s).\n"
                 }
             } catch {
@@ -677,7 +678,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var onCompareWithOptions: ((String, Bool) -> Void)?
     init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true, pickMultiple: Bool = false, allowsRangeSelection: Bool = false) {
         self.picking = picking; self.pickMultiple = pickMultiple; self.allowsRangeSelection = allowsRangeSelection; sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available
-        self.repository = repository; self.access = access; self.initial = initial; self.preferences = preferences; self.scope = scope
+        self.repository = repository; self.access = access; self.initial = initial; self.preferences = preferences; self.scope = scope;captureRemoteBackend={.load(from:preferences)}
         nested = preferences.object(forKey: "RefBrowserIncludeNestedRefs") as? Bool ?? true
         columnLayout = .load(preferences)
         let sort = (preferences.object(forKey:"RefBrowserSortCol") as? NSNumber)?.intValue ?? 0

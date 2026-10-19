@@ -70,7 +70,7 @@ HTTPS Git server and mock credentials. Native checks exercise actual local
 Clone/Fetch model routing and the real prompt/inspector implementation offscreen.
 These scopes must not be represented as a physical public HTTPS or SSH session.
 
-Other source libgit2 command-mask consumers (including Push and local operations),
+Other source libgit2 command-mask consumers for local operations,
 all HTTP authentication providers/server configurations, physical keyboard and
 VoiceOver behavior, complete inspector/compositor parity, installed signed grants,
 signed SSH/HTTPS and App Store distribution remain separate acceptance or porting
@@ -96,3 +96,13 @@ captures, not physical window/compositor or public-server acceptance.
 ![Git certificate review, dark](site/assets/git-transport-certificate-dark.png)
 ![Git credentials, light](site/assets/git-transport-credentials-light.png)
 ![Git credentials, dark](site/assets/git-transport-credentials-dark.png)
+
+
+## Connected remote-reference continuation
+
+[Remote-reference engine parity](REMOTE-REFERENCE-ENGINE-PARITY.md) connects
+GetRemoteRefs and DeleteRemoteRefs consumers to source Fetch/Push mask bits.
+This adds remote picker/tag catalogs, Browser remote branch deletion and Sync
+tag compare/delete/refill. General Push remains the source CLI path; it is not
+a missing general Push implementation implied by the DeleteRemoteRefs mask name.
+The continuation has its own batch evidence and remaining acceptance limits.

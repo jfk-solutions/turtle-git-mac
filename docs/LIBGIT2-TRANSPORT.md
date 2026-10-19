@@ -2,6 +2,8 @@
 
 TurtleGit includes an optional libgit2 engine for Clone, Fetch and the Fetch
 operations in Synchronization, including Fetch & Rebase and fetching a tag.
+It also lists remote references and deletes remote tags/branches when their
+corresponding source command-mask bits are enabled.
 The normal Clone/Fetch defaults remain Git commands, matching TortoiseGit's
 per-command defaults. SVN, ordinary Pull/Merge, Push, Prune and Remote Update
 continue through their existing command workflows.
@@ -14,6 +16,25 @@ master switch chooses Git commands regardless of the mask. A requested engine
 that is missing reports an error; it does not silently change the selected engine.
 The backend choice is captured when an operation starts, so editing Settings
 cannot change an operation already waiting for a folder, key or credential.
+
+Remote reference/tag listing uses the Fetch bit `0x4`. Remote-reference deletion
+uses the source Push bit `0x800`; enabling it with Clone/Fetch while retaining the
+other source defaults gives `0x66f86` (decimal `421766`). Ordinary Push and Sync tag
+Push keep their command-line workflow, as in the source; the deletion bit does
+not select a general libgit2 Push implementation.
+
+Select Remote Ref, Delete Remote Tags, Browse References remote-branch deletion
+and Sync tag compare/delete use the same accepted engine choice through their
+owned work. A post-delete refill keeps that choice even if Settings changed while
+you answered the deletion question. Invalid or stale selections still fail before
+mutation. Remote deletions can complete partly; inspect the reported refs before
+retrying, because successful deletions are not rolled back when another ref or
+remote rejects its update.
+
+With libgit2 enabled for listing, the branch picker also retains advertised
+**HEAD**, matching TortoiseGit's libgit2 branch. Its default Git-command branch
+uses `--refs` and excludes HEAD. Listing does not fetch objects or change your
+local branches, tags, HEAD, index or FETCH_HEAD.
 
 Both engines use the existing Clone/Fetch forms. Branch, origin, bare/no-checkout,
 recursive submodules, shallow depth, fetch destinations, tags, pruning and the
@@ -53,3 +74,9 @@ is separate from executing it. Conventional custom `GIT_ASKPASS` programs and
 Git credential helpers are not consumed by this engine; use its native prompt or
 the default Git engine for those workflows. URL-specific HTTP headers, proxy and
 CA settings are resolved for the actual request URL, including redirects.
+
+Each separate list, delete and refill currently establishes its own helper
+connection. An accepted invalid certificate is temporary within that call; it
+is not yet shared across the dialog's later calls. The original Windows process
+keeps a certificate cache across calls. This remaining usability difference is
+recorded with the [remote-reference source comparison](REMOTE-REFERENCE-ENGINE-PARITY.md).

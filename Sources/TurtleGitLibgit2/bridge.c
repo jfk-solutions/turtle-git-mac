@@ -3,11 +3,12 @@
 #include <git2.h>
 #include <git2/sys/config.h>
 #include <git2/sys/errors.h>
+#include <git2/sys/repository.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-typedef struct {tg_callbacks *callbacks;const char *origin;const char *ssh_command;unsigned int received,indexed,completed;unsigned int recursion;const char *configuration_directory;} context;
+typedef struct {tg_callbacks *callbacks;const char *origin;const char *ssh_command;unsigned int received,indexed,completed;unsigned int recursion;const char *configuration_directory;unsigned int push_rejections;} context;
 static int stopped(context *ctx);
 static context *active_context;
 // Called only by our private static libgit2 HTTP request patch. Strings use
@@ -47,7 +48,7 @@ static int certificate(git_cert *cert,int valid,const char *authority,void *payl
  if(ctx->callbacks->certificate(authority,x509->data,x509->len,valid,ctx->callbacks->payload)==0&&!stopped(ctx))return 0;
  git_error_set_str(GIT_ERROR_SSL,"Certificate was rejected or cancelled");return GIT_ECERTIFICATE;
 }
-static int remote_ready(git_remote *remote,int direction,void *payload){(void)direction;context *ctx=payload;if(stopped(ctx))return GIT_EUSER;if(ctx->callbacks->url)ctx->callbacks->url(git_remote_url(remote),ctx->callbacks->payload);return 0;}
+static int remote_ready(git_remote *remote,int direction,void *payload){context *ctx=payload;if(stopped(ctx))return GIT_EUSER;const char *url=direction==GIT_DIRECTION_PUSH?git_remote_pushurl(remote):NULL;if(!url)url=git_remote_url(remote);if(ctx->callbacks->url)ctx->callbacks->url(url,ctx->callbacks->payload);return 0;}
 static int tips(const char *name,const git_oid *old,const git_oid *new,void *payload){context *ctx=payload;if(stopped(ctx))return GIT_EUSER;char line[1024],a[GIT_OID_MAX_HEXSIZE+1],b[GIT_OID_MAX_HEXSIZE+1];git_oid_tostr(a,sizeof(a),old);git_oid_tostr(b,sizeof(b),new);snprintf(line,sizeof(line)," %.*s..%.*s %s\n",8,a,8,b,name);emit(ctx,line);return 0;}
 static void remote_callbacks(git_remote_callbacks *options,context *ctx){git_remote_init_callbacks(options,GIT_REMOTE_CALLBACKS_VERSION);options->sideband_progress=sideband;options->transfer_progress=transfer;options->credentials=credentials;options->certificate_check=certificate;options->remote_ready=remote_ready;options->update_tips=tips;options->payload=ctx;}
 static void checkout_options(git_checkout_options *options,context *ctx){options->progress_cb=checkout_progress;options->progress_payload=ctx;options->notify_cb=checkout_notify;options->notify_payload=ctx;options->notify_flags=GIT_CHECKOUT_NOTIFY_ALL;}
@@ -101,4 +102,86 @@ int tg_fetch(const char *path,const char *remote,const char *const *refspecs,siz
  active_context=&ctx;if(all_remotes){git_strarray names={0};result=git_remote_list(&names,repository);for(size_t i=0;result==0&&i<names.count;i++){git_config *config=NULL;char key[1024];int skip=0;if(git_repository_config_snapshot(&config,repository)==0){snprintf(key,sizeof(key),"remote.%s.skipFetchAll",names.strings[i]);if(git_config_get_bool(&skip,config,key)==GIT_ENOTFOUND){snprintf(key,sizeof(key),"remote.%s.skipDefaultUpdate",names.strings[i]);(void)git_config_get_bool(&skip,config,key);}git_config_free(config);}if(!skip)result=fetch_one(repository,names.strings[i],NULL,0,tags,prune,depth,&ctx);}git_strarray_dispose(&names);}
  else result=fetch_one(repository,remote,refspecs,count,tags,prune,depth,&ctx);
  git_repository_free(repository);active_context=NULL;return result;
+}
+
+// Listing may be requested by Clone before a filesystem repository exists.
+// This repository/config object stays entirely in memory; no init or config
+// writes are performed on the selected working directory.
+static int open_listing_repository(git_repository **out,const char *path){
+ int result=git_repository_open_ext(out,path,0,NULL);if(result!=GIT_ENOTFOUND)return result;
+ git_error_clear();git_config *config=NULL;result=git_repository_new(out);if(result<0)return result;
+ result=git_config_open_default(&config);if(result==0)result=git_repository_set_config(*out,config);git_config_free(config);
+ if(result<0){git_repository_free(*out);*out=NULL;}return result;
+}
+static int lookup_remote(git_remote **out,git_repository *repository,const char *name){
+ int valid=0,result=git_remote_name_is_valid(&valid,name);if(result<0)return result;
+ if(valid){result=git_remote_lookup(out,repository,name);if(result!=GIT_ENOTFOUND)return result;}
+ return git_remote_create_anonymous(out,repository,name);
+}
+static void configure_proxy(git_proxy_options *options,context *ctx){
+ options->type=GIT_PROXY_AUTO;options->credentials=credentials;options->certificate_check=certificate;options->payload=ctx;
+}
+static int valid_advertisement(const char *name){
+ if(!strcmp(name,"HEAD"))return 1;
+ size_t length=strlen(name);int peeled=length>=3&&!strcmp(name+length-3,"^{}");int valid=0;
+ if(peeled){char *base=malloc(length-2);if(!base)return 0;memcpy(base,name,length-3);base[length-3]='\0';int result=git_reference_name_is_valid(&valid,base);free(base);return result==0&&valid;}
+ return git_reference_name_is_valid(&valid,name)==0&&valid;
+}
+int tg_list_remote(const char *path,const char *name,int refs_only,int tags_only,int heads_only,tg_callbacks *callbacks){
+ git_repository *repository=NULL;git_remote *remote=NULL;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};
+ int result=open_listing_repository(&repository,path);if(result<0)return result;
+ result=configure_repository(repository,&ctx);if(!ctx.configuration_directory)ctx.configuration_directory=path;
+ if(result==0)result=lookup_remote(&remote,repository,name);
+ active_context=&ctx;
+ git_remote_connect_options options=GIT_REMOTE_CONNECT_OPTIONS_INIT;remote_callbacks(&options.callbacks,&ctx);configure_proxy(&options.proxy_opts,&ctx);
+ if(result==0&&!stopped(&ctx))result=git_remote_connect_ext(remote,GIT_DIRECTION_FETCH,&options);
+ const git_remote_head **heads=NULL;size_t count=0;
+ if(result==0)result=git_remote_ls(&heads,&count,remote);
+ for(size_t i=0;result==0&&i<count;i++){
+  if(stopped(&ctx)){result=GIT_EUSER;break;}
+  const char *reference=heads[i]->name;size_t length=strlen(reference);int peeled=length>=3&&!strcmp(reference+length-3,"^{}");
+  if(refs_only&&(strncmp(reference,"refs/",5)||peeled))continue;
+  if((tags_only||heads_only)&&!((tags_only&&!strncmp(reference,"refs/tags/",10))||(heads_only&&!strncmp(reference,"refs/heads/",11))))continue;
+  if(!valid_advertisement(reference)){git_error_set_str(GIT_ERROR_REFERENCE,"The remote advertised an invalid reference name");result=-1;break;}
+  char oid[GIT_OID_MAX_HEXSIZE+1];git_oid_tostr(oid,sizeof(oid),&heads[i]->oid);
+  if(callbacks->result){callbacks->result(oid,strlen(oid),callbacks->payload);callbacks->result("\t",1,callbacks->payload);callbacks->result(reference,length,callbacks->payload);callbacks->result("\n",1,callbacks->payload);}
+ }
+ if(remote)git_remote_disconnect(remote);git_remote_free(remote);git_repository_free(repository);active_context=NULL;
+ return stopped(&ctx)?GIT_EUSER:result;
+}
+static int push_status(const char *reference,const char *status,void *payload){
+ context *ctx=payload;if(stopped(ctx))return GIT_EUSER;
+ if(status){ctx->push_rejections++;emit(ctx," ! [remote rejected] ");emit(ctx,reference);emit(ctx,": ");emit(ctx,status);emit(ctx,"\n");}
+ else{emit(ctx," - [deleted] ");emit(ctx,reference);emit(ctx,"\n");}
+ // A rejected ref must not prevent receipt of later successful/rejected rows.
+ return 0;
+}
+static int deletion_negotiation(const git_push_update **updates,size_t count,void *payload){
+ context *ctx=payload;if(stopped(ctx))return GIT_EUSER;
+ for(size_t i=0;i<count;i++){
+  int valid=0;const char *reference=updates[i]->dst_refname;
+  if(!reference||strncmp(reference,"refs/",5)||git_reference_name_is_valid(&valid,reference)<0||!valid||!git_oid_is_zero(&updates[i]->dst)){
+   git_error_set_str(GIT_ERROR_REFERENCE,"The optional helper only permits remote reference deletion");return -1;
+  }
+ }
+ return 0;
+}
+int tg_delete_remote(const char *path,const char *name,const char *const *refspecs,size_t count,tg_callbacks *callbacks){
+ // Validate every requested operation before opening any transport. There is
+ // deliberately no configured-refspec or normal-push fallback.
+ if(!count||count>4096){git_error_set_str(GIT_ERROR_REFERENCE,"Explicit deletion refspecs are required");return -1;}
+ for(size_t i=0;i<count;i++){
+  const char *spec=refspecs[i];int valid=0;
+  if(strncmp(spec,":refs/",6)||git_reference_name_is_valid(&valid,spec+1)<0||!valid){git_error_set_str(GIT_ERROR_REFERENCE,"Invalid remote deletion refspec");return -1;}
+ }
+ git_repository *repository=NULL;git_remote *remote=NULL;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};
+ int result=git_repository_open_ext(&repository,path,0,NULL);if(result<0)return result;
+ result=configure_repository(repository,&ctx);if(result==0)result=lookup_remote(&remote,repository,name);
+ active_context=&ctx;git_push_options options=GIT_PUSH_OPTIONS_INIT;remote_callbacks(&options.callbacks,&ctx);configure_proxy(&options.proxy_opts,&ctx);
+ options.callbacks.push_update_reference=push_status;options.callbacks.push_negotiation=deletion_negotiation;
+ git_strarray specs={(char **)refspecs,count};
+ if(result==0&&!stopped(&ctx))result=git_remote_push(remote,&specs,&options);
+ if(result==0&&ctx.push_rejections){git_error_set_str(GIT_ERROR_REFERENCE,"The remote rejected one or more reference deletions");result=-1;}
+ if(remote)git_remote_disconnect(remote);git_remote_free(remote);git_repository_free(repository);active_context=NULL;
+ return stopped(&ctx)?GIT_EUSER:result;
 }

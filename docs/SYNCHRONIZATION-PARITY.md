@@ -1784,3 +1784,13 @@ combined credentials to a pinned private helper. Accepted certificate exports
 retain their operation lock through cancellation. The linked batch record states
 actual validation and the remaining optional-backend, public and signed gaps;
 older evidence above does not prove this continuation.
+
+
+## Optional remote-reference engine — October 19, 2026
+
+The [remote-reference workflow continuation](REMOTE-REFERENCE-ENGINE-PARITY.md)
+connects source-selected libgit2 reference/tag reads and remote-ref deletions,
+including the branch picker's source-specific HEAD choice, captured native
+preferences and post-delete refill. Ordinary Push stays on its CLI source path.
+Actual grouped evidence and remaining certificate-cache, public/signed/physical
+and complete source acceptance are recorded with that family.

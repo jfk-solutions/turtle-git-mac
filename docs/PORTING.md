@@ -3687,3 +3687,14 @@ target. Captured callbacks, actual cancellation and old-document retention stay
 within their existing owners. [Source scope and QA](SYMLINK-BLAME-PARITY.md)
 separate this implementation from physical Finder/powerbox, signed grants,
 accessibility and complete Blame/App Store acceptance.
+
+
+### Remote-reference engine family — October 19, 2026
+
+Remote reference/tag catalogs and remote tag/branch deletion now honor the source
+libgit2 mask through native remote pickers, Browser deletion and Sync tag work.
+The actual engine retains per-reference rejection/partial success, native prompt
+and cancellation ownership, captured preferences and source HEAD-list differences.
+[Source comparison and batch evidence](REMOTE-REFERENCE-ENGINE-PARITY.md) keep
+cross-call certificate caching, other backend consumers and public/signed/physical
+App Store acceptance explicit rather than declaring the engine or port complete.

@@ -75,9 +75,9 @@ extension SynchronizationTagKind {
     private var pendingRecovery = false
     var onRecovery: () -> Void = {}
     private var completion: ((Result<SynchronizationProgressResult, Error>) -> Void)?
-    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, access: RepositoryAccessLease? = nil, transportFactory: SSHTransportFactory? = nil,
+    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, access: RepositoryAccessLease? = nil, transportFactory: SSHTransportFactory? = nil, backend:GitLibGit2Configuration? = nil,
          completion: @escaping (Result<SynchronizationProgressResult, Error>) -> Void) {
-        model = SynchronizationProgressModel(repository: repository, operation: operation, cancellation: cancellation, preferences: preferences, access: access, transportFactory: transportFactory)
+        model = SynchronizationProgressModel(repository: repository, operation: operation, cancellation: cancellation, preferences: preferences, access: access, transportFactory: transportFactory,backend:backend)
         self.completion = completion
         let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: operation.compactProgress ? 480 : 760, height: operation.compactProgress ? 170 : 420), styleMask: operation.compactProgress ? [.titled, .closable] : [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "\(operation.title)", preferences: preferences)
@@ -179,8 +179,8 @@ extension SynchronizationTagKind {
         guard actionLogEligible else { return }
         ProgressActionLog.record(owner: self, repository: repository.root, output: output, cancelled: cancelled, failed: !success)
     }
-    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, access: RepositoryAccessLease? = nil, transportFactory: SSHTransportFactory? = nil) {
-        backend = .load(from:preferences)
+    init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, access: RepositoryAccessLease? = nil, transportFactory: SSHTransportFactory? = nil,backend:GitLibGit2Configuration? = nil) {
+        self.backend = backend ?? .load(from:preferences)
         self.access = access; self.transportFactory = transportFactory; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
         self.repository = repository; self.operation = operation; self.cancellation = cancellation; self.preferences = preferences
         outputState = GitProgressOutputState(preferences: preferences); progressPresentation = outputState.presentation
@@ -239,14 +239,14 @@ extension SynchronizationTagKind {
                     return SynchronizationProgressResult.merge(try await repository.synchronizationFastForward(state, cancellation: cancellation,
                         onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }))
                 case .tags(let remote):
-                    return SynchronizationProgressResult.tags(try await repository.synchronizationTags(remote: remote, cancellation: cancellation, prepareTransport: coordinator?.preparation))
+                    return SynchronizationProgressResult.tags(try await repository.synchronizationTags(remote: remote, cancellation: cancellation, prepareTransport: coordinator?.preparation,backend:backend))
                 case .tag(let action, let row, let snapshot, let authorized):
                     let command = try await repository.synchronizeTag(action, row: row, snapshot: snapshot, deletionAuthorized: authorized, cancellation: cancellation,
                         onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation,backend:backend)
                     if action == .deleteRemote {
                         // The source keeps its system progress dialog open through
                         // Fill. A failed deletion never enters the refill phase.
-                        do { return .deletedRemote(try await repository.synchronizationTags(remote: snapshot.remote, cancellation: cancellation, prepareTransport: coordinator?.preparation), nil) }
+                        do { return .deletedRemote(try await repository.synchronizationTags(remote: snapshot.remote, cancellation: cancellation, prepareTransport: coordinator?.preparation,backend:backend), nil) }
                         catch { return .deletedRemote(nil, error.localizedDescription) }
                     }
                     return SynchronizationProgressResult.tag(command)
@@ -636,7 +636,7 @@ final class SynchronizationNativeWindow: NSWindow {
         model.performTagOperation = { [weak self] operation, token in
             guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return .failure(OperationCancellationFailure.cancelled) }
             return await withCheckedContinuation { continuation in
-                let child = SynchronizationProgressController(repository: repository, operation: operation, cancellation: token, preferences: preferences, access: self.model.access, transportFactory: self.model.sshSettings.capture()) { result in
+                let child = SynchronizationProgressController(repository: repository, operation: operation, cancellation: token, preferences: preferences, access: self.model.access, transportFactory: self.model.sshSettings.capture(),backend:self.model.tagBackend) { result in
                     continuation.resume(returning: result)
                 }
                 self.commandProgress = child; child.onClosed = { [weak self] in self?.commandProgress = nil }
@@ -1120,6 +1120,8 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     @Published private(set) var submoduleAction: SynchronizationSubmoduleAction = .update
     @Published private(set) var comparingTags = false
     @Published private(set) var tagSnapshot: SynchronizationTagSnapshot?
+    private(set) var tagBackend:GitLibGit2Configuration?
+    var captureTagBackend:(()->GitLibGit2Configuration)?
     @Published var hideEqualTags = false
     var performTagOperation: (SynchronizationProgressOperation, OperationCancellation) async -> Result<SynchronizationProgressResult, Error> = { _, _ in .failure(SynchronizationFailure.invalidInput) }
     var presentTagError: (String) async -> Void = { _ in }
@@ -1844,6 +1846,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     func refresh() { if tab == 6 { refreshConflictFiles() } else if comparingTags { compareTags() } else { reload(refreshRemoteSelection: true) } }
     func compareTags(shift: Bool = false) {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
+        tagBackend = captureTagBackend?() ?? .load(from:preferences)
         compareTagsSelected = true; preferences.set(6, forKey: historyKey + ".pullAction")
         if shift { return }
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
@@ -1879,7 +1882,8 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil,
               let snapshot = tagSnapshot, snapshot.rows.contains(row), row.allows(action) else { return }
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true; error = nil
-        let factory = sshSettings.capture()
+        let factory = sshSettings.capture(),backend=captureTagBackend?() ?? GitLibGit2Configuration.load(from:preferences)
+        tagBackend=backend
         sshSettings.save(preferences, key: historyKey + ".autoload")
         let attempt = beginInlineAttempt(request, command: false)
         Task {
@@ -1897,7 +1901,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
                 let result: Result<SynchronizationProgressResult, Error>
                 if action == .deleteLocal {
                     // The source deletes locally without a command progress dialog.
-                    do { result = .success(.tag(try await repository.synchronizeTag(.deleteLocal, row: row, snapshot: snapshot, deletionAuthorized: true, cancellation: request))) }
+                    do { result = .success(.tag(try await repository.synchronizeTag(.deleteLocal, row: row, snapshot: snapshot, deletionAuthorized: true, cancellation: request,backend:backend))) }
                     catch { result = .failure(error) }
                 } else {
                     result = await performTagOperation(.tag(action, row, snapshot, action == .deleteRemote), request)
@@ -1920,7 +1924,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
                 let updated: Result<SynchronizationProgressResult, Error>
                 if action == .deleteLocal {
                     // Fill after local deletion also has no system progress dialog.
-                    do { updated = .success(.tags(try await repository.synchronizationTags(remote: snapshot.remote, cancellation: refresh, prepareTransport: coordinator?.preparation))) }
+                    do { updated = .success(.tags(try await repository.synchronizationTags(remote: snapshot.remote, cancellation: refresh, prepareTransport: coordinator?.preparation,backend:backend))) }
                     catch { updated = .failure(error) }
                 } else { updated = await performTagOperation(.tags(snapshot.remote), refresh) }
                 guard !closed, token === refresh, !refresh.isCancelled else { return }

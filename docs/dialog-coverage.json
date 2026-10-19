@@ -2229,7 +2229,8 @@
       "native_sources": [],
       "missing_native_references": [],
       "parity_documents": [
-        "docs/ADVANCED-SETTINGS-PARITY.md"
+        "docs/ADVANCED-SETTINGS-PARITY.md",
+        "docs/REMOTE-REFERENCE-ENGINE-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/advanced-list-consumers-2026-10-14.json",
@@ -2238,6 +2239,7 @@
         "docs/qa/conflict-identities-2026-10-15.json",
         "docs/qa/history-boundaries-2026-10-09.json",
         "docs/qa/log-list-preferences-2026-10-09.json",
+        "docs/qa/remote-reference-engine-2026-10-19.json",
         "docs/qa/transport-presentation-2026-10-15.json"
       ]
     },
@@ -3226,6 +3228,7 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/PRIMARY-COMMAND-BANDS.md",
+        "docs/REMOTE-REFERENCE-ENGINE-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
@@ -3234,6 +3237,7 @@
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/primary-command-bands-2026-10-17.json",
         "docs/qa/push-stream-2026-10-08.json",
+        "docs/qa/remote-reference-engine-2026-10-19.json",
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/temporary-files-2026-10-08.json"
       ]
@@ -3666,7 +3670,8 @@
       "parity_documents": [
         "docs/HELP-PARITY.md",
         "docs/REFERENCE-BROWSER-PARITY.md",
-        "docs/REFERENCE-BROWSER-PRESENTATION.md"
+        "docs/REFERENCE-BROWSER-PRESENTATION.md",
+        "docs/REMOTE-REFERENCE-ENGINE-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/help-book-2026-10-15.json",
@@ -3691,6 +3696,7 @@
         "docs/qa/reference-switch-cleanup-2026-10-09.json",
         "docs/qa/reference-switch-transaction-2026-10-09.json",
         "docs/qa/reference-tracking-2026-10-09.json",
+        "docs/qa/remote-reference-engine-2026-10-19.json",
         "docs/qa/remote-tags-2026-10-09.json",
         "docs/qa/rename-reference-management-2026-10-14.json",
         "docs/qa/unified-byte-buffer-2026-10-17.json"
@@ -3739,11 +3745,13 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/REMOTE-REFERENCE-ENGINE-PARITY.md",
         "docs/REMOTE-TAGS-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/reference-source-family-2026-10-17.json",
         "docs/qa/remote-management-owned-2026-10-16.json",
+        "docs/qa/remote-reference-engine-2026-10-19.json",
         "docs/qa/remote-tags-2026-10-09.json"
       ]
     },
@@ -4256,11 +4264,13 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
-        "docs/REMOTE-DIALOGS-PARITY.md"
+        "docs/REMOTE-DIALOGS-PARITY.md",
+        "docs/REMOTE-REFERENCE-ENGINE-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/remote-dialog-source-family-2026-10-17.json",
-        "docs/qa/remote-dialogs-2026-10-13.json"
+        "docs/qa/remote-dialogs-2026-10-13.json",
+        "docs/qa/remote-reference-engine-2026-10-19.json"
       ]
     },
     {

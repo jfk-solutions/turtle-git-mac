@@ -290,15 +290,17 @@ extension GitRepository {
         }
         return ReferenceBrowserDeletionConfirmation(references: references, kind: kind, name: GitReferenceName.removingPrefix(kind.prefix, from: references[0].rawValue)!, unmerged: unmerged)
     }
-    public func deleteBrowserReference(_ reference: GitReferenceName, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws {
-        try await deleteBrowserReferences([reference], cancellation: cancellation, prepareTransport: prepareTransport)
+    public func deleteBrowserReference(_ reference: GitReferenceName, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil, backend: GitLibGit2Configuration? = nil) async throws {
+        try await deleteBrowserReferences([reference], cancellation: cancellation, prepareTransport: prepareTransport, backend: backend)
     }
-    public func deleteBrowserReferences(_ references: [GitReferenceName], cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil, expectedHashes: [GitReferenceName: String] = [:], onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) async throws {
+    public func deleteBrowserReferences(_ references: [GitReferenceName], cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil, expectedHashes: [GitReferenceName: String] = [:], onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, backend: GitLibGit2Configuration? = nil) async throws {
+        let backend = backend ?? libgit2Configuration ?? .load()
         // POSIX argv retains canonical UTF-8 even without caller cancellation.
         let token = cancellation ?? OperationCancellation()
         let kind = try validateBrowserDeletion(references, cancellation: token)
         for reference in references { try validateBrowserReference(reference, expectedHash: expectedHashes[reference], cancellation: token) }
         if kind == .remoteBranch {
+            let executor = try backend.executor(for: .push)
             let remotes = try remoteNames(cancellation: token)
             var grouped: [GitReferenceName: [String]] = [:]
             for reference in references {
@@ -311,7 +313,7 @@ extension GitRepository {
             for remote in grouped.keys.sorted(by: { $0.rawValue.utf16.lexicographicallyPrecedes($1.rawValue.utf16) }) {
                 let session = try await prepareSSHTransport([remote.rawValue], cancellation: token, preparation: prepareTransport)
                 defer { withExtendedLifetime(session) {} }
-                _ = try run(["-c", "core.precomposeunicode=false", "push", "--", remote.rawValue] + grouped[remote]!, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput)
+                _ = try run(["-c", "core.precomposeunicode=false", "push", "--", remote.rawValue] + grouped[remote]!, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput, executorOverride: executor)
             }
         } else {
             // Source stops at the first failure; earlier deletions remain completed.

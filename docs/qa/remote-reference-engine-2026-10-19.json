@@ -1,0 +1,152 @@
+{
+  "date": "2026-10-19",
+  "baseline": "1c8ce6f130bc46047de0cec4c64d47eb09e77c83",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Optional libgit2 remote lists/tag and branch deletion through native Remote Ref/Tag/Browser/Sync with captured prefs and actual auth/certificate/cancellation",
+  "status": "Scoped grouped checkpoint passed after recorded fixture and embedding repairs; full port remains incomplete",
+  "attempts": [
+    {
+      "check": "universal runtime build",
+      "exit": 0,
+      "log": "build/qa/remote-reference-runtime-build-2026-10-19.log"
+    },
+    {
+      "check": "both-architecture runtime behavior",
+      "exit": 1,
+      "log": "build/qa/remote-reference-runtime-validation-2026-10-19.log",
+      "failure": "Missing ref show-ref --verify returned128, not fixture expected1."
+    },
+    {
+      "check": "runtime provenance republish",
+      "exit": 0,
+      "log": "build/qa/remote-reference-runtime-build-repair1-2026-10-19.log",
+      "note": "Both exact C slices reused; no production change."
+    },
+    {
+      "check": "both-architecture runtime behavior corrected fixture",
+      "exit": 0,
+      "log": "build/qa/remote-reference-runtime-validation-repair1-2026-10-19.log"
+    },
+    {
+      "check": "focused Core group",
+      "exit": 1,
+      "tests": 37,
+      "passed": 36,
+      "log": "build/qa/remote-reference-core-2026-10-19.log",
+      "failure": "Fixture wrongly required local remote-tracking ref retention. Pinned git_remote_push updates mapped local tracking refs after successful deletion."
+    },
+    {
+      "check": "affected Core method only",
+      "exit": 0,
+      "tests": 1,
+      "log": "build/qa/remote-reference-core-contract-repair-2026-10-19.log",
+      "note": "Assert tracking deletion and unchanged local branches/tags/HEAD/index/working bytes; remaining grouped/Sync assertions retained."
+    },
+    {
+      "check": "Debug application",
+      "exit": 65,
+      "log": "build/qa/remote-reference-debug-2026-10-19.log",
+      "failure": "Validator fixture changed during runtime embedding; exact source provenance rejected stale prepared validator."
+    },
+    {
+      "check": "Debug provenance repair",
+      "exit": 0,
+      "log": "build/qa/remote-reference-debug-repair-2026-10-19.log"
+    },
+    {
+      "check": "grouped native actual packaged helper",
+      "exit": 0,
+      "log": "build/qa/remote-reference-native-2026-10-19.log",
+      "receiver_pid": 41370,
+      "scope": [
+        "default CLI and private mask lists",
+        "source libgit2 HEAD",
+        "tag deletion and refill with settings changed during confirmation",
+        "Browser remote-branch deletion",
+        "Sync compare/delete/refill with accepted backend",
+        "stale callbacks",
+        "actual helper process-group cancel and child reaping",
+        "Quit ownership and late query retirement"
+      ]
+    },
+    {
+      "check": "site renderer system Python",
+      "exit": 1,
+      "log": "build/qa/remote-reference-site-2026-10-19.log",
+      "failure": "System Python lacks markdown_it; use existing site-venv renderer."
+    },
+    {
+      "check": "site existing renderer environment",
+      "exit": 0,
+      "log": "build/qa/remote-reference-site-repair-2026-10-19.log",
+      "documents": 348,
+      "unresolved_fragments": []
+    },
+    {
+      "check": "generated localization, Help and dialog coverage",
+      "exit": 0,
+      "scope": "38 locales/1298 keys; 42 Help documents/50 topics/62 files; partial dialog/control ledger regenerated; counts do not certify completion"
+    }
+  ],
+  "source_gates": {
+    "listing": "Fetch index2 bit0x4",
+    "deletion": "Push index11 bit0x800",
+    "ordinary_push": "CLI source workflow",
+    "head": "Selected libgit2 branch choices retain advertised HEAD; CLI --refs excludes it"
+  },
+  "open": [
+    "Dialog-lifetime cross-call certificate exception cache",
+    "Other local libgit2 command-mask consumers",
+    "External filters/LFS drivers/hooks in optional engine",
+    "Conventional custom askpass and credential helpers in optional engine",
+    "All authentication/server/proxy/redirect configurations",
+    "Physical UI/VoiceOver and signed SSH/HTTPS/grants",
+    "Current full hosted CI and complete App Store distribution/upstream parity"
+  ],
+  "runtime": {
+    "binary_sha256": "f0990b4bfdfa2350a2d6ecb904060f1515fd9b1a0272d986e5eb6b058d677879",
+    "native_cache_key": "40e180ad6920778ccba0a99d293e1a02ca6af5b7333b2ceb2ff8fb6db53d4b20",
+    "native_library_sha256": {
+      "arm64": "a13fed3c34f6d11d530131a4d8ec1effe9cb90140ee2117dd8add9552fbc554f",
+      "x86_64": "df7c50cce08699df6f9906afa7f6ee67961bbeded3d2dabb43c4c7ada921871a"
+    },
+    "sdk_version": "27.0",
+    "sdk_build_version": "26A425",
+    "cache_key": "bf118f1fb2789431e8de107961f16183dd14448cb66127c8f08c2c27d1121150"
+  },
+  "core_distinct_methods_passed": 37,
+  "native_cleanup": {
+    "receiver_reaped": true,
+    "offscreen": true,
+    "private_repositories_preferences_action_log": true,
+    "owned_windows_sheets_and_workers_drained": true,
+    "child_pids_reaped_by_fixture": true
+  },
+  "packaged_runtime": {
+    "binary_sha256": "29a49a34a408b40346eae7b59e562bc0fcc616cdfe3ca0bfc1bf51af3283318f",
+    "unsigned_binary_sha256": "f0990b4bfdfa2350a2d6ecb904060f1515fd9b1a0272d986e5eb6b058d677879",
+    "signed": true,
+    "native_cache_key": "40e180ad6920778ccba0a99d293e1a02ca6af5b7333b2ceb2ff8fb6db53d4b20"
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitLibGit2.swift": "a551f57614077fb4f439b0e3b67c4f77271391722e7ce51f7c9f830820ba01d3",
+    "Sources/TurtleGitCore/RemoteReferenceChoices.swift": "86a3e4f28c420cda94cdfa3773602948aaf6026efb82369f2dbad922c64694c4",
+    "Sources/TurtleGitCore/RemoteTags.swift": "0f241f3552cc2fea036b1853b7e0ea9a408681885a4d17d9361d4fca37dfe6e1",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "adeb3b01e3173c79df3cbd19e0b9ee8991b7036f6124db4af83c016c812379c0",
+    "Sources/TurtleGitCore/Synchronization.swift": "e7e3351fd4f9676c97f6e8fa1f876dd79477ba273fd891f824d57f6784d59a0b",
+    "Sources/TurtleGitLibgit2/main.swift": "fc4cae1ef4504101200b161c64abd2e5687573c356bea28598a8a56e1192f0f8",
+    "Sources/TurtleGitLibgit2/bridge.c": "f75592de0e73bf95abfcd7d0852d3bf1e029732f5fd6d44b2dc410d9d86ceba8",
+    "Sources/TurtleGitLibgit2/bridge.h": "a26ee9bd859c2c3d047c5818ef9aabdf28883da2e17f4df7aa762c43f9574945",
+    "Sources/TurtleGitMac/RemoteReferenceWindow.swift": "8846cf6f62c1438144090eb4345fe2a24290858f0d97f1dd9d8b8b0c48177bac",
+    "Sources/TurtleGitMac/RemoteTagWindow.swift": "97fa3c12056b44131a20300e00d67d28f0c7888d47931fb9158bbfe2ef1ce9ab",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "821d703a9c70865762ff07884476c641d65db1596b5b5c724aee864fd6f10d65",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "aecd4ff1d17e021c4798e0afbdda8b63f442a0bdb1fd3bef42db0d99af35a7cd",
+    "Sources/TurtleGitMac/AdvancedSettings.swift": "99d352c86ed9802a7b4d3e31174137d76137eb8f8f1395cba0926ac24dbc2ab6",
+    "Tests/TurtleGitCoreTests/GitLibGit2Tests.swift": "0aa6a45c383ca2dc92ce9a52c317e3929e9550aaec02f6e5f50a1c00ec97959f",
+    "docs/qa/remote-reference-backend-native-2026-10-19.swift": "97ace2cc27a8b529e65ff0983ecaf58873ba71c13e93016981bb5602f1c09bc0",
+    "scripts/test-remote-reference-backend-native.py": "10c18d224d7ab360972db5a39b33094187bdadca8eff8617db05ffd88dac834f",
+    "scripts/build-libgit2-runtime.py": "d7c3a9fecbf56938006e2a155db4d2667181b730dc39d46d1119917fa0e59cb7",
+    "scripts/validate-libgit2-runtime.py": "bd49e5014898a024d2ee312a73473d66f849f3898676dfda777838cb44e8cf10"
+  },
+  "retained_evidence": "Existing native certificate/credential inspector/export evidence is retained separately; this receiver does not recertify physical authentication UI."
+}

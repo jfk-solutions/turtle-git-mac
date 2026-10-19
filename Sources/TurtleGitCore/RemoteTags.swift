@@ -17,12 +17,14 @@ public enum RemoteTagConfirmation {
     }
 }
 extension GitRepository {
-    public func remoteTags(remote: String, includingPeeled: Bool = false, reversed: Bool = false, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> [RemoteTag] {
+    public func remoteTags(remote: String, includingPeeled: Bool = false, reversed: Bool = false, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil, backend: GitLibGit2Configuration? = nil) async throws -> [RemoteTag] {
+        let backend = backend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard !remote.isEmpty, !remote.utf8.contains(0) else { throw RemoteTagFailure.selection }
+        let executor = try backend.executor(for: .fetch)
         let session = try await prepareSSHTransport([remote], cancellation: token, preparation: prepareTransport)
         defer { withExtendedLifetime(session) {} }
-        let output = try run(["ls-remote", "-t", "--", remote], environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token).stdout
+        let output = try run(["ls-remote", "-t", "--", remote], environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, executorOverride: executor).stdout
         var result: [RemoteTag] = [], names = Set<GitReferenceName>()
         for line in output.split(separator: 10) {
             try token.check()
@@ -38,15 +40,17 @@ extension GitRepository {
             return reversed ? !less : less
         }
     }
-    public func deleteRemoteTags(remote: String, tags: [GitReferenceName], cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws {
+    public func deleteRemoteTags(remote: String, tags: [GitReferenceName], cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil, backend: GitLibGit2Configuration? = nil) async throws {
+        let backend = backend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard !remote.isEmpty, !remote.utf8.contains(0), !tags.isEmpty, Set(tags).count == tags.count else { throw RemoteTagFailure.selection }
         for tag in tags {
             guard !tag.rawValue.isEmpty, !tag.rawValue.utf8.contains(0) else { throw RemoteTagFailure.selection }
             _ = try run(["check-ref-format", "refs/tags/" + tag.rawValue], cancellation: token)
         }
+        let executor = try backend.executor(for: .push)
         let session = try await prepareSSHTransport([remote], cancellation: token, preparation: prepareTransport)
         defer { withExtendedLifetime(session) {} }
-        _ = try run(["-c", "core.precomposeunicode=false", "push", "--", remote] + tags.map { ":refs/tags/" + $0.rawValue }, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token)
+        _ = try run(["-c", "core.precomposeunicode=false", "push", "--", remote] + tags.map { ":refs/tags/" + $0.rawValue }, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, executorOverride: executor)
     }
 }

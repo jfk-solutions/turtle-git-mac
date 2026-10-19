@@ -227,3 +227,13 @@ F5 remain independent. The Advanced tooltip identifies the consumer. See
 Fetch history and Bisect revision controls. Its source plain/combo modes, Cocoa
 movement/extension/deletion, native editing and remaining standalone/mouse/locale
 scope are explicit. This supersedes the no-consumer status for those controls.
+
+
+## Optional remote-reference engine — October 19, 2026
+
+The [remote-reference workflow continuation](REMOTE-REFERENCE-ENGINE-PARITY.md)
+connects source-selected libgit2 reference/tag reads and remote-ref deletions,
+including the branch picker's source-specific HEAD choice, captured native
+preferences and post-delete refill. Ordinary Push stays on its CLI source path.
+Actual grouped evidence and remaining certificate-cache, public/signed/physical
+and complete source acceptance are recorded with that family.

@@ -33,6 +33,7 @@ func configuration(_ value:String)throws->String{
 struct Arguments{
     var command="",directory=FileManager.default.currentDirectoryPath,configs:[String]=[]
     var source="",destination="",branch:String?,origin:String?,ssh:String?,bare=false,noCheckout=false,recursive=false
+    var listRefs=false,listTags=false,listHeads=false
     var remote="origin",refspecs:[String]=[],all=false,tags=0,prune=0,depth=0,force=false,verbose=false
     init(_ arguments:[String])throws{
         if let old=environment["GIT_CONFIG_PARAMETERS"]{for value in try quotedWords(old){configs.append(try configuration(value))}}
@@ -48,25 +49,28 @@ struct Arguments{
             if arg == "--literal-pathspecs" || arg == "--no-literal-pathspecs"{continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard arg == "clone" || arg == "fetch" else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["clone","fetch","ls-remote","push"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
-        guard !command.isEmpty else{try refuse("Expected clone or fetch")}
+        guard !command.isEmpty else{try refuse("Expected clone, fetch, ls-remote or deletion push")}
         var operands:[String]=[],options=true
         while index<arguments.count{
             let arg=try next()
             if options && arg == "--"{options=false;continue}
             if options && arg.hasPrefix("-"){
                 switch arg{
-                case "--progress":break
-                case "-v","--verbose":verbose=true
+                case "--progress" where command != "ls-remote":break
+                case "-v" where command != "ls-remote", "--verbose" where command != "ls-remote":verbose=true
                 case "--bare" where command == "clone":bare=true
                 case "--no-checkout" where command == "clone":noCheckout=true
                 case "--recursive" where command == "clone", "--recurse-submodules" where command == "clone":recursive=true
                 case "--branch" where command == "clone", "-b" where command == "clone":branch=try next()
                 case "--origin" where command == "clone", "-o" where command == "clone":origin=try next()
-                case "--depth":depth=try depthValue(next())
+                case "--depth" where command == "clone" || command == "fetch":depth=try depthValue(next())
                 case "--config" where command == "clone":
                     let value=try next();guard value.hasPrefix("core.sshCommand=") else{try refuse("Unsupported persistent clone configuration")};ssh=String(value.dropFirst("core.sshCommand=".count))
+                case "--refs" where command == "ls-remote":listRefs=true
+                case "-t" where command == "ls-remote", "--tags" where command == "ls-remote":listTags=true
+                case "-h" where command == "ls-remote", "--heads" where command == "ls-remote":listHeads=true
                 case "--all" where command == "fetch":all=true
                 case "--force" where command == "fetch", "-f" where command == "fetch":force=true
                 case "--tags" where command == "fetch":tags=3
@@ -74,7 +78,7 @@ struct Arguments{
                 case "--prune" where command == "fetch":prune=1
                 case "--no-prune" where command == "fetch":prune=2
                 default:
-                    if arg.hasPrefix("--depth="){depth=try depthValue(String(arg.dropFirst(8)))}else{try refuse("Unsupported libgit2 option: "+arg)}
+                    if (command == "clone" || command == "fetch") && arg.hasPrefix("--depth="){depth=try depthValue(String(arg.dropFirst(8)))}else{try refuse("Unsupported libgit2 option: "+arg)}
                 }
             }else{operands.append(arg)}
         }
@@ -83,6 +87,12 @@ struct Arguments{
             guard operands.count==2,!(bare && noCheckout),!(bare && recursive),origin?.isEmpty != true,branch?.isEmpty != true else{try refuse("Invalid clone option combination")}
             source=operands[0];destination=operands[1]
             guard !source.isEmpty,!destination.isEmpty else{try refuse("Missing clone source or destination")}
+        }else if command == "ls-remote"{
+            guard operands.count==1,!operands[0].isEmpty else{try refuse("Remote listing requires exactly one remote")};remote=operands[0]
+        }else if command == "push"{
+            guard operands.count>=2,operands.count<=4097,!operands[0].isEmpty else{try refuse("Remote deletion requires a remote and explicit deletion refspecs")}
+            remote=operands[0];refspecs=Array(operands.dropFirst())
+            guard refspecs.allSatisfy({$0.hasPrefix(":refs/") && !$0.dropFirst().contains(":") && !$0.contains("*") && !$0.contains("\0")}) else{try refuse("This helper accepts deletion-only push refspecs")}
         }else{
             guard !all || operands.isEmpty else{try refuse("--all cannot include a remote or refspec")}
             if let first=operands.first{remote=first;refspecs=Array(operands.dropFirst()).map{value in
@@ -174,6 +184,7 @@ func callbacks(_ owner:CallbackContext)->tg_callbacks{
     var value=tg_callbacks();value.payload=Unmanaged.passUnretained(owner).toOpaque()
     value.cancelled={_ in cancelled() ? 1:0}
     value.output={bytes,count,_ in if let bytes,count>0{FileHandle.standardError.write(Data(bytes:bytes,count:count))}}
+    value.result={bytes,count,_ in if let bytes,count>0{FileHandle.standardOutput.write(Data(bytes:bytes,count:count))}}
     value.credentials={url,username,allowed,user,password,raw in
         do{let pair=try context(raw).credential(url:url.map{String(cString:$0)} ?? "",user:username.map{String(cString:$0)},allowed:allowed);user?.pointee=strdup(pair.0);password?.pointee=strdup(pair.1);return 0}catch{output("Authentication: "+error.localizedDescription+"\n");return -1}
     }
@@ -215,6 +226,8 @@ func run()throws->Int32{
         if args.command == "clone"{
             return withOptionalString(args.branch){branch in withOptionalString(args.origin){origin in withOptionalString(args.ssh){ssh in tg_clone(args.source,args.destination,args.bare ? 1:0,args.noCheckout ? 1:0,args.recursive ? 1:0,branch,origin,Int32(args.depth),ssh,&options)}}}
         }
+        if args.command == "ls-remote"{return tg_list_remote(args.directory,args.remote,args.listRefs ? 1:0,args.listTags ? 1:0,args.listHeads ? 1:0,&options)}
+        if args.command == "push"{return withStrings(args.refspecs){refs,count in tg_delete_remote(args.directory,args.remote,refs,count,&options)}}
         return withStrings(args.refspecs){refs,count in tg_fetch(args.directory,args.remote,refs,count,args.all ? 1:0,Int32(args.tags),Int32(args.prune),Int32(args.depth),&options)}
     }
     if result<0{output("libgit2: "+String(cString:tg_git_error())+"\n");return cancelled() ? 130:1}

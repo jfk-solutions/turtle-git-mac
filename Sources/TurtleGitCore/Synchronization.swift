@@ -683,9 +683,10 @@ public struct SynchronizationTagSnapshot: Sendable {
 }
 extension GitRepository {
     public func synchronizationTags(remote: String, cancellation: OperationCancellation? = nil,
-                                    prepareTransport: SSHTransportPreparation? = nil) async throws -> SynchronizationTagSnapshot {
+                                    prepareTransport: SSHTransportPreparation? = nil, backend: GitLibGit2Configuration? = nil) async throws -> SynchronizationTagSnapshot {
+        let backend = backend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
-        let remoteRows = try await remoteTags(remote: remote, includingPeeled: true, cancellation: token, prepareTransport: prepareTransport)
+        let remoteRows = try await remoteTags(remote: remote, includingPeeled: true, cancellation: token, prepareTransport: prepareTransport, backend: backend)
         let advertised = Dictionary(uniqueKeysWithValues: remoteRows.map { ($0.name, $0.hash) })
         let bytes = try run(["for-each-ref", "--format=%(refname)%00%(objectname)%00%(objecttype)%00%(object)%00", "refs/tags/"], cancellation: token).stdout
         var local = [GitReferenceName: String](), objects = [GitReferenceName: String]()
@@ -733,7 +734,7 @@ extension GitRepository {
                                prepareTransport: SSHTransportPreparation? = nil, backend: GitLibGit2Configuration? = nil) async throws -> GitResult {
         let backend = backend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
-        let executor = action == .fetch ? try backend.executor(for: .fetch) : nil
+        let executor = action == .fetch ? try backend.executor(for: .fetch) : action == .deleteRemote ? try backend.executor(for: .push) : nil
         guard snapshot.repository === self, snapshot.root == root else { throw SynchronizationTransportFailure.repositoryChanged }
         guard snapshot.rows.contains(row), row.allows(action) else { throw SynchronizationFailure.invalidInput }
         let reference = "refs/tags/" + row.tag.rawValue

@@ -148,6 +148,86 @@ final class GitLibGit2Tests: XCTestCase {
         XCTAssertTrue(status.stdout.isEmpty); XCTAssertEqual(after, before)
     }
 
+    func testActualRemoteListingsPreservePeeledTagsNamespacesAndBackendSpecificHead() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let backend = GitLibGit2Configuration(mask: 0x804, helperURL: f.helper)
+        XCTAssertEqual(GitLibGit2Operation.push.mask, 0x800)
+        XCTAssertFalse(GitLibGit2Configuration().requests(.push))
+        _ = try await f.source.run(["tag", "-a", "annotated-雪", "-m", "annotated target"])
+        _ = try await f.source.run(["push", f.remote.root.path, "refs/tags/annotated-雪"])
+        _ = try await f.remote.run(["update-ref", "refs/changes/private", "HEAD"])
+        _ = try await f.source.run(["remote", "add", "upstream", f.remote.root.path])
+        let head = try await f.source.run(["rev-parse", "HEAD"]).stdout
+        let index = try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), config = try Data(contentsOf: f.source.root.appendingPathComponent(".git/config"))
+        let remoteRefs = try await f.remote.run(["show-ref"]).stdout
+        for remote in ["upstream", f.remote.root.path] {
+            let rows = try await f.source.remoteTags(remote: remote, includingPeeled: true, backend: backend)
+            XCTAssertTrue(rows.contains { $0.name == GitReferenceName("annotated-雪") })
+            let peeled = try XCTUnwrap(rows.first { $0.name == GitReferenceName("annotated-雪^{}") })
+            XCTAssertEqual(Data((peeled.hash + "\n").utf8), head)
+            let simple = try await f.source.remoteTags(remote: remote, backend: backend)
+            XCTAssertFalse(simple.contains { $0.name.rawValue.hasSuffix("^{}") })
+            let choices = try await f.source.remoteReferenceChoices(remote: remote, backend: backend)
+            XCTAssertTrue(choices.contains("HEAD")); XCTAssertTrue(choices.contains("main")); XCTAssertTrue(choices.contains("topic"))
+            XCTAssertTrue(choices.contains("refs/changes/private")); XCTAssertFalse(choices.contains { $0.contains("annotated-雪") })
+            let cli = try await f.source.remoteReferenceChoices(remote: remote, backend: .init(enabled: false))
+            XCTAssertEqual(Set(choices.filter { $0 != "HEAD" }), Set(cli)); XCTAssertFalse(cli.contains("HEAD"))
+        }
+        let plain = try await f.runner.remoteReferenceChoices(remote: f.remote.root.path, backend: backend)
+        XCTAssertTrue(plain.contains("HEAD")); XCTAssertFalse(FileManager.default.fileExists(atPath: f.runner.root.appendingPathComponent(".git").path))
+        let afterHead = try await f.source.run(["rev-parse", "HEAD"]).stdout, afterRefs = try await f.remote.run(["show-ref"]).stdout
+        XCTAssertEqual(afterHead, head); XCTAssertEqual(afterRefs, remoteRefs)
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/config")), config)
+        do { _ = try RemoteReferenceChoices.parse(Data((String(decoding: head, as: UTF8.self).trimmingCharacters(in: .newlines) + "\tHEAD\n").utf8)); XCTFail("CLI parser accepted pseudoref") }
+        catch RemoteReferenceChoicesFailure.output {}
+    }
+
+    func testActualRemoteDeletionGroupsStaleGuardsAndPartialServerFailure() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let backend = GitLibGit2Configuration(mask: 0x804, helperURL: f.helper)
+        _ = try await f.source.run(["remote", "add", "a", f.remote.root.path])
+        _ = try await f.source.run(["fetch", "a"])
+        let reference = GitReferenceName("refs/remotes/a/topic")
+        let expected = try await f.source.run(["rev-parse", reference.rawValue]).text.trimmingCharacters(in: .newlines)
+        let head = try await f.source.run(["rev-parse", "HEAD"]).stdout
+        let index = try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), working = try Data(contentsOf: f.source.root.appendingPathComponent("file"))
+        do { try await f.source.deleteBrowserReferences([reference], expectedHashes: [reference: String(repeating: "0", count: 40)], backend: backend); XCTFail("Stale ref was deleted") } catch ReferenceBrowserRenameFailure.changed {}
+        try await f.source.deleteBrowserReferences([reference], expectedHashes: [reference: expected], backend: backend)
+        let removed = try await f.remote.run(["show-ref", "--verify", "--quiet", "refs/heads/topic"], successfulExitCodes: 0...1)
+        XCTAssertEqual(removed.exitCode, 1)
+        // Source calls git_remote_push: its successful update-tips phase removes
+        // the matching tracking ref, while local branches/tags remain intact.
+        let tracking = try await f.source.run(["show-ref", "--verify", "--quiet", reference.rawValue], successfulExitCodes: 0...1)
+        XCTAssertEqual(tracking.exitCode, 1)
+        let localTopic = try await f.source.run(["rev-parse", "refs/heads/topic"]).text.trimmingCharacters(in: .newlines)
+        let localTag = try await f.source.run(["show-ref", "--verify", "--quiet", "refs/tags/v1"], successfulExitCodes: 0...1)
+        XCTAssertEqual(localTopic, expected); XCTAssertEqual(localTag.exitCode, 0)
+        _ = try await f.remote.run(["update-ref", "refs/heads/accepted", "HEAD"])
+        _ = try await f.source.run(["fetch", "a"])
+        _ = try await f.source.run(["remote", "add", "b", f.root.appendingPathComponent("missing.git").path])
+        _ = try await f.source.run(["update-ref", "refs/remotes/b/rejected", "HEAD"])
+        do { try await f.source.deleteBrowserReferences([.init("refs/remotes/a/accepted"), .init("refs/remotes/b/rejected")], backend: backend); XCTFail("Failed later remote reported success") } catch is GitFailure {}
+        let accepted = try await f.remote.run(["show-ref", "--verify", "--quiet", "refs/heads/accepted"], successfulExitCodes: 0...1)
+        XCTAssertEqual(accepted.exitCode, 1, "Earlier source-ordered remote deletion was rolled back")
+        _ = try await f.source.run(["tag", "local-only"])
+        _ = try await f.remote.run(["update-ref", "refs/tags/remote-only", "HEAD"])
+        let tags = try await f.source.synchronizationTags(remote: "a", backend: backend)
+        let remoteOnly = try XCTUnwrap(tags.rows.first { $0.name == GitReferenceName("remote-only") })
+        _ = try await f.source.synchronizeTag(.deleteRemote, row: remoteOnly, snapshot: tags, deletionAuthorized: true, backend: backend)
+        let deletedTag = try await f.remote.run(["show-ref", "--verify", "--quiet", "refs/tags/remote-only"], successfulExitCodes: 0...1)
+        XCTAssertEqual(deletedTag.exitCode, 1)
+        let localOnly = try XCTUnwrap(tags.rows.first { $0.name == GitReferenceName("local-only") })
+        // The source's ordinary tag Push remains CLI even with push enabled and
+        // an unavailable helper; only remote deletion selects that backend.
+        _ = try await f.source.synchronizeTag(.push, row: localOnly, snapshot: tags, backend: .init(mask: 0x800, helperURL: f.root.appendingPathComponent("missing-helper")))
+        let pushedTag = try await f.remote.run(["show-ref", "--verify", "--quiet", "refs/tags/local-only"], successfulExitCodes: 0...1)
+        XCTAssertEqual(pushedTag.exitCode, 0)
+        let finalHead = try await f.source.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(finalHead, head); XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent("file")), working)
+    }
+
     @MainActor private func wait(_ predicate: () -> Bool) async throws {
         for _ in 0..<1500 { if predicate() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
         XCTFail("Owned libgit2 fixture did not reach its boundary"); throw GitLibGit2Failure.runtimeMissing
@@ -187,6 +267,37 @@ final class GitLibGit2Tests: XCTestCase {
         """
         try executable(file, script); return file
     }
+    @MainActor func testActualHTTPSRemoteListingsAndDeleteRefStatusesUseReviewedAuthenticatedTransport() async throws {
+        if ProcessInfo.processInfo.environment["TURTLEGIT_DISABLE_ASKPASS"] == "1" { throw XCTSkip("Caller explicitly disabled interactive authentication.") }
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let backend = GitLibGit2Configuration(mask: 0x804, helperURL: f.helper)
+        for tag in ["accepted", "rejected"] { _ = try await f.remote.run(["update-ref", "refs/tags/" + tag, "HEAD"]) }
+        _ = try await f.remote.run(["config", "http.receivepack", "true"])
+        try executable(f.remote.root.appendingPathComponent("hooks/update"), "#!/bin/sh\nif [ \"$1\" = refs/tags/rejected ]; then echo 'fixture refusal' >&2; exit 1; fi\nexit 0\n")
+        let before = try await f.source.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: f.source.root.appendingPathComponent(".git/index"))
+        try await withHTTPS(f) { root, url in
+            let askpass = try self.mockAskpass(root), repo = GitRepository(root: f.source.root, executable: f.source.executable, askpass: askpass)
+            let choices = try await repo.remoteReferenceChoices(remote: url, backend: backend)
+            XCTAssertTrue(choices.contains("HEAD")); XCTAssertTrue(choices.contains("topic"))
+            let tags = try await repo.remoteTags(remote: url, backend: backend)
+            XCTAssertTrue(tags.contains { $0.name == .init("accepted") })
+            do { try await repo.deleteRemoteTags(remote: url, tags: [.init("accepted"), .init("rejected")], backend: backend); XCTFail("Partial remote rejection was hidden") } catch is GitFailure {}
+            let deleted = try await f.remote.run(["show-ref", "--verify", "--quiet", "refs/tags/accepted"], successfulExitCodes: 0...1)
+            let retained = try await f.remote.run(["show-ref", "--verify", "--quiet", "refs/tags/rejected"], successfulExitCodes: 0...1)
+            XCTAssertEqual(deleted.exitCode, 1); XCTAssertEqual(retained.exitCode, 0)
+            let prompts = try String(contentsOf: root.appendingPathComponent("prompts.jsonl"), encoding: .utf8).split(separator: "\n").map { try XCTUnwrap(JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any]) }
+            XCTAssertEqual(prompts.first?["kind"] as? String, "trust")
+            XCTAssertTrue(prompts.contains { $0["kind"] as? String == "credentials" })
+            try Data().write(to: root.appendingPathComponent("reject"))
+            let state = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("state.json"))) as? [String: Any])
+            do { _ = try await repo.remoteTags(remote: url, backend: backend); XCTFail("Rejected peer listed refs") } catch is GitFailure {}
+            let after = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("state.json"))) as? [String: Any])
+            XCTAssertEqual((state["requests"] as? [[String: Any]])?.count, (after["requests"] as? [[String: Any]])?.count)
+        }
+        let after = try await f.source.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(after, before); XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), index)
+    }
+
     @MainActor func testActualHTTPSPeerReviewAuthenticationDepthAndRejectedPeerKeepSourceBytes() async throws {
         if ProcessInfo.processInfo.environment["TURTLEGIT_DISABLE_ASKPASS"] == "1" { throw XCTSkip("Caller explicitly disabled interactive authentication.") }
         let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
@@ -236,6 +347,45 @@ final class GitLibGit2Tests: XCTestCase {
         }
         let finalHead = try await f.remote.run(["rev-parse", "HEAD"]).stdout
         XCTAssertEqual(finalHead, sourceHead); XCTAssertEqual(try Data(contentsOf: f.remote.root.appendingPathComponent("config")), sourceConfig)
+    }
+
+    @MainActor func testActualRemoteListingCancellationWaitsForOwnedPromptDrain() async throws {
+        if ProcessInfo.processInfo.environment["TURTLEGIT_DISABLE_ASKPASS"] == "1" { throw XCTSkip("Caller explicitly disabled interactive authentication.") }
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        try await withHTTPS(f) { root, url in
+            let askpass = root.appendingPathComponent("held-listing-prompt"), ready = root.appendingPathComponent("listing-ready.json"), release = root.appendingPathComponent("release")
+            try self.executable(askpass, """
+            #!/usr/bin/python3
+            import base64, fcntl, json, os, pathlib, time
+            root = pathlib.Path(__file__).parent
+            lock = os.open(os.environ['TURTLEGIT_REMOTE_PROMPT_LOCK'], os.O_RDWR | os.O_NOFOLLOW)
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            temporary = root / 'listing-ready.tmp'
+            temporary.write_text(json.dumps({'pid':os.getpid(),'parent':os.getppid(),'cancel':os.environ['TURTLEGIT_REMOTE_PROMPT_CANCEL_FILE']}))
+            temporary.replace(root / 'listing-ready.json')
+            while not (root / 'release').exists(): time.sleep(.01)
+            print(base64.b64encode(json.dumps({'version':1,'decision':'reject','save':False}).encode()).decode(), flush=True)
+            fcntl.flock(lock, fcntl.LOCK_UN); os.close(lock)
+            """)
+            let repo = GitRepository(root: f.source.root, executable: f.source.executable, askpass: askpass), token = OperationCancellation()
+            var finished = false
+            let operation = Task { defer { finished = true }; return try await repo.remoteReferenceChoices(remote: url, cancellation: token, backend: .init(mask: 4, helperURL: f.helper)) }
+            var pids: [Int32] = []
+            do {
+                try await self.wait { FileManager.default.fileExists(atPath: ready.path) }
+                let state = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: ready)) as? [String: Any])
+                pids = [try XCTUnwrap(state["pid"] as? NSNumber).int32Value, try XCTUnwrap(state["parent"] as? NSNumber).int32Value]
+                token.cancel()
+                let marker = try XCTUnwrap(state["cancel"] as? String)
+                try await self.wait { FileManager.default.fileExists(atPath: marker) }
+                try await Task.sleep(nanoseconds: 50_000_000)
+                XCTAssertFalse(finished); XCTAssertTrue(pids.allSatisfy { kill($0, 0) == 0 })
+                try Data().write(to: release)
+            } catch { token.cancel(); try? Data().write(to: release); _ = await operation.result; throw error }
+            do { _ = try await operation.value; XCTFail("Canceled remote listing succeeded") }
+            catch is GitCommandCancellationFailure {} catch is OperationCancellationFailure {}
+            try await self.wait { pids.allSatisfy { kill($0, 0) != 0 } }
+        }
     }
 
     @MainActor func testActualHelperCancellationWaitsPromptLockThenReapsOwnedProcessGroup() async throws {
