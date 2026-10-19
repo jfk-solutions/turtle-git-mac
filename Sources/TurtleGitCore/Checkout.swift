@@ -96,9 +96,12 @@ extension GitRepository {
         do { return try run(["-c", "core.precomposeunicode=false"] + arguments, successfulExitCodes: successfulExitCodes, cancellation: cancellation, onOutput: onOutput) }
         catch let failure as GitFailure { throw GitFailure(arguments: arguments, code: failure.code, message: failure.message) }
     }
-    public func checkout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+    public func checkout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil) throws -> String {
         try cancellation?.check()
-        return try checkoutCommand(checkoutArguments(options, cancellation: cancellation), cancellation: cancellation, onOutput: onOutput).text
+        let arguments = try checkoutArguments(options, cancellation: cancellation)
+        try cancellation?.check()
+        onCommand?(commandInvocation(["-c", "core.precomposeunicode=false"] + arguments))
+        return try checkoutCommand(arguments, cancellation: cancellation, onOutput: onOutput).text
     }
     /// Read-only validation before a native options dialog hands off to progress.
     public func validateCheckout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil) throws { _ = try checkoutArguments(options, cancellation: cancellation) }

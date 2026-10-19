@@ -1,5 +1,27 @@
 import Foundation
 
+/// A display-only record of the exact executable and argv about to run. Git
+/// still receives an argument array; this quoted text is never executed.
+public struct GitCommandInvocation: Sendable, Equatable {
+    public let executable: URL
+    public let directory: URL
+    public let arguments: [String]
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.executable.path.utf8.elementsEqual(rhs.executable.path.utf8) &&
+        lhs.directory.path.utf8.elementsEqual(rhs.directory.path.utf8) &&
+        lhs.arguments.count == rhs.arguments.count &&
+        zip(lhs.arguments, rhs.arguments).allSatisfy { pair in pair.0.utf8.elementsEqual(pair.1.utf8) }
+    }
+    public var preamble: Data {
+        func quote(_ value: String) -> String {
+            let safe = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/_-.@:=+%,"
+            if !value.isEmpty, value.utf8.allSatisfy({ safe.utf8.contains($0) }) { return value }
+            return "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        }
+        return Data(([executable.path] + arguments).map(quote).joined(separator: " ").appending("\n").utf8)
+    }
+}
+
 /// Serializes repository operations off the main actor. Arguments never pass through a shell.
 public actor GitRepository {
     public nonisolated let root: URL
@@ -12,6 +34,10 @@ public actor GitRepository {
     public nonisolated let diffDetection: GitDiffDetection
     public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git"), askpass: URL? = GitAskpassRuntime.bundled(), diffDetection: GitDiffDetection = .load()) {
         self.root = root.standardizedFileURL; self.executable = executable; self.askpass = askpass; self.diffDetection = diffDetection
+    }
+    func commandInvocation(_ arguments: [String], literalPathspecs: Bool = true) -> GitCommandInvocation {
+        GitCommandInvocation(executable: executable, directory: root,
+            arguments: (literalPathspecs ? ["--literal-pathspecs"] : ["--no-literal-pathspecs"]) + ["-C", root.path] + arguments)
     }
     /// With retainStandardOutput false, stdout is delivered only through onOutput;
     /// stderr and exit/cancellation diagnostics remain in the returned result.
@@ -27,7 +53,7 @@ public actor GitRepository {
         FileManager.default.createFile(atPath: err.path, contents: nil)
         let output = try FileHandle(forWritingTo: out), error = try FileHandle(forWritingTo: err)
         defer { try? output.close(); try? error.close() }
-        let commandArguments = (literalPathspecs ? ["--literal-pathspecs"] : ["--no-literal-pathspecs"]) + ["-C", root.path] + arguments
+        let commandArguments = commandInvocation(arguments, literalPathspecs: literalPathspecs).arguments
         var inputReader:FileHandle?
         if let input {
             let file=temporary.appendingPathComponent("stdin")

@@ -3448,3 +3448,32 @@ no passing validation is claimed before results are recorded. Physical output/
 question/menu/default/Escape/VoiceOver acceptance, complete source geometry,
 all recovery/post-action combinations, signed sandbox/Finder and whole-port
 acceptance remain open. Windows taskbar and native Dock rendering differ.
+
+### Switch/Reset command progress and recovery, October 19, 2026
+
+Switch and Reset now capture the real Core command invocation immediately before
+launch and prepend its quoted executable/argument display to progress output.
+There is no second UI argv builder, and display quoting does not change Git's
+argument-array execution. Existing styled native output now includes distinct
+completion ranges, execution timing/date, result current-work text and retained
+100 percent completion. Post-command metadata retains its own diagnostic boundary;
+a failed Reset bisect-state read does not relabel a successful command. Cancelled
+Git results use their real exit code, with explicit native labels when no process
+result exists.
+
+Queued start/retry work reserves per-instance and Quit ownership before scheduling.
+Actual command/metadata work retains its token and grant through invalidation and
+drain. One-shot kill questions wait for actual sheet release; result closure and
+child handoffs wait for work and native children. Forced closure cannot dispatch a
+queued child. Captured appearance/opacity values and the original preferences/
+access reach Switch's Submodule/Merge/Pull/Commit/Stash and Reset's Submodule/Clean/
+Bisect factories. Switch's source Resolve-labelled failure action still opens
+Commit. Existing source post-action ordering and Reset's original-plan/changed-HEAD
+guard remain authoritative.
+
+[Switch comparison](SWITCH-PARITY.md), [Reset comparison](RESET-PARITY.md) and
+the forthcoming [grouped record](qa/switch-reset-progress-family-2026-10-19.json)
+define this scope; no passing validation is claimed before results are recorded.
+Physical menus/questions/keyboard/VoiceOver, all recovery combinations, complete
+source geometry/rendering, signed grants, Windows libgit2-progress equivalence
+and whole-application acceptance remain open.

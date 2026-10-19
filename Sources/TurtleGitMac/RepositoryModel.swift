@@ -1496,7 +1496,7 @@ import UniformTypeIdentifiers
         controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [path], endRevision: revision) }
         deleteConflictWindows[key] = controller; presentConflictWindow(controller)
     }
-    private func configureResetInteractions(_ controller: ResetWindowController, repository: GitRepository, access: RepositoryAccessLease?, completion: (() -> Void)? = nil) {
+    func configureResetInteractions(_ controller: ResetWindowController, repository: GitRepository, access: RepositoryAccessLease?, completion: (() -> Void)? = nil) {
         let root = repository.root, preferences = controller.model.presentationPreferences
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
@@ -1511,14 +1511,16 @@ import UniformTypeIdentifiers
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
         }
         controller.model.onReset = { _ in completion?() }
-        controller.model.onPostAction = { [weak self] action in
+        controller.model.onPostAction = { [weak self, weak model = controller.model] action in
+            guard let self, !self.retired, !self.confirmingQuit, let model else { return }
+            let presentation = model.handoffPresentation
             switch action {
-            case .submoduleUpdate: self?.showSubmoduleUpdate(repository: repository, access: access, scope: [], preferences: preferences)
-            case .clean: self?.showClean(repository: repository, access: access, paths: [], preferences: preferences)
-            case .bisectGood: self?.showBisect(repository: repository, access: access, operation: .good, preferences: preferences)
-            case .bisectBad: self?.showBisect(repository: repository, access: access, operation: .bad, preferences: preferences)
-            case .bisectSkip: self?.showBisect(repository: repository, access: access, operation: .skip, preferences: preferences)
-            case .bisectReset: self?.showBisect(repository: repository, access: access, operation: .reset, preferences: preferences)
+            case .submoduleUpdate: self.showSubmoduleUpdate(repository: repository, access: access, scope: [], preferences: preferences, presentation: presentation)
+            case .clean: self.showClean(repository: repository, access: access, paths: [], preferences: preferences, presentation: presentation)
+            case .bisectGood: self.showBisect(repository: repository, access: access, operation: .good, preferences: preferences, presentation: presentation)
+            case .bisectBad: self.showBisect(repository: repository, access: access, operation: .bad, preferences: preferences, presentation: presentation)
+            case .bisectSkip: self.showBisect(repository: repository, access: access, operation: .skip, preferences: preferences, presentation: presentation)
+            case .bisectReset: self.showBisect(repository: repository, access: access, operation: .reset, preferences: preferences, presentation: presentation)
             case .retry: break
             }
         }
@@ -2079,7 +2081,7 @@ import UniformTypeIdentifiers
                     if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
                 }
                 let inherited = child.model.presentationPreferences
-                child.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited) }
+                child.model.onPostAction = { [weak self, weak model = child.model] action, branch in guard let model else { return }; self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation) }
             default: break
             }
         }
@@ -2134,19 +2136,23 @@ import UniformTypeIdentifiers
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
         controller.model.start()
     }
-    private func showClean(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], commandLaunch: Bool = false, preferences: UserDefaults? = nil) {
-        guard !confirmingQuit else { return }
-        if commandLaunch, let existing = cleanWindows[repository.root.path] {
+    private func showClean(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], commandLaunch: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
+        if commandLaunch, let existing = cleanWindows.values.first(where: { GitReferenceName.equal($0.model.repository.root.path, repository.root.path) }) {
             existing.window?.makeKeyAndOrderFront(nil)
             error = "A Cleanup dialog is already open. Close it before opening another command-line Cleanup."; return
         }
-        let root = repository.root
-        let controller = cleanWindows[root.path] ?? cleanWindowFactory?(repository) ?? CleanWindowController(repository: repository, defaults: preferences ?? fileComparisonPreferences)
+        let root = repository.root, defaults = preferences ?? fileComparisonPreferences
+        let reusable = cleanWindows.first { _, value in GitReferenceName.equal(value.model.repository.root.path, root.path) && value.model.presentationPreferences === defaults && value.window?.attachedSheet == nil }
+        let key = reusable?.key ?? (cleanWindows[root.path] == nil ? root.path : root.path + "\0" + UUID().uuidString)
+        let controller = reusable?.value ?? cleanWindowFactory?(repository) ?? CleanWindowController(repository: repository, defaults: defaults)
+        presentation?.apply(to: controller.window)
         let inherited = controller.model.presentationPreferences
-        controller.onClosed = { [weak self] in self?.cleanWindows.removeValue(forKey: root.path) }
+        let inheritedPresentation = controller.window.map(MergeWindowPresentation.init)
+        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.cleanWindows[key] === controller else { return }; self.cleanWindows.removeValue(forKey: key) }
         controller.model.setScope(paths)
         controller.model.onAccepted = { [weak self] request in
-            guard let self else { return }
+            guard let self, !self.retired, !self.confirmingQuit else { return }
             let id = UUID(), progress = CleanProgressWindowController(repository: repository, access: access, request: request, preferences: inherited)
             progress.onClosed = { [weak self] in self?.cleanProgressWindows.removeValue(forKey: id) }
             progress.model.onFinished = { [weak self] output, changed in
@@ -2159,10 +2165,11 @@ import UniformTypeIdentifiers
                 }
                 if self.root == root { self.output = output }
             }
+            inheritedPresentation?.apply(to: progress.window)
             self.cleanProgressWindows[id] = progress
             progress.showWindow(nil); progress.window?.makeKeyAndOrderFront(nil); progress.model.start()
         }
-        cleanWindows[root.path] = controller
+        cleanWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showRevert(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
@@ -2538,7 +2545,7 @@ import UniformTypeIdentifiers
         }
         submoduleAddProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); model.start()
     }
-    private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], commandLaunch: Bool = false, completion: (() -> Void)? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil) {
+    private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], commandLaunch: Bool = false, completion: (() -> Void)? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
         let preferences = preferences ?? fileComparisonPreferences
         let root = repository.root, key = root.path + "\0" + scope.joined(separator: "\0") + "\0" + selected.joined(separator: "\0") + "\0preferences:" + String(describing: ObjectIdentifier(preferences))
@@ -2551,18 +2558,20 @@ import UniformTypeIdentifiers
             error = "A Submodule Update operation is already running. Wait for it before opening another command."; return
         }
         let controller = submoduleUpdateWindows[key] ?? SubmoduleUpdateWindowController(repository: repository, access: access, scope: scope, selected: selected, preferences: preferences)
+        presentation?.apply(to: controller.window)
         if let sourceWindow {controller.window?.alphaValue=sourceWindow.alphaValue;controller.window?.appearance=sourceWindow.effectiveAppearance}
         controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.submoduleUpdateWindows[key] === controller else { return }; self.submoduleUpdateWindows.removeValue(forKey: key) }
         let progressPreferences = controller.model.presentationPreferences
+        let progressPresentation = controller.window.map(MergeWindowPresentation.init)
         controller.model.onSubmit = { [weak self] paths, options in
-            self?.showSubmoduleUpdateProgress(repository: repository, access: access, paths: paths, options: options, completion: completion, preferences: progressPreferences)
+            self?.showSubmoduleUpdateProgress(repository: repository, access: access, paths: paths, options: options, completion: completion, preferences: progressPreferences, presentation: progressPresentation)
         }
         submoduleUpdateWindows[key] = controller
         if let submoduleUpdateWindowPresentation { submoduleUpdateWindowPresentation(controller) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
-    private func showSubmoduleUpdateProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], options: SubmoduleUpdateOptions, completion: (() -> Void)? = nil, preferences: UserDefaults? = nil) {
-        guard !confirmingQuit else { return }
+    private func showSubmoduleUpdateProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], options: SubmoduleUpdateOptions, completion: (() -> Void)? = nil, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let root = repository.root, id = UUID()
         let controller = SubmoduleUpdateProgressWindowController(repository: repository, access: access, paths: paths, options: options, preferences: preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.submoduleUpdateProgressWindows.removeValue(forKey: id) }
@@ -2573,6 +2582,7 @@ import UniformTypeIdentifiers
         controller.model.onUpdated = { _ in completion?() }
         let inherited = controller.model.presentationPreferences
         controller.model.onBisect = { [weak self] operation in self?.showBisect(repository: repository, access: access, operation: operation, preferences: inherited) }
+        presentation?.apply(to: controller.window)
         submoduleUpdateProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     @discardableResult private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, completion: @escaping (Bool) -> Void = { _ in }) -> RevertProgressWindowController {
@@ -3096,20 +3106,27 @@ import UniformTypeIdentifiers
             self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, sourceLog: refreshPicker ? model : nil, preferences: model?.colorPreferences)
         }
     }
-    private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, sourceLog: LogWindowModel? = nil, onChanged: (() -> Void)? = nil, command: BisectCommandRequest? = nil, preferences: UserDefaults? = nil) {
-        guard !confirmingQuit else { return }
-        let root = repository.root
+    private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, sourceLog: LogWindowModel? = nil, onChanged: (() -> Void)? = nil, command: BisectCommandRequest? = nil, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
+        let root = repository.root, defaults = preferences ?? fileComparisonPreferences
+        if let active = bisectWindows.values.first(where: { GitReferenceName.equal($0.model.repository.root.path, root.path) && $0.activeOperation }) {
+            active.showWindow(nil); active.window?.makeKeyAndOrderFront(nil)
+            if operation != nil || command != nil { error = "Wait for the current bisect operation to finish." }
+            return
+        }
+        let reusable = bisectWindows.first { _, value in GitReferenceName.equal(value.model.repository.root.path, root.path) && value.model.preferences === defaults && value.window?.attachedSheet == nil }
+        let key = reusable?.key ?? (bisectWindows[root.path] == nil ? root.path : root.path + "\0" + UUID().uuidString)
         let controller: BisectWindowController
-        if let existing = bisectWindows[root.path] {
+        if let existing = reusable?.value {
             if command != nil && existing.activeOperation {
                 existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
                 error = "Wait for the current bisect operation to finish."; return
             }
             controller = existing
             if !existing.activeOperation { existing.model.load(good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart, command: command, preserveStartDraft: command != nil && existing.model.hasStartReview && !existing.model.showingProgress) }
-        } else { controller = BisectWindowController(repository: repository, access: access, good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart, command: command, preferences: preferences ?? fileComparisonPreferences) }
+        } else { controller = BisectWindowController(repository: repository, access: access, good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart, command: command, preferences: defaults) }
         if let sourceLog { controller.model.observeLog(sourceLog) }
-        controller.onClosed = { [weak self] in self?.bisectWindows.removeValue(forKey: root.path) }
+        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.bisectWindows[key] === controller else { return }; self.bisectWindows.removeValue(forKey: key) }
         controller.model.onAttemptCompleted = { [weak self] result in
             guard result.attempted else { return }
             let output = result.output
@@ -3121,7 +3138,8 @@ import UniformTypeIdentifiers
         }
         let inherited = controller.model.preferences
         controller.model.onSubmoduleUpdate = { [weak self] in self?.showSubmoduleUpdate(repository: repository, access: access, scope: [], preferences: inherited) }
-        bisectWindows[root.path] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        presentation?.apply(to: controller.window)
+        bisectWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configureExportInteractions(_ controller: ExportWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
         controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
@@ -3213,12 +3231,14 @@ import UniformTypeIdentifiers
             self?.showRebase(repository:repository,access:access,upstream:prepared.canonicalRevision,fromLog:true,preferences:preferences)
         }
     }
-    private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, showStashPop: Bool = false, commandLaunch: Bool = false, preferences: UserDefaults? = nil) {
+    private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, showStashPop: Bool = false, commandLaunch: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let key = repository.root.path + "\0" + (commandLaunch ? "command-merge" : UUID().uuidString)
         if let existing = mergeWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = MergeWindowController(repository: repository, access: access, preferences: preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.mergeWindows.removeValue(forKey: key) }
         configureMergeInteractions(controller, repository: repository, access: access, showStashPop: showStashPop)
+        presentation?.apply(to: controller.window)
         mergeWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
@@ -3460,12 +3480,14 @@ import UniformTypeIdentifiers
         }
     }
     var transportClipboardText: () -> String? = { NSPasteboard.general.string(forType: .string) ?? NSPasteboard.general.string(forType: .fileURL) }
-    private func showFetch(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false, followUp: PullFollowUp = PullFollowUp(), remote: String? = nil, allRemotes: Bool? = nil, preferences: UserDefaults? = nil) {
+    private func showFetch(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false, followUp: PullFollowUp = PullFollowUp(), remote: String? = nil, allRemotes: Bool? = nil, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let key = repository.root.path + (isPull ? ":pull:" : ":fetch:") + UUID().uuidString
         let controller = FetchWindowController(repository: repository, access: access, isPull: isPull, preferences: preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.fetchWindows.removeValue(forKey: key) }
         configureFetchInteractions(controller, repository: repository, access: access, followUp: followUp)
         controller.model.clipboardText = transportClipboardText
+        presentation?.apply(to: controller.window)
         fetchWindows[key] = controller; controller.model.load(remote: remote, allRemotes: allRemotes)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
@@ -3539,10 +3561,11 @@ import UniformTypeIdentifiers
         referenceWindows[key] = controller; controller.model.load(revision: revision, name: name)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    @discardableResult private func showSwitchProgress(repository: GitRepository, access: RepositoryAccessLease?, reference: String, parent: NSWindow, preferences: UserDefaults = .standard, completion: (() -> Void)? = nil) -> SwitchProgressWindowController {
+    @discardableResult private func showSwitchProgress(repository: GitRepository, access: RepositoryAccessLease?, reference: String, parent: NSWindow, preferences: UserDefaults = .standard, completion: (() -> Void)? = nil) -> SwitchProgressWindowController? {
+        guard !retired, !confirmingQuit else { completion?(); return nil }
         let id = UUID(), root = repository.root
         let controller = SwitchProgressWindowController(model: SwitchProgressWindowModel(repository: repository, access: access, reference: reference, preferences: preferences))
-        controller.onClosed = { [weak self] in self?.switchProgressWindows.removeValue(forKey: id) }
+        controller.onClosed = { [weak self] in self?.switchProgressWindows.removeValue(forKey: id); completion?() }
         controller.model.onFinished = { [weak self] output, _ in
             self?.referenceLogWindows[root.path]?.model.reload()
             self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.requestReload()
@@ -3550,21 +3573,21 @@ import UniformTypeIdentifiers
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         let inherited = controller.model.presentationPreferences
-        controller.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited) }
+        controller.model.onPostAction = { [weak self, weak model = controller.model] action, branch in guard let model else { return }; self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation) }
         switchProgressWindows[id] = controller
-        if let window = controller.window { window.alphaValue = parent.alphaValue; window.appearance = parent.appearance; parent.beginSheet(window) { _ in completion?() } }
+        if let window = controller.window { window.alphaValue = parent.alphaValue; window.appearance = parent.appearance; parent.beginSheet(window) }
         controller.model.start(); return controller
     }
-    private func performSwitchPostAction(_ action: SwitchPostAction, previousBranch: String, repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults) {
-        guard !confirmingQuit else { return }
+    private func performSwitchPostAction(_ action: SwitchPostAction, previousBranch: String, repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
         switch action {
-        case .submoduleUpdate: showSubmoduleUpdate(repository: repository, access: access, scope: [], preferences: preferences)
-        case .mergePreviousBranch: showMerge(repository: repository, access: access, revision: "refs/heads/" + previousBranch, preferences: preferences)
-        case .pull: showFetch(repository: repository, access: access, isPull: true, preferences: preferences)
-        case .commit, .resolve: showCommitDialog(repository: repository, access: access, paths: [], preferences: preferences)
+        case .submoduleUpdate: showSubmoduleUpdate(repository: repository, access: access, scope: [], preferences: preferences, presentation: presentation)
+        case .mergePreviousBranch: showMerge(repository: repository, access: access, revision: "refs/heads/" + previousBranch, preferences: preferences, presentation: presentation)
+        case .pull: showFetch(repository: repository, access: access, isPull: true, preferences: preferences, presentation: presentation)
+        case .commit, .resolve: showCommitDialog(repository: repository, access: access, paths: [], preferences: preferences, presentation: presentation)
         case .stash:
             var followUp = StashSaveFollowUp(); followUp.showPull = true
-            showStash(repository: repository, access: access, followUp: followUp, preferences: preferences)
+            showStash(repository: repository, access: access, followUp: followUp, preferences: preferences, presentation: presentation)
         case .retry, .switchWithMerge: break
         }
     }
@@ -3598,7 +3621,7 @@ import UniformTypeIdentifiers
         model.configureMerge = { [weak self] controller in self?.configureMergeInteractions(controller, repository: repository, access: access) }
         model.configureSwitch = { [weak self] controller in self?.configureSwitchInteractions(controller, repository: repository, access: access) }
     }
-    private func configureSwitchInteractions(_ controller: SwitchWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
+    func configureSwitchInteractions(_ controller: SwitchWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
         let root = repository.root
         controller.model.onSwitched = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
@@ -3613,7 +3636,7 @@ import UniformTypeIdentifiers
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         let inherited = controller.model.presentationPreferences
-        controller.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited) }
+        controller.model.onPostAction = { [weak self, weak model = controller.model] action, branch in guard let model else { return }; self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation) }
         controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)

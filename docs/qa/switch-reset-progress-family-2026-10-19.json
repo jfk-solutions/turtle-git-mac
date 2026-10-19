@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "5a740a04a2fc53614c17652c189cc50542e9c059",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Exact Core Git invocation preambles emitted only after preflight and before Merge/Switch/Reset actual command, sharing actual argv prefix builder; display text never executed",
+    "Switch and Reset completion footer/timing, retained100 and command result before recovery metadata; source Switch Resolve-labelled action still opens Commit",
+    "Synchronous start/retry output reset and actual queued operation counters, cancellation/read drain and one-shot actual native question release before callbacks/handoffs",
+    "Captured preferences/grants/appearance for actual child routes, separate Clean/Bisect idle preference owners and active Bisect exclusion; Cleanup/Submodule Update progress presentation inheritance"
+  ],
+  "validation": {
+    "core": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "tests": 37,
+        "failures": 0,
+        "filter": "GitCommandInvocationTests|CheckoutTests|ResetTests|MergeTests",
+        "log": "build/qa/switch-reset-progress-core-2026-10-19.log",
+        "scope": "New actual-argv/display/order/preflight tests plus existing Checkout/Reset/Merge groups; substring filter also selected WordMergeTests. Private empty Git config, no full Core suite."
+      }
+    ],
+    "build": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "log": "build/qa/switch-reset-progress-build-2026-10-19.log"
+      }
+    ],
+    "native": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "log": "build/qa/switch-reset-progress-native-2026-10-19.log",
+        "failed_case": "switch",
+        "git": "/usr/bin/git",
+        "receiver_pid": 49125,
+        "reaped": true,
+        "diagnostic": "Private clipboard was assigned after native controller construction. Shared output view captures preferences/pasteboard only in makeNSView, so strict clipboard identity check failed before any Copy wrote to standard clipboard. Fixture repaired to set private clipboard before constructing every new controller. Product source unchanged; Core/build not repeated."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/switch-reset-progress-clipboard-2026-10-19.log",
+        "passed_pairs": 8,
+        "cases": [
+          "switch",
+          "reset",
+          "switch-retained",
+          "reset-retained"
+        ],
+        "git_engines": [
+          "/usr/bin/git",
+          "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+        ],
+        "receiver_pids": [
+          49242,
+          49380,
+          49510,
+          49679,
+          49851,
+          50063,
+          50275,
+          50574
+        ],
+        "all_pids_and_pgids_absent": true,
+        "diagnostic": "Assigned private clipboards before constructing six new native controllers. All eight distinct case/engine pairs passed with strict native selection/preferences/clipboard assertions retained. No passing pair repeated; production sources and Core/build unchanged."
+      }
+    ],
+    "core_command_admission": {
+      "attempt": 1,
+      "started": false,
+      "diagnostic": "Shell tempfile cleanup trap rejected by automatic command review for rm -f style. Replaced with Python TemporaryDirectory + subprocess environment before the Core test process started."
+    },
+    "resources": {
+      "localizations": {
+        "exit": 0,
+        "languages": 38,
+        "keys": 1292
+      },
+      "help": {
+        "exit": 0,
+        "documents": 40,
+        "topics": 49,
+        "files": 60
+      },
+      "coverage": {
+        "exit": 0,
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_controls": 1566,
+        "pending_control_reviews": 93
+      }
+    },
+    "site": {
+      "exit": 0,
+      "documents": 340,
+      "unresolved_fragments": [],
+      "log": "build/qa/switch-reset-progress-site-2026-10-19.log"
+    }
+  },
+  "remaining": [
+    "Native POSIX invocation quoting and switch/reset commands are platform adaptations; Windows command formatting is not reproduced. Control/newline bytes remain literal inside quoted display tokens; the preamble is never executed.",
+    "No-result preflight/cancellation fallback status differs from a real Git exit receipt; real killed Git uses its exit code.",
+    "The bounded display can truncate very large command preambles; completion-footer ranges remain protected.",
+    "Scoped local checks do not establish complete hosted CI, exhaustive visual parity, physical Finder integration, signed sandbox/App Store distribution or the whole port."
+  ],
+  "unrelated_work_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

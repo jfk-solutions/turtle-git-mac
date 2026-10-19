@@ -219,3 +219,53 @@ The dated QA record identifies local native coverage and any failures/repairs.
 Complete physical keyboard/menu/VoiceOver behavior, all dialog layout/color
 comparisons, signed Finder invocation and App Store sandbox acceptance remain
 open. Earlier records remain historical evidence for their stated scope.
+
+## Reset command progress and owned recovery — October 19, 2026
+
+The connected source comparison is `AppUtils.cpp::Reset` and its post-command
+callback, `ProgressDlg.cpp::RunCmdList/OnProgressUpdateUI` and `IDD_GITPROGRESS`.
+The native model captures the actual Reset invocation after read-only validation
+and immediately before execution. Its quoted executable/arguments enter the log
+before process output; Git still executes an argument array. This uses the Core
+command receipt rather than a second native reconstruction of Reset flags.
+
+Completion now retains the shared styled output, a distinct success/failure
+footer range, result current-work label and 100 percent bar. Elapsed time/date are
+captured when the command finishes, before bisect metadata is read. Disabling
+`ShowGitexeTimings` leaves the result status. An actual cancelled Git result keeps
+its exit code; cancellation without a process result uses the explicit native
+User cancelled fallback, and a failure without an exit code uses Operation failed.
+The original Git output remains separate from these presentation records.
+
+Start and Retry synchronously reserve actual pending work before scheduling a
+Task. Model invalidation cancels its token and refuses publication while retaining
+Busy/Quit/access ownership until the real work returns. Kill-question answers
+remain one-shot, wait for native sheet detachment and reject old/Quit responses.
+Post-actions and automatic close wait for worker and child drain; forced closure
+does not run a pending handoff. Child Submodule Update, Clean and Bisect actions
+retain the originating preference domain, repository grant and captured
+appearance/opacity without retaining the closed progress window.
+
+Successful source action order remains Hard-reset Submodule Update when applicable,
+the active Bisect Good/Bad/Skip/Reset choices, then Hard-reset Clean. A failed
+command offers Retry. Bisect-state reads now receive the attempt cancellation
+token. Their failures append a diagnostic without relabelling a successful Reset
+command as a Git failure. Retry owns a fresh output/completion record; it retains
+the original plan and the existing changed-HEAD validation rather than silently
+resetting a newly moved target.
+
+[Grouped evidence](qa/switch-reset-progress-family-2026-10-19.json) will identify
+the actual validation scope and repairs. This text adds no passing-check claim
+before that record. Physical controls/defaults/VoiceOver, all reset/recovery
+combinations, signed Finder/sandbox grants, source visual equivalence and complete
+application parity remain open. The source alternative libgit2 progress path is
+not certified by this native CLI continuation.
+
+Clean and Bisect child caches retain independent idle windows for distinct
+preference domains. Their close callbacks remove only the exact cached controller
+they own, preserving another live instance. A running Bisect operation for the
+same repository still excludes a new competing operation even across preference
+domains. Clean and Submodule Update carry the captured appearance/opacity into
+their owned progress windows as well as the initial options window. These routing
+details preserve the Reset-origin presentation through the actual child workflow,
+without claiming physical or signed acceptance.

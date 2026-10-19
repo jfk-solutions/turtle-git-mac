@@ -610,3 +610,16 @@ before that evidence is recorded. Physical menus/default-button/Escape/VoiceOver
 all merge/recovery combinations, complete source geometry, signed sandbox/Finder
 and whole-application acceptance remain open. Windows taskbar/animation rendering
 and Alt accelerator equivalence are not established by native delegate checks.
+
+The subsequent connected Switch/Reset command-presentation continuation also
+closes primary Merge's command-preamble gap. Core emits an `onCommand` receipt
+after validation and immediately before launching the actual operation. It
+contains the executable and complete executed argument array, including global
+`--literal-pathspecs` / `-C`, operation-specific `-c` when present, and Merge's
+actual temporary message-file argument when used. Native progress prepends its
+POSIX-quoted display before process output. That display is never executed or
+parsed back into arguments; a failed preflight does not claim a command started.
+The earlier [Merge checkpoint](qa/merge-progress-family-2026-10-19.json) retains
+its historical missing-preamble boundary. New continuation evidence belongs to
+[Switch/Reset progress](qa/switch-reset-progress-family-2026-10-19.json), without
+adding a new passing-check claim here before validation.

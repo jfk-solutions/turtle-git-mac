@@ -30,7 +30,7 @@ extension GitRepository {
         try cancellation?.check()
         return ResetPlan(revision: target, originalHead: head, originalReference: reference, mode: mode)
     }
-    public func reset(_ plan: ResetPlan, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+    public func reset(_ plan: ResetPlan, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).stdout.resetProtocolLine
         let reference = try? run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).stdout.resetProtocolLine
@@ -38,7 +38,9 @@ extension GitRepository {
         guard head == plan.originalHead, reference == plan.originalReference else { throw ResetFailure.changedHead }
         if plan.mode != .soft, try isBare(cancellation: cancellation) { throw ResetFailure.workingTreeRequired }
         try cancellation?.check()
-        return try run(["reset", "--" + plan.mode.rawValue, plan.revision, "--"], cancellation: cancellation, onOutput: onOutput).text
+        let arguments = ["reset", "--" + plan.mode.rawValue, plan.revision, "--"]
+        onCommand?(commandInvocation(arguments))
+        return try run(arguments, cancellation: cancellation, onOutput: onOutput).text
     }
     public func submoduleResetTarget(_ entry: ConflictEntry, using choice: ResolveChoice, cancellation: OperationCancellation? = nil) throws -> (URL, String) {
         guard let current = try conflicts(cancellation: cancellation).first(where: { $0.path == entry.path }), current == entry,

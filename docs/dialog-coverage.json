@@ -2291,6 +2291,7 @@
         "docs/BISECT-OPERATION-PARITY.md",
         "docs/MERGE-PARITY.md",
         "docs/PROGRESS-PARITY.md",
+        "docs/RESET-PARITY.md",
         "docs/SUBMODULE-ADD-RECOVERY-PARITY.md",
         "docs/SUBMODULE-UPDATE-RECOVERY-PARITY.md"
       ],
@@ -2321,10 +2322,14 @@
         "docs/qa/progress-auto-close-2026-10-08.json",
         "docs/qa/push-progress-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
+        "docs/qa/reference-browser-2026-10-09.json",
+        "docs/qa/reset-modified-files-2026-10-09.json",
+        "docs/qa/reset-picker-2026-10-09.json",
         "docs/qa/reset-progress-2026-10-08.json",
         "docs/qa/stash-submodule-workflows-2026-10-18.json",
         "docs/qa/switch-progress-2026-10-08.json",
         "docs/qa/switch-reset-bisect-workflows-2026-10-18.json",
+        "docs/qa/switch-reset-progress-family-2026-10-19.json",
         "docs/qa/transport-presentation-2026-10-15.json"
       ]
     },
@@ -2527,6 +2532,7 @@
         "docs/qa/switch-pickers-2026-10-09.json",
         "docs/qa/switch-progress-2026-10-08.json",
         "docs/qa/switch-reset-bisect-workflows-2026-10-18.json",
+        "docs/qa/switch-reset-progress-family-2026-10-19.json",
         "docs/qa/switch-source-family-2026-10-17.json",
         "docs/qa/temporary-files-2026-10-08.json",
         "docs/qa/unified-byte-buffer-2026-10-17.json"
@@ -2703,6 +2709,7 @@
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/source-message-links-2026-10-15.json",
+        "docs/qa/switch-reset-progress-family-2026-10-19.json",
         "docs/qa/temporary-files-2026-10-08.json"
       ]
     },
@@ -2860,6 +2867,7 @@
         "docs/qa/reset-progress-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/switch-reset-bisect-workflows-2026-10-18.json",
+        "docs/qa/switch-reset-progress-family-2026-10-19.json",
         "docs/qa/temporary-files-2026-10-08.json"
       ]
     },

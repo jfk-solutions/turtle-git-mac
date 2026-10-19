@@ -539,7 +539,9 @@ enum MergePostAction: String, CaseIterable, Hashable {
         let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
         let operation = Task {
             defer { continuation.finish() }
-            return try await repository.merge(snapshot, cancellation: cancellation, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+            return try await repository.merge(snapshot, cancellation: cancellation,
+                onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) },
+                onCommand: { command in parser.appendChunk(command.preamble); continuation.yield(()) })
         }
         for await _ in updates { consume(parser.processPending(), parser: parser) }
         consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)

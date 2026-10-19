@@ -218,3 +218,50 @@ split-view warnings remain. Public remotes,
 interactive credentials/hooks, physical keyboard/VoiceOver and sheet focus,
 all filesystem/locale boundaries, signed Finder/sandbox and App Store acceptance
 remain open. Full source/application parity is not certified.
+
+## Switch/Reset command progress and recovery — October 19, 2026
+
+This continuation compares `AppUtils.cpp::PerformSwitch`, its post-exec conflict
+check and post-command actions, with `ProgressDlg.cpp::RunCmdList`, completion
+presentation and result closure at the pinned revision. Native Switch now shares
+the connected command receipt, timed completion and owned result workflow with
+Reset. The actual checkout invocation is captured immediately before its Git
+launch, after validation; its quoted executable/arguments become a log preamble.
+This is display text only. Git continues to receive its original argument array.
+
+The styled native output retains Copy/Copy All, independent URL styling and the
+captured output limit. The completed command has a distinct status/footer range,
+terminal 100 percent and result current-work label. Elapsed time is captured at
+the command boundary before later metadata/handoffs; the timing preference can
+hide its suffix without removing the result. Cancellation with a Git result uses
+the actual exit code; no-result cancellation/failure retains explicit native
+fallback labels. An actual successful checkout with merge conflicts is treated
+as failure by the source post-exec rule, with `Has merge conflict` retained.
+
+Queued start/retry work acquires ownership before its Task runs. Actual command
+and inspection work keeps per-instance pending ownership through forced closure;
+post-actions, Close and automatic close wait for drain and owned question release.
+Kill confirmation is one-shot and its answer waits for physical sheet detachment.
+Retry/Switch with merge retain the accepted checkout options and fresh attempt.
+Submodule Update, Merge previous branch, Pull, Commit and Stash retain repository
+access, preferences and a captured appearance/opacity snapshot after result close.
+The source Resolve-labelled conflict action intentionally opens Commit; it is not
+silently changed to the separate Resolve dialog (`AppUtils.cpp`'s failed-switch
+callback). Forced owner closure never dispatches a queued child.
+
+[Grouped evidence](qa/switch-reset-progress-family-2026-10-19.json) records the
+actual checkpoint after validation; no new pass is claimed before those results.
+Physical progress/questions/default buttons, all checkout/recovery combinations,
+complete source rendering/geometry, signed grants and whole-port acceptance remain
+open. The CLI command presentation does not certify the alternate Windows
+libgit2 progress implementation or native taskbar/Dock rendering equivalence.
+
+Standalone Switch's parent completion now follows the actual progress-controller
+`onClosed` release after worker/child drain, rather than its earlier beginSheet
+reply. A sheet ending alone cannot release the initiating workflow. Captured
+Submodule Update and Clean presentations also reach their subsequently owned
+progress windows. Child window caches keep idle Clean/Bisect windows from separate
+preference domains independent, and identity-checked close callbacks cannot erase
+a newer cached owner. An already active Bisect operation in the same repository
+continues to exclude a competing operation across those domains; the cache change
+does not permit concurrent bisect mutations.

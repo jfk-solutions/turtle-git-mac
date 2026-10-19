@@ -151,6 +151,7 @@ extension UserDefaults {
             guard let self else { result.abandonPresentation(); return }
             guard let window = self.window, window.attachedSheet == nil else { self.model.abandonProgressPresentation(result); return }
             let controller = SwitchProgressWindowController(model: result)
+            controller.onClosing = { [weak model=self.model] window in model?.handoffPresentation=MergeWindowPresentation(window) }
             self.progressController = controller
             controller.onClosed = { [weak self,weak result,weak controller] in
                 guard let self,let result,let controller,self.progressController === controller else{return}
@@ -207,6 +208,7 @@ extension UserDefaults {
         if !confirmingQuit,let decision=pendingTagDecision {pendingTagDecision=nil;answerTagConflict(decision.0,accepted:decision.1)}
     }}
     var presentationPreferences:UserDefaults {preferences}
+    var handoffPresentation:MergeWindowPresentation?
     var closed:Bool {invalidated}
     var presentationAvailable:Bool {!invalidated && !finished && !confirmingQuit}
     var showTagConflict:((UUID,@escaping (Bool)->Void)->Void)?
@@ -680,10 +682,17 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
 @MainActor final class SwitchProgressWindowController: NSWindowController, NSWindowDelegate {
     let model: SwitchProgressWindowModel
     var onClosed: () -> Void = {}
-    private var closed=false,finishing=false
+    var onClosing:(NSWindow)->Void = {_ in}
+    private var closed=false,finishing=false,retiring=false,closingForHandoff=false
     var presentationClosed:Bool {closed}
-    private var cancellationAlert:NSAlert?
-    private var cancellationReply:((Bool)->Void)?
+    private(set) var cancellationAlert:NSAlert?
+    var questionWindow:NSWindow? {cancellationAlert?.window}
+    var presentCancellation:((NSAlert,NSWindow,@escaping(NSApplication.ModalResponse)->Void)->Void)?
+    private var cancellationAnswer:((NSApplication.ModalResponse)->Void)?
+    private var cancellationRelease:SwitchChildRelease?
+    private var release:SwitchChildRelease?
+    private var presentationParent:NSWindow?
+    private var pendingAction:(()->Void)?
     convenience init(repository: GitRepository, access: RepositoryAccessLease?, reference: String) {
         self.init(model: SwitchProgressWindowModel(repository: repository, access: access, reference: reference))
     }
@@ -697,48 +706,61 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in self?.finishResult({}) }
         model.finishAndPerform = { [weak self] action in self?.finishResult(action) }
+        model.workDidDrain = { [weak self] in guard let self,self.finishing else{return};self.closeIfReady() }
+        model.presentationAvailable = { [weak self] in guard let self else{return false};return !self.closed && !self.retiring && !self.finishing && self.cancellationAlert == nil && self.window?.attachedSheet == nil }
         model.confirmCancellation = { [weak self] choose in
-            guard let self,let window=self.window,window.attachedSheet == nil else{choose(false);return}
+            guard let self,!self.closed,!self.retiring,self.model.active,!self.model.confirmingQuit,self.cancellationAlert == nil,let window=self.window,window.attachedSheet == nil else{choose(false);return}
             let alert=NSAlert();alert.alertStyle = .informational;alert.messageText="The process is still running.";alert.informativeText="Are you sure to abort?"
             let yes=alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No");yes.keyEquivalent="\r";alert.window.defaultButtonCell=yes.cell as? NSButtonCell
-            alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
+            alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.effectiveAppearance
             self.cancellationAlert=alert;var answered=false
-            let reply:(Bool)->Void = {accepted in guard !answered else{return};answered=true;choose(accepted)}
-            self.cancellationReply=reply
-            alert.beginSheetModal(for:window) { [weak self] response in
-                guard let self,self.cancellationAlert === alert else{reply(false);return}
-                let release=SwitchChildRelease(window:alert.window,parent:window) { [weak self] in
-                    guard let self,self.cancellationAlert === alert else{reply(false);return}
-                    self.cancellationAlert=nil;self.cancellationReply=nil;reply(response == .alertFirstButtonReturn)
-                };release.start()
+            let answer:(NSApplication.ModalResponse)->Void = { [weak self] response in
+                guard !answered,let self,self.cancellationAlert === alert else{return};answered=true
+                let release=SwitchChildRelease(window:alert.window,parent:window,closeWindow:true) { [self] in
+                    let accepted = !self.retiring && !self.closed && self.model.active && !self.model.confirmingQuit && self.cancellationAlert === alert
+                    self.cancellationAlert=nil;self.cancellationAnswer=nil;self.cancellationRelease=nil
+                    choose(accepted && response == .alertFirstButtonReturn)
+                    if self.finishing {self.closeIfReady()}
+                }
+                self.cancellationRelease=release;release.start()
             }
+            self.cancellationAnswer=answer
+            if let presentCancellation=self.presentCancellation {presentCancellation(alert,window,answer)}
+            else {alert.beginSheetModal(for:window,completionHandler:answer)}
         }
 
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     private func finishResult(_ action:@escaping ()->Void) {
-        guard !closed,!finishing,!model.confirmingQuit,!model.busy,!model.confirmingCancellation,let window,window.attachedSheet == nil else{return}
-        finishing=true
-        let release=SwitchChildRelease(window:window,parent:window.sheetParent) { [self] in
-            guard !self.closed else{return};self.close()
-            if !self.closed,!window.isVisible,window.sheetParent == nil {self.retireClosedWindow()}
-            if self.closed {action()}
-        };release.start()
+        guard !closed,!retiring,!finishing,model.active,!model.confirmingQuit else{return}
+        pendingAction=action;finishing=true;closeIfReady()
+    }
+    private func closeIfReady() {
+        guard !closed,!retiring,finishing,model.active,!model.confirmingQuit,!model.busy,!model.hasPendingWork,!model.confirmingCancellation,
+              cancellationAlert == nil,let window,window.attachedSheet == nil else{return}
+        presentationParent=window.sheetParent;closingForHandoff=true;window.close()
+        if !retiring,!window.isVisible {retireClosedWindow()}
     }
     func windowShouldClose(_ sender:NSWindow)->Bool {
-        guard !model.confirmingQuit,!finishing else{return false}
+        guard !model.confirmingQuit,!finishing,!retiring else{return false}
         if model.busy {model.cancel();return false}
-        guard !model.confirmingCancellation,sender.attachedSheet == nil else{return false}
+        guard !model.hasPendingWork,!model.confirmingCancellation,cancellationAlert == nil,sender.attachedSheet == nil else{return false}
         finishResult({});return false
     }
     private func retireClosedWindow() {
-        guard !closed else{return};closed=true;model.saveActionLog();model.invalidate()
-        let alert=cancellationAlert,reply=cancellationReply;cancellationAlert=nil;cancellationReply=nil
-        if let alert {let release=SwitchChildRelease(window:alert.window,parent:window) {reply?(false)};release.start()} else {reply?(false)}
-        if let window,window.sheetParent != nil {let release=SwitchChildRelease(window:window,parent:window.sheetParent) {};release.start()}
-        onClosed()
+        guard !closed,!retiring else{return};retiring=true
+        if let window {model.handoffPresentation=MergeWindowPresentation(window);onClosing(window)}
+        model.invalidate();model.finishAndPerform=nil;model.workDidDrain=nil;model.close={}
+        cancellationAnswer?(.abort)
+        let action=closingForHandoff ? pendingAction:nil;pendingAction=nil
+        guard let window else{closed=true;model.saveActionLog();onClosed();action?();return}
+        if let sheet=window.attachedSheet,sheet !== questionWindow {window.endSheet(sheet,returnCode:.abort);sheet.close()}
+        let release=SwitchChildRelease(window:window,parent:presentationParent ?? window.sheetParent,ready:{ [self] in !model.hasPendingWork && cancellationAlert == nil}) { [self] in
+            self.release=nil;closed=true;model.saveActionLog();onClosed();action?()
+        }
+        self.release=release;release.start()
     }
-    func windowWillClose(_ notification:Notification) {retireClosedWindow()}
+    func windowWillClose(_ notification:Notification) {guard notification.object as? NSWindow === window else{return};retireClosedWindow()}
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class SwitchProgressWindowModel: ObservableObject {
@@ -746,22 +768,33 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     let repository: GitRepository
     let reference: String
     private let access: RepositoryAccessLease?
+    var repositoryAccess:RepositoryAccessLease? {access}
+    var handoffPresentation:MergeWindowPresentation?
+    @Published private(set) var pendingOperations=0
+    var hasPendingWork:Bool {pendingOperations > 0}
+    var active:Bool {!invalidated}
+    var workDidDrain:(()->Void)?
+    private func beginWork(){pendingOperations += 1;Self.activeOperations += 1;LocalGitCommandProgress.begin()}
+    private func endWork(){pendingOperations -= 1;Self.activeOperations -= 1;LocalGitCommandProgress.end();if !hasPendingWork {busy=false;workDidDrain?()}}
+    var readStatus:((OperationCancellation) async throws->[StatusEntry])?
     private var cancellation = OperationCancellation()
     private var inspectionCancellation: OperationCancellation?
     private var started = false, invalidated = false, dispatched = false, abandoned = false
     private var merging = false
     var hasDispatchedAction:Bool {dispatched}
     static private(set) var activeOperations=0
-    @Published var confirmingQuit=false
+    private var interactionGeneration=0
+    @Published var confirmingQuit=false {didSet {if oldValue != confirmingQuit {interactionGeneration += 1}}}
     var finishAndPerform:((@escaping ()->Void)->Void)?
+    var presentationAvailable:()->Bool = {true}
     let options: CheckoutOptions
     let preferences: UserDefaults
     var presentationPreferences:UserDefaults {preferences}
     @Published private(set) var cancelling = false
     @Published private(set) var confirmingCancellation = false
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
-    var canCancel: Bool { !confirmingQuit && busy && !cancelling && !confirmingCancellation }
-    func invalidate() { invalidated = true; cancellation.cancel(); inspectionCancellation?.cancel(); confirmingCancellation = false; busy = false }
+    var canCancel: Bool { active && !confirmingQuit && busy && !commandFinished && !cancelling && !confirmingCancellation }
+    func invalidate() { invalidated = true; cancellation.cancel(); inspectionCancellation?.cancel(); confirmingCancellation = false;if !hasPendingWork {busy=false} }
     func abandonPresentation() { abandoned = true; cancellation.cancel() }
     @Published private(set) var busy = true
     @Published private(set) var success = false
@@ -769,6 +802,11 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     @Published private(set) var output = ""
     @Published private(set) var currentWork = ""
     @Published private(set) var percentage: Int?
+    @Published private(set) var completionRange:NSRange?
+    @Published private(set) var commandFinished=false
+    @Published private(set) var commandSucceeded=false
+    var outputPreferences:UserDefaults {preferences}
+    var outputClipboard:NSPasteboard = .general
     @Published private(set) var previousBranch = ""
     @Published private(set) var postActions: [SwitchPostAction] = []
     var onFinished: (String, Bool) -> Void = { _, _ in }
@@ -781,53 +819,121 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         self.init(repository: repository, access: access, options: options, preferences: preferences)
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, options: CheckoutOptions, preferences: UserDefaults = .standard) {
-        checkoutOperation = {try await repository.checkout($0,cancellation:$1,onOutput:$2)}
+        checkoutOperation = {options,token,emit in try await repository.checkout(options,cancellation:token,onOutput:emit,onCommand:{emit(GitOutputChunk(stream:.stdout,data:$0.preamble))})}
         self.repository = repository; self.access = access; self.options = options; self.reference = options.revision; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); self.autoClosePolicy = GitProgressAutoClose(preferences: preferences)
     }
-    func start() { Task { await run() } }
-    func run() async {guard !started,!invalidated,!confirmingQuit else{return};started=true;await execute(merge:options.merge)}
+    private func resetAttempt() {
+        busy=true;success=false;cancelled=false;cancelling=false;postActions=[];output="";currentWork="";percentage=nil
+        completionRange=nil;commandFinished=false;commandSucceeded=false;previousBranch=""
+    }
+    func start() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute(merge:options.merge)}}
+    func run() async {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();await execute(merge:options.merge)}
     private func finishAutomaticClose() {
-        if !confirmingQuit, !busy, !confirmingCancellation, !invalidated, abandoned || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
+        if !confirmingQuit, !busy, !hasPendingWork, !confirmingCancellation, !invalidated, abandoned || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
     }
     func cancel() {
         guard canCancel, !invalidated else { return }
-        let token = cancellation
+        let token = cancellation,generation=interactionGeneration
         if preferences.bool(forKey: "ConfirmKillProcess") {
             confirmingCancellation = true
             var answered = false
             confirmCancellation { [weak self] accepted in
                 guard !answered, let self, self.cancellation === token, !self.invalidated else { return }; answered = true; self.confirmingCancellation = false
-                if self.busy && accepted { self.cancelling = true; token.cancel() }
+                if self.busy && !self.commandFinished && accepted && !self.confirmingQuit && self.interactionGeneration == generation { self.cancelling = true; token.cancel() }
                 self.finishAutomaticClose()
             }
         } else { cancelling = true; token.cancel() }
     }
     func perform(_ action: SwitchPostAction) {
-        guard !confirmingQuit, !busy, !confirmingCancellation, !invalidated, !dispatched, postActions.contains(action) else { return }
+        guard !confirmingQuit,presentationAvailable(), !busy, !hasPendingWork, !confirmingCancellation, !invalidated, !dispatched, postActions.contains(action) else { return }
         if action == .retry || action == .switchWithMerge {
             ProgressActionLog.nextAttempt(self);
             let merge = action == .switchWithMerge || merging
-            busy = true; cancellation = OperationCancellation()
+            cancellation = OperationCancellation();resetAttempt();beginWork()
             Task { await execute(merge: merge) }
         } else if let onPostAction {dispatched=true;let branch=previousBranch,dispatch={onPostAction(action,branch)};if let finishAndPerform {finishAndPerform(dispatch)} else {close();dispatch()}}
     }
+    private func bounded(_ text:String,bytes limit:Int)->String {
+        let bytes=Data(text.utf8),limit=max(0,limit)
+        guard bytes.count > limit else{return text}
+        let marker="\n[Output truncated at about \(progressPresentation.outputLimit / 1024) KiB]\n"
+        var count=max(0,limit-marker.utf8.count)
+        while count > 0,bytes[count] & 0xc0 == 0x80 {count -= 1}
+        return String(decoding:bytes.prefix(count),as:UTF8.self) + String(decoding:marker.utf8.prefix(limit-count),as:UTF8.self)
+    }
+    private func completeCommand(succeeded:Bool,cancelled:Bool,exitCode:Int32?,startedAt:TimeInterval) {
+        guard !invalidated,!commandFinished else{return}
+        let completion=SubmoduleProgressCompletion(success:succeeded,cancelled:cancelled && exitCode == nil,exitCode:exitCode,
+            elapsed:ProcessInfo.processInfo.systemUptime-startedAt,finished:Date(),preferences:preferences)
+        output=bounded(output,bytes:progressPresentation.outputLimit-completion.text.utf8.count)
+        completionRange=completion.append(to:&output);currentWork=completion.currentWork;percentage=100
+        commandSucceeded=succeeded;commandFinished=true;self.cancelled=cancelled
+        OperationSounds.report(failed:!succeeded,preferences:preferences)
+    }
+    private func appendDiagnostic(_ text:String) {
+        guard !text.isEmpty else{return}
+        guard let range=completionRange else{output=GitProgressFailureOutput.renderDetails(text,existing:output,limit:progressPresentation.outputLimit);return}
+        let previous=output as NSString
+        guard NSMaxRange(range) <= previous.length else{return}
+        let footer=previous.substring(with:range)
+        let suffix=GitProgressFailureOutput.renderDetails(text,existing:previous.substring(from:NSMaxRange(range)),limit:max(256,progressPresentation.outputLimit-footer.utf8.count))
+        let prefix=bounded(previous.substring(to:range.location),bytes:progressPresentation.outputLimit-footer.utf8.count-suffix.utf8.count)
+        output=prefix+footer+suffix;completionRange=NSRange(location:(prefix as NSString).length,length:(footer as NSString).length)
+    }
+    private func streamCheckout(_ options:CheckoutOptions,token:OperationCancellation)async throws->String {
+        var state=GitProgressOutputState(preferences:preferences)
+        let parser=GitCliOutputParser(limit:state.limit)
+        let (updates,continuation)=AsyncStream<Void>.makeStream(bufferingPolicy:.bufferingNewest(1))
+        func consume(_ emission:GitCliOutputParser.Emission) {
+            state.consume(emission,parser:parser)
+            guard !invalidated,cancellation === token,!commandFinished else{return}
+            output=state.output;currentWork=state.currentWork;percentage=state.percentage
+        }
+        let operation=Task {
+            defer {continuation.finish()}
+            return try await checkoutOperation(options,token,{chunk in parser.appendChunk(chunk.data);continuation.yield(())})
+        }
+        for await _ in updates {
+            consume(parser.processPending())
+        }
+        consume(parser.processPending());consume(parser.finish())
+        let result:String
+        do {result=try await operation.value}
+        catch let failure as GitFailure {
+            if !invalidated {state.presentFailure(failure);output=state.output;currentWork=state.currentWork;percentage=state.percentage}
+            throw failure.markingOutputDelivered()
+        } catch let failure as GitCommandCancellationFailure {
+            if !invalidated {state.presentFailure(failure);output=state.output;currentWork=state.currentWork;percentage=state.percentage}
+            throw failure.markingOutputDelivered()
+        }
+        if !state.hasOutput,!commandFinished {
+            let fallback=GitCliOutputParser(limit:state.limit);fallback.appendChunk(Data(result.utf8))
+            state.consume(fallback.processPending(),parser:fallback);state.consume(fallback.finish(),parser:fallback)
+            if !invalidated {output=state.output;currentWork=state.currentWork;percentage=state.percentage}
+        }
+        return result
+    }
     private func execute(merge: Bool) async {
+        defer {endWork();withExtendedLifetime(access) {};if !invalidated,!hasPendingWork {cancelling=false;finishAutomaticClose()}}
         guard !invalidated else { return }
-        busy = true; success = false; cancelled = false; cancelling = false; postActions = []; output = ""; merging = merge
-        let token = cancellation;Self.activeOperations += 1;LocalGitCommandProgress.begin();defer {Self.activeOperations -= 1;LocalGitCommandProgress.end();withExtendedLifetime(access) {}}
+        merging = merge
+        let token = cancellation,startedAt=ProcessInfo.processInfo.systemUptime
         var nextOutput = "", nextPreviousBranch = "", nextActions: [SwitchPostAction] = [], nextSuccess = false, commandCompleted = false
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
             guard try await !repository.isBare(cancellation: cancellation) else { throw CheckoutFailure.invalidRevision }
             nextPreviousBranch = try await repository.branch(cancellation: cancellation)
+            guard !invalidated else{return}
             var options = self.options; options.merge = merge
-            nextOutput = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
-                guard let self, !self.invalidated, self.cancellation === token else { return }
-                self.output = state.output; self.currentWork = state.currentWork; self.percentage = state.percentage
-            }, resultText: { $0 }, operation: { [self] emit in try await self.checkoutOperation(options,token,emit) })
+            nextOutput=try await streamCheckout(options,token:token)
+            guard !invalidated else{return}
             commandCompleted = true
-            let conflicts = try await repository.status(refreshIndex: false, cancellation: cancellation).contains { $0.state == .conflicted }
-            if merge && conflicts { nextOutput += "\nHas merge conflict"; output = LocalGitCommandProgress.bounded(output + "\nHas merge conflict", preferences: preferences) }
+            completeCommand(succeeded:true,cancelled:false,exitCode:0,startedAt:startedAt)
+            let status:[StatusEntry]
+            if let readStatus {status=try await readStatus(token)} else {status=try await repository.status(refreshIndex:false,cancellation:token)}
+            guard !invalidated else{return}
+            let conflicts=status.contains {$0.state == .conflicted}
+            if merge && conflicts { nextOutput += "\nHas merge conflict";appendDiagnostic("Has merge conflict") }
             else {
                 if FileManager.default.fileExists(atPath: repository.root.appendingPathComponent(".gitmodules").path) { nextActions.append(.submoduleUpdate) }
                 if !nextPreviousBranch.isEmpty { nextActions.append(.mergePreviousBranch) }
@@ -837,7 +943,13 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
             }
         } catch {
             nextOutput += (nextOutput.isEmpty ? "" : "\n") + ((error as? GitCommandCancellationFailure)?.result.text ?? error.localizedDescription)
-            if !invalidated { output = commandCompleted ? LocalGitCommandProgress.bounded(output + "\n" + error.localizedDescription, preferences: preferences) : LocalGitCommandProgress.failure(error, existing: output, preferences: preferences) }
+            if !invalidated {
+                if commandFinished {appendDiagnostic(error.localizedDescription)}
+                else {output=LocalGitCommandProgress.failure(error,existing:output,preferences:preferences)}
+                let failure=error as? GitCommandCancellationFailure
+                cancelled=token.isCancelled || error is OperationCancellationFailure || error is CancellationError || failure != nil
+                completeCommand(succeeded:commandCompleted,cancelled:cancelled && failure == nil,exitCode:failure?.result.exitCode ?? (error as? GitFailure)?.code,startedAt:startedAt)
+            }
         }
         guard !invalidated else { return }
         if !nextSuccess {
@@ -847,7 +959,8 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
                 // Normal Cancel still checks for conflicts after the cancelled
                 // attempt. Forced window cleanup also cancels this fresh read.
                 let inspection = OperationCancellation(); inspectionCancellation = inspection
-                conflicts = (try? await repository.status(refreshIndex: false, cancellation: inspection).contains { $0.state == .conflicted }) == true
+                do {let status:[StatusEntry];if let readStatus {status=try await readStatus(inspection)} else {status=try await repository.status(refreshIndex:false,cancellation:inspection)};conflicts=status.contains {$0.state == .conflicted}}
+                catch {if !invalidated,!inspection.isCancelled {appendDiagnostic("Checking for conflicts failed.\n" + error.localizedDescription)}}
                 if inspectionCancellation === inspection { inspectionCancellation = nil }
             }
             guard !invalidated else { return }
@@ -857,9 +970,8 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
             if !merge { nextActions.append(.switchWithMerge) }
         }
         guard !invalidated else { return }
-        if output.isEmpty { output = LocalGitCommandProgress.bounded(nextOutput, preferences: preferences) }; currentWork = ""; percentage = nil; previousBranch = nextPreviousBranch; postActions = nextActions; success = nextSuccess; cancelled = cancellation.isCancelled
-        busy = false; onFinished(nextOutput, success)
-        finishAutomaticClose()
+        if output.isEmpty { output = LocalGitCommandProgress.bounded(nextOutput, preferences: preferences) };previousBranch = nextPreviousBranch; postActions = nextActions; success = nextSuccess; cancelled = cancelled || token.isCancelled
+        onFinished(nextOutput, success)
     }
 }
 struct SwitchProgressDialog: View {
@@ -867,9 +979,12 @@ struct SwitchProgressDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Switch to \(model.reference)").font(.headline)
-            SubmoduleProgressOutputView(text: model.output, completed: !model.busy, success: model.success, preferences: model.preferences).frame(maxWidth: .infinity, maxHeight: .infinity)
+            SubmoduleProgressOutputView(text: model.output, completed: model.commandFinished, completionRange:model.completionRange, success:model.commandSucceeded, preferences:model.outputPreferences, clipboard:model.outputClipboard).frame(maxWidth: .infinity, maxHeight: .infinity)
+            if model.commandFinished {ProgressView(value:100,total:100).tint(model.commandSucceeded ? Color.accentColor:Color.red)}
+            else {GitCommandProgressBar(percentage:model.percentage,animate:model.progressPresentation.animateActivity)}
+            if !model.currentWork.isEmpty {Text(model.currentWork).font(.caption).lineLimit(2)}
             HStack {
-                if model.busy { LocalGitProgressIndicator(percentage: model.percentage, animate: model.progressPresentation.animateActivity); Text(model.cancelling ? "Cancelling…" : model.currentWork.isEmpty ? "Switching…" : model.currentWork) }
+                if model.busy { Text(model.cancelling ? "Cancelling…" : model.commandFinished ? "Checking switch result…":"Switching…") }
                 else { Text(model.cancelled ? "Cancelled" : model.success ? "Finished" : "Switch failed").foregroundStyle(model.success ? Color.green : Color.red) }
                 Spacer()
             }
@@ -878,14 +993,14 @@ struct SwitchProgressDialog: View {
                     HStack(spacing: 2) {
                         Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }
                         Menu { ForEach(model.postActions, id: \.self) { action in Button { model.perform(action) } label: { CommandLabel(title: action.title, icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Switch post-actions") }.menuStyle(.borderlessButton).fixedSize()
-                    }.disabled(model.busy)
+                    }.disabled(model.busy || model.hasPendingWork || !model.presentationAvailable())
                 }
                 Spacer()
                 if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
-                else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
+                else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.hasPendingWork || !model.presentationAvailable()) }
             }.disabled(model.confirmingCancellation || model.confirmingQuit)
         }.padding(12)
-        .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation, percentage: model.percentage))
+        .gitDockProgress(.command(busy: model.busy && !model.commandFinished, success:model.commandSucceeded, waiting:model.confirmingCancellation, percentage:model.percentage))
     }
 }
 
@@ -963,19 +1078,28 @@ struct VersionRevisionField: NSViewRepresentable {
 @MainActor private final class SwitchChildRelease {
     static private(set) var activeCount=0
     private let window:NSWindow,parent:NSWindow?
+    private let closeWindow:Bool
+    private let ready:()->Bool
     private var completion:()->Void
     private var observer:NSObjectProtocol?
     private var finished=false
-    init(window:NSWindow,parent:NSWindow?,completion:@escaping ()->Void) {self.window=window;self.parent=parent;self.completion=completion}
+    private var started=false
+    private var waiter:Task<Void,Never>?
+    init(window:NSWindow,parent:NSWindow?,closeWindow:Bool=false,ready:@escaping ()->Bool={true},completion:@escaping ()->Void) {self.window=window;self.parent=parent;self.closeWindow=closeWindow;self.ready=ready;self.completion=completion}
     func start() {
+        guard !started else{return};started=true
         Self.activeCount += 1
-        if window.sheetParent == nil && parent?.attachedSheet !== window {drain();return}
-        observer=NotificationCenter.default.addObserver(forName:NSWindow.didEndSheetNotification,object:parent,queue:.main) { [self] _ in DispatchQueue.main.async {self.drain()} }
-        window.sheetParent?.endSheet(window);window.orderOut(nil);DispatchQueue.main.async { [self] in drain()}
+        if window.sheetParent != nil || parent?.attachedSheet === window {
+            observer=NotificationCenter.default.addObserver(forName:NSWindow.didEndSheetNotification,object:parent,queue:.main) { [self] _ in DispatchQueue.main.async {self.drain()} }
+            (window.sheetParent ?? parent)?.endSheet(window);window.orderOut(nil)
+        }
+        drain()
+        if !finished {waiter=Task { @MainActor [self] in while !finished {try? await Task.sleep(nanoseconds:5_000_000);drain()}}}
     }
     private func drain() {
-        guard !finished,window.sheetParent == nil,parent?.attachedSheet !== window else{return};finished=true
+        guard !finished,window.attachedSheet == nil,window.sheetParent == nil,parent?.attachedSheet !== window,ready() else{return};finished=true
+        waiter?.cancel();waiter=nil
         if let observer {NotificationCenter.default.removeObserver(observer);self.observer=nil}
-        Self.activeCount -= 1;let done=completion;completion={};done()
+        Self.activeCount -= 1;if closeWindow {window.close()};let done=completion;completion={};done()
     }
 }

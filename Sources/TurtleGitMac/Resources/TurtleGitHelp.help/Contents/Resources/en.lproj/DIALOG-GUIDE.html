@@ -140,6 +140,14 @@ inspection; resolve the reported condition before retrying. The completed result
 offers the applicable next actions, including Submodule Update, Pull, Commit or
 Stash. A selected action closes the owned result before opening the next dialog.
 Pending tag-name and cancellation questions keep their accepted target and options.</p>
+<p>Switch progress shows the actual quoted checkout command before its output,
+followed by a result status and optional elapsed time/date. The completed bar
+remains at 100 percent. Copy or Copy all information retains the displayed text.
+Retry and Switch with merge retain the reviewed options. A chosen child waits for
+the result window, cancellation question and actual work to finish, then inherits
+the repository access, preferences and appearance. As in the pinned source,
+the <strong>Resolve…</strong> action after a failed Switch with merge opens Commit to review
+the conflicts. A forced close cancels owned work and cannot launch a queued child.</p>
 <a name="topic-fetch"></a><a name="topic-pull"></a><h2 id="fetch-and-pull">Fetch and Pull</h2>
 <p>Choose a configured Remote or an Arbitrary URL. Remote Branch narrows the request;
 the browse button selects a remote branch. Manage Remotes opens the repository's
@@ -359,6 +367,14 @@ before discarding local changes. Result actions keep the chosen repository and
 close the result before opening Submodule Update, Cleanup or Bisect. Clean removes selected untracked or
 ignored content according to its options. Review its candidates; these operations
 are not ordinary editor Undo actions.</p>
+<p>Reset progress shows its actual quoted command, output and final status, with
+optional execution timing/date and a completed 100 percent bar. A later bisect
+metadata error remains a diagnostic; it does not turn a successful Reset into a
+failed Git command. Retry retains the original plan and checks that HEAD has not
+changed. Cancellation and result closure wait for actual owned work and sheets;
+Submodule Update, Clean and Bisect children inherit the same preferences,
+appearance and repository access. Forcibly closing progress cannot start a queued
+post-action.</p>
 <a name="topic-submodules"></a><a name="topic-worktrees"></a><h2 id="submodules-and-worktrees">Submodules and worktrees</h2>
 <p>Submodule Add asks for the repository, destination path and optional branch.
 Update works on the selected submodules and offered init/recursive/update choices.

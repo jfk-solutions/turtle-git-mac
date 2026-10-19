@@ -82,7 +82,7 @@ extension GitRepository {
         catch { try cancellation.check(); return 20 }
         return Int(value).flatMap { $0 > 0 ? $0 : nil } ?? 20
     }
-    public func merge(_ options: MergeOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+    public func merge(_ options: MergeOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         guard !(options.noFastForward && (options.fastForwardOnly || options.squash)) else { throw MergeFailure.combination }
         if let count = options.logCount, count < 0 { throw MergeFailure.logCount }
@@ -130,6 +130,8 @@ extension GitRepository {
             guard identity.complete else { throw MergeFailure.identity }
         }
         if try mergeHasOwnedReplay(cancellation: cancellation) { throw MergeFailure.activeReplay }
+        try cancellation?.check()
+        onCommand?(commandInvocation(args))
         return try run(args, cancellation: cancellation, onOutput: onOutput).text
     }
 }
