@@ -1,0 +1,171 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "b752d6160259a5084b4f05383b64944801c11efa",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Request Pull source-order branch choices, separate waiting window, Cancel and actual worker/sheet/picker retirement",
+    "Captured configured Alternative Editor and shared Send Mail handoff, failures, explicit retry and Quit/forced-close ownership",
+    "Exact request-pull command authentication inheritance to real nested ls-remote, caller override precedence and process cancellation"
+  ],
+  "source_references": [
+    "src/TortoiseProc/RequestPullDlg.cpp:76-80",
+    "src/Git/Git.cpp:185-215",
+    "src/TortoiseProc/AppUtils.cpp:2947-3011",
+    "src/Utils/SysProgressDlg.cpp:174-208 (ShowModeless immediate flag is not modal)",
+    "pinned Git git-request-pull.sh:121-143 nested ls-remote"
+  ],
+  "initial_frozen_inputs": {
+    "base_commit": "b752d6160259a5084b4f05383b64944801c11efa",
+    "files": {
+      "Sources/TurtleGitCore/GitAskpassRuntime.swift": "5969b3932a20dd6bed7c1949e7887375ce719184b2e3560c9595a07662f9f819",
+      "Sources/TurtleGitMac/RequestPullWindow.swift": "2ca01a691eb1680adb38b3ee166fcef128e5d16f8872c8b9f88dcc8a4390cdc2",
+      "Sources/TurtleGitMac/ApplicationDelegate.swift": "48d6bb28be38608d10151a50ac371e4ebed59dfe4db84d5cc222647440d3871b",
+      "Sources/TurtleGitMac/RepositoryModel.swift": "4923593f8c4e8a6817fdc0c79efe1a444eba21636caf29e630f42cd58357d34d",
+      "Tests/TurtleGitCoreTests/RequestPullAuthenticationTests.swift": "9c185ab12956a4d8769b0f3db8de33ee94aefbb8f42a93ee5d35d7c0b13c5d4a",
+      "docs/qa/request-pull-workflow-native-2026-10-19.swift": "60561f762567e85a5e265421bd264f89b8fd8f698c5a0f9156683e08e6182b44",
+      "docs/qa/request-pull-native-2026-10-08.swift": "6b759d8625a3c916aa12f6e68d82d2a6ec10dc036ef5bab8b37018dc9b36b59a",
+      "docs/qa/request-pull-lifecycle-native-2026-10-15.swift": "dc1f440ee8bd76a32067ae8155d88417d2a76c3636d3bc35dcd201b6c0e737a9",
+      "scripts/test-request-pull-workflow-native.py": "46dd67e90e1ff425d91b5a2eabeb01d7240c68043f7885366de708f10e43d21e"
+    }
+  },
+  "validation": {
+    "core": {
+      "exit": 0,
+      "methods": 12,
+      "filter": "RequestPullTests|RequestPullAuthenticationTests|GitAskpassTests",
+      "log": "build/qa/request-pull-workflow-core-2026-10-19.log",
+      "scope": "4 retained Request Pull, 6 askpass, 2 new eligibility/private real Git request-pull\u2192ls-remote\u2192fake SSH\u2192real local upload-pack tests. Authentication tests use system Git and private injected credentials only."
+    },
+    "build": [
+      {
+        "exit": 0,
+        "log": "build/qa/request-pull-workflow-build-2026-10-19.log",
+        "attempt": 1
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/request-pull-workflow-build-native-cancel-repair-2026-10-19.log",
+        "reason": "Waiting UI changed to actual native Cancel control after AppKit sheet-close diagnostics; no Core change or Core rerun."
+      }
+    ],
+    "native": [
+      {
+        "exit": 1,
+        "log": "build/qa/request-pull-workflow-native-2026-10-19.log",
+        "passed": [
+          "workflow/system",
+          "workflow/bundled",
+          "request-retained/system",
+          "request-retained/bundled"
+        ],
+        "failure": "Retained lifecycle assumed immediate picker retirement although cancelled real Log reads now drain before owner becomes reusable.",
+        "owned_receiver_pids": [
+          77387,
+          77673,
+          77957,
+          78286,
+          78620
+        ]
+      },
+      {
+        "exit": 1,
+        "log": "build/qa/request-pull-workflow-native-lifecycle-repair-2026-10-19.log",
+        "passed": [],
+        "repair": "Wait actual refused/forced Log picker reads and sheet retirement; preserve original assertions.",
+        "failure": "Retained lifecycle timed out; subsequent fixture-only diagnostics located parent performClose while waiting sheet active.",
+        "owned_receiver_pids": [
+          78900
+        ]
+      },
+      {
+        "exit": 1,
+        "log": "build/qa/request-pull-workflow-native-lifecycle-diagnostic-2026-10-19.log",
+        "passed": [],
+        "failure": "Callsite diagnostics located parent performClose ignored by AppKit while waiting sheet active.",
+        "owned_receiver_pids": [
+          79468
+        ]
+      },
+      {
+        "exit": 1,
+        "log": "build/qa/request-pull-workflow-native-lifecycle-modal-repair-2026-10-19.log",
+        "passed": [],
+        "failure": "Waiting sheet performClose likewise did not dispatch ordinary windowShouldClose, so no cancellation was requested.",
+        "owned_receiver_pids": [
+          80087
+        ]
+      },
+      {
+        "exit": 0,
+        "log": "build/qa/request-pull-workflow-native-button-repair-2026-10-19.log",
+        "passed": [
+          "workflow/system",
+          "workflow/bundled",
+          "lifecycle-retained/system",
+          "lifecycle-retained/bundled"
+        ],
+        "repair": "Actual native NSButton Cancel (Escape key equivalent, observed enabled state), no sheet close affordance; retained picker drain waits and every original final lifecycle/helper assertion. Retained request-retained pairs unchanged and not rerun.",
+        "owned_receiver_pids": [
+          81033,
+          81325,
+          81609,
+          82037
+        ]
+      }
+    ],
+    "status": "12 Core methods and relevant Debug build passed; six distinct native case/engine pairs passed cumulatively after recorded focused repairs. Full port/current hosted/physical/signed distribution acceptance remains open.",
+    "cleanup": {
+      "owned_receiver_pids": [
+        77387,
+        77673,
+        77957,
+        78286,
+        78620,
+        78900,
+        79468,
+        80087,
+        81033,
+        81325,
+        81609,
+        82037
+      ],
+      "all_receivers_reaped": true,
+      "independent_pid_and_process_group_absence": true,
+      "visibility": "Prohibited activation policy and receiver order swizzle force every native window/sheet alpha0; new workflow additionally places windows offscreen. No shipping GUI instance launched.",
+      "private_state": "Private temporary repositories/configs, UserDefaults and geometry domains; controlled executable editor only; no public mail/network or user Keychain. run_receiver owns timeout/process-group cleanup. Native fixtures assert actual workers and sheets drained, generated test documents removed, source HEAD/index/config/working bytes preserved.",
+      "helpers": "Held wrapper/sleep children asserted absent per receiver; runner observed/reaped exact receiver groups. No unrelated user-owned applications terminated."
+    },
+    "engines": {
+      "/usr/bin/git": "git version 2.54.0 (Apple Git-157)",
+      "bundled Debug Git": "git version 2.55.0"
+    },
+    "resources_and_docs": {
+      "localizations": "--write before builds, --check passed; 1294 keys across 38 languages (not complete translation)",
+      "bundled_help": "40 documents,49 topics,60 files; regeneration before initial build and final --check passed",
+      "coverage": "130 pinned dialogs,120 partial family audits,10 pending families,0 certified complete; not feature completion percentage",
+      "site": "341 documents built; unresolved_fragments=[]",
+      "diff_check": "passed"
+    }
+  },
+  "limits": [
+    "Not a full Core/hosted integration pass or full TortoiseGit port completion.",
+    "Private controlled executable editor and mail options; no actual receiving GUI editor, public remote, live credential backend, SMTP/TLS delivery, Apple Mail or physical Finder activation.",
+    "Native waiting sheet blocks parent as a macOS adaptation; source uses modeless System Progress.",
+    "Physical layout/keyboard/VoiceOver parity of every source dialog remains unverified.",
+    "Current signed development candidate was measured on bfa1fafe; this native batch has not been rebuilt or accepted as signed/App Store distribution."
+  ],
+  "final_inputs": {
+    "Sources/TurtleGitCore/GitAskpassRuntime.swift": "5969b3932a20dd6bed7c1949e7887375ce719184b2e3560c9595a07662f9f819",
+    "Sources/TurtleGitMac/RequestPullWindow.swift": "61f29e57b1f32bc302ae515dddf556bb89647044a887ce777c746839a784e6b7",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "48d6bb28be38608d10151a50ac371e4ebed59dfe4db84d5cc222647440d3871b",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "4923593f8c4e8a6817fdc0c79efe1a444eba21636caf29e630f42cd58357d34d",
+    "Tests/TurtleGitCoreTests/RequestPullAuthenticationTests.swift": "9c185ab12956a4d8769b0f3db8de33ee94aefbb8f42a93ee5d35d7c0b13c5d4a",
+    "docs/qa/request-pull-workflow-native-2026-10-19.swift": "6f53601de0730b4e809fcfd6e3d09dbec81dd0b76540eedc197a95bb228f6cf0",
+    "docs/qa/request-pull-native-2026-10-08.swift": "6b759d8625a3c916aa12f6e68d82d2a6ec10dc036ef5bab8b37018dc9b36b59a",
+    "docs/qa/request-pull-lifecycle-native-2026-10-15.swift": "bb9717b6592ed877a108e426b7e4893f13a37d1f18ca55151e20c77bf0bbebd3",
+    "scripts/test-request-pull-workflow-native.py": "46dd67e90e1ff425d91b5a2eabeb01d7240c68043f7885366de708f10e43d21e"
+  },
+  "repair_scope": "After the initial Core/build and four native pairs, retained lifecycle waits were corrected for actual picker drain. Diagnostics identified AppKit ignores performClose on sheets. Waiting presentation now uses an explicit native NSButton Cancel with Escape and observed disabled state, with same indeterminate spinner/two source labels; no close affordance. Both affected fixtures drive actual button. Worker cancellation/drain algorithms unchanged. Relevant Debug and workflow/lifecycle checks repeated; retained request-retained and Core passes remain scoped evidence.",
+  "read_only_review": "Independent agent review found no material new worker/sheet/cancel/stale/Quit issue; review is not an execution result."
+}

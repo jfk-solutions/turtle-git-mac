@@ -6,7 +6,7 @@ Reference: pinned RequestPullDlg.cpp/.h, RequestPullCommand.cpp/.h,
 AppUtils.cpp RequestPull and IDD_REQUESTPULL. The pinned libgit2 branch-name
 helper is also recorded in QA because it controls the End input gate.
 
-The new native Request pull window retains Start, Repository URL, End, Send Mail
+The native Request pull window retains Start, Repository URL, End, Send Mail
 after create, OK/Cancel/Help, and horizontal resizing. Start offers local/remote
 branches and a native Log picker with working-tree rows hidden. A picked hash
 replaces Start; Cancel retains it. The app Repository menu and shared action
@@ -27,11 +27,12 @@ is removed only for execution, after storing the supplied text.
 Git runs `request-pull -- <start> <url> <end>` with argument arrays, retains raw
 stdout bytes as pullrequest.txt in a private temporary directory, and checks the
 advertised URL rather than publishing refs. A transport/generation failure retains
-inputs and reports the source Failed to create pull-request message. macOS opens
-the result in the associated text editor, or opens native Send Mail options for
-configured/direct SMTP when Send Mail is selected. Mail-client mode currently
-starts the system mail composer. The Git operation sends no message. Mail recipients and
-sending are controlled in the selected native options or mail composer. If editor/mail handoff fails, Open request
+inputs and reports the source Failed to create pull-request message. The result
+uses Settings → Alternative Editor (TextEdit or the configured application or
+executable), or the shared native Send Mail options when Send Mail is selected.
+Configured/direct SMTP and mail-client drafts retain their separate delivery
+paths after those options. The Git operation sends no message. Mail recipients
+and sending are controlled in the selected native options or mail composer. If editor/mail handoff fails, Open request
 retains access to the generated document. Successful documents remain available
 for the external editor/composer, as upstream keeps its temporary document.
 
@@ -45,22 +46,22 @@ Log picker, and closes the picker when the parent closes.
 [QA](qa/request-pull-2026-10-08.json) records real published request text, UTF-8
 content, tag/bare operation, argument/End validation, failure and pre-cancellation,
 mixed staged/unstaged preservation, and native histories/presets/Log callbacks,
-captured options and owned cancellation/retry. Native handoffs are receiver
-callbacks: tests do not launch an editor or compose/send mail.
+captured options and owned cancellation/retry. That historical checkpoint used receiver callbacks for native handoffs; the
+October 19 continuation below separately covers configured editor and actual
+mail-options routing.
 
 ## Remaining parity
 
 Physical fields/popup/Shift+Delete/Log sheet/Cancel/Escape/resize/default/button
-behavior, appearance/accessibility, editor/mail composer invocation and lifecycle,
-full mail-client To/CC/subject/attachment/combine controls, actual remote SMTP
-credential access,
-command-line endrev/url presets, physical Push follow-up window handoff, signed sandbox and
-App Store acceptance remain pending. Branch-name validation uses Git CLI plus
-source exclusions rather than libgit2; complete Unicode/pathological name
-validation equivalence remains unverified. Temporary result cleanup/retention in
-long-lived external editors needs displayed acceptance. Screenshots predate this
-new window. This is a partial native replacement, not full dialog/application or
-distribution parity.
+behavior and complete appearance/accessibility remain unverified. Controlled
+private editor execution and native mail options are scoped checks; real
+receiving applications, SMTP/TLS/Apple Mail, credentials and signed sandbox
+permissions require their corresponding installed workflows. Branch-name
+validation uses Git CLI plus source exclusions rather than libgit2; complete
+Unicode/pathological validation equivalence remains unverified. Long-lived
+external editor retention and physical Push follow-up acceptance remain open.
+Screenshots predate this continuation. This is a partial native replacement,
+not full dialog/application or distribution parity.
 
 Push success now routes the captured destination into this dialog; see [Push parity](PUSH-PARITY.md).
 
@@ -180,3 +181,57 @@ Send Mail workflow remain its native consumers. Mail preparation and direct
 [mail entry evidence](qa/mail-commands-2026-10-18.json). Local private repositories
 and injected delivery do not certify public remotes, mail applications, physical
 input/visual parity or current signed Store/Finder acceptance.
+
+
+## Source waiting window and configured editor family — October 19, 2026
+
+Source `RequestPullDlg.cpp:76–80` obtains all branches through GetBranchList;
+`Git.cpp:185–215` applies the configured local-first comparator. Native Start
+now uses the originating preferences and keeps that source order, including
+qualified remote names, instead of applying a second alphabetical sort.
+
+Source `AppUtils.cpp:2947–2981` owns a separate System Progress window while
+creating the request. Its two lines describe generation and waiting; it hides
+the percentage bar and stops before errors, cancellation or editor/mail output.
+The native replacement uses an owned indeterminate waiting sheet and direct
+Cancel, starting after accepted End validation. Source ShowModeless uses its
+second boolean for immediate display; it does not request PROGDLG_MODAL. Blocking
+the retained options parent is the macOS sheet adaptation. During generation,
+Cancel/Escape belongs to that active waiting window; after its cancellation
+acknowledgement, the options can be closed or retried. AppKit sheet titlebar
+closure is not used as a cancellation action. Actual Git generation and
+private result writing retain their worker/access lifetime. Result, error and
+cancellation continuations wait for the native progress sheet to detach.
+
+Both initial document opening and Open request use the shared awaitable
+Alternative Editor path, matching `AppUtils.cpp:3011` and
+`LaunchAlternativeEditor:684–694`. Accepted editor settings, document bytes,
+permissions and presentation survive later draft/preference changes. Launch
+failure retains the generated document for retry. A successful executable
+launch remains detached under the existing tool-process owner; TurtleGit does
+not terminate a user's editor when its options close.
+
+Request Pull also enters the existing Git/SSH askpass routing. Git's
+`git-request-pull.sh` invokes `ls-remote` on the advertised repository, so it
+needs the same authentication inheritance as other remote operations. Explicit
+askpass/configuration/headless overrides retain their existing precedence.
+This change authorizes the actual command identity, not matching text inside
+an unrelated local command.
+
+One-shot native failure/cancel acknowledgements, submission contexts, Quit
+epochs and forced retirement prevent late editor/mail launches or stale field
+edits. The Start Log controller remains owned through actual picker reads and
+native sheet retirement. Root entry preserves a live edited draft and refuses
+a cached retiring controller. [Batch evidence](qa/request-pull-workflow-2026-10-19.json)
+records actual checks and limitations; this does not certify public transports,
+physical windows or App Store distribution.
+
+The selected Core group passed 12 methods. Debug builds passed before and after
+the native Cancel-control repair. Six distinct native case/engine pairs passed
+cumulatively with system and bundled Git. Early retained fixtures assumed
+immediate picker drain and ordinary titlebar closure on modal sheets; recorded
+failures led to actual-drain waits and checks that press the native Cancel
+button. Original lifecycle and helper-cleanup assertions remain. All twelve
+receivers, including failed attempts, were reaped and their PIDs/process groups
+independently checked absent. These checks used private state and invisible
+windows; they do not certify physical interaction or current signed delivery.

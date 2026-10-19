@@ -268,6 +268,7 @@ import UniformTypeIdentifiers
             for controller in resolveWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in synchronizationWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in formatPatchWindows.values {controller.model.confirmingQuit=confirmingQuit}
+            for controller in requestPullWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in worktreeListWindows.values {controller.createWindow?.model.confirmingQuit=confirmingQuit}
             if confirmingQuit {cancelFinderWorktreeCreation()}
         }
@@ -2798,11 +2799,15 @@ import UniformTypeIdentifiers
         return controller
     }
     private func showRequestPull(repository: GitRepository, access: RepositoryAccessLease?, end: String? = nil, repositoryURL: String? = nil, commandLaunch: Bool = false) {
+        guard !retired, !confirmingQuit else { return }
         let key = repository.root.path + ":requestPull:" + (commandLaunch ? "command" : UUID().uuidString)
-        if let existing = requestPullWindows[key] { existing.window?.makeKeyAndOrderFront(nil); return }
+        if let existing = requestPullWindows[key] { if existing.canReuse { existing.window?.makeKeyAndOrderFront(nil) }; return }
         let controller = makeRequestPull?(repository, access, end, repositoryURL) ?? RequestPullWindowController(repository: repository, access: access, end: end, repositoryURL: repositoryURL, preferences: fileComparisonPreferences)
         controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
-        controller.onClosed = { [weak self] in self?.requestPullWindows.removeValue(forKey: key) }
+        controller.onClosed = { [weak self, weak controller] in
+            guard let self, let controller, self.requestPullWindows[key] === controller else { return }
+            self.requestPullWindows.removeValue(forKey: key)
+        }
         requestPullWindows[key] = controller
         if let requestPullPresentation { requestPullPresentation(controller) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }

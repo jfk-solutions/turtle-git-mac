@@ -510,7 +510,9 @@ See [Push parity](PUSH-PARITY.md) for verified scope and remaining work.
 
 **Create pull request…** now opens a native Request Pull dialog with upstream's
 Start/URL/End fields, saved histories and Log selection. Git generates pull-request
-text for the macOS editor or mail composer. See [Request Pull parity](REQUEST-PULL-PARITY.md)
+text through an owned waiting window, then the configured Alternative Editor
+or reviewed Send Mail options. Git/SSH askpass inheritance covers the advertised
+repository check. See [Request Pull parity](REQUEST-PULL-PARITY.md)
 for verification and remaining acceptance.
 
 Native Push now retains a separate result with TortoiseGit's ordered follow-ups:

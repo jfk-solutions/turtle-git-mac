@@ -6,10 +6,20 @@ import TurtleGitCore
     @MainActor static func check(_ condition: Bool, _ message: String) throws {
         if !condition { throw NSError(domain: "RequestPullLifecycle", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
     }
-    @MainActor static func wait(_ condition: () -> Bool) async throws {
+    @MainActor static func wait(file: StaticString = #fileID, line: UInt = #line, _ condition: () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(20)
         while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
-        try check(condition(), "Timed out waiting for Request Pull lifecycle")
+        guard !condition() else { return }
+        let windows = NSApp.windows.map { window -> String in
+            var details = "title=\(window.title.debugDescription),visible=\(window.isVisible),sheet=\(String(describing:window.attachedSheet?.title)),parent=\(String(describing:window.sheetParent?.title))"
+            if let owner = window.windowController as? RequestPullWindowController {
+                let model = owner.model
+                details += ",request{busy=\(model.busy),pending=\(model.pendingOperations),waiting=\(model.waitingForHandoff)/\(owner.waitingController != nil),retired=\(model.isRetired),choosing=\(model.choosingStart),picker=\(owner.picker != nil),error=\(String(describing:model.error)),confirmingError=\(model.confirmingError),errorWindow=\(owner.errorWindow != nil),mail=\(model.composingMail),editor=\(model.openingEditor),document=\(String(describing:model.document?.path))}"
+            }
+            if let owner = window.windowController as? LogWindowController { details += ",log{busy=\(owner.model.busy),pending=\(owner.model.pendingHistoryLoads)}" }
+            return details
+        }.joined(separator: "; ")
+        try check(false, "Timed out waiting for Request Pull lifecycle at \(file):\(line); operations=\(RequestPullWindowModel.activeOperations),releases=\(RequestPullWindowController.activeReleases),history=\(LogWindowModel.activeHistoryLoads),editor=\(AlternativeEditor.activeRequests)/\(ExternalToolProcesses.activeRequests); windows=\(windows)")
     }
     @MainActor static func main() async throws {
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
@@ -30,11 +40,12 @@ import TurtleGitCore
         let controller = RequestPullWindowController(repository: repository, access: nil, preferences: prefs)
         defer { controller.close() }; controller.window!.alphaValue = 0; controller.showWindow(nil)
         try await wait { !controller.model.busy }
-        var configured = 0, reply: ((LogEntry?) -> Void)?
+        var configured = 0, reply: ((LogEntry?) -> Void)?, lastPicker: LogWindowController?
         controller.configureLogPicker = { if $0.colorPreferences === prefs { configured += 1 } }
         controller.makePicker = { repository, access, revision, preferences, choose in
             reply = choose
-            return LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences, initialRevision: revision)
+            let child = LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences, initialRevision: revision)
+            lastPicker = child; return child
         }
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             controller.window!.appearance = NSAppearance(named: appearance); controller.model.start = first
@@ -61,27 +72,31 @@ import TurtleGitCore
             try check(controller.model.start == first, "Cancel changed Start")
         }
         controller.presentPicker = { _, _ in false }; controller.chooseStart()
+        let refusedPicker = lastPicker!
+        try await wait { refusedPicker.model.pendingHistoryLoads == 0 && refusedPicker.window?.sheetParent == nil && controller.picker == nil && !controller.model.choosingStart }
         try check(controller.picker == nil && !controller.model.choosingStart, "Refused picker retained owner")
         controller.presentPicker = { parent, child in parent.beginSheet(child); return true }
         controller.chooseStart(); try await wait { controller.picker?.model.busy == false && controller.picker?.model.entries.isEmpty == false }
-        let retiredEntry = controller.picker!.model.entries.first!
+        let retiringPicker = controller.picker!, retiredEntry = retiringPicker.model.entries.first!
         controller.close(); reply?(retiredEntry)
         try check(controller.picker == nil && controller.model.isRetired && !controller.model.choosingStart && controller.model.start == first, "Retired picker callback changed input")
+        try await wait { retiringPicker.model.pendingHistoryLoads == 0 && retiringPicker.window?.sheetParent == nil && controller.window?.attachedSheet == nil }
 
         var opened = [URL]()
         let document = RequestPullWindowController(repository: repository, access: nil, end: "main", repositoryURL: remote.path, preferences: prefs)
         defer { document.close() }; document.window!.alphaValue = 0; document.showWindow(nil)
         document.openDocument = { opened.append($0); return false }
         try await wait { !document.model.busy }; document.model.start = first; document.model.sendMail = false; document.model.create()
-        try await wait { !document.model.busy && document.model.document != nil }
+        try await wait { !document.model.busy && !document.model.hasPendingWork && !document.model.waitingForHandoff && document.waitingController == nil && document.model.document != nil && opened.count == 1 && document.errorWindow != nil }
         let file = document.model.document!
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         try check(opened == [file] && document.model.error?.contains("Open request") == true && !document.model.isRetired, "Failed document launch did not retain fallback")
         var options = RequestPullOptions(); options.start = first; options.repositoryURL = remote.path; options.end = "main"
         try check(try Data(contentsOf: file) == (try await repository.requestPull(options)), "Generated fallback lost exact request bytes")
         // Dismiss the actual error alert before using the exposed fallback button.
-        document.model.error = nil; try await wait { document.window!.attachedSheet == nil }
+        document.model.error = nil; try await wait { document.window!.attachedSheet == nil && document.errorWindow == nil && !document.model.confirmingError && !document.model.waitingForHandoff }
         document.openDocument = { opened.append($0); return true }; document.model.openDocument()
+        try await wait { document.model.isRetired && !document.model.hasPendingWork && document.waitingController == nil && document.window!.attachedSheet == nil }
         try check(opened == [file, file] && document.model.isRetired && FileManager.default.fileExists(atPath: file.path), "Successful retry should retire owner while retaining document")
         document.model.openDocument(); try check(opened.count == 2, "Retired fallback reopened external editor")
 
@@ -89,11 +104,12 @@ import TurtleGitCore
         let mail = RequestPullWindowController(repository: repository, access: nil, end: "main", repositoryURL: remote.path, preferences: prefs, mailPresentation: { shown = $0 as? SendPatchWindowController })
         defer { mail.close() }; mail.window!.alphaValue = 0; mail.window!.appearance = NSAppearance(named: .darkAqua); mail.showWindow(nil)
         try await wait { !mail.model.busy }; mail.model.start = first; mail.model.sendMail = true; mail.model.create()
-        try await wait { !mail.model.busy && shown != nil }
+        try await wait { !mail.model.busy && !mail.model.hasPendingWork && !mail.model.waitingForHandoff && mail.waitingController == nil && shown != nil }
         let mailFile = mail.model.document!; defer { try? FileManager.default.removeItem(at: mailFile.deletingLastPathComponent()) }
         try check(mail.model.composingMail && shown!.window!.alphaValue == 0 && shown!.window!.appearance == mail.window!.appearance && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Mail ownership/theme/Quit gate lost")
         let owned = shown!; var submitted = false; owned.model.onSubmit = { _ in submitted = true }
         mail.close(); owned.model.to = "qa@example.invalid"; owned.model.submit()
+        try await wait { mail.model.isRetired && !mail.model.hasPendingWork && !mail.model.composingMail && mail.waitingController == nil && mail.window!.attachedSheet == nil && !owned.window!.isVisible }
         try check(!mail.model.composingMail && mail.model.isRetired && !submitted && !owned.window!.isVisible, "Forced owner failed to retire mail options")
 
         // Drive the actual repository authorization/adoption dispatcher, not only URL decoding.
@@ -132,6 +148,8 @@ import TurtleGitCore
                 try Data((command == "for-each-ref" ? command : "").utf8).write(to: phase)
                 let slow = RequestPullWindowController(repository: slowRepository, access: nil, end: "main", repositoryURL: remote.path, preferences: prefs)
                 defer { slow.close() }; slow.window!.alphaValue = 0; slow.showWindow(nil)
+                var cancellationAlert: NSAlert?
+                slow.presentError = { alert, parent, reply in cancellationAlert = alert; alert.beginSheetModal(for: parent, completionHandler: reply) }
                 if command != "for-each-ref" {
                     try await wait { !slow.model.busy }; try Data(command.utf8).write(to: phase)
                     slow.model.start = first; slow.model.sendMail = false; slow.model.create()
@@ -139,8 +157,20 @@ import TurtleGitCore
                 try await wait { FileManager.default.fileExists(atPath: marker.path) }
                 let pids = try String(contentsOf: marker).split(whereSeparator: \.isWhitespace).compactMap { Int32($0) }
                 try check(pids.count == 2 && RequestPullWindowModel.activeOperations > 0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Owned operation lost process/Quit lifetime")
-                if forced { slow.close() } else { slow.window!.performClose(nil) }
-                try await wait { !slow.model.busy && slow.model.isRetired && pids.allSatisfy { kill($0, 0) != 0 } }
+                if forced { slow.close() }
+                else if command == "request-pull" {
+                    // The macOS waiting sheet owns input. Press its native Cancel
+                    // button, acknowledge cancellation, then close options.
+                    try check(slow.waitingWindow?.sheetParent === slow.window, "Generation did not own its native waiting window")
+                    try check(slow.waitingController!.cancelButton.isEnabled && slow.waitingController!.cancelButton.keyEquivalent == "\u{1b}", "Waiting sheet Cancel/Escape unavailable")
+                    slow.waitingController!.cancelButton.performClick(nil)
+                    try await wait { !slow.model.busy && !slow.model.hasPendingWork && slow.waitingController == nil && cancellationAlert?.window.sheetParent === slow.window && pids.allSatisfy { kill($0, 0) != 0 } }
+                    try check(slow.model.error == "User cancelled." && slow.model.document == nil && cancellationAlert!.window.defaultButtonCell === (cancellationAlert!.buttons[0].cell as? NSButtonCell), "Waiting-window Cancel lost owned default acknowledgement or published document")
+                    cancellationAlert!.buttons[0].performClick(nil)
+                    try await wait { slow.errorWindow == nil && !slow.model.confirmingError && slow.window!.attachedSheet == nil }
+                    slow.window!.performClose(nil)
+                } else { slow.window!.performClose(nil) }
+                try await wait { !slow.model.busy && !slow.model.hasPendingWork && slow.model.isRetired && slow.waitingController == nil && slow.window!.attachedSheet == nil && pids.allSatisfy { kill($0, 0) != 0 } }
                 try check(slow.model.document == nil && (forced ? slow.model.error == nil : true), "Closed operation published a request/error")
                 try FileManager.default.removeItem(at: marker)
             }

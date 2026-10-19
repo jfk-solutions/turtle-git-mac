@@ -3605,3 +3605,21 @@ retry and shared Send Patch composition remain in use.
 [batch evidence](qa/format-patch-workflow-2026-10-19.json) separate selected checks
 from physical/visual, live mail, signed external grants, Finder and App Store
 acceptance. Full source parity remains unproven.
+
+
+### Request Pull waiting, configured editor and authentication, October 19, 2026
+
+The connected Request Pull family preserves source branch ordering through
+originating preferences, accepts its form before owned indeterminate generation
+progress and waits for actual Git/private-write/native-sheet drainage before
+editor, mail, error or cancellation continuation. Generated documents use the
+configured Alternative Editor and retain Open request recovery; shared Send
+Mail options retain captured files/permissions/appearance. Source histories and
+End validation timing remain. Git/SSH askpass inheritance now includes the
+actual request-pull transport command. Picker reads, submission/field contexts,
+Quit epochs and forced closure fence stale continuations.
+
+[Source comparison](REQUEST-PULL-PARITY.md) and
+[batch evidence](qa/request-pull-workflow-2026-10-19.json) distinguish the selected
+checks from public transports, real editor/Apple Mail/TCC/credentials, physical
+visual/input parity and signed/App Store acceptance.

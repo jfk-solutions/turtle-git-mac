@@ -60,7 +60,7 @@ import TurtleGitCore
             controller.onClosed = { closed += 1 }
             try await wait { !controller.model.busy }
             controller.model.start = base; controller.model.sendMail = true; controller.model.create()
-            try await wait { !controller.model.busy && shown != nil }
+            try await wait { !controller.model.busy && !controller.model.hasPendingWork && !controller.model.waitingForHandoff && controller.waitingController == nil && shown != nil }
             precondition(controller.model.composingMail && !controller.windowShouldClose(controller.window!))
             let options = shown!, file = controller.model.document!
             precondition(options.model.customSubject && options.model.delivery == (delivery == .mailClient ? .mailClient : .smtp) && options.window?.title == "Send Mail – TurtleGit")
@@ -79,7 +79,7 @@ import TurtleGitCore
             if lines.last == "" { lines.removeLast() }
             precondition(message.subject == "Request custom 雪" && message.body == Data(lines.map { $0 + "\r\n" }.joined().utf8))
             precondition(message.to == ["review@example.invalid"] && message.cc == ["copy@example.invalid"] && message.attachments.isEmpty)
-            try await wait { !controller.model.composingMail && closed == 1 }
+            try await wait { !controller.model.composingMail && !controller.model.hasPendingWork && controller.waitingController == nil && controller.window?.attachedSheet == nil && closed == 1 }
             try FileManager.default.removeItem(at: file.deletingLastPathComponent())
             controller.model.invalidate(); options.model.invalidate()
             var cancelOptions: SendPatchWindowController?, cancelClosed = 0
@@ -90,7 +90,7 @@ import TurtleGitCore
             cancelController.model.presentDocument(handoffs[0].0, true)
             precondition(cancelController.model.composingMail && cancelOptions != nil)
             cancelOptions!.model.cancel()
-            try await wait { !cancelController.model.composingMail && cancelClosed == 1 }
+            try await wait { !cancelController.model.composingMail && !cancelController.model.hasPendingWork && cancelController.waitingController == nil && cancelController.window?.attachedSheet == nil && cancelClosed == 1 }
             cancelController.model.invalidate()
         }
         try FileManager.default.removeItem(at:handoffs[0].0.deletingLastPathComponent())

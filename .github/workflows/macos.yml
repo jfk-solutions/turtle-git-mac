@@ -685,8 +685,11 @@ jobs:
         run: python3 scripts/test-push-result-refresh.py
       - name: Native Push retained progress and post-actions
         run: python3 scripts/test-push-progress.py
-      - name: Native Request Pull generation and cancellation
-        run: python3 scripts/test-request-pull.py
+      - name: Grouped native Request Pull waiting, editor, mail and cancellation
+        run: >-
+          python3 scripts/test-request-pull-workflow-native.py
+          --git /usr/bin/git
+          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native branch revision number display
         run: python3 scripts/test-branch-revision-number.py
       - name: Native Commit columns, sorting and closed-owner settings

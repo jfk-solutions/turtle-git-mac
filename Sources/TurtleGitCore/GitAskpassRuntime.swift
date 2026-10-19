@@ -10,7 +10,9 @@ public enum GitAskpassRuntime {
         return FileManager.default.isExecutableFile(atPath: path.path) ? path : nil
     }
     public static func mayAuthenticate(_ arguments: [String]) -> Bool {
-        let commands: Set<String> = ["clone", "fetch", "pull", "push", "ls-remote", "submodule", "svn", "lfs", "credential"]
+        // request-pull invokes ls-remote in its subprocess; its authentication
+        // helpers must already be present in the inherited outer environment.
+        let commands: Set<String> = ["clone", "fetch", "pull", "push", "ls-remote", "request-pull", "submodule", "svn", "lfs", "credential"]
         let identity=GitCommandIdentity(arguments)
         if identity.command=="remote",let action=identity.arguments.drop(while:{["-v","--verbose","--"].contains($0)}).first,["update","prune","show"].contains(action) {return true}
         return identity.command.map{commands.contains($0)} ?? false

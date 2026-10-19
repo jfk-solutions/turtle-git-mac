@@ -514,8 +514,12 @@ for creation, movement or removal. See [repository folder access](REPOSITORY-FOL
 
 Format Patch prepares selected commits as patch files. Send Patch prepares the
 mail delivery workflow; review recipients, message and attachments. Request Pull
-prepares a request describing the selected range and repository URL. Credentials
-and mail-client permissions depend on the selected delivery method.
+prepares a request describing the selected range and repository URL. A separate
+waiting window offers Cancel during generation. The result opens in the
+Alternative Editor chosen in Settings, or in Send Mail for recipient/message
+review. If opening fails, **Open request** retries the generated document.
+Authenticated repository checks use the normal Git/SSH prompts; credentials
+and mail-client permissions depend on the selected transport/delivery method.
 
 Apply Patch Serial applies a patch series through Git's corresponding operation.
 Review/apply single patch uses the comparison/review workflow. Its source-file chooser offers Use Clipboard Patch, capturing the copied diff before target selection. Finder’s existing eligible Review action also uses registered patch clipboard data when the selected file is not a patch. Opening a review does not apply it. Resolve a failed
