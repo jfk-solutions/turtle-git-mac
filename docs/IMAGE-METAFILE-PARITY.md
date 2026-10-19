@@ -86,8 +86,11 @@ The [formatted text extension](METAFILE-TEXT-PARITY.md) adds native shaped glyph
 unsupported features include driver/glyph strings,
 DisplayFormatControl, locale-specific digit substitution and measured-character-range queries, relative
 compressed path encodings and gradients outside the
-[accepted painting subset](METAFILE-PAINTING-PARITY.md), transformed/compound/custom-cap
-pens, alternate-format/terminal-server records and source-copy compositing.
+[accepted painting subset](METAFILE-PAINTING-PARITY.md), custom-cap pen objects,
+file-format-only Left/Outset/Right pen alignment, alternate-format/terminal-server
+records and source-copy compositing. The [pen extension](METAFILE-PEN-PARITY.md)
+adds transformed nibs, compound bands, standard caps, joins, dash styles and
+Center/Inset positioning across the nine EMF+ stroke record families.
 The [indexed/16-bit bitmap extension](METAFILE-BITMAP-FORMATS-PARITY.md) covers
 1/4/8-bit indexed palettes and RGB555/RGB565/ARGB1555 for images and texture
 brushes. Extended grayscale and 48/64-bit formats, nested WMF images and uncommon

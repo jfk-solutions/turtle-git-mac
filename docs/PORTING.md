@@ -1,5 +1,12 @@
 # TurtleGit for Mac — full port tracking
 
+The [EMF+ pen stroke family](METAFILE-PEN-PARITY.md) connects all nine stroke
+commands to bounded native geometry and the existing brush pipeline. Linear nib
+transforms, compound bands, independent caps, four joins, dashes, physical/world
+units and Center/Inset positioning have independent pixel oracles and explicit
+remaining format/Windows-metric limits. [Batch evidence](qa/metafile-pen-2026-10-19.json)
+retains the initial failures, focused repairs and actual validation scopes.
+
 The [durable pending replay action family](REBASE-PENDING-ACTIONS-PARITY.md)
 adds future Pick/Edit/Squash/Skip and per-row cycling while paused, with saved
 occurrence/mainline/message metadata, checked todo publication and journal

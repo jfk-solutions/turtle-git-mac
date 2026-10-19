@@ -204,10 +204,11 @@ subset and workflows; they do not certify complete Windows graphics parity.
 
 The later [region and pattern extension](METAFILE-REGION-PATTERN-PARITY.md)
 addresses region painting and hatch/bitmap texture brushes with separate evidence.
-Existing explicit gaps remain: complex glyph/StringFormat layout, transformed or
-custom-cap pens, unsupported raw
-bitmap formats, uncommon classic raster operations and Windows font/antialiasing
-identity. Any newly accepted gradient subset must retain explicit refusals for
+Later [formatted text](METAFILE-TEXT-PARITY.md),
+[indexed/16-bit bitmap](METAFILE-BITMAP-FORMATS-PARITY.md) and
+[pen stroke](METAFILE-PEN-PARITY.md) extensions have separate evidence. Explicit
+gaps remain for driver/glyph strings, custom-cap objects, other raw bitmap
+formats, uncommon classic raster operations and Windows font/antialiasing identity. Any newly accepted gradient subset must retain explicit refusals for
 its remaining optional fields, malformed boundaries and unsupported painting.
 Three older image fixtures now use the explicit `0xffffffff` absent-attributes
 sentinel; this preserves their original crop/text/bitmap purpose while separate

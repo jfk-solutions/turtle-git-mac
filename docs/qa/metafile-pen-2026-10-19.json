@@ -1,0 +1,155 @@
+{
+  "date": "2026-10-19",
+  "family": "EMF+ native pen object and stroke family",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Versioned pen/embedded brush objects and retained solid/gradient/hatch/texture painting",
+    "All nine stroke drawing records with compressed and supported relative coordinates",
+    "Linear nib transforms, physical/page units, device hairlines and captured affine clipping",
+    "Independent standard caps and anchors, four joins, miter limits, compound bands",
+    "Predefined/custom dashes, offsets, separate dash caps and Center/Inset geometry",
+    "Per-conversion bounded native adaptive outlines and stroke receipt retirement"
+  ],
+  "fixtures": {
+    "accepted": 89,
+    "refused": 55,
+    "new_core_methods": 7,
+    "native_representatives": [
+      "plus-pen-compound.emf",
+      "plus-pen-transform.emf",
+      "plus-pen-inset.emf",
+      "plus-pen-asymmetric-caps.emf",
+      "plus-pen-dash-round.emf",
+      "plus-pen-gradient.emf"
+    ],
+    "existing_alpha_fixture": "Corrected missing embedded brush GraphicsVersion; original opaque/half-alpha color assertions retained",
+    "oracles": "Analytic native-pixel membership over every pixel away from independently defined antialias boundaries; independent fill controls for hatch/gradient/texture; selected curve/unit/encoding probes"
+  },
+  "validation": [
+    {
+      "scope": "Initial universal helper build",
+      "status": "failed",
+      "log": "build/qa/metafile-pen-runtime-build-2026-10-19.log",
+      "finding": "Swift compiler failed to diagnose constructor-reference inference in the two outline calls",
+      "resolution": "Explicit CGFloat arrays/scalar locals and simplified multiline calls; production geometry unchanged"
+    },
+    {
+      "scope": "Universal helper build after explicit Swift type inference repair",
+      "status": "passed",
+      "log": "build/qa/metafile-pen-runtime-repair-2026-10-19.log"
+    },
+    {
+      "scope": "All-architecture source reconstruction, deployment/linkage and generic WMF conversion/rejection",
+      "status": "passed",
+      "log": "build/qa/metafile-pen-runtime-validation-2026-10-19.log",
+      "limit": "The new pen pixel corpus is checked separately on the local arm64 host; the both-architecture validator executes a generic WMF sample"
+    },
+    {
+      "scope": "Initial relevant MetafileImageTests group",
+      "status": "failed",
+      "executed": 50,
+      "failed_methods": 2,
+      "failed_assertions": 3,
+      "duration_seconds": 21.138,
+      "log": "build/qa/metafile-pen-core-2026-10-19.log",
+      "findings": [
+        "Closed compound inner-band segment quads overpainted corner gaps",
+        "Collinear backtracking cubic hit subdivision limit at stationary tangents",
+        "Two-pixel compound bands had no interior samples after the independent one-pixel antialias exclusion"
+      ],
+      "resolution": [
+        "Trim inner band strip endpoints and joins to offset intersections",
+        "Split cubics at analytic coordinate-derivative extrema before bounded adaptive flattening",
+        "Strengthen closed compound fixture to four-pixel bands and retain all pixel/antialias assertions"
+      ],
+      "retained_evidence": "Other 48 methods passed; full group will not be repeated merely for focused repairs"
+    },
+    {
+      "scope": "Initial Debug application build",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/metafile-pen-app-build-2026-10-19.log",
+      "limit": "Predates the two native geometry repairs; final application embedding is recorded separately"
+    },
+    {
+      "scope": "Universal helper with compound-corner and curve-extrema repairs",
+      "status": "passed",
+      "log": "build/qa/metafile-pen-runtime-geometry-repair-2026-10-19.log"
+    },
+    {
+      "scope": "Only two affected Core methods after geometry/fixture repair",
+      "status": "passed",
+      "executed": 2,
+      "failures": 0,
+      "duration_seconds": 1.147,
+      "log": "build/qa/metafile-pen-core-repair-2026-10-19.log",
+      "limit": "The 48 previously passing methods were retained; the full 50-method group was not rerun"
+    },
+    {
+      "scope": "Final all-architecture runtime reconstruction, macOS deployment/system links and generic WMF conversion/rejection",
+      "status": "passed",
+      "log": "build/qa/metafile-pen-runtime-final-2026-10-19.log",
+      "limit": "New pen native-pixel corpus executed on local arm64; validator executes a generic WMF sample on both slices"
+    },
+    {
+      "scope": "Final Debug application build and helper embedding",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/metafile-pen-app-final-2026-10-19.log",
+      "runtime_cache_key": "49e999f5a17e91b22700a99a4a284338466968618767b6e3887e3de4279bde87",
+      "source_identity": "Prepared and packaged source_sha256 dictionaries and renderer_sha256 match; every current source file hash matches the prepared manifest",
+      "limit": "Native receiver is an unbundled Debug executable and uses MetafileImageDecoder development-helper fallback; packaged helper source identity was separately checked, without claiming signed-parent invocation"
+    },
+    {
+      "scope": "Native consumer group, system Git",
+      "status": "passed",
+      "git": "/usr/bin/git",
+      "log": "build/qa/metafile-pen-native-consumers-2026-10-19.log",
+      "representative_images": 39,
+      "receiver_pid": 13172,
+      "cleanup": "Owned receiver reaped after successful completion",
+      "diagnostic_sample": "build/qa/metafile-pen-native-live.sample.txt",
+      "limit": "Unbundled Debug receiver uses development helper; packaged source identity separately verified. No physical or signed acceptance."
+    },
+    {
+      "scope": "Native consumer group, bundled Git",
+      "status": "passed",
+      "git": "build/git-runtime/Git/bin/git",
+      "log": "build/qa/metafile-pen-native-consumers-2026-10-19.log",
+      "representative_images": 39,
+      "receiver_pid": 13830,
+      "cleanup": "Both successful receiver processes reaped and independently absent via ps",
+      "coverage": [
+        "Actual two-side native IDiff dispatch and dimensions for 39 representative images including six new pen samples",
+        "Unsupported-side rendering preserves captured original bytes",
+        "Explicit Merge isolation, Open/drop preview and reload",
+        "Held decoder cancellation/late-result/session/grant/Quit ownership",
+        "Retained WMF/EMF/EMF+ three-side conflict decoding and HEAD/index/working-byte preservation"
+      ],
+      "limit": "Unbundled Debug native receiver uses development helper; no physical Finder or signed release acceptance"
+    }
+  ],
+  "retained_limits": [
+    "Custom cap object family and file-format Left/Outset/Right alignment remain unsupported",
+    "Windows pixel certification of anchor dimensions and compound/miter metrics is pending",
+    "Anti-alias, pixel-offset and compositing-quality records do not select GDI+ rasterization policy",
+    "Other WMF/EMF/EMF+ raster, text and record families remain explicitly scoped elsewhere",
+    "Full new native-pixel corpus on Intel/minimum macOS, physical Finder/UI and signed release acceptance are not established by local focused checks"
+  ],
+  "hosted_observation": {
+    "latest_head": "9e1b735a",
+    "pages_run": 39306877335,
+    "pages": "completed success",
+    "macos_run": 39306877231,
+    "macos": "pending",
+    "previous_macos_run": 39304374728,
+    "previous_macos_job": 118238441715,
+    "previous_macos": "in_progress at Git integration tests; application/extension and moved-block checks passed",
+    "limit": "Observation precedes this batch commit and does not prove hosted pass"
+  },
+  "resource_checks": {
+    "help": "Generated and checked:42documents,50topics,62files; log build/qa/metafile-pen-help-check-2026-10-19.log",
+    "localizations": "Check passed; no production UI labels changed; log build/qa/metafile-pen-localizations-2026-10-19.log",
+    "protected_user_work": "scripts/test-native-reference-batch.py and docs/qa/reflog-capture-native-2026-10-13.swift retain their initial hashes and are excluded from commit"
+  }
+}

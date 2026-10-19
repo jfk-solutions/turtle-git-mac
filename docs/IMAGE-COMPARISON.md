@@ -84,6 +84,8 @@ and font decorations through native glyph outlines. See the
 [text format scope](METAFILE-TEXT-PARITY.md) for exact limits. Classic EMF
 clipping includes union, intersection, XOR and subtraction, path/rectangle clips,
 clip offsets and metaregions; see the [classic clipping scope](METAFILE-CLASSIC-CLIP-PARITY.md).
+EMF+ pen strokes include transformed nibs, compound bands, separate end caps,
+joins, dashes and Center/Inset positioning; see the [pen scope](METAFILE-PEN-PARITY.md).
 
 Decoding runs in the background. Closing or replacing an input cancels the owned
 decoder and prevents a delayed preview from replacing a newer view. Rendering

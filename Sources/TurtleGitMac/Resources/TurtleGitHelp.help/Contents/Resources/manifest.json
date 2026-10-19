@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "116ba1b3e2878356690ef8824ac62ca27651486d5cfe90cb243d67d660182fdf",
+    "Contents/Info.plist": "c0b2ef10e6e700fa8a88cac3a482e5f225eb8a39ad68da4b2a987a48987872f6",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "01d9789d13afd9ece8aac7c7a97615b55f0e9e37f5211445b613f67b4d166d39",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "940fa5e112b44a1c585a13339c8d07f16d36149a2ab0a9295b31c44728f0287d",
@@ -16,7 +16,7 @@
     "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "cd9e31faffc1970e3878f03dab88cf3d6ea4c196a0a52b96b9ddb459aaaf4000",
     "Contents/Resources/en.lproj/GIT-NOTES.html": "52816feaad67206716db305e4d1ff3d5afa91e313dd34a4d670315ce4e421120",
     "Contents/Resources/en.lproj/GIT-PROPERTIES.html": "4e71c861dc0f1c93cd123f477e231545fca537150a8e050fbdedfdef204d46a8",
-    "Contents/Resources/en.lproj/IMAGE-COMPARISON.html": "4dce7201fe5f84dd55c377aa16c7bd4d81dbe977461a1c62c642b747171412e5",
+    "Contents/Resources/en.lproj/IMAGE-COMPARISON.html": "63ccec3bf1d164180b956d9c2f5b74d5708ee7a253320b6373506a920cc8a1a9",
     "Contents/Resources/en.lproj/InfoPlist.strings": "436e0d7f17990db122633ab657a3a406a252ad892449860b7157494614595b02",
     "Contents/Resources/en.lproj/LANGUAGES.html": "3352490c128dfe47372f3c7f238b476138fd9b14641f61f9954fd1e67af517a4",
     "Contents/Resources/en.lproj/LFS.html": "0fce6bd22bff5a9eacdc281918aba1ae37941f892c13100e5f17625d83dc6178",
@@ -78,7 +78,7 @@
     "docs/GIT-AUTHENTICATION.md": "74d8ecd9a6a378f3a6c263263bbdabb682e1a0626b1495fc675b8f25ec695812",
     "docs/GIT-NOTES.md": "a2fe3e80da5ad3987ded76f1400801c0c4d9707b8a94ca3a93c11e22feec551c",
     "docs/GIT-PROPERTIES.md": "612ac979b47e69e263e308337f2ee7529d9620e73175167a72a1ff043f4d4605",
-    "docs/IMAGE-COMPARISON.md": "8d96cd1ab5807e11e49cfee76397e11d234f7fffbcd2e1c4e5bca05ae68493f5",
+    "docs/IMAGE-COMPARISON.md": "61a6c2ca92b23c117023d9fd292d278a253fd288976c37c4aa00532fe014509b",
     "docs/LANGUAGES.md": "ed51f9133b61e064168e2b44843d47a7378d4fc054c86507b742b4a855257611",
     "docs/LFS.md": "e8b3f0ed2af880058d2c59e82e32942fa8c7a3ca957626fb55c55d74afcc6ffa",
     "docs/LIBGIT2-TRANSPORT.md": "dc86d4a79b20102a9fd97737654c4e7b19f5a0c49a879c915ab9e47a07897092",

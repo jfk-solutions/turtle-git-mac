@@ -28,6 +28,12 @@ are recorded in `Configuration/MetafileRuntime.json`; `LICENSE-BaseHmiTypes`
 accompanies the helper and its corresponding reconstruction sources. It adds no
 runtime package dependency.
 
+The [EMF+ pen extension](METAFILE-PEN-PARITY.md) connects pen object parsing to
+native stroke outlines for the nine drawing record families. The existing brush
+pipeline paints solid, gradient, hatch and texture strokes. Linear pen transforms,
+compound bands, caps, joins, dashes and Center/Inset positioning have their own
+explicit scope and remaining compatibility list.
+
 ## Rebuilding and embedding
 
 Run `python3 scripts/build-metafile-runtime.py`; the default output is

@@ -150,7 +150,7 @@ blend=U(0xdbc01002,4,2|8,0)+F(0,0,1,1)+U(0xffff0000,0xff0000ff,0xffff0000,0xff00
 (P/'plus-gradient-blend.emf').write_bytes(plus([ep(0x4008,blend,0x100),ep(0x400A,U(0,1)+F(8,8,80,32))]))
 # SVG backend must retain ARGB alpha for both real Pen objects and inline Brush
 # colors. Opaque red width4 line, then half-alpha red rectangle on white.
-pen=U(0xdbc01002,0,0,2)+F(4)+U(0,0xffff0000)
+pen=U(0xdbc01002,0,0,2)+F(4)+U(0xdbc01002,0,0xffff0000)
 rs=[ep(0x4008,pen,0x200),ep(0x400D,U(2)+F(8,8,40,8)),ep(0x400A,U(0x80ff0000,1)+F(8,20,32,24),0x8000)]
 (P/'plus-alpha-pen.emf').write_bytes(plus(rs))
 # Ordered tile count is valid (100x100 <16384), but duplicating this deterministic
@@ -570,3 +570,155 @@ for label,ops in [('selected',[cc_region([CC_A])]),('meta',[cc_region([CC_A]),re
  rs=[comment([ep(0x4001,U(0xdbc01002,1,96,96),1),ep(0x4004)])]+ops+cc_paint()
  rs += [comment([ep(0x402B),ep(0x4004)]),brush(2,0xff00),selected(2),selected(0x80000008),record(43,I(*CC_B)),comment([ep(0x4002)])]
  (P/('classic-clip-getdc-'+label+'.emf')).write_bytes(emf(rs))
+
+# EMF+ pens: PenDataOptional fields follow increasing flag order; BrushObject
+# is a complete versioned EmfPlusBrush, not just BrushType+ARGB. This matches
+# MS-EMFPLUS 2.2.1.7 and its independent 3.2.33.1 serialized pen example.
+PV=0xdbc01002
+def pp_pen(width=8,unit=2,transform=None,start=None,end=None,join=None,miter=None,style=None,dashcap=None,offset=None,pattern=None,align=None,compound=None,brush=None):
+ bits=0;optional=b''
+ for bit,value,encode in [
+  (1,transform,lambda a:F(*a)),(2,start,U),(4,end,U),(8,join,U),
+  (16,miter,F),(32,style,U),(64,dashcap,U),(128,offset,F),
+  (256,pattern,lambda a:U(len(a))+F(*a)),(512,align,U),
+  (1024,compound,lambda a:U(len(a))+F(*a))]:
+  if value is not None:bits|=bit;optional+=encode(value)
+ return U(PV,0,bits,unit)+F(width)+optional+(U(PV,0,0xffff0000) if brush is None else brush)
+def pp_lines(points=((20,32),(76,32)),id=0,closed=False):
+ return ep(0x400D,U(len(points))+F(*(v for p in points for v in p)),id|(0x2000 if closed else 0))
+def pp_rect(rect=(20,16,56,32),id=0):return ep(0x400B,U(1)+F(*rect),id)
+def pp_write(name,pen=None,draw=None,prefix=None,extra=None):
+ rs=list(prefix or [])+[ep(0x4008,pp_pen() if pen is None else pen,0x200),pp_lines() if draw is None else draw]+list(extra or [])
+ (P/('plus-pen-'+name+'.emf')).write_bytes(plus(rs))
+def pp_bad(name,pen,draw=None):
+ (P/('unsupported-pen-'+name+'.emf')).write_bytes(plus([ep(0x4008,pen,0x200),pp_lines() if draw is None else draw]))
+pp_write('flat')
+pp_write('vertical',draw=pp_lines(((48,12),(48,52))))
+pp_write('diagonal',draw=pp_lines(((20,16),(76,48))))
+pp_write('width-zero',pen=pp_pen(width=0))
+pp_write('width-one',pen=pp_pen(width=1))
+for cap,name in [(0,'flat'),(1,'square'),(2,'round'),(3,'triangle'),(16,'no-anchor'),(17,'square-anchor'),(18,'round-anchor'),(19,'diamond-anchor'),(20,'arrow-anchor')]:
+ pp_write('end-'+name,pen=pp_pen(end=cap))
+ pp_write('start-'+name,pen=pp_pen(start=cap))
+pp_write('asymmetric-caps',pen=pp_pen(start=1,end=2))
+pp_write('round-triangle',pen=pp_pen(start=2,end=3))
+pp_write('compound',pen=pp_pen(width=20,compound=[0,.15,.25,.5,.7,1]))
+pp_write('compound-asymmetric',pen=pp_pen(width=20,compound=[0,.2,.45,.75]))
+pp_write('compound-reversed',pen=pp_pen(width=20,compound=[0,.2,.45,.75]),draw=pp_lines(((76,32),(20,32))))
+pp_write('compound-closed',pen=pp_pen(width=16,compound=[0,.25,.75,1]),draw=pp_rect())
+pp_write('center',draw=pp_rect())
+pp_write('inset',pen=pp_pen(align=1),draw=pp_rect())
+pp_write('open-inset',pen=pp_pen(align=1))
+pp_write('transform',pen=pp_pen(transform=(2,0,0,3,0,0)))
+pp_write('transform-translation',pen=pp_pen(transform=(2,0,0,3,13,-9)))
+pp_write('transform-shear',pen=pp_pen(transform=(1,0,1,1,0,0)))
+pp_write('transform-caps',pen=pp_pen(transform=(2,0,0,3,0,0),start=1,end=2))
+pp_write('world-clip',pen=pp_pen(transform=(2,0,0,3,0,0)),draw=pp_lines(((16,24),(72,24))),prefix=[ep(0x4032,F(12,12,64,40)),ep(0x402D,F(8,8))])
+for style,name in [(0,'solid'),(1,'dash'),(2,'dot'),(3,'dash-dot'),(4,'dash-dot-dot')]:
+ pp_write('style-'+name,pen=pp_pen(width=4,style=style))
+pp_write('dash-offset',pen=pp_pen(width=4,style=1,offset=1))
+pp_write('dash-negative-offset',pen=pp_pen(width=4,style=1,offset=-1))
+pp_write('dash-custom',pen=pp_pen(width=4,style=5,pattern=[2,1]))
+pp_write('dash-odd',pen=pp_pen(width=4,style=5,pattern=[2,1,1]))
+pp_write('dash-round',pen=pp_pen(width=4,style=1,dashcap=2))
+pp_write('dash-triangle',pen=pp_pen(width=4,style=1,dashcap=3))
+pp_write('dash-round-line-caps',pen=pp_pen(width=4,style=1,dashcap=2,start=1,end=3))
+v=((24,48),(48,12),(72,48))
+for join,name,limit in [(0,'miter',10),(0,'miter-limited',1.6),(1,'bevel',10),(2,'round',10),(3,'miter-clipped',1.6)]:
+ pp_write('join-'+name,pen=pp_pen(join=join,miter=limit),draw=pp_lines(v))
+ pp_write('join-'+name+'-reversed',pen=pp_pen(join=join,miter=limit),draw=pp_lines(v[::-1]))
+# The path and primitive entry points share the same pen outline contract.
+path=U(PV,2,0)+F(20,32,76,32)+pad(bytes([0,1]))
+pp_write('path',prefix=[ep(0x4008,path,0x301)],draw=ep(0x4015,U(0),1))
+pp_write('ellipse',pen=pp_pen(width=4),draw=ep(0x400F,F(20,12,56,40)))
+pp_write('arc',pen=pp_pen(width=4),draw=ep(0x4012,F(0,180,20,12,56,40)))
+pp_write('bezier',pen=pp_pen(width=6),draw=ep(0x4019,U(4)+F(20,32,36,8,60,56,76,32)))
+# Brush controls paint the same known horizontal rectangle without any pen.
+for name,brush_data in [('hatch',hatch(0)),('gradient',linear(wrap=4,transform=(64,0,0,16,16,24),stops=[(0,0xffff0000),(1,0xff0000ff)])),('texture',texture(transform=(16,0,0,8,16,24)))]:
+ pp_write(name,pen=pp_pen(width=16,brush=brush_data),draw=pp_lines(((16,32),(80,32))))
+ rs=[ep(0x4008,brush_data,0x100),ep(0x400A,U(0,1)+F(16,24,64,16))]
+ (P/('plus-pen-'+name+'-control.emf')).write_bytes(plus(rs))
+# Different pen brush objects must not leak paint into the next pen or fill.
+rs=[ep(0x4008,pp_pen(brush=hatch(0)),0x200),ep(0x4008,pp_pen(width=8,brush=U(PV,0,0xff0000ff)),0x201),pp_lines(((16,16),(80,16))),pp_lines(((16,32),(80,32)),id=1),ep(0x400A,U(0xff00ff00,1)+F(16,44,64,12),0x8000)]
+(P/'plus-pen-brush-ownership.emf').write_bytes(plus(rs))
+# Refusals retain a complete valid outer record chain. Mutations isolate one
+# field, avoiding misleading passes caused by unrelated EMF framing failures.
+base=pp_pen()
+def pp_changed(raw,offset,part):return raw[:offset]+part+raw[offset+len(part):]
+for name,offset,value in [('version',0,0xdeadbeef),('type',4,1),('flags',8,0x80000000),('unit',12,7),('brush-version',20,0xdeadbeef),('brush-type',24,5)]:pp_bad(name,pp_changed(base,offset,U(value)))
+for name,width in [('width-negative',-1),('width-nan',float('nan')),('width-infinite',float('inf'))]:pp_bad(name,pp_pen(width=width))
+pp_bad('truncated-header',base[:16])
+pp_bad('truncated-brush',base[:-1])
+pp_bad('trailing-brush',base+U(0))
+pp_bad('legacy-unversioned-brush',base[:20]+base[24:])
+pp_bad('transform-truncated',pp_pen(transform=(1,0,0,1,0,0))[:36])
+pp_bad('transform-singular',pp_pen(transform=(1,0,0,0,0,0)))
+pp_bad('transform-nan',pp_pen(transform=(1,0,0,float('nan'),0,0)))
+pp_bad('start-cap',pp_pen(start=4))
+pp_bad('end-cap',pp_pen(end=255))
+pp_bad('join',pp_pen(join=4))
+pp_bad('miter-nan',pp_pen(miter=float('nan')))
+pp_bad('miter-negative',pp_pen(miter=-1))
+pp_bad('dash-style',pp_pen(style=6))
+pp_bad('dash-cap',pp_pen(style=1,dashcap=1))
+pp_bad('dash-offset',pp_pen(style=1,offset=float('nan')))
+pp_bad('dash-custom-missing',pp_pen(style=5))
+for name,array in [('empty',[]),('negative',[2,-1]),('zero',[2,0]),('nan',[2,float('nan')])]:pp_bad('dash-pattern-'+name,pp_pen(style=5,pattern=array))
+pp_bad('dash-pattern-count',pp_changed(pp_pen(style=5,pattern=[2,1]),24,U(10001)))
+pp_bad('dash-pattern-truncated',pp_pen(style=5,pattern=[2,1])[:-8])
+pp_bad('alignment',pp_pen(align=2))
+for name,array in [('single',[0]),('odd',[0,.5,1]),('descending',[0,.75,.5,1]),('duplicate',[0,.5,.5,1]),('negative',[-.1,.5]),('above-one',[0,1.1]),('nan',[0,float('nan')])]:pp_bad('compound-'+name,pp_pen(compound=array))
+pp_bad('compound-count',pp_changed(pp_pen(compound=[0,1]),20,U(10001)))
+pp_bad('compound-truncated',pp_pen(compound=[0,1])[:-8])
+pp_bad('inset-compound',pp_pen(align=1,compound=[0,.25,.75,1]))
+pp_bad('inset-triangle-dash',pp_pen(align=1,style=1,dashcap=3))
+pp_bad('custom-start-cap',pp_changed(base,8,U(0x800)))
+pp_bad('custom-end-cap',pp_changed(base,8,U(0x1000)))
+pp_bad('hatch-style',pp_pen(brush=hatch(53)))
+pp_bad('texture-image',pp_pen(brush=texture(image=texture_raw[:-5])))
+# DrawClosedCurve has relative signed integer points when P is set; C is then
+# ignored. Nonzero alignment bytes are ordinary framing padding, not coordinates.
+closed_points=((20,16),(76,16),(48,48))
+closed_relative=b''.join(relative_scalar(v) for v in (20,16,56,0,-28,32))+bytes([0xa5,0x5a])
+pp_write('closed-curve-relative',draw=ep(0x4017,F(0)+U(3)+closed_relative,0x0800))
+pp_write('closed-curve-relative-c',draw=ep(0x4017,F(0)+U(3)+closed_relative,0x4800))
+pp_write('closed-curve-control',draw=ep(0x4017,F(0)+U(3)+F(*(v for p in closed_points for v in p))))
+pp_bad('closed-curve-two-points',pp_pen(),draw=ep(0x4017,F(0)+U(2)+F(20,16,76,16)))
+# World pen units are already page units; physical units convert through page
+# unit DPI before the independent page scale. Point-page scale3 is exactly4px.
+page=[ep(0x4030,F(3),3)]
+page_line=pp_lines(((5,8),(19,8)))
+pp_write('unit-world-page',pen=pp_pen(width=2,unit=0),draw=page_line,prefix=page)
+pp_write('unit-pixel-page',pen=pp_pen(width=2,unit=2),draw=page_line,prefix=page)
+pp_write('unit-point-page',pen=pp_pen(width=2,unit=3),draw=page_line,prefix=page)
+pp_write('unit-inch-page',pen=pp_pen(width=1/12,unit=4),draw=page_line,prefix=page)
+# A zero-width pen is a device hairline, not a one-page-unit stroke that grows
+# when the world scales. All centerline coordinates remain exact integers.
+pp_write('hairline-world',pen=pp_pen(width=0),draw=pp_lines(((10,16),(38,16))),prefix=[ep(0x402A,F(2,0,0,2,0,0))])
+# Offset+NumSegments draws only the middle two cardinal spans; unused initial
+# and final points must not become visible. Tension0 has independent straight
+# segment geometry, so the baseline horizontal stroke is its pixel oracle.
+curve_points=((4,4),(20,32),(48,32),(76,32),(92,56))
+pp_write('curve-range',draw=ep(0x4018,F(0)+U(1,2,5)+F(*(v for p in curve_points for v in p))))
+pp_write('curve-range-compressed',draw=ep(0x4018,F(0)+U(1,2,5)+struct.pack('<10h',*(v for p in curve_points for v in p)),0x4000))
+pp_write('lines-compressed',draw=ep(0x400D,U(2)+struct.pack('<4h',20,32,76,32),0x4000))
+pp_write('lines-relative',draw=ep(0x400D,U(2)+b''.join(relative_scalar(v) for v in (20,32,56,0)),0x0800))
+pp_write('lines-closed',draw=pp_lines(((20,16),(76,16),(76,48),(20,48)),closed=True))
+pp_write('rect-compressed',draw=ep(0x400B,U(1)+struct.pack('<4h',20,16,56,32),0x4000))
+pp_write('ellipse-compressed',pen=pp_pen(width=4),draw=ep(0x400F,struct.pack('<4h',20,12,56,40),0x4000))
+pp_write('bezier-compressed',pen=pp_pen(width=6),draw=ep(0x4019,U(4)+struct.pack('<8h',20,32,36,8,60,56,76,32),0x4000))
+pp_bad('curve-offset',pp_pen(),draw=ep(0x4018,F(0)+U(5,1,5)+F(*(v for p in curve_points for v in p))))
+pp_bad('curve-segment-count',pp_pen(),draw=ep(0x4018,F(0)+U(1,4,5)+F(*(v for p in curve_points for v in p))))
+pp_bad('curve-zero-segments',pp_pen(),draw=ep(0x4018,F(0)+U(1,0,5)+F(*(v for p in curve_points for v in p))))
+pp_bad('curve-negative-tension',pp_pen(),draw=ep(0x4018,F(-1)+U(1,2,5)+F(*(v for p in curve_points for v in p))))
+pp_bad('lines-one-point',pp_pen(),draw=ep(0x400D,U(1)+F(20,32)))
+pp_bad('lines-truncated',pp_pen(),draw=ep(0x400D,U(3)+F(20,32,76,32)))
+pp_bad('lines-relative-truncated',pp_pen(),draw=ep(0x400D,U(2)+bytes([0x80]),0x0800))
+# A collinear cubic reverses direction twice outside its endpoint interval.
+# The derivative roots are about0.176/0.824, with extrema near31.15/64.85;
+# testing only distance to the infinite chord would incorrectly drop this ink.
+pp_write('bezier-backtrack',draw=ep(0x4019,U(4)+F(40,32,4,32,92,32,56,32)))
+# Inset doubles the geometric outline width before intersecting with its fill,
+# but dash lengths and phase remain based on the ORIGINAL8-unit pen width.
+pp_write('inset-dash',pen=pp_pen(align=1,style=1),draw=pp_rect())
+pp_write('inset-dash-offset',pen=pp_pen(align=1,style=1,offset=1),draw=pp_rect())

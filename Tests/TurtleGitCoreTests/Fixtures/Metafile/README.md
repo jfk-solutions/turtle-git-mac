@@ -185,3 +185,53 @@ The two `classic-clip-getdc-*` companions paint red through a temporary selected
 clip or metaregion in the first EMF+ GetDC interval. The next EMF+ record releases
 that DC. A second GetDC paints green both inside and outside the former region;
 actual color samples prove the clip state does not leak across ownership scopes.
+
+`plus-pen-*` are independently authored EMF+ Pen objects and drawing records.
+Every Pen embeds its own complete versioned BrushObject, following
+MS-EMFPLUS 2.2.1.7 and the official 3.2.33.1 pen example; layout2vector's writer
+independently uses this framing too. The older `plus-alpha-pen.emf` now includes
+that previously missing embedded graphics version while retaining the same
+opaque-red pen and half-alpha brush pixel assertions. Native pen outlines are
+filled paths, so the serialization assertion checks opaque outline fill rather
+than requiring the old SVG stroke representation.
+
+Pen tests inspect actual native pixels on a fixed grid against independent
+analytic boxes, circles, polygons and signed-distance unions/differences.
+A one-pixel band around analytically predicted boundaries is excluded from pure
+red/white classification to avoid treating legitimate antialiasing as changed
+geometry. Interior ink, complete surrounding white area and explicit acute-join
+probes remain required. No generated SVG outline is used as an expected image.
+
+The fixtures cover horizontal/vertical/diagonal strokes, both independent end
+caps, anchored ends, arbitrary asymmetric compound bands, reversed direction,
+closed compound rings (a 16-unit pen gives each ring a genuine four-pixel
+interior for the unchanged antialias-boundary oracle), centered/inset strokes,
+pen linear scale/shear with ignored
+translation, page/physical pen units and scaled-world device hairlines. Insets
+retain original-width dash units and phase. Dash styles, custom odd patterns,
+positive/negative offsets and independent round/triangle dash caps keep real
+white gaps. Acute V joins in both directions distinguish regular miter clipping
+from MiterClipped's bevel fallback using Microsoft's inner-corner/full-width
+miter definition. Anchor dimensions use the separately inspected Wine GDI+
+implementation policy; this is not certification against Windows pixels.
+
+DrawPath, DrawLines, DrawRects, ellipse/arc, Beziers and cardinal curves exercise
+the shared outline path. Equivalent compressed and relative encodings compare
+against ordinary records with independently known geometry. Relative closed
+curves include C (ignored when P is set) and nonzero alignment bytes. Open curves
+retain Offset and NumSegments; unused points must not paint. A collinear cubic
+with two backtracking extrema paints outside its endpoint interval and guards
+against flattening it to the infinite chord.
+
+Hatch, gradient and texture pen fixtures have independent filled-rectangle
+controls using the same captured brush data. Full native pixel comparison,
+color-endpoint/texture samples and a mixed pen/fill ownership image verify that
+brush mapping and subsequent painting remain separate from outline generation.
+
+`unsupported-pen-*` retain valid outer record chains and isolate malformed or
+unsupported pen versions/types/flags/units, nonfinite values, missing/oversized
+arrays, invalid cap/join/alignment combinations, custom caps, embedded brush
+framing, invalid brush data and malformed point/curve ranges. They must fail
+instead of publishing a successful partial comparison. This corpus does not
+establish every GDI+ custom-cap variant, arbitrary Windows font/driver record or
+physical Finder/signed distribution behavior.

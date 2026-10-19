@@ -303,8 +303,8 @@ final class MetafileImageTests: XCTestCase {
             XCTAssertLessThan(translucent[channel], 0.85)
         }
         let svg = String(decoding: try XCTUnwrap(MetafileImageDecoder.convert(data("plus-alpha-pen.emf"))), as: UTF8.self)
-        XCTAssertTrue(svg.contains("stroke=\"#ff0000\""))
-        XCTAssertTrue(svg.contains("stroke-opacity=\"1\""))
+        let opaqueOutline = try NSRegularExpression(pattern: ##"<path\b[^>]*fill="#ff0000"[^>]*fill-opacity="1(?:\.0+)?""##)
+        XCTAssertNotNil(opaqueOutline.firstMatch(in: svg, range: NSRange(svg.startIndex..., in: svg)), "Opaque pen outline lost its separate full-opacity paint")
         XCTAssertTrue(svg.contains("fill=\"#ff0000\""))
         let expression = try NSRegularExpression(pattern: #"fill-opacity="([0-9.]+)""#)
         let opacities = expression.matches(in: svg, range: NSRange(svg.startIndex..., in: svg)).compactMap { match -> Double? in
@@ -935,4 +935,295 @@ final class MetafileImageTests: XCTestCase {
         }
     }
 
+}
+
+extension MetafileImageTests {
+    private struct PenPixels {
+        let width: Int, height: Int
+        let bytes: [UInt8]
+        func pixel(_ x: Int, _ y: Int) -> [UInt8] {
+            let at = (y * width + x) * 4
+            return Array(bytes[at..<(at + 4)])
+        }
+    }
+    private func penPixels(_ name: String) throws -> PenPixels {
+        let value = try image("plus-pen-" + name + ".emf")
+        let width = value.pixels.width, height = value.pixels.height
+        XCTAssertEqual(width, 96, name); XCTAssertEqual(height, 64, name)
+        var bytes = [UInt8](repeating: 0, count: width * height * 4)
+        try bytes.withUnsafeMutableBytes { storage in
+            let context = try XCTUnwrap(CGContext(data: storage.baseAddress, width: width, height: height,
+                bitsPerComponent: 8, bytesPerRow: width * 4,
+                space: try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB)),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
+            context.interpolationQuality = .none
+            context.draw(value.pixels, in: CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        return .init(width: width, height: height, bytes: bytes)
+    }
+    /// Independent signed-distance primitives describe expected physical ink,
+    /// rather than parsing the SVG or asking the implementation to stroke a path.
+    private func penBox(_ x: Double, _ y: Double, _ l: Double, _ t: Double, _ r: Double, _ b: Double) -> Double {
+        let dx = abs(x - (l + r) / 2) - (r - l) / 2
+        let dy = abs(y - (t + b) / 2) - (b - t) / 2
+        return hypot(max(0, dx), max(0, dy)) + min(0, max(dx, dy))
+    }
+    private func penPolygon(_ x: Double, _ y: Double, _ points: [(Double, Double)]) -> Double {
+        var distance = Double.infinity, inside = false
+        for index in points.indices {
+            let a = points[index], b = points[(index + 1) % points.count]
+            let dx = b.0 - a.0, dy = b.1 - a.1
+            let u = min(1, max(0, ((x - a.0) * dx + (y - a.1) * dy) / (dx * dx + dy * dy)))
+            distance = min(distance, hypot(x - a.0 - u * dx, y - a.1 - u * dy))
+            if (a.1 > y) != (b.1 > y), x < a.0 + (y - a.1) * dx / dy { inside.toggle() }
+        }
+        return inside ? -distance : distance
+    }
+    private func penCap(_ x: Double, _ y: Double, at endpoint: Double, start: Bool, cap: Int, width: Double) -> Double {
+        let h = width / 2, direction = start ? -1.0 : 1.0
+        switch cap {
+        case 0, 16: return .infinity
+        case 1: return penBox(x, y, endpoint - h, -h, endpoint + h, h)
+        case 2: return hypot(x - endpoint, y) - h
+        case 3: return penPolygon(x, y, [(endpoint, -h), (endpoint, h), (endpoint + direction * h, 0)])
+        // Anchor dimensions follow the independently inspected Wine GDI+
+        // implementation policy; this is not a Windows pixel certification.
+        case 17:
+            let a = width / sqrt(2)
+            return penBox(x, y, endpoint - a, -a, endpoint + a, a)
+        case 18: return hypot(x - endpoint, y) - width
+        case 19: return penPolygon(x, y, [(endpoint - width, 0), (endpoint, -width), (endpoint + width, 0), (endpoint, width)])
+        case 20:
+            let base = endpoint - direction * 2 * width, half = 2 * width / sqrt(3)
+            return penPolygon(x, y, [(endpoint, 0), (base, -half), (base, half)])
+        default: XCTFail("Unknown oracle cap"); return .infinity
+        }
+    }
+    private func penSegment(_ x: Double, _ y: Double, from a: Double, to b: Double, width: Double,
+                            start: Int = 0, end: Int = 0) -> Double {
+        let left = a + (start == 20 ? width : 0), right = b - (end == 20 ? width : 0)
+        return min(penBox(x, y, left, -width / 2, right, width / 2),
+                   penCap(x, y, at: a, start: true, cap: start, width: width),
+                   penCap(x, y, at: b, start: false, cap: end, width: width))
+    }
+    private func penAssert(_ name: String, distance: (Double, Double) -> Double, file: StaticString = #filePath, line: UInt = #line) throws {
+        let value = try penPixels(name)
+        var wrong: [String] = [], checked = 0, redSamples = 0
+        // Ignore only the independently defined one-pixel antialias boundary.
+        // Both ink interiors and the complete surrounding white canvas count.
+        for y in 0..<value.height {
+            for x in 0..<value.width {
+                let d = distance(Double(x) + 0.5, Double(y) + 0.5)
+                if abs(d) < 1 { continue }
+                let p = value.pixel(x, y), red = p[0] > 240 && p[1] < 15 && p[2] < 15 && p[3] > 240
+                let white = p[0] > 240 && p[1] > 240 && p[2] > 240 && p[3] > 240
+                checked += 1; if d < 0 { redSamples += 1 }
+                if d < 0 ? !red : !white { wrong.append("\(x),\(y): distance \(d), rgba \(p)") }
+            }
+        }
+        XCTAssertGreaterThan(checked, 900, name, file: file, line: line)
+        XCTAssertGreaterThan(redSamples, 3, name, file: file, line: line)
+        XCTAssertTrue(wrong.isEmpty, "\(name): \(wrong.count) incorrect native samples; \(wrong.prefix(10).joined(separator: "; "))", file: file, line: line)
+    }
+    private func penSamePixels(_ name: String, _ control: String, file: StaticString = #filePath, line: UInt = #line) throws {
+        let value = try penPixels(name), expected = try penPixels(control)
+        XCTAssertEqual(value.bytes.count, expected.bytes.count, file: file, line: line)
+        let wrong = zip(value.bytes, expected.bytes).filter { pair in abs(Int(pair.0) - Int(pair.1)) > 2 }.count
+        XCTAssertEqual(wrong, 0, "\(name) differs from independent control \(control)", file: file, line: line)
+    }
+
+    func testPenFlatDirectionalAndAsymmetricCapsPaintAnalyticalOutlines() throws {
+        try penAssert("flat") { self.penBox($0, $1, 20, 28, 76, 36) }
+        try penAssert("vertical") { self.penBox($0, $1, 44, 12, 52, 52) }
+        let length = hypot(56.0, 32.0)
+        try penAssert("diagonal") { x, y in
+            let u = ((x - 20) * 56 + (y - 16) * 32) / length
+            let v = (-(x - 20) * 32 + (y - 16) * 56) / length
+            return self.penBox(u, v, 0, -4, length, 4)
+        }
+        try penAssert("asymmetric-caps") { self.penSegment($0 - 20, $1 - 32, from: 0, to: 56, width: 8, start: 1, end: 2) }
+        try penAssert("round-triangle") { self.penSegment($0 - 20, $1 - 32, from: 0, to: 56, width: 8, start: 2, end: 3) }
+        for (cap, label) in [(0, "flat"), (1, "square"), (2, "round"), (3, "triangle"), (16, "no-anchor"),
+                             (17, "square-anchor"), (18, "round-anchor"), (19, "diamond-anchor"), (20, "arrow-anchor")] {
+            try penAssert("end-" + label) { self.penSegment($0 - 20, $1 - 32, from: 0, to: 56, width: 8, end: cap) }
+            try penAssert("start-" + label) { self.penSegment($0 - 20, $1 - 32, from: 0, to: 56, width: 8, start: cap) }
+        }
+        for name in ["path", "curve-range", "curve-range-compressed", "lines-compressed", "lines-relative"] {
+            try penSamePixels(name, "flat")
+        }
+        try penSamePixels("lines-closed", "center")
+        try penSamePixels("rect-compressed", "center")
+        try penSamePixels("width-zero", "width-one")
+    }
+
+    func testPenCompoundBandsAndClosedInsetRetainDistinctGeometry() throws {
+        for (name, bands, reversed) in [
+            ("compound", [(0.0, 0.15), (0.25, 0.5), (0.7, 1.0)], false),
+            ("compound-asymmetric", [(0.0, 0.2), (0.45, 0.75)], false),
+            ("compound-reversed", [(0.0, 0.2), (0.45, 0.75)], true),
+        ] {
+            try penAssert(name) { x, y in
+                let normal = reversed ? 32 - y : y - 32
+                return bands.map { self.penBox(x, normal, 20, ($0.0 - 0.5) * 20, 76, ($0.1 - 0.5) * 20) }.min()!
+            }
+        }
+        try penAssert("center") { x, y in
+            max(self.penBox(x, y, 16, 12, 80, 52), -self.penBox(x, y, 24, 20, 72, 44))
+        }
+        try penAssert("inset") { x, y in
+            max(self.penBox(x, y, 20, 16, 76, 48), -self.penBox(x, y, 28, 24, 68, 40))
+        }
+        try penAssert("compound-closed") { x, y in
+            min(max(self.penBox(x, y, 12, 8, 84, 56), -self.penBox(x, y, 16, 12, 80, 52)),
+                max(self.penBox(x, y, 24, 20, 72, 44), -self.penBox(x, y, 28, 24, 68, 40)))
+        }
+        try penSamePixels("open-inset", "flat")
+        let dashed = try image("plus-pen-inset-dash.emf")
+        for (x, y) in [(32, 20), (64, 20), (56, 44), (28, 44), (24, 24)] { try primary(dashed, 0, x, y) }
+        for (x, y) in [(48, 20), (40, 44), (24, 36), (12, 20), (48, 32)] {
+            XCTAssertTrue(try rgb(dashed, x, y).allSatisfy { $0 > 0.95 }, "Inset dash gap at \(x),\(y) was scaled with the doubled outline")
+        }
+        let offset = try image("plus-pen-inset-dash-offset.emf")
+        try primary(offset, 0, 28, 20); try primary(offset, 0, 56, 20)
+        XCTAssertTrue(try rgb(offset, 40, 20).allSatisfy { $0 > 0.95 }, "Inset dash phase must use original pen width")
+    }
+
+    func testPenLinearTransformIgnoresTranslationAndRespectsCapturedWorldClip() throws {
+        try penAssert("transform") { self.penBox($0, $1, 20, 20, 76, 44) }
+        try penSamePixels("transform-translation", "transform")
+        try penAssert("transform-shear") { x, y in
+            self.penBox((x - 20) - (y - 32), y - 32, 0, -4, 56, 4)
+        }
+        try penAssert("transform-caps") { x, y in
+            self.penSegment((x - 20) / 2, (y - 32) / 3, from: 0, to: 28, width: 8, start: 1, end: 2)
+        }
+        try penAssert("world-clip") { self.penBox($0, $1, 24, 20, 76, 44) }
+        try penSamePixels("unit-world-page", "flat")
+        try penSamePixels("unit-point-page", "flat")
+        try penAssert("unit-pixel-page") { self.penBox($0, $1, 20, 29, 76, 35) }
+        try penAssert("unit-inch-page") { self.penBox($0, $1, 20, 20, 76, 44) }
+        try penSamePixels("hairline-world", "width-one")
+    }
+
+    private func penDash(_ x: Double, _ y: Double, pattern: [Double], offset: Double = 0,
+                         dashCap: Int = 0, start: Int = 0, end: Int = 0) -> Double {
+        let values = (pattern.count % 2 == 0 ? pattern : pattern + pattern).map { $0 * 4 }
+        let period = values.reduce(0, +), phase = offset * 4
+        var distance = Double.infinity
+        for repeatIndex in -2...8 {
+            var position = Double(repeatIndex) * period - phase
+            for index in values.indices {
+                let next = position + values[index]
+                if index % 2 == 0 {
+                    let a = max(0, position), b = min(56, next)
+                    if b > a {
+                        distance = min(distance, penSegment(x - 20, y - 32, from: a, to: b, width: 4,
+                            start: a == 0 ? start : dashCap, end: b == 56 ? end : dashCap))
+                    }
+                }
+                position = next
+            }
+        }
+        return distance
+    }
+    func testPenDashPatternsOffsetsAndIndependentDashCapsHaveActualGaps() throws {
+        try penAssert("style-solid") { self.penBox($0, $1, 20, 30, 76, 34) }
+        for (name, pattern) in [("dash", [3.0, 1]), ("dot", [1.0, 1]), ("dash-dot", [3.0, 1, 1, 1]), ("dash-dot-dot", [3.0, 1, 1, 1, 1, 1])] {
+            try penAssert("style-" + name) { self.penDash($0, $1, pattern: pattern) }
+        }
+        try penAssert("dash-offset") { self.penDash($0, $1, pattern: [3, 1], offset: 1) }
+        try penAssert("dash-negative-offset") { self.penDash($0, $1, pattern: [3, 1], offset: -1) }
+        try penAssert("dash-custom") { self.penDash($0, $1, pattern: [2, 1]) }
+        try penAssert("dash-odd") { self.penDash($0, $1, pattern: [2, 1, 1]) }
+        try penAssert("dash-round") { self.penDash($0, $1, pattern: [3, 1], dashCap: 2) }
+        try penAssert("dash-triangle") { self.penDash($0, $1, pattern: [3, 1], dashCap: 3) }
+        try penAssert("dash-round-line-caps") { self.penDash($0, $1, pattern: [3, 1], dashCap: 2, start: 1, end: 3) }
+    }
+
+    private func penJoin(_ x: Double, _ y: Double, kind: String) -> Double {
+        let a = (24.0, 48.0), b = (48.0, 12.0), c = (72.0, 48.0)
+        let length = hypot(24.0, 36.0), nx = 36 / length * 4, ny = 24 / length * 4
+        let left = [(a.0 - nx, a.1 - ny), (b.0 - nx, b.1 - ny), (b.0 + nx, b.1 + ny), (a.0 + nx, a.1 + ny)]
+        let right = [(b.0 + nx, b.1 - ny), (c.0 + nx, c.1 - ny), (c.0 - nx, c.1 + ny), (b.0 - nx, b.1 + ny)]
+        let bodies = min(penPolygon(x, y, left), penPolygon(x, y, right))
+        if kind == "round" { return min(bodies, hypot(x - b.0, y - b.1) - 4) }
+        let outerLeft = (b.0 - nx, b.1 - ny), outerRight = (b.0 + nx, b.1 - ny)
+        if kind == "bevel" || kind == "miter-clipped" { return min(bodies, penPolygon(x, y, [outerLeft, b, outerRight])) }
+        let extent = 4 * length / 24
+        let tip = (48.0, 12 - extent)
+        if kind == "miter-limited" {
+            // MS LineJoinMiter clips from the INNER intersection, using the
+            // full pen width. LineJoinMiterClipped instead falls back to bevel.
+            let limitY = 12 + extent - 1.6 * 8
+            let u = (limitY - outerLeft.1) / (tip.1 - outerLeft.1)
+            let first = (outerLeft.0 + u * (tip.0 - outerLeft.0), limitY)
+            let second = (outerRight.0 + u * (tip.0 - outerRight.0), limitY)
+            return min(bodies, penPolygon(x, y, [outerLeft, first, second, outerRight]))
+        }
+        return min(bodies, penPolygon(x, y, [outerLeft, tip, outerRight]))
+    }
+    func testPenMiterClippingUsesInnerCornerAndDiffersFromBevelInBothWindings() throws {
+        for name in ["miter", "miter-limited", "bevel", "round", "miter-clipped"] {
+            try penAssert("join-" + name) { self.penJoin($0, $1, kind: name) }
+            try penAssert("join-" + name + "-reversed") { self.penJoin($0, $1, kind: name) }
+        }
+        let clipped = try penPixels("join-miter-limited"), bevel = try penPixels("join-miter-clipped")
+        XCTAssertLessThan(clipped.pixel(48, 8)[1], 15)
+        XCTAssertGreaterThan(bevel.pixel(48, 8)[1], 240)
+    }
+
+    func testPenCurvesAndBrushesShareNativeOutlinePaintingWithoutStateLeaks() throws {
+        let ellipse = try image("plus-pen-ellipse.emf"), arc = try image("plus-pen-arc.emf"), bezier = try image("plus-pen-bezier.emf")
+        for value in [ellipse, arc] {
+            try primary(value, 0, 48, 52)
+            XCTAssertTrue(try rgb(value, 48, 32).allSatisfy { $0 > 0.95 })
+        }
+        try primary(ellipse, 0, 48, 12)
+        XCTAssertTrue(try rgb(arc, 48, 12).allSatisfy { $0 > 0.95 })
+        for (x, y) in [(34, 25), (48, 32), (62, 38)] { try primary(bezier, 0, x, y) }
+        XCTAssertTrue(try rgb(bezier, 48, 4).allSatisfy { $0 > 0.95 })
+        let backtrack = try image("plus-pen-bezier-backtrack.emf")
+        try primary(backtrack, 0, 34, 32); try primary(backtrack, 0, 62, 32)
+        for x in [20, 76] { XCTAssertTrue(try rgb(backtrack, x, 32).allSatisfy { $0 > 0.95 }) }
+        try penSamePixels("ellipse-compressed", "ellipse")
+        try penSamePixels("bezier-compressed", "bezier")
+        try penSamePixels("closed-curve-relative", "closed-curve-control")
+        try penSamePixels("closed-curve-relative-c", "closed-curve-control")
+        let closed = try image("plus-pen-closed-curve-relative.emf")
+        for (x, y) in [(48, 16), (62, 32), (34, 32)] { try primary(closed, 0, x, y) }
+        XCTAssertTrue(try rgb(closed, 48, 28).allSatisfy { $0 > 0.95 })
+        for brush in ["hatch", "gradient", "texture"] { try penSamePixels(brush, brush + "-control") }
+        let gradient = try image("plus-pen-gradient.emf")
+        let red = try rgb(gradient, 20, 32), blue = try rgb(gradient, 75, 32)
+        XCTAssertGreaterThan(red[0], red[2] + 0.6); XCTAssertGreaterThan(blue[2], blue[0] + 0.6)
+        let texture = try image("plus-pen-texture.emf")
+        try primary(texture, 0, 24, 28); try primary(texture, 1, 40, 28); try primary(texture, 2, 24, 36)
+        let ownership = try image("plus-pen-brush-ownership.emf")
+        try primary(ownership, 2, 48, 32); try primary(ownership, 1, 48, 48)
+        let ownershipPixels = try penPixels("brush-ownership")
+        var hatchRed = 0, hatchBlue = 0
+        for y in 12..<20 { for x in 24..<72 {
+            let p = ownershipPixels.pixel(x, y)
+            if p[0] > 240 && p[1] < 15 && p[2] < 15 { hatchRed += 1 }
+            if p[2] > 240 && p[0] < 15 && p[1] < 15 { hatchBlue += 1 }
+        } }
+        XCTAssertGreaterThan(hatchRed, 10); XCTAssertGreaterThan(hatchBlue, 10)
+    }
+
+    func testMalformedPenObjectsFailWithoutPublishingSuccessfulPartialImages() throws {
+        let names = ["version", "type", "flags", "unit", "brush-version", "brush-type", "width-negative", "width-nan", "width-infinite",
+                     "truncated-header", "truncated-brush", "trailing-brush", "legacy-unversioned-brush", "transform-truncated", "transform-singular", "transform-nan",
+                     "start-cap", "end-cap", "join", "miter-nan", "miter-negative", "dash-style", "dash-cap", "dash-offset", "dash-custom-missing",
+                     "dash-pattern-empty", "dash-pattern-negative", "dash-pattern-zero", "dash-pattern-nan", "dash-pattern-count", "dash-pattern-truncated", "alignment",
+                     "compound-single", "compound-odd", "compound-descending", "compound-duplicate", "compound-negative", "compound-above-one", "compound-nan", "compound-count", "compound-truncated",
+                     "inset-compound", "inset-triangle-dash", "custom-start-cap", "custom-end-cap", "hatch-style", "texture-image", "closed-curve-two-points", "curve-offset", "curve-segment-count", "curve-zero-segments", "curve-negative-tension", "lines-one-point", "lines-truncated", "lines-relative-truncated"]
+        for name in names {
+            let original = try data("unsupported-pen-" + name + ".emf")
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(original), name)
+            XCTAssertEqual(try data("unsupported-pen-" + name + ".emf"), original)
+        }
+        for name in ["brush-version", "legacy-unversioned-brush", "transform-singular", "compound-odd", "inset-compound"] {
+            XCTAssertNil(ComparisonImage(bytes: try data("unsupported-pen-" + name + ".emf")), name)
+        }
+    }
 }

@@ -384,5 +384,7 @@ panes. Embedded EMF+ bitmap images and textures include indexed palettes and
 uses native glyph outlines for wrapping, direction, tabs, spacing and trimming.
 [Classic EMF clipping](docs/METAFILE-CLASSIC-CLIP-PARITY.md) includes region
 Boolean combinations, clip offsets and independent metaregions.
+[EMF+ pen strokes](docs/METAFILE-PEN-PARITY.md) include linear nib transforms,
+compound bands, independent caps, joins, dashes and Center/Inset positioning.
 [Supported drawing behavior and remaining limits](docs/IMAGE-METAFILE-PARITY.md)
 remain explicit; rendering does not rewrite the original files.
