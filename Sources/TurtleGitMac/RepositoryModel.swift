@@ -1053,9 +1053,20 @@ import UniformTypeIdentifiers
     var cloneWindowFactory: ((URL?, RepositoryAccessLease?) -> CloneWindowController)?
     var creationClipboardText:()->String? = {NSPasteboard.general.string(forType:.string)}
     private func showClone(directory: URL? = nil, source: String? = nil, exactPath: Bool = false) {
+        guard !retired, !confirmingQuit else { return }
         let id = UUID(), controller = cloneWindowFactory?(directory ?? root, activeAccess) ?? CloneWindowController(directory: directory ?? root, access: activeAccess,preferences:fileComparisonPreferences,clipboardText:source == nil ? creationClipboardText():nil)
-        controller.onClosed = { [weak self] in self?.cloneWindows.removeValue(forKey: id) }
-        controller.model.onLog = { [weak self] repository, access in self?.showLog(repository: repository, access: access, paths: []) }
+        controller.onClosed = { [weak self, weak controller] in if self?.cloneWindows[id] === controller { self?.cloneWindows.removeValue(forKey: id) } }
+        configureCloneInteractions(controller)
+        cloneWindows[id] = controller
+        controller.model.configureLaunch(source: source, exactPath: exactPath)
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    func configureCloneInteractions(_ controller: CloneWindowController) {
+        let preferences = controller.model.pathCompletionPreferences
+        controller.model.onLog = { [weak self, weak model = controller.model] repository, access in
+            guard let self, !self.retired, !self.confirmingQuit, let model else { return }
+            self.showLog(repository: repository, access: access, paths: [], preferences: preferences, presentation: model.handoffPresentation)
+        }
         let handoffOwner = RepositoryWindowOwner(window: workspaceWindow)
         controller.model.onCloned = { [weak self] repo, access, keyAccess, _, result in
             guard let self, !self.retired, !handoffOwner.cancellation.isCancelled else { return }
@@ -1066,9 +1077,6 @@ import UniformTypeIdentifiers
             }
             self.adoptRepository(repo, access: access, output: result, owner: handoffOwner)
         }
-        cloneWindows[id] = controller
-        controller.model.configureLaunch(source: source, exactPath: exactPath)
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func adoptRepository(_ repo: GitRepository, access: RepositoryAccessLease, output: String, owner: RepositoryWindowOwner) {
         guard !retired, !owner.cancellation.isCancelled else { return }
@@ -1144,17 +1152,26 @@ import UniformTypeIdentifiers
         } catch { self.error = error.localizedDescription }
     }
     private func presentCreateRepository(folder: URL, lease: RepositoryAccessLease, owner: RepositoryWindowOwner) {
-        guard !retired, !owner.cancellation.isCancelled, lease.contains(folder), !requiresRepositoryScope || lease.hasSecurityScope else { return }
+        guard !retired, !confirmingQuit, !owner.cancellation.isCancelled, lease.contains(folder), !requiresRepositoryScope || lease.hasSecurityScope else { return }
         let key = GitPathRowIdentity.encode(folder.path)
-        let controller = createWindows[key] ?? createWindowFactory?(folder, lease) ?? CreateRepositoryWindowController(folder: folder, access: lease)
+        if createWindows[key]?.model.retired == true { error = "The previous Create Repository window is still closing. Wait for it to finish."; return }
+        let controller = createWindows[key] ?? createWindowFactory?(folder, lease) ?? CreateRepositoryWindowController(folder: folder, access: lease, preferences: fileComparisonPreferences)
         let fresh = createWindows[key] == nil
-        controller.onClosed = { [weak self] in self?.createWindows.removeValue(forKey: key) }
+        controller.onClosed = { [weak self, weak controller] in if self?.createWindows[key] === controller { self?.createWindows.removeValue(forKey: key) } }
         if fresh {
-            controller.model.onInitialized = { [weak self] repo, access, _, output in self?.adoptRepository(repo, access: access, output: output, owner: owner) }
+            configureCreateRepositoryInteractions(controller, owner: owner)
         }
         createWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         if fresh { controller.model.prepare() }
+    }
+    func configureCreateRepositoryInteractions(_ controller: CreateRepositoryWindowController) {
+        configureCreateRepositoryInteractions(controller, owner: RepositoryWindowOwner(window: workspaceWindow))
+    }
+    private func configureCreateRepositoryInteractions(_ controller: CreateRepositoryWindowController, owner: RepositoryWindowOwner) {
+        controller.model.onInitialized = { [weak self] repo, access, _, output in
+            self?.adoptRepository(repo, access: access, output: output, owner: owner)
+        }
     }
     private func showRename(repository: GitRepository, access: RepositoryAccessLease?, source: String) {
         let root = repository.root, key = GitPathRowIdentity.encode(root.path + "\0" + source)
@@ -2984,7 +3001,7 @@ import UniformTypeIdentifiers
         }
         gitPropertyWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil, invocation: PrimaryCommandInvocation? = nil, outputAccess: RepositoryAccessLease? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil) {
+    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil, invocation: PrimaryCommandInvocation? = nil, outputAccess: RepositoryAccessLease? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
         let defaults = preferences ?? fileComparisonPreferences
         let root = repository.root
@@ -3076,6 +3093,7 @@ import UniformTypeIdentifiers
         }
         controller.model.reload()
         if let sourceWindow { controller.window?.appearance = sourceWindow.effectiveAppearance; controller.window?.alphaValue = sourceWindow.alphaValue }
+        presentation?.apply(to: controller.window)
         if let logWindowPresentation { logWindowPresentation(controller) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }

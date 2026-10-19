@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "4f9a4801072d6f778cf3f7f8269bf6d09c09536a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Clone actual command invocation/receipt before key configuration and discovery, shared styled output/footer100/private captured output controls, existing warning/Retry/open-only retry policies",
+    "Clone submission/options/panel/progress actual worker and native release ownership, stale form/Quit fences and detached captured Log/Explore handoffs",
+    "Create Repository captured bare form, source warning/error/success order and native owned answers, actual init/discovery/drain/retirement and original workspace handoff"
+  ],
+  "validation": {
+    "core": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "tests": 16,
+        "failures": 0,
+        "filter": "TurtleGitCoreTests\\.(CloneCommandCompletionTests|CloneTests|RepositoryInitializationTests)/",
+        "log": "build/qa/repository-creation-results-core-2026-10-19.log",
+        "scope": "Three new receipt/actual argv/configuration/failure/cancellation methods plus seven Clone and six Initialization methods. Private empty Git configuration; no full Core suite."
+      }
+    ],
+    "resources": {
+      "exit": 0,
+      "log": "build/qa/repository-creation-results-resources-2026-10-19.log",
+      "localizations": {
+        "languages": 38,
+        "keys": 1293
+      },
+      "help": {
+        "documents": 40,
+        "topics": 49,
+        "files": 60
+      },
+      "coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_controls": 1566,
+        "pending_control_reviews": 93
+      },
+      "site": {
+        "documents": 340,
+        "unresolved_fragments": []
+      }
+    },
+    "build": [
+      {
+        "attempt": 1,
+        "exit": 65,
+        "log": "build/qa/repository-creation-results-build-2026-10-19.log",
+        "diagnostic": "Internal configureCreateRepositoryInteractions exposed private RepositoryWindowOwner parameter. Repaired with internal one-argument wrapper and private owner-taking overload; Core/resources unchanged."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/repository-creation-results-build-repair-2026-10-19.log",
+        "scope": "Access-control declaration repair only; passing Core/resource groups were not repeated."
+      }
+    ],
+    "native": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "receiver_started": false,
+        "log": "build/qa/repository-creation-results-native-2026-10-19.log",
+        "diagnostic": "New fixture nested Questions helper needed explicit @MainActor to install native question presenter; enclosing actor-isolated enum does not isolate nested classes. Fixture-only repair; no receiver spawned and no app/Core rebuild."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/repository-creation-results-native-fixture-2026-10-19.log",
+        "passed_distinct_case_engine_pairs": 8,
+        "cases": [
+          "clone",
+          "init",
+          "clone-retained",
+          "stream-retained"
+        ],
+        "git_engines": [
+          "/usr/bin/git",
+          "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+        ],
+        "receiver_pids": [
+          57006,
+          57123,
+          57212,
+          57250,
+          57290,
+          57319,
+          57348,
+          57445
+        ],
+        "all_pids_and_pgids_absent": true,
+        "scope": "Clone actual panel/receipt/styled private Copy/held inspection/cancellation/forcedclose/Quit/Root Log; Init native private special and nonempty warnings/default/Abort/Proceed, stale captured Bare, normal/bare actual init, error ack/retry, held worker forced-close, success/missing presenter and real Root private Recents handoff; retained Clone history/config warnings/open-only retry/live output/flags/partial destination preservation. All hidden, no physical Finder/network acceptance."
+      }
+    ]
+  },
+  "remaining": [
+    "CLI Clone and POSIX display quoting adapt source Windows/libgit2 progress; display strings are never executed.",
+    "Cancelled/failed clone destinations retain existing Git effects; cancellation is not rollback.",
+    "Source bare-folder desktop.ini artwork has no adopted Finder custom-icon equivalent in this batch.",
+    "Physical keyboard/VoiceOver/all-layout parity, live remote/git-svn/SSH authentication, signed grants/Finder/App Store and full hosted CI/whole port require separate evidence."
+  ],
+  "unrelated_work_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

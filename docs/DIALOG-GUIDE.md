@@ -12,6 +12,13 @@ or new destination, review the branch and clone options, then start the operatio
 The progress window reports Git's output and offers cancellation. A cancelled or
 failed clone can leave files in its destination; inspect them before retrying.
 
+Clone output includes the actual quoted command and colored completion status,
+with optional timing/date and a retained 100 percent bar. SSH-setting warnings
+and opening the repository are separate phases; a successful Git clone can still
+need **Retry opening repository**, which does not clone again. Review a warning
+before using Show Log or Show in Finder. Those actions release the Clone result
+and options first, then open the captured destination with the original settings.
+
 Create Repository initializes Git in the selected folder. Choose a bare repository
 only when you want repository storage without a working tree. Authorize the
 folder when macOS requests access. For a new repository folder, authorize an
@@ -22,6 +29,14 @@ If several creations finish while it is busy, the latest result opens. Choosing
 Open Repository or Close Repository before that handoff takes priority. Closing
 the workspace cancels its automatic handoff; the new repository remains on disk
 and can be opened later.
+
+Init checks special-folder and nonempty-bare warnings before writing. Abort leaves
+the destination unchanged. A successful operation shows an owned confirmation;
+an error stays with the options so it can be acknowledged and retried. Pending
+questions and Git/metadata work keep the creation workflow owned until they
+settle. Closing a window forcibly cancels its remaining work and rejects late
+answers; completed repository contents remain on disk.
+
 
 ## Working Tree and Add
 

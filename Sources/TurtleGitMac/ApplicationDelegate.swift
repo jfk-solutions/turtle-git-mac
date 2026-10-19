@@ -137,6 +137,7 @@ import AppKit
         if ImageComparisonViewModel.activeFileReads > 0 || ImageLoadWindowController.activeReleases > 0 { return .terminateCancel }
         if CleanProgressWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? CleanProgressWindowController }).contains(where: { $0.model.authorizing || $0.model.confirmingCancellation }) { return .terminateCancel }
         if CloneWindowModel.activeOperations > 0 || CloneProgressWindowModel.activeOperations > 0 || CreateRepositoryWindowModel.activeOperations > 0 { return .terminateCancel }
+        if CloneWindowController.activeChildReleases > 0 || CreateRepositoryWindowController.activeReleases > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? CreateRepositoryWindowController }).contains(where: { !$0.model.canClose || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if CommitWindowModel.activeIssueProviderOperations > 0 { return .terminateCancel }
         if RevertProgressWindowModel.activeOperations > 0 { return .terminateCancel }
@@ -297,6 +298,9 @@ import AppKit
         let fetchesInProgress = sender.windows.compactMap { $0.delegate as? FetchProgressWindowController }
         let merges = sender.windows.compactMap { $0.delegate as? MergeWindowController }
         let mergesInProgress = sender.windows.compactMap { $0.delegate as? MergeProgressWindowController }
+        let clones = sender.windows.compactMap { $0.delegate as? CloneWindowController }
+        let clonesInProgress = sender.windows.compactMap { $0.delegate as? CloneProgressWindowController }
+        let creations = sender.windows.compactMap { $0.delegate as? CreateRepositoryWindowController }
         let exports = sender.windows.compactMap { $0.delegate as? ExportWindowController }
         let exportsInProgress = sender.windows.compactMap { $0.delegate as? ExportProgressWindowController }
         let stashSaves = sender.windows.compactMap { $0.delegate as? StashWindowController }
@@ -340,6 +344,9 @@ import AppKit
         for controller in fetchesInProgress { controller.model.confirmingQuit = true }
         for controller in merges { controller.model.confirmingQuit = true }
         for controller in mergesInProgress { controller.model.confirmingQuit = true }
+        for controller in clones { controller.model.confirmingQuit = true }
+        for controller in clonesInProgress { controller.model.confirmingQuit = true }
+        for controller in creations { controller.model.confirmingQuit = true }
         for controller in exports { controller.model.confirmingQuit = true }
         for controller in exportsInProgress { controller.model.confirmingQuit = true }
         for controller in stashSaves { controller.model.confirmingQuit = true }
@@ -450,6 +457,9 @@ import AppKit
             for controller in fetchesInProgress { controller.model.confirmingQuit = false }
             for controller in merges { controller.model.confirmingQuit = false }
             for controller in mergesInProgress { controller.model.confirmingQuit = false }
+            for controller in clones { controller.model.confirmingQuit = false }
+            for controller in clonesInProgress { controller.model.confirmingQuit = false }
+            for controller in creations { controller.model.confirmingQuit = false }
             for controller in exports { controller.model.confirmingQuit = false }
             for controller in exportsInProgress { controller.model.confirmingQuit = false }
             for controller in stashSaves { controller.model.confirmingQuit = false }
@@ -483,6 +493,9 @@ import AppKit
         let fetchesInProgress = sender.windows.compactMap { $0.delegate as? FetchProgressWindowController }
         let merges = sender.windows.compactMap { $0.delegate as? MergeWindowController }
         let mergesInProgress = sender.windows.compactMap { $0.delegate as? MergeProgressWindowController }
+        let clones = sender.windows.compactMap { $0.delegate as? CloneWindowController }
+        let clonesInProgress = sender.windows.compactMap { $0.delegate as? CloneProgressWindowController }
+        let creations = sender.windows.compactMap { $0.delegate as? CreateRepositoryWindowController }
         let exports = sender.windows.compactMap { $0.delegate as? ExportWindowController }
         let exportsInProgress = sender.windows.compactMap { $0.delegate as? ExportProgressWindowController }
         let stashSaves = sender.windows.compactMap { $0.delegate as? StashWindowController }
@@ -502,6 +515,9 @@ import AppKit
         for controller in fetchesInProgress { controller.model.confirmingQuit = true }
         for controller in merges { controller.model.confirmingQuit = true }
         for controller in mergesInProgress { controller.model.confirmingQuit = true }
+        for controller in clones { controller.model.confirmingQuit = true }
+        for controller in clonesInProgress { controller.model.confirmingQuit = true }
+        for controller in creations { controller.model.confirmingQuit = true }
         for controller in exports { controller.model.confirmingQuit = true }
         for controller in exportsInProgress { controller.model.confirmingQuit = true }
         for controller in stashSaves { controller.model.confirmingQuit = true }
@@ -536,6 +552,9 @@ import AppKit
             for controller in fetchesInProgress { controller.model.confirmingQuit = false }
             for controller in merges { controller.model.confirmingQuit = false }
             for controller in mergesInProgress { controller.model.confirmingQuit = false }
+            for controller in clones { controller.model.confirmingQuit = false }
+            for controller in clonesInProgress { controller.model.confirmingQuit = false }
+            for controller in creations { controller.model.confirmingQuit = false }
             for controller in exports { controller.model.confirmingQuit = false }
             for controller in exportsInProgress { controller.model.confirmingQuit = false }
             for controller in stashSaves { controller.model.confirmingQuit = false }

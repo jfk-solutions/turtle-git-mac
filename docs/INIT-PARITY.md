@@ -96,3 +96,35 @@ workspace does not move the original chooser's ownership. Another Create request
 preserves the outstanding picker. An existing dialog retains its original owner.
 The same chooser lifetime applies to the app and Finder creation routes. Physical
 signed permissions and all source Init warnings remain separate acceptance work.
+
+## Captured form and native result ownership — October 19, 2026
+
+Pinned `IDD_CREATEREPO` and `CreateRepositoryCommand` retain the Bare explanation,
+OK/Cancel/Help, special-folder warning, occupied-bare warning, init and final
+information/error acknowledgment order. Init still uses its simple confirmation
+workflow; it is not converted into Clone's generic command-progress dialog.
+The window now receives its originating preferences, title policy and native
+appearance. A guarded form context prevents stale checkbox/control callbacks
+from changing the accepted bare snapshot while warning/init work owns the form.
+
+Warnings, failures and success are owned native questions with source Abort
+priority where applicable. Replies are one-shot and wait for actual sheet release;
+retired, duplicate, missing-presenter and Quit replies cannot begin stale creation
+or close an unrelated window. An error acknowledgment retains the options for a
+fresh retry. Success waits for acknowledgment before closing. Actual init and
+root/bare discovery retain their cancellation/grant ownership after forced closure;
+per-instance pending work and native release counts block early owner/Quit release.
+The authoritative repository kind still comes from Git, preserving existing
+contents, templates and default-branch configuration.
+
+The original workspace handoff remains separately owned. Closing Init after a
+successful creation does not discard a queued adoption; closing its initiating
+workspace does. Reusing a still-open Init preserves that owner and preference
+context; a retiring window cannot be reopened as a fresh dialog. Native Finder
+folder-icon customization remains unimplemented rather than copying Windows
+`desktop.ini` metadata into a macOS repository folder.
+
+[Batch evidence](qa/repository-creation-results-family-2026-10-19.json) preserves
+actual validation attempts and limits. Physical warning/default-button/keyboard/
+VoiceOver, complete bare menus, signed permissions/Finder and App Store acceptance
+remain separate requirements.

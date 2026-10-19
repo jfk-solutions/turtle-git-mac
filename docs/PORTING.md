@@ -3503,3 +3503,26 @@ owners of that root. Export options and results participate in Quit fencing.
 source behavior, native adaptations and actual validation. This scoped work does
 not establish exhaustive visual/physical/Finder/signed/App Store acceptance,
 complete hosted CI or completion of the entire port.
+
+### Repository creation result family, October 19, 2026
+
+Clone now shares the styled native command log, captured Copy/preferences,
+actual invocation and completion receipt/footer/timing100. Command success,
+post-clone configuration warnings and repository inspection retain separate
+outcomes. Retry/open-only retry, source actions and independent workspace adoption
+remain. Options/panels/result/questions retain actual worker/native release
+ownership; stale form, forced-close and Quit callbacks cannot launch late children.
+Show Log/Explore dispatch only after intentional result/options closure, carrying
+captured repository access, preferences and appearance values.
+
+Init retains source Bare/text/buttons and simple warning/error/success workflow.
+It captures the accepted bare form, owns one-shot actual-detached questions and
+retains init/discovery/grants through forced closure. Errors remain reviewable for
+retry; success closes only after acknowledgment. Root retains the originating
+workspace and prevents reopening an already retiring cached Init controller.
+
+[Clone comparison](CLONE-PARITY.md), [Init comparison](INIT-PARITY.md) and the
+[grouped record](qa/repository-creation-results-family-2026-10-19.json) define the
+implementation and actual verification scope. Physical/all-source UI parity,
+Finder folder artwork, live authentication/git-svn, signed sandbox/App Store and
+whole-port acceptance remain open.

@@ -52,9 +52,9 @@ true default with a native runtime gate. Key history selects its first item.
 Browse remembers a read-only key grant; typing a path alone does not grant access.
 Each progress retry creates a fresh coordinator. Encrypted-key responses use the
 owned native response window; closure cancels preparation and rejects late answers.
-Key configuration failure after Git completes reports failure while retaining the
-cloned destination. Upstream shows a StorePuttyKey error and continues to the result actions; native
-Clone instead retains a failed result for review.
+Key configuration failure after Git completes is a retained warning, preserving
+the successful clone and its result actions. Opening retry repeats discovery only;
+see the [completion/history continuation](CLONE-COMPLETION-PARITY.md).
 App Store auto-load remains unavailable without bundled OpenSSH agent/add.
 Source/destination leases remain held during execution. Signed grants, real SSH
 servers, physical picker/sheet interactions and recursive SSH authentication remain
@@ -254,3 +254,36 @@ Signed sandbox behavior, physical Launch Services, unusual network filesystems,
 and completion while the initial root authorization panel is modal remain outside
 this batch's acceptance scope. No all-dialog visual or whole-port completion is
 claimed.
+
+## Shared command result and creation ownership — October 19, 2026
+
+Pinned `Commands/CloneCommand.cpp` separates clone execution from `StorePuttyKey`
+and its post-command Show Log/Explore or failure Retry choices. Core now emits the
+actual executable/argv immediately before clone and a command receipt immediately
+after subprocess/output settlement, before key configuration and repository
+inspection. Source normal/SVN arguments and captured grant/SSH preparation remain.
+The native CLI path does not claim libgit2 progress equivalence.
+
+The previous plain SwiftUI output is replaced by the shared native read-only log,
+original Copy controls, captured preferences/pasteboard, colored completion range,
+timing/date and retained 100 percent. Unterminated command output is flushed before
+the receipt footer. Later configuration warnings and opening diagnostics preserve
+the actual command result. Retry starts a fresh command/parser/token attempt;
+Retry opening repeats only inspection of the already cloned destination. Existing
+warning-aware auto-close and source post-action order remain authoritative.
+
+Queued submissions/retries/opening reserve actual work before scheduling.
+Invalidation retains command/configuration/inspection work and grants until drain.
+Native kill/panel/result/options replies settle once after actual detachment,
+including forced closure and missing presentation. A stale form/control, Quit or
+retired owner cannot mutate the accepted snapshot or dispatch a late child.
+Intended Show Log/Show in Finder first close result and options; Log receives the
+originating preferences/access and an appearance/opacity value snapshot. Forced
+close drops a pending action. Workspace adoption retains its independent original
+workspace owner and superseding Open/Close behavior.
+
+[Grouped evidence](qa/repository-creation-results-family-2026-10-19.json) records
+actual checks after the implementation freeze. Full physical source layout,
+keyboard/VoiceOver, live SSH/git-svn/recursive transport, Windows progress backend
+equivalence, signed grants/Finder and App Store acceptance remain open. Bare-folder
+Finder custom icons are not introduced by this batch.
