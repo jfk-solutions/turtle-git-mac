@@ -17,7 +17,7 @@
   "repair": "Qualify the retained controller property as self.release before the later local let release declaration. No lifetime/control/Git behavior changed.",
   "related_source_review": "Clone/Init/BranchTag/Switch/Reset/Export/Stash/Submodule release closures reviewed; other corresponding property writes already explicitly qualify self.release. No additional confirmed ambiguity.",
   "validation": {
-    "status": "Focused local Debug compile passed; the bfa1fafe follow-up also passed the hosted application/extension step. Full hosted integration and later source batches remain pending.",
+    "status": "Focused local Debug and hosted app/extension compile passed. The hosted follow-up failed a separate metafile raster integration group; full current hosted acceptance remains open.",
     "core_native": "Prior relevant runtime/Core/native evidence retained; no behavior changed and no full suite repeat planned.",
     "build": {
       "exit": 0,
@@ -41,6 +41,7 @@
     "started_at": "2026-10-19T08:23:13Z",
     "completed_at": "2026-10-19T08:32:50Z",
     "job_snapshot": "build/qa/ci-bfa1fafe-build-job-2026-10-19.json",
-    "whole_run": "Still running Git integration tests at observation. This step does not establish a full hosted suite pass or the later Format Patch batch."
+    "whole_run": "Completed failure in Git integration after 2089 methods,2skips,86 pixel assertions across3MetafileImageTests methods. App/extension compile repair passed; this is a separate rendering failure, not a recurrence of the Branch/Tag compiler error.",
+    "rendering_failure_record": "qa/metafile-raster-compatibility-2026-10-19.json"
   }
 }

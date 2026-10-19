@@ -37,30 +37,44 @@ public struct ComparisonImage {
             } else { payload = original; renderedMetafile = false }
         } catch { return nil }
         guard cancellation?.isCancelled != true, !Task.isCancelled else { return nil }
-        if let source = CGImageSourceCreateWithData(payload as CFData, nil),
+        // Converted metafiles always use the controlled vector raster below;
+        // ImageIO's optional SVG support must not choose another backing scale.
+        if !renderedMetafile, let source = CGImageSourceCreateWithData(payload as CFData, nil),
            let image = Self(source: source, index: 0, id: UUID(), cursorHotspots: ImageComparisonContainers.cursorHotspots(bytes)) { self = image; return }
         // AppKit supplies native vector rendering on systems whose ImageIO does
         // not rasterize SVG directly. Keep the private raster entirely in memory.
         guard ImageComparisonContainers.isSVG(payload), let native = NSImage(data: payload),
               native.size.width > 0, native.size.height > 0, native.size.width <= 32_768, native.size.height <= 32_768,
-              native.size.width * native.size.height <= 67_108_864,
-              let pixels = native.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+              native.size.width * native.size.height <= 67_108_864 else { return nil }
         let width = max(1, Int(ceil(native.size.width))), height = max(1, Int(ceil(native.size.height)))
-        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
-                                      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
-        // CoreSVG renders metafile display SVG at 2x. A wide reconstruction
-        // filter bleeds white/neighboring cells into device-pixel hatch patterns.
-        // Bilinear sampling averages the corresponding 2x footprint while
-        // preserving the captured pattern period and its antialiased coverage.
-        context.interpolationQuality = renderedMetafile ? .low : .high
-        context.draw(pixels, in: CGRect(x: 0, y: 0, width: width, height: height))
+        guard width * height <= 67_108_864, cancellation?.isCancelled != true, !Task.isCancelled,
+              let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                      space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        // Draw the vector representation into a known 1x destination. Asking
+        // NSImage for an unspecified CGImage first allows CoreSVG to introduce
+        // a platform-dependent intermediate raster and a second reconstruction
+        // filter, blending adjacent native hatch cells and wrapped gradients.
+        // Disable image reconstruction for metafile device-pixel paints while
+        // retaining normal vector edge antialiasing and ordinary SVG quality.
+        context.interpolationQuality = renderedMetafile ? .none : .high
+        let graphics = NSGraphicsContext(cgContext: context, flipped: false)
+        graphics.imageInterpolation = renderedMetafile ? .none : .high
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = graphics
+        native.draw(in: NSRect(x: 0, y: 0, width: width, height: height), from: .zero,
+                    operation: .copy, fraction: 1, respectFlipped: false,
+                    hints: [.interpolation: renderedMetafile ? NSImageInterpolation.none : NSImageInterpolation.high])
+        NSGraphicsContext.restoreGraphicsState()
+        guard cancellation?.isCancelled != true, !Task.isCancelled else { return nil }
         guard let raster = context.makeImage() else { return nil }
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil) else { return nil }
         let resolution = MetafileImageFormat.resolution(original)
         let properties = resolution.map { [kCGImagePropertyDPIWidth: $0.0, kCGImagePropertyDPIHeight: $0.1] as CFDictionary }
         CGImageDestinationAddImage(destination, raster, properties)
-        guard CGImageDestinationFinalize(destination), let source = CGImageSourceCreateWithData(data, nil) else { return nil }
+        guard CGImageDestinationFinalize(destination), cancellation?.isCancelled != true, !Task.isCancelled,
+              let source = CGImageSourceCreateWithData(data, nil) else { return nil }
         self.init(source: source, index: 0, id: UUID(), cursorHotspots: [])
     }
     private init?(source: CGImageSource, index: Int, id: UUID, cursorHotspots: [CGPoint], cursorFrames: [CGImageSource]? = nil) {

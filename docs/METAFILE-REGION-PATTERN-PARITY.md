@@ -47,10 +47,12 @@ require explicit display painting with bounded raster/tile work. Clamp paints
 the original texture extent rather than repeating it. Repeated texture cells
 retain negative-index phase and independent X/Y reflection.
 
-CoreSVG supplies a 2× raster to the native image consumer. Converted metafiles now
-use bilinear footprint sampling for the final intrinsic-size raster: the previous
-high-quality reconstruction filter bled neighboring cells and white geometry
-edges into device hatch pixels. Ordinary SVG input retains its existing filter.
+The initial local implementation assumed CoreSVG would supply a 2× raster and
+used bilinear footprint sampling to reduce it to intrinsic size. Hosted macOS
+15.5 demonstrated that this was not a portable contract: hatch colors/phase and
+wrapped-gradient stops failed their unchanged pixel assertions. The
+[explicit raster continuation](#explicit-native-raster-continuation--october-19-2026)
+replaces that assumption with a controlled intrinsic-size render.
 Hatch coverage blends premultiplied colors before unpremultiplication so a
 transparent colored foreground cannot contaminate background RGB. The original
 vector geometry still clips the brush paint; this does not provide unlimited
@@ -95,3 +97,50 @@ region fill transforms and nested-metafile textures remain explicit refusals.
 Classic WMF region/flood filling, uncommon raster operations, advanced pens,
 complex glyph/StringFormat layouts and other documented format gaps remain open.
 This batch does not certify every Windows metafile or the complete application.
+
+
+## Explicit native raster continuation — October 19, 2026
+
+The full hosted bfa1fafe run compiled the app and extension successfully, then
+ran 2,089 Core methods with two skips and 86 failed assertions in three metafile
+methods. The failure is broader than the earlier local pattern checkpoint:
+checker cells lose both pure colors, eight-pixel phase comparisons drift, and a
+wrapped-gradient sample is blurred. Earlier ARM-only passes do not certify this
+hosted raster path. [Dated evidence](qa/metafile-raster-compatibility-2026-10-19.json)
+retains the failed run and subsequent scoped implementation/checks.
+
+The compatibility family controls the SVG bitmap dimensions and named sRGB
+color space instead of relying on an unspecified cached NSImage representation
+and a guessed 2× reconstruction. Embedded painting samples follow device-pixel
+centers, while vector clipping/antialiasing and captured hatch alpha/origin/world
+state retain their existing contracts. Input and aggregate painting limits remain
+bounded. Original pixel assertions remain part of acceptance; no wider tolerance
+or successful blank/average-color substitute is introduced.
+
+Current hosted revalidation, physical Intel/minimum macOS, arbitrary source
+painting and the later signed distribution candidate still require separate
+acceptance. This family does not certify all metafile formats or the whole port.
+
+
+A new diagnostic initially compared a plain native SVG vector gradient with a
+literal channel-interpolation formula; the local native backend returned other
+channel values. That observation remains a separate plain-SVG color-interpolation
+acceptance gap. [SVG specifies sRGB as the initial interpolation space](https://www.w3.org/TR/SVG2/painting.html#ColorInterpolation),
+so this observation does not invalidate the original formula or establish native
+SVG conformance. The strict reconstruction regression instead embeds an
+independent named-sRGB pixel ramp, matching the metafile helper's actual paint
+contract, and compares every channel at its expected device-pixel center. The
+existing hatch/gradient predicates are retained. The raw helper pixels and final
+native raster are checked separately so another resampling stage cannot hide a
+painting or phase error.
+
+
+The explicit-raster checkpoint passed 33 distinct current Core methods
+cumulatively (32 initial and the one corrected embedded-ramp case). Debug passed;
+four native consumer/color case/engine pairs passed cumulatively. The first
+bundled native attempt inherited the live desktop Shift key and intentionally
+selected Merge before decoding. Pinning the test-owned task-local default choice
+repaired that fixture without changing production routing or relaxing its image
+assertion. Only failed/unrun native pairs were repeated. All five receivers,
+including the failed attempt, were reaped and independently absent by PID/group.
+No full local Core suite or current signed/hosted acceptance is claimed.

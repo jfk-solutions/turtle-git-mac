@@ -27,6 +27,47 @@ final class MetafileImageTests: XCTestCase {
             return (0..<3).map { alpha > 0 ? CGFloat(components[offset + $0]) / (255 * alpha) : 0 }
         }
     }
+    private struct EmbeddedPaint {
+        let x:Int,y:Int,width:Int,height:Int,pixels:CGImage,rgba:[UInt8]
+        var diagnostic:String{"embeddedPNG=\(pixels.width)x\(pixels.height),deviceFrame=\(x),\(y),\(width),\(height),profile=\(String(describing:pixels.colorSpace?.name))"}
+        func sample(_ deviceX:Int,_ deviceY:Int)throws->[CGFloat]{
+            guard pixels.width==width,pixels.height==height else{throw NSError(domain:"Nonintrinsic source raster: \(diagnostic)",code:1)}
+            let px=deviceX-x,py=deviceY-y
+            guard (0..<width).contains(px),(0..<height).contains(py) else{throw NSError(domain:"Sample outside \(diagnostic)",code:1)}
+            let offset=(py*width+px)*4,alpha=CGFloat(rgba[offset+3])/255
+            return (0..<3).map{alpha>0 ? CGFloat(rgba[offset+$0])/(255*alpha):0}+[alpha]
+        }
+    }
+    /// Inspect the helper's source pixels without SVG, AppKit caching, clipping,
+    /// display profiles or reconstruction filters. Device placement comes from
+    /// image attributes; no hatch lookup table is duplicated in this oracle.
+    private func embeddedPaints(_ name:String)throws->[EmbeddedPaint]{
+        let svg=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(data(name))),as:UTF8.self),text=svg as NSString
+        let tags=try NSRegularExpression(pattern:"<image\\b[^>]*>").matches(in:svg,range:NSRange(location:0,length:text.length))
+        return try tags.map{tag in
+            let value=text.substring(with:tag.range),source=value as NSString
+            func attribute(_ name:String)throws->String{
+                let pattern="\\s"+name+"=\"([^\"]*)\"",expression=try NSRegularExpression(pattern:pattern)
+                let match=try XCTUnwrap(expression.firstMatch(in:value,range:NSRange(location:0,length:source.length)),"Missing \(name) in embedded paint")
+                return source.substring(with:match.range(at:1))
+            }
+            let href=try attribute("(?:xlink:)?href"),prefix="data:image/png;base64,"
+            XCTAssertTrue(href.hasPrefix(prefix));let png=try XCTUnwrap(Data(base64Encoded:String(href.dropFirst(prefix.count))))
+            let imageSource=try XCTUnwrap(CGImageSourceCreateWithData(png as CFData,nil)),image=try XCTUnwrap(CGImageSourceCreateImageAtIndex(imageSource,0,nil))
+            let x=Int(try XCTUnwrap(Double(attribute("x")))),y=Int(try XCTUnwrap(Double(attribute("y")))),width=Int(try XCTUnwrap(Double(attribute("width")))),height=Int(try XCTUnwrap(Double(attribute("height"))))
+            XCTAssertEqual(image.width,width,"Embedded paint still depends on an assumed native backing scale")
+            XCTAssertEqual(image.height,height,"Embedded paint still depends on an assumed native backing scale")
+            var bytes=[UInt8](repeating:0,count:image.width*image.height*4)
+            try bytes.withUnsafeMutableBytes{storage in
+                let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:image.width,height:image.height,bitsPerComponent:8,bytesPerRow:image.width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+                context.interpolationQuality = .none;context.draw(image,in:CGRect(x:0,y:0,width:image.width,height:image.height))
+            }
+            return EmbeddedPaint(x:x,y:y,width:width,height:height,pixels:image,rgba:bytes)
+        }
+    }
+    private func rasterDiagnostic(_ image:ComparisonImage)->String{
+        "finalCGImage=\(image.pixels.width)x\(image.pixels.height),profile=\(String(describing:image.pixels.colorSpace?.name)),bits=\(image.pixels.bitsPerComponent)/\(image.pixels.bitsPerPixel),alpha=\(image.pixels.alphaInfo.rawValue)"
+    }
     private func embeddedRGBA(_ name:String,_ x:Int=0,_ y:Int=0)throws->[CGFloat] {
         let svg=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(data(name))),as:UTF8.self)
         let start=try XCTUnwrap(svg.range(of:"data:image/png;base64,")),tail=svg[start.upperBound...]
@@ -59,8 +100,40 @@ final class MetafileImageTests: XCTestCase {
     }
     private func primary(_ image: ComparisonImage, _ channel: Int, _ x: Int, _ y: Int, file: StaticString = #filePath, line: UInt = #line) throws {
         let color = try rgb(image,x,y)
-        XCTAssertGreaterThan(color[channel],0.8,file:file,line:line)
-        for i in 0..<3 where i != channel { XCTAssertLessThan(color[i],0.25,file:file,line:line) }
+        XCTAssertGreaterThan(color[channel],0.8,"Sample(\(x),\(y))=\(color); \(rasterDiagnostic(image))",file:file,line:line)
+        for i in 0..<3 where i != channel { XCTAssertLessThan(color[i],0.25,"Sample(\(x),\(y))=\(color); \(rasterDiagnostic(image))",file:file,line:line) }
+    }
+    func testNativeSVGIntrinsicPixelGridAndOrientationDoNotDependOnBackingScale() throws {
+        var rectangles=""
+        for y in 0..<8{for x in 0..<8{let color=(x+y)%2==0 ? "#ff0000":"#0000ff";rectangles += "<rect x=\"\(x+4)\" y=\"\(y+4)\" width=\"1\" height=\"1\" fill=\"\(color)\"/>"}}
+        let bytes=Data(("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"20\" viewBox=\"0 0 24 20\"><rect width=\"24\" height=\"20\" fill=\"white\"/>"+rectangles+"<rect x=\"17\" y=\"2\" width=\"4\" height=\"3\" fill=\"#00ff00\"/><rect x=\"17\" y=\"15\" width=\"4\" height=\"3\" fill=\"#ff00ff\"/></svg>").utf8)
+        let value=try XCTUnwrap(ComparisonImage(bytes:bytes)),diagnostic=rasterDiagnostic(value)
+        XCTAssertEqual(value.size,CGSize(width:24,height:20),diagnostic)
+        for y in 0..<8{for x in 0..<8{
+            let color=try rgb(value,x+4,y+4),expected:[CGFloat]=(x+y)%2==0 ? [1,0,0]:[0,0,1]
+            for channel in 0..<3{XCTAssertEqual(color[channel],expected[channel],accuracy:1.0/255,"SVG intrinsic cell(\(x),\(y)) blurred: \(diagnostic)")}
+        }}
+        let top=try rgb(value,19,3),bottom=try rgb(value,19,16)
+        for channel in 0..<3{XCTAssertEqual(top[channel],[CGFloat(0),1,0][channel],accuracy:1.0/255,diagnostic);XCTAssertEqual(bottom[channel],[CGFloat(1),0,1][channel],accuracy:1.0/255,diagnostic)}
+    }
+    func testNativeSVGEmbeddedRasterRampUsesIntrinsicPixelCenters() throws {
+        // Literal source samples isolate embedded-raster placement/filtering.
+        // CoreSVG's own linearGradient color transfer is a separate contract:
+        // the local backend does not match componentwise sRGB interpolation.
+        let red:[UInt8]=[247,231,215,199,183,167,151,135,120,104,88,72,56,40,24,8]
+        let rgba=Data((0..<8).flatMap{_ in red.flatMap{[$0,UInt8(0),255-$0,UInt8(255)]}})
+        let space=try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),provider=try XCTUnwrap(CGDataProvider(data:rgba as CFData))
+        let source=try XCTUnwrap(CGImage(width:16,height:8,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:64,space:space,bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.last.rawValue|CGBitmapInfo.byteOrder32Big.rawValue),provider:provider,decode:nil,shouldInterpolate:false,intent:.defaultIntent))
+        let png=NSMutableData(),destination=try XCTUnwrap(CGImageDestinationCreateWithData(png,"public.png" as CFString,1,nil))
+        CGImageDestinationAddImage(destination,source,nil);XCTAssertTrue(CGImageDestinationFinalize(destination))
+        let encoded=(png as Data).base64EncodedString()
+        let bytes=Data("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"8\"><image x=\"0\" y=\"0\" width=\"16\" height=\"8\" href=\"data:image/png;base64,\(encoded)\"/></svg>".utf8)
+        let value=try XCTUnwrap(ComparisonImage(bytes:bytes)),diagnostic=rasterDiagnostic(value)
+        XCTAssertEqual(value.size,CGSize(width:16,height:8),diagnostic)
+        for x in 0..<16{let color=try rgb(value,x,4),t=CGFloat(2*x+1)/32
+            XCTAssertEqual(color[0],1-t,accuracy:1.0/255,"Embedded sRGB raster pixel center \(x): \(diagnostic)")
+            XCTAssertEqual(color[1],0,accuracy:1.0/255,diagnostic);XCTAssertEqual(color[2],t,accuracy:1.0/255,diagnostic)
+        }
     }
     func testWMFAndEMFRenderCapturedVectorColorsAtIntrinsicSize() throws {
         for name in ["clip-vector.wmf","classic-vector.emf"] {
@@ -169,6 +242,17 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertEqual(middle[0], middle[2], accuracy: 0.08)
     }
     func testLinearGradientTileAndFlipRetainDifferentStopOrders() throws {
+        let paints=try embeddedPaints("plus-gradient-wrap.emf")
+        XCTAssertEqual(paints.count,2)
+        if paints.count==2{
+            // x24.5 is .5/16 into period1 after world translation8.
+            // Three equally spaced red/green/blue stops give red15/16
+            // for Tile and blue15/16 for FlipX, with green1/16.
+            for (index,y) in [(0,20),(1,52)]{
+                let raw=try paints[index].sample(24,y),expected:[CGFloat]=index==0 ? [15.0/16,1.0/16,0,1]:[0,1.0/16,15.0/16,1]
+                for channel in 0..<4{XCTAssertEqual(raw[channel],expected[channel],accuracy:1.0/255,"Wrapped source pixel differs before native SVG: \(paints[index].diagnostic)")}
+            }
+        }
         let value = try image("plus-gradient-wrap.emf")
         // Each sample is just inside the second period at the same normalized
         // horizontal position: Tile restarts red; TileFlipX reflects from blue.
@@ -266,6 +350,25 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertTrue(try rgb(value, 6, 6).allSatisfy { $0 > 0.9 }, "Region clip lost its translated boundary")
     }
     func testHatchStylesRetainForegroundBackgroundAndNativeCellOrientation() throws {
+        let paints=try embeddedPaints("plus-hatch-atlas.emf")
+        XCTAssertEqual(paints.count,53)
+        if paints.count==53{
+            for style in 0..<53{
+                let left=2+10*(style%9),top=2+10*(style/9)
+                var foreground=0,background=0
+                for y in top..<(top+8){for x in left..<(left+8){
+                    let raw=try paints[style].sample(x,y)
+                    XCTAssertEqual(raw[1],0,accuracy:1.0/255,paints[style].diagnostic);XCTAssertEqual(raw[3],1,accuracy:1.0/255,paints[style].diagnostic)
+                    XCTAssertEqual(raw[0]+raw[2],1,accuracy:1.0/255,"Hatch source mixed colors beyond foreground/background")
+                    if raw[0]>0.8 && raw[2]<0.2{foreground+=1};if raw[2]>0.8 && raw[0]<0.2{background+=1}
+                    if style==0{XCTAssertEqual(raw[0],y%8==0 ? 1:0,accuracy:1.0/255,"Horizontal source cell is not a device-pixel line")}
+                    if style==1{XCTAssertEqual(raw[0],x%8==0 ? 1:0,accuracy:1.0/255,"Vertical source cell is not a device-pixel line")}
+                }}
+                XCTAssertGreaterThan(foreground,0,"Raw hatch\(style) lost foreground before SVG")
+                XCTAssertGreaterThan(background,0,"Raw hatch\(style) lost background before SVG")
+                if ![2,3,5].contains(style){XCTAssertEqual(foreground+background,64,"Raw hatch\(style) contains blended source cells")}
+            }
+        }
         let value = try image("plus-hatch-atlas.emf")
         for style in 0..<53 {
             let left = 2 + 10 * (style % 9), top = 2 + 10 * (style / 9)
@@ -277,10 +380,10 @@ final class MetafileImageTests: XCTestCase {
                     if color[2] > 0.8 && color[1] < 0.2 && color[0] < 0.2 { blue += 1 }
                 }
             }
-            XCTAssertGreaterThan(red, 0, "Hatch style \(style) discarded its foreground")
-            XCTAssertGreaterThan(blue, 0, "Hatch style \(style) discarded its background")
+            XCTAssertGreaterThan(red, 0, "Hatch style \(style) discarded its foreground; \(rasterDiagnostic(value))")
+            XCTAssertGreaterThan(blue, 0, "Hatch style \(style) discarded its background; \(rasterDiagnostic(value))")
             if ![2, 3, 5].contains(style) {
-                XCTAssertEqual(red + blue, 64, "Hatch style \(style) became a solid approximation or blended pattern")
+                XCTAssertEqual(red + blue, 64, "Hatch style \(style) became a solid approximation or blended pattern; \(rasterDiagnostic(value))")
             } else {
                 // The two diagonal hatch styles and DiagonalCross are specified
                 // as antialiased; edge coverage may blend only the two colors.
@@ -308,11 +411,24 @@ final class MetafileImageTests: XCTestCase {
         }
     }
     func testHatchAlphaDeviceScaleRenderingOriginAndRestoreRemainIndependent() throws {
+        let scaledPaint=try XCTUnwrap(embeddedPaints("plus-hatch-alpha-world.emf").first)
+        for y in 10..<34{
+            let raw=try scaledPaint.sample(20,y),repeatRaw=try scaledPaint.sample(20,y+8)
+            for channel in 0..<4{XCTAssertEqual(raw[channel],repeatRaw[channel],accuracy:1.0/255,"Source device hatch period inherited world scale: \(scaledPaint.diagnostic)")}
+            XCTAssertEqual(raw[3],CGFloat(128)/255,accuracy:1.0/255,"Hatch source alpha changed before SVG")
+            XCTAssertEqual(raw[0],y%8==0 ? 1:0,accuracy:1.0/255);XCTAssertEqual(raw[1],0,accuracy:1.0/255);XCTAssertEqual(raw[2],y%8==0 ? 0:1,accuracy:1.0/255)
+        }
+        let origins=try embeddedPaints("plus-hatch-origin.emf")
+        XCTAssertEqual(origins.count,3)
+        if origins.count==3{for y in 8..<21{
+            let baseline=try origins[0].sample(20,y),shifted=try origins[1].sample(60,y+3),restored=try origins[2].sample(20,y+32)
+            for channel in 0..<4{XCTAssertEqual(baseline[channel],shifted[channel],accuracy:1.0/255,"Source rendering-origin phase changed before SVG");XCTAssertEqual(baseline[channel],restored[channel],accuracy:1.0/255,"Source restored rendering-origin phase changed before SVG")}
+        }}
         let scaled = try image("plus-hatch-alpha-world.emf")
         var redRows = 0, blueRows = 0
         for y in 10..<34 {
             let color = try rgb(scaled, 20, y), repeated = try rgb(scaled, 20, y + 8)
-            for channel in 0..<3 { XCTAssertEqual(color[channel], repeated[channel], accuracy: 0.03, "World scale stretched the device hatch cell") }
+            for channel in 0..<3 { XCTAssertEqual(color[channel], repeated[channel], accuracy: 0.03, "World scale stretched the device hatch cell; \(rasterDiagnostic(scaled))") }
             XCTAssertGreaterThan(color[1], 0.35); XCTAssertLessThan(color[1], 0.7)
             if color[0] > 0.9 && color[2] < 0.7 { redRows += 1 }
             if color[2] > 0.9 && color[0] < 0.7 { blueRows += 1 }
@@ -344,8 +460,8 @@ final class MetafileImageTests: XCTestCase {
         for y in 8..<21 {
             let baseline = try rgb(origin, 20, y), shifted = try rgb(origin, 60, y + 3), restored = try rgb(origin, 20, y + 32)
             for channel in 0..<3 {
-                XCTAssertEqual(baseline[channel], shifted[channel], accuracy: 0.03, "Rendering origin did not shift hatch device phase")
-                XCTAssertEqual(baseline[channel], restored[channel], accuracy: 0.03, "Restore did not restore hatch rendering origin")
+                XCTAssertEqual(baseline[channel], shifted[channel], accuracy: 0.03, "Rendering origin did not shift hatch device phase; \(rasterDiagnostic(origin))")
+                XCTAssertEqual(baseline[channel], restored[channel], accuracy: 0.03, "Restore did not restore hatch rendering origin; \(rasterDiagnostic(origin))")
             }
         }
     }

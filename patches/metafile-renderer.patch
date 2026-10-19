@@ -1000,10 +1000,10 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +    }
 +    if(right<=left || bottom<=top) return null;
 +    const logicalWidth=right-left,logicalHeight=bottom-top;
-+    // Native SVG decodes images at 2x before the consumer downsamples them.
-+    // Sample wrapped ramps at that resolution to prevent interpolation across
-+    // a repeat discontinuity from contaminating the first pixel of each tile.
-+    const scale=(d.kind==='hatch'||d.kind==='linear'&&d.wrap!==4)&&logicalWidth*logicalHeight*4<=16777216?2:1;
++    // The native adapter owns an explicit intrinsic-size sRGB destination.
++    // Sample device-pixel centers once; no assumed CoreSVG backing scale or
++    // later reconstruction filter may blend hatch cells or wrap boundaries.
++    const scale=1;
 +    const width=logicalWidth*scale,height=logicalHeight*scale;
 +    if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<1||height<1||width>32768||height>32768||width*height>16777216) fail('gradient raster viewport exceeds limit');
 +    const origin=state(receipt.owner).renderingOrigin||[0,0];

@@ -3638,3 +3638,19 @@ credential fields remain connected to their existing native settings consumers.
 [batch evidence](qa/settings-exact-text-2026-10-19.json) separate the grouped
 private-state checks from production Keychain, live transports, signed grants,
 physical controls and complete source/App Store acceptance.
+
+
+### Explicit metafile native raster family, October 19, 2026
+
+A terminal hosted follow-up passed app/extension compilation but failed three
+metafile pixel methods (86 assertions within 2,089 Core methods). The native
+SVG fallback previously assumed an unspecified intermediate image was always
+2× and then reconstructed it again, blurring hatch cells and wrapped gradients
+on the hosted platform. The continuation controls intrinsic raster dimensions,
+sRGB color and embedded-paint interpolation, removes the helper's backing-scale
+guess, and retains pixel, alpha, phase, geometry and resource-limit assertions.
+
+[Compatibility evidence](qa/metafile-raster-compatibility-2026-10-19.json) records
+the terminal hosted failure, local grouped scope and remaining hosted/Intel,
+physical and current signed distribution acceptance. Earlier local checks alone
+do not establish cross-platform rendering parity.

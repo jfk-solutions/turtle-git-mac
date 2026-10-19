@@ -82,8 +82,9 @@ reliably implement the required gradient spread/colors or bitmap patterns, so
 actual gradient paint uses analytically evaluated embedded PNGs with vector
 clips/text luminance masks. SVG gradient definitions remain metadata. Each paint
 raster is limited to 16,777,216 pixels/64 MiB raw data, with 67,108,864 generated
-gradient pixels per conversion. Wrapped linear paint uses twofold sampling when
-the raster budget permits. Bitmap wrapping emits only visible image copies,
+gradient pixels per conversion. Device paints use intrinsic pixel-center
+sampling; the native consumer supplies an explicit intrinsic-size sRGB destination
+instead of assuming a particular CoreSVG backing scale. Bitmap wrapping emits only visible image copies,
 capped at 16,384 tiles per record and 65,536 per conversion. Before concatenation,
 each tiled record reserves `count * (escapedPNGhref.length + 4096)` against a
 64 MiB aggregate markup budget, preventing count-valid data-URI amplification.

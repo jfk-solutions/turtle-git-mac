@@ -160,8 +160,9 @@ private func run() throws {
             }
         }
         let alpha: CGImageAlphaInfo = format & 0x80000 != 0 ? .premultipliedLast : .last
-        guard let provider = CGDataProvider(data: rgba as CFData), let image = CGImage(width: width, height: height,
-            bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+            let provider = CGDataProvider(data: rgba as CFData), let image = CGImage(width: width, height: height,
+            bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4, space: space,
             bitmapInfo: CGBitmapInfo(rawValue: alpha.rawValue), provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent) else { nativeError("Cannot decode metafile bitmap"); return "" }
         let output = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(output, UTType.png.identifier as CFString, 1, nil) else { nativeError("Cannot encode metafile bitmap"); return "" }

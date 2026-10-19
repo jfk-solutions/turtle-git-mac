@@ -48,9 +48,12 @@ private extension NSWindow {
         let hidden = class_getInstanceMethod(NSWindow.self, #selector(NSWindow.turtleGitMetafileOrder(_:relativeTo:)))!
         method_exchangeImplementations(original, hidden)
         defer { method_exchangeImplementations(original, hidden) }
+        // Test-owned invocations must not read modifiers from the user's desktop.
+        try await ComparisonToolInvocation.$alternate.withValue(false) {
         switch ProcessInfo.processInfo.environment["TURTLEGIT_METAFILE_CASE"]! {
 ''' + dispatch + '''
         default: fatalError("Unknown metafile workflow")
+        }
         }
         print("PASS: metafile workflow completed")
     }
