@@ -22,6 +22,7 @@
 	<array>
 		<string>com.microsoft.Word</string>
 		<string>com.microsoft.Excel</string>
+		<string>com.microsoft.Powerpoint</string>
 	</array>
 	<key>com.apple.security.scripting-targets</key>
 	<dict>

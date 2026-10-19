@@ -29,6 +29,9 @@
 		C81800000000000000000001 /* PrimaryCommandInvocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81800000000000000000002 /* PrimaryCommandInvocation.swift */; };
 		F2C24D3E5BEC39940CB464A2 /* CommandHistoricalOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6397D474BAAF986488CC5BE8 /* CommandHistoricalOutput.swift */; };
 		9C731A9C27AA484749FBEF24 /* RevisionGraphFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61A9FDCA35621CBB58A0EC8F /* RevisionGraphFormat.swift */; };
+		58DBEF737283439FAA87C763 /* PowerPointComparisonAutomation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EACD99C7236416DA87A69DC /* PowerPointComparisonAutomation.swift */; };
+		A0648452B2654E0AAD357349 /* PresentationComparisonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55A0BC78F184FFDAA3A10BC /* PresentationComparisonWindow.swift */; };
+		8D91BD0F940241CC921B0BA6 /* PresentationComparisonRendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 526749578BD24CB1A4993A99 /* PresentationComparisonRendering.swift */; };
 		1A69AA4536DD6B5565199815 /* LibreOfficeComparisonAutomation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C736B7D87B43E2E36549A6B /* LibreOfficeComparisonAutomation.swift */; };
 		353324EB31D26467D5923420 /* LibreOfficeComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB112F7F921AE5646F703B59 /* LibreOfficeComparison.swift */; };
         C81660000000000000000001 /* CommitCheckboxIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = C81660000000000000000002 /* CommitCheckboxIndex.swift */; };
@@ -209,6 +212,7 @@
 		7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */; };
 		153F98E7380923ABB8849622 /* MergePaneInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BD4A5B48656E62C6797DF26 /* MergePaneInput.swift */; };
 		22A519AD3908454385E2AF21 /* GitDiffEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27368B5072CA46C48EC5F003 /* GitDiffEngine.swift */; };
+		491DA20BBD3F4ABBA78747AD /* PresentationComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92FD17DB7A24A5492EDFB93 /* PresentationComparison.swift */; };
 		D9406315D3C843579057A5B3 /* GitResetNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31C74869BD14576A91FB850 /* GitResetNotifications.swift */; };
 		768B7B2B700F618CA924EBDA /* SavedData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 814E543BEB0736B84A50B21B /* SavedData.swift */; };
 		772E1B38BD68B85CBFB13110 /* ReferenceLogNativeTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = F47F25E9F85B9274F63464E0 /* ReferenceLogNativeTable.swift */; };
@@ -567,6 +571,9 @@
 		D739524257BD7C401303476F /* MergeBlameComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeBlameComparison.swift; sourceTree = "<group>"; };
 		66DFE38B38B2FD975CCF874F /* MergeToolLaunchSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeToolLaunchSession.swift; sourceTree = "<group>"; };
 		D89471ED34922045290C736E /* MergeToolInvocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeToolInvocation.swift; sourceTree = "<group>"; };
+		9EACD99C7236416DA87A69DC /* PowerPointComparisonAutomation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerPointComparisonAutomation.swift; sourceTree = "<group>"; };
+		B55A0BC78F184FFDAA3A10BC /* PresentationComparisonWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentationComparisonWindow.swift; sourceTree = "<group>"; };
+		526749578BD24CB1A4993A99 /* PresentationComparisonRendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentationComparisonRendering.swift; sourceTree = "<group>"; };
 		9C736B7D87B43E2E36549A6B /* LibreOfficeComparisonAutomation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibreOfficeComparisonAutomation.swift; sourceTree = "<group>"; };
 		BB112F7F921AE5646F703B59 /* LibreOfficeComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibreOfficeComparison.swift; sourceTree = "<group>"; };
         C81660000000000000000002 /* CommitCheckboxIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitCheckboxIndex.swift; sourceTree = "<group>"; };
@@ -950,6 +957,7 @@
 		FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparisonEditing.swift; sourceTree = "<group>"; };
 		9BD4A5B48656E62C6797DF26 /* MergePaneInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergePaneInput.swift; sourceTree = "<group>"; };
 		27368B5072CA46C48EC5F003 /* GitDiffEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitDiffEngine.swift; sourceTree = "<group>"; };
+		C92FD17DB7A24A5492EDFB93 /* PresentationComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentationComparison.swift; sourceTree = "<group>"; };
 		A31C74869BD14576A91FB850 /* GitResetNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitResetNotifications.swift; sourceTree = "<group>"; };
 		FF1FD77D0F8E1D8790692A3D /* MergeFind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeFind.swift; sourceTree = "<group>"; };
 		FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitPreferences.swift; sourceTree = "<group>"; };
@@ -1143,6 +1151,9 @@
 				155C3080F23D2A10CD8EC65C /* IssueTrackerSettings.swift */,
 				D5A68AB404EF711AFEFE6135 /* LFSLocksWindow.swift */,
 				392877DE7F6A7F5BB1CC3391 /* LogAppearance.swift */,
+				9EACD99C7236416DA87A69DC /* PowerPointComparisonAutomation.swift */,
+				B55A0BC78F184FFDAA3A10BC /* PresentationComparisonWindow.swift */,
+				526749578BD24CB1A4993A99 /* PresentationComparisonRendering.swift */,
 				9C736B7D87B43E2E36549A6B /* LibreOfficeComparisonAutomation.swift */,
 				D653B9C802C1DF2EE95F01A9 /* LogGraphDrawing.swift */,
 				58A976676E04B6BC290F5465 /* LogGravatar.swift */,
@@ -1359,6 +1370,7 @@
 				FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */,
 				9BD4A5B48656E62C6797DF26 /* MergePaneInput.swift */,
 				27368B5072CA46C48EC5F003 /* GitDiffEngine.swift */,
+				C92FD17DB7A24A5492EDFB93 /* PresentationComparison.swift */,
 				A31C74869BD14576A91FB850 /* GitResetNotifications.swift */,
 				EA1264F794E412CF0DFD5C59 /* FileCopy.swift */,
 				FF916A1DC9051A8C70F0370C /* FileMove.swift */,
@@ -1988,6 +2000,7 @@
 				7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */,
 				153F98E7380923ABB8849622 /* MergePaneInput.swift in Sources */,
 				22A519AD3908454385E2AF21 /* GitDiffEngine.swift in Sources */,
+				491DA20BBD3F4ABBA78747AD /* PresentationComparison.swift in Sources */,
 				D9406315D3C843579057A5B3 /* GitResetNotifications.swift in Sources */,
 				2A787175D6DBD51DD78EA332 /* FileCopy.swift in Sources */,
 				C3F073F2CCF2B29299BFDD24 /* FileMove.swift in Sources */,
@@ -2253,6 +2266,9 @@
 				BE010DEA813D0B5A2AB75681 /* IssueTrackerSettings.swift in Sources */,
 				F93F7A1EFBB98F60DB0C7F4D /* LFSLocksWindow.swift in Sources */,
 				79FAF64D9B79A6283E286D5A /* LogAppearance.swift in Sources */,
+				58DBEF737283439FAA87C763 /* PowerPointComparisonAutomation.swift in Sources */,
+				A0648452B2654E0AAD357349 /* PresentationComparisonWindow.swift in Sources */,
+				8D91BD0F940241CC921B0BA6 /* PresentationComparisonRendering.swift in Sources */,
 				1A69AA4536DD6B5565199815 /* LibreOfficeComparisonAutomation.swift in Sources */,
 				2368F21797097AE66DBADDAE /* LogGraphDrawing.swift in Sources */,
 				331C8EE4AE36F1AFA3067CD6 /* LogGravatar.swift in Sources */,

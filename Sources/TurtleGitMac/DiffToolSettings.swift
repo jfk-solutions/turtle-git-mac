@@ -354,9 +354,27 @@ struct DiffToolAssociationEditor: View {
     }
 }
 
+/// A captured presentation export belongs to the exact launching window until
+/// its independent review window has been accepted. Closing the caller cancels
+/// preparation without changing another document or application instance.
+@MainActor private final class PresentationDiffRequestOwner {
+    let cancellation:OperationCancellation
+    private var observer:NSObjectProtocol?
+    init(window:NSWindow?,cancellation:OperationCancellation) {
+        self.cancellation=cancellation
+        if let window {
+            observer=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main){_ in cancellation.cancel()}
+        }
+    }
+    deinit {if let observer{NotificationCenter.default.removeObserver(observer)}}
+}
+
 @MainActor enum DiffToolApplication {
     private static var previews: [URL] = []
     private static var inventoryWindows: [UUID: FileComparisonWindowController] = [:]
+    private static var presentationWindows:[UUID:PresentationComparisonWindowController]=[:]
+    static var exportPowerPoint:(PresentationComparisonPreview,OperationCancellation)async throws->PresentationComparisonManifest = {try await PowerPointComparisonAutomation.export($0,cancellation:$1)}
+    static var presentPresentation:(PresentationComparisonWindowController)->Bool = {controller in controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil);return true}
     private static var excelWarnings: [UUID: ExcelComparisonWarningController] = [:]
     static var presentExcelWarning: (ExcelComparisonWarningController) -> Bool = { controller in controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil);return true }
     static var compareExcel: (ExcelComparisonPreview,OperationCancellation) async throws -> ExcelComparisonOutcome = { try await ExcelComparisonAutomation.compare($0,cancellation:$1) }
@@ -374,7 +392,7 @@ struct DiffToolAssociationEditor: View {
     static var compareLibreOffice: (LibreOfficeComparisonPreview, OperationCancellation) async throws -> Void = { try await LibreOfficeComparisonAutomation.compare($0, cancellation: $1) }
     static var compareWord: (WordComparisonPreview, OperationCancellation) async throws -> Void = { try await WordComparisonAutomation.compare($0,cancellation:$1) }
     private(set) static var activeRequests = 0
-    static func discardAll() { let windows = Array(inventoryWindows.values); inventoryWindows = [:]; for window in windows { window.close() }; let reports = Array(binaryWindows.values); binaryWindows = [:]; for report in reports { report.close() };let warnings=Array(excelWarnings.values);excelWarnings=[:];for warning in warnings{warning.close()}; for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
+    static func discardAll() {let presentations=Array(presentationWindows.values);presentationWindows=[:];for presentation in presentations{presentation.close()}; let windows = Array(inventoryWindows.values); inventoryWindows = [:]; for window in windows { window.close() }; let reports = Array(binaryWindows.values); binaryWindows = [:]; for report in reports { report.close() };let warnings=Array(excelWarnings.values);excelWarnings=[:];for warning in warnings{warning.close()}; for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
     static func open(_ document: FileComparisonDocument, root: URL, permissions: [RepositoryAccessLease], alternate: Bool, preferences: UserDefaults = .standard, cancellation: OperationCancellation? = nil, owner: NSWindow? = nil, selection: DiffToolSelection? = nil, line: Int? = nil, launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> Void)? = nil) async throws -> Bool {
         try cancellation?.check()
         let chosen = try selection ?? DiffToolPreferences.load(from: preferences).selection(base: document.base.path, destination: document.destination.path, alternate: alternate)
@@ -424,6 +442,33 @@ struct DiffToolAssociationEditor: View {
                 return true
             } catch {
                 if !dispatched || (error as? LibreOfficeComparisonFailure)?.possiblyOpened == false { preview.discard() }
+                throw error
+            }
+        }
+        if program.builtIn == .powerPointPresentation {
+            let token=cancellation ?? OperationCancellation(),requestOwner=PresentationDiffRequestOwner(window:owner,cancellation:token)
+            activeRequests += 1
+            defer {activeRequests -= 1;withExtendedLifetime(permissions){};withExtendedLifetime(requestOwner){}}
+            let privateRoot=try TurtleGitTemporaryStorage.root
+            let preview=try await Task.detached {try PresentationComparisonPreview.prepare(document,in:privateRoot,cancellation:token)}.value
+            var dispatched=false,exportCompleted=false,transferred=false
+            do {
+                try token.check();try Task.checkCancellation();dispatched=true
+                let manifest=try await exportPowerPoint(preview,token);exportCompleted=true
+                try token.check();try Task.checkCancellation()
+                guard owner?.attachedSheet==nil else{throw CocoaError(.userCancelled)}
+                let controller=PresentationComparisonWindowController(preview:preview,manifest:manifest,permissions:permissions,preferences:preferences,
+                    baseTitle:document.base.path+" : "+document.base.revision.label,destinationTitle:document.destination.path+" : "+document.destination.revision.label)
+                controller.window?.appearance=owner?.appearance
+                let identity=UUID();presentationWindows[identity]=controller
+                controller.onClosed={presentationWindows.removeValue(forKey:identity)}
+                transferred=true
+                guard presentPresentation(controller) else{presentationWindows.removeValue(forKey:identity);controller.close();throw CocoaError(.userCancelled)}
+                return true
+            } catch {
+                // An uncertain Apple-event completion may still own its captured
+                // inputs. Do not remove them until the exporter proves retirement.
+                if !transferred,(!dispatched || exportCompleted || (error as? PowerPointComparisonAutomation.Failure)?.possiblyOpened==false){preview.discard()}
                 throw error
             }
         }

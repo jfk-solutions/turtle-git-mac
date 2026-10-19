@@ -8,7 +8,7 @@ enum TurtleGitHelpTopic: String, CaseIterable {
     case rebase, cherryPick, stash, revert, reset, clean, submodules, worktrees
     case synchronization, ignore, lfs
     case patches, export, bisect, settings, finder, folderAccess, statistics
-    case revisionGraph, blame, compare, images, unifiedDiff, svn, authentication
+    case revisionGraph, blame, compare, presentations, images, unifiedDiff, svn, authentication
     case ssh, savedData, privacy, notes, moving, languages, credentials
 }
 
@@ -164,6 +164,7 @@ enum TurtleGitHelpTopic: String, CaseIterable {
         if name.contains("export") { return .export }
         if name.contains("patch") || name.contains("send email") || name.contains("request pull") { return .patches }
         if name.contains("unified diff") { return .unifiedDiff }
+        if name.contains("presentation") {return .presentations}
         if name.contains("changed files") { return .compare }
         if name == "add" { return .add }
         if name.contains("copy") || name.contains("move") { return .moving }

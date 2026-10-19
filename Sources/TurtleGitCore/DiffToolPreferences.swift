@@ -12,13 +12,14 @@ public enum DiffToolFailure: LocalizedError {
     }
 }
 public enum BuiltInDiffTool: String, Codable, CaseIterable, Sendable {
-    case zipInventory, binaryReport, mathematicaNotebook, wordDocument, excelWorkbook, excelWorkbookFast, libreOfficeDocument
+    case zipInventory, binaryReport, mathematicaNotebook, wordDocument, excelWorkbook, excelWorkbookFast, libreOfficeDocument, powerPointPresentation
     public var title: String {
         switch self {
         case .zipInventory: return "ZIP archive inventory"
         case .binaryReport: return "Binary file comparison"
         case .mathematicaNotebook: return "Mathematica notebook comparison"
         case .wordDocument: return "Microsoft Word document comparison"
+        case .powerPointPresentation: return "Microsoft PowerPoint presentation comparison"
         case .excelWorkbook: return "Microsoft Excel workbook comparison"
         case .excelWorkbookFast: return "Microsoft Excel workbook comparison (fast)"
         case .libreOfficeDocument: return "LibreOffice document comparison"
@@ -30,6 +31,7 @@ public enum BuiltInDiffTool: String, Codable, CaseIterable, Sendable {
         case .binaryReport: return [".dll", ".exe", ".dylib"]
         case .mathematicaNotebook: return [".nb"]
         case .wordDocument: return [".doc", ".docx", ".docm", ".dot", ".dotx"]
+        case .powerPointPresentation: return [".ppt", ".pptx", ".pptm"]
         case .excelWorkbook: return [".xls", ".xlsx", ".xlsm", ".xlsb", ".xlam"]
         case .excelWorkbookFast: return []
         case .libreOfficeDocument: return [".odt", ".ods", ".sxw"]

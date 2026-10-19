@@ -531,7 +531,7 @@ The Word document-diff adapter adds a `com.microsoft.Word` Apple-event temporary
 exception to AppStore preparation. The inspected Word scripting dictionary has no
 access groups; Apple's target-specific temporary-exception mechanism is used
 instead. Apple Mail retains its compose-only scripting target. The package audit
-allows only the explicit Word and Excel targets (see below) and refuses unexpected/suffixed Apple-event keys.
+allows only the explicit Word, Excel and PowerPoint targets (see below) and refuses unexpected/suffixed Apple-event keys.
 The usage description covers both operations. Provide the exception's comparison
 use case with the eventual App Store submission; no Apple acceptance is claimed.
 See [Word comparison](WORD-COMPARISON.md) for failure/permission/worker ownership
@@ -546,3 +546,15 @@ Mail's compose-only group, and rejects unexpected/suffixed exception keys. The
 usage description now covers workbook comparison as well. Actual Excel/TCC/file
 grants, signed sandbox execution and eventual exception-review acceptance remain
 open; see [Excel comparison](EXCEL-COMPARISON.md).
+
+## PowerPoint export Automation target
+
+Presentation comparison adds the exact installed bundle identifier
+`com.microsoft.Powerpoint` to the AppStore preparation allowlist. The inspected
+PowerPoint dictionary provides no scripting-access groups for this workflow. The
+usage description includes selected-presentation export for native review.
+`validate-app-bundle.py` checks the three exact Office targets and continues to
+refuse unexpected or suffixed exception keys. This configuration does not prove
+Apple approval or successful signed cross-application file grants. Live export,
+TCC, protected-document prompts, macro-policy restoration and installed sandbox
+acceptance remain separate checks. See [presentation comparison](POWERPOINT-COMPARISON.md).

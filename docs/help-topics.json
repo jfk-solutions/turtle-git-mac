@@ -231,6 +231,10 @@
     {
       "id": "languages",
       "document": "LANGUAGES.md"
+    },
+    {
+      "id": "presentations",
+      "document": "POWERPOINT-COMPARISON.md"
     }
   ],
   "additional_guides": [

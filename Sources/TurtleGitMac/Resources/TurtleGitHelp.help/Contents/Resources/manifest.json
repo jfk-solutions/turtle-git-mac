@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "061946f23a54f555933f5b38a1efd1a5c0d4fae326450e0d125b091cdac9bea3",
+    "Contents/Info.plist": "d7b9fbb73e628684ec5f049e09f1541e3d061242535ed59e57c47c79ee0d4c21",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "01d9789d13afd9ece8aac7c7a97615b55f0e9e37f5211445b613f67b4d166d39",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "940fa5e112b44a1c585a13339c8d07f16d36149a2ab0a9295b31c44728f0287d",
@@ -10,7 +10,7 @@
     "Contents/Resources/en.lproj/COMMIT-CHECKBOX-INDEX.html": "871565da3ad60a404ddb968363c9783366aedfe681563068df4eb1d53b704bca",
     "Contents/Resources/en.lproj/CONFLICT-IDENTITIES.html": "fceecf83506092258f348b48a3a36d150fe8fe34ee26f36e5cf84d4d96b405c7",
     "Contents/Resources/en.lproj/CREDENTIAL-SETTINGS.html": "84b759133ad2aaac15b4f566e6712ccae2ecee2daca7fcc74974bb5d9aefa033",
-    "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "fda9518113d0c60c13ea4d482ec5269114e7013570e4970350ed2fb3fef3a3a5",
+    "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "9c0830127338a0365235967e93b012a6859e9837801ecc2bc15eb70635b1c411",
     "Contents/Resources/en.lproj/EXCEL-COMPARISON.html": "4e4dbf998996c02d74a4499f237017f8a14d522ba08ef3a05779f8fade1440d8",
     "Contents/Resources/en.lproj/GETTING-STARTED.html": "62ea6aa01057762cf2411b54ad0b19809b3186124aec7e4c123eb66a4242e1a1",
     "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "cd9e31faffc1970e3878f03dab88cf3d6ea4c196a0a52b96b9ddb459aaaf4000",
@@ -26,6 +26,7 @@
     "Contents/Resources/en.lproj/MERGE-FILTERS.html": "fd3810301986f74435fb161b42c4abff1bb1f53347e5e2cd9eae51f4c8b2a8af",
     "Contents/Resources/en.lproj/MERGE-TOOL.html": "04f0830be9589106a99ab85d2a3dd7a7dbb8d6bcbdaad8248f5d37d33e4347e9",
     "Contents/Resources/en.lproj/MOVING-AND-COPYING.html": "76ab47d08eaad445c4ae0fa893f2a3bcf1a93432d4089daa2e1519d8daccc424",
+    "Contents/Resources/en.lproj/POWERPOINT-COMPARISON.html": "77d790de80b5ebe4001798d2548b18ade966c29802638491605d4f28628b5fbd",
     "Contents/Resources/en.lproj/PRIVACY.html": "2feec9d8edab5687579d581be70f072b9f416e948653ba8daf9c82558ec57262",
     "Contents/Resources/en.lproj/REBASE-CONFLICT-FILES.html": "8ea8e7ea5e9e8ad328bc7215381cfc8c690fc29cba224dfdf5a887b7fe855c83",
     "Contents/Resources/en.lproj/REBASE-REFERENCE-RECOVERY.html": "3eef9aea6018a9c492427ceaf3e9dfbce7e95adc09c1ad7e7c29817dec6028ec",
@@ -59,8 +60,8 @@
     "Contents/Resources/en.lproj/images/ed3713977296-image-conflict-undecodable-light.png": "138d20aa5da3ab6b283e6d2d69e78639534af3cbef1a2bbbb686ab48aa3b1446",
     "Contents/Resources/en.lproj/images/f49a195c8c35-cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
     "Contents/Resources/en.lproj/images/f7856202ab6a-commit-file-groups-language-de-dark.png": "e7f075b32f6ff02494ead9db85a9da57039ad1a108cda57cadbe40c895f988ed",
-    "Contents/Resources/en.lproj/index.html": "c344098a44d307c66bc9dde6c70cad2164ce0a2bb3c01e4880421d09ece6ceb9",
-    "Contents/Resources/en.lproj/topics.json": "8ba447ccfa8b23c80ab6f51678bab53d01387009d6b179672ff9728def3f5d8d"
+    "Contents/Resources/en.lproj/index.html": "273f90d6781872818a18f366ab2279053ea47b9bfdbc0e27814459a21a6f425c",
+    "Contents/Resources/en.lproj/topics.json": "7538655d6afa742c7c4daf498b2e75e81bd29c9d1141670f741595e11219de3b"
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
@@ -72,7 +73,7 @@
     "docs/COMMIT-CHECKBOX-INDEX.md": "59ae109cbde9c4c77a3ffdff3485b1b3ab20c0524cf42cbcc5a3f25303d4681e",
     "docs/CONFLICT-IDENTITIES.md": "5a0f6ac729c78df24e4ed8a6194e2cd9053d2289438b75519f1f21e908ec2213",
     "docs/CREDENTIAL-SETTINGS.md": "984067cf289fa0a3e9e642037a061c5f7ec0da46dea47132d06bad3200f3c171",
-    "docs/DIALOG-GUIDE.md": "0e5f15a93e01bedda93bb53ef27b130a8cda827659d3145f4bc6012e76244f4d",
+    "docs/DIALOG-GUIDE.md": "1efd537b2cb750154d642713c71678877d81a62c329e8668d6648a00378f70fc",
     "docs/EXCEL-COMPARISON.md": "7e3f3a627b2dc6bb807bee992ae0d76830107dea9592c3a02668fc570227ab36",
     "docs/GETTING-STARTED.md": "27ee5b00814ad2e15aa582ec2c2f1d357a0fdf992d8fb074ad6e131cc4a8c74a",
     "docs/GIT-AUTHENTICATION.md": "74d8ecd9a6a378f3a6c263263bbdabb682e1a0626b1495fc675b8f25ec695812",
@@ -87,6 +88,7 @@
     "docs/MERGE-FILTERS.md": "c32dbedd77e3f6903bb05bac9d9edc9efbdfad6942bdaad57752a27c7107f028",
     "docs/MERGE-TOOL.md": "016985a213a8bc9cdc571552ebccc1cabe4095ad4d3b30d0a415ec307bd43a05",
     "docs/MOVING-AND-COPYING.md": "763a485e2dd89d0f912db242637f12f821368310a070d784bd122986f38bfe99",
+    "docs/POWERPOINT-COMPARISON.md": "0e49e17a9945a2df72c7aff3c69343e2bd69e54de3676f6d3247ec3b517d90f5",
     "docs/PRIVACY.md": "09e932133af3c562d07cc73bf4a51723d1f08b5f85f9d91f061c047470c82d86",
     "docs/REBASE-CONFLICT-FILES.md": "5def68fc819548e2f7316cd25029c0ee47fc1506c590b2107280de1bac2120c0",
     "docs/REBASE-REFERENCE-RECOVERY.md": "be01823a9b9bc4658409fb501620bc13fb2297674d65adf248f74201f35e13af",
@@ -105,7 +107,7 @@
     "docs/WORD-COMPARISON.md": "4abfaf00ef834ee9788858006e4272d16f9961a7a42147a97e5d09dfd0350fd2",
     "docs/WORD-MERGE.md": "ffed41df55c03977f430e784cd444e2b5616b77422a79119f11df0f53631ef6d",
     "docs/ZIP-COMPARISON.md": "1fa7085d96970e6cc85ef8edb5e94f12277617d5c91614f1fd05c92362576241",
-    "docs/help-topics.json": "8ba447ccfa8b23c80ab6f51678bab53d01387009d6b179672ff9728def3f5d8d",
+    "docs/help-topics.json": "7538655d6afa742c7c4daf498b2e75e81bd29c9d1141670f741595e11219de3b",
     "docs/site/assets/binary-comparison-dark.png": "13944fd1b3128d1a46cadfabc89f4245a0008a379a7b1ad18e8b77365e618c8d",
     "docs/site/assets/binary-comparison-light.png": "0dda7bddf5a03dbf5bad64e6481f89121752721f2d4bb16995f29a406f2bb04b",
     "docs/site/assets/cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",

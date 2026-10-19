@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>PowerPoint presentation comparison</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-presentations"></a><h1 id="powerpoint-presentation-comparison">PowerPoint presentation comparison</h1>
+<p>TurtleGit can compare captured <code>.ppt</code>, <code>.pptx</code> and <code>.pptm</code> presentations in a
+native slide-review window. Microsoft PowerPoint must be installed to export the
+slides. The original files remain unchanged.</p>
+<h2 id="open-a-comparison">Open a comparison</h2>
+<p>Compare two revisions or working files through the ordinary file-comparison
+commands. New settings include the three PowerPoint associations. With saved
+settings from an earlier build, choose <strong>Settings → Diff Viewer → Advanced →
+Restore Defaults</strong>, or assign <strong>Microsoft PowerPoint presentation comparison</strong>
+to the relevant extension. Restore Defaults replaces the bundled extension
+associations; unrelated custom associations remain. Shift uses the existing
+alternate-tool selection.</p>
+<p>macOS may request permission for TurtleGit to control Microsoft PowerPoint.
+An Automation denial reports the relevant System Settings location. PowerPoint
+opens captured read-only copies with macros disabled, exports the slides, then
+closes those owned presentations and restores its previous macro policy. It
+keeps other open presentations and the application instance intact.</p>
+<h2 id="review-slides">Review slides</h2>
+<p>The list identifies added, deleted, modified and moved slides with source icons
+and different colors. Select a row to inspect the corresponding base and new
+slides. <strong>Changes only</strong> hides unchanged rows. Previous/next change moves between
+changed slides; ordinary slide navigation also includes unchanged rows.</p>
+<p><strong>Side by side</strong> displays the pair in a shared scrolling surface. <strong>Overlay</strong>
+blends the two versions. <strong>Differences</strong> marks changed pixels in red over a muted
+slide. Fit and zoom apply to both sides together. View mode, Changes only, Fit and
+zoom are saved in the owning settings domain; the selected slide belongs to the
+current comparison.</p>
+<p>Expand <strong>Text and notes</strong> to read slide text and speaker notes. Their headings
+highlight changed fields. <strong>Copy Review</strong> and <strong>Export Review…</strong> produce a text
+summary with slide indices, actions, moves and changed text/notes. Cancel stops
+preparation or rendering, and Retry can restart the cancelled or failed read.
+Close cancels the window's remaining work and releases its captured files after
+that work retires. Help opens this guide offline when the bundled book is present.</p>
+<h2 id="current-scope">Current scope</h2>
+<p>The Windows script uses PowerPoint's presentation Merge/revision interface.
+<a href="https://support.microsoft.com/en-us/office/track-changes-in-your-presentation-35dad781-50f7-4c4f-9b15-cf418f03c279">Microsoft documents that this interface is unavailable on Mac</a>.
+TurtleGit provides slide review through private PowerPoint PDF exports and slide
+metadata. It compares a finite raster representation, text and notes; tiny visual
+changes below the fingerprint resolution can require inspection at higher zoom.</p>
+<p>Shape-level accept/reject, editable merged presentations, review comments,
+animations, transitions, embedded-object behavior and macro contents remain open
+parity work. This adapter is a comparison tool; conflict merging retains the
+existing configured merge-tool workflow.</p>
+<p>The current limits are 512 slides per side, 128 MiB per exported PDF and 64 MiB of
+exported slide text/notes across both sides. The PowerPoint metadata walk also
+limits the captured shape count and text units. The reader checks that the export accounts for every
+manifest slide, including hidden slides, and reports missing pages instead of
+publishing a partial comparison. Password-protected, rights-managed or otherwise
+unexportable presentations report the PowerPoint error.</p>
+<p>Actual installed PowerPoint rendering, file grants, Automation prompts, hidden
+slides and signed sandbox behavior require separate acceptance. See the
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/POWERPOINT-COMPARISON-PARITY.html">source comparison and dated checks</a>.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

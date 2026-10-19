@@ -126,6 +126,7 @@ import AppKit
             (window.delegate as? ResolveWindowController)?.model.confirmingQuit = value
             (window.delegate as? AddProgressWindowController)?.model.confirmingQuit = value
             (window.delegate as? RevertProgressWindowController)?.model.confirmingQuit = value
+            (window.delegate as? PresentationComparisonWindowController)?.model.confirmingQuit = value
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -246,6 +247,7 @@ import AppKit
         if sender.windows.compactMap({$0.delegate as? AddRemoteWindowController}).contains(where:{$0.model.error != nil || $0.window?.attachedSheet != nil}) || sender.windows.compactMap({$0.delegate as? RemoteReferenceWindowController}).contains(where:{$0.model.error != nil || $0.window?.attachedSheet != nil}) {return .terminateCancel}
         if sender.windows.compactMap({ $0.delegate as? RemoteTagWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if RepositoryBrowserExportFiles.activeLoads > 0 { return .terminateCancel }
+        if PresentationComparisonWindowModel.activeRequests > 0 || sender.windows.compactMap({$0.delegate as? PresentationComparisonWindowController}).contains(where:{$0.window?.attachedSheet != nil}) {return .terminateCancel}
         if AlternativeEditor.activeRequests > 0 || ExternalDocumentApplication.activeRequests > 0 || ExternalToolProcesses.activeRequests > 0 || UnifiedDiffApplication.activeRequests > 0 || DiffToolApplication.activeRequests > 0 || MergeToolApplication.activeRequests > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? CloneWindowController }).contains(where: { $0.model.activeOperation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? CloneProgressWindowController }).contains(where: { $0.model.busy || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }

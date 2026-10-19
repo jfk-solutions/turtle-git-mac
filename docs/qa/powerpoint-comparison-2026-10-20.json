@@ -1,0 +1,211 @@
+{
+  "date": "2026-10-20",
+  "family": "PowerPoint captured export and native slide-review comparison",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_adapter": "contrib/diff-scripts/diff-ppt.js",
+  "implementation": [
+    ".ppt/.pptx/.pptm built-in associations, configured overrides and Restore Defaults",
+    "Private read-only captured source bytes and bounded, versioned literal slide manifests",
+    "Exact owned PowerPoint PDF export, macro disable/restore receipt, uncertainty retention and cooperative cancellation",
+    "Native slide alignment and move detection with finite raster fingerprints and literal text/notes",
+    "Colored source action icons, change filter/navigation, paired/overlay/pixel views and saved fit/zoom",
+    "Copy/export review, offline contextual Help, callerclose/refused presentation, async worker/sheet cleanup and Quit gates",
+    "Exact targeted AppStore PowerPoint Apple-event preparation and public usage description"
+  ],
+  "validation": [
+    {
+      "scope": "Grouped relevant Core checkpoint",
+      "status": "passed",
+      "executed": 29,
+      "failures": 0,
+      "duration_seconds": 2.105,
+      "log": "build/qa/presentation-core-2026-10-20.log",
+      "classes": [
+        "PresentationComparisonTests",
+        "DiffToolPreferencesTests",
+        "WordComparisonTests",
+        "ExcelComparisonTests",
+        "LibreOfficeComparisonTests"
+      ]
+    },
+    {
+      "scope": "Initial Debug app build",
+      "status": "failed",
+      "exit_code": 65,
+      "log": "build/qa/presentation-app-2026-10-20.log",
+      "finding": "Serialized Swift diagnostics reported four property-wrapper errors from combined @Published busy/rendering and error/renderError declarations",
+      "repair": "Split each wrapped variable into its own declaration; no behavior change, passing Core checks retained"
+    },
+    {
+      "scope": "App build after split property declarations",
+      "status": "failed",
+      "exit_code": 65,
+      "log": "build/qa/presentation-app-published-repair-2026-10-20.log",
+      "finding": "New SDK selected async NSAlert.beginSheetModal overload without await in failed-export branch",
+      "repair": "Explicit completion handler plus owned error-alert cancellation/drain and meaningful lifecycle fixture; no Core changes or Core rerun"
+    },
+    {
+      "scope": "Debug app after owned-alert repair",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/presentation-app-alert-repair-2026-10-20.log"
+    },
+    {
+      "scope": "App bundle layout, targeted Office configuration and packaged resources",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/presentation-bundle-2026-10-20.log",
+      "production_layout_items": 206,
+      "icon_resources": 325,
+      "limit": "Unsigned Debug layout/source entitlement policy; not actual signed Automation or App Store approval"
+    },
+    {
+      "scope": "Initial grouped native receiver compilation",
+      "status": "failed",
+      "exit_code": 1,
+      "log": "build/qa/presentation-native-2026-10-20.log",
+      "finding": "Automation fixture constructed internal Core content/document initializers",
+      "repair": "Use public WorkingFileComparison file reads with identical literal names and captured bytes; no production API widening or app/Core rerun",
+      "receivers_started": 0
+    },
+    {
+      "scope": "Native automation contract after public-fixture repair",
+      "status": "passed",
+      "case": "automation",
+      "log": "build/qa/presentation-native-fixture-repair-2026-10-20.log",
+      "receiver_pid": 97533,
+      "real_installed_terminology_compilation": "passed",
+      "live_office_dispatch": false,
+      "limit": "Execution replies/PDFs are injected; no live Office rendering/TCC claim"
+    },
+    {
+      "scope": "Native review in same group",
+      "status": "failed",
+      "case": "review",
+      "signal": "SIGSEGV",
+      "receiver_pid": 97534,
+      "log": "build/qa/presentation-native-fixture-repair-2026-10-20.log",
+      "finding": "Thread stack overflow from recursive @Published zoom setter/didSet during initialization; blocked-control rollback has same risk",
+      "crash_report": "receiver-8e3424aa545536a3aa260c328fac50f57cc89ed8a963a3f7f1f20f2-2026-10-20-005415.ips",
+      "repair": "Guarded normalization/restoration for all published review controls; add clamp/nonfinite/blocked/retired control checks. Only affected app/native cases repeated; Core/automation remain unchanged."
+    },
+    {
+      "scope": "Final Debug app after guarded native controls",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/presentation-app-observer-repair-2026-10-20.log"
+    },
+    {
+      "scope": "Affected native review, routing and lifecycle after observer repair",
+      "status": "passed",
+      "cases": [
+        "review",
+        "routing",
+        "lifecycle"
+      ],
+      "receiver_pids": [
+        97728,
+        97731,
+        97740
+      ],
+      "owned_receivers_reaped": true,
+      "log": "build/qa/presentation-native-observer-repair-2026-10-20.log",
+      "retained_checks": "Earlier Core 29-method and automation-contract passes retained; unaffected checks not repeated"
+    },
+    {
+      "scope": "Initial four light/dark review captures",
+      "status": "rejected",
+      "finding": "NSView.cacheDisplay omitted native chrome and produced black or blank control surfaces. Images excluded from publication; replace with current-process offscreen WindowServer capture."
+    },
+    {
+      "scope": "Capture-only fixture repair and affected review case",
+      "status": "passed",
+      "log": "build/qa/presentation-native-capture-repair-2026-10-20.log",
+      "receiver_pid": 97974,
+      "owned_receiver_reaped": true,
+      "capture_method": "ScreenCaptureKit currentProcess exact offscreen owned window; alpha restored afterward",
+      "images": [
+        "presentation-review-paired-light.png",
+        "presentation-review-paired-dark.png",
+        "presentation-review-overlay-light.png",
+        "presentation-review-overlay-dark.png"
+      ],
+      "visual_review": "All four inspected: native toolbar, slide list, paired/overlay images, theme and footer readable; generated slide fixtures, no live Office dispatch"
+    },
+    {
+      "scope": "Frozen documentation/resource checkpoint",
+      "status": "passed",
+      "localization": {
+        "languages": 38,
+        "keys": 1301
+      },
+      "help": {
+        "documents": 43,
+        "topics": 51,
+        "files": 63,
+        "bytes": 3624239
+      },
+      "site": {
+        "documents": 369,
+        "unresolved_fragments": [],
+        "log": "build/qa/presentation-site-2026-10-20.log"
+      },
+      "coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_controls": 1572,
+        "pending_controls": 87
+      },
+      "diff_whitespace": "passed",
+      "coverage_is_completion_percentage": false
+    }
+  ],
+  "explicit_gaps": [
+    "Windows presentation Merge/revision engine has no Mac API; shape-level accept/reject and editable merged decks remain open",
+    "Windows review comments, animations, transitions, macros and embedded-object behavior",
+    "Finite raster fingerprints can miss sub-resolution visual changes",
+    "Live installed PowerPoint export, protected/password/external-content prompts, hidden-slide/shape combinations and actual macro-policy restoration",
+    "Actual signed Automation, cross-application sandbox file grants and App Store approval",
+    "Minimum OS, hosted CI, physical keyboard/accessibility and complete upstream application parity"
+  ],
+  "official_capability_references": [
+    "https://support.microsoft.com/en-us/office/track-changes-in-your-presentation-35dad781-50f7-4c4f-9b15-cf418f03c279",
+    "https://help.libreoffice.org/latest/en-US/text/shared/guide/redlining_docmerge.html",
+    "https://developer.apple.com/forums/thread/759287"
+  ],
+  "no_complete_port_claim": true,
+  "source_sha256": {
+    "Sources/TurtleGitCore/PresentationComparison.swift": "e6d712e57c6762d59045d1c3a508d21521294c8a77a60aeee3445259163c175e",
+    "Sources/TurtleGitCore/DiffToolPreferences.swift": "3f6df60ded56eb18509ca0eaf2ca6acc97a341da785757be70339aa857cd126e",
+    "Sources/TurtleGitMac/PowerPointComparisonAutomation.swift": "9a4c08665c870d018b22148b57c2c271816281e008cb47d02ac59e0c720f3a41",
+    "Sources/TurtleGitMac/PresentationComparisonRendering.swift": "66b17d708898b274ceefd9cad418c9995fd428c882852b272e9b2573f33d18f3",
+    "Sources/TurtleGitMac/PresentationComparisonWindow.swift": "e52389fb835ce8eb9be9d818cd143c58e61f7395436bfad9e00e313b3433eed8",
+    "Sources/TurtleGitMac/DiffToolSettings.swift": "2302c0378753feb50599c6b149f76724bb00fc79c47c8e5417cd448150ad9fab",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "e93698fac03d085571e9a0ae7b4e16a57c725e17519fb4fbe55b9d11ff50a412",
+    "Tests/TurtleGitCoreTests/PresentationComparisonTests.swift": "dd1baf99f98898b732c17f96668262511a2c0eb2e2bb82d865df3cc3d9dff70d",
+    "docs/qa/presentation-comparison-native-2026-10-20.swift": "ad06f06f887909743acffbdc0e227699a51c60213ba49b739f14928d3398360a",
+    "docs/qa/powerpoint-automation-native-2026-10-20.swift": "4d73d7fa0dd651ba5c521ad731dc4991c0959fa7d22bb8b01c49f9aaf60e2265",
+    "scripts/test-presentation-comparison.py": "1d4b63f71a7c16c6f8bc717453e1dad60863dc31519ac94464d7007930f18208",
+    "Configuration/AppStore.entitlements": "a9b7046dbb387ef7d3862548e3b365a4a1d6555d2386690d4fefaf80b2f6101c"
+  },
+  "capture_sha256": {
+    "presentation-review-paired-light.png": "a2b3c179dfe951f89487713979be6035c5796874557e88556b9ca8cef5759fc2",
+    "presentation-review-paired-dark.png": "75f7295bffb3b20e612f5866b521991863b915853e634b4ceee90f474f3a4807",
+    "presentation-review-overlay-light.png": "fec3247abe17c9732f31ea6502df77e95f9c63f1655d9c5d2312c6ac17c4f5f1",
+    "presentation-review-overlay-dark.png": "715d8466a8233cf1c29bf7d22882c5445aeb55d6fec12cc2679d4aa8be8c1efb"
+  },
+  "cleanup": {
+    "receiver_pids": [
+      97533,
+      97534,
+      97728,
+      97731,
+      97740,
+      97974
+    ],
+    "independently_observed_alive": [],
+    "unrelated_apps_terminated": false
+  }
+}

@@ -741,6 +741,13 @@ Mark Resolved/No question; Word has no trusted exit status.
 changed-value highlighting, reference/hidden-sheet colors and protection warnings.
 It requires Excel; original workbook bytes remain unchanged.
 
+[PowerPoint presentation comparison](POWERPOINT-COMPARISON.md) opens a native
+slide list and paired/overlay/difference review after PowerPoint exports captured
+inputs. It includes slide text and notes, change navigation and review export.
+Original presentations remain unchanged. Native slide review has separate limits
+from the Windows PowerPoint revision/accept-reject interface.
+
+
 ### Image versus text comparison
 
 Normal two-file comparisons choose IDiff for the source image extensions unless

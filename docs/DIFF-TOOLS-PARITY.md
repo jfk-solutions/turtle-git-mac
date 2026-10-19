@@ -136,8 +136,10 @@ argument/stage APIs were unchanged; their recorded four-test checkpoint was not
 rerun. The full twelve-family receiver group was not rerun.
 
 The Windows Restore Defaults button calls SetupDiffScripts for installed COM
-document tools. Its macOS script/tool equivalents are not implemented, so this
-control remains open; clearing all associations would not reproduce it. Actual
+document tools. The later bundled-tool families now implement native association
+restoration for their supported extensions, including the presentation family
+below. This supersedes this earlier generic missing-control statement; it does
+not establish complete parity for every source adapter. Actual
 tool argument delivery/working-file edits, wait cancellation and exit status,
 bookmark renewal, image Shift parity, owned native sheets and App Store sandbox
 acceptance also remain open. Advanced, association editor and Merge Tool inventory
@@ -414,7 +416,8 @@ This separates the two-file StartExtDiff behavior from StartExtMerge's image
 conflict policy. The conflict route and external-merge settings are unchanged;
 complete conflict/source masks, all image codecs and signed/physical acceptance
 remain open. PowerPoint's inspected Mac scripting dictionary does not expose the
-presentation Merge command used by `diff-ppt.js`; that adapter is still open.
+presentation Merge command used by `diff-ppt.js`; the later native slide-review
+continuation below adds a partial adaptation with explicit revision-engine gaps.
 
 Ten focused Core cases, the Debug build and all five native cases with both Git
 engines pass. The initial Load Images fixture staging-name failure was repaired
@@ -467,3 +470,14 @@ sorting, split command fields and built-in adapter choices are adaptations rathe
 than pixel-identical Windows controls. Physical keyboard/double-click, real
 receiving applications, signed bookmarks and complete source acceptance remain
 open. All three distinct native families pass after the recorded fixture/runner repairs, including actual Settings navigation; the two affected tool families pass again after the presentation-identity repair. Four raw light/dark captures were individually reviewed: the source group/footer and populated Extension/Program/Arguments captions fit without clipping. All eleven owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/tool-source-family-2026-10-17.json) for the build diagnostics, fixture failures and physical/signed limits.
+
+## PowerPoint slide comparison — October 20, 2026
+
+The [presentation family](POWERPOINT-COMPARISON-PARITY.md) adds the source's
+three associations, captured read-only inputs, exact owned PowerPoint export,
+slide identity/visual alignment and a native colored review window. It includes
+view persistence, navigation, text/notes, report copy/export, cancel/retry,
+caller/window retirement and contextual Help. Windows COM shape-level revision
+review has no Mac API and remains explicit outstanding work. The dated family
+evidence records the executed checkpoint and limits; this is not a complete
+PowerPoint or application parity claim.
