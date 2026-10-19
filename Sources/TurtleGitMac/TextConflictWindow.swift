@@ -1247,7 +1247,7 @@ private enum MergeSourceSide {
     private(set) var selectingNavigationBlock = false
     private var navigationOwnsChoice = false
     private var navigationChoiceRange: NSRange?
-    private var navigationViews: [MergeTextView] {
+    fileprivate var navigationViews: [MergeTextView] {
         var views = sourceScrolls.values.compactMap { $0.view?.documentView as? MergeTextView }.filter { $0.sourceSide != nil }
         if let result = locatorResultScroll?.documentView as? MergeTextView { views.append(result) }
         return views
@@ -1265,6 +1265,7 @@ private enum MergeSourceSide {
         }
         return lastNavigationView ?? locatorResultScroll?.documentView as? MergeTextView
     }
+    fileprivate func ownsPaneInput(_ view:MergeTextView)->Bool {view.window === window && navigationViews.contains{$0 === view}}
     fileprivate func focusNavigation(_ view: MergeTextView) {
         guard view.mergeEditable || view.sourceSide != nil else { return }
         if lastNavigationView !== view { lastNavigationView = view; objectWillChange.send() }
@@ -1968,7 +1969,13 @@ private struct MergeEditor: NSViewRepresentable {
     var mergeSourceRowsReady:Bool { get }
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class MergeTextView: NSTextView, MergeEditorPresentationProviding, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+private final class MergeTextView: MergePaneInputTextView, MergeEditorPresentationProviding, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+    override var paneInputLayout:MergeFoldTextLayout {foldLayout}
+    override var paneInputCells:[MergeSourceCell]? {sourceCells}
+    override var paneInputRevision:Int {mergeEditable ? model?.resultPresentationRevision ?? -1:model?.sourceLayoutRevision ?? -1}
+    override var paneInputAllowed:Bool {navigationAllowed && model?.ownsPaneInput(self)==true}
+    override var paneInputMutationAllowed:Bool {paneInputAllowed && mergeTypingAllowed}
+    override func paneInputBegan(){beginUserNavigation();model?.clearNavigationBlockSelection()}
     let presentationCache = MergeEditorPresentationCache()
     var presentationDepth = 0
     var marginSelectionAllowed: Bool { navigationAllowed && window?.attachedSheet == nil }
@@ -2310,14 +2317,25 @@ private final class MergeTextView: NSTextView, MergeEditorPresentationProviding,
         guard let model else { return }
         let previous = model.resultPresentation, previousSelection = NSRange(location:selectedRange().location,length:0), previousComparison = model.sourceComparison, previousFormat = MergeFormatSelection(encoding:model.encoding,ending:model.resultLineEnding)
         mergeUndoManager.registerUndo(withTarget:self) { $0.restoreMergeText(previous.text,selection:previousSelection,presentation:previous,comparison:previousComparison,format:previousFormat) }
-        model.selectionRequest = nil
-        model.sourceComparison = comparison
-        if let presentation { model.updateResultPresentation(presentation) }
-        model.result = text
-        if let format { model.encoding = format.encoding; model.resultLineEnding = format.ending ?? model.resultLineEnding }
-        installResultView()
-        model.clearNavigationBlockSelection(clearTextSelections:true)
-        setSelectedRange(NSRange(location:min(selection.location,string.utf16.count),length:0))
+        // Restoring the aligned document also changes the shared fold map.
+        // Collapsing a peer's old selection during that transaction must not
+        // reveal an unrelated section of the newly restored map.
+        let views = model.navigationViews
+        for view in views { view.foldLayout.beginPaneInput() }
+        do {
+            defer { for view in views { view.foldLayout.endPaneInput(selection:view.selectedRange()) } }
+            model.selectionRequest = nil
+            model.sourceComparison = comparison
+            if let presentation { model.updateResultPresentation(presentation) }
+            model.result = text
+            if let format { model.encoding = format.encoding; model.resultLineEnding = format.ending ?? model.resultLineEnding }
+            installResultView()
+            model.clearNavigationBlockSelection(clearTextSelections:true)
+            setSelectedRange(NSRange(location:min(selection.location,string.utf16.count),length:0))
+        }
+        // History navigation still reveals its final destination, as Find and
+        // Go To do; only intermediate selection callbacks are suppressed.
+        foldLayout.clearPaneInput()
         scrollRangeToVisible(selectedRange()); didChangeText()
     }
     override func viewDidMoveToWindow() {

@@ -84,3 +84,56 @@ require Git 2.38 or newer; their fixture cannot exercise updateRefs on older Git
 
 No complete dialog, physical keyboard/VoiceOver, signed Finder/sandbox or hosted
 CI acceptance is claimed by this scoped record.
+
+## Git 2.39.5 compatibility continuation
+
+Hosted run `39318208320`, job `118286502953`, at `c62febff` completed
+2,202 Core tests with two skips and 17 failed assertions in nine
+`RebaseFailedPickTests` methods. The runner selected system Git 2.39.5
+(Apple Git-154); its PATH Git was 2.55.0. A private local Git 2.39.5
+reproduction ran the existing 14-method class and reproduced all 17 assertions
+in 26.252 seconds.
+
+The [official Git 2.39.5 sequencer source](https://github.com/git/git/blob/v2.39.5/sequencer.c)
+explains the mismatch: `pick_commits` reschedules a negative Pick into todo,
+then `error_with_patch`/`make_patch` can still publish `stopped-sha`.
+`save_todo` can additionally append the preceding command to `done` again
+when rescheduling a later occurrence. Giving `stopped-sha` precedence therefore
+misclassified an applied signing failure, allowing Retry to commit and then
+replay the same Pick. Pre-apply obstructions were incorrectly rejected as
+became-empty stops.
+
+The compatibility repair in `Rebase.swift` recognizes the complete owned todo
+suffix and done prefix before considering `stopped-sha`. It distinguishes
+repeated commit occurrences by the plan rather than hash alone, keeps progress
+coordinates correct with updateRefs, and removes only the witnessed legacy
+duplicate during the existing journalled Retry/Skip normalization. Real
+became-empty stops, saved Skip cleanup intent, cancellation and changed-state
+rejection retain their separate behavior. No public API or native controls change.
+
+The initial compatibility checkpoint covered 16 methods: all 14 existing methods and assertions
+remain, with added repeated-hash/legacy-done classification and a later failed
+Pick's Retry/Skip after an earlier Drop with updateRefs. The class passed on
+private Git 2.39.5, system Git 2.54 and bundled Git 2.55. The combined checkpoint
+also passed 98 relevant editor Core methods; the Debug app build and the native
+execution-recovery workflow passed on all three Git engines. All owned native
+receivers were reaped. The [compatibility checkpoint](qa/rebase-git239-recovery-2026-10-19.json)
+records the original failure and the scoped repair separately from a complete
+hosted integration pass, which remains unproven.
+
+A subsequent source review found that filtering todo/done to known action rows
+could hide an already-captured `exec`, `break` or `label` instruction. Comparing
+receipt files with execution state cannot reject a custom command that existed
+before the execution result was captured. The bounded follow-up validates the
+complete noncomment vocabulary before either failed-Pick classifier: owned
+action/object shapes and generated `update-ref` records remain eligible;
+unsupported commands and malformed/unowned reference updates stay outside this
+recovery family. Generated updates must have the TurtleGit update marker and a
+matching branch record in Git's `update-refs` state. The added focused method
+checks both todo and done, captures the changed execution state deliberately,
+verifies no classification mutation, and retains a real generated-update control.
+The new guard and four affected positive recovery/reference-update consumers
+passed on Git 2.39.5 and bundled Git 2.55 (five methods per engine), retaining
+all assertions. The class now has 17 methods. Earlier native workflow evidence
+predates this final guard; it does not independently certify that guard or a full
+hosted integration pass.

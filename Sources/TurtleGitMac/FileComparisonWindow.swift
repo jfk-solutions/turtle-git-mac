@@ -2492,7 +2492,16 @@ struct FileComparisonEditor: NSViewRepresentable {
 @MainActor protocol ComparisonContextMenuProviding {
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class FileComparisonTextView: NSTextView, MergeEditorPresentationProviding, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorPresentationProviding, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+    override var paneInputLayout:MergeFoldTextLayout {foldLayout}
+    override var paneInputCells:[MergeSourceCell]? {sourceCells}
+    override var paneInputRevision:Int {model?.alignmentGeneration ?? -1}
+    override var paneInputAllowed:Bool {
+        guard navigationAllowed,let model,window === model.window,let scroll=enclosingScrollView else{return false}
+        return model.ownsEditor(scroll,base:baseSide) && model.ownsViewport(scroll,base:baseSide)
+    }
+    override var paneInputMutationAllowed:Bool {paneInputAllowed && mergeTypingAllowed}
+    override func paneInputBegan(){beginUserNavigation();model?.clearNavigationBlockSelection()}
     let presentationCache = MergeEditorPresentationCache()
     var presentationDepth = 0
     var marginSelectionAllowed: Bool { navigationAllowed && window?.attachedSheet == nil }

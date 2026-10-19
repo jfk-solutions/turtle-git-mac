@@ -1,0 +1,300 @@
+{
+  "date": "2026-10-19",
+  "family": "Compare/Merge folded pane input and aligned deletion",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Shared actual NSTextView movement/selection adapter across Compare and Merge",
+    "Collapsed marker/hidden row traversal, Shift anchor/reversal and explicit reveal boundaries",
+    "Smart Home physical key and macOS aliases, caret-moving page geometry and wrapped motion",
+    "Empty-record-aware deletion, composed Unicode boundaries and real ending/blank distinction",
+    "Existing aligned edits and single-step Undo, actual pane/viewport/sheet/retirement guards",
+    "Marked text delegates to native composition rather than applying custom input selection"
+  ],
+  "validation": [
+    {
+      "scope": "Combined relevant Core and independently observed Git2.39.5 recovery regression",
+      "status": "passed",
+      "executed": 114,
+      "failures": 0,
+      "duration_seconds": 48.619,
+      "log": "build/qa/pane-input-and-git239-recovery-core-2026-10-19.log",
+      "input_methods": 98,
+      "rebase_recovery_methods": 16,
+      "input_classes": [
+        "MergePaneInputTests",
+        "FileComparisonInPlaceTests",
+        "FileComparisonEditingTests",
+        "MergeTerminalRecordTests",
+        "SubversionMergePresentationTests",
+        "MergeResultPresentationTests"
+      ],
+      "limit": "Focused related classes, not the complete integration suite"
+    },
+    {
+      "scope": "Debug app build after whole input scope and recovery compatibility fix",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/merge-pane-input-app-build-2026-10-19.log"
+    },
+    {
+      "scope": "Initial grouped native fixture compilation",
+      "status": "failed",
+      "log": "build/qa/merge-pane-input-native-2026-10-19.log",
+      "finding": "beginSheet(sheet) resolved to async overload",
+      "repair": "Use completion-handler overload for held-sheet ownership check",
+      "owned_receiver_started": false,
+      "production_changed": false
+    },
+    {
+      "scope": "First navigation workflow after fixture compile repair",
+      "status": "failed",
+      "log": "build/qa/merge-pane-input-native-fixture-repair-2026-10-19.log",
+      "finding": "Down movement did not reach the expected shown row adjacent to folded interval",
+      "repair_state": "Actual destination/geometry diagnostic added; assertion retained",
+      "limit": "Remaining native cases did not run; no broad native pass claimed",
+      "receiver_pids": [
+        64142
+      ],
+      "cleanup": "Owned receiver reaped"
+    },
+    {
+      "scope": "Focused navigation destination diagnostic",
+      "status": "failed",
+      "log": "build/qa/merge-pane-input-navigation-diagnostic-2026-10-19.log",
+      "receiver_pid": 71121,
+      "cleanup": "Owned receiver reaped; independently absent",
+      "observed": "Unwrapped Base pane Down stayed at shown row22/offset2112 instead of shown row89/offset8544; pre-movement screen caret rectangle was zero; fold revision stayed3",
+      "repair_state": "Direct TextKit caret geometry repair under implementation; original behavioral assertion retained"
+    },
+    {
+      "scope": "Native-only TextKit geometry repair app build",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/merge-pane-input-app-geometry-repair-2026-10-19.log",
+      "repair": [
+        "Replace screen/IME caret rectangles with ensured TextKit glyph/line geometry",
+        "Unwrapped aligned Up/Down targets adjacent shown source rows and restores goalX",
+        "Wrapped movement retains native proposals with visual-line fallback when unchanged"
+      ],
+      "core_repeated": false
+    },
+    {
+      "scope": "Navigation after geometry repair",
+      "status": "partially-passed",
+      "log": "build/qa/merge-pane-input-native-geometry-repair-2026-10-19.log",
+      "passed": [
+        "Complete system-Git navigation workflow"
+      ],
+      "receiver_pids": [
+        76356,
+        76360
+      ],
+      "cleanup": "Both owned receivers reaped",
+      "finding": "Bundled run created Merge after Compare persisted Wrap=true; fixture still expected unwrapped movement while actual container had widthTracksTextView=true",
+      "repair_state": "Make intended wrap mode explicit, await layout, and retain separate wrapped/unwrapped assertions; no production change"
+    },
+    {
+      "scope": "Navigation with explicit settled wrap modes",
+      "status": "failed",
+      "log": "build/qa/merge-pane-input-native-wrap-fixture-repair-2026-10-19.log",
+      "receiver_pid": 76484,
+      "cleanup": "Owned receiver reaped",
+      "finding": "Wrapped Up failed to return to the preceding visual subline"
+    },
+    {
+      "scope": "Focused wrapped Up diagnostic",
+      "status": "failed",
+      "log": "build/qa/merge-pane-input-up-diagnostic-2026-10-19.log",
+      "receiver_pid": 76627,
+      "cleanup": "Owned receiver reaped",
+      "observed": "Mine row22 second visual subline returned to row21 instead of row22 first subline",
+      "repair": "Use actual previous/next glyph fragments, fold redirection and fragment-constrained goalX; preserve upstream soft-wrap affinity and composed-character boundaries"
+    },
+    {
+      "scope": "Final direct glyph-fragment movement and recovery vocabulary guard app build",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/merge-pane-input-app-wrapped-repair-2026-10-19.log",
+      "core_repeated": false
+    },
+    {
+      "scope": "Final actual Compare and Merge navigation, both Git engines",
+      "status": "passed",
+      "engine_invocations": 2,
+      "log": "build/qa/merge-pane-input-native-wrapped-repair-2026-10-19.log",
+      "receiver_pids": [
+        79032,
+        79036
+      ],
+      "cleanup": "Owned receivers reaped",
+      "coverage": "All actual Compare/Merge panes wrapped and unwrapped; character/word/vertical/Page movement and selection, smart Home aliases, folded spans and explicit reveal"
+    },
+    {
+      "scope": "Initial Merge gap editing fixture after successful navigation",
+      "status": "failed",
+      "log": "build/qa/merge-pane-input-native-wrapped-repair-2026-10-19.log",
+      "receiver_pid": 79040,
+      "cleanup": "Owned receiver reaped",
+      "finding": "Natural merge deletion retained real removal/resolved-empty records rather than expected Empty alignment records",
+      "repair": "Prepare authentic Empty result records through the actual native aligned result editor and retain peer/Undo/Redo assertions; production unchanged"
+    },
+    {
+      "scope": "Remaining editing workflow after authentic gap preparation",
+      "status": "failed",
+      "log": "build/qa/merge-pane-input-native-editing-fixture-repair-2026-10-19.log",
+      "receiver_pid": 79335,
+      "cleanup": "Owned receiver reaped",
+      "finding": "Collapsed Merge Delete result or peer invariant differs from expected complete hidden-span removal",
+      "repair_state": "Inspect exact result, source projection and native edit contract; original assertions retained",
+      "limit": "Ownership, typing and history cases did not run in this attempt",
+      "repair": "Correct independent expected serialization to pinned BaseView::SaveFile exclusions (removed and resolved-empty records remain visible but are not saved). Add pre-edit baseline equality and retain full hidden-span, exact peer and Undo assertions; production unchanged."
+    },
+    {
+      "scope": "Editing after source save-oracle repair",
+      "status": "failed",
+      "log": "build/qa/merge-pane-input-native-save-oracle-repair-2026-10-19.log",
+      "receiver_pid": 79788,
+      "cleanup": "Owned receiver reaped",
+      "passed_before_failure": "Collapsed Merge deletion output and exact source peer bytes",
+      "finding": "Collapsed Merge Undo result or fold metadata restoration differs",
+      "repair_state": "Inspect history restoration and intermediate selection callbacks without repeating successful navigation/Core checks",
+      "limit": "Remaining ownership, typing and history workflows not run in this attempt"
+    },
+    {
+      "scope": "Focused collapsed Merge Undo diagnostic",
+      "status": "failed",
+      "log": "build/qa/merge-pane-input-undo-diagnostic-2026-10-19.log",
+      "receiver_pid": 80135,
+      "cleanup": "Owned receiver reaped",
+      "observed": "Exact text and peer bytes restored (10418 bytes and112 source rows), but17 unrelated final folded rows95\u2013111 became shown while caret restored to2233",
+      "repair_state": "Suppress incidental all-pane selection callbacks during history geometry restoration while retaining final history selection reveal"
+    },
+    {
+      "scope": "Native-only all-pane history reveal repair app build",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/merge-pane-input-app-undo-repair-2026-10-19.log",
+      "repair": "Scope fold reveal suppression across registered source/result views during history restoration; retain final explicit destination reveal",
+      "core_repeated": false
+    },
+    {
+      "scope": "Affected editing after all-pane history reveal repair",
+      "status": "partially-passed",
+      "log": "build/qa/merge-pane-input-native-undo-repair-2026-10-19.log",
+      "receiver_pid": 80311,
+      "cleanup": "Owned receiver reaped",
+      "passed_before_failure": "Compare/Merge Empty-record deletion and Undo/Redo, real blank deletion, full collapsed-span deletion with exact peer bytes and restored folding",
+      "finding": "Final combined-pane navigation did not land on expected real removed record after view-mode switch",
+      "repair_state": "Inspect native owner/readiness and actual destination before changing production",
+      "limit": "Editing bundled invocation not reached",
+      "repair": "Wait for combined projection reload, settled geometry and actual registered editor/viewport ownership before movement; final assertion unchanged; production unchanged"
+    },
+    {
+      "scope": "Remaining owner, typing and document-history native workflows after final Undo repair",
+      "status": "passed",
+      "engine_invocations": 6,
+      "cases": [
+        "ownership",
+        "typing",
+        "history"
+      ],
+      "git": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/merge-pane-input-native-retained-2026-10-19.log",
+      "receiver_pids": [
+        80420,
+        80429,
+        80437,
+        80441,
+        80445,
+        80452
+      ],
+      "cleanup": "Every owned receiver reaped",
+      "coverage": "Busy/sheet/read-only/retired input guards; committed Unicode overwrite/selection/paste, row endings and Save As; document-owned shared history and view reuse, exact peer metadata and owner drain"
+    },
+    {
+      "scope": "Final affected editing workflow after combined pane readiness repair",
+      "status": "passed",
+      "engine_invocations": 2,
+      "git": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/merge-pane-input-native-combined-ready-2026-10-19.log",
+      "receiver_pids": [
+        80516,
+        80532
+      ],
+      "cleanup": "Every owned receiver reaped",
+      "coverage": "Authentic Empty-record Backspace/Delete in Compare and Merge, real blank deletion, full collapsed-span deletion/Undo/Redo with exact peer bytes and folding, and navigation through real removed combined records",
+      "production_changed": false
+    },
+    {
+      "scope": "Native translation and bundled Help consistency",
+      "status": "passed",
+      "localizations": {
+        "languages": 38,
+        "keys": 1301,
+        "command": "python3 scripts/build-localizations.py --check"
+      },
+      "help": {
+        "documents": 42,
+        "topics": 50,
+        "files": 62,
+        "bytes": 3615419,
+        "command": "build/site-venv/bin/python scripts/build-help.py --check"
+      }
+    },
+    {
+      "scope": "Published documentation site generation",
+      "status": "passed",
+      "documents": 364,
+      "unresolved_fragments": [],
+      "log": "build/qa/pane-input-site-2026-10-19.log"
+    }
+  ],
+  "remaining_acceptance": [
+    "Physical keyboard layouts and actual desktop IME/VoiceOver input",
+    "Exact Windows font/page geometry; native TextKit geometry and composed characters are adaptations",
+    "Signed runtime, Finder/App Store installation and complete current hosted CI",
+    "All other upstream editor/application behavior"
+  ],
+  "checkpoint_summary": {
+    "status": "passed scoped checkpoint",
+    "core_input_methods": 98,
+    "native_case_engine_pairs": 10,
+    "native_cases": [
+      "navigation",
+      "editing",
+      "ownership",
+      "typing",
+      "history"
+    ],
+    "repeated_checks": "Only affected checks after observed failures/repairs. Passed navigation and Core not repeated after native history or fixture repairs.",
+    "navigation_phase": "Passed final navigation before native-only history reveal transaction repair; movement code unchanged afterward. Ownership, typing, history and editing passed after final production repair.",
+    "no_complete_port_claim": true
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/MergePaneInput.swift": "a3f85df375b1e23db36a462b570bc21b35f8d4fc4dae22f21d7613d71fbca84f",
+    "Sources/TurtleGitCore/FileComparisonEditing.swift": "1f7d0634b25701eb254ebbe09df6ebff251b38eb666817ca7b8a5682b3ff7540",
+    "Sources/TurtleGitMac/MergeFoldingController.swift": "e24623aa138da75e6b3dca1781dd8de2e57ed7927c24ccf3a8d7437803dca1dc",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "c7e50ffab1689a64fc38707800e1b844551ec1a25b7ec42b9d4e7c0a8f3db26f",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "ab9310ef515186073142c7de0aacd016bf3f80d61ff0bdb134224bdbe425ea77",
+    "Tests/TurtleGitCoreTests/MergePaneInputTests.swift": "28e39ff1965eafda8cac4efadf41fb9e8ad5b7ba89bb60cb76550585e5c80e80",
+    "docs/qa/merge-pane-input-native-2026-10-19.swift": "05be8764046110a1299ecd42021225c5585f30157187cf3a957a05a3259a978a",
+    "scripts/test-merge-pane-input.py": "07af5eb2a0b5e17060400bc95ae947106867d3084221c350a06f9647e5e37ded"
+  },
+  "receiver_cleanup": "Every listed owned receiver was reaped by its runner and independently absent in final ps snapshot; no unrelated application was terminated.",
+  "dialog_reconciliation": {
+    "dialogs": 130,
+    "partial_family_audits": 120,
+    "pending_family_reviews": 10,
+    "certified_complete": 0,
+    "static_controls": 1659,
+    "mapped_controls": 1572,
+    "pending_control_reviews": 87,
+    "limit": "Source resource coverage, not feature completion percentage"
+  }
+}

@@ -282,7 +282,86 @@ public enum RebaseEditor {
         }
         return (custom.split(separator:"\n").flatMap { [String($0)] + (updates[String($0)] ?? []) }.joined(separator:"\n") + "\n", !updates.isEmpty)
     }
+    /// Ordinary replay recovery must not silently discard custom instructions.
+    /// Only generated update-ref records may accompany the owned action rows.
+    static func ordinaryReplayCommands(in directory:URL)->Bool {
+        guard !FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path),
+              let identities=try? JSONDecoder().decode([RebaseReplayIdentity].self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-replay-identities.json"))),!identities.isEmpty else {return false}
+        let mapping=(try? JSONDecoder().decode([String:String].self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-cherry-pick.json")))) ?? [:]
+        func oid(_ hash:String)->Bool {[40,64].contains(hash.utf8.count) && hash.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) }}
+        func branch(_ ref:String)->Bool {
+            ref.hasPrefix("refs/heads/") && !ref.hasSuffix(".") && !ref.contains("..") && !ref.contains("@{") &&
+            !ref.utf8.contains(where:{$0<=32 || $0==127 || "~^:?*[\\".utf8.contains($0)}) &&
+            !ref.split(separator:"/",omittingEmptySubsequences:false).contains {$0.isEmpty || $0.hasPrefix(".") || $0.hasSuffix(".lock")}
+        }
+        var updates=Set<GitReferenceName>()
+        if FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-update-refs").path),
+           let state=try? String(contentsOf:directory.appendingPathComponent("update-refs"),encoding:.utf8) {
+            let rows=state.split(separator:"\n",omittingEmptySubsequences:false).map(String.init)
+            let fields=rows.last=="" ? Array(rows.dropLast()) : rows
+            guard fields.count%3==0 else {return false}
+            for index in stride(from:0,to:fields.count,by:3) {
+                guard branch(fields[index]),oid(fields[index+1]),oid(fields[index+2]) else {return false}
+                updates.insert(GitReferenceName(fields[index]))
+            }
+        }
+        for name in ["git-rebase-todo","done"] {
+            guard let text=try? String(contentsOf:directory.appendingPathComponent(name),encoding:.utf8) else {return false}
+            for raw in text.components(separatedBy:"\n") {
+                let line=raw.trimmingCharacters(in:.whitespaces)
+                if line.isEmpty || line.hasPrefix("#") {continue}
+                let fields=canonicalLine(line).split(separator:" ",maxSplits:2).map(String.init)
+                guard let command=fields.first else {return false}
+                if RebaseAction(rawValue:command) != nil {
+                    guard fields.count>=2,fields[1].utf8.count>=4,fields[1].utf8.allSatisfy({(48...57).contains($0) || (97...102).contains($0)}) else {return false}
+                    let originals=mapping.filter {$0.key.hasPrefix(fields[1])}.map(\.value)
+                    guard identities.contains(where:{identity in originals.isEmpty ? identity.hash.hasPrefix(fields[1]) : originals.contains(identity.hash)}) else {return false}
+                } else {
+                    guard command=="update-ref",fields.count==2,updates.contains(GitReferenceName(fields[1])) else {return false}
+                }
+            }
+        }
+        return true
+    }
+    /// Git 2.39 reschedules negative Pick failures while retaining stopped-sha,
+    /// and save_todo may append the preceding command to done a second time.
+    /// Identify the occurrence by the complete owned remaining plan, never by
+    /// a hash alone (the same commit may deliberately occur more than once).
+    static func rescheduledPick(in directory:URL)->(step:Int,doneLine:Int,duplicateLine:Int?)? {
+        guard ordinaryReplayCommands(in:directory),
+              let identities = try? JSONDecoder().decode([RebaseReplayIdentity].self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-replay-identities.json"))),
+              let todo = try? String(contentsOf:directory.appendingPathComponent("git-rebase-todo"),encoding:.utf8),
+              let done = try? String(contentsOf:directory.appendingPathComponent("done"),encoding:.utf8) else {return nil}
+        let mapping = (try? JSONDecoder().decode([String:String].self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-cherry-pick.json")))) ?? [:]
+        func fields(_ line:String)->[String] {canonicalLine(line).split(separator:" ",maxSplits:2).map(String.init)}
+        func matches(_ fields:[String],_ identity:RebaseReplayIdentity)->Bool {
+            guard fields.count>=2,fields[0]==identity.action else {return false}
+            let hash = mapping.first(where:{$0.key.hasPrefix(fields[1])})?.value ?? fields[1]
+            return identity.hash.hasPrefix(hash)
+        }
+        let scheduled = todo.components(separatedBy:"\n").map(fields).filter { $0.first.flatMap(RebaseAction.init(rawValue:)) != nil }
+        let index = identities.count - scheduled.count
+        guard index>=0,index<identities.count,scheduled.first?.first=="pick",
+              zip(scheduled,identities.dropFirst(index)).allSatisfy({matches($0.0,$0.1)}) else {return nil}
+        let skipped = (try? JSONDecoder().decode(Set<Int>.self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-skipped-steps.json")))) ?? []
+        let lines = done.components(separatedBy:"\n")
+        let commands = lines.indices.filter { !lines[$0].trimmingCharacters(in:.whitespaces).isEmpty && !lines[$0].hasPrefix("#") }
+        let actionable = commands.filter { fields(lines[$0]).first.flatMap(RebaseAction.init(rawValue:)) != nil }
+        guard actionable.count>=index+1,
+              zip(actionable.prefix(index+1),identities.prefix(index+1)).enumerated().allSatisfy({ item in
+                  var command = fields(lines[item.element.0])
+                  if command.first=="drop",skipped.contains(item.offset+1) {command[0]=item.element.1.action ?? "pick"}
+                  return matches(command,item.element.1)
+              }) else {return nil}
+        let current = actionable[index]
+        let trailing = commands.filter {$0>current}
+        if trailing.isEmpty {return (index+1,current,nil)}
+        guard trailing.count==1,let previous=commands.last(where:{$0<current}),
+              canonicalLine(lines[trailing[0]])==canonicalLine(lines[previous]) else {return nil}
+        return (index+1,current,trailing[0])
+    }
     static func currentStep(in directory: URL) -> Int {
+        if let resumed = rescheduledPick(in:directory) {return resumed.step}
         if FileManager.default.fileExists(atPath:directory.appendingPathComponent("turtlegit-structural-plan").path) {
             let done = (try? String(contentsOf:directory.appendingPathComponent("done"),encoding:.utf8)) ?? ""
             let identities = (try? JSONDecoder().decode([RebaseReplayIdentity].self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-replay-identities.json")))) ?? []
@@ -1404,7 +1483,7 @@ extension GitRepository {
         try withReplayIO(cancellation:cancellation,onOutput:nil) {
             guard execution.exitCode != 0,execution.state.active else {return nil}
             let state=try rebaseState(),head=try rebaseRevision("HEAD"),directory=try rebasePath("rebase-merge")
-            guard FileManager.default.fileExists(atPath:directory.path) else {return nil}
+            guard FileManager.default.fileExists(atPath:directory.path),RebaseEditor.ordinaryReplayCommands(in:directory) else {return nil}
             let sessionIdentity=try failedPickSessionIdentity(directory)
             guard execution.witnessedHead==head,execution.witnessedSession==sessionIdentity else {throw RebaseFailure.changed}
             try requireRebaseContinuation(state,expected:execution.state,expectedHead:head)
@@ -1421,14 +1500,18 @@ extension GitRepository {
                 var entry=RebaseEntry(commit:try rebaseCommit(pending.hash));entry.occurrence=pending.occurrence;entry.progress = .current
                 return RebaseFailedPickRecovery(state:state,head:head,entry:entry,diagnostic:pending.diagnostic,pendingAction:.skip,cleanupCommand:failedPickCleanupCommand(),sessionIdentity:sessionIdentity,phase:pending.phase,directory:directory,files:files,index:payload.index,worktree:payload.worktree)
             }
-            let identities=replayIdentities(directory)
-            guard identities.indices.contains(state.currentStep-1),identities[state.currentStep-1].action==RebaseAction.pick.rawValue else {return nil}
-            let identity=identities[state.currentStep-1]
+            let identities=replayIdentities(directory),rescheduled=RebaseEditor.rescheduledPick(in:directory)
+            let step=rescheduled?.step ?? state.currentStep
+            guard identities.indices.contains(step-1),identities[step-1].action==RebaseAction.pick.rawValue else {return nil}
+            let identity=identities[step-1]
             let mapping=(try? JSONDecoder().decode([String:String].self,from:Data(contentsOf:directory.appendingPathComponent("turtlegit-cherry-pick.json")))) ?? [:]
             func command(_ text: String) -> [String] {RebaseEditor.canonicalLine(text).split(separator:" ",maxSplits:2).map(String.init)}
             func lines(_ file: String) -> [String] {String(decoding:files[file]?.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n").filter {!$0.trimmingCharacters(in:.whitespaces).isEmpty && !$0.hasPrefix("#")}}
-            guard let last=lines("done").last else {return nil}
-            let done=command(last)
+            let doneLine:String?
+            if let rescheduled {doneLine=String(decoding:files["done"]?.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")[rescheduled.doneLine]}
+            else {doneLine=lines("done").last}
+            guard let doneLine else {return nil}
+            let done=command(doneLine)
             guard done.count>=2,done[0]=="pick" else {return nil}
             let executing=try rebaseRevision(done[1]),original=mapping[executing] ?? executing
             guard original==identity.hash else {return nil}
@@ -1438,7 +1521,11 @@ extension GitRepository {
             let nextHash=nextFields.count>=2 ? (try? rebaseRevision(nextFields[1])) : nil
             let resumedStaged=FileManager.default.fileExists(atPath:directory.appendingPathComponent("message").path) &&
                 (try? rebaseRevision("REBASE_HEAD"))==executing && dirty && nextHash != executing
-            if !state.stoppedCommit.isEmpty || resumedStaged {
+            if rescheduled != nil {
+                guard nextFields.count>=2,nextFields[0]=="pick",nextHash==executing,
+                      (try? rebaseRevision("REBASE_HEAD"))==executing else {return nil}
+                phase = .rescheduled
+            } else if !state.stoppedCommit.isEmpty || resumedStaged {
                 guard (state.stoppedCommit.isEmpty || state.stoppedCommit==original),state.stoppedAction == .pick else {return nil}
                 if !dirty {
                     let object=try rebaseCommit(executing)
@@ -1495,6 +1582,9 @@ extension GitRepository {
                     try requireRebaseContinuation(rebaseState(),expected:expected.state,expectedHead:expected.head)
                     guard expected.files == (try actionEditFiles(directory)) else {throw RebaseFailure.changed}
                     var before=expected.files,after=expected.files
+                    guard let rescheduled=RebaseEditor.rescheduledPick(in:directory) else {throw RebaseFailure.changed}
+                    var done=String(decoding:after["done"]?.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
+                    if let duplicate=rescheduled.duplicateLine {done.remove(at:duplicate)}
                     let staged=try run(["diff","--cached","--quiet","HEAD","--"],successfulExitCodes:0...1).exitCode != 0
                     var todo=String(decoding:after["git-rebase-todo"]?.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
                     guard let first=todo.firstIndex(where:{!$0.trimmingCharacters(in:.whitespaces).isEmpty && !$0.hasPrefix("#")}) else {throw RebaseFailure.changed}
@@ -1512,15 +1602,14 @@ extension GitRepository {
                         after["stopped-sha"] = .init(bytes:Data((try rebaseRevision(String(fields[1]))+"\n").utf8))
                         todo.remove(at:first)
                     } else {
-                        var done=String(decoding:after["done"]?.bytes ?? Data(),as:UTF8.self).components(separatedBy:"\n")
-                        guard let last=done.lastIndex(where:{!$0.trimmingCharacters(in:.whitespaces).isEmpty && !$0.hasPrefix("#")}) else {throw RebaseFailure.changed}
-                        done.remove(at:last);after["done"] = .init(bytes:Data(done.joined(separator:"\n").utf8))
+                        done.remove(at:rescheduled.doneLine)
                         if action == .skip {
                             let fields=RebaseEditor.canonicalLine(todo[first]).split(separator:" ",maxSplits:1)
                             guard fields.count==2,fields[0]=="pick" else {throw RebaseFailure.changed}
                             todo[first]="drop "+fields[1]
                         }
                     }
+                    after["done"] = .init(bytes:Data(done.joined(separator:"\n").utf8))
                     after["git-rebase-todo"] = .init(bytes:Data(todo.joined(separator:"\n").utf8))
                     if action == .skip {
                         let marker=try actionEditFile(directory,Self.failedPickIntentName)

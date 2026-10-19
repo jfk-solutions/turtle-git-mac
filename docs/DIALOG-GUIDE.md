@@ -840,6 +840,21 @@ current line ending through CRLF, CR and LF, with Undo; an unended final line is
 unchanged. **Ctrl-M** toggles a selected comparison block’s mark. See
 [typing and line endings](MERGE-TYPING-PARITY.md) for behavior and limitations.
 
+Compare and Merge keyboard movement skips collapsed unchanged sections without
+opening them. Shift extends from the original selection anchor, including when
+you reverse direction. Home (Fn-Left), Command-Left and Control-A toggle between
+the first non-space/tab character and the beginning of the logical line; add
+Shift to extend the selection. Command-Home still moves to the document start.
+Find, Go To Line and explicit section expansion continue to reveal their targets.
+
+Backspace and forward Delete join real lines across alignment gaps; an actual
+blank line remains file content. A selection across a collapsed section includes
+its underlying text, so deleting across that section removes that text too.
+Undo restores the edit and its aligned pane state. Read-only source panes allow
+navigation and selection while keeping their text protected. See
+[pane input behavior](MERGE-PANE-INPUT-PARITY.md) for the source scope and remaining
+physical keyboard and accessibility acceptance.
+
 In patch review, highlighting files changes the selection only. Double-click or
 press Return to preview one file. Right-click offers **Preview patched file**,
 **Patch all files** and **Patch selected files**; Shift-F10 opens that menu from

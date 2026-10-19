@@ -2,14 +2,15 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RebaseFailedPickTests: XCTestCase {
-    private func failingPick(cherryPick: Bool = false, updateReferences: Bool = false) async throws -> (URL,GitRepository,RebaseExecution,RebaseTests) {
+    private func failingPick(cherryPick: Bool = false, updateReferences: Bool = false, skipFirst: Bool = false) async throws -> (URL,GitRepository,RebaseExecution,RebaseTests) {
         let tests=RebaseTests(),(root,repo,_)=try await tests.fixture()
-        let plan:RebasePlan
+        var plan:RebasePlan
         if cherryPick {
             let first=try await repo.rebaseCommit("topic~1")
             _ = try await repo.run(["switch","upstream"])
             plan=try await repo.cherryPickPlan(revisions:[first.hash])
         } else {plan=try await repo.rebasePlan(tests.options())}
+        if skipFirst {plan.entries[0].action = .skip}
         if updateReferences {
             _ = try await repo.run(["config","rebase.updateRefs","true"])
             _ = try await repo.run(["branch","intermediate","topic~1"])
@@ -36,6 +37,78 @@ final class RebaseFailedPickTests: XCTestCase {
     private func recovery(_ repo:GitRepository,_ result:RebaseExecution) async throws -> RebaseFailedPickRecovery {
         let value=try await repo.failedPickRecovery(after:result)
         return try XCTUnwrap(value)
+    }
+    func testRescheduledOccurrenceUsesCompletePlanRatherThanRepeatedHashOrLegacyDoneCount()throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        defer {try? FileManager.default.removeItem(at:directory)}
+        let hash=String(repeating:"a",count:40),line="pick "+String(repeating:"a",count:7)+" repeated\n"
+        let identities=(0..<3).map {["hash":hash,"occurrence":$0,"action":"pick"] as [String:Any]}
+        try JSONSerialization.data(withJSONObject:identities).write(to:directory.appendingPathComponent("turtlegit-replay-identities.json"))
+        try Data((line+line).utf8).write(to:directory.appendingPathComponent("git-rebase-todo"))
+        try Data((line+line+line).utf8).write(to:directory.appendingPathComponent("done"))
+        let legacy=try XCTUnwrap(RebaseEditor.rescheduledPick(in:directory))
+        XCTAssertEqual(legacy.step,2);XCTAssertEqual(legacy.doneLine,1);XCTAssertEqual(legacy.duplicateLine,2)
+        XCTAssertEqual(RebaseEditor.currentStep(in:directory),2)
+        // The next planned occurrence may have the same hash without the
+        // current occurrence having been rescheduled at all.
+        try Data(line.utf8).write(to:directory.appendingPathComponent("git-rebase-todo"))
+        try Data((line+line).utf8).write(to:directory.appendingPathComponent("done"))
+        try Data("2\n".utf8).write(to:directory.appendingPathComponent("msgnum"))
+        XCTAssertNil(RebaseEditor.rescheduledPick(in:directory));XCTAssertEqual(RebaseEditor.currentStep(in:directory),2)
+        try Data((line+"pick bbbbbbb unrelated\n").utf8).write(to:directory.appendingPathComponent("git-rebase-todo"))
+        XCTAssertNil(RebaseEditor.rescheduledPick(in:directory),"External plan edits must not be treated as a checked recovery occurrence")
+    }
+    func testLaterFailedPickRetryAndSkipPreservePreviouslyDroppedOccurrence()async throws {
+        for action:RebaseFailedPickAction in [.retry,.skip] {
+            let (root,repo,result,_)=try await failingPick(updateReferences:true,skipFirst:true)
+            defer {try? FileManager.default.removeItem(at:root)}
+            let captured=try await recovery(repo,result)
+            XCTAssertEqual(captured.entry.commit.subject,"second");XCTAssertEqual(captured.state.currentStep,2)
+            _ = try await repo.run(["config","commit.gpgsign","false"])
+            let finished=try await repo.recoverFailedPick(captured,action:action)
+            XCTAssertEqual(finished.exitCode,0,finished.output);XCTAssertFalse(finished.state.active)
+            let subjects=try await repo.run(["log","--format=%s","upstream..HEAD"]).text.split(separator:"\n").map(String.init)
+            XCTAssertEqual(subjects,action == .retry ? ["second"] : [])
+            XCTAssertFalse(FileManager.default.fileExists(atPath:root.appendingPathComponent("first.txt").path))
+            XCTAssertEqual(FileManager.default.fileExists(atPath:root.appendingPathComponent("second.txt").path),action == .retry)
+        }
+    }
+    func testCapturedCustomReplayCommandsAreExcludedWhileGeneratedReferenceUpdatesRemainOwned()async throws {
+        let (root,repo,result,_)=try await failingPick(updateReferences:true)
+        defer {try? FileManager.default.removeItem(at:root)}
+        let directory=root.appendingPathComponent(".git/rebase-merge")
+        let todo=directory.appendingPathComponent("git-rebase-todo"),done=directory.appendingPathComponent("done")
+        let originalTodo=try Data(contentsOf:todo),originalDone=try Data(contentsOf:done)
+        XCTAssertTrue(String(decoding:originalTodo,as:UTF8.self).contains("update-ref refs/heads/intermediate"))
+        XCTAssertTrue(RebaseEditor.ordinaryReplayCommands(in:directory))
+        let valid=try await repo.failedPickRecovery(after:result)
+        XCTAssertNotNil(valid,"Generated update-ref records must not become a custom session")
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let custom=["exec printf unowned", "break", "label external", "pick HEAD external", "update-ref refs/heads/unowned", "update-ref refs/heads/intermediate extra"]
+        for command in custom {
+            for target in [todo,done] {
+                try originalTodo.write(to:todo);try originalDone.write(to:done)
+                let bytes:Data
+                if target==todo {bytes=originalTodo+Data((command+"\n").utf8)}
+                else {bytes=Data((command+"\n").utf8)+originalDone}
+                try bytes.write(to:target)
+                // Capture the execution state AFTER custom commands were
+                // introduced: receipt-versus-state equality alone cannot fence
+                // commands that already existed at execution completion.
+                let captured=RebaseExecution(output:result.output,exitCode:result.exitCode,state:try await repo.rebaseState(),witnessedHead:result.witnessedHead,witnessedSession:result.witnessedSession)
+                XCTAssertFalse(RebaseEditor.ordinaryReplayCommands(in:directory),command)
+                XCTAssertNil(RebaseEditor.rescheduledPick(in:directory),command)
+                let recovery=try await repo.failedPickRecovery(after:captured)
+                XCTAssertNil(recovery,"Custom instruction was admitted: \(target.lastPathComponent): \(command)")
+                XCTAssertEqual(try Data(contentsOf:target),bytes,"Classification must not normalize a custom replay")
+            }
+        }
+        try originalTodo.write(to:todo);try originalDone.write(to:done)
+        let stillValid=try await repo.failedPickRecovery(after:result);XCTAssertNotNil(stillValid)
+        let unchangedHead=try await repo.run(["rev-parse","HEAD"]).stdout
+        XCTAssertEqual(unchangedHead,head);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+        _ = try await repo.abortRebase()
     }
     func testAppliedPickRetryAllowsSigningRepairAndPreservesOccurrence() async throws {
         let (root,repo,result,_)=try await failingPick();defer {try? FileManager.default.removeItem(at:root)}

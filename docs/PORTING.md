@@ -3801,3 +3801,15 @@ loss produces an explicit warning while preserving the actual Git result.
 The [source scope and grouped evidence](REMOTE-PROGRESS-NOTIFICATIONS-PARITY.md)
 keep default command-line/SVN behavior and remaining physical/signed/full-layout
 acceptance separate from this implementation family.
+
+
+### Compare/Merge pane input — October 19, 2026
+
+The connected input family covers caret and Shift-selection traversal around
+collapsed source sections, source smart Home with native aliases, and deletion
+through Empty alignment records while preserving actual blank lines. Both
+comparison panes and the merged result use the existing edit/Undo transactions;
+source panes keep navigation with their read-only protection. Explicit Find,
+Go To Line and history reveal remain separate from ordinary movement. The
+[source contract and checkpoint](MERGE-PANE-INPUT-PARITY.md) record the actual
+validation and remaining physical/signed/editor parity limits.

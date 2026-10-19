@@ -20,6 +20,19 @@ public struct FileComparisonInPlaceEdit: Sendable {
         var offsets: [Int] = [], length = 0
         for cell in cells { offsets.append(length); length += cell.displayText.utf16.count + 1 }
         guard range.location >= 0, range.length >= 0, range.location <= length, range.length <= length - range.location else { throw FileComparisonEditFailure.range }
+        // RemoveSelectedText advances selected endpoints off Empty records.
+        // Zero-length typing still deliberately edits its selected view record.
+        let requestedRange = range
+        guard let range = MergePaneInput.normalizedReplacementRange(in:cells.map { $0.displayText + "\n" }.joined(),cells:cells,selection:range) else { throw FileComparisonEditFailure.range }
+        if requestedRange.length > 0, range.length == 0, replacement.isEmpty {
+            self.alignment = alignment; self.combined = combined
+            text = combined?.sourceSaveText ?? cells.filter(\.hasSourceCoordinate).map(\.text).joined()
+            displayCaret = range.location
+            let index = offsets.lastIndex { $0 <= min(range.location,max(0,length - 1)) } ?? 0
+            caret = cells.prefix(index).filter { combined != nil ? !$0.state.isRemoval && !$0.state.isViewEmpty : $0.hasSourceCoordinate }.map(\.text).joined().utf16.count + min(cells[index].displayText.utf16.count,max(0,range.location - offsets[index]))
+            replacedRows = index..<index; insertedRows = index..<index; removedEmptyRows = []
+            return
+        }
         func row(_ offset: Int) -> Int { offsets.lastIndex { $0 <= min(offset,max(0,length - 1)) } ?? 0 }
         let first = row(range.location), last = row(NSMaxRange(range)), oldRange = first..<(last + 1)
         let firstText = cells[first].displayText as NSString, lastText = cells[last].displayText as NSString

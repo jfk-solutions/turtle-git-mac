@@ -207,6 +207,7 @@
 		737A5C831F62BBA90DDF08B4 /* ActionLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 173811DDB174801ACF738211 /* ActionLog.swift */; };
 		73F05370C1A0B99B7BF35C5B /* CommitCompletionPopup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4626C39B694CD13BD1D8FA1 /* CommitCompletionPopup.swift */; };
 		7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */; };
+		153F98E7380923ABB8849622 /* MergePaneInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BD4A5B48656E62C6797DF26 /* MergePaneInput.swift */; };
 		768B7B2B700F618CA924EBDA /* SavedData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 814E543BEB0736B84A50B21B /* SavedData.swift */; };
 		772E1B38BD68B85CBFB13110 /* ReferenceLogNativeTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = F47F25E9F85B9274F63464E0 /* ReferenceLogNativeTable.swift */; };
 		78D4BE78EDFB1546367CD8B6 /* MergeEditorSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */; };
@@ -945,6 +946,7 @@
 		FA0407EF51F807A4F8D86FDA /* HistoryOrdering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryOrdering.swift; sourceTree = "<group>"; };
 		FBE98FBF5981527BD422EDFB /* StatisticsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsWindow.swift; sourceTree = "<group>"; };
 		FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparisonEditing.swift; sourceTree = "<group>"; };
+		9BD4A5B48656E62C6797DF26 /* MergePaneInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergePaneInput.swift; sourceTree = "<group>"; };
 		FF1FD77D0F8E1D8790692A3D /* MergeFind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeFind.swift; sourceTree = "<group>"; };
 		FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitPreferences.swift; sourceTree = "<group>"; };
 		FF916A1DC9051A8C70F0370C /* FileMove.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMove.swift; sourceTree = "<group>"; };
@@ -1351,6 +1353,7 @@
 				181B9FE19CD19EA7DAB1E824 /* Fetch.swift */,
 				7428B46131B5378475891E94 /* FileComparison.swift */,
 				FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */,
+				9BD4A5B48656E62C6797DF26 /* MergePaneInput.swift */,
 				EA1264F794E412CF0DFD5C59 /* FileCopy.swift */,
 				FF916A1DC9051A8C70F0370C /* FileMove.swift */,
 				F01FB406B12CA9FED59A3121 /* FinderCache.swift */,
@@ -1977,6 +1980,7 @@
 				96858E5400FE448CEE799A09 /* Fetch.swift in Sources */,
 				4CCA62C8CECAD2B41E2E888A /* FileComparison.swift in Sources */,
 				7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */,
+				153F98E7380923ABB8849622 /* MergePaneInput.swift in Sources */,
 				2A787175D6DBD51DD78EA332 /* FileCopy.swift in Sources */,
 				C3F073F2CCF2B29299BFDD24 /* FileMove.swift in Sources */,
 				0E60EC4DFD35AD719021FCB2 /* FinderCache.swift in Sources */,

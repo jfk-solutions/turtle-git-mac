@@ -1,0 +1,160 @@
+{
+  "date": "2026-10-19",
+  "scope": "Rebase and Cherry Pick failed-Pick recovery compatibility with Git 2.39.5",
+  "status": "repair implemented; root validation pending",
+  "hosted_failure": {
+    "run_id": 39318208320,
+    "job_id": 118286502953,
+    "commit": "c62febff",
+    "total_tests": 2202,
+    "skipped_tests": 2,
+    "assertion_failures": 17,
+    "failed_methods": 9,
+    "affected_class": "RebaseFailedPickTests",
+    "system_git": "2.39.5 (Apple Git-154)",
+    "path_git": "2.55.0",
+    "failure_context": "build/qa/hosted-failed-pick-39318208320.log"
+  },
+  "local_reproduction": {
+    "git": "build/qa/git-2.39.5/installed/bin/git",
+    "version": "2.39.5",
+    "command": "TURTLEGIT_GROUP_TEST_GIT=\"$PWD/build/qa/git-2.39.5/installed/bin/git\" TURTLEGIT_CORE_ONLY=1 swift test --filter RebaseFailedPickTests",
+    "methods": 14,
+    "assertion_failures": 17,
+    "unexpected_failures": 0,
+    "duration_seconds": 26.252,
+    "result": "failed; reproduced hosted assertion failures",
+    "log": "build/qa/rebase-failed-pick-git239-reproduction-2026-10-19.log",
+    "runtime_provenance": "build/qa/git-2.39.5/provenance.json"
+  },
+  "cause": [
+    "Git 2.39.5 reschedules a negative Pick failure into git-rebase-todo while also retaining stopped-sha through error_with_patch/make_patch.",
+    "Prior classification gave stopped-sha precedence, treating a rescheduled signing failure as applied and replaying the same Pick after committing it; a pre-apply obstruction was mistaken for a became-empty stop.",
+    "The older save_todo implementation can also append the preceding command to done again when rescheduling a later Pick, affecting occurrence and updateRefs progress bookkeeping."
+  ],
+  "repair": {
+    "production_files": [
+      "Sources/TurtleGitCore/Rebase.swift"
+    ],
+    "test_files": [
+      "Tests/TurtleGitCoreTests/RebaseFailedPickTests.swift"
+    ],
+    "public_api_changes": false,
+    "behaviors": [
+      "Identify a rescheduled occurrence using the complete owned remaining plan and checked done prefix before considering stopped-sha.",
+      "Distinguish deliberate repeated commit hashes from a rescheduled occurrence.",
+      "Recognize only the witnessed legacy duplicate preceding done command and normalize it within the existing recoverable journal transaction.",
+      "Retain same-item Retry, approved Skip cleanup, reference-update bookkeeping, became-empty handling and cancellation/changed-state fences."
+    ]
+  },
+  "planned_validation": {
+    "class": "RebaseFailedPickTests",
+    "methods": 16,
+    "retained_methods": 14,
+    "new_methods": [
+      "testRescheduledOccurrenceUsesCompletePlanRatherThanRepeatedHashOrLegacyDoneCount",
+      "testLaterFailedPickRetryAndSkipPreservePreviouslyDroppedOccurrence"
+    ],
+    "root_combined_core_log": "build/qa/pane-input-and-git239-recovery-core-2026-10-19.log",
+    "result": "passed on Git2.39.5, system2.54 and bundled2.55 with retained assertions"
+  },
+  "primary_source": {
+    "url": "https://github.com/git/git/blob/v2.39.5/sequencer.c",
+    "anchors": [
+      "save_todo at lines 3336-3380",
+      "pick_commits negative-result rescheduling at lines 4642-4654",
+      "error_with_patch and make_patch stopped-sha publication"
+    ]
+  },
+  "limits": [
+    "Focused Core and native compatibility checks pass; full repair acceptance on the hosted runner is still pending.",
+    "A local compatibility pass would not establish a complete hosted CI pass or physical native acceptance.",
+    "No test assertion was removed to accommodate the older Git behavior."
+  ],
+  "validation": [
+    {
+      "scope": "Combined pane-input and Git2.39.5 recovery Core checkpoint",
+      "status": "passed",
+      "total_methods": 114,
+      "recovery_methods": 16,
+      "failures": 0,
+      "recovery_duration_seconds": 42.65,
+      "log": "build/qa/pane-input-and-git239-recovery-core-2026-10-19.log"
+    },
+    {
+      "scope": "Same16 recovery methods on system Git2.54 Apple157",
+      "status": "passed",
+      "failures": 0,
+      "duration_seconds": 36.805,
+      "log": "build/qa/rebase-git239-repair-system-2026-10-19.log",
+      "compile": "Reused current compiled tests"
+    },
+    {
+      "scope": "Same16 recovery methods on bundled Git2.55",
+      "status": "passed",
+      "failures": 0,
+      "duration_seconds": 33.626,
+      "log": "build/qa/rebase-git239-repair-bundled-2026-10-19.log",
+      "compile": "Reused current compiled tests"
+    },
+    {
+      "scope": "Debug app build including current recovery code",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/merge-pane-input-app-build-2026-10-19.log"
+    },
+    {
+      "scope": "Native execution-recovery workflow with old/system/bundled Git",
+      "status": "passed",
+      "engine_invocations": 3,
+      "git": [
+        "build/qa/git-2.39.5/installed/bin/git",
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/rebase-git239-repair-native-2026-10-19.log",
+      "receiver_pids": [
+        67061,
+        70266,
+        73270
+      ],
+      "cleanup": "Every owned receiver reaped",
+      "coverage": "Actual signing failure and source-order choices, Retry/Skip, sticky cleanup, reopen/Continue/rollback, changed and retired answer fences, owned worker drain",
+      "code_phase": "Compatibility classifier before subsequent vocabulary guard; retained native UI/ownership evidence"
+    },
+    {
+      "scope": "Final custom-session gate and affected positive recovery consumers on Git2.39.5",
+      "status": "passed",
+      "executed": 5,
+      "failures": 0,
+      "duration_seconds": 11.203,
+      "log": "build/qa/rebase-custom-session-git239-2026-10-19.log"
+    },
+    {
+      "scope": "Same final affected methods on bundledGit2.55",
+      "status": "passed",
+      "executed": 5,
+      "failures": 0,
+      "duration_seconds": 10.404,
+      "log": "build/qa/rebase-custom-session-bundled-2026-10-19.log",
+      "compile": "Reused current compiled tests"
+    }
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "cbd98463c914de6aa4bc9226f33333621059d772126f2b19248117b0d40d28e4",
+    "Tests/TurtleGitCoreTests/RebaseFailedPickTests.swift": "b2b432cb27ebf9ed45b9c3cf0c357b52d0dcbcbdb235bc2041c8e1eab8b814fe"
+  },
+  "custom_session_review_followup": {
+    "status": "passed focused old/bundled checks",
+    "concern": "Filtering to actionable todo/done rows could ignore custom exec/break/label instructions already present when execution state was captured.",
+    "repair": "Validate complete noncomment todo/done command vocabulary before both classifiers. Accept owned action/object shapes and generated update-ref records backed by the TurtleGit marker and Git update-refs state; refuse unsupported commands and malformed or unowned updates.",
+    "new_method": "testCapturedCustomReplayCommandsAreExcludedWhileGeneratedReferenceUpdatesRemainOwned",
+    "current_class_methods": 17,
+    "assertions": [
+      "Real generated update-ref control remains classified",
+      "exec/break/label and malformed action/update-ref cases in both todo and done are excluded even with recaptured execution state",
+      "Classification leaves replay bytes, HEAD and index unchanged"
+    ],
+    "limit": "Earlier native workflow evidence predates this vocabulary guard; its rejection and positive consumers are checked by the final focused Core methods."
+  }
+}

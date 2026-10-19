@@ -97,6 +97,40 @@ extension NSAttributedString.Key {
     private weak var observedStorage: NSTextStorage?
     private var storageObserver: NSObjectProtocol?
     private var installing = false
+    private var inputDepth=0
+    private var inputSelection:NSRange?
+    private var inputSelectionRevision:Int?
+    var suppressesInputReveal:Bool {inputDepth > 0}
+    func beginPaneInput(){inputDepth += 1}
+    func endPaneInput(selection:NSRange){inputSelection=selection;inputSelectionRevision=controller?.revision;inputDepth=max(0,inputDepth-1)}
+    func clearPaneInput(){if inputDepth==0 {inputSelection=nil}}
+    func adjacentInputOffset(_ offset:Int,forward:Bool)->Int? {
+        guard !ranges.isEmpty,states.count==ranges.count else{return nil}
+        var lo=0,hi=ranges.count
+        while lo<hi {let mid=(lo+hi)/2;if ranges[mid].location<=offset {lo=mid+1}else{hi=mid}}
+        var row=max(0,lo-1)+(forward ? 1:-1)
+        while states.indices.contains(row),states[row] != .shown {row += forward ? 1:-1}
+        return ranges.indices.contains(row) ? ranges[row].location:nil
+    }
+    func visibleInputOffset(_ offset:Int,forward:Bool,in view:NSTextView)->Int? {
+        guard controller?.collapsed == true,!ranges.isEmpty,states.count==ranges.count else{return min(max(0,offset),view.string.utf16.count)}
+        var lo=0,hi=ranges.count
+        while lo<hi {let mid=(lo+hi)/2;if ranges[mid].location<=offset {lo=mid+1}else{hi=mid}}
+        let row=max(0,lo-1)
+        guard states[row] != .shown else{return min(max(0,offset),view.string.utf16.count)}
+        var target=row
+        while states.indices.contains(target),states[target] != .shown {target += forward ? 1:-1}
+        if !states.indices.contains(target) {
+            target=row
+            while states.indices.contains(target),states[target] != .shown {target += forward ? -1:1}
+        }
+        guard states.indices.contains(target) else{return nil}
+        if target>row {return ranges[target].location}
+        let text=view.string as NSString,range=ranges[target]
+        var end=min(text.length,NSMaxRange(range))
+        while end>range.location,[10,13].contains(Int(text.character(at:end-1))) {end -= 1}
+        return end
+    }
     deinit { if let storageObserver { NotificationCenter.default.removeObserver(storageObserver) } }
 
     /// Compare the unfurled source styling, not the live storage: wrapping owns
@@ -213,7 +247,7 @@ extension NSAttributedString.Key {
         return controller.expand(screenRow: screen)
     }
     func reveal(selection: NSRange, in view: NSTextView? = nil, includeMarker: Bool = false) {
-        guard let controller, controller.collapsed, selection.location >= 0, selection.location != NSNotFound, selection.length >= 0 else { return }
+        guard inputDepth==0,!(inputSelection == selection && inputSelectionRevision == controller?.revision),let controller, controller.collapsed, selection.location >= 0, selection.location != NSNotFound, selection.length >= 0 else { return }
         let (end, overflow) = selection.location.addingReportingOverflow(selection.length)
         guard !overflow else { return }
         let rows = ranges.enumerated().compactMap { row, range -> Int? in
@@ -272,3 +306,221 @@ extension NSAttributedString.Key {
 }
 
 @MainActor protocol MergeEditorPresentationProviding { var presentationCache: MergeEditorPresentationCache { get } }
+
+/// All selectors, whether dispatched by a key binding or NSApp.sendAction,
+/// share the same source caret and fold ownership. TextKit still proposes word,
+/// grapheme and wrapped-line movement; folding only redirects its destination.
+@MainActor protocol MergePaneInputProviding:AnyObject {var paneInputLayout:MergeFoldTextLayout {get}}
+@MainActor class MergePaneInputTextView:NSTextView,MergePaneInputProviding {
+    var paneInputLayout:MergeFoldTextLayout {fatalError("A pane owns its fold layout")}
+    var paneInputCells:[MergeSourceCell]? {nil}
+    var paneInputAllowed:Bool {false}
+    var paneInputMutationAllowed:Bool {false}
+    var paneInputRevision:Int {0}
+    func paneInputBegan() {}
+    private struct Receipt {let range:NSRange,anchor:Int,head:Int,revision:Int,foldRevision:Int,length:Int}
+    private var inputReceipt:Receipt?
+    private var goalX:CGFloat?
+    override func setSelectedRange(_ charRange:NSRange) {
+        clearExternalInput();super.setSelectedRange(charRange)
+    }
+    override func setSelectedRanges(_ ranges:[NSValue],affinity:NSSelectionAffinity,stillSelecting:Bool) {
+        clearExternalInput();super.setSelectedRanges(ranges,affinity:affinity,stillSelecting:stillSelecting)
+    }
+    private func clearExternalInput() {
+        guard !paneInputLayout.suppressesInputReveal else{return}
+        inputReceipt=nil;goalX=nil;paneInputLayout.clearPaneInput()
+    }
+    override func becomeFirstResponder()->Bool {clearExternalInput();return super.becomeFirstResponder()}
+    private struct InputLine {
+        let rect:NSRect,x:CGFloat,glyphs:NSRange,characters:NSRange
+    }
+    private func caretLine(_ offset:Int,affinity:NSSelectionAffinity = .downstream)->InputLine? {
+        guard let layout=layoutManager,let container=textContainer else{return nil}
+        layout.ensureLayout(for:container)
+        let text=string as NSString,length=text.length,index=min(max(0,offset),length),origin=textContainerOrigin
+        if index==length,layout.extraLineFragmentTextContainer === container {
+            let line=layout.extraLineFragmentRect.offsetBy(dx:origin.x,dy:origin.y)
+            if line.height>0 {return InputLine(rect:line,x:line.minX,glyphs:NSRange(location:layout.numberOfGlyphs,length:0),characters:NSRange(location:length,length:0))}
+        }
+        guard length>0,layout.numberOfGlyphs>0 else{return nil}
+        var glyph=layout.glyphIndexForCharacter(at:min(index,length-1))
+        // A soft-wrap boundary has two caret positions. Keep the selected
+        // fragment when goal X lands at its end, without crossing a real EOL.
+        if affinity == .upstream,index>0,![10,13].contains(Int(text.character(at:index-1))) {
+            let previous=layout.glyphIndexForCharacter(at:index-1)
+            var previousGlyphs=NSRange()
+            _ = layout.lineFragmentRect(forGlyphAt:previous,effectiveRange:&previousGlyphs)
+            let previousCharacters=layout.characterRange(forGlyphRange:previousGlyphs,actualGlyphRange:nil)
+            if NSMaxRange(previousCharacters)==index {glyph=previous}
+        }
+        var glyphs=NSRange()
+        let line=layout.lineFragmentRect(forGlyphAt:glyph,effectiveRange:&glyphs).offsetBy(dx:origin.x,dy:origin.y)
+        let characters=layout.characterRange(forGlyphRange:glyphs,actualGlyphRange:nil)
+        var x=line.minX+layout.location(forGlyphAt:glyph).x
+        if index==NSMaxRange(characters),characters.length>0 {
+            // The upstream side of a soft wrap is the trailing insertion point,
+            // not the start of its final glyph (which may also be a ligature).
+            x=layout.lineFragmentUsedRect(forGlyphAt:glyph,effectiveRange:nil).maxX+origin.x
+            let probe=layout.characterIndexForGlyph(at:glyph)
+            let count=layout.getLineFragmentInsertionPoints(forCharacterAt:probe,alternatePositions:false,inDisplayOrder:false,positions:nil,characterIndexes:nil)
+            if count>0,count<=65_536,count<=characters.length+1 {
+                var positions=Array(repeating:CGFloat.zero,count:count),indexes=Array(repeating:0,count:count)
+                let actual=layout.getLineFragmentInsertionPoints(forCharacterAt:probe,alternatePositions:false,inDisplayOrder:false,positions:&positions,characterIndexes:&indexes)
+                if actual<=count,let insertion=indexes.prefix(actual).firstIndex(of:index) {x=line.minX+positions[insertion]}
+            }
+        }
+        guard line.height>0,line.minY.isFinite,x.isFinite else{return nil}
+        return InputLine(rect:line,x:x,glyphs:glyphs,characters:characters)
+    }
+    private func goalOffset(in line:InputLine,x:CGFloat)->(offset:Int,affinity:NSSelectionAffinity) {
+        let text=string as NSString,lower=line.characters.location
+        var upper=min(text.length,NSMaxRange(line.characters))
+        while upper>lower,[10,13].contains(Int(text.character(at:upper-1))) {upper -= 1}
+        let hit=offset(at:NSPoint(x:x,y:line.rect.midY)) ?? lower
+        var result=min(max(lower,hit),upper)
+        if result>lower,result<upper {result=max(lower,text.rangeOfComposedCharacterSequence(at:result).location)}
+        return (result,result==NSMaxRange(line.characters) && line.characters.length>0 ? .upstream:.downstream)
+    }
+    private func verticalTarget(from head:Int,forward:Bool,x:CGFloat)->(offset:Int,affinity:NSSelectionAffinity)? {
+        guard let layout=layoutManager,let current=caretLine(head,affinity:selectionAffinity) else{return nil}
+        let candidate:Int
+        if textContainer?.widthTracksTextView != true,paneInputCells != nil {
+            guard let adjacent=paneInputLayout.adjacentInputOffset(head,forward:forward) else{return nil}
+            candidate=adjacent
+        } else {
+            let glyph=forward ? NSMaxRange(current.glyphs):current.glyphs.location-1
+            if glyph==layout.numberOfGlyphs,forward,layout.extraLineFragmentTextContainer === textContainer {candidate=string.utf16.count}
+            else {
+                guard glyph>=0,glyph<layout.numberOfGlyphs else{return nil}
+                candidate=layout.characterIndexForGlyph(at:glyph)
+            }
+        }
+        guard let shown=paneInputLayout.visibleInputOffset(candidate,forward:forward,in:self),let target=caretLine(shown) else{return nil}
+        return goalOffset(in:target,x:x)
+    }
+    private func caretPoint(_ offset:Int)->NSPoint? {
+        guard let caret=caretLine(offset,affinity:selectionAffinity) else{return nil}
+        return NSPoint(x:caret.x,y:caret.rect.midY)
+    }
+    private func offset(at point:NSPoint)->Int? {
+        guard let layout=layoutManager,let container=textContainer else{return nil}
+        layout.ensureLayout(for:container)
+        return layout.characterIndex(for:NSPoint(x:point.x-textContainerOrigin.x,y:point.y-textContainerOrigin.y),in:container,fractionOfDistanceBetweenInsertionPoints:nil)
+    }
+    private func navigate(forward:Bool,modify:Bool=false,vertical:Bool=false,home:Bool=false,page:Bool=false,propose:()->Void) {
+        if paneInputLayout.suppressesInputReveal {propose();return}
+        guard paneInputAllowed,window?.attachedSheet==nil else{return}
+        if hasMarkedText() {propose();return}
+        paneInputBegan()
+        let before=selectedRange(),length=string.utf16.count,foldRevision=paneInputLayout.controller?.revision ?? -1
+        let lastCaret=paneInputCells != nil && length>0 && (string as NSString).character(at:length-1)==10 ? length-1:length
+        let receipt=inputReceipt.flatMap{$0.range==before && $0.revision==paneInputRevision && $0.foldRevision==foldRevision && $0.length==length ? $0:nil}
+        let rawAnchor=modify ? receipt?.anchor ?? (before.length==0 ? before.location:selectionAffinity == .upstream ? NSMaxRange(before):before.location):before.location
+        let anchor=paneInputLayout.visibleInputOffset(rawAnchor,forward:!forward,in:self) ?? rawAnchor
+        if receipt == nil {goalX=nil}
+        let head=receipt?.head ?? (before.length==0 ? before.location:selectionAffinity == .upstream ? before.location:NSMaxRange(before))
+        paneInputLayout.beginPaneInput()
+        var settled=before
+        defer {paneInputLayout.endPaneInput(selection:settled)}
+        if !vertical {goalX=nil}
+        if vertical,goalX==nil {goalX=caretPoint(head)?.x}
+        // Extending from a collapsed moving end gives TextKit its usual word and
+        // visual-line proposal without relying on its private selection anchor.
+        if modify {super.setSelectedRange(NSRange(location:head,length:0))}
+        var destination:Int
+        var destinationAffinity=selectionAffinity
+        if home {
+            let text=string as NSString,line=text.lineRange(for:NSRange(location:min(head,length),length:0))
+            var first=line.location
+            while first<NSMaxRange(line),first<length,[9,32].contains(Int(text.character(at:first))) {first += 1}
+            destination=head==first ? line.location:first
+        } else if page,let point=caretPoint(head) {
+            let line=max(1,layoutManager?.defaultLineHeight(for:font ?? .systemFont(ofSize:12)) ?? 18)
+            let distance=max(line,floor(visibleRect.height/line)*line)
+            destination=offset(at:NSPoint(x:goalX ?? point.x,y:point.y+(forward ? distance:-distance))) ?? head
+        } else if vertical {
+            if let target=verticalTarget(from:head,forward:forward,x:goalX ?? caretPoint(head)?.x ?? textContainerOrigin.x) {
+                destination=target.offset;destinationAffinity=target.affinity
+            } else {destination=head}
+        } else {propose();destination=selectedRange().location}
+        destination=min(max(0,destination),lastCaret)
+        guard let visible=paneInputLayout.visibleInputOffset(destination,forward:forward,in:self) else {super.setSelectedRange(before);return}
+        destination=min(visible,lastCaret)
+        if page,let x=goalX,let target=caretLine(destination) {
+            let placed=goalOffset(in:target,x:x);destination=min(placed.offset,lastCaret);destinationAffinity=placed.affinity
+        }
+        settled=modify ? NSRange(location:min(anchor,destination),length:abs(anchor-destination)):NSRange(location:destination,length:0)
+        if vertical {super.setSelectedRanges([NSValue(range:settled)],affinity:destinationAffinity,stillSelecting:false)}
+        else {super.setSelectedRange(settled)}
+        inputReceipt=Receipt(range:settled,anchor:modify ? anchor:destination,head:destination,revision:paneInputRevision,foldRevision:foldRevision,length:length)
+        scrollRangeToVisible(NSRange(location:destination,length:0))
+    }
+    private func deletePane(backward:Bool,propose:()->Void) {
+        guard paneInputMutationAllowed,window?.attachedSheet==nil else{return}
+        if hasMarkedText() {propose();return}
+        paneInputBegan();clearExternalInput()
+        paneInputLayout.beginPaneInput()
+        defer {paneInputLayout.endPaneInput(selection:selectedRange())}
+        guard let cells=paneInputCells else{propose();return}
+        let selected=selectedRange()
+        guard var range=MergePaneInput.deletionRange(in:string,cells:cells,selection:selected,backward:backward) else{return}
+        if selected.length==0 {
+            guard let start=paneInputLayout.visibleInputOffset(range.location,forward:false,in:self),let end=paneInputLayout.visibleInputOffset(NSMaxRange(range),forward:true,in:self) else{return}
+            range=NSRange(location:min(start,end),length:abs(end-start))
+            guard let normalized=MergePaneInput.normalizedReplacementRange(in:string,cells:cells,selection:range),normalized.length>0 else{return}
+            range=normalized
+        }
+        // Existing delegates perform one aligned edit and own its Undo receipt.
+        insertText("",replacementRange:range)
+    }
+    override func deleteBackward(_ sender:Any?){deletePane(backward:true){super.deleteBackward(sender)}}
+    override func deleteForward(_ sender:Any?){deletePane(backward:false){super.deleteForward(sender)}}
+    override func keyDown(with event:NSEvent) {
+        let modifiers=event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if event.keyCode==115,modifiers.isEmpty || modifiers == .shift {
+            if modifiers == .shift {moveToBeginningOfLineAndModifySelection(nil)}else{moveToBeginningOfLine(nil)};return
+        }
+        super.keyDown(with:event)
+    }
+    override func moveLeft(_ sender:Any?){navigate(forward:false,modify:false,vertical:false){super.moveLeft(sender)}}
+    override func moveLeftAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,vertical:false){super.moveLeft(sender)}}
+    override func moveRight(_ sender:Any?){navigate(forward:true,modify:false,vertical:false){super.moveRight(sender)}}
+    override func moveRightAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:false){super.moveRight(sender)}}
+    override func moveBackward(_ sender:Any?){navigate(forward:false,modify:false,vertical:false){super.moveBackward(sender)}}
+    override func moveBackwardAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,vertical:false){super.moveBackward(sender)}}
+    override func moveForward(_ sender:Any?){navigate(forward:true,modify:false,vertical:false){super.moveForward(sender)}}
+    override func moveForwardAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:false){super.moveForward(sender)}}
+    override func moveWordLeft(_ sender:Any?){navigate(forward:false,modify:false,vertical:false){super.moveWordLeft(sender)}}
+    override func moveWordLeftAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,vertical:false){super.moveWordLeft(sender)}}
+    override func moveWordRight(_ sender:Any?){navigate(forward:true,modify:false,vertical:false){super.moveWordRight(sender)}}
+    override func moveWordRightAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:false){super.moveWordRight(sender)}}
+    override func moveWordBackward(_ sender:Any?){navigate(forward:false,modify:false,vertical:false){super.moveWordBackward(sender)}}
+    override func moveWordBackwardAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,vertical:false){super.moveWordBackward(sender)}}
+    override func moveWordForward(_ sender:Any?){navigate(forward:true,modify:false,vertical:false){super.moveWordForward(sender)}}
+    override func moveWordForwardAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:false){super.moveWordForward(sender)}}
+    override func moveUp(_ sender:Any?){navigate(forward:false,modify:false,vertical:true){super.moveUp(sender)}}
+    override func moveUpAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,vertical:true){super.moveUp(sender)}}
+    override func moveDown(_ sender:Any?){navigate(forward:true,modify:false,vertical:true){super.moveDown(sender)}}
+    override func moveDownAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:true){super.moveDown(sender)}}
+    override func moveToEndOfLine(_ sender:Any?){navigate(forward:true,modify:false,vertical:false){super.moveToEndOfLine(sender)}}
+    override func moveToEndOfLineAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:false){super.moveToEndOfLine(sender)}}
+    override func moveToRightEndOfLine(_ sender:Any?){navigate(forward:true,modify:false,vertical:false){super.moveToRightEndOfLine(sender)}}
+    override func moveToRightEndOfLineAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:false){super.moveToRightEndOfLine(sender)}}
+    override func moveToEndOfParagraph(_ sender:Any?){navigate(forward:true,modify:false,vertical:false){super.moveToEndOfParagraph(sender)}}
+    override func moveToEndOfParagraphAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:false){super.moveToEndOfParagraph(sender)}}
+    override func moveToBeginningOfDocument(_ sender:Any?){navigate(forward:false,modify:false,vertical:false){super.moveToBeginningOfDocument(sender)}}
+    override func moveToBeginningOfDocumentAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,vertical:false){super.moveToBeginningOfDocument(sender)}}
+    override func moveToEndOfDocument(_ sender:Any?){navigate(forward:true,modify:false,vertical:false){super.moveToEndOfDocument(sender)}}
+    override func moveToEndOfDocumentAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:false){super.moveToEndOfDocument(sender)}}
+    override func moveToBeginningOfLine(_ sender:Any?){navigate(forward:false,modify:false,home:true){super.moveToBeginningOfLine(sender)}}
+    override func moveToBeginningOfLineAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,home:true){super.moveToBeginningOfLine(sender)}}
+    override func moveToLeftEndOfLine(_ sender:Any?){navigate(forward:false,modify:false,home:true){super.moveToLeftEndOfLine(sender)}}
+    override func moveToLeftEndOfLineAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,home:true){super.moveToLeftEndOfLine(sender)}}
+    override func moveToBeginningOfParagraph(_ sender:Any?){navigate(forward:false,modify:false,home:true){super.moveToBeginningOfParagraph(sender)}}
+    override func moveToBeginningOfParagraphAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,home:true){super.moveToBeginningOfParagraph(sender)}}
+    override func pageUp(_ sender:Any?){navigate(forward:false,modify:false,vertical:true,page:true){super.pageUp(sender)}}
+    override func pageUpAndModifySelection(_ sender:Any?){navigate(forward:false,modify:true,vertical:true,page:true){super.pageUp(sender)}}
+    override func pageDown(_ sender:Any?){navigate(forward:true,modify:false,vertical:true,page:true){super.pageDown(sender)}}
+    override func pageDownAndModifySelection(_ sender:Any?){navigate(forward:true,modify:true,vertical:true,page:true){super.pageDown(sender)}}
+}
