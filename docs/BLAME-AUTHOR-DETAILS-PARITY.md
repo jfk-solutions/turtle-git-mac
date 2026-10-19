@@ -60,11 +60,40 @@ The earlier October 15 pane captures and October 16 Go To captures predate this
 property grid. Offscreen content-cache captures were inspected for this batch,
 but their missing SwiftUI/window surfaces make them unsuitable for the public
 gallery. They are excluded rather than presented as full appearance evidence.
-Native group collapse currently uses disclosure buttons; keyboard-only group
-expansion and a property-name divider drag still need implementation/acceptance.
-This checkpoint does not certify all docking gestures, physical
-keyboard/VoiceOver, every font/DPI/minimum OS, public avatar servers or signed
-sandbox behavior. Parent labels retain the existing seven-character native
-abbreviation; full hashes remain in descriptions. Complete upstream layout and
-application parity remain open. This is not a new static dialog resource, so no
-invented resource ID or whole-dialog certification is added to the ledger.
+The subsequent pane-interaction batch implements keyboard group navigation,
+read-only native focus and responder Copy, a draggable property-name/value divider
+with originating-preference persistence, and eight-character parent labels.
+The embedded Log stores full hashes (native column clipping handles display),
+and its keyboard/Edit Copy uses complete messages and changed paths, while the
+explicit SHA-1 context command retains hash-only output. Clipboard reads check
+focus again before publishing; property context invocations include a monotonic
+selection generation so moving away and back cannot revive an old action.
+
+Source evidence: `Git.cpp::GetShortHASHLength` returns eight;
+`PropertiesWnd.cpp:280–282` uses zero-based ordinal/full hash/subject for the
+parent description and the eight-character hash as its label.
+`GitLogListBase.cpp:1548–1550` supplies the full hash cell;
+`TortoiseGitBlameView.cpp:733–751` routes focused Log Copy to the default full
+clipboard operation (`GitLogListBase.cpp:2378–2448`). MFC's property-grid keyboard
+implementation is part of the Windows SDK, not the pinned repository. Left/Right,
+Space/Return and Home/End behavior here is an explicit AppKit adaptation.
+
+The new grouped native interaction/capture results are recorded in
+[the pane-interaction evidence](qa/blame-pane-interaction-2026-10-19.json).
+Physical keyboard/VoiceOver, every font/DPI/minimum OS, public avatar servers,
+signed sandbox behavior and complete upstream layout remain open. This is not a
+new static dialog resource, so no invented resource ID or whole-dialog
+certification is added to the ledger.
+
+
+The final pane-interaction group passed four native cases: new interaction and
+retained author/details, each with system and bundled Git. No Core suite was
+rerun for these native-only changes. The Debug app and generated localization/Help
+checks passed. Both original WindowServer captures were inspected independently:
+`site/assets/blame-properties-current-light.png` and
+`site/assets/blame-properties-current-dark.png` (2560×1664). They show deliberately
+roomy native pane dividers, all three sample Log rows, expanded Parents and the
+complete Body description. Each was visible for under 0.4 seconds without app
+activation. Original hashes, rejected earlier captures and scoped limitations
+remain in the evidence record. These images prove this fixture's appearance,
+not all-dialog layout or physical Finder/App Store acceptance.

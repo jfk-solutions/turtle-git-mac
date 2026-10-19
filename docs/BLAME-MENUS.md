@@ -147,3 +147,21 @@ values are their subjects; the description also shows the full hash and parent
 number. Group headings offer no Copy action. See the
 [author/details source comparison](BLAME-AUTHOR-DETAILS-PARITY.md) for scope and
 remaining acceptance. Earlier pane screenshots predate this grid.
+
+
+## Properties keyboard, divider and focused Copy
+
+Focus the Properties grid and use Left to select a value's group, then Left
+again to collapse it. Right expands a group or selects its first value. Space
+and Return toggle a selected group; Home/End select the first/last visible row.
+The description remains read-only. Drag the divider between property names and
+values to resize the name column. Its width persists across floating, docking
+and reopening in the viewer's preferences.
+
+Command-C and Edit → Copy follow the focused native control. Source copies its
+selected text, Log copies complete revision details including changed paths,
+and Properties copies the selected nonempty value. A property's context-menu
+Copy also supports an empty value. Group headings have no Copy command. Parent
+labels use eight hash characters; their descriptions retain full hashes. The
+Log SHA-1 cells contain full hashes, clipped by the column width. Changing focus
+while Log details are being read prevents a late clipboard replacement.

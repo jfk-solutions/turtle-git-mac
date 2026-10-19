@@ -1,9 +1,9 @@
 {
   "files": {
-    "Contents/Info.plist": "2fd7140d2ce3d0c160679ed7b928cb5c6a8d29b315d9eca6d068c1fea3a04171",
+    "Contents/Info.plist": "e8ecfa8e09afb461758fed39da014a870c06de8cf6dc5a26a1bf18452a002fa4",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "01d9789d13afd9ece8aac7c7a97615b55f0e9e37f5211445b613f67b4d166d39",
-    "Contents/Resources/en.lproj/BLAME-MENUS.html": "2489f332aaea73d152a526011f9a0d9fd1fe47f300bea1bb914a04bec6e9c653",
+    "Contents/Resources/en.lproj/BLAME-MENUS.html": "940fa5e112b44a1c585a13339c8d07f16d36149a2ab0a9295b31c44728f0287d",
     "Contents/Resources/en.lproj/BUNDLED-COMPARISONS.html": "ca44634f35d7a4655304e97466c657b748f9f859fb32211be67bdddcc44e92c1",
     "Contents/Resources/en.lproj/CACHE-MENU.html": "9a084e657c193044339a2640795b91071b1f9a8e34c5d7e67a9746a432046305",
     "Contents/Resources/en.lproj/CHERRY-PICK.html": "69424c956849c3686861e28c3a1c8d034ded56dba04c84841fc93528b67ee1af",
@@ -65,7 +65,7 @@
   "source_hashes": {
     "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
     "docs/BLAME-FILE-OPEN.md": "fc530274644d387493d355c26fc2e40eeb6fab9dbb11fc1cf793a8ed0532ebe9",
-    "docs/BLAME-MENUS.md": "d993d74e25f4044cc435bedcafae763baff8c1212711ac2814ba8bae68a3d465",
+    "docs/BLAME-MENUS.md": "e55eace28c1e75aa4d7154e0dc8807b7e2acf4dda786f90761a5d94c467ff637",
     "docs/BUNDLED-COMPARISONS.md": "d3848ab5b58eb5d23b60575e9e397aa1660c411a4e173d3181732cb36df71064",
     "docs/CACHE-MENU.md": "43dd8eb8a152ae338069ab2a1a3c08eb5a9b2ac290e28b53b53cfe06d645fc62",
     "docs/CHERRY-PICK.md": "ac4553c2aa55314d8be0f2b333d5a094d4c67b3c67f6613812a8c395df8f2380",

@@ -50,8 +50,8 @@ final class BlameAvatarTransport: URLProtocol {
         let configuration=URLSessionConfiguration.ephemeral;configuration.protocolClasses=[BlameAvatarTransport.self]
         let session=URLSession(configuration:configuration),cache=root.appendingPathComponent("private-avatars")
         let loader=LogGravatar(defaults:prefs,session:session,cache:cache,delay:0)
-        let controller=BlameWindowController(repository:repo,access:nil,path:"source.txt",revision:"HEAD",preferences:prefs,gravatar:loader)
-        let model=controller.model,window=controller.window!;window.alphaValue=0;window.orderFront(nil)
+        let controller=BlameWindowController(repository:repo,access:nil,path:"source.txt",revision:"HEAD",options:GitBlamePreferences.load(from:prefs),preferences:prefs,gravatar:loader)
+        let model=controller.model,window=controller.window!;window.alphaValue=0;window.orderFront(nil);controller.commandKeyWindow={window}
         defer{controller.close();session.invalidateAndCancel();clipboard.releaseGlobally();prefs.removePersistentDomain(forName:suite)}
         model.writeClipboard={text in clipboard.clearContents();clipboard.setString(text,forType:.string)}
         try await wait("actual Blame history") {!model.busy && model.historyEntries.count>=2}
@@ -69,7 +69,7 @@ final class BlameAvatarTransport: URLProtocol {
             coordinator.update();guard let row=coordinator.rows.firstIndex(where:{$0.id==id}) else {throw Failure(description:"Missing property "+id)}
             grid.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false);coordinator.tableViewSelectionDidChange(Notification(name:NSTableView.selectionDidChangeNotification,object:grid))
         }
-        try choose("basic.8")
+        try choose("basic.8");window.makeFirstResponder(grid)
         try require(details.selected?.value==body.trimmingCharacters(in:.whitespacesAndNewlines) && details.selected?.description==details.selected?.value,"Body description lost full multiline value")
         grid.copy(nil);try require(clipboard.string(forType:.string)==details.selected?.value,"Native responder Copy omitted body text")
         let contextPoint=grid.convert(NSPoint(x:20,y:grid.rect(ofRow:grid.selectedRow).midY),to:nil)
@@ -77,6 +77,7 @@ final class BlameAvatarTransport: URLProtocol {
         let copyMenu=grid.menu(for:context)
         try require(copyMenu?.items.count==1 && copyMenu?.items.first?.image != nil,"Source Copy menu/icon missing")
         let key=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.command,timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,characters:"c",charactersIgnoringModifiers:"c",isARepeat:false,keyCode:8)!
+        window.makeFirstResponder(grid)
         clipboard.clearContents();try require(grid.performKeyEquivalent(with:key) && clipboard.string(forType:.string)==details.selected?.value,"Native Command-C lost full property value")
         let stale=grid.menu!.items[0];try choose("basic.1");clipboard.clearContents();coordinator.copyMenu(stale)
         try require(clipboard.string(forType:.string)==nil,"Old property menu copied replacement selection")

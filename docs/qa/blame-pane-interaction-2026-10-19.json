@@ -1,0 +1,172 @@
+{
+  "date": "2026-10-19",
+  "scope": "Blame pane keyboard navigation, property divider persistence, source/Log/Properties focused Copy, source hash presentation and actual compositor light/dark captures",
+  "baseline": "b16a5209",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "attempts": [
+    {
+      "check": "Debug app build",
+      "result": "failed",
+      "log": "build/qa/blame-pane-build-2026-10-19.log",
+      "reason": "Properties table redundantly declared inherited NSUserInterfaceValidations and omitted override on validation method; focused declaration repair applied."
+    },
+    {
+      "check": "Debug app build after declaration repair",
+      "result": "passed",
+      "log": "build/qa/blame-pane-build-repair-2026-10-19.log"
+    },
+    {
+      "check": "Debug app build after property modal-state guard review",
+      "result": "passed",
+      "log": "build/qa/blame-pane-build-final-2026-10-19.log",
+      "reason": "Properties availability uses shared canFind gate, including Go To, Find feedback, document opening and blocked history children."
+    },
+    {
+      "check": "Grouped native interaction first attempt",
+      "result": "failed",
+      "log": "build/qa/blame-pane-native-2026-10-19.log",
+      "receiver_pids": [
+        84405
+      ],
+      "reason": "An invisible prohibited receiver has no active AppKit menu key window; the private Edit menu could not resolve its nil-target source Copy. The fixture now resolves that private menu target to the actual tested window first responder. Source keyboard menu action and explicit native Copy assertions remain."
+    },
+    {
+      "check": "Grouped native pane interaction and retained author details",
+      "result": "passed",
+      "log": "build/qa/blame-pane-native-repair-2026-10-19.log",
+      "receiver_pids": [
+        84471,
+        84551,
+        84624,
+        84652
+      ],
+      "cases": [
+        "pane/system Git",
+        "pane/bundled Git",
+        "author-details/system Git",
+        "author-details/bundled Git"
+      ]
+    },
+    {
+      "check": "Compositor captures first attempt",
+      "result": "failed",
+      "log": "build/qa/blame-pane-capture-2026-10-19.log",
+      "receiver_pids": [
+        84698
+      ],
+      "reason": "Native capture setup reported expanded Parents group outside visible grid; no image was published. Capture-only geometry repair pending."
+    },
+    {
+      "check": "Compositor capture geometry repair",
+      "result": "rejected after visual review",
+      "log": "build/qa/blame-pane-capture-repair-2026-10-19.log",
+      "receiver_pids": [
+        84867
+      ],
+      "reason": "Receiver assertions/PNG decoding passed, but the dark image had empty black surfaces. No image published."
+    },
+    {
+      "check": "Compositor appearance/timing repair",
+      "result": "rejected capture layout after visual review",
+      "log": "build/qa/blame-pane-capture-repair2-2026-10-19.log",
+      "receiver_pids": [
+        85047
+      ],
+      "reason": "Both themes contained real window surfaces; startup layout overwrote requested dock extents and clipped the third Log row. Final capture-only native-divider setup requested. Existing passed native behavior checks were not repeated."
+    },
+    {
+      "check": "Final native-divider compositor captures",
+      "result": "passed and individually inspected by parent agent",
+      "log": "build/qa/blame-pane-capture-final-2026-10-19.log",
+      "receiver_pids": [
+        85176
+      ],
+      "capture": {
+        "body": "Polish the greeting and document its history\n\nShow the selected revision in the native Properties grid.\nKeep its complete message available in the description pane.\n\nThe Parents group identifies the previous change with its full commit hash.",
+        "capture_method": "WindowServer /usr/sbin/screencapture -x -o -l",
+        "captures": [
+          {
+            "bytes": 719020,
+            "height": 1664,
+            "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/blame-pane-captures-final-2026-10-19/blame-panes-light.png",
+            "sampled_original_colors": 57,
+            "sha256": "06cf16b534668625b25e7abc07c5962cb5f80d7624ad3c57787b5cfebafa2d77",
+            "theme": "light",
+            "visible_seconds": 0.3654249906539917,
+            "width": 2560,
+            "window_number": 44373,
+            "published_path": "docs/site/assets/blame-properties-current-light.png"
+          },
+          {
+            "bytes": 722552,
+            "height": 1664,
+            "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/blame-pane-captures-final-2026-10-19/blame-panes-dark.png",
+            "sampled_original_colors": 60,
+            "sha256": "888ae2bf1594af839d8fc3a6f26234fc469015bd956fafa844e2124cf1120933",
+            "theme": "dark",
+            "visible_seconds": 0.33430802822113037,
+            "width": 2560,
+            "window_number": 44373,
+            "published_path": "docs/site/assets/blame-properties-current-dark.png"
+          }
+        ],
+        "history_rows": 3,
+        "owned_windows_closed": true,
+        "parent_description": "0 - 8713a0183d46e28557141fe1113ebd91aba64a20\nGreet readers in their own language",
+        "parent_label": "8713a018",
+        "parent_value": "Greet readers in their own language",
+        "public_network": false,
+        "revision": "69f44c12759f55d2ffbfe238d0e7625c2df2a0e9",
+        "source_bytes_unchanged": true
+      },
+      "scope": "Actual complete inactive native window; source/index/HEAD/config unchanged; no public network; owned windows/work drained. No image editing or compositing."
+    }
+  ],
+  "core": "Not run: native-only changes; no Core source or Git operation change.",
+  "remaining": [
+    "Physical keyboard and VoiceOver acceptance",
+    "Every font, DPI and minimum macOS version",
+    "Complete TortoiseGit dialog and workflow parity",
+    "Signed deployment, physical Finder acceptance and App Store distribution acceptance"
+  ],
+  "coverage": [
+    "Left/Right group selection and collapse, Space/Return toggle, Home/End row selection",
+    "Native property divider mouseDown/mouseDragged/mouseUp, bounds, private preferences and float/dock/reopen",
+    "Eight-character parent labels and full hash Log cell values",
+    "Exact Unicode source selection Copy through private clipboard",
+    "Log keyboard/native Copy includes revision, message, body and changed paths",
+    "Late Log clipboard read loses publication after focus or selected revision changes",
+    "Properties empty keyboard Copy retains clipboard; context Copy accepts empty value",
+    "Keyboard/accessibility context invocation and selection-away-return stale menu rejection",
+    "Busy, Go To/Find feedback/opening/history child state, background and retired Copy/divider rejection",
+    "Retained avatar opt-in/cache/cancellation and source fields/descriptions/parent subject Copy"
+  ],
+  "test_ownership": {
+    "windows": "Automated receiver windows forced alpha zero; every success/failure closes all owned windows/sheets and drains tracked work. run_receiver reaps its process group.",
+    "preferences": "Unique private UserDefaults and DialogGeometry stores, removed at exit.",
+    "clipboard": "Unique private pasteboards; source native Copy uses the model injection. Private menu has explicit first-responder target in prohibited test process.",
+    "repository": "Disposable repositories; original HEAD/index/config/source bytes compared unchanged.",
+    "network": "No public HTTP. Avatar checks use injected URLSession transport."
+  },
+  "production_source_sha256": "639589d1d5d47359dab6e1261daaf120f3c92619e54c56ee2dfc39e3863724b7",
+  "independently_absent_receiver_pids": [
+    84405,
+    84471,
+    84551,
+    84624,
+    84652,
+    84698,
+    84867,
+    85047,
+    85176
+  ],
+  "status": "implemented and locally validated for this native pane family; whole port remains incomplete",
+  "next_end_user_batch": {
+    "family": "EMF+ formatted text in image comparison",
+    "source_files": [
+      "patches/metafile-renderer.patch",
+      "Sources/TurtleGitMetafile/main.swift"
+    ],
+    "remaining": "DrawString currently refuses tabs, RTL/vertical layout, trimming and custom character tracking. Full glyph-ID DriverString remains a separate gap."
+  }
+}

@@ -132,6 +132,10 @@ import TurtleGitCore
             guard let self, let current, self.model === current else { return false }
             return self.commandsAvailable && NSApp.modalWindow == nil
         }
+        model.copyWindowAvailable = { [weak self, weak current] candidate in
+            guard let self, let current, self.model === current, let candidate else { return false }
+            return self.commandsAvailable && self.commandKeyWindow() === candidate && NSApp.modalWindow == nil
+        }
         NotificationCenter.default.removeObserver(self, name: NSWindow.willBeginSheetNotification, object: nil)
         NotificationCenter.default.removeObserver(self, name: NSWindow.didEndSheetNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(historyChildSheetChanged(_:)), name: NSWindow.willBeginSheetNotification, object: nil)
@@ -278,7 +282,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     private let access: RepositoryAccessLease?
     var repositoryAccess:RepositoryAccessLease? { access }
     let labelDefaults: UserDefaults
-    let revisionDetails = BlameRevisionDetails()
+    let revisionDetails: BlameRevisionDetails
     let gravatar: LogGravatar
     @Published private(set) var showGravatar = false
     private var avatarIdentity: Data?
@@ -569,6 +573,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     var zoomLevel: Int { zoom.offset }
     var effectiveFontSize: Int { zoom.effectiveFontSize(base: presentation.fontSize) }
     var presentationCommandsAvailable: () -> Bool = { true }
+    var copyWindowAvailable: (NSWindow?) -> Bool = { _ in true }
     private var canZoom: Bool { canFind && snapshot != nil && presentationCommandsAvailable() }
     var canZoomIn: Bool { canZoom && zoom.canIncrease }
     var canZoomOut: Bool { canZoom && zoom.canDecrease }
@@ -677,6 +682,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions(), labelDefaults: UserDefaults = .standard,historyRegexExecutable:URL? = nil,gravatar:LogGravatar? = nil) {
         self.repository = repository; self.access = access; self.path = path; self.revision = revision; self.labelDefaults = labelDefaults;self.historyColumns = .load(labelDefaults);self.historyRegexExecutable=historyRegexExecutable
+        self.revisionDetails=BlameRevisionDetails(preferences:labelDefaults)
         self.gravatar=gravatar ?? LogGravatar(defaults:labelDefaults);showGravatar=labelDefaults.bool(forKey:"EnableGravatar")
         paneLayout=BlamePaneLayout.load(labelDefaults)
         showProperties=labelDefaults.object(forKey:"Blame.ShowProperties") as? Bool ?? true
@@ -846,8 +852,8 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     func showLog(_ line: GitBlameLine) { onLog?(line.filename, line.hash) }
     func copyLogMessage(_ hash:String) { copyHistoryDetails([hash],includePaths:true) }
-    func copyHistoryDetails(_ hashes:[String],includePaths:Bool) {
-        guard canFind,!hashes.isEmpty else { return }
+    func copyHistoryDetails(_ hashes:[String],includePaths:Bool,available:@escaping () -> Bool = { true }) {
+        guard canFind,available(),!hashes.isEmpty else { return }
         historyClipboardCancellation?.cancel();let token=OperationCancellation();historyClipboardCancellation=token
         let request=generation;clipboardGeneration += 1;let clipboardRequest=clipboardGeneration
         copyingLog=true;error=nil;Self.activeHistoryOperations += 1
@@ -858,7 +864,8 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 var text=""
                 for hash in hashes { text += try await repository.commitLogText(revision:hash,includePaths:includePaths,cancellation:token,dateSettings:dates,useMailmap:useMailmap) }
-                guard request==generation,clipboardRequest==clipboardGeneration,!retired,!token.isCancelled else { return };copy(text)
+                guard request==generation,clipboardRequest==clipboardGeneration,!retired,!token.isCancelled else { return }
+                guard available() else { copyingLog=false;historyClipboardCancellation=nil;return };copy(text)
             } catch { if request==generation,clipboardRequest==clipboardGeneration,!retired { if !token.isCancelled { self.error=error.localizedDescription };copyingLog=false;historyClipboardCancellation=nil } }
         }
     }
@@ -1095,7 +1102,20 @@ private struct BlameFindDialog:View {
     }
     @Published private(set) var basic: [Row] = []
     @Published private(set) var parents: [Row] = []
-    @Published var selection: String?
+    @Published var selection: String? { didSet { if oldValue != selection { selectionGeneration &+= 1 } } }
+    private(set) var selectionGeneration: UInt64 = 0
+    @Published private(set) var propertyColumnWidth: Double
+    private let preferences: UserDefaults
+    init(preferences: UserDefaults = .standard) {
+        self.preferences = preferences
+        let saved = preferences.object(forKey: "Blame.Properties.PropertyColumnWidth") as? Double ?? 128
+        propertyColumnWidth = saved.isFinite ? min(10000, max(60, saved)) : 128
+    }
+    func setPropertyColumnWidth(_ width: Double) {
+        guard width.isFinite else { return }
+        propertyColumnWidth = min(10000, max(60, width))
+        preferences.set(propertyColumnWidth, forKey: "Blame.Properties.PropertyColumnWidth")
+    }
     @Published var basicExpanded = true
     @Published var parentsExpanded = false
     private var revision: String?
@@ -1112,7 +1132,7 @@ private struct BlameFindDialog:View {
         basic = values.enumerated().map { Row(id: "basic.\($0.offset)", name: $0.element.0, value: $0.element.1, description: $0.element.1) }
         parents = (entry?.parents ?? []).enumerated().map { index, hash in
             let subject = history.first { $0.hash == hash }.map { GitBlameRevisionProperties(entry: $0).subject } ?? ""
-            return Row(id: "parent.\(index).\(hash)", name: String(hash.prefix(7)), value: subject, description: "\(index) - \(hash)\n\(subject)")
+            return Row(id: "parent.\(index).\(hash)", name: String(hash.prefix(8)), value: subject, description: "\(index) - \(hash)\n\(subject)")
         }
         if changed { parentsExpanded = entry != nil }
         if entry == nil { parentsExpanded = false }
@@ -1151,19 +1171,23 @@ struct BlamePropertyGrid: NSViewRepresentable {
         private(set) var rows: [BlameRevisionDetails.Row] = []
         private var updating = false, retired = false
         init(_ model: BlameWindowModel, _ details: BlameRevisionDetails) { self.model = model; self.details = details }
-        var available: Bool { !retired && !model.retired && !model.busy && !model.confirmingQuit && !model.historyChildBlocked && table?.window?.attachedSheet == nil }
+        var available: Bool { !retired && model.canFind && table?.window?.attachedSheet == nil }
         func makeView() -> NSScrollView {
             let table = BlamePropertiesTable(); self.table = table
             table.setAccessibilityLabel("Blame revision properties");table.headerView = nil
             table.rowHeight = 22;table.intercellSpacing = NSSize(width: 1, height: 1)
             table.style = .plain;table.allowsEmptySelection = true;table.allowsMultipleSelection = false
             for (id, width) in [("property", CGFloat(128)), ("value", CGFloat(220))] {
-                let column = NSTableColumn(identifier: .init(id));column.width = width;column.minWidth = 60;table.addTableColumn(column)
+                let column = NSTableColumn(identifier: .init(id));column.width = width;column.minWidth = 60;column.maxWidth = 10000;table.addTableColumn(column)
             }
             table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
             table.dataSource = self;table.delegate = self
             table.copySelection = { [weak self] in self?.copyValue() }
             table.contextAvailable = { [weak self] in self?.available == true }
+            table.copyAvailable = { [weak self] in guard let self else { return false };return self.available && self.model.copyWindowAvailable(self.table?.window) && self.details.selected?.value.isEmpty == false }
+            table.navigateGroup = { [weak self] key in self?.navigateGroup(key) == true }
+            table.resizeDivider = { [weak self] width in self?.setPropertyColumnWidth(Double(width)) }
+            table.target=self;table.doubleAction = #selector(doubleClickGroup)
             table.prepareMenu = { [weak self,weak table] in if let menu=table?.menu {self?.menuNeedsUpdate(menu)} }
             table.menu = NSMenu();table.menu?.autoenablesItems = false;table.menu?.delegate = self
             let scroll = NSScrollView();scroll.documentView = table;scroll.hasVerticalScroller = true
@@ -1176,9 +1200,45 @@ struct BlamePropertyGrid: NSViewRepresentable {
             let parents = BlameRevisionDetails.Row(id: "group.parents", name: "Parents", value: "", description: "")
             let next = [basic] + (details.basicExpanded ? details.basic : []) + [parents] + (details.parentsExpanded ? details.parents : [])
             if next != rows { rows = next;table.reloadData() }
+            if abs(table.tableColumns[0].width - details.propertyColumnWidth) > 0.5 { table.tableColumns[0].width = details.propertyColumnWidth }
             let selected = rows.firstIndex { $0.id == details.selection }
             if table.selectedRow != (selected ?? -1) { table.selectRowIndexes(selected.map { IndexSet(integer: $0) } ?? [], byExtendingSelection: false) }
             table.isEnabled = available
+            for row in rows.indices {
+                if let stack = table.view(atColumn:0,row:row,makeIfNecessary:false) as? NSStackView {
+                    stack.views.compactMap { $0 as? NSButton }.forEach { $0.isEnabled = available }
+                }
+            }
+        }
+        func setPropertyColumnWidth(_ width: Double) {
+            guard available else { return };details.setPropertyColumnWidth(width);update()
+        }
+        func navigateGroup(_ key: UInt16) -> Bool {
+            guard available, let table, table.window?.firstResponder === table else { return false }
+            guard [UInt16(123),124,49,36,76,115,119].contains(key) else { return false }
+            if key == 115 || key == 119 {
+                details.selection = (key == 115 ? rows.first : rows.last)?.id
+            } else {
+                guard rows.indices.contains(table.selectedRow) else { return false }
+                let id = rows[table.selectedRow].id, group = id.hasPrefix("group.")
+                let basic = id == "group.basic" || id.hasPrefix("basic.")
+                let groupID = basic ? "group.basic" : "group.parents"
+                let expanded = basic ? details.basicExpanded : details.parentsExpanded
+                if key == 123 {
+                    if group { if basic { details.basicExpanded = false } else { details.parentsExpanded = false } }
+                    details.selection = groupID
+                } else if key == 124 {
+                    if group && !expanded { if basic { details.basicExpanded = true } else { details.parentsExpanded = true } }
+                    else if group { details.selection = (basic ? details.basic.first : details.parents.first)?.id ?? groupID }
+                } else if group {
+                    if basic { details.basicExpanded.toggle() } else { details.parentsExpanded.toggle() }
+                } else { return false }
+            }
+            update();if table.selectedRow >= 0 { table.scrollRowToVisible(table.selectedRow) };return true
+        }
+        @objc func doubleClickGroup() {
+            guard let table, rows.indices.contains(table.clickedRow), rows[table.clickedRow].id.hasPrefix("group.") else { return }
+            table.window?.makeFirstResponder(table);_ = navigateGroup(49)
         }
         func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
@@ -1188,6 +1248,7 @@ struct BlamePropertyGrid: NSViewRepresentable {
                 let button = NSButton(title: NSLocalizedString(value.name, comment: ""), target: self, action: #selector(toggleGroup(_:)))
                 button.setButtonType(.pushOnPushOff);button.bezelStyle = .disclosure
                 button.state = (value.id == "group.basic" ? details.basicExpanded : details.parentsExpanded) ? .on : .off
+                button.refusesFirstResponder=true;button.isEnabled=available
                 button.title="";button.identifier = NSUserInterfaceItemIdentifier(value.id);button.setAccessibilityLabel(NSLocalizedString(value.name, comment: ""))
                 let label=NSTextField(labelWithString:NSLocalizedString(value.name,comment:""));label.font = .boldSystemFont(ofSize:11)
                 label.lineBreakMode = .byTruncatingTail
@@ -1201,7 +1262,7 @@ struct BlamePropertyGrid: NSViewRepresentable {
             return text
         }
         func tableViewSelectionDidChange(_ notification: Notification) {
-            guard !updating, let table else { return }
+            guard !updating, available, let table else { return }
             details.selection = rows.indices.contains(table.selectedRow) ? rows[table.selectedRow].id : nil
         }
         @objc func toggleGroup(_ sender: NSButton) {
@@ -1211,7 +1272,7 @@ struct BlamePropertyGrid: NSViewRepresentable {
             } else {
                 details.parentsExpanded.toggle();if !details.parentsExpanded && details.selection?.hasPrefix("parent.")==true {details.selection="group.parents"}
             }
-            update()
+            update();table?.window?.makeFirstResponder(table)
         }
         func menuNeedsUpdate(_ menu: NSMenu) {
             menu.removeAllItems();guard available, let selected = details.selected, !selected.id.hasPrefix("group.") else { return }
@@ -1219,39 +1280,78 @@ struct BlamePropertyGrid: NSViewRepresentable {
             item.target = self;item.image = MenuIcon.copy.contextImage(defaults: model.labelDefaults)
             // Fence the menu value to the selected revision/property; a late action
             // after selection or a new document must not copy a different value.
-            item.representedObject = [selected.id, selected.value, selected.description, model.selectedHistoryEntry?.hash ?? ""].map { Data($0.utf8) }
+            item.representedObject = [selected.id, selected.value, selected.description, model.selectedHistoryEntry?.hash ?? "", String(details.selectionGeneration)].map { Data($0.utf8) }
             menu.addItem(item)
         }
         @objc func copyMenu(_ sender: NSMenuItem) {
             guard available, let captured = sender.representedObject as? [Data], let selected = details.selected,
-                  captured == [selected.id, selected.value, selected.description, model.selectedHistoryEntry?.hash ?? ""].map({ Data($0.utf8) }) else { return }
+                  captured == [selected.id, selected.value, selected.description, model.selectedHistoryEntry?.hash ?? "", String(details.selectionGeneration)].map({ Data($0.utf8) }) else { return }
             sender.representedObject = nil;model.copy(selected.value)
         }
-        func copyValue() { guard available, let selected = details.selected else { return };model.copy(selected.value) }
-        func retire() { retired = true;table?.menu?.cancelTracking();table?.menu?.delegate = nil;table?.menu = nil;table?.copySelection = {};table?.prepareMenu = {};table?.contextAvailable = { false };table?.delegate = nil;table?.dataSource = nil;table = nil }
+        func copyValue() { guard available, model.copyWindowAvailable(table?.window), table?.window?.firstResponder === table, let selected = details.selected, !selected.value.isEmpty else { return };model.copy(selected.value) }
+        func retire() { retired = true;table?.menu?.cancelTracking();table?.menu?.delegate = nil;table?.menu = nil;table?.copySelection = {};table?.prepareMenu = {};table?.contextAvailable = { false };table?.copyAvailable = { false };table?.navigateGroup = { _ in false };table?.resizeDivider = { _ in };table?.delegate = nil;table?.dataSource = nil;table = nil }
     }
 }
 
 @MainActor final class BlamePropertiesTable: NSTableView {
     var copySelection: () -> Void = {}
+    var copyAvailable: () -> Bool = { false }
     var contextAvailable: () -> Bool = { false }
     var prepareMenu: () -> Void = {}
+    var navigateGroup: (UInt16) -> Bool = { _ in false }
+    var resizeDivider: (CGFloat) -> Void = { _ in }
+    var presentContextMenu: (NSMenu, NSPoint, NSView) -> Void = { menu, point, view in menu.popUp(positioning:nil,at:point,in:view) }
+    private var draggingDivider = false
+    private var dividerOffset: CGFloat = 0
+    private var ownsCopy: Bool { window?.firstResponder === self && copyAvailable() }
+    private func nearDivider(_ event: NSEvent) -> Bool {
+        guard tableColumns.count == 2 else { return false }
+        return abs(convert(event.locationInWindow,from:nil).x - rect(ofColumn:0).maxX) <= 4
+    }
+    func resizePropertyDivider(to width: CGFloat) { if contextAvailable(), width.isFinite { resizeDivider(width) } }
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        guard contextAvailable(), tableColumns.count == 2 else { return }
+        addCursorRect(NSRect(x:rect(ofColumn:0).maxX-4,y:visibleRect.minY,width:8,height:visibleRect.height),cursor:.resizeLeftRight)
+    }
+    override func mouseDown(with event:NSEvent) {
+        if contextAvailable(), nearDivider(event) {
+            window?.makeFirstResponder(self);draggingDivider=true
+            dividerOffset=convert(event.locationInWindow,from:nil).x-tableColumns[0].width
+            return
+        }
+        super.mouseDown(with:event)
+    }
+    override func mouseDragged(with event:NSEvent) {
+        guard draggingDivider else { super.mouseDragged(with:event);return }
+        resizePropertyDivider(to:convert(event.locationInWindow,from:nil).x-dividerOffset)
+    }
+    override func mouseUp(with event:NSEvent) {
+        guard draggingDivider else { super.mouseUp(with:event);return }
+        mouseDragged(with:event);draggingDivider=false;window?.invalidateCursorRects(for:self)
+    }
     override func menu(for event: NSEvent) -> NSMenu? {
         guard contextAvailable() else { return nil }
         let row = row(at: convert(event.locationInWindow, from: nil));guard row >= 0 else { return nil }
+        window?.makeFirstResponder(self)
         selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false);prepareMenu();return menu?.items.isEmpty == false ? menu : nil
     }
-    @objc func copy(_ sender: Any?) { copySelection() }
+    @objc func copy(_ sender: Any?) { if ownsCopy { copySelection() } }
+    override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        item.action == #selector(copy(_:)) && ownsCopy
+    }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if contextAvailable(), event.modifierFlags.intersection([.command, .option, .control]) == .command, event.charactersIgnoringModifiers?.lowercased() == "c" { copySelection();return true }
+        if ownsCopy, event.modifierFlags.intersection([.command, .option, .control]) == .command, event.charactersIgnoringModifiers?.lowercased() == "c" { copySelection();return true }
         return super.performKeyEquivalent(with: event)
     }
     override func accessibilityPerformShowMenu() -> Bool {
         guard contextAvailable(), selectedRow >= 0, let menu else { return false };prepareMenu();guard !menu.items.isEmpty else { return false }
-        let point = NSPoint(x: 20, y: rect(ofRow: selectedRow).midY);menu.popUp(positioning: nil, at: point, in: self);return true
+        window?.makeFirstResponder(self);scrollRowToVisible(selectedRow)
+        let point = NSPoint(x: 20, y: rect(ofRow: selectedRow).midY);presentContextMenu(menu,point,self);return true
     }
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 109, event.modifierFlags.intersection([.command, .shift, .control, .option]) == .shift, accessibilityPerformShowMenu() { return }
+        if event.modifierFlags.intersection([.command,.option,.control]).isEmpty, navigateGroup(event.keyCode) { return }
         super.keyDown(with: event)
     }
 }
@@ -1306,7 +1406,7 @@ struct BlameHistoryTable:NSViewRepresentable {
             table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(openHistory)
             table.menu=NSMenu();table.menu?.delegate=self
             let header=BlameHistoryColumnHeader(frame:NSRect(x:0,y:0,width:1000,height:24));header.buildMenu={ [weak self] in self?.columnMenu() };table.headerView=header
-            table.copySelection={ [weak self] in self?.copyHashes() };table.openSelection={ [weak self] in self?.openHistory() };table.showContext={ [weak self] event in self?.showContext(event) }
+            table.copySelection={ [weak self] in self?.copyHistory() };table.copyAvailable={ [weak self] in guard let self else { return false };return self.available && self.model.copyWindowAvailable(self.table?.window) };table.openSelection={ [weak self] in self?.openHistory() };table.showContext={ [weak self] event in self?.showContext(event) }
             self.table=table
             let scroll=NSScrollView();scroll.borderType = .bezelBorder;scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.documentView=table
             update();return scroll
@@ -1339,7 +1439,7 @@ struct BlameHistoryTable:NSViewRepresentable {
             guard entries.indices.contains(row) else { return "" };let entry=entries[row],dates=HistoryDateSettings.load(defaults:model.labelDefaults)
             switch id {
             case "id":return String(entries.count-row)
-            case "hash":return String(entry.hash.prefix(10))
+            case "hash":return entry.hash
             case "author":return entry.author
             case "date":return dates.format(entry.date)
             case "email":return entry.email
@@ -1496,11 +1596,21 @@ struct BlameHistoryTable:NSViewRepresentable {
             }
         }
         @objc func showLog() { guard available,selected.count==1,let entry=selected.first else { return };model.onLog?(model.path,entry.hash) }
-        @objc func copyHashes() { guard available,!selected.isEmpty else { return };model.copy(selected.map(\.hash).joined(separator:"\n")) }
+        @objc func copyHistory() {
+            guard available,!selected.isEmpty,let table=table as? BlameHistoryNativeTable,table.ownsCopyFocus else{return}
+            let hashes=selected.map(\.hash),identity=selected.map { Data($0.hash.utf8) }
+            model.copyHistoryDetails(hashes,includePaths:true,available:{ [weak self,weak table] in
+                guard let self,self.available,table?.ownsCopyFocus==true else { return false }
+                return self.selected.map { Data($0.hash.utf8) } == identity
+            })
+        }
     }
 }
-@MainActor final class BlameHistoryNativeTable:NSTableView {
+@MainActor final class BlameHistoryNativeTable:NSTableView,NSMenuItemValidation {
     var copySelection:()->Void = {},openSelection:()->Void = {}
+    var copyAvailable:()->Bool = {false}
+    var ownsCopyFocus:Bool {isEnabled && copyAvailable() && window?.firstResponder === self}
+    private var canCopy:Bool {ownsCopyFocus && !selectedRowIndexes.isEmpty}
     var showContext:(NSEvent)->Void = { _ in }
     override func rightMouseDown(with event:NSEvent) { if isEnabled { showContext(event) } }
     override func mouseDown(with event:NSEvent) { if event.modifierFlags.contains(.control) { if isEnabled { showContext(event) };return };super.mouseDown(with:event) }
@@ -1510,8 +1620,10 @@ struct BlameHistoryTable:NSViewRepresentable {
     }
     override func keyDown(with event:NSEvent) { if BlameWindowController.routeCommandKey(event,from:window) {return};if isEnabled,event.keyCode==109,event.modifierFlags.contains(.shift) { showContext(event);return };if isEnabled,event.keyCode==36 || event.keyCode==76 { openSelection();return };super.keyDown(with:event) }
     override func performKeyEquivalent(with event:NSEvent)->Bool {
-        if isEnabled,event.modifierFlags.intersection([.command,.control,.option]) == .command,event.charactersIgnoringModifiers?.lowercased()=="c" { copySelection();return true };return super.performKeyEquivalent(with:event)
+        if ownsCopyFocus,event.modifierFlags.intersection([.command,.control,.option]) == .command,event.charactersIgnoringModifiers?.lowercased()=="c" { if canCopy{copySelection()};return true };return super.performKeyEquivalent(with:event)
     }
+    @objc func copy(_ sender:Any?){guard canCopy else{return};copySelection()}
+    func validateMenuItem(_ item:NSMenuItem)->Bool{item.action == NSSelectorFromString("copy:") ? canCopy:isEnabled}
 }
 @MainActor final class BlameHistoryColumnHeader:NSTableHeaderView {
     var buildMenu:()->NSMenu? = { nil }
@@ -1929,7 +2041,7 @@ private final class BlameSourceContainer: NSView {
         retired = true; editor.delegate = nil; editor.onContextMenu = { _,_ in }
         syntaxGeneration += 1; syntaxToken?.cancel(); syntaxTask?.cancel()
         editor.retired = true; editor.isSelectable = false
-        editor.keyboardContextRow=nil;editor.contextMenuAvailable={false};editor.onOpen = {};editor.onFind = {}; editor.onFindNext = { _ in }; editor.onGoTo = {}
+        editor.keyboardContextRow=nil;editor.contextMenuAvailable={false};editor.copyAvailable={false};editor.publishCopy={_ in};editor.onOpen = {};editor.onFind = {}; editor.onFindNext = { _ in }; editor.onGoTo = {}
         editor.tooltipForRow={_ in nil};editor.removeAllToolTips()
         scroll.onZoom={_ in};sourceScroll.onZoom={_ in}
         scroll.onScroll = {}; sourceScroll.onScroll = {}
@@ -1956,6 +2068,8 @@ private final class BlameSourceContainer: NSView {
         editor.onFind = { [weak model] in model?.onFind?() }
         editor.onFindNext = { [weak model] previous in model?.findLine(previous: previous) }
         editor.onGoTo = { [weak model] in model?.onGoTo?() }
+        editor.copyAvailable={ [weak model,weak editor=editor] in model?.canFind==true && model?.copyWindowAvailable(editor?.window)==true }
+        editor.publishCopy={ [weak model] text in model?.copy(text) }
         model.firstVisibleSourceRow = { [weak self] in
             guard let self, !self.ranges.isEmpty, !self.retired else { return nil }
             return self.editor.sourceRow(atY:self.sourceScroll.contentView.bounds.minY)
@@ -2207,6 +2321,8 @@ private func blameSyntaxColor(_ rgb: [UInt8], dark: Bool) -> NSColor? {
 }
 private final class BlameSourceTextView: NSTextView, BlameSourceTooltipProviding, NSViewToolTipOwner {
     var retired = false
+    var copyAvailable:()->Bool={false}
+    var publishCopy:(String)->Void={_ in}
     var tooltipForRow: (Int)->String? = { _ in nil }
     func revisionTooltip(at point:NSPoint)->String? {
         guard !retired,bounds.contains(point),let row=sourceRow(atY:point.y),rowRectangles.indices.contains(row),
@@ -2265,17 +2381,22 @@ private final class BlameSourceTextView: NSTextView, BlameSourceTooltipProviding
     }
     deinit { focusObservers.forEach { NotificationCenter.default.removeObserver($0) } }
     override func copy(_ sender: Any?) {
-        guard !retired, selectedRange().length > 0 else { return }
-        NSPasteboard.general.clearContents()
-        _ = writeSelection(to:NSPasteboard.general,types:[.string])
+        guard !retired,isSelectable,copyAvailable(),window?.firstResponder === self,let contents=selectedCopyText else{return}
+        publishCopy(contents)
+    }
+    private var selectedCopyText:String?{
+        let text=string as NSString
+        let ranges=selectedRanges.map{$0.rangeValue}.filter{$0.location != NSNotFound && $0.length>0 && NSMaxRange($0)<=text.length}
+        return ranges.isEmpty ? nil:ranges.map{text.substring(with:$0)}.joined(separator:"\n")
+    }
+    override func validateMenuItem(_ item:NSMenuItem)->Bool{
+        if item.action == #selector(copy(_:)){return !retired && isSelectable && copyAvailable() && window?.firstResponder === self && selectedCopyText != nil}
+        return super.validateMenuItem(item)
     }
     override func selectAll(_ sender: Any?) { guard !retired else { return }; super.selectAll(sender) }
     override func writeSelection(to pboard: NSPasteboard, types: [NSPasteboard.PasteboardType]) -> Bool {
         guard !retired, isSelectable else { return false }
-        let text = string as NSString
-        let ranges = selectedRanges.map { $0.rangeValue }.filter { $0.location != NSNotFound && $0.length > 0 && NSMaxRange($0) <= text.length }
-        guard !ranges.isEmpty else { return false }
-        let contents = ranges.map { text.substring(with:$0) }.joined(separator:"\n")
+        guard let contents=selectedCopyText else{return false}
         var written = false
         for type in types where type == .string || type.rawValue == "NSStringPboardType" { written = pboard.setString(contents,forType:type) || written }
         return written
