@@ -89,3 +89,9 @@ windows and sheets and uses a private temporary root. Packaged signed/unsigned
 mapping and all source/pin hashes match the prepared runtime. This Debug app is
 not a distribution-signed candidate. Clone and recursive checkout custom-filter
 consumers remain a related open family; historical support does not provide them.
+
+
+The later [Clone checkout-filter family](CLONE-CHECKOUT-FILTERS-PARITY.md)
+connects the shared custom adapter to initial and recursive checkout. The dated
+historical checkpoint above remains evidence for its recorded scope; the later
+family supplies separate Clone/LFS and partial-destination evidence.

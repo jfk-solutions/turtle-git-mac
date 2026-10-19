@@ -58,3 +58,15 @@ progress. Full dialog layout, accessibility and source behavior acceptance are
 still incomplete.
 
 [Source comparison and native captures](LFS-PARITY.md) record the tested scope.
+
+## Optional libgit2 Clone
+
+The ordinary Clone default uses Git. If you enable the optional libgit2 Clone
+bit, configured one-shot `git-lfs smudge` runs during checkout, including the
+native recursive submodule option. It uses the owning checkout directory and
+captured selected-Git environment. Bare and No Checkout do not materialize files.
+The adapter does not install LFS or provide the persistent `filter.process`
+protocol; configure the one-shot smudge command as needed. Required failures and
+cancellation follow the [Clone filter workflow](LIBGIT2-TRANSPORT.md#clone-checkout-and-configured-lfs-filters).
+Its [source/evidence record](CLONE-CHECKOUT-FILTERS-PARITY.md) separates local
+cached-object checks from public LFS server and signed sandbox acceptance.

@@ -22,6 +22,7 @@
 typedef struct {tg_callbacks *callbacks;const char *origin;const char *ssh_command;unsigned int received,indexed,completed;unsigned int recursion;const char *configuration_directory;unsigned int push_rejections;} context;
 static int stopped(context *ctx);
 static context *active_context;
+static int register_smudge(void);
 // Called only by our private static libgit2 HTTP request patch. Strings use
 // malloc ownership and are released by the transport before the next request.
 int turtlegit_http_configuration(const char *url,char ***headers,size_t *count,char **proxy){
@@ -30,8 +31,8 @@ int turtlegit_http_configuration(const char *url,char ***headers,size_t *count,c
  int result=ctx->callbacks->http(url,ctx->configuration_directory,headers,count,proxy,ctx->callbacks->payload);
  if(result<0)git_error_set_str(GIT_ERROR_CONFIG,"Cannot read captured HTTP transport configuration");return result;
 }
-int tg_git_init(void){int result=git_libgit2_init();if(result>=0&&getenv("GIT_CONFIG_GLOBAL")){int options=git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH,GIT_CONFIG_LEVEL_XDG,"");if(options<0)return options;}return result;}
-void tg_git_shutdown(void){git_libgit2_shutdown();}
+int tg_git_init(void){int result=git_libgit2_init();if(result>=0&&getenv("GIT_CONFIG_GLOBAL")){int options=git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH,GIT_CONFIG_LEVEL_XDG,"");if(options<0)return options;}if(result>=0)result=register_smudge();return result;}
+void tg_git_shutdown(void){git_filter_unregister("turtlegit-smudge");git_libgit2_shutdown();}
 const char *tg_git_version(void){return LIBGIT2_VERSION;}
 const char *tg_git_error(void){const git_error *error=git_error_last();return error&&error->message?error->message:"libgit2 operation failed";}
 static int stopped(context *ctx){return ctx->callbacks->cancelled&&ctx->callbacks->cancelled(ctx->callbacks->payload);}
@@ -76,8 +77,20 @@ static int configure_repository(git_repository *repository,context *ctx){
 static int create_repository(git_repository **out,const char *path,int bare,void *payload){context *ctx=payload;if(stopped(ctx))return GIT_EUSER;git_repository_init_options init=GIT_REPOSITORY_INIT_OPTIONS_INIT;init.flags=GIT_REPOSITORY_INIT_MKPATH|GIT_REPOSITORY_INIT_EXTERNAL_TEMPLATE|(bare?GIT_REPOSITORY_INIT_BARE:0);init.template_path=getenv("GIT_TEMPLATE_DIR");int result=git_repository_init_ext(out,path,&init);if(result<0)return result;if(ctx->ssh_command){git_config *config=NULL;if((result=git_repository_config(&config,*out))==0){result=git_config_set_string(config,"core.sshCommand",ctx->ssh_command);git_config_free(config);}}if(result==0)result=configure_repository(*out,ctx);return result;}
 static int create_remote(git_remote **out,git_repository *repository,const char *name,const char *url,void *payload){(void)name;context *ctx=payload;return git_remote_create(out,repository,ctx->origin?ctx->origin:"origin",url);}
 static int recursive_update(git_repository *,context *);
-static int update_submodule(git_submodule *submodule,const char *name,void *payload){context *ctx=payload;if(stopped(ctx))return GIT_EUSER;char line[1024];snprintf(line,sizeof(line),"Submodule '%s'\n",name);emit(ctx,line);git_repository *prepared=NULL;int preparation=git_submodule_init(submodule,0);if(preparation<0)return preparation;preparation=git_submodule_repo_init(&prepared,submodule,1);if(preparation<0)return preparation;preparation=configure_repository(prepared,ctx);if(preparation<0){git_repository_free(prepared);return preparation;}git_submodule_update_options options=GIT_SUBMODULE_UPDATE_OPTIONS_INIT;remote_callbacks(&options.fetch_opts.callbacks,ctx);options.fetch_opts.proxy_opts.type=GIT_PROXY_AUTO;options.fetch_opts.proxy_opts.credentials=credentials;options.fetch_opts.proxy_opts.certificate_check=certificate;options.fetch_opts.proxy_opts.payload=ctx;checkout_options(&options.checkout_opts,ctx);int result=git_submodule_update(submodule,1,&options);git_repository_free(prepared);if(result<0)return result;git_repository *child=NULL;if((result=git_submodule_open(&child,submodule))<0)return result;result=recursive_update(child,ctx);git_repository_free(child);return result;}
-static int recursive_update(git_repository *repository,context *ctx){if(ctx->recursion>=64){git_error_set_str(GIT_ERROR_SUBMODULE,"Submodule recursion limit exceeded");return -1;}ctx->recursion++;int result=configure_repository(repository,ctx);if(result==0)result=git_submodule_foreach(repository,update_submodule,ctx);ctx->recursion--;return result;}
+static int update_submodule(git_submodule *submodule,const char *name,void *payload){
+ context *ctx=payload;if(stopped(ctx))return GIT_EUSER;char line[1024];snprintf(line,sizeof(line),"Submodule '%s'\n",name);emit(ctx,line);
+ const char *previous=ctx->configuration_directory;git_repository *prepared=NULL,*child=NULL;int result=git_submodule_init(submodule,0);
+ if(result<0)goto done;if((result=git_submodule_repo_init(&prepared,submodule,1))<0)goto done;
+ if((result=configure_repository(prepared,ctx))<0)goto done;
+ git_submodule_update_options options=GIT_SUBMODULE_UPDATE_OPTIONS_INIT;remote_callbacks(&options.fetch_opts.callbacks,ctx);options.fetch_opts.proxy_opts.type=GIT_PROXY_AUTO;options.fetch_opts.proxy_opts.credentials=credentials;options.fetch_opts.proxy_opts.certificate_check=certificate;options.fetch_opts.proxy_opts.payload=ctx;checkout_options(&options.checkout_opts,ctx);
+ if((result=git_submodule_update(submodule,1,&options))<0)goto done;
+ if((result=git_submodule_open(&child,submodule))<0)goto done;result=recursive_update(child,ctx);
+ done:ctx->configuration_directory=previous;git_repository_free(child);git_repository_free(prepared);return result;
+}
+static int recursive_update(git_repository *repository,context *ctx){
+ if(ctx->recursion>=64){git_error_set_str(GIT_ERROR_SUBMODULE,"Submodule recursion limit exceeded");return -1;}
+ const char *previous=ctx->configuration_directory;ctx->recursion++;int result=configure_repository(repository,ctx);if(result==0)result=git_submodule_foreach(repository,update_submodule,ctx);ctx->recursion--;ctx->configuration_directory=previous;return result;
+}
 // Pinned libgit2 creates the chosen remote correctly but hardcodes "origin"
 // when writing the checked-out/unborn branch's tracking configuration.
 static int configure_clone_tracking(git_repository *repository,const char *origin,int bare){
@@ -199,46 +212,52 @@ int tg_delete_remote(const char *path,const char *name,const char *const *refspe
 
 // Custom smudge semantics adapted from TortoiseGit src/libgit2/filter-filter.c.
 // Copyright (C) 2014, 2016-2021, 2023, 2026 TortoiseGit; GPL-2.0-or-later.
-// Registered only for this historical materialization, never clone checkout.
+// Registered once for helper checkout and historical materialization. The
+// actual filter source repository supplies cwd, including nested submodules.
 static int smudge_check(git_filter *self,void **payload,const git_filter_source *src,const char **values){
- (void)self;(void)src;if(!values||!values[0]||GIT_ATTR_IS_TRUE(values[0])||GIT_ATTR_IS_FALSE(values[0])||GIT_ATTR_IS_UNSPECIFIED(values[0]))return GIT_PASSTHROUGH;
+ (void)self;if(git_filter_source_mode(src)!=GIT_FILTER_TO_WORKTREE)return GIT_PASSTHROUGH;if(!values||!values[0]||GIT_ATTR_IS_TRUE(values[0])||GIT_ATTR_IS_FALSE(values[0])||GIT_ATTR_IS_UNSPECIFIED(values[0]))return GIT_PASSTHROUGH;
  *payload=strdup(values[0]);return *payload?0:-1;
 }
 static void smudge_cleanup(git_filter *self,void *payload){(void)self;free(payload);}
 static int smudge_apply(git_filter *self,void **payload,git_buf *to,const git_buf *from,const git_filter_source *src){
  (void)self;context *ctx=active_context;if(!ctx||stopped(ctx))return GIT_EUSER;
+ const char *previous=ctx->configuration_directory;git_repository *repository=git_filter_source_repo(src);
  git_config *config=NULL;git_buf command=GIT_BUF_INIT;int required=0,result;char *key=NULL;unsigned char *bytes=NULL;size_t length=0;
- if((result=git_repository_config_snapshot(&config,git_filter_source_repo(src)))<0)return result;
+ if((result=configure_repository(repository,ctx))<0){ctx->configuration_directory=previous;return result;}
+ if((result=git_repository_config_snapshot(&config,repository))<0){ctx->configuration_directory=previous;return result;}
  size_t keysize=strlen((char *)*payload)+32;key=malloc(keysize);if(!key){result=-1;goto done;}
  snprintf(key,keysize,"filter.%s.required",(char *)*payload);result=git_config_get_bool(&required,config,key);if(result<0&&result!=GIT_ENOTFOUND)goto done;
  snprintf(key,keysize,"filter.%s.smudge",(char *)*payload);result=git_config_get_string_buf(&command,config,key);
  if(result==GIT_ENOTFOUND){if(required){git_error_set_str(GIT_ERROR_FILTER,"Required smudge filter command is missing");result=-1;}else result=GIT_PASSTHROUGH;goto done;}if(result<0)goto done;
- result=ctx->callbacks->filter?ctx->callbacks->filter(command.ptr,git_filter_source_path(src),(const unsigned char *)from->ptr,from->size,&bytes,&length,ctx->callbacks->payload):-1;
+ result=ctx->callbacks->filter?ctx->callbacks->filter(command.ptr,git_filter_source_path(src),ctx->configuration_directory,(const unsigned char *)from->ptr,from->size,&bytes,&length,ctx->callbacks->payload):-1;
  if(stopped(ctx)){result=GIT_EUSER;goto done;}
  if(result<0){if(required)git_error_set_str(GIT_ERROR_FILTER,"Required smudge filter failed");else result=GIT_PASSTHROUGH;goto done;}
  result=git_buf_set(to,bytes,length);
- done:free(bytes);free(key);git_buf_dispose(&command);git_config_free(config);return result;
+ done:ctx->configuration_directory=previous;free(bytes);free(key);git_buf_dispose(&command);git_config_free(config);return result;
+}
+static int register_smudge(void){
+ static git_filter driver=GIT_FILTER_INIT;driver.attributes="filter";driver.check=smudge_check;driver.apply=smudge_apply;driver.cleanup=smudge_cleanup;
+ return git_filter_register("turtlegit-smudge",&driver,GIT_FILTER_DRIVER_PRIORITY);
 }
 int tg_materialize_blob(const char *path,const char *oidtext,const char *filename,tg_callbacks *callbacks){
- context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX};git_repository *repository=NULL;git_blob *blob=NULL;git_buf bytes=GIT_BUF_INIT;git_oid oid;int registered=0,result;
- git_filter driver=GIT_FILTER_INIT;driver.attributes="filter";driver.check=smudge_check;driver.apply=smudge_apply;driver.cleanup=smudge_cleanup;
+ context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX};git_repository *repository=NULL;git_blob *blob=NULL;git_buf bytes=GIT_BUF_INIT;git_oid oid;int result;
  active_context=&ctx;if(stopped(&ctx)){result=GIT_EUSER;goto done;}
  if((result=git_repository_open(&repository,path))<0)goto done;if((result=configure_repository(repository,&ctx))<0)goto done;
  if((result=git_oid_fromstr(&oid,oidtext))<0)goto done;if((result=git_blob_lookup(&blob,repository,&oid))<0)goto done;
- if((result=git_filter_register("turtlegit-smudge",&driver,GIT_FILTER_DRIVER_PRIORITY))<0)goto done;registered=1;
  git_blob_filter_options options=GIT_BLOB_FILTER_OPTIONS_INIT;options.flags&=~(uint32_t)GIT_BLOB_FILTER_CHECK_FOR_BINARY;
  result=git_blob_filter(&bytes,blob,filename,&options);if(result==0&&stopped(&ctx))result=GIT_EUSER;
  if(result==0&&callbacks->result)callbacks->result(bytes.ptr,bytes.size,callbacks->payload);
- done:git_buf_dispose(&bytes);if(registered)git_filter_unregister("turtlegit-smudge");git_blob_free(blob);git_repository_free(repository);active_context=NULL;return result;
+ done:git_buf_dispose(&bytes);git_blob_free(blob);git_repository_free(repository);active_context=NULL;return result;
 }
 
 // A private process group owns the shell and every filter descendant. File-backed
 // streams avoid pipe deadlocks for simultaneous large input/output/stderr.
-static int run_filter_process(const char *command,int input,int output,int error,const char *const *environment,tg_callbacks *callbacks){
+static int run_filter_process(const char *command,const char *directory,int input,int output,int error,const char *const *environment,tg_callbacks *callbacks){
  posix_spawn_file_actions_t actions;posix_spawnattr_t attributes;pid_t pid=0;int status=0,result;
  if(posix_spawn_file_actions_init(&actions)!=0)return -1;
  if(posix_spawnattr_init(&attributes)!=0){posix_spawn_file_actions_destroy(&actions);return -1;}
- result=posix_spawn_file_actions_adddup2(&actions,input,STDIN_FILENO);
+ result=posix_spawn_file_actions_addchdir_np(&actions,directory);
+ if(!result)result=posix_spawn_file_actions_adddup2(&actions,input,STDIN_FILENO);
  if(!result)result=posix_spawn_file_actions_adddup2(&actions,output,STDOUT_FILENO);
  if(!result)result=posix_spawn_file_actions_adddup2(&actions,error,STDERR_FILENO);
  if(!result)result=posix_spawnattr_setpgroup(&attributes,0);
@@ -255,7 +274,7 @@ static int run_filter_process(const char *command,int input,int output,int error
  kill(-pid,SIGKILL);return !cancelling&&WIFEXITED(status)&&WEXITSTATUS(status)==0?0:-1;
 }
 
-int tg_run_filter(const char *command,int input,int output,int error,const char *const *environment,tg_callbacks *callbacks){
+int tg_run_filter(const char *command,const char *directory,int input,int output,int error,const char *const *environment,tg_callbacks *callbacks){
  int lock=-1;const char *path=getenv("TURTLEGIT_LIBGIT2_FILTER_LOCK");
  if(path){
   struct stat info;lock=open(path,O_RDWR|O_NOFOLLOW|O_CLOEXEC);
@@ -264,6 +283,6 @@ int tg_run_filter(const char *command,int input,int output,int error,const char 
   while(flock(lock,LOCK_EX|LOCK_NB)<0){if(errno!=EINTR&&errno!=EWOULDBLOCK){close(lock);return -1;}if(callbacks->cancelled&&callbacks->cancelled(callbacks->payload)){close(lock);return -1;}struct timespec pause={0,10000000};nanosleep(&pause,NULL);}
  }
  // Recheck after acquisition: Core publishes cancellation before taking locks.
- int result=-1;if(!callbacks->cancelled||!callbacks->cancelled(callbacks->payload))result=run_filter_process(command,input,output,error,environment,callbacks);
+ int result=-1;if(!callbacks->cancelled||!callbacks->cancelled(callbacks->payload))result=run_filter_process(command,directory,input,output,error,environment,callbacks);
  if(lock>=0){flock(lock,LOCK_UN);close(lock);}return result;
 }

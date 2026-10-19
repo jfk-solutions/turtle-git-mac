@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import XCTest
 import Darwin
+import CryptoKit
 @testable import TurtleGitCore
 
 private final class LibGit2Receipts: @unchecked Sendable {
@@ -423,6 +424,195 @@ final class GitLibGit2Tests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(path)), sentinel)
         XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), index)
         let after = try await f.source.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(after, hash)
+    }
+
+    private func cloneFilterFixture(_ f: Fixture, repository: GitRepository? = nil) async throws -> String {
+        let repository = repository ?? f.source, script = f.root.appendingPathComponent("clone-smudge"), path = "literal % ':雪.filtered"
+        try executable(script, """
+        #!/usr/bin/python3
+        import json, os, pathlib, subprocess, sys
+        root = pathlib.Path(__file__).parent
+        with (root / 'clone-filters.jsonl').open('a') as stream:
+            repository = subprocess.check_output(['/usr/bin/git','rev-parse','--show-toplevel'], text=True).rstrip('\\n')
+            stream.write(json.dumps({'cwd':os.getcwd(),'repository':repository,'args':sys.argv[1:]}) + '\\n')
+        sys.stdout.buffer.write(b'CHECKOUT[' + sys.stdin.buffer.read() + b']')
+        """)
+        for (key, value) in [("filter.clonefixture.smudge", quote(script.path) + " %f '%%'"), ("filter.clonefixture.clean", "cat"), ("filter.clonefixture.required", "true")] { _ = try await f.source.run(["config", "--global", key, value]) }
+        try Data("*.filtered filter=clonefixture\n*.txt text eol=crlf\n".utf8).write(to: repository.root.appendingPathComponent(".gitattributes"))
+        try Data("payload\n".utf8).write(to: repository.root.appendingPathComponent(path))
+        try Data([0, 255, 10, 1]).write(to: repository.root.appendingPathComponent("binary.filtered"))
+        let link = repository.root.appendingPathComponent("link.filtered")
+        XCTAssertEqual(link.path.withCString { symlink("../../outside-target", $0) }, 0)
+        try Data("one\ntwo\n".utf8).write(to: repository.root.appendingPathComponent("ending.txt"))
+        try await repository.stage([".gitattributes", path, "binary.filtered", "link.filtered", "ending.txt"]); _ = try await repository.commit(message: "checkout filter inputs")
+        return path
+    }
+
+    func testActualCloneCheckoutAppliesBuiltinAndCustomFiltersInEachRecursiveRepository() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let path = try await cloneFilterFixture(f), childFolder = f.root.appendingPathComponent("child-source")
+        try FileManager.default.createDirectory(at: childFolder, withIntermediateDirectories: false)
+        let child = GitRepository(root: childFolder, executable: f.source.executable, askpass: nil)
+        _ = try await child.run(["init", "-b", "main"])
+        for (key, value) in [("user.name", "Child fixture"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await child.run(["config", key, value]) }
+        _ = try await cloneFilterFixture(f, repository: child)
+        _ = try await f.source.run(["-c", "protocol.file.allow=always", "submodule", "add", "--", childFolder.path, "vendor/child"])
+        _ = try await f.source.commit(message: "recursive filtered checkout")
+        let head = try await f.source.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), config = try Data(contentsOf: f.source.root.appendingPathComponent(".git/config")), global = try Data(contentsOf: f.root.appendingPathComponent("global.config"))
+        try? FileManager.default.removeItem(at: f.root.appendingPathComponent("clone-filters.jsonl"))
+        var options = CloneOptions(); options.source = f.source.root.path; options.recursive = true
+        let contaminated = f.root.appendingPathComponent("inherited-repository-helper")
+        let originalScript = try String(contentsOf: f.helper, encoding: .utf8)
+        let insertion = try XCTUnwrap(originalScript.range(of: "\nexec ")).lowerBound
+        let inherited = "\nexport GIT_DIR=" + quote(f.source.root.appendingPathComponent(".git").path) + " GIT_WORK_TREE=" + quote(f.source.root.path) + " GIT_INDEX_FILE=" + quote(f.source.root.appendingPathComponent(".git/index").path) + "\n"
+        try executable(contaminated, String(originalScript[..<insertion]) + inherited + String(originalScript[insertion...]))
+        let destination = f.root.appendingPathComponent("recursive filtered"), backend = GitLibGit2Configuration(mask: 2, helperURL: contaminated)
+        _ = try await f.runner.clone(options, to: destination, backend: backend)
+        for directory in [destination, destination.appendingPathComponent("vendor/child")] {
+            XCTAssertEqual(try Data(contentsOf: directory.appendingPathComponent(path)), Data("CHECKOUT[payload\n]".utf8))
+            XCTAssertEqual(try Data(contentsOf: directory.appendingPathComponent("binary.filtered")), Data("CHECKOUT[".utf8) + Data([0, 255, 10, 1]) + Data("]".utf8))
+            XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: directory.appendingPathComponent("link.filtered").path), "../../outside-target")
+            XCTAssertEqual(try Data(contentsOf: directory.appendingPathComponent("ending.txt")), Data("one\r\ntwo\r\n".utf8))
+        }
+        let calls = try String(contentsOf: f.root.appendingPathComponent("clone-filters.jsonl"), encoding: .utf8).split(separator: "\n").map { try XCTUnwrap(JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any]) }
+        XCTAssertEqual(calls.count, 4)
+        let directories = calls.compactMap { $0["cwd"] as? String }.map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path }
+        XCTAssertEqual(Set(directories), Set([destination, destination.appendingPathComponent("vendor/child")].map { $0.resolvingSymlinksInPath().path }))
+        let repositories = calls.compactMap { $0["repository"] as? String }.map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path }
+        XCTAssertEqual(repositories.count, 4); XCTAssertEqual(Set(repositories), Set(directories), "Nested Git inherited the caller's source repository instead of the actual checkout")
+        XCTAssertTrue(calls.allSatisfy { $0["args"] as? [String] == [path, "%"] || $0["args"] as? [String] == ["binary.filtered", "%"] })
+        let finalHead = try await f.source.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(finalHead, head)
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/config")), config)
+        XCTAssertEqual(try Data(contentsOf: f.root.appendingPathComponent("global.config")), global)
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(path)), Data("payload\n".utf8))
+        // Repository snapshots must honor the explicit global filename, then
+        // ordinary local and invocation-only APP precedence without persisting
+        // the temporary command override into either configuration file.
+        let selected = GitLibGit2Configuration(mask: 0x200, helperURL: f.helper)
+        let fromGlobal = try await f.source.materializedHistoricalFile(revision: "HEAD", path: path, backend: selected)
+        XCTAssertEqual(fromGlobal.bytes, Data("CHECKOUT[payload\n]".utf8))
+        _ = try await f.source.run(["config", "filter.clonefixture.smudge", "printf LOCAL; cat"])
+        let localConfig = try Data(contentsOf: f.source.root.appendingPathComponent(".git/config"))
+        let fromLocal = try await f.source.materializedHistoricalFile(revision: "HEAD", path: path, backend: selected)
+        XCTAssertEqual(fromLocal.bytes, Data("LOCALpayload\n".utf8))
+        let appHelper = f.root.appendingPathComponent("app-config-helper")
+        try executable(appHelper, "#!/bin/sh\nexec " + quote(f.helper.path) + " -c " + quote("filter.clonefixture.smudge=printf APP; cat") + " \"$@\"\n")
+        let fromApplication = try await f.source.materializedHistoricalFile(revision: "HEAD", path: path, backend: .init(mask: 0x200, helperURL: appHelper))
+        XCTAssertEqual(fromApplication.bytes, Data("APPpayload\n".utf8))
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/config")), localConfig)
+        XCTAssertEqual(try Data(contentsOf: f.root.appendingPathComponent("global.config")), global)
+    }
+
+    func testCloneCheckoutOptionalRequiredAndSuppressedFiltersRetainSourceCleanupSemantics() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let path = try await cloneFilterFixture(f), backend = GitLibGit2Configuration(mask: 2, helperURL: f.helper)
+        var options = CloneOptions(); options.source = f.source.root.path
+        _ = try await f.source.run(["config", "--global", "filter.clonefixture.smudge", "exit 37"])
+        _ = try await f.source.run(["config", "--global", "filter.clonefixture.required", "false"])
+        let optional = f.root.appendingPathComponent("optional")
+        _ = try await f.runner.clone(options, to: optional, backend: backend)
+        XCTAssertEqual(try Data(contentsOf: optional.appendingPathComponent(path)), Data("payload\n".utf8))
+        _ = try await f.source.run(["config", "--global", "filter.clonefixture.required", "true"])
+        for existing in [false, true] {
+            let target = f.root.appendingPathComponent(existing ? "existing-empty" : "new-failed")
+            if existing { try FileManager.default.createDirectory(at: target, withIntermediateDirectories: false) }
+            do { _ = try await f.runner.clone(options, to: target, backend: backend); XCTFail("Required checkout filter failure reported success") } catch is GitFailure {}
+            if existing { XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: target.path), []) }
+            else { XCTAssertFalse(FileManager.default.fileExists(atPath: target.path)) }
+        }
+        _ = try await f.source.run(["config", "--global", "--unset", "filter.clonefixture.smudge"])
+        let missing = f.root.appendingPathComponent("missing-required")
+        do { _ = try await f.runner.clone(options, to: missing, backend: backend); XCTFail("Missing required filter was skipped") } catch is GitFailure {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath: missing.path))
+        options.noCheckout = true
+        let noCheckout = f.root.appendingPathComponent("no-checkout-filter")
+        _ = try await f.runner.clone(options, to: noCheckout, backend: backend)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: noCheckout.appendingPathComponent(path).path))
+        options.noCheckout = false; options.bare = true
+        let bare = f.root.appendingPathComponent("bare-filter.git")
+        _ = try await f.runner.clone(options, to: bare, backend: backend)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: bare.appendingPathComponent(path).path))
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(path)), Data("payload\n".utf8))
+    }
+
+    @MainActor func testRecursiveCloneFilterFailureRetainsSuperprojectAndCancellationDrainsActualChild() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let path = try await cloneFilterFixture(f), childFolder = f.root.appendingPathComponent("child-source")
+        try FileManager.default.createDirectory(at: childFolder, withIntermediateDirectories: false)
+        let child = GitRepository(root: childFolder, executable: f.source.executable, askpass: nil)
+        _ = try await child.run(["init", "-b", "main"])
+        for (key, value) in [("user.name", "Child fixture"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false")] { _ = try await child.run(["config", key, value]) }
+        _ = try await cloneFilterFixture(f, repository: child)
+        _ = try await f.source.run(["-c", "protocol.file.allow=always", "submodule", "add", "--", childFolder.path, "vendor/child"])
+        _ = try await f.source.commit(message: "recursive filter failure input")
+        let conditional = f.root.appendingPathComponent("conditional-filter")
+        try executable(conditional, """
+        #!/usr/bin/python3
+        import os, sys
+        if os.getcwd().endswith('/vendor/child'): sys.exit(43)
+        sys.stdout.buffer.write(b'SUPER[' + sys.stdin.buffer.read() + b']')
+        """)
+        _ = try await f.source.run(["config", "--global", "filter.clonefixture.smudge", quote(conditional.path)])
+        var options = CloneOptions(); options.source = f.source.root.path; options.recursive = true
+        let backend = GitLibGit2Configuration(mask: 2, helperURL: f.helper), destination = f.root.appendingPathComponent("recursive-failed")
+        let originalHead = try await f.source.run(["rev-parse", "HEAD"]).stdout, originalIndex = try Data(contentsOf: f.source.root.appendingPathComponent(".git/index"))
+        do { _ = try await f.runner.clone(options, to: destination, backend: backend); XCTFail("Required recursive filter failure reported success") } catch is GitFailure {}
+        XCTAssertEqual(try Data(contentsOf: destination.appendingPathComponent(path)), Data("SUPER[payload\n]".utf8))
+        let retained = GitRepository(root: destination, executable: f.source.executable, askpass: nil)
+        let retainedHead = try await retained.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(retainedHead, originalHead, "A later submodule failure erased the successfully cloned superproject")
+        let held = f.root.appendingPathComponent("held-clone-smudge"), ready = f.root.appendingPathComponent("clone-smudge-ready.json")
+        try executable(held, """
+        #!/usr/bin/python3
+        import json, os, pathlib, subprocess, time
+        child = subprocess.Popen(['/bin/sleep','30'])
+        root = pathlib.Path(__file__).parent
+        temporary = root / 'clone-smudge-ready.tmp'
+        temporary.write_text(json.dumps({'pid':os.getpid(),'child':child.pid})); temporary.replace(root / 'clone-smudge-ready.json')
+        while True: time.sleep(.02)
+        """)
+        _ = try await f.source.run(["config", "--global", "filter.clonefixture.smudge", quote(held.path)])
+        let config = try Data(contentsOf: f.source.root.appendingPathComponent(".git/config")), global = try Data(contentsOf: f.root.appendingPathComponent("global.config")), token = OperationCancellation()
+        options.recursive = false
+        let capturedOptions = options
+        let operation = Task { try await f.runner.clone(capturedOptions, to: f.root.appendingPathComponent("cancel-checkout"), cancellation: token, backend: backend) }
+        var pids: [Int32] = []
+        do {
+            try await wait { FileManager.default.fileExists(atPath: ready.path) }
+            let state = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: ready)) as? [String: Any])
+            pids = [try XCTUnwrap(state["pid"] as? NSNumber).int32Value, try XCTUnwrap(state["child"] as? NSNumber).int32Value]
+            token.cancel()
+        } catch { token.cancel(); _ = await operation.result; throw error }
+        do { _ = try await operation.value; XCTFail("Canceled checkout filter succeeded") } catch is GitCommandCancellationFailure {} catch is OperationCancellationFailure {}
+        try await wait { pids.allSatisfy { kill($0, 0) != 0 } }
+        let finalHead = try await f.source.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(finalHead, originalHead)
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), originalIndex)
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/config")), config)
+        XCTAssertEqual(try Data(contentsOf: f.root.appendingPathComponent("global.config")), global)
+    }
+
+    func testActualCloneOneShotGitLFSSmudgeUsesOfflineCachedContent() async throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let candidates = [git.deletingLastPathComponent().appendingPathComponent("git-lfs"), root.appendingPathComponent("build/git-runtime/Git/bin/git-lfs")]
+        guard let lfs = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) else { throw XCTSkip("The actual bundled Git LFS binary is not prepared.") }
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let bytes = Data("actual cached LFS content\n".utf8), oid = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+        let storage = f.root.appendingPathComponent("lfs-storage"), object = storage.appendingPathComponent("objects/" + oid.prefix(2) + "/" + oid.dropFirst(2).prefix(2) + "/" + oid)
+        try FileManager.default.createDirectory(at: object.deletingLastPathComponent(), withIntermediateDirectories: true); try bytes.write(to: object)
+        let pointer = Data(("version https://git-lfs.github.com/spec/v1\noid sha256:" + oid + "\nsize " + String(bytes.count) + "\n").utf8)
+        try Data("*.lfs filter=lfs -text\n".utf8).write(to: f.source.root.appendingPathComponent(".gitattributes"))
+        try pointer.write(to: f.source.root.appendingPathComponent("cached.lfs"))
+        try await f.source.stage([".gitattributes", "cached.lfs"]); _ = try await f.source.commit(message: "cached LFS pointer")
+        for (key, value) in [("filter.lfs.smudge", quote(lfs.path) + " smudge -- %f"), ("filter.lfs.required", "true"), ("lfs.storage", storage.path), ("lfs.url", "http://127.0.0.1:1/network-disabled"), ("filter.lfs.process", "exit 87")] { _ = try await f.source.run(["config", "--global", key, value]) }
+        let global = try Data(contentsOf: f.root.appendingPathComponent("global.config")), index = try Data(contentsOf: f.source.root.appendingPathComponent(".git/index"))
+        var options = CloneOptions(); options.source = f.source.root.path
+        let destination = f.root.appendingPathComponent("cached-lfs-clone")
+        _ = try await f.runner.clone(options, to: destination, backend: .init(mask: 2, helperURL: f.helper))
+        XCTAssertEqual(try Data(contentsOf: destination.appendingPathComponent("cached.lfs")), bytes)
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent("cached.lfs")), pointer)
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: f.root.appendingPathComponent("global.config")), global)
     }
 
     @MainActor private func wait(_ predicate: () -> Bool) async throws {

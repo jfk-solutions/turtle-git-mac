@@ -280,3 +280,98 @@
  	git_str_dispose(&buf);
  
  	if (error) {
+--- a/src/libgit2/repository.c
++++ b/src/libgit2/repository.c
+@@ -1359,45 +1359,32 @@
+ 	return git_str_len(buf) > 0 ? git_str_cstr(buf) : NULL;
+ }
+ 
++/* Private TurtleGit helper: captured config-file overrides are independent
++ * of repository discovery's USE_ENV flag. Never enable caller GIT_DIR here. */
+ GIT_INLINE(int) config_path_system(git_str *out, bool use_env)
+ {
+-	if (use_env) {
+-		git_str no_system_buf = GIT_STR_INIT;
+-		int no_system = 0;
+-		int error;
+-
+-		error = git__getenv(&no_system_buf, "GIT_CONFIG_NOSYSTEM");
+-
+-		if (error && error != GIT_ENOTFOUND)
+-			return error;
+-
+-		error = git_config_parse_bool(&no_system, no_system_buf.ptr);
+-		git_str_dispose(&no_system_buf);
+-
+-		if (no_system)
+-			return 0;
+-
+-		error = git__getenv(out, "GIT_CONFIG_SYSTEM");
+-
+-		if (error == 0 || error != GIT_ENOTFOUND)
+-			return 0;
+-	}
+-
+-	git_config__find_system(out);
+-	return 0;
++ const char *no_system_text = getenv("GIT_CONFIG_NOSYSTEM");
++ const char *system_path = getenv("GIT_CONFIG_SYSTEM");
++ int no_system = 0, error;
++ GIT_UNUSED(use_env);
++ if (no_system_text && (error = git_config_parse_bool(&no_system, no_system_text)) < 0)
++  return error;
++ if (no_system)
++  return 0;
++ if (system_path)
++  return git_str_sets(out, system_path);
++ git_config__find_system(out);
++ return 0;
+ }
+ 
+ GIT_INLINE(int) config_path_global(git_str *out, bool use_env)
+ {
+-	if (use_env) {
+-		int error = git__getenv(out, "GIT_CONFIG_GLOBAL");
+-
+-		if (error == 0 || error != GIT_ENOTFOUND)
+-			return 0;
+-	}
+-
+-	git_config__find_global(out);
+-	return 0;
++ const char *global_path = getenv("GIT_CONFIG_GLOBAL");
++ GIT_UNUSED(use_env);
++ if (global_path)
++  return git_str_sets(out, global_path);
++ git_config__find_global(out);
++ return 0;
+ }
+ 
+ int git_repository_config__weakptr(git_config **out, git_repository *repo)
+@@ -1414,6 +1401,7 @@
+ 
+ 		if (!(error = config_path_system(&system_buf, use_env)) &&
+ 		    !(error = config_path_global(&global_buf, use_env))) {
++			if (!getenv("GIT_CONFIG_GLOBAL"))
+ 			git_config__find_xdg(&xdg_buf);
+ 			git_config__find_programdata(&programdata_buf);
+ 		}
+@@ -1423,7 +1411,7 @@
+ 			 * If there is no global file, open a backend
+ 			 * for it anyway.
+ 			 */
+-			if (git_str_len(&global_buf) == 0)
++			if (git_str_len(&global_buf) == 0 && !getenv("GIT_CONFIG_GLOBAL"))
+ 				git_config__global_location(&global_buf);
+ 
+ 			error = load_config(
+@@ -2163,7 +2151,8 @@
+ 
+ 	if (!(error = config_path_system(&system_buf, use_env)) &&
+ 	    !(error = config_path_global(&global_buf, use_env))) {
+-		git_config__find_xdg(&xdg_buf);
++		if (!getenv("GIT_CONFIG_GLOBAL"))
++			git_config__find_xdg(&xdg_buf);
+ 		git_config__find_programdata(&programdata_buf);
+ 
+ 		error = load_config(config, NULL,

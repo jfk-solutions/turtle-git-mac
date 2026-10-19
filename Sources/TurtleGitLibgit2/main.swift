@@ -114,7 +114,7 @@ final class CallbackContext{
     init(directory:String,configs:[String]){self.directory=directory;self.configs=configs}
     var currentURL="",credentialRealm=Data(),credentials:(String,String)?,credentialUses=0,prompts=0
     var accepted:Set<Data>=[]
-    func smudge(command:String,path:String,input:Data)throws->Data{
+    func smudge(command:String,path:String,directory:String,input:Data)throws->Data{
         guard !cancelled() else{try refuse("Filter cancelled")}
         // Adapt source %f expansion to POSIX shell quoting; path bytes never
         // become shell syntax. %% remains one literal percent.
@@ -133,6 +133,9 @@ final class CallbackContext{
         try handles[0].write(contentsOf:input);try handles[0].seek(toOffset:0)
         var options=callbacks(self)
         var childEnvironment=environment
+        // The source repository, not an inherited caller GIT_DIR/index/object
+        // override, owns checkout (especially recursive submodule/LFS smudges).
+        for key in ["GIT_DIR","GIT_COMMON_DIR","GIT_WORK_TREE","GIT_INDEX_FILE","GIT_OBJECT_DIRECTORY","GIT_ALTERNATE_OBJECT_DIRECTORIES","GIT_GRAFT_FILE","GIT_SHALLOW_FILE","GIT_PREFIX","GIT_INTERNAL_SUPER_PREFIX","GIT_NAMESPACE","GIT_QUARANTINE_PATH","GIT_IMPLICIT_WORK_TREE"]{childEnvironment.removeValue(forKey:key)}
         for key in Array(childEnvironment.keys) where key == "GIT_CONFIG_PARAMETERS" || key == "GIT_CONFIG_COUNT" || key.hasPrefix("GIT_CONFIG_KEY_") || key.hasPrefix("GIT_CONFIG_VALUE_"){childEnvironment.removeValue(forKey:key)}
         var search:[String]=[]
         if let git=environment["TURTLEGIT_LIBGIT2_GIT_EXECUTABLE"],git.hasPrefix("/"){search.append(URL(fileURLWithPath:git).deletingLastPathComponent().path)}
@@ -142,7 +145,7 @@ final class CallbackContext{
         for (index,entry) in configs.enumerated(){let parts=entry.split(separator:"=",maxSplits:1,omittingEmptySubsequences:false);childEnvironment["GIT_CONFIG_KEY_\(index)"]=String(parts[0]);childEnvironment["GIT_CONFIG_VALUE_\(index)"]=String(parts[1])}
         let status=withStrings(childEnvironment.map{$0.key+"="+$0.value}){values,count in
             var env=Array(UnsafeBufferPointer(start:values,count:count));env.append(nil)
-            return env.withUnsafeBufferPointer{tg_run_filter(expanded,handles[0].fileDescriptor,handles[1].fileDescriptor,handles[2].fileDescriptor,$0.baseAddress,&options)}
+            return env.withUnsafeBufferPointer{tg_run_filter(expanded,directory,handles[0].fileDescriptor,handles[1].fileDescriptor,handles[2].fileDescriptor,$0.baseAddress,&options)}
         }
         try handles[2].seek(toOffset:0)
         while let diagnostics=try handles[2].read(upToCount:65_536),!diagnostics.isEmpty{FileHandle.standardError.write(diagnostics)}
@@ -247,9 +250,9 @@ func callbacks(_ owner:CallbackContext)->tg_callbacks{
             proxy.pointee=configuration.proxy.flatMap{strdup($0)};return 0
         }catch{output("HTTP configuration: "+error.localizedDescription+"\n");return -1}
     }
-    value.filter={command,path,input,count,result,length,raw in
-        guard let command,let path,let result,let length else{return -1}
-        do{let bytes=try context(raw).smudge(command:String(cString:command),path:String(cString:path),input:count>0 ? Data(bytes:input!,count:count):Data())
+    value.filter={command,path,directory,input,count,result,length,raw in
+        guard let command,let path,let directory,let result,let length else{return -1}
+        do{let bytes=try context(raw).smudge(command:String(cString:command),path:String(cString:path),directory:String(cString:directory),input:count>0 ? Data(bytes:input!,count:count):Data())
             guard let copy=malloc(bytes.count+1) else{return -1};bytes.copyBytes(to:copy.assumingMemoryBound(to:UInt8.self),count:bytes.count);copy.assumingMemoryBound(to:UInt8.self)[bytes.count]=0;result.pointee=copy.assumingMemoryBound(to:UInt8.self);length.pointee=bytes.count;return 0
         }catch{output("Smudge filter: "+error.localizedDescription+"\n");return -1}
     };return value

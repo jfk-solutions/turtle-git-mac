@@ -159,7 +159,7 @@ SMTP delivery offers a native certificate check before authentication or upload,
 with default Cancel, exact temporary acceptance, a read-only inspector and public
 DER/PEM export. See [SMTP certificate review](docs/SMTP-CERTIFICATE-REVIEW.md).
 
-[Optional libgit2 transport](docs/LIBGIT2-TRANSPORT.md) connects Clone, Fetch,
+[Optional libgit2 transport and checkout filters](docs/LIBGIT2-TRANSPORT.md) connects Clone, Fetch,
 Sync Fetch, remote-reference listings and remote tag/branch deletions to the
 pinned engine, native credentials and actual HTTPS certificate review. Normal
 command-line defaults are retained.

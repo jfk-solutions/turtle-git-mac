@@ -156,6 +156,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     var sshAvailable: Bool { makeSSHCoordinator != nil || (try? SSHAgentRuntime.resolve())?.askpass != nil }
     private var operationCancellation: OperationCancellation?
     private let preferences: UserDefaults
+    var captureBackend:(()->GitLibGit2Configuration)?
     private let executable: URL?
     private var invalidated = false, finished = false
     @Published private(set) var granting = false
@@ -311,7 +312,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
             }
             if useKey { guard key.hasPrefix("/"), supportsKey else { throw CloneFailure.value }; guard sshAvailable else { throw CloneFailure.keyRuntime }; options.sshKey = URL(fileURLWithPath: key); options.loadSSHKeyWithAgent = true }
             _ = try options.arguments(destination: destination)
-            let capturedOptions = options,capturedKeyText=key,preparationToken=OperationCancellation(),capturedBackend=GitLibGit2Configuration.load(from:preferences)
+            let capturedOptions = options,capturedKeyText=key,preparationToken=OperationCancellation(),capturedBackend=captureBackend?() ?? GitLibGit2Configuration.load(from:preferences)
             operationCancellation=preparationToken
             beginWork()
             Task { [self] in

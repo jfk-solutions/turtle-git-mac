@@ -48,4 +48,14 @@ attempt. See <a href="SAVED-DATA.html">Saved Data</a> and <a href="ACTION-LOG.ht
 progress. Full dialog layout, accessibility and source behavior acceptance are
 still incomplete.</p>
 <p><a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LFS-PARITY.html">Source comparison and native captures</a> record the tested scope.</p>
+<h2 id="optional-libgit2-clone">Optional libgit2 Clone</h2>
+<p>The ordinary Clone default uses Git. If you enable the optional libgit2 Clone
+bit, configured one-shot <code>git-lfs smudge</code> runs during checkout, including the
+native recursive submodule option. It uses the owning checkout directory and
+captured selected-Git environment. Bare and No Checkout do not materialize files.
+The adapter does not install LFS or provide the persistent <code>filter.process</code>
+protocol; configure the one-shot smudge command as needed. Required failures and
+cancellation follow the <a href="LIBGIT2-TRANSPORT.html#clone-checkout-and-configured-lfs-filters">Clone filter workflow</a>.
+Its <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/CLONE-CHECKOUT-FILTERS-PARITY.html">source/evidence record</a> separates local
+cached-object checks from public LFS server and signed sandbox acceptance.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

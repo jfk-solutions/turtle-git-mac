@@ -68,9 +68,10 @@ host-key workflow. See [SSH authentication](SSH-AUTHENTICATION.md) and
 [source and validation record](LIBGIT2-TRANSPORT-PARITY.md) distinguishes implemented
 behavior from public-server, signed sandbox and complete upstream acceptance.
 
-Clone and Fetch in the optional engine do not currently run external Git
-filter/LFS process drivers or ordinary Git hooks. Historical-file materialization
-has a separate source-compatible smudge path described below. Repository template files are copied, but copying a hook
+The optional engine applies configured one-shot smudge commands during Clone
+checkout and historical-file materialization. It does not implement Git
+filter-process drivers or ordinary Git hooks. Fetch reads objects/references
+without checking out files. Repository template files are copied, but copying a hook
 is separate from executing it. Conventional custom `GIT_ASKPASS` programs and
 Git credential helpers are not consumed by this engine; use its native prompt or
 the default Git engine for those workflows. URL-specific HTTP headers, proxy and
@@ -107,6 +108,29 @@ export use their existing independent readers.
 These smudge commands are configured by the repository/user. They execute with
 the captured Git environment and own their subprocesses until completion or
 cancellation. This does not imply support for Git's persistent filter-process
-protocol or working-tree-encoding conversion in libgit2. Clone/Fetch filter and
-hook behavior remains the separate limitation above. ZIP Export continues to use
+protocol or working-tree-encoding conversion in libgit2. Persistent filter-process and
+ordinary Git hooks remain outside this source adapter. ZIP Export continues to use
 Git archive and its archive attributes.
+
+## Clone checkout and configured LFS filters
+
+When the Clone bit `0x2` is enabled, checkout applies libgit2 built-in filters and
+configured `filter.<driver>.smudge` commands. Recursive Clone does the same in
+each initialized submodule's checkout. Each command runs in that repository's
+working directory, with the original selected Git environment and executable
+search paths, so repository-relative tools and configured `git-lfs smudge` can
+find their repository. The source default mask keeps ordinary Clone on Git.
+
+Bare and No Checkout create no worktree file outputs and do not run these smudge
+commands. A required filter failure during the initial clone follows libgit2's
+destination cleanup: a new target is removed, while an originally empty target
+folder is retained empty. A later submodule failure preserves the already cloned
+superproject and completed child work. Progress reports the failure; inspect the
+retained destination before retrying. Cancel waits for the actual owned filter
+process group before allowing the helper and native progress to finish.
+
+Configured Git LFS support uses its one-shot smudge command. It does not install
+LFS settings or replace a configured external toolchain. The persistent
+`filter.process` protocol, arbitrary LFS server/authentication combinations and
+signed sandbox execution remain separate acceptance work. See the
+[Clone filter source comparison](CLONE-CHECKOUT-FILTERS-PARITY.md).

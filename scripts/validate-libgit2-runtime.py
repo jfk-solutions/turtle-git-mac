@@ -84,6 +84,46 @@ def main():
                 assert missing.returncode!=0 and missing.stdout==b''
                 assert (clone/'.git/config').read_bytes()==clone_config and (clone/'.git/index').read_bytes()==clone_index
                 assert git('-C',clone,'rev-parse','HEAD')==head and global_config.read_bytes()==original
+                # Real initial + recursive checkout uses the same driver with the
+                # filter source repository cwd; worktree-free modes never spawn it.
+                filtered=root/'filtered-source';git('init','--initial-branch=main',filtered)
+                (filtered/'.gitattributes').write_text('payload filter=checkoutfixture\n')
+                (filtered/'payload').write_bytes(b'checkout\x00payload\n');git('-C',filtered,'add','.');git('-C',filtered,'commit','-m','filter source')
+                checkout_config="filter.checkoutfixture.smudge=pwd -P; cat"
+                def clone_filtered(source,destination,*flags):
+                    return subprocess.run(prefix+[str(binary),'-C',str(root),'-c',checkout_config,'-c','filter.checkoutfixture.required=true','clone','--progress',*flags,'--',str(source),str(destination)],env=env,capture_output=True,timeout=30)
+                checked=root/'filtered-clone';result=clone_filtered(filtered,checked);assert result.returncode==0,result.stderr.decode(errors='replace')
+                assert (checked/'payload').read_bytes()==str(checked.resolve()).encode()+b'\ncheckout\x00payload\n'
+                # Actual repository configs must honor captured filenames, includes
+                # and levels; transient -c alone would conceal a missing global.
+                def driver_file(path,label):
+                    path.write_text('[filter "checkoutfixture"]\n smudge = "printf '+label+'; cat"\n required = true\n')
+                included=home/'included.config';driver_file(included,'included:')
+                selected_global=home/'selected-global.config';selected_global.write_text('[include]\n path = included.config\n')
+                driver_file(home/'.gitconfig','WRONG-HOME:')
+                xdg=home/'xdg/git';xdg.mkdir(parents=True);driver_file(xdg/'config','WRONG-XDG:')
+                def configured_clone(name,global_path,extra=(),changes=None):
+                    current=dict(env,GIT_CONFIG_GLOBAL=str(global_path));current.update(changes or {})
+                    destination=root/name;argv=prefix+[str(binary),'-C',str(root)]
+                    for value in extra:argv+=['-c',value]
+                    result=subprocess.run(argv+['clone','--',str(filtered),str(destination)],env=current,capture_output=True,timeout=30)
+                    assert result.returncode==0,result.stderr.decode(errors='replace');return (destination/'payload').read_bytes()
+                assert configured_clone('included-clone',selected_global)==b'included:checkout\x00payload\n'
+                for name,path in [('empty-global',''),('missing-global',home/'absent-global')]:
+                    assert configured_clone(name,path)==b'checkout\x00payload\n'
+                template=root/'private-template';template.mkdir();driver_file(template/'config','local:')
+                assert configured_clone('local-priority',selected_global,changes={'GIT_TEMPLATE_DIR':str(template)})==b'local:checkout\x00payload\n'
+                assert configured_clone('app-priority',selected_global,['filter.checkoutfixture.smudge=printf app:; cat'],{'GIT_TEMPLATE_DIR':str(template)})==b'app:checkout\x00payload\n'
+                system_config=home/'system.config';driver_file(system_config,'system:')
+                assert configured_clone('system-override','',changes={'GIT_CONFIG_NOSYSTEM':'0','GIT_CONFIG_SYSTEM':str(system_config)})==b'system:checkout\x00payload\n'
+                superproject=root/'superproject';git('init','--initial-branch=main',superproject)
+                git('-C',superproject,'-c','protocol.file.allow=always','submodule','add',filtered,'nested');git('-C',superproject,'commit','-am','nested fixture')
+                recursive=root/'recursive-clone';result=clone_filtered(superproject,recursive,'--recursive');assert result.returncode==0,result.stderr.decode(errors='replace')
+                assert (recursive/'nested/payload').read_bytes()==str((recursive/'nested').resolve()).encode()+b'\ncheckout\x00payload\n'
+                for flag,name in [('--no-checkout','without-checkout'),('--bare','bare.git')]:
+                    destination=root/name;result=clone_filtered(filtered,destination,flag);assert result.returncode==0,result.stderr.decode(errors='replace')
+                    assert not (destination/'payload').exists()
+                assert global_config.read_bytes()==original
 
-    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with actual clone/fetch/list/deletion/filtered historical blobs.'))
+    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with actual clone/fetch/list/deletion/filtered historical blobs and initial/recursive checkout.'))
 if __name__=='__main__':main()

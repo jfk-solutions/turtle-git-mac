@@ -551,3 +551,13 @@ attempts. Private injected replies cover completion/cancellation; authenticated
 providers, physical header input, arbitrary invalid UTF-8 names, full hosted CI,
 whole-dialog appearance/accessibility and current signed Finder/App Store
 acceptance remain open.
+
+
+### Clone checkout-filter continuation — October 19, 2026
+
+The [Clone checkout family](CLONE-CHECKOUT-FILTERS-PARITY.md) connects configured
+custom smudge filters to selected libgit2 Clone and its recursive checkout option.
+It distinguishes initial destination cleanup from later recursive partial work,
+retains bare/no-checkout suppression and owns actual filter cancellation/progress.
+Configured LFS one-shot smudge, source boundaries and grouped evidence are tracked
+in that family; it does not claim persistent filter-process or complete providers.

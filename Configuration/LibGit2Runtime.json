@@ -17,7 +17,7 @@
   "http_parser": "builtin",
   "regex": "builtin",
   "patch": "patches/libgit2-authority.patch",
-  "patch_sha256": "9326aaa3d66de9f2d3844f85331b47a9639fe33ed8bf9233fbb229b1c0e05b71",
+  "patch_sha256": "5ee2d6fde39bd7304ff33a9a7989b351fd1a3b6f2d33c5657df7264dc93e6aa0",
   "certificate_callback_authority": "Actual HTTP TLS host, TAB, decimal port; private static library only; built-in TLS hostname validation is unchanged.",
   "http_configuration": "Private static HTTP request callback reads captured original Git URL-matched headers/proxy/CA for actual request URLs; cross-origin redirects clear prior credentials."
 }

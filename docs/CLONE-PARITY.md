@@ -297,3 +297,13 @@ combined credentials to a pinned private helper. Accepted certificate exports
 retain their operation lock through cancellation. The linked batch record states
 actual validation and the remaining optional-backend, public and signed gaps;
 older evidence above does not prove this continuation.
+
+
+### Clone checkout-filter continuation — October 19, 2026
+
+The [Clone checkout family](CLONE-CHECKOUT-FILTERS-PARITY.md) connects configured
+custom smudge filters to selected libgit2 Clone and its recursive checkout option.
+It distinguishes initial destination cleanup from later recursive partial work,
+retains bare/no-checkout suppression and owns actual filter cancellation/progress.
+Configured LFS one-shot smudge, source boundaries and grouped evidence are tracked
+in that family; it does not claim persistent filter-process or complete providers.

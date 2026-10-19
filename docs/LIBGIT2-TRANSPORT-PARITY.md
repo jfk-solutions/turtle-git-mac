@@ -76,8 +76,10 @@ VoiceOver behavior, complete inspector/compositor parity, installed signed grant
 signed SSH/HTTPS and App Store distribution remain separate acceptance or porting
 work. Current-source full hosted CI remains unproven until its complete run passes.
 
-The Clone/Fetch optional engine does not execute external Git filter/LFS process drivers or
-ordinary Git hooks. `git_repository_init_ext` copies repository templates; this
+The initial Clone/Fetch checkpoint did not execute external Git smudge/LFS commands or
+ordinary Git hooks. The historical and Clone checkout continuations below add
+configured one-shot smudge commands; persistent filter-process and ordinary hooks
+remain outside the adapter. `git_repository_init_ext` copies repository templates; this
 does not prove hook execution. Conventional custom `GIT_ASKPASS` and Git credential
 helpers remain unsupported by this engine. The CLI engine retains these workflows.
 Custom CA anchors augment system roots; built-in valid peers proceed directly.
@@ -112,3 +114,13 @@ The [historical materialization continuation](HISTORICAL-MATERIALIZATION-PARITY.
 adds the source default GetOneFile bit and a separate custom smudge adapter for
 historical file output. This does not change the recorded Clone/Fetch filter,
 LFS process-driver or hook limitations.
+
+
+### Clone checkout-filter continuation — October 19, 2026
+
+The [Clone checkout family](CLONE-CHECKOUT-FILTERS-PARITY.md) connects configured
+custom smudge filters to selected libgit2 Clone and its recursive checkout option.
+It distinguishes initial destination cleanup from later recursive partial work,
+retains bare/no-checkout suppression and owns actual filter cancellation/progress.
+Configured LFS one-shot smudge, source boundaries and grouped evidence are tracked
+in that family; it does not claim persistent filter-process or complete providers.
