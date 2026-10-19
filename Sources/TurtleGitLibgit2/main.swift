@@ -54,7 +54,7 @@ struct Arguments{
             if arg == "--turtlegit-reset-notifications"{guard !resetNotifications else{try refuse("Repeated Reset notification request")};resetNotifications=true;continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         guard !transferNotifications || command == "clone" || command == "fetch" else{try refuse("Transfer notifications require Clone or Fetch")}
@@ -105,7 +105,7 @@ struct Arguments{
             }else{operands.append(arg)}
         }
         guard configs.count<=2048 else{try refuse("Too many command configuration values")}
-        if command == "turtlegit-unified-diff" || command == "turtlegit-history-diff" || PrivateLocalReferenceRequest.commands.contains(command) {
+        if command == "turtlegit-unified-diff" || command == "turtlegit-history-diff" || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) {
             guard operands.isEmpty else{try refuse("Private diff command requires only a stdin request")}
         }else if command == "reset" || command == "revert" {
             guard operands.count==1,!operands[0].isEmpty,!operands[0].contains("\0"),operands[0].utf8.count<=1_048_576,command != "revert" || revertNoCommit else{try refuse("Reset/Revert requires one explicit revision; Revert requires --no-commit")};revision=operands[0]
@@ -197,6 +197,51 @@ struct PrivateLocalReferenceRequest {
             let value=try JSONDecoder().decode(Delete.self,from:data)
             guard value.version==1,Self.name(value.reference),PrivateDiffRequest.fullOID(value.expectedOID),value.expectedSymbolicTarget.map(Self.name) ?? true else{try refuse("Invalid local deletion identity")}
             scope=0;operation="delete";contains=nil;deletion=value
+        }
+    }
+}
+
+struct PrivateInspectionRequest {
+    static let commands=["turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info"]
+    struct MergeBase:Decodable {let version:Int;let from:String;let to:String}
+    struct Clean:Decodable {let version:Int;let stagedOK:Bool}
+    struct Conflicts:Decodable {let version:Int}
+    struct ConflictInfo:Decodable {let version:Int;let paths:[String]}
+    let operation:String
+    let mergeBase:MergeBase?
+    let clean:Clean?
+    let paths:[String]
+    static func literalPath(_ value:String)->Bool {
+        !value.isEmpty && value.utf8.count<=1_048_576 && !value.contains("\0") && !value.hasPrefix("/") &&
+        !value.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0.isEmpty || $0=="." || $0==".."})
+    }
+    init(command:String)throws {
+        var data=Data()
+        while let part=try FileHandle.standardInput.read(upToCount:65_536),!part.isEmpty {
+            guard !cancelled(),part.count<=2_097_152-data.count else{try refuse("Inspection request exceeds bounds or was cancelled")};data.append(part)
+        }
+        guard let fields=try JSONSerialization.jsonObject(with:data) as? [String:Any] else{try refuse("Invalid inspection request")}
+        switch command {
+        case "turtlegit-merge-base":
+            guard Set(fields.keys)==Set(["version","from","to"]) else{try refuse("Invalid merge-base request fields")}
+            let value=try JSONDecoder().decode(MergeBase.self,from:data)
+            guard value.version==1,PrivateDiffRequest.fullOID(value.from),PrivateDiffRequest.fullOID(value.to) else{try refuse("Invalid inspection object IDs")}
+            operation="mergeBase";mergeBase=value;clean=nil;paths=[]
+        case "turtlegit-check-clean":
+            guard Set(fields.keys)==Set(["version","stagedOK"]) else{try refuse("Invalid clean inspection fields")}
+            let value=try JSONDecoder().decode(Clean.self,from:data)
+            guard value.version==1 else{try refuse("Invalid clean inspection version")}
+            operation="clean";mergeBase=nil;clean=value;paths=[]
+        case "turtlegit-check-conflicts":
+            guard Set(fields.keys)==Set(["version"]) else{try refuse("Invalid conflict-presence fields")}
+            let value=try JSONDecoder().decode(Conflicts.self,from:data)
+            guard value.version==1 else{try refuse("Invalid conflict-presence version")}
+            operation="conflicts";mergeBase=nil;clean=nil;paths=[]
+        default:
+            guard Set(fields.keys)==Set(["version","paths"]) else{try refuse("Invalid conflict-info fields")}
+            let value=try JSONDecoder().decode(ConflictInfo.self,from:data)
+            guard value.version==1,value.paths.count<=100_000,value.paths.allSatisfy(Self.literalPath),Set(value.paths.map{Data($0.utf8)}).count==value.paths.count else{try refuse("Invalid requested literal conflict paths")}
+            operation="conflictInfo";mergeBase=nil;clean=nil;paths=value.paths
         }
     }
 }
@@ -307,6 +352,40 @@ final class CallbackContext{
         }
         _=resetNotification({["kind":"file","path":path]})
     }
+    private var inspectionCount=0,inspectionBytes=0
+    func inspectionRecord(_ object:[String:Any],row:Bool=false)throws {
+        guard !cancelled(),inspectionCount<=100_000 else{try refuse("Inspection cancelled or exceeds bounds")}
+        let data=try JSONSerialization.data(withJSONObject:object,options:[.sortedKeys])
+        let frame=Data(("TurtleGit Inspection v1:"+data.base64EncodedString()+"\n").utf8)
+        guard frame.count<=2_097_152,frame.count<=67_108_864-inspectionBytes else{try refuse("Inspection output exceeds bounds")}
+        try FileHandle.standardOutput.write(contentsOf:frame);inspectionBytes+=frame.count
+        if row{inspectionCount+=1}
+    }
+    func inspection(_ pointer:UnsafePointer<tg_inspection>?)throws {
+        guard let value=pointer?.pointee,inspectionCount<100_000 else{try refuse("Invalid inspection result")}
+        switch value.kind {
+        case 0:
+            let base=try value.base.map{try notificationString($0)}
+            guard base.map(PrivateDiffRequest.fullOID) ?? true,(value.value==0 || value.value==1),base != nil || value.value==0 else{try refuse("Invalid merge-base result")}
+            try inspectionRecord(["kind":"mergeBase","base":base.map{$0 as Any} ?? NSNull(),"fastForward":value.value != 0],row:true)
+        case 1,2:
+            guard value.value==0 || value.value==1 else{try refuse("Invalid inspection decision")}
+            let key=value.kind==1 ? "clean":"conflicts"
+            try inspectionRecord(["kind":key,key:value.value != 0],row:true)
+        case 3:
+            let path=try notificationString(value.path)
+            guard PrivateInspectionRequest.literalPath(path),value.stage_count<=3,value.stage_count==0 || value.stages != nil else{try refuse("Invalid conflict inspection path/stages")}
+            var stages=[[String:Any]](),previous:Int32=0
+            for i in 0..<value.stage_count {
+                let stage=value.stages![i],oid=try notificationString(value.stages![i].oid)
+                guard stage.number>previous,stage.number<=3,[UInt32(0o100644),0o100755,0o120000,0o160000].contains(stage.mode),PrivateDiffRequest.fullOID(oid) else{try refuse("Invalid conflict stage")}
+                previous=stage.number;stages.append(["number":stage.number,"mode":stage.mode,"oid":oid])
+            }
+            try inspectionRecord(["kind":"conflict","path":path,"stages":stages],row:true)
+        default:try refuse("Unknown inspection result")
+        }
+    }
+    func finishInspection()throws {try inspectionRecord(["kind":"end","count":inspectionCount])}
     var localReferenceOperation=""
     private var localReferenceCount=0,localReferenceBytes=0
     func localReferenceRecord(_ object:[String:Any],row:Bool=false)throws {
@@ -605,7 +684,15 @@ func run()throws->Int32{
     }
     let diffRequest=try (args.command == "turtlegit-unified-diff" || args.command == "turtlegit-history-diff") ? PrivateDiffRequest(command:args.command):nil
     let localRequest=try PrivateLocalReferenceRequest.commands.contains(args.command) ? PrivateLocalReferenceRequest(command:args.command):nil
+    let inspectionRequest=try PrivateInspectionRequest.commands.contains(args.command) ? PrivateInspectionRequest(command:args.command):nil
     let owner=CallbackContext(directory:args.directory,configs:args.configs);var options=callbacks(owner);options.verbose=args.verbose ? 1:0;options.force_fetch=args.force ? 1:0
+    if let inspectionRequest {
+        try owner.inspectionRecord(["kind":"header","operation":inspectionRequest.operation])
+        options.inspection={row,raw in
+            do{try context(raw).inspection(row);return 0}
+            catch{output("Inspection: "+error.localizedDescription+"\n");return -1}
+        }
+    }
     if let localRequest {
         owner.localReferenceOperation=localRequest.operation
         try owner.localReferenceRecord(["kind":"header","operation":localRequest.operation])
@@ -656,6 +743,12 @@ func run()throws->Int32{
     }
     let result:Int32=withStrings(args.configs){config,count in
         options.config_values=config;options.config_count=count
+        if let request=inspectionRequest {
+            if let merge=request.mergeBase{return tg_inspect_merge_base(args.directory,merge.from,merge.to,&options)}
+            if let clean=request.clean{return tg_inspect_clean(args.directory,clean.stagedOK ? 1:0,&options)}
+            if request.operation=="conflicts"{return tg_inspect_conflicts(args.directory,&options)}
+            return withStrings(request.paths){paths,count in tg_inspect_conflict_info(args.directory,paths,count,&options)}
+        }
         if let request=localRequest {
             if request.operation=="inventory"{return tg_local_references(args.directory,request.scope,&options)}
             if request.operation=="names"{return tg_local_reference_names(args.directory,&options)}
@@ -679,6 +772,7 @@ func run()throws->Int32{
     if result<0{output("libgit2: "+String(cString:tg_git_error())+"\n");return cancelled() ? 130:1}
     if diffRequest?.history != nil {try owner.finishHistory()}
     if let localRequest {try owner.finishLocalReferences(localRequest)}
+    if inspectionRequest != nil{try owner.finishInspection()}
     return 0
 }
 do{exit(try run())}catch{output("turtlegit-libgit2: "+error.localizedDescription+"\n");exit(cancelled() ? 130:2)}

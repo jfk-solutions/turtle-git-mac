@@ -180,9 +180,10 @@ extension SynchronizationTagKind {
         ProgressActionLog.record(owner: self, repository: repository.root, output: output, cancelled: cancelled, failed: !success)
     }
     init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, access: RepositoryAccessLease? = nil, transportFactory: SSHTransportFactory? = nil,backend:GitLibGit2Configuration? = nil) {
-        self.backend = backend ?? .load(from:preferences)
+        let capturedBackend=backend ?? .load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)
+        self.backend = capturedBackend
         self.access = access; self.transportFactory = transportFactory; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
-        self.repository = repository; self.operation = operation; self.cancellation = cancellation; self.preferences = preferences
+        self.repository = repository.capturingBackend(capturedBackend); self.operation = operation; self.cancellation = cancellation; self.preferences = preferences
         outputState = GitProgressOutputState(preferences: preferences); progressPresentation = outputState.presentation
     }
     func whenDrained(_ completion: @escaping () -> Void) { if working { drained.append(completion) } else { completion() } }
@@ -275,7 +276,7 @@ extension SynchronizationTagKind {
                 do {
                     let conflicts: Bool
                     if let inspectConflicts { conflicts = try await inspectConflicts(read) }
-                    else { conflicts = try await repository.conflicts(cancellation:read).isEmpty == false }
+                    else { conflicts = try await repository.hasWorkingTreeConflicts(cancellation:read) }
                     guard !closed, inspection === read else { return }
                     try read.check(); recoveryAvailable = conflicts; recoveryRevision = UUID()
                 } catch {
@@ -2096,7 +2097,9 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         var options = SynchronizationTransportOptions(action: action)
         options.localBranch = localBranch; options.remote = remote; options.remoteBranch = remoteBranch; options.force = force
         options.fetchVerbose = GitCommandPresentation(defaults: preferences).fetchVerbose
-        let factory = sshSettings.capture(),capturedBackend=GitLibGit2Configuration.load(from:preferences)
+        let capturedBackend=GitLibGit2Configuration.load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)
+        let repository=self.repository.capturingBackend(capturedBackend)
+        let factory = sshSettings.capture()
         sshSettings.save(preferences, key: historyKey + ".autoload")
         if pushing { Self.activePushWorkflows += 1 }
         let attempt = beginInlineAttempt(request, command: !shift)
@@ -2172,7 +2175,8 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
                     let preset = action == .fetch && !options.remote.contains("/") && !options.remote.contains("\\") ? options.remote : nil
                     try await runOptions(action == .pull, preset)
                     guard !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
-                    let entries = try await repository.status(refreshIndex: false, cancellation: request).filter { $0.state == .conflicted }
+                    let entries:[StatusEntry]
+                    if try await repository.hasWorkingTreeConflicts(cancellation:request) {entries=try await repository.status(refreshIndex:false,cancellation:request).filter {$0.state == .conflicted}} else {entries=[]}
                     guard !closed, token === request else { return }
                     if entries.isEmpty { incomingRevision = "HEAD" }
                     // Conflicts are loaded below, after refreshing references.
@@ -2257,7 +2261,8 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
                         incomingCommits = result.commits; incomingGraph = CommitGraph.layout(result.commits); incomingComparison.snapshot = result.comparison
                         tab = result.comparison.from == result.comparison.to ? 3 : 4
                     } else if oldReferences != nil {
-                        let entries = try await repository.status(refreshIndex: false, cancellation: inspection).filter { $0.state == .conflicted }
+                        let entries:[StatusEntry]
+                        if try await repository.hasWorkingTreeConflicts(cancellation:inspection) {entries=try await repository.status(refreshIndex:false,cancellation:inspection).filter {$0.state == .conflicted}} else {entries=[]}
                         guard !closed, token === inspection else { return }; conflicts = entries; tab = entries.isEmpty ? 2 : 6
                         if !entries.isEmpty, !preferences.bool(forKey: MergeProgressWindowModel.conflictHintPreference) {
                             let suppress = await presentConflictHint()

@@ -193,16 +193,13 @@ extension GitRepository {
             if case .revision(let name) = side { return .revision(try comparisonObject(name, cancellation: token)) }
             return side
         }
-        func isAncestor(_ a: String, _ b: String) throws -> Bool {
-            do { return try run(["merge-base", "--is-ancestor", a, b], successfulExitCodes: 0...1, cancellation: token).exitCode == 0 }
-            catch { try token.check(); return false }
-        }
         var old = try resolve(from), new = try resolve(to)
-        // Match FileDiffDlg: replace the base only when its IsFastForward
-        // check succeeds; divergent or working-tree pairs keep the direct range.
-        if options.commonAncestor, case .revision(let a) = old, case .revision(let b) = new,
-           try isAncestor(a, b) {
-            old = .revision(try run(["merge-base", a, b], cancellation: token).text.trimmingCharacters(in: .newlines))
+        // FileDiffDlg uses the single IsFastForward/common-ancestor result only
+        // for the explicit common-ancestor option. Generic/tree/working-copy
+        // comparison and structural merge-base --all requests stay independent.
+        if options.commonAncestor, case .revision(let a) = old, case .revision(let b) = new {
+            let inspection=try replayMergeBase(from:a,to:b,cancellation:token)
+            if inspection.fastForward,let base=inspection.base {old = .revision(base)}
         }
         let args = try comparisonArguments(from: old, to: new, options: options, cancellation: token)
         let files = CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"] + scope, cancellation: token).stdout, statistics: try run(args + ["--numstat", "-z", "--"] + scope, cancellation: token).stdout, raw: try run(args + ["--raw", "-z", "--"] + scope, cancellation: token).stdout).filter { $0.hasStatistics || $0.isSubmodule }

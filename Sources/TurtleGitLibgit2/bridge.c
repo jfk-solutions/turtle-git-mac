@@ -715,3 +715,58 @@ int tg_local_reference_names(const char *path,tg_callbacks *callbacks){
  if(result==GIT_ITEROVER)result=0;
  done:git_reference_iterator_free(iterator);git_repository_free(repo);return result;
 }
+
+/* Source IsFastForward takes one merge base (to, from); unrelated commits are
+ * a normal negative decision, not a fabricated common ancestor. */
+static int inspection_emit(context *ctx,const tg_inspection *row){
+ if(stopped(ctx))return GIT_EUSER;
+ return ctx->callbacks->inspection?ctx->callbacks->inspection(row,ctx->callbacks->payload):0;
+}
+int tg_inspect_merge_base(const char *path,const char *from,const char *to,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_commit *a=NULL,*b=NULL;git_oid from_oid,to_oid,base;int result=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};tg_inspection row={0};row.kind=0;
+ if(git_oid_fromstr(&from_oid,from)<0||git_oid_fromstr(&to_oid,to)<0)return -1;
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0)goto done;
+ /* The source resolves both inputs before asking for the merge base. */
+ if((result=git_commit_lookup(&a,repo,&from_oid))<0||(result=git_commit_lookup(&b,repo,&to_oid))<0)goto done;
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ result=git_merge_base(&base,repo,&to_oid,&from_oid);
+ if(result==GIT_ENOTFOUND){git_error_clear();result=inspection_emit(&ctx,&row);}
+ else if(result==0){char hex[GIT_OID_MAX_HEXSIZE+1];git_oid_tostr(hex,sizeof(hex),&base);row.base=hex;row.value=git_oid_equal(&base,&from_oid);result=inspection_emit(&ctx,&row);}
+ done:git_commit_free(a);git_commit_free(b);git_repository_free(repo);return result;
+}
+int tg_inspect_clean(const char *path,int staged_ok,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_status_list *status=NULL;int result=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};tg_inspection row={0};row.kind=1;
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0)goto done;
+ int unborn=git_repository_head_unborn(repo);if(unborn<0){result=unborn;goto done;}
+ if(unborn){result=inspection_emit(&ctx,&row);goto done;}
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ git_status_options options=GIT_STATUS_OPTIONS_INIT;options.show=staged_ok?GIT_STATUS_SHOW_WORKDIR_ONLY:GIT_STATUS_SHOW_INDEX_AND_WORKDIR;
+ options.flags=GIT_STATUS_OPT_UPDATE_INDEX|GIT_STATUS_OPT_EXCLUDE_SUBMODULES;
+ if((result=git_status_list_new(&status,repo,&options))<0)goto done;
+ row.value=git_status_list_entrycount(status)==0;result=inspection_emit(&ctx,&row);
+ done:git_status_list_free(status);git_repository_free(repo);return result;
+}
+int tg_inspect_conflicts(const char *path,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_index *index=NULL;int result=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};tg_inspection row={0};row.kind=2;
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0||(result=git_repository_index(&index,repo))<0)goto done;
+ row.value=git_index_has_conflicts(index);result=inspection_emit(&ctx,&row);
+ done:git_index_free(index);git_repository_free(repo);return result;
+}
+int tg_inspect_conflict_info(const char *path,const char *const *paths,size_t count,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_index *index=NULL;int result=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};
+ if(count>100000){git_error_set_str(GIT_ERROR_INDEX,"Conflict inspection exceeds bounds");return -1;}
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0||(result=git_repository_index(&index,repo))<0)goto done;
+ for(size_t i=0;i<count;i++){
+  if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+  const git_index_entry *ancestor=NULL,*ours=NULL,*theirs=NULL;tg_inspection_stage stages[3];char hashes[3][GIT_OID_MAX_HEXSIZE+1];size_t n=0;
+  result=git_index_conflict_get(&ancestor,&ours,&theirs,index,paths[i]);
+  if(result==GIT_ENOTFOUND){git_error_clear();result=0;}else if(result<0)goto done;
+  const git_index_entry *values[3]={ancestor,ours,theirs};
+  for(int stage=0;stage<3;stage++)if(values[stage]){
+   git_oid_tostr(hashes[n],sizeof(hashes[n]),&values[stage]->id);stages[n].number=stage+1;stages[n].mode=values[stage]->mode;stages[n].oid=hashes[n];n++;
+  }
+  tg_inspection row={0};row.kind=3;row.path=paths[i];row.stages=stages;row.stage_count=n;
+  if((result=inspection_emit(&ctx,&row))<0)goto done;
+ }
+ done:git_index_free(index);git_repository_free(repo);return result;
+}

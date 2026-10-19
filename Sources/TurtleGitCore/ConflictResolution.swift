@@ -20,6 +20,10 @@ public struct ConflictResolutionProgress: Sendable {
     public let completed: Int
     public let total: Int
     public let finished: Bool
+    public let skipped: Bool
+    public init(path:String,completed:Int,total:Int,finished:Bool,skipped:Bool=false) {
+        self.path=path;self.completed=completed;self.total=total;self.finished=finished;self.skipped=skipped
+    }
 }
 public enum ResolveChoice: Int, Sendable { case current = 0, mine = 2, theirs = 3 }
 public enum ResolveFailure: LocalizedError {
@@ -195,16 +199,24 @@ extension GitRepository {
     /// Capture stages when populating the dialog and revalidate all checked rows
     /// before mutation. Resolving records the index result; it does not commit or
     /// continue a merge/rebase/cherry-pick automatically.
-    public func resolveConflicts(_ checked: [ConflictEntry], using choice: ResolveChoice, confirmSubmoduleDeletion: (@Sendable (SubmoduleDeletionRequest) async -> Bool)? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (ConflictResolutionProgress) -> Void)? = nil) async throws -> String {
+    public func resolveConflicts(_ checked: [ConflictEntry], using choice: ResolveChoice, confirmSubmoduleDeletion: (@Sendable (SubmoduleDeletionRequest) async -> Bool)? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, onProgress: (@Sendable (ConflictResolutionProgress) -> Void)? = nil, backend:GitLibGit2Configuration?=nil) async throws -> String {
+        let selectedBackend=backend ?? libgit2Configuration ?? .load()
         try cancellation?.check()
-        try validateConflicts(checked, using: choice, cancellation: cancellation)
+        try validateConflicts(checked, using: choice, cancellation: cancellation,backend:selectedBackend,allowMissing:choice != .current)
         var output: [String] = []
+        func skip(_ entry:ConflictEntry,_ index:Int) {
+            let message="Skip: "+entry.path
+            output.append(message)
+            onOutput?(GitOutputChunk(stream:.stdout,data:Data((message+"\n").utf8)))
+            onProgress?(.init(path:entry.path,completed:index+1,total:checked.count,finished:true,skipped:true))
+        }
         for (index, entry) in checked.enumerated() {
             try cancellation?.check()
             onProgress?(ConflictResolutionProgress(path: entry.path, completed: index, total: checked.count, finished: false))
             // Confirmation suspends this actor. Recheck every remaining item after
             // resumption, including the original index stages and path containment.
-            try validateConflicts([entry], using: choice, cancellation: cancellation)
+            let missing=try validateConflicts([entry], using: choice, cancellation: cancellation,backend:selectedBackend,allowMissing:choice != .current)
+            if missing.contains(entry.path) {skip(entry,index);continue}
             if choice == .current {
                 output.append(try run(["add", "-f", "--", entry.path], cancellation: cancellation, onOutput: onOutput).text)
             } else if let destination = entry.stages.first(where: { $0.number == choice.rawValue }) {
@@ -236,7 +248,8 @@ extension GitRepository {
                     let accepted = await confirmSubmoduleDeletion(request)
                     try cancellation?.check()
                     guard accepted else { throw ResolveFailure.cancelled }
-                    try validateConflicts([entry], using: choice, cancellation: cancellation)
+                    let missing=try validateConflicts([entry], using: choice, cancellation: cancellation,backend:selectedBackend,allowMissing:true)
+                    if missing.contains(entry.path) {skip(entry,index);continue}
                     // Move the complete checkout (including its .git directory) to
                     // macOS Trash, matching upstream's recycle-bin deletion.
                     guard (try FileManager.default.attributesOfItem(atPath: location.path)[.type]) as? FileAttributeType == .typeDirectory else { throw ResolveFailure.stale }
@@ -260,13 +273,23 @@ extension GitRepository {
         }
         return output.filter { !$0.isEmpty }.joined(separator: "\n")
     }
-    func validateConflicts(_ checked: [ConflictEntry], using choice: ResolveChoice, cancellation: OperationCancellation? = nil) throws {
+    @discardableResult
+    func validateConflicts(_ checked: [ConflictEntry], using choice: ResolveChoice, cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration?=nil,allowMissing:Bool=false) throws -> GitPathSet {
         guard !checked.isEmpty, GitPathSet(checked.map(\.path)).count == checked.count else { throw ResolveFailure.selection }
-        let current = GitPathMap(try conflicts(cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+        guard try !isBare(cancellation:cancellation) else {throw ResolveFailure.selection}
+        let rows:[ConflictEntry]
+        if choice != .current && allowMissing {rows=try requestedConflictStages(paths:checked.map(\.path),backend:backend ?? libgit2Configuration ?? .load(),cancellation:cancellation)}
+        else {rows=try conflicts(cancellation:cancellation)}
+        let current = GitPathMap(rows.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+        var missing=GitPathSet()
         for entry in checked {
             try cancellation?.check()
             do { _ = try RemovalRequest(paths: [entry.path], keepLocal: true) } catch { throw ResolveFailure.outsideWorkingTree }
-            guard current[entry.path] == entry else { throw ResolveFailure.stale }
+            guard let actual=current[entry.path],!actual.stages.isEmpty else {
+                if allowMissing && choice != .current {missing.insert(entry.path);continue}
+                throw ResolveFailure.stale
+            }
+            guard actual == entry else {throw ResolveFailure.stale}
             let parent = root.appendingPathComponent(entry.path).deletingLastPathComponent()
             guard RepositoryAccessLease.pathIsContained(parent, by: root) else { throw ResolveFailure.outsideWorkingTree }
             let existing = try CloneOptions.workingDirectory(for: parent)
@@ -282,5 +305,6 @@ extension GitRepository {
                 }
             }
         }
+        return missing
     }
 }

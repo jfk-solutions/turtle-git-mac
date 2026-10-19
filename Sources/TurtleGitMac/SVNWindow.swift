@@ -164,6 +164,7 @@ import TurtleGitCore
     }
     private func drain() { guard !retired else { return }; visible.consume(parser.processPending(), parser: parser); output = visible.output; currentWork = visible.currentWork; percentage = visible.percentage }
     private func execute(_ accepted:Options) async throws {
+        let repository=self.repository.capturingDiffBackend(preferences:outputPreferences)
         try checkAccess(); try await repository.checkGitSVNRuntime(cancellation: token)
         try checkAccess(); phase = .progress; status = "\(title) is running…"; error = nil
         let parser = parser

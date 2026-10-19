@@ -122,7 +122,9 @@ final class ConflictResolutionTests: XCTestCase {
         let bytes = try Data(contentsOf: root.appendingPathComponent(path))
         _ = try await repo.resolveConflicts(snapshot, using: .mine)
         let index = try await repo.run(["ls-files", "--stage", "-z"]).stdout, mine = try Data(contentsOf: root.appendingPathComponent(path))
-        do { _ = try await repo.resolveConflicts(snapshot, using: .theirs); XCTFail("Accepted stale stages") } catch ResolveFailure.stale {}
+        let skipped=try await repo.resolveConflicts(snapshot,using:.theirs)
+        XCTAssertTrue(skipped.contains("Skip: "+path))
+        do { _ = try await repo.resolveConflicts(snapshot, using: .current); XCTFail("Current accepted stale stages") } catch ResolveFailure.stale {}
         let after = try await repo.run(["ls-files", "--stage", "-z"]).stdout
         XCTAssertEqual(index, after); XCTAssertEqual(mine, try Data(contentsOf: root.appendingPathComponent(path))); XCTAssertNotEqual(bytes, mine)
         for scopes in [["../outside"], [".git/config"], ["bad\0path"]] { do { _ = try await repo.conflicts(paths: scopes); XCTFail("Accepted invalid scope") } catch ResolveFailure.outsideWorkingTree {} }

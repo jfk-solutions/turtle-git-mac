@@ -155,3 +155,13 @@ ForeachRef18, BranchContains16 and DeleteTagBranch8 with the master-switch
 GetRefList completion path. Its source eligibility, checked local deletion,
 metadata/cache identity, native ownership and grouped evidence are tracked
 together. Server deletion remains the separate Push11 consumer.
+
+
+### Replay/merge/resolve inspection continuation — October 20, 2026
+
+The [inspection family](REPLAY-INSPECTION-PARITY.md) connects source MergeBase7,
+CheckCleanWT12, CheckConflicts13 and Mine/Theirs GetConflictInfo17 through their
+accepted native workflows. Structural all-base queries, generic conflict lists,
+Current resolution and the disabled source Log-revert clean guard retain their
+separate boundaries. Its implementation checkpoint and remaining acceptance are
+recorded together.

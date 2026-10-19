@@ -78,7 +78,7 @@ extension GitRepository {
             let head = (try? run(["rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)) ?? ""
             func ancestor(_ from: String, _ to: String) throws -> Bool {
                 guard !from.isEmpty, !to.isEmpty else { return false }
-                return try run(["merge-base", "--is-ancestor", from, to], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0
+                return try replayMergeBase(from:from,to:to,cancellation:cancellation,backend:backend).fastForward
             }
             let currentIsUpToDate = try ancestor(upstream, head)
             let canFastForward = try ancestor(head, upstream)

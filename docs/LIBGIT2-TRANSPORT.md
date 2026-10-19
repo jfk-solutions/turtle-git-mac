@@ -30,6 +30,22 @@ lists retain actual merge-parent groups, renamed paths, binary counts and object
 metadata; changing engines cannot reuse a cache belonging to the other engine.
 See the [diff/history source scope](DIFF-BACKEND-PARITY.md).
 
+Replay and merge readiness use their own source inspection choices. MergeBase
+bit `0x80` selects the common-ancestor/fast-forward decision; CheckConflicts bit
+`0x2000` selects index conflict presence; GetConflictInfo bit `0x20000` selects
+requested stage lookup for Resolve **Mine/Theirs**. These are enabled by default.
+Resolve **Current** keeps its existing staging workflow. A conflict already
+resolved by another tool is skipped by Mine/Theirs; changed conflict stages still
+require a refresh before mutation.
+
+CheckCleanWT bit `0x1000`, disabled by default, selects tracked cleanliness
+inspection for replay and SVN readiness. Untracked files alone do not require
+stashing; submodules follow the source exclusion policy. Some continuation checks
+allow staged changes while requiring a clean working copy. Inspection can refresh
+Git's index stat cache; it does not commit or resolve a conflict. Missing requested
+runtimes and incomplete inspection output fail explicitly. See
+[replay and resolution source scope](REPLAY-INSPECTION-PARITY.md).
+
 Local reference browsing uses ForeachRef bit `0x40000`, enabled in the source
 default mask, for the unfiltered catalog. **Only merged** and **Only unmerged**
 retain Git commands, matching TortoiseGit. **References commit is on** uses

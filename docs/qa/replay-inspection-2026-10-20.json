@@ -1,0 +1,169 @@
+{
+  "date": "2026-10-20",
+  "family": "Accepted Replay/Merge/Resolve/SVN readiness and conflict inspection",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": {
+    "merge_base": "Git.cpp2694 IsFastForward command7",
+    "clean": "Git.cpp2620 CheckCleanWorkTree command12",
+    "conflicts": "Git.cpp2675 HasWorkingTreeConflicts command13",
+    "stages": "ResolveProgressCommand.cpp81/132 explicitMine/Theirs command17"
+  },
+  "boundaries": [
+    "Structural all-merge-base queries retain CLI",
+    "Source disabled Log-revert clean guard remains absent",
+    "Current resolution bypasses17",
+    "Generic conflict display/editor/staging reads retain their reader",
+    "GetCommit14 remains separate encoding/fullmessage family"
+  ],
+  "validation": [
+    {
+      "check": "Pinned universal helper build",
+      "result": "passed",
+      "log": "build/qa/replay-inspection-helper-build-2026-10-20.log"
+    },
+    {
+      "check": "Focused actual helper contracts, arm64 and x86_64/Rosetta",
+      "result": "passed",
+      "command": "python3 scripts/test-replay-inspection-helper.py --helper build/libgit2-runtime/LibGit2/bin/turtlegit-libgit2 --all-architectures",
+      "log": "build/qa/replay-inspection-helper-2026-10-20.log"
+    },
+    {
+      "check": "Relevant Core workflow group",
+      "result": "passed after focused repair: 208 distinct relevant methods; original 207-method group had two recorded failures, affected 21-method repair group passed",
+      "log": "build/qa/replay-inspection-core-2026-10-20.log",
+      "repair_log": "build/qa/replay-inspection-core-repair-2026-10-20.log",
+      "distinct_methods_passed": 208
+    },
+    {
+      "check": "Debug app build",
+      "result": "passed: final Debug app rebuild after recorded Core/Edit capture repairs",
+      "log": "build/qa/replay-inspection-app-2026-10-20.log",
+      "repair_log": "build/qa/replay-inspection-app-repair-2026-10-20.log",
+      "final_log": "build/qa/replay-inspection-app-final-2026-10-20.log"
+    },
+    {
+      "check": "Grouped offscreen native workflow checks with system and bundled Git",
+      "result": "passed: all six cases with both Git versions, plus affected expanded Replay/Edit recheck with both Git versions after final repair",
+      "log": "build/qa/replay-inspection-native-2026-10-20.log",
+      "command": "python3 scripts/test-replay-inspection-native.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\" --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2",
+      "repair_log": "build/qa/replay-inspection-native-repair-2026-10-20.log",
+      "cases": [
+        "Replay/Changed Files common ancestor and actual staged-only/unstaged Edit continuation, held12 settings change and posthold selected13 retention",
+        "Resolve Mine/Theirs/Current and missing Skip",
+        "Merge/Switch/Sync completion and fresh dismissal capture",
+        "Fetch/Rebase fast-forward and captured prompt setting",
+        "SVN dirty readiness and decline with version-only capability stub",
+        "Held real helper cancellation, child reap and retired late-result refusal"
+      ],
+      "final_edit_log": "build/qa/replay-inspection-native-edit-2026-10-20.log"
+    },
+    {
+      "check": "Native label resources",
+      "result": "passed: 38 languages, 1303 label keys; not complete translation",
+      "command": "python3 scripts/build-localizations.py --check"
+    },
+    {
+      "check": "Bundled Help",
+      "result": "passed: 44 guides, 51 topics, 64 files",
+      "command": "build/site-venv/bin/python scripts/build-help.py --check"
+    },
+    {
+      "check": "Dialog source coverage reconciliation",
+      "result": "passed: 130 dialogs, 120 partial family audits, zero certified complete; not a completion percentage",
+      "command": "python3 scripts/reconcile-dialog-coverage.py"
+    },
+    {
+      "check": "Documentation site build",
+      "result": "passed: 373 documents, no unresolved fragments",
+      "command": "build/site-venv/bin/python scripts/build-site.py",
+      "log": "build/qa/replay-inspection-site-2026-10-20.log"
+    }
+  ],
+  "explicit_gaps": [
+    "Physical keyboard/accessibility and full layout acceptance",
+    "Installed signed grants and minimum-version runtime acceptance",
+    "External filter/provider combinations",
+    "Full hosted integration suite",
+    "Complete upstream application/dialog parity",
+    "Log fast-forward ancestry navigation, submodule comparison direction and branch deletion warning consumers of7",
+    "Combine commits clean-worktree preparation and execution consumer12",
+    "Source GetCommit14 declared-encoding and full-message detail family"
+  ],
+  "no_complete_port_claim": true,
+  "implementation": [
+    "Bounded typed merge-base, clean-worktree, index-conflict and requested-stage inspection engines",
+    "Captured native Replay/Merge/Switch/Fetch/Sync/SVN workflow selection and owned cancellation",
+    "Explicit Changed Files common-ancestor option follows source IsFastForward decision",
+    "Mine/Theirs reports missing conflicts as Skip and refuses changed nonmissing stages before mutation; Current remains separate"
+  ],
+  "repairs": [
+    {
+      "area": "Native compilation",
+      "failure": "FetchWindow synchronous initialization called actor-isolated capturingBackend",
+      "change": "Declared immutable actor-copy helper nonisolated",
+      "scope": "Native-only; app build repeated, passing helper checks and live Core group retained"
+    },
+    {
+      "area": "Native completion fixture",
+      "failure": "Switch fixture passed a short branch name where branch-selection API requires canonical catalog reference",
+      "change": "Changed fixture to refs/heads/side; retained actual checkout and conflict assertions",
+      "scope": "Fixture only; repeat completion and run not-reached Fetch/SVN/ownership; no passing Replay/Resolve, Core or app repeats"
+    },
+    {
+      "area": "Empty-Squash structural recovery and source12 Edit continuation eligibility",
+      "failure": "Wrongly mapped structural Skip precondition refreshed index before persisting approved reset recovery intent; two held-index-lock regressions",
+      "change": "Restore original worktree-only structural Skip guard; apply stagedOK readiness only at verified ordinary Edit/no-next-Squash selection decision",
+      "scope": "Focused Core recheck of empty-Squash cases, Edit selection and new inspection methods; final app rebuild and affected native Replay/Edit case only",
+      "native_capture": "Edit preparation carries accepted repository into conflict handoff and normal Continue; held12 fixture clears prehold log and proves subsequent13 still uses accepted engine after settings change"
+    }
+  ],
+  "native_ownership": {
+    "receiver_pids_reaped": [
+      25489,
+      26086,
+      26591,
+      27494,
+      28374,
+      31192,
+      31450,
+      31695,
+      31967,
+      32232,
+      32409,
+      32574,
+      32895,
+      41552,
+      42758
+    ],
+    "independent_process_table_absence": true,
+    "private_repositories_preferences": true,
+    "windows": "offscreen transparent prohibited-activation receiver; cleanup asserts closed windows and no sheets",
+    "svn_scope": "No live SVN server; version capability injected, actual dirty-state inspection and owned decline only"
+  },
+  "artifacts": {
+    "prepared_universal_helper": "95fc4af2fbe6a728fdd5023c73d2718ff4873196d1493e760179b6dcf1de90f3",
+    "embedded_app_helper": "5a1d7c1c51b3c3956caa12fceb66ef961c3c4c53a7afc9422084aecbc2b78e43"
+  },
+  "artifact_note": "Embedded Mach-O is ad-hoc signed during app embedding; its file hash differs from the prepared universal helper.",
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitReplayInspection.swift": "88f18c17857b38f03f798bf9790e05752590e01a6fd73ed6d8672a7346a76334",
+    "Sources/TurtleGitCore/Rebase.swift": "c090d1471123ebbb2e31143a25bd46c3c263bbaef07cc2fa5381bd6644ea7d7d",
+    "Sources/TurtleGitCore/ConflictResolution.swift": "fd909f03b4ce4a935d97d840dc6d91fcc12dc917c96a3d436a5e708725661e36",
+    "Sources/TurtleGitLibgit2/main.swift": "16320d8bcbbc56500d6dbfb35ade1b0b933758bf4ccdfdbe9dff27093eb09efd",
+    "Sources/TurtleGitLibgit2/bridge.c": "016573e1f53778968b29dd5c4fa1583fb8f7b89883cceefb2d029a304ee64109",
+    "Sources/TurtleGitLibgit2/bridge.h": "c4a2bb78050a1bdc02e7060a299899e286c7a5c0f906bcd6bdfab216ecc93d8f",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "a21eb32fc07ff09214f40e1c677e1b45759bff803fbe79e302faddbfbff0f9dd",
+    "Tests/TurtleGitCoreTests/GitReplayInspectionTests.swift": "ac588ebf641f66d25f4769bf81bf5d3be30fbd2f33aff2533db828234965b247",
+    "docs/qa/replay-inspection-native-2026-10-20.swift": "1737fa2c92b4ceb5d6a10a5d45cf9e185d699084581e4b7eedc3b836a2e66d53",
+    "scripts/test-replay-inspection-helper.py": "5be17bf107554d999bb32fce019dad2cd6eb625ee01826996409c9d01ddff4e5",
+    "scripts/test-replay-inspection-native.py": "13a75e78057d57b17608f796cdc9a156a2f361b003e1ca1155e7d96a09bd2886"
+  },
+  "hosted_state": {
+    "older_run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39333752051",
+    "older_core": "2237 methods, two skipped, no failures",
+    "older_native_failure": "Source history actions and replay identity: Blame bare-repository menu assertion",
+    "latest_pushed_run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39341906705",
+    "latest_observed_state": "in_progress",
+    "family_validation": "Local grouped checks only; no complete current hosted result"
+  }
+}

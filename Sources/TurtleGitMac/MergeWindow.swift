@@ -146,6 +146,7 @@ import TurtleGitCore
         })
     }
     private func requirePreparation(_ token:OperationCancellation) async throws {
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         while true {
             try token.check();guard !closed else{throw OperationCancellationFailure.cancelled}
             let state:MergePreparation
@@ -534,7 +535,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
         let prefix=bounded(previous.substring(to:range.location),bytes:outputState.limit-footer.utf8.count-suffix.utf8.count)
         output=prefix+footer+suffix;completionRange=NSRange(location:(prefix as NSString).length,length:(footer as NSString).length)
     }
-    private func streamMerge(_ snapshot: MergeOptions) async throws -> String {
+    private func streamMerge(_ snapshot: MergeOptions,repository:GitRepository) async throws -> String {
         let parser = GitCliOutputParser(limit: outputState.limit)
         let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
         let operation = Task {
@@ -551,6 +552,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func execute(_ snapshot: MergeOptions) async {
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         defer {endWork();withExtendedLifetime(access) {};if !invalidated,!hasPendingWork {cancelling=false;finishResult()}}
         guard !invalidated else { return }
         let startedAt=ProcessInfo.processInfo.systemUptime
@@ -558,7 +560,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
         catch { guard !invalidated else { return }; output = error.localizedDescription; rawOutput = output;completeOutput(succeeded:false,error:error,startedAt:startedAt);onChanged(rawOutput); return }
         do {
             let result:String
-            if let runMerge {result=try await runMerge(snapshot,cancellation)} else {result=try await streamMerge(snapshot)}
+            if let runMerge {result=try await runMerge(snapshot,cancellation)} else {result=try await streamMerge(snapshot,repository:repository)}
             guard !invalidated else { return }
             rawOutput = result; if !outputState.hasOutput { output = rawOutput }; success = true
             completeOutput(succeeded:true,startedAt:startedAt)
@@ -583,10 +585,9 @@ enum MergePostAction: String, CaseIterable, Hashable {
             // Forced cleanup cancels this read as well as the original merge.
             let inspection = OperationCancellation(); inspectionCancellation = inspection
             defer { if inspectionCancellation === inspection { inspectionCancellation = nil } }
-            let entries:[StatusEntry]?
-            do {if let readStatus {entries=try await readStatus(inspection)} else {entries=try await repository.status(refreshIndex:false,cancellation:inspection)}}
-            catch {entries=nil;if !invalidated,!inspection.isCancelled {appendDiagnostic("Checking for conflicts failed.\n" + error.localizedDescription)}}
-            let conflicts=entries?.contains {$0.state == .conflicted} == true
+            var conflicts=false
+            do {if let readStatus {conflicts=try await readStatus(inspection).contains {$0.state == .conflicted}} else {conflicts=try await repository.hasWorkingTreeConflicts(cancellation:inspection)}}
+            catch {if !invalidated,!inspection.isCancelled {appendDiagnostic("Checking for conflicts failed.\n" + error.localizedDescription)}}
             guard !invalidated else { return }
             if conflicts {
                 if !preferences.bool(forKey: Self.conflictHintPreference), let presentConflictHint {
@@ -598,12 +599,12 @@ enum MergePostAction: String, CaseIterable, Hashable {
                 }
                 actions += [.resolve, .commit]
             }
-            let head = try? await repository.run(["rev-parse", "--verify", "--end-of-options", "HEAD^{commit}"], cancellation: inspection).text.trimmingCharacters(in: .newlines)
-            let revision = try? await repository.run(["rev-parse", "--verify", "--end-of-options", options.revision + "^{commit}"], cancellation: inspection).text.trimmingCharacters(in: .newlines)
-            var common = false
-            if let head, let revision { common = (try? await repository.run(["merge-base", head, revision], successfulExitCodes: 0...1, cancellation: inspection).stdout.isEmpty) == false }
+            do {
+                let relationship=try await repository.replayMergeBase(from:"HEAD",to:options.revision,cancellation:inspection)
+                guard !invalidated else{return}
+                if relationship.base == nil {actions.append(.mergeUnrelated)}
+            } catch {if !invalidated,!inspection.isCancelled {appendDiagnostic("Reading merge bases failed.\n"+error.localizedDescription)}}
             guard !invalidated else { return }
-            if !common { actions.append(.mergeUnrelated) }
             actions.append(.stash)
         }
         guard !invalidated else { return }
@@ -612,13 +613,14 @@ enum MergePostAction: String, CaseIterable, Hashable {
     func cancelResult() {
         guard !invalidated, !confirmingQuit, !busy, !hasPendingWork, !confirmingCancellation, !confirmingConflictHint, !confirmingDeletion, deletionError == nil, !checkingDismissal else { return }
         checkingDismissal = true;busy=true
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         let token = OperationCancellation(); dismissalCancellation = token
         beginWork()
         Task {
             var handoff:(()->Void)?
             defer {if dismissalCancellation === token {dismissalCancellation=nil};checkingDismissal=false;endWork();withExtendedLifetime(access) {};if !invalidated,let handoff {finishAndPerform(handoff)}}
             var conflicts = false
-            do {try validateAccess();let entries:[StatusEntry];if let readStatus {entries=try await readStatus(token)} else {entries=try await repository.status(refreshIndex:false,cancellation:token)};conflicts=entries.contains {$0.state == .conflicted}}
+            do {try validateAccess();if let readStatus {conflicts=try await readStatus(token).contains {$0.state == .conflicted}} else {conflicts=try await repository.hasWorkingTreeConflicts(cancellation:token)}}
             catch {if !invalidated,!token.isCancelled {appendDiagnostic("Checking for conflicts failed.\n" + error.localizedDescription)};return}
             guard !invalidated, dismissalCancellation === token, !token.isCancelled else { return }
             dismissalCancellation = nil; checkingDismissal = false

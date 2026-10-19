@@ -386,6 +386,7 @@ struct ResolveConflictRow: Identifiable {
         invalidateFileMenus()
         ProgressActionLog.nextAttempt(self, savePrevious: showingProgress)
         silentAttempt = commandOptions?.silent == true && closeAfterResolution
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         let token = begin(); showingProgress = !silentAttempt; output = ""; success = false; cancelled = false; resolvedCount = 0; patch = nil
         autoClosePolicy = silentAttempt ? nil : GitProgressAutoClose(preferences: preferences)
         if showingProgress {progressStarted=Date();progress.begin("Resolve");completionRange=nil;onProgress()}; LocalGitCommandProgress.begin()
@@ -403,7 +404,7 @@ struct ResolveConflictRow: Identifiable {
                 for await event in events {
                     guard live(token) else{continue};resolvedCount=max(resolvedCount,event.completed)
                     if busy{currentWork=event.path;percentage=event.total>0 ? event.completed*100/event.total:nil}
-                    if event.finished,showingProgress{progress.append("Resolved",event.path,kind:.file)}
+                    if event.finished,showingProgress{progress.append(event.skipped ? "Skip":"Resolved",event.path,kind:.file)}
                 }
                 let text=try await operation.value
                 guard live(token) else { return }

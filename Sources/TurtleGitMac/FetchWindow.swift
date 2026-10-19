@@ -770,6 +770,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func execute(_ snapshot: PullOptions) async {
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         guard !invalidated else { return }
         Self.activeOperations += 1
         defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
@@ -780,7 +781,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
         do {
             let head = try await repository.run(["rev-parse", "--verify", "--end-of-options", "HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
             guard !invalidated else { return }; oldHead = head; beganPull = true
-            let result = try await streamPull(snapshot)
+            let result = try await streamPull(snapshot,repository:repository)
             guard !invalidated else { return }; rawOutput = result
             if !outputState.hasOutput { output = rawOutput }
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }; success = true
@@ -798,9 +799,11 @@ enum PullPostAction: String, CaseIterable, Hashable {
             let modules = try? await repository.submoduleUpdatePaths(cancellation: token)
             guard !invalidated else { return }; if modules?.isEmpty == false { actions.append(.submoduleUpdate) }
         } else {
-            let conflicts = (try? await repository.status(refreshIndex: false, cancellation: token).contains { $0.state == .conflicted }) == true
+            var conflicts:Bool?
+            do {conflicts=try await repository.hasWorkingTreeConflicts(cancellation:token)}
+            catch {if !invalidated,!token.isCancelled {output += "\nChecking for conflicts failed.\n"+error.localizedDescription}}
             guard !invalidated else { return }
-            if conflicts {
+            if conflicts == true {
                 if !preferences.bool(forKey: MergeProgressWindowModel.conflictHintPreference), let presentConflictHint {
                     confirmingConflictHint = true
                     let suppress = await presentConflictHint()
@@ -808,7 +811,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
                     if suppress { preferences.set(true, forKey: MergeProgressWindowModel.conflictHintPreference) }
                 }
                 actions = [.resolve, .commit]
-            } else {
+            } else if conflicts == false {
                 let known = (try? await repository.remoteNames(cancellation: token).contains(options.fetch.remote)) == true
                 guard !invalidated else { return }
                 if !options.fetch.arbitraryURL, known {
@@ -817,9 +820,10 @@ enum PullPostAction: String, CaseIterable, Hashable {
                     guard !invalidated else { return }
                     let shortBranch = branch.hasPrefix("refs/heads/") ? String(branch.dropFirst(11)) : branch
                     let ref = "refs/remotes/" + remote + "/" + shortBranch
-                    var common = false
-                    if let hash = try? await repository.run(["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines), !oldHead.isEmpty { common = (try? await repository.run(["merge-base", oldHead, hash], successfulExitCodes: 0...1, cancellation: token).stdout.isEmpty) == false }
-                    guard !invalidated else { return }; if !common { actions.append(.mergeUnrelated) }
+                    do {
+                        let relationship=try await repository.replayMergeBase(from:oldHead,to:ref,cancellation:token)
+                        guard !invalidated else{return};if relationship.base == nil {actions.append(.mergeUnrelated)}
+                    } catch {if !invalidated,!token.isCancelled {output += "\nReading merge bases failed.\n"+error.localizedDescription}}
                 }
                 actions += [.pull, .stash, .reset]
             }
@@ -827,7 +831,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
         guard !invalidated else { return }; postActions = actions; completed()
     }
     var makeSSHCoordinator: SSHTransportFactory?
-    private func streamPull(_ snapshot: PullOptions) async throws -> String {
+    private func streamPull(_ snapshot: PullOptions,repository:GitRepository) async throws -> String {
         let coordinator = makeSSHCoordinator?(); defer { coordinator?.close() }; let preparation = coordinator?.preparation
         let parser = GitCliOutputParser(limit: outputState.limit)
         let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
@@ -1076,8 +1080,9 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     var presentRebasePrompt: (FetchRebasePrompt) async -> FetchRebaseAnswer = { prompt in FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
     init(repository: GitRepository, access: RepositoryAccessLease?, options: FetchOptions, preferences: UserDefaults = .standard, rebaseMode: FetchRebaseMode = .none, preserveMerges: Bool = false,backend:GitLibGit2Configuration?=nil) {
         notifications=FileOperationProgressState(preferences:preferences)
-        self.backend = backend ?? .load(from:preferences)
-        self.repository = repository; self.access = access; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.outputState = GitProgressOutputState(preferences: preferences)
+        let capturedBackend = backend ?? .load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)
+        self.backend = capturedBackend
+        self.repository = repository.capturingBackend(capturedBackend); self.access = access; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.outputState = GitProgressOutputState(preferences: preferences)
         self.rebaseMode = rebaseMode; self.preserveMerges = preserveMerges
     }
     private func answer(_ prompt: FetchRebasePrompt) async -> Int {
@@ -1177,8 +1182,9 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
             displayFailure(error); cancelled = cancellation.isCancelled; success = false
             if merging {
                 let token = OperationCancellation(); inspectionToken = token
-                let conflicts = (try? await repository.status(refreshIndex: false, cancellation: token).contains(where: { $0.state == .conflicted })) ?? false
-                guard !invalidated else { return }; inspectionToken = nil; postActions = conflicts ? [.resolve] : []
+                do {let conflicts=try await repository.hasWorkingTreeConflicts(cancellation:token);guard !invalidated else{return};postActions=conflicts ? [.resolve]:[]}
+                catch {if !invalidated,!token.isCancelled {output += "\nChecking for conflicts failed.\n"+error.localizedDescription};postActions=[]}
+                guard !invalidated else { return }; inspectionToken = nil
             }
             else { postActions = [.retry]; if options.allRemotes { postActions.append(.log) } }
         }

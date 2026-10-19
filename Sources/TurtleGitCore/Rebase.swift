@@ -476,7 +476,8 @@ extension GitRepository {
             guard let data = try? Data(contentsOf: directory.appendingPathComponent("message")) else { return "" }
             return try decodedCommitMessage(data, cancellation: cancellation)
         }
-        let conflicts = active ? try run(["diff", "--name-only", "--diff-filter=U", "-z"], cancellation: cancellation).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) } : []
+        let hasConflicts = active ? try hasWorkingTreeConflicts(cancellation:cancellation) : false
+        let conflicts = hasConflicts ? try run(["diff", "--name-only", "--diff-filter=U", "-z"], cancellation: cancellation).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) } : []
         let metadataURL = directory.appendingPathComponent("turtlegit-cherry-pick.json")
         let mapping = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: metadataURL))) ?? [:]
         let stopped = line("stopped-sha")
@@ -595,11 +596,11 @@ extension GitRepository {
         let disposition: RebaseDisposition
         if branchHash == ontoHash && branchHash == upstreamHash { disposition = .equal }
         else if options.onto.isEmpty && !options.force {
-            let forward = try run(["merge-base", "--is-ancestor", branchHash, upstreamHash], successfulExitCodes: 0...1, cancellation: cancellation)
-            if forward.exitCode == 0 { disposition = .fastForward }
+            let forward = try replayMergeBase(from:branchHash,to:upstreamHash,cancellation:cancellation)
+            if forward.fastForward { disposition = .fastForward }
             else {
-                let current = try run(["merge-base", "--is-ancestor", upstreamHash, branchHash], successfulExitCodes: 0...1, cancellation: cancellation)
-                disposition = current.exitCode == 0 ? .upToDate : .ready
+                let current = try replayMergeBase(from:upstreamHash,to:branchHash,cancellation:cancellation)
+                disposition = current.fastForward ? .upToDate : .ready
             }
         }
         else { disposition = .ready }
@@ -1005,7 +1006,18 @@ extension GitRepository {
         try withReplayIO(cancellation: cancellation, onOutput: nil) {
             let state = try rebaseState(); try requireRebaseContinuation(state, expected: expected, expectedHead: expectedHead)
             guard state.isEditPause, state.squashMessage == nil, state.split == nil else { throw RebaseFailure.plan }
-            guard try rebaseSplitHasRemainingChangesOwned() else { return nil }
+            // Source1568 checks workdir-only readiness before opening Commit
+            // for an ordinary Edit continuation; staged edits are incorporated
+            // by the following amend. CheckNextCommitIsSquash returns zero for
+            // Squash, so that accumulated/structural path retains its full check.
+            let next = state.remainingCommands.compactMap { command in
+                command.split(separator:" ").first.flatMap {RebaseAction(rawValue:String($0))}
+            }.first { $0 != .skip }
+            let structural = FileManager.default.fileExists(atPath:try rebasePath("rebase-merge/turtlegit-structural-plan").path)
+            let needsSelection:Bool
+            if !structural && next != .squash {needsSelection = try !replayWorktreeIsClean(stagedOK:true)}
+            else {needsSelection = try rebaseSplitHasRemainingChangesOwned()}
+            guard needsSelection else {return nil}
             let head = try rebaseCommit("HEAD")
             guard head.hash == expectedHead else { throw RebaseFailure.changed }
             try requireRebaseContinuation(rebaseState(), expected: expected, expectedHead: expectedHead)
@@ -1049,9 +1061,7 @@ extension GitRepository {
         return RebaseExecution(output: output, exitCode: 0, state: try rebaseState())
     }
     private func rebaseSplitHasRemainingChangesOwned() throws -> Bool {
-        let worktree = try run(["diff", "--quiet", "--ignore-submodules", "--"], successfulExitCodes: 0...1).exitCode
-        let index = try run(["diff", "--cached", "--quiet", "--ignore-submodules", "HEAD", "--"], successfulExitCodes: 0...1).exitCode
-        return worktree != 0 || index != 0
+        try !replayWorktreeIsClean()
     }
     private func cancelUnstartedRebaseSplitOwned() throws {
         guard let split = try rebaseState().split, split.parts == 0, try rebaseRevision("HEAD") == split.expectedHead else { throw RebaseFailure.changed }

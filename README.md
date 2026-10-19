@@ -172,6 +172,14 @@ captured preferences and separate engine caches. The [local reference family](do
 connects unfiltered catalogs, revision completion, containing-reference lookup
 and checked local deletion to their distinct source gates. Add uses configured
 one-shot clean filters and owned progress, including Commit and Rebase file menus.
+The [Replay/Merge/Resolve inspection family](docs/REPLAY-INSPECTION-PARITY.md)
+connects common-ancestor decisions, source clean-worktree policy, index conflict
+presence and requested Mine/Theirs stages across Rebase, Fetch, Sync and SVN.
+Already-resolved files are reported as Skip; changed conflict stages still stop
+the operation before mutation. Current resolution retains its separate Git path.
+For an ordinary Edit continuation, staged-only changes use normal amendment;
+unstaged changes open the checked-file Commit dialog. Empty-Squash recovery keeps
+its approved Skip intent if an index lock interrupts the operation.
 
 An [older development-signed candidate](docs/qa/finder-installed-2026-10-17.json)
 passed installed activation, live ignored/modified/normal badges, repository access,

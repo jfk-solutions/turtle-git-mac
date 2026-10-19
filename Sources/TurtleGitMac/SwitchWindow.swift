@@ -916,6 +916,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         return result
     }
     private func execute(merge: Bool) async {
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         defer {endWork();withExtendedLifetime(access) {};if !invalidated,!hasPendingWork {cancelling=false;finishAutomaticClose()}}
         guard !invalidated else { return }
         merging = merge
@@ -931,10 +932,9 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
             guard !invalidated else{return}
             commandCompleted = true
             completeCommand(succeeded:true,cancelled:false,exitCode:0,startedAt:startedAt)
-            let status:[StatusEntry]
-            if let readStatus {status=try await readStatus(token)} else {status=try await repository.status(refreshIndex:false,cancellation:token)}
+            let conflicts:Bool
+            if let readStatus {conflicts=try await readStatus(token).contains {$0.state == .conflicted}} else {conflicts=try await repository.hasWorkingTreeConflicts(cancellation:token)}
             guard !invalidated else{return}
-            let conflicts=status.contains {$0.state == .conflicted}
             if merge && conflicts { nextOutput += "\nHas merge conflict";appendDiagnostic("Has merge conflict") }
             else {
                 if FileManager.default.fileExists(atPath: repository.root.appendingPathComponent(".gitmodules").path) { nextActions.append(.submoduleUpdate) }
@@ -961,7 +961,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
                 // Normal Cancel still checks for conflicts after the cancelled
                 // attempt. Forced window cleanup also cancels this fresh read.
                 let inspection = OperationCancellation(); inspectionCancellation = inspection
-                do {let status:[StatusEntry];if let readStatus {status=try await readStatus(inspection)} else {status=try await repository.status(refreshIndex:false,cancellation:inspection)};conflicts=status.contains {$0.state == .conflicted}}
+                do {if let readStatus {conflicts=try await readStatus(inspection).contains {$0.state == .conflicted}} else {conflicts=try await repository.hasWorkingTreeConflicts(cancellation:inspection)}}
                 catch {if !invalidated,!inspection.isCancelled {appendDiagnostic("Checking for conflicts failed.\n" + error.localizedDescription)}}
                 if inspectionCancellation === inspection { inspectionCancellation = nil }
             }

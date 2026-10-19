@@ -46,11 +46,10 @@ extension GitRepository {
     /// files alone do not trigger its Stash/Abort question.
     public func replayStashCondition(cherryPick: Bool, cancellation: OperationCancellation? = nil) throws -> (dirty: Bool, automatic: Bool) {
         try cancellation?.check()
-        let staged = try run(["diff", "--cached", "--quiet", "HEAD", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode != 0
-        let working = try run(["diff", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode != 0
+        let dirty = try !replayWorktreeIsClean(cancellation:cancellation)
         let automatic=try replayAutomaticStash(cherryPick:cherryPick,cancellation:cancellation)
         try cancellation?.check()
-        return (staged || working, automatic)
+        return (dirty, automatic)
     }
 
     /// Source re-reads this setting when restoring, rather than keeping its Save-time value.
@@ -83,7 +82,7 @@ extension GitRepository {
             // Confirm actual unmerged entries rather than trusting output text alone.
             if failure.code == 1 && failure.message.contains("CONFLICT") {
                 try cancellation?.check()
-                if try status(cancellation: cancellation).contains(where: { $0.state == .conflicted }) {
+                if try hasWorkingTreeConflicts(cancellation:cancellation) {
                     return StashRestoreResult(output: failure.message, conflicted: true)
                 }
             }

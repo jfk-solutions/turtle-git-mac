@@ -49,7 +49,7 @@ extension GitRepository {
         _ = try run(["config", "--local", "svn.rmdir", removeEmptyDirectories ? "true" : "false"], cancellation: cancellation)
     }
     public func svnTrackedChanges(cancellation: OperationCancellation? = nil) throws -> Bool {
-        try !run(["status", "--porcelain=v1", "-z", "--untracked-files=no"], cancellation: cancellation).stdout.isEmpty
+        try !replayWorktreeIsClean(cancellation:cancellation)
     }
     public func svnFetch(cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitSVNFetchResult {
         try checkGitSVNRuntime(cancellation: cancellation)
@@ -66,8 +66,8 @@ extension GitRepository {
     public func svnRebasePlan(_ fetch: GitSVNFetchResult, cancellation: OperationCancellation? = nil) throws -> GitSVNRebasePlan {
         let head = try svnHash("HEAD", cancellation: cancellation)
         if head == fetch.newHash { return .upToDate }
-        let ancestor = try run(["merge-base", "--is-ancestor", head, fetch.newHash], successfulExitCodes: 0...1, cancellation: cancellation)
-        return ancestor.exitCode == 0 ? .fastForward(fetch.newHash) : .rebase(fetch.reference)
+        let ancestor = try replayMergeBase(from:head,to:fetch.newHash,cancellation:cancellation)
+        return ancestor.fastForward ? .fastForward(fetch.newHash) : .rebase(fetch.reference)
     }
     public func svnFastForward(to hash: String, expectedHead: String, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         guard try svnHash("HEAD", cancellation: cancellation) == expectedHead, try !svnTrackedChanges(cancellation: cancellation),

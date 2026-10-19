@@ -10,6 +10,9 @@ struct NativeDiffBackendIdentity:Equatable {
     init(_ backend:GitLibGit2Configuration?) {enabled=backend?.enabled ?? true;mask=backend?.mask ?? GitLibGit2Configuration.defaultMask;helper=backend?.helperURL.map{Data($0.path.utf8)}}
 }
 extension GitRepository {
+    nonisolated func capturingBackend(_ backend:GitLibGit2Configuration)->GitRepository {
+        GitRepository(root:root,executable:executable,askpass:askpass,diffDetection:diffDetection,libgit2Configuration:backend)
+    }
     @MainActor func capturingDiffBackend(preferences:UserDefaults)->GitRepository {
         let backend=GitLibGit2Configuration.load(from:preferences,helperURL:libgit2Configuration?.helperURL)
         return GitRepository(root:root,executable:executable,askpass:askpass,diffDetection:diffDetection,libgit2Configuration:backend)

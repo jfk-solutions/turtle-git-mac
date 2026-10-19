@@ -27,6 +27,20 @@ Index-only and editable staging patches keep their existing Git reader. History
 lists retain actual merge-parent groups, renamed paths, binary counts and object
 metadata; changing engines cannot reuse a cache belonging to the other engine.
 See the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/DIFF-BACKEND-PARITY.html">diff/history source scope</a>.</p>
+<p>Replay and merge readiness use their own source inspection choices. MergeBase
+bit <code>0x80</code> selects the common-ancestor/fast-forward decision; CheckConflicts bit
+<code>0x2000</code> selects index conflict presence; GetConflictInfo bit <code>0x20000</code> selects
+requested stage lookup for Resolve <strong>Mine/Theirs</strong>. These are enabled by default.
+Resolve <strong>Current</strong> keeps its existing staging workflow. A conflict already
+resolved by another tool is skipped by Mine/Theirs; changed conflict stages still
+require a refresh before mutation.</p>
+<p>CheckCleanWT bit <code>0x1000</code>, disabled by default, selects tracked cleanliness
+inspection for replay and SVN readiness. Untracked files alone do not require
+stashing; submodules follow the source exclusion policy. Some continuation checks
+allow staged changes while requiring a clean working copy. Inspection can refresh
+Git's index stat cache; it does not commit or resolve a conflict. Missing requested
+runtimes and incomplete inspection output fail explicitly. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/REPLAY-INSPECTION-PARITY.html">replay and resolution source scope</a>.</p>
 <p>Local reference browsing uses ForeachRef bit <code>0x40000</code>, enabled in the source
 default mask, for the unfiltered catalog. <strong>Only merged</strong> and <strong>Only unmerged</strong>
 retain Git commands, matching TortoiseGit. <strong>References commit is on</strong> uses

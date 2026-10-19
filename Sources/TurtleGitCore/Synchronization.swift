@@ -43,7 +43,7 @@ extension GitRepository {
             cancellation: token, onOutput: onOutput, onCommandFinished: onCommandFinished)
         var conflicts: [StatusEntry] = [], checkError: String?
         if result.exitCode != 0 && action != .save {
-            do { conflicts = try status(refreshIndex: false, cancellation: token).filter { $0.state == .conflicted } }
+            do { if try hasWorkingTreeConflicts(cancellation:token) {conflicts = try status(refreshIndex: false, cancellation: token).filter { $0.state == .conflicted }} }
             catch { try token.check(); checkError = error.localizedDescription }
         }
         return SynchronizationStashResult(command: result, conflicts: conflicts, conflictCheckError: checkError)
@@ -259,7 +259,7 @@ extension GitRepository {
               let targetHash = try synchronizationHash(target, cancellation: cancellation),
               let head = try synchronizationHash("HEAD", cancellation: cancellation) else { throw SynchronizationFailure.invalidInput }
         let branch = try self.branch(cancellation: cancellation)
-        let forward = try run(["merge-base", "--is-ancestor", head, targetHash], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0
+        let forward = try replayMergeBase(from:head,to:targetHash,cancellation:cancellation).fastForward
         try cancellation?.check()
         return SynchronizationRebaseState(target: targetHash, head: head, branch: branch, canFastForward: forward, repository: self)
     }
@@ -598,9 +598,9 @@ extension GitRepository {
         let localResult = try run(["rev-parse", "--verify", "--end-of-options", localBranch + "^{commit}"], cancellation: token)
         let localHash = String(decoding: localResult.stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
         if localHash == remoteHash { return snapshot(.upToDate, local: localHash, tracking: remoteHash, base: localHash, fastForward: true) }
-        let result = try run(["merge-base", remoteHash, localHash], successfulExitCodes: 0...1, cancellation: token)
-        let base = result.exitCode == 0 ? String(decoding: result.stdout, as: UTF8.self).trimmingCharacters(in: .newlines) : nil
-        let fastForward = base == remoteHash
+        let inspection = try replayMergeBase(from:remoteHash,to:localHash,cancellation:token)
+        let base = inspection.base
+        let fastForward = inspection.fastForward
         guard fastForward || force else { return snapshot(.needsForce, local: localHash, tracking: remoteHash, base: base) }
         var options = HistoryOptions(); options.limit = -1
         options.revisionRange = HistoryRevisionRange(from: remoteHash, to: localHash, kind: .difference)

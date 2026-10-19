@@ -277,3 +277,5 @@ reviewed full-window light/dark captures.
 - [Synchronization, Add and Resolve progress](SYNC-ADD-RESOLVE-PROGRESS-PARITY.md)
 
 - [Local reference engine source comparison](LOCAL-REFERENCE-ENGINE-PARITY.md)
+
+- [Replay, merge and resolution inspection engines](REPLAY-INSPECTION-PARITY.md)
