@@ -1,8 +1,8 @@
 {
   "files": {
-    "Contents/Info.plist": "c6dac994c281a209fc3f2ad8d83b7472dd00d3f4956874bc100e523975297a0a",
+    "Contents/Info.plist": "bd91d46eff6ff50f4f5b27d9f4b6cd0ca17d6ce753ad81d2ef4e2b2f9bab01b6",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
-    "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "5aebb64642c7e2f417ae4b2f24f483f6276e8364fbfb8beefbf8a1ec3f9998c6",
+    "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "01d9789d13afd9ece8aac7c7a97615b55f0e9e37f5211445b613f67b4d166d39",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "8431f0108093ba0cc6e3fe9f221e11988b07773f928b428a8c63b5a158ba87f4",
     "Contents/Resources/en.lproj/BUNDLED-COMPARISONS.html": "ca44634f35d7a4655304e97466c657b748f9f859fb32211be67bdddcc44e92c1",
     "Contents/Resources/en.lproj/CACHE-MENU.html": "9a084e657c193044339a2640795b91071b1f9a8e34c5d7e67a9746a432046305",
@@ -64,7 +64,7 @@
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
-    "docs/BLAME-FILE-OPEN.md": "46657bf8dc30f25aa7ee1cf46de8ea3b999807922d8e7fceb62ad73c710967d3",
+    "docs/BLAME-FILE-OPEN.md": "fc530274644d387493d355c26fc2e40eeb6fab9dbb11fc1cf793a8ed0532ebe9",
     "docs/BLAME-MENUS.md": "c73086907f5d2a44e7bb99da451cb6861e58ccfa7dcacae8b865565a314a32f3",
     "docs/BUNDLED-COMPARISONS.md": "d3848ab5b58eb5d23b60575e9e397aa1660c411a4e173d3181732cb36df71064",
     "docs/CACHE-MENU.md": "43dd8eb8a152ae338069ab2a1a3c08eb5a9b2ac290e28b53b53cfe06d645fc62",

@@ -676,11 +676,14 @@ import UniformTypeIdentifiers
                 let first = selected?.paths.first ?? lease.url
                 let submoduleLocation = invocation?.submoduleDiscoveryURL
                 var location = submoduleLocation ?? first
+                // Blame attributes the named Git blob. A symbolic-link leaf is
+                // never a repository discovery directory or an access target.
+                let blameSelection = action == .blame || invocation?.request.action == .blame
                 var directory: ObjCBool = false
-                if !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue {
+                if blameSelection || !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue {
                     location.deleteLastPathComponent()
                 }
-                let historicalSelection = invocation.map { [.cat, .showCompare].contains($0.request.action) } ?? false
+                let historicalSelection = blameSelection || (invocation.map { [.cat, .showCompare].contains($0.request.action) } ?? false)
                 if historicalSelection {
                     while location.path != "/" {
                         var existingDirectory: ObjCBool = false
@@ -710,7 +713,8 @@ import UniformTypeIdentifiers
                 }
                 if let selected {
                     for item in selected.paths {
-                        guard lease.contains(item), item.path == resolved.path || item.path.hasPrefix(resolved.path + "/") else {
+                        let permissionTarget = blameSelection ? item.standardizedFileURL.deletingLastPathComponent() : item
+                        guard lease.contains(permissionTarget), item.path == resolved.path || item.path.hasPrefix(resolved.path + "/") else {
                             throw FinderSelectionFailure.multipleRepositories
                         }
                         if submoduleLocation != nil || historicalSelection { continue }
@@ -4576,7 +4580,9 @@ import UniformTypeIdentifiers
         if action == .initialize { showCreateRepository(folder: request.paths.first); return }
         if action == .diff && request.paths.count == 2 { handleFilePair(paths: request.paths, line: invocation?.line); return }
         let candidate = request.paths[0]
-        var permissionTargets = request.paths
+        // The link's parent contains the Git entry; its target is not read by
+        // Blame. Keep the original request URLs for relative path dispatch.
+        var permissionTargets = action == .blame ? request.paths.map { $0.standardizedFileURL.deletingLastPathComponent() } : request.paths
         if let discovery = invocation?.submoduleDiscoveryURL { permissionTargets.append(discovery) }
         if action == .rename || action == .remove || action == .submoduleSync || action == .logSubmodule || action == .properties,
            let parent = FinderSnapshot.read()?.repositories[candidate.standardizedFileURL.path]?.submoduleParentRoot {

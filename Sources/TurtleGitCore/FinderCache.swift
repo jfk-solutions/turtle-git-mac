@@ -658,7 +658,10 @@ public enum FinderShellRules {
         // item. Later items still contribute cardinality/patch-file metadata.
         if let first = paths.first {
             let path = first
-            let directory = (try? path.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? path.hasDirectoryPath
+            // A tracked symbolic link is a Git file even when its target is a
+            // directory. Inspect the selected leaf itself, never its target.
+            let type = (try? FileManager.default.attributesOfItem(atPath: path.path))?[.type] as? FileAttributeType
+            let directory = type.map { $0 == .typeDirectory } ?? path.hasDirectoryPath
             if directory { flags.insert(.folder) }
             let root = snapshot?.repositoryRoot(for: path)
             if root == nil, directory, FinderCreationMenuContext.read(directory: path, snapshot: snapshot, extended: extended).inaccessible { flags.insert(.inaccessible) }

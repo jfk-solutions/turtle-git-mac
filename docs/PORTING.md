@@ -3675,3 +3675,15 @@ carries source, patch, licensing and reconstruction metadata. See
 [scope and QA](LIBGIT2-TRANSPORT-PARITY.md). Other libgit2 command consumers,
 complete HTTP/provider compatibility and public/signed/physical/App Store
 acceptance remain open; this is not complete backend or whole-app parity.
+
+
+### Symbolic-link Blame family — October 19, 2026
+
+Committed symbolic links now participate in the same Blame blob/attribution,
+history/rename and previous-revision workflow as regular files. File Open/MRU,
+Log and Browser handoffs retain the link's own path. Finder/command-line entry
+and native grant reuse use parent/root containment without reading the link's
+target. Captured callbacks, actual cancellation and old-document retention stay
+within their existing owners. [Source scope and QA](SYMLINK-BLAME-PARITY.md)
+separate this implementation from physical Finder/powerbox, signed grants,
+accessibility and complete Blame/App Store acceptance.

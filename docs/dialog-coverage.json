@@ -694,7 +694,8 @@
         "docs/LOG-PARITY.md",
         "docs/LOG-REFERENCE-INTERACTION-PARITY.md",
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md",
-        "docs/PRIMARY-COMMAND-BANDS.md"
+        "docs/PRIMARY-COMMAND-BANDS.md",
+        "docs/SYMLINK-BLAME-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/branch-revision-number-2026-10-08.json",
@@ -777,6 +778,7 @@
         "docs/qa/repository-presentation-2026-10-15.json",
         "docs/qa/shared-unversioned-2026-10-07.json",
         "docs/qa/source-message-links-2026-10-15.json",
+        "docs/qa/symlink-blame-2026-10-19.json",
         "docs/qa/workspace-metadata-access-2026-10-15.json"
       ]
     },
@@ -966,7 +968,8 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/HELP-PARITY.md",
-        "docs/REPOSITORY-BROWSER-PARITY.md"
+        "docs/REPOSITORY-BROWSER-PARITY.md",
+        "docs/SYMLINK-BLAME-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/browser-file-actions-2026-10-17.json",
@@ -984,6 +987,7 @@
         "docs/qa/repository-browser-revert-2026-10-05.json",
         "docs/qa/repository-browser-submodule-2026-10-05.json",
         "docs/qa/repository-browser-table-2026-10-13.json",
+        "docs/qa/symlink-blame-2026-10-19.json",
         "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
     },

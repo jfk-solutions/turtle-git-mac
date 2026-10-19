@@ -376,7 +376,7 @@ extension GitRepository {
     /// TortoiseBlame's menu gates. Preserve each parent's old rename path.
     public func blameParentComparisons(revision:String,path:String,cancellation:OperationCancellation? = nil) throws -> [GitBlameParentComparison] {
         let file=try historicalFile(revision:revision,path:path,cancellation:cancellation)
-        guard case .revision(let hash)=file.revision,["100644","100755"].contains(file.mode ?? "") else { throw GitBlameFailure.unsupported }
+        guard case .revision(let hash)=file.revision,["100644","100755","120000"].contains(file.mode ?? "") else { throw GitBlameFailure.unsupported }
         return try blameParentComparisons(revision:hash,paths:[path],cancellation:cancellation)
     }
     /// LogListBlameAction::GetPaths uses all attributed origins for the selected
@@ -410,7 +410,9 @@ extension GitRepository {
         for record in try run(["-c","core.precomposeunicode=false","ls-tree","-z",resolved,"--",path],cancellation:cancellation).stdout.split(separator:0) {
             guard let tab=record.firstIndex(of:9),Data(record[record.index(after:tab)...])==Data(path.utf8) else { continue }
             let header=String(decoding:record[..<tab],as:UTF8.self).split(separator:" ")
-            guard header.count==3,header[1]=="blob",["100644","100755"].contains(String(header[0])) else { throw GitBlameFailure.unsupported }
+            // A symlink is a blob containing the link text, not a request to
+            // inspect its target. Read its object just like Git's pinned blame.
+            guard header.count==3,header[1]=="blob",["100644","100755","120000"].contains(String(header[0])) else { throw GitBlameFailure.unsupported }
             let bytes=try run(["cat-file","blob",String(header[2])],cancellation:cancellation).stdout
             return ComparisonFileContent(path:path,revision:.revision(resolved),bytes:bytes,mode:String(header[0]))
         }
@@ -419,7 +421,7 @@ extension GitRepository {
     public func blame(path: String, revision: String = "HEAD", options: GitBlameOptions = GitBlameOptions(), cancellation:OperationCancellation? = nil) throws -> GitBlameSnapshot {
         try cancellation?.check()
         let content = try blameContents(revision:revision,path:path,cancellation:cancellation)
-        guard ["100644", "100755"].contains(content.mode ?? ""),
+        guard ["100644", "100755", "120000"].contains(content.mode ?? ""),
               case .revision(let hash) = content.revision else { throw GitBlameFailure.unsupported }
         let encoding = try options.encoding ?? GitBlameEncoding.detect(content.bytes)
         try encoding.validate(content.bytes)

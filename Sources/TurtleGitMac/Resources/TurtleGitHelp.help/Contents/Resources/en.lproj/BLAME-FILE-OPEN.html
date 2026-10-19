@@ -61,4 +61,21 @@ date and message preview. Different origin filenames are included when relevant.
 Long messages are bounded, and the preview follows the hovered line rather than
 the current selection. The <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/BLAME-PRESENTATION-INTERACTION-PARITY.html">source comparison</a>
 records the implementation scope and remaining physical acceptance.</p>
+<h2 id="symbolic-link-files">Symbolic-link files</h2>
+<p>Blame treats a versioned symbolic link as a Git file. Its source is the committed
+link-target text at the requested revision, including a target that is missing,
+a directory or outside the repository. It does not open that target. The usual
+HEAD default also means changing the link on disk does not change its displayed
+attribution until the committed revision changes.</p>
+<p>File Open and Recent Files retain the link's own name. Their repository grant
+covers the selected entry's parent and Git metadata; no target-file grant is
+needed. A parent directory that redirects outside the granted repository remains
+unavailable. Gitlinks/submodules and directory trees are not Blame documents.</p>
+<p>The same entry is supported by Repository Browser, Log's historical and working
+file actions, Finder/command-line routing and the existing source/history
+navigation. Follow-renames, previous-revision Blame and Reload retain the named
+Git path. A checkout with <code>core.symlinks=false</code> can still display the committed
+link blob even when its working file is a regular surrogate.</p>
+<p>See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SYMLINK-BLAME-PARITY.html">source comparison and scoped evidence</a> for the
+actual grouped checkpoint and remaining physical/signed acceptance.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

@@ -72,3 +72,25 @@ date and message preview. Different origin filenames are included when relevant.
 Long messages are bounded, and the preview follows the hovered line rather than
 the current selection. The [source comparison](BLAME-PRESENTATION-INTERACTION-PARITY.md)
 records the implementation scope and remaining physical acceptance.
+
+## Symbolic-link files
+
+Blame treats a versioned symbolic link as a Git file. Its source is the committed
+link-target text at the requested revision, including a target that is missing,
+a directory or outside the repository. It does not open that target. The usual
+HEAD default also means changing the link on disk does not change its displayed
+attribution until the committed revision changes.
+
+File Open and Recent Files retain the link's own name. Their repository grant
+covers the selected entry's parent and Git metadata; no target-file grant is
+needed. A parent directory that redirects outside the granted repository remains
+unavailable. Gitlinks/submodules and directory trees are not Blame documents.
+
+The same entry is supported by Repository Browser, Log's historical and working
+file actions, Finder/command-line routing and the existing source/history
+navigation. Follow-renames, previous-revision Blame and Reload retain the named
+Git path. A checkout with `core.symlinks=false` can still display the committed
+link blob even when its working file is a regular surrogate.
+
+See [source comparison and scoped evidence](SYMLINK-BLAME-PARITY.md) for the
+actual grouped checkpoint and remaining physical/signed acceptance.

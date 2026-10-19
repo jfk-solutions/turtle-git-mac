@@ -2636,7 +2636,7 @@ struct LogCommandRequest: Identifiable {
     }
     func canBlameFile(_ ids: some Sequence<String>) -> Bool {
         let ids = GitPathSet(ids)
-        guard !busy, !isInvalidated, onBlame != nil, ids.count == 1,
+        guard !busy, !isInvalidated, !confirmingQuit, onBlame != nil, ids.count == 1,
               let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return false }
         if selectedWorkingTree { return !bare && workingTreeSnapshot?.entry.parents.first != nil && file.action != "?" && !file.action.hasPrefix("A") }
         return revision != nil
@@ -2682,17 +2682,21 @@ struct LogCommandRequest: Identifiable {
         if !selectedWorkingTree { if let revision { onBlame(file.path, revision.hash) }; return }
         let request = generation, selection = selected
         let fileRequest = fileSelectionGeneration
-        busy = true
+        let token = OperationCancellation()
+        fileOpenRead = token; busy = true; Self.activeFileOpenReads += 1
+        let controls = logControlsEpoch
         Task {
-            defer { busy = false }
+            defer { Self.activeFileOpenReads -= 1; finishFileOpenRead(token, generation: request); withExtendedLifetime(access) {} }
             do {
-                try validateWorkingFileAccess(repository.root.appendingPathComponent(file.path))
-                _ = try await repository.workingFileOpenLocation(path: file.path)
-                let content = try await repository.historicalFile(revision: "HEAD", path: file.path)
-                guard ["100644", "100755"].contains(content.mode ?? ""), case .revision(let hash) = content.revision else { throw GitBlameFailure.unsupported }
-                guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration, selected == selection else { return }
-                busy = false; onBlame(file.path, hash)
-            } catch { if !isInvalidated, request == generation, fileRequest == fileSelectionGeneration, selected == selection { self.error = error.localizedDescription } }
+                // Blame attributes HEAD's blob, including a symlink's target
+                // text, rather than opening or authorizing its disk target.
+                let location = try BlameDocumentLocation.lexicalFile(root: repository.root, path: file.path)
+                try validateWorkingFileAccess(location.deletingLastPathComponent())
+                let content = try await repository.historicalFile(revision: "HEAD", path: file.path, cancellation: token)
+                guard ["100644", "100755", "120000"].contains(content.mode ?? ""), case .revision(let hash) = content.revision else { throw GitBlameFailure.unsupported }
+                guard !isInvalidated, !confirmingQuit, !token.isCancelled, controls == logControlsEpoch, request == generation, fileRequest == fileSelectionGeneration, selected == selection else { return }
+                finishFileOpenRead(token, generation: request); onBlame(file.path, hash)
+            } catch { if !isInvalidated, !confirmingQuit, !token.isCancelled, controls == logControlsEpoch, request == generation, fileRequest == fileSelectionGeneration, selected == selection { self.error = error.localizedDescription } }
         }
     }
     func chooseHistoricalExport(_ ids: some Sequence<String>) {

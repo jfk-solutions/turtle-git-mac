@@ -890,7 +890,8 @@ This is partial functionality and native dialog fidelity.
   native preset/color acceptance and full log preferences parity; native multi-window updates and unsaved Cancel acceptance.
 - Persistent/system encoding defaults, chooser/accessibility parity, unsupported
   codecs and byte-LF within other UTF-16 code units; binary, malformed text and
-  symlinks remain unsupported.
+  symlinks were unsupported at this earlier checkpoint; the later
+  [symbolic-link workflow](SYMLINK-BLAME-PARITY.md) supplies that continuation.
 - Finder routing, cancellation/progress and signed
   sandbox acceptance, including security-scoped access retained by the window.
 - Full light/dark visual comparison and keyboard/VoiceOver acceptance.
@@ -1435,3 +1436,14 @@ copied-origin messages are loaded separately without adding visible Log rows.
 This supersedes earlier descriptions of summary-only hover metadata; the dated
 batch evidence separates implementation from actual checks. Physical input,
 accessibility, every original layout and signed acceptance remain open.
+
+
+## Symbolic-link Blame — October 19, 2026
+
+[The connected symbolic-link family](SYMLINK-BLAME-PARITY.md) adds mode120000
+attribution, lexical File Open/MRU paths, historical and working Log/Browser
+handoffs, Finder/command-line grant/discovery and existing parent/history
+navigation. The link-target text is the source; its filesystem target is not
+read. Earlier mode refusal and leaf-following behavior are superseded by this
+continuation. Actual scoped checks and remaining signed/physical limits are
+recorded with the family rather than certifying the whole Blame viewer.

@@ -1,0 +1,172 @@
+{
+  "date": "2026-10-19",
+  "baseline": "b53810844f7a146cc1feef04274036568afda000",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected symbolic-link Blame contents/history/parent actions, native File Open/MRU/Log/Browser and Finder/CLI adoption without target dereference",
+  "status": "scoped batch passed with fixture/legacy-contract repairs; whole port and hosted/signed/physical acceptance remain open",
+  "attempts": [
+    {
+      "kind": "Core group compile",
+      "log": "build/qa/symlink-blame-core-2026-10-19.log",
+      "exit": 1,
+      "executed_methods": 0,
+      "cause": "New Finder fixture constructed Dictionary instead of exact-path GitPathMap<FileState>.",
+      "repair": "Use the existing exact-path container; assertions retained."
+    },
+    {
+      "kind": "Core grouped execution",
+      "log": "build/qa/symlink-blame-core-fixture-repair-2026-10-19.log",
+      "exit": 1,
+      "methods": 54,
+      "failed_methods": 1,
+      "retained_passes": 53,
+      "cause": "Legacy unsupported-file test still expected link mode rejection. Five new symlink methods and other regression methods passed.",
+      "repair": "That case now asserts committed link text/identity and target/index/HEAD preservation; binary, malformed encoding, missing and traversal refusals remain."
+    },
+    {
+      "kind": "Core contract repair",
+      "log": "build/qa/symlink-blame-core-contract-repair-2026-10-19.log",
+      "exit": 0,
+      "methods": 1
+    },
+    {
+      "kind": "Native receiver compile",
+      "log": "build/qa/symlink-blame-native-2026-10-19.log",
+      "exit": 1,
+      "executed_cases": 0,
+      "cause": "Fixture referenced nonexistent commandLineInputPermission hook based on an incorrect root-agent suggestion.",
+      "repair": "Remove the unused hook; production repository permission injection and all routing assertions remain."
+    }
+  ],
+  "source_contract": {
+    "TortoiseGitBlameDoc.cpp": "HEAD default and explicit revision Git blame -p",
+    "Git blame.c": "Commit-tree OBJ_BLOB accepts mode120000; separate uncommitted readlink branch not added to default viewer"
+  },
+  "open": [
+    "Physical Finder/chooser/global menu input",
+    "Native alias delivery and real powerbox/MRU relocation",
+    "VoiceOver and complete visual parity",
+    "Current signed sandbox/distribution acceptance",
+    "Unsupported codecs/binary/malformed text",
+    "Full hosted CI and complete upstream/app parity"
+  ],
+  "hosted_observation": {
+    "pages": {
+      "run": 39241082012,
+      "sha": "b5381084",
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 39241082368,
+      "sha": "b5381084",
+      "status": "pending"
+    },
+    "earlier_macos": {
+      "run": 39235459621,
+      "sha": "d6c487f9",
+      "status": "in_progress"
+    },
+    "pre_raster_fix_run": {
+      "run": 39228756148,
+      "sha": "c8fd1320",
+      "status": "completed",
+      "conclusion": "failure",
+      "scope": "2094 methods,2skips,86assertions in existing3metafile methods; later526c6b71 raster continuation not present in this revision"
+    }
+  },
+  "core": {
+    "distinct_current_methods_passing": 54,
+    "retained_passes": 53,
+    "new_symlink_methods": 5,
+    "full_suite_repeated": false
+  },
+  "builds": [
+    {
+      "log": "build/qa/symlink-blame-debug-2026-10-19.log",
+      "exit": 0
+    }
+  ],
+  "native": {
+    "log": "build/qa/symlink-blame-native-fixture-repair-2026-10-19.log",
+    "exit": 0,
+    "receiver_pid": 28684,
+    "receiver_reaped": true,
+    "engine": "Packaged Debug Git",
+    "scope": [
+      "Actual native File Open replacement and private four-file MRU",
+      "Outside/dangling/directory target strings remain link blobs without target permission",
+      "Captured historical Browser and Log handoffs",
+      "Working Log HEAD attribution and Quit guard",
+      "Actual Root Finder URL and CLI adoption with lexical leaf paths",
+      "Previous/history/reload with no disk leaf",
+      "Failed untracked-file read retains document and recent list",
+      "Escaping-parent/traversal refusal",
+      "Held actual discovery process Cancel/Quit/forced-retirement and parent/child PID reaping",
+      "No owned windows/sheets or reader/history/syntax operations remain"
+    ],
+    "physical_acceptance": false,
+    "new_screenshots": false
+  },
+  "resources": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1298
+    },
+    "help": {
+      "documents": 42,
+      "topics": 50,
+      "files": 62,
+      "bytes": 3597075
+    },
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "certified_complete": 0
+    }
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitBlame.swift": "4d7d7b9db83e869082d2ca2a80196cef692565020ed1152ff371e69918ab4a59",
+    "Sources/TurtleGitCore/FinderCache.swift": "e4d63db704bbbed2652aeb9692b104276a1f6f34169037a52583c78285b45aa1",
+    "Sources/TurtleGitMac/BlameOpenDocument.swift": "818bb1acb9d39ba77996f3516e297eb477c46cbe84f807bd3b498d8df3ea3514",
+    "Sources/TurtleGitMac/BlameWindow.swift": "b392b350d7f2260fccde2ce19e337d931a7722ae46769deaeb5159884319ebf0",
+    "Sources/TurtleGitMac/LogWindow.swift": "15820b8df0a1bdc608f60d10529a49c59c63db95945dba9f20fa4f57f0187c69",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "fa73d741cda2f56f189d2dc445331ac2470c6734533650a049513e5c54b74117",
+    "Tests/TurtleGitCoreTests/SymlinkBlameTests.swift": "2be9a009c7bf69f0a77f1d3b2dd34c58558d268331dafaf33f2be34b49baf734",
+    "Tests/TurtleGitCoreTests/GitBlameTests.swift": "3a9b3eb3c580757a6c224e2f6702c7f241127b637a7c66a625f352114f8a4c4a",
+    "docs/qa/blame-symlink-native-2026-10-19.swift": "54ba2ecdbb5d60cfc5c2b0348ff3a801790dae9d91fc13c24b74b62d83891fd5",
+    "scripts/test-blame-symlink-native.py": "4f03cda77acc5ec8bf27cb1576bef2d0ba5f991fe0a7ee510db903c884d4ef02"
+  },
+  "final_checks": {
+    "site": {
+      "exit": 0,
+      "documents": 347,
+      "unresolved_fragments": []
+    },
+    "localizations_check": {
+      "exit": 0,
+      "languages": 38,
+      "keys": 1298
+    },
+    "help_check": {
+      "exit": 0,
+      "documents": 42,
+      "topics": 50,
+      "files": 62
+    },
+    "dialog_reconciliation": {
+      "exit": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "certified_complete": 0
+    },
+    "diff_check": {
+      "exit": 0
+    }
+  },
+  "cleanup": {
+    "receiver_28684": "absent from process table",
+    "held_discovery_helpers": "none after receiver reaping",
+    "unrelated_user_apps_terminated": false,
+    "original_worktree_files": "SHA256 values unchanged; excluded from commit"
+  }
+}

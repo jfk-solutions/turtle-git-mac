@@ -54,7 +54,7 @@ import TurtleGitCore
     private let scopeProvider:any RepositoryBookmarkProvider
     func openDocument() {
         guard model.canFind,!model.openingDocument,!hasBlockingHistoryChild,let window,window.attachedSheet==nil else { return }
-        let panel=NSOpenPanel();panel.canChooseFiles=true;panel.canChooseDirectories=false;panel.allowsMultipleSelection=false;panel.prompt="Blame File"
+        let panel=NSOpenPanel();panel.canChooseFiles=true;panel.canChooseDirectories=false;panel.allowsMultipleSelection=false;panel.resolvesAliases=false;panel.prompt="Blame File"
         panel.directoryURL=model.repository.root;panel.appearance=window.appearance
         recentID=nil;openPanel=panel;model.openingDocument=true;openingGeneration += 1;let identity=openingGeneration
         chooseFile(panel,window) { [weak self] file in
@@ -73,7 +73,7 @@ import TurtleGitCore
         }
     }
     private func authorizeAndOpen(_ file:URL) {
-        if let access=model.repositoryAccess,access.contains(file),(!requireScope || access.hasSecurityScope) { prepare(file,scope:access);return }
+        if let access=model.repositoryAccess,access.contains(file.standardizedFileURL.deletingLastPathComponent()),(!requireScope || access.hasSecurityScope) { prepare(file,scope:access);return }
         guard requireScope else { prepare(file,scope:nil);return }
         guard let window else { model.openingDocument=false;return }
         let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.prompt="Allow Repository"

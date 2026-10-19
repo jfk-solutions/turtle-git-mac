@@ -439,9 +439,20 @@ final class GitBlameTests: XCTestCase {
         try Data([255, 10]).write(to: root.appendingPathComponent("encoding"))
         try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("link").path, withDestinationPath: "binary")
         try await repo.stage(["binary", "encoding", "link"]); _ = try await repo.commit(message: "unsupported")
-        for path in ["binary", "encoding", "link", "missing", "../outside"] {
+        let target = try Data(contentsOf: root.appendingPathComponent("binary"))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let link = try await repo.blame(path: "link")
+        XCTAssertEqual(link.contents, Data("binary".utf8))
+        XCTAssertEqual(link.lines.map(\.source), ["binary"])
+        XCTAssertEqual(link.path, "link")
+        for path in ["binary", "encoding", "missing", "../outside"] {
             do { _ = try await repo.blame(path: path); XCTFail("Must reject \(path)") } catch {}
         }
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("binary")), target)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(finalHead, head)
     }
     func testCompleteAndOriginHistoriesFollowLiteralRenamesWithoutMutations() async throws {
         let (root, repo, original) = try await GitPatchTests().fixture()

@@ -2,6 +2,20 @@ import AppKit
 import Darwin
 import TurtleGitCore
 
+/// Blame reads the Git blob named by the leaf, including mode 120000's target
+/// text. Only its parent is resolved for authorization; the target is never read.
+enum BlameDocumentLocation {
+    static func lexicalFile(root:URL,path:String) throws -> URL {
+        let components=path.components(separatedBy:"/")
+        guard !path.isEmpty,!path.hasPrefix("/"),!path.contains("\0"),
+              components.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." && $0.caseInsensitiveCompare(".git") != .orderedSame }) else { throw FinderServiceAuthorizationFailure.invalidRequest }
+        let root=root.standardizedFileURL.resolvingSymlinksInPath()
+        let file=root.appendingPathComponent(path).standardizedFileURL
+        guard RepositoryAccessLease.pathIsContained(file.deletingLastPathComponent(),by:root) else { throw FinderServiceAuthorizationFailure.invalidRequest }
+        return file
+    }
+}
+
 struct BlameRecentDocument:Codable,Identifiable {
     let id:UUID
     let bookmark:Data
@@ -28,13 +42,14 @@ struct BlameRecentDocument:Codable,Identifiable {
         !value.bookmark.isEmpty && value.bookmark.count<=1_048_576 && !value.path.isEmpty && !value.path.hasPrefix("/") && !value.path.contains("\0") && (value.rootComponents+value.path.components(separatedBy:"/")).allSatisfy { !$0.isEmpty && $0 != "." && $0 != ".." && !$0.contains("/") && !$0.contains("\0") }
     }
     func remember(root:URL,path:String,lease:RepositoryAccessLease,replacing id:UUID? = nil) throws {
-        guard lease.contains(root),RepositoryAccessLease.pathIsContained(root.appendingPathComponent(path),by:root) else { throw FinderServiceAuthorizationFailure.invalidRequest }
+        let location=try BlameDocumentLocation.lexicalFile(root:root,path:path)
+        guard lease.contains(root),lease.contains(location.deletingLastPathComponent()) else { throw FinderServiceAuthorizationFailure.invalidRequest }
         let scope=lease.url.standardizedFileURL.resolvingSymlinksInPath().path,repository=root.standardizedFileURL.resolvingSymlinksInPath().path
         let suffix=scope==repository ? "" : String(repository.dropFirst(scope=="/" ? 1 : scope.count+1))
-        let file=root.appendingPathComponent(path).standardizedFileURL.path
-        let record=BlameRecentDocument(id:id ?? entries.first { $0.lastKnownFile==file }?.id ?? UUID(),bookmark:try provider.create(for:lease.url),rootComponents:suffix.isEmpty ? [] : suffix.components(separatedBy:"/"),path:path,lastKnownFile:file)
+        let file=location.path
+        let record=BlameRecentDocument(id:id ?? entries.first { GitReferenceName.equal($0.lastKnownFile,file) }?.id ?? UUID(),bookmark:try provider.create(for:lease.url),rootComponents:suffix.isEmpty ? [] : suffix.components(separatedBy:"/"),path:path,lastKnownFile:file)
         guard valid(record) else { throw FinderServiceAuthorizationFailure.invalidRequest }
-        let updated=Array(([record]+entries.filter { $0.id != record.id && $0.lastKnownFile != file }).prefix(4))
+        let updated=Array(([record]+entries.filter { $0.id != record.id && !GitReferenceName.equal($0.lastKnownFile,file) }).prefix(4))
         try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         let temporary=url.deletingLastPathComponent().appendingPathComponent(".blame-files-"+UUID().uuidString)
         defer { try? FileManager.default.removeItem(at:temporary) }
@@ -46,8 +61,8 @@ struct BlameRecentDocument:Codable,Identifiable {
         let resolved=try provider.resolve(entry.bookmark),lease=RepositoryAccessLease(url:resolved.url,provider:provider)
         if requireScope && !lease.hasSecurityScope { throw RepositoryAccessFailure.securityScopeUnavailable }
         let root=entry.rootComponents.reduce(lease.url) { $0.appendingPathComponent($1,isDirectory:true) }.standardizedFileURL
-        let file=root.appendingPathComponent(entry.path)
-        guard lease.contains(root),RepositoryAccessLease.pathIsContained(file,by:root) else { throw FinderServiceAuthorizationFailure.invalidRequest }
+        let file=try BlameDocumentLocation.lexicalFile(root:root,path:entry.path)
+        guard lease.contains(root),lease.contains(file.deletingLastPathComponent()) else { throw FinderServiceAuthorizationFailure.invalidRequest }
         return (root,file,lease)
     }
 }
@@ -82,8 +97,11 @@ struct BlameOpenedDocument {
             guard !requireScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
             lease=RepositoryAccessLease(url:file.deletingLastPathComponent(),provider:provider)
         }
-        guard !requireScope || lease.hasSecurityScope,lease.contains(file) else { throw RepositoryAccessFailure.securityScopeUnavailable }
-        let attributes=try file.resourceValues(forKeys:[.isRegularFileKey]);guard attributes.isRegularFile==true else { throw GitBlameFailure.unsupported }
+        guard !requireScope || lease.hasSecurityScope,lease.contains(file.deletingLastPathComponent()) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        var attributes=stat()
+        guard file.withUnsafeFileSystemRepresentation({ $0.map { Darwin.lstat($0,&attributes) } ?? -1 }) == 0 else { throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .ENOENT) }
+        let kind=attributes.st_mode & mode_t(S_IFMT)
+        guard kind==mode_t(S_IFREG) || kind==mode_t(S_IFLNK) else { throw GitBlameFailure.unsupported }
         let discovered=try await factory(file.deletingLastPathComponent()).discoverRoot(cancellation:request)
         let root=discovered.standardizedFileURL.resolvingSymlinksInPath()
         // An unsigned directory-derived scope can be widened only in the
@@ -91,8 +109,11 @@ struct BlameOpenedDocument {
         let retained:RepositoryAccessLease
         if lease.contains(root) { retained=lease }
         else { guard !requireScope else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(root.path) };retained=RepositoryAccessLease(url:root,provider:provider) }
-        guard RepositoryAccessLease.pathIsContained(file,by:root) else { throw FinderServiceAuthorizationFailure.invalidRequest }
-        let path=String(file.standardizedFileURL.resolvingSymlinksInPath().path.dropFirst(root.path=="/" ? 1 : root.path.count+1))
+        let lexical=file.deletingLastPathComponent().standardizedFileURL.resolvingSymlinksInPath().appendingPathComponent(file.lastPathComponent)
+        let prefix=root.path=="/" ? "/" : root.path+"/"
+        guard lexical.path.hasPrefix(prefix) else { throw FinderServiceAuthorizationFailure.invalidRequest }
+        let path=String(lexical.path.dropFirst(prefix.count))
+        _ = try BlameDocumentLocation.lexicalFile(root:root,path:path)
         let repository=factory(root)
         let snapshot=try await repository.blame(path:path,revision:"HEAD",options:options,cancellation:request)
         let details=try await repository.blameHistoryDetails(snapshot,options:options,cancellation:request,regexExecutable:regexExecutable)
