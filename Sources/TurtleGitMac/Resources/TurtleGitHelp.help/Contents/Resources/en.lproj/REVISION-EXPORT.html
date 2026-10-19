@@ -66,4 +66,13 @@ original icons, enabled state, captured folder request and URL round-trip,
 file/multiple-file exclusion, and the bare menu. This uses cached repository
 metadata without activating the Finder extension. Application Quit refuses an
 active Export operation or attached sheet so a pending archive is not abandoned.</p>
+<h2 id="selected-historical-files">Selected historical files</h2>
+<p>Saving or exporting selected historical files from Log, Compare or Repository
+Browser is a different workflow from ZIP Export. It pins the selected objects
+and uses the GetOneFile backend captured when the action starts. The source
+default applies libgit2 checkout filters and configured smudge commands; disabling
+that backend reads raw blob bytes. Failed required filters preserve an existing
+output. Browser drag and file promises keep their captured choice through later
+receiver delivery. See <a href="LIBGIT2-TRANSPORT.html#opening-and-exporting-historical-files">historical-file materialization</a>
+for filter settings and remaining engine limits. ZIP behavior above is unchanged.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

@@ -1,0 +1,169 @@
+{
+  "date": "2026-10-19",
+  "baseline": "a1a18156ec8f0e73809ed3f90ac3ba5cf523176c",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Historical file opening, editors, Save As and file export with source GetOneFile engine/filter semantics and owned lifetime",
+  "status": "Scoped grouped checkpoint passed: runtime/Core21/Debug first attempts, native after recorded fixture repairs; full port incomplete",
+  "attempts": [
+    {
+      "check": "universal runtime build",
+      "exit": 0,
+      "log": "build/qa/historical-materialization-runtime-build-2026-10-19.log",
+      "note": "Reused exact checked ARM and Intel C-library slices."
+    },
+    {
+      "check": "both-architecture actual helper",
+      "exit": 0,
+      "log": "build/qa/historical-materialization-runtime-validation-2026-10-19.log",
+      "scope": "Retained clone/fetch/list/deletion; filtered 1MiB binary, CRLF, literal %f/%%/Unicode/apostrophe paths, directblob root attributes, optional/required/missing filter errors, source invariants."
+    },
+    {
+      "check": "focused Core group",
+      "exit": 0,
+      "tests": 21,
+      "log": "build/qa/historical-materialization-core-2026-10-19.log",
+      "scope": "Five new materialization methods, prior prompt-lock regression and related CommandHistoricalOutput, export and raw-preview regressions."
+    },
+    {
+      "check": "Debug application",
+      "exit": 0,
+      "log": "build/qa/historical-materialization-debug-2026-10-19.log"
+    },
+    {
+      "check": "grouped native",
+      "exit": 1,
+      "log": "build/qa/historical-materialization-native-2026-10-19.log",
+      "receiver_pid": 45712,
+      "failure": "Fixture URL identity included directory hints; corrected to exact UTF8 standardized filesystem paths plus exact filtered bytes. No production change."
+    },
+    {
+      "check": "native fixture URL repair",
+      "exit": "SIGSEGV11",
+      "log": "build/qa/historical-materialization-native-fixture-repair-2026-10-19.log",
+      "receiver_pid": 45969,
+      "failure": "After URL repair, fixture directly cleared model.error and started another action during SwiftUI/NSAlert dismissal. Repaired by actual native OK acknowledgement and waiting both sheet relationships detached.",
+      "stack": [
+        "UC::DriverCore::continueProcessing",
+        "NSSheetMoveHelper.closeSheet",
+        "NSWindow._orderOutRelativeToWindow",
+        "NSAlert.beginSheetModalForWindow completion",
+        "SwiftUI AppKitDialogBridge.updateExistingAlert",
+        "NSHostingView.preferencesDidChange"
+      ],
+      "cleanup": "Receiver reaped; no processes matching its private fixture root remained."
+    },
+    {
+      "check": "native actual acknowledgement/private temporary root repair",
+      "exit": 0,
+      "log": "build/qa/historical-materialization-native-acknowledgement-repair-2026-10-19.log",
+      "receiver_pid": 46328,
+      "scope": [
+        "Browser Open/Alternative Editor/Open With/Save As and captured settings",
+        "cancelled/duplicate replies and actual sheet detach",
+        "delayed provider",
+        "Log and Comparison outputs",
+        "Cat capture before permission callback changes prefs",
+        "raw Blame/comparison bytes",
+        "required failure preserves output and native OK acknowledgement",
+        "held filter child cancellation/Quit/reap"
+      ]
+    },
+    {
+      "check": "localization and bundled Help generated check",
+      "exit": 0,
+      "scope": "38 locales/1298 keys; 42 documents/50 topics/62 help files; English fallback retained"
+    },
+    {
+      "check": "dialog ledger and site",
+      "exit": 0,
+      "log": "build/qa/historical-materialization-site-2026-10-19.log",
+      "documents": 349,
+      "unresolved_fragments": [],
+      "note": "Partial coverage counts do not certify completed features."
+    }
+  ],
+  "open": [
+    "Physical UI and VoiceOver",
+    "Signed filter executables and sandbox grants",
+    "Real-world filter/LFS/provider matrix",
+    "Current full hosted CI",
+    "Complete upstream and App Store acceptance",
+    "Optional Clone/recursive checkout custom smudge/LFS consumers",
+    "Persistent filter-process and working-tree-encoding are not supplied by the source adapter",
+    "Other local libgit2 command-mask consumers"
+  ],
+  "runtime": {
+    "binary_sha256": "d946422b14aca5f6b4ec6981153c77950db44fa7d082b56a33c996f87fff582d",
+    "native_cache_key": "40e180ad6920778ccba0a99d293e1a02ca6af5b7333b2ceb2ff8fb6db53d4b20",
+    "native_library_sha256": {
+      "arm64": "a13fed3c34f6d11d530131a4d8ec1effe9cb90140ee2117dd8add9552fbc554f",
+      "x86_64": "df7c50cce08699df6f9906afa7f6ee67961bbeded3d2dabb43c4c7ada921871a"
+    },
+    "sdk_version": "27.0",
+    "sdk_build_version": "26A425",
+    "cache_key": "1e9138ea0c9df4920ac6891d8cb1b30285fd77214e3e2e17166ff7f959365688"
+  },
+  "source_contract": {
+    "gate": "GETONEFILE index9 / bit0x200; enabled in source default0x66780",
+    "getonefile_cli": "Raw blob bytes",
+    "cat_cli": "Blob cat-file -p, nonblob Git show with selected path",
+    "selected": "git_blob_filter, binary-check disabled; CRLF/ident and custom smudge only",
+    "bare_attributes": "Default libgit2 flags do not request HEAD attributes; explicit info/attributes applies",
+    "raw_baselines": "historicalFile/comparisonFile/Blame remain raw"
+  },
+  "native_failure_cleanup": {
+    "receiver_reaped": true,
+    "pid": 45712
+  },
+  "native_cleanup": {
+    "receiver_pids_reaped": [
+      45712,
+      45969,
+      46328
+    ],
+    "final_workers_windows_sheets_drained": true,
+    "filter_child_pids_reaped_by_fixture": true,
+    "private_repositories_preferences": true,
+    "final_private_TMPDIR": true,
+    "final_fixture_root_removed": true,
+    "physical_windows": false
+  },
+  "packaged_runtime": {
+    "binary_sha256": "533be3e56a89e84fa0e9493b3240a5794e94db6390cef16c8706824454ab742c",
+    "unsigned_binary_sha256": "d946422b14aca5f6b4ec6981153c77950db44fa7d082b56a33c996f87fff582d",
+    "signed": true,
+    "native_cache_key": "40e180ad6920778ccba0a99d293e1a02ca6af5b7333b2ceb2ff8fb6db53d4b20"
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/HistoricalMaterialization.swift": "48c83687f3b1a4a649b9037df56154be3ae6d6c7b286e358e36a05c38dbdb820",
+    "Sources/TurtleGitCore/CommandHistoricalOutput.swift": "e4185d6dd99a68a7013c6f2d294a27efd65fec1a0a5bda0ab87aac14cf064bc5",
+    "Sources/TurtleGitCore/GitLibGit2.swift": "c06b5238bcf5636c2a6c50bc6547a64ec9e26c6d06933bb6bf45547c144108b5",
+    "Sources/TurtleGitCore/RepositoryBrowser.swift": "39e55753e247a5cbbbb34b951f1ad649515c3262d7dbfa32a572bc201fdacad8",
+    "Sources/TurtleGitCore/RevisionComparison.swift": "2e26b217d54584af579145d9d01c983063e403fb872332364c29abeee777525f",
+    "Sources/TurtleGitCore/WorkingFileExport.swift": "3752b34992c58581460ed4700bb893eb4cba29d43b17327978f65ae623fa32ee",
+    "Sources/TurtleGitLibgit2/bridge.c": "04e4c26c218d7b554e0a7038ef232405a6f65cc6a0de0269c6dd1803dbdb4769",
+    "Sources/TurtleGitLibgit2/bridge.h": "27aff5f5eac26ddce9185a0758130938bdd4aab78aece11cdf92c850d1c6f6ce",
+    "Sources/TurtleGitLibgit2/main.swift": "e2c764cbfec2f09725f1ee2ed04180e68813d710e26cd96b160741f8a65231f6",
+    "Sources/TurtleGitMac/AdvancedSettings.swift": "954917e214524665482edb57b4edc2bb523632c1a62a51e3c764dd3878748733",
+    "Sources/TurtleGitMac/LogWindow.swift": "f25d879bafc0201953b2a9d16ce3e42b17e494310b3b6cc76212c11770703f30",
+    "Sources/TurtleGitMac/RepositoryBrowserContentsTable.swift": "cf5dcc57b3d2b85e3430ff05ff6dfc834420072a7a08d7c1abb6ea9000b8df62",
+    "Sources/TurtleGitMac/RepositoryBrowserDrag.swift": "970c2b0c5dfa27b6e275931962188306c533521ecaeec48fabbb2b3ada5739e6",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "8da3bdfc8baa7b9416fc072ef09c7f2a9382d913af3421979f456a3c9956fdaa",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "b8add839933db471f25722e7ff7e9982a251337776a6ee1e10555503849ea5ad",
+    "Sources/TurtleGitMac/RevisionComparisonWindow.swift": "7e240c1c90a6c62e519bc053b4610464a2c191b8aad830248b0aa13f8c5ddb86",
+    "Tests/TurtleGitCoreTests/CommandHistoricalOutputTests.swift": "6d076a3ae46d4538b83d6e05702d47b50bd35bf5c9c63f1fc22db25c425ac742",
+    "Tests/TurtleGitCoreTests/GitLibGit2Tests.swift": "9418855573d23c7282fca682da41689dd6243c322d9b16111d5caad1d817a084",
+    "Tests/TurtleGitCoreTests/RepositoryBrowserTests.swift": "3b4c9cee4f0d29d12e0961fbdb76dbf16a4ec274c46aea4e9617d1104d44b0dc",
+    "Tests/TurtleGitCoreTests/RevisionComparisonTests.swift": "23fe13734ad7ac60ca102cdf40e0a6a5e2322d0f57c5caaf75389646f64fd7f3",
+    "Tests/TurtleGitCoreTests/WorkingFileExportTests.swift": "eb8ea5fc741da2025aba8ce37fccffcc3225ba790c85c0e90459dda06c736eb8",
+    "scripts/test-historical-materialization-native.py": "33aa3c4ab4f2dbe83fc856ec00e3e02e5fb9c7b1f963d8d4da3ecf9e93398dc4",
+    "scripts/validate-libgit2-runtime.py": "e4454ac3c6c4e14df80f73c4175f4a162a22b2eb914537ba63ca800c241966c3",
+    "docs/qa/historical-materialization-native-2026-10-19.swift": "12ebb7df7d7886379eb2de5af4a34c0ffd3769fd948560c7463c5576ae382357"
+  },
+  "hosted_snapshot": {
+    "latest_pages": "a1a18156 run39245702055 success",
+    "latest_macos": "a1a18156 run39245701996 pending",
+    "older_active": "d6c487f9 run39235459621 in_progress",
+    "full_current_pass": false
+  }
+}

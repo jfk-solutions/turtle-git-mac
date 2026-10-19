@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AFB2AAD9F34973F6A1EA3098 /* HistoricalMaterialization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DF97A8F1598CCBAA1B7AC76 /* HistoricalMaterialization.swift */; };
 		FA2C9AC03D84CADCE4990222 /* GitRemoteAuthenticationPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46938DDFD48D330EE215308F /* GitRemoteAuthenticationPrompt.swift */; };
 		D70CBD079255C3E3C124A40A /* GitRemoteAuthenticationPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46938DDFD48D330EE215308F /* GitRemoteAuthenticationPrompt.swift */; };
 		1AD4A71DA5508AEAEE2943EB /* GitLibGit2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C600950836DC1172081DEF0 /* GitLibGit2.swift */; };
@@ -545,6 +546,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		5DF97A8F1598CCBAA1B7AC76 /* HistoricalMaterialization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoricalMaterialization.swift; sourceTree = "<group>"; };
 		46938DDFD48D330EE215308F /* GitRemoteAuthenticationPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRemoteAuthenticationPrompt.swift; sourceTree = "<group>"; };
 		3C600950836DC1172081DEF0 /* GitLibGit2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitLibGit2.swift; sourceTree = "<group>"; };
 		DB0CB365EEFF6DBDAC30CD93 /* SecurityInterface.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SecurityInterface.framework; path = System/Library/Frameworks/SecurityInterface.framework; sourceTree = SDKROOT; };
@@ -1312,6 +1314,7 @@
 			children = (
 				46938DDFD48D330EE215308F /* GitRemoteAuthenticationPrompt.swift */,
 				3C600950836DC1172081DEF0 /* GitLibGit2.swift */,
+				5DF97A8F1598CCBAA1B7AC76 /* HistoricalMaterialization.swift */,
 				C67F27BFB40588DC92B4F276 /* SMTPCertificateTransport.swift */,
 				173811DDB174801ACF738211 /* ActionLog.swift */,
 				04D3808CD4999B158EA66D0B /* Add.swift */,
@@ -1937,6 +1940,7 @@
 			files = (
 				D70CBD079255C3E3C124A40A /* GitRemoteAuthenticationPrompt.swift in Sources */,
 				1AD4A71DA5508AEAEE2943EB /* GitLibGit2.swift in Sources */,
+				AFB2AAD9F34973F6A1EA3098 /* HistoricalMaterialization.swift in Sources */,
 				A7C474571496517A0BA42FB2 /* SMTPCertificateTransport.swift in Sources */,
 				737A5C831F62BBA90DDF08B4 /* ActionLog.swift in Sources */,
 				9016DF6825447C08B8190B7A /* Add.swift in Sources */,

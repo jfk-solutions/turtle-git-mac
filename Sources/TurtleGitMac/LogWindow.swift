@@ -130,9 +130,9 @@ final class LogHistoryWindow: NSWindow {
     var preparePreview: (ComparisonFileContent, OperationCancellation) async throws -> HistoricalFilePreview = { content, token in
         try await Task.detached { try token.check(); return try HistoricalFilePreview.create(content) }.value
     }
-    init(model: LogWindowModel, preferences: UserDefaults, permissions: [RepositoryAccessLease], panels: OwnedFilePanelSession) {
+    init(model: LogWindowModel, preferences: UserDefaults, permissions: [RepositoryAccessLease], panels: OwnedFilePanelSession,editor:AlternativeEditorPreferences? = nil) {
         self.model = model; generation = model.generation; selection = model.fileSelectionGeneration
-        editor = .load(from: preferences); self.permissions = permissions; self.panels = panels
+        self.editor = editor ?? .load(from: preferences); self.permissions = permissions; self.panels = panels
         model.busy = true; Self.activeRequests += 1
     }
     var current: Bool { !finished && !cancellation.isCancelled && !model.isInvalidated && model.generation == generation && model.fileSelectionGeneration == selection }
@@ -313,7 +313,8 @@ final class LogHistoryWindow: NSWindow {
             self?.openDocument(content: content, action: action)
         }
         model.presentHistoricalExport = { [weak self] revision, files in
-            DispatchQueue.main.async { [weak self] in self?.chooseHistoricalExport(revision: revision, files: files) }
+            let backend=self?.model.historicalExportBackend
+            DispatchQueue.main.async { [weak self] in self?.chooseHistoricalExport(revision: revision, files: files,backend:backend) }
         }
         model.presentWorkingSave = { [weak self] path in
             DispatchQueue.main.async { [weak self] in self?.chooseWorkingCopy(paths: [path], save: true) }
@@ -391,13 +392,13 @@ final class LogHistoryWindow: NSWindow {
             accepted(target)
         }
     }
-    private func chooseHistoricalExport(revision: String, files: [CommitFile]) {
+    private func chooseHistoricalExport(revision: String, files: [CommitFile],backend:GitLibGit2Configuration?) {
         guard let window, window.attachedSheet == nil else { return }
         let panel = NSOpenPanel(); panel.title = "Export selected files"; panel.prompt = "Export"
         panel.canChooseFiles = false; panel.canChooseDirectories = true
         panel.canCreateDirectories = true; panel.allowsMultipleSelection = false
         chooseFile(panel) { [weak model] folder in
-            model?.exportHistoricalFiles(revision: revision, files: files, to: folder)
+            model?.exportHistoricalFiles(revision: revision, files: files, to: folder,backend:backend)
         }
     }
     private func chooseWorkingCopy(paths: [String], save: Bool) {
@@ -422,7 +423,7 @@ final class LogHistoryWindow: NSWindow {
     private func openDocument(content: ComparisonFileContent? = nil, workingFile: URL? = nil, action: HistoricalOpenAction) {
         guard let window, window.attachedSheet == nil, !model.busy, !model.isInvalidated, documentOpen == nil else { return }
         let operation = LogDocumentOpenSession(model: model, preferences: findPreferences,
-            permissions: findAccess.map { [$0] } ?? [], panels: filePanels)
+            permissions: findAccess.map { [$0] } ?? [], panels: filePanels,editor:content == nil ? nil:model.materializationEditorSettings)
         configureDocumentOpen(operation); documentOpen = operation
         Task { [weak self, operation] in
             await operation.run(content: content, workingFile: workingFile, action: action)
@@ -738,6 +739,10 @@ struct LogCommandRequest: Identifiable {
         try await HistoryCombineSelectionReader.validate(repository:repository,access:access,entries:entries,offset:offset,head:head,token:token)
     }
     let repository: GitRepository
+    private(set) var materializationEditorSettings:AlternativeEditorPreferences?
+    var captureMaterializationBackend:(()->GitLibGit2Configuration)?
+    private(set) var historicalExportBackend:GitLibGit2Configuration?
+    private func materializationBackend()->GitLibGit2Configuration {captureMaterializationBackend?() ?? .load(from:labelDefaults)}
     let sshSettings: SSHTransportSettings
     private var deletionCancellation: OperationCancellation?
     let selecting: Bool
@@ -2705,29 +2710,31 @@ struct LogCommandRequest: Identifiable {
         let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
         guard chosen.contains(where: { !$0.isSubmodule && !$0.action.hasPrefix("D") }) else { return }
         if selectedWorkingTree { presentWorkingExport(chosen.filter { !$0.isSubmodule && !$0.action.hasPrefix("D") }.map(\.path)) }
-        else if let revision { presentHistoricalExport(revision.hash, chosen) }
+        else if let revision { historicalExportBackend=materializationBackend();presentHistoricalExport(revision.hash, chosen) }
     }
-    func exportHistoricalFiles(revision: String, files: [CommitFile], to folder: URL) {
-        guard !busy else { return }; busy = true
-        Task { await performHistoricalExport(revision: revision, files: files, folder: folder) }
-    }
-    private func performHistoricalExport(revision: String, files: [CommitFile], folder: URL) async {
-        let scoped = folder.startAccessingSecurityScopedResource()
-        defer { if scoped { folder.stopAccessingSecurityScopedResource() }; busy = false }
-        do {
-            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-            let export: HistoricalFileExport = try await repository.prepareHistoricalExport(revision: revision, files: files, to: folder)
-            for path in export.paths {
-                do { try await repository.exportHistoricalFile(export, path: path) }
-                catch {
-                    let destination: String = folder.appendingPathComponent(path).path
-                    let lines: [String] = ["File: " + path, "Revision: " + export.revision, "Destination: " + destination, "", error.localizedDescription]
-                    let message: String = lines.joined(separator: "\n")
-                    let shouldContinue: Bool = await confirmExportFailure(message)
-                    if !shouldContinue { break }
+    func exportHistoricalFiles(revision: String, files: [CommitFile], to folder: URL,backend:GitLibGit2Configuration? = nil) {
+        guard !busy,!isInvalidated,!confirmingQuit else { return }
+        let captured=backend ?? materializationBackend(),token=OperationCancellation(),request=generation
+        fileOpenRead=token;busy=true;Self.activeFileOpenReads += 1
+        Task { [self,access] in
+            defer {Self.activeFileOpenReads -= 1;finishFileOpenRead(token,generation:request);withExtendedLifetime(access){}}
+            let scoped=folder.startAccessingSecurityScopedResource()
+            defer {if scoped {folder.stopAccessingSecurityScopedResource()}}
+            do {
+                try token.check()
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true || !scoped) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                let export=try await repository.prepareHistoricalExport(revision:revision,files:files,to:folder,cancellation:token,backend:captured)
+                for path in export.paths {
+                    guard !isInvalidated,!confirmingQuit,request==generation,!token.isCancelled else {break}
+                    do {try await repository.exportHistoricalFile(export,path:path,cancellation:token)}
+                    catch {
+                        guard !isInvalidated,!confirmingQuit,request==generation,!token.isCancelled else {break}
+                        let message=["File: "+path,"Revision: "+export.revision,"Destination: "+folder.appendingPathComponent(path).path,"",error.localizedDescription].joined(separator:"\n")
+                        guard await confirmExportFailure(message),!isInvalidated,!confirmingQuit,request==generation,!token.isCancelled else {break}
+                    }
                 }
-            }
-        } catch { self.error = error.localizedDescription }
+            } catch {if !isInvalidated,!confirmingQuit,request==generation,!token.isCancelled {self.error=error.localizedDescription}}
+        }
     }
     func saveHistoricalFile(_ ids: some Sequence<String>) {
         let ids = GitPathSet(ids)
@@ -2736,19 +2743,21 @@ struct LogCommandRequest: Identifiable {
                   let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
             presentWorkingSave(file.path); return
         }
-        guard !busy, let revision, ids.count == 1, let window, window.attachedSheet == nil,
+        guard !busy, !isInvalidated,!confirmingQuit,let revision, ids.count == 1, let window, window.attachedSheet == nil,
               let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
         let request = generation, fileRequest = fileSelectionGeneration
-        busy = true
+        let backend=materializationBackend(),token=OperationCancellation()
+        fileOpenRead=token;busy=true;Self.activeFileOpenReads += 1
         Task {
+            defer {Self.activeFileOpenReads -= 1;finishFileOpenRead(token,generation:request);withExtendedLifetime(access){}}
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let content = try await repository.historicalFile(revision: revision.hash, path: file.path)
+                let content = try await repository.materializedHistoricalFile(revision: revision.hash, path: file.path,cancellation:token,backend:backend)
                 guard case .revision(let hash) = content.revision else { throw RevisionComparisonFailure.range }
-                let short = try await repository.run(["rev-parse", "--short", hash]).text.trimmingCharacters(in: .newlines)
-                guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration else { busy = false; return }
-                busy = false; presentHistoricalSave(content, short)
-            } catch { if !isInvalidated, request == generation, fileRequest == fileSelectionGeneration { self.error = error.localizedDescription }; busy = false }
+                let short = try await repository.run(["rev-parse", "--short", hash],cancellation:token).text.trimmingCharacters(in: .newlines)
+                guard !isInvalidated,!confirmingQuit,!token.isCancelled,request == generation,fileRequest == fileSelectionGeneration else {return}
+                finishFileOpenRead(token,generation:request); presentHistoricalSave(content, short)
+            } catch { if !isInvalidated,!confirmingQuit,!token.isCancelled,request == generation,fileRequest == fileSelectionGeneration {self.error=error.localizedDescription} }
         }
     }
     private func finishFileOpenRead(_ token: OperationCancellation, generation request: Int) {
@@ -2759,13 +2768,14 @@ struct LogCommandRequest: Identifiable {
         if selectedWorkingTree { openWorkingFile(ids, action: action); return }
         guard !busy, !isInvalidated, let revision, ids.count == 1, let window, window.attachedSheet == nil,
               let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
-        let request = generation, fileRequest = fileSelectionGeneration, token = OperationCancellation()
+        let request = generation, fileRequest = fileSelectionGeneration, token = OperationCancellation(),backend=materializationBackend()
+        materializationEditorSettings = .load(from:labelDefaults)
         fileOpenRead = token; busy = true; Self.activeFileOpenReads += 1
         Task {
             defer { Self.activeFileOpenReads -= 1; finishFileOpenRead(token, generation: request); withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let content = try await repository.historicalFile(revision: revision.hash, path: file.path, cancellation: token)
+                let content = try await repository.materializedHistoricalFile(revision: revision.hash, path: file.path, cancellation: token,backend:backend)
                 try token.check()
                 guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration else { return }
                 finishFileOpenRead(token, generation: request); presentHistoricalOpen(content, action)

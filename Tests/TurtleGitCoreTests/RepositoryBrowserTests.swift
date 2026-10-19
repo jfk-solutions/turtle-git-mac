@@ -69,7 +69,7 @@ final class RepositoryBrowserTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(a)),working)
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
         let unchanged=try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(unchanged,head)
-        let single=try await repo.exportRepositoryBrowser(snapshot,entry:be);defer{single.discard()};XCTAssertEqual(try Data(contentsOf:single.item),second)
+        let single=try await repo.exportRepositoryBrowser(snapshot,entry:be, backend: GitLibGit2Configuration());defer{single.discard()};XCTAssertEqual(try Data(contentsOf:single.item),second)
         let dirs=try await repo.run(["mktree","-z"],input:Data(directories.utf8)).text.trimmingCharacters(in:.newlines)
         let listing=try await repo.browseRepository(revision:dirs)
         // Ask this actual volume whether aliases share a directory. On such a
@@ -78,9 +78,9 @@ final class RepositoryBrowserTests: XCTestCase {
         try FileManager.default.createDirectory(at:probe.appendingPathComponent(da),withIntermediateDirectories:false)
         let aliases=FileManager.default.fileExists(atPath:probe.appendingPathComponent(db).path)
         if aliases {
-            do {let export=try await repo.exportRepositoryBrowser(listing);export.discard();XCTFail("Alias directories were merged")}
+            do {let export=try await repo.exportRepositoryBrowser(listing, backend: GitLibGit2Configuration());export.discard();XCTFail("Alias directories were merged")}
             catch {XCTAssertTrue((error as NSError).domain == NSCocoaErrorDomain)}
-        } else {let export=try await repo.exportRepositoryBrowser(listing);XCTAssertEqual(export.fileCount,2);export.discard()}
+        } else {let export=try await repo.exportRepositoryBrowser(listing, backend: GitLibGit2Configuration());XCTAssertEqual(export.fileCount,2);export.discard()}
         try await repo.revertRepositoryBrowserFile(snapshot,entry:ae)
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(a)),first)
     }
@@ -345,7 +345,7 @@ final class RepositoryBrowserTests: XCTestCase {
         try Data("current must not export".utf8).write(to: root.appendingPathComponent(nested + "/" + name))
         try await repo.stage([folder]); _ = try await repo.commit(message: "advance export source")
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
-        let export = try await repo.exportRepositoryBrowser(snapshot, entry: entry)
+        let export = try await repo.exportRepositoryBrowser(snapshot, entry: entry, backend: GitLibGit2Configuration())
         defer { export.discard() }
         XCTAssertEqual(export.item.lastPathComponent, folder); XCTAssertEqual(export.fileCount, 2)
         XCTAssertEqual(try Data(contentsOf: export.item.appendingPathComponent("nested/" + name)), binary)
@@ -357,10 +357,10 @@ final class RepositoryBrowserTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(nested + "/" + name)), Data("current must not export".utf8))
         let listing = try await repo.browseRepositoryDirectory(snapshot, directory: nested)
         let file = try XCTUnwrap(listing.entries.first)
-        let single = try await repo.exportRepositoryBrowser(listing, entry: file)
+        let single = try await repo.exportRepositoryBrowser(listing, entry: file, backend: GitLibGit2Configuration())
         XCTAssertEqual(single.item.lastPathComponent, name); XCTAssertEqual(try Data(contentsOf: single.item), binary)
         single.discard(); XCTAssertFalse(FileManager.default.fileExists(atPath: single.directory.path))
-        let directory = try await repo.exportRepositoryBrowser(listing)
+        let directory = try await repo.exportRepositoryBrowser(listing, backend: GitLibGit2Configuration())
         defer { directory.discard() }
         XCTAssertEqual(directory.item.lastPathComponent, "nested")
         XCTAssertEqual(try Data(contentsOf: directory.item.appendingPathComponent(name)), binary)
@@ -372,12 +372,12 @@ final class RepositoryBrowserTests: XCTestCase {
         _ = try await repo.run(["update-index", "--add", "--cacheinfo", "160000," + previous + ",module"])
         _ = try await repo.commit(message: "export gitlink rejection")
         let snapshot = try await repo.browseRepository(), module = try XCTUnwrap(snapshot.entries.first { $0.kind == .submodule })
-        do { _ = try await repo.exportRepositoryBrowser(snapshot, entry: module); XCTFail("Gitlink exported as ordinary file") } catch is RepositoryBrowserFailure {}
+        do { _ = try await repo.exportRepositoryBrowser(snapshot, entry: module, backend: GitLibGit2Configuration()); XCTFail("Gitlink exported as ordinary file") } catch is RepositoryBrowserFailure {}
         let cancellation = OperationCancellation(); cancellation.cancel()
-        do { _ = try await repo.exportRepositoryBrowser(snapshot, cancellation: cancellation); XCTFail("Cancelled export continued") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.exportRepositoryBrowser(snapshot, cancellation: cancellation, backend: GitLibGit2Configuration()); XCTFail("Cancelled export continued") } catch is OperationCancellationFailure {}
         let file = try XCTUnwrap(snapshot.entries.first { $0.kind == .file })
         let foreign = RepositoryBrowserEntry(path: file.path, name: file.name, mode: file.mode, objectID: String(repeating: "f", count: 40), size: file.size)
-        do { _ = try await repo.exportRepositoryBrowser(snapshot, entry: foreign); XCTFail("Foreign blob exported") } catch is RepositoryBrowserFailure {}
+        do { _ = try await repo.exportRepositoryBrowser(snapshot, entry: foreign, backend: GitLibGit2Configuration()); XCTFail("Foreign blob exported") } catch is RepositoryBrowserFailure {}
     }
     func testCancellationReachesEveryBrowserOperationWithoutMutatingRepository() async throws {
         let (root,repo,_) = try await GitPatchTests().fixture()
@@ -392,7 +392,7 @@ final class RepositoryBrowserTests: XCTestCase {
         do { _ = try await repo.browseRepositoryDirectory(snapshot,directory:"nested",cancellation:token);XCTFail("Directory cancellation lost") } catch is OperationCancellationFailure {}
         do { _ = try await repo.repositoryBrowserFile(nested,entry:entry,cancellation:token);XCTFail("Blob cancellation lost") } catch is OperationCancellationFailure {}
         do { try await repo.revertRepositoryBrowserFile(nested,entry:entry,cancellation:token);XCTFail("Restore cancellation lost") } catch is OperationCancellationFailure {}
-        do { _ = try await repo.exportRepositoryBrowser(nested,cancellation:token);XCTFail("Export cancellation lost") } catch is OperationCancellationFailure {}
+        do { _ = try await repo.exportRepositoryBrowser(nested,cancellation:token, backend: GitLibGit2Configuration());XCTFail("Export cancellation lost") } catch is OperationCancellationFailure {}
         do { _ = try await repo.repositoryBrowserSubmodule(nested,entry:entry,cancellation:token);XCTFail("Submodule cancellation lost") } catch is OperationCancellationFailure {}
         do { _ = try await repo.submoduleComparison(path:entry.path,cancellation:token);XCTFail("Child cancellation lost") } catch is OperationCancellationFailure {}
         let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout

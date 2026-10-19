@@ -3,7 +3,7 @@ import Foundation
 import Darwin
 
 public enum GitLibGit2Operation: UInt32, Sendable {
-    case clone = 1, fetch = 2, push = 11
+    case clone = 1, fetch = 2, getOneFile = 9, push = 11
     public var mask: UInt32 { 1 << rawValue }
 }
 public enum GitLibGit2Failure: LocalizedError {
@@ -49,25 +49,39 @@ public struct GitLibGit2Configuration: Sendable {
 /// ordinary process-group interruption. A newly starting prompt sees the marker
 /// and cannot open another question between readiness and group termination.
 final class GitRemotePromptCancellation {
-    let lockURL: URL, cancelURL: URL
+    let lockURL: URL, cancelURL: URL, filterLockURL: URL
     private let descriptor: Int32
+    private let filterDescriptor: Int32
     private var exclusive = false
     init(directory: URL) throws {
         lockURL = directory.appendingPathComponent("remote-prompt.lock")
         cancelURL = directory.appendingPathComponent("remote-prompt.cancel")
-        descriptor = open(lockURL.path, O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
-        guard descriptor >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        filterLockURL = directory.appendingPathComponent("filter-worker.lock")
+        let prompt = open(lockURL.path, O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
+        guard prompt >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        let filter = open(filterLockURL.path, O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
+        guard filter >= 0 else { let code = errno; close(prompt); throw NSError(domain: NSPOSIXErrorDomain, code: Int(code)) }
+        descriptor = prompt; filterDescriptor = filter
     }
     var environment: [String: String] {
-        ["TURTLEGIT_REMOTE_PROMPT_LOCK": lockURL.path, "TURTLEGIT_REMOTE_PROMPT_CANCEL_FILE": cancelURL.path]
+        ["TURTLEGIT_REMOTE_PROMPT_LOCK": lockURL.path, "TURTLEGIT_REMOTE_PROMPT_CANCEL_FILE": cancelURL.path,
+         "TURTLEGIT_LIBGIT2_FILTER_LOCK": filterLockURL.path]
     }
     func cancellationReady() -> Bool {
         let marker = open(cancelURL.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
         if marker >= 0 { close(marker) }
         else if errno != EEXIST { return false }
         if exclusive { return true }
-        if flock(descriptor, LOCK_EX | LOCK_NB) == 0 { exclusive = true; return true }
-        return false
+        guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else { return false }
+        guard flock(filterDescriptor, LOCK_EX | LOCK_NB) == 0 else {
+            // A draining filter may itself be retiring an askpass child. Never
+            // keep its prompt lock while waiting for the separate worker lock.
+            flock(descriptor, LOCK_UN); return false
+        }
+        exclusive = true; return true
     }
-    deinit { if exclusive { flock(descriptor, LOCK_UN) }; close(descriptor) }
+    deinit {
+        if exclusive { flock(filterDescriptor, LOCK_UN); flock(descriptor, LOCK_UN) }
+        close(filterDescriptor); close(descriptor)
+    }
 }

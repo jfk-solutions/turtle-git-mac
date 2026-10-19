@@ -48,10 +48,10 @@ private final class RepositoryBrowserWeakRetention {
 }
 
 @MainActor enum RepositoryBrowserDrag {
-    static func provider(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry?, directory: String?, name: String, folder: Bool) -> NSItemProvider {
+    static func provider(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry?, directory: String?, name: String, folder: Bool,backend:GitLibGit2Configuration? = nil) -> NSItemProvider {
         let provider = NSItemProvider(); provider.suggestedName = name
         let type = folder ? UTType.folder : UTType(filenameExtension: (name as NSString).pathExtension) ?? .data
-        let payload = RepositoryBrowserDragPayload(repository: repository, access: access, snapshot: snapshot, entry: entry, directory: directory)
+        let payload = RepositoryBrowserDragPayload(repository: repository, access: access, snapshot: snapshot, entry: entry, directory: directory,backend:backend)
         provider.registerFileRepresentation(forTypeIdentifier: type.identifier, fileOptions: [], visibility: .all) { completion in
             let cancellation = OperationCancellation(), progress = Progress(totalUnitCount: 1)
             let receipt = RepositoryBrowserTransferReceipt()
@@ -71,9 +71,10 @@ private final class RepositoryBrowserWeakRetention {
     let snapshot: RepositoryBrowserSnapshot
     let entry: RepositoryBrowserEntry?
     let directory: String?
+    let backend:GitLibGit2Configuration
     private let retention = RepositoryBrowserExportFiles.owner()
-    init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry?, directory: String?) {
-        self.repository = repository; self.access = access; self.snapshot = snapshot; self.entry = entry; self.directory = directory
+    init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry?, directory: String?,backend:GitLibGit2Configuration? = nil) {
+        self.repository = repository; self.access = access; self.snapshot = snapshot; self.entry = entry; self.directory = directory;self.backend=backend ?? repository.libgit2Configuration ?? .load()
     }
     func load(completion: @escaping (URL?, Bool, Error?) -> Void, progress: Progress, cancellation: OperationCancellation) async {
         defer { withExtendedLifetime(access) {} }
@@ -82,7 +83,7 @@ private final class RepositoryBrowserWeakRetention {
             let current: RepositoryBrowserSnapshot
             if let directory { current = try await repository.browseRepositoryDirectory(snapshot, directory: directory, cancellation: cancellation) }
             else { current = snapshot }
-            let export = try await repository.exportRepositoryBrowser(current, entry: entry, cancellation: cancellation)
+            let export = try await repository.exportRepositoryBrowser(current, entry: entry, cancellation: cancellation,backend:backend)
             guard !cancellation.isCancelled else { export.discard(); throw OperationCancellationFailure.cancelled }
             retention.retain(export)
             progress.totalUnitCount = Int64(export.fileCount)
@@ -99,9 +100,10 @@ private final class RepositoryBrowserWeakRetention {
     let snapshot:RepositoryBrowserSnapshot
     let entry:RepositoryBrowserEntry?
     let directory:String?
+    let backend:GitLibGit2Configuration
     let name:String
-    init(repository:GitRepository,access:RepositoryAccessLease?,snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry? = nil,directory:String? = nil) {
-        self.repository=repository;self.access=access;self.snapshot=snapshot;self.entry=entry;self.directory=directory
+    init(repository:GitRepository,access:RepositoryAccessLease?,snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry? = nil,directory:String? = nil,backend:GitLibGit2Configuration? = nil) {
+        self.repository=repository;self.access=access;self.snapshot=snapshot;self.entry=entry;self.directory=directory;self.backend=backend ?? repository.libgit2Configuration ?? .load()
         self.name=entry?.name ?? (directory.map { $0.isEmpty ? repository.root.lastPathComponent : ($0 as NSString).lastPathComponent } ?? repository.root.lastPathComponent)
     }
     func provider() -> NSFilePromiseProvider {
@@ -128,7 +130,7 @@ private final class RepositoryBrowserWeakRetention {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
         let listing: RepositoryBrowserSnapshot
         if let directory { listing = try await repository.browseRepositoryDirectory(snapshot, directory: directory, cancellation: cancellation) } else { listing = snapshot }
-        let export = try await repository.exportRepositoryBrowser(listing, entry: entry, cancellation: cancellation)
+        let export = try await repository.exportRepositoryBrowser(listing, entry: entry, cancellation: cancellation,backend:backend)
         defer { export.discard(); withExtendedLifetime(access) {} }
         let source = export.item
         try await Task.detached(priority: .userInitiated) {

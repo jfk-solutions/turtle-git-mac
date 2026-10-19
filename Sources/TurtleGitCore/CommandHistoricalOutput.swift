@@ -61,12 +61,21 @@ public final class PreparedCommandFile: @unchecked Sendable {
 extension GitRepository {
     /// CatCommand's blob and GetOneFile routes, with Git's filters and an exact
     /// tree lookup. Resolve mutable names once before reading or running filters.
-    public func commandHistoricalFile(revision: String, path: String, cancellation: OperationCancellation) throws -> Data {
+    public func commandHistoricalFile(revision: String, path: String, cancellation: OperationCancellation, backend: GitLibGit2Configuration? = nil) throws -> Data {
+        let backend = backend ?? libgit2Configuration ?? .load()
         try cancellation.check()
         guard !revision.isEmpty, !revision.hasPrefix("-"), !revision.contains("\0") else { throw RevisionComparisonFailure.range }
         if path != "." { _ = try RemovalRequest(paths: [path], keepLocal: true) }
         let object = try run(["rev-parse", "--verify", "--end-of-options", revision], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         guard (object.count == 40 || object.count == 64), object.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw RevisionComparisonFailure.range }
+        let executor = try backend.executor(for: .getOneFile)
+        if executor == nil {
+            let kind = try run(["cat-file", "-t", object], cancellation: cancellation).text
+            // CatCommand's disabled-backend nonblob route is Git show (commit
+            // metadata and patch), unlike GetOneFile's raw-file fallback.
+            let arguments = kind == "blob\n" ? ["cat-file", "-p", "--", object] : ["-c", "core.precomposeunicode=false", "show", "--end-of-options", object, "--", path]
+            return try run(arguments, cancellation: cancellation).stdout
+        }
         let peeled = try run(["rev-parse", "--verify", "--end-of-options", object + "^{}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         let kind = try run(["cat-file", "-t", peeled], cancellation: cancellation).text
         let blob: String
@@ -82,6 +91,6 @@ extension GitRepository {
             guard fields.count == 3, fields[1] == "blob" else { throw RevisionComparisonFailure.selection }
             blob = String(fields[2])
         }
-        return try run(["cat-file", "--filters", "--path=" + path, blob], cancellation: cancellation).stdout
+        return try run(["-c", "core.precomposeunicode=false", "cat-file", "--filters", "--path=" + path, blob], cancellation: cancellation, executorOverride: executor).stdout
     }
 }

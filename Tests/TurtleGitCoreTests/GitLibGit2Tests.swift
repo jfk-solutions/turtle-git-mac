@@ -228,6 +228,203 @@ final class GitLibGit2Tests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent("file")), working)
     }
 
+    private func materializationFixture(_ f: Fixture) async throws -> (String, [String: Data]) {
+        _ = try await f.source.run(["config", "core.precomposeunicode", "false"])
+        let filter = f.root.appendingPathComponent("smudge ' 雪")
+        try executable(filter, "#!/usr/bin/python3\nimport sys\nsys.stdout.buffer.write(b'SMUDGE[' + sys.stdin.buffer.read() + b']')\n")
+        _ = try await f.source.run(["config", "filter.fixture.smudge", quote(filter.path)])
+        _ = try await f.source.run(["config", "filter.fixture.clean", "cat"])
+        _ = try await f.source.run(["config", "filter.fixture.required", "true"])
+        let files = ["line.txt": Data("line one\nline two\n".utf8), "colon:雪.filtered": Data("stored\n".utf8), "cafe\u{301}.filtered": Data("decomposed\n".utf8), "binary.filtered": Data([0, 255, 10, 1])]
+        try Data("*.txt text eol=crlf\n*.filtered filter=fixture\n".utf8).write(to: f.source.root.appendingPathComponent(".gitattributes"))
+        for (path, bytes) in files { try bytes.write(to: f.source.root.appendingPathComponent(path)) }
+        let link = f.source.root.appendingPathComponent("link.filtered")
+        let result = link.path.withCString { symlink("../../outside-target", $0) }; XCTAssertEqual(result, 0)
+        try await f.source.stage([".gitattributes"] + Array(files.keys) + ["link.filtered"])
+        _ = try await f.source.commit(message: "historical filters")
+        let hash = try await f.source.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await f.source.run(["config", "core.precomposeunicode", "true"])
+        return (hash, files)
+    }
+
+    func testActualHistoricalMaterializationFiltersBinaryEOLSignedTagAndLiteralLinksButRawReadersStayRaw() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let (hash, files) = try await materializationFixture(f)
+        let backend = GitLibGit2Configuration(mask: 0x200, helperURL: f.helper), disabled = GitLibGit2Configuration(enabled: false)
+        XCTAssertTrue(GitLibGit2Configuration().requests(.getOneFile)); XCTAssertEqual(GitLibGit2Operation.getOneFile.mask, 0x200)
+        // Peeling a signature-bearing annotated tag must not try to parse its
+        // signature bytes as commit/blob contents. This fixture does not verify signatures.
+        let tag = "object " + hash + "\ntype commit\ntag signed-fixture\ntagger Fixture <qa@example.invalid> 1700000000 +0000\n\nfixture\n-----BEGIN PGP SIGNATURE-----\nfixture payload\n-----END PGP SIGNATURE-----\n"
+        let object = try await f.source.run(["hash-object", "-t", "tag", "-w", "--stdin"], input: Data(tag.utf8)).text.trimmingCharacters(in: .newlines)
+        _ = try await f.source.run(["update-ref", "refs/tags/signed-fixture", object])
+        let index = try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), config = try Data(contentsOf: f.source.root.appendingPathComponent(".git/config"))
+        for (path, raw) in files {
+            let source = try await f.source.historicalFile(revision: hash, path: path)
+            XCTAssertEqual(source.bytes, raw)
+            let content = try await f.source.materializedHistoricalFile(revision: "signed-fixture", path: path, backend: backend)
+            let expected = path.hasSuffix(".txt") ? Data("line one\r\nline two\r\n".utf8) : Data("SMUDGE[".utf8) + raw + Data("]".utf8)
+            XCTAssertEqual(content.bytes, expected, path); XCTAssertEqual(content.revision, .revision(hash))
+            let fallback = try await f.source.materializedHistoricalFile(revision: hash, path: path, backend: disabled)
+            XCTAssertEqual(fallback.bytes, raw)
+        }
+        let symlink = try await f.source.materializedHistoricalFile(revision: hash, path: "link.filtered", backend: backend)
+        XCTAssertEqual(symlink.mode, "120000"); XCTAssertEqual(symlink.bytes, Data("SMUDGE[../../outside-target]".utf8))
+        let listing = try await f.source.browseRepository(revision: hash)
+        let entry = try XCTUnwrap(listing.entries.first { $0.path == "binary.filtered" })
+        let browserRaw = try await f.source.repositoryBrowserFile(listing, entry: entry)
+        let browserOutput = try await f.source.materializedRepositoryBrowserFile(listing, entry: entry, backend: backend)
+        let binary = try XCTUnwrap(files[entry.path])
+        XCTAssertEqual(browserRaw.bytes, binary); XCTAssertEqual(browserOutput.bytes, Data("SMUDGE[".utf8) + binary + Data("]".utf8))
+        let finalHead = try await f.source.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(finalHead, hash); XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/config")), config)
+    }
+
+    func testHistoricalExportPlansCaptureBackendAndKeepExistingOutputOnFilterFailure() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let (hash, files) = try await materializationFixture(f), path = "binary.filtered"
+        let suite = "TurtleGit.Materialization." + UUID().uuidString, preferences = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { preferences.removePersistentDomain(forName: suite) }
+        preferences.set(0x200, forKey: "UseLibgit2_mask")
+        let backend = GitLibGit2Configuration.load(from: preferences, helperURL: f.helper)
+        let folder = f.root.appendingPathComponent("export"), second = f.root.appendingPathComponent("comparison")
+        for directory in [folder, second] { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false) }
+        let file = CommitFile(path: path, oldPath: nil, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        let historical = try await f.source.prepareHistoricalExport(revision: hash, files: [file], to: folder, backend: backend)
+        let comparison = try await f.source.revisionFileComparison(from: .emptyTree, to: .revision(hash), paths: [path])
+        let compared = try await f.source.prepareComparisonExport(comparison, files: comparison.files, to: second, backend: backend)
+        preferences.set(false, forKey: "UseLibgit2")
+        try await f.source.exportHistoricalFile(historical, path: path)
+        try await f.source.exportComparisonFile(compared, path: path)
+        let stored = try XCTUnwrap(files[path]), expected = Data("SMUDGE[".utf8) + stored + Data("]".utf8)
+        XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(path)), expected)
+        XCTAssertEqual(try Data(contentsOf: second.appendingPathComponent(path)), expected)
+        let browser = try await f.source.browseRepository(revision: hash)
+        let entry = try XCTUnwrap(browser.entries.first { $0.path == path })
+        let exported = try await f.source.exportRepositoryBrowser(browser, entry: entry, backend: backend)
+        defer { try? FileManager.default.removeItem(at: exported.directory) }
+        XCTAssertEqual(try Data(contentsOf: exported.item), expected)
+        let sentinel = Data("existing output remains".utf8)
+        try sentinel.write(to: folder.appendingPathComponent(path)); try sentinel.write(to: second.appendingPathComponent(path))
+        _ = try await f.source.run(["config", "filter.fixture.smudge", "exit 37"])
+        let index = try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), config = try Data(contentsOf: f.source.root.appendingPathComponent(".git/config"))
+        do { try await f.source.exportHistoricalFile(historical, path: path); XCTFail("Required filter failure replaced output") } catch is GitFailure {}
+        do { try await f.source.exportComparisonFile(compared, path: path); XCTFail("Comparison export ignored required filter failure") } catch is GitFailure {}
+        XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(path)), sentinel)
+        XCTAssertEqual(try Data(contentsOf: second.appendingPathComponent(path)), sentinel)
+        XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: folder.path).contains { $0.hasPrefix(".TurtleGit") })
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/config")), config)
+        _ = try await f.source.run(["config", "--unset", "filter.fixture.smudge"])
+        do { _ = try await f.source.materializedHistoricalFile(revision: hash, path: path, backend: backend); XCTFail("Required filter without a smudge command succeeded") } catch is GitFailure {}
+        let raw = try await f.source.materializedHistoricalFile(revision: hash, path: path, backend: .init(enabled: false))
+        XCTAssertEqual(raw.bytes, files[path])
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), index)
+        // Only the fixture's deliberate --unset changes configuration.
+        let current = try Data(contentsOf: f.source.root.appendingPathComponent(".git/config"))
+        _ = try await f.source.materializedHistoricalFile(revision: hash, path: path, backend: .init(enabled: false))
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/config")), current)
+        XCTAssertNotEqual(current, config)
+    }
+
+    func testStandaloneCatPreservesSelectedFilteringAndSourceDisabledShowContract() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let (hash, files) = try await materializationFixture(f), path = "colon:雪.filtered"
+        let backend = GitLibGit2Configuration(mask: 0x200, helperURL: f.helper), token = OperationCancellation()
+        let blob = try await f.source.run(["rev-parse", hash + ":" + path]).text.trimmingCharacters(in: .newlines)
+        let raw = try XCTUnwrap(files[path]), expected = Data("SMUDGE[".utf8) + raw + Data("]".utf8)
+        for revision in [hash, blob] {
+            let output = try await f.source.commandHistoricalFile(revision: revision, path: path, cancellation: token, backend: backend)
+            XCTAssertEqual(output, expected)
+        }
+        let rawBlob = try await f.source.commandHistoricalFile(revision: blob, path: path, cancellation: token, backend: .init(enabled: false))
+        XCTAssertEqual(rawBlob, raw)
+        let rootBlob = try await f.source.commandHistoricalFile(revision: blob, path: ".", cancellation: token, backend: backend)
+        XCTAssertEqual(rootBlob, raw, "Direct blobs without a filename retain the repository-root attribute context")
+        let show = try await f.source.run(["-c", "core.precomposeunicode=false", "show", "--end-of-options", hash, "--", path]).stdout
+        let disabledCommit = try await f.source.commandHistoricalFile(revision: hash, path: path, cancellation: token, backend: .init(enabled: false))
+        XCTAssertEqual(disabledCommit, show); XCTAssertNotEqual(disabledCommit, raw)
+        let missing = GitLibGit2Configuration(mask: 0x200, helperURL: f.root.appendingPathComponent("missing-helper"))
+        do { _ = try await f.source.materializedHistoricalFile(revision: hash, path: path, backend: missing); XCTFail("Requested runtime silently fell back") } catch GitLibGit2Failure.runtimeMissing {}
+    }
+
+    func testHistoricalMaterializationLiteralFilterArgumentsLargeStreamsOptionalFailureAndBareAttributes() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        _ = try await materializationFixture(f)
+        let path = "percent % ':雪.filtered", raw = Data(repeating: 0x41, count: 524_288) + Data([0, 255, 10])
+        try raw.write(to: f.source.root.appendingPathComponent(path)); try await f.source.stage([path]); _ = try await f.source.commit(message: "large literal filter input")
+        let hash = try await f.source.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let script = f.root.appendingPathComponent("argument-filter"), argv = f.root.appendingPathComponent("filter-arguments.json")
+        try executable(script, """
+        #!/usr/bin/python3
+        import json, pathlib, sys
+        (pathlib.Path(__file__).parent / 'filter-arguments.json').write_text(json.dumps(sys.argv[1:]))
+        sys.stderr.buffer.write(b'diagnostic' * 32768); sys.stderr.buffer.flush()
+        sys.stdout.buffer.write(b'FILTER[' + sys.stdin.buffer.read() + b']'); sys.stdout.buffer.flush()
+        """)
+        let command = quote(script.path) + " %f '%%'", backend = GitLibGit2Configuration(mask: 0x200, helperURL: f.helper)
+        _ = try await f.source.run(["config", "filter.fixture.smudge", command])
+        let content = try await f.source.materializedHistoricalFile(revision: hash, path: path, backend: backend)
+        let expected = Data("FILTER[".utf8) + raw + Data("]".utf8)
+        XCTAssertEqual(content.bytes, expected)
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: Data(contentsOf: argv)) as? [String], [path, "%"])
+        _ = try await f.source.run(["config", "filter.fixture.required", "false"])
+        _ = try await f.source.run(["config", "filter.fixture.smudge", "exit 29"])
+        let optional = try await f.source.materializedHistoricalFile(revision: hash, path: path, backend: backend)
+        XCTAssertEqual(optional.bytes, raw)
+        let bare = f.root.appendingPathComponent("materialization.git")
+        _ = try await f.source.run(["clone", "--bare", "--", f.source.root.path, bare.path])
+        let repository = GitRepository(root: bare, executable: f.source.executable, askpass: nil)
+        _ = try await repository.run(["config", "filter.fixture.smudge", command])
+        _ = try await repository.run(["config", "filter.fixture.required", "true"])
+        // Source's default libgit2 flags don't request HEAD attributes in bare
+        // repositories. An explicit info/attributes rule remains applicable.
+        let withoutRule = try await repository.materializedHistoricalFile(revision: hash, path: path, backend: backend)
+        XCTAssertEqual(withoutRule.bytes, raw)
+        try Data("*.filtered filter=fixture\n".utf8).write(to: bare.appendingPathComponent("info/attributes"))
+        let config = try Data(contentsOf: bare.appendingPathComponent("config")), refs = try await repository.run(["show-ref"]).stdout
+        let withRule = try await repository.materializedHistoricalFile(revision: hash, path: path, backend: backend)
+        XCTAssertEqual(withRule.bytes, expected)
+        XCTAssertEqual(try Data(contentsOf: bare.appendingPathComponent("config")), config)
+        let finalRefs = try await repository.run(["show-ref"]).stdout; XCTAssertEqual(finalRefs, refs)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: bare.appendingPathComponent("index").path))
+    }
+
+    @MainActor func testHistoricalSmudgeCancellationDrainsActualChildAndPreservesExport() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let (hash, _) = try await materializationFixture(f), path = "binary.filtered"
+        let filter = f.root.appendingPathComponent("held-smudge"), ready = f.root.appendingPathComponent("smudge-ready.json")
+        try executable(filter, """
+        #!/usr/bin/python3
+        import json, os, pathlib, subprocess, time
+        root = pathlib.Path(__file__).parent
+        child = subprocess.Popen(['/bin/sleep','30'])
+        temporary = root / 'smudge-ready.tmp'
+        temporary.write_text(json.dumps({'pid':os.getpid(),'child':child.pid}))
+        temporary.replace(root / 'smudge-ready.json')
+        while True: time.sleep(.02)
+        """)
+        _ = try await f.source.run(["config", "filter.fixture.smudge", quote(filter.path)])
+        let folder = f.root.appendingPathComponent("cancel-export")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+        let sentinel = Data("retain destination".utf8); try sentinel.write(to: folder.appendingPathComponent(path))
+        let file = CommitFile(path: path, oldPath: nil, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        let plan = try await f.source.prepareHistoricalExport(revision: hash, files: [file], to: folder, backend: .init(mask: 0x200, helperURL: f.helper))
+        let index = try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), token = OperationCancellation()
+        let operation = Task { try await f.source.exportHistoricalFile(plan, path: path, cancellation: token) }
+        var pids: [Int32] = []
+        do {
+            try await wait { FileManager.default.fileExists(atPath: ready.path) }
+            let state = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: ready)) as? [String: Any])
+            pids = [try XCTUnwrap(state["pid"] as? NSNumber).int32Value, try XCTUnwrap(state["child"] as? NSNumber).int32Value]
+            token.cancel()
+        } catch { token.cancel(); _ = await operation.result; throw error }
+        do { try await operation.value; XCTFail("Cancelled filter published output") } catch is GitCommandCancellationFailure {} catch is OperationCancellationFailure {}
+        try await wait { pids.allSatisfy { kill($0, 0) != 0 } }
+        XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(path)), sentinel)
+        XCTAssertEqual(try Data(contentsOf: f.source.root.appendingPathComponent(".git/index")), index)
+        let after = try await f.source.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(after, hash)
+    }
+
     @MainActor private func wait(_ predicate: () -> Bool) async throws {
         for _ in 0..<1500 { if predicate() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
         XCTFail("Owned libgit2 fixture did not reach its boundary"); throw GitLibGit2Failure.runtimeMissing

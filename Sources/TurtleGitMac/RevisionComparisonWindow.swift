@@ -172,8 +172,8 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
             let preview=try HistoricalFilePreview.create(content);HistoricalPreviewFiles.retain(preview)
             do {
                 if action == .alternativeEditor {
-                    let message:String?=await withCheckedContinuation {reply in AlternativeEditor.open(preview.file,preferences:model.preferences,permissions:model.access.map {[$0]} ?? [],completion:{reply.resume(returning:$0)})}
-                    if let message {throw CocoaError(.fileReadUnknown,userInfo:[NSLocalizedDescriptionKey:message])}
+                    guard let token=model.historicalFileCancellation else {throw OperationCancellationFailure.cancelled}
+                    try await AlternativeEditor.openDocument(preview.file,settings:model.historicalEditorSettings ?? .load(from:model.preferences),permissions:model.access.map {[$0]} ?? [],cancellation:token)
                 } else if let application {
                     let scoped=application.startAccessingSecurityScopedResource();defer {if scoped{application.stopAccessingSecurityScopedResource()}}
                     let message:String?=await withCheckedContinuation {reply in NSWorkspace.shared.open([preview.file],withApplicationAt:application,configuration:NSWorkspace.OpenConfiguration()){_,error in reply.resume(returning:error?.localizedDescription)}}
@@ -262,6 +262,8 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     private var patchGeneration = 0
     private(set) static var activeFileOperations = 0
     let preferences: UserDefaults
+    var captureMaterializationBackend:(()->GitLibGit2Configuration)?
+    private func materializationBackend()->GitLibGit2Configuration {captureMaterializationBackend?() ?? .load(from:preferences)}
     var confirmManyDiffs: ((Int) async -> Bool)?
     var openComparedFile: ((RevisionComparisonSnapshot, CommitFile) -> Void)?
     private var comparisonSessions: [UUID: FileListComparisonSession] = [:]
@@ -270,6 +272,8 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     @Published private(set) var bare=false
     @Published private(set) var fileActionTitle=""
     private var fileActionToken:OperationCancellation?
+    var historicalFileCancellation:OperationCancellation? {fileActionToken}
+    private(set) var historicalEditorSettings:AlternativeEditorPreferences?
     private var closeAfterFileAction=false
     private var actionGeneration=UUID()
     private let menuOwner=UUID()
@@ -698,11 +702,12 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     }
     func exportFiles(_ ids:some Sequence<String>) {
         let ids = GitPathSet(ids)
+        let backend=materializationBackend()
         runFileAction(ids,title:"Export selected files") { [self] snapshot,files,token in
             guard let folder=await chooseExportFolder(),!closed,!token.isCancelled else {return}
             let scoped=folder.startAccessingSecurityScopedResource();defer{if scoped{folder.stopAccessingSecurityScopedResource()}}
             guard !GitRuntime.isAppStoreBuild || scoped || access?.permits(folder)==true else {throw RepositoryAccessFailure.securityScopeUnavailable}
-            let plan=try await repository.prepareComparisonExport(snapshot,files:files,to:folder,cancellation:token)
+            let plan=try await repository.prepareComparisonExport(snapshot,files:files,to:folder,cancellation:token,backend:backend)
             for path in plan.paths {
                 guard !closed,!token.isCancelled else {break}
                 do {try await repository.exportComparisonFile(plan,path:path,cancellation:token)}
@@ -719,11 +724,12 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     func openRevisionFile(_ ids:some Sequence<String>,action:HistoricalOpenAction) {
         let ids = GitPathSet(ids)
         guard canOpenRevisionFile(ids) else{return}
+        let backend=materializationBackend();historicalEditorSettings = .load(from:preferences)
         runFileAction(ids,title:"Opening file at revision…") { [self] snapshot,files,token in
             let application:URL?
             if action == .openWith {application=await chooseHistoricalApplication();guard application != nil else{return}} else {application=nil}
             try token.check();guard !closed,let file=files.first,case .revision(let hash)=snapshot.to else{return}
-            let content=try await repository.historicalFile(revision:hash,path:file.path,cancellation:token)
+            let content=try await repository.materializedHistoricalFile(revision:hash,path:file.path,cancellation:token,backend:backend)
             try token.check();guard !closed else{return}
             try await openHistoricalContent(content,action,application)
         }
@@ -731,9 +737,10 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     func saveRevisionFile(_ ids:some Sequence<String>) {
         let ids = GitPathSet(ids)
         guard canOpenRevisionFile(ids) else{return}
+        let backend=materializationBackend()
         runFileAction(ids,title:"Saving file at revision…") { [self] snapshot,files,token in
             guard let file=files.first,case .revision(let hash)=snapshot.to else{return}
-            let content=try await repository.historicalFile(revision:hash,path:file.path,cancellation:token)
+            let content=try await repository.materializedHistoricalFile(revision:hash,path:file.path,cancellation:token,backend:backend)
             try token.check();guard !closed,let destination=await chooseHistoricalSave(content) else{return}
             try token.check();guard !closed else{return}
             let scoped=destination.startAccessingSecurityScopedResource();defer{if scoped{destination.stopAccessingSecurityScopedResource()}}

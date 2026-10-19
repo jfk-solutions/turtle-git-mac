@@ -3,6 +3,12 @@ import SwiftUI
 import TurtleGitCore
 import UniformTypeIdentifiers
 
+/// The accepted command carries its output engine through permission and
+/// repository-discovery tasks without mutating shared preferences.
+private enum HistoricalMaterializationContext {
+    @TaskLocal static var backend:GitLibGit2Configuration?
+}
+
 /// Delayed repository work belongs to the window that launched it, even when
 /// that window closes before preparation or creation reports completion.
 @MainActor private final class RepositoryWindowOwner {
@@ -2355,6 +2361,7 @@ import UniformTypeIdentifiers
     var fileComparisonWindowPresentation: ((FileComparisonWindowController) -> Void)?
     var logWindowPresentation: ((LogWindowController) -> Void)?
     var submoduleUpdateWindowPresentation: ((SubmoduleUpdateWindowController) -> Void)?
+    var captureCommandMaterializationBackend:(()->GitLibGit2Configuration)?
     var fileComparisonPreferences: UserDefaults = .standard
     var fileComparisonQuestion: ((Int) async -> Bool)?
     var fileComparisonPresentation: ((RevisionComparisonSnapshot, CommitFile) -> Void)?
@@ -3906,10 +3913,11 @@ import UniformTypeIdentifiers
     }
     private func writeCommandHistoricalFile(repository: GitRepository, access: RepositoryAccessLease, revision: String, path: String, file: URL, permission: RepositoryAccessLease) {
         let (id, owner) = beginCommandOutput()
+        let backend=HistoricalMaterializationContext.backend ?? captureCommandMaterializationBackend?() ?? .load(from:fileComparisonPreferences)
         Task {
             defer { finishCommandOutput(id); withExtendedLifetime((access, permission)) {} }
             do {
-                let bytes = try await repository.commandHistoricalFile(revision: revision, path: path, cancellation: owner.cancellation)
+                let bytes = try await repository.commandHistoricalFile(revision: revision, path: path, cancellation: owner.cancellation,backend:backend)
                 try await publishCommandOutput(bytes, file: file, permission: permission, owner: owner)
                 if root?.path == repository.root.path { output = "Saved historical file: " + file.path }
             } catch { if !retired, !owner.cancellation.isCancelled { self.error = "Could not save " + file.path + ": " + error.localizedDescription } }
@@ -3970,8 +3978,11 @@ import UniformTypeIdentifiers
         do {
             guard let invocation = try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) else { return }
             guard !busy, commandRepositoryBatchCancellation == nil else { error = "Wait for the current repository operation before opening a command."; return }
-            if invocation.pathFile != nil { try prepareCommandPathList(invocation) }
-            else { try launchCommandLine(invocation) }
+            let backend:GitLibGit2Configuration?=invocation.request.action == .cat ? (captureCommandMaterializationBackend?() ?? .load(from:fileComparisonPreferences)):nil
+            try HistoricalMaterializationContext.$backend.withValue(backend) {
+                if invocation.pathFile != nil { try prepareCommandPathList(invocation) }
+                else { try launchCommandLine(invocation) }
+            }
         } catch { self.error = error.localizedDescription }
     }
     private func launchCommandLine(_ invocation: PrimaryCommandInvocation, cancellation: OperationCancellation? = nil) throws {
@@ -4019,8 +4030,11 @@ import UniformTypeIdentifiers
         if [.fetch, .pull, .push].contains(invocation.request.action), invocation.request.paths.count > 1 {
             launchCommandRepositoryBatch(invocation, cancellation: cancellation); return
         }
-        ComparisonToolInvocation.$alternate.withValue(invocation.request.alternateTool ?? false) {
-            handleFinderRequest(invocation.request, invocation: invocation, messageAccess: permission, outputAccess: outputAccess, commandCancellation: cancellation)
+        let backend:GitLibGit2Configuration?=invocation.request.action == .cat ? (HistoricalMaterializationContext.backend ?? captureCommandMaterializationBackend?() ?? .load(from:fileComparisonPreferences)):nil
+        HistoricalMaterializationContext.$backend.withValue(backend) {
+            ComparisonToolInvocation.$alternate.withValue(invocation.request.alternateTool ?? false) {
+                handleFinderRequest(invocation.request, invocation: invocation, messageAccess: permission, outputAccess: outputAccess, commandCancellation: cancellation)
+            }
         }
     }
     private func persistResolutionCommandScopes(_ folders: [URL], root: URL) {

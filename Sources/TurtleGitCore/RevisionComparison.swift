@@ -264,6 +264,7 @@ public struct ComparisonFileExport: Sendable {
     public let paths: [String]
     fileprivate let snapshot: RevisionComparisonSnapshot
     fileprivate let folder: URL
+    fileprivate let backend: GitLibGit2Configuration
 }
 extension GitRepository {
     private func checkedComparisonSelection(_ snapshot: RevisionComparisonSnapshot, files: [CommitFile], cancellation: OperationCancellation?) throws {
@@ -356,7 +357,8 @@ extension GitRepository {
             return trash
         } catch { throw WorkingFileRevertFailure(gitError:error.localizedDescription,wasCancelled:false,trashedFiles:trash) }
     }
-    public func prepareComparisonExport(_ snapshot: RevisionComparisonSnapshot, files: [CommitFile], to folder: URL, cancellation: OperationCancellation? = nil) throws -> ComparisonFileExport {
+    public func prepareComparisonExport(_ snapshot: RevisionComparisonSnapshot, files: [CommitFile], to folder: URL, cancellation: OperationCancellation? = nil, backend: GitLibGit2Configuration? = nil) throws -> ComparisonFileExport {
+        let backend = backend ?? libgit2Configuration ?? .load()
         try checkedComparisonSelection(snapshot,files:files,cancellation:cancellation)
         let folder=folder.standardizedFileURL.resolvingSymlinksInPath()
         guard try folder.resourceValues(forKeys:[.isDirectoryKey]).isDirectory==true,!folder.pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}) else { throw WorkingFileExportFailure.location }
@@ -369,7 +371,7 @@ extension GitRepository {
             guard RepositoryAccessLease.pathIsContained(destination.deletingLastPathComponent(),by:folder),!destination.deletingLastPathComponent().resolvingSymlinksInPath().pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}) else { throw WorkingFileExportFailure.location }
             guard !sources.contains(destination.resolvingSymlinksInPath().path) else { throw WorkingFileExportFailure.source }
         }
-        return ComparisonFileExport(paths:paths,snapshot:snapshot,folder:folder)
+        return ComparisonFileExport(paths:paths,snapshot:snapshot,folder:folder,backend:backend)
     }
     public func exportComparisonFile(_ export: ComparisonFileExport, path: String, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()
@@ -380,7 +382,7 @@ extension GitRepository {
         if export.snapshot.to == .workingTree { try saveWorkingFile(path:path,to:destination,cancellation:cancellation);return }
         guard case .revision(let revision) = export.snapshot.to else { throw RevisionComparisonFailure.selection }
         // FileDiffDlg exports Version 2 only; a missing Base blob cannot block it.
-        let content=try historicalFile(revision:revision,path:path,cancellation:cancellation)
+        let content=try materializedHistoricalFile(revision:revision,path:path,cancellation:cancellation,backend:export.backend)
         let temporary=parent.appendingPathComponent(".TurtleGitExport-"+UUID().uuidString)
         defer{try? FileManager.default.removeItem(at:temporary)}
         try content.bytes.write(to:temporary,options:.withoutOverwriting);try cancellation?.check()

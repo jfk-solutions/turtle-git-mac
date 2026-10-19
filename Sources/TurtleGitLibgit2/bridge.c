@@ -4,10 +4,21 @@
 #include <git2/sys/config.h>
 #include <git2/sys/errors.h>
 #include <git2/sys/repository.h>
+#include <git2/sys/filter.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <spawn.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <errno.h>
+#include <time.h>
+#include <fcntl.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+
 typedef struct {tg_callbacks *callbacks;const char *origin;const char *ssh_command;unsigned int received,indexed,completed;unsigned int recursion;const char *configuration_directory;unsigned int push_rejections;} context;
 static int stopped(context *ctx);
 static context *active_context;
@@ -184,4 +195,75 @@ int tg_delete_remote(const char *path,const char *name,const char *const *refspe
  if(result==0&&ctx.push_rejections){git_error_set_str(GIT_ERROR_REFERENCE,"The remote rejected one or more reference deletions");result=-1;}
  if(remote)git_remote_disconnect(remote);git_remote_free(remote);git_repository_free(repository);active_context=NULL;
  return stopped(&ctx)?GIT_EUSER:result;
+}
+
+// Custom smudge semantics adapted from TortoiseGit src/libgit2/filter-filter.c.
+// Copyright (C) 2014, 2016-2021, 2023, 2026 TortoiseGit; GPL-2.0-or-later.
+// Registered only for this historical materialization, never clone checkout.
+static int smudge_check(git_filter *self,void **payload,const git_filter_source *src,const char **values){
+ (void)self;(void)src;if(!values||!values[0]||GIT_ATTR_IS_TRUE(values[0])||GIT_ATTR_IS_FALSE(values[0])||GIT_ATTR_IS_UNSPECIFIED(values[0]))return GIT_PASSTHROUGH;
+ *payload=strdup(values[0]);return *payload?0:-1;
+}
+static void smudge_cleanup(git_filter *self,void *payload){(void)self;free(payload);}
+static int smudge_apply(git_filter *self,void **payload,git_buf *to,const git_buf *from,const git_filter_source *src){
+ (void)self;context *ctx=active_context;if(!ctx||stopped(ctx))return GIT_EUSER;
+ git_config *config=NULL;git_buf command=GIT_BUF_INIT;int required=0,result;char *key=NULL;unsigned char *bytes=NULL;size_t length=0;
+ if((result=git_repository_config_snapshot(&config,git_filter_source_repo(src)))<0)return result;
+ size_t keysize=strlen((char *)*payload)+32;key=malloc(keysize);if(!key){result=-1;goto done;}
+ snprintf(key,keysize,"filter.%s.required",(char *)*payload);result=git_config_get_bool(&required,config,key);if(result<0&&result!=GIT_ENOTFOUND)goto done;
+ snprintf(key,keysize,"filter.%s.smudge",(char *)*payload);result=git_config_get_string_buf(&command,config,key);
+ if(result==GIT_ENOTFOUND){if(required){git_error_set_str(GIT_ERROR_FILTER,"Required smudge filter command is missing");result=-1;}else result=GIT_PASSTHROUGH;goto done;}if(result<0)goto done;
+ result=ctx->callbacks->filter?ctx->callbacks->filter(command.ptr,git_filter_source_path(src),(const unsigned char *)from->ptr,from->size,&bytes,&length,ctx->callbacks->payload):-1;
+ if(stopped(ctx)){result=GIT_EUSER;goto done;}
+ if(result<0){if(required)git_error_set_str(GIT_ERROR_FILTER,"Required smudge filter failed");else result=GIT_PASSTHROUGH;goto done;}
+ result=git_buf_set(to,bytes,length);
+ done:free(bytes);free(key);git_buf_dispose(&command);git_config_free(config);return result;
+}
+int tg_materialize_blob(const char *path,const char *oidtext,const char *filename,tg_callbacks *callbacks){
+ context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX};git_repository *repository=NULL;git_blob *blob=NULL;git_buf bytes=GIT_BUF_INIT;git_oid oid;int registered=0,result;
+ git_filter driver=GIT_FILTER_INIT;driver.attributes="filter";driver.check=smudge_check;driver.apply=smudge_apply;driver.cleanup=smudge_cleanup;
+ active_context=&ctx;if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ if((result=git_repository_open(&repository,path))<0)goto done;if((result=configure_repository(repository,&ctx))<0)goto done;
+ if((result=git_oid_fromstr(&oid,oidtext))<0)goto done;if((result=git_blob_lookup(&blob,repository,&oid))<0)goto done;
+ if((result=git_filter_register("turtlegit-smudge",&driver,GIT_FILTER_DRIVER_PRIORITY))<0)goto done;registered=1;
+ git_blob_filter_options options=GIT_BLOB_FILTER_OPTIONS_INIT;options.flags&=~(uint32_t)GIT_BLOB_FILTER_CHECK_FOR_BINARY;
+ result=git_blob_filter(&bytes,blob,filename,&options);if(result==0&&stopped(&ctx))result=GIT_EUSER;
+ if(result==0&&callbacks->result)callbacks->result(bytes.ptr,bytes.size,callbacks->payload);
+ done:git_buf_dispose(&bytes);if(registered)git_filter_unregister("turtlegit-smudge");git_blob_free(blob);git_repository_free(repository);active_context=NULL;return result;
+}
+
+// A private process group owns the shell and every filter descendant. File-backed
+// streams avoid pipe deadlocks for simultaneous large input/output/stderr.
+static int run_filter_process(const char *command,int input,int output,int error,const char *const *environment,tg_callbacks *callbacks){
+ posix_spawn_file_actions_t actions;posix_spawnattr_t attributes;pid_t pid=0;int status=0,result;
+ if(posix_spawn_file_actions_init(&actions)!=0)return -1;
+ if(posix_spawnattr_init(&attributes)!=0){posix_spawn_file_actions_destroy(&actions);return -1;}
+ result=posix_spawn_file_actions_adddup2(&actions,input,STDIN_FILENO);
+ if(!result)result=posix_spawn_file_actions_adddup2(&actions,output,STDOUT_FILENO);
+ if(!result)result=posix_spawn_file_actions_adddup2(&actions,error,STDERR_FILENO);
+ if(!result)result=posix_spawnattr_setpgroup(&attributes,0);
+ if(!result)result=posix_spawnattr_setflags(&attributes,POSIX_SPAWN_SETPGROUP|POSIX_SPAWN_CLOEXEC_DEFAULT);
+ char *argv[]={"/bin/sh","-c",(char *)command,NULL};
+ if(!result)result=posix_spawn(&pid,"/bin/sh",&actions,&attributes,argv,(char *const *)environment);
+ posix_spawnattr_destroy(&attributes);posix_spawn_file_actions_destroy(&actions);if(result)return -1;
+ int cancelling=0,ticks=0;struct timespec pause={0,10000000};
+ for(;;){pid_t waited=waitpid(pid,&status,WNOHANG);if(waited==pid)break;if(waited<0&&errno!=EINTR){kill(-pid,SIGKILL);while(waitpid(pid,&status,0)<0&&errno==EINTR){}return -1;}
+  if(callbacks->cancelled&&callbacks->cancelled(callbacks->payload)){if(!cancelling){kill(-pid,SIGTERM);cancelling=1;}else if(++ticks>=20)kill(-pid,SIGKILL);}
+  nanosleep(&pause,NULL);
+ }
+ // Disallow a shell filter leaving owned background workers after returning.
+ kill(-pid,SIGKILL);return !cancelling&&WIFEXITED(status)&&WEXITSTATUS(status)==0?0:-1;
+}
+
+int tg_run_filter(const char *command,int input,int output,int error,const char *const *environment,tg_callbacks *callbacks){
+ int lock=-1;const char *path=getenv("TURTLEGIT_LIBGIT2_FILTER_LOCK");
+ if(path){
+  struct stat info;lock=open(path,O_RDWR|O_NOFOLLOW|O_CLOEXEC);
+  if(lock<0)return -1;
+  if(fstat(lock,&info)<0||!S_ISREG(info.st_mode)||info.st_uid!=geteuid()||(info.st_mode&0777)!=0600){close(lock);return -1;}
+  while(flock(lock,LOCK_EX|LOCK_NB)<0){if(errno!=EINTR&&errno!=EWOULDBLOCK){close(lock);return -1;}if(callbacks->cancelled&&callbacks->cancelled(callbacks->payload)){close(lock);return -1;}struct timespec pause={0,10000000};nanosleep(&pause,NULL);}
+ }
+ // Recheck after acquisition: Core publishes cancellation before taking locks.
+ int result=-1;if(!callbacks->cancelled||!callbacks->cancelled(callbacks->payload))result=run_filter_process(command,input,output,error,environment,callbacks);
+ if(lock>=0){flock(lock,LOCK_UN);close(lock);}return result;
 }

@@ -2,8 +2,8 @@
 <html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Optional libgit2 transport</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="optional-libgit2-transport">Optional libgit2 transport</h1>
 <p>TurtleGit includes an optional libgit2 engine for Clone, Fetch and the Fetch
 operations in Synchronization, including Fetch &amp; Rebase and fetching a tag.
-It also lists remote references and deletes remote tags/branches when their
-corresponding source command-mask bits are enabled.
+It also lists remote references, deletes remote tags/branches, and materializes
+historical files when their corresponding source command-mask bits are enabled.
 The normal Clone/Fetch defaults remain Git commands, matching TortoiseGit's
 per-command defaults. SVN, ordinary Pull/Merge, Push, Prune and Remote Update
 continue through their existing command workflows.</p>
@@ -58,8 +58,9 @@ host-key workflow. See <a href="SSH-AUTHENTICATION.html">SSH authentication</a> 
 <a href="REPOSITORY-FOLDER-ACCESS.html">repository folder access</a>. The
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LIBGIT2-TRANSPORT-PARITY.html">source and validation record</a> distinguishes implemented
 behavior from public-server, signed sandbox and complete upstream acceptance.</p>
-<p>The optional engine does not currently run external Git filter/LFS process drivers
-or ordinary Git hooks. Repository template files are copied, but copying a hook
+<p>Clone and Fetch in the optional engine do not currently run external Git
+filter/LFS process drivers or ordinary Git hooks. Historical-file materialization
+has a separate source-compatible smudge path described below. Repository template files are copied, but copying a hook
 is separate from executing it. Conventional custom <code>GIT_ASKPASS</code> programs and
 Git credential helpers are not consumed by this engine; use its native prompt or
 the default Git engine for those workflows. URL-specific HTTP headers, proxy and
@@ -69,4 +70,28 @@ connection. An accepted invalid certificate is temporary within that call; it
 is not yet shared across the dialog's later calls. The original Windows process
 keeps a certificate cache across calls. This remaining usability difference is
 recorded with the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/REMOTE-REFERENCE-ENGINE-PARITY.html">remote-reference source comparison</a>.</p>
+<h2 id="opening-and-exporting-historical-files">Opening and exporting historical files</h2>
+<p>Historical Open, Open With, Alternative Editor, Save As and file/folder transfer
+use the GetOneFile setting, bit <code>0x200</code> (decimal <code>512</code>). This bit is already enabled
+in the source default mask <code>0x66780</code>. These actions pin the selected revision and
+materialize the file without checking it out or changing the index.</p>
+<p>With this backend enabled, libgit2 applies its checkout-side CRLF/ident filters
+and configured <code>filter.&lt;driver&gt;.smudge</code> commands. The file's literal repository
+path is substituted for <code>%f</code>; <code>%%</code> supplies a literal percent. A required smudge
+failure reports an error and preserves the existing destination. An optional
+filter failure passes through the preceding filter output, as in TortoiseGit's
+custom filter. The selected engine and output ownership remain captured through
+native panels, file promises and cancellation.</p>
+<p>Disabling GetOneFile or the master switch selects the source's raw Git-command
+file read. The standalone Cat command retains its separate source command rules;
+its disabled-backend blob route returns raw bytes, while its nonblob route
+uses Git show for the selected path, including commit/patch output. See the
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/HISTORICAL-MATERIALIZATION-PARITY.html">historical materialization comparison</a>. Blame, raw comparison baselines and raw patch
+export use their existing independent readers.</p>
+<p>These smudge commands are configured by the repository/user. They execute with
+the captured Git environment and own their subprocesses until completion or
+cancellation. This does not imply support for Git's persistent filter-process
+protocol or working-tree-encoding conversion in libgit2. Clone/Fetch filter and
+hook behavior remains the separate limitation above. ZIP Export continues to use
+Git archive and its archive attributes.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

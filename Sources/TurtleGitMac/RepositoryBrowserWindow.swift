@@ -170,13 +170,20 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
         if action == .save {
             let panel=NSSavePanel();panel.title="Save revision to…";panel.nameFieldStringValue=(content.path as NSString).lastPathComponent;ownedSheet=panel
+            var answered=false
             let reply:(NSApplication.ModalResponse)->Void = { [weak self] response in
-                guard let self,self.fileOperation === operation,self.ownedSheet === panel else {return};self.ownedSheet=nil
-                guard response == .OK,current(),let url=self.saveDestination(panel),url.isFileURL else {self.finishFile(operation);return}
+                guard !answered,let self,self.fileOperation === operation,self.ownedSheet === panel else {return};answered=true
+                let destination=self.saveDestination(panel)
                 operation.working=true
-                let writer=self.writeDocument,grant=RepositoryAccessLease(url:url)
-                Task { [self,operation,grant] in
-                    defer {withExtendedLifetime(grant) {};self.finishFile(operation)}
+                let writer=self.writeDocument
+                Task { [self,operation] in
+                    defer {self.finishFile(operation)}
+                    panel.sheetParent?.endSheet(panel,returnCode:response);panel.orderOut(nil)
+                    while panel.sheetParent != nil {try? await Task.sleep(nanoseconds:5_000_000)}
+                    if self.ownedSheet === panel {self.ownedSheet=nil}
+                    guard response == .OK,current(),!self.model.confirmingQuit,let url=destination,url.isFileURL else {return}
+                    let grant=RepositoryAccessLease(url:url)
+                    defer {withExtendedLifetime(grant){}}
                     do {try operation.cancellation.check();try await writer(content.bytes,url,operation.cancellation)}
                     catch {if current() {self.model.error=error.localizedDescription}}
                 }
@@ -184,10 +191,17 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             if let presentSavePanel {presentSavePanel(panel,window,reply)} else {panel.beginSheetModal(for:window,completionHandler:reply)}
         } else if action == .openWith {
             let panel=NSOpenPanel();panel.title="Open With";panel.prompt="Open";panel.allowedContentTypes=[.applicationBundle];panel.directoryURL=URL(fileURLWithPath:"/Applications");panel.canChooseDirectories=false;panel.allowsMultipleSelection=false;ownedSheet=panel
+            var answered=false
             let reply:(NSApplication.ModalResponse)->Void = { [weak self] response in
-                guard let self,self.fileOperation === operation,self.ownedSheet === panel else {return};self.ownedSheet=nil
-                guard response == .OK,current(),let app=self.selectedApplication(panel) else {self.finishFile(operation);return}
-                self.open(content,action:action,application:app,operation:operation,current:current)
+                guard !answered,let self,self.fileOperation === operation,self.ownedSheet === panel else {return};answered=true
+                let app=self.selectedApplication(panel);operation.working=true
+                Task { [self,operation] in
+                    panel.sheetParent?.endSheet(panel,returnCode:response);panel.orderOut(nil)
+                    while panel.sheetParent != nil {try? await Task.sleep(nanoseconds:5_000_000)}
+                    if self.ownedSheet === panel {self.ownedSheet=nil}
+                    guard response == .OK,current(),!self.model.confirmingQuit,let app else {self.finishFile(operation);return}
+                    self.open(content,action:action,application:app,operation:operation,current:current)
+                }
             }
             if let presentApplicationPanel {presentApplicationPanel(panel,window,reply)} else {panel.beginSheetModal(for:window,completionHandler:reply)}
         } else {open(content,action:action,operation:operation,current:current)}
@@ -198,7 +212,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     }
     private func open(_ content:ComparisonFileContent,action:RepositoryBrowserWindowModel.FileAction,application:URL? = nil,operation:RepositoryBrowserFileOperation,current:@escaping ()->Bool) {
         guard current() else {finishFile(operation);return};operation.working=true
-        let launch=launchDocument,defaults=model.preferences,permissions=model.access.map {[$0]} ?? [],defaultApplication=self.defaultApplication,cancellation=operation.cancellation
+        let launch=launchDocument,editor=model.materializationEditorSettings ?? .load(from:model.preferences),permissions=model.access.map {[$0]} ?? [],defaultApplication=self.defaultApplication,cancellation=operation.cancellation
         let applicationGrant=application.map {RepositoryAccessLease(url:$0)}
         Task { [self,operation,permissions,applicationGrant] in
             defer {withExtendedLifetime(permissions) {};withExtendedLifetime(applicationGrant) {};self.finishFile(operation)}
@@ -209,8 +223,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
                 preview=prepared;try operation.cancellation.check();guard current() else {throw OperationCancellationFailure.cancelled}
                 if action == .alternativeEditor {
                     HistoricalPreviewFiles.retain(prepared);dispatched=true
-                    let message:String?=await withCheckedContinuation {reply in AlternativeEditor.open(prepared.file,preferences:defaults,permissions:permissions,completion:{reply.resume(returning:$0)})}
-                    if let message {throw CocoaError(.fileReadUnknown,userInfo:[NSLocalizedDescriptionKey:message])}
+                    try await AlternativeEditor.openDocument(prepared.file,settings:editor,permissions:permissions,cancellation:cancellation,launch:launch)
                 } else {
                     guard let app=application ?? defaultApplication(prepared.file) else {throw CocoaError(.fileReadUnknown,userInfo:[NSLocalizedDescriptionKey:"Could not open the historical file. Choose an application using Open With."])}
                     var program=DiffToolProgram();program.enabled=true;program.applicationPath=app.path
@@ -300,6 +313,9 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var offerSubmoduleUpdate: (RepositoryBrowserEntry) -> Void = { _ in }
     var onSubmoduleUpdate: (String) -> Void = { _ in }
     let preferences:UserDefaults
+    private(set) var materializationEditorSettings:AlternativeEditorPreferences?
+    var captureMaterializationBackend:(()->GitLibGit2Configuration)?
+    func materializationBackend()->GitLibGit2Configuration {captureMaterializationBackend?() ?? .load(from:preferences)}
     @Published private(set) var columns:RepositoryBrowserColumns
     private(set) var columnsRevision = 0
     static let dividerKey = "TurtleGit.RepositoryBrowser.Divider"
@@ -448,13 +464,13 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         if entry.kind == .directory { expanded.insert(entry.path); loadDirectory(entry.path,select:true); return }
         if entry.kind == .submodule && action == .open && !snapshot.bare { loadSubmodule(snapshot,entry:entry,showLog:false); return }
         if let openRequest { requests[openRequest]?.cancel() }
-        let (request,cancellation) = startRequest(), identity = generation
-        openRequest = request
+        let (request,cancellation) = startRequest(), identity = generation,backend=materializationBackend()
+        openRequest = request;materializationEditorSettings = .load(from:preferences)
         Task { [self, repository, access] in
             defer { finishRequest(request); withExtendedLifetime(access) {} }
             do {
                 try validateAccess()
-                let content = try await repository.repositoryBrowserFile(snapshot,entry:entry,cancellation:cancellation)
+                let content = try await repository.materializedRepositoryBrowserFile(snapshot,entry:entry,cancellation:cancellation,backend:backend)
                 if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                 guard active, generation == identity, openRequest == request else { return }
                 presentFile(content,action)
@@ -467,7 +483,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         do { try validateAccess() } catch { self.error = error.localizedDescription; return nil }
         let folder = directory != nil || entry == nil || entry?.kind == .directory
         let name = entry?.name ?? (directory.map { $0.isEmpty ? repository.root.lastPathComponent : ($0 as NSString).lastPathComponent } ?? repository.root.lastPathComponent)
-        return RepositoryBrowserDrag.provider(repository: repository, access: access, snapshot: snapshot, entry: entry, directory: directory, name: name, folder: folder)
+        return RepositoryBrowserDrag.provider(repository: repository, access: access, snapshot: snapshot, entry: entry, directory: directory, name: name, folder: folder,backend:materializationBackend())
     }
     func showSubmoduleLog(_ entry: RepositoryBrowserEntry) {
         guard active, !busy, !confirmingQuit, !confirmingColumns,!choosingRevision,!handlingFile, let snapshot, snapshot.entries.contains(entry), entry.kind == .submodule else { return }
@@ -575,7 +591,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     func folderPromise(_ path: String) -> NSFilePromiseProvider? {
         guard folderObjectID(path) != nil, let snapshot else { return nil }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return nil }
-        return RepositoryBrowserFilePromise(repository:repository,access:access,snapshot:snapshot,directory:path).provider()
+        return RepositoryBrowserFilePromise(repository:repository,access:access,snapshot:snapshot,directory:path,backend:materializationBackend()).provider()
     }
     func showFolderLog(_ path: String) {
         guard folderObjectID(path) != nil, let revision = snapshot?.objectID else { return }

@@ -61,6 +61,29 @@ def main():
                 assert subprocess.run(['/usr/bin/git','-C',target,'show-ref','--quiet','--verify','refs/heads/injected'],env=env,capture_output=True).returncode==1
                 assert (clone/'.git/config').read_bytes()==clone_config and (clone/'.git/index').read_bytes()==clone_index
                 assert git('-C',clone,'rev-parse','HEAD')==head and (clone/'file').read_text()=='first\n' and global_config.read_bytes()==original
+                # Exact historical blob bytes: builtin CRLF then an external smudge,
+                # binary-check disabled, literal %f path and optional/required errors.
+                literal="space 'é:historical.bin";raw=b'raw\x00historical\n'+b'x'*1_048_576
+                oid=subprocess.check_output(['/usr/bin/git','-C',str(clone),'hash-object','-w','--stdin'],input=raw,env=env).strip().decode()
+                (clone/'.gitattributes').write_text('*.bin filter=fixture\nprobe text eol=crlf\n')
+                def materialize(path,*configuration,blob=oid):
+                    argv=prefix+[str(binary),'--literal-pathspecs','-C',str(clone)]
+                    for value in configuration:argv+=['-c',value]
+                    return subprocess.run(argv+['cat-file','--filters','--path='+path,blob],env=env,capture_output=True,timeout=30)
+                result=materialize(literal,"filter.fixture.smudge=printf '%%s\\0%%s\\0' %f %% ; cat",'filter.fixture.required=true')
+                assert result.returncode==0,result.stderr.decode(errors='replace')
+                assert result.stdout==literal.encode()+b'\x00%\x00'+raw
+                text_oid=subprocess.check_output(['/usr/bin/git','-C',str(clone),'hash-object','-w','--stdin'],input=b'line one\nline two\n',env=env).strip().decode()
+                eol=materialize('probe',blob=text_oid);assert eol.returncode==0 and eol.stdout==b'line one\r\nline two\r\n',eol.stderr
+                direct=materialize('.');assert direct.returncode==0 and direct.stdout==raw,direct.stderr
+                optional=materialize(literal,'filter.fixture.smudge=exit 7','filter.fixture.required=false')
+                assert optional.returncode==0 and optional.stdout==raw
+                required=materialize(literal,'filter.fixture.smudge=exit 7','filter.fixture.required=true')
+                assert required.returncode!=0 and required.stdout==b'' and required.stderr
+                missing=materialize(literal,'filter.fixture.required=true')
+                assert missing.returncode!=0 and missing.stdout==b''
+                assert (clone/'.git/config').read_bytes()==clone_config and (clone/'.git/index').read_bytes()==clone_index
+                assert git('-C',clone,'rev-parse','HEAD')==head and global_config.read_bytes()==original
 
-    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with actual clone/fetch/list/deletion.'))
+    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with actual clone/fetch/list/deletion/filtered historical blobs.'))
 if __name__=='__main__':main()

@@ -3698,3 +3698,12 @@ and cancellation ownership, captured preferences and source HEAD-list difference
 [Source comparison and batch evidence](REMOTE-REFERENCE-ENGINE-PARITY.md) keep
 cross-call certificate caching, other backend consumers and public/signed/physical
 App Store acceptance explicit rather than declaring the engine or port complete.
+
+
+### Historical materialization continuation — October 19, 2026
+
+The [historical file family](HISTORICAL-MATERIALIZATION-PARITY.md) connects the
+source default GetOneFile backend to historical opening/editors, Save As and
+selected/recursive output. Accepted operations retain their engine choice through
+panels and delayed file delivery. Raw comparison and Blame readers remain distinct;
+source filter semantics and actual grouped evidence are recorded in that family.

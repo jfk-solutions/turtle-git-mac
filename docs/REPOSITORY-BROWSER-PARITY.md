@@ -650,3 +650,12 @@ dispatch a stale child. Existing working/marked comparison and child Log/Browser
 Update routes retain their originating browser preferences and permissions.
 Grouped evidence is recorded after validation; physical initial-focus/menu
 gestures, signed child grants and complete Browser parity remain open.
+
+
+### Historical materialization continuation — October 19, 2026
+
+The [historical file family](HISTORICAL-MATERIALIZATION-PARITY.md) connects the
+source default GetOneFile backend to historical opening/editors, Save As and
+selected/recursive output. Accepted operations retain their engine choice through
+panels and delayed file delivery. Raw comparison and Blame readers remain distinct;
+source filter semantics and actual grouped evidence are recorded in that family.

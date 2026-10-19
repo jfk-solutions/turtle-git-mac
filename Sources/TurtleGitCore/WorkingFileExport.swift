@@ -94,14 +94,17 @@ public struct HistoricalFileExport: Sendable {
     public let paths: [String]
     fileprivate let root: URL
     fileprivate let folder: URL
+    fileprivate let backend: GitLibGit2Configuration
 }
 
 extension GitRepository {
-    public func prepareHistoricalExport(revision: String, files: [CommitFile], to folder: URL) throws -> HistoricalFileExport {
+    public func prepareHistoricalExport(revision: String, files: [CommitFile], to folder: URL, cancellation: OperationCancellation? = nil, backend: GitLibGit2Configuration? = nil) throws -> HistoricalFileExport {
+        let backend = backend ?? libgit2Configuration ?? .load()
+        try cancellation?.check()
         let destinationRoot = folder.standardizedFileURL.resolvingSymlinksInPath()
         guard try destinationRoot.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true,
               !destinationRoot.pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }) else { throw WorkingFileExportFailure.location }
-        let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+        let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         var seen = GitPathSet()
         let paths = files.filter { !$0.isSubmodule && !$0.action.hasPrefix("D") && seen.insert($0.path).inserted }.map(\.path)
         // macOS destinations can normalize distinct Git spellings. Never drop
@@ -115,11 +118,12 @@ extension GitRepository {
                   !destination.deletingLastPathComponent().resolvingSymlinksInPath().pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }) else { throw WorkingFileExportFailure.location }
             guard !sources.contains(destination.resolvingSymlinksInPath().path) else { throw WorkingFileExportFailure.source }
         }
-        return HistoricalFileExport(revision: hash, paths: paths, root: root, folder: destinationRoot)
+        return HistoricalFileExport(revision: hash, paths: paths, root: root, folder: destinationRoot, backend: backend)
     }
-    public func exportHistoricalFile(_ export: HistoricalFileExport, path: String) throws {
+    public func exportHistoricalFile(_ export: HistoricalFileExport, path: String, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
         guard export.root == root, GitPathSet(export.paths).contains(path) else { throw RevisionComparisonFailure.selection }
-        let content = try historicalFile(revision: export.revision, path: path)
+        let content = try materializedHistoricalFile(revision: export.revision, path: path, cancellation: cancellation, backend: export.backend)
         let destination = export.folder.appendingPathComponent(path).standardizedFileURL
         let parent = destination.deletingLastPathComponent()
         guard RepositoryAccessLease.pathIsContained(parent, by: export.folder),
@@ -132,6 +136,9 @@ extension GitRepository {
         let temporary = parent.appendingPathComponent(".TurtleGitExport-" + UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: temporary) }
         try content.bytes.write(to: temporary, options: .withoutOverwriting)
+        try cancellation?.check()
+        guard RepositoryAccessLease.pathIsContained(parent, by: export.folder),
+              !parent.resolvingSymlinksInPath().pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }) else { throw WorkingFileExportFailure.location }
         guard Darwin.rename(temporary.path, destination.path) == 0 else {
             throw GitFailure(arguments: ["export", path], code: 1, message: String(cString: strerror(errno)))
         }

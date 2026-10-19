@@ -184,7 +184,8 @@ extension GitRepository {
     /// Adapts RepositoryBrowser.cpp RecursivelyAdd and GitDataObject.cpp historical
     /// file contents (GPL-2.0-or-later). Gitlinks are skipped; symlinks are text.
     /// Copyright (C) 2016-2019, 2021-2023, 2025 TortoiseGit; 2007-2014 TortoiseSVN.
-    public func exportRepositoryBrowser(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry? = nil, cancellation: OperationCancellation? = nil) throws -> RepositoryBrowserExport {
+    public func exportRepositoryBrowser(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry? = nil, cancellation: OperationCancellation? = nil, backend: GitLibGit2Configuration? = nil) throws -> RepositoryBrowserExport {
+        let backend = backend ?? libgit2Configuration ?? .load()
         try cancellation?.check()
         guard snapshot.root == root, snapshot.objectID != nil,
               entry.map({ snapshot.entries.contains($0) && $0.kind != .submodule }) ?? true else { throw RepositoryBrowserFailure.selection }
@@ -194,7 +195,7 @@ extension GitRepository {
         var count = 0
         func writeFile(_ listing: RepositoryBrowserSnapshot, _ value: RepositoryBrowserEntry, to url: URL) throws {
             try cancellation?.check()
-            let content = try repositoryBrowserFile(listing, entry: value, cancellation: cancellation)
+            let content = try materializedRepositoryBrowserFile(listing, entry: value, cancellation: cancellation, backend: backend)
             try cancellation?.check()
             try manager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try content.bytes.write(to: url, options: .withoutOverwriting)
@@ -331,6 +332,14 @@ extension GitRepository {
             return ComparisonFileContent(path: entry.path + ".txt", revision: .revision(object), bytes: Data(("Subproject commit " + entry.objectID).utf8), mode: "100644")
         }
         return ComparisonFileContent(path: entry.path, revision: .revision(object), bytes: try run(["cat-file", "blob", entry.objectID], cancellation: cancellation).stdout, mode: entry.mode)
+    }
+    public func materializedRepositoryBrowserFile(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry, cancellation: OperationCancellation? = nil,
+                                                  backend: GitLibGit2Configuration? = nil) throws -> ComparisonFileContent {
+        let backend = backend ?? libgit2Configuration ?? .load()
+        let token = cancellation ?? OperationCancellation(); try token.check()
+        guard snapshot.root == root, snapshot.entries.contains(entry), entry.kind != .directory, let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
+        if entry.kind == .submodule { return try repositoryBrowserFile(snapshot, entry: entry, cancellation: token) }
+        return try materializedBlob(objectID: entry.objectID, path: entry.path, revision: object, mode: entry.mode, cancellation: token, backend: backend)
     }
 }
 

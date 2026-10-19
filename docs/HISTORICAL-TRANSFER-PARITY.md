@@ -56,3 +56,12 @@ handoffs after source close. Actual results are recorded separately in the dated
 QA report. Physical Finder/other-app interoperability, signed sandbox access,
 minimum-OS execution, current-head hosted success and full browser/app parity
 remain open.
+
+
+### Historical materialization continuation — October 19, 2026
+
+The [historical file family](HISTORICAL-MATERIALIZATION-PARITY.md) connects the
+source default GetOneFile backend to historical opening/editors, Save As and
+selected/recursive output. Accepted operations retain their engine choice through
+panels and delayed file delivery. Raw comparison and Blame readers remain distinct;
+source filter semantics and actual grouped evidence are recorded in that family.

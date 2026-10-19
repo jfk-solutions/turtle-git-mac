@@ -33,7 +33,8 @@ func configuration(_ value:String)throws->String{
 struct Arguments{
     var command="",directory=FileManager.default.currentDirectoryPath,configs:[String]=[]
     var source="",destination="",branch:String?,origin:String?,ssh:String?,bare=false,noCheckout=false,recursive=false
-    var listRefs=false,listTags=false,listHeads=false
+    var listRefs=false,listTags=false,listHeads=false,filters=false
+    var blobPath:String?,blobOID=""
     var remote="origin",refspecs:[String]=[],all=false,tags=0,prune=0,depth=0,force=false,verbose=false
     init(_ arguments:[String])throws{
         if let old=environment["GIT_CONFIG_PARAMETERS"]{for value in try quotedWords(old){configs.append(try configuration(value))}}
@@ -49,17 +50,17 @@ struct Arguments{
             if arg == "--literal-pathspecs" || arg == "--no-literal-pathspecs"{continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["clone","fetch","ls-remote","push"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["clone","fetch","ls-remote","push","cat-file"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
-        guard !command.isEmpty else{try refuse("Expected clone, fetch, ls-remote or deletion push")}
+        guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         var operands:[String]=[],options=true
         while index<arguments.count{
             let arg=try next()
             if options && arg == "--"{options=false;continue}
             if options && arg.hasPrefix("-"){
                 switch arg{
-                case "--progress" where command != "ls-remote":break
-                case "-v" where command != "ls-remote", "--verbose" where command != "ls-remote":verbose=true
+                case "--progress" where command == "clone" || command == "fetch" || command == "push":break
+                case "-v" where command == "clone" || command == "fetch" || command == "push", "--verbose" where command == "clone" || command == "fetch" || command == "push":verbose=true
                 case "--bare" where command == "clone":bare=true
                 case "--no-checkout" where command == "clone":noCheckout=true
                 case "--recursive" where command == "clone", "--recurse-submodules" where command == "clone":recursive=true
@@ -68,6 +69,7 @@ struct Arguments{
                 case "--depth" where command == "clone" || command == "fetch":depth=try depthValue(next())
                 case "--config" where command == "clone":
                     let value=try next();guard value.hasPrefix("core.sshCommand=") else{try refuse("Unsupported persistent clone configuration")};ssh=String(value.dropFirst("core.sshCommand=".count))
+                case "--filters" where command == "cat-file":filters=true
                 case "--refs" where command == "ls-remote":listRefs=true
                 case "-t" where command == "ls-remote", "--tags" where command == "ls-remote":listTags=true
                 case "-h" where command == "ls-remote", "--heads" where command == "ls-remote":listHeads=true
@@ -78,7 +80,7 @@ struct Arguments{
                 case "--prune" where command == "fetch":prune=1
                 case "--no-prune" where command == "fetch":prune=2
                 default:
-                    if (command == "clone" || command == "fetch") && arg.hasPrefix("--depth="){depth=try depthValue(String(arg.dropFirst(8)))}else{try refuse("Unsupported libgit2 option: "+arg)}
+                    if command == "cat-file" && arg.hasPrefix("--path="){guard blobPath == nil else{try refuse("Repeated blob path")};blobPath=String(arg.dropFirst(7))}else if (command == "clone" || command == "fetch") && arg.hasPrefix("--depth="){depth=try depthValue(String(arg.dropFirst(8)))}else{try refuse("Unsupported libgit2 option: "+arg)}
                 }
             }else{operands.append(arg)}
         }
@@ -87,6 +89,8 @@ struct Arguments{
             guard operands.count==2,!(bare && noCheckout),!(bare && recursive),origin?.isEmpty != true,branch?.isEmpty != true else{try refuse("Invalid clone option combination")}
             source=operands[0];destination=operands[1]
             guard !source.isEmpty,!destination.isEmpty else{try refuse("Missing clone source or destination")}
+        }else if command == "cat-file"{
+            guard filters,let path=blobPath,!path.isEmpty,!path.contains("\0"),!path.hasPrefix("/"),(path == "." || !path.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0 == ".." || $0 == "." || $0.isEmpty})),operands.count==1,operands[0].utf8.count==40,operands[0].utf8.allSatisfy({(48...57).contains($0)||(65...70).contains($0)||(97...102).contains($0)}) else{try refuse("Filtered blob requires one full object ID and literal repository-relative path")};blobOID=operands[0]
         }else if command == "ls-remote"{
             guard operands.count==1,!operands[0].isEmpty else{try refuse("Remote listing requires exactly one remote")};remote=operands[0]
         }else if command == "push"{
@@ -110,6 +114,41 @@ final class CallbackContext{
     init(directory:String,configs:[String]){self.directory=directory;self.configs=configs}
     var currentURL="",credentialRealm=Data(),credentials:(String,String)?,credentialUses=0,prompts=0
     var accepted:Set<Data>=[]
+    func smudge(command:String,path:String,input:Data)throws->Data{
+        guard !cancelled() else{try refuse("Filter cancelled")}
+        // Adapt source %f expansion to POSIX shell quoting; path bytes never
+        // become shell syntax. %% remains one literal percent.
+        let quoted="'"+path.replacingOccurrences(of:"'",with:"'\\''")+"'"
+        var expanded="",index=command.startIndex
+        while index<command.endIndex{let c=command[index];index=command.index(after:index)
+            if c != "%"{expanded.append(c);continue}
+            guard index<command.endIndex else{expanded.append("%");break}
+            let token=command[index];index=command.index(after:index)
+            if token == "f"{expanded+=quoted}else if token == "%"{expanded.append("%")}
+        }
+        let temporary=FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-smudge-"+UUID().uuidString,isDirectory:true)
+        try FileManager.default.createDirectory(at:temporary,withIntermediateDirectories:false,attributes:[.posixPermissions:0o700]);defer{try? FileManager.default.removeItem(at:temporary)}
+        var handles:[FileHandle]=[];defer{for handle in handles{try? handle.close()}}
+        for name in ["input","output","error"]{let fd=open(temporary.appendingPathComponent(name).path,O_RDWR|O_CREAT|O_EXCL|O_NOFOLLOW,0o600);guard fd>=0 else{try refuse("Cannot create private filter stream")};handles.append(FileHandle(fileDescriptor:fd,closeOnDealloc:true))}
+        try handles[0].write(contentsOf:input);try handles[0].seek(toOffset:0)
+        var options=callbacks(self)
+        var childEnvironment=environment
+        for key in Array(childEnvironment.keys) where key == "GIT_CONFIG_PARAMETERS" || key == "GIT_CONFIG_COUNT" || key.hasPrefix("GIT_CONFIG_KEY_") || key.hasPrefix("GIT_CONFIG_VALUE_"){childEnvironment.removeValue(forKey:key)}
+        var search:[String]=[]
+        if let git=environment["TURTLEGIT_LIBGIT2_GIT_EXECUTABLE"],git.hasPrefix("/"){search.append(URL(fileURLWithPath:git).deletingLastPathComponent().path)}
+        if let exec=environment["GIT_EXEC_PATH"],exec.hasPrefix("/"){search.append(exec)}
+        search.append(environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin");childEnvironment["PATH"]=search.joined(separator:":")
+        childEnvironment["GIT_CONFIG_COUNT"]=String(configs.count)
+        for (index,entry) in configs.enumerated(){let parts=entry.split(separator:"=",maxSplits:1,omittingEmptySubsequences:false);childEnvironment["GIT_CONFIG_KEY_\(index)"]=String(parts[0]);childEnvironment["GIT_CONFIG_VALUE_\(index)"]=String(parts[1])}
+        let status=withStrings(childEnvironment.map{$0.key+"="+$0.value}){values,count in
+            var env=Array(UnsafeBufferPointer(start:values,count:count));env.append(nil)
+            return env.withUnsafeBufferPointer{tg_run_filter(expanded,handles[0].fileDescriptor,handles[1].fileDescriptor,handles[2].fileDescriptor,$0.baseAddress,&options)}
+        }
+        try handles[2].seek(toOffset:0)
+        while let diagnostics=try handles[2].read(upToCount:65_536),!diagnostics.isEmpty{FileHandle.standardError.write(diagnostics)}
+        guard status==0,!cancelled() else{try refuse("External smudge filter failed or was cancelled")}
+        try handles[1].seek(toOffset:0);return try handles[1].readToEnd() ?? Data()
+    }
     func ask(_ prompt:GitSVNAuthenticationPrompt)throws->GitSVNAuthenticationResponse{
         guard !cancelled(),let path=environment["TURTLEGIT_LIBGIT2_ASKPASS"],path.hasPrefix("/"),FileManager.default.isExecutableFile(atPath:path) else{try refuse("Native Git transport authentication is unavailable")}
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-libgit2-prompt-"+UUID().uuidString,isDirectory:true)
@@ -207,6 +246,12 @@ func callbacks(_ owner:CallbackContext)->tg_callbacks{
             }
             proxy.pointee=configuration.proxy.flatMap{strdup($0)};return 0
         }catch{output("HTTP configuration: "+error.localizedDescription+"\n");return -1}
+    }
+    value.filter={command,path,input,count,result,length,raw in
+        guard let command,let path,let result,let length else{return -1}
+        do{let bytes=try context(raw).smudge(command:String(cString:command),path:String(cString:path),input:count>0 ? Data(bytes:input!,count:count):Data())
+            guard let copy=malloc(bytes.count+1) else{return -1};bytes.copyBytes(to:copy.assumingMemoryBound(to:UInt8.self),count:bytes.count);copy.assumingMemoryBound(to:UInt8.self)[bytes.count]=0;result.pointee=copy.assumingMemoryBound(to:UInt8.self);length.pointee=bytes.count;return 0
+        }catch{output("Smudge filter: "+error.localizedDescription+"\n");return -1}
     };return value
 }
 func withStrings<T>(_ values:[String],_ body:(UnsafePointer<UnsafePointer<CChar>?>?,Int)->T)->T{
@@ -226,6 +271,7 @@ func run()throws->Int32{
         if args.command == "clone"{
             return withOptionalString(args.branch){branch in withOptionalString(args.origin){origin in withOptionalString(args.ssh){ssh in tg_clone(args.source,args.destination,args.bare ? 1:0,args.noCheckout ? 1:0,args.recursive ? 1:0,branch,origin,Int32(args.depth),ssh,&options)}}}
         }
+        if args.command == "cat-file"{return tg_materialize_blob(args.directory,args.blobOID,args.blobPath!,&options)}
         if args.command == "ls-remote"{return tg_list_remote(args.directory,args.remote,args.listRefs ? 1:0,args.listTags ? 1:0,args.listHeads ? 1:0,&options)}
         if args.command == "push"{return withStrings(args.refspecs){refs,count in tg_delete_remote(args.directory,args.remote,refs,count,&options)}}
         return withStrings(args.refspecs){refs,count in tg_fetch(args.directory,args.remote,refs,count,args.all ? 1:0,Int32(args.tags),Int32(args.prune),Int32(args.depth),&options)}

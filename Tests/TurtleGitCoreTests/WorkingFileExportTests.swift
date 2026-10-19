@@ -70,7 +70,7 @@ final class WorkingFileExportTests: XCTestCase {
         func file(_ path: String, _ action: String = "M", submodule: Bool = false) -> CommitFile {
             CommitFile(path: path, oldPath: nil, action: action, added: nil, removed: nil, hasStatistics: false, isSubmodule: submodule)
         }
-        let export = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file(path), file("deleted", "D"), file(link), file("module", submodule: true), file(path)], to: folder)
+        let export = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file(path), file("deleted", "D"), file(link), file("module", submodule: true), file(path)], to: folder, backend: GitLibGit2Configuration())
         XCTAssertEqual(export.paths, [path, link])
         try Data([42]).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
         _ = try await repo.run(["commit", "-m", "later bytes"])
@@ -87,8 +87,8 @@ final class WorkingFileExportTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
         let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(finalHead, head)
         do { try await repo.exportHistoricalFile(export, path: "unselected"); XCTFail("Unselected export") } catch {}
-        do { _ = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file(path)], to: root); XCTFail("Source overwrite") } catch WorkingFileExportFailure.source {}
-        do { _ = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file(".git/index")], to: folder); XCTFail("Metadata export") } catch {}
+        do { _ = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file(path)], to: root, backend: GitLibGit2Configuration()); XCTFail("Source overwrite") } catch WorkingFileExportFailure.source {}
+        do { _ = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file(".git/index")], to: folder, backend: GitLibGit2Configuration()); XCTFail("Metadata export") } catch {}
     }
     func testHistoricalExportRejectsCanonicalDestinationCollisionAndUnselectedPeer() async throws {
         let (root,repo,_) = try await GitPatchTests().fixture()
@@ -100,10 +100,10 @@ final class WorkingFileExportTests: XCTestCase {
         _ = try await repo.run(["update-index","-z","--index-info"],input:Data([a,b].map { "100644 \(blob)\t\($0)\0" }.joined().utf8))
         _ = try await repo.commit(message:"export pair")
         let files = [a,b].map { CommitFile(path:$0,oldPath:nil,action:"M",added:1,removed:0,hasStatistics:true,isSubmodule:false) }
-        do { _ = try await repo.prepareHistoricalExport(revision:"HEAD",files:files,to:folder); XCTFail("Canonical export silently dropped/overwrote a Git path") }
+        do { _ = try await repo.prepareHistoricalExport(revision:"HEAD",files:files,to:folder, backend: GitLibGit2Configuration()); XCTFail("Canonical export silently dropped/overwrote a Git path") }
         catch WorkingFileExportFailure.collision {}
         XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath:folder.path).isEmpty)
-        let export = try await repo.prepareHistoricalExport(revision:"HEAD",files:[files[0],files[0].inParentGroup(1)],to:folder)
+        let export = try await repo.prepareHistoricalExport(revision:"HEAD",files:[files[0],files[0].inParentGroup(1)],to:folder, backend: GitLibGit2Configuration())
         XCTAssertEqual(export.paths.count,1)
         do { try await repo.exportHistoricalFile(export,path:b); XCTFail("Unselected canonical peer exported") }
         catch { XCTAssertTrue(error is RevisionComparisonFailure) }
@@ -118,14 +118,14 @@ final class WorkingFileExportTests: XCTestCase {
         defer { for url in [root, folder, outside] { try? manager.removeItem(at: url) } }
         for url in [folder, outside] { try manager.createDirectory(at: url, withIntermediateDirectories: true) }
         func file(_ path: String) -> CommitFile { CommitFile(path: path, oldPath: nil, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false) }
-        let export = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file("absent"), file(path)], to: folder)
+        let export = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file("absent"), file(path)], to: folder, backend: GitLibGit2Configuration())
         do { try await repo.exportHistoricalFile(export, path: "absent"); XCTFail("Absent blob accepted") } catch {}
         try await repo.exportHistoricalFile(export, path: path)
         XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(path)), try Data(contentsOf: root.appendingPathComponent(path)))
         try manager.createDirectory(at: root.appendingPathComponent("nested"), withIntermediateDirectories: true)
         try Data([77]).write(to: root.appendingPathComponent("nested/file")); try await repo.stage(["nested/file"])
         _ = try await repo.run(["commit", "-m", "nested historical blob"])
-        let nested = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file("nested/file")], to: folder)
+        let nested = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file("nested/file")], to: folder, backend: GitLibGit2Configuration())
         try manager.createSymbolicLink(at: folder.appendingPathComponent("nested"), withDestinationURL: outside)
         do { try await repo.exportHistoricalFile(nested, path: "nested/file"); XCTFail("Escaped folder accepted") } catch WorkingFileExportFailure.location {}
         XCTAssertFalse(manager.fileExists(atPath: outside.appendingPathComponent("file").path))

@@ -7,7 +7,7 @@ final class CommandHistoricalOutputTests: XCTestCase {
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true);return root
     }
     func repository(_ root:URL) async throws -> GitRepository {
-        let repo=GitRepository(root:root);_ = try await repo.run(["init","-b","main"])
+        let repo=GitRepository(root:root,libgit2Configuration:GitLibGit2Configuration());_ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","Output QA"),("user.email","output@example.invalid"),("core.hooksPath","/dev/null"),("commit.gpgsign","false"),("core.autocrlf","false")] {_ = try await repo.run(["config",key,value])}
         return repo
     }

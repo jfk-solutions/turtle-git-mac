@@ -2,8 +2,8 @@
 
 TurtleGit includes an optional libgit2 engine for Clone, Fetch and the Fetch
 operations in Synchronization, including Fetch & Rebase and fetching a tag.
-It also lists remote references and deletes remote tags/branches when their
-corresponding source command-mask bits are enabled.
+It also lists remote references, deletes remote tags/branches, and materializes
+historical files when their corresponding source command-mask bits are enabled.
 The normal Clone/Fetch defaults remain Git commands, matching TortoiseGit's
 per-command defaults. SVN, ordinary Pull/Merge, Push, Prune and Remote Update
 continue through their existing command workflows.
@@ -68,8 +68,9 @@ host-key workflow. See [SSH authentication](SSH-AUTHENTICATION.md) and
 [source and validation record](LIBGIT2-TRANSPORT-PARITY.md) distinguishes implemented
 behavior from public-server, signed sandbox and complete upstream acceptance.
 
-The optional engine does not currently run external Git filter/LFS process drivers
-or ordinary Git hooks. Repository template files are copied, but copying a hook
+Clone and Fetch in the optional engine do not currently run external Git
+filter/LFS process drivers or ordinary Git hooks. Historical-file materialization
+has a separate source-compatible smudge path described below. Repository template files are copied, but copying a hook
 is separate from executing it. Conventional custom `GIT_ASKPASS` programs and
 Git credential helpers are not consumed by this engine; use its native prompt or
 the default Git engine for those workflows. URL-specific HTTP headers, proxy and
@@ -80,3 +81,32 @@ connection. An accepted invalid certificate is temporary within that call; it
 is not yet shared across the dialog's later calls. The original Windows process
 keeps a certificate cache across calls. This remaining usability difference is
 recorded with the [remote-reference source comparison](REMOTE-REFERENCE-ENGINE-PARITY.md).
+
+## Opening and exporting historical files
+
+Historical Open, Open With, Alternative Editor, Save As and file/folder transfer
+use the GetOneFile setting, bit `0x200` (decimal `512`). This bit is already enabled
+in the source default mask `0x66780`. These actions pin the selected revision and
+materialize the file without checking it out or changing the index.
+
+With this backend enabled, libgit2 applies its checkout-side CRLF/ident filters
+and configured `filter.<driver>.smudge` commands. The file's literal repository
+path is substituted for `%f`; `%%` supplies a literal percent. A required smudge
+failure reports an error and preserves the existing destination. An optional
+filter failure passes through the preceding filter output, as in TortoiseGit's
+custom filter. The selected engine and output ownership remain captured through
+native panels, file promises and cancellation.
+
+Disabling GetOneFile or the master switch selects the source's raw Git-command
+file read. The standalone Cat command retains its separate source command rules;
+its disabled-backend blob route returns raw bytes, while its nonblob route
+uses Git show for the selected path, including commit/patch output. See the
+[historical materialization comparison](HISTORICAL-MATERIALIZATION-PARITY.md). Blame, raw comparison baselines and raw patch
+export use their existing independent readers.
+
+These smudge commands are configured by the repository/user. They execute with
+the captured Git environment and own their subprocesses until completion or
+cancellation. This does not imply support for Git's persistent filter-process
+protocol or working-tree-encoding conversion in libgit2. Clone/Fetch filter and
+hook behavior remains the separate limitation above. ZIP Export continues to use
+Git archive and its archive attributes.

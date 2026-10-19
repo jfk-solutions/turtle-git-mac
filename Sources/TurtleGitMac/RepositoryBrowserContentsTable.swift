@@ -213,7 +213,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         @objc func copyHashes() { guard available else { return };model.copy(hashes:true) }
         func tableView(_ tableView:NSTableView,pasteboardWriterForRow row:Int) -> NSPasteboardWriting? {
             guard available,rows.indices.contains(row),let snapshot=model.snapshot,rows[row].kind != .submodule else { return nil }
-            return RepositoryBrowserFilePromise(repository:model.repository,access:model.access,snapshot:snapshot,entry:rows[row]).provider()
+            return RepositoryBrowserFilePromise(repository:model.repository,access:model.access,snapshot:snapshot,entry:rows[row],backend:model.materializationBackend()).provider()
         }
     }
 }

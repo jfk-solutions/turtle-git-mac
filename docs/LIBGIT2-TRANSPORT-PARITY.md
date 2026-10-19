@@ -76,7 +76,7 @@ VoiceOver behavior, complete inspector/compositor parity, installed signed grant
 signed SSH/HTTPS and App Store distribution remain separate acceptance or porting
 work. Current-source full hosted CI remains unproven until its complete run passes.
 
-The optional engine does not execute external Git filter/LFS process drivers or
+The Clone/Fetch optional engine does not execute external Git filter/LFS process drivers or
 ordinary Git hooks. `git_repository_init_ext` copies repository templates; this
 does not prove hook execution. Conventional custom `GIT_ASKPASS` and Git credential
 helpers remain unsupported by this engine. The CLI engine retains these workflows.
@@ -106,3 +106,9 @@ This adds remote picker/tag catalogs, Browser remote branch deletion and Sync
 tag compare/delete/refill. General Push remains the source CLI path; it is not
 a missing general Push implementation implied by the DeleteRemoteRefs mask name.
 The continuation has its own batch evidence and remaining acceptance limits.
+
+
+The [historical materialization continuation](HISTORICAL-MATERIALIZATION-PARITY.md)
+adds the source default GetOneFile bit and a separate custom smudge adapter for
+historical file output. This does not change the recorded Clone/Fetch filter,
+LFS process-driver or hook limitations.

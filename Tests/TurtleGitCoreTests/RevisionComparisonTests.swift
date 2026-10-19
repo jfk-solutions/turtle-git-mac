@@ -464,7 +464,7 @@ final class RevisionComparisonTests: XCTestCase {
         let snapshot = try await repo.revisionComparison(from: .revision(base), to: .revision("HEAD")), file = try XCTUnwrap(snapshot.files.first { $0.path == path })
         let folder = root.appendingPathComponent("export"); try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try FileManager.default.removeItem(at: blob); defer { try? saved.write(to: blob) }
-        let plan = try await repo.prepareComparisonExport(snapshot, files: [file], to: folder)
+        let plan = try await repo.prepareComparisonExport(snapshot, files: [file], to: folder, backend: GitLibGit2Configuration())
         try await repo.exportComparisonFile(plan, path: path)
         XCTAssertFalse(FileManager.default.fileExists(atPath: blob.path)); XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(path)), destination)
     }
@@ -504,13 +504,13 @@ final class RevisionComparisonTests: XCTestCase {
         let snapshot=try await repo.revisionComparison(from:.emptyTree,to:.revision(tree)),selected=try XCTUnwrap(snapshot.files.first{$0.path==name})
         let folder=root.deletingLastPathComponent().appendingPathComponent("comparison-export-"+UUID().uuidString);try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true);defer{try? FileManager.default.removeItem(at:folder)}
         let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),head=try await repo.run(["rev-parse","HEAD"]).stdout
-        let export=try await repo.prepareComparisonExport(snapshot,files:[selected],to:folder);try await repo.exportComparisonFile(export,path:name)
+        let export=try await repo.prepareComparisonExport(snapshot,files:[selected],to:folder, backend: GitLibGit2Configuration());try await repo.exportComparisonFile(export,path:name)
         XCTAssertEqual(try Data(contentsOf:folder.appendingPathComponent(name)),raw)
-        do {_ = try await repo.prepareComparisonExport(snapshot,files:[selected],to:root);XCTFail("Source overwrite accepted")}catch is WorkingFileExportFailure{}
-        do {_ = try await repo.prepareComparisonExport(snapshot,files:[selected],to:root.appendingPathComponent(".git"));XCTFail("Git export accepted")}catch is WorkingFileExportFailure{}
+        do {_ = try await repo.prepareComparisonExport(snapshot,files:[selected],to:root, backend: GitLibGit2Configuration());XCTFail("Source overwrite accepted")}catch is WorkingFileExportFailure{}
+        do {_ = try await repo.prepareComparisonExport(snapshot,files:[selected],to:root.appendingPathComponent(".git"), backend: GitLibGit2Configuration());XCTFail("Git export accepted")}catch is WorkingFileExportFailure{}
         let working=Data([0xfe,10]);try working.write(to:root.appendingPathComponent(path))
         let range=try await repo.revisionComparison(from:.revision("HEAD"),to:.workingTree),file=try XCTUnwrap(range.files.first{$0.path==path})
-        let live=try await repo.prepareComparisonExport(range,files:[file],to:folder);try await repo.exportComparisonFile(live,path:path)
+        let live=try await repo.prepareComparisonExport(range,files:[file],to:folder, backend: GitLibGit2Configuration());try await repo.exportComparisonFile(live,path:path)
         XCTAssertEqual(try Data(contentsOf:folder.appendingPathComponent(path)),working)
         let cancelled=OperationCancellation();cancelled.cancel()
         do {try await repo.exportComparisonFile(live,path:path,cancellation:cancelled);XCTFail("Cancelled export accepted")}catch is OperationCancellationFailure{}

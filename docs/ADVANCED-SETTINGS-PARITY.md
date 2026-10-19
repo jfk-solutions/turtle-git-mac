@@ -237,3 +237,12 @@ including the branch picker's source-specific HEAD choice, captured native
 preferences and post-delete refill. Ordinary Push stays on its CLI source path.
 Actual grouped evidence and remaining certificate-cache, public/signed/physical
 and complete source acceptance are recorded with that family.
+
+
+### Historical materialization continuation — October 19, 2026
+
+The [historical file family](HISTORICAL-MATERIALIZATION-PARITY.md) connects the
+source default GetOneFile backend to historical opening/editors, Save As and
+selected/recursive output. Accepted operations retain their engine choice through
+panels and delayed file delivery. Raw comparison and Blame readers remain distinct;
+source filter semantics and actual grouped evidence are recorded in that family.
