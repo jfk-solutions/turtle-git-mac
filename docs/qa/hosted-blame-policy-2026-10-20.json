@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-20",
+  "scope": "Hosted native Blame bare-repository menu policy readiness",
+  "hosted_failure": {
+    "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39333752051",
+    "commit": "cd5b2a6d8149b272f114b3be8e0b4f2351848a7d",
+    "job": 118345012593,
+    "step": "Source history actions and replay identity family",
+    "case": "blame, system Git",
+    "assertion": "Bare source action gating differs",
+    "core_result": "2237 executed, two skipped, no failures; later native steps not reached"
+  },
+  "source_contract": {
+    "working_tree_required": "GitLogListBase.cpp1787 unified-parent and2029 Checkout",
+    "bare_allowed": "GitLogListBase.cpp1810 historical previous comparison"
+  },
+  "diagnosis": "Inferred native table-settlement race: model history can be ready before SwiftUI updates the NSTableView/coordinator; selecting an absent row yields no menu target. Hosted reproduction of that timing is not claimed.",
+  "repair": "Await actual native/coordinator rows, selected native/model identity and parent cache before retaining the original bare-policy assertion; include bounded failure diagnostics.",
+  "production_changes": false,
+  "validation": [
+    {
+      "check": "Focused native Blame history policy with system and bundled Git",
+      "result": "passed both",
+      "command": "python3 scripts/test-history-action-family.py --only blame --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "log": "build/qa/hosted-blame-policy-native-2026-10-20.log",
+      "receiver_pids_reaped": [
+        44413,
+        44489
+      ],
+      "independent_process_table_absence": true,
+      "core_and_app_rebuild": "Not repeated: fixture-only change uses final Debug app objects/frameworks from replay-inspection checkpoint"
+    },
+    {
+      "check": "Dialog coverage reconciliation",
+      "result": "passed, no complete-dialog certification",
+      "command": "python3 scripts/reconcile-dialog-coverage.py"
+    },
+    {
+      "check": "Documentation site",
+      "result": "passed: 373 documents, no unresolved fragments",
+      "log": "build/qa/hosted-blame-policy-site-2026-10-20.log"
+    }
+  ],
+  "limits": [
+    "No complete current hosted CI pass",
+    "No claim that source menu policy needed changing",
+    "Physical keyboard/accessibility, minimum-OS and signed acceptance remain separate"
+  ],
+  "fixture_sha256": "7ace37391cdb6f0883ec1c6b1e4af8f686269bd678aeb283653c5406d5878691"
+}

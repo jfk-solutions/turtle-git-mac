@@ -47,3 +47,11 @@ Intel and signed App Store/Finder acceptance remain open. No whole-dialog or
 whole-application certification is inferred.
 
 Actual grouped build/check outcomes: [history action batch evidence](qa/history-actions-2026-10-18.json).
+
+The October 20 [hosted readiness continuation](qa/hosted-blame-policy-2026-10-20.json)
+records the older hosted bare-menu failure after a successful 2,237-method Core
+run (two skipped). The fixture now awaits the actual native/coordinator rows,
+exact native/model selection and prepared parent cache before evaluating the
+unchanged policy assertion. Both focused local Git cases pass with owned
+receivers reaped. A scheduling race is inferred; its historical timing was not
+reproduced, and a complete new hosted pass remains required.

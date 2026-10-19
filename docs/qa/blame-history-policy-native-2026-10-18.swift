@@ -30,9 +30,16 @@ import TurtleGitCore
         try await wait {!model.busy && !model.syntaxWorking && model.historyEntries.count==3}
         window.contentView?.layoutSubtreeIfNeeded()
         guard let table=descendants(window.contentView!).compactMap({$0 as? BlameHistoryNativeTable}).first,let coordinator=table.delegate as? BlameHistoryTable.Coordinator,let menu=table.menu else {throw Failure(description:"No native Blame history")}
+        // Model publication precedes SwiftUI's representable/table update. A
+        // native row selection is meaningful only after the actual data source
+        // has installed that same snapshot.
+        try await wait {table.numberOfRows==3 && coordinator.numberOfRows(in:table)==3 && model.canFind}
         var comparisons=0,logs=0,exports:[String]=[]
         model.onChanges={_ in comparisons += 1};model.onLog={_,_ in logs += 1};model.onHistoryExport={exports.append($0)}
-        table.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false);coordinator.menuNeedsUpdate(menu)
+        let initialHash=model.historyEntries[0].hash
+        table.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+        try await wait {table.selectedRowIndexes==IndexSet(integer:0) && model.selectedLogHashes==Set([initialHash])}
+        coordinator.menuNeedsUpdate(menu)
         try require(model.historyHasWorkingTree && model.historyHead==model.historyEntries[0].hash,"Owned metadata did not capture WC/HEAD")
         try require(!menu.items.contains{$0.title=="Switch/Checkout to this…"},"HEAD offered redundant checkout")
         table.openSelection();try require(comparisons==0 && logs==0,"Default disabled double-click unexpectedly acted")
@@ -67,9 +74,26 @@ import TurtleGitCore
         try await wait {!bareOwner.model.busy && !bareOwner.model.syntaxWorking && bareOwner.model.historyEntries.count==3}
         bareOwner.window?.contentView?.layoutSubtreeIfNeeded()
         guard let bareTable=descendants(bareOwner.window!.contentView!).compactMap({$0 as? BlameHistoryNativeTable}).first,let bareCoordinator=bareTable.delegate as? BlameHistoryTable.Coordinator,let bareMenu=bareTable.menu else {throw Failure(description:"No bare history table")}
-        bareTable.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false)
+        let bareSelectedHash=bareOwner.model.historyEntries[1].hash
+        do {
+            try await wait {bareTable.numberOfRows==3 && bareCoordinator.numberOfRows(in:bareTable)==3 && bareOwner.model.canFind}
+            bareTable.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false)
+            try await wait {bareTable.selectedRowIndexes==IndexSet(integer:1) && bareOwner.model.selectedLogHashes==Set([bareSelectedHash])}
+        } catch {
+            print("BARE HISTORY READINESS: rows=\(bareTable.numberOfRows)/\(bareCoordinator.numberOfRows(in:bareTable)) selectedRows=\(bareTable.selectedRowIndexes) selectedHashes=\(bareOwner.model.selectedLogHashes.sorted()) expected=\(bareSelectedHash) canFind=\(bareOwner.model.canFind) error=\(String((bareOwner.model.error ?? "none").prefix(1024)))")
+            throw error
+        }
         let target=bareOwner.model.historyTarget([bareOwner.model.historyEntries[1]])!;var ready=false
-        bareOwner.model.prepareHistoryParents(target){_ in ready=true};try await wait {ready && BlameWindowModel.activeHistoryOperations==0};bareCoordinator.menuNeedsUpdate(bareMenu)
+        bareOwner.model.prepareHistoryParents(target){_ in ready=true}
+        try await wait {ready && BlameWindowModel.activeHistoryOperations==0}
+        let cached=bareOwner.model.cachedHistoryParents(target)
+        bareCoordinator.menuNeedsUpdate(bareMenu)
+        let barePolicyMatches = !bareOwner.model.historyHasWorkingTree && bareMenu.items.contains{$0.title=="Compare with previous revision"} && !bareMenu.items.contains{$0.title=="Switch/Checkout to this…" || $0.title=="Show changes as unified diff"}
+        if !barePolicyMatches || cached.isEmpty {
+            let titles=bareMenu.items.prefix(32).map {String($0.title.prefix(100))}
+            print("BARE HISTORY DIAGNOSTIC: hasWC=\(bareOwner.model.historyHasWorkingTree) rows=\(bareTable.numberOfRows)/\(bareCoordinator.numberOfRows(in:bareTable)) selectedRows=\(bareTable.selectedRowIndexes) selectedHashes=\(bareOwner.model.selectedLogHashes.sorted()) expected=\(bareSelectedHash) canFind=\(bareOwner.model.canFind) cachedParents=\(cached.count) acceptsTarget=\(bareOwner.model.acceptsHistory(target)) menu=\(titles) error=\(String((bareOwner.model.error ?? "none").prefix(1024)))")
+        }
+        try require(!cached.isEmpty,"Bare prepared history comparison has no cached parent; see bounded diagnostic")
         try require(!bareOwner.model.historyHasWorkingTree && bareMenu.items.contains{$0.title=="Compare with previous revision"} && !bareMenu.items.contains{$0.title=="Switch/Checkout to this…" || $0.title=="Show changes as unified diff"},"Bare source action gating differs")
         bareOwner.close();try await wait {BlameWindowModel.activeHistoryOperations==0}
         try require(try await repo.run(["rev-parse","HEAD"]).stdout==head,"History actions changed HEAD")
