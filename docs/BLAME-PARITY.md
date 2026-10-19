@@ -1447,3 +1447,13 @@ navigation. The link-target text is the source; its filesystem target is not
 read. Earlier mode refusal and leaf-following behavior are superseded by this
 continuation. Actual scoped checks and remaining signed/physical limits are
 recorded with the family rather than certifying the whole Blame viewer.
+
+
+## Author and property panes — October 19, 2026
+
+The [connected author/details family](BLAME-AUTHOR-DETAILS-PARITY.md) adds the
+source opt-in image beside Log, independent last-selected author during multiple
+selection, a native selectable property grid, full descriptions, Copy-value
+commands/icons and collapsible groups. Earlier passive property-stack and missing
+avatar descriptions are superseded by this continuation. The dated grouped
+record retains actual validation and remaining physical/signed/full-port work.

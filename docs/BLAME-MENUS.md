@@ -129,3 +129,21 @@ through the normal operation/child-window guards.
 
 These are native adaptations of the source keyboard commands. Full physical
 keyboard, accessibility and signed acceptance remain in progress.
+
+
+## Author image and revision property values
+
+The embedded Log reserves an 80-point author image area when the shared
+**Enable Gravatar** preference is enabled. The viewer uses its originating
+preferences for the URL/hash options. Newly selected rows update the image even
+with multiple revisions selected; Properties shows a single revision only.
+Disabling the feature or closing/replacing the viewer cancels its request.
+
+Properties has collapsible **Basic information** and **Parents** groups. Select a
+field to read its full value in the resizable description area. **Copy** or
+Command-C copies the complete value, including multiline Body text. Shift-F10 or
+the accessibility Show Menu action opens the selected property's menu. Parent
+values are their subjects; the description also shows the full hash and parent
+number. Group headings offer no Copy action. See the
+[author/details source comparison](BLAME-AUTHOR-DETAILS-PARITY.md) for scope and
+remaining acceptance. Earlier pane screenshots predate this grid.

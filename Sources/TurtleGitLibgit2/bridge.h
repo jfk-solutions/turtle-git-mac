@@ -23,4 +23,5 @@ int tg_delete_remote(const char *repository,const char *remote,const char *const
 int tg_materialize_blob(const char *repository,const char *oid,const char *path,tg_callbacks *callbacks);
 int tg_run_filter(const char *command,const char *directory,int input,int output,int error,const char *const *environment,tg_callbacks *callbacks);
 int tg_add(const char *repository,const char *private_index,int mode,int mode_only,const char *const *paths,size_t count,tg_callbacks *callbacks);
+int tg_prepare_index(const char *repository,const char *private_index,const char *const *operations,const char *const *paths,const uint32_t *modes,size_t count,tg_callbacks *callbacks);
 #endif

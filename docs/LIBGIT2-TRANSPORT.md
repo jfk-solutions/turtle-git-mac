@@ -1,6 +1,6 @@
 # Optional libgit2 engine
 
-TurtleGit includes an optional libgit2 engine for Add, Clone, Fetch and the Fetch
+TurtleGit includes an optional libgit2 engine for checkbox Commit preparation, Add, Clone, Fetch and the Fetch
 operations in Synchronization, including Fetch & Rebase and fetching a tag.
 It also lists remote references, deletes remote tags/branches, and materializes
 historical files when their corresponding source command-mask bits are enabled.
@@ -26,6 +26,14 @@ disabling Add's bit or the master switch uses Git's `add -f` workflow. Both keep
 working files intact and publish the prepared index only after successful work.
 Progress mode post-actions update existing staged objects through the bundled
 index adapter. See the [Add/index source comparison](ADD-INDEX-FILTERS-PARITY.md).
+
+Checkbox Commit preparation uses command 3, bit `0x8`, disabled in the source
+default mask. It is independent of Add's bit. If enabled, checked files use
+libgit2's configured one-shot clean filters and a private prepared index; Git
+creates the commit without re-adding their working bytes. Unchecked-row resets
+and optional restoration, executable/link modes, amendment and cancellation stay
+owned by the accepted attempt. **Staging support** still commits the index exactly
+as staged, including partial files. See the [Commit index comparison](COMMIT-INDEX-ENGINE-PARITY.md).
 
 Remote reference/tag listing uses the Fetch bit `0x4`. Remote-reference deletion
 uses the source Push bit `0x800`; enabling it with Clone/Fetch while retaining the

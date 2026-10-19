@@ -152,6 +152,29 @@ def main():
                 assert result.returncode!=0 and private_index.read_bytes()==saved
                 assert (clone/'.git/index').read_bytes()==live_before and (clone/add_path).read_bytes()==b'newer unstaged disk'
                 assert git('-C',clone,'rev-parse','HEAD')==head and global_config.read_bytes()==original
+                # Commit3 preparation is a distinct strict plan: filtered adds,
+                # deletions/rename-old removal, and explicit retained staged modes.
+                renamed="renamed '雪.clean";(clone/renamed).write_bytes(b'renamed\x00disk\r\n')
+                def prepare_index(plan,command=clean):
+                    packet=b''.join(value.encode()+b'\0' for triple in plan for value in triple)
+                    argv=prefix+[str(binary),'-C',str(clone),'-c','core.precomposeunicode=false','-c','filter.addfixture.clean='+command,'-c','filter.addfixture.required=true','turtlegit-prepare-index','--turtlegit-index='+str(private_index),'--stdin']
+                    return subprocess.run(argv,input=packet,env=env,capture_output=True,timeout=30)
+                result=prepare_index([('remove','file','-'),('add',renamed,'100644'),('add',add_path,'100755'),('remove','already-absent','-')])
+                assert result.returncode==0,result.stderr.decode(errors='replace');assert result.stdout==b''
+                removed=subprocess.run(['/usr/bin/git','-C',str(clone),'ls-files','--error-unmatch','--','file'],env=staged_env,capture_output=True)
+                assert removed.returncode!=0
+                staged=subprocess.check_output(['/usr/bin/git','-C',str(clone),'ls-files','--stage','-z','--',renamed],env=staged_env)
+                metadata=staged.split(b'\t',1)[0].split();assert metadata[0]==b'100644'
+                assert git('-C',clone,'cat-file','blob',metadata[1].decode())==b'clean:renamed\x00disk\r\n'
+                staged=subprocess.check_output(['/usr/bin/git','-C',str(clone),'ls-files','--stage','-z','--',add_path],env=staged_env)
+                metadata=staged.split(b'\t',1)[0].split();assert metadata[0]==b'100755'
+                assert git('-C',clone,'cat-file','blob',metadata[1].decode())==b'clean:newer unstaged disk'
+                prepared=private_index.read_bytes()
+                result=prepare_index([('remove',renamed,'-'),('add','missing-new-file','normal')]);assert result.returncode!=0 and private_index.read_bytes()==prepared
+                result=prepare_index([('add',add_path,'normal')],command='exit 7');assert result.returncode!=0 and private_index.read_bytes()==prepared
+                result=prepare_index([('remove',renamed,'100755')]);assert result.returncode!=0 and private_index.read_bytes()==prepared
+                assert (clone/'.git/index').read_bytes()==live_before and (clone/'file').read_bytes()==b'first\n'
+                assert (clone/renamed).read_bytes()==b'renamed\x00disk\r\n' and global_config.read_bytes()==original
 
-    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with actual clone/fetch/list/deletion/historical/checkout filters and private-index Add.'))
+    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with actual clone/fetch/list/deletion/historical/checkout filters and private-index Add/Commit preparation.'))
 if __name__=='__main__':main()

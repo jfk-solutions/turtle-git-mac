@@ -30,10 +30,10 @@ import TurtleGitCore
     var chooseFile:(NSOpenPanel,NSWindow,@escaping (URL?)->Void)->Void = { panel,owner,reply in panel.beginSheetModal(for:owner) { reply($0 == .OK ? panel.url : nil) } }
     var chooseScope:(NSOpenPanel,NSWindow,@escaping (URL?)->Void)->Void = { panel,owner,reply in panel.beginSheetModal(for:owner) { reply($0 == .OK ? panel.url : nil) } }
 
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlamePreferences.load(), preferences: UserDefaults = .standard, regexExecutable:URL? = nil, recentDocuments:BlameRecentDocuments? = nil, requireScope:Bool = GitRuntime.isAppStoreBuild, provider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlamePreferences.load(), preferences: UserDefaults = .standard, regexExecutable:URL? = nil, recentDocuments:BlameRecentDocuments? = nil, requireScope:Bool = GitRuntime.isAppStoreBuild, provider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(),gravatar:LogGravatar? = nil) {
         self.preferences=preferences;self.recentDocuments=recentDocuments
         documentOpener=BlameDocumentOpener(requireScope:requireScope,provider:provider,factory:{ GitRepository(root:$0,executable:repository.executable) });self.requireScope=requireScope;self.scopeProvider=provider
-        model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options:options,labelDefaults:preferences,historyRegexExecutable:regexExecutable)
+        model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options:options,labelDefaults:preferences,historyRegexExecutable:regexExecutable,gravatar:gravatar)
         let window = BlameCommandWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(path) at \(revision.prefix(7)) – Blame – TurtleGit"
         window.minSize = NSSize(width: 820, height: 400); window.isReleasedWhenClosed = false
@@ -278,6 +278,27 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     private let access: RepositoryAccessLease?
     var repositoryAccess:RepositoryAccessLease? { access }
     let labelDefaults: UserDefaults
+    let revisionDetails = BlameRevisionDetails()
+    let gravatar: LogGravatar
+    @Published private(set) var showGravatar = false
+    private var avatarIdentity: Data?
+    private var avatarHash: String?
+    private func refreshRevisionDetails() {
+        guard !retired else { return }
+        revisionDetails.update(selectedHistoryEntry, history: historyEntries)
+        refreshAuthorImage()
+    }
+    private func refreshAuthorImage(force: Bool = false) {
+        let email = !retired && !busy && showLog && showGravatar ? historyEntries.first { $0.hash == avatarHash }?.email : nil
+        let identity = email.map { $0 + "\n" + (labelDefaults.string(forKey: "GravatarUrl") ?? LogGravatarRequest.defaultTemplate) + "\n" + String(labelDefaults.bool(forKey: "GravatarUseMD5")) }.map { Data($0.utf8) }
+        guard force || avatarIdentity != identity else { return }
+        avatarIdentity = identity
+        gravatar.clear();if let email { gravatar.load(email: email) }
+    }
+    func refreshAuthorPreferences() {
+        let enabled=labelDefaults.bool(forKey: "EnableGravatar");if showGravatar != enabled {showGravatar=enabled}
+        refreshAuthorImage()
+    }
     @Published private(set) var syntaxEnabled = true
     @Published private(set) var wrapLongLines = false
     func setWrapLongLines(_ value: Bool) { guard !busy else { return }; wrapLongLines = value; labelDefaults.set(value,forKey:"Blame.WrapLongLines") }
@@ -441,7 +462,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
 
     @Published var copyingLog = false
     @Published var snapshot: GitBlameSnapshot?
-    @Published var busy = false
+    @Published var busy = false { didSet { refreshAuthorImage() } }
     @Published var error: String?
     @Published var ignoreWhitespace = false
     @Published var onlyFirstParent = false
@@ -449,15 +470,19 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     @Published var followRenames = false
     @Published var historyEntries: [LogEntry] = [] { didSet {
         historyVersion += 1
-        tooltipEntries = Dictionary(historyEntries.map { ($0.hash, $0) }, uniquingKeysWith: { first, _ in first })
+        tooltipEntries = Dictionary(historyEntries.map { ($0.hash, $0) }, uniquingKeysWith: { first, _ in first });refreshRevisionDetails()
     } }
     private var tooltipEntries: [String: LogEntry] = [:]
     private var tooltipOtherFilenames = false
     private(set) var historyVersion=0
-    @Published var selectedLogHashes: Set<String> = []
+    @Published var selectedLogHashes: Set<String> = [] { didSet {
+        if let added = historyEntries.first(where: { selectedLogHashes.contains($0.hash) && !oldValue.contains($0.hash) }) { avatarHash = added.hash }
+        else if selectedLogHashes.count == 1 { avatarHash = selectedLogHashes.first }
+        refreshRevisionDetails()
+    } }
     @Published var showProperties=true { didSet { guard !retired else { return };labelDefaults.set(showProperties,forKey:"Blame.ShowProperties");onPaneLayoutChanged() } }
     @Published var showToolbar=true { didSet { labelDefaults.set(showToolbar,forKey:"Blame.ShowToolbar") } }
-    @Published var showLog=true { didSet { guard !retired else { return };labelDefaults.set(showLog,forKey:"Blame.ShowLog");onPaneLayoutChanged() } }
+    @Published var showLog=true { didSet { guard !retired else { return };labelDefaults.set(showLog,forKey:"Blame.ShowLog");refreshAuthorImage();onPaneLayoutChanged() } }
     @Published private(set) var paneLayout=BlamePaneLayout() { didSet { guard !retired else { return };if let data=try? JSONEncoder().encode(paneLayout) { labelDefaults.set(data,forKey:"Blame.PaneLayout") };onPaneLayoutChanged() } }
     @Published var paneDropPreview:BlamePanePlacement?
     var onPaneLayoutChanged:()->Void={}
@@ -635,7 +660,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     func focusHistory(_ hashes: Set<String>, focus: String?) {
         let old = selectedLogHashes; selectedLogHashes = hashes; highlightedHash = nil
-        if let focus, !old.contains(focus), let line = lines.first(where: { $0.hash == focus }) { selection = line.number }
+        if let focus, hashes.contains(focus), !old.contains(focus) { avatarHash=focus;refreshAuthorImage();if let line = lines.first(where: { $0.hash == focus }) { selection = line.number } }
     }
     func highlightKind(_ line: GitBlameLine) -> Int {
         if selectedLogHashes.contains(line.hash) { return 1 }
@@ -650,8 +675,9 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         }
         return 0
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions(), labelDefaults: UserDefaults = .standard,historyRegexExecutable:URL? = nil) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions(), labelDefaults: UserDefaults = .standard,historyRegexExecutable:URL? = nil,gravatar:LogGravatar? = nil) {
         self.repository = repository; self.access = access; self.path = path; self.revision = revision; self.labelDefaults = labelDefaults;self.historyColumns = .load(labelDefaults);self.historyRegexExecutable=historyRegexExecutable
+        self.gravatar=gravatar ?? LogGravatar(defaults:labelDefaults);showGravatar=labelDefaults.bool(forKey:"EnableGravatar")
         paneLayout=BlamePaneLayout.load(labelDefaults)
         showProperties=labelDefaults.object(forKey:"Blame.ShowProperties") as? Bool ?? true
         showToolbar=labelDefaults.object(forKey:"Blame.ShowToolbar") as? Bool ?? true
@@ -711,6 +737,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         ignoreWhitespace = enabled; GitBlamePreferences.update(in:labelDefaults) { $0.ignoreWhitespace = enabled }; reload(saveThresholds: true)
     }
     func applyPreferences() {
+        refreshAuthorPreferences()
         presentation = .load(from:labelDefaults)
         var options = GitBlamePreferences.load(from:labelDefaults); options.encoding = sourceEncoding
         configure(options: options, line: selection)
@@ -724,7 +751,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         followRenames = enabled; GitBlamePreferences.update(in:labelDefaults) { $0.followRenames = enabled }; reload(saveThresholds: true)
     }
     func retire() {
-        retired=true;hoveredLine=nil;tooltipEntries=[:];presentationCommandsAvailable={false};presentSourceMenu=nil;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
+        retired=true;gravatar.clear();avatarIdentity=nil;avatarHash=nil;revisionDetails.update(nil,history:[]);hoveredLine=nil;tooltipEntries=[:];presentationCommandsAvailable={false};presentSourceMenu=nil;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
     }
     func invalidate() { loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
@@ -946,7 +973,7 @@ private struct BlameDialog: View {
                 Text("\(line.summary)\nOrigin: \(line.filename), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
             }
             Text("\(model.lines.count) lines • \(model.snapshot?.encoding.rawValue ?? "") • \(model.navigationMessage)").font(.system(size: 11)).foregroundStyle(.secondary) }
-        }.padding(12).disabled(model.historyChildBlocked || model.confirmingQuit).onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }
+        }.padding(12).disabled(model.historyChildBlocked || model.confirmingQuit).onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }.onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in model.refreshAuthorPreferences() }
     }
 }
 
@@ -1056,47 +1083,176 @@ private struct BlameFindDialog:View {
     required init?(coder:NSCoder) {fatalError("init(coder:) is not supported")}
 }
 
-private struct BlamePropertiesPane: View {
-    let entry: LogEntry?
-    let history: [LogEntry]
-    let copy: (String) -> Void
-    private func property(_ name: String, _ value: String, multiline:Bool = false) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Text(name).foregroundStyle(.secondary).frame(width: 88, alignment: .leading).lineLimit(1)
-            Text(value.isEmpty ? " " : value).frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled).lineLimit(multiline ? nil : 1).truncationMode(.tail).help(value)
-                .fixedSize(horizontal: false, vertical: multiline)
-        }.accessibilityElement(children: .combine)
+/// Read-only source Properties grid. Parent values are subjects, while their
+/// descriptions retain the full hash and ordinal; Copy always uses the value.
+@MainActor final class BlameRevisionDetails: ObservableObject {
+    struct Row: Equatable {
+        let id: String, name: String, value: String, description: String
+        var localizedName: String { id.hasPrefix("parent.") ? name : NSLocalizedString(name, comment: "") }
+        static func == (lhs: Self, rhs: Self) -> Bool {
+            [lhs.id,lhs.name,lhs.value,lhs.description].map { Data($0.utf8) } == [rhs.id,rhs.name,rhs.value,rhs.description].map { Data($0.utf8) }
+        }
     }
-    private var properties: GitBlameRevisionProperties? { entry.map { GitBlameRevisionProperties(entry: $0) } }
+    @Published private(set) var basic: [Row] = []
+    @Published private(set) var parents: [Row] = []
+    @Published var selection: String?
+    @Published var basicExpanded = true
+    @Published var parentsExpanded = false
+    private var revision: String?
+    var selected: Row? { (basic + parents).first { $0.id == selection } }
+    func update(_ entry: LogEntry?, history: [LogEntry]) {
+        let changed = revision != entry?.hash; revision = entry?.hash
+        let properties = entry.map { GitBlameRevisionProperties(entry: $0) }
+        let values: [(String, String)] = [
+            ("SHA-1", entry?.hash ?? ""), ("Author", entry?.author ?? ""),
+            ("Author date", properties?.authorDate ?? ""), ("Author email", entry?.email ?? ""),
+            ("Committer", entry?.committer ?? ""), ("Committer email", entry?.committerEmail ?? ""),
+            ("Committer date", properties?.committerDate ?? ""),
+            ("Subject", properties?.subject ?? ""), ("Body", properties?.body ?? "")]
+        basic = values.enumerated().map { Row(id: "basic.\($0.offset)", name: $0.element.0, value: $0.element.1, description: $0.element.1) }
+        parents = (entry?.parents ?? []).enumerated().map { index, hash in
+            let subject = history.first { $0.hash == hash }.map { GitBlameRevisionProperties(entry: $0).subject } ?? ""
+            return Row(id: "parent.\(index).\(hash)", name: String(hash.prefix(7)), value: subject, description: "\(index) - \(hash)\n\(subject)")
+        }
+        if changed { parentsExpanded = entry != nil }
+        if entry == nil { parentsExpanded = false }
+        if selected == nil { selection = nil }
+    }
+}
+
+struct BlamePropertiesPane: View {
+    @ObservedObject var model: BlameWindowModel
+    @ObservedObject var details: BlameRevisionDetails
+    init(model: BlameWindowModel) { self.model = model; details = model.revisionDetails }
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VSplitView {
+            BlamePropertyGrid(model: model, details: details).frame(minHeight: 120)
             ScrollView {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Basic information").font(.headline)
-                    property("SHA-1", entry?.hash ?? "")
-                    property("Author", entry?.author ?? "")
-                    property("Author date", properties?.authorDate ?? "")
-                    property("Author email", entry?.email ?? "")
-                    property("Committer", entry?.committer ?? "")
-                    property("Committer email", entry?.committerEmail ?? "")
-                    property("Committer date", properties?.committerDate ?? "")
-                    property("Subject", properties?.subject ?? "")
-                    property("Body", properties?.body ?? "",multiline:true)
-                    Divider()
-                    Text("Parents").font(.headline)
-                    ForEach(entry?.parents ?? [], id: \.self) { hash in
-                        let subject = history.first(where: { $0.hash == hash }).map { GitBlameRevisionProperties(entry: $0).subject } ?? ""
-                        property(String(hash.prefix(7)), subject).help("\(hash)\n\(subject)")
-                            .contextMenu {
-                                TurtleGitContextMenu {
-                                    Button { copy(hash) } label: { CommandLabel(title: "Copy SHA-1 to clipboard", icon: .copy) }
-                                }
-                            }
-                    }
-                }.font(.system(size: 11)).padding(10).frame(maxWidth: .infinity, alignment: .leading)
-            }
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(details.selected?.localizedName ?? "").font(.headline)
+                    Text(details.selected?.description ?? "").textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }.font(.system(size: 11)).padding(8)
+            }.frame(minHeight: 64, idealHeight: 100, maxHeight: 150)
         }.background(Color(nsColor: .controlBackgroundColor)).accessibilityLabel("Blame Properties")
+    }
+}
+
+struct BlamePropertyGrid: NSViewRepresentable {
+    @ObservedObject var model: BlameWindowModel
+    @ObservedObject var details: BlameRevisionDetails
+    func makeCoordinator() -> Coordinator { Coordinator(model, details) }
+    func makeNSView(context: Context) -> NSScrollView { context.coordinator.makeView() }
+    func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.update() }
+    static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) { coordinator.retire() }
+    @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
+        let model: BlameWindowModel, details: BlameRevisionDetails
+        weak var table: BlamePropertiesTable?
+        private(set) var rows: [BlameRevisionDetails.Row] = []
+        private var updating = false, retired = false
+        init(_ model: BlameWindowModel, _ details: BlameRevisionDetails) { self.model = model; self.details = details }
+        var available: Bool { !retired && !model.retired && !model.busy && !model.confirmingQuit && !model.historyChildBlocked && table?.window?.attachedSheet == nil }
+        func makeView() -> NSScrollView {
+            let table = BlamePropertiesTable(); self.table = table
+            table.setAccessibilityLabel("Blame revision properties");table.headerView = nil
+            table.rowHeight = 22;table.intercellSpacing = NSSize(width: 1, height: 1)
+            table.style = .plain;table.allowsEmptySelection = true;table.allowsMultipleSelection = false
+            for (id, width) in [("property", CGFloat(128)), ("value", CGFloat(220))] {
+                let column = NSTableColumn(identifier: .init(id));column.width = width;column.minWidth = 60;table.addTableColumn(column)
+            }
+            table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+            table.dataSource = self;table.delegate = self
+            table.copySelection = { [weak self] in self?.copyValue() }
+            table.contextAvailable = { [weak self] in self?.available == true }
+            table.prepareMenu = { [weak self,weak table] in if let menu=table?.menu {self?.menuNeedsUpdate(menu)} }
+            table.menu = NSMenu();table.menu?.autoenablesItems = false;table.menu?.delegate = self
+            let scroll = NSScrollView();scroll.documentView = table;scroll.hasVerticalScroller = true
+            scroll.hasHorizontalScroller = true;scroll.borderType = .bezelBorder
+            update();return scroll
+        }
+        func update() {
+            guard !retired, let table else { return }; updating = true;defer { updating = false }
+            let basic = BlameRevisionDetails.Row(id: "group.basic", name: "Basic information", value: "", description: "")
+            let parents = BlameRevisionDetails.Row(id: "group.parents", name: "Parents", value: "", description: "")
+            let next = [basic] + (details.basicExpanded ? details.basic : []) + [parents] + (details.parentsExpanded ? details.parents : [])
+            if next != rows { rows = next;table.reloadData() }
+            let selected = rows.firstIndex { $0.id == details.selection }
+            if table.selectedRow != (selected ?? -1) { table.selectRowIndexes(selected.map { IndexSet(integer: $0) } ?? [], byExtendingSelection: false) }
+            table.isEnabled = available
+        }
+        func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
+        func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+            guard rows.indices.contains(row), let column = tableColumn else { return nil }
+            let value = rows[row], group = value.id.hasPrefix("group.")
+            if group && column.identifier.rawValue == "property" {
+                let button = NSButton(title: NSLocalizedString(value.name, comment: ""), target: self, action: #selector(toggleGroup(_:)))
+                button.setButtonType(.pushOnPushOff);button.bezelStyle = .disclosure
+                button.state = (value.id == "group.basic" ? details.basicExpanded : details.parentsExpanded) ? .on : .off
+                button.title="";button.identifier = NSUserInterfaceItemIdentifier(value.id);button.setAccessibilityLabel(NSLocalizedString(value.name, comment: ""))
+                let label=NSTextField(labelWithString:NSLocalizedString(value.name,comment:""));label.font = .boldSystemFont(ofSize:11)
+                label.lineBreakMode = .byTruncatingTail
+                let stack=NSStackView(views:[button,label]);stack.orientation = .horizontal;stack.spacing=3
+                button.widthAnchor.constraint(equalToConstant:14).isActive=true
+                return stack
+            }
+            let text = NSTextField(labelWithString: column.identifier.rawValue == "property" ? (group ? "" : value.localizedName) : value.value)
+            text.font = .systemFont(ofSize: 11);text.lineBreakMode = .byTruncatingTail;text.toolTip = value.description
+            text.setAccessibilityLabel(column.identifier.rawValue == "property" ? value.name : value.description)
+            return text
+        }
+        func tableViewSelectionDidChange(_ notification: Notification) {
+            guard !updating, let table else { return }
+            details.selection = rows.indices.contains(table.selectedRow) ? rows[table.selectedRow].id : nil
+        }
+        @objc func toggleGroup(_ sender: NSButton) {
+            guard available else { return }
+            if sender.identifier?.rawValue == "group.basic" {
+                details.basicExpanded.toggle();if !details.basicExpanded && details.selection?.hasPrefix("basic.")==true {details.selection="group.basic"}
+            } else {
+                details.parentsExpanded.toggle();if !details.parentsExpanded && details.selection?.hasPrefix("parent.")==true {details.selection="group.parents"}
+            }
+            update()
+        }
+        func menuNeedsUpdate(_ menu: NSMenu) {
+            menu.removeAllItems();guard available, let selected = details.selected, !selected.id.hasPrefix("group.") else { return }
+            let item = NSMenuItem(title: NSLocalizedString("Copy", comment: ""), action: #selector(copyMenu(_:)), keyEquivalent: "")
+            item.target = self;item.image = MenuIcon.copy.contextImage(defaults: model.labelDefaults)
+            // Fence the menu value to the selected revision/property; a late action
+            // after selection or a new document must not copy a different value.
+            item.representedObject = [selected.id, selected.value, selected.description, model.selectedHistoryEntry?.hash ?? ""].map { Data($0.utf8) }
+            menu.addItem(item)
+        }
+        @objc func copyMenu(_ sender: NSMenuItem) {
+            guard available, let captured = sender.representedObject as? [Data], let selected = details.selected,
+                  captured == [selected.id, selected.value, selected.description, model.selectedHistoryEntry?.hash ?? ""].map({ Data($0.utf8) }) else { return }
+            sender.representedObject = nil;model.copy(selected.value)
+        }
+        func copyValue() { guard available, let selected = details.selected else { return };model.copy(selected.value) }
+        func retire() { retired = true;table?.menu?.cancelTracking();table?.menu?.delegate = nil;table?.menu = nil;table?.copySelection = {};table?.prepareMenu = {};table?.contextAvailable = { false };table?.delegate = nil;table?.dataSource = nil;table = nil }
+    }
+}
+
+@MainActor final class BlamePropertiesTable: NSTableView {
+    var copySelection: () -> Void = {}
+    var contextAvailable: () -> Bool = { false }
+    var prepareMenu: () -> Void = {}
+    override func menu(for event: NSEvent) -> NSMenu? {
+        guard contextAvailable() else { return nil }
+        let row = row(at: convert(event.locationInWindow, from: nil));guard row >= 0 else { return nil }
+        selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false);prepareMenu();return menu?.items.isEmpty == false ? menu : nil
+    }
+    @objc func copy(_ sender: Any?) { copySelection() }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if contextAvailable(), event.modifierFlags.intersection([.command, .option, .control]) == .command, event.charactersIgnoringModifiers?.lowercased() == "c" { copySelection();return true }
+        return super.performKeyEquivalent(with: event)
+    }
+    override func accessibilityPerformShowMenu() -> Bool {
+        guard contextAvailable(), selectedRow >= 0, let menu else { return false };prepareMenu();guard !menu.items.isEmpty else { return false }
+        let point = NSPoint(x: 20, y: rect(ofRow: selectedRow).midY);menu.popUp(positioning: nil, at: point, in: self);return true
+    }
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 109, event.modifierFlags.intersection([.command, .shift, .control, .option]) == .shift, accessibilityPerformShowMenu() { return }
+        super.keyDown(with: event)
     }
 }
 
@@ -2395,12 +2551,21 @@ private struct BlamePaneCaption:NSViewRepresentable {
     func retire() { clearSession();model=nil }
     deinit { if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) } }
 }
+private struct BlameAuthorImage: NSViewRepresentable {
+    @ObservedObject var loader: LogGravatar
+    func makeNSView(context: Context) -> NSImageView {
+        let view=NSImageView();view.imageScaling = .scaleProportionallyUpOrDown;view.imageFrameStyle = .none
+        view.setAccessibilityLabel("Commit author Gravatar");return view
+    }
+    func updateNSView(_ view:NSImageView,context:Context) { view.image=loader.image }
+    func sizeThatFits(_ proposal:ProposedViewSize,nsView:NSImageView,context:Context)->CGSize? {CGSize(width:80,height:80)}
+}
 private struct BlamePaneContent:View {
     @ObservedObject var model:BlameWindowModel
     let pane:BlamePane
     var body:some View {
-        if pane == .log { BlameHistoryTable(model:model) }
-        else { BlamePropertiesPane(entry:model.selectedHistoryEntry,history:model.historyEntries,copy:model.copy) }
+        if pane == .log { HStack(alignment:.top,spacing:0) { BlameHistoryTable(model:model);if model.showGravatar { BlameAuthorImage(loader:model.gravatar).frame(width:80,height:80).overlay(Rectangle().stroke(Color.secondary,lineWidth:1)) } } }
+        else { BlamePropertiesPane(model:model) }
     }
 }
 private struct BlameAutoHideTab:NSViewRepresentable {

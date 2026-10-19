@@ -465,6 +465,10 @@
         {
           "path": "Sources/TurtleGitMac/CommitFileDrop.swift",
           "anchor": "struct CommitFileDropDelegate"
+        },
+        {
+          "path": "Sources/TurtleGitCore/CommitAmend.swift",
+          "anchor": "func commitLibrarySelection"
         }
       ],
       "parity_document": "docs/COMMIT-PARITY.md",

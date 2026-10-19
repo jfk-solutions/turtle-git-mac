@@ -3741,3 +3741,11 @@ preference snapshots. Per-path receipts, actual worker cancellation and final
 publication remain owned. General Commit staging and its separate backend bit
 retain their independent contracts. Grouped evidence and remaining acceptance
 are recorded with that family.
+
+
+The [Commit index engine](COMMIT-INDEX-ENGINE-PARITY.md) and
+[Blame author/details panes](BLAME-AUTHOR-DETAILS-PARITY.md) complete two further
+implementation families in a shared grouped checkpoint. Commit owns its separate
+source engine choice/cleaned tree and Blame gains native selected-value and author
+controls. [Evidence](qa/commit-index-blame-details-2026-10-19.json) separates actual
+checks from the remaining full hosted, physical/signed and source-layout gates.

@@ -816,6 +816,10 @@
           "anchor": "struct CommitFileDropDelegate"
         },
         {
+          "path": "Sources/TurtleGitCore/CommitAmend.swift",
+          "anchor": "func commitLibrarySelection"
+        },
+        {
           "path": "Sources/TurtleGitMac/CommitIssueProvider.swift",
           "origin": "recorded-control-mapping"
         },

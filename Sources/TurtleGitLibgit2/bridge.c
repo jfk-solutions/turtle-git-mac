@@ -338,3 +338,42 @@ int tg_add(const char *path,const char *private_index,int mode,int mode_only,con
  }
  done:if(descriptor>=0)close(descriptor);git_buf_dispose(&actual);git_index_free(index);git_repository_free(repository);active_context=NULL;return result;
 }
+
+// CommitDlg checked-row preparation. Unchecked base entries are restored in the
+// private copy by the caller; checked add/remove/rename operations settle here
+// with the same external clean driver and one final private-index write.
+int tg_prepare_index(const char *path,const char *private_index,const char *const *operations,const char *const *paths,const uint32_t *modes,size_t count,tg_callbacks *callbacks){
+ context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX};ctx.private_index=private_index;
+ git_repository *repository=NULL;git_index *index=NULL;git_buf actual=GIT_BUF_INIT;int result=-1,descriptor=-1;struct stat info,real_info;
+ active_context=&ctx;if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ descriptor=open(private_index,O_RDONLY|O_NOFOLLOW|O_CLOEXEC);
+ if(descriptor<0||fstat(descriptor,&info)<0||!S_ISREG(info.st_mode)||info.st_uid!=geteuid()||(info.st_mode&0777)!=0600||info.st_nlink!=1){git_error_set_str(GIT_ERROR_INDEX,"Commit preparation requires an owned regular 0600 private index");goto done;}
+ if((result=git_repository_open(&repository,path))<0)goto done;
+ if((result=git_repository_item_path(&actual,repository,GIT_REPOSITORY_ITEM_INDEX))<0)goto done;
+ if(stat(actual.ptr,&real_info)==0&&info.st_dev==real_info.st_dev&&info.st_ino==real_info.st_ino){git_error_set_str(GIT_ERROR_INDEX,"Commit preparation must not write the live index");result=-1;goto done;}
+ if((result=configure_repository(repository,&ctx))<0)goto done;
+ if((result=git_index_open(&index,private_index))<0)goto done;
+ if((result=git_repository_set_index(repository,index))<0)goto done;
+ if((result=git_index_read(index,1))<0)goto done;
+ for(size_t i=0;i<count;i++){
+  if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+  if(!strcmp(operations[i],"remove")){
+   result=git_index_remove_bypath(index,paths[i]);if(result==GIT_ENOTFOUND){git_error_clear();result=0;}if(result<0)goto done;
+  }else if(!strcmp(operations[i],"add")){
+   if((result=git_index_add_bypath(index,paths[i]))<0)goto done;
+   if(modes[i]){
+    const git_index_entry *existing=git_index_get_bypath(index,paths[i],0);
+    if(!existing){git_error_set_str(GIT_ERROR_INDEX,"Prepared index entry is missing");result=-1;goto done;}
+    if(existing->mode!=GIT_FILEMODE_COMMIT){git_index_entry entry=*existing;entry.mode=modes[i];if((result=git_index_add(index,&entry))<0)goto done;}
+   }
+  }else{git_error_set_str(GIT_ERROR_INDEX,"Unsupported Commit index operation");result=-1;goto done;}
+ }
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ struct stat current;if(lstat(private_index,&current)<0||!S_ISREG(current.st_mode)||current.st_dev!=info.st_dev||current.st_ino!=info.st_ino){git_error_set_str(GIT_ERROR_INDEX,"Private Commit index changed during preparation");result=-1;goto done;}
+ result=git_index_write(index);
+ if(result==0){int written=open(private_index,O_RDONLY|O_NOFOLLOW|O_CLOEXEC);struct stat final;
+  if(written<0||fstat(written,&final)<0||!S_ISREG(final.st_mode)||final.st_uid!=geteuid()||final.st_nlink!=1||fchmod(written,0600)<0){git_error_set_str(GIT_ERROR_INDEX,"Cannot preserve private Commit index permissions");result=-1;}
+  if(written>=0)close(written);
+ }
+ done:if(descriptor>=0)close(descriptor);git_buf_dispose(&actual);git_index_free(index);git_repository_free(repository);active_context=NULL;return result;
+}

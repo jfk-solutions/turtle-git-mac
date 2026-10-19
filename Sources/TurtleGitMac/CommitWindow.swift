@@ -1817,9 +1817,13 @@ import UniformTypeIdentifiers
             } catch { if messageFocusAvailable, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
+    var captureCommitBackend:(()->GitLibGit2Configuration)?
+    private(set) var acceptedCommitBackend:GitLibGit2Configuration?
     func commit(_ action: CompletionAction = .commit) {
         guard canCommit, replaySplit == nil && historyCombine == nil || action == .commit,
               historyCombine == nil || (amend && !createBranch) else { return }
+        let backend=captureCommitBackend?() ?? GitLibGit2Configuration.load(from:dialogDefaults)
+        acceptedCommitBackend=backend
         if replaySplit == nil && historyCombine == nil { completionAction = action }
         let rawMessage = message, rawIssueID = issueID, properties = issueProperties, provider = nativeIssueProvider, paths = checkedPathsForCommit, staging = stagingEnabled, showUnversionedForAttempt=showUnversioned
         let committedPaths = staging ? GitPathSet(entries.filter { isStaged($0) }.map(\.path)) : messageOnly ? GitPathSet() : paths
@@ -1934,7 +1938,7 @@ import UniformTypeIdentifiers
                         let onOutput: @Sendable (GitOutputChunk) -> Void = { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }
                         if let replaySplit { return try await repository.commitRebaseSplit(message: text, paths: paths, staging: staging, options: options, expected: replaySplit, onOutput: onOutput) }
                         if staging { return try await repository.commitIndex(message: text, options: options, cancellation: result.cancellation, onOutput: onOutput) }
-                        return try await repository.commitSelected(message: text, paths: paths, options: options, cancellation: result.cancellation, onOutput: onOutput)
+                        return try await repository.commitSelected(message: text, paths: paths, options: options, cancellation: result.cancellation, onOutput: onOutput,backend:backend)
                     }
                     for await _ in updates { result.consume(parser.processPending(), parser: parser) }
                     result.consume(parser.processPending(), parser: parser); result.consume(parser.finish(), parser: parser)

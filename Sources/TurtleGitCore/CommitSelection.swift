@@ -41,7 +41,8 @@ extension GitRepository {
     /// TortoiseGit's default checkbox mode commits the current whole-file contents
     /// of checked paths. HEAD-based commits use --only; parent-based amendments
     /// use a separate index so unrelated staged changes remain intact.
-    public func commitSelected(message: String, paths selection: some Sequence<String>, options: CommitOptions = CommitOptions(), cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+    public func commitSelected(message: String, paths selection: some Sequence<String>, options: CommitOptions = CommitOptions(), cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, backend: GitLibGit2Configuration? = nil) throws -> String {
+        let backend = backend ?? libgit2Configuration ?? .load()
         try cancellation?.check()
         func failure(_ message: String) -> GitFailure { GitFailure(arguments: ["commit"], code: 1, message: message) }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw failure("Enter a commit message.") }
@@ -52,7 +53,7 @@ extension GitRepository {
         let paths = options.messageOnly ? GitPathSet() : GitPathSet(selection)
         guard !paths.isEmpty || options.amend || options.messageOnly || operation == .merge else { throw failure("Check at least one file to commit.") }
         let parentMode = options.amend && !options.amendDiffToLastCommit
-        let changes = try commitDialogStatus(amendToParent:parentMode,cancellation:cancellation)
+        let changes = try commitDialogStatus(amendToParent:parentMode,cancellation:cancellation,refreshIndex: !backend.requests(.commitUpdateIndex))
         let hasConflicts=changes.contains { $0.state == .conflicted }
         guard !hasConflicts || options.ignoreUnresolvedConflicts else { throw failure("Resolve the conflicted files before committing.") }
         let checked = changes.filter { paths.contains($0.path) }
@@ -61,6 +62,15 @@ extension GitRepository {
         }
         if options.amend { _ = try run(["rev-parse", "--verify", "HEAD"], cancellation:cancellation) }
         if let branch=options.newBranch { _ = try validateCommitBranch(branch,cancellation:cancellation) }
+        if let executor = try backend.executor(for: .commitUpdateIndex) {
+            let base: String
+            if parentMode { base = try commitComparisonBase(amendToParent: true, cancellation: cancellation) }
+            else {
+                let head = try run(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
+                base = head.exitCode == 0 ? head.text.trimmingCharacters(in: .newlines) : try run(["mktree"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            }
+            return try commitLibrarySelection(message: message, checked: checked, changes: changes, options: options, base: base, fileModes: selectedStagedFileModes(checked), executor: executor, cancellation: cancellation, onOutput: onOutput)
+        }
         if let policy=options.checkboxIndexPolicy {
             return try withCommitCheckboxIndex(policy,changes:changes,checked:paths,parentMode:parentMode,cancellation:cancellation,onOutput:onOutput) {
                 base in try commitSeparateSelection(message:message,checked:checked,options:options,base:base,fileModes:selectedStagedFileModes(checked),cancellation:cancellation,onOutput:onOutput)

@@ -543,6 +543,10 @@ jobs:
         run: python3 scripts/test-libgit2-native.py --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native source-selected Add clean filters and owned index progress
         run: python3 scripts/test-add-backend-native.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
+      - name: Native source-selected Commit index preparation and cancellation
+        run: python3 scripts/test-commit-index-backend-native.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
+      - name: Native Blame author and property panes
+        run: python3 scripts/test-blame-author-details-native.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native SMTP certificate review, private TLS and owned export cleanup
         run: python3 scripts/test-smtp-certificate-native.py
       - name: Native bundled SSH encrypted-key loading and process cleanup

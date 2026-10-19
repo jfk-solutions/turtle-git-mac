@@ -2694,3 +2694,14 @@ VoiceOver acceptance, and comparison of all other upstream Commit states. This c
 Finder, signed deployment or whole-application parity.
 
 Owned inactive-window captures for this state: empty changes [light](site/assets/commit-empty-changes-light.png) / [dark](site/assets/commit-empty-changes-dark.png), hidden-file question [light](site/assets/commit-hidden-unversioned-light.png) / [dark](site/assets/commit-hidden-unversioned-dark.png). All four were reviewed for complete captions and controls. They do not establish active-window, physical input or complete Commit visual parity.
+
+
+## Separate Commit index engine — October 19, 2026
+
+The [Commit index engine family](COMMIT-INDEX-ENGINE-PARITY.md) connects the
+independent source command3 mask to checkbox Commit, captures it before native
+preflight and prepares clean-filtered selected bytes only once. Private metadata
+reconciliation preserves unchecked rows/modes and owns failure, restoration and
+cancellation. Source defaults remain Git for this command; staging-area commits
+retain their raw index and partial-file behavior. The dated grouped evidence
+records actual checks and remaining complete source, physical and signed gates.

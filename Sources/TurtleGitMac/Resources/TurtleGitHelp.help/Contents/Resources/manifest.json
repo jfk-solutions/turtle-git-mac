@@ -1,9 +1,9 @@
 {
   "files": {
-    "Contents/Info.plist": "2a8bd4731f4823294525bb094b16425994653f4173885fe4aef2901df9f6f7b0",
+    "Contents/Info.plist": "2fd7140d2ce3d0c160679ed7b928cb5c6a8d29b315d9eca6d068c1fea3a04171",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "01d9789d13afd9ece8aac7c7a97615b55f0e9e37f5211445b613f67b4d166d39",
-    "Contents/Resources/en.lproj/BLAME-MENUS.html": "8431f0108093ba0cc6e3fe9f221e11988b07773f928b428a8c63b5a158ba87f4",
+    "Contents/Resources/en.lproj/BLAME-MENUS.html": "2489f332aaea73d152a526011f9a0d9fd1fe47f300bea1bb914a04bec6e9c653",
     "Contents/Resources/en.lproj/BUNDLED-COMPARISONS.html": "ca44634f35d7a4655304e97466c657b748f9f859fb32211be67bdddcc44e92c1",
     "Contents/Resources/en.lproj/CACHE-MENU.html": "9a084e657c193044339a2640795b91071b1f9a8e34c5d7e67a9746a432046305",
     "Contents/Resources/en.lproj/CHERRY-PICK.html": "69424c956849c3686861e28c3a1c8d034ded56dba04c84841fc93528b67ee1af",
@@ -20,7 +20,7 @@
     "Contents/Resources/en.lproj/InfoPlist.strings": "436e0d7f17990db122633ab657a3a406a252ad892449860b7157494614595b02",
     "Contents/Resources/en.lproj/LANGUAGES.html": "3352490c128dfe47372f3c7f238b476138fd9b14641f61f9954fd1e67af517a4",
     "Contents/Resources/en.lproj/LFS.html": "0fce6bd22bff5a9eacdc281918aba1ae37941f892c13100e5f17625d83dc6178",
-    "Contents/Resources/en.lproj/LIBGIT2-TRANSPORT.html": "c1c9c1a4f93839ba1f7630642772a29e4d4620081dff789915c29fbdb30145ae",
+    "Contents/Resources/en.lproj/LIBGIT2-TRANSPORT.html": "8837d161e766b151721cd80dc0dd3755a6fe33501f2bde9e2f0be280aaa6b9ae",
     "Contents/Resources/en.lproj/LIBREOFFICE-COMPARISON.html": "e451291b0f37adf06688ea828a60151aa49859948cf576e20961989fd3b9e236",
     "Contents/Resources/en.lproj/LOG-FIND.html": "6f557107c2666c5117ca34d1486449389f82e74eade846a50d75a3a676d7b739",
     "Contents/Resources/en.lproj/MERGE-FILTERS.html": "fd3810301986f74435fb161b42c4abff1bb1f53347e5e2cd9eae51f4c8b2a8af",
@@ -65,7 +65,7 @@
   "source_hashes": {
     "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
     "docs/BLAME-FILE-OPEN.md": "fc530274644d387493d355c26fc2e40eeb6fab9dbb11fc1cf793a8ed0532ebe9",
-    "docs/BLAME-MENUS.md": "c73086907f5d2a44e7bb99da451cb6861e58ccfa7dcacae8b865565a314a32f3",
+    "docs/BLAME-MENUS.md": "d993d74e25f4044cc435bedcafae763baff8c1212711ac2814ba8bae68a3d465",
     "docs/BUNDLED-COMPARISONS.md": "d3848ab5b58eb5d23b60575e9e397aa1660c411a4e173d3181732cb36df71064",
     "docs/CACHE-MENU.md": "43dd8eb8a152ae338069ab2a1a3c08eb5a9b2ac290e28b53b53cfe06d645fc62",
     "docs/CHERRY-PICK.md": "ac4553c2aa55314d8be0f2b333d5a094d4c67b3c67f6613812a8c395df8f2380",
@@ -81,7 +81,7 @@
     "docs/IMAGE-COMPARISON.md": "c7990b0f5af1efbe2a4980801560ca2357fbc353e8836e3314b7ae00b38a23ac",
     "docs/LANGUAGES.md": "ed51f9133b61e064168e2b44843d47a7378d4fc054c86507b742b4a855257611",
     "docs/LFS.md": "e8b3f0ed2af880058d2c59e82e32942fa8c7a3ca957626fb55c55d74afcc6ffa",
-    "docs/LIBGIT2-TRANSPORT.md": "9bba125ed6422748229f6163b95099bb33bfceb262fbf5348ce429808e72fef9",
+    "docs/LIBGIT2-TRANSPORT.md": "dc86d4a79b20102a9fd97737654c4e7b19f5a0c49a879c915ab9e47a07897092",
     "docs/LIBREOFFICE-COMPARISON.md": "8ec86dfbadbfd8d76f9feaca94e331c8fed7fca41886cf256a380da5db0533bc",
     "docs/LOG-FIND.md": "76d55d6d65a79e6bb066468bddd465e81c3a038b4289e2db84a3ded13c5d7e9e",
     "docs/MERGE-FILTERS.md": "c32dbedd77e3f6903bb05bac9d9edc9efbdfad6942bdaad57752a27c7107f028",

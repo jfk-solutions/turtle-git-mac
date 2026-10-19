@@ -51,7 +51,7 @@ struct Arguments{
             if arg == "--literal-pathspecs" || arg == "--no-literal-pathspecs"{continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["clone","fetch","ls-remote","push","cat-file","add"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         var operands:[String]=[],options=true
@@ -70,7 +70,7 @@ struct Arguments{
                 case "--depth" where command == "clone" || command == "fetch":depth=try depthValue(next())
                 case "--config" where command == "clone":
                     let value=try next();guard value.hasPrefix("core.sshCommand=") else{try refuse("Unsupported persistent clone configuration")};ssh=String(value.dropFirst("core.sshCommand=".count))
-                case "--stdin" where command == "add":guard !addStdin else{try refuse("Repeated Add input option")};addStdin=true
+                case "--stdin" where command == "add" || command == "turtlegit-prepare-index":guard !addStdin else{try refuse("Repeated Add input option")};addStdin=true
                 case "--turtlegit-mode-only" where command == "add":guard !addModeOnly else{try refuse("Repeated Add mode-only option")};addModeOnly=true
                 case "--filters" where command == "cat-file":filters=true
                 case "--refs" where command == "ls-remote":listRefs=true
@@ -83,7 +83,7 @@ struct Arguments{
                 case "--prune" where command == "fetch":prune=1
                 case "--no-prune" where command == "fetch":prune=2
                 default:
-                    if command == "add" && arg.hasPrefix("--turtlegit-index="){
+                    if (command == "add" || command == "turtlegit-prepare-index") && arg.hasPrefix("--turtlegit-index="){
                         guard privateIndex == nil else{try refuse("Repeated private Add index")};privateIndex=String(arg.dropFirst("--turtlegit-index=".count))
                     }else if command == "add" && arg.hasPrefix("--turtlegit-mode="){
                         guard !addModeSpecified else{try refuse("Repeated Add mode")};addModeSpecified=true
@@ -99,6 +99,8 @@ struct Arguments{
             guard !source.isEmpty,!destination.isEmpty else{try refuse("Missing clone source or destination")}
         }else if command == "add"{
             guard addStdin,addModeSpecified,operands.isEmpty,let privateIndex,privateIndex.hasPrefix("/"),!privateIndex.contains("\0"),!addModeOnly || addMode != 0 else{try refuse("Add requires an explicit private index, mode and literal stdin packet")}
+        }else if command == "turtlegit-prepare-index"{
+            guard addStdin,operands.isEmpty,let privateIndex,privateIndex.hasPrefix("/"),!privateIndex.contains("\0") else{try refuse("Commit preparation requires an explicit private index and stdin plan")}
         }else if command == "cat-file"{
             guard filters,let path=blobPath,!path.isEmpty,!path.contains("\0"),!path.hasPrefix("/"),(path == "." || !path.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0 == ".." || $0 == "." || $0.isEmpty})),operands.count==1,operands[0].utf8.count==40,operands[0].utf8.allSatisfy({(48...57).contains($0)||(65...70).contains($0)||(97...102).contains($0)}) else{try refuse("Filtered blob requires one full object ID and literal repository-relative path")};blobOID=operands[0]
         }else if command == "ls-remote"{
@@ -324,20 +326,38 @@ func run()throws->Int32{
     let args=try Arguments(Array(CommandLine.arguments.dropFirst()))
     guard FileManager.default.changeCurrentDirectoryPath(args.directory) else{try refuse("Cannot enter requested repository directory")}
     guard tg_git_init()>=0 else{try refuse("Cannot initialize libgit2")};defer{tg_git_shutdown()}
-    var addPaths:[String]=[]
-    if args.command == "add"{
+    var addPaths:[String]=[],prepareOperations:[String]=[],prepareModes:[UInt32]=[]
+    if args.command == "add" || args.command == "turtlegit-prepare-index"{
         var packet=Data()
-        while let chunk=try FileHandle.standardInput.read(upToCount:65_536),!chunk.isEmpty{guard !cancelled(),packet.count+chunk.count<=33_554_432 else{try refuse("Add packet was cancelled or exceeds bounds")};packet.append(chunk)}
-        guard packet.last==0 else{try refuse("Add requires a terminated NUL path packet")}
-        let paths=packet.dropLast().split(separator:0,omittingEmptySubsequences:false)
-        guard !paths.isEmpty,paths.count<=100_000 else{try refuse("Invalid Add path count")}
-        addPaths=try paths.map{bytes in
-            guard !bytes.isEmpty,bytes.count<=1_048_576,let path=String(data:Data(bytes),encoding:.utf8),!path.hasPrefix("/"),!path.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0.isEmpty || $0 == "." || $0 == ".."}) else{try refuse("Add packet contains an invalid literal path")};return path
+        while let chunk=try FileHandle.standardInput.read(upToCount:65_536),!chunk.isEmpty{guard !cancelled(),packet.count+chunk.count<=33_554_432 else{try refuse("Index packet was cancelled or exceeds bounds")};packet.append(chunk)}
+        guard packet.last==0 else{try refuse("Index operation requires a terminated NUL packet")}
+        let fields=packet.dropLast().split(separator:0,omittingEmptySubsequences:false)
+        func path(_ bytes:Data)throws->String{
+            guard !bytes.isEmpty,bytes.count<=1_048_576,let path=String(data:bytes,encoding:.utf8),!path.hasPrefix("/"),!path.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0.isEmpty || $0 == "." || $0 == ".."}) else{try refuse("Index packet contains an invalid literal path")};return path
+        }
+        if args.command == "add"{
+            guard !fields.isEmpty,fields.count<=100_000 else{try refuse("Invalid Add path count")}
+            addPaths=try fields.map{try path(Data($0))}
+        }else{
+            guard !fields.isEmpty,fields.count%3==0,fields.count<=300_000 else{try refuse("Invalid Commit preparation tuple count")}
+            for offset in stride(from:0,to:fields.count,by:3){
+                guard let operation=String(data:Data(fields[offset]),encoding:.utf8),let mode=String(data:Data(fields[offset+2]),encoding:.utf8) else{try refuse("Invalid Commit preparation tuple")}
+                let value:UInt32
+                switch (operation,mode){
+                case ("add","normal"),("remove","-"):value=0
+                case ("add","100644"):value=0o100644
+                case ("add","100755"):value=0o100755
+                case ("add","120000"):value=0o120000
+                default:try refuse("Unsupported Commit preparation operation or mode")
+                }
+                prepareOperations.append(operation);addPaths.append(try path(Data(fields[offset+1])));prepareModes.append(value)
+            }
         }
     }
     let owner=CallbackContext(directory:args.directory,configs:args.configs);var options=callbacks(owner);options.verbose=args.verbose ? 1:0;options.force_fetch=args.force ? 1:0
     let result:Int32=withStrings(args.configs){config,count in
         options.config_values=config;options.config_count=count
+        if args.command == "turtlegit-prepare-index"{return withStrings(prepareOperations){operations,count in withStrings(addPaths){paths,_ in prepareModes.withUnsafeBufferPointer{modes in tg_prepare_index(args.directory,args.privateIndex!,operations,paths,modes.baseAddress,count,&options)}}}}
         if args.command == "add"{return withStrings(addPaths){paths,count in tg_add(args.directory,args.privateIndex!,args.addMode,args.addModeOnly ? 1:0,paths,count,&options)}}
         if args.command == "clone"{
             return withOptionalString(args.branch){branch in withOptionalString(args.origin){origin in withOptionalString(args.ssh){ssh in tg_clone(args.source,args.destination,args.bare ? 1:0,args.noCheckout ? 1:0,args.recursive ? 1:0,branch,origin,Int32(args.depth),ssh,&options)}}}
