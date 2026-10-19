@@ -118,7 +118,9 @@ This is distinct from signed-parent execution or physical Finder acceptance.
 
 ## Remaining compatibility
 
-Custom line-cap objects remain a separate object family. The file-format-only
+Custom line-cap objects have a connected [custom-cap family](METAFILE-CUSTOM-CAP-PARITY.md)
+with default fill/stroke paths, adjustable arrows and separate analytic/native
+evidence. The file-format-only
 Left, Outset and Right alignments are explicitly unsupported; the public GDI+
 Pen API exposes Center and Inset. Unknown enums and malformed optional arrays
 are refused. Inset with compound bands or triangular dash caps is refused as an

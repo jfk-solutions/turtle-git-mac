@@ -314,12 +314,102 @@ private final class NativeStrokeGeometry {
         default:break
         }
     }
-    private func outline(_ figure:Figure,width:CGFloat,bands:[CGFloat],pattern:[CGFloat],offset:CGFloat,startCap:Int,endCap:Int,dashCap:Int,join:Int,limit:CGFloat,tolerance:CGFloat,dashWidth:CGFloat?=nil,to path:CGMutablePath) throws {
+    private struct CustomCap {
+        let figures:[Figure],filled:Bool
+        let baseCap:Int,baseInset:CGFloat,widthScale:CGFloat
+        let adjustableArrow:Bool
+        // Arrow's API base-cap property is Triangle. The rendering reference
+        // places its custom head directly, without another shaft triangle.
+        var shaftCap:Int {adjustableArrow ? 0:baseCap}
+        let startCap:Int,endCap:Int,join:Int,miterLimit:CGFloat
+    }
+    private func customCap(_ options:JSValue,_ name:String,width:CGFloat,tolerance:CGFloat) throws ->CustomCap? {
+        guard let value=options.forProperty(name),!value.isUndefined else {return nil}
+        guard value.isObject,!value.isNull,!value.isArray else {throw Self.invalid("invalid "+name)}
+        func scalar(_ key:String,_ fallback:Double=0)->CGFloat {
+            CGFloat(number(value,key,fallback))
+        }
+        func enumeration(_ key:String,_ allowed:[Int],_ fallback:Int=0) throws ->Int {
+            let n=scalar(key,Double(fallback));guard n.isFinite,n>=0,n<=255,n.rounded()==n,allowed.contains(Int(n)) else {throw Self.invalid("invalid custom cap "+key)};return Int(n)
+        }
+        let type=try enumeration("type",[0,1]),start=try enumeration("strokeStartCap",[0,1,2,3]),end=try enumeration("strokeEndCap",[0,1,2,3]),join=try enumeration("join",[0,1,2,3])
+        let scale=scalar("widthScale",1),limit=scalar("miterLimit",10)
+        guard scale.isFinite,scale>=0,scale<=65536,limit.isFinite,limit>=1,limit<=65536 else {throw Self.invalid("invalid custom cap scale or miter")}
+        let localTolerance=tolerance/max(1e-12,width*scale)
+        var figures:[Figure]=[],filled=false,base=0,inset:CGFloat=0
+        if type==0 {
+            base=try enumeration("baseCap",[0,1,2,3]);inset=scalar("baseInset")
+            guard inset.isFinite,abs(inset)<=65536 else {throw Self.invalid("invalid custom base inset")}
+            func path(_ key:String) throws ->String? {
+                guard let field=value.forProperty(key),!field.isUndefined else {return nil}
+                guard field.isString,let text=field.toString(),text.utf8.count<=2*1024*1024 else {throw Self.invalid("invalid custom "+key)}
+                return text
+            }
+            let fill=try path("fillPath"),stroke=try path("strokePath")
+            if let selected=stroke ?? fill {
+                filled=stroke==nil
+                figures=try parse(selected,inverse:.identity,tolerance:localTolerance,radius:1)
+            }
+        } else {
+            let w=scalar("width"),h=scalar("height"),middle=scalar("middleInset")
+            guard w.isFinite,h.isFinite,middle.isFinite,w>=0,h>=0,w<=65536,h<=65536,abs(middle)<=65536,
+                  let fill=value.forProperty("filled"),fill.isBoolean else {throw Self.invalid("invalid adjustable arrow")}
+            filled=fill.toBool();base=3;inset=w==0 ? 0:h/w
+            if filled {
+                if h>0,middle<h {figures=[.init(points:[.init(x:-w/2,y:-h),.zero,.init(x:w/2,y:-h),.init(x:0,y:-h+middle)],closed:true)]}
+            } else {figures=[.init(points:[.init(x:-w/2,y:-h),.zero,.init(x:w/2,y:-h)],closed:false)]}
+            try reserveInput(figures.reduce(0){$0+$1.points.count})
+        }
+        return CustomCap(figures:figures,filled:filled,baseCap:base,baseInset:inset,widthScale:scale,adjustableArrow:type==1,startCap:start,endCap:end,join:join,miterLimit:limit)
+    }
+    private func checkNormalizationBudget() throws {
+        guard primitives<=32768,outlinePoints<=131072 else {throw Self.invalid("native normalization budget exceeded")}
+    }
+    /// Keep a cap's winding holes independent of the shaft's winding strips;
+    /// boolean union must add shaft ink through a hole rather than cancel it.
+    private func customInk(_ custom:CustomCap,at endpoint:CGPoint,direction:CGPoint,width:CGFloat,tolerance:CGFloat) throws ->CGPath {
+        let scale=width*custom.widthScale,local=CGMutablePath()
+        guard scale>0,!custom.figures.isEmpty else {return local}
+        if custom.filled {
+            for figure in custom.figures where figure.points.count>2 {
+                guard figure.points.count<=131072-outlinePoints,primitives<32768 else {throw Self.invalid("custom fill budget exceeded")}
+                outlinePoints += figure.points.count;primitives += 1
+                local.move(to:figure.points[0]);for p in figure.points.dropFirst() {local.addLine(to:p)};local.closeSubpath()
+            }
+        } else {
+            for figure in custom.figures {
+                try outline(figure,width:1,bands:[0,1],pattern:[],offset:0,startCap:custom.startCap,endCap:custom.endCap,dashCap:0,join:custom.join,limit:custom.miterLimit,tolerance:tolerance/scale,to:local)
+            }
+        }
+        try checkNormalizationBudget()
+        let n=normal(direction)
+        var transform=CGAffineTransform(a:-n.x*scale,b:-n.y*scale,c:direction.x*scale,d:direction.y*scale,tx:endpoint.x,ty:endpoint.y)
+        guard let result=local.normalized(using:.winding).copy(using:&transform) else {throw Self.invalid("could not place custom cap")}
+        var invalidPoint=false
+        result.applyWithBlock { element in
+            let count:Int
+            switch element.pointee.type {case .moveToPoint,.addLineToPoint:count=1;case .addQuadCurveToPoint:count=2;case .addCurveToPoint:count=3;case .closeSubpath:count=0;@unknown default:invalidPoint=true;return}
+            for index in 0..<count {
+                let point=element.pointee.points[index]
+                if !point.x.isFinite || !point.y.isFinite || abs(point.x)>1e9 || abs(point.y)>1e9 {invalidPoint=true}
+            }
+        }
+        guard !invalidPoint else {throw Self.invalid("custom cap coordinate exceeds limit")}
+        return result
+    }
+    private func outline(_ figure:Figure,width:CGFloat,bands:[CGFloat],pattern:[CGFloat],offset:CGFloat,startCap:Int,endCap:Int,dashCap:Int,join:Int,limit:CGFloat,tolerance:CGFloat,dashWidth:CGFloat?=nil,customStart:CustomCap?=nil,customEnd:CustomCap?=nil,to path:CGMutablePath) throws {
         guard figure.points.count>1 else{return}
         let original=figure.points;var adjusted=figure
         if !figure.closed {
-            if startCap==20 {adjusted.points=trim(adjusted.points,by:width,fromStart:true)}
-            if endCap==20 {adjusted.points=trim(adjusted.points,by:width,fromStart:false)}
+            if customStart != nil || customEnd != nil {
+                let available=zip(original,original.dropFirst()).reduce(CGFloat(0)) {$0+length(sub($1.1,$1.0))}
+                let requested=max(0,customStart?.baseInset ?? 0)*width+max(0,customEnd?.baseInset ?? 0)*width
+                guard requested.isFinite,requested<=available+1e-9 else {throw Self.invalid("custom cap inset exceeds physical line length")}
+            }
+            if let customStart {adjusted.points=trim(adjusted.points,by:customStart.baseInset*width,fromStart:true)}
+            else if startCap==20 {adjusted.points=trim(adjusted.points,by:width,fromStart:true)}
+            if let customEnd {adjusted.points=trim(adjusted.points,by:customEnd.baseInset*width,fromStart:false)}
+            else if endCap==20 {adjusted.points=trim(adjusted.points,by:width,fromStart:false)}
         }
         let pieces=try dashed(adjusted,pattern:pattern,offset:offset,width:dashWidth ?? width)
         for piece in pieces {
@@ -358,14 +448,14 @@ private final class NativeStrokeGeometry {
                 if !piece.closed {
                     let firstDirection=unit(sub(points[0],points[1])),lastDirection=unit(sub(points[count-1],points[count-2]))
                     // Reversing the first tangent also reverses the offset axes.
-                    try cap(points[0],direction:firstDirection,low:-high,high:-low,kind:piece.start ? startCap:dashCap,to:path,tolerance:tolerance)
-                    try cap(points[count-1],direction:lastDirection,low:low,high:high,kind:piece.end ? endCap:dashCap,to:path,tolerance:tolerance)
+                    try cap(points[0],direction:firstDirection,low:-high,high:-low,kind:piece.start ? (customStart?.shaftCap ?? startCap):dashCap,to:path,tolerance:tolerance)
+                    try cap(points[count-1],direction:lastDirection,low:low,high:high,kind:piece.end ? (customEnd?.shaftCap ?? endCap):dashCap,to:path,tolerance:tolerance)
                 }
             }
         }
         if !figure.closed {
-            try anchor(original[0],direction:unit(sub(original[0],original[1])),width:width,kind:startCap,to:path,tolerance:tolerance)
-            try anchor(original[original.count-1],direction:unit(sub(original[original.count-1],original[original.count-2])),width:width,kind:endCap,to:path,tolerance:tolerance)
+            if customStart==nil {try anchor(original[0],direction:unit(sub(original[0],original[1])),width:width,kind:startCap,to:path,tolerance:tolerance)}
+            if customEnd==nil {try anchor(original[original.count-1],direction:unit(sub(original[original.count-1],original[original.count-2])),width:width,kind:endCap,to:path,tolerance:tolerance)}
         }
     }
     func stroke(_ text:String,options:JSValue) throws ->[String:Any] {
@@ -373,7 +463,7 @@ private final class NativeStrokeGeometry {
         let rawWidth=number(options,"width",1),rawLimit=number(options,"miterLimit",10),rawOffset=number(options,"dashOffset",0)
         guard rawWidth.isFinite,rawWidth>=0,rawWidth<=1e6,rawLimit.isFinite,rawLimit>=1,rawLimit<=1e6,rawOffset.isFinite,abs(rawOffset)<=1e9 else {throw Self.invalid("invalid pen dimensions")}
         func enumeration(_ name:String,_ allowed:[Int],_ fallback:Int) throws ->Int {let n=number(options,name,Double(fallback));guard n.isFinite,n>=0,n<=255,n.rounded()==n,allowed.contains(Int(n)) else {throw Self.invalid("unsupported "+name)};return Int(n)}
-        let startCap=try enumeration("startCap",[0,1,2,3,16,17,18,19,20],0),endCap=try enumeration("endCap",[0,1,2,3,16,17,18,19,20],0),dashCap=try enumeration("dashCap",[0,2,3],0),join=try enumeration("join",[0,1,2,3],0),alignment=try enumeration("alignment",[0,1],0)
+        let startCap=try enumeration("startCap",[0,1,2,3,16,17,18,19,20,255],0),endCap=try enumeration("endCap",[0,1,2,3,16,17,18,19,20,255],0),dashCap=try enumeration("dashCap",[0,2,3],0),join=try enumeration("join",[0,1,2,3],0),alignment=try enumeration("alignment",[0,1],0)
         var bands=try array(options,"compound",[]);if bands.isEmpty {bands=[0,1]}
         guard bands.count>=2,bands.count%2==0,bands[0]>=0,bands[bands.count-1]<=1,zip(bands,bands.dropFirst()).allSatisfy({$0<$1}) else {throw Self.invalid("invalid compound bands")}
         let dash=try array(options,"dash",[]);guard dash.allSatisfy({$0>0}) else {throw Self.invalid("invalid dash pattern")}
@@ -386,12 +476,27 @@ private final class NativeStrokeGeometry {
         let device=hairline ? CGAffineTransform.identity:pen.concatenating(world),scale=hypot(device.a,device.b)+hypot(device.c,device.d)
         guard scale.isFinite,scale>0 else {throw Self.invalid("invalid device stroke scale")}
         let tolerance:CGFloat=0.05/max(1e-9,scale),figures=try parse(text,inverse:geometry,tolerance:tolerance,radius:width)
+        let storedStart=try customCap(options,"customStart",width:width,tolerance:tolerance),storedEnd=try customCap(options,"customEnd",width:width,tolerance:tolerance)
+        guard startCap != 255 || storedStart != nil,endCap != 255 || storedEnd != nil else {throw Self.invalid("missing custom cap object")}
+        let customStart=startCap==255 ? storedStart:nil,customEnd=endCap==255 ? storedEnd:nil
         let strokeBands: [CGFloat] = bands.map { CGFloat($0) }
         let dashPattern: [CGFloat] = dash.map { CGFloat($0) }
         let dashOffset = CGFloat(rawOffset)
         let miterLimit = CGFloat(rawLimit)
         let ordinary=CGMutablePath(),inset=CGMutablePath(),closedFill=CGMutablePath()
+        var caps:CGPath=CGMutablePath()
         for figure in figures {
+            if !figure.closed,figure.points.count>1 {
+                if let customStart {
+                    let shape=try customInk(customStart,at:figure.points[0],direction:unit(sub(figure.points[0],figure.points[1])),width:width,tolerance:tolerance)
+                    if !shape.isEmpty {caps=caps.union(shape,using:.winding)}
+                }
+                if let customEnd {
+                    let last=figure.points.count-1
+                    let shape=try customInk(customEnd,at:figure.points[last],direction:unit(sub(figure.points[last],figure.points[last-1])),width:width,tolerance:tolerance)
+                    if !shape.isEmpty {caps=caps.union(shape,using:.winding)}
+                }
+            }
             if alignment==1 && figure.closed {
                 closedFill.move(to:figure.points[0]);for p in figure.points.dropFirst() {closedFill.addLine(to:p)};closedFill.closeSubpath()
                 try outline(figure, width: 2 * width, bands: strokeBands,
@@ -404,11 +509,12 @@ private final class NativeStrokeGeometry {
                             pattern: dashPattern, offset: dashOffset,
                             startCap: startCap, endCap: endCap, dashCap: dashCap,
                             join: join, limit: miterLimit, tolerance: tolerance,
-                            to: ordinary)
+                            customStart:customStart,customEnd:customEnd,to: ordinary)
             }
         }
-        guard primitives<=32768,outlinePoints<=131072 else {throw Self.invalid("native normalization budget exceeded")}
+        try checkNormalizationBudget()
         var result:CGPath=ordinary.normalized(using:.winding)
+        if !caps.isEmpty {result=result.union(caps,using:.winding)}
         if !inset.isEmpty {result=result.union(inset.normalized(using:.winding).intersection(closedFill,using:.evenOdd),using:.winding)}
         var transform=output
         guard let transformed=result.copy(using:&transform) else {throw Self.invalid("could not transform stroke outline")}

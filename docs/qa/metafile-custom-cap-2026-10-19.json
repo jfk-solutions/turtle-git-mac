@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-19",
+  "family": "EMF+ custom line caps and adjustable arrows",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Complete embedded and standalone versioned custom-cap objects; nested paths, styles and resource limits",
+    "Independent default fill/stroke with stroke precedence and winding fill",
+    "Physical endpoint placement, shaft trimming, local styles, adjustable filled/notched/diamond/outlined arrows",
+    "Compound/dash/closed/multiple figures, transforms, clipping and solid/gradient/hatch/texture painting"
+  ],
+  "fixtures": {
+    "custom_accepted": 58,
+    "custom_refused": 41,
+    "entire_metafile_corpus_accepted": 341,
+    "entire_metafile_corpus_refused": 200,
+    "new_core_methods": 5,
+    "native_representative_images": 45,
+    "oracles": "Independent analytic pixel membership and ordinary-shape brush controls; no generated-SVG self oracle"
+  },
+  "validation": [
+    {
+      "scope": "Universal helper build",
+      "status": "passed",
+      "log": "build/qa/metafile-custom-cap-runtime-build-2026-10-19.log"
+    },
+    {
+      "scope": "All-architecture source reconstruction, deployment/linkage and generic WMF conversion/refusal",
+      "status": "passed",
+      "log": "build/qa/metafile-custom-cap-runtime-validation-2026-10-19.log",
+      "limit": "New custom-cap pixel corpus executes on local arm64; both-slice validator uses a generic WMF sample"
+    },
+    {
+      "scope": "Relevant Core group",
+      "status": "failed",
+      "executed": 55,
+      "failed_methods": 1,
+      "failed_assertions": 1,
+      "duration_seconds": 26.965,
+      "log": "build/qa/metafile-custom-cap-core-2026-10-19.log",
+      "finding": "One outline-arrow pixel sample lay 0.303 pixels inside the outer edge and encountered expected antialiasing",
+      "repair": "Moved the outline-versus-filled distinction from pixel (79,32) to (77,32), inside the analytic outline and beyond the filled triangle; retained original strong channel assertions and production geometry",
+      "retained_evidence": "54 methods passed; only affected method repeated"
+    },
+    {
+      "scope": "Affected arrow method after analytic sample repair",
+      "status": "passed",
+      "executed": 1,
+      "failures": 0,
+      "duration_seconds": 0.893,
+      "log": "build/qa/metafile-custom-cap-core-repair-2026-10-19.log"
+    },
+    {
+      "scope": "Debug application build and helper embedding",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/metafile-custom-cap-app-build-2026-10-19.log",
+      "runtime_cache_key": "79efd996857f6b470418e980fe08488a8a0f27bcae0fcd24205af8dfda68e5c6",
+      "source_identity": "Prepared and packaged source_sha256/renderer_sha256 match; all current source files match the prepared manifest"
+    },
+    {
+      "scope": "Grouped native consumers, system Git",
+      "status": "passed",
+      "git": "/usr/bin/git",
+      "representative_images": 45,
+      "receiver_pid": 42275,
+      "cleanup": "Wrapper reaped successful receiver",
+      "log": "build/qa/metafile-custom-cap-native-2026-10-19.log",
+      "diagnostic_sample": "build/qa/metafile-custom-cap-native-live.sample.txt",
+      "coverage": [
+        "Actual default native IDiff dispatch and dimensions, including six custom-cap representatives",
+        "Original bytes, unsupported-side handling and explicit Merge isolation",
+        "Open/drop preview, reload, three-side conflict decoding",
+        "Cancellation, late-result, session, grant and Quit ownership"
+      ],
+      "limit": "Unbundled Debug receiver uses development-helper fallback; packaged helper source identity checked separately; no physical/signed acceptance"
+    },
+    {
+      "scope": "Grouped native consumers, bundled Git",
+      "status": "passed",
+      "git": "build/git-runtime/Git/bin/git",
+      "log": "build/qa/metafile-custom-cap-native-2026-10-19.log",
+      "representative_images": 45,
+      "receiver_pid": 43078,
+      "cleanup": "Both successful receivers reaped by wrapper and independently absent via ps",
+      "coverage": [
+        "Actual default native IDiff dispatch and dimensions, including six custom-cap representatives",
+        "Original bytes, unsupported-side handling and explicit Merge isolation",
+        "Open/drop preview, reload, three-side conflict decoding",
+        "Cancellation, late-result, session, grant and Quit ownership"
+      ],
+      "limit": "Unbundled Debug receiver uses development-helper fallback; packaged helper source identity separately verified; no physical/signed acceptance"
+    }
+  ],
+  "retained_limits": [
+    "Wire PenAlignment Left2, Outset3 and Right4 remain refused",
+    "Windows pixels remain required for cap metric certification including BaseInset/WidthScale coupling and degenerate arrow shaft metrics",
+    "Combined cap trim beyond available shaft length is explicitly refused",
+    "Existing disallowed inset/compound and inset/triangular-dash combinations remain refused",
+    "Other metafile record families remain separately scoped",
+    "Full hosted/Intel/minimum-macOS pixel corpus, physical Finder/UI, signed invocation and App Store acceptance are not proved"
+  ],
+  "resource_checks": {
+    "help": "Generated and checked: 42 documents, 50 topics, 62 files; build/qa/metafile-custom-cap-help-check-2026-10-19.log",
+    "localizations": "No native UI literals changed",
+    "protected_user_work": "scripts/test-native-reference-batch.py and docs/qa/reflog-capture-native-2026-10-13.swift excluded from commit",
+    "dialog_ledger": "Reconciled after parity documentation changes; no coverage count changes",
+    "site": "Built 361 documents with no unresolved fragments; build/qa/metafile-custom-cap-site-2026-10-19.log"
+  },
+  "hosted_observation": {
+    "head": "c62febffe6573398334b31589397892d5f2a011a",
+    "pages_run": 39318208604,
+    "pages": "completed success",
+    "macos_run": 39318208320,
+    "macos": "in_progress",
+    "limit": "Observation precedes this batch commit and does not establish a hosted pass"
+  }
+}

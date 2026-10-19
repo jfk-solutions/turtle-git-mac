@@ -106,7 +106,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,446 @@
+@@ -0,0 +1,447 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -372,7 +372,8 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +      this.emfPlusObjects[id]={type:'stringFormat',flags,language,align,line,hotkey,trimming,firstTab,tabs,characterRanges,leading,trailing,tracking};return;
 +    }
 +    if(type===8){images.parseAttributes.call(this,id,data);return;}
-+    if(type>8)fail('unsupported EMF+ object type '+type);
++    if(type===9){pens.parseCustomCap.call(this,id,data);return;}
++    if(type>9)fail('unsupported EMF+ object type '+type);
 +    if(type===2){pens.parsePen.call(this,id,data);return;}
 +    if(type===1){if(paint.parseBrush.call(this,id,data))return;const brush=u32(data,4);if(brush!==0)fail('unsupported non-solid EMF+ brush '+brush);}
 +    if(type===5) {
@@ -1329,7 +1330,7 @@ diff --git a/src/turtleGitGdiClip.js b/src/turtleGitGdiClip.js
 diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 --- /dev/null
 +++ b/src/turtleGitPens.js
-@@ -0,0 +1,171 @@
+@@ -0,0 +1,226 @@
 +// Original TurtleGit EMF+ pen playback, MIT. MS-EMFPLUS 2.2.1.7,
 +// 2.2.2.33/34 and drawing records. Native outlines are painted by the existing
 +// bounded solid/gradient/hatch/texture pipeline; no pen becomes a guessed color.
@@ -1341,19 +1342,63 @@ diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 +    if(offset>data.length||data.length-offset>3)fail('unexpected pen drawing data');
 +    // Record/object alignment padding has no drawing semantics and is ignored.
 +  }
++  // Cap paths are complete versioned EmfPlusPath objects. Decode locally so
++  // their coordinates are not transformed by the current document/world state.
++  function capPath(d,data) {
++    version(data,0);const count=u32(data,4),flags=u32(data,8);let offset=12;
++    if(count>65536||flags&~0x4800)fail('invalid custom cap path count or flags');
++    charge(d,count);const points=[],types=[];let x=0,y=0;
++    function integer(){if(offset>=data.length)fail('truncated cap relative point');const a=data[offset++];if(!(a&128))return(a&127)<<25>>25;if(offset>=data.length)fail('truncated cap relative point');return(((a&127)<<8)|data[offset++])<<17>>17;}
++    for(let i=0;i<count;i++) {
++      if(flags&0x800){x+=integer();y+=integer();}
++      else if(flags&0x4000){if(offset+4>data.length)fail('truncated cap short point');x=(data[offset]|data[offset+1]<<8)<<16>>16;y=(data[offset+2]|data[offset+3]<<8)<<16>>16;offset+=4;}
++      else{x=f32(data,offset);y=f32(data,offset+4);offset+=8;}
++      if(!Number.isFinite(x)||!Number.isFinite(y)||Math.abs(x)>65536||Math.abs(y)>65536)fail('custom cap coordinate budget exceeded');points.push([x,y]);
++    }
++    if(flags&0x800) {
++      while(types.length<count){if(offset+2>data.length)fail('truncated cap path type run');const header=data[offset++],type=data[offset++],n=header&63;if(!(header&64)||!!(header&128)!==((type&15)===3)||!n||n>count-types.length)fail('invalid cap path type run');for(let j=0;j<n;j++)types.push(type);}
++    } else {if(offset+count>data.length)fail('truncated cap path types');for(let i=0;i<count;i++)types.push(data[offset++]);}
++    tail(data,offset);const out=[];let open=false;
++    for(let i=0;i<count;i++) {
++      const type=types[i],kind=type&15,p=points[i];
++      if(type&~0xb3)fail('invalid custom cap path point type');
++      if(kind===0){out.push('M '+p.join(' '));open=true;}
++      else if(kind===1){if(!open)fail('custom cap path missing start');out.push('L '+p.join(' '));}
++      else if(kind===3){if(!open||i+2>=count||(types[i+1]&15)!==3||(types[i+2]&15)!==3||(types[i]&128)||(types[i+1]&128)||types[i+1]&~0xb3||types[i+2]&~0xb3)fail('invalid custom cap cubic sequence');out.push('C '+points[i].concat(points[i+1],points[i+2]).join(' '));i+=2;}
++      else fail('invalid custom cap point kind');
++      if(types[i]&128){out.push('Z');open=false;}
++    }
++    return out.join(' ');
++  }
++  function customCap(d,data) {
++    if(data.length<8||data.length>8*1024*1024)fail('invalid custom cap extent');version(data,0);
++    const type=u32(data,4);let offset=8;
++    const uint=()=>{const v=u32(data,offset);offset+=4;return v;},float=()=>{const v=f32(data,offset);offset+=4;return v;};
++    const cap={type};let bits=0;
++    if(type===0){bits=uint();if(bits&~3)fail('invalid custom cap data flags');cap.baseCap=uint();cap.baseInset=float();}
++    else if(type===1){cap.width=float();cap.height=float();cap.middleInset=float();const filled=uint();if(filled>1)fail('invalid custom arrow fill state');cap.filled=!!filled;if(cap.width<0||cap.height<0)fail('invalid custom arrow extent');}
++    else fail('unsupported custom cap object type');
++    cap.strokeStartCap=uint();cap.strokeEndCap=uint();cap.join=uint();cap.miterLimit=float();cap.widthScale=float();
++    if((type===0&&cap.baseCap>3)||cap.strokeStartCap>3||cap.strokeEndCap>3||cap.join>3||cap.miterLimit<1||cap.miterLimit>65536||cap.widthScale<0||cap.widthScale>65536)fail('invalid custom cap style');
++    for(const value of [cap.baseInset,cap.width,cap.height,cap.middleInset])if(value!==undefined&&Math.abs(value)>65536)fail('custom cap metric budget exceeded');
++    // Hotspots are unused playback metadata and MUST be ignored.
++    if(offset+16>data.length)fail('truncated custom cap hotspot');offset+=16;
++    if(type===0)for(const[bit,key]of[[1,'fillPath'],[2,'strokePath']])if(bits&bit){const size=i32(data,offset);offset+=4;if(size<12||size>8*1024*1024||offset+size>data.length)fail('invalid custom cap path extent');cap[key]=capPath(d,data.subarray(offset,offset+size));offset+=size;}
++    tail(data,offset);return cap;
++  }
++  function parseCustomCap(id,data){if(id>63)fail('invalid custom cap object id');this.emfPlusObjects[id]={type:'customCap',cap:customCap(this,data)};}
 +  function parsePen(id,data) {
 +    if(id>63||data.length<32)fail('invalid EMF+ pen object');
 +    version(data,0);if(u32(data,4)!==0)fail('invalid EMF+ pen type');
 +    const bits=u32(data,8),unit=u32(data,12),width=f32(data,16);let offset=20;
 +    if(bits&~0x1fff)fail('invalid EMF+ pen data flags');
-+    if(bits&0x1800)fail('unsupported custom EMF+ pen cap objects');
 +    if(unit>6||width<0||width>65536)fail('invalid EMF+ pen width or unit');
 +    const pen={type:'pen',unit,width,transform:identity(),startCap:0,endCap:0,join:0,miterLimit:10,dash:[],dashOffset:0,dashCap:0,alignment:0,compound:[]};
 +    const uint=()=>{const value=u32(data,offset);offset+=4;return value;};
 +    const float=()=>{const value=f32(data,offset);offset+=4;return value;};
 +    if(bits&1)pen.transform=Array.from({length:6},float);
 +    if(bits&2)pen.startCap=uint();if(bits&4)pen.endCap=uint();
-+    if(![0,1,2,3,16,17,18,19,20].includes(pen.startCap)||![0,1,2,3,16,17,18,19,20].includes(pen.endCap))fail('unsupported or invalid EMF+ pen cap');
++    if(![0,1,2,3,16,17,18,19,20,255].includes(pen.startCap)||![0,1,2,3,16,17,18,19,20,255].includes(pen.endCap))fail('unsupported or invalid EMF+ pen cap');
 +    if(bits&8)pen.join=uint();if(pen.join>3)fail('invalid EMF+ pen join');
 +    if(bits&16)pen.miterLimit=float();if(pen.miterLimit<1||pen.miterLimit>65536)fail('invalid EMF+ pen miter limit');
 +    let style=0;if(bits&32)style=uint();
@@ -1371,6 +1416,8 @@ diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 +      pen.compound=Array.from({length:count},float);
 +      if(pen.compound.some((value,i)=>value<0||value>1||(i&&value<=pen.compound[i-1])))fail('invalid EMF+ compound pen interval');
 +    }
++    for(const[bit,key]of[[0x800,'customStart'],[0x1000,'customEnd']])if(bits&bit){const size=uint();if(size<8||size>8*1024*1024||offset+size>data.length)fail('invalid embedded custom cap extent');pen[key]=customCap(this,data.subarray(offset,offset+size));offset+=size;}
++    if((pen.startCap===255&&!pen.customStart)||(pen.endCap===255&&!pen.customEnd))fail('missing custom pen cap data');
 +    // BrushObject is a complete EmfPlusBrush, including its own Version. Keep
 +    // its paint receipt inside this pen rather than reserving a second table ID.
 +    version(data,offset);const brushType=u32(data,offset+4),brushData=data.subarray(offset);
@@ -1391,7 +1438,7 @@ diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 +      if(!this.ctx._turtlePaints)this.ctx._turtlePaints=new Map();
 +      this.ctx._turtlePaints.set(brush.paint,{owner:this,brush});
 +    }
-+    this.ctx._turtleStrokeReceipt={color:paintColor,options:{width,transform:pen.transform,startCap:pen.startCap,endCap:pen.endCap,join:pen.join,miterLimit:pen.miterLimit,dash:pen.dash,dashOffset:pen.dashOffset,dashCap:pen.dashCap,alignment:pen.alignment,compound:pen.compound,world:currentMatrix(this),fillRule:'evenodd'}};
++    this.ctx._turtleStrokeReceipt={color:paintColor,options:{width,transform:pen.transform,startCap:pen.startCap,endCap:pen.endCap,join:pen.join,miterLimit:pen.miterLimit,dash:pen.dash,dashOffset:pen.dashOffset,dashCap:pen.dashCap,alignment:pen.alignment,compound:pen.compound,customStart:pen.customStart,customEnd:pen.customEnd,world:currentMatrix(this),fillRule:'evenodd'}};
 +    return{color:paintColor,width};
 +  };
 +  const stroke=SvgContext.prototype.stroke,strokeRect=SvgContext.prototype.strokeRect;
@@ -1469,7 +1516,16 @@ diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 +  };
 +  ep.processEmfPlusDrawPath=function(flags,data) {
 +    tail(data,4);const id=flags&255,path=this.emfPlusObjects[id];if(id>63||!path||path.type!=='path')fail('missing EMF+ stroke path');
-+    charge(this,path.count);prepare(this,u32(data,0));this._emfPlusTracePath(path);this.ctx.stroke();
++    charge(this,path.count);prepare(this,u32(data,0));const ctx=this.ctx;ctx.beginPath();let open=false;
++    for(let i=0;i<path.count;i++) {
++      const type=path.pointTypes[i],kind=type&15,p=path.points[i];if(type&~0xb3)fail('invalid stroke path point type');
++      if(kind===0){ctx.moveTo(p.x,p.y);open=true;}
++      else if(kind===1){if(!open)fail('stroke path missing start');ctx.lineTo(p.x,p.y);}
++      else if(kind===3){if(!open||i+2>=path.count||(path.pointTypes[i+1]&15)!==3||(path.pointTypes[i+2]&15)!==3||(type&128)||(path.pointTypes[i+1]&128)||path.pointTypes[i+1]&~0xb3||path.pointTypes[i+2]&~0xb3)fail('invalid stroke path cubic sequence');const a=path.points[i+1],b=path.points[i+2];ctx.bezierCurveTo(p.x,p.y,a.x,a.y,b.x,b.y);i+=2;}
++      else fail('invalid stroke path point kind');
++      if(path.pointTypes[i]&128){ctx.closePath();open=false;}
++    }
++    ctx.stroke();
 +  };
 +  function cardinal(ctx,p,tension,closed,offset=0,segments=closed?p.length:p.length-1) {
 +    if(tension<0)fail('invalid negative cardinal tension');
@@ -1499,5 +1555,5 @@ diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 +    const p=points(this,flags,data,4,count,true);prepare(this,flags&255);const ctx=this.ctx;ctx.beginPath();ctx.moveTo(p[0].x,p[0].y);
 +    for(let i=1;i<p.length;i+=3)ctx.bezierCurveTo(p[i].x,p[i].y,p[i+1].x,p[i+1].y,p[i+2].x,p[i+2].y);ctx.stroke();
 +  };
-+  return{parsePen};
++  return{parsePen,parseCustomCap};
 +};

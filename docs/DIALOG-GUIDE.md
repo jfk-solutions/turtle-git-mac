@@ -743,7 +743,8 @@ Drop a local file onto an image pane to preview it there. If several files are
 dropped, only the first is used. Reload restores the original comparison inputs.
 Image Info and the pane-title tooltip show the current preview’s metadata.
 WMF, EMF and EMF+ use the bundled renderer in the same image panes. EMF+ regions,
-hatch fills and bitmap texture brushes use those panes too; unsupported drawing
+hatch fills, bitmap texture brushes and [custom pen caps](METAFILE-CUSTOM-CAP-PARITY.md)
+(default fill/stroke paths and adjustable arrows) use those panes too; unsupported drawing
 variants report a conversion error. Decoding runs
 in the background and cancels when its owning input is replaced or closed.
 Unsupported drawing records retain an undecodable side; original captured bytes

@@ -382,7 +382,8 @@ and [Bisect](docs/BISECT-OPERATION-PARITY.md) also retain explicit source mappin
 operation/recovery behavior and remaining acceptance records.
 
 Windows metafile comparison uses the [bundled renderer](docs/METAFILE-RUNTIME.md)
-for WMF, EMF and EMF+, including native comparison, dropped previews and conflict
+for WMF, EMF and EMF+, including [custom pen caps](docs/METAFILE-CUSTOM-CAP-PARITY.md),
+native comparison, dropped previews and conflict
 panes. Embedded EMF+ bitmap images and textures include indexed palettes and
 16-bit RGB555/RGB565/ARGB1555. [Formatted EMF+ text](docs/METAFILE-TEXT-PARITY.md)
 uses native glyph outlines for wrapping, direction, tabs, spacing and trimming.

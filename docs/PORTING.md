@@ -1,5 +1,12 @@
 # TurtleGit for Mac — full port tracking
 
+The [EMF+ custom-cap family](METAFILE-CUSTOM-CAP-PARITY.md) connects versioned
+cap objects, native endpoint geometry and brush painting through comparison,
+preview and conflict panes. Default fill/stroke precedence, adjustable arrows,
+physical endpoints across dashes/compound paths, bounded nested decoding and
+world clipping share the existing image workflow. Analytic geometry evidence
+and remaining Windows pixel/metric limits are recorded separately.
+
 The [Rebase/Cherry Pick execution recovery family](REBASE-EXECUTION-RECOVERY-PARITY.md)
 connects ordinary failed-Pick decisions, checked Retry/Skip, per-replay remembered
 Skip and retained cleanup intent. Empty-result, conflict and Edit/Squash recovery

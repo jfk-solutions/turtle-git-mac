@@ -74,9 +74,10 @@ The checkpoint identifies the actual executed Core/native scopes and failures;
 source existence and serialized SVG alone are insufficient evidence of painting.
 
 This does not finish EMF, WMF or EMF+ compatibility. EMF framed regions,
-unsupported raster operations, driver/glyph text, EMF+ custom-cap objects, every
+unsupported raster operations, driver/glyph text, every
 font substitution and a Windows pixel oracle remain open. Transformed/compound
 EMF+ strokes have a separate [pen extension](METAFILE-PEN-PARITY.md). This family
-does not extend classic WMF region APIs. Every curved classic primitive and
+does not extend classic WMF region APIs. EMF+ custom caps have their own
+[connected extension](METAFILE-CUSTOM-CAP-PARITY.md). Every curved classic primitive and
 Windows edge-antialiasing rule has not been pixel-certified. Physical Finder acceptance, signed App
 Store distribution and whole-dialog visual parity remain separate requirements.

@@ -575,13 +575,14 @@ for label,ops in [('selected',[cc_region([CC_A])]),('meta',[cc_region([CC_A]),re
 # is a complete versioned EmfPlusBrush, not just BrushType+ARGB. This matches
 # MS-EMFPLUS 2.2.1.7 and its independent 3.2.33.1 serialized pen example.
 PV=0xdbc01002
-def pp_pen(width=8,unit=2,transform=None,start=None,end=None,join=None,miter=None,style=None,dashcap=None,offset=None,pattern=None,align=None,compound=None,brush=None):
+def pp_pen(width=8,unit=2,transform=None,start=None,end=None,join=None,miter=None,style=None,dashcap=None,offset=None,pattern=None,align=None,compound=None,brush=None,customStart=None,customEnd=None):
  bits=0;optional=b''
  for bit,value,encode in [
   (1,transform,lambda a:F(*a)),(2,start,U),(4,end,U),(8,join,U),
   (16,miter,F),(32,style,U),(64,dashcap,U),(128,offset,F),
   (256,pattern,lambda a:U(len(a))+F(*a)),(512,align,U),
-  (1024,compound,lambda a:U(len(a))+F(*a))]:
+  (1024,compound,lambda a:U(len(a))+F(*a)),
+  (2048,customStart,lambda a:U(len(a))+a),(4096,customEnd,lambda a:U(len(a))+a)]:
   if value is not None:bits|=bit;optional+=encode(value)
  return U(PV,0,bits,unit)+F(width)+optional+(U(PV,0,0xffff0000) if brush is None else brush)
 def pp_lines(points=((20,32),(76,32)),id=0,closed=False):
@@ -722,3 +723,132 @@ pp_write('bezier-backtrack',draw=ep(0x4019,U(4)+F(40,32,4,32,92,32,56,32)))
 # but dash lengths and phase remain based on the ORIGINAL8-unit pen width.
 pp_write('inset-dash',pen=pp_pen(align=1,style=1),draw=pp_rect())
 pp_write('inset-dash-offset',pen=pp_pen(align=1,style=1,offset=1),draw=pp_rect())
+
+# Complete custom caps (MS-EMFPLUS 2.2.1.2 / 2.2.2.12–14). Embedded caps
+# include Version+Type; nested paths include Version and an independent size.
+def pc_path(points,types=None,flags=0,padding=b''):
+ if types is None:
+  types=([0]+[1]*(len(points)-1)) if points else []
+  if types:types[-1]|=128
+ if flags&0x800:
+  previous=(0,0);coordinates=b''
+  for point in points:
+   coordinates+=b''.join(relative_scalar(point[i]-previous[i]) for i in range(2));previous=point
+ elif flags&0x4000:coordinates=struct.pack('<'+'h'*(2*len(points)),*(v for pt in points for v in pt))
+ else:coordinates=F(*(v for pt in points for v in pt))
+ if flags&0x800:
+  encoded=b'';i=0
+  while i<len(types):
+   n=1
+   while i+n<len(types) and types[i+n]==types[i] and n<63:n+=1
+   encoded+=bytes((0x40|(0x80 if types[i]&15==3 else 0)|n,types[i]));i+=n
+ else:encoded=bytes(types)
+ return U(PV,len(points),flags)+coordinates+encoded+padding
+def pc_default(fill=None,stroke=None,base=0,inset=0,start=0,end=0,join=0,miter=10,scale=1,hotspot=(0,0,0,0)):
+ flags=(1 if fill is not None else 0)|(2 if stroke is not None else 0)
+ paths=b''.join(I(len(path))+path for path in (fill,stroke) if path is not None)
+ return U(PV,0,flags,base)+F(inset)+U(start,end,join)+F(miter,scale,*hotspot)+paths
+def pc_arrow(width=3,height=4,middle=0,filled=1,start=0,end=0,join=0,miter=10,scale=1,hotspot=(0,0,0,0)):
+ return U(PV,1)+F(width,height,middle)+U(filled,start,end,join)+F(miter,scale,*hotspot)
+def pc_write(name,cap=None,startcap=None,width=4,draw=None,**kwargs):
+ pp_write('custom-'+name,pen=pp_pen(width=width,end=255 if cap is not None else None,start=255 if startcap is not None else None,customEnd=cap,customStart=startcap,**kwargs),draw=draw)
+def pc_bad(name,cap):pp_bad('custom-'+name,pp_pen(width=4,end=255,customEnd=cap))
+# Cap-local +Y is outward along the endpoint tangent, +X is -normal.
+# The rectangle lies wholly beyond the tip: horizontal terminal ink spans
+# x76..88 and y24..40 at penwidth4. Controls can use this independent box.
+pc_box=pc_path(((-2,0),(2,0),(2,3),(-2,3)))
+pc_hollow=pc_path(((-2,-3),(2,-3),(2,1),(-2,1)))
+pc_triangle=pc_path(((-2,-3),(0,0),(2,-3)))
+pc_curve=pc_path(((-2,0),(-2,3),(2,3),(2,0)),[0,3,3,131])
+pc_write('fill',cap=pc_default(fill=pc_box))
+pc_write('stroke',cap=pc_default(stroke=pc_hollow))
+pc_write('both-paths',cap=pc_default(fill=pc_box,stroke=pc_hollow))
+pc_write('curve',cap=pc_default(fill=pc_curve))
+pc_write('start',startcap=pc_default(fill=pc_box))
+pc_write('both-ends',cap=pc_default(fill=pc_box),startcap=pc_default(fill=pc_triangle))
+pc_write('vertical',cap=pc_default(fill=pc_box),draw=pp_lines(((48,12),(48,40))))
+pc_write('diagonal',cap=pc_default(fill=pc_box),draw=pp_lines(((20,16),(60,40))))
+pc_write('reversed',cap=pc_default(fill=pc_box),draw=pp_lines(((76,32),(20,32))))
+pc_write('width-scale',cap=pc_default(fill=pc_box,scale=2))
+pc_write('inset',cap=pc_default(stroke=pc_hollow,inset=2))
+pc_write('negative-inset',cap=pc_default(stroke=pc_hollow,inset=-2))
+pc_write('base-round',cap=pc_default(base=2))
+pc_write('empty-path',cap=pc_default(fill=pc_path((),[])))
+pc_write('scale-zero',cap=pc_default(fill=pc_box,scale=0))
+pc_write('short',cap=pc_default(fill=pc_path(((-2,0),(2,0),(2,3),(-2,3)),flags=0x4000)))
+pc_write('relative',cap=pc_default(fill=pc_path(((-2,0),(2,0),(2,3),(-2,3)),flags=0x800)))
+pc_write('relative-c',cap=pc_default(fill=pc_path(((-2,0),(2,0),(2,3),(-2,3)),flags=0x4800)))
+pc_write('rle',cap=pc_default(fill=pc_path(((-2,0),(2,0),(2,3),(-2,3)),flags=0x800)))
+pc_write('padding',cap=pc_default(fill=pc_path(((-2,0),(2,0),(2,3),(-2,3)),padding=b'\xa5\x5a'))+b'\x99')
+# Same-direction nested contours must use winding even with alternate flag0.
+nested=((-3,0),(3,0),(3,4),(-3,4),(-1,1),(1,1),(1,3),(-1,3))
+pc_write('winding',cap=pc_default(fill=pc_path(nested,[0,1,1,129,0,1,1,129])))
+for name,kwargs in [('filled',{}),('notch',{'middle':2}),('diamond',{'middle':-2}),('invisible',{'middle':4}),('outline',{'filled':0}),('outline-middle',{'filled':0,'middle':3}),('scaled',{'scale':2}),('zero-width',{'width':0}),('zero-height',{'height':0})]:pc_write('arrow-'+name,cap=pc_arrow(**kwargs))
+pc_write('arrow-start',startcap=pc_arrow())
+pc_write('arrow-asymmetric',cap=pc_arrow(),startcap=pc_default(fill=pc_box))
+pc_write('compound',cap=pc_default(fill=pc_box),width=8,compound=[0,.25,.75,1])
+pc_write('dash',cap=pc_default(fill=pc_box),style=1,dashcap=2)
+pc_write('closed',cap=pc_default(fill=pc_box),startcap=pc_arrow(),draw=pp_rect())
+pc_write('transform',cap=pc_default(fill=pc_box),transform=(1,0,.5,1,0,0))
+pc_write('transform-translation',cap=pc_default(fill=pc_box),transform=(1,0,.5,1,13,-9))
+pp_write('custom-world-clip',pen=pp_pen(width=4,end=255,customEnd=pc_default(fill=pc_box)),prefix=[ep(0x4032,F(12,12,72,40)),ep(0x402A,F(1,0,0,1,4,0))])
+for name,brush_data in [('hatch',hatch(0)),('gradient',linear(wrap=4,transform=(64,0,0,16,16,24),stops=[(0,0xffff0000),(1,0xff0000ff)])),('texture',texture(transform=(16,0,0,8,16,24)))]:pc_write(name,cap=pc_default(fill=pc_box),brush=brush_data)
+# The complete standalone ObjectType9 cap is legal but does not draw itself;
+# embedded Pen custom caps are complete data, never references to its ID.
+pp_write('custom-object',extra=[ep(0x4008,pc_default(fill=pc_box),0x903)])
+pp_write('custom-inactive',pen=pp_pen(width=4,customEnd=pc_default(fill=pc_box)))
+# All refusals preserve valid outer record/pen/brush framing.
+validcap=pc_default(fill=pc_box)
+for name,offset,value in [('version',0,0xdeadbeef),('type',4,2),('flags',8,4),('base-cap',12,255),('stroke-start',20,16),('stroke-end',24,255),('join',28,4),('path-length-negative',56,0xffffffff),('path-length-large',56,0x7fffffff),('path-version',60,0xdeadbeef),('path-count',64,65537),('path-flags',68,2)]:pc_bad(name,pp_changed(validcap,offset,U(value)))
+for name,offset,value in [('inset-nan',16,float('nan')),('miter-nan',32,float('nan')),('miter-zero',32,0),('scale-negative',36,-1),('scale-infinite',36,float('inf')),('path-coordinate',72,float('nan'))]:pc_bad(name,pp_changed(validcap,offset,F(value)))
+pc_bad('truncated',validcap[:-5]);pc_bad('trailing',validcap+U(0));pc_bad('path-trailing',pc_default(fill=pc_box+U(0)))
+pc_bad('path-first-line',pc_default(fill=pc_path(((0,0),(1,1)),[1,1])))
+pc_bad('path-cubic-count',pc_default(stroke=pc_path(((0,0),(1,1),(2,0)),[0,3,3])))
+pc_bad('path-cubic-close',pc_default(stroke=pc_path(((0,0),(1,1),(2,1),(3,0)),[0,131,3,3])))
+pc_bad('path-type-reserved',pc_default(fill=pc_path(((0,0),(1,1)),[0,0x41])))
+pc_bad('path-relative-truncated',pc_default(fill=U(PV,1,0x800)+b'\x80'))
+pc_bad('path-rle-zero',pc_default(fill=U(PV,1,0x800)+bytes((0,0,0x40,0))))
+pc_bad('path-rle-overrun',pc_default(fill=U(PV,1,0x800)+bytes((0,0,0x42,0))))
+for name,kwargs in [('fill-state',{'filled':2}),('negative-width',{'width':-1}),('negative-height',{'height':-1}),('middle-nan',{'middle':float('nan')}),('scale-negative',{'scale':-1})]:pc_bad('arrow-'+name,pc_arrow(**kwargs))
+# A legal cap with an impossible requested body trim is refused rather than
+# inventing the undefined GDI+ behavior of BaseInset beyond the line length.
+pc_write('short-line',cap=pc_default(fill=pc_box,inset=1),draw=pp_lines(((40,32),(44,32))))
+pp_bad('custom-overlong-inset',pp_pen(width=4,end=255,customEnd=pc_default(fill=pc_box,inset=100)))
+
+# Cap-local outlines retain their own cap/join/miter choices, independent of the
+# shaft pen; the open chevron makes the four styles visibly distinguishable.
+pc_open=pc_path(((-2,-3),(0,0),(2,-3)),[0,1,1])
+for style in range(4):pc_write('stroke-style-'+str(style),cap=pc_default(stroke=pc_open,start=style,end=style,join=style,miter=1.6))
+# An ordinary Path containing two open figures must attach caps once to each
+# physical figure, while a closed figure receives neither endpoint custom cap.
+body_multi=pc_path(((12,16),(48,16),(12,48),(48,48)),[0,1,0,1])
+pp_write('custom-multiple-figures',pen=pp_pen(width=4,end=255,customEnd=pc_default(fill=pc_box)),prefix=[ep(0x4008,body_multi,0x301)],draw=ep(0x4015,U(0),1))
+# Inset on an open physical path still uses centered shaft geometry, and caps
+# remain endpoint adornments instead of becoming a closed-path inset region.
+pc_write('open-inset',cap=pc_default(fill=pc_box),align=1)
+pc_write('closed-inset',cap=pc_default(fill=pc_box),align=1,draw=pp_rect())
+# Object-level cap framing errors are rejected even if never used by a pen.
+for name,raw in [('object-type',U(PV,2)),('object-truncated',validcap[:-5])]:
+ (P/('unsupported-pen-custom-'+name+'.emf')).write_bytes(plus([ep(0x4008,raw,0x903)]))
+
+# The Path R flag couples relative coordinates and type RLE; the similarly
+# named DrawLines relative flag must not justify an independent Path RLE flag.
+pc_bad('path-rle-marker',pc_default(fill=U(PV,1,0x800)+bytes((0,0,1,0))))
+pc_bad('path-rle-bezier-kind',pc_default(fill=U(PV,1,0x800)+bytes((0,0,0xc1,0))))
+pc_bad('path-rle-reserved-flag',pc_default(fill=U(PV,1,0x1000)+F(0,0)+bytes((1,0))))
+
+pc_write('curve-relative',cap=pc_default(fill=pc_path(((-2,0),(-2,3),(2,3),(2,0)),[0,3,3,131],flags=0x800)))
+
+# Independent brush controls use two ordinary rectangles for shaft+outward box;
+# they never call the custom cap parser or native stroke outline builder.
+for name,brush_data in [('hatch',hatch(0)),('gradient',linear(wrap=4,transform=(64,0,0,16,16,24),stops=[(0,0xffff0000),(1,0xff0000ff)])),('texture',texture(transform=(16,0,0,8,16,24)))]:
+ rs=[ep(0x4008,brush_data,0x100),ep(0x400A,U(0,2)+F(20,30,56,4,76,24,12,16))]
+ (P/('plus-pen-custom-'+name+'-control.emf')).write_bytes(plus(rs))
+
+# Hotspots are unused by playback, including arbitrary nonfinite bit patterns.
+pc_write('hotspot-ignored',cap=pc_default(fill=pc_box,hotspot=(1,float('nan'),float('inf'),-1)))
+pc_write('arrow-hotspot-ignored',cap=pc_arrow(hotspot=(1,float('nan'),float('inf'),-1)))
+# Opposite-winding cap holes must not subtract ink from the independent shaft.
+# Device outer box64..80×20..44, hole68..76×28..36 crosses shafty30..34.
+pc_hole=pc_path(((-3,-3),(3,-3),(3,1),(-3,1),(-1,-2),(-1,0),(1,0),(1,-2)),[0,1,1,129,0,1,1,129])
+pc_write('winding-hole-shaft',cap=pc_default(fill=pc_hole))

@@ -1227,3 +1227,95 @@ extension MetafileImageTests {
         }
     }
 }
+
+extension MetafileImageTests {
+    func testCustomPenCapsUseIndependentFillStrokeWindingAndEndpointGeometry() throws {
+        func body(_ x:Double,_ y:Double)->Double {penBox(x,y,20,30,76,34)}
+        try penAssert("custom-fill") {min(body($0,$1),self.penBox($0,$1,76,24,88,40))}
+        try penAssert("custom-start") {min(body($0,$1),self.penBox($0,$1,8,24,20,40))}
+        try penAssert("custom-reversed") {min(body($0,$1),self.penBox($0,$1,8,24,20,40))}
+        try penAssert("custom-both-ends") {x,y in min(body(x,y),self.penBox(x,y,76,24,88,40),self.penPolygon(x,y,[(32,24),(20,32),(32,40)]))}
+        try penAssert("custom-vertical") {min(self.penBox($0,$1,46,12,50,40),self.penBox($0,$1,40,40,56,52))}
+        let length=hypot(40.0,24.0)
+        try penAssert("custom-diagonal") {x,y in
+            let u=((x-20)*40+(y-16)*24)/length,v=(-(x-20)*24+(y-16)*40)/length
+            return min(self.penBox(u,v,0,-2,length,2),self.penBox(u,v,length,-8,length+12,8))
+        }
+        try penAssert("custom-stroke") {x,y in
+            let ring=max(self.penBox(x,y,62,22,82,42),-self.penBox(x,y,66,26,78,38))
+            return min(body(x,y),ring)
+        }
+        try penSamePixels("custom-both-paths","custom-stroke")
+        try penAssert("custom-winding") {min(body($0,$1),self.penBox($0,$1,76,20,92,44))}
+        try penAssert("custom-winding-hole-shaft") {x,y in
+            let cap=max(self.penBox(x,y,64,20,80,44),-self.penBox(x,y,68,28,76,36))
+            return min(body(x,y),cap)
+        }
+        let curve=try penPixels("custom-curve")
+        XCTAssertGreaterThan(curve.pixel(82,32)[0],240);XCTAssertLessThan(curve.pixel(82,32)[1],15)
+        XCTAssertGreaterThan(curve.pixel(90,32)[1],240)
+        for encoded in ["short","relative","relative-c","rle","padding","hotspot-ignored"] {try penSamePixels("custom-"+encoded,"custom-fill")}
+    }
+    func testCustomPenCapInsetWidthScaleEmptyGeometryAndCompoundDashEnds() throws {
+        try penAssert("custom-width-scale") {min(self.penBox($0,$1,20,30,76,34),self.penBox($0,$1,76,16,100,48))}
+        for (name,end) in [("inset",68.0),("negative-inset",84.0)] {
+            try penAssert("custom-"+name) {x,y in
+                let ring=max(self.penBox(x,y,62,22,82,42),-self.penBox(x,y,66,26,78,38))
+                return min(self.penBox(x,y,20,30,end,34),ring)
+            }
+        }
+        for name in ["empty-path","scale-zero","inactive"] {try penAssert("custom-"+name) {self.penBox($0,$1,20,30,76,34)}}
+        try penAssert("custom-base-round") {min(self.penBox($0,$1,20,30,76,34),hypot($0-76,$1-32)-2)}
+        try penAssert("custom-compound") {x,y in min(self.penBox(x,y,20,28,76,30),self.penBox(x,y,20,34,76,36),self.penBox(x,y,76,16,100,48))}
+        try penAssert("custom-dash") {min(self.penDash($0,$1,pattern:[3,1],dashCap:2),self.penBox($0,$1,76,24,88,40))}
+        try penAssert("custom-short-line") {self.penBox($0,$1,44,24,56,40)}
+        try penAssert("custom-multiple-figures") {x,y in min(self.penBox(x,y,12,14,48,18),self.penBox(x,y,48,8,60,24),self.penBox(x,y,12,46,48,50),self.penBox(x,y,48,40,60,56))}
+        try penSamePixels("custom-open-inset","custom-fill")
+        try penAssert("custom-closed") {max(self.penBox($0,$1,18,14,78,50),-self.penBox($0,$1,22,18,74,46))}
+        try penAssert("custom-closed-inset") {max(self.penBox($0,$1,20,16,76,48),-self.penBox($0,$1,24,20,72,44))}
+        try penSamePixels("custom-object","flat")
+    }
+    func testCustomArrowCapsHaveDistinctFilledNotchDiamondAndOutlineGeometry() throws {
+        let neck=76.0-4*4/3
+        for (name,middle) in [("filled",0.0),("notch",2.0),("diamond",-2.0)] {
+            try penAssert("custom-arrow-"+name) {x,y in min(self.penBox(x,y,20,30,neck,34),self.penPolygon(x,y,[(60,38),(76,32),(60,26),(60+4*middle,32)]))}
+        }
+        try penAssert("custom-arrow-scaled") {min(self.penBox($0,$1,20,30,neck,34),self.penPolygon($0,$1,[(44,44),(76,32),(44,20)]))}
+        try penAssert("custom-arrow-invisible") {self.penBox($0,$1,20,30,neck,34)}
+        for name in ["zero-width","zero-height"] {try penAssert("custom-arrow-"+name) {self.penBox($0,$1,20,30,76,34)}}
+        try penAssert("custom-arrow-start") {min(self.penBox($0,$1,20+4*4/3,30,76,34),self.penPolygon($0,$1,[(36,26),(20,32),(36,38)]))}
+        try penAssert("custom-arrow-asymmetric") {x,y in min(self.penBox(x,y,20,30,neck,34),self.penBox(x,y,8,24,20,40),self.penPolygon(x,y,[(60,38),(76,32),(60,26)]))}
+        try penSamePixels("custom-arrow-outline-middle","custom-arrow-outline")
+        try penSamePixels("custom-arrow-hotspot-ignored","custom-arrow-filled")
+        try penSamePixels("custom-curve-relative","custom-curve")
+        let filled=try penPixels("custom-arrow-filled"),outline=try penPixels("custom-arrow-outline")
+        // The V's width-four miter reaches x=76+2*sqrt(1+0.375²)/0.375.
+        // Pixel (77,32) lies wholly inside that outline and beyond the filled
+        // arrow tip x=76; (79,32) crosses its antialiased sloping boundary.
+        XCTAssertGreaterThan(outline.pixel(77,32)[0],240);XCTAssertLessThan(outline.pixel(77,32)[1],15)
+        XCTAssertGreaterThan(filled.pixel(77,32)[1],240)
+        let styled=try (0..<4).map {try penPixels("custom-stroke-style-"+String($0)).bytes}
+        for index in 1..<styled.count {XCTAssertNotEqual(styled[index],styled[index-1],"Custom local cap/join style was ignored")}
+    }
+    func testCustomPenCapsRespectPenWorldClipAndEmbeddedBrushPainting() throws {
+        try penAssert("custom-transform") {x,y in
+            let local=x-0.5*y
+            return min(self.penBox(local,y,4,30,60,34),self.penBox(local,y,60,24,72,40))/2
+        }
+        try penSamePixels("custom-transform-translation","custom-transform")
+        try penAssert("custom-world-clip") {x,y in max(min(self.penBox(x,y,24,30,80,34),self.penBox(x,y,80,24,92,40)),self.penBox(x,y,12,12,84,52))}
+        for brush in ["hatch","gradient","texture"] {try penSamePixels("custom-"+brush,"custom-"+brush+"-control")}
+    }
+    func testMalformedCustomPenCapsRefuseCompleteConversionWithoutMutatingInput() throws {
+        let names=["version","type","flags","base-cap","stroke-start","stroke-end","join","path-length-negative","path-length-large","path-version","path-count","path-flags",
+            "inset-nan","miter-nan","miter-zero","scale-negative","scale-infinite","path-coordinate","truncated","trailing","path-trailing",
+            "path-first-line","path-cubic-count","path-cubic-close","path-type-reserved","path-relative-truncated","path-rle-zero","path-rle-overrun","path-rle-marker","path-rle-bezier-kind","path-rle-reserved-flag",
+            "arrow-fill-state","arrow-negative-width","arrow-negative-height","arrow-middle-nan","arrow-scale-negative","overlong-inset","object-type","object-truncated"]
+        for name in names {
+            let filename="unsupported-pen-custom-"+name+".emf",original=try data(filename)
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(original),name)
+            XCTAssertEqual(try data(filename),original)
+        }
+        for name in ["path-cubic-count","path-rle-overrun","overlong-inset","object-truncated"] {XCTAssertNil(ComparisonImage(bytes:try data("unsupported-pen-custom-"+name+".emf")),name)}
+    }
+}

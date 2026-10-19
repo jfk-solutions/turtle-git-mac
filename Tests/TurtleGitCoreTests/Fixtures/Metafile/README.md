@@ -230,8 +230,38 @@ brush mapping and subsequent painting remain separate from outline generation.
 
 `unsupported-pen-*` retain valid outer record chains and isolate malformed or
 unsupported pen versions/types/flags/units, nonfinite values, missing/oversized
-arrays, invalid cap/join/alignment combinations, custom caps, embedded brush
+arrays, invalid cap/join/alignment combinations, missing custom-cap data, embedded brush
 framing, invalid brush data and malformed point/curve ranges. They must fail
 instead of publishing a successful partial comparison. This corpus does not
 establish every GDI+ custom-cap variant, arbitrary Windows font/driver record or
 physical Finder/signed distribution behavior.
+
+## EMF+ custom line caps
+
+`plus-pen-custom-*.emf` contains complete versioned default and adjustable-arrow
+cap objects. Pens embed each sized cap before their complete brush; the standalone
+ObjectType9 fixture is metadata and draws no extra shape. Independent ordinary
+FillRects controls for hatch, gradient and texture paint a shaft rectangle
+`(20,30,56,4)` and an outward cap rectangle `(76,24,12,16)` without the custom-cap
+parser or native stroke-outline bridge.
+
+Default cap fixtures distinguish fill from stroke, both-path stroke precedence,
+winding nested figures, cap-local curve decoding, BaseInset and WidthScale,
+independent local stroke cap/join styles, ignored hotspots, and empty/inactive attributes. Arrow
+fixtures distinguish a triangle, positive notch, negative diamond, invisible
+filled arrow, unfilled chevron, ignored unfilled MiddleInset, zero extents and
+scaling. Horizontal, vertical, reversed, diagonal and multi-figure paths cover
+physical endpoint placement. Closed paths suppress custom caps, compound bands
+retain one adornment per endpoint, and dash gaps retain ordinary dash caps.
+Captured clipping, world transforms, pen shear and ignored pen translation cover
+the common native paint path.
+
+`unsupported-pen-custom-*.emf` preserves valid outer EMF and Pen/Brush framing
+while isolating invalid nested cap versions, types, flags, enums, sizes, path
+counts/types/cubic sequences, RLE runs and meaningful numeric fields. Positive
+BaseInset exceeding the line length is deliberately refused because the native
+GDI+ API calls its behavior undefined. Left/Outset/Right alignment remains a
+separate explicit refusal pending Windows playback evidence.
+
+These are analytic geometry and independent shape-control fixtures. They are
+not Windows-produced pixel captures and do not certify every GDI+ cap variant.
