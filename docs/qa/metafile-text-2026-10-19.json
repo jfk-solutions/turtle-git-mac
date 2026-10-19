@@ -1,0 +1,316 @@
+{
+  "date": "2026-10-19",
+  "baseline": "0060e1b3",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "EMF+ DrawString formatted text with native CoreText glyph outlines in the shared captured-byte image renderer",
+  "status": "implemented and grouped local validation passed; full port and signed formatted-text acceptance remain open",
+  "attempts": [
+    {
+      "check": "Universal runtime build",
+      "result": "failed",
+      "log": "build/qa/metafile-text-runtime-build-2026-10-19.log",
+      "reason": "Current SDK imports CFLocaleIdentifier as a typed wrapper and marks CTFontTableOptions.noOptions unavailable. Replaced with stable NSLocale mapping and empty option set."
+    },
+    {
+      "check": "Universal runtime build after API declarations repaired",
+      "result": "passed",
+      "log": "build/qa/metafile-text-runtime-build-repair-2026-10-19.log"
+    },
+    {
+      "check": "Universal runtime source, licenses, reconstruction, linkage, deployment and both-architecture execution",
+      "result": "passed",
+      "log": "build/qa/metafile-text-runtime-validation-2026-10-19.log",
+      "scope": "Initial bridge revision; final repair provenance will be checked separately."
+    },
+    {
+      "check": "Debug app build",
+      "result": "passed",
+      "log": "build/qa/metafile-text-app-build-2026-10-19.log",
+      "scope": "Initial bridge revision before focused vertical repair."
+    },
+    {
+      "check": "MetafileImageTests grouped Core",
+      "result": "failed",
+      "log": "build/qa/metafile-text-core-2026-10-19.log",
+      "executed": 38,
+      "failed": 5,
+      "reason": "New fixture generator incorrectly tagged StringFormat as object type9 CustomLineCap instead of type7. Existing methods passed; new refused-input outcomes were not accepted as malformed-field evidence until tag repair."
+    },
+    {
+      "check": "Six new formatted-text Core methods after fixture tag repair",
+      "result": "failed",
+      "log": "build/qa/metafile-text-core-repair-2026-10-19.log",
+      "executed": 6,
+      "failures": 3,
+      "affected_methods": [
+        "testFormattedTextBidiVerticalAndLineAlignmentPaintPositionedOutlines",
+        "testFormattedTextHotkeysAndFontDecorationsHaveActualPaintedStrokes"
+      ],
+      "reason": "Vertical text double-rotated in actual CoreText/SVG geometry (aspect and independent clockwise-mask mismatch). One strikeout additional-ink count missed the gap threshold on dense MMMM glyphs; native geometry and independent fixture are being reviewed together. Other four methods, including now-valid malformed records, passed."
+    },
+    {
+      "check": "Universal helper after vertical geometry repair",
+      "result": "passed",
+      "log": "build/qa/metafile-text-helper-repair-2026-10-19.log"
+    },
+    {
+      "check": "Two affected Core methods after vertical repair and independent spaced decoration fixture",
+      "result": "passed",
+      "log": "build/qa/metafile-text-two-method-repair-2026-10-19.log",
+      "executed": 2,
+      "failures": 0,
+      "scope": "Only Bidi/vertical/line-alignment and hotkey/font-decoration methods repeated. Clockwise-mask oracle and all stroke thresholds retained."
+    },
+    {
+      "check": "Debug app after vertical repair",
+      "result": "passed",
+      "log": "build/qa/metafile-text-app-build-final-2026-10-19.log",
+      "scope": "Before final point-layout source audit; not the final packaged runtime."
+    },
+    {
+      "check": "Final source audit of zero-extent/oversized alignment",
+      "result": "found and repaired actual remaining family defect",
+      "reason": "Wine gdip_format_string applies Center/Far with actual zero rectangle extents; fitting alone becomes unbounded. Native previously ignored point alignment and clamped negative block offsets."
+    },
+    {
+      "check": "Universal helper with point/oversized alignment repair",
+      "result": "passed",
+      "log": "build/qa/metafile-text-point-helper-2026-10-19.log"
+    },
+    {
+      "check": "Single affected Core method with six point/oversized fixtures",
+      "result": "passed",
+      "log": "build/qa/metafile-text-point-core-2026-10-19.log",
+      "executed": 1,
+      "failures": 0,
+      "scope": "BidiVerticalLineAlignment only; retained earlier RTL/vertical/Unicode/fallback assertions plus new half/full negative alignment and unchanged-ink checks."
+    },
+    {
+      "check": "Final universal reconstruction/linkage/deployment and both architectures",
+      "result": "passed",
+      "log": "build/qa/metafile-text-runtime-point-final-2026-10-19.log"
+    },
+    {
+      "check": "Final actual formatted bridge calls on arm64 and x86_64",
+      "result": "passed",
+      "log": "build/qa/metafile-text-architectures-2026-10-19.json",
+      "record": {
+        "helper_sha256": "ba150b6ebb62b4f599f9d6e6105210aca0d4670668ec355b0ba0e18da6b4008b",
+        "cases": [
+          {
+            "architecture": "arm64",
+            "fixture": "plus-formatted-baseline.emf",
+            "source_sha256": "9b9ee69e18eb189209cdec7569ff2a294c457054fbd180ee607b167c38de82d3",
+            "exit_code": 0,
+            "outcome": "actual shaped-glyph conversion",
+            "output_sha256": "e3918457eb677759ca3419d9d28f4683d3f1cf3fde4e991edd6cca24e10dba40"
+          },
+          {
+            "architecture": "arm64",
+            "fixture": "plus-formatted-rtl.emf",
+            "source_sha256": "a170e1264d0430fbdc18d1e3561e13d8bac3917b20d734edea865c893e93c77f",
+            "exit_code": 0,
+            "outcome": "actual shaped-glyph conversion",
+            "output_sha256": "5ab80c42f9dc627527b135f57afd8006e22ad0c4ff9c3928399305f02a874f73"
+          },
+          {
+            "architecture": "arm64",
+            "fixture": "plus-formatted-vertical.emf",
+            "source_sha256": "e64b40edb2cd55f126ebdece88af59af6b24afc2ec26f8a8fb232c8b9f813bd8",
+            "exit_code": 0,
+            "outcome": "actual shaped-glyph conversion",
+            "output_sha256": "22bfcd01422107109b12ab4d121f24c33c71b815f72f2c6aea7e16debacd1f6e"
+          },
+          {
+            "architecture": "arm64",
+            "fixture": "plus-formatted-point-center.emf",
+            "source_sha256": "7efb04d291d06dd256348d0aba14e8a8ba705547700a682e305849affc22fbe8",
+            "exit_code": 0,
+            "outcome": "actual shaped-glyph conversion",
+            "output_sha256": "5543d36bd4055fbd3b364b6cf0d3b9602198ebfc892cb9b19772a050e4368254"
+          },
+          {
+            "architecture": "arm64",
+            "fixture": "unsupported-formatted-surrogate-high.emf",
+            "source_sha256": "a93d1facd6242f28d0abf72c2efa0d3d7fa59db3978c852349e34bb668b9bb91",
+            "exit_code": 1,
+            "outcome": "explicit refusal",
+            "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "architecture": "x86_64",
+            "fixture": "plus-formatted-baseline.emf",
+            "source_sha256": "9b9ee69e18eb189209cdec7569ff2a294c457054fbd180ee607b167c38de82d3",
+            "exit_code": 0,
+            "outcome": "actual shaped-glyph conversion",
+            "output_sha256": "e3918457eb677759ca3419d9d28f4683d3f1cf3fde4e991edd6cca24e10dba40"
+          },
+          {
+            "architecture": "x86_64",
+            "fixture": "plus-formatted-rtl.emf",
+            "source_sha256": "a170e1264d0430fbdc18d1e3561e13d8bac3917b20d734edea865c893e93c77f",
+            "exit_code": 0,
+            "outcome": "actual shaped-glyph conversion",
+            "output_sha256": "5ab80c42f9dc627527b135f57afd8006e22ad0c4ff9c3928399305f02a874f73"
+          },
+          {
+            "architecture": "x86_64",
+            "fixture": "plus-formatted-vertical.emf",
+            "source_sha256": "e64b40edb2cd55f126ebdece88af59af6b24afc2ec26f8a8fb232c8b9f813bd8",
+            "exit_code": 0,
+            "outcome": "actual shaped-glyph conversion",
+            "output_sha256": "22bfcd01422107109b12ab4d121f24c33c71b815f72f2c6aea7e16debacd1f6e"
+          },
+          {
+            "architecture": "x86_64",
+            "fixture": "plus-formatted-point-center.emf",
+            "source_sha256": "7efb04d291d06dd256348d0aba14e8a8ba705547700a682e305849affc22fbe8",
+            "exit_code": 0,
+            "outcome": "actual shaped-glyph conversion",
+            "output_sha256": "5543d36bd4055fbd3b364b6cf0d3b9602198ebfc892cb9b19772a050e4368254"
+          },
+          {
+            "architecture": "x86_64",
+            "fixture": "unsupported-formatted-surrogate-high.emf",
+            "source_sha256": "a93d1facd6242f28d0abf72c2efa0d3d7fa59db3978c852349e34bb668b9bb91",
+            "exit_code": 1,
+            "outcome": "explicit refusal",
+            "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "source_bytes_unchanged": true
+      },
+      "scope": "Baseline, RTL, vertical and point-center actual conversion plus malformed UTF16 refusal on each architecture. Source bytes unchanged; every subprocess waited/reaped."
+    },
+    {
+      "check": "Debug app with final point/vertical/text helper",
+      "result": "passed",
+      "log": "build/qa/metafile-text-app-build-point-final-2026-10-19.log"
+    },
+    {
+      "check": "Grouped actual image-comparison consumers with system and packaged Git",
+      "result": "passed",
+      "log": "build/qa/metafile-text-native-consumers-2026-10-19.log",
+      "receiver_pids": [
+        92991,
+        93378
+      ],
+      "scope": [
+        "Default two-side IDiff, undecodable-side and explicit Merge routing",
+        "Six representative formatted-text inputs at actual 240x180 dimensions: tabs, RTL, vertical, tracking, ellipsis, gradient",
+        "Retained WMF/EMF/EMF+ vector/bitmap/region/hatch/texture/indexed/16-bit corpus",
+        "Malformed formatted input retains undecodable image side and original bytes",
+        "Owned Load Images chooser and native panes",
+        "Preview-only drops, reload, conflict selection, source/index/HEAD/working-byte preservation",
+        "Cancellation, late-result/session/grant/Quit ownership and closed windows"
+      ],
+      "ownership": "Unique private repositories, preferences and per-case TMPDIR. Receivers prohibited from activation; all windows alpha zero/offscreen. Both owned receiver leaders independently absent after reaping."
+    }
+  ],
+  "remaining": [
+    "Driver/glyph-ID strings, DisplayFormatControl and explicit national/traditional digit substitution",
+    "Color/bitmap-only font glyphs without vector outlines and strikeout fonts without usable OS/2 metrics",
+    "Exact Windows tab continuation/default policy and all font/LCID/vertical-CJK variants",
+    "Physical Image Compare and signed App Store acceptance of the new formatted text subset",
+    "Complete TortoiseGit application and Finder parity"
+  ],
+  "core_summary": {
+    "distinct_methods": 38,
+    "final_scope": "32 retained methods from initial group, four new methods from corrected-object group, decoration method from two-method repair, Bidi/vertical/line/point alignment from final single-method repair. 38 distinct relevant methods, no full integration-suite claim.",
+    "fixture_input_counts": {
+      "accepted": 43,
+      "refused": 33
+    },
+    "decoration_evidence": {
+      "actual_strike_rect": "M12 23.396484 L78.640625 23.396484 L78.640625 22.400391 L12 22.400391 Z",
+      "reason": "Dense MMMM strokes overlapped most of the correctly painted strike bar. HI HI controls expose independent inter-word pixels; the original added-pixel thresholds remain."
+    }
+  },
+  "independently_absent_receiver_pids": [
+    92991,
+    93378
+  ],
+  "final_prepared_manifest": {
+    "pin": {
+      "renderer": {
+        "version": "0.2.1",
+        "commit": "4e0d6d6807349ebfc8f8c681009c14f9e57621ff",
+        "url": "https://codeload.github.com/congduan/WmfEmfViewer/tar.gz/4e0d6d6807349ebfc8f8c681009c14f9e57621ff",
+        "sha256": "544d77f8f0e362ae47877c82f3803a1ba2550abbe3204bf23e5802f71264219c",
+        "license": "MIT"
+      },
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "deployment_target": "13.0",
+      "maximum_input_bytes": 67108864,
+      "maximum_output_bytes": 134217728,
+      "hatch_patterns": {
+        "project": "Wine",
+        "commit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+        "source": "dlls/gdiplus/brush.c",
+        "url": "https://raw.githubusercontent.com/wine-mirror/wine/7298a818b79446bae153b8d5aa27235ab3703bf9/dlls/gdiplus/brush.c",
+        "source_sha256": "c0294a2d4081f4dea2d05712ac916080cae7e0fcdc3ae52e64b7629ac27972d7",
+        "license": "LGPL-2.1-or-later",
+        "license_file": "Licenses/Wine-LGPL-2.1.txt",
+        "license_sha256": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+        "adapted_module": "src/turtleGitHatch.js"
+      }
+    },
+    "binary_sha256": "ba150b6ebb62b4f599f9d6e6105210aca0d4670668ec355b0ba0e18da6b4008b",
+    "renderer_sha256": "40ebbea258cdec354c141d910a6ac5c8f0d054610a01a7a524865ced26046f82",
+    "source_sha256": {
+      "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+      "Licenses/Wine-LGPL-2.1.txt": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+      "NOTICE": "d9c261f57c2a37da1b68a9a726e79f43c106355cab8ed126b62352899b9445c2",
+      "Configuration/MetafileRuntime.json": "108c63c1e2d1e624784a2603a94e40879446b9c1b186e3a29b9c5bf5eb104607",
+      "Sources/TurtleGitMetafile/main.swift": "79529b786ae1bd998e0ec8d0938a4358878b41847924228bea6ddb3c28b14cdb",
+      "patches/metafile-renderer.patch": "a1e3da449cfc7cf3e97bd7dbb2aa23854f0f50fe13e57962ebae4015cdeb27bb",
+      "scripts/build-metafile-runtime.py": "2c1ddc461ebb16b2c868afbfc8eefaadb0746fa464d9a8b3f195a9f618753375",
+      "scripts/validate-metafile-runtime.py": "71011f8b51cc31eca019e5e49d1557bb8ff14a3d36240f84a2971acca88d3758",
+      "scripts/embed-metafile-runtime.py": "79d1afb77de6027dba108f0977c90c2394522d2a9262ccf42819125356117a4b",
+      "scripts/pinned_download.py": "c9bfbd05a830f235e78521a3f0ba4ed5454c7389a96195939df2ea1110168b40",
+      "scripts/runtime_bundle_layout.py": "624a54cfda00a71d287e56719b83ebe26900e21e10c798f4b14e90a4dc28ac4c",
+      "scripts/git_lfs_runtime.py": "07ee6decd30776eeaf35aa7de12c766638b957a6029315ad454dc1315266790c"
+    },
+    "license_sha256": {
+      "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+      "LICENSE-renderer": "bcc98d690a7e581cd6b572166d8eb0777980e1c6cf433afff317135c5bec4a1b",
+      "LICENSE-Wine-hatches": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+      "NOTICE": "d9c261f57c2a37da1b68a9a726e79f43c106355cab8ed126b62352899b9445c2"
+    },
+    "compiler": "Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)\nTarget: arm64-apple-macosx27.0.0\n",
+    "sdk_version": "27.0",
+    "flags": [
+      "-O",
+      "-whole-module-optimization",
+      "-framework",
+      "JavaScriptCore",
+      "-framework",
+      "CoreText",
+      "-framework",
+      "ImageIO"
+    ],
+    "cache_key": "98111de0752052fb163ead3ba62783e886658f65025fdbeace3eb36671eb8765",
+    "signed": false
+  },
+  "packaged_source_provenance_matches_current_source": true,
+  "validation_notes": [
+    "No full Core integration-suite rerun. Initial 38-method group plus affected repairs cover 38 distinct methods.",
+    "Initial malformed-field results using incorrect type9 fixtures were invalidated; corrected type7 records were tested.",
+    "Generated Help was rebuilt before the app. No literal native UI label changed; helper diagnostics are not localization captions.",
+    "Physical screenshots were not taken for this renderer-only batch; actual final-pixel Core geometry assertions and invisible native consumer windows were used.",
+    "No signed-parent/App Store execution of the newly accepted formatted-text subset is claimed."
+  ],
+  "next_candidate": {
+    "family": "EMF+ pen geometry",
+    "actual_remaining_guards": [
+      "transformed/compound pen strokes",
+      "asymmetric standard caps and dash-cap geometry",
+      "inset/center pen alignment",
+      "custom cap objects and non-solid pen brushes"
+    ],
+    "scope_note": "Separate remaining image-rendering families, not an implementation claim."
+  }
+}

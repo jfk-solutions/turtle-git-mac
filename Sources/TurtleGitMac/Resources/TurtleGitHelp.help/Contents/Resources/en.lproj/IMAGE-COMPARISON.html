@@ -68,7 +68,10 @@ drops accept these formats too. Rendering supports captured vector paths, text,
 transforms, clipping and embedded bitmaps; recorded dimensions and available
 resolution feed the normal zoom and Image Info controls. EMF+ embedded images
 and texture brushes include indexed 1/4/8-bit palettes and 16-bit RGB555, RGB565
-and ARGB1555, alongside 24/32-bit bitmap formats.</p>
+and ARGB1555, alongside 24/32-bit bitmap formats. Formatted EMF+ text supports
+wrapping, tabs, right-to-left and vertical layout, spacing, alignment, trimming
+and font decorations through native glyph outlines. See the
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/METAFILE-TEXT-PARITY.html">text format scope</a> for exact limits.</p>
 <p>Decoding runs in the background. Closing or replacing an input cancels the owned
 decoder and prevents a delayed preview from replacing a newer view. Rendering
 never rewrites the original file or conflict stage. Selecting a conflict side

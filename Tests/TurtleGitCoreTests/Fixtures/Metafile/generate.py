@@ -16,9 +16,9 @@ def emf(records,w=96,h=64,physical_scale=1):
  assert len(header)==88
  return header+b''.join(records)
 def ep(t,body=b'',flags=0):return H(t,flags)+U(12+len(pad(body)),len(body))+pad(body)
-def plus(records):
+def plus(records,w=96,h=64):
  stream=ep(0x4001,U(0xdbc01002,0,96,96),1)+b''.join(records)+ep(0x4002)
- return emf([record(70,U(len(stream)+4)+b'EMF+'+stream)])
+ return emf([record(70,U(len(stream)+4)+b'EMF+'+stream)],w,h)
 def brush(handle,color):return record(39,U(handle,0,color,0))
 def selected(handle):return record(37,U(handle))
 vector=[brush(1,0xff),selected(1),record(43,I(4,4,28,28)),brush(2,0xff0000),selected(2),record(59),record(27,I(40,4)),record(54,I(64,4)),record(54,I(64,28)),record(61),record(60),record(62,I(40,4,64,28))]
@@ -365,3 +365,99 @@ for negative in [False,True]:
  for fmt,name,red in [(0x26200a,'argb32',255),(0xe200b,'pargb32',128)]:
   image=raw_bitmap(fmt,8,8,-32 if negative else 32,[bytes([0,0,red,128])*8]*8)
   (P/('plus-raw-'+name+'-'+suffix+'-plateau.emf')).write_bytes(raw_scene(image,8,8))
+
+# Original formatted-text records. Field layout and enums follow Microsoft
+# MS-EMFPLUS 2.2.1.9/2.2.2.44/2.3.4.14; no glyph/font outlines are embedded.
+# https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/9df612d2-fb87-44f7-93fb-0fa0b7b2f276
+def string_format(flags=0x1000,align=0,line=0,first=0,tabs=(),tracking=1,trim=0,leading=0,trailing=0,substitution=1,language=0,ranges=(),hotkey=0):
+ return U(0xdbc01002,flags,language,align,line,substitution,0)+F(first)+I(hotkey)+F(leading,trailing,tracking)+U(trim)+I(len(tabs),len(ranges))+F(*tabs)+b''.join(I(*r) for r in ranges)
+def formatted_text(text='MMMM',fmt=None,rect=(12,12,216,140),size=20,style=0,raw=None,brush=None,transform=None,clip=None,declared_length=None):
+ face='Helvetica'.encode('utf-16le');font=U(0xdbc01002)+F(size)+U(2,style,0,len(face)//2)+face
+ string=text.encode('utf-16le') if raw is None else raw
+ fmt=string_format() if fmt is None else fmt
+ # StringFormat is ObjectType7; 2.2.1.9 is the section number, not type9 CustomLineCap.
+ rs=[ep(0x400A,U(0xffffffff,1)+F(0,0,240,180),0x8000),ep(0x4008,font,0x601),ep(0x4008,fmt,0x702)]
+ if brush is not None:rs.append(ep(0x4008,brush,0x100))
+ if clip is not None:rs.append(ep(0x4032,F(*clip)))
+ if transform is not None:rs.append(ep(0x402D,F(*transform)))
+ rs.append(ep(0x401C,U(0 if brush is not None else 0xff000000,2,len(string)//2 if declared_length is None else declared_length)+F(*rect)+string,1 if brush is not None else 0x8001))
+ return plus(rs,240,180)
+text_cases={
+ 'baseline':dict(text='MMMM'),
+ # The same native glyph outlines traverse brush paint, world transform and
+ # a device clip captured before translation. The brush spans the text run.
+ 'gradient':dict(text='MMMM',brush=linear(transform=(70,0,0,70,12,12),stops=[(0,0xffff0000),(1,0xff0000ff)])),
+ 'translated':dict(text='MMMM',transform=(24,36)),
+ 'translated-clip':dict(text='MMMM',transform=(24,36),clip=(0,0,70,180)),
+ 'tracking':dict(text='MMMM',fmt=string_format(tracking=1.8)),
+ 'tab-control':dict(text='HH'),
+ 'tabs':dict(text='H\tH',fmt=string_format(tabs=(32,32))),
+ 'tabs-offset':dict(text='H\tH',fmt=string_format(first=12,tabs=(32,32))),
+ # Native adaptation: continue the final explicit interval after its last stop.
+ # Exact Windows behavior beyond the configured stops remains unproven.
+ 'tabs-native-continuation':dict(text='H\tH\tH\tH',fmt=string_format(first=12,tabs=(32,))),
+ 'ranges-metadata':dict(text='MMMM',fmt=string_format(ranges=((0,2),(2,2)))),
+ 'lcid-bypass':dict(text='MMMM',fmt=string_format(flags=0x80001000,language=0x409)),
+ 'ltr':dict(text='אבג 123',size=24),
+ 'rtl':dict(text='אבג 123',fmt=string_format(flags=0x1001),size=24),
+ 'horizontal':dict(text='ABC',size=24),
+ 'vertical':dict(text='ABC',fmt=string_format(flags=0x1002),rect=(12,12,180,140),size=24),
+ 'nowrap':dict(text='ONE TWO THREE FOUR FIVE SIX',rect=(12,12,80,140),size=18),
+ 'wrap':dict(text='ONE TWO THREE FOUR FIVE SIX',fmt=string_format(flags=0),rect=(12,12,80,140),size=18),
+ 'line-near':dict(text='LINE',fmt=string_format(line=0),size=18),
+ 'line-center':dict(text='LINE',fmt=string_format(line=1),size=18),
+ 'line-far':dict(text='LINE',fmt=string_format(line=2),size=18),
+ # Zero extents use the supplied point as alignment anchor, including negative
+ # inline/cross offsets; NoClip isolates anchor geometry from rectangle clipping.
+ 'point-near':dict(text='LINE',fmt=string_format(flags=0x5000),rect=(120,90,0,0),size=18),
+ 'point-center':dict(text='LINE',fmt=string_format(flags=0x5000,align=1,line=1),rect=(120,90,0,0),size=18),
+ 'point-far':dict(text='LINE',fmt=string_format(flags=0x5000,align=2,line=2),rect=(120,90,0,0),size=18),
+ 'short-cross-near':dict(text='LINE',fmt=string_format(flags=0x5000),rect=(120,90,100,6),size=18),
+ 'short-cross-center':dict(text='LINE',fmt=string_format(flags=0x5000,line=1),rect=(120,90,100,6),size=18),
+ 'short-cross-far':dict(text='LINE',fmt=string_format(flags=0x5000,line=2),rect=(120,90,100,6),size=18),
+ 'clip':dict(text='MMMMMMMMMMMM',rect=(12,12,60,40)),
+ 'no-clip':dict(text='MMMMMMMMMMMM',fmt=string_format(flags=0x5000),rect=(12,12,60,40)),
+ 'partial-line':dict(text='MMMM',rect=(12,12,100,10)),
+ 'line-limit':dict(text='MMMM',fmt=string_format(flags=0x3000),rect=(12,12,100,10)),
+ 'ellipsis':dict(text='MMMMMMMMMMMM',fmt=string_format(trim=3),rect=(12,12,90,40)),
+ 'path-trim':dict(text='/very/long/directory/report.txt',fmt=string_format(trim=5),rect=(12,12,160,40),size=18),
+ 'path-tail':dict(text='report.txt',rect=(12,12,160,40),size=18),
+ 'surrogate-pair':dict(text='A𝐀B',size=24),
+ 'no-fallback':dict(text='A𝐀B',size=24,fmt=string_format(flags=0x1400)),
+ 'decorations-control':dict(text='HI HI'),
+ 'underline':dict(text='HI HI',style=4),
+ 'strikeout':dict(text='HI HI',style=8),
+ 'hotkey-plain':dict(text='ABC'),
+ 'hotkey-display':dict(text='A&BC',fmt=string_format(hotkey=0)),
+ 'hotkey-show':dict(text='A&BC',fmt=string_format(hotkey=1)),
+ 'hotkey-hide':dict(text='A&BC',fmt=string_format(hotkey=2)),
+ 'hotkey-literal':dict(text='A&&BC',fmt=string_format(hotkey=2)),
+}
+for name,options in text_cases.items():(P/('plus-formatted-'+name+'.emf')).write_bytes(formatted_text(**options))
+base_format=string_format()
+def change_format(offset,part):return base_format[:offset]+part+base_format[offset+len(part):]
+bad_formats={
+ 'short':base_format[:59], 'trailing':base_format+b'junk',
+ 'version':change_format(0,U(0)), 'flags':change_format(4,U(0x80)),
+ 'align':change_format(12,U(3)), 'line-align':change_format(16,U(3)),
+ 'substitution':change_format(20,U(2)), 'digit-language':change_format(24,U(0x401)), 'display-controls':change_format(4,U(0x20)), 'hotkey':change_format(32,I(99)),
+ 'first-tab-negative':change_format(28,F(-1)), 'first-tab-nan':change_format(28,F(float('nan'))),
+ 'leading-negative':change_format(36,F(-1)), 'trailing-infinite':change_format(40,F(float('inf'))),
+ 'tracking-negative':change_format(44,F(-1)), 'tracking-nan':change_format(44,F(float('nan'))),
+ 'trimming':change_format(48,U(6)), 'tabs-negative-count':change_format(52,I(-1)),
+ 'tabs-count':change_format(52,I(1048576)), 'tabs-truncated':change_format(52,I(2))+F(12),
+ 'tab-negative':string_format(tabs=(-1,)), 'tab-zero':string_format(tabs=(0,)),
+ 'tab-infinite':string_format(tabs=(float('inf'),)),
+ 'ranges-negative-count':change_format(56,I(-1)), 'ranges-count':change_format(56,I(1048576)),
+ 'range-truncated':change_format(56,I(1))+I(0), 'range-negative':string_format(ranges=((-1,2),)), 'range-overflow':string_format(ranges=((2147483647,1),)),
+}
+for name,fmt in bad_formats.items():(P/('unsupported-formatted-'+name+'.emf')).write_bytes(formatted_text(fmt=fmt))
+for name,raw in [('surrogate-high',H(0xd800)),('surrogate-low',H(0xdc00)),('surrogate-order',H(0xdc00,0xd800))]:
+ (P/('unsupported-formatted-'+name+'.emf')).write_bytes(formatted_text(raw=raw))
+
+# A complete small draw with an over-budget declared UTF16 count must fail
+# before allocating or attempting to substitute missing text.
+(P/'unsupported-formatted-text-count.emf').write_bytes(formatted_text(declared_length=262145))
+
+# Full over-budget UTF16 data, not just an impossible declared length.
+(P/'unsupported-formatted-text-payload-budget.emf').write_bytes(formatted_text(text='M'*32769))

@@ -634,4 +634,184 @@ final class MetafileImageTests: XCTestCase {
         }
         try assertReaped(marker)
     }
+    private struct TextInk {
+        let width:Int,height:Int,points:Set<Int>
+        var bounds:CGRect? {
+            guard !points.isEmpty else{return nil}
+            let xs=points.map{$0%width},ys=points.map{$0/width}
+            return CGRect(x:xs.min()!,y:ys.min()!,width:xs.max()!-xs.min()!+1,height:ys.max()!-ys.min()!+1)
+        }
+        var normalized:Set<Int> {
+            guard let bounds else{return []}
+            return Set(points.map{($0/width-Int(bounds.minY))*width+$0%width-Int(bounds.minX)})
+        }
+        var columnRuns:[CGRect] {
+            let columns=Set(points.map{$0%width}).sorted();var groups:[[Int]]=[]
+            for x in columns{if let last=groups.last?.last,x==last+1{groups[groups.count-1].append(x)}else{groups.append([x])}}
+            return groups.map{group in
+                let values=points.filter{group.contains($0%width)},ys=values.map{$0/width}
+                return CGRect(x:group.first!,y:ys.min()!,width:group.count,height:ys.max()!-ys.min()!+1)
+            }
+        }
+    }
+    /// Pixel geometry is measured from actual final output, independently of the
+    /// CoreText layout bridge. No native glyph-path/bounds API is used as oracle.
+    private func textInk(_ name:String,colored:Bool=false)throws->TextInk {
+        let value=try image("plus-formatted-"+name+".emf"),width=value.pixels.width,height=value.pixels.height
+        XCTAssertEqual(width,240);XCTAssertEqual(height,180)
+        var bytes=[UInt8](repeating:0,count:width*height*4)
+        try bytes.withUnsafeMutableBytes{storage in
+            let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+            context.interpolationQuality = .none;context.draw(value.pixels,in:CGRect(x:0,y:0,width:width,height:height))
+        }
+        let points=Set((0..<(width*height)).filter{let offset=$0*4;return bytes[offset+3]>128 && (colored ? bytes[offset+1]<128 : bytes[offset]<128 && bytes[offset+1]<128 && bytes[offset+2]<128)})
+        return TextInk(width:width,height:height,points:points)
+    }
+    func testFormattedTextTabsFirstOffsetAndTrackingHaveIndependentPixelGeometry()throws{
+        let control=try textInk("tab-control"),tabs=try textInk("tabs"),offset=try textInk("tabs-offset")
+        XCTAssertEqual(control.columnRuns.count,2);XCTAssertEqual(tabs.columnRuns.count,2);XCTAssertEqual(offset.columnRuns.count,2)
+        guard control.columnRuns.count==2,tabs.columnRuns.count==2,offset.columnRuns.count==2 else{return}
+        XCTAssertEqual(tabs.columnRuns[0].minX,control.columnRuns[0].minX,accuracy:1)
+        XCTAssertEqual(offset.columnRuns[0].minX,tabs.columnRuns[0].minX,accuracy:1)
+        XCTAssertGreaterThan(tabs.columnRuns[1].minX,control.columnRuns[1].minX+8,"Tab was drawn as a space/control glyph")
+        XCTAssertEqual(offset.columnRuns[1].minX-tabs.columnRuns[1].minX,12,accuracy:1,"FirstTabOffset did not shift the first tab in page units")
+        let continuation=try textInk("tabs-native-continuation").columnRuns
+        XCTAssertEqual(continuation.count,4)
+        if continuation.count==4 {
+            XCTAssertEqual(continuation[1].minX-tabs.columnRuns[1].minX,12,accuracy:1)
+            XCTAssertEqual(continuation[2].minX-continuation[1].minX,32,accuracy:1,"Native final-tab interval continuation changed phase")
+            XCTAssertEqual(continuation[3].minX-continuation[2].minX,32,accuracy:1)
+        }
+        let baseline=try textInk("baseline"),tracked=try textInk("tracking")
+        XCTAssertEqual(try textInk("ranges-metadata").points,baseline.points,"Character-range metadata changed DrawString paint")
+        XCTAssertEqual(try textInk("lcid-bypass").points,baseline.points,"English LCID/BypassGDI changed the ordinary Latin glyph layout")
+        XCTAssertGreaterThan(try XCTUnwrap(tracked.bounds).width,try XCTUnwrap(baseline.bounds).width*1.25)
+        XCTAssertGreaterThan(tracked.points.count,Int(Double(baseline.points.count)*0.8));XCTAssertLessThan(tracked.points.count,Int(Double(baseline.points.count)*1.2),"Tracking scaled glyph shapes instead of their advances")
+    }
+    func testFormattedTextBidiVerticalAndLineAlignmentPaintPositionedOutlines()throws{
+        let ltr=try textInk("ltr"),rtl=try textInk("rtl"),a=try XCTUnwrap(ltr.bounds),b=try XCTUnwrap(rtl.bounds)
+        XCTAssertGreaterThan(b.minX,a.minX+80,"RTL near alignment did not use the right edge")
+        XCTAssertEqual(a.width,b.width,accuracy:8);XCTAssertNotEqual(ltr.normalized,rtl.normalized,"Mixed Hebrew/numeric bidi order was not shaped")
+        let horizontal=try XCTUnwrap(textInk("horizontal").bounds),vertical=try XCTUnwrap(textInk("vertical").bounds)
+        XCTAssertGreaterThan(horizontal.width,horizontal.height*1.5);XCTAssertGreaterThan(vertical.height,vertical.width*1.5)
+        // In image coordinates a clockwise turn maps (x,y) to (h-1-y,x).
+        // Compare real ink, not only aspect ratio, to reject upright stacks,
+        // mirrored glyphs and the double-rotation error of vertical run matrices.
+        let hInk=try textInk("horizontal"),vInk=try textInk("vertical")
+        let rotated=Set(hInk.normalized.map{point in (point%hInk.width)*hInk.width+Int(horizontal.height)-1-point/hInk.width})
+        var overlap=0
+        for point in vInk.normalized {
+            let x=point%vInk.width,y=point/vInk.width
+            if (-1...1).contains(where:{dy in (-1...1).contains(where:{dx in rotated.contains((y+dy)*vInk.width+x+dx)})}){overlap+=1}
+        }
+        XCTAssertGreaterThan(Double(overlap)/Double(max(1,vInk.points.count)),0.85,"Vertical Latin ink was mirrored or rotated twice")
+        let near=try XCTUnwrap(textInk("line-near").bounds),center=try XCTUnwrap(textInk("line-center").bounds),far=try XCTUnwrap(textInk("line-far").bounds)
+        XCTAssertGreaterThan(center.minY,near.minY+35);XCTAssertGreaterThan(far.minY,center.minY+35)
+        XCTAssertEqual(near.width,center.width,accuracy:1);XCTAssertEqual(near.width,far.width,accuracy:1)
+        let pointNear=try textInk("point-near"),pointCenter=try textInk("point-center"),pointFar=try textInk("point-far")
+        let pn=try XCTUnwrap(pointNear.bounds),pc=try XCTUnwrap(pointCenter.bounds),pf=try XCTUnwrap(pointFar.bounds)
+        func sameTranslatedInk(_ lhs:TextInk,_ rhs:TextInk)->Bool {
+            let target=rhs.normalized
+            let matched=lhs.normalized.filter{point in
+                (-1...1).contains{dy in (-1...1).contains{dx in target.contains(point+dy*lhs.width+dx)}}
+            }.count
+            return Double(matched)/Double(max(1,lhs.points.count))>0.95
+        }
+        XCTAssertTrue(sameTranslatedInk(pointNear,pointCenter));XCTAssertTrue(sameTranslatedInk(pointNear,pointFar))
+        // Advance width includes glyph side bearings, so the full center/far
+        // displacement is compared to visible ink with a two-pixel allowance.
+        XCTAssertEqual(pn.minX-pf.minX,pn.width,accuracy:2)
+        XCTAssertEqual(pn.minX-pc.minX,(pn.minX-pf.minX)/2,accuracy:2)
+        XCTAssertGreaterThan(pn.minY-pf.minY,pn.height)
+        XCTAssertEqual(pn.minY-pc.minY,(pn.minY-pf.minY)/2,accuracy:2)
+        XCTAssertEqual(pn.width,pc.width,accuracy:1);XCTAssertEqual(pn.width,pf.width,accuracy:1)
+        XCTAssertEqual(pn.height,pc.height,accuracy:1);XCTAssertEqual(pn.height,pf.height,accuracy:1)
+        let shortNearInk=try textInk("short-cross-near"),shortCenterInk=try textInk("short-cross-center"),shortFarInk=try textInk("short-cross-far")
+        XCTAssertTrue(sameTranslatedInk(pointNear,shortNearInk));XCTAssertTrue(sameTranslatedInk(pointNear,shortCenterInk));XCTAssertTrue(sameTranslatedInk(pointNear,shortFarInk))
+        let shortNear=try XCTUnwrap(shortNearInk.bounds),shortCenter=try XCTUnwrap(shortCenterInk.bounds),shortFar=try XCTUnwrap(shortFarInk.bounds)
+        XCTAssertEqual(shortNear.minY-shortFar.minY,pn.minY-pf.minY-6,accuracy:2)
+        XCTAssertEqual(shortNear.minY-shortCenter.minY,(shortNear.minY-shortFar.minY)/2,accuracy:2)
+        XCTAssertGreaterThan(shortNear.minY-shortFar.minY,4,"Oversized cross-axis text incorrectly clamped negative alignment")
+        XCTAssertEqual(shortNear.minX,shortCenter.minX,accuracy:1);XCTAssertEqual(shortNear.minX,shortFar.minX,accuracy:1)
+        let svg=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(data("plus-formatted-rtl.emf"))),as:UTF8.self)
+        XCTAssertTrue(svg.contains("אבג 123") && svg.contains("Helvetica"));XCTAssertTrue(svg.contains("<desc>"));XCTAssertFalse(svg.contains("<text"),"Formatted text still delegates painting/layout to the SVG text engine")
+        XCTAssertTrue(svg.contains("<path"));XCTAssertFalse(try textInk("surrogate-pair").points.isEmpty)
+        let supplementary=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(data("plus-formatted-surrogate-pair.emf"))),as:UTF8.self)
+        XCTAssertTrue(supplementary.contains("A𝐀B"),"Valid supplementary-plane UTF16 was lost from semantic text")
+        let missing=try textInk("no-fallback"),substituted=try textInk("surrogate-pair")
+        XCTAssertFalse(missing.points.isEmpty,"NoFontFallback omitted the requested font's missing-glyph outline")
+        XCTAssertNotEqual(missing.normalized,substituted.normalized,"NoFontFallback silently retained the supplementary fallback font")
+    }
+    func testFormattedTextWrappingClipLineLimitAndTrimmingRemainVisible()throws{
+        let nowrap=try XCTUnwrap(textInk("nowrap").bounds),wrap=try XCTUnwrap(textInk("wrap").bounds)
+        XCTAssertGreaterThan(wrap.height,nowrap.height*2);XCTAssertLessThanOrEqual(wrap.maxX,93)
+        let clipped=try XCTUnwrap(textInk("clip").bounds),unclipped=try XCTUnwrap(textInk("no-clip").bounds)
+        XCTAssertLessThanOrEqual(clipped.maxX,72);XCTAssertGreaterThan(unclipped.maxX,100,"NoClip discarded glyph overhang outside the layout rectangle")
+        XCTAssertFalse(try textInk("partial-line").points.isEmpty);XCTAssertTrue(try textInk("line-limit").points.isEmpty,"LineLimit painted a partial first line")
+        let ellipsis=try textInk("ellipsis"),runs=ellipsis.columnRuns
+        XCTAssertGreaterThan(runs.count,3)
+        if runs.count>=3{
+            let dots=Array(runs.suffix(3));XCTAssertTrue(dots.allSatisfy{$0.height<=5 && $0.width<=5},"Trimming did not paint three visible ellipsis dots")
+            XCTAssertEqual(dots[0].maxY,dots[2].maxY,accuracy:1);XCTAssertLessThanOrEqual(try XCTUnwrap(ellipsis.bounds).maxX,102)
+        }
+        let trimmed=try textInk("path-trim"),tail=try textInk("path-tail"),trimBounds=try XCTUnwrap(trimmed.bounds),tailBounds=try XCTUnwrap(tail.bounds)
+        let tailWidth=Int(tailBounds.width),left=Int(trimBounds.maxX)-tailWidth,top=Int(trimBounds.minY)
+        let suffix=Set(trimmed.points.filter{$0%trimmed.width>=left}.map{($0/trimmed.width-top)*trimmed.width+$0%trimmed.width-left})
+        var best=0.0
+        for dy in -2...2{for dx in -1...1{
+            let shifted=Set(tail.normalized.map{$0+dy*tail.width+dx})
+            best=max(best,Double(suffix.intersection(shifted).count)/Double(max(1,tail.points.count)))
+        }}
+        XCTAssertGreaterThan(best,0.8,"Path trimming lost the independently rendered filename suffix")
+    }
+    func testFormattedTextHotkeysAndFontDecorationsHaveActualPaintedStrokes()throws{
+        let baseline=try textInk("decorations-control"),underline=try textInk("underline"),strike=try textInk("strikeout")
+        XCTAssertGreaterThan(underline.points.count,baseline.points.count+10);XCTAssertGreaterThan(strike.points.count,baseline.points.count+10)
+        XCTAssertGreaterThan(try XCTUnwrap(underline.bounds).maxY,try XCTUnwrap(baseline.bounds).maxY)
+        let glyphs=baseline.columnRuns
+        XCTAssertEqual(glyphs.count,4)
+        if glyphs.count==4 {
+            let spaceX=Int((glyphs[1].maxX+glyphs[2].minX)/2),bounds=try XCTUnwrap(baseline.bounds)
+            XCTAssertFalse(baseline.points.contains{$0%baseline.width==spaceX})
+            let strikeRows=strike.points.filter{$0%strike.width==spaceX}.map{$0/strike.width}
+            XCTAssertFalse(strikeRows.isEmpty,"Strikeout omitted the visible bar across an actual space")
+            XCTAssertTrue(strikeRows.allSatisfy{CGFloat($0)>=bounds.minY && CGFloat($0)<bounds.maxY},"Strikeout was painted outside the glyph body")
+            XCTAssertTrue(underline.points.contains{$0%underline.width==spaceX && CGFloat($0/underline.width)>=bounds.maxY},"Underline omitted the visible bar beneath the space")
+        }
+        let plain=try textInk("hotkey-plain"),display=try textInk("hotkey-display"),show=try textInk("hotkey-show"),hide=try textInk("hotkey-hide"),literal=try textInk("hotkey-literal")
+        XCTAssertEqual(hide.points,plain.points,"Hidden hotkey marker changed the displayed ABC glyphs")
+        XCTAssertEqual(literal.points,display.points,"Escaped ampersand was not rendered literally")
+        XCTAssertGreaterThan(show.points.count,plain.points.count+4,"Visible hotkey prefix omitted its underline")
+        XCTAssertGreaterThan(try XCTUnwrap(display.bounds).width,try XCTUnwrap(plain.bounds).width+5)
+    }
+    func testFormattedTextOutlinesRetainBrushWorldTransformAndCapturedClip()throws{
+        let base=try textInk("baseline"),translated=try textInk("translated"),clip=try textInk("translated-clip")
+        let a=try XCTUnwrap(base.bounds),b=try XCTUnwrap(translated.bounds),c=try XCTUnwrap(clip.bounds)
+        XCTAssertEqual(b.minX-a.minX,24,accuracy:1);XCTAssertEqual(b.minY-a.minY,36,accuracy:1)
+        XCTAssertEqual(base.normalized,translated.normalized,"World translation reshaped the text")
+        XCTAssertLessThanOrEqual(c.maxX,70);XCTAssertGreaterThan(clip.points.count,0)
+        XCTAssertLessThan(c.width,b.width*0.7,"Text escaped the device clip captured before world translation")
+        let gradient=try textInk("gradient",colored:true)
+        XCTAssertGreaterThan(gradient.points.count,base.points.count*9/10,"Brush text lost its glyph interiors")
+        XCTAssertEqual(try XCTUnwrap(gradient.bounds).width,a.width,accuracy:1)
+        let value=try image("plus-formatted-gradient.emf")
+        var red=0,blue=0
+        // Probe independently selected dark glyph interiors. A clipped colored
+        // rectangle would also color the counters/spaces and fail mask equality.
+        XCTAssertEqual(gradient.points,base.points,"Gradient painted a text bounding box instead of glyph outlines")
+        for point in gradient.points where point%gradient.width%3==0 && point/gradient.width%3==0 {
+            let color=try rgb(value,point%gradient.width,point/gradient.width)
+            if color[0]>color[2]+0.25{red+=1};if color[2]>color[0]+0.25{blue+=1}
+        }
+        XCTAssertGreaterThan(red,8);XCTAssertGreaterThan(blue,8,"Glyph brush lost its independent gradient endpoint")
+    }
+    func testMalformedFormattedTextFailsExplicitlyWithoutReplacementCharactersOrLayoutGuessing()throws{
+        let names=["short","trailing","version","flags","align","line-align","substitution","digit-language","display-controls","hotkey","first-tab-negative","first-tab-nan","leading-negative","trailing-infinite","tracking-negative","tracking-nan","trimming","tabs-negative-count","tabs-count","tabs-truncated","tab-negative","tab-zero","tab-infinite","ranges-negative-count","ranges-count","range-truncated","range-negative","range-overflow","surrogate-high","surrogate-low","surrogate-order","text-count","text-payload-budget"]
+        for name in names{
+            let original=try data("unsupported-formatted-"+name+".emf")
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(original),name);XCTAssertNil(ComparisonImage(bytes:original),name)
+            XCTAssertEqual(try data("unsupported-formatted-"+name+".emf"),original)
+        }
+    }
+
 }

@@ -69,7 +69,8 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temp
         for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
             directory = folder/(case+str(index)); directory.mkdir()
             config = directory/'global.config'; config.write_text('')
-            environment.update(GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'), TURTLEGIT_METAFILE_CASE=case)
+            private_temporary=directory/'temporary';private_temporary.mkdir(mode=0o700)
+            environment.update(GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'), TMPDIR=str(private_temporary)+'/', TURTLEGIT_METAFILE_CASE=case)
             command = [str(receiver), str(directory), str(git.absolute())]
             if case == 'consumers': command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
             print('Checking metafile '+case+' with '+str(git), flush=True)

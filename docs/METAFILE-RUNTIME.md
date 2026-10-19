@@ -33,7 +33,7 @@ CoreText, CoreGraphics and ImageIO. Before creating its JavaScriptCore VM the
 helper sets `JSC_useJIT=false`, using the interpreter without an allow-JIT or
 unsigned-executable-memory entitlement, following [WebKit’s interpreter
 configuration](https://webkit.org/blog/6411/javascriptcore-csi-a-crash-site-investigation-story/).
-Runtime font metrics use CoreText; raw GDI+
+Runtime font metrics and [formatted text glyph outlines](METAFILE-TEXT-PARITY.md) use CoreText; raw GDI+
 BGR/BGRA bitmaps are converted to PNG using ImageIO. Platform font substitution
 can differ from Windows when an original font is unavailable.
 
@@ -67,7 +67,7 @@ renderer. Bundled JS is loaded from the signed application resource location.
 
 TextDecoder supports UTF-8, UTF-16LE, Windows-1252, Shift-JIS, EUC-KR, GBK/GB18030
 and Big5. The bitmap callback accepts GDI+ RGB24, RGB32, ARGB32 and PARGB32 with
-signed stride and rejects indexed/16-bit/oversized buffers. Raster output is
+signed stride; the [bitmap extension](METAFILE-BITMAP-FORMATS-PARITY.md) also supports indexed palettes and RGB555/RGB565/ARGB1555. Oversized or malformed buffers are refused. Raster output is
 limited to 16,777,216 pixels. Unsupported drawing must fail explicitly rather than
 presenting a successful blank or incomplete comparison. This is a renderer port,
 not a claim of bit-exact Windows GDI/GDI+ coverage; unimplemented source records,

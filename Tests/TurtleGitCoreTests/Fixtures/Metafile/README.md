@@ -138,3 +138,18 @@ uniform bitmap and plainCSS both produced255/147/141 on this Mac. Native SVG
 color handling makes literal displayed sRGB0.5 an invalid oracle for that alpha;
 the exact decoded alpha and independent native source-over comparison cover both
 stages without loosening their expected color/alpha relationship.
+
+
+## Formatted EMF+ text
+
+`plus-formatted-*` are original Microsoft-record constructions for native glyph
+outlines, tabs/first-tab offsets, tracking, mixed Hebrew/numeric bidi, clockwise
+vertical Latin, wrapping and line alignment, clipping/LineLimit, trimming,
+hotkey markers, underline/strikeout, supplementary Unicode and missing glyphs.
+Gradient/world/clip companions retain the independently measured baseline ink
+mask; the device clip is captured before the later translation.
+`unsupported-formatted-*` isolate bad object arrays, enum/flag values, counts,
+nonfinite metrics and unpaired UTF-16. No font/glyph outline or upstream image is
+embedded in these input files. Final-pixel assertions are independent of the
+native layout bridge and keep platform font limitations explicit. See
+[formatted text scope](../../../../docs/METAFILE-TEXT-PARITY.md).

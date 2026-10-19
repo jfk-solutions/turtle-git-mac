@@ -106,7 +106,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,426 @@
+@@ -0,0 +1,455 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -127,6 +127,15 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +      if(channels.some(v=>!Number.isInteger(v)||v<0||v>255)||!Number.isFinite(opacity)||opacity<0||opacity>1)fail('invalid SVG paint color');
 +      return attribute+'="#'+channels.map(v=>v.toString(16).padStart(2,'0')).join('')+'" '+attribute+'-opacity="'+opacity+'"';
 +    });
++  }
++  function validText(text) {
++    for(let i=0;i<text.length;i++) {
++      const c=text.charCodeAt(i);
++      if(c>=0xd800&&c<=0xdbff) {const next=text.charCodeAt(++i);if(!(next>=0xdc00&&next<=0xdfff))fail('invalid UTF-16 text');}
++      else if(c>=0xdc00&&c<=0xdfff)fail('invalid UTF-16 text');
++      else if(c<32&&c!==9&&c!==10&&c!==13 || c===0xfffe || c===0xffff)fail('invalid text control character');
++    }
++    return text;
 +  }
 +  function state(d) { return d._turtle || (d._turtle={world:identity(),page:1,unit:2,dpiX:96,dpiY:96,clip:null,renderingOrigin:[0,0],saves:[],objectParts:null}); }
 +  function baseMatrix(d) {
@@ -166,7 +175,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +  function combineClip(d,shape,mode) {state(d).clip=combineMasks(d,state(d).clip,mask(d,shape),mode);}
 +  function graphicsVersion(data,offset) {
 +    const version=u32(data,offset);
-+    if(version!==0xDBC01001 && version!==0xDBC01002) fail('unsupported region graphics version');
++    if(version!==0xDBC01001 && version!==0xDBC01002) fail('unsupported graphics version');
 +  }
 +  function parseRegion(d,id,data) {
 +    if(id>63 || data.length<12) fail('invalid region object');
@@ -259,6 +268,13 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +  }
 +  const ep=EmfPlusDrawer.prototype, originalDispatch=ep.processEmfPlusRecordType;
 +  const rawBitmap=require('./turtleGitBitmap')({fail,u32});
++  // Concrete CoreText glyph outlines use the same brush interception as paths.
++  // Shape geometry remains vector; only gradient/texture paint uses its existing
++  // bounded native raster representation. No document-supplied SVG is accepted.
++  SvgContext.prototype.fillGlyphPaths=function(layout) {
++    if(!layout.path)return;
++    this._nodes.push('<path d="'+escape(layout.path)+'" fill="'+escape(this.fillStyle)+'" fill-rule="nonzero" stroke="none" '+this._attr()+'/>');
++  };
 +  const paint=require('./turtleGitPaint')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,escape,matrix,currentMatrix,rawBitmap});
 +  const images=require('./turtleGitImages')({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix});
 +  // Existing drawing routines operate in local coordinates. Wrap each completed
@@ -340,9 +356,19 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    }
 +    if(type===4){parseRegion(this,id,data);return;}
 +    if(type===7){
-+      if(data.length<60)fail('truncated string format');const flags=u32(data,4),align=u32(data,12),line=u32(data,16);
-+      if(flags&3||u32(data,52)||u32(data,56)||u32(data,48)||u32(data,32)||align>2||line>2)fail('unsupported EMF+ vertical/RTL/tab/trimming string format');
-+      this.emfPlusObjects[id]={type:'stringFormat',flags,align,line,leading:f32(data,36),trailing:f32(data,40),tracking:f32(data,44)};return;
++      if(id>63 || data.length<60)fail('truncated string format');graphicsVersion(data,0);
++      const flags=u32(data,4),language=u32(data,8),align=u32(data,12),line=u32(data,16),substitution=u32(data,20),digitLanguage=u32(data,24),hotkey=i32(data,32),trimming=u32(data,48),tabCount=i32(data,52),ranges=i32(data,56);
++      if(flags&~0x80007c07 || align>2 || line>2 || hotkey<0 || hotkey>2 || trimming>5)fail('unsupported EMF+ string format flags or enumeration');
++      if(tabCount<0 || tabCount>256 || ranges<0 || ranges>4096 || data.length!==60+tabCount*4+ranges*8)fail('invalid string format arrays');
++      if(substitution>1 || digitLanguage!==0)fail('unsupported locale-specific digit substitution');
++      const firstTab=f32(data,28),leading=f32(data,36),trailing=f32(data,40),tracking=f32(data,44),tabs=[],characterRanges=[];
++      if(firstTab<0 || leading<0 || trailing<0 || tracking<=0 || tracking>1000)fail('invalid string format metrics');
++      for(let i=0;i<tabCount;i++){const distance=f32(data,60+i*4);if(distance<=0)fail('invalid tab stop interval');tabs.push(distance);}
++      for(let i=0;i<ranges;i++){const offset=60+tabCount*4+i*8,first=i32(data,offset),length=i32(data,offset+4);if(first<0 || length<0 || first+length>0x7fffffff)fail('invalid character range');characterRanges.push({first,length});}
++      // Character ranges are measurement metadata; DrawString has no range paint.
++      // User digit substitution (0) is implementation-defined: this native
++      // renderer chooses unchanged digits; explicit None (1) has the same paint.
++      this.emfPlusObjects[id]={type:'stringFormat',flags,language,align,line,hotkey,trimming,firstTab,tabs,characterRanges,leading,trailing,tracking};return;
 +    }
 +    if(type===8){images.parseAttributes.call(this,id,data);return;}
 +    if(type>8)fail('unsupported EMF+ object type '+type);
@@ -387,29 +413,32 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +      const count=u32(data,20);if(!count||count>1024||24+count*2>data.length)fail('invalid font face');
 +      let name='';for(let i=0;i<count;i++){const c=data[24+i*2]|data[25+i*2]<<8;if(!c)break;name+=String.fromCharCode(c);}
 +      const font=this.emfPlusObjects[id];if(!font)fail('missing font');font.face=name.replace(/[\u0000-\u001f"]/g,'');font.sizeUnit=u32(data,8);
-+      font.emSize=f32(data,4);if(font.emSize<=0)fail('invalid font size');
++      font.emSize=f32(data,4);font.styleFlags=u32(data,12);if(id>63 || font.emSize<=0 || font.styleFlags&~15)fail('invalid font size or style');validText(font.face);
 +    }
 +  };
 +  ep.processEmfPlusDrawString=function(flags,data){
-+    const font=this.emfPlusObjects[flags&255];if(!font||font.type!=='font')fail('missing text font');
-+    const length=u32(data,8);if(length>1000000||28+length*2>data.length)fail('truncated text');
-+    let text='';for(let i=0;i<length;i++)text+=String.fromCharCode(data[28+i*2]|data[29+i*2]<<8);
-+    if(text.includes('\t'))fail('unsupported text tab layout');
-+    const fid=u32(data,4),format=fid===0xffffffff?{flags:0x1000,align:0,line:0,leading:0,trailing:0,tracking:1}:this.emfPlusObjects[fid];
-+    if(!format||format.type&&format.type!=='stringFormat')fail('missing string format');
-+    if(format.tracking!==1&&format.tracking!==0)fail('unsupported custom text tracking');
++    const fontID=flags&255,font=this.emfPlusObjects[fontID];if(fontID>63 || !font || font.type!=='font')fail('missing text font');
++    const length=u32(data,8),end=28+length*2;
++    if(length>32768 || end>data.length || data.length-end>3)fail('invalid text record length');
++    for(let i=end;i<data.length;i++)if(data[i])fail('invalid text record padding');
++    let text='';for(let i=0;i<length;i++)text+=String.fromCharCode(data[28+i*2]|data[29+i*2]<<8);validText(text);
++    const fid=u32(data,4),format=fid===0xffffffff?{flags:0,align:0,line:0,hotkey:0,trimming:0,firstTab:0,tabs:[],leading:1/6,trailing:1/6,tracking:1.03}:this.emfPlusObjects[fid];
++    if(fid!==0xffffffff&&fid>63 || !format || format.type&&format.type!=='stringFormat')fail('missing string format');
 +    const s=state(this),size=font.emSize*unitScale(font.sizeUnit,s.dpiY)/unitScale(s.unit,s.dpiY),ctx=this.ctx;
-+    ctx.font=font.italic+font.weight+' '+size+'px "'+font.face+'"';ctx.fillStyle=this._emfPlusResolveBrush(flags,u32(data,0));ctx.textBaseline='alphabetic';ctx.textAlign=['left','center','right'][format.align];
-+    const x=f32(data,12),y=f32(data,16),width=f32(data,20),height=f32(data,24),margin=(format.leading||0)*size;
-+    const available=Math.max(0,width-margin-(format.trailing||0)*size);let lines=[];
-+    for(const paragraph of text.split(/\r\n|\n|\r/)){
-+      if(format.flags&0x1000||!available){lines.push(paragraph);continue;}
-+      let line='';for(const word of paragraph.split(/(\s+)/)){if(line&&ctx.measureText(line+word).width>available){lines.push(line);line=word.trimStart();}else line+=word;}lines.push(line);
-+    }
-+    if(lines.length>100000)fail('text line limit');
-+    const advance=size*1.2,total=lines.length*advance,top=y+(format.line===1?(height-total)/2:format.line===2?height-total:0);
-+    const anchor=x+margin+(format.align===1?available/2:format.align===2?available:0);
-+    for(let i=0;i<lines.length;i++)ctx.fillText(lines[i],anchor,top+size+i*advance);
++    const x=f32(data,12),y=f32(data,16),width=f32(data,20),height=f32(data,24);
++    if(width<0 || height<0)fail('invalid text layout rectangle');
++    const layout=__turtleLayoutText(text,font.face,size,font.weight==='bold',font.italic.trim()==='italic',{...format,x,y,width,height,fontStyle:font.styleFlags});
++    if(!layout || typeof layout.path!=='string' || layout.path.length>32*1024*1024 || !Array.isArray(layout.bounds) || layout.bounds.length!==4 || layout.bounds.some(v=>!Number.isFinite(v)||Math.abs(v)>1e12))fail('invalid native text layout');
++    const brush=u32(data,0);if(!(flags&0x8000) && brush>63)fail('invalid text brush');
++    ctx.save();
++    try {
++      ctx.fillStyle=this._emfPlusResolveBrush(flags,brush);
++      if(!(format.flags&0x4000) && width>0 && height>0){ctx.beginPath();ctx.rect(x,y,width,height);ctx.clip();}
++      ctx.fillGlyphPaths(layout);
++    } finally {ctx.restore();}
++    // Searchable provenance is not a second painting representation. Font paths
++    // are self-contained; this text cannot trigger SVG shaping or resource loads.
++    ctx._nodes.push('<desc>'+escape(font.face)+'\n'+escape(text)+'</desc>');
 +  };
 +  ep._emfPlusResolvePen=function(id){const pen=this.emfPlusObjects[id];if(!pen||pen.type!=='pen')fail('missing pen');const s=state(this),width=pen.width*unitScale(pen.unit,s.dpiX)/unitScale(s.unit,s.dpiX);this.ctx.lineCap=pen.cap;this.ctx.lineJoin=pen.join;this.ctx.setLineDash(pen.dash.map(v=>v*width));return{color:pen.color,width};};
 +  const originalDraw=ep.draw;
@@ -1098,7 +1127,7 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +      return original.apply(this,a);
 +    };
 +  }
-+  for(const method of ['fill','fillRect','fillText']) {
++  for(const method of ['fill','fillRect','fillText','fillGlyphPaths']) {
 +    const original=SvgContext.prototype[method];
 +    SvgContext.prototype[method]=function(...args) {
 +      const receipt=this._turtlePaints && this._turtlePaints.get(this.fillStyle);
@@ -1108,7 +1137,7 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +      try {original.apply(this,args);} finally {this.fillStyle=paint;}
 +      if(this._nodes.length===first) return;
 +      const geometry=this._nodes.splice(first).join('').replace(/ fill-rule=/g,' clip-rule=');
-+      const bounds=method==='fillRect'?[Math.min(args[0],args[0]+args[2]),Math.min(args[1],args[1]+args[3]),Math.max(args[0],args[0]+args[2]),Math.max(args[1],args[1]+args[3])]:method==='fill'?this._turtlePaintBounds:null;
++      const bounds=method==='fillRect'?[Math.min(args[0],args[0]+args[2]),Math.min(args[1],args[1]+args[3]),Math.max(args[0],args[0]+args[2]),Math.max(args[1],args[1]+args[3])]:method==='fill'?this._turtlePaintBounds:method==='fillGlyphPaths'?args[0].bounds:null;
 +      const texture=receipt.brush.descriptor.kind==='texture';
 +      const image=texture?texturePaint(this,receipt,bounds):rasterPaint(this,receipt,bounds);
 +      if(!image)return;

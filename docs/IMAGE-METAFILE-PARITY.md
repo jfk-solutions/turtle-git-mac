@@ -81,9 +81,9 @@ region fill transforms and nested-metafile textures remain explicit refusals.
 
 ## Explicit remaining format behavior
 
-This is useful three-format support, not complete GDI compatibility. Remaining
+The [formatted text extension](METAFILE-TEXT-PARITY.md) adds native shaped glyph outlines for DrawString layouts, including direction, tabs, tracking, wrapping and trimming. This is useful three-format support, not complete GDI compatibility. Remaining
 unsupported features include driver/glyph strings,
-vertical/RTL/tab/trimming StringFormat layouts, custom text tracking, relative
+DisplayFormatControl, locale-specific digit substitution and measured-character-range queries, relative
 compressed path encodings and gradients outside the
 [accepted painting subset](METAFILE-PAINTING-PARITY.md), transformed/compound/custom-cap
 pens, alternate-format/terminal-server records and source-copy compositing.
