@@ -495,7 +495,7 @@ import TurtleGitCore
         guard !names.isEmpty, Set(names).count == names.count, names.allSatisfy(candidates.contains),
               let entry = entries.first(where: { ids.contains($0.id) }) else { return }
         let token = OperationCancellation(), request = generation, reference = self.reference
-        let repository = self.repository, factory = noteLog.sshSettings.capture()
+        let repository = self.repository.capturingDiffBackend(preferences: preferences), factory = noteLog.sshSettings.capture()
         revisionReadToken=token;busy=true;mutating=true;error=nil;Self.activeRevisionReads += 1
         Task { [weak self, access] in
             defer { Self.activeRevisionReads -= 1; withExtendedLifetime(access) {} }

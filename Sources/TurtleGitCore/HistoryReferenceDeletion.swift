@@ -8,6 +8,10 @@ public struct HistoryReferenceDeletion: Sendable {
     public let kind: Kind
     public let unmerged: Bool
     public let stashEntries: [ReferenceLogEntry]
+    public let symbolicTarget: String?
+    public init(name:String,objectID:String,kind:Kind,unmerged:Bool,stashEntries:[ReferenceLogEntry],symbolicTarget:String?=nil) {
+        self.name=name;self.objectID=objectID;self.kind=kind;self.unmerged=unmerged;self.stashEntries=stashEntries;self.symbolicTarget=symbolicTarget
+    }
     public var message: String {
         switch kind {
         case .ordinary: return "Do you really want to delete \"\(name)\"?" + (unmerged ? "\n\nThis branch is not fully merged into HEAD." : "")
@@ -52,7 +56,7 @@ extension GitRepository {
         let local = name.utf8.starts(with: "refs/heads/".utf8)
         let merged = !local || (try? run(["merge-base", "--is-ancestor", name, "HEAD"], cancellation: token)) != nil
         try token.check()
-        return HistoryReferenceDeletion(name: name, objectID: oid, kind: remote ? .remote : stash ? .stash : .ordinary, unmerged: !merged, stashEntries: stash ? try referenceLog(name, cancellation: token) : [])
+        return HistoryReferenceDeletion(name: name, objectID: oid, kind: remote ? .remote : stash ? .stash : .ordinary, unmerged: !merged, stashEntries: stash ? try referenceLog(name, cancellation: token) : [], symbolicTarget:try localReferenceSymbolicTarget(name,cancellation:token))
     }
     /// The named reference still has to identify the captured RefLog event.
     /// Annotated tags compare their peeled commit but delete the tag object.
@@ -63,11 +67,12 @@ extension GitRepository {
         guard resolved == entry.hash else { throw HistoryReferenceDeletionFailure.changed }
         return snapshot
     }
-    public func deleteHistoryReference(_ snapshot: HistoryReferenceDeletion, choice: HistoryReferenceDeleteChoice, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> String {
+    public func deleteHistoryReference(_ snapshot: HistoryReferenceDeletion, choice: HistoryReferenceDeleteChoice, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil, backend: GitLibGit2Configuration? = nil) async throws -> String {
+        let selectedBackend = backend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard choice != .abort, snapshot.choices.contains(where: { $0.choice == choice }) else { throw HistoryReferenceDeletionFailure.choice }
         let fresh = try prepareHistoryReferenceDeletion(snapshot.name, cancellation: token)
-        guard fresh.objectID == snapshot.objectID, fresh.stashEntries == snapshot.stashEntries else { throw HistoryReferenceDeletionFailure.changed }
+        guard fresh.objectID == snapshot.objectID, fresh.stashEntries == snapshot.stashEntries, fresh.symbolicTarget.map({Data($0.utf8)}) == snapshot.symbolicTarget.map({Data($0.utf8)}) else { throw HistoryReferenceDeletionFailure.changed }
         if choice == .stashAll { return try await deleteStashEntries([], expected: snapshot.stashEntries, clear: true, cancellation: token) }
         if choice == .stashOne {
             guard let first = snapshot.stashEntries.first else { throw HistoryReferenceDeletionFailure.reference }
@@ -83,10 +88,12 @@ extension GitRepository {
                 defer { withExtendedLifetime(session) {} }
                 let after = try prepareHistoryReferenceDeletion(snapshot.name, cancellation: token)
                 guard after.objectID == snapshot.objectID else { throw HistoryReferenceDeletionFailure.changed }
-                return try run(["-c", "core.precomposeunicode=false", "push", "--", remote, ":refs/heads/" + branch], environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token).text
+                return try run(["-c", "core.precomposeunicode=false", "push", "--", remote, ":refs/heads/" + branch], environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token,executorOverride:try selectedBackend.executor(for:.push)).text
             }
+            if selectedBackend.requests(.deleteTagBranch) {return try deleteLocalReference(name:snapshot.name,expectedOID:snapshot.objectID,expectedSymbolicTarget:snapshot.symbolicTarget,backend:selectedBackend,cancellation:token)}
             return try run(["branch", "-D", "-r", "--", short], cancellation: token).text
         }
+        if selectedBackend.requests(.deleteTagBranch) {return try deleteLocalReference(name:snapshot.name,expectedOID:snapshot.objectID,expectedSymbolicTarget:snapshot.symbolicTarget,backend:selectedBackend,cancellation:token)}
         if let short = GitReferenceName.removingPrefix("refs/heads/", from: snapshot.name) { return try run(["branch", "-D", "--", short], cancellation: token).text }
         if let short = GitReferenceName.removingPrefix("refs/tags/", from: snapshot.name) { return try run(["tag", "-d", "--", short], cancellation: token).text }
         return try run(["update-ref", "--no-deref", "-d", snapshot.name, snapshot.objectID], cancellation: token).text

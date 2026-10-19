@@ -49,6 +49,8 @@ private final class CommitReferencesWindow: NSWindow {
     private var filterTimer: Timer?
     private var lastSelected: GitReferenceName?
     private var previousSelection = IndexSet()
+    private(set) var snapshotBackendIdentity: String?
+    private(set) var completionBackendIdentity: String?
     private var completionCache: [GitReferenceName]?
     private var unifiedViewerObservation: AnyCancellable?
     private var unifiedViewer: PatchWindowController? {
@@ -103,16 +105,20 @@ private final class CommitReferencesWindow: NSWindow {
     func refresh(reloadCompletion: Bool = false) {
         guard externalAvailability(), !closed, !hasBlockingChild, window?.parent?.attachedSheet == nil else { return }
         revisionTimer?.invalidate(); revisionTimer = nil; filterTimer?.invalidate(); filterTimer = nil
-        cancelRead(); snapshot = nil; rows = []; subject.stringValue = ""; subject.toolTip = nil; table.reloadData(); previousSelection = []; lastSelected = nil
+        cancelRead(); snapshot = nil; snapshotBackendIdentity = nil; rows = []; subject.stringValue = ""; subject.toolTip = nil; table.reloadData(); previousSelection = []; lastSelected = nil
         let name = revision.stringValue
-        if reloadCompletion { completionCache = nil; revision.removeAllItems(); revision.stringValue = name }
+        if reloadCompletion { completionCache = nil; completionBackendIdentity = nil; revision.removeAllItems(); revision.stringValue = name }
         let cancellation = OperationCancellation(), generation = UUID(); request = generation; token = cancellation; busy = true; status.stringValue = "Loading…"; updateAvailability()
         let useMailmap = GitIdentityDisplay(defaults: preferences).useMailmap
+        let repository = self.repository.capturingDiffBackend(preferences: preferences)
         Self.activeOperations += 1
         worker = Task { [self] in
             defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let identity = try await repository.localReferenceBackendIdentity(cancellation: cancellation)
+                guard !closed, request == generation, !cancellation.isCancelled else { return }
+                if completionBackendIdentity != identity { completionCache = nil }
                 if completionCache == nil {
                     let names: [GitReferenceName]
                     do {
@@ -125,7 +131,7 @@ private final class CommitReferencesWindow: NSWindow {
                         names = []
                     }
                     guard !closed, request == generation, !cancellation.isCancelled else { return }
-                    completionCache = names
+                    completionCache = names; completionBackendIdentity = identity
                     revision.removeAllItems(); revision.addItems(withObjectValues: names.map(\.rawValue)); revision.stringValue = name
                 }
                 guard !name.isEmpty else { busy = false; token = nil; worker = nil; status.stringValue = ""; updateAvailability(); return }
@@ -133,7 +139,7 @@ private final class CommitReferencesWindow: NSWindow {
                 if let read { data = try await read(name, cancellation) }
                 else { data = try await repository.commitContainingReferences(name, includeCompletion: false, useMailmap: useMailmap, cancellation: cancellation) }
                 guard !closed, request == generation, !cancellation.isCancelled else { return }
-                snapshot = data; busy = false; token = nil; worker = nil
+                snapshot = data; snapshotBackendIdentity = identity; busy = false; token = nil; worker = nil
                 subject.stringValue = data.abbreviatedHash + ": " + data.subject; subject.toolTip = HistoryDateSettings.load(defaults: preferences).format(data.authorDate, absolute: true) + "  " + data.author
                 applyFilter(); updateAvailability()
             } catch {
@@ -159,7 +165,7 @@ private final class CommitReferencesWindow: NSWindow {
     }
     func controlTextDidChange(_ notification: Notification) {
         if notification.object as? NSComboBox === revision {
-            cancelRead(); snapshot = nil; rows = []; subject.stringValue = ""; table.reloadData(); updateAvailability(); revisionTimer?.invalidate()
+            cancelRead(); snapshot = nil; snapshotBackendIdentity = nil; rows = []; subject.stringValue = ""; table.reloadData(); updateAvailability(); revisionTimer?.invalidate()
             revisionTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.refresh() } }
         } else if notification.object as? NSSearchField === filter {
             filterTimer?.invalidate()

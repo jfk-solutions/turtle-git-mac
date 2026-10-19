@@ -418,6 +418,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     @Published var hasChild = false { didSet { if oldValue != hasChild { menuEpoch &+= 1; formRevision = UUID() } } }
     @Published private(set) var bare = false
     private(set) var folders: [GitReferenceName] = ["refs"]
+    private(set) var snapshotBackendIdentity: String?
     @Published private(set) var snapshot: ReferenceBrowserSnapshot?
     @Published private(set) var busy = false { didSet { if oldValue != busy { menuEpoch &+= 1; formRevision = UUID() } } }
     @Published var error: String?
@@ -583,7 +584,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
                 attempted = true
                 let coordinator = factory?(); defer { coordinator?.close() }
                 _ = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] progress in guard let self, !self.invalidated, self.token === request else { return }; self.renameOutput = progress.output }, resultText: { $0 }) { [self] emit in
-                    try await repository.deleteBrowserReferences(references, cancellation: request, prepareTransport: coordinator?.preparation, expectedHashes: hashes, onOutput: emit,backend:backend)
+                    try await repository.deleteBrowserReferences(references, cancellation: request, prepareTransport: coordinator?.preparation, expectedHashes: hashes, onOutput: emit,backend:backend,expectedSymbolicTargets:confirmation.symbolicTargets)
                     return "Deleted \(references.count) reference(s).\n"
                 }
             } catch {
@@ -679,7 +680,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var onCompareWithOptions: ((String, Bool) -> Void)?
     init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, scope: ReferenceBrowserScope = .all, picking: Bool = true, pickMultiple: Bool = false, allowsRangeSelection: Bool = false) {
         self.picking = picking; self.pickMultiple = pickMultiple; self.allowsRangeSelection = allowsRangeSelection; sshSettings = SSHTransportSettings(repository: repository); sshSettings.enabled = sshSettings.available
-        self.repository = repository; self.access = access; self.initial = initial; self.preferences = preferences; self.scope = scope;captureRemoteBackend={.load(from:preferences)}
+        self.repository = repository; self.access = access; self.initial = initial; self.preferences = preferences; self.scope = scope;captureRemoteBackend={.load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)}
         nested = preferences.object(forKey: "RefBrowserIncludeNestedRefs") as? Bool ?? true
         columnLayout = .load(preferences)
         let sort = (preferences.object(forKey:"RefBrowserSortCol") as? NSNumber)?.intValue ?? 0
@@ -763,15 +764,18 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         guard !invalidated, !confirmingQuit, !confirmingCancellation, !awaitingConfirmation, !generatingUnified, !hasChild, !deletingReference, !changingTracking, !resolvingCurrentBranch, renameReference == nil else { return }
         let requested = selected?.rawValue ?? (snapshot == nil ? initial : folder.rawValue)
         token?.cancel(); let request = OperationCancellation(); token = request; busy = true; error = preservingError
-        let filter = mergeFilter; Self.activeReads += 1; pendingReferenceReads += 1
+        let filter = mergeFilter, useMailmap = preferences.usesMailmap
+        let repository = self.repository.capturingDiffBackend(preferences: preferences)
+        Self.activeReads += 1; pendingReferenceReads += 1
         Task {
             defer { Self.activeReads -= 1; pendingReferenceReads -= 1; withExtendedLifetime(access) {}; if token === request { token = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let result = try await repository.referenceBrowser(filter: filter, scope: scope, useMailmap: preferences.usesMailmap, cancellation: request)
+                let identity = try await repository.localReferenceBackendIdentity(cancellation: request)
+                let result = try await repository.referenceBrowser(filter: filter, scope: scope, useMailmap: useMailmap, cancellation: request)
                 let bare = try await repository.isBare(cancellation: request)
                 guard !invalidated, token === request, !request.isCancelled else { return }
-                let choice = result.initialSelection(requested); folders = result.folders; self.bare = bare; snapshot = result; folder = choice.folder; selected = choice.reference; refilter()
+                let choice = result.initialSelection(requested); folders = result.folders; self.bare = bare; snapshotBackendIdentity = identity; snapshot = result; folder = choice.folder; selected = choice.reference; refilter()
             } catch { if !invalidated, token === request, !request.isCancelled { self.error = error.localizedDescription } }
         }
     }

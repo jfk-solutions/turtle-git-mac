@@ -27,6 +27,19 @@ Index-only and editable staging patches keep their existing Git reader. History
 lists retain actual merge-parent groups, renamed paths, binary counts and object
 metadata; changing engines cannot reuse a cache belonging to the other engine.
 See the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/DIFF-BACKEND-PARITY.html">diff/history source scope</a>.</p>
+<p>Local reference browsing uses ForeachRef bit <code>0x40000</code>, enabled in the source
+default mask, for the unfiltered catalog. <strong>Only merged</strong> and <strong>Only unmerged</strong>
+retain Git commands, matching TortoiseGit. <strong>References commit is on</strong> uses
+BranchContains bit <code>0x10000</code>, disabled by default. Revision-name completion
+follows the master switch directly, independently of ForeachRef's bit.</p>
+<p>Local branch/tag deletion uses DeleteTagBranch bit <code>0x100</code>, enabled by default.
+This includes deleting a local remote-tracking name through a history menu;
+deleting a branch on the server still uses the separate remote-deletion route.
+A confirmation retains the displayed reference identity and selected engine.
+Changing Settings while it is open does not retarget that accepted attempt.
+A moved reference or checked-out branch is refused; earlier completed deletions
+remain completed if a later item fails. Refresh and inspect the reported result
+before retrying. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LOCAL-REFERENCE-ENGINE-PARITY.html">local reference source scope</a>.</p>
 <p>Reset uses bit <code>0x20</code> and Log commit reversion uses bit <code>0x40</code>, also off by
 default. Their accepted attempt captures its engine before work starts. Hard
 Reset can recycle originals through checked prewrite notifications, and its

@@ -30,6 +30,21 @@ lists retain actual merge-parent groups, renamed paths, binary counts and object
 metadata; changing engines cannot reuse a cache belonging to the other engine.
 See the [diff/history source scope](DIFF-BACKEND-PARITY.md).
 
+Local reference browsing uses ForeachRef bit `0x40000`, enabled in the source
+default mask, for the unfiltered catalog. **Only merged** and **Only unmerged**
+retain Git commands, matching TortoiseGit. **References commit is on** uses
+BranchContains bit `0x10000`, disabled by default. Revision-name completion
+follows the master switch directly, independently of ForeachRef's bit.
+
+Local branch/tag deletion uses DeleteTagBranch bit `0x100`, enabled by default.
+This includes deleting a local remote-tracking name through a history menu;
+deleting a branch on the server still uses the separate remote-deletion route.
+A confirmation retains the displayed reference identity and selected engine.
+Changing Settings while it is open does not retarget that accepted attempt.
+A moved reference or checked-out branch is refused; earlier completed deletions
+remain completed if a later item fails. Refresh and inspect the reported result
+before retrying. See [local reference source scope](LOCAL-REFERENCE-ENGINE-PARITY.md).
+
 Reset uses bit `0x20` and Log commit reversion uses bit `0x40`, also off by
 default. Their accepted attempt captures its engine before work starts. Hard
 Reset can recycle originals through checked prewrite notifications, and its

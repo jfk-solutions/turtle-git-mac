@@ -168,7 +168,9 @@ to the exact host, port and certificate. Source defaults use libgit2 for Add and
 historical file output, with Git commands for Clone and Fetch. Optional source
 branches also cover [Reset and Log commit reversion](docs/RESET-REVERT-BACKEND-PARITY.md)
 and [unified patches and history file lists](docs/DIFF-BACKEND-PARITY.md), with
-captured preferences and separate engine caches. Add uses configured
+captured preferences and separate engine caches. The [local reference family](docs/LOCAL-REFERENCE-ENGINE-PARITY.md)
+connects unfiltered catalogs, revision completion, containing-reference lookup
+and checked local deletion to their distinct source gates. Add uses configured
 one-shot clean filters and owned progress, including Commit and Rebase file menus.
 
 An [older development-signed candidate](docs/qa/finder-installed-2026-10-17.json)

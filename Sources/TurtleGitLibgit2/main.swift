@@ -54,7 +54,7 @@ struct Arguments{
             if arg == "--turtlegit-reset-notifications"{guard !resetNotifications else{try refuse("Repeated Reset notification request")};resetNotifications=true;continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         guard !transferNotifications || command == "clone" || command == "fetch" else{try refuse("Transfer notifications require Clone or Fetch")}
@@ -105,7 +105,7 @@ struct Arguments{
             }else{operands.append(arg)}
         }
         guard configs.count<=2048 else{try refuse("Too many command configuration values")}
-        if command == "turtlegit-unified-diff" || command == "turtlegit-history-diff" {
+        if command == "turtlegit-unified-diff" || command == "turtlegit-history-diff" || PrivateLocalReferenceRequest.commands.contains(command) {
             guard operands.isEmpty else{try refuse("Private diff command requires only a stdin request")}
         }else if command == "reset" || command == "revert" {
             guard operands.count==1,!operands[0].isEmpty,!operands[0].contains("\0"),operands[0].utf8.count<=1_048_576,command != "revert" || revertNoCommit else{try refuse("Reset/Revert requires one explicit revision; Revert requires --no-commit")};revision=operands[0]
@@ -157,6 +157,46 @@ struct PrivateDiffRequest {
             let value=try JSONDecoder().decode(History.self,from:data)
             guard value.version==1,Self.fullOID(value.revision),value.threshold<=100 else{try refuse("Invalid history diff request")}
             unified=nil;history=value
+        }
+    }
+}
+
+struct PrivateLocalReferenceRequest {
+    static let commands = ["turtlegit-local-refs", "turtlegit-containing-refs", "turtlegit-delete-local-ref", "turtlegit-ref-names"]
+    struct Contains: Decodable {let version:Int;let revision:String;let includeTags:Bool;let includeLocal:Bool;let includeRemote:Bool}
+    struct Delete: Decodable {let version:Int;let reference:String;let expectedOID:String;let expectedSymbolicTarget:String?}
+    let operation:String
+    let scope:Int32
+    let contains:Contains?
+    let deletion:Delete?
+    static func name(_ value:String)->Bool {
+        value.hasPrefix("refs/") && value.utf8.count<=1_048_576 && !value.utf8.contains(where:{$0<32 || $0==127}) &&
+        !value.contains(" ") && !value.contains("..") && !value.contains("@{") && !value.contains(where:{"~^:?*[\\".contains($0)}) &&
+        !value.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0.isEmpty || $0.hasPrefix(".") || $0.hasSuffix(".lock")}) && !value.hasSuffix(".")
+    }
+    init(command:String)throws {
+        var data=Data()
+        while let part=try FileHandle.standardInput.read(upToCount:65_536),!part.isEmpty {
+            guard !cancelled(),part.count<=2_097_152-data.count else{try refuse("Local reference request exceeds bounds or was cancelled")};data.append(part)
+        }
+        guard let fields=try JSONSerialization.jsonObject(with:data) as? [String:Any],let version=fields["version"] as? NSNumber,CFGetTypeID(version) != CFBooleanGetTypeID(),version.intValue==1,version.doubleValue==1 else{try refuse("Invalid local reference request")}
+        switch command {
+        case "turtlegit-local-refs":
+            guard Set(fields.keys)==Set(["version","scope"]),let value=fields["scope"] as? String,let index=["all","heads","headsAndTags","excludingTags","remotes"].firstIndex(of:value) else{try refuse("Invalid local reference request fields")}
+            scope=Int32(index);operation="inventory";contains=nil;deletion=nil
+        case "turtlegit-ref-names":
+            guard Set(fields.keys)==Set(["version"]) else{try refuse("Invalid reference names request fields")}
+            scope=0;operation="names";contains=nil;deletion=nil
+        case "turtlegit-containing-refs":
+            guard Set(fields.keys)==Set(["version","revision","includeTags","includeLocal","includeRemote"]) else{try refuse("Invalid containing reference request fields")}
+            let value=try JSONDecoder().decode(Contains.self,from:data)
+            guard value.version==1,PrivateDiffRequest.fullOID(value.revision) else{try refuse("Invalid containing reference object ID")}
+            scope=0;operation="contains";contains=value;deletion=nil
+        default:
+            guard Set(fields.keys)==Set(["version","reference","expectedOID","expectedSymbolicTarget"]) else{try refuse("Invalid local deletion request fields")}
+            let value=try JSONDecoder().decode(Delete.self,from:data)
+            guard value.version==1,Self.name(value.reference),PrivateDiffRequest.fullOID(value.expectedOID),value.expectedSymbolicTarget.map(Self.name) ?? true else{try refuse("Invalid local deletion identity")}
+            scope=0;operation="delete";contains=nil;deletion=value
         }
     }
 }
@@ -266,6 +306,46 @@ final class CallbackContext{
             }
         }
         _=resetNotification({["kind":"file","path":path]})
+    }
+    var localReferenceOperation=""
+    private var localReferenceCount=0,localReferenceBytes=0
+    func localReferenceRecord(_ object:[String:Any],row:Bool=false)throws {
+        guard !cancelled(),localReferenceCount<=100_000 else{try refuse("Local reference operation cancelled or exceeds bounds")}
+        let data=try JSONSerialization.data(withJSONObject:object,options:[.sortedKeys])
+        let frame=Data(("TurtleGit LocalRefs v1:"+data.base64EncodedString()+"\n").utf8)
+        guard frame.count<=2_097_152,frame.count<=67_108_864-localReferenceBytes else{try refuse("Local reference output exceeds bounds")}
+        try FileHandle.standardOutput.write(contentsOf:frame);localReferenceBytes+=frame.count
+        if row {localReferenceCount+=1}
+    }
+    func localReference(_ pointer:UnsafePointer<tg_local_reference>?)throws {
+        guard let row=pointer?.pointee,localReferenceCount<100_000 else{try refuse("Invalid local reference row")}
+        let name=try notificationString(row.name)
+        guard PrivateLocalReferenceRequest.name(name) else{try refuse("Invalid local reference name")}
+        if localReferenceOperation=="contains" || localReferenceOperation=="names" {
+            try localReferenceRecord(["kind":"contains","name":name],row:true);return
+        }
+        let oid=try notificationString(row.oid),type=try notificationString(row.object_type)
+        guard PrivateDiffRequest.fullOID(oid),["commit","tag","tree","blob"].contains(type) else{try refuse("Invalid local reference object")}
+        let symbolic=try row.symbolic_target.map{try notificationString($0)}
+        guard symbolic.map(PrivateLocalReferenceRequest.name) ?? true else{try refuse("Invalid symbolic reference target")}
+        var subject=try notificationString(row.subject)
+        if type=="tag",let newline=subject.firstIndex(of:"\n"){subject=String(subject[..<newline])}
+        let authorName=try notificationString(row.author_name),authorEmail=try notificationString(row.author_email)
+        let committerName=try notificationString(row.committer_name),committerEmail=try notificationString(row.committer_email)
+        let upstream=try row.upstream.map{try notificationString($0)}
+        var value:[String:Any] = ["kind":"reference","name":name,"oid":oid,"objectType":type,"subject":subject,
+            "authorName":authorName,"authorEmail":authorEmail,"committerName":committerName,"committerEmail":committerEmail]
+        value["symbolicTarget"]=symbolic.map{$0 as Any} ?? NSNull()
+        value["upstream"]=upstream.map{$0 as Any} ?? NSNull()
+        value["authorTime"]=row.has_author != 0 ? row.author_time as Any:NSNull()
+        value["committerTime"]=row.has_committer != 0 ? row.committer_time as Any:NSNull()
+        try localReferenceRecord(value,row:true)
+    }
+    func finishLocalReferences(_ request:PrivateLocalReferenceRequest)throws {
+        if let deletion=request.deletion {
+            try localReferenceRecord(["kind":"deleted","name":deletion.reference,"oid":deletion.expectedOID,"symbolicTarget":deletion.expectedSymbolicTarget.map{$0 as Any} ?? NSNull()],row:true)
+        }
+        try localReferenceRecord(["kind":"end","count":localReferenceCount])
     }
     var historySimple=false
     private var historyCount=0,historyBytes=0,historyFailed=false
@@ -524,7 +604,16 @@ func run()throws->Int32{
         }
     }
     let diffRequest=try (args.command == "turtlegit-unified-diff" || args.command == "turtlegit-history-diff") ? PrivateDiffRequest(command:args.command):nil
+    let localRequest=try PrivateLocalReferenceRequest.commands.contains(args.command) ? PrivateLocalReferenceRequest(command:args.command):nil
     let owner=CallbackContext(directory:args.directory,configs:args.configs);var options=callbacks(owner);options.verbose=args.verbose ? 1:0;options.force_fetch=args.force ? 1:0
+    if let localRequest {
+        owner.localReferenceOperation=localRequest.operation
+        try owner.localReferenceRecord(["kind":"header","operation":localRequest.operation])
+        options.local_reference={row,raw in
+            do {try context(raw).localReference(row);return 0}
+            catch {output("Local reference: "+error.localizedDescription+"\n");return -1}
+        }
+    }
     if args.transferNotifications {
         options.reference_updated={repository,name,old,new,change,count,raw in
             let owner=context(raw)
@@ -567,6 +656,12 @@ func run()throws->Int32{
     }
     let result:Int32=withStrings(args.configs){config,count in
         options.config_values=config;options.config_count=count
+        if let request=localRequest {
+            if request.operation=="inventory"{return tg_local_references(args.directory,request.scope,&options)}
+            if request.operation=="names"{return tg_local_reference_names(args.directory,&options)}
+            if let contains=request.contains{return tg_containing_references(args.directory,contains.revision,contains.includeTags ? 1:0,contains.includeLocal ? 1:0,contains.includeRemote ? 1:0,&options)}
+            if let deletion=request.deletion{return withOptionalString(deletion.expectedSymbolicTarget){target in tg_delete_local_reference(args.directory,deletion.reference,deletion.expectedOID,target,&options)}}
+        }
         if let request=diffRequest?.unified {return withStrings(request.paths){paths,count in tg_unified_diff(args.directory,request.old,request.new,paths,count,request.noPrefix ? 1:0,&options)}}
         if let request=diffRequest?.history {return tg_history_diff(args.directory,request.revision,request.simple ? 1:0,request.threshold,&options)}
         if args.command == "reset"{return tg_reset(args.directory,args.revision,args.resetMode,&options)}
@@ -583,6 +678,7 @@ func run()throws->Int32{
     }
     if result<0{output("libgit2: "+String(cString:tg_git_error())+"\n");return cancelled() ? 130:1}
     if diffRequest?.history != nil {try owner.finishHistory()}
+    if let localRequest {try owner.finishLocalReferences(localRequest)}
     return 0
 }
 do{exit(try run())}catch{output("turtlegit-libgit2: "+error.localizedDescription+"\n");exit(cancelled() ? 130:2)}

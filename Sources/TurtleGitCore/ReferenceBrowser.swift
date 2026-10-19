@@ -108,16 +108,33 @@ extension GitRepository {
         }
         return try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
     }
-    public func referenceBrowser(filter: ReferenceBrowserMergeFilter = .all, scope: ReferenceBrowserScope = .all, useMailmap: Bool = true, cancellation: OperationCancellation? = nil) throws -> ReferenceBrowserSnapshot {
+    public func referenceBrowser(filter: ReferenceBrowserMergeFilter = .all, scope: ReferenceBrowserScope = .all, useMailmap: Bool = true, cancellation: OperationCancellation? = nil, backend: GitLibGit2Configuration? = nil) throws -> ReferenceBrowserSnapshot {
+        let selectedBackend = backend ?? libgit2Configuration ?? .load()
         let atoms = ["refname", "objectname", "objecttype", "symref", "upstream", "subject", "authorname", "authoremail", "authordate:unix", "committername", "committeremail", "committerdate:unix", "taggername", "taggeremail", "taggerdate:unix"]
         var arguments = ["for-each-ref", "--sort=refname", "--format=" + atoms.map { "%(" + $0 + ")" }.joined(separator: "%00") + "%00"]
         if filter != .all { arguments += [filter == .merged ? "--merged=HEAD" : "--no-merged=HEAD"] }
         if scope == .remotes { arguments.append("refs/remotes/") }
         else if scope == .heads { arguments.append("refs/heads/") }
         else if scope == .headsAndTags { arguments += ["refs/heads/", "refs/tags/"] }
+        var records: [[String]] = []
+        if filter == .all && selectedBackend.requests(.forEachRef) {
+            let helperScope:String
+            switch scope {case .all:helperScope="all";case .heads:helperScope="heads";case .headsAndTags:helperScope="headsAndTags";case .excludingTags:helperScope="excludingTags";case .remotes:helperScope="remotes"}
+            records = try localReferenceCatalog(scope:helperScope,backend:selectedBackend,cancellation:cancellation).map { value in
+                [value.name,value.oid,value.objectType,value.symbolicTarget ?? "",value.upstream ?? "",value.subject,
+                 value.authorName,value.authorEmail,value.authorTime.map(String.init) ?? "",
+                 value.committerName,value.committerEmail,value.committerTime.map(String.init) ?? "","","",""]
+            }
+            records.sort { $0[0].utf8.lexicographicallyPrecedes($1[0].utf8) }
+            switch scope {
+            case .heads: records.removeAll { !$0[0].hasPrefix("refs/heads/") }
+            case .headsAndTags: records.removeAll { !$0[0].hasPrefix("refs/heads/") && !$0[0].hasPrefix("refs/tags/") }
+            case .remotes: records.removeAll { !$0[0].hasPrefix("refs/remotes/") }
+            default: break
+            }
+        } else {
         let bytes = try run(arguments, cancellation: cancellation).stdout
         let values = String(decoding: bytes, as: UTF8.self).components(separatedBy: "\0")
-        var records: [[String]] = []
         var index = 0
         while index + atoms.count <= values.count {
             var record = Array(values[index..<(index + atoms.count)])
@@ -126,6 +143,7 @@ extension GitRepository {
             records.append(record); index += atoms.count
         }
         guard values.dropFirst(index).allSatisfy({ $0.isEmpty || $0 == "\n" }) else { throw ReferenceBrowserFailure.output }
+        }
         // gPickRef_NoTag suppresses tags while retaining stash/custom namespaces.
         if scope == .excludingTags { records.removeAll { $0[0].utf8.starts(with: "refs/tags/".utf8) } }
         // Include all remote names in the gone check, independently of merge filtering.
@@ -255,6 +273,10 @@ public struct ReferenceBrowserDeletionConfirmation: Sendable {
     public let kind: ReferenceBrowserDeletionKind
     public let name: String
     public let unmerged: Bool
+    public let symbolicTargets: [GitReferenceName:String?]
+    public init(references:[GitReferenceName],kind:ReferenceBrowserDeletionKind,name:String,unmerged:Bool,symbolicTargets:[GitReferenceName:String?]=[:]) {
+        self.references=references;self.kind=kind;self.name=name;self.unmerged=unmerged;self.symbolicTargets=symbolicTargets
+    }
     public var uncheckedMerge: Bool { references.count > 1 && kind != .tag }
     public var warning: Bool { unmerged || uncheckedMerge || kind == .remoteBranch }
     public var message: String {
@@ -288,17 +310,25 @@ extension GitRepository {
             do { unmerged = try run(["-c", "core.precomposeunicode=false", "merge-base", "--is-ancestor", references[0].rawValue, "HEAD"], successfulExitCodes: 0...1, cancellation: token).exitCode != 0 }
             catch { try token.check(); unmerged = true }
         }
-        return ReferenceBrowserDeletionConfirmation(references: references, kind: kind, name: GitReferenceName.removingPrefix(kind.prefix, from: references[0].rawValue)!, unmerged: unmerged)
+        var symbolicTargets:[GitReferenceName:String?] = [:]
+        for reference in references {symbolicTargets.updateValue(try localReferenceSymbolicTarget(reference.rawValue,cancellation:token),forKey:reference)}
+        return ReferenceBrowserDeletionConfirmation(references: references, kind: kind, name: GitReferenceName.removingPrefix(kind.prefix, from: references[0].rawValue)!, unmerged: unmerged,symbolicTargets:symbolicTargets)
     }
     public func deleteBrowserReference(_ reference: GitReferenceName, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil, backend: GitLibGit2Configuration? = nil) async throws {
         try await deleteBrowserReferences([reference], cancellation: cancellation, prepareTransport: prepareTransport, backend: backend)
     }
-    public func deleteBrowserReferences(_ references: [GitReferenceName], cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil, expectedHashes: [GitReferenceName: String] = [:], onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, backend: GitLibGit2Configuration? = nil) async throws {
+    public func deleteBrowserReferences(_ references: [GitReferenceName], cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil, expectedHashes: [GitReferenceName: String] = [:], onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, backend: GitLibGit2Configuration? = nil, expectedSymbolicTargets:[GitReferenceName:String?] = [:]) async throws {
         let backend = backend ?? libgit2Configuration ?? .load()
         // POSIX argv retains canonical UTF-8 even without caller cancellation.
         let token = cancellation ?? OperationCancellation()
         let kind = try validateBrowserDeletion(references, cancellation: token)
-        for reference in references { try validateBrowserReference(reference, expectedHash: expectedHashes[reference], cancellation: token) }
+        for reference in references {
+            try validateBrowserReference(reference, expectedHash: expectedHashes[reference], cancellation: token)
+            if let captured = expectedSymbolicTargets[reference] {
+                let fresh=try localReferenceSymbolicTarget(reference.rawValue,cancellation:token)
+                guard fresh.map({Data($0.utf8)}) == captured.map({Data($0.utf8)}) else {throw ReferenceBrowserRenameFailure.changed}
+            }
+        }
         if kind == .remoteBranch {
             let executor = try backend.executor(for: .push)
             let remotes = try remoteNames(cancellation: token)
@@ -316,11 +346,26 @@ extension GitRepository {
                 _ = try run(["-c", "core.precomposeunicode=false", "push", "--", remote.rawValue] + grouped[remote]!, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput, executorOverride: executor)
             }
         } else {
-            // Source stops at the first failure; earlier deletions remain completed.
+            // Capture the complete batch before any mutation. Earlier successful
+            // deletions remain completed if a later checked item fails.
+            var captured: [GitReferenceName:(String,String?)] = [:]
+            if backend.requests(.deleteTagBranch) {
+                for reference in references {
+                    let oid = try run(["rev-parse","--verify","--end-of-options",reference.rawValue],cancellation:token).text.trimmingCharacters(in:.newlines)
+                    let target:String?
+                    if let expected = expectedSymbolicTargets[reference] {target=expected}
+                    else {target=try localReferenceSymbolicTarget(reference.rawValue,cancellation:token)}
+                    captured[reference] = (expectedHashes[reference] ?? oid,target)
+                }
+            }
             for reference in references {
                 try validateBrowserReference(reference, expectedHash: expectedHashes[reference], cancellation: token)
-                let name = GitReferenceName.removingPrefix(kind.prefix, from: reference.rawValue)!
-                _ = try run(["-c", "core.precomposeunicode=false"] + (kind == .branch ? ["branch", "-D", "--", name] : ["tag", "-d", "--", name]), cancellation: token, onOutput: onOutput)
+                if let (oid,symbolic) = captured[reference] {
+                    _ = try deleteLocalReference(name:reference.rawValue,expectedOID:oid,expectedSymbolicTarget:symbolic,backend:backend,cancellation:token)
+                } else {
+                    let name = GitReferenceName.removingPrefix(kind.prefix, from: reference.rawValue)!
+                    _ = try run(["-c", "core.precomposeunicode=false"] + (kind == .branch ? ["branch", "-D", "--", name] : ["tag", "-d", "--", name]), cancellation: token, onOutput: onOutput)
+                }
             }
         }
     }

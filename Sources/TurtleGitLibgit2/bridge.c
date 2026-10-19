@@ -574,3 +574,144 @@ int tg_history_diff(const char *path,const char *revision,int simple,unsigned in
  result=0;
  done:if(parents){for(size_t p=0;p<parent_count;p++)free(parents[p]);free(parents);}git_tree_free(tree);git_commit_free(commit);git_repository_free(repository);active_context=NULL;return result;
 }
+
+/* Local reference reads use their pinned source command gates in Core. These
+ * callbacks retain literal names before resolving a symbolic reference. */
+static int local_reference_row(context *ctx,git_repository *repo,git_reference *raw,int metadata){
+ git_reference *ref=NULL;git_object *object=NULL;git_buf upstream=GIT_BUF_INIT;int result=0;
+ const char *name=git_reference_name(raw),*symbolic=git_reference_symbolic_target(raw);
+ if((result=git_reference_resolve(&ref,raw))<0)goto done;
+ const git_oid *oid=git_reference_target(ref);char hex[GIT_OID_SHA1_HEXSIZE+1];
+ if(!oid){result=-1;git_error_set_str(GIT_ERROR_REFERENCE,"Reference has no object ID");goto done;}
+ git_oid_tostr(hex,sizeof(hex),oid);
+ tg_local_reference row={0};row.name=name;row.oid=hex;row.symbolic_target=symbolic;row.object_type="";row.subject="";row.author_name="";row.author_email="";row.committer_name="";row.committer_email="";
+ if(metadata){
+  if((result=git_object_lookup(&object,repo,oid,GIT_OBJECT_ANY))<0)goto done;
+  row.object_type=git_object_type2string(git_object_type(object));
+  const git_signature *author=NULL,*committer=NULL;
+  if(git_object_type(object)==GIT_OBJECT_TAG && git_reference_is_tag(ref)){
+   git_tag *tag=(git_tag *)object;const char *message=git_tag_message(tag);row.subject=message?message:"";author=committer=git_tag_tagger(tag);
+  }else if(git_object_type(object)==GIT_OBJECT_COMMIT){
+   git_commit *commit=(git_commit *)object;const char *summary=git_commit_summary(commit);row.subject=summary?summary:"";author=git_commit_author(commit);committer=git_commit_committer(commit);
+   if(git_reference_is_branch(ref)){
+    result=git_branch_upstream_name(&upstream,repo,git_reference_name(ref));
+    if(result==GIT_ENOTFOUND){git_error_clear();result=0;}else if(result<0)goto done;
+    row.upstream=upstream.ptr;
+   }
+  }
+  if(author){row.has_author=1;row.author_name=author->name?author->name:"";row.author_email=author->email?author->email:"";row.author_time=author->when.time;}
+  if(committer){row.has_committer=1;row.committer_name=committer->name?committer->name:"";row.committer_email=committer->email?committer->email:"";row.committer_time=committer->when.time;}
+ }
+ if(stopped(ctx)){result=GIT_EUSER;goto done;}
+ if(ctx->callbacks->local_reference)result=ctx->callbacks->local_reference(&row,ctx->callbacks->payload);
+ done:git_buf_dispose(&upstream);git_object_free(object);git_reference_free(ref);return result;
+}
+int tg_local_references(const char *path,int scope,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_reference_iterator *iterator=NULL;git_reference *ref=NULL;int result=0;size_t count=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0||(result=git_reference_iterator_new(&iterator,repo))<0)goto done;
+ while((result=git_reference_next(&ref,iterator))==0){
+  if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+  if(++count>100000){git_error_set_str(GIT_ERROR_REFERENCE,"Reference inventory exceeds bounds");result=-1;goto done;}
+  const char *name=git_reference_name(ref);int included=scope==0||(scope==1&&!strncmp(name,"refs/heads/",11))||(scope==2&&(!strncmp(name,"refs/heads/",11)||!strncmp(name,"refs/tags/",10)))||(scope==3&&strncmp(name,"refs/tags/",10))||(scope==4&&!strncmp(name,"refs/remotes/",13));
+  result=included?local_reference_row(&ctx,repo,ref,1):0;git_reference_free(ref);ref=NULL;if(result<0)goto done;
+ }
+ if(result==GIT_ITEROVER)result=0;
+ done:git_reference_free(ref);git_reference_iterator_free(iterator);git_repository_free(repo);return result;
+}
+int tg_containing_references(const char *path,const char *hash,int tags,int local,int remote,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_reference_iterator *iterator=NULL;git_reference *raw=NULL,*ref=NULL;git_object *object=NULL;git_oid wanted;int result=0;size_t count=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};
+ if(git_oid_fromstr(&wanted,hash)<0)return -1;
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0||(result=git_reference_iterator_new(&iterator,repo))<0)goto done;
+ while((result=git_reference_next(&raw,iterator))==0){
+  if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+  if(++count>100000){git_error_set_str(GIT_ERROR_REFERENCE,"Reference inventory exceeds bounds");result=-1;goto done;}
+  int eligible=git_reference_is_tag(raw)?tags:git_reference_is_remote(raw)?remote:git_reference_is_branch(raw)?local:0;
+  if(eligible && git_reference_resolve(&ref,raw)==0){
+   const git_oid *oid=git_reference_target(ref);
+   if(git_reference_is_tag(ref) && git_object_lookup(&object,repo,oid,GIT_OBJECT_TAG)==0){
+    git_object *peeled=NULL;if(git_object_peel(&peeled,object,GIT_OBJECT_ANY)==0){git_object_free(object);object=peeled;oid=git_object_id(object);}else{git_error_clear();oid=NULL;}
+   }else git_error_clear();
+   if(oid && (git_oid_equal(oid,&wanted)||git_graph_descendant_of(repo,oid,&wanted)==1)){
+    result=local_reference_row(&ctx,repo,raw,0);if(result<0)goto done;
+   }
+  }
+  /* The source skips unresolved/tag-peeling/graph failures per reference. */
+  git_error_clear();git_object_free(object);object=NULL;git_reference_free(ref);ref=NULL;git_reference_free(raw);raw=NULL;
+ }
+ if(result==GIT_ITEROVER)result=0;
+ done:git_object_free(object);git_reference_free(ref);git_reference_free(raw);git_reference_iterator_free(iterator);git_repository_free(repo);return result;
+}
+
+/* Removal holds every symbolic-chain lock until the captured OID and immediate
+ * alias target have been checked. No dereferencing mutation is used. */
+static int local_reference_changed(void){git_error_set_str(GIT_ERROR_REFERENCE,"The reference changed after this operation began; refresh before retrying");return GIT_EMODIFIED;}
+static int local_config_key_compare(const void *a,const void *b){return strcmp(*(const char *const *)a,*(const char *const *)b);}
+static int local_branch_config_prepare(git_config **prepared,git_transaction **prepared_transaction,git_repository *repo,const char *name){
+ git_config *config=NULL;git_transaction *transaction=NULL;git_config_iterator *iterator=NULL;git_config_entry *entry=NULL;char **keys=NULL;size_t count=0,bytes=0,scanned=0;int result=0;
+ const char *shortname=name+strlen("refs/heads/");size_t length=strlen(shortname)+8;char *prefix=malloc(length+1);if(!prefix)return -1;snprintf(prefix,length+1,"branch.%s.",shortname);
+ if((result=git_repository_config(&config,repo))<0||(result=git_config_lock(&transaction,config))<0||(result=git_config_iterator_new(&iterator,config))<0)goto done;
+ while((result=git_config_next(&entry,iterator))==0){
+  if(++scanned>100000){git_error_set_str(GIT_ERROR_CONFIG,"Branch configuration scan exceeds bounds");result=-1;goto done;}
+  if(strncmp(entry->name,prefix,strlen(prefix)))continue;
+  size_t n=strnlen(entry->name,1048577);if(n>1048576||count>=100000||n>67108864-bytes){git_error_set_str(GIT_ERROR_CONFIG,"Branch configuration exceeds bounds");result=-1;goto done;}
+  char **grown=realloc(keys,(count+1)*sizeof(char *));if(!grown){result=-1;goto done;}keys=grown;keys[count]=strdup(entry->name);if(!keys[count]){result=-1;goto done;}count++;bytes+=n;
+ }
+ if(result!=GIT_ITEROVER)goto done;result=0;git_config_iterator_free(iterator);iterator=NULL;
+ qsort(keys,count,sizeof(char *),local_config_key_compare);
+ for(size_t i=0;i<count;i++){if(i&&!strcmp(keys[i-1],keys[i]))continue;result=git_config_delete_multivar(config,keys[i],".*");if(result==GIT_ENOTFOUND){git_error_clear();result=0;}if(result<0)break;}
+ if(result==0){*prepared=config;*prepared_transaction=transaction;config=NULL;transaction=NULL;}
+ done:for(size_t i=0;i<count;i++)free(keys[i]);free(keys);free(prefix);git_config_iterator_free(iterator);git_transaction_free(transaction);git_config_free(config);return result;
+}
+int tg_delete_local_reference(const char *path,const char *name,const char *hash,const char *symbolic,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_reference *raw=NULL;git_transaction *transaction=NULL,*config_transaction=NULL;git_config *config=NULL;git_oid wanted;int result=0;char *names[33]={0},*targets[33]={0};git_oid ids[33];int types[33]={0};size_t count=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};
+ int valid=0;if(strncmp(name,"refs/",5)||git_reference_name_is_valid(&valid,name)<0||!valid||git_oid_fromstr(&wanted,hash)<0){git_error_set_str(GIT_ERROR_REFERENCE,"Invalid local reference deletion request");return -1;}
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0)goto done;
+ const char *cursor=name;
+ for(;;){
+  if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+  if(count>=32){result=local_reference_changed();goto done;}
+  for(size_t i=0;i<count;i++)if(!strcmp(cursor,names[i])){result=local_reference_changed();goto done;}
+  if((result=git_reference_lookup(&raw,repo,cursor))<0)goto done;
+  names[count]=strdup(cursor);if(!names[count]){result=-1;goto done;}
+  types[count]=git_reference_type(raw);
+  if(types[count]==GIT_REFERENCE_SYMBOLIC){targets[count]=strdup(git_reference_symbolic_target(raw));if(!targets[count]){result=-1;goto done;}cursor=targets[count];count++;git_reference_free(raw);raw=NULL;}
+  else {const git_oid *oid=git_reference_target(raw);if(!oid){result=local_reference_changed();goto done;}git_oid_cpy(&ids[count],oid);count++;git_reference_free(raw);raw=NULL;break;}
+ }
+ if((symbolic==NULL)!=(targets[0]==NULL)||(symbolic&&strcmp(symbolic,targets[0]))||!git_oid_equal(&ids[count-1],&wanted)){result=local_reference_changed();goto done;}
+ if((result=git_transaction_new(&transaction,repo))<0)goto done;
+ /* Immediate failure on competing locks; no lock-order waits or retry mutation. */
+ for(size_t i=0;i<count;i++)if((result=git_transaction_lock_ref(transaction,names[i]))<0)goto done;
+ for(size_t i=0;i<count;i++){
+  if((result=git_reference_lookup(&raw,repo,names[i]))<0)goto done;
+  if(git_reference_type(raw)!=types[i]||(targets[i]&&(!git_reference_symbolic_target(raw)||strcmp(targets[i],git_reference_symbolic_target(raw))))||(!targets[i]&&(!git_reference_target(raw)||!git_oid_equal(&ids[i],git_reference_target(raw))))){result=local_reference_changed();goto done;}
+  git_reference_free(raw);raw=NULL;
+ }
+ if((result=git_reference_lookup(&raw,repo,name))<0)goto done;
+ if(git_reference_is_branch(raw)||git_reference_is_remote(raw)){
+  int head=git_branch_is_head(raw);if(head<0){result=head;goto done;}
+  if(head|| (git_reference_is_branch(raw)&&git_branch_is_checked_out(raw))){git_error_set_str(GIT_ERROR_REFERENCE,"Cannot delete a branch checked out in this or a linked worktree");result=-1;goto done;}
+ }
+ /* Stage cleanup while both the named reference and config writer are held.
+  * This prevents cleanup from erasing a newly recreated branch's config. */
+ if(!strncmp(name,"refs/heads/",11)&&(result=local_branch_config_prepare(&config,&config_transaction,repo,name))<0)goto done;
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ if((result=git_transaction_remove(transaction,name))<0||(result=git_transaction_commit(transaction))<0)goto done;
+ if(config_transaction&&(result=git_transaction_commit(config_transaction))<0){
+  const git_error *error=git_error_last();char *message=strdup(error&&error->message?error->message:"configuration write failed");
+  git_error_set(GIT_ERROR_CONFIG,"Reference '%s' was deleted, but branch configuration cleanup failed: %s",name,message?message:"configuration write failed");free(message);
+ }
+ done:git_reference_free(raw);git_transaction_free(transaction);git_transaction_free(config_transaction);git_config_free(config);git_repository_free(repo);for(size_t i=0;i<33;i++){free(names[i]);free(targets[i]);}return result;
+}
+
+int tg_local_reference_names(const char *path,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_reference_iterator *iterator=NULL;const char *name=NULL;int result=0;size_t count=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0||(result=git_reference_iterator_new(&iterator,repo))<0)goto done;
+ while((result=git_reference_next_name(&name,iterator))==0){
+  if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+  if(++count>100000){git_error_set_str(GIT_ERROR_REFERENCE,"Reference names exceed bounds");result=-1;goto done;}
+  tg_local_reference row={0};row.name=name;
+  if(callbacks->local_reference&&(result=callbacks->local_reference(&row,callbacks->payload))<0)goto done;
+ }
+ if(result==GIT_ITEROVER)result=0;
+ done:git_reference_iterator_free(iterator);git_repository_free(repo);return result;
+}

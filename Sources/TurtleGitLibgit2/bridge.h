@@ -18,7 +18,13 @@ typedef struct {const char *path;const char *old_path;const char *parent_hash;co
 typedef int (*tg_history_header_cb)(const char *,const char *const *,size_t,void *);
 typedef int (*tg_history_cb)(const tg_history_delta *,void *);
 typedef void (*tg_url_cb)(const char *,void *);
-typedef struct {tg_cancel_cb cancelled;tg_output_cb output;tg_output_cb result;tg_credentials_cb credentials;tg_certificate_cb certificate;tg_url_cb url;tg_http_cb http;void *payload;int verbose;const char *const *config_values;size_t config_count;int force_fetch;tg_filter_cb filter;tg_added_cb added;tg_reference_cb reference_updated;tg_checkout_cb checked_out;tg_reset_file_cb reset_file;tg_reset_progress_cb reset_progress;tg_history_cb history_delta;tg_history_header_cb history_header;} tg_callbacks;
+typedef struct {const char *name,*oid,*symbolic_target,*object_type,*subject,*author_name,*author_email,*committer_name,*committer_email,*upstream;int64_t author_time,committer_time;int has_author,has_committer;} tg_local_reference;
+typedef int (*tg_local_reference_cb)(const tg_local_reference *,void *);
+typedef struct {tg_cancel_cb cancelled;tg_output_cb output;tg_output_cb result;tg_credentials_cb credentials;tg_certificate_cb certificate;tg_url_cb url;tg_http_cb http;void *payload;int verbose;const char *const *config_values;size_t config_count;int force_fetch;tg_filter_cb filter;tg_added_cb added;tg_reference_cb reference_updated;tg_checkout_cb checked_out;tg_reset_file_cb reset_file;tg_reset_progress_cb reset_progress;tg_history_cb history_delta;tg_history_header_cb history_header;tg_local_reference_cb local_reference;} tg_callbacks;
+int tg_local_references(const char *repository,int scope,tg_callbacks *callbacks);
+int tg_local_reference_names(const char *repository,tg_callbacks *callbacks);
+int tg_containing_references(const char *repository,const char *oid,int tags,int local,int remote,tg_callbacks *callbacks);
+int tg_delete_local_reference(const char *repository,const char *name,const char *expected_oid,const char *expected_symbolic_target,tg_callbacks *callbacks);
 int tg_git_init(void);
 void tg_git_shutdown(void);
 const char *tg_git_version(void);

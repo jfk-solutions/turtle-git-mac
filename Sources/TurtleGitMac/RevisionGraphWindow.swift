@@ -198,6 +198,7 @@ final class RevisionGraphSurface: NSView {
     func deleteReferences(_ names: [String], hash: String) {
         guard !busy, !closed, selectedNode?.hash == hash, !names.isEmpty,
               names.allSatisfy({ name in deletableReferences.contains { GitReferenceName.equal($0.name, name) } }) else { return }
+        let repository = self.repository.capturingDiffBackend(preferences: preferences)
         let token = OperationCancellation(), request = UUID(), factory = sshSettings.capture()
         busy = true; error = nil; cancellation = token; generation = request; changed()
         Self.activeOperations += 1

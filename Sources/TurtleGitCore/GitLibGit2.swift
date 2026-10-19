@@ -3,7 +3,7 @@ import Foundation
 import Darwin
 
 public enum GitLibGit2Operation: UInt32, Sendable {
-    case clone = 1, fetch = 2, commitUpdateIndex = 3, diff = 4, reset = 5, revert = 6, getOneFile = 9, add = 10, push = 11, logListDiff = 15
+    case clone = 1, fetch = 2, commitUpdateIndex = 3, diff = 4, reset = 5, revert = 6, deleteTagBranch = 8, getOneFile = 9, add = 10, push = 11, logListDiff = 15, branchContains = 16, forEachRef = 18
     public var mask: UInt32 { 1 << rawValue }
 }
 public enum GitLibGit2Failure: LocalizedError {

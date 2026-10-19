@@ -17,7 +17,8 @@ public struct CommitContainingReferences: Sendable {
 }
 
 extension GitRepository {
-    public func commitContainingReferences(_ revision: String, includeCompletion: Bool = true, useMailmap: Bool = GitIdentityDisplay().useMailmap, cancellation: OperationCancellation? = nil) throws -> CommitContainingReferences {
+    public func commitContainingReferences(_ revision: String, includeCompletion: Bool = true, useMailmap: Bool = GitIdentityDisplay().useMailmap, cancellation: OperationCancellation? = nil, backend: GitLibGit2Configuration? = nil) throws -> CommitContainingReferences {
+        let selectedBackend = backend ?? libgit2Configuration ?? .load()
         try cancellation?.check()
         let resolved = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation)
         let hash = String(decoding: resolved.stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
@@ -27,18 +28,48 @@ extension GitRepository {
         let shown = try run(["show", "--encoding=UTF-8", "-s", "--format=%h%x00%s%x00" + GitIdentityDisplay(useMailmap: useMailmap).authorName + "%x00%aI", hash, "--"], cancellation: cancellation)
         let metadata = String(decoding: shown.stdout, as: UTF8.self).trimmingCharacters(in: .newlines).components(separatedBy: "\0")
         guard metadata.count == 4 else { throw GitFailure(arguments: [], code: -1, message: "Malformed commit metadata.") }
-        let references = try containingReferenceNames(["for-each-ref", "--contains=" + hash, "--format=%(refname)", "refs/heads/", "refs/remotes/", "refs/tags/"], cancellation: cancellation)
-        let completion = includeCompletion ? try commitContainingReferenceCompletion(cancellation: cancellation) : []
+        let references: [GitReferenceName]
+        if selectedBackend.requests(.branchContains) {
+            let reply = try localReferenceReply(verb:"turtlegit-containing-refs",operation:"contains",request:["version":1,"revision":hash,"includeTags":true,"includeLocal":true,"includeRemote":true],backend:selectedBackend,command:.branchContains,cancellation:cancellation)
+            references = sortedContainingNames(reply.names.map { GitReferenceName($0) })
+        } else {
+            references = try containingReferenceNames(["for-each-ref", "--contains=" + hash, "--format=%(refname)", "refs/heads/", "refs/remotes/", "refs/tags/"], cancellation: cancellation)
+        }
+        let completion = includeCompletion ? try commitContainingReferenceCompletion(cancellation:cancellation,backend:selectedBackend) : []
         let bare = try isBare(cancellation: cancellation)
         try cancellation?.check()
         return CommitContainingReferences(hash: hash, abbreviatedHash: metadata[0], subject: metadata[1], author: metadata[2], authorDate: metadata[3], references: references, completion: completion, bare: bare)
     }
     /// Completion is initialized independently of commit validity and cached by the dialog.
-    public func commitContainingReferenceCompletion(cancellation: OperationCancellation? = nil) throws -> [GitReferenceName] {
+    public func commitContainingReferenceCompletion(cancellation: OperationCancellation? = nil, backend: GitLibGit2Configuration? = nil) throws -> [GitReferenceName] {
         try cancellation?.check()
-        let names = try containingReferenceNames(["for-each-ref", "--format=%(refname)"], cancellation: cancellation)
-        try cancellation?.check()
-        return names
+        let selected = backend ?? libgit2Configuration ?? .load()
+        let names:[GitReferenceName]
+        if selected.enabled {
+            // CGit::GetRefList uses the master flag, not FOREACHREF's bit.
+            let executorConfiguration = GitLibGit2Configuration(enabled:true,mask:GitLibGit2Operation.forEachRef.mask,helperURL:selected.helperURL)
+            let reply = try localReferenceReply(verb:"turtlegit-ref-names",operation:"names",request:["version":1],backend:executorConfiguration,command:.forEachRef,cancellation:cancellation)
+            names = reply.names.map { GitReferenceName($0) }
+        } else {
+            let output = try run(["show-ref","-d"],successfulExitCodes:0...1,cancellation:cancellation).stdout
+            guard let text=String(data:output,encoding:.utf8) else {throw GitLocalReferenceEngineFailure.output}
+            var values=[GitReferenceName]()
+            for line in text.split(separator:"\n") {
+                guard let space=line.firstIndex(of:" ") else {throw GitLocalReferenceEngineFailure.output}
+                let raw=String(line[line.index(after:space)...])
+                let name=GitReferenceName.removingSuffix("^{}",from:raw) ?? raw
+                guard GitLocalReferenceProtocol.validName(name) else {throw GitLocalReferenceEngineFailure.output}
+                values.append(GitReferenceName(name))
+            }
+            names=values
+        }
+        try cancellation?.check();return sortedContainingNames(names)
+    }
+    private func sortedContainingNames(_ names:[GitReferenceName]) -> [GitReferenceName] {
+        Array(Set(names)).sorted {
+            let order=$0.rawValue.localizedStandardCompare($1.rawValue)
+            return order == .orderedSame ? $0.rawValue.utf8.lexicographicallyPrecedes($1.rawValue.utf8) : order == .orderedAscending
+        }
     }
     private func containingReferenceNames(_ arguments: [String], cancellation: OperationCancellation?) throws -> [GitReferenceName] {
         let executed = try run(arguments, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation)

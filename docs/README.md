@@ -275,3 +275,5 @@ reviewed full-window light/dark captures.
 - [EMF+ region and pattern painting](METAFILE-REGION-PATTERN-PARITY.md)
 
 - [Synchronization, Add and Resolve progress](SYNC-ADD-RESOLVE-PROGRESS-PARITY.md)
+
+- [Local reference engine source comparison](LOCAL-REFERENCE-ENGINE-PARITY.md)

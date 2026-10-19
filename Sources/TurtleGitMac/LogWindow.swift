@@ -2397,6 +2397,7 @@ struct LogCommandRequest: Identifiable {
     func deleteReferences(_ targets: [LogReferenceMenuTarget]) {
         guard !isInvalidated, !busy, !targets.isEmpty, let chosen = revision,
               targets.allSatisfy({ deletionCandidates(target: $0).count == 1 }) else { return }
+        let repository = self.repository.capturingDiffBackend(preferences: labelDefaults)
         let request = generation, cancellation = OperationCancellation(), factory = sshSettings.capture()
         deletionCancellation = cancellation; busy = true; error = nil; Self.activeHistoryDeletions += 1
         Task {

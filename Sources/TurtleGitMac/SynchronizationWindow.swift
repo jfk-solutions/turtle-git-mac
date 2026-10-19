@@ -1521,6 +1521,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     func deleteHistoryReferences(_ names: [String], revision: String) {
         guard !closed, !busy, !hasBlockingChild, !confirmingQuit, !confirmingCancellation,
               window?.attachedSheet == nil, !names.isEmpty else { return }
+        let repository = self.repository.capturingDiffBackend(preferences: preferences)
         let request = OperationCancellation(), factory = sshSettings.capture()
         token = request; busy = true; error = nil; Self.activeHistoryDeletions += 1
         Task { [weak self, access, repository] in

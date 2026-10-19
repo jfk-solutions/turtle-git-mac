@@ -1,0 +1,190 @@
+{
+  "date": "2026-10-20",
+  "family": "Selected local reference catalog, completion, containment and checked deletion",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": {
+    "catalog": "src/Git/GitRevRefBrowser.cpp:44\u2013205",
+    "contains": "src/Git/Git.cpp:1828\u20131904",
+    "completion": "src/Git/Git.cpp:2148\u20132189",
+    "deletion": "src/Git/Git.cpp:3371\u20133425"
+  },
+  "gates": {
+    "catalog": "Master enabled and ForeachRef18 selected; merged filters retain CLI",
+    "completion": "Master enabled independently of mask18",
+    "contains": "Master enabled and BranchContains16 selected",
+    "local_deletion": "Master enabled and DeleteTagBranch8 selected",
+    "server_deletion": "Existing Push11 route; ordinary Push unchanged"
+  },
+  "validation": [
+    {
+      "scope": "Pinned universal helper build and source/layout structure",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/local-reference-helper-build-2026-10-20.log",
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "static_library_slices": "Reused exact pinned slices; changed helper bridge/Swift rebuilt"
+    },
+    {
+      "scope": "Focused actual helper reference contracts on both architectures",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/local-reference-helper-2026-10-20.log",
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "checks": [
+        "Inventory and scopes",
+        "Contains and raw completion names",
+        "CAS and symbolic alias preservation",
+        "Branch config and linked worktree guards",
+        "Locks and malformed requests"
+      ]
+    },
+    {
+      "scope": "Initial grouped Core checkpoint compilation",
+      "status": "failed",
+      "executed": 0,
+      "log": "build/qa/local-reference-core-2026-10-20.log",
+      "finding": "New XCTest subclass private String hash fixture property conflicts with inherited NSObject.hash:Int",
+      "repair": "Rename fixture constant; production and passing helper checks retained"
+    },
+    {
+      "scope": "Grouped relevant Core checkpoint after fixture-only constant rename",
+      "status": "passed",
+      "executed": 45,
+      "failures": 0,
+      "duration_seconds": 24.089,
+      "log": "build/qa/local-reference-core-fixture-repair-2026-10-20.log",
+      "classes": [
+        "GitLocalReferenceEngineTests",
+        "ReferenceBrowserTests",
+        "CommitContainingReferencesTests",
+        "HistoryReferenceDeletionTests"
+      ],
+      "production_changed_after_helper_pass": false
+    },
+    {
+      "scope": "Debug app after implementation/resource freeze",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/local-reference-app-2026-10-20.log"
+    },
+    {
+      "scope": "Previous shipped 2f2ab457 GitHub Pages run39340324805",
+      "status": "deployment-failed",
+      "build_job": "passed",
+      "deploy_job": "failed",
+      "failed_step": "Deploy",
+      "workflow_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39340324805",
+      "limit": "Metadata retrieved; connector check-run/log endpoints unavailable and local gh unauthenticated. No root cause or deployed-current-site claim.",
+      "finding": "Deploy action received GitHub HTTP 500 while creating deployment; build succeeded. Error requested retry later.",
+      "deploy_job_id": 118360142564,
+      "retry": "Specific failed deploy retry denied403 Resource not accessible by integration. No repeated retry or root-cause claim beyond observed server500.",
+      "log_access": "Dedicated GitHub workflow-job log tool succeeded; gh unconfigured and generic check-run endpoints unsupported."
+    },
+    {
+      "scope": "Initial grouped native local reference workflows",
+      "status": "failed",
+      "log": "build/qa/local-reference-native-2026-10-20.log",
+      "receiver_pid": 8473,
+      "owned_receiver_reaped": true,
+      "finding": "Unbundled native receiver cannot discover GraphLayout in Bundle.main; actual graph model failed missing-runtime lookup",
+      "repair": "Fixture/runner explicitly inject built Debug app graph-layout executable into real RevisionGraphWindowModel; preserve graph generation/deletion assertions. Production unchanged; Core/helper/app passes retained."
+    },
+    {
+      "scope": "Grouped native reference engines after graph-fixture runtime injection",
+      "status": "passed",
+      "git_engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/local-reference-native-graph-fixture-repair-2026-10-20.log",
+      "receiver_pids": [
+        8986,
+        9382
+      ],
+      "checks": [
+        "Browser actual helper/CLI inventory, merged-filter CLI routing and captured preferences",
+        "Master-on/mask18-off completion and selected containment, cache identity/late completion",
+        "Literal packed reference peers and symbolic aliases",
+        "Browser warning receipt, same-OID alias retarget refusal, stale OID and partial deletion",
+        "Actual Log/Reflog/Sync/graph local deletion consumers",
+        "Held helper/child cancellation, closed owner and Quit/drain"
+      ],
+      "production_changed_after_prior_passes": false,
+      "limit": "Offscreen private fixtures; NSSplitView zero-size layout diagnostics observed. No physical layout or complete dialog parity claim."
+    },
+    {
+      "scope": "Frozen documentation/resource checkpoint",
+      "status": "passed",
+      "localization": {
+        "languages": 38,
+        "keys": 1303
+      },
+      "help": {
+        "documents": 44,
+        "topics": 51,
+        "files": 64,
+        "bytes": 3628912
+      },
+      "site": {
+        "documents": 372,
+        "unresolved_fragments": [],
+        "log": "build/qa/local-reference-site-2026-10-20.log"
+      },
+      "coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "mapped_controls": 1572,
+        "pending_controls": 87
+      },
+      "diff_whitespace": "passed",
+      "coverage_is_completion_percentage": false
+    }
+  ],
+  "explicit_gaps": [
+    "Complete upstream application/dialog parity",
+    "Physical keyboard and accessibility acceptance",
+    "Installed signed sandbox/grant and minimum-version runtime acceptance",
+    "Full current hosted integration suite"
+  ],
+  "no_complete_port_claim": true,
+  "cleanup": {
+    "receiver_pids": [
+      8473,
+      8986,
+      9382
+    ],
+    "independently_observed_alive": [],
+    "all_owned_receivers_reaped": true,
+    "fixture_helper_child_cancellation_and_reap": "passed",
+    "unrelated_apps_terminated": false
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitLibGit2.swift": "1ce98abc3ff02f3ee7f368f8db91e8962139493713893a2836a4fc55009e9560",
+    "Sources/TurtleGitCore/GitLocalReferenceEngine.swift": "2929cd019c8780284bd8f27df310cda328f06da6c4918551449e09cd09a840b9",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "9d7f78bfa6fc693789d4d80ea0ad65161dc50ede71f4a7bb3130b61a22312372",
+    "Sources/TurtleGitCore/CommitContainingReferences.swift": "9c75e6c2652769eb890a47ba92a689fc4b9596a8388bfe36a7cc01372f89a2e5",
+    "Sources/TurtleGitCore/HistoryReferenceDeletion.swift": "85969e44c105e3ee0b72bbd893d4d4dd025d4bd1aac998dad42ba6b91f6cd6f8",
+    "Sources/TurtleGitLibgit2/main.swift": "8952a05b411d31d4b10ca34070c89f1b81f45cb85bb7cc3637772fb4a4f9c05f",
+    "Sources/TurtleGitLibgit2/bridge.c": "4186f4f18030e786d3bd2af7b6e2f7b5d608ffddedd109d85d8c121568f39833",
+    "Sources/TurtleGitLibgit2/bridge.h": "4af35b512f198e8404e6caf2a9fee4116eea3ad6671f54cf6ab1b0479a0fc9a5",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "0d40f9d91c9cd4ea3894bc634fbb118b377c7c0c3f6615a40b140584419dc501",
+    "Sources/TurtleGitMac/CommitContainingReferencesWindow.swift": "f1557309e591eaea94c178a383197aeb10d78a00237ad416aa794467e0768e8b",
+    "Sources/TurtleGitMac/LogWindow.swift": "1474a0dd970b9ccbd20a941440569188afa51ff6044fb9685c38eb8a1082b759",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "eb7f4a76805b6f49bc71ba9d225ca627d71c189e4be44bd3125cd0d0e2e5fbc6",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "57b93006a731215ebe908dbe3de07e505982dffe762b217aedc7b674232c192d",
+    "Sources/TurtleGitMac/RevisionGraphWindow.swift": "79152c8e3969a6d4196149eedd8727d919aece27dbb8de31bb174634e2ce6fbc",
+    "Tests/TurtleGitCoreTests/GitLocalReferenceEngineTests.swift": "a000db98eba74f51755d8f2f41784633681be5ae7babf30ffef0e18df9a1ca5f",
+    "Tests/TurtleGitCoreTests/HistoryReferenceDeletionTests.swift": "e4a8608a575b22ee4e234398905af926f84cbf92eef96d058abb9c364455e87c",
+    "docs/qa/local-reference-engine-native-2026-10-20.swift": "6ef1d3d5cdf4b7f25c5c327931d0369f4090f56d65f7c5a6c4402581546ca844",
+    "scripts/test-local-reference-engine.py": "2930452ae0ffef5a0acd148877ab499c981d1ac56f33ae168daea675e9f42a61",
+    "scripts/test-local-reference-helper.py": "1f734a5c5f5f34a7302bbc32afafe855a01d1577c3643913a53ff312d27b3a71"
+  }
+}

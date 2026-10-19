@@ -146,3 +146,12 @@ preference snapshots. Per-path receipts, actual worker cancellation and final
 publication remain owned. General Commit staging and its separate backend bit
 retain their independent contracts. Grouped evidence and remaining acceptance
 are recorded with that family.
+
+
+### Local reference continuation — October 20, 2026
+
+The [local reference family](LOCAL-REFERENCE-ENGINE-PARITY.md) connects source
+ForeachRef18, BranchContains16 and DeleteTagBranch8 with the master-switch
+GetRefList completion path. Its source eligibility, checked local deletion,
+metadata/cache identity, native ownership and grouped evidence are tracked
+together. Server deletion remains the separate Push11 consumer.

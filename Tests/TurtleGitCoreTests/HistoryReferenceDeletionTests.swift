@@ -113,7 +113,7 @@ final class HistoryReferenceDeletionTests: XCTestCase {
             let work = Task {
                 do {
                     if stage == "rev-parse" { _ = try await repo.prepareHistoryReferenceDeletion(snapshot.name, cancellation: token) }
-                    else if stage == "push" { _ = try await repo.deleteHistoryReference(snapshot, choice: .remoteAndLocal, cancellation: token) }
+                    else if stage == "push" { _ = try await repo.deleteHistoryReference(snapshot, choice: .remoteAndLocal, cancellation: token, backend: .init(enabled:false)) }
                     else { _ = try await repo.deleteStashEntries([stash[0].selector], expected: stash, cancellation: token) }
                     XCTFail("Canceled helper completed")
                 } catch OperationCancellationFailure.cancelled {}
