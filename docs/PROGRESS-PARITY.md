@@ -180,3 +180,10 @@ The [connected Daemon progress family](DAEMON-PARITY.md#connected-native-progres
 adopts shared native Copy/styling/completion, captured auto-close, once-only kill
 questions, Action log and independently owned process/Dock/permission lifetime.
 Physical and signed acceptance remain separate.
+
+Format Patch now carries actual command receipts and captured output preferences
+through its progress review, with owned question/progress retirement before the
+shared Send Mail handoff. [Source comparison](FORMAT-PATCH-PARITY.md#progress-review-and-send-mail-continuation--october-19-2026)
+and [batch evidence](qa/format-patch-workflow-2026-10-19.json) retain the exact
+implementation and validation scope; installed/live transport acceptance remains
+separate.

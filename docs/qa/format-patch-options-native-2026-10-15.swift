@@ -83,7 +83,7 @@ import TurtleGitCore
         controller.selectedDirectory = { _ in output }
         controller.chooseDirectory()
         let blocker = NSWindow(contentRect: .init(x: 0, y: 0, width: 100, height: 100), styleMask: [.titled], backing: .buffered, defer: false)
-        blocker.alphaValue = 0; controller.window!.beginSheet(blocker, completionHandler: { _ in })
+        blocker.isReleasedWhenClosed = false; blocker.alphaValue = 0; controller.window!.beginSheet(blocker, completionHandler: { _ in })
         directoryReply?(.OK)
         try require(controller.model.hasOptionSheet && controller.model.directory != output.path, "Folder waits for sheet retirement")
         controller.window!.endSheet(blocker); blocker.close()

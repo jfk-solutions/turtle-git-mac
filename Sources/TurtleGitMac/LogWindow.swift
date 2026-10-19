@@ -726,6 +726,7 @@ struct LogCommandRequest: Identifiable {
 @MainActor final class LogWindowModel: ObservableObject {
     private(set) static var activeHistoryDeletions = 0
     private(set) static var activeHistoryLoads = 0
+    private(set) var pendingHistoryLoads = 0
     private(set) static var activeFileOpenReads = 0
     private var fileOpenRead: OperationCancellation?
     private(set) static var activeActionReads = 0
@@ -2179,9 +2180,9 @@ struct LogCommandRequest: Identifiable {
         let scope = historyPaths
         if !showWholeProject { options.paths = historyPaths }
         historyLimit.apply(to: &options)
-        busy = true; loadedRevisionCount = 0; Self.activeHistoryLoads += 1
+        busy = true; loadedRevisionCount = 0; Self.activeHistoryLoads += 1; pendingHistoryLoads += 1
         Task {
-            defer { Self.activeHistoryLoads -= 1; withExtendedLifetime(access) {} }
+            defer { Self.activeHistoryLoads -= 1; pendingHistoryLoads -= 1; withExtendedLifetime(access) {} }
             do {
                 let bare = try await repository.run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
                 let mergeActive = try await repository.logMergeActive(cancellation: cancellation)

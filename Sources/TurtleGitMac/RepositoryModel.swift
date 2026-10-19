@@ -267,6 +267,7 @@ import UniformTypeIdentifiers
             for controller in addProgressWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in resolveWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in synchronizationWindows.values {controller.model.confirmingQuit=confirmingQuit}
+            for controller in formatPatchWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in worktreeListWindows.values {controller.createWindow?.model.confirmingQuit=confirmingQuit}
             if confirmingQuit {cancelFinderWorktreeCreation()}
         }
@@ -2833,6 +2834,7 @@ import UniformTypeIdentifiers
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showFormatPatch(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false, commandLaunch: Bool = false, preferences: UserDefaults? = nil) {
+        guard !retired, !confirmingQuit else { return }
         let rootKey = repository.root.path
         let suffix: String
         switch preset?.selection {
@@ -2843,11 +2845,15 @@ import UniformTypeIdentifiers
         }
         let key = rootKey + (commandLaunch ? "\0command-format-patch" : suffix)
         let existing = formatPatchWindows[key]
+        guard existing?.canReuse != false else { return }
         let controller = existing ?? FormatPatchWindowController(repository: repository, access: access, preset: preset, sendMail: sendMail, preferences: preferences ?? fileComparisonPreferences)
         if sendMail && controller.model.optionsAvailable { controller.model.sendMail = true }
         controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
-        controller.onClosed = { [weak self] in self?.formatPatchWindows.removeValue(forKey: key) }
+        controller.onClosed = { [weak self, weak controller] in
+            guard let self, let controller, self.formatPatchWindows[key] === controller else { return }
+            self.formatPatchWindows.removeValue(forKey: key)
+        }
         controller.model.onOutputChanged = { [weak self] output in
             self?.refreshStatusWindows(repository.root)
             if self?.root?.path == rootKey { self?.output = output; Task { await self?.refresh() } }

@@ -17,7 +17,7 @@
   "repair": "Qualify the retained controller property as self.release before the later local let release declaration. No lifetime/control/Git behavior changed.",
   "related_source_review": "Clone/Init/BranchTag/Switch/Reset/Export/Stash/Submodule release closures reviewed; other corresponding property writes already explicitly qualify self.release. No additional confirmed ambiguity.",
   "validation": {
-    "status": "Focused current local Debug compile passed. Swift6.1.2 hosted build and complete suite remain pending.",
+    "status": "Focused local Debug compile passed; the bfa1fafe follow-up also passed the hosted application/extension step. Full hosted integration and later source batches remain pending.",
     "core_native": "Prior relevant runtime/Core/native evidence retained; no behavior changed and no full suite repeat planned.",
     "build": {
       "exit": 0,
@@ -31,5 +31,16 @@
   "unrelated_work_preserved": [
     "scripts/test-native-reference-batch.py",
     "docs/qa/reflog-capture-native-2026-10-13.swift"
-  ]
+  ],
+  "hosted_followup": {
+    "source_commit": "bfa1fafec4420d8f839d36cfd296f3b3e3b5f5a7",
+    "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39221184827",
+    "job": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39221184827/job/117959126653",
+    "step": "Application and embedded Finder extension",
+    "conclusion": "success",
+    "started_at": "2026-10-19T08:23:13Z",
+    "completed_at": "2026-10-19T08:32:50Z",
+    "job_snapshot": "build/qa/ci-bfa1fafe-build-job-2026-10-19.json",
+    "whole_run": "Still running Git integration tests at observation. This step does not establish a full hosted suite pass or the later Format Patch batch."
+  }
 }

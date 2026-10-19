@@ -3590,3 +3590,18 @@ candidate inventory stays unchanged. [Dated evidence](qa/signed-metafile-2026-10
 retains measured dirty inputs and exact scope. Installed shipping GUI/Finder,
 all-format fidelity, physical Intel/minimum macOS and distribution/App Store
 acceptance remain open; the older preview/archive were not regenerated.
+
+### Format Patch progress review and mail continuation, October 19, 2026
+
+The connected export→progress→Send Mail family now uses an actual Git command
+receipt for review/copy, captured output preferences/private clipboard and owned
+native progress/question retirement. Mail begins after the progress sheet really
+detaches, carrying captured output permissions. Cancellation, forced closure,
+Quit epochs and late callbacks retain/drain their work without launching stale
+continuations. Existing export modes, full-stdout patch discovery, policies,
+retry and shared Send Patch composition remain in use.
+
+[Source comparison](FORMAT-PATCH-PARITY.md) and
+[batch evidence](qa/format-patch-workflow-2026-10-19.json) separate selected checks
+from physical/visual, live mail, signed external grants, Finder and App Store
+acceptance. Full source parity remains unproven.

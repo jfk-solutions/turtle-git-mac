@@ -2305,6 +2305,7 @@
         "docs/qa/export-progress-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/format-patch-progress-2026-10-08.json",
+        "docs/qa/format-patch-workflow-2026-10-19.json",
         "docs/qa/history-picker-2026-10-08.json",
         "docs/qa/integration-commands-2026-10-18.json",
         "docs/qa/merge-abort-confirm-2026-10-11.json",
@@ -2659,6 +2660,7 @@
         "docs/qa/format-patch-options-2026-10-15.json",
         "docs/qa/format-patch-progress-2026-10-08.json",
         "docs/qa/format-patch-stream-2026-10-10.json",
+        "docs/qa/format-patch-workflow-2026-10-19.json",
         "docs/qa/patch-commands-2026-10-18.json"
       ]
     },

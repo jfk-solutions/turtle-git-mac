@@ -595,12 +595,11 @@ jobs:
         run: python3 scripts/test-export-progress.py
       - name: Export live output and abandoned window cleanup
         run: python3 scripts/test-export-progress.py --receiver docs/qa/export-progress-native-2026-10-10.swift
-      - name: Grouped native Format Patch options, policies, streaming and cancellation
+      - name: Grouped native Format Patch ownership, mail, policies and streaming
         run: >-
-          python3 scripts/test-format-patch-progress.py
-          --receiver docs/qa/format-patch-options-native-2026-10-15.swift
-          --receiver docs/qa/format-patch-progress-native-2026-10-08.swift
-          --receiver docs/qa/format-patch-stream-native-2026-10-10.swift
+          python3 scripts/test-format-patch-workflow-native.py
+          --git /usr/bin/git
+          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native dialog geometry and Saved Data reset
         run: python3 scripts/test-dialog-geometry.py
       - name: Native temporary storage and Saved Data clearing

@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "54e3ad4ebee512fabbcf0bd93ef0f143ecec288a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Actual accepted format-patch executable/argv and completion receipts in source-equivalent progress review/copy",
+    "Captured output preferences/private clipboard, terminal receipt vs owned discovery, actual progress/question detach before shared mail",
+    "One-shot cancellation/Quit/forced-close fences, private action log after drain, captured output grants and retired picker read ownership",
+    "Existing Since/Number/Range export, policies, fullstdout attachment discovery, binary git-am reproduction, retry and options retained"
+  ],
+  "source_reference": [
+    "src/TortoiseProc/Commands/FormatPatchCommand.cpp:51-98",
+    "src/TortoiseProc/ProgressDlg.cpp:198-240 (actual RunCmdList command display; constructor block145-146 is compiled out)"
+  ],
+  "frozen_inputs_before_validation": {
+    "base_commit": "54e3ad4ebee512fabbcf0bd93ef0f143ecec288a",
+    "files": {
+      "Sources/TurtleGitCore/FormatPatch.swift": "927bab6b16be9765e703e4cc8754c5ac3f2017db37bdf25d1570467215ec73b8",
+      "Sources/TurtleGitMac/FormatPatchWindow.swift": "91040a2d2c414c707556dc1da9e4ddfa30c07607255cc88f3336ea297be977ed",
+      "Sources/TurtleGitMac/ApplicationDelegate.swift": "687ab46992491f518fe95ac91488bac380ad3cca5addd32a89e50ba2f931ab53",
+      "Sources/TurtleGitMac/RepositoryModel.swift": "808921ff0de665e6ece21c328bd5a5176ec8b04b60b10e76c8641c2302ead3f0",
+      "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "bb18b1d447b87605d36a58f5ecbd93f6eb3256edd767c163c5b5bb7e1d582677",
+      "Sources/TurtleGitMac/LogWindow.swift": "540f632135cb6c43b312264e59fd1362104c5a4b3d7558431e0b8938481f927e",
+      "Tests/TurtleGitCoreTests/FormatPatchCommandCompletionTests.swift": "f5c158c89cbd30be2e0452b6f398a52d84fdad771837beeb8213874105deb1ed",
+      "docs/qa/format-patch-workflow-native-2026-10-19.swift": "27a96212cd279c33ee9482abdc5221dd030240491324acc3e0eae79777627d02",
+      "scripts/test-format-patch-workflow-native.py": "39df77baf4f9097ff0461e2e958aad6df5becf01427628e53360a90e208661ce"
+    }
+  },
+  "final_inputs": {
+    "Sources/TurtleGitCore/FormatPatch.swift": "927bab6b16be9765e703e4cc8754c5ac3f2017db37bdf25d1570467215ec73b8",
+    "Sources/TurtleGitMac/FormatPatchWindow.swift": "50237a388c583279d2739c89c6e44c77816adce5d8b3e43c5cdbc6d3d27765f7",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "687ab46992491f518fe95ac91488bac380ad3cca5addd32a89e50ba2f931ab53",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "808921ff0de665e6ece21c328bd5a5176ec8b04b60b10e76c8641c2302ead3f0",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "bb18b1d447b87605d36a58f5ecbd93f6eb3256edd767c163c5b5bb7e1d582677",
+    "Sources/TurtleGitMac/LogWindow.swift": "540f632135cb6c43b312264e59fd1362104c5a4b3d7558431e0b8938481f927e",
+    "Tests/TurtleGitCoreTests/FormatPatchCommandCompletionTests.swift": "f5c158c89cbd30be2e0452b6f398a52d84fdad771837beeb8213874105deb1ed",
+    "docs/qa/format-patch-workflow-native-2026-10-19.swift": "27a96212cd279c33ee9482abdc5221dd030240491324acc3e0eae79777627d02",
+    "scripts/test-format-patch-workflow-native.py": "39df77baf4f9097ff0461e2e958aad6df5becf01427628e53360a90e208661ce",
+    "docs/qa/format-patch-options-native-2026-10-15.swift": "82f3af16843da3c536cefa3bc7923f701ae93eb6ad2b5b3df3d7d250fd9ff8e4"
+  },
+  "validation": {
+    "status": "Scoped implementation passed10Core methods, Debug build after explicit-self repair,8distinct native case/engine pairs cumulatively. Fullport/physical/signed/currenthosted acceptance not established.",
+    "core": {
+      "exit": 0,
+      "methods": 10,
+      "filter": "FormatPatchTests|FormatPatchCommandCompletionTests",
+      "log": "build/qa/format-patch-workflow-core-2026-10-19.log",
+      "scope": "3new command/completion tests +7retained FormatPatch methods; no fullCore repeat"
+    },
+    "build": [
+      {
+        "attempt": 1,
+        "exit": 65,
+        "log": "build/qa/format-patch-workflow-build-2026-10-19.log",
+        "failure": "Nested cancellation/directory-release callbacks require explicit self property references. No Core semantic change."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/format-patch-workflow-build-repair-2026-10-19.log",
+        "repair": "Qualified those two nested callbacks. Repeated only failed Debug build; retained Core pass."
+      }
+    ],
+    "native": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "log": "build/qa/format-patch-workflow-native-2026-10-19.log",
+        "passed": [
+          "workflow/system",
+          "workflow/bundled"
+        ],
+        "failure": "Retained Options15/system exitedSIGSEGV in objc_release during fixture unwind. Raw blockerNSWindow closed with default release-on-close while Swift retained its local reference.",
+        "crash_report": "build/qa/format-patch-workflow-options-crash-2026-10-19.ips"
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "log": "build/qa/format-patch-workflow-native-retained-repair-2026-10-19.log",
+        "passed": [
+          "options-retained/system",
+          "options-retained/bundled",
+          "progress-retained/system",
+          "progress-retained/bundled",
+          "stream-retained/system",
+          "stream-retained/bundled"
+        ],
+        "repair": "Set retained fixture blocker.isReleasedWhenClosed=false. All original assertions retained and pass; no production change/rebuild/Core rerun, and initial workflow passes retained."
+      }
+    ],
+    "engines": {
+      "/usr/bin/git": "git version 2.54.0 (Apple Git-157)",
+      "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git": "git version 2.55.0"
+    },
+    "cleanup": {
+      "owned_receiver_pids": [
+        73655,
+        73733,
+        73812,
+        74181,
+        74408,
+        74623,
+        74767,
+        74906,
+        74974
+      ],
+      "all_pids_and_groups_independently_absent": true,
+      "in_receiver_checks": "Each scenario drains native windows/sheets, FormatPatch workers/releases, mail loads/targets/commands and picker reads/releases. Actual owned cancellation helpers are asserted absent.",
+      "visibility": "Activation prohibited; private receiver-only order hook forces every window/sheet transparent. All windows closed at scenario end.",
+      "private_state": "Disposable repositories/preferences/geometry/configs/pasteboards/action-log store. No user-owned app termination or live email.",
+      "crashed_receiver_private_domains_removed": [
+        "TurtleGit.FormatPatchOptions.QA.F3BC2B6A-B916-4F73-97DA-76750AAE1174",
+        "TurtleGit.FormatPatchWorkflow.Geometry.7ADE5964-9FB3-4BFB-AFF5-2D08D469FF7A"
+      ]
+    },
+    "diagnostics": "Existing Xcode concurrency/deprecation/unused and CoreSimulator-version warnings plus hidden NSSplitView zero-bounds warnings retained; not a claim of warning-free builds.",
+    "documentation": {
+      "coverage": {
+        "exit": 0,
+        "log": "build/qa/format-patch-workflow-coverage-2026-10-19.log"
+      },
+      "localizations": {
+        "exit": 0,
+        "log": "build/qa/format-patch-workflow-localizations-2026-10-19.log"
+      },
+      "site": {
+        "exit": 0,
+        "log": "build/qa/format-patch-workflow-site-2026-10-19.log",
+        "documents": 341,
+        "unresolved_fragments": []
+      },
+      "bundled_help": "No included source guide changed."
+    }
+  },
+  "hosted_followup": {
+    "source_commit": "bfa1fafec4420d8f839d36cfd296f3b3e3b5f5a7",
+    "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39221184827",
+    "application_step": "success",
+    "full_suite": "Still running at observation; does not include this later FormatPatch batch."
+  },
+  "limitations": [
+    "Physical layout/keyboard/accessibility and every upstream control remain partial.",
+    "Real composer and generated attachments tested, not live mail transport/external applications.",
+    "Native checks use Debug unsandboxed app code, not signed external folder grants or App Store deployment.",
+    "Finder command activation/current installed GUI and full current hosted suite remain open."
+  ],
+  "unrelated_work_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

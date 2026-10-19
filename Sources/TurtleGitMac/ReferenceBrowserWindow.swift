@@ -370,6 +370,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
 }
 @MainActor final class ReferenceBrowserWindowModel: ObservableObject, ActionLogProgress {
     private(set) static var activeReads = 0
+    private(set) var pendingReferenceReads = 0
     private(set) static var activeComparisons = 0
     let repository: GitRepository
     let sshSettings: SSHTransportSettings
@@ -760,9 +761,9 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         guard !invalidated, !confirmingQuit, !confirmingCancellation, !awaitingConfirmation, !generatingUnified, !hasChild, !deletingReference, !changingTracking, !resolvingCurrentBranch, renameReference == nil else { return }
         let requested = selected?.rawValue ?? (snapshot == nil ? initial : folder.rawValue)
         token?.cancel(); let request = OperationCancellation(); token = request; busy = true; error = preservingError
-        let filter = mergeFilter; Self.activeReads += 1
+        let filter = mergeFilter; Self.activeReads += 1; pendingReferenceReads += 1
         Task {
-            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if token === request { token = nil; busy = false } }
+            defer { Self.activeReads -= 1; pendingReferenceReads -= 1; withExtendedLifetime(access) {}; if token === request { token = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let result = try await repository.referenceBrowser(filter: filter, scope: scope, useMailmap: preferences.usesMailmap, cancellation: request)
@@ -783,9 +784,9 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var canChooseCurrentBranch: Bool { !invalidated && !confirmingQuit && !busy && !hasChild && renameReference == nil }
     func currentBranch() {
         guard canChooseCurrentBranch else { return }
-        let request = OperationCancellation(); token = request; resolvingCurrentBranch = true; busy = true; error = nil; Self.activeReads += 1
+        let request = OperationCancellation(); token = request; resolvingCurrentBranch = true; busy = true; error = nil; Self.activeReads += 1; pendingReferenceReads += 1
         Task {
-            defer { Self.activeReads -= 1; withExtendedLifetime(access) {} }
+            defer { Self.activeReads -= 1; pendingReferenceReads -= 1; withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let revision = try await repository.referenceBrowserCurrentBranch(cancellation: request)

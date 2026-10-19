@@ -43,11 +43,24 @@ public enum FormatPatchFailure: LocalizedError {
     }
 }
 
+/// Settlement of the actual format-patch subprocess, before native patch-file
+/// discovery and Send Mail. Validation reads do not emit a command completion.
+public struct FormatPatchCommandCompletion:Sendable {
+    public let success:Bool,cancelled:Bool
+    public let exitCode:Int32?
+    public let finished:Date
+    public let elapsed:TimeInterval
+    public init(success:Bool,cancelled:Bool,exitCode:Int32?,elapsed:TimeInterval,finished:Date=Date()) {
+        self.success=success;self.cancelled=cancelled;self.exitCode=exitCode;self.elapsed=max(0,elapsed);self.finished=finished
+    }
+}
+
 extension GitRepository {
     /// Adapted from FormatPatchCommand.cpp, GPL-2.0-or-later. Preserve Git's
     /// numbering, naming, configuration, binary patches and empty-range behavior.
     /// Existing patch files can be replaced, just as in the upstream command.
-    public func formatPatch(selection: FormatPatchSelection, to folder: URL, noPrefix: Bool = false, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+    public func formatPatch(selection: FormatPatchSelection, to folder: URL, noPrefix: Bool = false, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
+                            onCommand:(@Sendable(GitCommandInvocation)->Void)?=nil,onCommandFinished:(@Sendable(FormatPatchCommandCompletion)->Void)?=nil) throws -> GitResult {
         try cancellation?.check()
         func valid(_ revision: String) -> Bool { !revision.isEmpty && !revision.contains("\0") }
         let version: [String]
@@ -90,7 +103,20 @@ extension GitRepository {
             let metadata = (path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)).standardizedFileURL.resolvingSymlinksInPath()
             guard !RepositoryAccessLease.pathIsContained(destination, by: metadata) else { throw FormatPatchFailure.outputDirectory }
         }
-        return try run(["format-patch"] + (noPrefix ? ["--no-prefix"] : []) + ["-o", destination.path] + version + ["--"], cancellation: cancellation, onOutput: onOutput)
+        let command=["format-patch"] + (noPrefix ? ["--no-prefix"] : []) + ["-o", destination.path] + version + ["--"]
+        try cancellation?.check()
+        onCommand?(commandInvocation(command))
+        let started=ProcessInfo.processInfo.systemUptime
+        do {
+            let result=try run(command,cancellation:cancellation,onOutput:onOutput)
+            onCommandFinished?(.init(success:true,cancelled:false,exitCode:result.exitCode,elapsed:ProcessInfo.processInfo.systemUptime-started))
+            return result
+        }catch {
+            let killed=error as? GitCommandCancellationFailure
+            onCommandFinished?(.init(success:false,cancelled:cancellation?.isCancelled == true || killed != nil || error is OperationCancellationFailure || error is CancellationError,
+                exitCode:killed?.result.exitCode ?? (error as? GitFailure)?.code,elapsed:ProcessInfo.processInfo.systemUptime-started))
+            throw error
+        }
     }
 }
 

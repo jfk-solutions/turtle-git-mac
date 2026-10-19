@@ -296,3 +296,51 @@ Options and Quit remain gated during this handoff, retirement drops the intent,
 and the normal close checks still run after dismissal. No artificial delay or
 forced dismissal bypasses the live-operation guards. The grouped command check
 includes actual export and native Finish/window closure.
+
+## Progress review and Send Mail continuation — October 19, 2026
+
+The source command stores its exact `format-patch` invocation in ProgressDlg and
+waits for that modal result before calling SendPatchMail
+(`FormatPatchCommand.cpp:78–88`). Command display occurs in
+`ProgressDlg::RunCmdList` (`ProgressDlg.cpp:226–233`); the older constructor block
+at lines 145–146 is compiled out. The native progress output now receives the
+actual accepted executable/argv receipt from Core rather than rebuilding a
+second command from the editable options. Metadata and FETCH_HEAD probes remain
+outside the displayed export command. Raw Git stdout remains the source of patch
+filenames; display preambles and completion text are not interpreted as files.
+The actual process completion receipt supplies terminal status, timing and
+progress before later file discovery settles. That retained discovery still
+blocks Close/Quit and mail dispatch; Abort cannot cancel an already finished
+Git process. Forced retirement saves its action log after actual worker drain.
+
+Progress uses the originating preferences and private output clipboard for output
+styling, colors, context artwork and Copy. Its owned native presentation keeps
+the existing progress content and option dialog layout. Successful Send Mail
+waits for actual progress-sheet retirement, including nested cancellation
+questions, before opening the existing shared Send Patch workflow. The captured
+output grants and repository permissions survive that transition. Successful
+export is independent of later mail delivery or cancellation.
+
+Cancellation replies are one-shot and settle after actual question detachment.
+Completion while that question is open is retained until the decision drains.
+Forced owner closure, stale/duplicate replies and Quit confirmation cannot launch
+late mail, viewers or another export. Actual workers, chooser retirement and
+progress/question releases retain ownership until they drain; global Quit checks
+include those releases even after the owner is removed. Root command entry
+preserves edited live drafts and refuses a cached retiring owner.
+
+The [batch record](qa/format-patch-workflow-2026-10-19.json) distinguishes actual
+checks from physical visual/keyboard/accessibility, live mail transport, signed
+external grants, Finder integration and App Store acceptance. These remain open;
+this continuation does not certify the entire upstream dialog or port.
+
+The grouped checkpoint passed ten affected Core methods, the Debug build after
+qualifying two nested callback property captures, and eight distinct native
+case/engine pairs cumulatively. The new workflow cases passed first with system
+and bundled Git. Retained Options initially crashed in `objc_release`; its raw
+fixture blocker closed with release-on-close enabled while Swift retained it.
+Setting `isReleasedWhenClosed = false` preserved every assertion and passed both
+options cases plus the remaining policy/streaming cases. No Core or successful
+workflow case was repeated for that fixture-only repair. Nine receivers including
+the failed attempt were reaped and their PIDs/groups independently checked absent.
+Existing hidden split-view and compiler warnings remain recorded.
