@@ -461,3 +461,112 @@ for name,raw in [('surrogate-high',H(0xd800)),('surrogate-low',H(0xdc00)),('surr
 
 # Full over-budget UTF16 data, not just an impossible declared length.
 (P/'unsupported-formatted-text-payload-budget.emf').write_bytes(formatted_text(text='M'*32769))
+
+# Classic GDI clip family. Original records, independently chosen rectangles and
+# analytical Boolean pixel oracles; no BaseHmiTypes source/expected SVG is copied.
+# RGNDATA is already device-space. Rect/path capture and offsets are logical-space.
+CC_A=(8,8,56,48);CC_B=(32,20,80,56)
+def cc_region(rects,mode=5):
+ bounds=(min(r[0] for r in rects),min(r[1] for r in rects),max(r[2] for r in rects),max(r[3] for r in rects)) if rects else (0,0,0,0)
+ payload=U(32,1,len(rects),len(rects)*16)+I(*bounds)+b''.join(I(*r) for r in rects)
+ return record(75,U(len(payload),mode)+payload)
+def cc_null():return record(75,U(0,5))
+def cc_path(rect,mode=5):
+ return [record(59),record(43,I(*rect)),record(60),record(67,U(mode))]
+def cc_identity():return record(35,F(1,0,0,1,0,0))
+def cc_paint():return [brush(1,0xff),selected(1),selected(0x80000008),record(43,I(0,0,96,64))]
+def cc_write(name,rs):
+ (P/('classic-clip-'+name+'.emf')).write_bytes(emf(rs+cc_paint()))
+cc_write('control',[])
+for mode,label in [(1,'and'),(2,'or'),(3,'xor'),(4,'diff'),(5,'copy')]:
+ cc_write('region-'+label,[cc_region([CC_A]),cc_region([CC_B],mode)])
+ cc_write('path-'+label,cc_path(CC_A)+cc_path(CC_B,mode))
+ cc_write('empty-'+label,[cc_region([CC_A]),cc_region([],mode)])
+cc_write('null-reset',[cc_region([CC_A]),cc_null()])
+cc_write('null-reset-mask',[cc_region([CC_A]),cc_region([CC_B],4),cc_null()])
+cc_write('region-device',[record(35,F(2,0,0,3,10,7)),cc_region([CC_A]),cc_identity()])
+cc_write('region-disjoint',[cc_region([(8,8,24,48),(56,8,80,48)])])
+cc_write('region-empty-rectangle',[cc_region([(8,8,8,48)])])
+cc_write('rect-intersect',[record(30,I(*CC_A)),record(30,I(*CC_B))])
+cc_write('rect-exclude',[record(30,I(*CC_A)),record(29,I(*CC_B))])
+cc_write('rect-exclude-default',[record(29,I(*CC_A))])
+cc_write('rect-world',[record(35,F(2,0,0,1,10,4)),record(30,I(4,4,20,28)),cc_identity()])
+cc_write('rect-map',[record(17,I(8)),record(9,I(48,32)),record(11,I(96,64)),record(12,I(4,6)),record(30,I(4,4,20,20)),record(9,I(96,64)),record(11,I(96,64)),record(12,I(0,0))])
+cc_write('path-world',[record(35,F(2,0,0,1,10,4))]+cc_path((4,4,20,28))+[cc_identity()])
+# The translation must not contaminate a transformed displacement vector.
+cc_write('offset-world',[cc_region([CC_A]),record(35,F(2,0,0,1,10,7)),record(26,I(8,-4)),cc_identity()])
+cc_write('offset-offcanvas',[cc_region([(-40,8,-8,48)]),record(26,I(48,0))])
+cc_write('offset-none',[record(26,I(20,10))])
+cc_write('offset-empty',[cc_region([]),record(26,I(20,10))])
+cc_write('meta-selected',[cc_region([CC_A]),record(28),cc_region([CC_B])])
+cc_write('meta-null-reset',[cc_region([CC_A]),record(28),cc_null()])
+cc_write('meta-offset-selection',[cc_region([CC_A]),record(28),cc_region([CC_B]),record(26,I(-16,-8))])
+cc_write('meta-offset-none',[cc_region([CC_A]),record(28),record(26,I(20,10))])
+cc_write('meta-repeated',[cc_region([CC_A]),record(28),cc_region([CC_B]),record(28),cc_null()])
+cc_write('meta-repeated-no-selection',[cc_region([CC_A]),record(28),record(28),cc_null()])
+cc_write('meta-empty',[cc_region([]),record(28),cc_null()])
+cc_write('restore-before-meta',[record(33),cc_region([CC_A]),record(28),record(34,I(-1))])
+cc_write('restore-meta-and-selection',[cc_region([CC_A]),record(28),cc_region([CC_B]),record(33),record(28),cc_null(),record(34,I(-1))])
+cc_write('restore-negative-depth',[cc_region([CC_A]),record(33),cc_region([CC_B]),record(33),record(29,I(40,0,96,64)),record(34,I(-2))])
+cc_write('restore-offset',[cc_region([CC_A]),record(33),record(26,I(24,0)),record(34,I(-1))])
+# Region/offset/meta operations must leave a selected path available to FillPath.
+# Paint only the selected path: appending cc_paint's full rectangle would mask bugs.
+for name,ops,expected in [
+ ('path-preserved-region',[cc_region([CC_A])],None),
+ ('path-preserved-meta',[cc_region([CC_A]),record(28)],None),
+ ('path-preserved-offset',[cc_region([CC_A]),record(26,I(8,0))],None)]:
+ rs=[brush(1,0xff),selected(1),selected(0x80000008),record(59),record(43,I(*CC_B)),record(60)]+ops+[record(62,I(0,0,96,64))]
+ (P/('classic-clip-'+name+'.emf')).write_bytes(emf(rs))
+# Bad clips must refuse the image rather than retain an earlier clip and produce
+# a plausible successful raster. Each malformed fixture has a valid outer chain.
+def cc_bad(name,rs):
+ (P/('unsupported-classic-clip-'+name+'.emf')).write_bytes(emf(rs+cc_paint()))
+base_region=cc_region([CC_A])
+def cc_changed(raw,offset,part):return raw[:offset]+part+raw[offset+len(part):]
+for name,offset,value in [
+ ('region-size-small',8,31),('region-size-large',8,64),
+ ('region-mode-zero',12,0),('region-mode-six',12,6),
+ ('region-header-size',16,36),('region-type',20,2),
+ ('region-count',24,0xffffffff),('region-buffer-size',28,15)]:
+ cc_bad(name,[cc_changed(base_region,offset,U(value))])
+cc_bad('region-reversed',[cc_region([(24,8,8,48)])])
+cc_bad('region-truncated',[record(75,U(48,5)+base_region[16:-4])])
+cc_bad('region-trailing',[record(75,base_region[8:]+U(0))])
+for mode in [0,1,2,3,4,6]:cc_bad('null-mode-'+str(mode),[record(75,U(0,mode))])
+cc_bad('null-trailing',[record(75,U(0,5,0))])
+cc_bad('region-short',[record(75,U(48))])
+for mode in [0,6]:cc_bad('path-mode-'+str(mode),cc_path(CC_A,mode))
+cc_bad('path-missing',[record(67,U(5))])
+cc_bad('path-short',cc_path(CC_A)[:-1]+[record(67)])
+cc_bad('rect-short',[record(30,I(8,8,56))])
+cc_bad('offset-short',[record(26,I(8))])
+cc_bad('restore-unmatched',[record(34,I(-1))])
+cc_bad('restore-depth',[record(33),record(34,I(-2))])
+cc_write('restore-absolute-one',[cc_region([CC_A]),record(33),cc_region([CC_B]),record(33),record(29,I(40,0,96,64)),record(34,I(1))])
+cc_write('restore-absolute-two',[cc_region([CC_A]),record(33),cc_region([CC_B]),record(33),record(29,I(40,0,96,64)),record(34,I(2))])
+# Frame origin shifts initially recorded device geometry, while subsequent world
+# changes cannot move a captured RGNDATA clip. Frame rounding is <0.03pixel.
+frame=bytearray(emf([cc_region([CC_A])]+cc_paint()))
+frame[24:40]=I(*(round(v*2540/96) for v in (8,4,104,68)))
+(P/'classic-clip-region-frame-origin.emf').write_bytes(frame)
+cc_bad('path-consumed',cc_path(CC_A)+[record(67,U(5))])
+cc_bad('restore-absolute-missing',[record(33),record(34,I(2))])
+for mode,label in [(1,'and'),(2,'or'),(3,'xor'),(4,'diff'),(5,'copy')]:
+ cc_write('default-'+label,[cc_region([CC_A],mode)])
+cc_write('rect-shear',[record(35,F(1,0,.5,1,0,0)),record(30,I(8,8,40,40)),cc_identity()])
+cc_write('offset-mask',[cc_region([CC_A]),cc_region([CC_B],3),record(26,I(8,0))])
+cc_write('path-offcanvas-offset',cc_path((-40,8,-8,48))+[record(26,I(48,0))])
+for rule,label in [(1,'evenodd'),(2,'nonzero')]:
+ cc_write('path-'+label,[record(19,U(rule)),record(59),record(43,I(*CC_A)),record(43,I(20,20,44,36)),record(60),record(67,U(5))])
+# Win32 RGNDATAHEADER permits nRgnSize0 when the region-buffer size is unknown;
+# actual count/framing still identifies precisely one complete rectangle.
+cc_write('region-unknown-size',[cc_changed(base_region,28,U(0))])
+cc_bad('offset-domain-budget',[cc_region([CC_A]),record(26,I(1000001,0))])
+
+cc_bad('offset-domain-area-budget',[cc_region([CC_A]),record(26,I(20000,20000))])
+# GetDC supplies temporary classic GDI state. A later EMF+ record closes that
+# interval; a second GetDC cannot inherit its selected clip or metaregion.
+for label,ops in [('selected',[cc_region([CC_A])]),('meta',[cc_region([CC_A]),record(28)])]:
+ rs=[comment([ep(0x4001,U(0xdbc01002,1,96,96),1),ep(0x4004)])]+ops+cc_paint()
+ rs += [comment([ep(0x402B),ep(0x4004)]),brush(2,0xff00),selected(2),selected(0x80000008),record(43,I(*CC_B)),comment([ep(0x4002)])]
+ (P/('classic-clip-getdc-'+label+'.emf')).write_bytes(emf(rs))

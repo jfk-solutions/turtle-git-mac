@@ -23,5 +23,14 @@
     "license_file": "Licenses/Wine-LGPL-2.1.txt",
     "license_sha256": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
     "adapted_module": "src/turtleGitHatch.js"
+  },
+  "classic_clipping": {
+    "repository": "https://github.com/jfk-solutions/BaseHmiTypes",
+    "commit": "f491a9514f935d64b54bc62ec70606db19f9105a",
+    "source_path": "typescript/base-hmi-types/src/images/converters/metafile-to-svg-renderer.ts",
+    "source_sha256": "967c088d8f9c49ee7c6de2d63131a0b0c8b24b6758f8dc36257928250f7771db",
+    "license_file": "Licenses/BaseHmiTypes-MIT.txt",
+    "license_sha256": "7f5f070c81949a0a2a38394c98219b1f060575c528911ebde1f973959750828b",
+    "scope": "Classic EMF region combination, meta region and offset mask lifecycle adaptation"
   }
 }

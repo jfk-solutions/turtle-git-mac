@@ -81,7 +81,9 @@ and texture brushes include indexed 1/4/8-bit palettes and 16-bit RGB555, RGB565
 and ARGB1555, alongside 24/32-bit bitmap formats. Formatted EMF+ text supports
 wrapping, tabs, right-to-left and vertical layout, spacing, alignment, trimming
 and font decorations through native glyph outlines. See the
-[text format scope](METAFILE-TEXT-PARITY.md) for exact limits.
+[text format scope](METAFILE-TEXT-PARITY.md) for exact limits. Classic EMF
+clipping includes union, intersection, XOR and subtraction, path/rectangle clips,
+clip offsets and metaregions; see the [classic clipping scope](METAFILE-CLASSIC-CLIP-PARITY.md).
 
 Decoding runs in the background. Closing or replacing an input cancels the owned
 decoder and prevents a delayed preview from replacing a newer view. Rendering

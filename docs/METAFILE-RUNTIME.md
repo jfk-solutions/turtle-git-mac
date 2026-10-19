@@ -21,6 +21,13 @@ copyright accompany the patch; `LICENSE-Wine-hatches` and NOTICE accompany the
 runtime. Its full source hash, license hash and origin are pinned separately in
 Configuration/MetafileRuntime.json. No Wine binary is linked or shipped.
 
+The [classic clipping extension](METAFILE-CLASSIC-CLIP-PARITY.md) adapts the
+MIT-licensed BaseHmiTypes renderer's region-combine and metaregion/offset mask
+lifecycle. Its immutable revision, original source hash and retained license hash
+are recorded in `Configuration/MetafileRuntime.json`; `LICENSE-BaseHmiTypes`
+accompanies the helper and its corresponding reconstruction sources. It adds no
+runtime package dependency.
+
 ## Rebuilding and embedding
 
 Run `python3 scripts/build-metafile-runtime.py`; the default output is
@@ -40,7 +47,7 @@ can differ from Windows when an original font is unavailable.
 The reconstruction cache incorporates pins, all build/adapter/patch script hashes,
 architecture/deployment flags, compiler version and SDK version. Each runtime
 contains the original source archive, exact local reconstruction inputs, MIT,
-Wine hatch LGPL and application licenses, binary/renderer/source/license hashes and toolchain metadata.
+BaseHmiTypes MIT, Wine hatch LGPL and application licenses, binary/renderer/source/license hashes and toolchain metadata.
 `python3 scripts/validate-metafile-runtime.py PATH` verifies those inputs and
 reconstructs the renderer, checks slices/deployment/linkage, and executes a bounded
 conversion and malformed-input checks. `--all-architectures` executes both slices

@@ -13,7 +13,7 @@ import uuid
 from pinned_download import download_verified
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-FILES = ['LICENSE', 'Licenses/Wine-LGPL-2.1.txt', 'NOTICE', 'Configuration/MetafileRuntime.json', 'Sources/TurtleGitMetafile/main.swift',
+FILES = ['LICENSE', 'Licenses/Wine-LGPL-2.1.txt', 'Licenses/BaseHmiTypes-MIT.txt', 'NOTICE', 'Configuration/MetafileRuntime.json', 'Sources/TurtleGitMetafile/main.swift',
          'patches/metafile-renderer.patch', 'scripts/build-metafile-runtime.py',
          'scripts/validate-metafile-runtime.py', 'scripts/embed-metafile-runtime.py',
          'scripts/pinned_download.py', 'scripts/runtime_bundle_layout.py', 'scripts/git_lfs_runtime.py']
@@ -117,6 +117,7 @@ def main():
             shutil.copy2(work / name, stage / name)
         shutil.copy2(ROOT / 'LICENSE', stage / 'LICENSE')
         shutil.copy2(ROOT / pin['hatch_patterns']['license_file'], stage / 'LICENSE-Wine-hatches')
+        shutil.copy2(ROOT / pin['classic_clipping']['license_file'], stage / 'LICENSE-BaseHmiTypes')
         shutil.copy2(ROOT / 'NOTICE', stage / 'NOTICE')
         sources = stage / 'Sources/build'
         sources.mkdir(parents=True)
@@ -126,7 +127,7 @@ def main():
             shutil.copy2(ROOT / name, target)
         manifest = {'pin': pin, 'binary_sha256': digest(stage / 'metafile-convert'),
                     'renderer_sha256': digest(stage / 'renderer.js'), 'source_sha256': hashes,
-                    'license_sha256': {name: digest(stage / name) for name in ['LICENSE', 'LICENSE-renderer', 'LICENSE-Wine-hatches', 'NOTICE']},
+                    'license_sha256': {name: digest(stage / name) for name in ['LICENSE', 'LICENSE-renderer', 'LICENSE-Wine-hatches', 'LICENSE-BaseHmiTypes', 'NOTICE']},
                     'compiler': compiler, 'sdk_version': sdk_version, 'flags': flags, 'cache_key': key, 'signed': False}
         (stage / 'provenance.json').write_text(json.dumps(manifest, indent=2) + '\n')
         subprocess.run(['python3', str(ROOT / 'scripts/validate-metafile-runtime.py'), str(stage), '--structure-only'], check=True)

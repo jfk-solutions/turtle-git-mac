@@ -153,3 +153,35 @@ nonfinite metrics and unpaired UTF-16. No font/glyph outline or upstream image i
 embedded in these input files. Final-pixel assertions are independent of the
 native layout bridge and keep platform font limitations explicit. See
 [formatted text scope](../../../../docs/METAFILE-TEXT-PARITY.md).
+
+## Classic EMF clipping and metaregions
+
+`classic-clip-*` are original synthetic GDI records for all five
+EXTSELECTCLIPRGN and SELECTCLIPPATH combinations, including an independent
+384-point final native pixel oracle per image. Overlapping rectangles distinguish
+AND, OR, XOR, DIFF and COPY; default/infinite selection, empty regions, zero-area
+rectangles and null COPY retain different outcomes. Two disjoint rectangles and
+an even-odd path hole prevent bounding-box substitution. The same-oriented
+nonzero companion intentionally fills the inner figure.
+
+World/map/shear companions capture clip geometry before resetting the transform;
+RGNDATA remains in initial playback device coordinates, including a nonzero
+physical frame origin. OFFSETCLIPRGN uses a logical displacement vector (the world
+translation must not become part of the vector), moves existing mask clips, and
+brings offcanvas path/region geometry back into view. SETMETARGN retains an
+independent intersection after resetting or moving the new selected clip.
+Save/Restore covers relative negative depth and positive absolute saved levels.
+Selected paths survive region/meta/offset operations but are consumed by
+SELECTCLIPPATH. Input files contain no copied source implementation or expected
+SVG, no font bytes and no Windows-generated image.
+
+`unsupported-classic-clip-*` have valid outer framing and isolate invalid region
+headers, lengths, counts, extents, modes, null-versus-empty framing, missing or
+consumed paths, short rectangle/offset records and unmatched restore levels.
+Conversion must fail instead of publishing a successful partial image. These
+fixtures cover this bounded family, not all classic GDI graphics behavior.
+
+The two `classic-clip-getdc-*` companions paint red through a temporary selected
+clip or metaregion in the first EMF+ GetDC interval. The next EMF+ record releases
+that DC. A second GetDC paints green both inside and outside the former region;
+actual color samples prove the clip state does not leak across ownership scopes.

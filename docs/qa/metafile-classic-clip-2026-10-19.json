@@ -1,0 +1,166 @@
+{
+  "date": "2026-10-19",
+  "family": "Classic EMF clipping in native image comparison",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "independent_decoder": {
+    "repository": "https://github.com/jfk-solutions/BaseHmiTypes",
+    "commit": "f491a9514f935d64b54bc62ec70606db19f9105a",
+    "path": "typescript/base-hmi-types/src/images/converters/metafile-to-svg-renderer.ts",
+    "license": "MIT, copyright 2026 JFK Solutions",
+    "adaptation": "Classic region Boolean masks, metaregion independence, offset domain lifecycle"
+  },
+  "implementation": [
+    "COPY/AND/OR/XOR/DIFF serialized regions and selected paths",
+    "Independent selected clip and metaregion; resets, repeated captures and offsets",
+    "Captured affine rectangle/path geometry and transformed displacement vectors",
+    "Initial playback mapping for recorded device regions",
+    "Positive absolute and negative relative DC restores",
+    "Deferred bounded mask domain retaining off-canvas geometry",
+    "Strict malformed-region and construction-budget refusals"
+  ],
+  "validation": [
+    {
+      "scope": "Universal helper construction, initial implementation",
+      "status": "passed",
+      "log": "build/qa/metafile-classic-clip-runtime-build-2026-10-19.log"
+    },
+    {
+      "scope": "Initial all-architecture provenance, system links and generic WMF conversion/rejection",
+      "status": "passed",
+      "log": "build/qa/metafile-classic-clip-runtime-validation-2026-10-19.log",
+      "limit": "Precedes active-path production repair"
+    },
+    {
+      "scope": "Relevant MetafileImageTests group",
+      "status": "failed",
+      "executed": 43,
+      "failed_methods": 3,
+      "failed_assertions": 6,
+      "log": "build/qa/metafile-classic-clip-core-2026-10-19.log",
+      "findings": [
+        "Active EMR_RECTANGLE painted immediately and reset earlier path subfigures",
+        "Premature paint leaked before selected clip and metaregion could constrain FillPath",
+        "Other 40 methods passed, including new GetDC lifecycle and malformed clip methods"
+      ]
+    },
+    {
+      "scope": "Initial Debug app build",
+      "status": "failed",
+      "exit_code": 65,
+      "log": "build/qa/metafile-classic-clip-app-build-2026-10-19.log",
+      "finding": "Global NOTICE attribution update invalidated existing prepared LibGit2 provenance",
+      "resolution": "Attribution is retained in standalone MIT license, pinned configuration, source comments, docs and bundled LICENSE-BaseHmiTypes; global NOTICE remains unchanged, avoiding unrelated runtime rebuilds"
+    },
+    {
+      "scope": "Universal helper rebuild with path recording repair and dedicated license provenance",
+      "status": "passed",
+      "log": "build/qa/metafile-classic-clip-runtime-repair-2026-10-19.log"
+    },
+    {
+      "scope": "Only three affected Core methods after path repair",
+      "status": "passed",
+      "executed": 3,
+      "failures": 0,
+      "duration_seconds": 1.959,
+      "log": "build/qa/metafile-classic-clip-core-repair-2026-10-19.log",
+      "limit": "Full 43-method group was not repeated after focused repair"
+    },
+    {
+      "scope": "Final all-architecture runtime reconstruction, deployment/system links, generic WMF conversion and rejection",
+      "status": "passed",
+      "log": "build/qa/metafile-classic-clip-runtime-final-2026-10-19.log",
+      "limit": "New clipping pixel corpus executed on local arm64 only; this validator conversion is generic WMF"
+    },
+    {
+      "scope": "Final Debug app build",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/metafile-classic-clip-app-build-repair-2026-10-19.log"
+    },
+    {
+      "scope": "Prepared and packaged helper corresponding-source hashes and BaseHmiTypes license",
+      "status": "passed",
+      "details": "source_sha256 maps agree; packaged LICENSE-BaseHmiTypes matches pinned license hash"
+    },
+    {
+      "scope": "Documentation resources",
+      "status": "passed",
+      "details": {
+        "help_documents": 42,
+        "help_topics": 50,
+        "help_files": 62,
+        "localization_languages": 38,
+        "localization_keys": 1299,
+        "ledger_dialogs": 130,
+        "ledger_partial_family_audits": 120,
+        "ledger_pending_family_reviews": 10,
+        "ledger_certified_complete": 0
+      },
+      "limit": "Ledger/resource counts do not express feature-completion percentages"
+    },
+    {
+      "scope": "Grouped native metafile consumers using final Debug app objects and packaged helper",
+      "status": "passed",
+      "git_engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "owned_receiver_pids": [
+        4135,
+        4583
+      ],
+      "ownership": "Both receiver processes reported reaped and were independently confirmed absent; windows invisible/offscreen, private repositories/preferences/TMPDIR; original bytes retained",
+      "new_representative_samples": [
+        "classic-clip-region-xor.emf",
+        "classic-clip-region-diff.emf",
+        "classic-clip-meta-repeated.emf",
+        "classic-clip-offset-offcanvas.emf",
+        "classic-clip-path-and.emf",
+        "classic-clip-rect-world.emf"
+      ],
+      "retained_scope": "Actual two-pane image route, image chooser, preview drop/reload, conflict decode, unsupported-side and explicit Merge routing, cancellation/late-result/session/grant/Quit ownership",
+      "log": "build/qa/metafile-classic-clip-native-consumers-2026-10-19.log"
+    },
+    {
+      "scope": "Documentation site generation",
+      "status": "passed",
+      "log": "build/qa/metafile-classic-clip-site-2026-10-19.log",
+      "unresolved_fragments": []
+    }
+  ],
+  "limits": [
+    "No claim of full EMF, WMF or EMF+ compatibility",
+    "No new physical Finder or signed parent distribution acceptance",
+    "No Windows pixel oracle; local native pixels compared to independent analytic geometry",
+    "Transformed/compound/custom-cap EMF+ pens remain open",
+    "Core/native hosted full integration remains separate"
+  ],
+  "fixtures": {
+    "accepted": 61,
+    "refused": 31,
+    "new_core_methods": 5,
+    "native_membership_samples_per_positive_grid_fixture": 384
+  },
+  "runtime_source_sha256": {
+    "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+    "Licenses/Wine-LGPL-2.1.txt": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+    "Licenses/BaseHmiTypes-MIT.txt": "7f5f070c81949a0a2a38394c98219b1f060575c528911ebde1f973959750828b",
+    "NOTICE": "d9c261f57c2a37da1b68a9a726e79f43c106355cab8ed126b62352899b9445c2",
+    "Configuration/MetafileRuntime.json": "56157d6e649cf31086ab67c3bdac4343951a115075a195de89569aaf95976e23",
+    "Sources/TurtleGitMetafile/main.swift": "79529b786ae1bd998e0ec8d0938a4358878b41847924228bea6ddb3c28b14cdb",
+    "patches/metafile-renderer.patch": "799849b88aa755d343f7726e40b66796ab9da18c96e771f738fc778b63170de0",
+    "scripts/build-metafile-runtime.py": "fb6f8228416f8c70fcccf4c0b9274abb908bb47b089dfeba853841ecbd78d5de",
+    "scripts/validate-metafile-runtime.py": "6de457dcdf10a6b8e132da0d32397e11c79d5f46f62785862f21472b3624f750",
+    "scripts/embed-metafile-runtime.py": "79d1afb77de6027dba108f0977c90c2394522d2a9262ccf42819125356117a4b",
+    "scripts/pinned_download.py": "c9bfbd05a830f235e78521a3f0ba4ed5454c7389a96195939df2ea1110168b40",
+    "scripts/runtime_bundle_layout.py": "624a54cfda00a71d287e56719b83ebe26900e21e10c798f4b14e90a4dc28ac4c",
+    "scripts/git_lfs_runtime.py": "07ee6decd30776eeaf35aa7de12c766638b957a6029315ad454dc1315266790c"
+  },
+  "runtime_cache_key": "63985199e40319a6bbdb6a8922deb8c8ac0d32595bb8c4b516d13cc080553d1d",
+  "next_family": {
+    "name": "Diff/Merge comparison-option classification and presentation",
+    "source_evidence": "FileComparison.swift:118 marks every key-equal raw-different pair filtered; pinned TortoiseMerge DiffData.cpp:463-530 distinguishes whitespace-only Normal/Hidden from regex/case/comment FilteredDiff",
+    "scope": "Comparison reason/state/hide propagation through two-pane/one-pane rows, collapse/navigation, coloring and source/result mapping; no enum-only whitespace alias additions"
+  },
+  "implementation_base": "a92c5c009aa124168cd1f79fa127410079f5aaa3"
+}

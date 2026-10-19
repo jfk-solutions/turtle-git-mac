@@ -106,7 +106,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,455 @@
+@@ -0,0 +1,462 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -496,11 +496,18 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    while(offset<end){
 +      if(offset+12>end)fail('truncated EMF+ record');const type=data[offset]|data[offset+1]<<8,flags=data[offset+2]|data[offset+3]<<8,size=u32(data,offset+4),body=u32(data,offset+8);
 +      if(size<12||size>end-offset||body>size-12)fail('invalid EMF+ record');
-+      if(this._turtleGetDC){Object.assign(this.coordinateTransformer,this._turtleGdiSaved);this.ctx.restore();this._turtleGetDC=false;}
++      if(this._turtleGetDC){
++        Object.assign(this.coordinateTransformer,this._turtleGdiSaved);this.ctx.restore();
++        this._turtleGdiClip=this._turtleGdiSavedClip?{...this._turtleGdiSavedClip}:null;
++        this._turtleGdiSavedClip=null;this._turtleGetDC=false;
++      }
 +      if(type===0x4001)this._turtlePlusSeen=true;
 +      if(!this._turtlePlusSeen)fail('EMF+ records precede header');
 +      this._emfPlusDrawer.processEmfPlusRecordType(type,flags,data.slice(offset+12,offset+12+body));
-+      if(type===0x4004){this._turtleGetDC=true;this._turtleGdiSaved={...this.coordinateTransformer};this.ctx.save();}
++      if(type===0x4004){
++        this._turtleGetDC=true;this._turtleGdiSaved={...this.coordinateTransformer};
++        this._turtleGdiSavedClip=this._turtleGdiClip?{...this._turtleGdiClip}:null;this.ctx.save();
++      }
 +      if(type===0x4002&&state(this._emfPlusDrawer).objectParts)fail('truncated continued EMF+ object');
 +      offset+=size;
 +    }
@@ -509,7 +516,6 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +  ed.processEmfRecordType=function(type,data){
 +    if(this._turtlePlusSeen&&!this._turtleGetDC&&type!==70&&type!==14&&type!==1)return;
 +    if(type===0x48)fail('unsupported EMF framed region');
-+    if(type===0x4b){const count=u32(data,0),mode=u32(data,4);if(mode!==1&&mode!==5)fail('unsupported EMF region combine mode');if(mode===5)this.ctx._state.clip=null;if(count){const rects=this._readRgnData(data,8);if(!rects)fail('invalid EMF clip region');this._buildRgnPath(rects);this.ctx.clip();}return;}
 +    if(type===0x14&&u32(data,0)!==13)fail('unsupported EMF binary raster operation');
 +    if([0x4c,0x4d].includes(type)&&![0x00cc0020,0x00000042,0x00ff0062,0x00f00021].includes(u32(data,32)))fail('unsupported EMF bitmap raster operation');
 +    if(type===0x51&&u32(data,60)!==0x00cc0020)fail('unsupported EMF bitmap raster operation');
@@ -527,6 +533,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    }
 +    return oldEmfRecord.call(this,type,data);
 +  };
++  require('./turtleGitGdiClip')({EmfDrawer,fail,u32,i32,escape});
 +  function validateRecords(bytes){
 +    if(bytes.length>=88&&u32(bytes,0)===1&&u32(bytes,40)===0x464d4520){
 +      const total=u32(bytes,48),declared=u32(bytes,52),header=u32(bytes,4);if(total!==bytes.length||header<88||header>total||header%4||declared>1000000)fail('invalid EMF header lengths');
@@ -1170,3 +1177,167 @@ diff --git a/src/utils/nestedMetafilePlayer.js b/src/utils/nestedMetafilePlayer.
          // Callers are EMF+ DrawImage handlers; wording kept for log continuity.
          console.log('EMF+ nested EMF render failed:', /** @type {Error} */ (e).message);
          return null;
+
+diff --git a/src/turtleGitGdiClip.js b/src/turtleGitGdiClip.js
+--- /dev/null
++++ b/src/turtleGitGdiClip.js
+@@ -0,0 +1,159 @@
++// TurtleGit classic GDI region playback. MIT. The mask composition/lifecycle
++// follows BaseHmiTypes' independent renderer (JFK Solutions, MIT); see LICENSE-BaseHmiTypes.
++// EMF+ clips remain owned by turtleGit.js, while WMF retains its own DC clip.
++module.exports = function installGdiClip({EmfDrawer,fail,u32,i32,escape}) {
++  const ep=EmfDrawer.prototype,domain='__TURTLEGIT_GDI_CLIP_DOMAIN__';
++  function point(d,x,y) {
++    const p=d.coordinateTransformer.transform(x,y);
++    if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||Math.abs(p.x)>1e9||Math.abs(p.y)>1e9)fail('invalid GDI clip coordinate');
++    return p;
++  }
++  function state(d) {
++    if(!d._turtleGdiClip) {
++      const o=point(d,0,0),x=point(d,1,0),y=point(d,0,1);
++      d._turtleGdiClip={selected:null,meta:null,initial:[x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y]};
++    }
++    return d._turtleGdiClip;
++  }
++  function budget(ctx,size) {
++    ctx._turtleGdiMaskBytes=(ctx._turtleGdiMaskBytes||0)+size;
++    if(ctx._defs.length>=65536||ctx._turtleGdiMaskBytes>64*1024*1024)fail('GDI region mask budget exceeded');
++  }
++  function mask(d,body) {
++    const ctx=d.ctx;budget(ctx,body.length+300);
++    const id='turtle-gdi-mask-'+ctx._defs.length;
++    ctx._defs.push('<mask id="'+id+'" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" '+domain+' style="mask-type:luminance">'+body+'</mask>');
++    return id;
++  }
++  const masked=(id,body)=>id===null?body:'<g mask="url(#'+id+')">'+body+'</g>';
++  const rect=color=>'<rect '+domain+' fill="'+color+'"/>';
++  function surface(d) {return '<rect x="0" y="0" width="'+d.ctx.canvas.width+'" height="'+d.ctx.canvas.height+'" fill="white"/>';}
++  function inverse(d,id) {return mask(d,rect('white')+masked(id,rect('black')));}
++  function combine(d,a,b,mode) {
++    if(mode===5)return b;
++    if(mode===1)return a===null?b:b===null?a:mask(d,masked(a,masked(b,rect('white'))));
++    // A missing selected region represents the current default surface when a
++    // boolean operation needs a concrete operand; its extent never expands
++    // merely because a later OffsetClipRgn moves a different region.
++    if(a===null)a=mask(d,surface(d));
++    if(b===null)b=mask(d,surface(d));
++    if(mode===2)return mask(d,masked(a,rect('white'))+masked(b,rect('white')));
++    if(mode===3)return mask(d,masked(a,masked(inverse(d,b),rect('white')))+masked(b,masked(inverse(d,a),rect('white'))));
++    if(mode===4)return mask(d,masked(a,masked(inverse(d,b),rect('white'))));
++    fail('invalid GDI region combine mode');
++  }
++  function mode(data,offset) {const result=u32(data,offset);if(result<1||result>5)fail('invalid GDI region combine mode');return result;}
++  function path(d,geometry,rule='nonzero') {return mask(d,'<path d="'+escape(geometry)+'" fill="white" fill-rule="'+rule+'"/>');}
++  function polygon(points) {return 'M '+points.map(p=>p.x+' '+p.y).join(' L ')+' Z';}
++  function region(d,data,bytes) {
++    if(bytes<32||bytes!==data.length-8||u32(data,8)!==32||u32(data,12)!==1)fail('invalid EMF clip region header');
++    const count=u32(data,16),size=u32(data,20);
++    if(count>65536||(size!==0&&size!==count*16)||bytes!==32+count*16)fail('invalid EMF clip region extent');
++    const bounds=Array.from({length:4},(_,i)=>i32(data,24+i*4));
++    if(bounds[0]>bounds[2]||bounds[1]>bounds[3])fail('invalid EMF clip region bounds');
++    const ctx=d.ctx;ctx._turtleGdiRegionRectangles=(ctx._turtleGdiRegionRectangles||0)+count;
++    if(ctx._turtleGdiRegionRectangles>1048576)fail('aggregate GDI region rectangle budget exceeded');
++    const s=state(d),m=s.initial;let geometry='';
++    const map=(x,y)=>{
++      const p={x:m[0]*x+m[2]*y+m[4],y:m[1]*x+m[3]*y+m[5]};
++      if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||Math.abs(p.x)>1e9||Math.abs(p.y)>1e9)fail('invalid GDI region coordinate');
++      return p;
++    };
++    for(let i=0;i<count;i++) {
++      const o=40+i*16,l=i32(data,o),t=i32(data,o+4),r=i32(data,o+8),b=i32(data,o+12);
++      if(l>r||t>b||l<bounds[0]||r>bounds[2]||t<bounds[1]||b>bounds[3])fail('invalid EMF clip rectangle');
++      if(l!==r&&t!==b)geometry+=polygon([map(l,t),map(r,t),map(r,b),map(l,b)])+' ';
++    }
++    return path(d,geometry);
++  }
++  const capture=ep._captureDcState,restore=ep._restoreDcState;
++  ep._captureDcState=function(){const saved=capture.call(this);saved.turtleGdiClip={...state(this)};return saved;};
++  ep._restoreDcState=function(saved){restore.call(this,saved);if(saved&&saved.turtleGdiClip)this._turtleGdiClip={...saved.turtleGdiClip};};
++  ep.processEmfRestoreDC=function(data) {
++    if(data.length!==4)fail('invalid GDI restore record');
++    const level=i32(data,0),depth=this.dcStateStack.length;
++    // Positive values are absolute SaveDC levels, negative values are relative
++    // to the top. The restored state and every newer state are discarded.
++    const count=level<0?-level:depth-level+1;
++    if(!level||count<1||count>depth)fail('unmatched GDI restore');
++    let saved;for(let i=0;i<count;i++){saved=this.dcStateStack.pop();this.ctx.restore();}
++    this._restoreDcState(saved);
++  };
++  const dispatch=ep.processEmfRecordType;
++  ep.processEmfRecordType=function(type,data) {
++    if(this._turtlePlusSeen&&!this._turtleGetDC&&type!==70&&type!==14&&type!==1)return;
++    const s=state(this),ctx=this.ctx;
++    if(type===75) {
++      const bytes=u32(data,0),operation=mode(data,4);
++      if(!bytes){if(data.length!==8||operation!==5)fail('invalid null EMF clip region');s.selected=null;}
++      else s.selected=combine(this,s.selected,region(this,data,bytes),operation);
++      return;
++    }
++    if(type===67) {
++      if(data.length!==4||this.pathState!=='completed')fail('missing completed GDI clip path');
++      const operation=mode(data,0),geometry=ctx._d();
++      if(geometry.length>2*1024*1024)fail('GDI clip path budget exceeded');
++      s.selected=combine(this,s.selected,path(this,geometry,ctx.fillRule==='evenodd'?'evenodd':'nonzero'),operation);
++      this.pathState='idle';this.currentPath=[];ctx.beginPath();return;
++    }
++    if(type===29||type===30) {
++      if(data.length!==16)fail('invalid GDI clip rectangle record');
++      const l=i32(data,0),t=i32(data,4),r=i32(data,8),b=i32(data,12);
++      if(l>r||t>b)fail('invalid GDI clip rectangle');
++      const geometry=l===r||t===b?'':polygon([point(this,l,t),point(this,r,t),point(this,r,b),point(this,l,b)]);
++      s.selected=combine(this,s.selected,path(this,geometry),type===29?4:1);return;
++    }
++    if(type===26) {
++      if(data.length!==8)fail('invalid GDI clip offset record');
++      const a=point(this,0,0),b=point(this,i32(data,0),i32(data,4)),dx=b.x-a.x,dy=b.y-a.y;
++      if(s.selected!==null&&(dx||dy)) {
++        ctx._turtleGdiOffsetX=(ctx._turtleGdiOffsetX||0)+Math.abs(dx);ctx._turtleGdiOffsetY=(ctx._turtleGdiOffsetY||0)+Math.abs(dy);
++        if(ctx._turtleGdiOffsetX>1e6||ctx._turtleGdiOffsetY>1e6)fail('GDI clip offset expansion budget exceeded');
++        s.selected=mask(this,'<g transform="translate('+dx+' '+dy+')">'+masked(s.selected,rect('white'))+'</g>');
++      }
++      return;
++    }
++    if(type===28) {
++      if(data.length!==0)fail('invalid GDI metaregion record');
++      s.meta=combine(this,s.meta,s.selected,1);s.selected=null;return;
++    }
++    if(type===33) {
++      if(data.length!==0||this.dcStateStack.length>=4096)fail('invalid GDI save record or nesting budget');
++    }
++    // A path bracket records geometry without painting. Several upstream GDI
++    // handlers reset/paint even inside BeginPath (notably 32-bit primitives),
++    // which loses previous figures and leaks ink before SelectClipPath.
++    if(this.pathState==='active'&&type===43) {
++      if(data.length!==16)fail('invalid GDI rectangle path record');
++      const l=i32(data,0),t=i32(data,4),r=i32(data,8),b=i32(data,12);
++      const points=[point(this,l,t),point(this,r,t),point(this,r,b),point(this,l,b)];
++      ctx.moveTo(points[0].x,points[0].y);for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);
++      ctx.closePath();return;
++    }
++    const recording=this.pathState==='active'&&[2,3,4,5,6,7,8,41,42,44,45,46,47,54,55,56,85,86,87,88,89,90,91,92].includes(type);
++    const first=ctx._nodes.length;let result;
++    if(recording) {
++      const begin=ctx.beginPath,fill=ctx.fill,stroke=ctx.stroke;
++      ctx.beginPath=()=>{};ctx.fill=()=>{};ctx.stroke=()=>{};
++      try {result=dispatch.call(this,type,data);}finally{ctx.beginPath=begin;ctx.fill=fill;ctx.stroke=stroke;}
++    } else result=dispatch.call(this,type,data);
++    // EMF+ comments have their own graphics-state clip. GDI GetDC drawing
++    // records arrive separately and use the selected classic/meta regions here.
++    if(type!==70&&ctx._nodes.length>first&&(s.selected!==null||s.meta!==null)) {
++      const nodes=ctx._nodes.splice(first).join('');ctx._nodes.push(masked(s.meta,masked(s.selected,nodes)));
++    }
++    return result;
++  };
++  const draw=ep.draw;
++  ep.draw=function(document,options) {
++    this._turtleGdiClip=null;
++    const result=draw.call(this,document,options),ctx=this.ctx,x=ctx._turtleGdiOffsetX||0,y=ctx._turtleGdiOffsetY||0;
++    const width=ctx.canvas.width+2*x,height=ctx.canvas.height+2*y;
++    if(width>32768||height>32768||width*height>67108864)fail('GDI clip domain expansion budget exceeded');
++    const bounds='x="'+(-x)+'" y="'+(-y)+'" width="'+width+'" height="'+height+'"';
++    // Resolve after all records, including offsets after restoring old DCs.
++    // Nested metafiles export their defs directly rather than calling getSvg.
++    for(let i=0;i<ctx._defs.length;i++)ctx._defs[i]=ctx._defs[i].split(domain).join(bounds);
++    return result;
++  };
++};

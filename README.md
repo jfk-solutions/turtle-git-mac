@@ -382,5 +382,7 @@ for WMF, EMF and EMF+, including native comparison, dropped previews and conflic
 panes. Embedded EMF+ bitmap images and textures include indexed palettes and
 16-bit RGB555/RGB565/ARGB1555. [Formatted EMF+ text](docs/METAFILE-TEXT-PARITY.md)
 uses native glyph outlines for wrapping, direction, tabs, spacing and trimming.
+[Classic EMF clipping](docs/METAFILE-CLASSIC-CLIP-PARITY.md) includes region
+Boolean combinations, clip offsets and independent metaregions.
 [Supported drawing behavior and remaining limits](docs/IMAGE-METAFILE-PARITY.md)
 remain explicit; rendering does not rewrite the original files.

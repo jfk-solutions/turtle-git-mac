@@ -814,4 +814,125 @@ final class MetafileImageTests: XCTestCase {
         }
     }
 
+    /// Compare actual native SVG pixels on a fixed interior grid against an
+    /// independent Boolean geometry oracle. No generated SVG path/mask is parsed.
+    private func classicClip(_ name: String, _ expected: (Int, Int) -> Bool) throws {
+        let value = try image("classic-clip-" + name + ".emf")
+        XCTAssertEqual(value.pixels.width, 96, name); XCTAssertEqual(value.pixels.height, 64, name)
+        var rgba = [UInt8](repeating: 0, count: 96 * 64 * 4)
+        try rgba.withUnsafeMutableBytes { storage in
+            let space = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+            let context = try XCTUnwrap(CGContext(data: storage.baseAddress, width: 96, height: 64,
+                bitsPerComponent: 8, bytesPerRow: 96 * 4, space: space,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
+            context.interpolationQuality = .none
+            context.draw(value.pixels, in: CGRect(x: 0, y: 0, width: 96, height: 64))
+        }
+        var wrong: [String] = []
+        for y in stride(from: 2, to: 64, by: 4) {
+            for x in stride(from: 2, to: 96, by: 4) {
+                let at = (y * 96 + x) * 4
+                let wantedRed = expected(x, y)
+                let red = rgba[at] > 240 && rgba[at + 1] < 15 && rgba[at + 2] < 15 && rgba[at + 3] > 240
+                let white = rgba[at] > 240 && rgba[at + 1] > 240 && rgba[at + 2] > 240 && rgba[at + 3] > 240
+                if wantedRed ? !red : !white {
+                    wrong.append("\(x),\(y): expected \(wantedRed ? "red" : "white"), got \(Array(rgba[at..<at+4]))")
+                }
+            }
+        }
+        XCTAssertTrue(wrong.isEmpty, "\(name): \(wrong.count) wrong native samples; \(wrong.prefix(12).joined(separator: "; ")); \(rasterDiagnostic(value))")
+    }
+    private func clipRect(_ rect: (Int, Int, Int, Int), _ x: Int, _ y: Int) -> Bool {
+        x >= rect.0 && x < rect.2 && y >= rect.1 && y < rect.3
+    }
+    func testClassicClipRegionAndPathBooleanOperationsPaintActualGeometry() throws {
+        func a(_ x: Int, _ y: Int) -> Bool { clipRect((8, 8, 56, 48), x, y) }
+        func b(_ x: Int, _ y: Int) -> Bool { clipRect((32, 20, 80, 56), x, y) }
+        for family in ["region", "path"] {
+            try classicClip(family + "-and") { a($0, $1) && b($0, $1) }
+            try classicClip(family + "-or") { a($0, $1) || b($0, $1) }
+            try classicClip(family + "-xor") { a($0, $1) != b($0, $1) }
+            try classicClip(family + "-diff") { a($0, $1) && !b($0, $1) }
+            try classicClip(family + "-copy", b)
+        }
+        for operation in ["and", "copy"] { try classicClip("empty-" + operation) { _, _ in false } }
+        for operation in ["or", "xor", "diff"] { try classicClip("empty-" + operation, a) }
+        try classicClip("default-and", a)
+        try classicClip("default-copy", a)
+        try classicClip("default-or") { _, _ in true }
+        for operation in ["xor", "diff"] { try classicClip("default-" + operation) { !a($0, $1) } }
+        try classicClip("path-evenodd") { a($0, $1) && !self.clipRect((20, 20, 44, 36), $0, $1) }
+        try classicClip("path-nonzero", a)
+        try classicClip("control") { _, _ in true }
+        try classicClip("null-reset") { _, _ in true }
+        try classicClip("null-reset-mask") { _, _ in true }
+        try classicClip("region-device", a)
+        try classicClip("region-unknown-size", a)
+        try classicClip("region-disjoint") { self.clipRect((8, 8, 24, 48), $0, $1) || self.clipRect((56, 8, 80, 48), $0, $1) }
+        try classicClip("region-empty-rectangle") { _, _ in false }
+        try classicClip("region-frame-origin") { self.clipRect((0, 4, 48, 44), $0, $1) }
+    }
+    func testClassicClipCapturesTransformsAndOffsetsOnlyLogicalVectors() throws {
+        try classicClip("rect-intersect") { self.clipRect((32, 20, 56, 48), $0, $1) }
+        try classicClip("rect-exclude") { self.clipRect((8, 8, 56, 48), $0, $1) && !self.clipRect((32, 20, 80, 56), $0, $1) }
+        try classicClip("rect-exclude-default") { !self.clipRect((8, 8, 56, 48), $0, $1) }
+        for name in ["rect-world", "path-world"] {
+            try classicClip(name) { self.clipRect((18, 8, 50, 32), $0, $1) }
+        }
+        try classicClip("rect-map") { self.clipRect((12, 14, 44, 46), $0, $1) }
+        try classicClip("offset-world") { self.clipRect((24, 4, 72, 44), $0, $1) }
+        try classicClip("rect-shear") { x, y in
+            y >= 8 && y < 40 && Double(x) >= 8 + Double(y) * 0.5 && Double(x) < 40 + Double(y) * 0.5
+        }
+        try classicClip("offset-mask") {
+            self.clipRect((16, 8, 64, 48), $0, $1) != self.clipRect((40, 20, 88, 56), $0, $1)
+        }
+        for name in ["offset-offcanvas", "path-offcanvas-offset"] {
+            try classicClip(name) { self.clipRect((8, 8, 40, 48), $0, $1) }
+        }
+        try classicClip("offset-none") { _, _ in true }
+        try classicClip("offset-empty") { _, _ in false }
+    }
+    func testClassicMetaRegionsRemainSeparateAcrossSelectionResetAndRestore() throws {
+        let a: (Int, Int) -> Bool = { self.clipRect((8, 8, 56, 48), $0, $1) }
+        let intersection: (Int, Int) -> Bool = { self.clipRect((32, 20, 56, 48), $0, $1) }
+        for name in ["meta-selected", "meta-repeated", "restore-meta-and-selection"] { try classicClip(name, intersection) }
+        for name in ["meta-null-reset", "meta-offset-none", "meta-repeated-no-selection", "restore-negative-depth", "restore-offset", "restore-absolute-one"] { try classicClip(name, a) }
+        try classicClip("meta-offset-selection") { a($0, $1) && self.clipRect((16, 12, 64, 48), $0, $1) }
+        try classicClip("meta-empty") { _, _ in false }
+        try classicClip("restore-before-meta") { _, _ in true }
+        try classicClip("restore-absolute-two") { self.clipRect((32, 20, 80, 56), $0, $1) }
+        for name in ["path-preserved-region", "path-preserved-meta"] { try classicClip(name, intersection) }
+        try classicClip("path-preserved-offset") { self.clipRect((32, 20, 64, 48), $0, $1) }
+    }
+    func testClassicGetDCRetiresSelectedAndMetaClipsBeforeNextInterval() throws {
+        for name in ["selected", "meta"] {
+            let value = try image("classic-clip-getdc-" + name + ".emf")
+            // First interval's A remains red outside B; B must paint green both
+            // inside A and outside A in the independently acquired second DC.
+            try primary(value, 0, 16, 12); try primary(value, 0, 48, 12)
+            try primary(value, 1, 40, 32); try primary(value, 1, 72, 40)
+            try primary(value, 1, 40, 52)
+            for (x, y) in [(88, 60), (4, 4), (16, 52)] {
+                XCTAssertTrue(try rgb(value, x, y).allSatisfy { $0 > 0.9 }, "GetDC \(name) painted outside A/B at \(x),\(y)")
+            }
+        }
+    }
+    func testMalformedClassicClipsFailBeforeReturningSuccessfulPartialImages() throws {
+        let names = ["region-size-small", "region-size-large", "region-mode-zero", "region-mode-six",
+                     "region-header-size", "region-type", "region-count", "region-buffer-size", "region-reversed",
+                     "region-truncated", "region-trailing", "null-mode-0", "null-mode-1", "null-mode-2",
+                     "null-mode-3", "null-mode-4", "null-mode-6", "null-trailing", "region-short",
+                     "path-mode-0", "path-mode-6", "path-missing", "path-short", "path-consumed",
+                     "rect-short", "offset-short", "offset-domain-budget", "offset-domain-area-budget", "restore-unmatched", "restore-depth", "restore-absolute-missing"]
+        for name in names {
+            let original = try data("unsupported-classic-clip-" + name + ".emf")
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(original), name)
+            XCTAssertEqual(try data("unsupported-classic-clip-" + name + ".emf"), original)
+        }
+        for name in ["region-count", "region-reversed", "path-consumed", "restore-depth"] {
+            XCTAssertNil(ComparisonImage(bytes: try data("unsupported-classic-clip-" + name + ".emf")), name)
+        }
+    }
+
 }

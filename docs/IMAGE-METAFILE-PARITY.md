@@ -26,8 +26,9 @@ subpath. Bounded continued objects assemble before decoding.
 
 Font objects retain original family names instead of replacing them with generic
 serif/sans/monospace. Native CoreText measurement replaces the upstream fixed
-0.6-em estimate. Simple StringFormat alignment, line alignment and wrapping are
-implemented; complex text layouts are refused explicitly. Solid pen caps, joins,
+0.6-em estimate. Formatted StringFormat layouts use native shaped outlines for alignment,
+wrapping, direction, tabs, spacing, trimming and decorations; exact scope and
+remaining text refusals are listed in [formatted text parity](METAFILE-TEXT-PARITY.md). Solid pen caps, joins,
 units and dash patterns retain their source data. Raw 24-bit BGR, 32-bit BGRX,
 BGRA and premultiplied BGRA bitmap objects use bounded native conversion.
 Compressed image signatures determine PNG/JPEG decoding, and actual decoded
@@ -91,8 +92,9 @@ The [indexed/16-bit bitmap extension](METAFILE-BITMAP-FORMATS-PARITY.md) covers
 1/4/8-bit indexed palettes and RGB555/RGB565/ARGB1555 for images and texture
 brushes. Extended grayscale and 48/64-bit formats, nested WMF images and uncommon
 embedded compressed formats remain open. EMF invert/mask/parallelogram/SetDIBitsToDevice
-records, framed regions, triangle gradients and non-Copy/And region combinations
-are refused. WMF region/flood fill and non-copy raster operations remain open.
+records, framed regions and triangle gradients are refused. The
+[classic clipping extension](METAFILE-CLASSIC-CLIP-PARITY.md) covers all five
+GDI region combinations, path clips, rectangle clips, offsets and metaregions. WMF region/flood fill and non-copy raster operations remain open.
 Windows-only fonts can substitute through CoreText. Exact GDI glyph metrics,
 text shaping, pen dash/cap combinations, every classic record variant and pixel
 identity across all Windows metafiles have not been certified.
@@ -130,3 +132,15 @@ refusal, an actual post-launch deadline, source-byte preservation, private
 request-directory removal and owned-process drainage pass. No shipping GUI or
 installed Finder workflow was launched. This selected corpus does not establish
 all-record graphics fidelity or App Store distribution acceptance.
+
+## Independent decoder reference
+
+The user-provided [BaseHmiTypes renderer](https://github.com/jfk-solutions/BaseHmiTypes/blob/f491a9514f935d64b54bc62ec70606db19f9105a/typescript/base-hmi-types/src/images/converters/metafile-to-svg-renderer.ts)
+was inspected at `f491a9514f935d64b54bc62ec70606db19f9105a` (MIT,
+copyright 2026 JFK Solutions). Its classic clip masks and metaregion/offset
+lifecycle informed the classic clipping extension; its original license is
+retained and bundled. It is a self-contained decoder reference, whereas
+layout2vector supplies independent export writers. TurtleGit retains its own
+framing checks, explicit unsupported-record errors, budgets, native text/bitmap
+bridges and affine playback. BaseHmiTypes' EMF+ object reader covers paths and
+images; it does not supply the outstanding EMF+ pen implementation.

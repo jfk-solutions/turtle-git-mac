@@ -29,6 +29,8 @@ def main():
     assert manifest['pin'] == pin
     assert digest(runtime / 'LICENSE-Wine-hatches') == pin['hatch_patterns']['license_sha256']
     assert digest(ROOT / pin['hatch_patterns']['license_file']) == pin['hatch_patterns']['license_sha256']
+    assert digest(runtime / 'LICENSE-BaseHmiTypes') == pin['classic_clipping']['license_sha256']
+    assert digest(ROOT / pin['classic_clipping']['license_file']) == pin['classic_clipping']['license_sha256']
     binary = runtime / 'metafile-convert'
     assert digest(binary) == manifest['binary_sha256']
     assert digest(runtime / 'renderer.js') == manifest['renderer_sha256']
