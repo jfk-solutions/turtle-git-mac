@@ -76,7 +76,9 @@ WMF, EMF and EMF+ inputs use the bundled metafile renderer in the existing image
 panes. No separately installed converter is needed. Load Images and image-pane
 drops accept these formats too. Rendering supports captured vector paths, text,
 transforms, clipping and embedded bitmaps; recorded dimensions and available
-resolution feed the normal zoom and Image Info controls.
+resolution feed the normal zoom and Image Info controls. EMF+ embedded images
+and texture brushes include indexed 1/4/8-bit palettes and 16-bit RGB555, RGB565
+and ARGB1555, alongside 24/32-bit bitmap formats.
 
 Decoding runs in the background. Closing or replacing an input cancels the owned
 decoder and prevents a delayed preview from replacing a newer view. Rendering

@@ -104,10 +104,9 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
          const cw = this.canvas.width || 800;
          const ch = this.canvas.height || 600;
 diff --git a/src/turtleGit.js b/src/turtleGit.js
-new file mode 100644
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,425 @@
+@@ -0,0 +1,426 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -259,7 +258,8 @@ new file mode 100644
 +    return clip;
 +  }
 +  const ep=EmfPlusDrawer.prototype, originalDispatch=ep.processEmfPlusRecordType;
-+  const paint=require('./turtleGitPaint')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,escape,matrix,currentMatrix});
++  const rawBitmap=require('./turtleGitBitmap')({fail,u32});
++  const paint=require('./turtleGitPaint')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,escape,matrix,currentMatrix,rawBitmap});
 +  const images=require('./turtleGitImages')({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix});
 +  // Existing drawing routines operate in local coordinates. Wrap each completed
 +  // record in the captured full affine matrix, preserving rotated ellipses/text/pens.
@@ -369,7 +369,7 @@ new file mode 100644
 +      if(imageType===1) {
 +        if(data.length<32)fail('truncated EMF+ bitmap');
 +        let width=i32(data,8),height=i32(data,12);const stride=i32(data,16),pixelFormat=u32(data,20),bitmapType=u32(data,24);let href;
-+        if(bitmapType===0) href=__turtleBitmap(data.slice(28),width,height,stride,pixelFormat);
++        if(bitmapType===0) href=rawBitmap(data,28,width,height,stride,pixelFormat);
 +        else if(bitmapType===1) {
 +          const bytes=data.slice(28),png=bytes.length>=8&&bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10;
 +          const jpeg=bytes.length>=3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
@@ -533,8 +533,122 @@ new file mode 100644
 +    if(typeof svg!=='string'||svg.length>128*1024*1024)fail('output size limit');return svg;
 +  };
 +};
+diff --git a/src/turtleGitBitmap.js b/src/turtleGitBitmap.js
+--- /dev/null
++++ b/src/turtleGitBitmap.js
+@@ -0,0 +1,29 @@
++// Original TurtleGit adaptation, MIT. MS-EMFPLUS 2.1.1.24, 2.1.2.5,
++// 2.2.2.2/3/28. Shared raw image and texture framing, not a DIB header.
++module.exports = function installBitmap({fail,u32}) {
++  const formats=new Set([0x30101,0x30402,0x30803,0x21005,0x21006,0x61007,0x21808,0x22009,0x26200a,0xe200b]);
++  return function rawBitmap(data,offset,width,height,stride,format) {
++    if(!formats.has(format))fail('unsupported raw EMF+ pixel format');
++    const bits=(format>>>8)&255,indexed=!!(format&0x10000),rowBytes=Math.ceil(width*bits/8),size=Math.abs(stride)*height;
++    if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1||width>32768||height>32768||width*height>16777216 ||
++       !Number.isInteger(stride)||!stride||Math.abs(stride)<rowBytes||!Number.isSafeInteger(size)||size>64*1024*1024 ||
++       (bits<=16 && Math.abs(stride)%4))fail('invalid raw bitmap extent/stride');
++    let palette=[];
++    if(indexed) {
++      const flags=u32(data,offset),count=u32(data,offset+4);offset+=8;
++      if(flags&~7||count<1||count>2**bits||offset+count*4>data.length)fail('invalid indexed bitmap palette');
++      for(let i=0;i<count;i++) {
++        const color=u32(data,offset+i*4);
++        // Palette flags describe entries, never request an invented palette.
++        if((flags&2) && (((color>>>16)&255)!==((color>>>8)&255)||((color>>>8)&255)!==(color&255)))fail('invalid grayscale palette entry');
++        palette.push(color);
++      }
++      offset+=count*4;
++    }
++    if(offset<0||data.length-offset<size||data.length-offset-size>3)fail('invalid raw bitmap byte count');
++    if(typeof globalThis.__turtleBitmap!=='function')fail('native raw bitmap adapter unavailable');
++    const href=globalThis.__turtleBitmap(data.slice(offset,offset+size),width,height,stride,format,palette);
++    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,'))fail('invalid native raw bitmap result');
++    return href;
++  };
++};
+diff --git a/src/turtleGitHatch.js b/src/turtleGitHatch.js
+--- /dev/null
++++ b/src/turtleGitHatch.js
+@@ -0,0 +1,78 @@
++/*
++ * Copyright (C) 2007 Google (Evan Stade)
++ * Copyright (C) 2003-2004,2007 Novell, Inc. http://www.novell.com (Ravindra (rkumar@novell.com))
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++// Canonical HatchBrushes table adapted from Wine dlls/gdiplus/brush.c.
++// Source: https://github.com/wine-mirror/wine/blob/7298a818b79446bae153b8d5aa27235ab3703bf9/dlls/gdiplus/brush.c
++// TurtleGit adaptation: C arrays to JavaScript; final item is the antialias flag.
++// This module is LGPL-2.1-or-later; the surrounding original paint adapter is MIT.
++module.exports = [
++  [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0], /* HatchStyleHorizontal */
++  [0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0], /* HatchStyleVertical */
++  [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 1], /* HatchStyleForwardDiagonal */
++  [0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01, 1], /* HatchStyleBackwardDiagonal */
++  [0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0xff, 0], /* HatchStyleCross */
++  [0x81, 0x42, 0x24, 0x18, 0x18, 0x24, 0x42, 0x81, 1], /* HatchStyleDiagonalCross */
++  [0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x80, 0], /* HatchStyle05Percent */
++  [0x00, 0x08, 0x00, 0x80, 0x00, 0x08, 0x00, 0x80, 0], /* HatchStyle10Percent */
++  [0x00, 0x22, 0x00, 0x88, 0x00, 0x22, 0x00, 0x88, 0], /* HatchStyle20Percent */
++  [0x22, 0x88, 0x22, 0x88, 0x22, 0x88, 0x22, 0x88, 0], /* HatchStyle25Percent */
++  [0x11, 0xaa, 0x44, 0xaa, 0x11, 0xaa, 0x44, 0xaa, 0], /* HatchStyle30Percent */
++  [0x15, 0xaa, 0x55, 0xaa, 0x51, 0xaa, 0x55, 0xaa, 0], /* HatchStyle40Percent */
++  [0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0], /* HatchStyle50Percent */
++  [0x55, 0xbb, 0x55, 0xee, 0x55, 0xbb, 0x55, 0xee, 0], /* HatchStyle60Percent */
++  [0xdd, 0x77, 0xdd, 0x77, 0xdd, 0x77, 0xdd, 0x77, 0], /* HatchStyle70Percent */
++  [0xff, 0xdd, 0xff, 0x77, 0xff, 0xdd, 0xff, 0x77, 0], /* HatchStyle75Percent */
++  [0xff, 0xfe, 0xff, 0xef, 0xff, 0xfe, 0xff, 0xef, 0], /* HatchStyle80Percent */
++  [0x7f, 0xff, 0xff, 0xff, 0xf7, 0xff, 0xff, 0xff, 0], /* HatchStyle90Percent */
++  [0x11, 0x22, 0x44, 0x88, 0x11, 0x22, 0x44, 0x88, 0], /* HatchStyleLightDownwardDiagonal */
++  [0x88, 0x44, 0x22, 0x11, 0x88, 0x44, 0x22, 0x11, 0], /* HatchStyleLightUpwardDiagonal */
++  [0x99, 0x33, 0x66, 0xcc, 0x99, 0x33, 0x66, 0xcc, 0], /* HatchStyleDarkDownwardDiagonal */
++  [0x99, 0xcc, 0x66, 0x33, 0x99, 0xcc, 0x66, 0x33, 0], /* HatchStyleDarkUpwardDiagonal */
++  [0x83, 0x07, 0x0e, 0x1c, 0x38, 0x70, 0xe0, 0xc1, 0], /* HatchStyleWideDownwardDiagonal */
++  [0xc1, 0xe0, 0x70, 0x38, 0x1c, 0x0e, 0x07, 0x83, 0], /* HatchStyleWideUpwardDiagonal */
++  [0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0], /* HatchStyleLightVertical */
++  [0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0xff, 0], /* HatchStyleLightHorizontal */
++  [0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0], /* HatchStyleNarrowVertical */
++  [0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0], /* HatchStyleNarrowHorizontal */
++  [0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0], /* HatchStyleDarkVertical */
++  [0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0], /* HatchStyleDarkHorizontal */
++  [0x00, 0x00, 0x11, 0x22, 0x44, 0x88, 0x00, 0x00, 0], /* HatchStyleDashedDownwardDiagonal */
++  [0x00, 0x00, 0x88, 0x44, 0x22, 0x11, 0x00, 0x00, 0], /* HatchStyleDashedUpwardDiagonal */
++  [0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00, 0xf0, 0], /* HatchStyleDashedHorizontal */
++  [0x08, 0x08, 0x08, 0x08, 0x80, 0x80, 0x80, 0x80, 0], /* HatchStyleDashedVertical */
++  [0x04, 0x20, 0x01, 0x10, 0x02, 0x40, 0x08, 0x80, 0], /* HatchStyleSmallConfetti */
++  [0x8d, 0x0c, 0xc0, 0xd8, 0x1b, 0x03, 0x30, 0xb1, 0], /* HatchStyleLargeConfetti */
++  [0x18, 0x24, 0x42, 0x81, 0x18, 0x24, 0x42, 0x81, 0], /* HatchStyleZigZag */
++  [0xc0, 0x25, 0x18, 0x00, 0xc0, 0x25, 0x18, 0x00, 0], /* HatchStyleWave */
++  [0x81, 0x42, 0x24, 0x18, 0x08, 0x04, 0x02, 0x01, 0], /* HatchStyleDiagonalBrick */
++  [0x08, 0x08, 0x08, 0xff, 0x80, 0x80, 0x80, 0xff, 0], /* HatchStyleHorizontalBrick */
++  [0x51, 0x22, 0x14, 0x88, 0x45, 0x22, 0x54, 0x88, 0], /* HatchStyleWeave */
++  [0xf0, 0xf0, 0xf0, 0xf0, 0x55, 0xaa, 0x55, 0xaa, 0], /* HatchStylePlaid */
++  [0x80, 0x01, 0x80, 0x00, 0x10, 0x08, 0x10, 0x00, 0], /* HatchStyleDivot */
++  [0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0xaa, 0], /* HatchStyleDottedGrid */
++  [0x00, 0x22, 0x00, 0x08, 0x00, 0x22, 0x00, 0x80, 0], /* HatchStyleDottedDiamond */
++  [0x01, 0x01, 0x02, 0x0c, 0x30, 0x48, 0x84, 0x03, 0], /* HatchStyleShingle */
++  [0x99, 0xff, 0x66, 0xff, 0x99, 0xff, 0x66, 0xff, 0], /* HatchStyleTrellis */
++  [0xf8, 0xf8, 0x98, 0x77, 0x8f, 0x8f, 0x89, 0x77, 0], /* HatchStyleSphere */
++  [0x88, 0x88, 0x88, 0xff, 0x88, 0x88, 0x88, 0xff, 0], /* HatchStyleSmallGrid */
++  [0x99, 0x66, 0x66, 0x99, 0x99, 0x66, 0x66, 0x99, 0], /* HatchStyleSmallCheckerBoard */
++  [0x0f, 0x0f, 0x0f, 0x0f, 0xf0, 0xf0, 0xf0, 0xf0, 0], /* HatchStyleLargeCheckerBoard */
++  [0x01, 0x82, 0x44, 0x28, 0x10, 0x28, 0x44, 0x82, 0], /* HatchStyleOutlinedDiamond */
++  [0x00, 0x10, 0x38, 0x7c, 0xfe, 0x7c, 0x38, 0x10, 0], /* HatchStyleSolidDiamond */
++];
 diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
-new file mode 100644
 --- /dev/null
 +++ b/src/turtleGitImages.js
 @@ -0,0 +1,116 @@
@@ -655,16 +769,15 @@ new file mode 100644
 +  }};
 +};
 diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
-new file mode 100644
 --- /dev/null
 +++ b/src/turtleGitPaint.js
-@@ -0,0 +1,362 @@
+@@ -0,0 +1,358 @@
 +// TurtleGit EMF+ gradient, hatch and bitmap texture painting. MIT, see repository LICENSE.
 +// Canonical hatch cell data is isolated in LGPL-2.1-or-later turtleGitHatch.js.
 +// Geometry remains in local drawing coordinates; the record's world/page/device
 +// transform is applied by turtleGit.js to the completed drawing node.
 +module.exports = function installGradientPaint(helpers) {
-+  const {EmfPlusDrawer, SvgContext, fail, u32, i32, f32, state, escape, matrix, currentMatrix} = helpers;
++  const {EmfPlusDrawer, SvgContext, fail, u32, i32, f32, state, escape, matrix, currentMatrix,rawBitmap} = helpers;
 +  const hatchCells = require('./turtleGitHatch');
 +  const ep = EmfPlusDrawer.prototype, originalResolve = ep._emfPlusResolveBrush;
 +  const identity = () => [1,0,0,1,0,0];
@@ -774,11 +887,7 @@ new file mode 100644
 +    const stride=i32(data,offset+16),pixelFormat=u32(data,offset+20),bitmapType=u32(data,offset+24);
 +    let href;
 +    if(bitmapType===0) {
-+      if(width<1||height<1||width>32768||height>32768||width*height>16777216 || !stride || Math.abs(stride)*height>64*1024*1024) fail('invalid texture bitmap extent');
-+      const size=Math.abs(stride)*height,available=data.length-offset-28;
-+      if(available<size||available-size>3) fail('invalid texture bitmap byte count');
-+      if(typeof globalThis.__turtleBitmap!=='function') fail('native texture bitmap adapter unavailable');
-+      href=globalThis.__turtleBitmap(data.slice(offset+28,offset+28+size),width,height,stride,pixelFormat);
++      href=rawBitmap(data,offset+28,width,height,stride,pixelFormat);
 +    } else if(bitmapType===1) {
 +      const bytes=data.slice(offset+28),png=bytes.length>=8&&bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10;
 +      const jpeg=bytes.length>=3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
@@ -1032,86 +1141,3 @@ diff --git a/src/utils/nestedMetafilePlayer.js b/src/utils/nestedMetafilePlayer.
          // Callers are EMF+ DrawImage handlers; wording kept for log continuity.
          console.log('EMF+ nested EMF render failed:', /** @type {Error} */ (e).message);
          return null;
-diff --git a/src/turtleGitHatch.js b/src/turtleGitHatch.js
-new file mode 100644
---- /dev/null
-+++ b/src/turtleGitHatch.js
-@@ -0,0 +1,78 @@
-+/*
-+ * Copyright (C) 2007 Google (Evan Stade)
-+ * Copyright (C) 2003-2004,2007 Novell, Inc. http://www.novell.com (Ravindra (rkumar@novell.com))
-+ *
-+ * This library is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU Lesser General Public
-+ * License as published by the Free Software Foundation; either
-+ * version 2.1 of the License, or (at your option) any later version.
-+ *
-+ * This library is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * Lesser General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU Lesser General Public
-+ * License along with this library; if not, write to the Free Software
-+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
-+ */
-+
-+// Canonical HatchBrushes table adapted from Wine dlls/gdiplus/brush.c.
-+// Source: https://github.com/wine-mirror/wine/blob/7298a818b79446bae153b8d5aa27235ab3703bf9/dlls/gdiplus/brush.c
-+// TurtleGit adaptation: C arrays to JavaScript; final item is the antialias flag.
-+// This module is LGPL-2.1-or-later; the surrounding original paint adapter is MIT.
-+module.exports = [
-+  [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0], /* HatchStyleHorizontal */
-+  [0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0], /* HatchStyleVertical */
-+  [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 1], /* HatchStyleForwardDiagonal */
-+  [0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01, 1], /* HatchStyleBackwardDiagonal */
-+  [0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0xff, 0], /* HatchStyleCross */
-+  [0x81, 0x42, 0x24, 0x18, 0x18, 0x24, 0x42, 0x81, 1], /* HatchStyleDiagonalCross */
-+  [0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x80, 0], /* HatchStyle05Percent */
-+  [0x00, 0x08, 0x00, 0x80, 0x00, 0x08, 0x00, 0x80, 0], /* HatchStyle10Percent */
-+  [0x00, 0x22, 0x00, 0x88, 0x00, 0x22, 0x00, 0x88, 0], /* HatchStyle20Percent */
-+  [0x22, 0x88, 0x22, 0x88, 0x22, 0x88, 0x22, 0x88, 0], /* HatchStyle25Percent */
-+  [0x11, 0xaa, 0x44, 0xaa, 0x11, 0xaa, 0x44, 0xaa, 0], /* HatchStyle30Percent */
-+  [0x15, 0xaa, 0x55, 0xaa, 0x51, 0xaa, 0x55, 0xaa, 0], /* HatchStyle40Percent */
-+  [0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0], /* HatchStyle50Percent */
-+  [0x55, 0xbb, 0x55, 0xee, 0x55, 0xbb, 0x55, 0xee, 0], /* HatchStyle60Percent */
-+  [0xdd, 0x77, 0xdd, 0x77, 0xdd, 0x77, 0xdd, 0x77, 0], /* HatchStyle70Percent */
-+  [0xff, 0xdd, 0xff, 0x77, 0xff, 0xdd, 0xff, 0x77, 0], /* HatchStyle75Percent */
-+  [0xff, 0xfe, 0xff, 0xef, 0xff, 0xfe, 0xff, 0xef, 0], /* HatchStyle80Percent */
-+  [0x7f, 0xff, 0xff, 0xff, 0xf7, 0xff, 0xff, 0xff, 0], /* HatchStyle90Percent */
-+  [0x11, 0x22, 0x44, 0x88, 0x11, 0x22, 0x44, 0x88, 0], /* HatchStyleLightDownwardDiagonal */
-+  [0x88, 0x44, 0x22, 0x11, 0x88, 0x44, 0x22, 0x11, 0], /* HatchStyleLightUpwardDiagonal */
-+  [0x99, 0x33, 0x66, 0xcc, 0x99, 0x33, 0x66, 0xcc, 0], /* HatchStyleDarkDownwardDiagonal */
-+  [0x99, 0xcc, 0x66, 0x33, 0x99, 0xcc, 0x66, 0x33, 0], /* HatchStyleDarkUpwardDiagonal */
-+  [0x83, 0x07, 0x0e, 0x1c, 0x38, 0x70, 0xe0, 0xc1, 0], /* HatchStyleWideDownwardDiagonal */
-+  [0xc1, 0xe0, 0x70, 0x38, 0x1c, 0x0e, 0x07, 0x83, 0], /* HatchStyleWideUpwardDiagonal */
-+  [0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0], /* HatchStyleLightVertical */
-+  [0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0xff, 0], /* HatchStyleLightHorizontal */
-+  [0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0], /* HatchStyleNarrowVertical */
-+  [0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0], /* HatchStyleNarrowHorizontal */
-+  [0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0], /* HatchStyleDarkVertical */
-+  [0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0], /* HatchStyleDarkHorizontal */
-+  [0x00, 0x00, 0x11, 0x22, 0x44, 0x88, 0x00, 0x00, 0], /* HatchStyleDashedDownwardDiagonal */
-+  [0x00, 0x00, 0x88, 0x44, 0x22, 0x11, 0x00, 0x00, 0], /* HatchStyleDashedUpwardDiagonal */
-+  [0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00, 0xf0, 0], /* HatchStyleDashedHorizontal */
-+  [0x08, 0x08, 0x08, 0x08, 0x80, 0x80, 0x80, 0x80, 0], /* HatchStyleDashedVertical */
-+  [0x04, 0x20, 0x01, 0x10, 0x02, 0x40, 0x08, 0x80, 0], /* HatchStyleSmallConfetti */
-+  [0x8d, 0x0c, 0xc0, 0xd8, 0x1b, 0x03, 0x30, 0xb1, 0], /* HatchStyleLargeConfetti */
-+  [0x18, 0x24, 0x42, 0x81, 0x18, 0x24, 0x42, 0x81, 0], /* HatchStyleZigZag */
-+  [0xc0, 0x25, 0x18, 0x00, 0xc0, 0x25, 0x18, 0x00, 0], /* HatchStyleWave */
-+  [0x81, 0x42, 0x24, 0x18, 0x08, 0x04, 0x02, 0x01, 0], /* HatchStyleDiagonalBrick */
-+  [0x08, 0x08, 0x08, 0xff, 0x80, 0x80, 0x80, 0xff, 0], /* HatchStyleHorizontalBrick */
-+  [0x51, 0x22, 0x14, 0x88, 0x45, 0x22, 0x54, 0x88, 0], /* HatchStyleWeave */
-+  [0xf0, 0xf0, 0xf0, 0xf0, 0x55, 0xaa, 0x55, 0xaa, 0], /* HatchStylePlaid */
-+  [0x80, 0x01, 0x80, 0x00, 0x10, 0x08, 0x10, 0x00, 0], /* HatchStyleDivot */
-+  [0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0xaa, 0], /* HatchStyleDottedGrid */
-+  [0x00, 0x22, 0x00, 0x08, 0x00, 0x22, 0x00, 0x80, 0], /* HatchStyleDottedDiamond */
-+  [0x01, 0x01, 0x02, 0x0c, 0x30, 0x48, 0x84, 0x03, 0], /* HatchStyleShingle */
-+  [0x99, 0xff, 0x66, 0xff, 0x99, 0xff, 0x66, 0xff, 0], /* HatchStyleTrellis */
-+  [0xf8, 0xf8, 0x98, 0x77, 0x8f, 0x8f, 0x89, 0x77, 0], /* HatchStyleSphere */
-+  [0x88, 0x88, 0x88, 0xff, 0x88, 0x88, 0x88, 0xff, 0], /* HatchStyleSmallGrid */
-+  [0x99, 0x66, 0x66, 0x99, 0x99, 0x66, 0x66, 0x99, 0], /* HatchStyleSmallCheckerBoard */
-+  [0x0f, 0x0f, 0x0f, 0x0f, 0xf0, 0xf0, 0xf0, 0xf0, 0], /* HatchStyleLargeCheckerBoard */
-+  [0x01, 0x82, 0x44, 0x28, 0x10, 0x28, 0x44, 0x82, 0], /* HatchStyleOutlinedDiamond */
-+  [0x00, 0x10, 0x38, 0x7c, 0xfe, 0x7c, 0x38, 0x10, 0], /* HatchStyleSolidDiamond */
-+];

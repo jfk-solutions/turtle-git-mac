@@ -1,0 +1,147 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "ac2ad039489f67a94cbaad714934f7175bb09f97",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Shared EMF+ indexed1/4/8 palette and16bit RGB555/RGB565/ARGB1555 images and texture brushes",
+    "Packed pixels, palette alpha, row orientation/padding, malformed/refusal limits and retained24/32bit conversion",
+    "Original synthetic fixtures, actual native Compare/conflict input preservation and grouped validation"
+  ],
+  "validation": {
+    "status": "Scoped implementation passed:30distinctCoremethods (28initialpasses plus two focused repaired-oracle passes), universal runtime, Debug app, two native consumer/engine pairs. Fullport/currenthosted/physical/signed acceptance remain open.",
+    "resources": {
+      "exit": 0,
+      "log": "build/qa/metafile-bitmap-formats-resources-2026-10-19.log",
+      "help_documents": 40,
+      "help_topics": 49,
+      "localization_keys": 1293,
+      "languages": 38,
+      "site_documents": 341,
+      "site_unresolved_fragments": []
+    },
+    "runtime": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "log": "build/qa/metafile-bitmap-formats-runtime-2026-10-19.log",
+        "scope": "Universal helper and exact pinned source/license reconstruction validation.",
+        "cache_key": "d43bffa85be30958b187c1f6a15f0897d7254db843101d4f2a9da37c1e17f671",
+        "renderer_sha256": "59a5564c7fae4564c4a867cc51ccad92ef9cb5846ac412c9e5da08eae811bc50",
+        "binary_sha256": "e657417424f10e9426b439f9f7300490d2f7a67ff38609a1bef853a7baf2b691",
+        "source_inputs_match": true
+      }
+    ],
+    "core": [
+      {
+        "attempt": 1,
+        "exit": 1,
+        "tests": 30,
+        "passing_methods": 28,
+        "assertion_failures": 12,
+        "failed_methods": [
+          "testRawIndexedBitOrderPaletteAlphaAndSignedPaddedRows",
+          "testRaw16BitMasksAlphaAndRetained24And32BitFormats"
+        ],
+        "log": "build/qa/metafile-bitmap-formats-core-2026-10-19.log",
+        "diagnostic": "New halfalpha display probes differ from naive constant-pixel composite, including retained32bitformats. Investigating originalembeddedPNG channels/alpha vsCoreSVGinterpolation; assertions not weakened."
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "tests": 0,
+        "log": "build/qa/metafile-bitmap-formats-core-alpha-2026-10-19.log",
+        "diagnostic": "Root used a dot instead of slash between XCTest class and method. No matching tests ran; this is not passing evidence. Corrected filter immediately used."
+      },
+      {
+        "attempt": 3,
+        "exit": 1,
+        "tests": 2,
+        "assertion_failures": 12,
+        "log": "build/qa/metafile-bitmap-formats-core-alpha-correct-filter-2026-10-19.log",
+        "diagnostic": "Embedded PNG channels/alpha assertions pass. Uniform alpha swatches retain same displayed147/141components as tiny mixedswatches; source alpha=128. Investigating native color-space conversion instead of accepting constant0.5sRGBexpectation."
+      },
+      {
+        "attempt": 4,
+        "exit": 0,
+        "tests": 2,
+        "failures": 0,
+        "log": "build/qa/metafile-bitmap-formats-core-alpha-native-reference-2026-10-19.log",
+        "scope": "Only two affected new alpha methods. Exact embedded PNG RGBA remains checked within1/255. Uniform8x8 swatches compare within1/255 to independent plainCSS source-over rendering, retaining mixed-pixel/order/transparency probes. Previous28passingmethods retained."
+      }
+    ],
+    "build": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "log": "build/qa/metafile-bitmap-formats-build-2026-10-19.log",
+        "scope": "Current helper and native Debug app. Production unchanged after first runtime build."
+      }
+    ],
+    "native": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "log": "build/qa/metafile-bitmap-formats-native-2026-10-19.log",
+        "passed_pairs": [
+          "consumers/system",
+          "consumers/packaged"
+        ],
+        "receiver_pids": [
+          65041,
+          65426
+        ],
+        "scope": "21 representative two-side Compare inputs, three real3stage image conflict families including indexed/16bit/texture, actualreload/originalbytes and retained owner/cancel/grant checks."
+      }
+    ],
+    "diagnostic": {
+      "initial_interpolation_hypothesis": "Disproved by uniform plateau sample retaining the same display values. No production repair was needed.",
+      "source_png_first_rgba": [
+        255,
+        0,
+        0,
+        128
+      ],
+      "independent_css_display_rgba": [
+        255,
+        147,
+        141,
+        255
+      ],
+      "bitmap_display_rgba": [
+        255,
+        147,
+        141,
+        255
+      ],
+      "scope": "Local AppKit/CoreSVG color handling; not a Windows pixel-equivalence oracle.",
+      "logs": [
+        "build/qa/metafile-raw-alpha-diagnostics.json",
+        "build/qa/metafile-alpha-profile-diagnostic.swift",
+        "build/qa/metafile-alpha-profile-diagnostic.json"
+      ]
+    },
+    "cleanup": {
+      "receiver_pids_and_process_groups_checked_absent": [
+        65041,
+        65426
+      ],
+      "survivors": [],
+      "scope": "Native fixtures retain actual task/helper cancellation and hidden window/sheet cleanup assertions; all receiver sessions terminal."
+    }
+  },
+  "remaining": [
+    "16bitgrayscale,48/64bit channels and other documented metafile formats remain unsupported.",
+    "Synthetic local checks do not certify Windows pixels, physical gestures, signed helper/Finder grants, complete hosted CI or App Store distribution."
+  ],
+  "unrelated_work_preserved": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ],
+  "fixtures": {
+    "new_files": 57,
+    "accepted": 39,
+    "malformed": 18,
+    "generator": "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate.py",
+    "license": "MIT synthetic records; no copied picture/fontbytes"
+  }
+}

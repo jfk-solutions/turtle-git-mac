@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import XCTest
 import AppKit
+import ImageIO
 import Darwin
 @testable import TurtleGitCore
 
@@ -25,6 +26,36 @@ final class MetafileImageTests: XCTestCase {
             let alpha = CGFloat(components[offset + 3]) / 255
             return (0..<3).map { alpha > 0 ? CGFloat(components[offset + $0]) / (255 * alpha) : 0 }
         }
+    }
+    private func embeddedRGBA(_ name:String,_ x:Int=0,_ y:Int=0)throws->[CGFloat] {
+        let svg=String(decoding:try XCTUnwrap(MetafileImageDecoder.convert(data(name))),as:UTF8.self)
+        let start=try XCTUnwrap(svg.range(of:"data:image/png;base64,")),tail=svg[start.upperBound...]
+        let end=try XCTUnwrap(tail.firstIndex(of:"\"")),png=try XCTUnwrap(Data(base64Encoded:String(tail[..<end])))
+        let source=try XCTUnwrap(CGImageSourceCreateWithData(png as CFData,nil)),image=try XCTUnwrap(CGImageSourceCreateImageAtIndex(source,0,nil))
+        XCTAssertTrue((0..<image.width).contains(x) && (0..<image.height).contains(y))
+        var bytes=[UInt8](repeating:0,count:image.width*image.height*4)
+        return try bytes.withUnsafeMutableBytes{storage in
+            let space=try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB))
+            let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:image.width,height:image.height,bitsPerComponent:8,bytesPerRow:image.width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+            context.interpolationQuality = .none;context.draw(image,in:CGRect(x:0,y:0,width:image.width,height:image.height))
+            let values=storage.bindMemory(to:UInt8.self),offset=(y*image.width+x)*4,alpha=CGFloat(values[offset+3])/255
+            return (0..<3).map{alpha>0 ? CGFloat(values[offset+$0])/(255*alpha):0}+[alpha]
+        }
+    }
+    private func halfAlphaRed(_ name:String)throws {
+        let pixel=try embeddedRGBA(name)
+        XCTAssertEqual(pixel[0],1,accuracy:1.0/255);XCTAssertEqual(pixel[1],0,accuracy:1.0/255);XCTAssertEqual(pixel[2],0,accuracy:1.0/255)
+        XCTAssertEqual(pixel[3],CGFloat(128)/255,accuracy:1.0/255,"Raw decoder changed actual source alpha")
+        // Source alpha is checked above before native display color handling.
+        // Compare uniform interiors to an independent CSS source-over oracle:
+        // AppKit/CoreSVG color handling does not produce literal sRGB0.5 for
+        // red/128 over white on every display profile. This reference contains
+        // no metafile, bitmap adapter or embedded PNG.
+        let referenceBytes=Data("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"96\" height=\"64\"><rect width=\"96\" height=\"64\" fill=\"white\"/><rect width=\"96\" height=\"64\" fill=\"red\" fill-opacity=\"0.5019607843137255\"/></svg>".utf8)
+        let reference=try XCTUnwrap(ComparisonImage(bytes:referenceBytes)),expected=try rgb(reference,44,44)
+        let composite=try rgb(image(name.replacingOccurrences(of:".emf",with:"-plateau.emf")),44,44)
+        XCTAssertGreaterThan(composite[0],0.95)
+        for channel in 0..<3{XCTAssertEqual(composite[channel],expected[channel],accuracy:1.0/255,"Raw bitmap source-over differs from independent native CSS alpha")}
     }
     private func primary(_ image: ComparisonImage, _ channel: Int, _ x: Int, _ y: Int, file: StaticString = #filePath, line: UInt = #line) throws {
         let color = try rgb(image,x,y)
@@ -364,6 +395,71 @@ final class MetafileImageTests: XCTestCase {
         let samples = try (10..<18).map { try rgb(hatch, 16, $0) }
         XCTAssertTrue(samples.contains { $0[0] > 0.8 && $0[2] < 0.2 })
         XCTAssertTrue(samples.contains { $0[2] > 0.8 && $0[0] < 0.2 })
+    }
+    func testRawIndexedBitOrderPaletteAlphaAndSignedPaddedRows() throws {
+        for sign in ["positive","negative"] {
+            let one=try image("plus-raw-indexed1-\(sign).emf")
+            try primary(one,0,8,12);try primary(one,2,16,12);try primary(one,0,72,12)
+            try primary(one,2,8,28);try primary(one,0,16,28)
+            for bits in [4,8] {
+                let value=try image("plus-raw-indexed\(bits)-\(sign).emf")
+                try primary(value,0,12,12);try primary(value,1,28,12);try primary(value,2,44,12)
+                try primary(value,2,12,28);try primary(value,0,44,28)
+            }
+        }
+        for name in ["indexed-alpha","indexed-alpha-unflagged"] {
+            let value=try image("plus-raw-\(name).emf"),color=try rgb(value,12,12)
+            XCTAssertGreaterThan(color[0],0.95);try halfAlphaRed("plus-raw-\(name).emf")
+            XCTAssertTrue(try rgb(value,44,12).allSatisfy{$0>0.95},"Transparent palette blue stained the white background")
+        }
+        let gray=try rgb(image("plus-raw-indexed-gray.emf"),12,12)
+        for channel in gray{XCTAssertEqual(channel,CGFloat(85)/255,accuracy:0.03)}
+        let halftone=try image("plus-raw-indexed-halftone.emf")
+        try primary(halftone,0,12,12);try primary(halftone,1,28,12);try primary(halftone,2,44,12)
+    }
+    func testRaw16BitMasksAlphaAndRetained24And32BitFormats() throws {
+        for sign in ["positive","negative"] {
+            for format in ["rgb555","rgb565","rgb24","rgb32"] {
+                let value=try image("plus-raw-\(format)-\(sign).emf")
+                try primary(value,0,12,12);try primary(value,1,28,12);try primary(value,2,44,12)
+                XCTAssertTrue(try rgb(value,12,28).allSatisfy{$0>0.95})
+                XCTAssertTrue(try rgb(value,28,28).allSatisfy{$0<0.05})
+                let yellow=try rgb(value,44,28);XCTAssertGreaterThan(yellow[0],0.9);XCTAssertGreaterThan(yellow[1],0.9);XCTAssertLessThan(yellow[2],0.1)
+            }
+            let alpha=try image("plus-raw-argb1555-\(sign).emf")
+            try primary(alpha,0,12,12);try primary(alpha,1,28,12);try primary(alpha,2,28,28)
+            for point in [(44,12),(12,28)] {XCTAssertTrue(try rgb(alpha,point.0,point.1).allSatisfy{$0>0.95},"ARGB1555 transparent bit was ignored")}
+            for format in ["argb32","pargb32"] {
+                let retained=try image("plus-raw-\(format)-\(sign).emf"),red=try rgb(retained,12,12)
+                XCTAssertGreaterThan(red[0],0.95);try halfAlphaRed("plus-raw-\(format)-\(sign).emf")
+                try primary(retained,1,28,12);try primary(retained,2,28,28)
+                XCTAssertTrue(try rgb(retained,44,12).allSatisfy{$0>0.95})
+            }
+        }
+        for (name,expected) in [("rgb555-mid",[24,90,206]),("rgb565-mid",[57,69,189])] {
+            let actual=try rgb(image("plus-raw-\(name).emf"),12,12)
+            for channel in 0..<3{XCTAssertEqual(actual[channel],CGFloat(expected[channel])/255,accuracy:0.015,"16-bit channels were not expanded independently")}
+        }
+    }
+    func testIndexedAnd16BitTextureBrushesMatchIndependentlyCheckedImageColors() throws {
+        for name in ["indexed1-positive","indexed4-negative","indexed8-positive","rgb555-negative","rgb565-positive","argb1555-negative","indexed-alpha"] {
+            let direct=try image("plus-raw-\(name).emf"),texture=try image("plus-raw-texture-\(name).emf")
+            let points=name.hasPrefix("indexed1") ? [(8,12),(16,12),(72,12),(8,28),(16,28)]:[(12,12),(28,12),(44,12),(12,28),(28,28),(44,28)]
+            for point in points {
+                let a=try rgb(direct,point.0,point.1),b=try rgb(texture,point.0,point.1)
+                for channel in 0..<3{XCTAssertEqual(a[channel],b[channel],accuracy:0.035,"Raw texture differed for \(name) at \(point)")}
+            }
+            XCTAssertTrue(try rgb(texture,80,48).allSatisfy{$0>0.95},"Clamp repeated raw image beyond its tile")
+        }
+    }
+    func testMalformedIndexedPalettes16BitStridesAndRawSizesRefuseRendering() throws {
+        let names=["palette-flags","palette-zero","palette-gray","palette-count","palette-truncated","palette-index","palette-index8","indexed-stride","indexed-unaligned-stride","indexed-truncated","indexed-trailing","rgb16-stride","rgb16-truncated","rgb16-min-stride","raw-size","texture-palette-flags","texture-palette-index8","texture-rgb16-truncated"]
+        for suffix in names {
+            let name="unsupported-raw-"+suffix+".emf",bytes=try data(name)
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(bytes),name)
+            XCTAssertNil(ComparisonImage(bytes:bytes),name)
+            XCTAssertEqual(try data(name),bytes,"Refused image changed source bytes")
+        }
     }
     func testMalformedRegionAndPatternObjectsRefuseSuccessfulBlankOrApproximation() throws {
         for name in ["unsupported-region-work-budget.emf", "unsupported-region-brush-id.emf", "unsupported-region-path-flags.emf", "unsupported-region-count.emf", "unsupported-region-trailing.emf", "unsupported-region-path-length.emf", "unsupported-region-depth.emf", "unsupported-region-id.emf", "unsupported-region-clip-mode.emf", "unsupported-hatch-style.emf", "unsupported-texture-flags.emf", "unsupported-texture-wrap.emf", "unsupported-texture-truncated.emf", "unsupported-texture-image.emf", "unsupported-texture-tile-budget.emf"] {

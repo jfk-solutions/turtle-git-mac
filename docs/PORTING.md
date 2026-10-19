@@ -3546,3 +3546,18 @@ icons, option order and direct-Git result behavior remain.
 [Source comparison](BRANCH-TAG-PARITY.md) and
 [grouped record](qa/branch-tag-creation-family-2026-10-19.json) distinguish actual
 checks from physical/full visual/signing/transport/sandbox/App Store acceptance.
+
+
+### EMF+ indexed and 16-bit bitmap family, October 19, 2026
+
+The shared renderer now decodes indexed1/4/8 palettes and RGB555/RGB565/ARGB1555
+raw bitmaps in image objects and texture brushes. Shared parsing accounts for
+palettes before scan lines, retains packed ordering, alpha, signed row layout
+and padding, and refuses malformed palette/index/stride/storage combinations.
+The existing 24/32-bit conversion and original comparison/conflict bytes remain
+in use. Native Compare, preview and conflict consumers receive the formats through
+their existing background decoder, rather than introducing another UI.
+
+[Format contracts and remaining graphics behavior](METAFILE-BITMAP-FORMATS-PARITY.md)
+and [batch evidence](qa/metafile-bitmap-formats-2026-10-19.json) distinguish this
+implementation from complete GDI+/physical/signed/App Store acceptance.

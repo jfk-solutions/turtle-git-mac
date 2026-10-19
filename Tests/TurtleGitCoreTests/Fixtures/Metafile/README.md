@@ -99,3 +99,42 @@ compatibility; no generated vector/image outputs were copied into these fixtures
 Core color samples normalize the actual CGImage into a named sRGB8-bit buffer.
 This avoids NSBitmapImageRep.colorAt's generic-calibrated NSColor interpretation
 changing pure tagged-sRGB magenta. All original pixel thresholds remain intact.
+
+Raw bitmap batch (original generator inputs, no upstream picture bytes):
+
+- `plus-raw-indexed{1,4,8}-{positive,negative}.emf` use odd widths, deliberately
+  nonzero unused bits/nibbles and row padding, and distinct top/bottom rows.
+  One-bit values are MSB-first; four-bit values use the high nibble first.
+  Eight-bit uses index200 in a201-entry palette; padding255 must be ignored.
+- `plus-raw-indexed-alpha{,-unflagged}.emf` retain half/zero-alpha ARGB entries
+  with and without HasAlpha metadata. GrayScale2 and Halftone4 have separate
+  valid fixtures. GrayScale on non-gray colors is explicitly refused.
+- `plus-raw-{rgb555,rgb565,argb1555}-{positive,negative}.emf` use little-endian
+  packed channels and padded rows. RGB555 deliberately sets its ignored top bit;
+  ARGB1555 distinguishes transparent and opaque colors. `*-mid.emf` samples
+  nonendpoint channel values independently of the implementation.
+- `plus-raw-rgb24-*` retain sufficient unaligned stride9, and `rgb32-*` ignore
+  their unused high bytes. Straight `argb32-*` and premultiplied `pargb32-*`
+  encode the same half-alpha red and transparent/opaque controls in both orders.
+- `plus-raw-texture-*` paint the same source pixels through native texture
+  brushes with a single clamped tile, making the image/texture paths comparable.
+- `unsupported-raw-*` have complete outer record chains and isolate unknown
+  palette flags, bad grayscale metadata/counts/indices, truncated palette or
+  pixels, insufficient/unaligned/extreme stride, extra payload and huge dimensions.
+  Representative malformed indexed/16-bit objects also appear in texture brushes.
+
+Primary specifications: [EmfPlusBitmap](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/112a5e2c-6bb3-4daf-8ee3-0f3d3984410f),
+[BitmapData](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/c236db12-fc5d-4e5b-8266-0468881cd940),
+[PixelFormat](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/47cbe48e-d13c-450b-8a23-6aa95488428e),
+[PaletteStyle flags](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/fbdf8835-4deb-481e-b246-15cebbb18710),
+and Microsoft's [signed image stride explanation](https://learn.microsoft.com/en-us/windows/win32/medfound/image-stride).
+
+The six `*-plateau.emf` alpha companions use uniform8×8 source texels. Original
+mixed fixtures remain intact. Their emitted embedded PNG first texel is checked
+as straight RGBA255/0/0/128. Plateau interiors are compared within1/255 to an
+independent plainCSS SVG white background plus red fill-opacity128/255, containing
+no metafile or bitmap. Initial mixed-cell interpolation suspicion was disproved:
+uniform bitmap and plainCSS both produced255/147/141 on this Mac. Native SVG
+color handling makes literal displayed sRGB0.5 an invalid oracle for that alpha;
+the exact decoded alpha and independent native source-over comparison cover both
+stages without loosening their expected color/alpha relationship.

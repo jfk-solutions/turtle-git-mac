@@ -87,8 +87,10 @@ vertical/RTL/tab/trimming StringFormat layouts, custom text tracking, relative
 compressed path encodings and gradients outside the
 [accepted painting subset](METAFILE-PAINTING-PARITY.md), transformed/compound/custom-cap
 pens, alternate-format/terminal-server records and source-copy compositing.
-Indexed and 16-bit raw EMF+ bitmap formats, nested WMF images and uncommon embedded
-compressed formats remain open. EMF invert/mask/parallelogram/SetDIBitsToDevice
+The [indexed/16-bit bitmap extension](METAFILE-BITMAP-FORMATS-PARITY.md) covers
+1/4/8-bit indexed palettes and RGB555/RGB565/ARGB1555 for images and texture
+brushes. Extended grayscale and 48/64-bit formats, nested WMF images and uncommon
+embedded compressed formats remain open. EMF invert/mask/parallelogram/SetDIBitsToDevice
 records, framed regions, triangle gradients and non-Copy/And region combinations
 are refused. WMF region/flood fill and non-copy raster operations remain open.
 Windows-only fonts can substitute through CoreText. Exact GDI glyph metrics,

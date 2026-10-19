@@ -23,7 +23,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
     static func verify()async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),corpus=URL(fileURLWithPath:CommandLine.arguments[3])
         let corpusFiles=try FileManager.default.contentsOfDirectory(at:corpus,includingPropertiesForKeys:nil).filter { ["wmf","emf"].contains($0.pathExtension.lowercased()) }.sorted {$0.lastPathComponent < $1.lastPathComponent}
-        let nativeSamples:Set<String>=["clip-vector.wmf","classic-vector.emf","classic-bitmap.emf","plus-transform.emf","plus-bitmap-text.emf","plus-compressed-crop.emf","plus-gradient-transform.emf","plus-image-attributes.emf","plus-region-path.emf","plus-region-state.emf","plus-hatch-atlas.emf","plus-texture-world.emf","plus-region-texture.emf"]
+        let nativeSamples:Set<String>=["clip-vector.wmf","classic-vector.emf","classic-bitmap.emf","plus-transform.emf","plus-bitmap-text.emf","plus-compressed-crop.emf","plus-gradient-transform.emf","plus-image-attributes.emf","plus-region-path.emf","plus-region-state.emf","plus-hatch-atlas.emf","plus-texture-world.emf","plus-region-texture.emf","plus-raw-indexed1-positive.emf","plus-raw-indexed4-negative.emf","plus-raw-indexed8-positive.emf","plus-raw-rgb555-negative.emf","plus-raw-rgb565-positive.emf","plus-raw-argb1555-negative.emf","plus-raw-texture-indexed-alpha.emf","plus-raw-texture-rgb565-positive.emf"]
         let samples=corpusFiles.filter {nativeSamples.contains($0.lastPathComponent)},unsupported=corpusFiles.filter {$0.lastPathComponent.hasPrefix("unsupported-")}
         try require(samples.count == nativeSamples.count,"Representative native metafile corpus incomplete")
         try require(samples.contains {$0.pathExtension.lowercased()=="wmf"} && samples.filter {$0.pathExtension.lowercased()=="emf"}.count >= 2 && samples.contains {$0.lastPathComponent.lowercased().contains("plus")},"Provide representative WMF, EMF and EMF+ corpus files")
@@ -208,6 +208,29 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             patternConflict.close();try await wait {ImageConflictWindowModel.activeOperations==0 && patternConflict.window?.isVisible != true}
             try require(try await patternRepo.run(["rev-parse","HEAD"]).stdout==patternHead,"Region/pattern preview moved HEAD")
             try require((try Data(contentsOf:patternWork.appendingPathComponent(".git/index")))==patternIndex && (try Data(contentsOf:patternFile))==patternWorking,"Region/pattern preview mutated conflict index/working bytes")
+            // Newly supported raw formats traverse real conflict stages too;
+            // decoding and reload retain the exact original stage bytes.
+            let rawWork=root.appendingPathComponent("raw repository")
+            try FileManager.default.createDirectory(at:rawWork,withIntermediateDirectories:true)
+            let rawRepo=GitRepository(root:rawWork,executable:git),rawFile=rawWork.appendingPathComponent(path)
+            _ = try await rawRepo.run(["init","-b","main"])
+            for (key,value) in [("user.name","Raw consumers QA"),("user.email","raws@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await rawRepo.run(["config",key,value])}
+            let indexedBytes=try Data(contentsOf:corpus.appendingPathComponent("plus-raw-indexed4-negative.emf")),packedBytes=try Data(contentsOf:corpus.appendingPathComponent("plus-raw-rgb565-positive.emf")),rawTextureBytes=try Data(contentsOf:corpus.appendingPathComponent("plus-raw-texture-indexed-alpha.emf"))
+            try indexedBytes.write(to:rawFile);try await rawRepo.stage([path]);_ = try await rawRepo.commit(message:"base indexed")
+            _ = try await rawRepo.run(["switch","-c","side"]);try packedBytes.write(to:rawFile);try await rawRepo.stage([path]);_ = try await rawRepo.commit(message:"incoming packed16")
+            _ = try await rawRepo.run(["switch","main"]);try rawTextureBytes.write(to:rawFile);try await rawRepo.stage([path]);_ = try await rawRepo.commit(message:"mine indexed texture")
+            do {_ = try await rawRepo.run(["merge","--no-edit","side"]);throw Failure(message:"Expected indexed/16-bit metafile conflict")}catch is GitFailure {}
+            guard let rawDocument=try await rawRepo.imageConflictDocument(path:path) else {throw Failure(message:"Indexed/16-bit conflict did not dispatch to IDiff")}
+            let rawHead=try await rawRepo.run(["rev-parse","HEAD"]).stdout,rawIndex=try Data(contentsOf:rawWork.appendingPathComponent(".git/index")),rawWorking=try Data(contentsOf:rawFile)
+            let rawConflict=track(ImageConflictWindowController(repository:rawRepo,access:nil,document:rawDocument,preferences:prefs))
+            try await wait {!rawConflict.model.busy}
+            try require(rawConflict.model.images.count==3 && ImageConflictSide.allCases.allSatisfy {rawConflict.model.canSelect($0) && rawConflict.model.panes[$0]?.currentImage(base:true)?.pixels.width==96 && rawConflict.model.panes[$0]?.currentImage(base:true)?.pixels.height==64},"Indexed/16-bit/texture conflict panes failed to decode: \(rawConflict.model.error ?? "none")")
+            try require(rawConflict.model.document.contents[.base]==indexedBytes && rawConflict.model.document.contents[.theirs]==packedBytes && rawConflict.model.document.contents[.mine]==rawTextureBytes,"Indexed/16-bit conflict decoding rewrote original stages")
+            rawConflict.model.reload();try await wait {!rawConflict.model.busy}
+            try require(rawConflict.model.images.count==3,"Indexed/16-bit conflict reload lost a side")
+            rawConflict.close();try await wait {ImageConflictWindowModel.activeOperations==0 && rawConflict.window?.isVisible != true}
+            try require(try await rawRepo.run(["rev-parse","HEAD"]).stdout==rawHead,"Indexed/16-bit preview moved HEAD")
+            try require((try Data(contentsOf:rawWork.appendingPathComponent(".git/index")))==rawIndex && (try Data(contentsOf:rawFile))==rawWorking,"Indexed/16-bit preview mutated conflict index/working bytes")
             let priorImages=conflict.model.images.mapValues(\.id)
             var reloadToken:OperationCancellation?
             conflict.model.decodeImages={_,token in reloadToken=token;return await withCheckedContinuation {conflictHold=$0}}
@@ -230,7 +253,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try require((try Data(contentsOf:work.appendingPathComponent(".git/index"))) == index && (try Data(contentsOf:file)) == working,"Metafile preview mutated conflict state")
             for (sample,bytes) in zip(samples,inputs) {try require(try Data(contentsOf:sample) == bytes,"Metafile renderer modified corpus bytes")}
             try await cleanup()
-            print("PASS: actual WMF/EMF/EMF+ and region/hatch/texture default two-side and conflict decode/reload, unsupported-side IDiff and explicit Merge routing, preview-only drop, cancellation/late-result/session/grant/Quit ownership; original corpus/comparison/conflict HEAD/index/working bytes unchanged")
+            print("PASS: actual WMF/EMF/EMF+, indexed/16bit raw and region/hatch/texture default two-side and conflict decode/reload, unsupported-side IDiff and explicit Merge routing, preview-only drop, cancellation/late-result/session/grant/Quit ownership; original corpus/comparison/conflict HEAD/index/working bytes unchanged")
         } catch {let original=error;do {try await cleanup()}catch {throw Failure(message:"\(original); cleanup: \(error)")};throw original}
     }
     private static func firstSample(_ files:[URL],withExtension ext:String)throws->URL {

@@ -107,20 +107,56 @@ private func run() throws {
         let attributed = NSAttributedString(string: text, attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font])
         return CTLineGetTypographicBounds(CTLineCreateWithAttributedString(attributed), nil, nil, nil)
     }
-    let bitmap: @convention(block) (JSValue, Int, Int, Int, UInt32) -> String = { value, width, height, stride, format in
+    var decodedBitmapPixels=0
+    // The optional sixth argument contains EmfPlusPalette ARGB values. Existing
+    // gradient/hatch callers have no palette and continue to pass five arguments.
+    let bitmap: @convention(block) (JSValue, Int, Int, Int, UInt32, JSValue) -> String = { value, width, height, stride, format, paletteValue in
         guard width > 0, height > 0, width <= 32768, height <= 32768, width <= 16777216 / height,
-              stride != Int.min, abs(stride) >= width * 3, abs(stride) <= inputLimit / height,
-              let raw = data(value), raw.count >= abs(stride) * height else { nativeError("Invalid or oversized metafile bitmap"); return "" }
+              stride != Int.min, stride != 0, abs(stride) <= inputLimit / height else { nativeError("Invalid or oversized metafile bitmap"); return "" }
         // GDI+ PixelFormat values encode bits-per-pixel in bits 8...15.
         let bits = Int((format >> 8) & 255)
-        guard [UInt32(0x21808), 0x22009, 0x26200A, 0xE200B].contains(format), abs(stride) >= width * (bits / 8) else { nativeError("Unsupported metafile pixel format"); return "" }
+        guard [UInt32(0x30101),0x30402,0x30803,0x21005,0x21006,0x61007,0x21808,0x22009,0x26200A,0xE200B].contains(format) else { nativeError("Unsupported metafile pixel format"); return "" }
+        guard abs(stride) >= (width * bits + 7) / 8, bits > 16 || abs(stride).isMultiple(of:4),
+              let raw=data(value),raw.count == abs(stride) * height else {nativeError("Invalid metafile bitmap stride or pixel count");return ""}
+        var palette:[UInt32]=[]
+        if bits <= 8 {
+            guard !paletteValue.isUndefined,!paletteValue.isNull,let countValue=paletteValue.forProperty("length") else {nativeError("Missing metafile bitmap palette");return ""}
+            let length=countValue.toDouble()
+            guard length.isFinite,length.rounded() == length,length >= 1,length <= Double(1 << bits) else {nativeError("Invalid metafile bitmap palette count");return ""}
+            for index in 0..<Int(length) {
+                guard let entry=paletteValue.atIndex(index),entry.isNumber else {nativeError("Invalid metafile bitmap palette entry");return ""}
+                let color=entry.toDouble()
+                guard color.isFinite,color.rounded() == color,color >= 0,color <= Double(UInt32.max) else {nativeError("Invalid metafile bitmap palette color");return ""}
+                palette.append(UInt32(color))
+            }
+        }
+        // Bound total native expansion, including generated gradient/hatch cells,
+        // before allocating the per-bitmap RGBA representation.
+        let pixels=width * height
+        guard pixels <= 67108864-decodedBitmapPixels else {nativeError("Metafile bitmap expansion budget exceeded");return ""}
+        decodedBitmapPixels += pixels
         var rgba = Data(count: width * height * 4)
         for y in 0..<height {
             let row = (stride < 0 ? height - 1 - y : y) * abs(stride)
             for x in 0..<width {
-                let start = row + x * (bits / 8), end = (y * width + x) * 4
-                rgba[end] = raw[start + 2]; rgba[end + 1] = raw[start + 1]; rgba[end + 2] = raw[start]
-                rgba[end + 3] = bits == 32 && (format & 0x40000) != 0 ? raw[start + 3] : 255
+                let end = (y * width + x) * 4
+                if bits <= 8 {
+                    let byte=raw[row + x * bits / 8]
+                    let index=Int(bits == 1 ? (byte >> (7-x%8)) & 1:bits == 4 ? (byte >> (x%2 == 0 ? 4:0)) & 15:byte)
+                    guard index < palette.count else {nativeError("Metafile bitmap palette index exceeds count");return ""}
+                    let color=palette[index]
+                    rgba[end]=UInt8(truncatingIfNeeded:color>>16);rgba[end+1]=UInt8(truncatingIfNeeded:color>>8);rgba[end+2]=UInt8(truncatingIfNeeded:color);rgba[end+3]=UInt8(truncatingIfNeeded:color>>24)
+                }else if bits == 16 {
+                    let start=row+x*2,word=UInt16(raw[start]) | UInt16(raw[start+1]) << 8
+                    let is565=format == 0x21006
+                    let red=(word >> (is565 ? 11:10)) & 31,green=(word >> 5) & (is565 ? 63:31),blue=word & 31
+                    rgba[end]=UInt8((red<<3)|(red>>2));rgba[end+1]=UInt8(is565 ? (green<<2)|(green>>4):(green<<3)|(green>>2));rgba[end+2]=UInt8((blue<<3)|(blue>>2))
+                    rgba[end+3]=format == 0x61007 && word & 0x8000 == 0 ? 0:255
+                }else {
+                    let start=row+x*(bits/8)
+                    rgba[end] = raw[start + 2]; rgba[end + 1] = raw[start + 1]; rgba[end + 2] = raw[start]
+                    rgba[end + 3] = bits == 32 && (format & 0x40000) != 0 ? raw[start + 3] : 255
+                }
             }
         }
         let alpha: CGImageAlphaInfo = format & 0x80000 != 0 ? .premultipliedLast : .last
@@ -159,8 +195,9 @@ private func run() throws {
     context.setObject(decode, forKeyedSubscript: "__turtleDecode" as NSString)
     context.setObject(base64, forKeyedSubscript: "__turtleBase64" as NSString)
     context.setObject(measure, forKeyedSubscript: "__turtleMeasureText" as NSString)
-    context.setObject(bitmap, forKeyedSubscript: "__turtleBitmap" as NSString)
+    context.setObject(bitmap, forKeyedSubscript: "__turtleBitmapNative" as NSString)
     context.evaluateScript("""
+    globalThis.__turtleBitmap = function(bytes,width,height,stride,format,palette){return __turtleBitmapNative(bytes,width,height,stride,format,palette === undefined ? [] : palette);};
     globalThis.console = {log(){}, warn(){}, error(){}, debug(){}};
     globalThis.TextDecoder = class { constructor(label='utf-8'){this.label=label;} decode(bytes){return __turtleDecode(bytes || new Uint8Array(0),this.label);} };
     globalThis.btoa = function(text){let bytes=new Uint8Array(text.length);for(let i=0;i<text.length;i++){let n=text.charCodeAt(i);if(n>255)throw Error('Invalid binary string');bytes[i]=n;}return __turtleBase64(bytes);};

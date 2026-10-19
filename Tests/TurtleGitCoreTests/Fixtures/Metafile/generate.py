@@ -277,3 +277,91 @@ for _ in range(4):work_region=region_op(2,work_region,work_region)
 # unequal nonzero alpha colors exercise the same rule without a zero specialcase.
 rs=[ep(0x4008,hatch(2,0x00ff0000,0xff0000ff),0x100),ep(0x400A,U(0,1)+F(8,8,32,40)),ep(0x4008,hatch(2,0x80ff0000,0x400000ff),0x100),ep(0x400A,U(0,1)+F(48,8,32,40))]
 (P/'plus-hatch-alpha-edge.emf').write_bytes(plus(rs))
+
+# Original raw indexed/16-bit EMF+ inputs. MS-EMFPLUS 2.2.2.2/3/28,
+# PixelFormat2.1.1.24 and PaletteStyle2.1.2.5. No image bytes copied.
+# PixelData rows are DWORD-strided. Negative stride stores bottom row first;
+# indexed1 consumes MSB first and indexed4 consumes high nibble first.
+def raw_bitmap(fmt,width,height,stride,rows,palette=None,palette_flags=0):
+ colors=b'' if palette is None else U(palette_flags,len(palette),*palette)
+ return U(0xdbc01002,1)+I(width,height,stride)+U(fmt,0)+colors+b''.join(rows if stride>0 else reversed(rows))
+def raw_scene(image,width=3,height=2,as_texture=False):
+ background=ep(0x400A,U(0xffffffff,1)+F(0,0,96,64),0x8000)
+ if as_texture:
+  # One clamp tile. Identical source→device mapping to DrawImage below.
+  return plus([background,ep(0x4008,texture(wrap=4,transform=(16,0,0,16,4,4),image=image),0x100),ep(0x400A,U(0,1)+F(4,4,width*16,height*16))])
+ return plus([background,ep(0x4008,image,0x500),ep(0x401A,U(0xffffffff,2)+F(0,0,width,height)+F(4,4,width*(8 if width==9 else 16),height*16))])
+palette_rgb=[0xffffffff,0xffff0000,0xff00ff00,0xff0000ff]
+raw_cases={}
+for negative in [False,True]:
+ suffix='negative' if negative else 'positive'
+ raw_cases['indexed1-'+suffix]=(raw_bitmap(0x30101,9,2,-4 if negative else 4,[bytes([0x80,0xff,0xaa,0x55]),bytes([0x7f,0x7f,0x55,0xaa])],[0xff0000ff,0xffff0000]),9,2)
+ raw_cases['indexed4-'+suffix]=(raw_bitmap(0x30402,3,2,-4 if negative else 4,[bytes([0x12,0x3f,0xaa,0x55]),bytes([0x32,0x1f,0x55,0xaa])],palette_rgb),3,2)
+ palette8=[0xffffffff]*201;palette8[1]=0xffff0000;palette8[2]=0xff00ff00;palette8[200]=0xff0000ff
+ raw_cases['indexed8-'+suffix]=(raw_bitmap(0x30803,3,2,-4 if negative else 4,[bytes([1,2,200,255]),bytes([200,2,1,255])],palette8),3,2)
+ for fmt,name,top,bottom in [(0x21005,'rgb555',[0xfc00,0x03e0,0x001f],[0x7fff,0,0x7fe0]),(0x21006,'rgb565',[0xf800,0x07e0,0x001f],[0xffff,0,0xffe0]),(0x61007,'argb1555',[0xfc00,0x83e0,0x001f],[0x7c00,0x801f,0xffff])]:
+  raw_cases[name+'-'+suffix]=(raw_bitmap(fmt,3,2,-8 if negative else 8,[H(*top)+b'\xaa\x55',H(*bottom)+b'\x55\xaa']),3,2)
+raw_cases['indexed-alpha']=(raw_bitmap(0x30402,3,2,4,[bytes([0x12,0x3f,0xaa,0x55]),bytes([0x32,0x1f,0x55,0xaa])],[0xffffffff,0x80ff0000,0xff00ff00,0x000000ff],1),3,2)
+raw_cases['indexed-gray']=(raw_bitmap(0x30402,3,2,4,[bytes([0x12,0x3f,0,0]),bytes([0x32,0x1f,0,0])],[0xff000000,0xff555555,0xffaaaaaa,0xffffffff],2),3,2)
+raw_cases['indexed-halftone']=(raw_bitmap(0x30402,3,2,4,[bytes([0x12,0x3f,0,0]),bytes([0x32,0x1f,0,0])],palette_rgb,4),3,2)
+# Style flags describe the palette; ARGB entry alpha remains real even at0.
+raw_cases['indexed-alpha-unflagged']=(raw_bitmap(0x30402,3,2,4,[bytes([0x12,0x3f,0,0]),bytes([0x32,0x1f,0,0])],[0xffffffff,0x80ff0000,0xff00ff00,0x000000ff],0),3,2)
+for fmt,name,word in [(0x21005,'rgb555-mid',(3<<10)|(11<<5)|25),(0x21006,'rgb565-mid',(7<<11)|(17<<5)|23)]:
+ raw_cases[name]=(raw_bitmap(fmt,3,2,8,[H(word,word,word)+bytes(2)]*2),3,2)
+# Compatibility samples intentionally retain sufficient but unaligned24bpp
+# stride9. 32bpp RGB ignores its high byte, straight/premultiplied alpha agree.
+for negative in [False,True]:
+ suffix='negative' if negative else 'positive'
+ rows24=[bytes([0,0,255,0,255,0,255,0,0]),bytes([255,255,255,0,0,0,0,255,255])]
+ raw_cases['rgb24-'+suffix]=(raw_bitmap(0x21808,3,2,-9 if negative else 9,rows24),3,2)
+ rgb32=[bytes([0,0,255,0,0,255,0,0,255,0,0,0]),bytes([255,255,255,0,0,0,0,0,0,255,255,0])]
+ raw_cases['rgb32-'+suffix]=(raw_bitmap(0x22009,3,2,-12 if negative else 12,rgb32),3,2)
+ for fmt,name,red in [(0x26200a,'argb32',255),(0xe200b,'pargb32',128)]:
+  rows=[bytes([0,0,red,128,0,255,0,255,0,0,0,0]),bytes([0,0,0,0,255,0,0,255,255,255,255,255])]
+  raw_cases[name+'-'+suffix]=(raw_bitmap(fmt,3,2,-12 if negative else 12,rows),3,2)
+for name,(image,width,height) in raw_cases.items():
+ (P/('plus-raw-'+name+'.emf')).write_bytes(raw_scene(image,width,height))
+# All newly supported bpp families traverse the texture adapter as well.
+for name in ['indexed1-positive','indexed4-negative','indexed8-positive','rgb555-negative','rgb565-positive','argb1555-negative','indexed-alpha']:
+ image,width,height=raw_cases[name]
+ if width==9:
+  # Keep one broad 9-pixel clamp tile within the96px canvas.
+  rs=[ep(0x400A,U(0xffffffff,1)+F(0,0,96,64),0x8000),ep(0x4008,texture(wrap=4,transform=(8,0,0,16,4,4),image=image),0x100),ep(0x400A,U(0,1)+F(4,4,72,32))]
+  payload=plus(rs)
+ else:payload=raw_scene(image,width,height,True)
+ (P/('plus-raw-texture-'+name+'.emf')).write_bytes(payload)
+# Malformed objects retain complete EMF/EMF+ framing. Only the named raw
+# contract is wrong; no off-by-one read or white success is acceptable.
+base=U(0xdbc01002,1)+I(3,2,4)+U(0x30402,0)
+validrows=bytes([0x12,0x3f,0,0,0x32,0x1f,0,0])
+raw_bad={
+ 'palette-flags':base+U(8,4,*palette_rgb)+validrows,
+ 'palette-zero':base+U(0,0)+validrows,
+ 'palette-gray':base+U(2,4,*palette_rgb)+validrows,
+ 'palette-count':base+U(0,17,*([0xffffffff]*17))+validrows,
+ 'palette-truncated':base+U(0,4,0xffff0000),
+ 'palette-index':base+U(0,3,*palette_rgb[:3])+validrows,
+ 'palette-index8':U(0xdbc01002,1)+I(3,2,4)+U(0x30803,0)+U(0,3,*palette_rgb[:3])+bytes([1,2,200,0]*2),
+ 'indexed-stride':U(0xdbc01002,1)+I(9,2,1)+U(0x30101,0)+U(0,2,0xff0000ff,0xffff0000)+bytes([0x80,0x80]),
+ 'indexed-unaligned-stride':U(0xdbc01002,1)+I(3,2,3)+U(0x30803,0)+U(0,4,*palette_rgb)+bytes([1,2,3]*2),
+ 'indexed-truncated':base+U(0,4,*palette_rgb)+validrows[:-1],
+ 'indexed-trailing':base+U(0,4,*palette_rgb)+validrows+U(0),
+ 'rgb16-stride':U(0xdbc01002,1)+I(3,2,4)+U(0x21006,0)+H(0xf800,0x07e0,0x001f,0xffff),
+ 'rgb16-truncated':raw_cases['rgb565-positive'][0][:-1],
+ 'rgb16-min-stride':U(0xdbc01002,1)+I(3,2,-2147483648)+U(0x21006,0)+bytes(16),
+ 'raw-size':U(0xdbc01002,1)+I(2147483647,2,4)+U(0x30101,0)+U(0,2,0xffffffff,0xff000000)+bytes(8),
+}
+for name,image in raw_bad.items():
+ (P/('unsupported-raw-'+name+'.emf')).write_bytes(raw_scene(image))
+for name in ['palette-flags','palette-index8','rgb16-truncated']:
+ (P/('unsupported-raw-texture-'+name+'.emf')).write_bytes(raw_scene(raw_bad[name],as_texture=True))
+# Uniform alpha interiors isolate compositing from CoreSVG's interpolation of
+# tiny mixed-color source cells. Original mixed fixtures above remain unchanged.
+for name,flags in [('indexed-alpha',1),('indexed-alpha-unflagged',0)]:
+ image=raw_bitmap(0x30402,8,8,4,[bytes([0x11]*4)]*8,[0xffffffff,0x80ff0000,0xff00ff00,0x000000ff],flags)
+ (P/('plus-raw-'+name+'-plateau.emf')).write_bytes(raw_scene(image,8,8))
+for negative in [False,True]:
+ suffix='negative' if negative else 'positive'
+ for fmt,name,red in [(0x26200a,'argb32',255),(0xe200b,'pargb32',128)]:
+  image=raw_bitmap(fmt,8,8,-32 if negative else 32,[bytes([0,0,red,128])*8]*8)
+  (P/('plus-raw-'+name+'-'+suffix+'-plateau.emf')).write_bytes(raw_scene(image,8,8))

@@ -365,5 +365,6 @@ operation/recovery behavior and remaining acceptance records.
 
 Windows metafile comparison uses the [bundled renderer](docs/METAFILE-RUNTIME.md)
 for WMF, EMF and EMF+, including native comparison, dropped previews and conflict
-panes. [Supported drawing behavior and remaining limits](docs/IMAGE-METAFILE-PARITY.md)
+panes. Embedded EMF+ bitmap images and textures include indexed palettes and
+16-bit RGB555/RGB565/ARGB1555. [Supported drawing behavior and remaining limits](docs/IMAGE-METAFILE-PARITY.md)
 remain explicit; rendering does not rewrite the original files.
