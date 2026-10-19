@@ -157,6 +157,7 @@ import AppKit
         if ReferenceLogWindowModel.activeRevisionReads > 0 || ReferenceLogWindowModel.activeOwnedOperations > 0 { return .terminateCancel }
         if WorktreeListWindowModel.activeOperations > 0 || WorktreeCreateWindowModel.activeOperations > 0 { return .terminateCancel }
         if PushWindowModel.activePreparationReads > 0 || PushWindowModel.activePushWorkflows > 0 || FetchWindowModel.activePreparationReads > 0 { return .terminateCancel }
+        if sender.windows.compactMap({$0.delegate as? CloneProgressWindowController}).contains(where:{$0.model.fileActionBusy}) || sender.windows.compactMap({$0.delegate as? FetchProgressWindowController}).contains(where:{$0.model.fileActionBusy}) {return .terminateCancel}
         if FetchWindowModel.activeProgressOperations > 0 || FetchWindowController.activeProgressReleases > 0 { return .terminateCancel }
         if StashSaveProgressWindowModel.activeOperations > 0 || ExportProgressWindowModel.activeOperations > 0 || ExportProgressWindowController.activeReleases > 0 { return .terminateCancel }
         if MergeProgressWindowModel.activeOperations > 0 || MergeWindowController.activeChildReleases > 0 { return .terminateCancel }

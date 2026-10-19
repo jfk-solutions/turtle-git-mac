@@ -39,12 +39,29 @@ def main():
                 bad=subprocess.run(prefix+[str(binary),'push','--all'],env=env,capture_output=True,timeout=10);assert bad.returncode!=0 and bad.stderr
                 git('init','--initial-branch=main',source);(source/'file').write_text('first\n');git('-C',source,'add','file');git('-C',source,'commit','-m','first');git('-C',source,'tag','-a','v1','-m','annotated')
                 original=global_config.read_bytes()
-                result=subprocess.run(prefix+[str(binary),'--no-literal-pathspecs','-C',str(root),'-c','transfer.fixture=true','clone','--progress','-v','--origin','source','--',str(source),str(clone)],env=env,capture_output=True,timeout=30);assert result.returncode==0,result.stderr.decode(errors='replace')
+                def notifications(data):
+                    values=[]
+                    for line in data.splitlines():
+                        marker=b'TurtleGit Transfer v1:'
+                        assert line.startswith(marker),line
+                        values.append(json.loads(base64.b64decode(line[len(marker):],validate=True)))
+                    return values
+                result=subprocess.run(prefix+[str(binary),'--turtlegit-transfer-notifications','--no-literal-pathspecs','-C',str(root),'-c','transfer.fixture=true','clone','--progress','-v','--origin','source','--',str(source),str(clone)],env=env,capture_output=True,timeout=30);assert result.returncode==0,result.stderr.decode(errors='replace')
                 assert (clone/'file').read_text()=='first\n';assert git('-C',clone,'config','--local','--get','remote.source.url').strip()==str(source).encode()
+                receipts=notifications(result.stdout)
+                assert any(value['kind']=='checkout' and value['repositoryPath']=='' and value['path']=='file' for value in receipts)
+                initial_oid=git('-C',source,'rev-parse','HEAD').decode().strip()
+                assert any(value['kind']=='reference' and value['reference']=='refs/remotes/source/main' and value['newHash']==initial_oid and value['change']=='new' for value in receipts)
                 assert subprocess.run(['/usr/bin/git','-C',clone,'config','--local','--get','transfer.fixture'],env=env,capture_output=True).returncode==1
                 (source/'file').write_text('second\n');git('-C',source,'commit','-am','second');head=git('-C',clone,'rev-parse','HEAD')
-                result=subprocess.run(prefix+[str(binary),'--literal-pathspecs','-C',str(clone),'fetch','--progress','--force','--','source','main:remotes/source/main'],env=env,capture_output=True,timeout=30);assert result.returncode==0,result.stderr.decode(errors='replace')
+                result=subprocess.run(prefix+[str(binary),'--turtlegit-transfer-notifications','--literal-pathspecs','-C',str(clone),'fetch','--progress','--force','--','source','main:remotes/source/main'],env=env,capture_output=True,timeout=30);assert result.returncode==0,result.stderr.decode(errors='replace')
                 assert git('-C',clone,'rev-parse','refs/remotes/source/main')==git('-C',source,'rev-parse','HEAD');assert git('-C',clone,'rev-parse','HEAD')==head;assert (clone/'file').read_text()=='first\n';assert global_config.read_bytes()==original
+                receipts=notifications(result.stdout)
+                updated_oid=git('-C',source,'rev-parse','HEAD').decode().strip()
+                assert any(value['kind']=='reference' and value['reference']=='refs/remotes/source/main' and value['oldHash']==head.decode().strip() and value['newHash']==updated_oid and value['change']=='forward' and value['count']==1 for value in receipts)
+                unchanged=subprocess.run(prefix+[str(binary),'--turtlegit-transfer-notifications','-C',str(clone),'fetch','--','source'],env=env,capture_output=True,timeout=30)
+                assert unchanged.returncode==0,unchanged.stderr.decode(errors='replace')
+                assert any(value['kind']=='reference' and value['reference']=='refs/remotes/source/main' and value['oldHash']==updated_oid and value['newHash']==updated_oid and value['change']=='same' for value in notifications(unchanged.stdout))
                 for flags in [[],['--refs'],['-t'],['--heads']]:
                     result=subprocess.run(prefix+[str(binary),'--literal-pathspecs','-C',str(root),'ls-remote',*flags,'--',str(source)],env=env,capture_output=True,timeout=30)
                     assert result.returncode==0,result.stderr.decode(errors='replace')

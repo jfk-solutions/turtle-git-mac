@@ -59,7 +59,7 @@ public enum FetchRebaseFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func fetchForRebase(_ options: FetchOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil, onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil, backend: GitLibGit2Configuration? = nil) async throws -> FetchRebaseResult {
+    public func fetchForRebase(_ options: FetchOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil, onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil, backend: GitLibGit2Configuration? = nil,onNotification:(@Sendable(GitTransferNotification)->Void)? = nil) async throws -> FetchRebaseResult {
         let backend = backend ?? libgit2Configuration ?? .load()
         try cancellation?.check()
         guard !(try rebaseState()).active else { throw FetchRebaseFailure.active }
@@ -71,7 +71,7 @@ extension GitRepository {
         let conventional = "refs/remotes/" + options.remote + "/" + (branch.hasPrefix("refs/heads/") ? String(branch.dropFirst(11)) : branch)
         let oldUpstream = options.arbitraryURL ? "" : ((try? run(["rev-parse", "--verify", "--end-of-options", conventional + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)) ?? "")
         var selected = options; selected.namedRemoteFetchAll = false
-        let output = try await fetch(selected, cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommand:onCommand,backend:backend)
+        let output = try await fetch(selected, cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommand:onCommand,backend:backend,onNotification:onNotification)
         do {
             let upstream = try run(["rev-parse", "--verify", "FETCH_HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
             try cancellation?.check()
@@ -137,7 +137,7 @@ extension GitRepository {
             return String(fields[1].dropFirst(11))
         }.sorted()
     }
-    public func fetch(_ options: FetchOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil, onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil, backend: GitLibGit2Configuration? = nil) async throws -> String {
+    public func fetch(_ options: FetchOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil, onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil, backend: GitLibGit2Configuration? = nil,onNotification:(@Sendable(GitTransferNotification)->Void)? = nil) async throws -> String {
         let backend = backend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
         let names = try remoteNames(cancellation: cancellation)
@@ -161,7 +161,7 @@ extension GitRepository {
         let session = try await prepareSSHTransport(options.allRemotes ? names : [options.remote], cancellation: token, preparation: prepareTransport)
         defer { withExtendedLifetime(session) {} }
         try token.check();onCommand?(commandInvocation(args,executorOverride:executor))
-        return try run(args, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput,executorOverride:executor).text
+        return try runTransfer(args,environment:session?.transportEnvironment ?? [:],cancellation:token,onOutput:onOutput,executor:executor,onNotification:onNotification).text
     }
 }
 

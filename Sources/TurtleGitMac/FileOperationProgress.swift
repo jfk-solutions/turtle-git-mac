@@ -4,13 +4,16 @@ import TurtleGitCore
 import UniformTypeIdentifiers
 
 struct FileOperationProgressRow: Identifiable {
-    enum Kind { case command, file, finished, error, skipped }
+    enum Kind { case command, file, reference, finished, error, skipped }
     let id: UUID
     let action: String
     let path: String
     let kind: Kind
     let status: String?
-    init(action:String,path:String,kind:Kind,status:String?=nil,id:UUID=UUID()) {self.id=id;self.action=action;self.path=path;self.kind=kind;self.status=status}
+    let repositoryPath:String
+    let filePath:String?
+    let reference:RemoteProgressReference?
+    init(action:String,path:String,kind:Kind,status:String?=nil,id:UUID=UUID(),repositoryPath:String="",filePath:String?=nil,reference:RemoteProgressReference?=nil) {self.id=id;self.action=action;self.path=path;self.kind=kind;self.status=status;self.repositoryPath=repositoryPath;self.filePath=filePath;self.reference=reference}
 }
 enum FileOperationProgressAction { case log, open, openWith, explore }
 /// CGitProgressList's notification/result surface, independent of transient
@@ -39,7 +42,8 @@ enum FileOperationProgressAction { case log, open, openWith, explore }
         if row.status == "Completed" {return StatusTextPalette.text(.modified,preferences:preferences)}
         switch row.kind {
         case .command:return ProgressNotificationColor.command(preferences:preferences)
-        case .file:return row.action == "Added" ? StatusTextPalette.text(.added,preferences:preferences):.labelColor
+        case .reference:return .labelColor
+        case .file:return ["Added","Checkout"].contains(row.action) ? StatusTextPalette.text(.added,preferences:preferences):.labelColor
         case .error:return StatusTextPalette.text(.conflict,preferences:preferences)
         case .skipped:return .secondaryLabelColor
         case .finished:
@@ -62,7 +66,10 @@ struct FileOperationProgressTable: NSViewRepresentable {
     var keyboardAvailable=true
     var fileRowIcons=false
     var actionAvailability:()->Bool = {true}
+    var keyboardAvailability:(()->Bool)?
+    var keyboardAllowed:Bool {keyboardAvailable && (keyboardAvailability?() ?? actionAvailability())}
     var actionsAllowed:Bool {available && actionAvailability()}
+    var performRow:((FileOperationProgressAction,FileOperationProgressRow)->Void)?
     var perform:(FileOperationProgressAction,String)->Void = {_,_ in}
     func makeCoordinator()->Coordinator {Coordinator(self)}
     func makeNSView(context:Context)->NSScrollView {context.coordinator.make()}
@@ -96,9 +103,9 @@ struct FileOperationProgressTable: NSViewRepresentable {
             var result=parent.state.rows
             var start=0
             while start < result.count {
-                guard result[start].kind == .file else {start += 1;continue}
+                guard [.file,.reference].contains(result[start].kind) else {start += 1;continue}
                 var end=start+1
-                while end < result.count,result[end].kind == .file {end += 1}
+                while end < result.count,[.file,.reference].contains(result[end].kind) {end += 1}
                 result.replaceSubrange(start..<end,with:result[start..<end].sorted{a,b in
                     var order=key=="action" ? a.action.compare(b.action,options:.literal):.orderedSame
                     if order == .orderedSame {order=a.path.compare(b.path,options:.literal)}
@@ -113,7 +120,7 @@ struct FileOperationProgressTable: NSViewRepresentable {
             displayedRowIDs=rows.map(\.id)
             table.dataSource=self;table.delegate=self;table.rowHeight=22;table.allowsMultipleSelection=true;table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
             for (id,title,width) in [("action","Action",120.0),("path","Path",560.0)] {let column=NSTableColumn(identifier:.init(id));column.title=NSLocalizedString(title,comment:"");column.width=width;column.sortDescriptorPrototype=NSSortDescriptor(key:id,ascending:true);table.addTableColumn(column)}
-            table.target=self;table.doubleAction=#selector(openRow(_:));table.makeMenu={ [weak self] in self?.menu() };table.copySelection={ [weak self] in self?.copySelected() };table.resultAvailable={ [weak self] in self?.parent.keyboardAvailable==true && self?.parent.actionAvailability()==true };scroll.documentView=table;return scroll
+            table.target=self;table.doubleAction=#selector(openRow(_:));table.makeMenu={ [weak self] in self?.menu() };table.copySelection={ [weak self] in self?.copySelected() };table.resultAvailable={ [weak self] in self?.parent.keyboardAllowed==true };scroll.documentView=table;return scroll
         }
         func numberOfRows(in tableView:NSTableView)->Int {rows.count}
         func tableViewSelectionDidChange(_ notification:Notification){if !preservingSelection {selectionGeneration=UUID()}}
@@ -135,18 +142,22 @@ struct FileOperationProgressTable: NSViewRepresentable {
             cell.imageView=image;cell.textField=field;cell.toolTip=field.toolTip;cell.addSubview(image)
             field.frame=NSRect(x:23,y:2,width:max(0,width-26),height:18);field.autoresizingMask=[.width];cell.addSubview(field);return cell
         }
-        @objc func openRow(_ sender:Any?) {let snapshot=rows;guard parent.actionsAllowed,snapshot.indices.contains(table.clickedRow) else{return};let row=snapshot[table.clickedRow];guard row.kind == .file else{return};parent.perform(.open,row.path)}
-        func copySelected(){guard parent.keyboardAvailable,parent.actionAvailability() else{return};let snapshot=rows;let text=table.selectedRowIndexes.compactMap{snapshot.indices.contains($0) ? snapshot[$0].action+": "+snapshot[$0].path+"  \r\n":nil}.joined();if !text.isEmpty{parent.state.publishClipboard(text)}}
+        @objc func openRow(_ sender:Any?) {let snapshot=rows;guard parent.actionsAllowed,snapshot.indices.contains(table.clickedRow) else{return};let row=snapshot[table.clickedRow];guard row.kind == .file else{return};dispatch(.open,row)}
+        private func dispatch(_ action:FileOperationProgressAction,_ row:FileOperationProgressRow) {if let perform=parent.performRow {perform(action,row)} else {parent.perform(action,row.filePath ?? row.path)}}
+        func copySelected(){guard parent.keyboardAllowed else{return};let snapshot=rows;let text=table.selectedRowIndexes.compactMap{snapshot.indices.contains($0) ? snapshot[$0].action+": "+snapshot[$0].path+"  \r\n":nil}.joined();if !text.isEmpty{parent.state.publishClipboard(text)}}
         func menu()->NSMenu? {
             guard parent.actionsAllowed,!table.selectedRowIndexes.isEmpty else{return nil}
             let snapshot=rows,captured=table.selectedRowIndexes.compactMap{snapshot.indices.contains($0) ? snapshot[$0]:nil},generation=parent.state.generation,selection=selectionGeneration
             let menu=NSMenu();var targets:[FileOperationProgressMenuTarget]=[]
             func add(_ title:String,_ icon:MenuIcon,_ body:@escaping()->Void) {let target=FileOperationProgressMenuTarget{ [weak self] in guard let self,self.parent.actionsAllowed,self.parent.state.generation==generation,self.selectionGeneration==selection else{return};body()};targets.append(target);let item=NSMenuItem(title:NSLocalizedString(title,comment:""),action:#selector(FileOperationProgressMenuTarget.invoke(_:)),keyEquivalent:"");item.target=target;item.image=icon.contextImage(defaults:parent.state.preferences);menu.addItem(item)}
             if captured.count==1,let row=captured.first,row.kind == .file {
-                add("Show Log",.log){ [weak self] in self?.parent.perform(.log,row.path)};menu.addItem(.separator())
-                let url=parent.repository.appendingPathComponent(row.path),directory=(try? url.resourceValues(forKeys:[.isDirectoryKey]).isDirectory)==true
-                if !directory {add("Open",.open){ [weak self] in self?.parent.perform(.open,row.path)};add("Open With",.open){ [weak self] in self?.parent.perform(.openWith,row.path)}}
-                add("Explore to",.explore){ [weak self] in self?.parent.perform(.explore,row.path)};menu.addItem(.separator())
+                add("Show Log",.log){ [weak self] in self?.dispatch(.log,row)};menu.addItem(.separator())
+                let url=parent.repository.appendingPathComponent(row.repositoryPath).appendingPathComponent(row.filePath ?? row.path),directory=(try? url.resourceValues(forKeys:[.isDirectoryKey]).isDirectory)==true
+                if !directory {add("Open",.open){ [weak self] in self?.dispatch(.open,row)};add("Open With",.open){ [weak self] in self?.dispatch(.openWith,row)}}
+                add("Explore to",.explore){ [weak self] in self?.dispatch(.explore,row)};menu.addItem(.separator())
+            }
+            if captured.count==1,let row=captured.first,row.kind == .reference {
+                add("Show Log",.log){ [weak self] in self?.dispatch(.log,row)};menu.addItem(.separator())
             }
             add("Copy to Clipboard",.copy){ [weak self] in
                 var text=captured.map(\.path).joined(separator:"\r\n")
@@ -248,5 +259,80 @@ struct FileOperationProgressTable: NSViewRepresentable {
                 guard !retired,available() else{return};try await open(url,application)
             }catch{if !retired,available(){onError(error.localizedDescription)}}
         }
+    }
+}
+
+/// The visible reference description uses short hashes; action receipts retain
+/// the complete callback OIDs and their repository, including recursive clones.
+struct RemoteProgressReference:Equatable {
+    let oldHash:String?,newHash:String?
+    init(oldHash:String,newHash:String) {
+        self.oldHash=oldHash.allSatisfy{$0 == "0"} ? nil:oldHash
+        self.newHash=newHash.allSatisfy{$0 == "0"} ? nil:newHash
+    }
+}
+typealias RemoteProgressLogHandler=(GitRepository,RepositoryAccessLease?,[String],String?,String?)->Void
+final class RemoteProgressNotificationBuffer:@unchecked Sendable {
+    private let lock=NSLock()
+    private var values:[GitTransferNotification]=[]
+    func append(_ value:GitTransferNotification){lock.lock();values.append(value);lock.unlock()}
+    func take()->[GitTransferNotification]{lock.lock();defer{lock.unlock()};let result=values;values=[];return result}
+}
+extension FileOperationProgressState {
+    func appendTransfer(_ notification:GitTransferNotification) {
+        switch notification {
+        case .reference(let value):
+            let change:String
+            switch value.change {
+            case .same:change=NSLocalizedString("Same",comment:"")
+            case .new:change=NSLocalizedString("New",comment:"")
+            case .deleted:change=NSLocalizedString("Deleted",comment:"")
+            case .forward:change=String(format:NSLocalizedString("Forward %llu",comment:""),value.count ?? 0)
+            case .rewind:change=String(format:NSLocalizedString("Rewind %llu",comment:""),value.count ?? 0)
+            case .newerTime:change=NSLocalizedString("Newer commit time",comment:"")
+            case .olderTime:change=NSLocalizedString("Older commit time",comment:"")
+            case .sameTime:change=NSLocalizedString("Same commit time",comment:"")
+            case .unclassified:change=""
+            }
+            let prefix=value.repositoryPath.isEmpty ? "":value.repositoryPath+"/"
+            let description=prefix+value.reference+"\t "+value.oldHash.prefix(8)+" -> "+value.newHash.prefix(8)+" ("+change+")"
+            rows.append(.init(action:"Update ref",path:description,kind:.reference,repositoryPath:value.repositoryPath,reference:.init(oldHash:value.oldHash,newHash:value.newHash)))
+        case .issue(let value):append("Warning",value.message,kind:.error)
+        case .checkout(let value):
+            let prefix=value.repositoryPath.isEmpty ? "":value.repositoryPath+"/"
+            rows.append(.init(action:"Checkout",path:prefix+value.path,kind:.file,repositoryPath:value.repositoryPath,filePath:value.path))
+        }
+    }
+}
+/// A single owned launch/chooser across all repository notifications. Child
+/// paths never reuse the superproject service or the current workspace root.
+@MainActor final class RemoteProgressFileActions {
+    let repository:GitRepository,access:RepositoryAccessLease?
+    weak var window:NSWindow?
+    var available:()->Bool = {true}
+    var onLog:RemoteProgressLogHandler = {_,_,_,_,_ in}
+    var onError:(String)->Void = {_ in}
+    var onBusy:(Bool)->Void = {_ in}
+    var configure:(FileOperationProgressFiles)->Void = {_ in}
+    private(set) var current:FileOperationProgressFiles?
+    private(set) var retired=false
+    var busy:Bool {current?.busy == true}
+    init(repository:GitRepository,access:RepositoryAccessLease?){self.repository=repository;self.access=access}
+    func retire(){retired=true;current?.retire()}
+    func perform(_ action:FileOperationProgressAction,_ row:FileOperationProgressRow) {
+        guard !retired,!busy,available(),window?.attachedSheet==nil else{return}
+        let prefix=row.repositoryPath,root=repository.root.standardizedFileURL
+        let child=prefix.isEmpty ? root:root.appendingPathComponent(prefix).standardizedFileURL
+        guard !prefix.hasPrefix("/"),!prefix.contains("\0"),!prefix.components(separatedBy:"/").contains(where:{$0==".." || $0.caseInsensitiveCompare(".git") == .orderedSame}),
+              child.path==root.path || child.path.hasPrefix(root.path+"/"),RepositoryAccessLease.pathIsContained(child,by:root),!GitRuntime.isAppStoreBuild || access?.permits(child)==true else {onError(WorkingFileExportFailure.location.localizedDescription);return}
+        let repo=GitRepository(root:child,executable:repository.executable)
+        if action == .log {
+            onLog(repo,access,row.kind == .file ? [row.filePath ?? row.path]:[],row.reference?.oldHash,row.reference?.newHash);return
+        }
+        guard row.kind == .file else{return}
+        let files=FileOperationProgressFiles(repository:repo,access:access);current=files
+        files.window=window;files.available={ [weak self] in self?.retired==false && self?.available()==true }
+        files.onBusy={ [weak self] in self?.onBusy($0) };files.onError={ [weak self] in self?.onError($0) }
+        configure(files);files.perform(action,path:row.filePath ?? row.path)
     }
 }

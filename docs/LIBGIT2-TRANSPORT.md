@@ -61,6 +61,22 @@ cancellation remain owned by the window that started the operation. Fetch update
 references and FETCH_HEAD; it does not itself merge, switch or overwrite working
 files. Follow-up Rebase/Merge remains a separate reviewed action.
 
+The dedicated Clone and Fetch progress windows list reference updates when
+their captured backend is libgit2. Each row retains the complete old and new commit IDs and labels the
+change as unchanged, new, deleted, forward, rewind or a divergent change ordered
+by commit time. **Show Log** on a reference result opens those captured endpoints;
+a later update to the reference does not change the selected range.
+
+Clone also lists checked-out files. After the operation stops, file rows offer
+history, Open, Open With and Finder reveal. Recursive checkout rows retain their
+own submodule repository and relative path. Bare and no-checkout clones have no
+checkout-file actions. Sort completed notifications with the Action/Path headers;
+context Copy copies selected displayed paths, while Command-C includes the action.
+A Retry starts a fresh result list. Notifications already received remain visible
+when an operation fails or is cancelled; they do not imply that later work
+succeeded. The default command-line backend and Synchronization’s separate transport output
+retain their text progress display.
+
 An HTTP authentication challenge opens a native Password dialog with aligned
 Username/Password fields. A username supplied by the URL starts focus in Password;
 an empty username must be filled before OK can close the dialog.

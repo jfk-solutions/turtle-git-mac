@@ -33,7 +33,7 @@ func configuration(_ value:String)throws->String{
 struct Arguments{
     var command="",directory=FileManager.default.currentDirectoryPath,configs:[String]=[]
     var source="",destination="",branch:String?,origin:String?,ssh:String?,bare=false,noCheckout=false,recursive=false
-    var listRefs=false,listTags=false,listHeads=false,filters=false
+    var listRefs=false,listTags=false,listHeads=false,filters=false,transferNotifications=false
     var blobPath:String?,blobOID=""
     var privateIndex:String?,addMode:Int32=0,addModeSpecified=false,addStdin=false,addModeOnly=false
     var remote="origin",refspecs:[String]=[],all=false,tags=0,prune=0,depth=0,force=false,verbose=false
@@ -49,11 +49,13 @@ struct Arguments{
         while index<arguments.count{
             let arg=try next()
             if arg == "--literal-pathspecs" || arg == "--no-literal-pathspecs"{continue}
+            if arg == "--turtlegit-transfer-notifications"{guard !transferNotifications else{try refuse("Repeated transfer notification request")};transferNotifications=true;continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
             guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
+        guard !transferNotifications || command == "clone" || command == "fetch" else{try refuse("Transfer notifications require Clone or Fetch")}
         var operands:[String]=[],options=true
         while index<arguments.count{
             let arg=try next()
@@ -141,6 +143,29 @@ final class CallbackContext{
         }
     }
     var acceptanceHandle:FileHandle?,acceptanceCount=0
+    private let notificationLock=NSLock()
+    private var notificationBytes=0,notificationCount=0,notificationFailed=false
+    func notificationString(_ value:UnsafePointer<CChar>?)throws->String {
+        guard let value else{try refuse("Invalid transfer metadata")}
+        let count=strnlen(value,1_048_577)
+        guard count<=1_048_576,let text=String(bytes:UnsafeBufferPointer(start:UnsafeRawPointer(value).assumingMemoryBound(to:UInt8.self),count:count),encoding:.utf8) else{try refuse("Invalid transfer metadata")}
+        return text
+    }
+    func transferNotification(_ body:()throws->[String:Any]) {
+        notificationLock.lock();defer{notificationLock.unlock()};guard !notificationFailed else{return}
+        do {
+            guard !cancelled() else{return}
+            let data=try JSONSerialization.data(withJSONObject:body(),options:[.sortedKeys]),frame=Data(("TurtleGit Transfer v1:"+data.base64EncodedString()+"\n").utf8)
+            guard frame.count<=2*1024*1024,notificationCount<100_000,frame.count<=64*1024*1024-notificationBytes else{try refuse("Transfer metadata budget exceeded")}
+            try FileHandle.standardOutput.write(contentsOf:frame);notificationCount+=1;notificationBytes+=frame.count
+        } catch {
+            notificationFailed=true
+            // Fixed invalid framing causes one local metadata issue after the
+            // real operation settles, without aborting an already applied Git
+            // mutation or exposing unsupported filename bytes in diagnostics.
+            try? FileHandle.standardOutput.write(contentsOf:Data("TurtleGit Transfer unavailable\n".utf8))
+        }
+    }
     var currentURL="",credentialRealm=Data(),credentials:(String,String)?,credentialUses=0,prompts=0
     var accepted:Set<Data>=[]
     func externalFilter(command:String,path:String,directory:String,index privateIndex:String?,input:Data)throws->Data{
@@ -355,6 +380,25 @@ func run()throws->Int32{
         }
     }
     let owner=CallbackContext(directory:args.directory,configs:args.configs);var options=callbacks(owner);options.verbose=args.verbose ? 1:0;options.force_fetch=args.force ? 1:0
+    if args.transferNotifications {
+        options.reference_updated={repository,name,old,new,change,count,raw in
+            let owner=context(raw)
+            owner.transferNotification {
+                let changes=["unclassified","same","new","deleted","forward","rewind","newerTime","olderTime","sameTime"]
+                guard change>=0,Int(change)<changes.count,count>=0 else{try refuse("Invalid transfer metadata")}
+                var event:[String:Any]=["kind":"reference","repositoryPath":try owner.notificationString(repository),"reference":try owner.notificationString(name),"oldHash":try owner.notificationString(old),"newHash":try owner.notificationString(new),"change":changes[Int(change)]]
+                if change==4 || change==5 {event["count"]=UInt64(count)}
+                return event
+            }
+        }
+        options.checked_out={repository,path,completed,total,raw in
+            let owner=context(raw)
+            owner.transferNotification {
+                guard completed>=0,total>0,completed<=total else{try refuse("Invalid transfer metadata")}
+                return ["kind":"checkout","repositoryPath":try owner.notificationString(repository),"path":try owner.notificationString(path),"completed":UInt64(completed),"total":UInt64(total)]
+            }
+        }
+    }
     let result:Int32=withStrings(args.configs){config,count in
         options.config_values=config;options.config_count=count
         if args.command == "turtlegit-prepare-index"{return withStrings(prepareOperations){operations,count in withStrings(addPaths){paths,_ in prepareModes.withUnsafeBufferPointer{modes in tg_prepare_index(args.directory,args.privateIndex!,operations,paths,modes.baseAddress,count,&options)}}}}

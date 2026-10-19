@@ -194,6 +194,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     var close: () -> Void = {}
     var onCloned: (GitRepository, RepositoryAccessLease, RepositoryAccessLease?, Bool, String) -> Void = { _, _, _, _, _ in }
     var onLog: (GitRepository, RepositoryAccessLease) -> Void = { _, _ in }
+    var onNotificationLog:RemoteProgressLogHandler = {_,_,_,_,_ in}
     private var clonedRepository: GitRepository?
     init(directory: URL?, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, executable: URL? = nil, clipboardText:String? = nil) {
         self.preferences = preferences; self.executable = executable
@@ -342,6 +343,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
             if let onProgress {
                 let result = CloneProgressWindowModel(options: snapshot, destination: destination, executable: executable, destinationAccess: access, sourceAccess: capturedSourceAccess, keyAccess: capturedKeyAccess, preferences: preferences,backend:capturedBackend)
                 result.makeSSHCoordinator = sshFactory
+                result.onNotificationLog=onNotificationLog
                 result.onCloned = { [weak self] repo, output in self?.recordClone(repo, output: output, options: snapshot, destination: destination, access: access, keyAccess: capturedKeyAccess) }
                 let generation=interactionGeneration,log=onLog,explore=onExplore
                 result.onPostAction={ [self] action,repo in
@@ -523,7 +525,21 @@ enum ClonePostAction: String, Hashable {
     var icon: MenuIcon { switch self { case .retry,.inspect: return .refresh; case .log: return .log; case .explore: return .explore } }
 }
 @MainActor final class CloneProgressWindowModel: ObservableObject {
+    let notifications:FileOperationProgressState
     let backend:GitLibGit2Configuration
+    var showsNotifications:Bool {backend.requests(.clone) && !options.svn}
+    var actionLogOutput:String {showsNotifications ? notifications.output+"\n\n"+output:output}
+    var notificationRepository:GitRepository {GitRepository(root:destination,executable:executable)}
+    var notificationAccess:RepositoryAccessLease {destinationAccess}
+    var onNotificationLog:RemoteProgressLogHandler = {_,_,_,_,_ in}
+    @Published private(set) var checkoutCompleted:UInt64=0
+    @Published private(set) var checkoutTotal:UInt64=0
+    @Published var fileActionBusy=false
+    var notificationOwnerAvailable:Bool {showsNotifications && active && !abandoned && !confirmingQuit && !busy && !hasPendingWork && !confirmingCancellation && presentationAvailable()}
+    var notificationActionsAvailable:Bool {notificationOwnerAvailable && !fileActionBusy}
+    var notificationKeyboardAvailable:Bool {showsNotifications && active && !abandoned && !confirmingQuit && !fileActionBusy && presentationAvailable()}
+    var onNotificationFileAction:(FileOperationProgressAction,FileOperationProgressRow)->Void = {_,_ in}
+    func notificationFailure(_ text:String){appendDiagnostic(text)}
     static var activeOperations = 0
     private final class CommandReceipt:@unchecked Sendable {
         private let lock=NSLock()
@@ -588,17 +604,19 @@ enum ClonePostAction: String, Hashable {
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var canCancel: Bool { active && !confirmingQuit && busy && !commandFinished && !cancelling && !confirmingCancellation }
     init(options: CloneOptions, destination: URL, executable: URL, destinationAccess: RepositoryAccessLease, sourceAccess: RepositoryAccessLease?, keyAccess: RepositoryAccessLease?, preferences: UserDefaults = .standard,backend:GitLibGit2Configuration?=nil) {
+        notifications=FileOperationProgressState(preferences:preferences)
         self.backend=backend ?? .load(from:preferences)
         self.options = options; self.destination = destination; self.executable = executable; self.destinationAccess = destinationAccess; self.sourceAccess = sourceAccess; self.keyAccess = keyAccess; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences); progressPresentation = GitCommandPresentation(defaults: preferences); outputLimit = progressPresentation.outputLimit;outputState=GitProgressOutputState(preferences:preferences)
     }
     var makeSSHCoordinator: SSHCloneTransportFactory?
-    func invalidate() { invalidated = true; cancellation.cancel();confirmingCancellation=false;if !hasPendingWork {busy=false} }
+    func invalidate() { notifications.retire();invalidated = true; cancellation.cancel();confirmingCancellation=false;if !hasPendingWork {busy=false} }
     func abandonPresentation() { abandoned = true; cancellation.cancel() }
-    private func resetAttempt(){busy=true;success=false;commandCompleted=false;commandFinished=false;commandSucceeded=false;completionRange=nil;completedOutcome=nil;warnings=[];adopted=false;cancelled=false;cancelling=false;output="";outputState.reset();percentage=nil;currentWork="";postActions=[];repository=nil;commandReceipt.reset()}
+    private func resetAttempt(){notifications.begin("Clone");checkoutCompleted=0;checkoutTotal=0;busy=true;success=false;commandCompleted=false;commandFinished=false;commandSucceeded=false;completionRange=nil;completedOutcome=nil;warnings=[];adopted=false;cancelled=false;cancelling=false;output="";outputState.reset();percentage=nil;currentWork="";postActions=[];repository=nil;commandReceipt.reset()}
     func start() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute()}}
     func run() async {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();await execute()}
     private func execute() async {
-        defer {endWork();withExtendedLifetime((destinationAccess,sourceAccess,keyAccess)) {};if !invalidated,!hasPendingWork {cancelling=false;finishAutomaticClose()}}
+        let notificationStarted=Date()
+        defer {if showsNotifications,!invalidated,!abandoned {notifications.finish(success:commandSucceeded,cancelled:cancelled,started:notificationStarted)};endWork();withExtendedLifetime((destinationAccess,sourceAccess,keyAccess)) {};if !invalidated,!hasPendingWork {cancelling=false;finishAutomaticClose()}}
         guard !invalidated,!abandoned else{return}
         let startedAt=ProcessInfo.processInfo.systemUptime
         do {
@@ -618,6 +636,20 @@ enum ClonePostAction: String, Hashable {
             let parser = GitCliOutputParser(limit: outputLimit)
             let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
             commandReceipt.observe {continuation.yield(())};defer {commandReceipt.observe(nil)}
+            let typed=RemoteProgressNotificationBuffer()
+            func drainNotifications() {
+                let values=typed.take();guard !invalidated,!abandoned else{return}
+                for value in values {
+                    notifications.appendTransfer(value)
+                    if case .checkout(let checkout)=value {
+                        checkoutCompleted=checkout.completed;checkoutTotal=checkout.total
+                        if checkout.total > 0 {percentage=min(100,Int(100*Double(checkout.completed)/Double(checkout.total)))}
+                        currentWork=(checkout.repositoryPath.isEmpty ? "":checkout.repositoryPath+"/")+checkout.path
+                    }
+                    if case .issue(let issue)=value {warnings.append(issue.message);appendDiagnostic(issue.message)}
+                }
+            }
+            defer {drainNotifications()}
             let receipt=commandReceipt
             var parserFinished=false
             func finishParser(){guard !parserFinished else{return};parserFinished=true;consume(parser.processPending(),parser:parser);consume(parser.finish(),parser:parser)}
@@ -625,21 +657,23 @@ enum ClonePostAction: String, Hashable {
                 defer { continuation.finish() }
                 let emit:@Sendable(GitOutputChunk)->Void={chunk in parser.appendChunk(chunk.data);continuation.yield(())}
                 return try await runner.cloneOutcome(options,to:destination,cancellation:cancellation,onOutput:emit,prepareTransport:preparation,
-                    onCommand:{emit(GitOutputChunk(stream:.stdout,data:$0.preamble))},onCommandFinished:{receipt.record($0)},backend:backend)
+                    onCommand:{emit(GitOutputChunk(stream:.stdout,data:$0.preamble))},onCommandFinished:{receipt.record($0)},backend:backend,onNotification:{value in typed.append(value);continuation.yield(())})
             }
             for await _ in updates {
+                drainNotifications()
                 consume(parser.processPending(),parser:parser)
                 if let receipt=commandReceipt.read(){finishParser();completeOutput(succeeded:receipt.success,startedAt:startedAt)}
             }
-            finishParser()
+            finishParser();drainNotifications()
             let outcome=try await operation.value
             guard !invalidated,!abandoned else {return}
-            completedOutcome=outcome;commandCompleted=true;warnings=outcome.warnings
+            completedOutcome=outcome;commandCompleted=true;warnings += outcome.warnings
             completeOutput(succeeded:true,startedAt:startedAt)
             for warning in warnings {appendDiagnostic(warning)}
             try await inspectCompletedRepository(outcome)
         } catch {
             guard !invalidated else {return}
+            if showsNotifications,!commandSucceeded {notifications.append("Error",GitProgressFailureOutput.render(error,existing:"",limit:outputLimit),kind:.error)}
             if commandFinished {if commandSucceeded || !outputState.hasOutput {appendDiagnostic(error.localizedDescription)}}
             else {output=GitProgressFailureOutput.render(error,existing:output,limit:outputLimit);completeOutput(succeeded:false,error:error,startedAt:startedAt)}
             postActions=commandCompleted ? [.inspect,.explore]:[.retry]
@@ -700,7 +734,7 @@ enum ClonePostAction: String, Hashable {
         let prefix=bounded(previous.substring(to:range.location),bytes:outputLimit-footer.utf8.count-suffix.utf8.count)
         output=prefix+footer+suffix;completionRange=NSRange(location:(prefix as NSString).length,length:(footer as NSString).length)
     }
-    private func finishAutomaticClose() { if !busy,!hasPendingWork,!confirmingQuit, !confirmingCancellation, !invalidated, abandoned || warnings.isEmpty && autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() } }
+    private func finishAutomaticClose() { if !fileActionBusy,!busy,!hasPendingWork,!confirmingQuit, !confirmingCancellation, !invalidated, abandoned || warnings.isEmpty && autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() } }
     func cancel() {
         guard canCancel, !invalidated else { return }; let token = cancellation,generation=interactionGeneration
         if preferences.bool(forKey: "ConfirmKillProcess") {
@@ -713,7 +747,7 @@ enum ClonePostAction: String, Hashable {
         } else { cancelling = true; token.cancel() }
     }
     func perform(_ action: ClonePostAction) {
-        guard !busy,!hasPendingWork,!confirmingQuit,presentationAvailable(), !confirmingCancellation, !invalidated, !dispatched, postActions.contains(action) else { return }
+        guard !fileActionBusy,!busy,!hasPendingWork,!confirmingQuit,presentationAvailable(), !confirmingCancellation, !invalidated, !dispatched, postActions.contains(action) else { return }
         if action == .inspect {retryInspection();return}
         if action == .retry {
             ProgressActionLog.nextAttempt(self);
@@ -728,6 +762,7 @@ enum ClonePostAction: String, Hashable {
 }
 @MainActor final class CloneProgressWindowController: NSWindowController, NSWindowDelegate {
     let model: CloneProgressWindowModel
+    let notificationFiles:RemoteProgressFileActions
     static var activeReleases:Int {CloneChildRelease.activeCount}
     var onClosed:()->Void = {}
     var onClosing:(NSWindow)->Void = {_ in}
@@ -743,9 +778,17 @@ enum ClonePostAction: String, Hashable {
     private var cancellationAnswer:((NSApplication.ModalResponse)->Void)?
     init(model: CloneProgressWindowModel) {
         self.model = model
-        let window = NSWindow(contentRect: NSRect(x:0,y:0,width:760,height:430), styleMask: [.titled,.closable,.resizable], backing:.buffered, defer:false)
-        window.title = "Clone – TurtleGit"; window.contentMinSize = NSSize(width:600,height:320); window.isReleasedWhenClosed = false
+        notificationFiles=RemoteProgressFileActions(repository:model.notificationRepository,access:model.notificationAccess)
+        let initialSize=model.showsNotifications ? NSSize(width:920,height:680):NSSize(width:760,height:430)
+        let window = NSWindow(contentRect: NSRect(origin:.zero,size:initialSize), styleMask: [.titled,.closable,.resizable], backing:.buffered, defer:false)
+        window.title = "Clone – TurtleGit"; window.contentMinSize = model.showsNotifications ? NSSize(width:780,height:600):NSSize(width:600,height:320); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView:CloneProgressDialog(model:model)); super.init(window:window); window.delegate = self
+        if model.showsNotifications {window.setContentSize(initialSize)}
+        notificationFiles.window=window;notificationFiles.available={ [weak model] in model?.notificationOwnerAvailable==true }
+        notificationFiles.onBusy={ [weak model] in model?.fileActionBusy=$0 }
+        notificationFiles.onError={ [weak model] in model?.notificationFailure($0) }
+        notificationFiles.onLog={ [weak model] repository,access,paths,old,new in model?.onNotificationLog(repository,access,paths,old,new) }
+        model.onNotificationFileAction={ [weak self] in self?.notificationFiles.perform($0,$1) }
         model.close = { [weak self] in self?.finishResult({}) }
         model.finishAndPerform = { [weak self] action in self?.finishResult(action) }
         model.workDidDrain = { [weak self] in guard let self,self.finishing else{return};self.closeIfReady() }
@@ -775,29 +818,29 @@ enum ClonePostAction: String, Hashable {
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     private func finishResult(_ action:@escaping()->Void) {
-        guard !closed,!retiring,!finishing,model.active,!model.confirmingQuit else{return}
+        guard !closed,!retiring,!finishing,model.active,!model.confirmingQuit,!model.fileActionBusy else{return}
         finishing=true;pendingAction=action;closeIfReady()
     }
     private func closeIfReady() {
-        guard !closed,!retiring,finishing,model.active,!model.confirmingQuit,!model.busy,!model.hasPendingWork,!model.confirmingCancellation,cancellationAlert == nil,let window,window.attachedSheet == nil else{return}
+        guard !closed,!retiring,finishing,model.active,!model.confirmingQuit,!model.fileActionBusy,!model.busy,!model.hasPendingWork,!model.confirmingCancellation,cancellationAlert == nil,let window,window.attachedSheet == nil else{return}
         presentationParent=window.sheetParent;closingForHandoff=true;window.close()
         if !retiring,!window.isVisible {retireClosedWindow()}
     }
     func windowShouldClose(_ sender:NSWindow)->Bool {
         guard !model.confirmingQuit,!finishing,!retiring else{return false}
         if model.busy {model.cancel();return false}
-        guard !model.hasPendingWork,!model.confirmingCancellation,cancellationAlert == nil,sender.attachedSheet == nil else{return false}
+        guard !model.fileActionBusy,!model.hasPendingWork,!model.confirmingCancellation,cancellationAlert == nil,sender.attachedSheet == nil else{return false}
         finishResult({});return false
     }
     private func retireClosedWindow() {
         guard !closed,!retiring else{return};retiring=true
         if let window {model.handoffPresentation=MergeWindowPresentation(window);onClosing(window)}
-        model.invalidate();model.finishAndPerform=nil;model.workDidDrain=nil;model.close={}
+        notificationFiles.retire();model.invalidate();model.finishAndPerform=nil;model.workDidDrain=nil;model.close={}
         cancellationAnswer?(.abort)
         let action=closingForHandoff ? pendingAction:nil;pendingAction=nil
         guard let window else{closed=true;model.saveActionLog();onClosed();action?();return}
         if let sheet=window.attachedSheet,sheet !== questionWindow {window.endSheet(sheet,returnCode:.abort);sheet.close()}
-        let release=CloneChildRelease(window:window,parent:presentationParent ?? window.sheetParent,ready:{ [self] in !model.hasPendingWork && cancellationAlert == nil}) { [self] in
+        let release=CloneChildRelease(window:window,parent:presentationParent ?? window.sheetParent,ready:{ [self] in !model.hasPendingWork && !notificationFiles.busy && cancellationAlert == nil}) { [self] in
             self.release=nil;closed=true;model.saveActionLog();onClosed();action?()
         }
         self.release=release;release.start()
@@ -810,16 +853,31 @@ struct CloneProgressDialog: View {
     var body: some View {
         VStack(alignment:.leading,spacing:12) {
             Text("Clone to \(model.destination.path)").font(.headline).textSelection(.enabled)
-            SubmoduleProgressOutputView(text:model.output,completed:model.commandFinished,completionRange:model.completionRange,success:model.commandSucceeded,preferences:model.outputPreferences,clipboard:model.outputClipboard).frame(maxWidth:.infinity,maxHeight:.infinity)
-            ForEach(Array(model.warnings.enumerated()),id:\.offset) { _,warning in Label(warning,systemImage:"exclamationmark.triangle.fill").foregroundStyle(.orange).textSelection(.enabled) }
+            if model.showsNotifications {
+                FileOperationProgressTable(state:model.notifications,icon:.clone,available:model.notificationActionsAvailable,repository:model.destination,keyboardAvailable:model.notificationKeyboardAvailable,fileRowIcons:true,actionAvailability:{model.notificationActionsAvailable},keyboardAvailability:{model.notificationKeyboardAvailable},performRow:model.onNotificationFileAction)
+                    .frame(minHeight:220,maxHeight:.infinity).layoutPriority(1)
+                if !model.output.isEmpty {SubmoduleProgressOutputView(text:model.output,completed:model.commandFinished,completionRange:model.completionRange,success:model.commandSucceeded,preferences:model.outputPreferences,clipboard:model.outputClipboard).frame(height:90)}
+            } else {
+                SubmoduleProgressOutputView(text:model.output,completed:model.commandFinished,completionRange:model.completionRange,success:model.commandSucceeded,preferences:model.outputPreferences,clipboard:model.outputClipboard).frame(maxWidth:.infinity,maxHeight:.infinity)
+            }
+            if model.showsNotifications {
+                if !model.warnings.isEmpty {ScrollView {VStack(alignment:.leading) {ForEach(Array(model.warnings.enumerated()),id:\.offset) {_,warning in Label(warning,systemImage:"exclamationmark.triangle.fill").foregroundStyle(.orange).textSelection(.enabled)}}}.frame(height:min(80,CGFloat(model.warnings.count)*32))}
+            } else {
+                ForEach(Array(model.warnings.enumerated()),id:\.offset) { _,warning in Label(warning,systemImage:"exclamationmark.triangle.fill").foregroundStyle(.orange).textSelection(.enabled) }
+            }
             if model.commandFinished {ProgressView(value:100,total:100).tint(model.commandSucceeded ? Color.accentColor:Color.red)}
             else {GitCommandProgressBar(percentage:model.percentage,animate:model.progressPresentation.animateActivity)}
-            if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
+            if model.showsNotifications {
+                HStack(alignment:.top) {
+                    if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
+                    if model.checkoutTotal > 0 {Spacer();Text("\(model.checkoutCompleted) / \(model.checkoutTotal)").font(.caption).foregroundStyle(.secondary).fixedSize()}
+                }
+            } else if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
             HStack {Text(model.statusText).foregroundStyle(model.busy ? Color.primary : model.success ? model.warnings.isEmpty ? Color.green:Color.orange : model.commandCompleted ? Color.orange:Color.red); Spacer() }
             HStack { if let first = model.postActions.first { Button { model.perform(first) } label: { CommandLabel(title:first.title,icon:first.icon) }; Menu { ForEach(model.postActions,id:\.self) { action in Button { model.perform(action) } label: { CommandLabel(title:action.title,icon:action.icon) } } } label: { Image(systemName:"chevron.down").accessibilityLabel("Clone post-actions") }.menuStyle(.borderlessButton).fixedSize() }; Spacer()
                 if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
-            }.disabled(model.confirmingCancellation || model.confirmingQuit || !model.busy && model.hasPendingWork || !model.presentationAvailable())
+            }.disabled(model.fileActionBusy || model.confirmingCancellation || model.confirmingQuit || !model.busy && model.hasPendingWork || !model.presentationAvailable())
         }.padding(12)
         .gitDockProgress(.command(busy:model.busy && !model.commandFinished,success:model.commandSucceeded,waiting:model.confirmingCancellation,percentage:model.percentage))
     }

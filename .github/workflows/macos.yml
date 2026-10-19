@@ -545,6 +545,11 @@ jobs:
         run: python3 scripts/test-historical-materialization-native.py --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native optional libgit2 backend selection and owned Git authentication
         run: python3 scripts/test-libgit2-native.py --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
+      - name: Native libgit2 Clone and Fetch result notifications
+        run: >-
+          python3 scripts/test-remote-progress-notifications.py
+          --git /usr/bin/git --git build/git-runtime/Git/bin/git
+          --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native source-selected Add clean filters and owned index progress
         run: python3 scripts/test-add-backend-native.py --git /usr/bin/git --git build/git-runtime/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2
       - name: Native source-selected Commit index preparation and cancellation

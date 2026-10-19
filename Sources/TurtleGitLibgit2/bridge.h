@@ -10,8 +10,10 @@ typedef int (*tg_certificate_cb)(const char *,const unsigned char *,size_t,int,v
 typedef int (*tg_http_cb)(const char *,const char *,char ***,size_t *,char **,void *);
 typedef int (*tg_filter_cb)(const char *,const char *,const char *,const char *,const unsigned char *,size_t,unsigned char **,size_t *,void *);
 typedef void (*tg_added_cb)(const char *,void *);
+typedef void (*tg_reference_cb)(const char *,const char *,const char *,const char *,int,size_t,void *);
+typedef void (*tg_checkout_cb)(const char *,const char *,size_t,size_t,void *);
 typedef void (*tg_url_cb)(const char *,void *);
-typedef struct {tg_cancel_cb cancelled;tg_output_cb output;tg_output_cb result;tg_credentials_cb credentials;tg_certificate_cb certificate;tg_url_cb url;tg_http_cb http;void *payload;int verbose;const char *const *config_values;size_t config_count;int force_fetch;tg_filter_cb filter;tg_added_cb added;} tg_callbacks;
+typedef struct {tg_cancel_cb cancelled;tg_output_cb output;tg_output_cb result;tg_credentials_cb credentials;tg_certificate_cb certificate;tg_url_cb url;tg_http_cb http;void *payload;int verbose;const char *const *config_values;size_t config_count;int force_fetch;tg_filter_cb filter;tg_added_cb added;tg_reference_cb reference_updated;tg_checkout_cb checked_out;} tg_callbacks;
 int tg_git_init(void);
 void tg_git_shutdown(void);
 const char *tg_git_version(void);

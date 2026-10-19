@@ -14,14 +14,17 @@ import TurtleGitCore
     func setWatermark(_ icon: MenuIcon) { watermarkImage = icon.image(size: 128); needsDisplay = true }
     func backdropRect(in viewport: NSRect) -> NSRect? {
         guard defaults.object(forKey: "ShowListBackgroundImage") as? Bool ?? true,
-              watermarkImage != nil, viewport.width > 0, viewport.height > 0 else { return nil }
+              // Never position a full-size watermark above a short viewport:
+              // its negative origin otherwise bleeds through a transparent header.
+              watermarkImage != nil, viewport.width >= 128, viewport.height >= 128 else { return nil }
         return NSRect(x: viewport.maxX - 128, y: isFlipped ? viewport.maxY - 128 : viewport.minY, width: 128, height: 128)
     }
     override func drawBackground(inClipRect clipRect: NSRect) {
         super.drawBackground(inClipRect: clipRect)
-        guard let rect = backdropRect(in: visibleRect), rect.intersects(clipRect) else { return }
+        let viewport=visibleRect.intersection(bounds)
+        guard let rect = backdropRect(in: viewport), rect.intersects(clipRect) else { return }
         NSGraphicsContext.saveGraphicsState()
-        NSBezierPath(rect: visibleRect.intersection(clipRect)).addClip()
+        NSBezierPath(rect: viewport.intersection(clipRect)).addClip()
         watermarkImage?.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
         NSGraphicsContext.restoreGraphicsState()
     }

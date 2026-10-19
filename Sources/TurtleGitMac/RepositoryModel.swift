@@ -1123,6 +1123,10 @@ private enum HistoricalMaterializationContext {
     }
     func configureCloneInteractions(_ controller: CloneWindowController) {
         let preferences = controller.model.pathCompletionPreferences
+        controller.model.onNotificationLog={ [weak self] repository,access,paths,old,new in
+            guard let self,!self.retired,!self.confirmingQuit else{return}
+            self.showLog(repository:repository,access:access,paths:paths,endRevision:old == nil ? new:nil,revisionRange:old.map{HistoryRevisionRange(from:$0,to:new ?? "HEAD")},preferences:preferences)
+        }
         controller.model.onLog = { [weak self, weak model = controller.model] repository, access in
             guard let self, !self.retired, !self.confirmingQuit, let model else { return }
             self.showLog(repository: repository, access: access, paths: [], preferences: preferences, presentation: model.handoffPresentation)
@@ -3559,6 +3563,10 @@ private enum HistoricalMaterializationContext {
     }
     private func configureFetchInteractions(_ controller: FetchWindowController, repository: GitRepository, access: RepositoryAccessLease?, followUp: PullFollowUp = PullFollowUp()) {
         let root = repository.root, preferences = controller.model.presentationPreferences
+        controller.model.onNotificationLog={ [weak self] child,grant,paths,old,new in
+            guard let self,!self.retired,!self.confirmingQuit else{return}
+            self.showLog(repository:child,access:grant,paths:paths,endRevision:old == nil ? new:nil,revisionRange:old.map{HistoryRevisionRange(from:$0,to:new ?? "HEAD")},preferences:preferences)
+        }
         controller.model.onShowStatus = { [weak self] in
             guard let self else { return }
             if self.root == root { self.activate(.status) }

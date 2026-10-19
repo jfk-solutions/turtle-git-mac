@@ -3788,3 +3788,16 @@ cover standalone and workspace, Resolve and Rebase callers. The existing Trash,
 Retry and submodule post-actions retain their operation boundary. Source scope
 and grouped verification are tracked in the [Revert result parity guide](REVERT-RESULT-ACTIONS-PARITY.md); this
 implementation does not establish full physical, signed or source-layout parity.
+
+
+### Optional Clone/Fetch result notifications — October 19, 2026
+
+The captured libgit2 Clone/Fetch branch now carries typed full-OID reference
+updates and literal checkout-file receipts from the private helper into native
+Action/Path result lists. Captured old/new Log ranges, recursive repository
+identity, file actions, separate copy formats, sorting, saved action logs and
+owned chooser/launch cancellation accompany the source backend gate. Metadata
+loss produces an explicit warning while preserving the actual Git result.
+The [source scope and grouped evidence](REMOTE-PROGRESS-NOTIFICATIONS-PARITY.md)
+keep default command-line/SVN behavior and remaining physical/signed/full-layout
+acceptance separate from this implementation family.

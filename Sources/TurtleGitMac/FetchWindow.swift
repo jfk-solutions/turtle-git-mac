@@ -182,6 +182,7 @@ import TurtleGitCore
     @Published private(set) var progress: PullProgressWindowModel?
     @Published private(set) var fetchProgress: FetchProgressWindowModel?
     var onFetchProgress: ((FetchProgressWindowModel) -> Void)?
+    var onNotificationLog:RemoteProgressLogHandler = {_,_,_,_,_ in}
     var onFetchPostAction: ((FetchPostAction, String) -> Void)?
     var followUp = PullFollowUp()
     var onProgress: ((PullProgressWindowModel) -> Void)?
@@ -441,6 +442,7 @@ import TurtleGitCore
         }
         let progress = FetchProgressWindowModel(repository: repository, access: access, options: snapshot, preferences: preferences, rebaseMode: wantsRebase ? (autoStart ? .automatic : .manual) : .none, preserveMerges: keepMerges)
         progress.makeSSHCoordinator = sshFactory
+        progress.onNotificationLog=onNotificationLog
         fetchProgress = progress
         progress.confirmCancellation = { [weak self] choose in self?.confirmCancellation(choose) }
         let postAction = onFetchPostAction, rebase = onRebase
@@ -999,7 +1001,19 @@ enum FetchRebasePrompt: String, CaseIterable {
 }
 struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
 @MainActor final class FetchProgressWindowModel: ObservableObject {
+    let notifications:FileOperationProgressState
     let backend:GitLibGit2Configuration
+    var showsNotifications:Bool {backend.requests(.fetch)}
+    var actionLogOutput:String {showsNotifications ? notifications.output+"\n\n"+output:output}
+    var onNotificationLog:RemoteProgressLogHandler = {_,_,_,_,_ in}
+    @Published var fileActionBusy=false
+    @Published private(set) var notificationWarnings:[String]=[]
+    var notificationOwnerAvailable:Bool {showsNotifications && !invalidated && !confirmingQuit && !busy && !confirmingCancellation && !dispatchingAction && !confirmingRebaseDecision && presentationAvailable()}
+    var notificationActionsAvailable:Bool {notificationOwnerAvailable && !fileActionBusy}
+    var notificationKeyboardAvailable:Bool {showsNotifications && !invalidated && !confirmingQuit && !fileActionBusy && presentationAvailable()}
+    var onNotificationFileAction:(FileOperationProgressAction,FileOperationProgressRow)->Void = {_,_ in}
+    var notificationAccess:RepositoryAccessLease? {access}
+    func notificationFailure(_ text:String){output=GitProgressFailureOutput.renderDetails(text,existing:output,limit:outputLimit)}
     private(set) static var activeOperations = 0
     @Published var confirmingQuit = false
     var presentationAvailable: () -> Bool = { true }
@@ -1061,6 +1075,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     var onOwnedRebase: ((String, Bool, Bool) async throws -> Void)?
     var presentRebasePrompt: (FetchRebasePrompt) async -> FetchRebaseAnswer = { prompt in FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
     init(repository: GitRepository, access: RepositoryAccessLease?, options: FetchOptions, preferences: UserDefaults = .standard, rebaseMode: FetchRebaseMode = .none, preserveMerges: Bool = false,backend:GitLibGit2Configuration?=nil) {
+        notifications=FileOperationProgressState(preferences:preferences)
         self.backend = backend ?? .load(from:preferences)
         self.repository = repository; self.access = access; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.outputState = GitProgressOutputState(preferences: preferences)
         self.rebaseMode = rebaseMode; self.preserveMerges = preserveMerges
@@ -1092,11 +1107,11 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         return true
     }
     private func finishCompletion() {
-        guard !busy, !invalidated, !confirmingCancellation else { return }
+        guard !fileActionBusy,!busy, !invalidated, !confirmingCancellation else { return }
         if let deferredRebase { self.deferredRebase = nil; deferredRebase(); return }
-        if explicitCloseRequested || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
+        if explicitCloseRequested || notificationWarnings.isEmpty && autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
     }
-    func invalidate() { invalidated = true; cancellation.cancel(); inspectionToken?.cancel(); inspectionToken = nil; deferredRebase = nil; pendingRebase = nil; busy = false; confirmingCancellation = false; confirmingRebaseDecision = false; dispatchingAction = false }
+    func invalidate() { notifications.retire();invalidated = true; cancellation.cancel(); inspectionToken?.cancel(); inspectionToken = nil; deferredRebase = nil; pendingRebase = nil; busy = false; confirmingCancellation = false; confirmingRebaseDecision = false; dispatchingAction = false }
     func start() { Task { await run() } }
     func run() async { guard !started, !invalidated else { return }; started = true; await execute() }
     private func validateAccess() throws {
@@ -1106,6 +1121,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         guard !invalidated else { return }
         Self.activeOperations += 1
         defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
+        notifications.begin("Fetch");notificationWarnings=[]
         busy = true; success = false; cancelled = false; cancelling = false; merging = false; explicitCloseRequested = false; deferredRebase = nil; resetOutput(); postActions = []
         do {
             try validateAccess()
@@ -1174,17 +1190,32 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         let coordinator = makeSSHCoordinator?(); defer { coordinator?.close() }; let preparation = coordinator?.preparation
         let parser = GitCliOutputParser(limit: outputState.limit)
         let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        let typed=RemoteProgressNotificationBuffer(),notificationStarted=Date()
+        var fetchSucceeded=false
+        func drainNotifications() {
+            let values=typed.take();guard !invalidated else{return}
+            for value in values {
+                notifications.appendTransfer(value)
+                if case .issue(let issue)=value {notificationWarnings.append(issue.message)}
+            }
+        }
+        defer {drainNotifications();if showsNotifications,!invalidated {notifications.finish(success:fetchSucceeded,cancelled:cancellation.isCancelled,started:notificationStarted)}}
         let operation = Task<(String, FetchRebaseResult?), Error> {
             defer { continuation.finish() }
             let observer: @Sendable (GitOutputChunk) -> Void = { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }
             let command:@Sendable(GitCommandInvocation)->Void={observer(GitOutputChunk(stream:.stdout,data:$0.preamble))}
-            if rebaseMode == .none { return (try await repository.fetch(options, cancellation: cancellation, onOutput: observer, prepareTransport: preparation,onCommand:command,backend:backend), nil) }
-            let result = try await repository.fetchForRebase(options, cancellation: cancellation, onOutput: observer, prepareTransport: preparation,onCommand:command,backend:backend)
+            if rebaseMode == .none { return (try await repository.fetch(options, cancellation: cancellation, onOutput: observer, prepareTransport: preparation,onCommand:command,backend:backend,onNotification:{value in typed.append(value);continuation.yield(())}), nil) }
+            let result = try await repository.fetchForRebase(options, cancellation: cancellation, onOutput: observer, prepareTransport: preparation,onCommand:command,backend:backend,onNotification:{value in typed.append(value);continuation.yield(())})
             return (result.output, result)
         }
-        for await _ in updates { consume(parser.processPending(), parser: parser) }
+        for await _ in updates { drainNotifications();consume(parser.processPending(), parser: parser) }
         consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
-        return try await operation.value
+        do {let result=try await operation.value;fetchSucceeded=true;return result}
+        catch {
+            drainNotifications()
+            if showsNotifications,!invalidated {notifications.append("Error",GitProgressFailureOutput.render(error,existing:"",limit:outputLimit),kind:.error)}
+            throw error
+        }
     }
     private func streamMerge(_ options: MergeOptions) async throws -> String {
         // Upstream creates a new Merge progress dialog. Keep the retained Fetch
@@ -1214,7 +1245,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         } else { cancelling = true; token.cancel() }
     }
     func perform(_ action: FetchPostAction) {
-        guard !invalidated, !confirmingQuit, presentationAvailable(), !dispatched, !busy, !confirmingCancellation, !confirmingRebaseDecision, !dispatchingAction, postActions.contains(action) else { return }
+        guard !fileActionBusy,!invalidated, !confirmingQuit, presentationAvailable(), !dispatched, !busy, !confirmingCancellation, !confirmingRebaseDecision, !dispatchingAction, postActions.contains(action) else { return }
         if action == .rebase, let fetched = pendingRebase, onOwnedRebase != nil {
             dispatchingAction = true; Self.activeOperations += 1
             Task {
@@ -1250,15 +1281,24 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     private var release: TransportProgressRelease?
     private var finished = false
     let model: FetchProgressWindowModel
+    let notificationFiles:RemoteProgressFileActions
     var onClosed: () -> Void = {}
     init(model: FetchProgressWindowModel) {
         self.model = model; model.closeAfterCancellation = true
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        notificationFiles=RemoteProgressFileActions(repository:model.repository,access:model.notificationAccess)
+        let initialSize=model.showsNotifications ? NSSize(width:920,height:560):NSSize(width:760,height:430)
+        let window = NSWindow(contentRect: NSRect(origin:.zero,size:initialSize), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: model.repository.root, dialog: "Fetch progress", preferences: model.presentationPreferences); window.minSize = NSSize(width: 620, height: 340); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: FetchProgressDialog(model: model))
         super.init(window: window); window.delegate = self
+        if model.showsNotifications {window.contentMinSize=NSSize(width:780,height:480);window.setContentSize(initialSize)}
+        notificationFiles.window=window;notificationFiles.available={ [weak model] in model?.notificationOwnerAvailable==true }
+        notificationFiles.onBusy={ [weak model] in model?.fileActionBusy=$0 }
+        notificationFiles.onError={ [weak model] in model?.notificationFailure($0) }
+        notificationFiles.onLog={ [weak model] repository,access,paths,old,new in model?.onNotificationLog(repository,access,paths,old,new) }
+        model.onNotificationFileAction={ [weak self] in self?.notificationFiles.perform($0,$1) }
         model.close = { [weak self] in
-            guard let self, !self.model.confirmingQuit, !self.model.busy, !self.model.confirmingCancellation, !self.model.dispatchingAction, !self.model.confirmingRebaseDecision, self.window?.attachedSheet == nil else { return }
+            guard let self, !self.model.confirmingQuit,!self.model.fileActionBusy, !self.model.busy, !self.model.confirmingCancellation, !self.model.dispatchingAction, !self.model.confirmingRebaseDecision, self.window?.attachedSheet == nil else { return }
             if let window = self.window { self.presentationParent = window.sheetParent; window.close() }
         }
         model.presentationAvailable = { [weak window] in window != nil && window?.attachedSheet == nil }
@@ -1299,16 +1339,16 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !model.confirmingQuit else { return false }
         if model.busy { model.cancel(); return false }
-        guard !model.confirmingCancellation, !model.dispatchingAction, !model.confirmingRebaseDecision, sender.attachedSheet == nil else { return false }
+        guard !model.fileActionBusy,!model.confirmingCancellation, !model.dispatchingAction, !model.confirmingRebaseDecision, sender.attachedSheet == nil else { return false }
         presentationParent = sender.sheetParent; return true
     }
     func windowWillClose(_ notification: Notification) {
         guard !finished else { return }; finished = true
-        model.saveActionLog(); model.invalidate(); model.closeForHandoff = nil
+        notificationFiles.retire();model.saveActionLog(); model.invalidate(); model.closeForHandoff = nil
         guard let window else { pendingHandoff = nil; onClosed(); return }
         if let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
         let action = pendingHandoff; pendingHandoff = nil
-        let release = TransportProgressRelease(window: window, parent: presentationParent ?? window.sheetParent) { [self] in
+        let release = TransportProgressRelease(window: window, parent: presentationParent ?? window.sheetParent,ready:{ [self] in !notificationFiles.busy }) { [self] in
             self.release = nil; self.presentationParent = nil; onClosed(); action?()
         }
         self.release = release; release.start()
@@ -1319,10 +1359,17 @@ struct FetchProgressDialog: View {
     @ObservedObject var model: FetchProgressWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if model.showsNotifications {
+                FileOperationProgressTable(state:model.notifications,icon:.fetch,available:model.notificationActionsAvailable,repository:model.repository.root,keyboardAvailable:model.notificationKeyboardAvailable,fileRowIcons:true,actionAvailability:{model.notificationActionsAvailable},keyboardAvailability:{model.notificationKeyboardAvailable},performRow:model.onNotificationFileAction)
+                    .frame(minHeight:180,maxHeight:.infinity).layoutPriority(1)
+                if !model.output.isEmpty {SubmoduleProgressOutputView(text:model.output,completed:!model.busy,success:model.success,preferences:model.presentationPreferences).frame(height:90)}
+                ForEach(Array(model.notificationWarnings.enumerated()),id:\.offset){_,warning in Label(warning,systemImage:"exclamationmark.triangle.fill").foregroundStyle(.orange).textSelection(.enabled)}
+            } else {
             ScrollViewReader { reader in
                 ScrollView { VStack(alignment: .leading, spacing: 0) { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading); Color.clear.frame(height: 1).id("transport-output-end") } }
                     .onChange(of: model.output) { _ in reader.scrollTo("transport-output-end", anchor: .bottom) }
             }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
+            }
             if model.busy, let percentage = model.percentage { ProgressView(value: Double(percentage), total: 100).tint(.green) }
             if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
             HStack { if model.busy && model.percentage == nil { GitCommandActivity(animate: model.progressPresentation.animateActivity) }; Text(model.busy ? model.cancelling ? "Cancelling…" : model.confirmingRebaseDecision ? "Waiting for your choice…" : model.merging ? "Merging…" : "Fetching…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : model.merging ? "Merge failed" : "Fetch failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
@@ -1334,7 +1381,7 @@ struct FetchProgressDialog: View {
                 Spacer()
                 if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
                 else { if !model.success { Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction) }; Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
-            }.disabled(model.confirmingQuit || model.dispatchingAction)
+            }.disabled(model.fileActionBusy || model.confirmingQuit || model.dispatchingAction)
         }.padding(12)
         .gitDockProgress(.command(busy: model.busy, success: model.success, waiting: model.confirmingCancellation || model.confirmingRebaseDecision, percentage: model.percentage))
     }
@@ -1367,11 +1414,14 @@ enum GitProgressAutoClose: Int, CaseIterable, Sendable {
     private var completion: () -> Void
     private var observer: NSObjectProtocol?
     private var started = false, finished = false
-    init(window: NSWindow, parent: NSWindow?, completion: @escaping () -> Void) {
-        self.window = window; self.parent = parent; self.completion = completion
+    private let ready:()->Bool
+    private var waiter:Task<Void,Never>?
+    init(window: NSWindow, parent: NSWindow?, ready:@escaping()->Bool={true}, completion: @escaping () -> Void) {
+        self.window = window; self.parent = parent; self.ready=ready;self.completion = completion
     }
     func start() {
         guard !started else { return }; started = true; Self.activeCount += 1
+        waiter=Task { @MainActor [self] in while !finished {try? await Task.sleep(nanoseconds:5_000_000);drain()} }
         if window.sheetParent == nil && parent?.attachedSheet !== window { drain(); return }
         observer = NotificationCenter.default.addObserver(forName: NSWindow.didEndSheetNotification, object: parent, queue: .main) { [self] _ in
             DispatchQueue.main.async { self.drain() }
@@ -1380,8 +1430,8 @@ enum GitProgressAutoClose: Int, CaseIterable, Sendable {
         DispatchQueue.main.async { [self] in drain() }
     }
     private func drain() {
-        guard !finished, window.sheetParent == nil, parent?.attachedSheet !== window else { return }
-        finished = true
+        guard !finished,ready(), window.sheetParent == nil, parent?.attachedSheet !== window else { return }
+        finished = true;waiter?.cancel();waiter=nil
         if let observer { NotificationCenter.default.removeObserver(observer); self.observer = nil }
         Self.activeCount -= 1; let done = completion; completion = {}; done()
     }

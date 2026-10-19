@@ -120,13 +120,13 @@ extension GitRepository {
         }
     }
     public func clone(_ options: CloneOptions, to destination: URL, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil,
-                      onCommand:(@Sendable(GitCommandInvocation)->Void)? = nil,onCommandFinished:(@Sendable(CloneCommandCompletion)->Void)? = nil, backend: GitLibGit2Configuration? = nil) async throws -> String {
-        try await cloneOutcome(options,to:destination,cancellation:cancellation,onOutput:onOutput,prepareTransport:prepareTransport,onCommand:onCommand,onCommandFinished:onCommandFinished,backend:backend).summary
+                      onCommand:(@Sendable(GitCommandInvocation)->Void)? = nil,onCommandFinished:(@Sendable(CloneCommandCompletion)->Void)? = nil, backend: GitLibGit2Configuration? = nil,onNotification:(@Sendable(GitTransferNotification)->Void)? = nil) async throws -> String {
+        try await cloneOutcome(options,to:destination,cancellation:cancellation,onOutput:onOutput,prepareTransport:prepareTransport,onCommand:onCommand,onCommandFinished:onCommandFinished,backend:backend,onNotification:onNotification).summary
     }
     /// Git command failure throws; post-clone configuration failure is retained
     /// separately, matching CloneCommand's StorePuttyKey acknowledgment.
     public func cloneOutcome(_ options: CloneOptions, to destination: URL, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil,
-                             onCommand:(@Sendable(GitCommandInvocation)->Void)? = nil,onCommandFinished:(@Sendable(CloneCommandCompletion)->Void)? = nil, backend: GitLibGit2Configuration? = nil) async throws -> CloneOutcome {
+                             onCommand:(@Sendable(GitCommandInvocation)->Void)? = nil,onCommandFinished:(@Sendable(CloneCommandCompletion)->Void)? = nil, backend: GitLibGit2Configuration? = nil,onNotification:(@Sendable(GitTransferNotification)->Void)? = nil) async throws -> CloneOutcome {
         let backend = backend ?? libgit2Configuration ?? .load()
         let token=cancellation ?? OperationCancellation();try token.check()
         try validateClone(options,to:destination,cancellation:token)
@@ -142,7 +142,7 @@ extension GitRepository {
         let started=ProcessInfo.processInfo.systemUptime
         let command:GitResult
         do {
-            command=try run(args,environmentOverrides:environment,literalPathspecs:false,cancellation:token,onOutput:onOutput,executorOverride:executor)
+            command=try runTransfer(args,environment:environment,literalPathspecs:false,cancellation:token,onOutput:onOutput,executor:executor,onNotification:onNotification)
             onCommandFinished?(.init(success:command.exitCode == 0,cancelled:false,exitCode:command.exitCode,elapsed:ProcessInfo.processInfo.systemUptime-started))
         } catch {
             let killed=error as? GitCommandCancellationFailure

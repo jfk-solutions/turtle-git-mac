@@ -212,7 +212,9 @@ the conflicts. A forced close cancels owned work and cannot launch a queued chil
 
 Clone and Fetch keep the upstream command-line defaults. An explicitly selected
 optional libgit2 backend uses the same forms and owned progress, with native
-credentials and certificate review. See [optional libgit2 transport](LIBGIT2-TRANSPORT.md).
+credentials and certificate review. Its result list keeps reference updates and
+Clone checkout files, with captured-range Log actions and completed-file commands.
+See [optional libgit2 transport](LIBGIT2-TRANSPORT.md).
 
 Choose a configured Remote or an Arbitrary URL. Remote Branch narrows the request;
 the browse button selects a remote branch. Manage Remotes opens the repository's

@@ -1,0 +1,269 @@
+{
+  "date": "2026-10-19",
+  "family": "Optional libgit2 Clone/Fetch reference and checkout notifications",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Opt-in typed reference/checkout receipts; default CLI, SVN and direct helper consumers retain their existing output",
+    "Full old/new IDs, source graph/time classifications and immutable selected Log endpoints",
+    "Literal recursive repository/file identities and completed file menus/icons; live keyboard copy and stopped-only context actions",
+    "Contiguous completed sorting, stable selections, partial failure/cancellation retention and fresh Retry attempts",
+    "Saved action logs, bounded strict private protocol and truthful metadata warnings without rewriting Git outcomes",
+    "Owned confined file preflight/Open With/launch/Close/Quit and drained post-action handoffs"
+  ],
+  "validation": [
+    {
+      "scope": "Initial grouped Core check",
+      "status": "failed",
+      "executed": 6,
+      "failures": 2,
+      "unexpected": 1,
+      "log": "build/qa/remote-notifications-core-2026-10-19.log",
+      "findings": [
+        "Private fixture needed core.precomposeunicode=false for literal decomposed path assertion",
+        "A new blob reference is not a valid FETCH_HEAD committish; failed graph fixture must preserve a valid new commit"
+      ]
+    },
+    {
+      "scope": "Protocol compatibility review and affected Core repair",
+      "status": "partially-passed",
+      "executed": 4,
+      "failures": 3,
+      "unexpected": 1,
+      "log": "build/qa/remote-notifications-core-repair-2026-10-19.log",
+      "passed": [
+        "Direct-helper and consumerless operations retain legacy output",
+        "Malformed metadata preserves actual Git exit/diagnostics"
+      ],
+      "findings": [
+        "Private typed channel must require explicit helper flag; Synchronization direct run remains legacy",
+        "macOS refused construction of an invalid UTF-8 OS filename; raw Git tree plumbing required",
+        "Annotated tags are peeled by graph classification, so they do not reliably create graph failure"
+      ]
+    },
+    {
+      "scope": "Fixture-only Clone/decoder/Fetch repair",
+      "status": "partially-passed",
+      "executed": 3,
+      "failures": 1,
+      "unexpected": 0,
+      "log": "build/qa/remote-notifications-core-fixture-repair-2026-10-19.log",
+      "passed": [
+        "Literal paths, recursive repository identity, bare/no-checkout, CLI and raw-invalid-name real checkout failure",
+        "Strict decoder including invalid UTF-8"
+      ],
+      "finding": "AUTO tag following retains existing tag despite forced explicit refspec; graph fixture must disable automatic tags and assert actual old/new ref mutation"
+    },
+    {
+      "scope": "Universal helper final build and all-architecture runtime validation",
+      "status": "passed",
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "logs": [
+        "build/qa/remote-notifications-runtime-repair-build-2026-10-19.log",
+        "build/qa/remote-notifications-runtime-repair-validation-2026-10-19.log"
+      ],
+      "helper_cache_key": "0f4255c70783b887e3ac0d7e068ef971b9de7f27a77650127b0e0b57968fc5f6",
+      "coverage": "Real typed new/unchanged/forward/checkout records plus retained clone/fetch/list/deletion/historical/filter/private-index preparation operations"
+    },
+    {
+      "scope": "Debug app initial and protocol repair builds",
+      "status": "passed",
+      "logs": [
+        "build/qa/remote-notifications-app-build-2026-10-19.log",
+        "build/qa/remote-notifications-app-repair-build-2026-10-19.log"
+      ],
+      "limit": "Unsigned Debug, not signed distribution execution"
+    },
+    {
+      "scope": "Initial native fixture compilation",
+      "status": "failed",
+      "log": "build/qa/remote-notifications-native-2026-10-19.log",
+      "finding": "Fixture attribute order did not match cached receiver entry parser",
+      "repair": "Place @MainActor before @main; production unchanged",
+      "owned_receiver_started": false
+    },
+    {
+      "scope": "Clone/Fetch/lifecycle native workflows after entry repair",
+      "status": "passed",
+      "case_engine_pairs": 6,
+      "git": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/remote-notifications-native-entry-repair-2026-10-19.log",
+      "receiver_pids": [
+        52909,
+        52988,
+        53064,
+        53110,
+        53154,
+        53188
+      ],
+      "cleanup": "All owned receivers reaped; independently absent",
+      "limit": "Behavior checks passed, but review of actual captures found collapsed Clone result viewport and clipped watermark; repaired and rechecked separately"
+    },
+    {
+      "scope": "Shared retained Revert/Add/Resolve workflows before capture-driven repair",
+      "status": "passed",
+      "case_engine_pairs": 4,
+      "log": "build/qa/remote-notifications-retained-native-2026-10-19.log",
+      "receiver_pids": [
+        53244,
+        53423,
+        53633,
+        53755
+      ],
+      "cleanup": "All owned receivers reaped; independently absent"
+    },
+    {
+      "scope": "Affected Fetch reference classifications after tag-policy fixture repair",
+      "status": "passed",
+      "executed": 1,
+      "failures": 0,
+      "duration_seconds": 2.056,
+      "log": "build/qa/remote-notifications-fetch-tag-policy-repair-2026-10-19.log",
+      "repair": "Disable AUTO tag following while retaining explicit forced tag refspec; assert actual old blob and new commit before accepting graph-error receipt",
+      "production_changed": false
+    },
+    {
+      "scope": "Capture-driven native layout/watermark repair build",
+      "status": "passed",
+      "exit_code": 0,
+      "log": "build/qa/remote-notifications-app-layout-repair-2026-10-19.log",
+      "finding": "Clone table collapsed to header because fixed siblings exhausted a short window; short watermark viewports placed original artwork above the body",
+      "repair": [
+        "Typed Clone/Fetch initial and minimum sizes, protected flexible table heights and bounded diagnostics",
+        "Bounded Clone warning area and inline checkout counts",
+        "Shared watermark confines drawing to the document viewport and suppresses artwork that cannot fit"
+      ],
+      "limit": "Native-only changes; Core/helper validation retained without rerunning their suites"
+    },
+    {
+      "scope": "Generated bundled Help and translation resources",
+      "status": "passed",
+      "checks": [
+        "python3 scripts/build-localizations.py --check",
+        "build/site-venv/bin/python scripts/build-help.py --check"
+      ],
+      "locales": 38,
+      "label_keys": 1301,
+      "help_documents": 42,
+      "help_topics": 50,
+      "help_files": 62,
+      "limit": "Resource consistency, not full translation coverage"
+    },
+    {
+      "scope": "Affected Clone/Fetch viewport, watermark and workflow recheck",
+      "status": "passed",
+      "case_engine_pairs": 4,
+      "log": "build/qa/remote-notifications-native-layout-repair-2026-10-19.log",
+      "receiver_pids": [
+        54682,
+        54759,
+        54840,
+        54883
+      ],
+      "cleanup": "All owned receivers reaped",
+      "coverage": "Retained Clone/Fetch behavioral assertions plus minimum six/three visible row heights, sufficient width, small-watermark refusal and full-size viewport anchoring; actual light/dark captures reviewed"
+    },
+    {
+      "scope": "Retained Revert/Add/Resolve after shared watermark repair",
+      "status": "passed",
+      "case_engine_pairs": 4,
+      "log": "build/qa/remote-notifications-retained-layout-repair-2026-10-19.log",
+      "receiver_pids": [
+        54966,
+        55141,
+        55316,
+        55459
+      ],
+      "cleanup": "All owned receivers reaped; retained result/action/selection/clipboard/icons/Close/Quit assertions preserved"
+    },
+    {
+      "scope": "Website and coverage ledger",
+      "status": "passed",
+      "site_documents": 363,
+      "unresolved_fragments": [],
+      "log": "build/qa/remote-notifications-site-2026-10-19.log",
+      "coverage": "All 130 pinned resource/id pairs retained; partial reviews do not certify dialog completion"
+    },
+    {
+      "scope": "Final source provenance",
+      "status": "passed",
+      "coverage": "Prepared and packaged helper source hashes agree and match current sources; recorded native/Core/fixture sources unchanged since their relevant checks"
+    }
+  ],
+  "remaining_acceptance": [
+    "Complete hosted CI has not been established by these focused local checks",
+    "Physical Finder and actual mouse input; automated native double-click dispatch uses the actual target/action with injected clicked row",
+    "Signed App Store/sandbox grants and installation",
+    "Complete upstream dialog visual, keyboard and VoiceOver parity",
+    "Native Log opening is captured at the callback boundary; full rendered Log workflow is not certified by these fixtures"
+  ],
+  "core_summary": {
+    "distinct_methods_with_pass_evidence": 7,
+    "scope": "Focused GitTransferNotificationTests methods across initial checkpoint and affected repairs; not a full Core integration suite",
+    "production_protocol_repair": "Explicit typed-channel helper opt-in; direct helper/consumerless diagnostics retained"
+  },
+  "hosted_observation": {
+    "last_pushed_commit": "c45b1a76",
+    "pages_run": 39322156385,
+    "pages": "success",
+    "macos_run": 39322156503,
+    "macos": "pending",
+    "older_macos_run": 39318208320,
+    "older_macos": "in_progress at Git integration tests; svn-runtime success",
+    "limit": "Observation before this batch push, not hosted acceptance of the new batch"
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/clone-reference-checkout-results-light.png",
+      "width": 1840,
+      "height": 1360,
+      "review": "Actual inactive production content view; table rows, header and controls visible in both appearances"
+    },
+    {
+      "path": "docs/site/assets/clone-reference-checkout-results-dark.png",
+      "width": 1840,
+      "height": 1360,
+      "review": "Actual inactive production content view; table rows, header and controls visible in both appearances"
+    },
+    {
+      "path": "docs/site/assets/fetch-reference-results-light.png",
+      "width": 1840,
+      "height": 1360,
+      "review": "Actual inactive production content view; table rows, header and controls visible in both appearances"
+    },
+    {
+      "path": "docs/site/assets/fetch-reference-results-dark.png",
+      "width": 1840,
+      "height": 1360,
+      "review": "Actual inactive production content view; table rows, header and controls visible in both appearances"
+    }
+  ],
+  "capture_limits": [
+    "Offscreen/inactive content-view captures, not physical interaction or titlebar acceptance",
+    "Bounded diagnostic panes show their current scroll position; topmost text may be partly above the viewport",
+    "Inactive completed Clone progress bar is gray; action/footer text establishes the completed result"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/Clone.swift": "acab5d1bc64e9b1328714d6092c7df2b94d92d46ee288d68071c510acc07d9df",
+    "Sources/TurtleGitCore/Fetch.swift": "2b04b36ee8489cf9b8b1faebc47114360004ea721790cfeffab9fa232807c62e",
+    "Sources/TurtleGitCore/GitLibGit2.swift": "f89aa8247bfc6ecccc6fc817ba21f91ed40b49cf891656057ae00e6ba5ae44c0",
+    "Sources/TurtleGitLibgit2/bridge.c": "528d49834e913a870393ef6b72b24e510fd7bd95fbb9ca304ec0063238b08672",
+    "Sources/TurtleGitLibgit2/bridge.h": "d7282221e57f33f8751747e5f3517267cdd1f7d565f72abd85c74909ca0bf78c",
+    "Sources/TurtleGitLibgit2/main.swift": "ee67d86bae2cec3e1ece234cb6f823e5fc43b304b82c50909613f9fa4f42593a",
+    "Sources/TurtleGitMac/CloneWindow.swift": "0e72c72d76a2d8f4cb45400661b0289c16e104d276614f1a768caf78bdd91678",
+    "Sources/TurtleGitMac/FetchWindow.swift": "2fdf2a8ed78c456ecd0ab7cafb3e8837962a7542d063ceb985996508d07faa12",
+    "Sources/TurtleGitMac/FileOperationProgress.swift": "7779d6f4baf0cf7620a35c35a8ce3ee7a203fcd844f75ce03cd8955c7c730f3d",
+    "Sources/TurtleGitMac/NativeWatermarkTable.swift": "72c143d3dd0e8e7ed65fc3c599525043a78c3261f3122d45ecf52a2e3f6356d5",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "bc557cf013ef0c8c2c174407132cb3e74ec26c33082c680b8d08a462a0c13c50",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "c7a0ffe789f178bb7dd256a467aaf28cc9f1b1b10efc4a72240ba12e210b2523",
+    "Tests/TurtleGitCoreTests/GitTransferNotificationTests.swift": "9d0919a1cdca411c699c5e23a1e4ef2a56ea02ef9db00b2d2e317cf45e38a97a",
+    "docs/qa/remote-progress-notifications-native-2026-10-19.swift": "bb39a05af7a6f8a1157aeec404f381a6dd566d3fc4ad25da5562acc72858d4d9",
+    "scripts/test-remote-progress-notifications.py": "f05598efbf7dd26908a67aa1ac42c1efbc8289502c720796040560da3dbe97ba",
+    "scripts/validate-libgit2-runtime.py": "189a8f67ae56488ec1ba2d54bf49a5308f6e8c351b7ff89b70f27b369393ef91"
+  }
+}

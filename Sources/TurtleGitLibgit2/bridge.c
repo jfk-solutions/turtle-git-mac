@@ -19,7 +19,7 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 
-typedef struct {tg_callbacks *callbacks;const char *origin;const char *ssh_command;unsigned int received,indexed,completed;unsigned int recursion;const char *configuration_directory;unsigned int push_rejections;const char *private_index;} context;
+typedef struct {tg_callbacks *callbacks;const char *origin;const char *ssh_command;unsigned int received,indexed,completed;unsigned int recursion;const char *configuration_directory;unsigned int push_rejections;const char *private_index;const char *repository_path;git_repository *notification_repository;} context;
 static int stopped(context *ctx);
 static context *active_context;
 static int register_smudge(void);
@@ -44,7 +44,7 @@ static int transfer(const git_indexer_progress *progress,void *payload){
  if(progress->total_deltas){unsigned int percent=100u*progress->indexed_deltas/progress->total_deltas;if(percent!=ctx->indexed){ctx->indexed=percent;snprintf(line,sizeof(line),"Resolving deltas: %u%% (%u/%u)\r",percent,progress->indexed_deltas,progress->total_deltas);emit(ctx,line);}}
  return 0;
 }
-static void checkout_progress(const char *path,size_t completed,size_t total,void *payload){(void)path;context *ctx=payload;if(!total)return;unsigned int percent=(unsigned int)(completed*100/total);if(percent==ctx->completed)return;ctx->completed=percent;char line[160];snprintf(line,sizeof(line),"Updating files: %u%% (%zu/%zu)\r",percent,completed,total);emit(ctx,line);}
+static void checkout_progress(const char *path,size_t completed,size_t total,void *payload){context *ctx=payload;if(stopped(ctx))return;if(path&&*path&&total&&ctx->callbacks->checked_out)ctx->callbacks->checked_out(ctx->repository_path?ctx->repository_path:"",path,completed,total,ctx->callbacks->payload);if(!total)return;unsigned int percent=(unsigned int)(completed*100/total);if(percent==ctx->completed)return;ctx->completed=percent;char line[160];snprintf(line,sizeof(line),"Updating files: %u%% (%zu/%zu)\r",percent,completed,total);emit(ctx,line);}
 static int checkout_notify(git_checkout_notify_t why,const char *path,const git_diff_file *base,const git_diff_file *target,const git_diff_file *work,void *payload){(void)why;(void)path;(void)base;(void)target;(void)work;return stopped(payload)?GIT_EUSER:0;}
 static int credentials(git_credential **out,const char *url,const char *username,unsigned int allowed,void *payload){
  context *ctx=payload;if(stopped(ctx))return GIT_EUSER;
@@ -60,13 +60,34 @@ static int certificate(git_cert *cert,int valid,const char *authority,void *payl
  if(ctx->callbacks->certificate(authority,x509->data,x509->len,valid,ctx->callbacks->payload)==0&&!stopped(ctx))return 0;
  git_error_set_str(GIT_ERROR_SSL,"Certificate was rejected or cancelled");return GIT_ECERTIFICATE;
 }
-static int remote_ready(git_remote *remote,int direction,void *payload){context *ctx=payload;if(stopped(ctx))return GIT_EUSER;const char *url=direction==GIT_DIRECTION_PUSH?git_remote_pushurl(remote):NULL;if(!url)url=git_remote_url(remote);if(ctx->callbacks->url)ctx->callbacks->url(url,ctx->callbacks->payload);return 0;}
-static int tips(const char *name,const git_oid *old,const git_oid *new,void *payload){context *ctx=payload;if(stopped(ctx))return GIT_EUSER;char line[1024],a[GIT_OID_MAX_HEXSIZE+1],b[GIT_OID_MAX_HEXSIZE+1];git_oid_tostr(a,sizeof(a),old);git_oid_tostr(b,sizeof(b),new);snprintf(line,sizeof(line)," %.*s..%.*s %s\n",8,a,8,b,name);emit(ctx,line);return 0;}
+static int remote_ready(git_remote *remote,int direction,void *payload){context *ctx=payload;if(stopped(ctx))return GIT_EUSER;ctx->notification_repository=git_remote_owner(remote);const char *url=direction==GIT_DIRECTION_PUSH?git_remote_pushurl(remote):NULL;if(!url)url=git_remote_url(remote);if(ctx->callbacks->url)ctx->callbacks->url(url,ctx->callbacks->payload);return 0;}
+static int tips(const char *name,const git_oid *old,const git_oid *new,void *payload){
+ context *ctx=payload;if(stopped(ctx))return GIT_EUSER;char line[1024],a[GIT_OID_MAX_HEXSIZE+1],b[GIT_OID_MAX_HEXSIZE+1];git_oid_tostr(a,sizeof(a),old);git_oid_tostr(b,sizeof(b),new);
+ if(!ctx->callbacks->reference_updated){snprintf(line,sizeof(line)," %.*s..%.*s %s\n",8,a,8,b,name);emit(ctx,line);return 0;}
+ int change=0;size_t count=0;
+ if(!git_oid_is_zero(old)&&!git_oid_is_zero(new)){
+  if(git_oid_equal(old,new))change=1;
+  else if(ctx->notification_repository){size_t ahead=0,behind=0;
+   if(git_graph_ahead_behind(&ahead,&behind,ctx->notification_repository,new,old)==0){
+    if(ahead>0&&behind==0){change=4;count=ahead;}
+    else if(ahead==0&&behind>0){change=5;count=behind;}
+    else {git_commit *old_commit=NULL,*new_commit=NULL;git_time_t old_time=0,new_time=0;
+     if(git_commit_lookup(&old_commit,ctx->notification_repository,old)==0)old_time=git_commit_committer(old_commit)->when.time;
+     if(git_commit_lookup(&new_commit,ctx->notification_repository,new)==0)new_time=git_commit_committer(new_commit)->when.time;
+     change=old_time<new_time?6:old_time>new_time?7:8;git_commit_free(old_commit);git_commit_free(new_commit);
+    }
+   }
+  }
+ }else if(!git_oid_is_zero(old))change=3;else if(!git_oid_is_zero(new))change=2;
+ if(ctx->callbacks->reference_updated)ctx->callbacks->reference_updated(ctx->repository_path?ctx->repository_path:"",name,a,b,change,count,ctx->callbacks->payload);
+ return 0;
+}
 static void remote_callbacks(git_remote_callbacks *options,context *ctx){git_remote_init_callbacks(options,GIT_REMOTE_CALLBACKS_VERSION);options->sideband_progress=sideband;options->transfer_progress=transfer;options->credentials=credentials;options->certificate_check=certificate;options->remote_ready=remote_ready;options->update_tips=tips;options->payload=ctx;}
 static void checkout_options(git_checkout_options *options,context *ctx){options->progress_cb=checkout_progress;options->progress_payload=ctx;options->notify_cb=checkout_notify;options->notify_payload=ctx;options->notify_flags=GIT_CHECKOUT_NOTIFY_ALL;}
 // APP-level command configuration is read-only: libgit2 writes still target
 // repository config. Never persist transient -c or counted environment options.
 static int configure_repository(git_repository *repository,context *ctx){
+ ctx->notification_repository=repository;
  ctx->configuration_directory=git_repository_workdir(repository);if(!ctx->configuration_directory)ctx->configuration_directory=git_repository_path(repository);if(!ctx->callbacks->config_count)return 0;git_config *config=NULL;git_config_backend *backend=NULL;
  int result=git_repository_config(&config,repository);if(result<0)return result;
  git_config_backend_memory_options options=GIT_CONFIG_BACKEND_MEMORY_OPTIONS_INIT;options.backend_type="command line";
@@ -79,17 +100,20 @@ static int create_remote(git_remote **out,git_repository *repository,const char 
 static int recursive_update(git_repository *,context *);
 static int update_submodule(git_submodule *submodule,const char *name,void *payload){
  context *ctx=payload;if(stopped(ctx))return GIT_EUSER;char line[1024];snprintf(line,sizeof(line),"Submodule '%s'\n",name);emit(ctx,line);
- const char *previous=ctx->configuration_directory;git_repository *prepared=NULL,*child=NULL;int result=git_submodule_init(submodule,0);
+ const char *previous=ctx->configuration_directory,*previous_path=ctx->repository_path;git_repository *previous_repository=ctx->notification_repository,*prepared=NULL,*child=NULL;
+ const char *relative=git_submodule_path(submodule);size_t parent_length=previous_path?strlen(previous_path):0,path_length=relative?strlen(relative):0;char *path=malloc(parent_length+path_length+2);if(!path)return -1;
+ if(parent_length)snprintf(path,parent_length+path_length+2,"%s/%s",previous_path,relative?relative:"");else snprintf(path,path_length+2,"%s",relative?relative:"");ctx->repository_path=path;
+ int result=git_submodule_init(submodule,0);
  if(result<0)goto done;if((result=git_submodule_repo_init(&prepared,submodule,1))<0)goto done;
  if((result=configure_repository(prepared,ctx))<0)goto done;
  git_submodule_update_options options=GIT_SUBMODULE_UPDATE_OPTIONS_INIT;remote_callbacks(&options.fetch_opts.callbacks,ctx);options.fetch_opts.proxy_opts.type=GIT_PROXY_AUTO;options.fetch_opts.proxy_opts.credentials=credentials;options.fetch_opts.proxy_opts.certificate_check=certificate;options.fetch_opts.proxy_opts.payload=ctx;checkout_options(&options.checkout_opts,ctx);
- if((result=git_submodule_update(submodule,1,&options))<0)goto done;
+ if((result=git_submodule_update(submodule,1,&options))<0)goto done;ctx->notification_repository=prepared;
  if((result=git_submodule_open(&child,submodule))<0)goto done;result=recursive_update(child,ctx);
- done:ctx->configuration_directory=previous;git_repository_free(child);git_repository_free(prepared);return result;
+ done:ctx->configuration_directory=previous;ctx->repository_path=previous_path;ctx->notification_repository=previous_repository;git_repository_free(child);git_repository_free(prepared);free(path);return result;
 }
 static int recursive_update(git_repository *repository,context *ctx){
  if(ctx->recursion>=64){git_error_set_str(GIT_ERROR_SUBMODULE,"Submodule recursion limit exceeded");return -1;}
- const char *previous=ctx->configuration_directory;ctx->recursion++;int result=configure_repository(repository,ctx);if(result==0)result=git_submodule_foreach(repository,update_submodule,ctx);ctx->recursion--;ctx->configuration_directory=previous;return result;
+ const char *previous=ctx->configuration_directory;git_repository *previous_repository=ctx->notification_repository;ctx->recursion++;int result=configure_repository(repository,ctx);if(result==0)result=git_submodule_foreach(repository,update_submodule,ctx);ctx->recursion--;ctx->configuration_directory=previous;ctx->notification_repository=previous_repository;return result;
 }
 // Pinned libgit2 creates the chosen remote correctly but hardcodes "origin"
 // when writing the checked-out/unborn branch's tracking configuration.
@@ -111,7 +135,7 @@ int tg_clone(const char *source,const char *destination,int bare,int no_checkout
 }
 static int fetch_one(git_repository *repository,const char *name,const char *const *refspecs,size_t count,int tags,int prune,int depth,context *ctx){
  if(stopped(ctx))return GIT_EUSER;git_remote *remote=NULL;int valid_name=0;int result=git_remote_name_is_valid(&valid_name,name);if(result<0)return result;if(valid_name){result=git_remote_lookup(&remote,repository,name);if(result==GIT_ENOTFOUND)result=git_remote_create_anonymous(&remote,repository,name);}else result=git_remote_create_anonymous(&remote,repository,name);if(result<0)return result;
- git_fetch_options options=GIT_FETCH_OPTIONS_INIT;remote_callbacks(&options.callbacks,ctx);options.depth=depth;options.proxy_opts.type=GIT_PROXY_AUTO;options.proxy_opts.credentials=credentials;options.proxy_opts.certificate_check=certificate;options.proxy_opts.payload=ctx;options.download_tags=(git_remote_autotag_option_t)tags;options.prune=(git_fetch_prune_t)prune;git_strarray specs={(char **)refspecs,count};
+ git_fetch_options options=GIT_FETCH_OPTIONS_INIT;remote_callbacks(&options.callbacks,ctx);options.depth=depth;options.proxy_opts.type=GIT_PROXY_AUTO;options.proxy_opts.credentials=credentials;options.proxy_opts.certificate_check=certificate;options.proxy_opts.payload=ctx;options.update_fetchhead=GIT_REMOTE_UPDATE_FETCHHEAD|(ctx->callbacks->reference_updated?GIT_REMOTE_UPDATE_REPORT_UNCHANGED:0);options.download_tags=(git_remote_autotag_option_t)tags;options.prune=(git_fetch_prune_t)prune;git_strarray specs={(char **)refspecs,count};
  char line[1024];snprintf(line,sizeof(line),"Fetching %s\n",git_remote_name(remote)?git_remote_name(remote):"remote repository");emit(ctx,line);ctx->received=ctx->indexed=UINT_MAX;
  git_strarray forced={0};
  if(ctx->callbacks->force_fetch){
