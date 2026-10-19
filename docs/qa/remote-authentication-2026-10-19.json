@@ -1,0 +1,305 @@
+{
+  "date": "2026-10-19",
+  "baseline": "6532c599294c4199d94c7faa80b1082540053dd0",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Shared selected-libgit2 native credential form, readable actual certificate diagnostic and exact-authority process-memory temporary acceptance across helper calls",
+  "status": "scoped grouped family passed after recorded production and fixture repairs; whole port/hosted/signed/physical acceptance remains unproven",
+  "source_resources": [
+    "src/Resources/TortoiseProcENG.rc:IDD_USER_PASSWD",
+    "src/Resources/TortoiseProcENG.rc:IDD_CERTCHECK",
+    "src/TortoiseProc/UserPassword.cpp",
+    "src/TortoiseProc/AppUtils.cpp:Git2GetUserPassword/Git2CertificateCheck"
+  ],
+  "attempts": [
+    {
+      "kind": "universal runtime build",
+      "log": "build/qa/remote-authentication-runtime-build-2026-10-19.log",
+      "exit": 0,
+      "scope": "Both architecture helper rebuilds; exact pinned C slices reused; structure/provenance passed."
+    },
+    {
+      "kind": "universal runtime behavior",
+      "log": "build/qa/remote-authentication-runtime-validation-2026-10-19.log",
+      "exit": 0,
+      "scope": "ARM and Intel local clone/fetch/list/delete/materialization/checkout; predates empty-exchange repair."
+    },
+    {
+      "kind": "focused Core group",
+      "log": "build/qa/remote-authentication-core-2026-10-19.log",
+      "exit": 1,
+      "tests": 15,
+      "passed_methods": 12,
+      "failed_methods": 3,
+      "failed_assertions": 7,
+      "cause": "Helper snapshot reader treated successful nil at empty-file EOF as invalid, so no first-operation acceptance was appended. Unit/manual append tests passed; actual repeated HTTPS calls exposed missing behavior.",
+      "repair": "Treat successful EOF as empty Data while retaining read-error refusal; repeat three failed HTTPS methods and cancellation after an actual accepted certificate."
+    },
+    {
+      "kind": "Debug build",
+      "log": "build/qa/remote-authentication-debug-2026-10-19.log",
+      "exit": 65,
+      "cause": "Native secure-editor clearing called NSTextView method setSelectedRange on static NSText.",
+      "repair": "Use NSText selectedRange property; clear actual editor retained."
+    },
+    {
+      "kind": "Debug native API repair",
+      "log": "build/qa/remote-authentication-debug-repair-2026-10-19.log",
+      "exit": 0,
+      "scope": "Compiled production credentials/certificate views and bundled prompts; predates helper empty-exchange repair."
+    },
+    {
+      "kind": "universal runtime EOF repair build",
+      "log": "build/qa/remote-authentication-runtime-build-repair-2026-10-19.log",
+      "exit": 0,
+      "scope": "Recompiled helper for arm64/x86_64; reused exact C slices and passed structure/provenance; earlier operation checks retained, actual TLS acceptance checked locally by Core."
+    },
+    {
+      "kind": "affected Core EOF repair",
+      "log": "build/qa/remote-authentication-core-exchange-repair-2026-10-19.log",
+      "exit": 0,
+      "tests": 4,
+      "scope": "Three originally failed actual HTTPS methods plus cancellation after an actual accepted certificate; prior unaffected eleven passes retained."
+    },
+    {
+      "kind": "Debug helper EOF repair republish",
+      "log": "build/qa/remote-authentication-debug-exchange-repair-2026-10-19.log",
+      "exit": 0
+    },
+    {
+      "kind": "native receiver compilation",
+      "log": "build/qa/remote-authentication-native-2026-10-19.log",
+      "exit": 1,
+      "cause": "Credential-grid fixture expression exceeded type-check diagnostic budget; no receiver launched.",
+      "repair": "Decompose the same grid identity predicate into explicit typed steps."
+    },
+    {
+      "kind": "native fixture diagnostic repair",
+      "log": "build/qa/remote-authentication-native-compile-repair-2026-10-19.log",
+      "exit": 1,
+      "cause": "Decomposed predicate exposed incorrect NSGridView cell argument labels; no receiver launched.",
+      "repair": "Use atColumnIndex/rowIndex; retain all row/column/control identity assertions."
+    },
+    {
+      "kind": "grouped native receiver",
+      "log": "build/qa/remote-authentication-native-grid-repair-2026-10-19.log",
+      "exit": 0,
+      "scope": "Actual packaged helper local Clone/Fetch routing; native source-shaped Git credentials with URL redaction/initial focus/UTF16 edit limits/Unicode/blank password/missing username/Return/Escape/forced-close and clearing; legacy SVN retained; readable issuer/actual diagnostic/fallback; certificate default Cancel/inspector/held accepted export followed by parent cancellation/real drainage; four offscreen native captures."
+    }
+  ],
+  "open": [
+    "Public provider/proxy/redirect combinations beyond scoped fixtures",
+    "Physical keyboard and VoiceOver acceptance",
+    "Current signed sandbox/SSH/HTTPS and App Store submission",
+    "Complete current hosted integration",
+    "Complete upstream dialog and application parity"
+  ],
+  "review_repairs_before_checkpoint": [
+    "Import only appended acceptances after immutable snapshot-prefix/full framing validation; a stale operation cannot replay evicted entries.",
+    "Transfer exchange descriptor only after successful initialization to avoid throwing-init double close.",
+    "Do not label leaf subject as unavailable issuer."
+  ],
+  "distinct_core_methods_passed": 15,
+  "prepared_runtime": {
+    "pins": {
+      "libgit2": {
+        "version": "1.9.4",
+        "commit": "f7164261c9bc0a7e0ebf767c584e5192810a8b24",
+        "url": "https://codeload.github.com/libgit2/libgit2/tar.gz/f7164261c9bc0a7e0ebf767c584e5192810a8b24",
+        "sha256": "3607e8782b5b13a4fbfcf8d6a65b570644c4b7cee50a2321855270ff73483876",
+        "license": "GPL-2.0-only WITH libgit2-linking-exception"
+      },
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "deployment_target": "13.0",
+      "tls": "SecureTransport",
+      "ssh": "exec",
+      "sha1": "CollisionDetection",
+      "http_parser": "builtin",
+      "regex": "builtin",
+      "patch": "patches/libgit2-authority.patch",
+      "patch_sha256": "5ee2d6fde39bd7304ff33a9a7989b351fd1a3b6f2d33c5657df7264dc93e6aa0",
+      "certificate_callback_authority": "Actual HTTP TLS host, TAB, decimal port; private static library only; built-in TLS hostname validation is unchanged.",
+      "http_configuration": "Private static HTTP request callback reads captured original Git URL-matched headers/proxy/CA for actual request URLs; cross-origin redirects clear prior credentials."
+    },
+    "binary_sha256": "a8937cdd0e6694fda35f3b8fa4910dfcb57fe978645dbf0154254f64707d7b3d",
+    "source_sha256": {
+      "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+      "NOTICE": "d9c261f57c2a37da1b68a9a726e79f43c106355cab8ed126b62352899b9445c2",
+      "Configuration/LibGit2Runtime.json": "dd0ff399b4759aaf99366391a7ae8e922a5cfb8fe7b8c2d8cbe4dd6cd5bf5129",
+      "Sources/TurtleGitLibgit2/main.swift": "a3ef2734ca69ca2ee9dc4e2990cf93eed537ef0b2b408b5ae07f14ba30880daa",
+      "Sources/TurtleGitLibgit2/HTTPConfiguration.swift": "2fa77765f678235f6a5c3368fe5f963aec819f1422dc39f5b73e159196c816a4",
+      "Sources/TurtleGitLibgit2/bridge.c": "68db477db0fa8339165151286c6a5ef89b20bd59bfa09300239bd0a362a89744",
+      "Sources/TurtleGitLibgit2/bridge.h": "7a9c3e01402751d344dd2759f5c795f2e6518bc8b52409ed57fba972e612c223",
+      "Sources/TurtleGitLibgit2/module.modulemap": "d50abe8e9d99d0538766dadbc04cc20f743fb0aebeae617eea5d64420ceeccf2",
+      "Sources/TurtleGitCore/GitAskpassPrompt.swift": "037d4b27787dad94753390d2e7a3a398d9a0b9f9602dc217b9b67952b46d69cd",
+      "Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift": "f51e7120ab3c93a73c088829b5eea3acabd2d20d60640c76ce1632e47c743e3e",
+      "Sources/TurtleGitCore/GitRemoteAuthenticationPrompt.swift": "d1ad9178f9dce7425f0ef038fa9d1c71513bbfdc6ed2d71b8bfbef43e775e2fa",
+      "patches/libgit2-authority.patch": "5ee2d6fde39bd7304ff33a9a7989b351fd1a3b6f2d33c5657df7264dc93e6aa0",
+      "scripts/build-libgit2-runtime.py": "d7c3a9fecbf56938006e2a155db4d2667181b730dc39d46d1119917fa0e59cb7",
+      "scripts/embed-libgit2-runtime.py": "28f8e445ec1043d218a32c4b9f70bdd99445e5b13bde01201ceb4486c09fa7d3",
+      "scripts/validate-libgit2-runtime.py": "b2c92ccbf66b5b959632f5b28ed85c5b7e5c014eaaed681cb75a585dd5f38c24",
+      "scripts/pinned_download.py": "c9bfbd05a830f235e78521a3f0ba4ed5454c7389a96195939df2ea1110168b40",
+      "scripts/runtime_bundle_layout.py": "624a54cfda00a71d287e56719b83ebe26900e21e10c798f4b14e90a4dc28ac4c",
+      "scripts/git_lfs_runtime.py": "07ee6decd30776eeaf35aa7de12c766638b957a6029315ad454dc1315266790c"
+    },
+    "license_sha256": {
+      "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+      "NOTICE": "d9c261f57c2a37da1b68a9a726e79f43c106355cab8ed126b62352899b9445c2",
+      "Licenses/libgit2-COPYING.txt": "e3712465634e97cfd850822a4eb5ac7d2f8a10f753189366d5a2060046f28288",
+      "Licenses/libgit2-AUTHORS.txt": "4dcad1137963b32d192da9771ca6055d84b20c41e6cd23bdfa6c47782d8a54f9",
+      "Licenses/llhttp-MIT.txt": "ebca854e0134cd256d673627c20499f42577eb74bacf08b9f25b626a73c91277",
+      "Licenses/PCRE-COPYING.txt": "17abe1dbb92b21ab173cf9757dd57b0b15cd8d863b2ccdef635fdbef03077fb0"
+    },
+    "compiler": "Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)\nTarget: arm64-apple-macosx27.0.0\n",
+    "clang": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+    "cmake": "cmake version 4.3.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+    "sdk_version": "27.0",
+    "sdk_build_version": "26A425",
+    "cmake_flags": [
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DBUILD_SHARED_LIBS=OFF",
+      "-DBUILD_TESTS=OFF",
+      "-DBUILD_CLI=OFF",
+      "-DBUILD_EXAMPLES=OFF",
+      "-DUSE_HTTPS=SecureTransport",
+      "-DUSE_SSH=exec",
+      "-DUSE_SHA1=CollisionDetection",
+      "-DUSE_SHA256=CommonCrypto",
+      "-DUSE_HTTP_PARSER=builtin",
+      "-DREGEX_BACKEND=builtin",
+      "-DUSE_BUNDLED_ZLIB=OFF",
+      "-DUSE_GSSAPI=OFF",
+      "-DUSE_NTLMCLIENT=ON",
+      "-DCMAKE_IGNORE_PREFIX_PATH=/opt/homebrew;/usr/local",
+      "-DCMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE",
+      "-DCMAKE_DISABLE_FIND_PACKAGE_mbedTLS=TRUE",
+      "-DCMAKE_DISABLE_FIND_PACKAGE_PCRE=TRUE"
+    ],
+    "swift_flags": [
+      "-O",
+      "-whole-module-optimization",
+      "-framework",
+      "Security",
+      "-framework",
+      "CoreFoundation",
+      "-lz",
+      "-liconv",
+      "-lresolv"
+    ],
+    "cache_key": "f6cd0984baf767e4ccaabff2a0cb577c4819d1fef01801794259d0d298d5fcd4",
+    "native_cache_key": "6fc0d612ec85e49fd206c98a54244250bb695926f6c8c1b5da3b23b8b336e349",
+    "native_library_sha256": {
+      "arm64": "64c3436d38b514a69f92bffd9b50218739b23b4ab17406638e8c68a9d2f97aca",
+      "x86_64": "5e4381ee418d3f40b1c8cb3ced7c170e2caa7a743f912af08dc8ad0394c705d5"
+    },
+    "signed": false
+  },
+  "packaged_runtime": {
+    "binary_sha256": "2e4684b406276ec3a0c8a4ae15c605f5def1747e4fbd0110fe3d8df58a3c1577",
+    "unsigned_binary_sha256": "a8937cdd0e6694fda35f3b8fa4910dfcb57fe978645dbf0154254f64707d7b3d",
+    "signed": true,
+    "native_cache_key": "6fc0d612ec85e49fd206c98a54244250bb695926f6c8c1b5da3b23b8b336e349"
+  },
+  "native_cleanup": {
+    "receiver_reaped": 66612,
+    "pid_absence_independently_checked": true,
+    "windows_sheets_and_active_operations_drained": true,
+    "private_repositories_config_preferences_TMPDIR_pasteboard": true,
+    "visible_physical_windows": false
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/git-transport-certificate-dark.png",
+      "sha256": "dd7ade5f4f8c656249a703f5740330618c55a422ab4c0507b24814aafafaab01",
+      "review": "Individually inspected native light/dark content; aligned fields and buttons fit, certificate diagnostic/issuer/fingerprints readable. No physical compositor acceptance."
+    },
+    {
+      "path": "docs/site/assets/git-transport-certificate-light.png",
+      "sha256": "fcf39e522e402faab14d567034039f23311fa7669cd50af6e76cb8dc34596fa2",
+      "review": "Individually inspected native light/dark content; aligned fields and buttons fit, certificate diagnostic/issuer/fingerprints readable. No physical compositor acceptance."
+    },
+    {
+      "path": "docs/site/assets/git-transport-credentials-dark.png",
+      "sha256": "feeab51b9e0863346695f8f0919b4cd94679aaa0723d79d3dbb6748e263a261c",
+      "review": "Individually inspected native light/dark content; aligned fields and buttons fit, certificate diagnostic/issuer/fingerprints readable. No physical compositor acceptance."
+    },
+    {
+      "path": "docs/site/assets/git-transport-credentials-light.png",
+      "sha256": "36fb80d742dc110de28aa7334afa9185b3fe78cd18de4e2d76292ba43e564b3d",
+      "review": "Individually inspected native light/dark content; aligned fields and buttons fit, certificate diagnostic/issuer/fingerprints readable. No physical compositor acceptance."
+    }
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitLibGit2.swift": "b750046f56c257f660805a79e84185a9051348b81950bcb11f215777b987c859",
+    "Sources/TurtleGitCore/GitRemoteAuthenticationPrompt.swift": "d1ad9178f9dce7425f0ef038fa9d1c71513bbfdc6ed2d71b8bfbef43e775e2fa",
+    "Sources/TurtleGitCore/GitRepository.swift": "3750ddefa4117a3170fffb139367dc86cab433c58f59db86cc0dcd818a3ee230",
+    "Sources/TurtleGitCore/GitSVNAuthenticationPrompt.swift": "f51e7120ab3c93a73c088829b5eea3acabd2d20d60640c76ce1632e47c743e3e",
+    "Sources/TurtleGitGitAskpass/SVNPromptWindow.swift": "14b70b47b449fc0fb2a79f6d535d5e9537c4a7db3e31347f69c7d15cdda43f09",
+    "Sources/TurtleGitLibgit2/main.swift": "a3ef2734ca69ca2ee9dc4e2990cf93eed537ef0b2b408b5ae07f14ba30880daa",
+    "Tests/TurtleGitCoreTests/GitLibGit2Tests.swift": "ffcf14b7a388f974c2987311adcf9a4a372ad702c1e94d9a797f98e6481530b4",
+    "Tests/TurtleGitCoreTests/GitRemoteCertificateAcceptanceTests.swift": "788e7108caf13257d4b2fd1c816d040bc852d77f59dfcfae20049299e83a2a22",
+    "Tests/TurtleGitCoreTests/GitSVNAuthenticationPromptTests.swift": "6113a4d684644b42e6f6582ccf2eb9765d0c377f77fb60ad50a6ac94086c03e9",
+    "docs/qa/libgit2-native-2026-10-19.swift": "85900e472d61e2962f149be6b56d817117f4e17563de414936a36a4704e6c4da",
+    "scripts/test-libgit2-native.py": "d16f6c230f9c510ba2cbfe1b64464b0a59c3738f90974d4c9be48ae9664fff1c"
+  },
+  "resource_generation": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1298,
+      "check": "passed"
+    },
+    "help": {
+      "documents": 42,
+      "topics": 50,
+      "files": 62,
+      "check": "passed"
+    },
+    "site": {
+      "documents": 351,
+      "unresolved_fragments": [],
+      "log": "build/qa/remote-authentication-site-2026-10-19.log"
+    },
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "fully_certified": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1572,
+      "pending_control_reviews": 87
+    }
+  },
+  "hosted_observation": [
+    {
+      "id": 39235459621,
+      "name": "macOS",
+      "head_sha": "d6c487f94635f7c4de8204d055d8f951fe8b0b0d",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "id": 39250447617,
+      "name": "macOS",
+      "head_sha": "6532c599294c4199d94c7faa80b1082540053dd0",
+      "status": "in_progress",
+      "conclusion": null
+    },
+    {
+      "id": 39250447567,
+      "name": "GitHub Pages",
+      "head_sha": "6532c599294c4199d94c7faa80b1082540053dd0",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "hosted_failure_detail": {
+    "run": 39235459621,
+    "revision": "d6c487f94635f7c4de8204d055d8f951fe8b0b0d",
+    "job": 118020543868,
+    "step": 85,
+    "command": "scripts/test-file-transfer-family.py --only identities",
+    "message": "Transfer identity failure: Drop handoff changed captured sources",
+    "relation": "Earlier revision; current full hosted pass unproven. Separate transfer-family investigation, not an authentication test failure."
+  }
+}

@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 93,
-    "mapped_controls": 1566,
+    "pending_control_reviews": 87,
+    "mapped_controls": 1572,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 89,
@@ -3805,15 +3805,25 @@
         {
           "path": "Sources/TurtleGitCore/GitRemoteAuthenticationPrompt.swift",
           "anchor": "enum GitRemoteAuthenticationPrompt"
+        },
+        {
+          "path": "Sources/TurtleGitCore/GitLibGit2.swift",
+          "anchor": "class GitRemotePromptCancellation"
+        },
+        {
+          "path": "Sources/TurtleGitLibgit2/main.swift",
+          "anchor": "class CallbackContext"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/EMAIL-SETTINGS-PARITY.md",
+        "docs/REMOTE-AUTHENTICATION-PARITY.md",
         "docs/SVN-AUTHENTICATION-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/email-credential-editor-2026-10-17.json",
+        "docs/qa/remote-authentication-2026-10-19.json",
         "docs/qa/svn-authentication-2026-10-14.json",
         "docs/qa/svn-certificate-details-2026-10-14.json"
       ]
@@ -3949,8 +3959,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 16,
-      "mapped_controls": 10,
-      "pending_control_reviews": 6,
+      "mapped_controls": 16,
+      "pending_control_reviews": 0,
       "certified_complete": false,
       "native_sources": [
         {
@@ -3976,16 +3986,26 @@
         {
           "path": "Sources/TurtleGitCore/GitRemoteAuthenticationPrompt.swift",
           "anchor": "enum GitRemoteAuthenticationPrompt"
+        },
+        {
+          "path": "Sources/TurtleGitCore/GitLibGit2.swift",
+          "anchor": "class GitRemotePromptCancellation"
+        },
+        {
+          "path": "Sources/TurtleGitLibgit2/main.swift",
+          "anchor": "class CallbackContext"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
         "docs/LIBGIT2-TRANSPORT-PARITY.md",
+        "docs/REMOTE-AUTHENTICATION-PARITY.md",
         "docs/SMTP-CERTIFICATE-PARITY.md",
         "docs/SVN-AUTHENTICATION-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/libgit2-transport-2026-10-19.json",
+        "docs/qa/remote-authentication-2026-10-19.json",
         "docs/qa/smtp-certificate-2026-10-19.json",
         "docs/qa/svn-authentication-2026-10-14.json",
         "docs/qa/svn-certificate-details-2026-10-14.json"

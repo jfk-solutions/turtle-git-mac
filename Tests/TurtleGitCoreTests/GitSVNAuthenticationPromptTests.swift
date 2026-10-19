@@ -16,6 +16,43 @@ final class GitSVNAuthenticationPromptTests: XCTestCase {
         _ = try GitSVNAuthenticationResponse(decision: .reject).encoded(for: prompt); _ = try GitSVNAuthenticationResponse(decision: .temporary).encoded(for: prompt)
         XCTAssertThrowsError(try GitSVNAuthenticationPrompt.decode(GitSVNAuthenticationPrompt(kind: .trust, realm: "bad", failures: 8).encoded(), enabled: true))
     }
+    func testActualCertificateDiagnosticRoundTripsWithoutChangingLegacySVNFlagsOrWireVersion() throws {
+        let legacyJSON: [String: Any] = ["version": 1, "kind": "trust", "realm": "legacy realm", "maySave": true, "failures": 8, "hostname": "example.invalid", "issuer": "Legacy issuer", "fingerprint": "AA:BB"]
+        let wire = GitSVNAuthenticationPrompt.prefix + (try JSONSerialization.data(withJSONObject: legacyJSON)).base64EncodedString()
+        let legacy = try XCTUnwrap(GitSVNAuthenticationPrompt.decode(wire, enabled: true))
+        XCTAssertNil(legacy.validationError); XCTAssertEqual(legacy.failureDescriptions, ["The issuer is not trusted."])
+        _ = try GitSVNAuthenticationResponse(save: true, decision: .permanent).encoded(for: legacy)
+        let legacyEncoded = try legacy.encoded()
+        let legacyBytes = try XCTUnwrap(Data(base64Encoded: String(legacyEncoded.dropFirst(GitSVNAuthenticationPrompt.prefix.count))))
+        XCTAssertNil((try JSONSerialization.jsonObject(with: legacyBytes) as? [String: Any])?["validationError"])
+        let diagnostic = "The certificate for \"example.invalid\" is invalid.\r\nIssuer: cafe\u{301} 雪\n\tPolicy error -67843."
+        let prompt = GitSVNAuthenticationPrompt(kind: .trust, realm: "example.invalid:443", failures: 8, hostname: "example.invalid", issuer: "Readable issuer", fingerprint: "AA:BB", validationError: diagnostic)
+        let encoded = try prompt.encoded(), decoded = try XCTUnwrap(GitSVNAuthenticationPrompt.decode(encoded, enabled: true))
+        XCTAssertEqual(Data(try XCTUnwrap(decoded.validationError).utf8), Data(diagnostic.utf8))
+        XCTAssertEqual(decoded.version, 1); XCTAssertEqual(decoded.failureDescriptions, legacy.failureDescriptions)
+        XCTAssertFalse(encoded.contains("\n")); XCTAssertLessThanOrEqual(encoded.utf8.count, 65_535)
+        XCTAssertNil(try GitSVNAuthenticationPrompt.decode(encoded, enabled: false))
+        XCTAssertThrowsError(try GitSVNAuthenticationResponse(save: true, decision: .permanent).encoded(for: prompt))
+    }
+    func testCertificateDiagnosticsRejectControlInjectionOversizedUTF8AndWrongPromptKindsBeforeTransport() throws {
+        func request(_ diagnostic: String, kind: GitSVNAuthenticationPrompt.Kind = .trust, realm: String = "realm") -> GitSVNAuthenticationPrompt {
+            .init(kind: kind, realm: realm, failures: 8, hostname: "example.invalid", issuer: "Issuer", fingerprint: "AA:BB", validationError: diagnostic)
+        }
+        let maximum = String(repeating: "雪", count: 1365) + "x"
+        XCTAssertEqual(maximum.utf8.count, 4096)
+        XCTAssertEqual(try GitSVNAuthenticationPrompt.decode(request(maximum).encoded(), enabled: true)?.validationError, maximum)
+        for invalid in ["", "embedded\0value", "escape\u{1b}[31m", "delete\u{7f}", "next\u{85}line", String(repeating: "雪", count: 1366)] {
+            let value = request(invalid)
+            XCTAssertThrowsError(try value.encoded())
+            // Reject a forged sender too, rather than relying only on our encoder.
+            let forged = GitSVNAuthenticationPrompt.prefix + (try JSONEncoder().encode(value)).base64EncodedString()
+            XCTAssertThrowsError(try GitSVNAuthenticationPrompt.decode(forged, enabled: true))
+        }
+        for kind in [GitSVNAuthenticationPrompt.Kind.credentials, .username, .secret, .clientCertificate] {
+            XCTAssertThrowsError(try request("Certificate policy failed", kind: kind).encoded())
+        }
+        XCTAssertThrowsError(try request(maximum, realm: String(repeating: "r", count: 50_000)).encoded(), "Individually valid diagnostics must still fit the complete one-line prompt bound")
+    }
     func testCertificateCopyUsesOwnedFolderAndPreservesSourceBytes() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString), folder = root.appendingPathComponent("owned")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700]); defer { try? FileManager.default.removeItem(at: root) }

@@ -619,8 +619,8 @@ final class GitLibGit2Tests: XCTestCase {
         for _ in 0..<1500 { if predicate() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
         XCTFail("Owned libgit2 fixture did not reach its boundary"); throw GitLibGit2Failure.runtimeMissing
     }
-    @MainActor private func withHTTPS(_ f: Fixture, _ body: (URL, String) async throws -> Void) async throws {
-        let root = f.root.appendingPathComponent("https")
+    @MainActor private func withHTTPS(_ f: Fixture, name: String = "https", _ body: (URL, String) async throws -> Void) async throws {
+        let root = f.root.appendingPathComponent(name)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let configuration = "[req]\nprompt=no\ndistinguished_name=dn\nx509_extensions=ext\n[dn]\nCN=localhost\n[ext]\nsubjectAltName=DNS:localhost\nbasicConstraints=critical,CA:TRUE\nkeyUsage=critical,digitalSignature,keyEncipherment,keyCertSign\nextendedKeyUsage=serverAuth\n"
         try Data(configuration.utf8).write(to: root.appendingPathComponent("openssl.cnf"))
@@ -673,11 +673,21 @@ final class GitLibGit2Tests: XCTestCase {
             let retained = try await f.remote.run(["show-ref", "--verify", "--quiet", "refs/tags/rejected"], successfulExitCodes: 0...1)
             XCTAssertEqual(deleted.exitCode, 1); XCTAssertEqual(retained.exitCode, 0)
             let prompts = try String(contentsOf: root.appendingPathComponent("prompts.jsonl"), encoding: .utf8).split(separator: "\n").map { try XCTUnwrap(JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any]) }
+            XCTAssertEqual(prompts.filter { $0["kind"] as? String == "trust" }.count, 1, "Repeated listing/deletion helpers lost source-process certificate acceptance")
             XCTAssertEqual(prompts.first?["kind"] as? String, "trust")
             XCTAssertTrue(prompts.contains { $0["kind"] as? String == "credentials" })
             try Data().write(to: root.appendingPathComponent("reject"))
+            _ = try await repo.remoteTags(remote: url, backend: backend)
+            let reused = try String(contentsOf: root.appendingPathComponent("prompts.jsonl"), encoding:.utf8).split(separator:"\n").filter { (try? JSONSerialization.jsonObject(with:Data($0.utf8)) as? [String:Any])?["kind"] as? String == "trust" }.count
+            XCTAssertEqual(reused,1,"Accepted authority asked again across real helper processes")
             let state = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("state.json"))) as? [String: Any])
-            do { _ = try await repo.remoteTags(remote: url, backend: backend); XCTFail("Rejected peer listed refs") } catch is GitFailure {}
+            try await self.withHTTPS(f,name:"listing-rejected-peer") { rejectedRoot, rejectedURL in
+                for _ in 0..<2 {
+                    do { _ = try await repo.remoteTags(remote: rejectedURL, backend: backend); XCTFail("Rejected peer listed refs") } catch is GitFailure {}
+                }
+                let rejectedState = try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:rejectedRoot.appendingPathComponent("state.json"))) as? [String:Any])
+                XCTAssertEqual((rejectedState["requests"] as? [[String:Any]])?.count,0,"Rejected TLS peer received HTTP")
+            }
             let after = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("state.json"))) as? [String: Any])
             XCTAssertEqual((state["requests"] as? [[String: Any]])?.count, (after["requests"] as? [[String: Any]])?.count)
         }
@@ -703,12 +713,18 @@ final class GitLibGit2Tests: XCTestCase {
             XCTAssertEqual(prompts[trustIndex]["hostname"] as? String, "localhost")
             let certificate = try XCTUnwrap(prompts[trustIndex]["certificate"] as? String), details = try GitCertificateDetails(base64DER: certificate)
             XCTAssertEqual(details.subject, "localhost")
+            XCTAssertEqual(prompts[trustIndex]["issuer"] as? String, "localhost")
+            XCTAssertFalse((prompts[trustIndex]["validationError"] as? String ?? "").isEmpty)
             let state = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("state.json"))) as? [String: Any])
             XCTAssertTrue((state["requests"] as? [[String: Any]] ?? []).contains { $0["authenticated"] as? Bool == true })
             try Data().write(to: root.appendingPathComponent("reject"))
             let checkpoint = try Data(contentsOf: root.appendingPathComponent("state.json"))
-            do { _ = try await repo.clone(options, to: f.root.appendingPathComponent("rejected"), backend: f.backend); XCTFail("Rejected certificate transferred objects") }
-            catch is GitFailure {}
+            try await self.withHTTPS(f,name:"clone-rejected-peer") { rejectedRoot, rejectedURL in
+                var rejectedOptions=options;rejectedOptions.source=rejectedURL
+                do { _ = try await repo.clone(rejectedOptions, to:f.root.appendingPathComponent("rejected"),backend:f.backend);XCTFail("Rejected certificate transferred objects") } catch is GitFailure {}
+                let rejectedState=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:rejectedRoot.appendingPathComponent("state.json"))) as? [String:Any])
+                XCTAssertEqual((rejectedState["requests"] as? [[String:Any]])?.count,0)
+            }
             // Rejecting the actual TLS peer cannot send an authenticated HTTP
             // request; the server may only record its failed TLS handshake.
             let before = try XCTUnwrap(JSONSerialization.jsonObject(with: checkpoint) as? [String: Any])
@@ -719,21 +735,51 @@ final class GitLibGit2Tests: XCTestCase {
             let priorTrust = try String(contentsOf: root.appendingPathComponent("prompts.jsonl"), encoding: .utf8).split(separator: "\n").filter { line in
                 (try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])?["kind"] as? String == "trust"
             }.count
-            _ = try await f.runner.run(["config", "--global", "http." + url + ".sslCAInfo", root.appendingPathComponent("cert.pem").path])
-            _ = try await f.runner.run(["config", "--global", "--add", "http.extraHeader", "X-TurtleGit-Fixture: invalid"])
-            for header in ["", "X-TurtleGit-Fixture: private-fixture", "X-Second-Fixture: retained"] {
-                _ = try await f.runner.run(["config", "--global", "--add", "http." + url + ".extraHeader", header])
+            _ = try await cloned.fetch(fetch, backend:f.backend)
+            let deepened=try await cloned.run(["rev-list","--count","HEAD"]).text;XCTAssertEqual(deepened,"2\n")
+            try await self.withHTTPS(f,name:"configured-ca-peer") { caRoot,caURL in
+                _ = try await f.runner.run(["config","--global","http."+caURL+".sslCAInfo",caRoot.appendingPathComponent("cert.pem").path])
+                _ = try await f.runner.run(["config","--global","--add","http.extraHeader","X-TurtleGit-Fixture: invalid"])
+                for header in ["","X-TurtleGit-Fixture: private-fixture","X-Second-Fixture: retained"] {
+                    _ = try await f.runner.run(["config","--global","--add","http."+caURL+".extraHeader",header])
+                }
+                var caOptions=options;caOptions.source=caURL;caOptions.depth=2
+                _ = try await repo.clone(caOptions,to:f.root.appendingPathComponent("configured-ca-clone"),backend:f.backend)
+                let finalPrompts=try String(contentsOf:root.appendingPathComponent("prompts.jsonl"),encoding:.utf8).split(separator:"\n").map{try XCTUnwrap(JSONSerialization.jsonObject(with:Data($0.utf8)) as? [String:Any])}
+                XCTAssertEqual(finalPrompts.filter{$0["kind"] as? String == "trust"}.count,priorTrust,"Fresh uncached actual configured CA still required a trust exception")
+                let configuredState=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:caRoot.appendingPathComponent("state.json"))) as? [String:Any])
+                XCTAssertTrue((configuredState["requests"] as? [[String:Any]] ?? []).contains{$0["authenticated"] as? Bool == true && $0["fixture_header"] as? Bool == true},"URL-scoped multivalue/reset headers were lost")
             }
-            _ = try await cloned.fetch(fetch, backend: f.backend)
-            let deepened = try await cloned.run(["rev-list", "--count", "HEAD"]).text
-            XCTAssertEqual(deepened, "2\n")
-            let finalPrompts = try String(contentsOf: root.appendingPathComponent("prompts.jsonl"), encoding: .utf8).split(separator: "\n").map { try XCTUnwrap(JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any]) }
-            XCTAssertEqual(finalPrompts.filter { $0["kind"] as? String == "trust" }.count, priorTrust, "Actual configured CA still required a trust exception")
-            let configuredState = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("state.json"))) as? [String: Any])
-            XCTAssertTrue((configuredState["requests"] as? [[String: Any]] ?? []).contains { $0["authenticated"] as? Bool == true && $0["fixture_header"] as? Bool == true }, "URL-scoped multivalue/reset headers were lost")
         }
         let finalHead = try await f.remote.run(["rev-parse", "HEAD"]).stdout
         XCTAssertEqual(finalHead, sourceHead); XCTAssertEqual(try Data(contentsOf: f.remote.root.appendingPathComponent("config")), sourceConfig)
+    }
+
+    @MainActor func testActualHTTPSCertificateAcceptanceSurvivesRemoteFailureAndProcessIsolation() async throws {
+        if ProcessInfo.processInfo.environment["TURTLEGIT_DISABLE_ASKPASS"] == "1" { throw XCTSkip("Caller explicitly disabled interactive authentication.") }
+        let f=try await fixture();defer{try? FileManager.default.removeItem(at:f.root)}
+        _ = try await f.remote.run(["update-ref","refs/tags/blocked","HEAD"])
+        _ = try await f.remote.run(["config","http.receivepack","true"])
+        try executable(f.remote.root.appendingPathComponent("hooks/update"),"#!/bin/sh\nexit 1\n")
+        try await withHTTPS(f) { root,url in
+            let askpass=try self.mockAskpass(root),repo=GitRepository(root:f.source.root,executable:f.source.executable,askpass:askpass),backend=GitLibGit2Configuration(mask:0x804,helperURL:f.helper)
+            do{try await repo.deleteRemoteTags(remote:url,tags:[.init("blocked")],backend:backend);XCTFail("Rejected first remote mutation reported success")}catch is GitFailure{}
+            _ = try await repo.remoteTags(remote:url,backend:backend)
+            func trustCount()throws->Int{try String(contentsOf:root.appendingPathComponent("prompts.jsonl"),encoding:.utf8).split(separator:"\n").filter{(try? JSONSerialization.jsonObject(with:Data($0.utf8)) as? [String:Any])?["kind"] as? String == "trust"}.count}
+            XCTAssertEqual(try trustCount(),1,"Actual trust acceptance was discarded by later remote rejection")
+            // A fresh helper without the source-process snapshot has no global
+            // acceptance file to discover. Each isolated invocation asks again.
+            let isolated=f.root.appendingPathComponent("isolated helper")
+            try self.executable(isolated,"#!/bin/sh\nunset TURTLEGIT_LIBGIT2_CERTIFICATE_ACCEPTANCES\nexec "+self.quote(f.helper.path)+" \"$@\"\n")
+            for _ in 0..<2{_ = try await repo.remoteTags(remote:url,backend:.init(mask:4,helperURL:isolated))}
+            XCTAssertEqual(try trustCount(),3,"Independent helper processes retained an undisclosed disk/global acceptance")
+            try Data().write(to:root.appendingPathComponent("reject"))
+            let changedHost=url.replacingOccurrences(of:"localhost",with:"127.0.0.1")
+            for _ in 0..<2{do{_ = try await repo.remoteTags(remote:changedHost,backend:backend);XCTFail("Changed-host rejection was cached or bypassed")}catch is GitFailure{}}
+            XCTAssertEqual(try trustCount(),5,"Changed hostname did not review exact authority or rejection was cached")
+            _ = try await repo.remoteTags(remote:url,backend:backend)
+            XCTAssertEqual(try trustCount(),5,"Previously accepted exact authority was lost")
+        }
     }
 
     @MainActor func testActualRemoteListingCancellationWaitsForOwnedPromptDrain() async throws {
@@ -782,8 +828,13 @@ final class GitLibGit2Tests: XCTestCase {
             let askpass = root.appendingPathComponent("held native prompt"), ready = root.appendingPathComponent("held.json"), release = root.appendingPathComponent("release")
             let script = """
             #!/usr/bin/python3
-            import base64, fcntl, json, os, pathlib, time
+            import base64, fcntl, json, os, pathlib, sys, time
             root = pathlib.Path(__file__).parent
+            prompt = json.loads(base64.b64decode(sys.argv[1].split(':',1)[1]))
+            if prompt['kind'] == 'trust':
+                (root / 'accepted-before-cancel').write_text(prompt['certificate'])
+                print(base64.b64encode(json.dumps({'version':1,'decision':'temporary','save':False}).encode()).decode(), flush=True)
+                sys.exit(0)
             lock = os.open(os.environ['TURTLEGIT_REMOTE_PROMPT_LOCK'], os.O_RDWR | os.O_NOFOLLOW)
             fcntl.flock(lock, fcntl.LOCK_EX)
             marker = pathlib.Path(os.environ['TURTLEGIT_REMOTE_PROMPT_CANCEL_FILE'])
@@ -816,6 +867,11 @@ final class GitLibGit2Tests: XCTestCase {
             catch is GitCommandCancellationFailure {}
             catch is OperationCancellationFailure {}
             try await self.wait { pids.allSatisfy { kill($0, 0) != 0 } }
+            XCTAssertTrue(FileManager.default.fileExists(atPath:root.appendingPathComponent("accepted-before-cancel").path))
+            let retry=GitRepository(root:f.runner.root,executable:f.runner.executable,askpass:try self.mockAskpass(root))
+            _ = try await retry.remoteTags(remote:url,backend:.init(mask:4,helperURL:f.helper))
+            let retryPrompts=try String(contentsOf:root.appendingPathComponent("prompts.jsonl"),encoding:.utf8).split(separator:"\n").map{try XCTUnwrap(JSONSerialization.jsonObject(with:Data($0.utf8)) as? [String:Any])}
+            XCTAssertEqual(retryPrompts.filter{$0["kind"] as? String == "trust"}.count,1,"Cancellation imported an earlier acceptance from the canceled helper")
         }
     }
 }

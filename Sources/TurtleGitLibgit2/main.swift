@@ -111,7 +111,24 @@ struct Arguments{
 final class CallbackContext{
     let directory:String,configs:[String]
     var httpConfiguration:HTTPConfiguration?
-    init(directory:String,configs:[String]){self.directory=directory;self.configs=configs}
+    init(directory:String,configs:[String]){
+        self.directory=directory;self.configs=configs
+        if let path=environment["TURTLEGIT_LIBGIT2_CERTIFICATE_ACCEPTANCES"]{
+            let fd=open(path,O_RDWR|O_APPEND|O_NOFOLLOW|O_CLOEXEC)
+            if fd>=0{let handle=FileHandle(fileDescriptor:fd,closeOnDealloc:true);var info=stat()
+                if fstat(fd,&info)==0,(info.st_mode&S_IFMT)==S_IFREG,info.st_uid==geteuid(),info.st_mode&0o777==0o600,info.st_nlink==1,info.st_size>=0,info.st_size<=GitRemoteCertificateAcceptance.maximumBytes{
+                    do{
+                        // A fresh source process legitimately seeds an empty
+                        // exchange. Successful EOF is not a failed file read.
+                        let data=try handle.read(upToCount:GitRemoteCertificateAcceptance.maximumBytes+1) ?? Data()
+                        let values=try GitRemoteCertificateAcceptance.decode(data)
+                        acceptanceHandle=handle;acceptanceCount=values.count;accepted=Set(values.map(\.key))
+                    }catch{try? handle.close()}
+                }else{try? handle.close()}
+            }
+        }
+    }
+    var acceptanceHandle:FileHandle?,acceptanceCount=0
     var currentURL="",credentialRealm=Data(),credentials:(String,String)?,credentialUses=0,prompts=0
     var accepted:Set<Data>=[]
     func smudge(command:String,path:String,directory:String,input:Data)throws->Data{
@@ -135,7 +152,7 @@ final class CallbackContext{
         var childEnvironment=environment
         // The source repository, not an inherited caller GIT_DIR/index/object
         // override, owns checkout (especially recursive submodule/LFS smudges).
-        for key in ["GIT_DIR","GIT_COMMON_DIR","GIT_WORK_TREE","GIT_INDEX_FILE","GIT_OBJECT_DIRECTORY","GIT_ALTERNATE_OBJECT_DIRECTORIES","GIT_GRAFT_FILE","GIT_SHALLOW_FILE","GIT_PREFIX","GIT_INTERNAL_SUPER_PREFIX","GIT_NAMESPACE","GIT_QUARANTINE_PATH","GIT_IMPLICIT_WORK_TREE"]{childEnvironment.removeValue(forKey:key)}
+        for key in ["TURTLEGIT_LIBGIT2_CERTIFICATE_ACCEPTANCES","GIT_DIR","GIT_COMMON_DIR","GIT_WORK_TREE","GIT_INDEX_FILE","GIT_OBJECT_DIRECTORY","GIT_ALTERNATE_OBJECT_DIRECTORIES","GIT_GRAFT_FILE","GIT_SHALLOW_FILE","GIT_PREFIX","GIT_INTERNAL_SUPER_PREFIX","GIT_NAMESPACE","GIT_QUARANTINE_PATH","GIT_IMPLICIT_WORK_TREE"]{childEnvironment.removeValue(forKey:key)}
         for key in Array(childEnvironment.keys) where key == "GIT_CONFIG_PARAMETERS" || key == "GIT_CONFIG_COUNT" || key.hasPrefix("GIT_CONFIG_KEY_") || key.hasPrefix("GIT_CONFIG_VALUE_"){childEnvironment.removeValue(forKey:key)}
         var search:[String]=[]
         if let git=environment["TURTLEGIT_LIBGIT2_GIT_EXECUTABLE"],git.hasPrefix("/"){search.append(URL(fileURLWithPath:git).deletingLastPathComponent().path)}
@@ -215,10 +232,36 @@ final class CallbackContext{
         let details=try GitCertificateDetails(base64DER:der.base64EncodedString())
         var ignored:Unmanaged<CFError>?
         let properties=SecCertificateCopyValues(certificate,[kSecOIDX509V1IssuerName,kSecOIDX509V1ValidityNotBefore,kSecOIDX509V1ValidityNotAfter] as CFArray,&ignored) as? [String:Any] ?? [:];_=ignored?.takeRetainedValue()
-        func property(_ oid:CFString)->String?{guard let value=properties[oid as String] as? [String:Any],let content=value[kSecPropertyKeyValue as String] else{return nil};return String(describing:content)}
+        func property(_ oid:CFString)->String?{
+            guard let value=properties[oid as String] as? [String:Any],let content=value[kSecPropertyKeyValue as String] else{return nil}
+            func fields(_ value:Any)->[(String,String)]{
+                if let rows=value as? [[String:Any]]{return rows.flatMap{row in
+                    if let text=row[kSecPropertyKeyValue as String] as? String{return [(row[kSecPropertyKeyLabel as String] as? String ?? "",text)]}
+                    return row[kSecPropertyKeyValue as String].map{fields($0)} ?? []
+                }}
+                if let text=value as? String{return [("",text)]};return []
+            }
+            let values=fields(content)
+            for names in [["2.5.4.3","common name","cn"],["2.5.4.11","organizational unit","ou"],["2.5.4.10","organization","o"],["1.2.840.113549.1.9.1","email address","email"]]{
+                if let match=values.first(where:{names.contains($0.0.lowercased())}){return match.1}
+            }
+            return values.isEmpty ? nil:values.map{$0.1}.joined(separator:", ")
+        }
+        let diagnostic=error.map{CFErrorCopyDescription($0) as String} ?? "The actual TLS certificate did not pass validation."
+        let boundedDiagnostic=String(String.UnicodeScalarView(diagnostic.unicodeScalars.filter{!CharacterSet.controlCharacters.contains($0) || $0 == "\n" || $0 == "\r" || $0 == "\t"})).utf8.prefix(4096)
+        var diagnosticBytes=Data(boundedDiagnostic)
+        while String(data:diagnosticBytes,encoding:.utf8)==nil,!diagnosticBytes.isEmpty{diagnosticBytes.removeLast()}
+        let validationError=String(data:diagnosticBytes,encoding:.utf8).flatMap{$0.isEmpty ? nil:$0}
         let display=hostname.contains(":") ? "["+hostname+"]":hostname
-        let prompt=GitSVNAuthenticationPrompt(kind:.trust,realm:display+":"+String(port),failures:failures,hostname:hostname,validFrom:property(kSecOIDX509V1ValidityNotBefore),validUntil:property(kSecOIDX509V1ValidityNotAfter),issuer:property(kSecOIDX509V1IssuerName) ?? details.subject,fingerprint:details.fingerprints,certificate:der.base64EncodedString())
-        guard try ask(prompt).decision == .temporary,!cancelled(),accepted.count<128 else{try refuse("TLS certificate was rejected or cancelled")};accepted.insert(key)
+        let prompt=GitSVNAuthenticationPrompt(kind:.trust,realm:display+":"+String(port),failures:failures,hostname:hostname,validFrom:property(kSecOIDX509V1ValidityNotBefore),validUntil:property(kSecOIDX509V1ValidityNotAfter),issuer:property(kSecOIDX509V1IssuerName) ?? "",fingerprint:details.fingerprints,certificate:der.base64EncodedString(),validationError:validationError)
+        guard try ask(prompt).decision == .temporary,!cancelled(),accepted.count<GitRemoteCertificateAcceptance.maximumRecords else{try refuse("TLS certificate was rejected or cancelled")}
+        accepted.insert(key)
+        if acceptanceCount<GitRemoteCertificateAcceptance.maximumRecords,let acceptanceHandle,
+           let record=try? GitRemoteCertificateAcceptance(hostname:hostname,port:port,certificateDER:der),let bytes=try? record.encodedLine(){
+            // Only an actual successful native acceptance is returned to the
+            // source process; CA/system validation and rejects never enter it.
+            do{try acceptanceHandle.write(contentsOf:bytes);acceptanceCount+=1}catch{}
+        }
     }
 }
 func context(_ raw:UnsafeMutableRawPointer?)->CallbackContext{Unmanaged<CallbackContext>.fromOpaque(raw!).takeUnretainedValue()}

@@ -58,9 +58,10 @@ if not main.exists() or main.read_text() != contents:
 receiver = build_receiver(root, [bridge, fixture, main], sources)
 with tempfile.TemporaryDirectory(prefix='turtlegit-libgit2-native-') as temporary:
     folder = Path(temporary)
+    private_temporary = folder/'temporary'; private_temporary.mkdir(mode=0o700)
     config = folder/'global.config'
     config.write_text('')
-    environment = dict(os.environ, DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'), GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0', XDG_CONFIG_HOME=str(folder/'xdg'), TURTLEGIT_CERTIFICATE_FIXTURE=str(root/'Tests/TurtleGitCoreTests/Fixtures/Certificates/server.der'))
+    environment = dict(os.environ, TMPDIR=str(private_temporary)+'/', DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'), GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0', XDG_CONFIG_HOME=str(folder/'xdg'), TURTLEGIT_CERTIFICATE_FIXTURE=str(root/'Tests/TurtleGitCoreTests/Fixtures/Certificates/server.der'))
     if args.capture_directory:
         environment['TURTLEGIT_LIBGIT2_CAPTURE'] = str(args.capture_directory.absolute())
     else:

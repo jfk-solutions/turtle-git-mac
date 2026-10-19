@@ -61,10 +61,10 @@ the actual operation and owned presentations settle. Retired callbacks cannot
 start deletion or publish replacement catalogs.
 
 The original Windows `last_accepted_cert` cache in AppUtils::Git2CertificateCheck
-is process-wide. Native helper exceptions currently last for one call; a later
-list/delete/refill can ask again. Dialog-lifetime cache sharing, credential helpers
-and broader authentication providers remain open. Source exact authority scoping
-is deliberately strengthened to host+port+DER in the native implementation.
+is process-wide. The [shared authentication continuation](REMOTE-AUTHENTICATION-PARITY.md)
+adds process-memory acceptance across native list/delete/refill helper calls,
+scoped to exact actual host+port+DER. Credential saving, permanent trust and Git
+credential-helper protocols are not part of this source callback.
 
 ## Evidence and remaining scope
 

@@ -3696,7 +3696,7 @@ libgit2 mask through native remote pickers, Browser deletion and Sync tag work.
 The actual engine retains per-reference rejection/partial success, native prompt
 and cancellation ownership, captured preferences and source HEAD-list differences.
 [Source comparison and batch evidence](REMOTE-REFERENCE-ENGINE-PARITY.md) keep
-cross-call certificate caching, other backend consumers and public/signed/physical
+the shared authentication continuation, other backend consumers and public/signed/physical
 App Store acceptance explicit rather than declaring the engine or port complete.
 
 
@@ -3717,3 +3717,15 @@ It distinguishes initial destination cleanup from later recursive partial work,
 retains bare/no-checkout suppression and owns actual filter cancellation/progress.
 Configured LFS one-shot smudge, source boundaries and grouped evidence are tracked
 in that family; it does not claim persistent filter-process or complete providers.
+
+
+### Shared Git transport authentication — October 19, 2026
+
+The [shared authentication family](REMOTE-AUTHENTICATION-PARITY.md) covers the
+native credential form layout, username-dependent focus, missing-value feedback,
+readable certificate identity/validation diagnostics and temporary certificate
+acceptance across separate helper calls. Actual authority/port/DER scoping,
+operation-private exchanges and prompt/export retirement preserve cancellation
+ownership. Password persistence and permanent trust are outside the selected
+source callback. Grouped evidence records the verified scope; physical/signed,
+public-provider and full hosted acceptance remain open.

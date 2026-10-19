@@ -57,6 +57,8 @@ public actor GitRepository {
         defer { try? output.close(); try? error.close() }
         let commandArguments = commandInvocation(arguments, literalPathspecs: literalPathspecs, executorOverride: executorOverride).arguments
         let promptCancellation = try executorOverride.map { _ in try GitRemotePromptCancellation(directory: temporary) }
+        let certificateAcceptances = try (executorOverride != nil && GitAskpassRuntime.mayAuthenticate(arguments) ? GitRemoteCertificateAcceptanceExchange(directory: temporary) : nil)
+        defer { certificateAcceptances?.consume(cancelled: cancellation?.isCancelled == true || promptCancellation.map { FileManager.default.fileExists(atPath: $0.cancelURL.path) } == true) }
         var inputReader:FileHandle?
         if let input {
             let file=temporary.appendingPathComponent("stdin")
@@ -71,6 +73,7 @@ public actor GitRepository {
         environment.merge(GitRuntime.environment(executable: executable)) { _, runtime in runtime }
         environment.merge(SSHClientPreferences.load().environment(existing: environment)) { _, selected in selected }
         environment.merge(environmentOverrides) { _, override in override }
+        environment.removeValue(forKey: "TURTLEGIT_LIBGIT2_CERTIFICATE_ACCEPTANCES")
         let sshPrompt = GitAskpassRuntime.sshEnvironment(arguments: arguments, environment: environment, helper: askpass)
         environment.merge(sshPrompt) { _, selected in selected }
         if !sshPrompt.isEmpty { environment["TURTLEGIT_ASKPASS_APPEARANCE"] = UserDefaults.standard.string(forKey: "appearance") ?? "system" }
@@ -93,6 +96,7 @@ public actor GitRepository {
         }
         if let promptCancellation {
             environment.merge(promptCancellation.environment) { _, own in own }
+            environment.merge(certificateAcceptances?.environment ?? [:]) { _, own in own }
             environment["TURTLEGIT_LIBGIT2_GIT_EXECUTABLE"] = executable.path
             // libgit2 owns a native credential/certificate callback, independent
             // of the CLI's core.askPass or credential helper selection.

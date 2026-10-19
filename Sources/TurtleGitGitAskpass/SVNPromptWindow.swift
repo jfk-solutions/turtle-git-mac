@@ -11,10 +11,28 @@ import UniformTypeIdentifiers
         return super.performKeyEquivalent(with: event)
     }
 }
-@MainActor final class GitSVNPromptWindowController: NSWindowController, NSWindowDelegate {
+/// IDD_USER_PASSWD limits its secure edit to 255 UTF-16 units. Reject an
+/// oversized edit rather than truncate a password or split a surrogate pair.
+private final class GitCredentialPasswordFormatter:Formatter {
+    override func string(for obj:Any?)->String? {obj as? String}
+    override func getObjectValue(_ obj:AutoreleasingUnsafeMutablePointer<AnyObject?>?,for string:String,errorDescription error:AutoreleasingUnsafeMutablePointer<NSString?>?)->Bool {
+        guard string.utf16.count<=255 else {error?.pointee="The password must not exceed 255 UTF-16 code units.";return false}
+        obj?.pointee=string as NSString;return true
+    }
+    override func isPartialStringValid(_ partialString:String,newEditingString:AutoreleasingUnsafeMutablePointer<NSString?>?,errorDescription error:AutoreleasingUnsafeMutablePointer<NSString?>?)->Bool {
+        guard partialString.utf16.count<=255 else {error?.pointee="The password must not exceed 255 UTF-16 code units.";return false};return true
+    }
+}
+@MainActor final class GitSVNPromptWindowController: NSWindowController, NSWindowDelegate, NSTextFieldDelegate {
     let prompt: GitSVNAuthenticationPrompt
     let transportName:String
     private var isGit:Bool{transportName == "Git"}
+    private var redactedGitRealm:String {
+        var components=URLComponents(string:prompt.realm)
+        guard components?.scheme != nil else {return prompt.realm}
+        components?.password=nil;components?.query=nil;components?.fragment=nil
+        return components?.string ?? ""
+    }
     private var remoteCancelled=false
     private(set) var remoteCancelButton:NSButton?,remoteAcceptButton:NSButton?,remoteOpenButton:NSButton?
     let username = NSTextField()
@@ -38,6 +56,7 @@ import UniformTypeIdentifiers
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 530, height: prompt.kind == .trust ? 350 : 190)
         super.init(window: window); window.delegate = self; window.center()
         if isGit,prompt.kind == .trust{configureGitTrust(icon:icon);return}
+        if isGit,prompt.kind == .credentials {configureGitCredentials(icon:icon);return}
         let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 10; stack.translatesAutoresizingMaskIntoConstraints = false
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.translatesAutoresizingMaskIntoConstraints = false
         let document = NSView(); document.translatesAutoresizingMaskIntoConstraints = false; scroll.documentView = document; document.addSubview(stack)
@@ -75,15 +94,45 @@ import UniformTypeIdentifiers
         stack.addArrangedSubview(buttons)
         if let icon { window.miniwindowImage = icon }
     }
+    private func configureGitCredentials(icon:NSImage?) {
+        guard let window else {return}
+        // The runtime already redacts its prompt URL; retain that boundary when
+        // a caller constructs a prompt directly, including diagnostic fixtures.
+        let realm=redactedGitRealm
+        window.title="Password"+(realm.isEmpty ? "":" - "+realm)
+        window.setContentSize(NSSize(width:560,height:175))
+        window.contentMinSize=NSSize(width:460,height:175)
+        window.contentMaxSize=NSSize(width:CGFloat.greatestFiniteMagnitude,height:175)
+        username.stringValue=prompt.username ?? "";username.setAccessibilityLabel("Username")
+        password.setAccessibilityLabel("Password");password.formatter=GitCredentialPasswordFormatter();username.delegate=self;password.delegate=self;save.isEnabled=false;save.state = .off
+        let rows:[[NSView]]=[[NSTextField(labelWithString:"Username:"),username],[NSTextField(labelWithString:"Password:"),password]]
+        let grid=NSGridView(views:rows);grid.columnSpacing=12;grid.rowSpacing=10;grid.column(at:0).width=85
+        for row in 0..<rows.count {grid.row(at:row).height=22}
+        grid.heightAnchor.constraint(equalToConstant:CGFloat(rows.count*22+(rows.count-1)*10)).isActive=true
+        errorLabel.textColor = .systemRed;errorLabel.setAccessibilityLabel("Authentication error")
+        let accept=NSButton(title:"OK",target:self,action:#selector(submit)),cancel=NSButton(title:"Cancel",target:self,action:#selector(abort))
+        for button in [accept,cancel] {button.bezelStyle = .rounded}
+        accept.keyEquivalent="\r";cancel.keyEquivalent="\u{1b}";window.defaultButtonCell=accept.cell as? NSButtonCell
+        remoteAcceptButton=accept;remoteCancelButton=cancel
+        let footer=NSStackView(views:[NSView(),accept,cancel]);footer.orientation = .horizontal;footer.spacing=8
+        let body=NSStackView(views:[grid,errorLabel,footer]);body.orientation = .vertical;body.alignment = .leading;body.spacing=10;body.translatesAutoresizingMaskIntoConstraints=false
+        if let content=window.contentView {content.addSubview(body);NSLayoutConstraint.activate([body.leadingAnchor.constraint(equalTo:content.leadingAnchor,constant:20),body.trailingAnchor.constraint(equalTo:content.trailingAnchor,constant:-20),body.topAnchor.constraint(equalTo:content.topAnchor,constant:20),body.bottomAnchor.constraint(equalTo:content.bottomAnchor,constant:-16)]);for row in [grid,errorLabel,footer] {row.widthAnchor.constraint(equalTo:body.widthAnchor).isActive=true}}
+        window.initialFirstResponder = !username.stringValue.isEmpty ? password:username
+        username.nextKeyView=password;password.nextKeyView=accept;accept.nextKeyView=cancel;cancel.nextKeyView=username
+        if let icon {window.miniwindowImage=icon}
+    }
     private func configureGitTrust(icon:NSImage?){
         guard let window else{return};window.title="TurtleGit";window.setContentSize(NSSize(width:650,height:430))
         let heading=NSTextField(wrappingLabelWithString:"Certificate verification failed!")
         let image=NSImageView(image:icon ?? NSImage());image.imageScaling = .scaleProportionallyUpOrDown;image.widthAnchor.constraint(equalToConstant:32).isActive=true;image.heightAnchor.constraint(equalToConstant:32).isActive=true
         let header=NSStackView(views:[image,heading]);header.orientation = .horizontal;header.spacing=12
         let host=NSTextField(wrappingLabelWithString:"Error validating server certificate for \""+(prompt.hostname ?? "")+"\":");host.isSelectable=true
-        let error=NSTextField(wrappingLabelWithString:prompt.realm+"\n"+prompt.failureDescriptions.joined(separator:"\n"));error.textColor = .systemRed;error.isSelectable=true
+        let diagnostic=prompt.validationError ?? prompt.failureDescriptions.joined(separator:"\n")
+        let errorText=[redactedGitRealm,diagnostic].filter{!$0.isEmpty}.joined(separator:"\n")
+        let error=NSTextField(wrappingLabelWithString:errorText);error.toolTip=errorText;error.textColor = .systemRed;error.isSelectable=true;error.setAccessibilityLabel("Certificate validation error")
         func field(_ value:String)->NSTextField{let field=NSTextField();field.stringValue=value;field.isEditable=false;field.isSelectable=true;field.isBezeled=true;field.drawsBackground=true;field.backgroundColor = .textBackgroundColor;return field}
-        let identity=NSGridView(views:[[NSTextField(labelWithString:"Common Name:"),field(certificateDetails?.subject ?? "")],[NSTextField(labelWithString:"Issuer:"),field(prompt.issuer ?? "")]]);identity.rowSpacing=8;identity.columnSpacing=12;identity.column(at:0).width=132;identity.heightAnchor.constraint(equalToConstant:52).isActive=true;for row in 0..<2{identity.row(at:row).height=22}
+        let subject=field(certificateDetails?.subject ?? ""),issuer=field(prompt.issuer ?? "");subject.setAccessibilityLabel("Common Name");issuer.setAccessibilityLabel("Issuer")
+        let identity=NSGridView(views:[[NSTextField(labelWithString:"Common Name:"),subject],[NSTextField(labelWithString:"Issuer:"),issuer]]);identity.rowSpacing=8;identity.columnSpacing=12;identity.column(at:0).width=132;identity.heightAnchor.constraint(equalToConstant:52).isActive=true;for row in 0..<2{identity.row(at:row).height=22}
         sha1.stringValue=certificateDetails?.sha1 ?? prompt.fingerprint ?? "";let hash=certificateDetails?.sha256 ?? "";sha256.stringValue=String(hash.prefix(57))+"\n"+String(hash.dropFirst(57))
         for view in [sha1,sha256]{view.isSelectable=true;view.isEditable=false;view.isBezeled=true;view.drawsBackground=true;view.backgroundColor = .textBackgroundColor}
         let hashes=NSGridView(views:[[NSTextField(labelWithString:"SHA-1:"),sha1],[NSTextField(labelWithString:"SHA-256:"),sha256]]);hashes.columnSpacing=12;hashes.rowSpacing=8;hashes.column(at:0).width=132;hashes.translatesAutoresizingMaskIntoConstraints=false
@@ -104,9 +153,22 @@ import UniformTypeIdentifiers
     }
     @objc func submit() {
         guard !finished, panel == nil else { return }
+        if isGit,prompt.kind == .credentials {
+            if let editor=username.currentEditor() {username.stringValue=editor.string}
+            if let editor=password.currentEditor() {password.stringValue=editor.string}
+        }
+        if isGit,prompt.kind == .credentials,username.stringValue.isEmpty {
+            errorLabel.stringValue="This field is required and must not be empty."
+            window?.makeFirstResponder(username);username.selectText(nil);return
+        }
+        if isGit,prompt.kind == .credentials,password.stringValue.utf16.count>255 {
+            errorLabel.stringValue="The password must not exceed 255 UTF-16 code units."
+            window?.makeFirstResponder(password);password.selectText(nil);return
+        }
         let result = GitSVNAuthenticationResponse(username: prompt.kind == .secret ? nil : username.stringValue, password: prompt.kind == .username ? nil : password.stringValue, save: !isGit && prompt.maySave && save.state == .on)
         do { _ = try result.encoded(for: prompt); finish(result) } catch { errorLabel.stringValue = error.localizedDescription }
     }
+    func controlTextDidChange(_ notification:Notification) {if isGit,!finished {errorLabel.stringValue=""}}
     @objc func trustTemporary() { guard !finished, prompt.kind == .trust, window?.attachedSheet == nil else { return }; finish(GitSVNAuthenticationResponse(decision: .temporary)) }
     @objc func trustPermanent() { guard !isGit,!finished, prompt.kind == .trust, prompt.maySave, window?.attachedSheet == nil else { return }; finish(GitSVNAuthenticationResponse(save: true, decision: .permanent)) }
     @objc func abort() {if isGit{remoteCancelled=true}; if prompt.kind == .trust { finish(GitSVNAuthenticationResponse(decision: .reject)) } else { finish(nil) } }
@@ -125,6 +187,7 @@ import UniformTypeIdentifiers
     }
     private func finish(_ result: GitSVNAuthenticationResponse?) {
         guard !finished else { return }; finished = true
+        if isGit,prompt.kind == .credentials,let editor=password.currentEditor() ?? window?.fieldEditor(false,for:password) {editor.string="";editor.selectedRange=NSRange(location:0,length:0);window?.endEditing(for:password)}
         username.stringValue = ""; password.stringValue = ""; username.isEnabled = false; password.isEnabled = false; save.isEnabled = false
         if let panel { panel.sheetParent?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; panel = nil
         let callback = response; response = nil

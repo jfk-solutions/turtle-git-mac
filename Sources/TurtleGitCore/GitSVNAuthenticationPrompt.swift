@@ -27,8 +27,11 @@ public struct GitSVNAuthenticationPrompt: Codable, Equatable, Sendable {
     public let issuer: String?
     public let fingerprint: String?
     public let certificate: String?
-    public init(kind: Kind, realm: String, username: String? = nil, maySave: Bool = false, failures: UInt32? = nil, hostname: String? = nil, validFrom: String? = nil, validUntil: String? = nil, issuer: String? = nil, fingerprint: String? = nil, certificate: String? = nil) {
-        version = 1; self.kind = kind; self.realm = realm; self.username = username; self.maySave = maySave; self.failures = failures; self.hostname = hostname; self.validFrom = validFrom; self.validUntil = validUntil; self.issuer = issuer; self.fingerprint = fingerprint; self.certificate = certificate
+    /// Optional actual trust-policy diagnostic for native Git certificate review.
+    /// Legacy SVN requests omit this field and retain their failure-bit labels.
+    public let validationError: String?
+    public init(kind: Kind, realm: String, username: String? = nil, maySave: Bool = false, failures: UInt32? = nil, hostname: String? = nil, validFrom: String? = nil, validUntil: String? = nil, issuer: String? = nil, fingerprint: String? = nil, certificate: String? = nil, validationError: String? = nil) {
+        version = 1; self.kind = kind; self.realm = realm; self.username = username; self.maySave = maySave; self.failures = failures; self.hostname = hostname; self.validFrom = validFrom; self.validUntil = validUntil; self.issuer = issuer; self.fingerprint = fingerprint; self.certificate = certificate; self.validationError = validationError
     }
     public static func decode(_ text: String, enabled: Bool) throws -> Self? {
         guard enabled, text.hasPrefix(prefix) else { return nil }
@@ -36,11 +39,22 @@ public struct GitSVNAuthenticationPrompt: Codable, Equatable, Sendable {
         let value: Self
         do { value = try JSONDecoder().decode(Self.self, from: bytes) } catch { throw GitSVNAuthenticationFailure.malformed }
         guard value.version == 1, [value.realm, value.username ?? "", value.hostname ?? "", value.validFrom ?? "", value.validUntil ?? "", value.issuer ?? "", value.fingerprint ?? ""].allSatisfy({ !$0.contains("\0") }) else { throw GitSVNAuthenticationFailure.malformed }
+        try value.validateDiagnostic()
         if value.kind == .trust { guard let failures = value.failures, failures > 0, value.hostname != nil, value.issuer != nil, value.fingerprint?.isEmpty == false else { throw GitSVNAuthenticationFailure.malformed } }
         if value.certificate != nil { _ = try value.certificateDetails() }
         return value
     }
-    public func encoded() throws -> String { Self.prefix + (try JSONEncoder().encode(self)).base64EncodedString() }
+    private func validateDiagnostic() throws {
+        guard let validationError else { return }
+        guard kind == .trust, !validationError.isEmpty, validationError.utf8.count <= 4096,
+              validationError.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) || [9, 10, 13].contains($0.value) }) else { throw GitSVNAuthenticationFailure.malformed }
+    }
+    public func encoded() throws -> String {
+        try validateDiagnostic()
+        let result = Self.prefix + (try JSONEncoder().encode(self)).base64EncodedString()
+        if validationError != nil, result.utf8.count > 65_535 { throw GitSVNAuthenticationFailure.malformed }
+        return result
+    }
     public func certificateDetails() throws -> GitCertificateDetails? {
         guard let certificate else { return nil }
         return try GitCertificateDetails(base64DER: certificate)

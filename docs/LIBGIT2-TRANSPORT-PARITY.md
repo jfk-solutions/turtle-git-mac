@@ -40,8 +40,9 @@ gated `TurtleGit Git transport prompt v1:` protocol, with bounded DER and the
 source-shaped native certificate form. The private authority patch adds the actual
 HTTP endpoint's port to that callback without changing built-in TLS hostname
 validation; it prevents a redirected port from inheriting another connection's
-exception. Temporary exceptions are exact to host, port and DER and remain in one
-operation. No probe/reconnect or global verification-off setting is used.
+exception. Temporary exceptions are exact to host, port and DER. The
+[shared authentication continuation](REMOTE-AUTHENTICATION-PARITY.md) retains them
+in Core process memory across subsequent helper calls. No probe/reconnect or global verification-off setting is used.
 
 The native helper offers combined credentials and certificate review with Common
 Name, Issuer, SHA-1/SHA-256, Open certificate, Accept certificate and default Cancel.
@@ -124,3 +125,12 @@ It distinguishes initial destination cleanup from later recursive partial work,
 retains bare/no-checkout suppression and owns actual filter cancellation/progress.
 Configured LFS one-shot smudge, source boundaries and grouped evidence are tracked
 in that family; it does not claim persistent filter-process or complete providers.
+
+
+### Shared authentication continuation — October 19, 2026
+
+The [shared authentication family](REMOTE-AUTHENTICATION-PARITY.md) adds the
+source credential form layout, username-dependent focus and validation, readable
+certificate issuer/error fields and temporary certificate acceptance across
+helper launches. It retains the existing prompt/export cancellation handshake
+and has separate grouped evidence and acceptance limits.
