@@ -920,7 +920,11 @@ final class SynchronizationNativeWindow: NSWindow {
             if let window = child?.window, window.sheetParent === owner { owner?.endSheet(window) }
             guard let self, self.historyOperationController === child else { return }
             self.historyOperationController = nil; self.model.operatingHistory = false
-            if !self.model.closed { self.model.refresh() }
+            if !self.model.closed {
+                if let notes = child as? HistoryNotesWindowController, notes.saved {
+                    self.model.finishNoteEditing(warning: notes.model.error)
+                } else { self.model.refresh() }
+            }
         }
         switch child {
         case let child as MergeWindowController: child.onClosed = finished
@@ -1378,6 +1382,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         else if tab == 6 { conflictFileActionsStorage?.requestReload() }
     } }
     @Published private(set) var error: String?
+    @Published private(set) var historyNoteWarning: String?
     @Published private(set) var transportRunning = false { didSet { updateInlineDock() } }
     @Published private(set) var confirmingCancellation = false { didSet { updateInlineDock() } }
     @Published private(set) var cancelling = false
@@ -1660,6 +1665,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     var status: String {
         if transportRunning { return cancelling ? "Cancelling…" : (currentWork.isEmpty ? "Running Git…" : currentWork) }
         if busy { return "Loading…" }
+        if let historyNoteWarning { return historyNoteWarning + (error.map { "\n\n" + $0 } ?? "") }
         if let error { return error }
         if comparingTags { return "\(tagRows.count) tags" }
         switch outgoing?.disposition {
@@ -1674,6 +1680,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     func invalidate() { inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll();closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
         guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
+        historyNoteWarning = nil
         token?.cancel()
         comparingTags = false; tagSnapshot = nil; if tab == 7 { tab = 0 }
         let retainedError = preserveError ? error : nil
@@ -1845,7 +1852,14 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         onManageRemotes()
     }
-    func refresh() { if tab == 6 { refreshConflictFiles() } else if comparingTags { compareTags() } else { reload(refreshRemoteSelection: true) } }
+    func refresh() { historyNoteWarning = nil; if tab == 6 { refreshConflictFiles() } else if comparingTags { compareTags() } else { reload(refreshRemoteSelection: true) } }
+    func finishNoteEditing(warning: String?) {
+        guard !closed else { return }
+        refresh()
+        // Loading clears ordinary errors. Publish the completed-write warning
+        // after scheduling it so it remains visible when the refresh finishes.
+        historyNoteWarning = warning
+    }
     func compareTags(shift: Bool = false) {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         tagBackend = captureTagBackend?() ?? .load(from:preferences)
@@ -2467,7 +2481,7 @@ private struct SynchronizationDialog: View {
             }
             HStack {
                 if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
-                Text(model.status).foregroundStyle(model.error == nil ? Color.secondary : Color.red).textSelection(.enabled)
+                Text(model.status).foregroundStyle(model.error == nil && model.historyNoteWarning == nil ? Color.secondary : Color.red).textSelection(.enabled)
                 Spacer()
                 if model.transportRunning {
                     Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancelTransport() }

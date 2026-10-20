@@ -584,7 +584,10 @@ final class LogHistoryWindow: NSWindow {
         // AppKit can retain a closed window (for example through its last event).
         // Retire its hosting tree now so it cannot retain repository permissions.
         window?.contentViewController = nil
-        completion?(nil); multiple?(nil); onClosed()
+        completion?(nil);multiple?(nil)
+        if model.noteWorkPending {
+            Task{@MainActor [self] in while model.noteWorkPending{try? await Task.sleep(nanoseconds:5_000_000)};onClosed()}
+        }else{onClosed()}
     }
     private func setPatchPreviewVisible(_ visible: Bool) {
         if !visible {
@@ -1419,6 +1422,16 @@ struct LogCommandRequest: Identifiable {
     static private(set) var activeNoteReads = 0
     static private(set) var activeNoteSaves = 0
     var readNote: ((String, OperationCancellation) async throws -> (CommitNoteSnapshot, ProjectDialogSettings))?
+    var writeNote:((CommitNoteSnapshot,String,OperationCancellation)async throws->String)?
+    var prepareNoteIdentity:((OperationCancellation)async throws->Bool)?
+    var noteIdentitySession:NoteIdentitySession?
+    var noteAccess:RepositoryAccessLease? {access}
+    private var noteReadWorkers=0
+    private var noteSaveCancellation:OperationCancellation?
+    @Published var noteCompletionWarning:String?
+    @Published var noteWarningPending=false
+    var noteWorkPending:Bool {noteReadWorkers>0 || savingNote || noteWarningPending || noteIdentitySession?.hasPendingWork==true}
+
     var onShowNote: ((CommitNoteSnapshot, ProjectDialogSettings) -> Void)?
     private(set) var noteIssueProperties = IssueTrackerProperties()
     @Published var noteRequest: CommitNoteSnapshot?
@@ -1501,30 +1514,34 @@ struct LogCommandRequest: Identifiable {
             }
         }
     }
-    var canEditNotes: Bool { !isInvalidated && !confirmingQuit && revision != nil && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !selectedIsStash }
+    var canEditNotes: Bool { !isInvalidated && !confirmingQuit && !noteWarningPending && revision != nil && !busy && !jumping && !loadingNote && !savingNote && !noteWarningPending && noteRequest == nil && !selectedIsStash }
     var canSaveNote: Bool { !savingNote && noteRequest?.accepts(noteText) == true }
     private func cancelNoteRead() {
-        noteCancellation?.cancel(); noteCancellation = nil; loadingNote = false; noteGeneration += 1
+        noteCancellation?.cancel();noteIdentitySession?.cancel(); noteCancellation = nil; loadingNote = false; noteGeneration += 1
     }
     func editNotes() {
         guard canEditNotes, let revision else { return }
         cancelNoteRead(); noteIssueProperties = IssueTrackerProperties(); let token = OperationCancellation(); noteCancellation = token
         let request = noteGeneration; loadingNote = true; error = nil
-        Self.activeNoteReads += 1
-        Task {
-            defer { Self.activeNoteReads -= 1 }
+        Self.activeNoteReads += 1;noteReadWorkers += 1
+        Task { [self,access] in
+            defer { Self.activeNoteReads -= 1;noteReadWorkers -= 1;withExtendedLifetime(access){} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let identityReady:Bool
+                if let prepareNoteIdentity {identityReady=try await prepareNoteIdentity(token)}else{identityReady=try await repository.replayUserIdentity(cancellation:token).complete}
+                guard !isInvalidated,request==noteGeneration,noteCancellation === token,!token.isCancelled else{return}
+                guard identityReady else{noteCancellation=nil;loadingNote=false;return}
                 let note: CommitNoteSnapshot, settings: ProjectDialogSettings
                 if let readNote { (note, settings) = try await readNote(revision.hash, token) }
                 else {
                     note = try await repository.editableCommitNote(revision: revision.hash, cancellation: token)
                     settings = try await repository.projectDialogSettings(source: .effective, cancellation: token)
                     let properties = try await repository.issueTrackerProperties(cancellation: token)
-                    guard !isInvalidated, request == noteGeneration else { return }
+                    guard !isInvalidated, request == noteGeneration,!token.isCancelled else { return }
                     noteIssueProperties = properties
                 }
-                guard !isInvalidated, request == noteGeneration else { return }
+                guard !isInvalidated, request == noteGeneration,!token.isCancelled else { return }
                 noteCancellation = nil; loadingNote = false; noteText = note.text; noteError = nil; noteRequest = note
                 onShowNote?(note, settings)
             } catch {
@@ -1536,38 +1553,43 @@ struct LogCommandRequest: Identifiable {
     }
     func cancelPendingNoteRead() { cancelNoteRead() }
     func cancelNote() { guard !savingNote else { return }; noteRequest = nil; noteText = ""; noteError = nil }
-    private func beginNoteSave(_ note: CommitNoteSnapshot, text: String) -> Bool {
-        guard !isInvalidated, !savingNote, noteRequest?.revision == note.revision, noteRequest?.notesRef == note.notesRef, note.accepts(text) else { return false }
-        savingNote = true; busy = true; noteError = nil; Self.activeNoteSaves += 1
+    private func beginNoteSave(_ note:CommitNoteSnapshot,text:String,token:OperationCancellation)->Bool {
+        guard !isInvalidated,!confirmingQuit,!savingNote,!token.isCancelled,noteRequest?.revision==note.revision,noteRequest?.notesRef==note.notesRef,note.accepts(text) else{return false}
+        savingNote=true;busy=true;noteError=nil;noteSaveCancellation=token;Self.activeNoteSaves += 1
         return true
     }
     func saveNote() {
-        guard canSaveNote, let note = noteRequest else { return }
-        let text = noteText
-        guard beginNoteSave(note, text: text) else { return }
+        guard canSaveNote,let note=noteRequest else{return}
+        let text=noteText,token=OperationCancellation()
+        guard beginNoteSave(note,text:text,token:token) else{return}
         Task {
-            do { try await persistNote(note, text: text); if !isInvalidated { cancelNote() } }
-            catch { if !isInvalidated { noteError = error.localizedDescription } }
+            do {try await persistNote(note,text:text,cancellation:token);if !isInvalidated{cancelNote()}}
+            catch {if !isInvalidated{noteError=error.localizedDescription}}
         }
     }
-    func saveNoteText(_ note: CommitNoteSnapshot, text: String) async throws {
-        guard beginNoteSave(note, text: text) else { throw CommitNoteFailure.invalidText }
-        try await persistNote(note, text: text)
+    func saveNoteText(_ note:CommitNoteSnapshot,text:String,cancellation:OperationCancellation?=nil)async throws {
+        let token=cancellation ?? OperationCancellation()
+        guard beginNoteSave(note,text:text,token:token) else{throw CommitNoteFailure.invalidText}
+        try await persistNote(note,text:text,cancellation:token)
     }
-    private func persistNote(_ note: CommitNoteSnapshot, text: String) async throws {
-        defer { savingNote = false; busy = false; Self.activeNoteSaves -= 1 }
-        guard !isInvalidated else { throw CancellationError() }
-        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    private func persistNote(_ note:CommitNoteSnapshot,text:String,cancellation token:OperationCancellation)async throws {
+        defer{savingNote=false;busy=false;Self.activeNoteSaves -= 1;if noteSaveCancellation === token{noteSaveCancellation=nil};withExtendedLifetime(access){}}
+        guard !isInvalidated else{throw OperationCancellationFailure.cancelled}
+        try token.check()
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true){throw RepositoryAccessFailure.securityScopeUnavailable}
         do {
-            let display = try await repository.saveCommitNote(note, text: text)
-            guard !isInvalidated else { return }
-            if let index = entries.firstIndex(where: { $0.hash == note.revision }) { entries[index].notes = display }
-            DispatchQueue.main.async { [weak self] in
-                guard let self, !self.isInvalidated else { return }
-                self.onRevisionChanged("Saved note for " + note.revision)
+            let display:String
+            if let writeNote{display=try await writeNote(note,text,token)}else{display=try await repository.saveCommitNote(note,text:text,cancellation:token)}
+            guard !isInvalidated,noteSaveCancellation === token else{return}
+            if let index=entries.firstIndex(where:{$0.hash==note.revision}){entries[index].notes=display}
+            DispatchQueue.main.async{ [weak self] in
+                guard let self,!self.isInvalidated else{return};self.onRevisionChanged("Saved note for "+note.revision)
             }
         } catch let failure as CommitNoteFailure {
-            if case .savedButRefreshFailed = failure, !isInvalidated { error = failure.localizedDescription }
+            if case .savedButRefreshFailed = failure,!isInvalidated {
+                noteCompletionWarning=failure.localizedDescription
+                onRevisionChanged(failure.localizedDescription)
+            }
             throw failure
         }
     }
@@ -2135,6 +2157,7 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        noteSaveCancellation?.cancel();noteIdentitySession?.retire()
         bisectRead?.cancel(); bisectRead = nil
         cancelReferenceDescriptionRead()
         retireLogControlMenus()

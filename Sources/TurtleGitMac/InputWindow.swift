@@ -22,6 +22,14 @@ final class InputMessageTextView: ProjectMessageTextView {
     private(set) var busy = false
     private(set) var saved = false
     private var closed = false
+    private var pendingSave=false
+    private(set) var cancelling=false
+    var allowsSaveCancellation=false
+    var closesAfterSavedNoteFailure=false
+    var pendingOwnedWork:()->Bool={false}
+    var retireOwnedChildren:()->Void={}
+    var retryPreparation:(()->Void)? {didSet{updateAcceptance()}}
+
     private var token: OperationCancellation?
     private var fontObserver: NSObjectProtocol?
     private let preferences: UserDefaults
@@ -83,33 +91,51 @@ final class InputMessageTextView: ProjectMessageTextView {
         (editor as? InputMessageTextView)?.applyProjectSettings(settings)
         updateFont(); setInputState(ready: true); focusEditor()
     }
-    private func updateAcceptance() { ok.isEnabled = canAccept }
+    private func updateAcceptance() {
+        let retry = !readyForInput && retryPreparation != nil && !busy && !closed
+        ok.title=retry ? "Retry":"OK";ok.isEnabled=canAccept || retry
+    }
     private func dismiss() { if let window { window.sheetParent?.endSheet(window); window.close() } }
     @objc func save() {
+        if !readyForInput,!closed,!busy,let retryPreparation{retryPreparation();return}
         guard canAccept else { return }
-        busy = true; checkbox.isEnabled = false; editor.isEditable = false; ok.isEnabled = false; cancelButton.isEnabled = false; errorLabel.stringValue = ""
+        busy = true; checkbox.isEnabled = false; editor.isEditable = false; ok.isEnabled = false; cancelButton.isEnabled = allowsSaveCancellation; errorLabel.stringValue = ""
         let request = OperationCancellation(); token = request; let text = editor.string, checked = checkbox.state == .on
-        InputWindowController.activeSaves += 1
+        InputWindowController.activeSaves += 1;pendingSave=true
         Task {
-            defer { InputWindowController.activeSaves -= 1 }
+            defer { InputWindowController.activeSaves -= 1;pendingSave=false }
             do {
                 try await write(text, checked, request)
                 guard !closed, token === request else { return }
                 saved = true; dismiss()
             } catch {
                 guard !closed, token === request else { return }
-                token = nil; busy = false; editor.isEditable = readyForInput; checkbox.isEnabled = true; updateAcceptance(); cancelButton.isEnabled = true
+                if closesAfterSavedNoteFailure,let failure=error as? CommitNoteFailure,case .savedButRefreshFailed = failure {saved=true;dismiss();return}
+                token = nil; busy = false;cancelling=false; editor.isEditable = readyForInput; checkbox.isEnabled = true; updateAcceptance(); cancelButton.isEnabled = true
                 errorLabel.stringValue = error.localizedDescription; window?.makeFirstResponder(editor)
             }
         }
     }
-    @objc func cancel() { guard !busy, !closed else { return }; dismiss() }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !busy }
+    @objc func cancel() {
+        guard !closed else{return}
+        if busy {
+            guard allowsSaveCancellation,!cancelling else{return}
+            cancelling=true;token?.cancel();cancelButton.isEnabled=false;errorLabel.stringValue="Cancelling…";return
+        }
+        dismiss()
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {guard sender.attachedSheet==nil else{return false};if busy {cancel();return false};return true}
     func windowWillClose(_ notification: Notification) {
-        guard !closed else { return }; closed = true; token?.cancel(); token = nil
+        guard !closed else { return }; closed = true; token?.cancel(); token = nil;retireOwnedChildren()
         (editor as? InputMessageTextView)?.retireSourceStyling()
         if let fontObserver { NotificationCenter.default.removeObserver(fontObserver) }; fontObserver = nil
-        if let window { window.sheetParent?.endSheet(window) }; onClosed()
+        if let window { window.sheetParent?.endSheet(window) }
+        if pendingSave || pendingOwnedWork() || window?.sheetParent != nil || window?.attachedSheet != nil {
+            Task{@MainActor [self] in
+                while pendingSave || pendingOwnedWork() || window?.sheetParent != nil || window?.attachedSheet != nil {try? await Task.sleep(nanoseconds:5_000_000)}
+                let done=onClosed;onClosed={};done()
+            }
+        }else{let done=onClosed;onClosed={};done()}
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -122,29 +148,169 @@ final class InputMessageTextView: ProjectMessageTextView {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
+/// AppUtils::EditNote calls CheckUserData before reading a note. Keep the
+/// captured repository and all modal children alive until their real release.
+@MainActor final class NoteIdentitySession {
+    private final class Question {
+        let alert:NSAlert,token:OperationCancellation
+        var completion:((Bool)->Void)?,watcher:Task<Void,Never>?
+        var settling=false
+        init(_ alert:NSAlert,_ token:OperationCancellation,_ completion:@escaping(Bool)->Void){self.alert=alert;self.token=token;self.completion=completion}
+    }
+    let repository:GitRepository
+    private let access:RepositoryAccessLease?
+    private let preferences:UserDefaults
+    private weak var parent:NSWindow?
+    private var pending:Question?
+    private var settings:SettingsSheetController?
+    private var operations:[UUID:OperationCancellation]=[:]
+    private(set) var retired=false
+    var available:()->Bool={true}
+    var readIdentity:((OperationCancellation)async throws->ReplayUserIdentity)?
+    var presentQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool={owner,alert,reply in alert.beginSheetModal(for:owner,completionHandler:reply);return true}
+    var configureSettings:(SettingsSheetController)->Void={_ in}
+    var question:NSAlert? {pending?.alert}
+    var settingsWindow:NSWindow? {settings?.window}
+    var navigation:SettingsNavigationController? {settings?.navigation}
+    var hasPendingWork:Bool {!operations.isEmpty || pending != nil || settings != nil}
+    init(repository:GitRepository,access:RepositoryAccessLease?,preferences:UserDefaults,parent:NSWindow){self.repository=repository;self.access=access;self.preferences=preferences;self.parent=parent}
+    private func check(_ token:OperationCancellation)throws {
+        try token.check()
+        guard !retired,available(),!Task.isCancelled else{throw OperationCancellationFailure.cancelled}
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true){throw RepositoryAccessFailure.securityScopeUnavailable}
+    }
+    func require(_ token:OperationCancellation)async throws->Bool {
+        let id=UUID();operations[id]=token;defer{operations.removeValue(forKey:id);withExtendedLifetime(access){}}
+        while true {
+            try check(token)
+            let identity:ReplayUserIdentity
+            if let readIdentity {identity=try await readIdentity(token)}else{identity=try await repository.replayUserIdentity(cancellation:token)}
+            try check(token)
+            if identity.complete{return true}
+            guard await ask(token) else{try check(token);return false}
+            try check(token)
+            guard await showSettings(token) else{try check(token);return false}
+            // Both OK and Cancel release Settings, then require all four values
+            // again; closing the child does not certify identity.
+        }
+    }
+    private func ask(_ token:OperationCancellation)async->Bool {
+        guard !retired,available(),!token.isCancelled,pending==nil,settings==nil,let owner=parent,owner.attachedSheet==nil else{return false}
+        let alert=NSAlert();alert.alertStyle = .critical;alert.messageText="User name and email must be set before commit.";alert.informativeText="Do you want to set these now?"
+        alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No").keyEquivalent="\u{1b}"
+        alert.window.alphaValue=owner.alphaValue;alert.window.appearance=owner.effectiveAppearance
+        return await withCheckedContinuation{reply in
+            let request=Question(alert,token){reply.resume(returning:$0)};pending=request
+            request.watcher=Task{@MainActor [weak self,weak request] in
+                while !Task.isCancelled {
+                    guard let self,let request,self.pending === request,!request.settling else{return}
+                    if token.isCancelled || self.retired {self.settle(request,accepted:false);return}
+                    try? await Task.sleep(nanoseconds:10_000_000)
+                }
+            }
+            if !presentQuestion(owner,alert,{[weak self,weak request] response in
+                guard let self,let request else{return};self.settle(request,accepted:response == .alertFirstButtonReturn)
+            }){settle(request,accepted:false)}
+        }
+    }
+    private func settle(_ request:Question,accepted:Bool) {
+        guard pending === request,!request.settling else{return};request.settling=true;request.watcher?.cancel();request.watcher=nil
+        let child=request.alert.window,owner=child.sheetParent ?? parent
+        if child.sheetParent != nil || owner?.attachedSheet === child {owner?.endSheet(child,returnCode:.abort)}
+        child.orderOut(nil)
+        Task{@MainActor [self,request] in
+            while child.sheetParent != nil || owner?.attachedSheet === child || child.attachedSheet != nil {try? await Task.sleep(nanoseconds:5_000_000)}
+            child.close();if pending === request{pending=nil}
+            let reply=request.completion;request.completion=nil;reply?(accepted && !retired && available() && !request.token.isCancelled)
+        }
+    }
+    private func showSettings(_ token:OperationCancellation)async->Bool {
+        guard !retired,available(),!token.isCancelled,settings==nil,let owner=parent,owner.attachedSheet==nil else{return false}
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false)
+        workspace.root=repository.root;workspace.settingsContextOverride=(repository,access,true)
+        let child=SettingsSheetController(workspace:workspace,preferences:preferences,initialPage:.git,title:"Settings – TurtleGit for Mac")
+        settings=child;child.window?.alphaValue=owner.alphaValue;child.window?.appearance=owner.effectiveAppearance
+        return await withCheckedContinuation{reply in
+            var settled=false
+            let watcher=Task{@MainActor [weak self,weak child] in
+                while !Task.isCancelled && !settled {
+                    guard let self,let child,self.settings === child else{return}
+                    if token.isCancelled || self.retired {child.retire();return}
+                    try? await Task.sleep(nanoseconds:10_000_000)
+                }
+            }
+            child.onClosed={ [weak self,weak child] _ in
+                guard !settled else{return};settled=true;watcher.cancel()
+                if self?.settings === child{self?.settings=nil}
+                reply.resume(returning:self?.retired==false && self?.available()==true && !token.isCancelled)
+            }
+            configureSettings(child)
+            guard !settled,!retired,!token.isCancelled else{child.retire();return}
+            child.presentSheet(for:owner)
+        }
+    }
+    func cancel(){operations.values.forEach{$0.cancel()};if let pending{settle(pending,accepted:false)};settings?.retire()}
+    func retire(){retired=true;cancel()}
+}
+
 /// Shared owned Input sheet for Log and Rebase's selected revision menus.
 @MainActor final class CommitNotePresenter {
+    private(set) static var activeWarnings=0
+    private var retired=false,settlingWarning=false
+    private(set) var completionWarning:NSAlert?
     private weak var parent: NSWindow?
     private let model: LogWindowModel
     private let preferences: UserDefaults
+    let identitySession:NoteIdentitySession
     private(set) var editor: InputWindowController?
     init(parent: NSWindow, model: LogWindowModel, preferences: UserDefaults) {
         self.parent = parent; self.model = model; self.preferences = preferences
+        identitySession=NoteIdentitySession(repository:model.repository,access:model.noteAccess,preferences:preferences,parent:parent)
+        identitySession.available={ [weak model] in model?.isInvalidated==false && model?.confirmingQuit==false }
+        model.noteIdentitySession=identitySession
+        model.prepareNoteIdentity={ [weak identitySession = self.identitySession] token in guard let identitySession else{throw OperationCancellationFailure.cancelled};return try await identitySession.require(token) }
         model.onShowNote = { [weak self] note, settings in self?.show(note, settings: settings) }
     }
     private func show(_ note: CommitNoteSnapshot, settings: ProjectDialogSettings) {
         guard editor == nil, !model.isInvalidated, let parent, parent.attachedSheet == nil else { model.cancelNote(); return }
         let child = InputWindowController(title: "Edit Notes", hint: "Edit Notes", text: note.text, minimumLength: note.minimumLength, projectSettings: settings, issueProperties: model.noteIssueProperties, preferences: preferences) { [model] text, _, token in
             if token.isCancelled { throw CancellationError() }
-            try await model.saveNoteText(note, text: text)
+            try await model.saveNoteText(note, text: text,cancellation:token)
         }
+        child.allowsSaveCancellation=true;child.closesAfterSavedNoteFailure=true
+        child.pendingOwnedWork={ [weak model] in model?.savingNote==true }
         editor = child
         child.onClosed = { [weak self, weak child] in
             guard let self, self.editor === child else { return }
-            self.editor = nil; self.model.cancelNote()
+            self.editor = nil;self.model.cancelNote();self.showCompletionWarning()
         }
         guard let sheet = child.window else { editor = nil; model.cancelNote(); return }
         parent.beginSheet(sheet); child.focusEditor()
     }
-    func close() { editor?.close(); editor = nil }
+    private func showCompletionWarning() {
+        guard !retired,!model.isInvalidated,editor==nil,completionWarning==nil,let detail=model.noteCompletionWarning,let parent,parent.attachedSheet==nil else{return}
+        let alert=NSAlert();alert.alertStyle = .warning;alert.messageText="Edit Notes";alert.informativeText=detail;alert.addButton(withTitle:"OK")
+        alert.window.alphaValue=parent.alphaValue;alert.window.appearance=parent.effectiveAppearance
+        completionWarning=alert;model.noteWarningPending=true;Self.activeWarnings += 1
+        alert.beginSheetModal(for:parent){ [weak self,weak alert] _ in
+            guard let self,let alert else{return};self.finishCompletionWarning(alert,detail:detail)
+        }
+    }
+    private func finishCompletionWarning(_ alert:NSAlert,detail:String?) {
+        guard completionWarning === alert,!settlingWarning else{return};settlingWarning=true
+        let child=alert.window,owner=child.sheetParent ?? parent
+        if child.sheetParent != nil || owner?.attachedSheet === child{owner?.endSheet(child,returnCode:.abort)}
+        child.orderOut(nil)
+        Task{@MainActor [self,alert] in
+            while child.sheetParent != nil || owner?.attachedSheet === child || child.attachedSheet != nil{try? await Task.sleep(nanoseconds:5_000_000)}
+            child.close()
+            if completionWarning === alert{completionWarning=nil}
+            settlingWarning=false;model.noteWarningPending=false;Self.activeWarnings -= 1
+            if !retired,let detail,model.noteCompletionWarning?.utf8.elementsEqual(detail.utf8)==true{model.noteCompletionWarning=nil}
+        }
+    }
+    func close(){
+        retired=true;identitySession.retire();editor?.close();editor=nil
+        if let completionWarning{finishCompletionWarning(completionWarning,detail:nil)}
+    }
 }

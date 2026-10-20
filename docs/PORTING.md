@@ -1,5 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Edit Notes lifecycle family](EDIT-NOTES-PARITY.md)
+adds the source author/committer Settings repair loop across Log, RefLog, Rebase
+and Synchronization, captured commit/ref saves, owned cancellation and bounded
+post-interruption outcome recovery. Drafts and Undo survive ordinary errors;
+confirmed saved-but-refresh-failed results have an owned completion warning or
+retained Synchronization status. Parent closures drain actual preparation,
+Settings, save and warning work. The Debug app, ten distinct focused Core methods (six also with bundled Git) and
+ten native case/engine checks passed. [Evidence](qa/commit-note-lifecycle-2026-10-20.json)
+retains fixture failures, focused repairs, four inspected offscreen captures and
+owned cleanup. Full physical, multi-ref compatibility and signed acceptance remain open.
+
 The [Commit result and next-draft family](COMMIT-RESULT-LIFECYCLE-PARITY.md)
 connects saved-file restoration before client PostCommit, captured failed-attempt
 Recent messages and an editor-owned ReCommit Undo/reset boundary. It includes

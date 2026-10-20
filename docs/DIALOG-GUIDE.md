@@ -5,6 +5,17 @@ TortoiseGit port and signed Finder/App Store acceptance remain in progress.
 Start with [Getting started](GETTING-STARTED.md) and
 [repository folder access](REPOSITORY-FOLDER-ACCESS.md) when opening a repository.
 
+## Edit Notes
+
+Log, RefLog, Rebase and Synchronization share the source-shaped multiline Notes
+editor, original edit command artwork, project minimum length and message styling.
+Missing author/committer details offer repository Git Settings and are checked
+again after it closes. Saving retains the captured commit and notes ref; Cancel
+requests cancellation while the editor waits for its Git child. Ordinary errors
+retain the draft; confirmed saves with failed refresh and uncertain mutation
+outcomes have separate recovery messages. See [Editing Git notes](GIT-NOTES.md)
+and the [source comparison](EDIT-NOTES-PARITY.md).
+
 ## Clone and create
 
 Use Clone to choose a repository URL and a destination folder. Choose an empty

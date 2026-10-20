@@ -1280,6 +1280,7 @@
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/commit-note-lifecycle-2026-10-20.json",
         "docs/qa/input-dialogs-2026-10-13.json",
         "docs/qa/input-hosts-2026-10-13.json",
         "docs/qa/log-notes-edit-2026-10-06.json",

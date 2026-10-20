@@ -7,10 +7,15 @@ TurtleGit displays them below the commit message in Log Messages.
 2. Open its context menu and choose **Edit Notes**.
 3. Edit the note. **OK** saves it; **Cancel** keeps the existing note.
 
-Command-Return also saves. Escape cancels. If your project requires a minimum
-message length, OK is disabled until the note meets it. Configure your Git name
-and email before editing; TurtleGit reports an identity error when Git cannot
-create the note. Editing is unavailable for stash rows.
+Command-Return and Control-Return also save. Escape cancels. If your project
+requires a minimum message length, OK is disabled until the note meets it.
+Editing is unavailable for stash rows. The same editor is available from the
+revision menus in RefLog, Rebase and Synchronization.
+
+If Git's author or committer name or email is missing, choose **Yes** to open
+Git Settings for this repository, or **No** to stop opening the editor. TurtleGit
+checks the effective identity again after Settings closes. Environment overrides
+can take precedence over saved configuration.
 
 The editor loads the active Git notes ref. Additional notes refs configured for
 Log display are not combined into the editable text. It saves back to the ref
@@ -18,10 +23,14 @@ that was active when you opened the editor. Clearing the text saves an empty not
 it does not delete the note association. Notes are separate from the commit and
 need their own fetch/push configuration; see the [Git notes manual](https://git-scm.com/docs/git-notes).
 
-Wait for saving to finish before closing the editor. If the write fails, the draft
-remains available for correction or retry. If the app says notes were saved but
-could not be refreshed, refresh Log to read them again. Refresh an existing Notes
-search after editing so its matches are recalculated.
+During saving, **Cancel** requests cancellation and waits for the owned Git
+process to stop. The editor retains your draft after cancellation or an ordinary
+write failure. A process can change the notes ref before reporting interruption:
+if TurtleGit cannot establish the outcome, inspect the existing note before
+retrying. If the app confirms that notes were saved but could not be refreshed,
+the editor closes and reports that refresh failure separately. Refresh Log to
+read them again. Refresh an existing Notes search after editing so its matches
+are recalculated.
 
 The current implementation and outstanding UI verification are recorded in
 [Edit Notes parity](EDIT-NOTES-PARITY.md). macOS screenshots for this workflow are

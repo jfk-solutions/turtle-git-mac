@@ -787,6 +787,8 @@ jobs:
         run: python3 scripts/test-commit-safety.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Commit result recovery and next draft lifecycle
         run: python3 scripts/test-commit-result-lifecycle.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Edit Notes identity repair, cancellation and recovery
+        run: python3 scripts/test-commit-note-lifecycle.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Commit columns, sorting and closed-owner settings
         run: python3 scripts/test-commit-column-sorting.py
       - name: Native scoped Commit commands and keyboard actions

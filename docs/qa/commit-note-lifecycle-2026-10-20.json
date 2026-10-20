@@ -1,0 +1,165 @@
+{
+  "date": "2026-10-20",
+  "base": "ad75757332b4bafec42a58cc838c1165f7a8d970",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "previous_goal_turn": "no progress: status response only; current source and worktree revalidated before implementation.",
+  "scope": [
+    "Owned four-value identity repair and authoritative Settings reread before note reads across Log, RefLog, Rebase and Synchronization.",
+    "Captured commit/ref saves with cancellation through blob creation, mutation and display; bounded read-only outcome recovery without retry or rollback.",
+    "Draft/native Undo retention, known-saved and uncertain outcomes, shared owned completion warning and retained Sync refresh warning.",
+    "Parent closure, Settings, workers, warning sheet and Quit ownership."
+  ],
+  "core": {
+    "result": "passed",
+    "distinct_methods": 10,
+    "engine_executions": 16,
+    "system_git_methods": 10,
+    "bundled_git_new_methods": 6,
+    "logs": [
+      "build/qa/notes-core-2026-10-20.log",
+      "build/qa/notes-core-bundled-2026-10-20.log"
+    ],
+    "repairs": [],
+    "scope": "Six new cancellation/recovery methods plus four existing notes regressions; no full suite."
+  },
+  "build": {
+    "result": "passed",
+    "exit_code": 0,
+    "log": "build/qa/notes-build-2026-10-20.log",
+    "builds": 1
+  },
+  "native": {
+    "result": "passed",
+    "cases": [
+      "identity",
+      "retry",
+      "cancellation",
+      "ownership",
+      "target"
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "engine_executions": 10,
+    "logs": [
+      "build/qa/notes-native-2026-10-20.log",
+      "build/qa/notes-native-actor-repair-2026-10-20.log",
+      "build/qa/notes-native-final-cases-2026-10-20.log",
+      "build/qa/notes-native-identity-repair-2026-10-20.log",
+      "build/qa/notes-native-log-fixture-repair-2026-10-20.log",
+      "build/qa/notes-native-remaining-2026-10-20.log",
+      "build/qa/notes-native-retry-selection-2026-10-20.log",
+      "build/qa/notes-native-target-repair-2026-10-20.log"
+    ],
+    "failures_and_repairs": [
+      {
+        "log": "build/qa/notes-native-2026-10-20.log",
+        "cause": "Fixture nested Context/Gate actor isolation compile errors; no receiver launched.",
+        "repair": "Explicit MainActor annotations on fixture helpers."
+      },
+      {
+        "log": "build/qa/notes-native-actor-repair-2026-10-20.log",
+        "receiver": 34354,
+        "cause": "Injected fixture error lacked LocalizedError, so expected identity error text was not exposed.",
+        "repair": "Expose the actual fixture error description; rerun identity only."
+      },
+      {
+        "log": "build/qa/notes-native-remaining-2026-10-20.log",
+        "receiver": 34814,
+        "cause": "Fixture seeded Log entries without matching graph; native table trapped on inconsistent fixture projection.",
+        "repair": "Use actual model.reload for Log hosts."
+      },
+      {
+        "log": "build/qa/notes-native-log-fixture-repair-2026-10-20.log",
+        "receiver": 34986,
+        "cause": "Fixture assumed two Log rows after notes created additional ref history.",
+        "repair": "Wait for captured target revision presence, retaining real warning and saved-ref assertions."
+      },
+      {
+        "log": "build/qa/notes-native-final-cases-2026-10-20.log",
+        "receiver": 35803,
+        "cause": "Target fixture selected the prepended working-tree row by position.",
+        "repair": "Resolve real HEAD/HEAD^ and select by commit identity; rerun target only."
+      }
+    ],
+    "production_repairs_after_checkpoint": false,
+    "full_group_repeated_after_passes": false,
+    "scope": "Real private Git, actual AppKit buttons/text Undo and Settings, real note writes; injected held/error boundaries cover native cancellation and receipt loss. Core tests separately cancel actual child processes."
+  },
+  "ownership": {
+    "owned_receiver_pids": [
+      34354,
+      34575,
+      34691,
+      34814,
+      34986,
+      35173,
+      35335,
+      35517,
+      35564,
+      35611,
+      35707,
+      35803,
+      35981,
+      36101
+    ],
+    "all_reaped": true,
+    "post_validation_process_table": "",
+    "private_context": "Native private repositories, configuration, preferences and temporary roots; invisible/offscreen windows; Core private Git configuration.",
+    "recovery_cancellation_deadline_seconds": 2,
+    "deadline_scope": "Deadline cancels independent read-only recovery; command termination and draining can take additional time.",
+    "protected_work_unchanged": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    }
+  },
+  "captures": {
+    "docs/site/assets/notes-editor-light.png": {
+      "width": 1020,
+      "height": 510,
+      "sha256": "39b802daa9cef4b46e952daaf54e48984d7d0c6a0c626f5c73a5c453e3db8717",
+      "capture": "Actual offscreen AppKit view bitmap; invisible owned window. Not compositor or physical interaction acceptance."
+    },
+    "docs/site/assets/notes-editor-dark.png": {
+      "width": 1020,
+      "height": 510,
+      "sha256": "454daede62a8d816ca6adea120cf9c69662287a17c64e5f4ceaf61e0135c6d15",
+      "capture": "Actual offscreen AppKit view bitmap; invisible owned window. Not compositor or physical interaction acceptance."
+    },
+    "docs/site/assets/notes-identity-light.png": {
+      "width": 520,
+      "height": 436,
+      "sha256": "e5d007132dcb0c55f403a8553ad5f40bcdba8044d3ab2bdadc792f48802d4da6",
+      "capture": "Actual offscreen AppKit view bitmap; invisible owned window. Not compositor or physical interaction acceptance."
+    },
+    "docs/site/assets/notes-identity-dark.png": {
+      "width": 520,
+      "height": 436,
+      "sha256": "3e4dd610ac41cb4f3a7509de6f2899d89cd8d4f318aeac4ce46de4830ac0b837",
+      "capture": "Actual offscreen AppKit view bitmap; invisible owned window. Not compositor or physical interaction acceptance."
+    }
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "5d1c73961af9369fc5b9853e71ec154faead8430e80069b0f47fbce9d2c421bf",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "d5b4ceedbde68e851ec21dc439d6b66e12ae3894c0105033e0d22b58ea9a4c7d",
+    "Sources/TurtleGitMac/HistoryWorkflowWindow.swift": "aa812d924e74f0a7fd0896d57957f0ad84e90cdde295d8c774e6dc70089a37ec",
+    "Sources/TurtleGitMac/InputWindow.swift": "9a8cd5bb038a11c323de8ac60fb5b13ca679e69007655f5c12ddad31b7ed0b95",
+    "Sources/TurtleGitMac/LogWindow.swift": "fc16981fb0ba7fb141607a2ee762bc2f9d7700e9a810b11658f367a25ec65df5",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "fc33f9de1c22924f45897433017be9ae67a7ea9103a42ac55d7df060a08dd301",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "7c879678c8ab63669ad5617785cc11a7ad384c03161fc6fa351b3b44e2be1c9c",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "178b16322f14bef4644b196ad3c0cfd54a17f6c3e2e62bbbc0c9fe518bf539b9",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "646655148da627be4ab851e789902c83a37292e82cb546e1d22fe5c36b3299ee",
+    "Tests/TurtleGitCoreTests/CommitNoteCancellationTests.swift": "2e294263489b217447c46caaa61bcc350b742f0629b488f852e38ee7453bc3c8",
+    "docs/qa/commit-note-lifecycle-native-2026-10-20.swift": "e0ee82f2cf7f0971de74231a0c7b811551e981251e19a18f7f0b44de78fad61a",
+    "scripts/test-commit-note-lifecycle.py": "483f2f1703743a9f69ac6d99e8351b6fde5a346ae806e7ae23e013c4664be601"
+  },
+  "remaining": [
+    "Full physical keyboard/focus/resize and all-caller visual acceptance; offscreen bitmaps do not prove these.",
+    "Synchronization retains its disabled loading form during preparation; exact upstream modal ordering remains an adaptation.",
+    "Concurrent writers are not attributed or rolled back; changing/unreadable recovery state is unknown, and force-overwrite semantics remain.",
+    "Broader malformed/multi-ref compatibility and Notes search recomputation require separate acceptance.",
+    "Signed sandbox, physical Finder integration, App Store distribution and complete hosted CI are not proven by this checkpoint.",
+    "The full TortoiseGit port remains incomplete."
+  ]
+}

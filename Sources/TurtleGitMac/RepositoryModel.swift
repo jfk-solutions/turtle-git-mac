@@ -2210,7 +2210,11 @@ private enum HistoricalMaterializationContext {
                     if self?.root == repository.root { self?.output = output; Task { await self?.refresh() } }
                 }
             case let child as HistoryNotesWindowController:
-                child.model.onChanged = { [weak self] _ in self?.refreshRepositoryLogs(repository.root) }
+                child.model.onChanged = { [weak self] output in
+                    guard let self, !self.retired else { return }
+                    self.refreshRepositoryLogs(repository.root)
+                    if self.root == repository.root { self.output = output }
+                }
             case let child as HistoryRevertWindowController:
                 child.model.onChanged = { [weak self] output in
                     self?.refreshRepositoryLogs(repository.root); self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()

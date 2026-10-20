@@ -961,12 +961,13 @@ public struct CommitNoteSnapshot: Identifiable, Sendable {
     public func accepts(_ text: String) -> Bool { text.utf16.count >= minimumLength && !text.contains("\0") }
 }
 public enum CommitNoteFailure: LocalizedError {
-    case invalidText, minimumLength(Int), savedButRefreshFailed(String)
+    case invalidText, minimumLength(Int), savedButRefreshFailed(String), saveOutcomeUnknown(String)
     public var errorDescription: String? {
         switch self {
         case .invalidText: return "The note is not valid UTF-8 text or contains a NUL character."
         case .minimumLength(let size): return "The note must contain at least \(size) characters."
         case .savedButRefreshFailed(let message): return "Notes saved, but the displayed notes could not be refreshed: " + message
+        case .saveOutcomeUnknown(let message): return "The note may have been saved. Inspect the note before retrying: " + message
         }
     }
 }
@@ -1029,21 +1030,52 @@ extension GitRepository {
         try cancellation?.check()
         return CommitNoteSnapshot(revision: hash, notesRef: ref, text: text, minimumLength: minimum)
     }
-    /// The synchronous mutation is not interruptible; callers keep its dialog open until completion.
-    /// Reusing a blob preserves exact text, including empty notes, on older Git versions too.
-    public func saveCommitNote(_ note: CommitNoteSnapshot, text: String) throws -> String {
+    /// Reusing a blob preserves exact text, including empty notes, on older Git
+    /// versions too. Cancellation owns every child, but cannot undo a published
+    /// notes ref. Failed mutation receipts therefore use a bounded read-only
+    /// recovery before reporting whether the requested blob is already stored.
+    public func saveCommitNote(_ note: CommitNoteSnapshot, text: String, cancellation: OperationCancellation? = nil) throws -> String {
+        let token=cancellation ?? OperationCancellation();try token.check()
         guard !text.contains("\0") else { throw CommitNoteFailure.invalidText }
         guard note.accepts(text) else { throw CommitNoteFailure.minimumLength(note.minimumLength) }
+        func refValue(_ reader:OperationCancellation)throws->Data {
+            try run(["rev-parse","--verify","--quiet","--end-of-options",note.notesRef],successfulExitCodes:0...1,cancellation:reader).stdout
+        }
         let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitNote-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,attributes:[.posixPermissions:0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = directory.appendingPathComponent("note.txt")
-        try Data(text.utf8).write(to: file)
-        let blob = try run(["hash-object", "-w", "--", file.path]).text.trimmingCharacters(in: .newlines)
-        _ = try run(["notes", "--ref=" + note.notesRef, "add", "--force", "--allow-empty", "--reuse-message", blob, note.revision])
-        // Refresh the display-ref aggregate used by the existing Log message pane.
-        do { return try run(["show", "--encoding=UTF-8", "-s", "--notes", "--format=%N", note.revision, "--"]).text.trimmingCharacters(in: .newlines) }
-        catch { throw CommitNoteFailure.savedButRefreshFailed(error.localizedDescription) }
+        try token.check();try Data(text.utf8).write(to: file)
+        let blob = try run(["hash-object", "-w", "--", file.path],cancellation:token).text.trimmingCharacters(in: .newlines)
+        let before=try refValue(token)
+        try token.check()
+        do {_ = try run(["notes", "--ref=" + note.notesRef, "add", "--force", "--allow-empty", "--reuse-message", blob, note.revision],cancellation:token)}
+        catch {
+            let mutationError=error
+            // The failed/cancelled command is already reaped by run(). Keep an
+            // independent bounded reader alive even if the caller's token is
+            // cancelled: otherwise a completed write would masquerade as an
+            // ordinary cancelled save. This reader never retries the mutation.
+            let recovery=OperationCancellation()
+            let timeout=DispatchWorkItem{recovery.cancel()}
+            DispatchQueue.global(qos:.utility).asyncAfter(deadline:.now()+2,execute:timeout)
+            defer {timeout.cancel()}
+            let after:Data,stored:String,settled:Data
+            do {
+                after=try refValue(recovery)
+                stored=try run(["notes","--ref="+note.notesRef,"list",note.revision],successfulExitCodes:0...1,cancellation:recovery).text.trimmingCharacters(in:.newlines)
+                settled=try refValue(recovery)
+            } catch {throw CommitNoteFailure.saveOutcomeUnknown(mutationError.localizedDescription+"\n\n"+error.localizedDescription)}
+            guard after==settled else {throw CommitNoteFailure.saveOutcomeUnknown(mutationError.localizedDescription)}
+            if stored==blob {throw CommitNoteFailure.savedButRefreshFailed(mutationError.localizedDescription)}
+            if before != after {throw CommitNoteFailure.saveOutcomeUnknown(mutationError.localizedDescription)}
+            throw mutationError
+        }
+        // A successful mutation remains successful even if cancellation prevents
+        // aggregate display refresh. The captured ref/revision are never replaced
+        // by whichever notes configuration is current when the edit finishes.
+        do {return try run(["show", "--encoding=UTF-8", "-s", "--notes", "--format=%N", note.revision, "--"],cancellation:token).text.trimmingCharacters(in: .newlines)}
+        catch {throw CommitNoteFailure.savedButRefreshFailed(error.localizedDescription)}
     }
     /// FF jumps inspect the actual graph, including ancestors omitted by filters/limits.
     public func historyJump(entries: [LogEntry], selected: Set<String>, kind: HistoryJumpKind, up: Bool, cancellation: OperationCancellation? = nil) throws -> Int? {

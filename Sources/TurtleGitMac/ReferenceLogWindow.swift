@@ -129,7 +129,10 @@ import TurtleGitCore
         model.invalidate();retireAlert();notePresenter?.close()
         if let child=window?.attachedSheet {window?.endSheet(child,returnCode:.abort);child.close()}
         model.unifiedWindow?.close(); model.unifiedWindow = nil
-        let completion = selectionCompletion; selectionCompletion = nil; completion?(nil); onClosed()
+        let completion=selectionCompletion;selectionCompletion=nil;completion?(nil)
+        if model.noteLog.noteWorkPending {
+            Task{@MainActor [self] in while model.noteLog.noteWorkPending{try? await Task.sleep(nanoseconds:5_000_000)};onClosed()}
+        }else{onClosed()}
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }

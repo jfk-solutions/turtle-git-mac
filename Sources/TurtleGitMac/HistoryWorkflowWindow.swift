@@ -5,122 +5,125 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class HistoryNotesWindowController: InputWindowController {
-    let model: HistoryNotesWindowModel
-    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences: UserDefaults) {
-        let notes = HistoryNotesWindowModel(repository: repository, access: access, revision: revision)
-        model = notes
-        super.init(title: "Edit Notes", hint: "Edit Notes", text: "", preferences: preferences) { [notes] text, _, token in
-            if token.isCancelled { throw CancellationError() }
-            try await notes.saveText(text)
+    let model:HistoryNotesWindowModel
+    private(set) var identitySession:NoteIdentitySession!
+    init(repository:GitRepository,access:RepositoryAccessLease?,revision:String,preferences:UserDefaults) {
+        let notes=HistoryNotesWindowModel(repository:repository,access:access,revision:revision);model=notes
+        super.init(title:"Edit Notes",hint:"Edit Notes",text:"",preferences:preferences){[notes] text,_,token in try await notes.saveText(text,cancellation:token)}
+        allowsSaveCancellation=true;closesAfterSavedNoteFailure=true
+        identitySession=NoteIdentitySession(repository:repository,access:access,preferences:preferences,parent:window!)
+        identitySession.available={ [weak notes] in notes?.invalidated==false }
+        notes.prepareIdentity={ [weak identitySession = self.identitySession] token in guard let identitySession else{throw OperationCancellationFailure.cancelled};return try await identitySession.require(token)}
+        pendingOwnedWork={ [weak self] in self?.model.hasPendingWork==true || self?.identitySession.hasPendingWork==true }
+        retireOwnedChildren={ [weak self] in self?.identitySession.retire();self?.model.invalidate() }
+        setInputState(ready:false,message:"Loading notes…")
+        onTextChanged={ [weak notes] text in notes?.text=text }
+        notes.onLoaded={ [weak self] note,settings in
+            guard let self else{return};self.retryPreparation=nil
+            self.configure(text:note.text,minimumLength:note.minimumLength,settings:settings,issueProperties:self.model.issueProperties)
         }
-        setInputState(ready: false, message: "Loading notes…")
-        onTextChanged = { [weak notes] text in notes?.text = text }
-        notes.onLoaded = { [weak self] note, settings in
-            guard let self else { return }
-            self.configure(text: note.text, minimumLength: note.minimumLength, settings: settings, issueProperties: self.model.issueProperties)
+        notes.onStateChanged={ [weak self,weak notes] in
+            guard let self,let notes,notes.snapshot==nil else{return}
+            self.retryPreparation = !notes.loading && notes.error != nil ? { [weak notes] in notes?.load() }:nil
+            self.setInputState(ready:false,message:notes.error ?? (notes.loading ? "Loading notes…":nil))
         }
-        notes.onStateChanged = { [weak self, weak notes] in
-            guard let self, let notes, notes.snapshot == nil else { return }
-            self.setInputState(ready: false, message: notes.error ?? (notes.loading ? "Loading notes…" : nil))
-        }
-        notes.close = { [weak self] in
-            guard let self, !self.model.saving else { return }
-            if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
+        notes.close={ [weak self] in
+            guard let self,!self.model.saving else{return}
+            if let window=self.window{window.sheetParent?.endSheet(window);window.close()}
         }
     }
-    override func windowShouldClose(_ sender: NSWindow) -> Bool { !model.saving && sender.attachedSheet == nil && super.windowShouldClose(sender) }
-    override func windowWillClose(_ notification: Notification) { model.invalidate(); super.windowWillClose(notification) }
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    override func windowShouldClose(_ sender:NSWindow)->Bool {guard sender.attachedSheet==nil else{return false};return super.windowShouldClose(sender)}
+    override func windowWillClose(_ notification:Notification){identitySession.retire();model.invalidate();super.windowWillClose(notification)}
+    required init?(coder:NSCoder){fatalError("init(coder:) is not supported")}
 }
 
-@MainActor final class HistoryNotesWindowModel: ObservableObject {
-    private(set) static var activeMutations = 0
-    private(set) static var activeReads = 0
-    let repository: GitRepository
-    let access: RepositoryAccessLease?
-    let revision: String
-    @Published var text = ""
-    @Published private(set) var loading = false
-    @Published private(set) var saving = false
-    @Published var error: String?
-    private(set) var issueProperties = IssueTrackerProperties()
-    private(set) var snapshot: CommitNoteSnapshot?
-    private var invalidated = false
-    private var cancellation: OperationCancellation?
-    private var worker: Task<Void, Never>?
-    var close: () -> Void = {}
-    var onChanged: (String) -> Void = { _ in }
-    var read: ((OperationCancellation) async throws -> (CommitNoteSnapshot, ProjectDialogSettings))?
-    var onLoaded: (CommitNoteSnapshot, ProjectDialogSettings) -> Void = { _, _ in }
-    var onStateChanged: () -> Void = {}
-    var canSave: Bool { !invalidated && !loading && !saving && snapshot?.accepts(text) == true }
-    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String) { self.repository = repository; self.access = access; self.revision = revision }
-    private func validateAccess() throws {
-        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+@MainActor final class HistoryNotesWindowModel:ObservableObject {
+    private(set) static var activeMutations=0
+    private(set) static var activeReads=0
+    let repository:GitRepository
+    let access:RepositoryAccessLease?
+    let revision:String
+    @Published var text=""
+    @Published private(set) var loading=false
+    @Published private(set) var saving=false
+    @Published var error:String?
+    private(set) var issueProperties=IssueTrackerProperties()
+    private(set) var snapshot:CommitNoteSnapshot?
+    private(set) var invalidated=false
+    private var cancellation:OperationCancellation?,saveCancellation:OperationCancellation?
+    private var worker:Task<Void,Never>?
+    private var readWorkers=0
+    var hasPendingWork:Bool {readWorkers>0 || saving}
+    var close:()->Void={}
+    var onChanged:(String)->Void={_ in}
+    var read:((OperationCancellation)async throws->(CommitNoteSnapshot,ProjectDialogSettings))?
+    var prepareIdentity:((OperationCancellation)async throws->Bool)?
+    var writeNote:((CommitNoteSnapshot,String,OperationCancellation)async throws->String)?
+    var onLoaded:(CommitNoteSnapshot,ProjectDialogSettings)->Void={_,_ in}
+    var onStateChanged:()->Void={}
+    var canSave:Bool {!invalidated && !loading && !saving && snapshot?.accepts(text)==true}
+    init(repository:GitRepository,access:RepositoryAccessLease?,revision:String){self.repository=repository;self.access=access;self.revision=revision}
+    private func validateAccess()throws{
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true){throw RepositoryAccessFailure.securityScopeUnavailable}
     }
-    func load() {
-        guard !invalidated, !loading, !saving, snapshot == nil else { return }
-        loading = true; error = nil; onStateChanged()
-        let token = OperationCancellation(); cancellation = token
-        Self.activeReads += 1
-        worker = Task { [weak self, access, repository, revision] in
-            defer { Self.activeReads -= 1 }
-            _ = access
-            do {
-                guard let self else { return }; try self.validateAccess()
-                let note: CommitNoteSnapshot, settings: ProjectDialogSettings
-                if let read = self.read { (note, settings) = try await read(token) }
-                else {
-                    note = try await repository.editableCommitNote(revision: revision, cancellation: token)
-                    settings = try await repository.projectDialogSettings(source: .effective, cancellation: token)
-                    let properties = try await repository.issueTrackerProperties(cancellation: token)
-                    guard !self.invalidated, self.cancellation === token, !token.isCancelled else { return }
-                    self.issueProperties = properties
+    func load(){
+        guard !invalidated,!loading,!saving,snapshot==nil else{return}
+        loading=true;error=nil;onStateChanged()
+        let token=OperationCancellation();cancellation=token;Self.activeReads += 1;readWorkers += 1
+        worker=Task{[self,access] in
+            defer{
+                Self.activeReads -= 1;readWorkers -= 1;withExtendedLifetime(access){}
+                if cancellation === token{cancellation=nil;worker=nil;loading=false;if !invalidated{onStateChanged()}}
+            }
+            do{
+                try validateAccess()
+                let ready:Bool
+                if let prepareIdentity{ready=try await prepareIdentity(token)}else{ready=try await repository.replayUserIdentity(cancellation:token).complete}
+                guard !invalidated,cancellation === token,!token.isCancelled else{return}
+                guard ready else{loading=false;close();return}
+                let note:CommitNoteSnapshot,settings:ProjectDialogSettings
+                if let read{(note,settings)=try await read(token)}else{
+                    note=try await repository.editableCommitNote(revision:revision,cancellation:token)
+                    settings=try await repository.projectDialogSettings(source:.effective,cancellation:token)
+                    let properties=try await repository.issueTrackerProperties(cancellation:token)
+                    guard !invalidated,cancellation === token,!token.isCancelled else{return};issueProperties=properties
                 }
-                guard !self.invalidated, self.cancellation === token, !token.isCancelled else { return }
-                self.snapshot = note; self.text = note.text
-                self.loading = false; self.onLoaded(note, settings)
-            } catch { if let self, !self.invalidated, self.cancellation === token, !token.isCancelled { self.error = error.localizedDescription } }
-            guard let self, self.cancellation === token else { return }
-            self.cancellation = nil; self.worker = nil; self.loading = false
-            if !self.invalidated { self.onStateChanged() }
+                guard !invalidated,cancellation === token,!token.isCancelled else{return}
+                snapshot=note;text=note.text;loading=false;onLoaded(note,settings)
+            }catch{if !invalidated,cancellation === token,!token.isCancelled{self.error=error.localizedDescription}}
         }
     }
-    private func beginSave(_ captured: String) -> CommitNoteSnapshot? {
-        guard !invalidated, !loading, !saving, let snapshot, snapshot.accepts(captured) else { return nil }
-        saving = true; error = nil; Self.activeMutations += 1
-        return snapshot
+    private func beginSave(_ text:String,token:OperationCancellation)->CommitNoteSnapshot?{
+        guard !invalidated,!loading,!saving,!token.isCancelled,let snapshot,snapshot.accepts(text) else{return nil}
+        saving=true;error=nil;saveCancellation=token;Self.activeMutations += 1;return snapshot
     }
-    func save() {
-        let captured = text
-        guard let note = beginSave(captured) else { return }
-        worker = Task { [weak self] in
-            guard let self else { Self.activeMutations -= 1; return }
-            do { try await self.persistNote(note, text: captured); if !self.invalidated { self.worker = nil; self.close() } }
-            catch { if !self.invalidated { self.worker = nil } }
+    func save(){
+        let captured=text,token=OperationCancellation()
+        guard let note=beginSave(captured,token:token) else{return}
+        worker=Task{[self] in
+            do{try await persistNote(note,text:captured,cancellation:token);if !invalidated{worker=nil;close()}}
+            catch{if !invalidated{worker=nil}}
         }
     }
-    func saveText(_ captured: String) async throws {
-        guard let note = beginSave(captured) else { throw CommitNoteFailure.invalidText }
-        try await persistNote(note, text: captured)
+    func saveText(_ captured:String,cancellation:OperationCancellation?=nil)async throws{
+        let token=cancellation ?? OperationCancellation()
+        guard let note=beginSave(captured,token:token) else{throw CommitNoteFailure.invalidText}
+        try await persistNote(note,text:captured,cancellation:token)
     }
-    private func persistNote(_ note: CommitNoteSnapshot, text: String) async throws {
-        let result: Result<String, Error>
-        do {
-            guard !invalidated else { throw CancellationError() }
-            try validateAccess()
-            result = .success(try await repository.saveCommitNote(note, text: text))
-        } catch { result = .failure(error) }
-        saving = false; Self.activeMutations -= 1
-        guard !invalidated else { return }
-        switch result {
-        case .success(let display): onChanged(display)
-        case .failure(let failure):
-            if let noteFailure = failure as? CommitNoteFailure, case .savedButRefreshFailed = noteFailure { onChanged(failure.localizedDescription) }
-            error = failure.localizedDescription; throw failure
+    private func persistNote(_ note:CommitNoteSnapshot,text:String,cancellation token:OperationCancellation)async throws{
+        defer{saving=false;Self.activeMutations -= 1;if saveCancellation === token{saveCancellation=nil};withExtendedLifetime(access){}}
+        do{
+            guard !invalidated else{throw OperationCancellationFailure.cancelled};try token.check();try validateAccess()
+            let display:String
+            if let writeNote{display=try await writeNote(note,text,token)}else{display=try await repository.saveCommitNote(note,text:text,cancellation:token)}
+            guard !invalidated,saveCancellation === token else{return};onChanged(display)
+        }catch{
+            guard !invalidated else{throw error}
+            if let failure=error as? CommitNoteFailure,case .savedButRefreshFailed = failure{onChanged(failure.localizedDescription)}
+            self.error=error.localizedDescription;throw error
         }
     }
-    func invalidate() { invalidated = true; cancellation?.cancel(); cancellation = nil; if !saving { worker?.cancel() }; worker = nil; loading = false }
+    func invalidate(){invalidated=true;cancellation?.cancel();saveCancellation?.cancel();worker?.cancel()}
 }
 @MainActor final class HistoryRevertWindowController: NSWindowController, NSWindowDelegate {
     let model: HistoryRevertWindowModel
