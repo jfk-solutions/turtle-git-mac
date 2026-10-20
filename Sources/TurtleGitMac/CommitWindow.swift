@@ -28,6 +28,13 @@ import UniformTypeIdentifiers
     init(alert:NSAlert,token:OperationCancellation,completion:@escaping(CommitWindowModel.DetachedHeadChoice)->Void){self.alert=alert;self.token=token;self.completion=completion}
 }
 
+@MainActor private final class CommitConflictQuestionState {
+    let alert:NSAlert,token:OperationCancellation
+    var completion:(((accepted:Bool,remember:Bool)?)->Void)?,watcher:Task<Void,Never>?
+    var settling=false
+    init(alert:NSAlert,token:OperationCancellation,completion:@escaping((accepted:Bool,remember:Bool)?)->Void){self.alert=alert;self.token=token;self.completion=completion}
+}
+
 @MainActor final class CommitWindowController: NSWindowController, NSWindowDelegate {
     let model: CommitWindowModel
     private(set) var commandMenu:CommitCommandMenu?
@@ -62,6 +69,9 @@ import UniformTypeIdentifiers
     private let preferences: UserDefaults
     private(set) var templatePanel: NSOpenPanel?
     private var closingCommit = false
+    private var conflictQuestionState:CommitConflictQuestionState?
+    private(set) var mergeHintAlert:NSAlert?
+    var presentConflictQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool={owner,alert,reply in alert.beginSheetModal(for:owner,completionHandler:reply);return true}
     private var commitIdentityQuestion:CommitIdentityQuestionState?
     var identityQuestion:NSAlert? {commitIdentityQuestion?.alert}
     private var identitySettings:SettingsSheetController?
@@ -158,7 +168,7 @@ import UniformTypeIdentifiers
         }
         model.cancelUnversionedFilesPrompt = { [weak self] in self?.finishUnversionedFilesPrompt() }
         visibilitySheetObservation=NotificationCenter.default.publisher(for:NSWindow.didEndSheetNotification,object:window).sink { [weak self] _ in
-            DispatchQueue.main.async { [weak self] in guard let self,!self.closingCommit else {return};self.model.offerStagingHint();self.model.offerUnversionedFiles() }
+            DispatchQueue.main.async { [weak self] in guard let self,!self.closingCommit else {return};self.model.offerMergeHint();self.model.offerStagingHint();self.model.offerUnversionedFiles() }
         }
         model.authorizeTemplateFile = { [weak self, weak window] file in
             guard let self, let window, !self.closingCommit, window.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
@@ -277,15 +287,33 @@ import UniformTypeIdentifiers
                 choose(response == .alertFirstButtonReturn)
             }
         }
-        model.confirmUnresolvedConflicts={ [weak self,weak window] paths,choose in
-            guard let self,!self.closingCommit,let window,window.attachedSheet==nil else { choose(false);return }
+        model.onFocusConflictedFile={ [weak self] key,path in
+            guard let self else{return}
+            let receipt=self.model.fileCheckReceipt
+            Task{@MainActor [weak self] in
+                for _ in 0..<200 {
+                    guard let self,!self.closingCommit,!self.model.confirmingQuit,self.model.messageFocusAvailable,
+                          self.model.fileCheckReceipt==receipt,self.model.selection==GitPathSet([path]) else{return}
+                    if self.commandsAvailable,self.model.focusConflictFile(key:key,path:path) {return}
+                    try? await Task.sleep(nanoseconds:5_000_000)
+                }
+            }
+        }
+        model.confirmConflictedSelection={ [weak self] paths,token in
+            guard let self else{return nil}
             let alert=NSAlert();alert.alertStyle = .warning;alert.messageText="One or more files are in a conflicted state."
             alert.informativeText="OK selects the first conflicted file. Ignore continues with the current commit selection.\n\n"+paths.prefix(8).joined(separator:"\n")
-            alert.addButton(withTitle:"OK");alert.addButton(withTitle:"Ignore");self.preflightAlert=alert
-            alert.beginSheetModal(for:window) { [weak self] response in
-                guard let self else { choose(false);return };if self.preflightAlert===alert { self.preflightAlert=nil }
-                choose(!self.closingCommit && response == .alertSecondButtonReturn)
-            }
+            alert.addButton(withTitle:"OK");alert.addButton(withTitle:"Ignore")
+            guard let result=await self.askConflictQuestion(alert,token:token,mergeHint:false) else{return nil}
+            return (ignore:result.accepted,remember:result.remember)
+        }
+        model.presentMergeHint={ [weak self] token in
+            guard let self else{return nil}
+            let alert=NSAlert();alert.alertStyle = .informational
+            alert.messageText="The commit you are composing is a special commit. It is a merge commit and, thus contains your changes as well as the changes of a merged branch."
+            alert.informativeText="You should NOT uncheck files unless you know what you are doing.\n\nWhen you merge changes, conflicts can arise that must be solved manually (i.e., you need to integrate your changes into a file which was also modified on another branch).\n\nSee help for more information."
+            alert.addButton(withTitle:"OK")
+            return await self.askConflictQuestion(alert,token:token,mergeHint:true)?.remember
         }
         model.confirmBranchTagCollision={ [weak self,weak window] name,choose in
             guard let self,!self.closingCommit,let window,window.attachedSheet==nil else { choose(false);return }
@@ -377,6 +405,49 @@ import UniformTypeIdentifiers
             if commitIdentityQuestion === pending {commitIdentityQuestion=nil}
             let reply=pending.completion;pending.completion=nil
             reply?(accepted && !closingCommit && !model.confirmingQuit && !pending.token.isCancelled)
+        }
+    }
+    private func askConflictQuestion(_ alert:NSAlert,token:OperationCancellation,mergeHint:Bool)async->(accepted:Bool,remember:Bool)? {
+        guard !closingCommit,!model.confirmingQuit,!token.isCancelled,conflictQuestionState==nil,let owner=window,owner.attachedSheet==nil else{return nil}
+        alert.showsSuppressionButton=true;alert.suppressionButton?.title="Do not show this message again"
+        alert.window.alphaValue=owner.alphaValue;alert.window.appearance=owner.effectiveAppearance
+        return await withCheckedContinuation {reply in
+            let pending=CommitConflictQuestionState(alert:alert,token:token){reply.resume(returning:$0)}
+            conflictQuestionState=pending
+            if mergeHint {mergeHintAlert=alert} else {preflightAlert=alert}
+            pending.watcher=Task{@MainActor [weak self,weak pending] in
+                while !Task.isCancelled {
+                    guard let self,let pending,self.conflictQuestionState===pending,!pending.settling else{return}
+                    if token.isCancelled || self.closingCommit || self.model.confirmingQuit {self.settleConflictQuestion(pending,result:nil);return}
+                    try? await Task.sleep(nanoseconds:5_000_000)
+                }
+            }
+            let presented=presentConflictQuestion(owner,alert){ [weak self,weak pending] response in
+                guard let self,let pending else{return}
+                let valid = !self.closingCommit && !self.model.confirmingQuit && !token.isCancelled
+                let result:(accepted:Bool,remember:Bool)? = valid && (response == .alertFirstButtonReturn || !mergeHint && response == .alertSecondButtonReturn) ? (mergeHint || response == .alertSecondButtonReturn,alert.suppressionButton?.state == .on):nil
+                self.settleConflictQuestion(pending,result:result)
+            }
+            if !presented {settleConflictQuestion(pending,result:nil)}
+        }
+    }
+    private func settleConflictQuestion(_ pending:CommitConflictQuestionState,result:(accepted:Bool,remember:Bool)?) {
+        guard conflictQuestionState===pending,!pending.settling else{return}
+        pending.settling=true;pending.watcher?.cancel();pending.watcher=nil
+        let child=pending.alert.window,owner=window
+        if child.sheetParent != nil {child.sheetParent?.endSheet(child,returnCode:.cancel)}
+        child.orderOut(nil)
+        Task{@MainActor [self,pending] in
+            while child.sheetParent != nil || owner?.attachedSheet===child {
+                await withCheckedContinuation{reply in DispatchQueue.main.asyncAfter(deadline:.now()+0.005){reply.resume()}}
+            }
+            child.close()
+            guard conflictQuestionState===pending else{return}
+            conflictQuestionState=nil
+            if preflightAlert===pending.alert {preflightAlert=nil}
+            if mergeHintAlert===pending.alert {mergeHintAlert=nil}
+            let answer=pending.completion;pending.completion=nil
+            answer?(!closingCommit && !model.confirmingQuit && !pending.token.isCancelled ? result:nil)
         }
     }
     private func showCommitIdentitySettings(_ token:OperationCancellation)async->Bool {
@@ -489,6 +560,7 @@ import UniformTypeIdentifiers
         // End-sheet callbacks may run synchronously while native children retire.
         // Fence owner actions before dismissing any of those children.
         closingCommit = true
+        if let pending=conflictQuestionState {settleConflictQuestion(pending,result:nil)}
         retireCommitIdentityChildren();retireDetachedChildren()
         commandMenu?.retire();visibilitySheetObservation=nil;finishUnversionedFilesPrompt()
         let hintAnswer=stagingHintAnswer;stagingHintAnswer=nil;stagingHintAlert=nil;hintAnswer?(nil)
@@ -500,9 +572,9 @@ import UniformTypeIdentifiers
         }
         logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close()
         addProgressController?.close()
-        if addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending || model.attemptWorkPending || model.issueProviderWorkPending {
+        if model.fileWorkPending || conflictQuestionState != nil || model.mergeHintVisible || addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending || model.attemptWorkPending || model.issueProviderWorkPending {
             Task{@MainActor [self] in
-                while addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending || model.attemptWorkPending || model.issueProviderWorkPending {
+                while model.fileWorkPending || conflictQuestionState != nil || model.mergeHintVisible || addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending || model.attemptWorkPending || model.issueProviderWorkPending {
                     await withCheckedContinuation{reply in DispatchQueue.main.asyncAfter(deadline:.now()+0.005){reply.resume()}}
                 };onClosed()
             }
@@ -624,7 +696,7 @@ import UniformTypeIdentifiers
     func windowDidResize(_ notification: Notification) { followPartial() }
     func windowWillMiniaturize(_ notification: Notification) { partial?.window?.orderOut(nil) }
     func windowDidDeminiaturize(_ notification: Notification) { showPartialWithoutActivation() }
-    func windowDidBecomeKey(_ notification: Notification) {commandMenu?.install();showPartialWithoutActivation();model.offerStagingHint();model.offerUnversionedFiles()}
+    func windowDidBecomeKey(_ notification: Notification) {commandMenu?.install();showPartialWithoutActivation();model.offerMergeHint();model.offerStagingHint();model.offerUnversionedFiles()}
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -934,6 +1006,12 @@ import UniformTypeIdentifiers
     var confirmCancel: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     private var originalAmendMessage = ""
     var confirmUneditedTemplate: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
+    private let conflictFocusProbes=NSMapTable<NSString,CommitFileInteraction.Probe>(keyOptions:.strongMemory,valueOptions:.weakMemory)
+    func registerFileList(_ probe:CommitFileInteraction.Probe,key:String) {conflictFocusProbes.setObject(probe,forKey:key as NSString)}
+    func focusConflictFile(key:String,path:String)->Bool {conflictFocusProbes.object(forKey:key as NSString)?.focusFile(path) ?? false}
+    var onFocusConflictedFile:(String,String)->Void={_,_ in}
+    var confirmConflictedSelection:(([String],OperationCancellation)async->(ignore:Bool,remember:Bool)?)?
+    var presentMergeHint:((OperationCancellation)async->Bool?)?
     var confirmUnresolvedConflicts:([String],@escaping (Bool)->Void)->Void = { _,choose in choose(false) }
     var confirmBranchTagCollision:(String,@escaping (Bool)->Void)->Void = { _,choose in choose(false) }
     enum DetachedHeadChoice {case createBranch,continueDetached,cancel}
@@ -985,10 +1063,11 @@ import UniformTypeIdentifiers
     private func validatePreflight(_ request:UUID,_ token:OperationCancellation) throws {
         guard messageFocusAvailable,preflightRequest==request,!token.isCancelled else { throw OperationCancellationFailure.cancelled }
     }
+    var fileListFocusKey:String {stagingEnabled ? (stagedDiff ? "staged":"unstaged"):"checkbox"}
     private func focusConflictedFile(_ conflicts:[StatusEntry]) {
         guard let first=visibleEntries.first(where:{ $0.state == .conflicted }) ?? conflicts.first else { return }
         if !visibleEntries.contains(where:{ GitReferenceName.equal($0.path,first.path) }) { showWholeProject=true }
-        selection=[first.id];focusedFiles[stagingEnabled ? "unstaged" : "checkbox"]=first.id
+        selection=[first.id];focusedFiles[fileListFocusKey]=first.id
     }
     var confirmMissingIssue: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     var confirmConflictHints: (@escaping (Bool, Bool) -> Void) -> Void = { choose in choose(false, false) }
@@ -1202,6 +1281,7 @@ import UniformTypeIdentifiers
     @Published private var stagingStates: GitPathMap<NSControl.StateValue>?
     func stagingState(_ entry: StatusEntry) -> NSControl.StateValue {
         if let stagingStates { return stagingStates[entry.path] ?? .off }
+        if entry.state == .conflicted {return .off}
         return entry.staged ? (entry.worktree == " " ? .on : .mixed) : .off
     }
     func isStaged(_ entry: StatusEntry) -> Bool { stagingState(entry) != .off }
@@ -1217,12 +1297,12 @@ import UniformTypeIdentifiers
         guard messageFocusAvailable, !busy, !pendingReloadCancel else { return }
         let position = fileListRefresh.begin(preferences:dialogDefaults,selectedIDs:selection)
         fileMenuGeneration = UUID(); busy = true; stagingStateNeedsRefresh = true
-        Self.activeFileOperations += 1
+        Self.activeFileOperations += 1;pendingFileOperations += 1
         let token = OperationCancellation(); reloadCancellation = token
         let base = comparisonBase, retainedEntries = entries
         reloadTask = Task {
             defer {
-                Self.activeFileOperations -= 1;fileListRefresh.finish(position)
+                Self.activeFileOperations -= 1;pendingFileOperations -= 1;fileListRefresh.finish(position)
                 if reloadCancellation === token { reloadCancellation = nil; reloadTask = nil; busy = false }
                 withExtendedLifetime(access) {}
             }
@@ -1252,6 +1332,8 @@ import UniformTypeIdentifiers
     let missingStagedRecovery = MissingStagedFileRecoverySession()
     private var filterPosition:FileListRefreshCoordinator.Ticket?
     private(set) static var activeFileOperations = 0
+    private(set) var pendingFileOperations=0
+    var fileWorkPending:Bool {pendingFileOperations>0}
     private var fileMenuGeneration = UUID()
     private var activeFileMenu: StatusFileMenuSnapshot?
     private var fileOperationToken: OperationCancellation?
@@ -1276,7 +1358,7 @@ import UniformTypeIdentifiers
         return StatusFileMenuSnapshot(generation: fileMenuGeneration, entries: selected, mark: focused, commands: commands, markIsDirectory: focused.map(directory) ?? false)
     }
     private func acceptsFileMenu(_ snapshot: StatusFileMenuSnapshot, duringOperation: Bool = false) -> Bool {
-        guard !messageOnly,messageFocusAvailable,!savingPreferences,!stagingHintVisible,!unversionedPromptVisible,!confirmingQuit,!pendingReloadCancel,duringOperation || !busy,
+        guard !messageOnly,messageFocusAvailable,!savingPreferences,!mergeHintVisible,!stagingHintVisible,!unversionedPromptVisible,!confirmingQuit,!pendingReloadCancel,duringOperation || !busy,
               snapshot.generation == fileMenuGeneration, !snapshot.entries.isEmpty else { return false }
         let current = GitPathMap(entries.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         return snapshot.entries.allSatisfy { current[$0.path] == $0 } && (snapshot.mark.map { current[$0.path] == $0 } ?? true)
@@ -1298,10 +1380,10 @@ import UniformTypeIdentifiers
         let snapshot = activeFileMenu
         guard snapshot.map({ acceptsFileMenu($0) }) ?? true else { return }
         let token = OperationCancellation(); fileOperationToken = token
-        busy = true; fileOperationCancelling = false; fileOperationTitle = title; Self.activeFileOperations += 1
+        busy = true; fileOperationCancelling = false; fileOperationTitle = title; Self.activeFileOperations += 1;pendingFileOperations += 1
         Task {
             defer {
-                Self.activeFileOperations -= 1
+                Self.activeFileOperations -= 1;pendingFileOperations -= 1
                 if fileOperationToken === token { fileOperationToken = nil; busy = false; fileOperationCancelling = false; fileOperationTitle = "" }
                 withExtendedLifetime(access) {}
             }
@@ -1470,9 +1552,9 @@ import UniformTypeIdentifiers
         }, completed: { [self] in reload() }, failed: { [self] in reload() })
     }
 
-    func moveToStage(_ paths: some Sequence<String>, staged: Bool) { let paths = GitPathSet(paths);
-        guard fileListAvailable else { return }
-        let valid = entries.filter { paths.contains($0.id) && $0.state != .conflicted }
+    func moveToStage(_ paths: some Sequence<String>, staged: Bool,receipt:FileCheckReceipt? = nil) { let paths = GitPathSet(paths);
+        guard acceptsFileCheck(receipt) else { return }
+        let valid = entries.filter { paths.contains($0.id) }
         guard !valid.isEmpty else { return }
         let amendToParent = self.amendToParent
         runFileOperation(staged ? "Staging selected files…" : "Unstaging selected files…", operation: { [self] token, _ in
@@ -1574,7 +1656,7 @@ import UniformTypeIdentifiers
         return changelists.name(for: entry.path).map { origin + (origin.isEmpty ? "" : "\n") + "Changelist: " + $0 } ?? origin
     }
     var checkedPathsForCommit: GitPathSet { GitPathSet(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
-    var canCommit: Bool { messageFocusAvailable && !stagingStateNeedsRefresh && !savingPreferences && !stagingHintVisible && !unversionedPromptVisible && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && !loadingImportedMessage && (!amend || !amendMessageReadFailed) && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: { isStaged($0) }) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { messageFocusAvailable && !stagingStateNeedsRefresh && !savingPreferences && !mergeHintVisible && !stagingHintVisible && !unversionedPromptVisible && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && !loadingImportedMessage && (!amend || !amendMessageReadFailed) && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: { isStaged($0) }) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { GitReferenceName.equal(path,source) ? destination : path.utf8.starts(with:(source + "/").utf8) ? destination + path.dropFirst(source.count) : path }
         checked = GitPathSet(checked.map(moved)); selection = GitPathSet(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -1661,7 +1743,7 @@ import UniformTypeIdentifiers
         reloadTask = Task {
             defer {
                 Self.activeReloads -= 1; fileListRefresh.finish(position); withExtendedLifetime(access) {}
-                if reloadCancellation === token {reloadCancellation=nil;reloadTask=nil;busy=false;offerStagingHint();offerUnversionedFiles()}
+                if reloadCancellation === token {reloadCancellation=nil;reloadTask=nil;busy=false;offerMergeHint();offerStagingHint();offerUnversionedFiles()}
             }
             do {
                 try validateRestoreAccess()
@@ -1766,7 +1848,7 @@ import UniformTypeIdentifiers
                         let directFile=requestedScope.contains(entry.path)
                         let missing=entry.worktree == "D"
                         let automatic=(selectFilesAutomatically || replaySplit != nil) && entry.state != .untracked && (!doNotAutoselectMissing || !missing)
-                        return inScope && (directFile || automatic) && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted
+                        return inScope && (directFile || automatic) && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path))
                     }.map(\.id))
                 } else {checked.formIntersection(GitPathSet(entries.map(\.id)))}
                 for item in droppedChecks {
@@ -1774,7 +1856,7 @@ import UniformTypeIdentifiers
                         let missing=entry.worktree == "D"
                         let automatic=(selectFilesAutomatically || replaySplit != nil) && entry.state != .untracked && (!doNotAutoselectMissing || !missing)
                         let direct=requestedScope.contains(entry.path)
-                        if (direct || automatic) && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted {checked.insert(entry.id)}
+                        if (direct || automatic) && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) {checked.insert(entry.id)}
                         else {checked.remove(entry.id)}
                     }
                 }
@@ -1858,6 +1940,20 @@ import UniformTypeIdentifiers
     }
     private(set) static var activePreferenceOperations=0
     @Published private(set) var savingPreferences=false
+    @Published private(set) var mergeHintVisible=false
+    private var mergeHintOffered=false
+    private var mergeHintCancellation:OperationCancellation?
+    func offerMergeHint() {
+        guard hasLoaded,operation == .merge,!mergeHintOffered,messageFocusAvailable,!inputsBlocked,let presentMergeHint else{return}
+        if dialogDefaults.integer(forKey:"CommitMergeHint") != 0 {mergeHintOffered=true;return}
+        let token=OperationCancellation();mergeHintCancellation=token;mergeHintVisible=true;Self.activePreferenceOperations += 1
+        Task { [self,access] in
+            defer {Self.activePreferenceOperations -= 1;withExtendedLifetime(access){};if mergeHintCancellation===token {mergeHintCancellation=nil;mergeHintVisible=false;offerStagingHint();offerUnversionedFiles()}}
+            let remember=await presentMergeHint(token)
+            guard messageFocusAvailable,!confirmingQuit,!token.isCancelled,mergeHintCancellation===token,operation == .merge else{return}
+            if let remember {mergeHintOffered=true;if remember {dialogDefaults.set(1,forKey:"CommitMergeHint")}}
+        }
+    }
     @Published private(set) var stagingHintVisible=false
     private var preferenceTask:Task<Void,Never>?
     private var preferenceCancellation:OperationCancellation?
@@ -1926,27 +2022,34 @@ import UniformTypeIdentifiers
             }
         }
     }
-    func check(_ predicate: (StatusEntry) -> Bool,checking:Bool = true) {
-        guard fileListAvailable else {return}
-        let paths = GitPathSet(visibleEntries.filter {(!checking || $0.state != .conflicted) && predicate($0)}.map(\.id))
+    struct FileCheckReceipt:Equatable {
+        let generation:UUID,staging:Bool,files:[StatusEntry]
+    }
+    var fileCheckReceipt:FileCheckReceipt {FileCheckReceipt(generation:fileMenuGeneration,staging:stagingEnabled,files:visibleEntries)}
+    private func acceptsFileCheck(_ receipt:FileCheckReceipt?) -> Bool {
+        fileListAvailable && (receipt == nil || receipt == fileCheckReceipt)
+    }
+    func check(_ predicate: (StatusEntry) -> Bool,checking:Bool = true,receipt:FileCheckReceipt? = nil) {
+        guard acceptsFileCheck(receipt) else {return}
+        let paths = GitPathSet(visibleEntries.filter {predicate($0)}.map(\.id))
         if stagingEnabled {moveToStage(paths,staged:checking)} else if checking {checked.formUnion(paths)} else {checked.subtract(paths)}
     }
-    func setGroupChecked(_ files: [StatusEntry], checked value: Bool) {
-        guard fileListAvailable else {return}
+    func setGroupChecked(_ files: [StatusEntry], checked value: Bool,receipt:FileCheckReceipt? = nil) {
+        guard acceptsFileCheck(receipt),files.allSatisfy({visibleEntries.contains($0)}) else {return}
         let paths = GitPathSet(files.map(\.id))
         if stagingEnabled { moveToStage(paths, staged: value) }
         else if value { checked.formUnion(paths) }
         else { checked.subtract(paths) }
     }
-    func setFileChecked(_ entry: StatusEntry, files: [StatusEntry], highlighted: some Sequence<String>, checked value: Bool) { let highlighted = GitPathSet(highlighted);
-        guard fileListAvailable,entry.state != .conflicted else {return}
+    func setFileChecked(_ entry: StatusEntry, files: [StatusEntry], highlighted: some Sequence<String>, checked value: Bool,receipt:FileCheckReceipt? = nil) { let highlighted = GitPathSet(highlighted);
+        guard acceptsFileCheck(receipt),files.contains(entry),files.allSatisfy({visibleEntries.contains($0)}) else {return}
         let targets = StatusListSelection.checkboxEntries(entry: entry, entries: files, highlighted: highlighted)
         let paths = GitPathSet(targets.map(\.id))
         if stagingEnabled { moveToStage(paths, staged: value) }
         else if value { checked.formUnion(paths) }
         else { checked.subtract(paths) }
     }
-    func checkAll(_ checking:Bool) {check({_ in true},checking:checking)}
+    func checkAll(_ checking:Bool,receipt:FileCheckReceipt? = nil) {check({_ in true},checking:checking,receipt:receipt)}
     func uncheckAll() {
         guard fileListAvailable else {return}
         if stagingEnabled { moveToStage(GitPathSet(visibleEntries.filter { isStaged($0) }.map(\.id)), staged: false) }
@@ -2051,6 +2154,7 @@ import UniformTypeIdentifiers
         missingStagedRecovery.retire()
         preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
         unversionedPromptRequest=UUID();unversionedPromptPending=false;unversionedPromptVisible=false;cancelUnversionedFilesPrompt()
+        mergeHintCancellation?.cancel()
         stagingHintRequest=UUID();stagingHintVisible=false;stagingHintPending=false
         preflightRequest=UUID();preflightCancellation?.cancel();preflightCancellation=nil
         if issueProviderPreflightPending {providerCommitAttemptTask?.cancel()}
@@ -2224,9 +2328,20 @@ import UniformTypeIdentifiers
                 try validatePreflight(preflight,preflightToken)
                 let conflicts=current.filter { $0.state == .conflicted }
                 if !conflicts.isEmpty {
-                    let ignore=await withCheckedContinuation { continuation in confirmUnresolvedConflicts(conflicts.map(\.path)) { continuation.resume(returning:$0) } }
+                    let saved=dialogDefaults.integer(forKey:"CommitWarnOnUnresolved")
+                    let ignore:Bool
+                    if saved == 1 || saved == 2 {ignore=saved == 2}
+                    else if let confirmConflictedSelection {
+                        let result=await confirmConflictedSelection(conflicts.map(\.path),preflightToken)
+                        try validatePreflight(preflight,preflightToken)
+                        guard let result else {busy=false;return}
+                        ignore=result.ignore
+                        if result.remember {dialogDefaults.set(ignore ? 2:1,forKey:"CommitWarnOnUnresolved")}
+                    } else {
+                        ignore=await withCheckedContinuation { continuation in confirmUnresolvedConflicts(conflicts.map(\.path)) { continuation.resume(returning:$0) } }
+                    }
                     try validatePreflight(preflight,preflightToken)
-                    guard ignore else { entries=current;focusConflictedFile(conflicts);busy=false;return }
+                    guard ignore else { entries=current;focusConflictedFile(conflicts);busy=false;if let path=selection.first {onFocusConflictedFile(fileListFocusKey,path)};return }
                     options.ignoreUnresolvedConflicts=true
                 }
                 if let name=options.newBranch {
@@ -2469,11 +2584,11 @@ import UniformTypeIdentifiers
             return label.padding(toLength: max(10, label.count), withPad: " ", startingAt: 0) + " " + entry.path + "\n"
         }.joined()
     }
-    private var operationInputsBlocked:Bool {loadingImportedMessage || busy || issueProviderBusy || confirmingQuit || pendingReloadCancel || savingPreferences || stagingHintVisible || unversionedPromptVisible}
+    private var operationInputsBlocked:Bool {loadingImportedMessage || busy || issueProviderBusy || confirmingQuit || pendingReloadCancel || savingPreferences || mergeHintVisible || stagingHintVisible || unversionedPromptVisible}
     var inputsBlocked:Bool {!commitIdentityPrepared || preparingCommitIdentity || operationInputsBlocked}
     var canRefresh:Bool {messageFocusAvailable && !operationInputsBlocked}
     var fileListAvailable:Bool {messageFocusAvailable && !messageOnly && !inputsBlocked}
-    var canCancel: Bool { messageFocusAvailable && !stagingHintVisible && !unversionedPromptVisible && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil || preparingDetachedHead || issueProviderPreflightPending) }
+    var canCancel: Bool { messageFocusAvailable && !mergeHintVisible && !stagingHintVisible && !unversionedPromptVisible && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil || preparingDetachedHead || issueProviderPreflightPending) }
     func cancel(closeWindow: Bool = true, completion: ((Bool) -> Void)? = nil) {
         cancel(closeWindow: closeWindow, completion: completion, confirmationAccepted: false)
     }
@@ -2502,7 +2617,7 @@ import UniformTypeIdentifiers
             };return
         }
         if missingStagedRecovery.busy { missingStagedRecovery.cancel(); completion?(false); return }
-        guard !stagingHintVisible,!unversionedPromptVisible else {completion?(false);return}
+        guard !mergeHintVisible,!stagingHintVisible,!unversionedPromptVisible else {completion?(false);return}
         if let task=preferenceTask {
             preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
             Task { [weak self] in
@@ -2859,6 +2974,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
         let statistics = model.statistics
         let entries = model.sortedFiles(entries, statistics: statistics)
         let focusKey = staged.map { $0 ? "staged" : "unstaged" } ?? "checkbox"
+        let checkReceipt=model.fileCheckReceipt
         let focus = Binding<String?>(get: { model.focusedFiles[focusKey] }, set: { model.focusedFiles[focusKey] = $0 })
         let ignored = GitPathSet(model.indexFlagFiles.filter { $0.assumeUnchanged || $0.skipWorktree }.map { $0.entry.path })
         let rows = StatusListGroups.rows(entries: entries, changelists: model.changelists, locallyIgnored: ignored)
@@ -2868,10 +2984,10 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             TableColumn("") { (row: CommitSortableRow) in
                 if let entry = row.entry {
                     if staged != nil {
-                        StagingCheckbox(entry:entry,state:model.stagingState(entry),enabled:model.fileListAvailable) { model.setFileChecked(entry, files: entries, highlighted: model.selection, checked: $0) }.frame(width: 20, height: 20)
+                        StagingCheckbox(entry:entry,state:model.stagingState(entry),enabled:model.fileListAvailable) { model.setFileChecked(entry, files: entries, highlighted: model.selection, checked: $0,receipt:checkReceipt) }.frame(width: 20, height: 20)
                     } else {
                         StagingCheckbox(entry:entry,state:model.checked.contains(entry.id) ? .on : .off,enabled:model.fileListAvailable,inclusion:true) {
-                            model.setFileChecked(entry,files:entries,highlighted:model.selection,checked:$0)
+                            model.setFileChecked(entry,files:entries,highlighted:model.selection,checked:$0,receipt:checkReceipt)
                         }.frame(width:20,height:20)
                     }
                 }
@@ -3051,11 +3167,11 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
-        .background(CommitFileInteraction(rows: rows, configureRefresh: {dropTargets.set($0,for:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
+        .background(CommitFileInteraction(rows: rows, configureRefresh: {dropTargets.set($0,for:focusKey);model.registerFileList($0,key:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
             String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata, lfsOwners: model.lfsOwners, label:FileListLabels.caption).dropLast())
         }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths, saveLayout: { model.saveFileColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: model.fileListAvailable, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
             let next = model.stagingEnabled ? model.stagingState(mark) != .on : !model.checked.contains(mark.id)
-            model.setFileChecked(mark, files: files, highlighted: GitPathSet(files.map(\.id)), checked: next)
+            model.setFileChecked(mark, files: files, highlighted: GitPathSet(files.map(\.id)), checked: next,receipt:checkReceipt)
         }))
         .onDrop(of: [UTType.fileURL], delegate: CommitFileDropDelegate(model: model, targets: dropTargets, key: focusKey))
         .onChange(of: model.selection) { ids in
@@ -3071,7 +3187,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
         } else { groupRule }
     }
     private var groupRule: some View { Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1) }
-    func checkButton(_ title: String, enabled: Bool = true, action: @escaping (Bool) -> Void) -> some View { Button {action(!NSEvent.modifierFlags.contains(.shift))} label: {Text(LocalizedStringKey(title)).underline(enabled).fontWeight(title == "All" || title == "None" ? .semibold:.regular)}.buttonStyle(.plain).foregroundStyle(enabled ? Color.accentColor : Color.secondary).disabled(!enabled).help(title == "None" ? "Uncheck all files. Shift-click checks all files." : "Check matching files. Shift-click unchecks matching files.") }
+    func checkButton(_ title: String, enabled: Bool = true, action: @escaping (Bool) -> Void) -> some View { let receipt=model.fileCheckReceipt;return Button {guard model.fileListAvailable,receipt==model.fileCheckReceipt else{return};action(!NSEvent.modifierFlags.contains(.shift))} label: {Text(LocalizedStringKey(title)).underline(enabled).fontWeight(title == "All" || title == "None" ? .semibold:.regular)}.buttonStyle(.plain).foregroundStyle(enabled ? Color.accentColor : Color.secondary).disabled(!enabled).help(title == "None" ? "Uncheck all files. Shift-click checks all files." : "Check matching files. Shift-click unchecks matching files.") }
 }
 
 /// Keep the source destination/issue bands on one line when they fit. At the
@@ -3203,7 +3319,7 @@ private struct StagingCheckbox: NSViewRepresentable {
         context.coordinator.nextChecked = state != .on
         button.allowsMixedState = !inclusion
         button.state = state
-        button.isEnabled=enabled && context.environment.isEnabled && entry.state != .conflicted
+        button.isEnabled=enabled && context.environment.isEnabled
         button.setAccessibilityLabel((inclusion ? "Include " : "Stage ") + entry.path)
         button.toolTip = inclusion ? "Include this file in the commit" : state != .off ? "Click to change staging; a mixed state stages the remaining working-tree changes." : "Click to stage the current file contents."
     }

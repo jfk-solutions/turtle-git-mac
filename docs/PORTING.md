@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+The [conflicted Commit family](COMMIT-CONFLICT-INDEX-PARITY.md) connects source
+checkbox selection and live staging state, current-content Stage, remembered
+OK/Ignore and merge hints, unchecked conflict resets, CLI command-phase effects
+and the distinct single-write library policy. Forty-four distinct relevant Core
+methods pass across the grouped checkpoint and focused repairs; all eight native
+case/engine pairs pass and all owned receivers are absent. Four complete light/dark
+captures were reviewed. [Dated evidence](qa/commit-conflicted-selection-2026-10-21.json)
+retains compiler/fixture/mode repairs and the limits of this local checkpoint.
+Full source/layout, physical/signed and hosted integration acceptance remain open.
+
 The [classic region/flood family](METAFILE-CLASSIC-REGION-FLOOD-PARITY.md) replaces
 silent flood omissions and per-rectangle frame approximations with destination
 connectivity and union-aware logical borders. It connects WMF region object

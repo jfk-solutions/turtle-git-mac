@@ -13,7 +13,7 @@ final class CommitSelectionTests: XCTestCase {
         return (root, repo)
     }
     func write(_ root: URL, _ path: String, _ text: String) throws { try Data(text.utf8).write(to: root.appendingPathComponent(path)) }
-    func testExplicitIgnoreCommitsCheckedMergeAndRetainsUnmergedIndex() async throws {
+    func testExplicitIgnoreCommitsCheckedMergeAndResetsUncheckedUnmergedIndex() async throws {
         let (root,repo)=try await fixture();defer { try? FileManager.default.removeItem(at:root) }
         for path in ["conflict.txt","checked.txt"] { try write(root,path,"base\n") };try await repo.stage(["conflict.txt","checked.txt"]);_ = try await repo.commit(message:"base")
         _ = try await repo.run(["checkout","-b","side"]);try write(root,"conflict.txt","side\n");try await repo.stage(["conflict.txt"]);_ = try await repo.commit(message:"side")
@@ -25,11 +25,11 @@ final class CommitSelectionTests: XCTestCase {
         let stages=try await repo.run(["ls-files","--unmerged","-z"]).stdout,conflict=try Data(contentsOf:root.appendingPathComponent("conflict.txt"))
         do { _ = try await repo.commitSelected(message:"guarded",paths:["checked.txt"]);XCTFail("Unresolved files require explicit Ignore") } catch is GitFailure {}
         var options=CommitOptions();options.ignoreUnresolvedConflicts=true
-        do { _ = try await repo.commitSelected(message:"checked conflict rejected",paths:["conflict.txt"],options:options);XCTFail("Checked conflicts must remain forbidden") } catch is GitFailure {}
+        options.checkboxIndexPolicy = .init(paths:["checked.txt","conflict.txt"],readdUnchecked:false)
         _ = try await repo.commitSelected(message:"explicit Ignore",paths:["checked.txt"],options:options)
         let parents=try await repo.run(["show","-s","--format=%P","HEAD"]).text,selected=try await repo.run(["show","HEAD:checked.txt"]).text,unselected=try await repo.run(["show","HEAD:conflict.txt"]).text
         XCTAssertEqual(parents,head+" "+side+"\n");XCTAssertEqual(selected,"selected\n");XCTAssertEqual(unselected,"main\n")
-        let retained=try await repo.run(["ls-files","--unmerged","-z"]).stdout;XCTAssertEqual(retained,stages);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("conflict.txt")),conflict)
+        let retained=try await repo.run(["ls-files","--unmerged","-z"]).stdout,indexed=try await repo.run(["show",":conflict.txt"]).text;XCTAssertFalse(stages.isEmpty);XCTAssertTrue(retained.isEmpty);XCTAssertEqual(indexed,"main\n");XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("conflict.txt")),conflict)
         let operation=try await repo.commitOperation();XCTAssertNil(operation)
     }
     func testBranchPreflightIsReadOnlyAndDistinguishesExistingTag() async throws {

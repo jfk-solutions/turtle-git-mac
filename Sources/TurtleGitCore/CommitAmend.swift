@@ -22,6 +22,8 @@ extension GitRepository {
         defer { if ownsLock { try? FileManager.default.removeItem(at: lock) } }
         let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
         defer { try? handle.close() }
+        let originalIndex=try commitIndexBytes(at:realIndex)
+        if let expected=options.expectedIndex,expected.bytes != originalIndex {throw commitIndexChanged()}
         let permissions = (try? FileManager.default.attributesOfItem(atPath: realIndex.path))?[.posixPermissions]
         let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-commit-library-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -32,10 +34,11 @@ extension GitRepository {
         else { _ = try run(["read-tree", "--empty"], environmentOverrides: indexEnvironment, cancellation: cancellation) }
         _ = try run(["read-tree", base], environmentOverrides: selectionEnvironment, cancellation: cancellation)
         var affected = GitPathSet(), operations: [(String, String, String)] = []
+        let conflictActions=try commitConflictIndexActions(checked,base:base,cancellation:cancellation)
         for entry in checked {
             _ = try restoreLocation(entry.path)
             affected.insert(entry.path)
-            if entry.state == .deleted || entry.index == "D" && entry.hasUnversionedCopy {
+            if entry.state == .deleted || entry.index == "D" && entry.hasUnversionedCopy || conflictActions[entry.path]?.deleted == true {
                 operations.append(("remove", entry.path, "-"))
             } else {
                 operations.append(("add", entry.path, fileModes[entry.path] ?? "normal"))
@@ -56,14 +59,21 @@ extension GitRepository {
         var readd = GitPathSet(), remove = GitPathSet()
         if let policy = options.checkboxIndexPolicy {
             let selected = GitPathSet(checked.map(\.path))
-            let unchecked = changes.filter { policy.paths.contains($0.path) && !selected.contains($0.path) && ![.untracked, .ignored, .conflicted].contains($0.state) }
+            let unchecked = changes.filter { policy.paths.contains($0.path) && !selected.contains($0.path) && ![.untracked, .ignored].contains($0.state) }
+            let conflictActions=try commitConflictIndexActions(unchecked,base:base,cancellation:cancellation)
+            let baselinePaths=GitPathSet(try run(["ls-tree","-r","--name-only","-z",base],cancellation:cancellation).stdout.split(separator:0).map{String(decoding:$0,as:UTF8.self)})
+            for entry in unchecked where entry.state == .conflicted && !baselinePaths.contains(entry.path) && conflictActions[entry.path]?.added != true {
+                throw GitFailure(arguments:["commit"],code:1,message:"Could not reset "+entry.path+" to its old index entry: the path is absent from the comparison tree.")
+            }
             var reset = GitPathSet()
             for entry in unchecked {
                 reset.insert(entry.path)
                 let renamed = entry.index == "R" || entry.worktree == "R"
                 if renamed, let old = entry.originalPath { reset.insert(old); remove.insert(old) }
-                if entry.index == "A" || entry.worktree == "A" || renamed { readd.insert(entry.path) }
-                if entry.index == "D" { remove.insert(entry.path) }
+                let added=entry.state == .conflicted ? conflictActions[entry.path]?.added == true : entry.index == "A" || entry.worktree == "A"
+                let deleted=entry.state == .conflicted ? conflictActions[entry.path]?.deleted == true : entry.index == "D"
+                if added || renamed {readd.insert(entry.path)}
+                if deleted {remove.insert(entry.path)}
             }
             if !reset.isEmpty {
                 _ = try run(["update-index", "--force-remove", "-z", "--stdin"], environmentOverrides: indexEnvironment, cancellation: cancellation, input: literalPathPacket(reset.sorted()))
@@ -110,6 +120,7 @@ extension GitRepository {
             warning = "\nwarning: Restoring unchecked additions/deletions failed. Refresh the file list and inspect the index before another commit.\n" + error.localizedDescription + "\n"
             onOutput?(.init(stream: .stderr, data: Data(warning.utf8)))
         }
+        guard try commitIndexBytes(at:realIndex)==originalIndex else {throw commitIndexChanged()}
         try handle.write(contentsOf: Data(contentsOf: reconciled)); try handle.close()
         if let permissions { try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: lock.path) }
         guard Darwin.rename(lock.path, realIndex.path) == 0 else { throw GitFailure(arguments: ["commit"], code: 1, message: "Could not replace the Git index: " + String(cString: strerror(errno))) }
@@ -117,7 +128,7 @@ extension GitRepository {
         switch result { case .success(let output): return output + warning; case .failure(let error): throw error }
     }
 
-    private func commitIndexRecords(paths: GitPathSet, environment: [String: String], cancellation: OperationCancellation?) throws -> Data {
+    func commitIndexRecords(paths: GitPathSet, environment: [String: String], cancellation: OperationCancellation?) throws -> Data {
         var result = Data()
         let ordered = paths.sorted()
         for offset in stride(from: 0, to: ordered.count, by: 64) {
@@ -195,9 +206,12 @@ extension GitRepository {
         let working = try run(["diff", "--no-renames", "--name-only", "-z", "--"], cancellation: cancellation)
         func paths(_ bytes: Data) -> Set<Data> { Set(bytes.split(separator: 0).map { Data($0) }) }
         let stagedPaths = paths(cached.stdout), workingPaths = paths(working.stdout)
-        let unversioned = Set(try status(cancellation: cancellation).filter { $0.state == .untracked }.map { Data($0.path.utf8) })
+        let current=try status(cancellation:cancellation)
+        let unversioned=Set(current.filter{$0.state == .untracked}.map{Data($0.path.utf8)})
+        let conflicts=GitPathSet(current.filter{$0.state == .conflicted}.map(\.path))
         try cancellation?.check()
         return GitPathMap(entries.map { entry in
+            if conflicts.contains(entry.path) {return (entry.path,CommitStagingState.unstaged)}
             var targets = [Data(entry.path.utf8)]
             if (entry.index == "R" || entry.worktree == "R"), let old = entry.originalPath { targets.append(Data(old.utf8)) }
             let staged = targets.contains { stagedPaths.contains($0) }
@@ -211,13 +225,30 @@ extension GitRepository {
     /// unrelated changes in that source file.
     public func setCommitFilesStaged(_ entries: [StatusEntry], staged: Bool, amendToParent: Bool = false, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()
-        var paths: [String] = []
-        for entry in entries where entry.state != .conflicted {
-            paths.append(entry.path)
-            if (entry.index == "R" || entry.worktree == "R"), let old = entry.originalPath { paths.append(old) }
+        // GitStatusListCtrl::GitStageEntry always invokes Git add, independently
+        // of the explicit Add command's backend setting. Preserve symlink leaves
+        // and missing conflict resolutions through Git's own add semantics.
+        var paths=GitPathSet(),remove=GitPathSet()
+        let current=try status(cancellation:cancellation),byPath=GitPathMap(current.map{($0.path,$0)},uniquingKeysWith:{_,last in last})
+        let conflicts=entries.compactMap{byPath[$0.path]}.filter{$0.state == .conflicted}
+        let base=try commitComparisonBase(amendToParent:amendToParent,cancellation:cancellation)
+        let actions=staged ? GitPathMap<CommitConflictIndexActions>():try commitConflictIndexActions(conflicts,base:base,cancellation:cancellation)
+        for original in entries {
+            _ = try restoreLocation(original.path)
+            let entry=byPath[original.path] ?? original
+            if !staged,entry.state == .conflicted {
+                let flags=actions[entry.path] ?? CommitConflictIndexActions()
+                if flags.added {remove.insert(entry.path);continue}
+                if !flags.deleted && !flags.modified {continue}
+            }
+            paths.insert(entry.path)
+            if entry.index == "R" || entry.worktree == "R",let old=entry.originalPath {paths.insert(old)}
         }
-        if staged { try stage(paths, cancellation: cancellation) }
-        else { try unstageCommitPaths(paths, amendToParent: amendToParent, cancellation: cancellation) }
+        if staged {try stage(paths.sorted(),cancellation:cancellation)}
+        else {
+            if !remove.isEmpty {_ = try run(["rm","-f","--cached","--pathspec-from-file=-","--pathspec-file-nul"],cancellation:cancellation,input:literalPathPacket(remove.sorted()))}
+            try unstageCommitPaths(paths.sorted(),amendToParent:amendToParent,cancellation:cancellation)
+        }
     }
 
     public func unstageCommitPaths(_ paths: [String], amendToParent: Bool, cancellation: OperationCancellation? = nil) throws {
@@ -233,8 +264,26 @@ extension GitRepository {
         let base = try commitComparisonBase(amendToParent: true)
         return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: selectedStagedFileModes(checked), cancellation: cancellation, onOutput: onOutput)
     }
-    private func populateCommitSelectionIndex(checked: [StatusEntry], base: String, fileModes: GitPathMap<String>, environment: [String: String], cancellation: OperationCancellation? = nil) throws -> [String] {
+    private func populateCommitSelectionIndex(checked: [StatusEntry], base: String, fileModes: GitPathMap<String>, environment: [String: String], cancellation: OperationCancellation? = nil, sourcePrepared:Bool=false, preparedIndexBytes:Data?=nil) throws -> [String] {
         try cancellation?.check()
+        if sourcePrepared {
+            // Keep selected entries' complete stat metadata and REUC instead of
+            // rebuilding them through --index-info (which would force another
+            // clean-filter read when Git refreshes the commit index).
+            if let preparedIndexBytes {
+                let url=URL(fileURLWithPath:environment["GIT_INDEX_FILE"]!)
+                try preparedIndexBytes.write(to:url)
+                try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
+            }else{_ = try run(["read-tree",base],environmentOverrides:environment,cancellation:cancellation)}
+            var affected=GitPathSet(checked.map(\.path))
+            for entry in checked where entry.index == "R" || entry.worktree == "R" {if let old=entry.originalPath {affected.insert(old)}}
+            let indexed=try run(["ls-files","--cached","-z"],environmentOverrides:environment,cancellation:cancellation).stdout
+            let tree=try run(["ls-tree","-r","--name-only","-z",base],cancellation:cancellation).stdout
+            let all=GitPathSet((indexed+tree).split(separator:0).map{String(decoding:$0,as:UTF8.self)})
+            let reset=all.subtracting(affected)
+            if !reset.isEmpty {_ = try run(["restore","--source="+base,"--staged","--pathspec-from-file=-","--pathspec-file-nul"],environmentOverrides:environment,cancellation:cancellation,input:literalPathPacket(reset.sorted()))}
+            return affected.sorted()
+        }
         let tracked = GitPathSet(try trackedPaths())
         let retainedDeletes = GitPathSet(checked.filter { $0.index == "D" && $0.hasUnversionedCopy }.map(\.path))
         var paths = checked.filter { !retainedDeletes.contains($0.path) }.map(\.path)
@@ -281,18 +330,18 @@ extension GitRepository {
         let tree = try run(["write-tree"], environmentOverrides: environment).text
         return tree == (try run(["rev-parse", base + "^{tree}"]).text)
     }
-    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: GitPathMap<String> = [:], preservedAuthorDate: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: GitPathMap<String> = [:], preservedAuthorDate: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, sourcePrepared:Bool=false, preparedIndexBytes:Data?=nil, willCommit:() -> Void = {}) throws -> String {
         try cancellation?.check()
+        var selectedIndexBytes=preparedIndexBytes
+        if !sourcePrepared {selectedIndexBytes=try prepareCLICommitIndex(changes:checked,checked:GitPathSet(checked.map(\.path)),policy:nil,base:base,cancellation:cancellation,onOutput:onOutput,expectedIndex:options.expectedIndex,fileModes:fileModes).index}
         let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
         let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-amend-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
         var environment = ["GIT_INDEX_FILE": directory.appendingPathComponent("index").path]
         if let preservedAuthorDate { environment["GIT_AUTHOR_DATE"] = preservedAuthorDate }
-        let realStage = try populateCommitSelectionIndex(checked: checked, base: base, fileModes: fileModes, environment: environment, cancellation: cancellation)
-        try prepareCommitBranch(options.newBranch, cancellation: cancellation)
-        try stage(realStage, cancellation: cancellation)
-        try applySelectedFileModes(fileModes, cancellation: cancellation)
+        _ = try populateCommitSelectionIndex(checked:checked,base:base,fileModes:fileModes,environment:environment,cancellation:cancellation,sourcePrepared:true,preparedIndexBytes:selectedIndexBytes)
+        try prepareCommitBranch(options.newBranch,cancellation:cancellation)
         var args = ["commit", "-F", messageFile.url.path]
         if options.amend { args.append("--amend") }
         if options.messageOnly { args.append("--allow-empty") }
@@ -300,6 +349,7 @@ extension GitRepository {
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }
         if options.resetAuthorDate { args.append("--date=now") }
         else if let date = options.authorDate { args.append("--date=" + ISO8601DateFormatter().string(from: date)) }
+        try cancellation?.check();willCommit()
         return try run(args, environmentOverrides: environment, cancellation: cancellation, onOutput: onOutput).text
     }
 }

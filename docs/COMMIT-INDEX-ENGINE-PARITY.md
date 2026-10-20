@@ -22,7 +22,7 @@ separate Add engine. Staging support commits its existing index, including parti
 files; it never acquires this checkbox whole-file preparation policy. Existing
 Replay Split preparation keeps its own workflow.
 
-The selected engine prepares the checked tree in an owned private index. Literal
+The library engine prepares the checked tree in an owned private index. Literal
 NUL triples contain `add` or `remove`, the exact repository-relative path, and
 `normal`, an explicitly retained staged mode, or the removal marker. The helper
 accepts only those operations/modes, an absolute explicit private index and stdin.
@@ -48,8 +48,13 @@ and executable modes, unchecked staged entries, unborn repositories, parent-base
 amendments, message-only and pending merges retain their existing native policies.
 Explicit staged-mode preservation is an existing macOS workflow extension.
 
-An owned real-index lock spans preparation and Git progress. Preparation failure
-or cancellation preserves the real index and HEAD. After an attempted commit,
+For the library engine, an owned real-index lock spans preparation and Git progress.
+Library preparation failure or cancellation preserves the real index and HEAD.
+The CLI engine instead publishes each completed source command group in order;
+an earlier successful Add remains staged if a later tracked update fails. Both
+paths reuse prepared index metadata without another explicit selected-file clean.
+See the [conflicted selection family](COMMIT-CONFLICT-INDEX-PARITY.md) for the six
+CLI phases, unchecked conflict resets and failure boundaries. After an attempted commit,
 source checkbox restoration uses a fresh owned cancellation lifetime; restoration
 failure is reported as a warning. Publication preserves the original index mode.
 A failed hook or interrupted Git commit can retain source-style staged effects;

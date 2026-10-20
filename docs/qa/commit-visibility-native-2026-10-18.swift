@@ -87,6 +87,7 @@ import TurtleGitCore
         let scoped=make();scoped.model.reload(paths:["tracked"]);try await settled(scoped.model)
         try require(scoped.unversionedFilesAlert==nil && scoped.model.visibleEntries.isEmpty,"Unversioned paths outside selected scope prompted")
         scoped.close()
+        prefs.set(1,forKey:"CommitMergeHint") // This visibility case does not exercise the independent source merge-information sheet.
         let mergeHead=root.appendingPathComponent(".git/MERGE_HEAD");try originalHead.write(to:mergeHead)
         let merge=make();merge.model.reload();try await settled(merge.model)
         try require(merge.model.operation == .merge && merge.unversionedFilesAlert==nil && !merge.model.showUnversioned,"Merge state offered unrelated unversioned files")

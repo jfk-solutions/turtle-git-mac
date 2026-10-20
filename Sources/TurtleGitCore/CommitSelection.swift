@@ -9,11 +9,12 @@ public struct CommitOptions: Sendable {
     public var resetAuthorDate = false
     public var messageOnly = false
     public var newBranch: String?
-    /// Explicit Commit-dialog Ignore choice; checked conflicts remain forbidden.
+    /// Explicit Commit-dialog Ignore choice permits preparation of checked conflicts.
     public var ignoreUnresolvedConflicts = false
     /// Supplied by the checkbox dialog. Index/staging callers retain their own
     /// semantics and never acquire this whole-file preparation policy.
     public var checkboxIndexPolicy: CommitCheckboxIndexPolicy?
+    var expectedIndex:CommitIndexSnapshot?
     public init() {}
 }
 
@@ -43,6 +44,7 @@ extension GitRepository {
     /// use a separate index so unrelated staged changes remain intact.
     public func commitSelected(message: String, paths selection: some Sequence<String>, options: CommitOptions = CommitOptions(), cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, backend: GitLibGit2Configuration? = nil) throws -> String {
         let backend = backend ?? libgit2Configuration ?? .load()
+        var options=options
         try cancellation?.check()
         func failure(_ message: String) -> GitFailure { GitFailure(arguments: ["commit"], code: 1, message: message) }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw failure("Enter a commit message.") }
@@ -54,10 +56,11 @@ extension GitRepository {
         guard !paths.isEmpty || options.amend || options.messageOnly || operation == .merge else { throw failure("Check at least one file to commit.") }
         let parentMode = options.amend && !options.amendDiffToLastCommit
         let changes = try commitDialogStatus(amendToParent:parentMode,cancellation:cancellation,refreshIndex: !backend.requests(.commitUpdateIndex))
+        options.expectedIndex=try captureCommitIndex(cancellation:cancellation)
         let hasConflicts=changes.contains { $0.state == .conflicted }
         guard !hasConflicts || options.ignoreUnresolvedConflicts else { throw failure("Resolve the conflicted files before committing.") }
         let checked = changes.filter { paths.contains($0.path) }
-        guard checked.count == paths.count, checked.allSatisfy({ $0.state != .ignored && $0.state != .conflicted }) else {
+        guard checked.count == paths.count, checked.allSatisfy({ $0.state != .ignored && ($0.state != .conflicted || options.ignoreUnresolvedConflicts) }) else {
             throw failure("The checked files have changed since the dialog was loaded. Refresh the file list before committing.")
         }
         if options.amend { _ = try run(["rev-parse", "--verify", "HEAD"], cancellation:cancellation) }
@@ -72,8 +75,9 @@ extension GitRepository {
             return try commitLibrarySelection(message: message, checked: checked, changes: changes, options: options, base: base, fileModes: selectedStagedFileModes(checked), executor: executor, cancellation: cancellation, onOutput: onOutput)
         }
         if let policy=options.checkboxIndexPolicy {
-            return try withCommitCheckboxIndex(policy,changes:changes,checked:paths,parentMode:parentMode,cancellation:cancellation,onOutput:onOutput) {
-                base in try commitSeparateSelection(message:message,checked:checked,options:options,base:base,fileModes:selectedStagedFileModes(checked),cancellation:cancellation,onOutput:onOutput)
+            let modes=try selectedStagedFileModes(checked)
+            return try withCommitCheckboxIndex(policy,changes:changes,checked:paths,parentMode:parentMode,cancellation:cancellation,onOutput:onOutput,expectedIndex:options.expectedIndex,fileModes:modes) {
+                base, preparedIndexBytes, willCommit in try commitSeparateSelection(message:message,checked:checked,options:options,base:base,fileModes:modes,cancellation:cancellation,onOutput:onOutput,sourcePrepared:true,preparedIndexBytes:preparedIndexBytes,willCommit:willCommit)
             }
         }
         return try commitPreparedSelection(message:message,paths:paths,checked:checked,options:options,parentMode:parentMode,operation:operation,hasConflicts:hasConflicts,cancellation:cancellation,onOutput:onOutput)

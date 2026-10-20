@@ -354,6 +354,18 @@ struct CommitFileInteraction: NSViewRepresentable {
             if let alert=resetAlert {resetAlert=nil;alert.window.sheetParent?.endSheet(alert.window,returnCode:.abort);alert.window.orderOut(nil)}
             reply?(accepted)
         }
+        /// The caller supplies the exact list instance and captured path. Wait
+        /// for SwiftUI's native selection projection instead of focusing another
+        /// table which still has an old selected row.
+        func focusFile(_ path:String)->Bool {
+            guard integrationActive,enabled,let window,window.attachedSheet==nil,
+                  focusedPath?.wrappedValue.map({GitReferenceName.equal($0,path)}) == true,
+                  let table=configuredTable,table.window===window,table.numberOfRows==rows.count,
+                  let row=rows.firstIndex(where:{$0.entry.map{GitReferenceName.equal($0.path,path)} ?? false}),
+                  table.selectedRowIndexes==IndexSet(integer:row) else{return false}
+            table.scrollRowToVisible(row)
+            return window.makeFirstResponder(table)
+        }
         private weak var configuredTable: NSTableView?
         private var columnDefinitions: [ObjectIdentifier: StatusListColumn] = [:]
         private var originalColumns: [NSTableColumn] = []

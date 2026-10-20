@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-21",
+  "implementation_baseline": "0643fbcd",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Conflicted Commit automatic/explicit checkbox selection, live staging state, current-content and missing-file Stage, unchecked comparison-base resets, source CLI six-phase preparation and distinct library atomic policy, remembered warnings, cancellation/owner retirement and saved-copy restoration.",
+  "source_contracts": [
+    "Automatic checkbox mask includes conflicts when SelectFilesForCommit is enabled; explicit row/highlight/group/bulk choices include conflicts when disabled. Live unmerged staging state is off.",
+    "Manual Commit-row Stage uses GitStageEntry CLI independently of separate Add10 and checkbox Commit3 backend settings.",
+    "CLI order: add -f, forced removals, tracked updates, checked rename-source removal, unchecked added-entry removal, tracked reset. Earlier completed effects survive later failure/cancellation; library preparation writes once.",
+    "Unresolved suppression stores 1=OK/abort or 2=Ignore; merge hint stores 1=OK. Both consume original preference store and Saved Data clearing.",
+    "Actual prepared blobs/stat/resolve-undo are reused; no second explicit clean solely for publication. Explicit staged-mode preservation remains a macOS extension."
+  ],
+  "validation": {
+    "tests_during_implementation": false,
+    "initial_compile": {
+      "core_log": "build/qa/commit-conflicted-core-2026-10-21.log",
+      "core_exit": 1,
+      "app_log": "build/qa/commit-conflicted-app-2026-10-21.log",
+      "app_exit": 65,
+      "failure": "Non-escaping actual-commit callback passed to an implicitly escaping optional closure; repaired signature to non-escaping with default no-op."
+    },
+    "core_fixture_compile": {
+      "log": "build/qa/commit-conflicted-core-repair-2026-10-21.log",
+      "exit": 1,
+      "failure": "Two throwing backend executor lookups omitted try; fixture-only repair."
+    },
+    "grouped_core": {
+      "log": "build/qa/commit-conflicted-core-tests-repair-2026-10-21.log",
+      "exit": 1,
+      "methods": 44,
+      "failed_methods": 10,
+      "assertion_failures": 15,
+      "elapsed_seconds": 35.681,
+      "failure": "Seven new fixtures failed checkout because required filter lacked smudge=cat; three explicit staged-mode methods exposed preparation recomputing filesystem modes."
+    },
+    "focused_core": {
+      "log": "build/qa/commit-conflicted-core-focused-2026-10-21.log",
+      "exit": 0,
+      "methods": 10,
+      "failures": 0,
+      "elapsed_seconds": 10.638,
+      "scope": "Only seven affected fixture methods and three failed staged-mode methods repeated. Other 34 passing methods not rerun."
+    },
+    "distinct_core_methods_passed": 44,
+    "repairs": [
+      "Required fixture smudge=cat added; original behavioral assertions retained.",
+      "Capture selected explicit modes before CLI groups; retain current prepared object identities, correct existing selected stage-zero modes before source command publication without another clean. Only nonempty mode-override branch changes."
+    ],
+    "app_before_mode_repair": {
+      "log": "build/qa/commit-conflicted-app-repair-2026-10-21.log",
+      "exit": 0,
+      "scope": "Actual app objects used by native group; source staged-mode-only Core repair followed."
+    },
+    "final_app": {
+      "log": "build/qa/commit-conflicted-app-mode-repair-2026-10-21.log",
+      "exit": 0,
+      "native_source_objects_fresh": true,
+      "core_framework_newer_than_changed_sources": true,
+      "diagnostic": "Retains contradictory SwiftCompile failed-with-exit0 diagnostic for native target alongside existing Blame actor warnings. App command exited0; no warning-free or clean hosted build claim."
+    },
+    "native_fixture_compile": {
+      "log": "build/qa/commit-conflicted-native-2026-10-21.log",
+      "exit": 1,
+      "failure": "Nested fixture Context required explicit MainActor isolation. No behavior cases ran before repair."
+    },
+    "native": {
+      "log": "build/qa/commit-conflicted-native-fixture-repair-2026-10-21.log",
+      "exit": 0,
+      "cases": [
+        "selection",
+        "warning",
+        "staging",
+        "ownership"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "case_engine_pairs": 8,
+      "scope": "Actual native checkboxes, private warning presenters, suppression clearing, successful Ignore with saved-copy restoration, held real staging subprocess cancellation and late warning retirement. Private preferences/repos; offscreen windows, owned cleanup.",
+      "artifact_boundary": "Built app objects before explicit-mode-only Core repair. These conflict cases have no mode override; changed branch is skipped, so no unrelated native rerun."
+    },
+    "owned_receiver_pids": [
+      61987,
+      62142,
+      62314,
+      62454,
+      62595,
+      62693,
+      62790,
+      62961
+    ],
+    "independently_absent": true,
+    "captures": {
+      "count": 4,
+      "reviewed": true,
+      "scope": "Complete actual offscreen selection and staging windows, light/dark; captured within planned behavioral cases, not separate launches.",
+      "paths": [
+        "docs/site/assets/commit-conflicted-selection-light.png",
+        "docs/site/assets/commit-conflicted-selection-dark.png",
+        "docs/site/assets/commit-conflicted-staging-light.png",
+        "docs/site/assets/commit-conflicted-staging-dark.png"
+      ]
+    },
+    "help_generation": {
+      "documents": 48,
+      "topics": 51,
+      "files": 68,
+      "bytes": 3695228
+    },
+    "localization_generation": {
+      "languages": 38,
+      "keys": 1308
+    },
+    "unrelated_work_preserved": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    },
+    "help_check": "passed",
+    "localization_check": "passed",
+    "dialog_coverage_reconcile": "passed;130 resources,120 partial family reviews,10 pending,0 certified; counts are not feature completion percentages."
+  },
+  "adaptations_and_limits": [
+    "Source command phases use literal NUL packets instead of Windows command-line length chunks.",
+    "Conflict action flags aggregate cached/worktree raw A/D/M; porcelain AA does not unconditionally mean source Added.",
+    "Full source/UI layout, external hook/filter combinations, physical accessibility and Finder integration, signed distribution, minimum OS/Intel and complete hosted integration remain open."
+  ]
+}

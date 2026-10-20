@@ -1166,8 +1166,12 @@ reset. Core preflight rejects amend/new branch during pending operations.
 
 Native Commit shows the operation indicator with original command artwork, disables
 new branch/amend, and enables a merge commit with no checked file changes. Settings
-and menu/progress parity remain partial. Unresolved index entries still require
-resolution; upstream's unresolved-conflict Ignore prompt is not yet mapped.
+and menu/progress parity remain partial. The later
+[conflicted selection family](COMMIT-CONFLICT-INDEX-PARITY.md) supersedes this
+section's original unresolved-conflict limitation: OK/Ignore is mapped, and
+Ignore allows source checkbox preparation of current conflict content and
+comparison-base resets of unchecked tracked conflicts. Staging support still
+commits its actual index, so unresolved stages can make Git reject that mode.
 
 Thirty-four Commit regression tests pass. New cases verify exact merge parents,
 selected whole-file bytes, retained unchecked index and later working edits,
