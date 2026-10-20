@@ -301,12 +301,12 @@ extension GitRepository {
     }
     /// Resolve the child checkout at the gitlink displayed by this pinned tree.
     /// Availability may be false; this never initializes or fetches a submodule.
-    public func repositoryBrowserSubmodule(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry, cancellation: OperationCancellation? = nil) throws -> SubmoduleComparison {
+    public func repositoryBrowserSubmodule(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry, cancellation: OperationCancellation? = nil) async throws -> SubmoduleComparison {
         try cancellation?.check()
         guard snapshot.root == root, !snapshot.bare, snapshot.entries.contains(entry),
               entry.kind == .submodule, let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
         try validateRepositoryBrowserWorkingPath(snapshot,entry:entry,cancellation:cancellation)
-        let result = try submoduleComparison(path: entry.path, from: object, to: object, cancellation: cancellation)
+        let result = try await submoduleComparison(path: entry.path, from: object, to: object, cancellation: cancellation)
         guard result.from.revision == entry.objectID else { throw RepositoryBrowserFailure.selection }
         return result
     }

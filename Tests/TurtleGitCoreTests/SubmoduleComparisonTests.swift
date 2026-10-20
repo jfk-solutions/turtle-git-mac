@@ -19,6 +19,40 @@ final class SubmoduleComparisonTests: XCTestCase {
         return (root, parent, child, path, hash)
     }
 
+    func testCapturedChildAncestryEngineAndPreparedRepositoryPreserveConfiguration() async throws {
+        let (root, parent, child, path, base) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let helper = root.appendingPathComponent("ancestry-helper"), reply = root.appendingPathComponent("ancestry-reply"), log = root.appendingPathComponent("ancestry-log")
+        var wire = Data()
+        let frames: [[String: Any]] = [["kind":"header", "operation":"mergeBase"], ["kind":"mergeBase", "base":base, "fastForward":true], ["kind":"end", "count":1]]
+        for value in frames {
+            wire.append(Data("TurtleGit Inspection v1:".utf8)); wire.append(try JSONSerialization.data(withJSONObject:value).base64EncodedData()); wire.append(10)
+        }
+        try wire.write(to:reply)
+        try Data("#!/bin/sh\nprintf '%s\\n' \"$@\" > '\(log.path)'\ncat '\(reply.path)'\n".utf8).write(to:helper)
+        try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:helper.path)
+        let config = GitLibGit2Configuration(enabled:true,mask:GitLibGit2Operation.mergeBase.mask,helperURL:helper)
+        let captured = GitRepository(root:root,executable:parent.executable,askpass:parent.askpass,diffDetection:parent.diffDetection,libgit2Configuration:config)
+        let working = try await captured.submoduleWorkingRepository(path:path)
+        XCTAssertEqual(working.libgit2Configuration?.helperURL,helper); XCTAssertEqual(working.executable,parent.executable)
+        // Identical objects do not require an ancestry helper at all.
+        let identical = try await captured.submoduleComparison(path:path,from:"HEAD",to:"HEAD")
+        XCTAssertEqual(identical.change,.identical); XCTAssertFalse(FileManager.default.fileExists(atPath:log.path))
+        _ = try await child.run(["commit","--allow-empty","-m","next"])
+        let comparison = try await captured.submoduleComparison(path:path)
+        XCTAssertEqual(comparison.change,.fastForward)
+        let arguments = try String(contentsOf:log,encoding:.utf8)
+        XCTAssertTrue(arguments.contains(child.root.path)); XCTAssertTrue(arguments.contains("turtlegit-merge-base"))
+        let prepared = try await captured.prepareSubmoduleComparison(comparison,action:.logTo)
+        XCTAssertEqual(prepared.repository.libgit2Configuration?.helperURL,helper)
+        XCTAssertEqual(prepared.repository.libgit2Configuration?.mask,config.mask)
+        // A selected helper failure is not converted into a timestamp classification.
+        try Data("#!/bin/sh\nexit 23\n".utf8).write(to:helper)
+        do { _ = try await captured.submoduleComparison(path:path); XCTFail("Selected ancestry failure was hidden") } catch is GitFailure {}
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await captured.submoduleComparison(path:path,cancellation:token); XCTFail("Cancellation was hidden") } catch is OperationCancellationFailure {}
+    }
+
     func testHistoricalGitlinksPreserveCanonicalByteIdentityUnderPrecomposition() async throws {
         let (root, parent, child, _, first) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         try Data("second\n".utf8).write(to: child.root.appendingPathComponent("file.txt")); try await child.stage(["file.txt"]); _ = try await child.commit(message: "second")

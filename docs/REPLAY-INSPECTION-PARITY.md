@@ -89,3 +89,8 @@ That active clean guard belongs to **Combine commits**, not commit reversion.
 Its native preparation/execution, Log fast-forward Jump Up/Down, submodule
 forward/rewind classification and shared deletion warnings form the remaining
 history/navigation continuation.
+
+The October 20 [history/navigation continuation](HISTORY-INSPECTION-PARITY.md)
+now implements those connected consumers. Its separate dated checkpoint records
+validation scope and remaining acceptance; the earlier inspection results above
+remain scoped to their original workflows.

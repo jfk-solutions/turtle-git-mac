@@ -56,6 +56,15 @@ Git's index stat cache; it does not commit or resolve a conflict. Missing reques
 runtimes and incomplete inspection output fail explicitly. See
 [replay and resolution source scope](REPLAY-INSPECTION-PARITY.md).
 
+The same choices apply to fast-forward history jumps, eligible unmerged-branch
+deletion warnings and forward/rewind classification in initialized submodules.
+Child inspection retains the accepted helper configuration and Git executable.
+Combine Commits uses tracked cleanliness with staged changes disallowed;
+untracked files and child dirtiness follow the source exclusions. Preparation
+and execution retain the accepted settings, and inspection failures stop the
+action before reset or deletion confirmation. See the
+[history inspection source scope](HISTORY-INSPECTION-PARITY.md).
+
 Local reference browsing uses ForeachRef bit `0x40000`, enabled in the source
 default mask, for the unfiltered catalog. **Only merged** and **Only unmerged**
 retain Git commands, matching TortoiseGit. **References commit is on** uses

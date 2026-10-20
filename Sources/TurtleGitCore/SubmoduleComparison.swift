@@ -50,10 +50,10 @@ public enum SubmoduleWorkingHistoryFailure: LocalizedError {
 extension GitRepository {
     /// Resolve only an initialized working checkout; never let Git discover the
     /// superproject from an empty/uninitialized child directory.
-    public func submoduleWorkingRepository(path: String, cancellation: OperationCancellation? = nil) throws -> GitRepository {
-        try submoduleCheckout(path: path, requireCurrentGitlink: true, cancellation: cancellation)
+    public func submoduleWorkingRepository(path: String, cancellation: OperationCancellation? = nil, backend: GitLibGit2Configuration? = nil) throws -> GitRepository {
+        try submoduleCheckout(path: path, requireCurrentGitlink: true, cancellation: cancellation, backend: backend)
     }
-    private func submoduleCheckout(path: String, requireCurrentGitlink: Bool, cancellation: OperationCancellation?) throws -> GitRepository {
+    private func submoduleCheckout(path: String, requireCurrentGitlink: Bool, cancellation: OperationCancellation?, backend: GitLibGit2Configuration? = nil) throws -> GitRepository {
         try cancellation?.check()
         let location = try restoreLocation(path)
         if try requireCurrentGitlink && !submoduleUpdatePaths(cancellation: cancellation).contains(where: { GitReferenceName.equal($0, path) }) {
@@ -73,13 +73,13 @@ extension GitRepository {
         let discovered = URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self)).resolvingSymlinksInPath().standardizedFileURL
         guard discovered == location.resolvingSymlinksInPath().standardizedFileURL else { throw SubmoduleComparisonFailure.unsafeCheckout }
         try cancellation?.check()
-        return GitRepository(root: location, executable: executable, askpass: askpass)
+        return GitRepository(root: location, executable: executable, askpass: askpass, diffDetection: diffDetection, libgit2Configuration: backend ?? libgit2Configuration ?? .load())
     }
     /// Revalidate the checkout and immutable displayed objects immediately before
     /// dispatch. Moving parent refs or child HEAD must not retarget this action.
-    public func prepareSubmoduleComparison(_ snapshot: SubmoduleComparison, action: SubmoduleComparisonAction, cancellation: OperationCancellation? = nil) async throws -> PreparedSubmoduleComparison {
+    public func prepareSubmoduleComparison(_ snapshot: SubmoduleComparison, action: SubmoduleComparisonAction, cancellation: OperationCancellation? = nil, backend: GitLibGit2Configuration? = nil) async throws -> PreparedSubmoduleComparison {
         try cancellation?.check()
-        let child = try submoduleCheckout(path: snapshot.path, requireCurrentGitlink: false, cancellation: cancellation)
+        let child = try submoduleCheckout(path: snapshot.path, requireCurrentGitlink: false, cancellation: cancellation, backend: backend)
         guard child.root == snapshot.checkout else { throw SubmoduleComparisonFailure.unsafeCheckout }
         func validate(_ side: SubmoduleComparisonSide) async throws {
             guard side.available else { throw SubmoduleComparisonFailure.unavailable }
@@ -115,7 +115,8 @@ extension GitRepository {
     /// A renamed gitlink reads its historical From path while using the current
     /// checkout. Two working-copy prepared marks use the current index as From,
     /// like GitStatusListCtrl/CGitDiff's working-copy submodule comparison.
-    public func submoduleComparison(path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, cancellation: OperationCancellation? = nil) throws -> SubmoduleComparison {
+    public func submoduleComparison(path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, cancellation: OperationCancellation? = nil, backend: GitLibGit2Configuration? = nil) async throws -> SubmoduleComparison {
+        let selected = backend ?? libgit2Configuration ?? .load()
         try cancellation?.check()
         let location = try restoreLocation(path)
         let oldPath = fromPath ?? path
@@ -187,8 +188,9 @@ extension GitRepository {
             else if toHash == nil { change = .deleteSubmodule }
             else if fromHash == toHash { change = .identical }
             else if let fromHash, let toHash {
-                if (try? run(["-C", location.path, "merge-base", "--is-ancestor", fromHash, toHash], cancellation: cancellation)) != nil { change = .fastForward }
-                else if (try? run(["-C", location.path, "merge-base", "--is-ancestor", toHash, fromHash], cancellation: cancellation)) != nil { change = .rewind }
+                let child = GitRepository(root: location, executable: executable, askpass: askpass, diffDetection: diffDetection, libgit2Configuration: selected)
+                if try await child.replayMergeBase(from: fromHash, to: toHash, cancellation: cancellation).fastForward { change = .fastForward }
+                else if try await child.replayMergeBase(from: toHash, to: fromHash, cancellation: cancellation).fastForward { change = .rewind }
                 else { change = new.1 > old.1 ? .newerTime : new.1 < old.1 ? .olderTime : .sameTime }
             }
         }

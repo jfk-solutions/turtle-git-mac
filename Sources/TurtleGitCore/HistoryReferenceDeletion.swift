@@ -39,7 +39,7 @@ public enum HistoryReferenceDeletionFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func prepareHistoryReferenceDeletion(_ name: String, cancellation: OperationCancellation? = nil) throws -> HistoryReferenceDeletion {
+    public func prepareHistoryReferenceDeletion(_ name: String, cancellation: OperationCancellation? = nil,backend:GitLibGit2Configuration?=nil) throws -> HistoryReferenceDeletion {
         let token = cancellation ?? OperationCancellation(); try token.check()
         let name = GitReferenceName.removingSuffix("^{}", from: name) ?? name
         guard name.utf8.starts(with: "refs/".utf8) else { throw HistoryReferenceDeletionFailure.reference }
@@ -54,7 +54,7 @@ extension GitRepository {
         let remote = name.utf8.starts(with: "refs/remotes/".utf8)
         let stash = name.utf8.starts(with: "refs/stash".utf8)
         let local = name.utf8.starts(with: "refs/heads/".utf8)
-        let merged = !local || (try? run(["merge-base", "--is-ancestor", name, "HEAD"], cancellation: token)) != nil
+        let merged = try !local || replayMergeBase(from:name,to:"HEAD",cancellation:token,backend:backend).fastForward
         try token.check()
         return HistoryReferenceDeletion(name: name, objectID: oid, kind: remote ? .remote : stash ? .stash : .ordinary, unmerged: !merged, stashEntries: stash ? try referenceLog(name, cancellation: token) : [], symbolicTarget:try localReferenceSymbolicTarget(name,cancellation:token))
     }
@@ -71,7 +71,7 @@ extension GitRepository {
         let selectedBackend = backend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard choice != .abort, snapshot.choices.contains(where: { $0.choice == choice }) else { throw HistoryReferenceDeletionFailure.choice }
-        let fresh = try prepareHistoryReferenceDeletion(snapshot.name, cancellation: token)
+        let fresh = try prepareHistoryReferenceDeletion(snapshot.name, cancellation: token,backend:selectedBackend)
         guard fresh.objectID == snapshot.objectID, fresh.stashEntries == snapshot.stashEntries, fresh.symbolicTarget.map({Data($0.utf8)}) == snapshot.symbolicTarget.map({Data($0.utf8)}) else { throw HistoryReferenceDeletionFailure.changed }
         if choice == .stashAll { return try await deleteStashEntries([], expected: snapshot.stashEntries, clear: true, cancellation: token) }
         if choice == .stashOne {
@@ -86,7 +86,7 @@ extension GitRepository {
                 guard !remote.isEmpty, !branch.isEmpty else { throw HistoryReferenceDeletionFailure.reference }
                 let session = try await prepareSSHTransport([remote], cancellation: token, preparation: prepareTransport)
                 defer { withExtendedLifetime(session) {} }
-                let after = try prepareHistoryReferenceDeletion(snapshot.name, cancellation: token)
+                let after = try prepareHistoryReferenceDeletion(snapshot.name, cancellation: token,backend:selectedBackend)
                 guard after.objectID == snapshot.objectID else { throw HistoryReferenceDeletionFailure.changed }
                 return try run(["-c", "core.precomposeunicode=false", "push", "--", remote, ":refs/heads/" + branch], environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token,executorOverride:try selectedBackend.executor(for:.push)).text
             }

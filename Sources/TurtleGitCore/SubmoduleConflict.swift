@@ -26,7 +26,9 @@ public enum SubmoduleConflictFailure: LocalizedError {
     public var errorDescription: String? { "Choose a conflicted submodule to open this dialog." }
 }
 extension GitRepository {
-    public func submoduleConflictDetails(path: String, identityOptions: ConflictIdentityOptions = .init(), cancellation: OperationCancellation? = nil) throws -> SubmoduleConflictDetails {
+    public func submoduleConflictDetails(path: String, identityOptions: ConflictIdentityOptions = .init(), cancellation: OperationCancellation? = nil, backend: GitLibGit2Configuration? = nil) async throws -> SubmoduleConflictDetails {
+        try cancellation?.check()
+        let selected = backend ?? libgit2Configuration ?? .load()
         guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
         guard entry.isSubmodule else { throw SubmoduleConflictFailure.unsupported }
         try validateConflicts([entry], using: .current, cancellation: cancellation)
@@ -55,7 +57,8 @@ extension GitRepository {
         }
         let addedBoth = !initialized && originalBase == nil && local != nil && remote != nil
         let baseInfo = addedBoth ? ("", true, Int64(0)) : metadata(baseHash)
-        func side(_ stage: ConflictStage?, number: Int, title: String) -> SubmoduleConflictSide {
+        func side(_ stage: ConflictStage?, number: Int, title: String) async throws -> SubmoduleConflictSide {
+            try cancellation?.check()
             var info = metadata(stage?.object), change = SubmoduleChangeType.unknown
             if let stage, stage.mode != "160000" { info = ("file, not a submodule", false, 0) }
             if initialized {
@@ -63,8 +66,9 @@ extension GitRepository {
                 else if stage == nil { change = .deleteSubmodule }
                 else if baseHash == stage?.object { change = .identical }
                 else if baseInfo.1 && info.1, let baseHash, let hash = stage?.object {
-                    if (try? run(["-C", url.path, "merge-base", "--is-ancestor", baseHash, hash], cancellation: cancellation)) != nil { change = .fastForward }
-                    else if (try? run(["-C", url.path, "merge-base", "--is-ancestor", hash, baseHash], cancellation: cancellation)) != nil { change = .rewind }
+                    let child = GitRepository(root: url, executable: executable, askpass: askpass, diffDetection: diffDetection, libgit2Configuration: selected)
+                    if try await child.replayMergeBase(from: baseHash, to: hash, cancellation: cancellation).fastForward { change = .fastForward }
+                    else if try await child.replayMergeBase(from: hash, to: baseHash, cancellation: cancellation).fastForward { change = .rewind }
                     else { change = info.2 > baseInfo.2 ? .newerTime : info.2 < baseInfo.2 ? .olderTime : .sameTime }
                 }
                 if !baseInfo.1 || !info.1 { change = .unknown }
@@ -85,8 +89,8 @@ extension GitRepository {
             return SubmoduleConflictSide(stage: number, title: title, revision: stage?.object, subject: info.0, available: info.1, change: change)
         }
         let titles = try conflictTitles(options: identityOptions, cancellation: cancellation), rebase = titles.rebase
-        let mine = side(rebase ? remote : local, number: rebase ? 3 : 2, title: titles.mine.title)
-        let theirs = side(rebase ? local : remote, number: rebase ? 2 : 3, title: titles.theirs.title)
+        let mine = try await side(rebase ? remote : local, number: rebase ? 3 : 2, title: titles.mine.title)
+        let theirs = try await side(rebase ? local : remote, number: rebase ? 2 : 3, title: titles.theirs.title)
         let base = SubmoduleConflictSide(stage: 1, title: "Base", revision: baseHash, subject: baseInfo.0, available: baseInfo.1, change: .identical)
         try cancellation?.check()
         try validateConflicts([entry], using: .current, cancellation: cancellation)

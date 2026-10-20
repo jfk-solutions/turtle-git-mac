@@ -646,7 +646,7 @@ import UniformTypeIdentifiers
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
     var onCompare: ([String], Bool) -> Void = { _, _ in }
     var onCompareTwoFiles: ([String]) -> Void = { _ in }
-    lazy var submoduleLog = SubmoduleWorkingLogSession(repository: repository, access: access)
+    lazy var submoduleLog = SubmoduleWorkingLogSession(repository: repository, access: access, preferences: dialogDefaults)
     var onSubmoduleLog: (GitRepository) -> Void = { _ in }
     var onFileLog: (String) -> Void = { _ in }
     var onFileBlame: (String) -> Void = { _ in }

@@ -1597,7 +1597,7 @@ final class CommitHistoryTests: XCTestCase {
         exec /usr/bin/git "$@"
         """
         try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
-        let slow = GitRepository(root: root, executable: wrapper), token = OperationCancellation()
+        let slow = GitRepository(root: root, executable: wrapper,libgit2Configuration:.init(enabled:false)), token = OperationCancellation()
         let snapshot = rows
         let task = Task { try await slow.historyJump(entries: snapshot, selected: [b], kind: .tagFF, up: true, cancellation: token) }
         defer { token.cancel() }

@@ -736,7 +736,7 @@ struct LogCommandRequest: Identifiable {
         let identity=UUID();combineSelectionReads[identity]=token
         defer { combineSelectionReads.removeValue(forKey:identity) }
         guard !isInvalidated else { throw OperationCancellationFailure.cancelled }
-        try await HistoryCombineSelectionReader.validate(repository:repository,access:access,entries:entries,offset:offset,head:head,token:token)
+        try await HistoryCombineSelectionReader.validate(repository:repository.capturingDiffBackend(preferences:labelDefaults),access:access,entries:entries,offset:offset,head:head,token:token)
     }
     let repository: GitRepository
     private(set) var materializationEditorSettings:AlternativeEditorPreferences?
@@ -1628,12 +1628,14 @@ struct LogCommandRequest: Identifiable {
         guard canNavigateLog else { return }
         if jumpKind == .selectionHistory {moveSelectionHistory(up:up,selectTarget:false);return}
         guard !includesWorkingTree else {return}
+        let repository = self.repository.capturingDiffBackend(preferences:labelDefaults)
         let snapshot = entries.filter { !$0.hash.isEmpty }, selection = selected, kind = jumpKind
         guard kind.candidates(entries: snapshot, selected: selection, up: up) != nil else { return }
         select([])
         let token = OperationCancellation(); jumpCancellation = token; let request = jumpGeneration
-        jumping = true
+        jumping = true; Self.activeActionReads += 1
         Task {
+            defer { Self.activeActionReads -= 1; withExtendedLifetime(access) {} }
             do {
                 let index = try await repository.historyJump(entries: snapshot, selected: selection, kind: kind, up: up, cancellation: token)
                 guard request == jumpGeneration else { return }
@@ -2628,24 +2630,26 @@ struct LogCommandRequest: Identifiable {
         let request = generation, selection = selected, fileSelection = selectedFiles
         let fileRequest = fileSelectionGeneration
         let working = selectedWorkingTree, revision = self.revision
-        let pinRevision = UserDefaults.standard.object(forKey: "LogSubmoduleShowRevision") == nil || UserDefaults.standard.bool(forKey: "LogSubmoduleShowRevision")
+        let pinRevision = labelDefaults.object(forKey: "LogSubmoduleShowRevision") == nil || labelDefaults.bool(forKey: "LogSubmoduleShowRevision")
+        let repository = self.repository.capturingDiffBackend(preferences:labelDefaults)
+        let token = OperationCancellation(); fileOpenRead = token; Self.activeFileOpenReads += 1
         busy = true
         Task {
-            defer { busy = false }
+            defer { Self.activeFileOpenReads -= 1; withExtendedLifetime(access) {}; if fileOpenRead === token { fileOpenRead=nil; busy = false } }
             do {
                 try validateWorkingFileAccess(repository.root.appendingPathComponent(file.path))
                 let from: String, to: String?
                 if working {
-                    guard let fresh = try await repository.workingTreeHistory(), fresh.files.contains(where: { GitReferenceName.equal($0.path, file.path) && $0.isSubmodule && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
+                    guard let fresh = try await repository.workingTreeHistory(cancellation:token), fresh.files.contains(where: { GitReferenceName.equal($0.path, file.path) && $0.isSubmodule && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
                     from = fresh.entry.parents.first ?? ""; to = nil
                 } else {
                     guard let revision else { throw RevisionComparisonFailure.selection }
-                    let groups = try await repository.logFileGroups(in: revision)
+                    let groups = try await repository.logFileGroups(in: revision,cancellation:token)
                     guard let group = groups.first(where: { $0.id == (file.parentIndex ?? 0) }), group.files.contains(where: { GitReferenceName.equal($0.path, file.path) && $0.isSubmodule && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
                     from = file.action.hasPrefix("D") ? group.parent ?? "" : revision.hash
                     to = revision.hash
                 }
-                let module = try await repository.submoduleComparison(path: file.path, from: from, to: to)
+                let module = try await repository.submoduleComparison(path: file.path, from: from, to: to,cancellation:token)
                 guard let checkout = module.checkout else { throw LogSubmoduleHistoryFailure.uninitialized }
                 try validateWorkingFileAccess(checkout)
                 let endRevision: String?
@@ -2653,9 +2657,9 @@ struct LogCommandRequest: Identifiable {
                     guard module.to.available, let hash = module.to.revision else { throw LogSubmoduleHistoryFailure.unavailableRevision }
                     endRevision = hash
                 } else { endRevision = nil }
-                guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
+                guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated,!token.isCancelled else { return }
                 busy = false; onSubmoduleFileLog?(checkout, endRevision)
-            } catch { if request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated { self.error = error.localizedDescription } }
+            } catch { if request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated,!token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func canBlameFile(_ ids: some Sequence<String>) -> Bool {

@@ -184,6 +184,9 @@ The [single-commit detail family](docs/SINGLE-COMMIT-DETAILS-PARITY.md) connects
 source-selected commit metadata to amendment, replay messages, containing
 references, comparison endpoints and parent captions, preserving declared
 encodings, raw identities and accepted backend ownership.
+The [history inspection continuation](docs/HISTORY-INSPECTION-PARITY.md) connects
+fast-forward navigation, branch warnings, child submodule classification and
+Combine readiness to their source engine choices and native ownership.
 
 An [older development-signed candidate](docs/qa/finder-installed-2026-10-17.json)
 passed installed activation, live ignored/modified/normal badges, repository access,

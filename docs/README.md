@@ -281,3 +281,5 @@ reviewed full-window light/dark captures.
 - [Replay, merge and resolution inspection engines](REPLAY-INSPECTION-PARITY.md)
 
 - [Single-commit details and message workflows](SINGLE-COMMIT-DETAILS-PARITY.md)
+
+[History navigation, deletion and child-submodule inspection](HISTORY-INSPECTION-PARITY.md) records the connected source7/12 continuation and acceptance scope.

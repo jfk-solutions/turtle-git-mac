@@ -398,6 +398,7 @@ private struct HistoryRevertDialog: View {
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], firstOffset: Int, expectedHead: String, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.entries = entries; self.firstOffset = firstOffset; self.expectedHead = expectedHead;self.preferences=preferences; progressPresentation = GitCommandPresentation(defaults: preferences) }
     func start() {
         guard !started, !invalidated else { return }; started = true; busy = true; Self.activeOperations += 1
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         worker = Task { [weak self, access] in
             _ = access
             defer { Self.activeOperations -= 1;withExtendedLifetime(access) {} }
@@ -406,8 +407,8 @@ private struct HistoryRevertDialog: View {
             var recovery: HistoryCombinePlan?
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(self.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let plan = try await self.repository.prepareHistoryCombine(hashes: self.entries.map(\.hash), firstOffset: self.firstOffset, expectedHead: self.expectedHead, cancellation: self.cancellation)
-                let repository=self.repository,token=self.cancellation
+                let plan = try await repository.prepareHistoryCombine(hashes: self.entries.map(\.hash), firstOffset: self.firstOffset, expectedHead: self.expectedHead, cancellation: self.cancellation)
+                let token=self.cancellation
                 let preparedOutput=try await self.stream { emit in try await repository.beginHistoryCombine(plan,cancellation:token,onOutput:emit) }
                 self.originalOutput += preparedOutput
                 recovery = plan
@@ -424,7 +425,6 @@ private struct HistoryRevertDialog: View {
                 if let plan = recovery {
                     do {
                         self.recovering=true;if !self.invalidated { self.status="Restoring original HEAD…" }
-                        let repository=self.repository
                         let result=try await self.stream { emit in try await repository.abortHistoryCombine(plan,onOutput:emit) }
                         self.originalOutput += result;message += "\nRestored original HEAD.\n"
                     }

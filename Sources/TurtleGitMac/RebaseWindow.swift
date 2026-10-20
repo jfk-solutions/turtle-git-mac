@@ -526,7 +526,7 @@ struct RebaseReferenceRequest {
     @Published private(set) var revertingConflictFiles=false
     @Published private(set) var conflictComparisonMark:PreparedFileComparisonMark?
     private var lastImportedConflictMark:UUID?
-    lazy var conflictSubmoduleLog=SubmoduleWorkingLogSession(repository:repository,access:access)
+    lazy var conflictSubmoduleLog=SubmoduleWorkingLogSession(repository:repository,access:access,preferences:messageDefaults)
     var onConflictSubmoduleLog:(GitRepository)->Void = {_ in}
     var onConflictPreparedComparison:((PreparedFileComparisonMark,PreparedFileComparisonMark)->Void)?
     var onConflictUnified:((Data,Bool,String,OperationCancellation) async throws -> Void)?

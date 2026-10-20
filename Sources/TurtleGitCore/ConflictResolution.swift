@@ -249,7 +249,9 @@ extension GitRepository {
                     try cancellation?.check()
                     guard accepted else { throw ResolveFailure.cancelled }
                     let missing=try validateConflicts([entry], using: choice, cancellation: cancellation,backend:selectedBackend,allowMissing:true)
-                    if missing.contains(entry.path) {skip(entry,index);continue}
+                    // The accepted destructive prompt belongs to the exact live
+                    // conflict observed before suspension, not a later resolution.
+                    guard !missing.contains(entry.path) else { throw ResolveFailure.stale }
                     // Move the complete checkout (including its .git directory) to
                     // macOS Trash, matching upstream's recycle-bin deletion.
                     guard (try FileManager.default.attributesOfItem(atPath: location.path)[.type]) as? FileAttributeType == .typeDirectory else { throw ResolveFailure.stale }

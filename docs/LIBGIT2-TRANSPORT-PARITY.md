@@ -175,3 +175,13 @@ containing references, comparison endpoints and parent captions. Declared
 encoding and raw signature/message bytes retain source boundaries; bulk history
 and immutable hash readers remain independent. Its dated checkpoint records the
 grouped validation and remaining acceptance.
+
+
+### History and child-submodule continuation — October 20, 2026
+
+The [history inspection family](HISTORY-INSPECTION-PARITY.md) extends source7/12
+through FF jumps, eligible deletion warnings, child forward/rewind classification
+and Combine preparation/execution. Settings are captured at accepted actions,
+child actors retain that configuration, and Combine verifies HEAD/reference
+after its final clean read. The dated checkpoint records actual grouped results
+and limitations; this continuation does not certify the entire source call graph.

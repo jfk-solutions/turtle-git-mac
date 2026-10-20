@@ -2,6 +2,38 @@ import XCTest
 @testable import TurtleGitCore
 
 final class SubmoduleConflictTests: XCTestCase {
+    func testChildConflictAncestryHonorsCapturedEngineAndPropagatesFailures() async throws {
+        let (root, source, repo, optionalChild, path) = try await ConflictResolutionTests().submoduleFixture(initialized:true)
+        defer { try? FileManager.default.removeItem(at:root); try? FileManager.default.removeItem(at:source) }
+        let child = try XCTUnwrap(optionalChild), helper = root.appendingPathComponent("failed-ancestry-helper")
+        try Data("#!/bin/sh\nexit 23\n".utf8).write(to:helper)
+        try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:helper.path)
+        let selected = GitLibGit2Configuration(enabled:true,mask:GitLibGit2Operation.mergeBase.mask,helperURL:helper)
+        let captured = GitRepository(root:root,executable:repo.executable,askpass:repo.askpass,libgit2Configuration:selected)
+        let index = try await repo.run(["ls-files","--stage","-z"]).stdout
+        // Mine equals child HEAD; Theirs differs, so only the differing available side inspects ancestry.
+        do { _ = try await captured.submoduleConflictDetails(path:path); XCTFail("Selected helper failure became a timestamp label") } catch is GitFailure {}
+        let bypass = GitLibGit2Configuration(enabled:true,mask:0,helperURL:helper)
+        let details = try await captured.submoduleConflictDetails(path:path,backend:bypass)
+        XCTAssertEqual(details.mine.change,.identical); XCTAssertTrue(details.theirs.available)
+        let base = try XCTUnwrap(details.entry.stages.first {$0.number == 1}?.object)
+        _ = try await child.run(["checkout","--detach",base])
+        let forward = try await captured.submoduleConflictDetails(path:path,backend:bypass)
+        XCTAssertEqual(forward.mine.change,.fastForward); XCTAssertEqual(forward.theirs.change,.fastForward)
+        let after = try await repo.run(["ls-files","--stage","-z"]).stdout
+        XCTAssertEqual(index,after)
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await captured.submoduleConflictDetails(path:path,cancellation:token); XCTFail("Cancelled inspection returned labels") } catch is OperationCancellationFailure {}
+    }
+
+    func testUninitializedConflictDoesNotInvokeSelectedAncestryHelper() async throws {
+        let (root, source, repo, _, path) = try await ConflictResolutionTests().submoduleFixture(initialized:false)
+        defer { try? FileManager.default.removeItem(at:root); try? FileManager.default.removeItem(at:source) }
+        let config = GitLibGit2Configuration(enabled:true,mask:GitLibGit2Operation.mergeBase.mask,helperURL:root.appendingPathComponent("absent-helper"))
+        let details = try await repo.submoduleConflictDetails(path:path,backend:config)
+        XCTAssertNil(details.checkout); XCTAssertFalse(details.mine.available); XCTAssertFalse(details.theirs.available)
+    }
+
     func testInitializedBaseUsesCheckoutHeadAndPreservesCapturedStages() async throws {
         let (root, source, repo, optionalChild, path) = try await ConflictResolutionTests().submoduleFixture(initialized: true)
         defer { try? FileManager.default.removeItem(at: root); try? FileManager.default.removeItem(at: source) }

@@ -1,0 +1,161 @@
+{
+  "date": "2026-10-20",
+  "family": "History navigation, deletion, child-submodule ancestry and Combine readiness",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": {
+    "history_jumps": "LogDlg2641/2649/2743/2751 selected->candidate upward, reverse downward, FF variants only",
+    "browser_warning": "BrowseRefsDlg681 exactly one branch including remote-tracking",
+    "shared_warning": "AppUtils3855 local refs/heads only",
+    "child_classification": "GitDiff335/338 called by AppUtils1808/1809 for conflict sides; native SubmoduleComparison/SubmoduleConflict retain unavailable-side guard and Unknown presentation",
+    "combine_clean": "GitLogListAction643 active Combine CheckCleanWorkTree(false), excludes disabled revert block"
+  },
+  "implementation": {
+    "helper": "Reuse existing MergeBase7 and CheckCleanWT12 protocols; no helper changes/build required",
+    "native": "Capture accepted settings across inspection and continuation; preserve child Git/helper configuration, grants and ownership",
+    "mutation": "Revalidate Combine HEAD/reference after final clean read before resets; deletion retains captured refs/CAS; conflict resolution retains stage/checkout validation"
+  },
+  "validation": [
+    {
+      "check": "Initial relevant Core group",
+      "result": "58 executed, 57 passed, stale-confirmation method failed",
+      "log": "build/qa/history-inspection-core-2026-10-20.log",
+      "scope": "History inspection/workflows, scoped Browser deletion and Jump methods, shared reference deletion, Submodule comparison/conflicts"
+    },
+    {
+      "check": "Initial Debug app build",
+      "result": "passed",
+      "log": "build/qa/history-inspection-app-2026-10-20.log"
+    },
+    {
+      "check": "Initial grouped native check",
+      "result": "History passed with Apple/bundled Git; Apple Git submodule Log handoff assertion failed; ownership not reached",
+      "log": "build/qa/history-inspection-native-2026-10-20.log",
+      "reaped_receivers": [
+        66240,
+        66827,
+        67370
+      ],
+      "independent_process_absence": true
+    },
+    {
+      "check": "Focused stale-confirmation/missing-conflict/changed-stage repair",
+      "result": "passed all five methods; four add boundary evidence beyond the original group",
+      "log": "build/qa/history-inspection-core-stale-repair-2026-10-20.log"
+    },
+    {
+      "check": "Affected Debug app rebuild",
+      "result": "passed",
+      "log": "build/qa/history-inspection-app-stale-repair-2026-10-20.log"
+    },
+    {
+      "check": "Older prepared-submodule fixture after hook API adaptation",
+      "result": "passed with Apple and bundled Git; F5 counter, prepared immutable objects, renamed gitlink and retained-close assertions preserved",
+      "log": "build/qa/history-inspection-prepared-native-2026-10-20.log"
+    },
+    {
+      "check": "Focused native handoff diagnostic",
+      "result": "Exact path/config/hash, no action error or unexpected ancestry read; direct URL representation comparison failed",
+      "log": "build/qa/history-inspection-native-diagnostic-2026-10-20.log"
+    },
+    {
+      "check": "Focused native submodule/ownership continuation",
+      "result": "passed all four case/engine pairs; combined with original two history passes, six distinct new native pairs have passing evidence",
+      "log": "build/qa/history-inspection-native-root-repair-2026-10-20.log",
+      "scope": "Apple and bundled Git, real child ancestry/configured handoffs, missing helper refusal, captured preference changes, forced retirement/helper-child cleanup"
+    },
+    {
+      "check": "All native attempts process cleanup",
+      "result": "receivers reaped; independent process table confirms absence; ownership cases assert held helper and child absent",
+      "receiver_pids": [
+        66240,
+        66827,
+        67370,
+        68113,
+        68493,
+        68822,
+        69112,
+        69184,
+        68118,
+        68271
+      ]
+    },
+    {
+      "check": "Relevant Core final evidence",
+      "result": "62 distinct methods have passing evidence: initial58 minus one failed, repaired method plus four related missing/changed-stage boundaries passed",
+      "logs": [
+        "build/qa/history-inspection-core-2026-10-20.log",
+        "build/qa/history-inspection-core-stale-repair-2026-10-20.log"
+      ],
+      "scope": "Not full current Core/hosted integration suite"
+    },
+    {
+      "check": "Native localization/Help consistency",
+      "result": "passed; 38 languages/1303 label keys; Help44 guides/51 topics/64 files",
+      "scope": "Resources, not complete translation or Help acceptance"
+    },
+    {
+      "check": "Dialog coverage reconciliation",
+      "result": "passed; no complete-dialog certification",
+      "log": "build/qa/history-inspection-coverage-2026-10-20.log"
+    },
+    {
+      "check": "Documentation site",
+      "result": "passed: 375 documents, no unresolved fragments",
+      "log": "build/qa/history-inspection-site-2026-10-20.log",
+      "scope": "Local build, not new hosted deployment"
+    }
+  ],
+  "repairs": [
+    {
+      "failure": "Core stale submodule-deletion confirmation returned Skip after conflict was externally resolved during the question.",
+      "repair": "Retain selected stage read; missing-after-confirmation now throws stale before deletion, preserving initial discovery Skip and changed-stage refusal.",
+      "scope": "ConflictResolution.swift post-confirmation guard; no assertion weakening; focused stale/missing/changed-stage Core recheck plus affected app build."
+    },
+    {
+      "failure": "Native submodule handoff assertion",
+      "repair": "Added bounded diagnostic for root/config/hash/helper/error; no production cause established yet."
+    },
+    {
+      "failure": "Initial native launcher shell quote typo",
+      "repair": "Corrected command before any receiver compilation/launch; no workflow check occurred from that invocation."
+    },
+    {
+      "failure": "Native exact child assertion compared URL representations with differing directory form despite identical filesystem paths.",
+      "repair": "Canonical filesystem-root byte identity in the fixture, preserving exact child/config/hash and no-unexpected-helper assertions; production unchanged.",
+      "scope": "Repeat affected submodule and unreached ownership cases only."
+    }
+  ],
+  "hosted_previous_batch": {
+    "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39393164202",
+    "sha": "813fc0f518b1a43e1f56125c390d2c5224e46acd",
+    "last_observed": "build-and-test job118529934325 in progress at Application and embedded Finder extension; svn-runtime success; universal local-reference/replay/single-commit helper steps all success",
+    "scope": "Not current batch; no complete CI pass claimed"
+  },
+  "explicit_gaps": [
+    "Full current hosted integration",
+    "Physical keyboard/accessibility/layout acceptance",
+    "Installed signed grants and complete Finder entry coverage",
+    "Real Intel/minimum-version execution",
+    "Entire upstream application parity and App Store distribution"
+  ],
+  "no_complete_port_claim": true,
+  "core_scope": {
+    "CommitHistoryTests": 2,
+    "HistoryInspectionTests": 10,
+    "HistoryReferenceDeletionTests": 5,
+    "HistoryWorkflowTests": 4,
+    "ReferenceBrowserTests": 6,
+    "SubmoduleComparisonTests": 20,
+    "SubmoduleConflictTests": 11
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "7a93df2f1a005ed9c91ce58c69061f302f0268a1b43cc2054caf91e16b298f73",
+    "Sources/TurtleGitCore/HistoryReferenceDeletion.swift": "b83739bccd696f621bd67a9dcdd77938c690e2abdb045a70b82d7fa898622927",
+    "Sources/TurtleGitCore/SubmoduleComparison.swift": "1b538eb7ca42937736457c5bfe48410852a99c6df1dd67670759debbada9f4dc",
+    "Sources/TurtleGitCore/SubmoduleConflict.swift": "d393dbf82ef8ecbd3e317f56bd22bedcde29d5f367749b03c7902498eb2c2c9d",
+    "Sources/TurtleGitCore/ConflictResolution.swift": "42afacd49bfc4be682bf6dfc854ce9436757b4801be16c9d84b7be36b978f20c",
+    "Tests/TurtleGitCoreTests/HistoryInspectionTests.swift": "1dce52deed642b6a9800f83e97a2690f9c554d71b4feb5e020025fca6b71388a",
+    "docs/qa/history-submodule-inspection-native-2026-10-20.swift": "963436bfba715bf318e8e1fc4439cbfcc7558eca3916c62fc0ec91a95a3175a3",
+    "docs/qa/prepared-submodule-native-2026-10-16.swift": "9cc205fed6ac6aedad6a78f976cc22acae75a5260669d3372a25f8273250d684"
+  }
+}

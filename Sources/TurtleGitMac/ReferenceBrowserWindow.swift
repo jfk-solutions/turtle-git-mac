@@ -570,6 +570,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         let names = Set(references)
         let hashes = Dictionary(uniqueKeysWithValues: rows.filter { names.contains($0.reference.name) }.map { ($0.reference.name, $0.reference.hash) })
         let factory = sshSettings.capture(),backend=captureRemoteBackend()
+        let repository = self.repository.capturingBackend(backend)
         ProgressActionLog.nextAttempt(self); let request = OperationCancellation(); token = request; deletingReference = true; busy = true; error = nil; mutationTitle = "Delete references"; mutationFailed = false; mutationCancelled = false; renameOutput = ""; cancellingRename = false
         Self.activeMutations += 1; LocalGitCommandProgress.begin()
         Task {

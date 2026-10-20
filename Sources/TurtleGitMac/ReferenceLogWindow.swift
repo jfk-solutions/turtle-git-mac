@@ -217,7 +217,7 @@ import TurtleGitCore
     @Published private(set) var combineCandidate: ReferenceLogCombineCandidate?
     @Published private(set) var bisectActive = false
     private var combineToken: OperationCancellation?
-    var readCombineCandidate: ([ReferenceLogEntry], Set<String>, String, OperationCancellation) async throws -> ReferenceLogCombineCandidate?
+    var readCombineCandidate: (([ReferenceLogEntry], Set<String>, String, OperationCancellation) async throws -> ReferenceLogCombineCandidate?)?
     var onFormatPatch: ((FormatPatchPreset) -> Void)?
     var onMergeRevision: ((String) -> Void)?
     var onRebaseRevision: ((String) -> Void)?
@@ -240,7 +240,6 @@ import TurtleGitCore
     var selectedEntry: ReferenceLogEntry? { let chosen = entries.filter { selection.contains($0.id) }; return chosen.count == 1 ? chosen.first : nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, selecting: Bool = false, preferences: UserDefaults = .standard) {
         noteLog = LogWindowModel(repository: repository, access: access, labelDefaults: preferences)
-        readCombineCandidate = { try await repository.referenceLogCombineCandidate(snapshot: $0, selected: $1, expectedHead: $2, cancellation: $3) }
         readOperationEntries = { try await repository.referenceLogOperationEntries(snapshot: $0, selected: $1, cancellation: $2) }
         self.preferences = preferences; self.selecting = selecting; self.repository = repository; self.access = access; self.reference = reference; names = [reference]
         noteChanges = noteLog.objectWillChange.sink { [weak self] _ in
@@ -632,6 +631,7 @@ import TurtleGitCore
         guard !invalidated, commandSurfaceAvailable, !selecting, hasWorkingTree, !mergeActive,
               selection.count >= 2, let head = currentHeadHash, onCombineRevisions != nil else { return }
         let snapshot = entries, ids = selection, request = generation, reference = self.reference
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         let token = OperationCancellation(), read = readCombineCandidate, root = repository.root
         combineToken = token; Self.activeRevisionReads += 1
         Task { [weak self, access] in
@@ -641,7 +641,9 @@ import TurtleGitCore
             }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let candidate = try await read(snapshot, ids, head, token)
+                let candidate: ReferenceLogCombineCandidate?
+                if let read { candidate = try await read(snapshot, ids, head, token) }
+                else { candidate = try await repository.referenceLogCombineCandidate(snapshot:snapshot,selected:ids,expectedHead:head,cancellation:token) }
                 guard let self, !self.invalidated, !token.isCancelled, self.generation == request,
                       self.reference == reference, self.selection == ids, self.entries == snapshot else { return }
                 self.combineToken = nil; self.combineCandidate = candidate

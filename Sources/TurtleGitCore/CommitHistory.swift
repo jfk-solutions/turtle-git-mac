@@ -1056,7 +1056,7 @@ extension GitRepository {
             let ancestor = up ? origin.hash : entries[index].hash
             let descendant = up ? entries[index].hash : origin.hash
             guard [ancestor, descendant].allSatisfy({ ($0.count == 40 || $0.count == 64) && $0.allSatisfy { $0.isHexDigit && $0.isASCII } }) else { throw RevisionComparisonFailure.range }
-            if try run(["merge-base", "--is-ancestor", ancestor, descendant], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0 { return index }
+            if try replayMergeBase(from:ancestor,to:descendant,cancellation:cancellation).fastForward { return index }
         }
         try cancellation?.check()
         return nil
@@ -1709,8 +1709,8 @@ extension GitRepository {
     public func prepareHistoryCombine(hashes:[String],firstOffset:Int,expectedHead:String,cancellation:OperationCancellation?=nil) throws -> HistoryCombinePlan {
         let reference=try validateHistoryCombineSelection(hashes:hashes,firstOffset:firstOffset,expectedHead:expectedHead,cancellation:cancellation)
         let head=expectedHead
-        guard try run(["diff", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0,
-              try run(["diff", "--cached", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0 else { throw HistoryCombineFailure.dirty }
+        guard try replayWorktreeIsClean(stagedOK:false,cancellation:cancellation) else {throw HistoryCombineFailure.dirty}
+        guard try validateHistoryCombineSelection(hashes:hashes,firstOffset:firstOffset,expectedHead:expectedHead,cancellation:cancellation)==reference else {throw HistoryCombineFailure.changed}
         let first = hashes[0], last = hashes[hashes.count - 1]
         let parents = try run(["show", "-s", "--no-notes", "--format=%P", last, "--"], cancellation: cancellation).text.split(whereSeparator: \.isWhitespace)
         func date(_ hash: String) throws -> Date {
@@ -1734,8 +1734,9 @@ extension GitRepository {
     public func beginHistoryCombine(_ plan: HistoryCombinePlan, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try verifyHistoryCombineReference(plan, cancellation: cancellation)
         guard try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == plan.originalHead else { throw HistoryCombineFailure.changed }
-        guard try run(["diff", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0,
-              try run(["diff", "--cached", "--quiet", "--"], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0 else { throw HistoryCombineFailure.dirty }
+        guard try replayWorktreeIsClean(stagedOK:false,cancellation:cancellation) else {throw HistoryCombineFailure.dirty}
+        try verifyHistoryCombineReference(plan,cancellation:cancellation)
+        guard try run(["rev-parse","--verify","HEAD"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)==plan.originalHead else {throw HistoryCombineFailure.changed}
         do {
             let output = try run(["reset", "--hard", plan.first, "--"], cancellation: cancellation, onOutput: onOutput).text
             return output + (try run(["reset", "--soft", plan.last, "--"], cancellation: cancellation, onOutput: onOutput).text)

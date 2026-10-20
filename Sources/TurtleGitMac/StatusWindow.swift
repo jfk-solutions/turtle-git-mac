@@ -281,7 +281,7 @@ final class StatusNativeWindow: NSWindow {
     var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     var close: () -> Void = {}
     var savePatch: (Data) -> Void = { _ in }
-    lazy var submoduleLog = SubmoduleWorkingLogSession(repository: repository, access: access)
+    lazy var submoduleLog = SubmoduleWorkingLogSession(repository: repository, access: access, preferences: defaults)
     var onSubmoduleLog: (GitRepository) -> Void = { _ in }
     var onBlame: (String) -> Void = { _ in }
     var onCompareTwoFiles: ([String]) -> Void = { _ in }

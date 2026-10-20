@@ -50,7 +50,13 @@ import TurtleGitCore
         var logs:[String] = [];model.onLog = {_,hash in logs.append(hash)};model.log(model.details!.from);try await wait {!model.busy};model.log(model.details!.to);try await wait {!model.busy}
         try require(logs == [indexed,current],"Prepared Log sides lost object identities")
         // Owning-window F5 only, including modifier and foreign-owner rejection.
-        var reads = 0;let read = model.readDetails;model.readDetails = {token in reads += 1;return try await read(token)}
+        var reads = 0;let read = model.readDetails
+        let refreshRepository=model.repository.capturingDiffBackend(preferences:prefs),refreshPath=model.path,refreshFrom=model.from,refreshTo=model.to,refreshFromPath=model.fromPath,refreshFromIndex=model.fromIndex
+        model.readDetails = {token in
+            reads += 1
+            if let read {return try await read(token)}
+            return try await refreshRepository.submoduleComparison(path:refreshPath,from:refreshFrom,to:refreshTo,fromPath:refreshFromPath,fromIndex:refreshFromIndex,cancellation:token)
+        }
         func event(_ flags:NSEvent.ModifierFlags)->NSEvent {NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:flags,timestamp:0,windowNumber:window.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:96)!}
         window.commandKeyWindow = {nil};_ = window.window!.performKeyEquivalent(with:event([]));try require(!model.busy && reads == 0,"Foreign F5 refreshed")
         window.commandKeyWindow = { [weak window] in window?.window };_ = window.window!.performKeyEquivalent(with:event(.command));try require(!model.busy && reads == 0,"Modified F5 refreshed")

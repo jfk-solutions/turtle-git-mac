@@ -50,6 +50,14 @@ allow staged changes while requiring a clean working copy. Inspection can refres
 Git's index stat cache; it does not commit or resolve a conflict. Missing requested
 runtimes and incomplete inspection output fail explicitly. See
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/REPLAY-INSPECTION-PARITY.html">replay and resolution source scope</a>.</p>
+<p>The same choices apply to fast-forward history jumps, eligible unmerged-branch
+deletion warnings and forward/rewind classification in initialized submodules.
+Child inspection retains the accepted helper configuration and Git executable.
+Combine Commits uses tracked cleanliness with staged changes disallowed;
+untracked files and child dirtiness follow the source exclusions. Preparation
+and execution retain the accepted settings, and inspection failures stop the
+action before reset or deletion confirmation. See the
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/HISTORY-INSPECTION-PARITY.html">history inspection source scope</a>.</p>
 <p>Local reference browsing uses ForeachRef bit <code>0x40000</code>, enabled in the source
 default mask, for the unfiltered catalog. <strong>Only merged</strong> and <strong>Only unmerged</strong>
 retain Git commands, matching TortoiseGit. <strong>References commit is on</strong> uses

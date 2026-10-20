@@ -667,6 +667,8 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         let ids = GitPathSet(ids)
         guard !closed,!busy,let snapshot else { return }
         let files=visibleFiles.filter{ids.contains($0.path) && $0.isSubmodule}
+        let repository = self.repository.capturingDiffBackend(preferences:preferences)
+        let pin=preferences.object(forKey:"LogSubmoduleShowRevision")==nil || preferences.bool(forKey:"LogSubmoduleShowRevision")
         runFiles(files) { [self] token in
             for file in files {
                 guard !closed,!token.isCancelled else { return }
@@ -674,7 +676,6 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                     let child=try await repository.submoduleWorkingRepository(path:file.path,cancellation:token)
                     let comparison=try await repository.submoduleComparison(path:file.path,from:snapshot.from == .emptyTree ? "" : snapshot.from == .workingTree ? "HEAD" : snapshot.from.label,to:snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label,cancellation:token)
                     guard !closed,!token.isCancelled else { continue }
-                    let pin=preferences.object(forKey:"LogSubmoduleShowRevision")==nil || preferences.bool(forKey:"LogSubmoduleShowRevision")
                     onSubmoduleLog(child.root,pin && snapshot.to != .workingTree && !file.action.hasPrefix("D") ? comparison.to.revision : nil)
                 } catch {if !closed,!token.isCancelled {self.error=error.localizedDescription;return}}
             }

@@ -285,7 +285,7 @@ struct ResolveConflictRow: Identifiable {
             }
         }
     }
-    lazy var submoduleFileLog = SubmoduleWorkingLogSession(repository:repository,access:access)
+    lazy var submoduleFileLog = SubmoduleWorkingLogSession(repository:repository,access:access,preferences:preferences)
     var readFileMenuConflicts: (([String],OperationCancellation) async throws -> [ConflictEntry])?
     var canInteract: Bool { active && !confirmingQuit && !handoffPending && externalAvailability() && !busy && !showingProgress && !hasQuestion && !hasChild }
     var canCancel: Bool { active && busy && !cancelling && !confirmingCancellation && !hasQuestion && !hasChild }

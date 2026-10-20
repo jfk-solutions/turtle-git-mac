@@ -1081,7 +1081,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         let identity=UUID();combineSelectionReads[identity]=token
         defer { combineSelectionReads.removeValue(forKey:identity) }
         guard !closed else { throw OperationCancellationFailure.cancelled }
-        try await HistoryCombineSelectionReader.validate(repository:repository,access:access,entries:entries,offset:offset,head:head,token:token)
+        try await HistoryCombineSelectionReader.validate(repository:repository.capturingDiffBackend(preferences:preferences),access:access,entries:entries,offset:offset,head:head,token:token)
     }
     let repository: GitRepository
     let access: RepositoryAccessLease?

@@ -307,8 +307,7 @@ extension GitRepository {
         let kind = try validateBrowserDeletion(references, cancellation: token)
         var unmerged = false
         if references.count == 1 && kind != .tag {
-            do { unmerged = try run(["-c", "core.precomposeunicode=false", "merge-base", "--is-ancestor", references[0].rawValue, "HEAD"], successfulExitCodes: 0...1, cancellation: token).exitCode != 0 }
-            catch { try token.check(); unmerged = true }
+            unmerged = try !replayMergeBase(from:references[0].rawValue,to:"HEAD",cancellation:token).fastForward
         }
         var symbolicTargets:[GitReferenceName:String?] = [:]
         for reference in references {symbolicTargets.updateValue(try localReferenceSymbolicTarget(reference.rawValue,cancellation:token),forKey:reference)}

@@ -8,10 +8,10 @@ import TurtleGitCore
     let access: RepositoryAccessLease?
     private var retired = false
     private var token: OperationCancellation?
-    var readCheckout: (String, OperationCancellation) async throws -> GitRepository
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        self.repository = repository; self.access = access
-        readCheckout = { try await repository.submoduleWorkingRepository(path: $0, cancellation: $1) }
+    var readCheckout: ((String, OperationCancellation) async throws -> GitRepository)?
+    private let preferences: UserDefaults
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.preferences = preferences
     }
     var isReading: Bool { token != nil }
     func cancel() { token?.cancel() }
@@ -21,7 +21,10 @@ import TurtleGitCore
         let request = cancellation ?? OperationCancellation(); token = request; Self.activeReads += 1
         defer { Self.activeReads -= 1; if token === request { token = nil }; withExtendedLifetime(access) {} }
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-        let child = try await readCheckout(path, request)
+        let repository = self.repository.capturingDiffBackend(preferences: preferences)
+        let child: GitRepository
+        if let readCheckout { child = try await readCheckout(path, request) }
+        else { child = try await repository.submoduleWorkingRepository(path: path, cancellation: request) }
         guard !retired, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
         if GitRuntime.isAppStoreBuild && access?.contains(child.root) != true { throw RepositoryAccessFailure.securityScopeUnavailable }
         return child
@@ -51,7 +54,7 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     private let preferences: UserDefaults
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, preferences: UserDefaults = .standard) {
         self.preferences = preferences
-        model = SubmoduleDiffWindowModel(repository: repository, access: access, path: path, from: from, to: to, fromPath: fromPath, fromIndex: fromIndex)
+        model = SubmoduleDiffWindowModel(repository: repository, access: access, path: path, from: from, to: to, fromPath: fromPath, fromIndex: fromIndex, preferences: preferences)
         let size = NSSize(width: 900, height: fromPath.map { !GitReferenceName.equal($0, path) } == true && !fromIndex ? 360:320)
         let window = SubmoduleDiffNativeWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Submodule Diff", preferences: preferences); window.isReleasedWhenClosed = false
@@ -132,13 +135,14 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     private(set) var retired = false
     private var token: OperationCancellation?
     private var generation = UUID()
-    var readCommand: (SubmoduleComparison, SubmoduleComparisonAction, OperationCancellation) async throws -> PreparedSubmoduleComparison
+    var readCommand: ((SubmoduleComparison, SubmoduleComparisonAction, OperationCancellation) async throws -> PreparedSubmoduleComparison)?
     var onConflict: (() -> Void)?
     var close: () -> Void = {}
     private var closeAfterRead = false
     private var updateTicket: UUID?
     @Published private(set) var hasUpdateChild = false
-    var readDetails: (OperationCancellation) async throws -> SubmoduleComparison
+    var readDetails: ((OperationCancellation) async throws -> SubmoduleComparison)?
+    private let preferences: UserDefaults
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let path: String
@@ -154,11 +158,10 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     var onStatus: (GitRepository) -> Void = { _ in }
     var onCompare: (GitRepository, ComparisonRevision, ComparisonRevision) -> Void = { _, _, _ in }
     var onUpdate: (@escaping () -> Void) -> Void = { _ in }
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String?, fromPath: String? = nil, fromIndex: Bool = false) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String, to: String?, fromPath: String? = nil, fromIndex: Bool = false, preferences: UserDefaults = .standard) {
+        self.preferences = preferences
         self.repository = repository; self.access = access; self.path = path; self.from = from; self.to = to
         self.fromPath = fromPath ?? path; self.fromIndex = fromIndex
-        readCommand = {try await repository.prepareSubmoduleComparison($0,action:$1,cancellation:$2)}
-        readDetails = {try await repository.submoduleComparison(path:path,from:from,to:to,fromPath:fromPath,fromIndex:fromIndex,cancellation:$0)}
     }
     @discardableResult func cancelRead() -> Bool { guard let token else { return false }; token.cancel(); return true }
     func invalidate() { retired = true; generation = UUID(); token?.cancel(); updateTicket = nil; hasUpdateChild = false }
@@ -168,12 +171,15 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     }
     func load() {
         guard !retired, !busy, !confirmingQuit, !hasUpdateChild else { return }; busy = true
+        let repository = self.repository.capturingDiffBackend(preferences: preferences)
         let request = OperationCancellation(), epoch = UUID(); token = request; generation = epoch; Self.activeReads += 1
         Task {
             defer { Self.activeReads -= 1; settled(request); withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let next = try await readDetails(request)
+                let next: SubmoduleComparison
+                if let readDetails { next = try await readDetails(request) }
+                else { next = try await repository.submoduleComparison(path:path,from:from,to:to,fromPath:fromPath,fromIndex:fromIndex,cancellation:request) }
                 guard !retired, generation == epoch, !request.isCancelled else { return }
                 details = next
             } catch {
@@ -192,6 +198,7 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     func compare(workingTree: Bool = false) { dispatch(workingTree ? .compareWorkingTree : .compareRevisions) }
     private func dispatch(_ action: SubmoduleComparisonAction) {
         guard !retired, !busy, !confirmingQuit, !hasUpdateChild, let details else { return }
+        let repository = self.repository.capturingDiffBackend(preferences: preferences)
         let alternate = ComparisonToolInvocation.capture
         let request = OperationCancellation(), epoch = UUID()
         token = request; generation = epoch; busy = true; Self.activeReads += 1
@@ -199,7 +206,9 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
             defer { Self.activeReads -= 1; settled(request); withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let prepared = try await readCommand(details, action, request)
+                let prepared: PreparedSubmoduleComparison
+                if let readCommand { prepared = try await readCommand(details, action, request) }
+                else { prepared = try await repository.prepareSubmoduleComparison(details,action:action,cancellation:request) }
                 guard !retired, generation == epoch, !request.isCancelled else { return }
                 if GitRuntime.isAppStoreBuild && access?.contains(prepared.repository.root) != true { throw RepositoryAccessFailure.securityScopeUnavailable }
                 ComparisonToolInvocation.$alternate.withValue(alternate) {

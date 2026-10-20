@@ -64,3 +64,13 @@ presets/Git amendment/replay, forced pending-child rollback and retired Log/Sync
 reads. Both receivers were reaped. See [batch evidence](qa/history-workflows-2026-10-14.json).
 No full Core or legacy Sync suite was repeated. Actual Commit-button and all
 physical/nested-menu interactions remain outside this evidence.
+
+
+## Selected readiness continuation — October 20, 2026
+
+Preparation and begin use the source CheckCleanWT12 decision with staged changes
+disallowed. Untracked files and submodule dirtiness retain the source exclusions,
+and index stat metadata may refresh. Both phases retain the accepted configuration;
+begin revalidates the checked-out reference and HEAD after cleanliness completes
+before resetting. The [connected history inspection family](HISTORY-INSPECTION-PARITY.md)
+records backend selection, cancellation, grouped validation and remaining acceptance.
