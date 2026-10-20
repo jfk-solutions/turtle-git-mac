@@ -11,21 +11,21 @@ import tempfile
 from native_receiver import build_receiver, run_receiver
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--captures',type=Path)
-parser.add_argument('--only',choices=['automation','review','routing','lifecycle','revision'],action='append')
+parser.add_argument('--only',choices=['automation','review','routing','lifecycle','revision','revision-automation','result'],action='append')
 parser.add_argument('--git',type=Path,action='append')
 parser.add_argument('--output-dir',type=Path)
 args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
 sources=root/'build/qa/presentation-comparison-sources'
 sources.mkdir(parents=True,exist_ok=True)
-receiver=build_receiver(root,[root/'docs/qa/presentation-comparison-native-2026-10-20.swift',root/'docs/qa/powerpoint-automation-native-2026-10-20.swift',root/'docs/qa/presentation-revision-native-2026-10-20.swift'],sources)
-def verify_editable_outputs(directory):
+receiver=build_receiver(root,[root/'docs/qa/presentation-comparison-native-2026-10-20.swift',root/'docs/qa/powerpoint-automation-native-2026-10-20.swift',root/'docs/qa/presentation-revision-native-2026-10-20.swift',root/'docs/qa/powerpoint-revision-automation-native-2026-10-20.swift',root/'docs/qa/presentation-result-native-2026-10-20.swift'],sources)
+def verify_editable_outputs(directory, cases=None):
     """Independent stdlib ZIP/XML reader; no production parser is imported."""
     relation_ns = 'http://schemas.openxmlformats.org/package/2006/relationships'
     drawing_ns = 'http://schemas.openxmlformats.org/drawingml/2006/main'
     content_ns = 'http://schemas.openxmlformats.org/package/2006/content-types'
     presentation_ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
-    for name, expected in [('reviewed.pptx', ['New first', 'New second']), ('macros.pptm', ['Macro first', 'Macro second'])]:
+    for name, expected in cases or [('reviewed.pptx', ['New first', 'New second']), ('macros.pptm', ['Macro first', 'Macro second'])]:
         path=directory/name
         with zipfile.ZipFile(path) as archive:
             assert archive.testzip() is None, 'Independent CRC failure: '+name
@@ -56,8 +56,8 @@ def verify_editable_outputs(directory):
         print('PASS: independent ZIP CRC/XML relationship graph, selected text and format: '+name,flush=True)
 
 with tempfile.TemporaryDirectory(prefix='turtlegit-presentation-review-') as temporary:
-    for case in args.only or ['automation','review','routing','lifecycle','revision']:
-        for index,git in enumerate((args.git or [Path('/usr/bin/git')]) if case=='revision' else [Path('/usr/bin/git')]):
+    for case in args.only or ['automation','review','routing','lifecycle','revision','revision-automation','result']:
+        for index,git in enumerate((args.git or [Path('/usr/bin/git')]) if case=='result' else [(args.git or [Path('/usr/bin/git')])[0]]):
             directory=Path(temporary)/(case+str(index));directory.mkdir()
             env={key:value for key,value in os.environ.items() if not key.startswith('GIT_')}
             config=directory/'global.config';config.write_text('')
@@ -66,6 +66,10 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-presentation-review-') as tem
             private_tmp=directory/'temporary';private_tmp.mkdir(mode=0o700);env['TMPDIR']=str(private_tmp)
             if args.captures and case=='review':env['TURTLEGIT_PRESENTATION_CAPTURES']=str(args.captures.absolute())
             if args.captures and case=='revision' and index==0:env['TURTLEGIT_PRESENTATION_REVISION_CAPTURE_DIR']=str(args.captures.absolute())
+            if args.captures and case=='result' and index==0:env['TURTLEGIT_PRESENTATION_RESULT_CAPTURE_DIR']=str(args.captures.absolute())
+            if case=='result':
+                result_output=(args.output_dir.absolute()/('result'+str(index))) if args.output_dir else directory/'result-output'
+                env['TURTLEGIT_PRESENTATION_RESULT_OUTPUT_DIR']=str(result_output)
             if case=='revision':
                 output=(args.output_dir.absolute()/str(index)) if args.output_dir else directory/'output'
                 env['TURTLEGIT_PRESENTATION_REVISION_OUTPUT_DIR']=str(output)
@@ -74,3 +78,4 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-presentation-review-') as tem
             print(result.stdout,end='');print(result.stderr,end='');result.check_returncode()
             if 'PASS: presentation native review completed' not in result.stdout:raise SystemExit('Presentation receiver exited before completion: '+case)
             if case=='revision':verify_editable_outputs(output)
+            if case=='result':verify_editable_outputs(result_output, [('mixed.pptx', ['New first', 'Base second', 'Second slide first', 'Second slide second'])])

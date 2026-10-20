@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-20",
+  "base": "abf539305ee8042a31f3f39bfed2e0364630a5d5",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Private PowerPoint normalization of binary .ppt captures to macro-enabled OOXML; explicit legacy Save As through private conversion and native atomic publication.",
+    "Explicit combined-result snapshot rendering, current/stale generation, result navigation/text, persisted source/result choice and reader/worker retirement.",
+    "Regenerated slide/shape identity recovery, mixed nested-group/connector remapping, classic comment author/index registry merge, effective content-type defaults and equivalent notes-master reuse."
+  ],
+  "implementation_review_repairs": [
+    "Retain runner-up similarity candidates below the acceptance threshold when measuring ambiguity.",
+    "Normalize numeric ID lexical aliases when validating slides/shapes/comment authors.",
+    "Use effective content types including Default declarations for comments, modern-thread refusal and notes masters.",
+    "Move legacy snapshot writes off MainActor; retain unknown post-dispatch cancellation artifacts until confirmed closure."
+  ],
+  "core": {
+    "log": "build/qa/presentation-result-core-2026-10-20.log",
+    "group": "PresentationRevisionTests",
+    "methods": 19,
+    "result": "passed",
+    "full_suite_run": false,
+    "sources_precede_checkpoint": {
+      "Sources/TurtleGitCore/PresentationRevision.swift": true,
+      "Tests/TurtleGitCoreTests/PresentationRevisionTests.swift": true
+    }
+  },
+  "build": {
+    "log": "build/qa/presentation-result-build-2026-10-20.log",
+    "result": "passed",
+    "exit_code": 0,
+    "known_exit_zero_diagnostics": 28,
+    "warnings": "Existing Swift concurrency/capture warnings, simulator-version diagnostics and exit-zero toolchain diagnostics remain; not a warning-free build."
+  },
+  "native": {
+    "result": "passed",
+    "office_execution": "Injected Apple-event replies and generated private PDFs only; no live Office launch.",
+    "log": "build/qa/presentation-result-native-2026-10-20.log",
+    "cases": [
+      "automation",
+      "review",
+      "routing",
+      "lifecycle",
+      "revision",
+      "revision-automation",
+      "result Apple Git 2.54.0",
+      "result bundled Git 2.55.0"
+    ],
+    "owned_receiver_pids": [
+      4136,
+      4137,
+      4212,
+      4213,
+      4233,
+      4242,
+      4245,
+      4261
+    ],
+    "owned_receivers_independently_absent": true,
+    "git_scope": "Only result cases execute Git: initialize/commit private inputs and assert unchanged HEAD, raw index and tracked source bytes after rendering/Save As. Other cases run once.",
+    "independent_output_checks": [
+      "reviewed.pptx full New",
+      "macros.pptm full New plus opaque VBA",
+      "mixed.pptx New first/Base second with Apple Git",
+      "mixed.pptx same mixed content with bundled Git"
+    ],
+    "output_check_scope": "Python stdlib ZIP CRC, duplicate members, XML parse, internal relationship existence/identity, layout/master/theme graph, chosen text and main content type. No Office reopening."
+  },
+  "explicit_gaps": [
+    "Independent group-child decisions; mixed modern threaded comments/person registries; complete animation/presentation-wide reference choices.",
+    "Actual PowerPoint normalization/rendering and legacy file reopening, macros/embedded content/protected prompts and conversion fidelity.",
+    "Automation TCC, signed sandbox/file grants, minimum macOS, distribution and App Store acceptance.",
+    "Full upstream dialog/behavior/layout parity and complete hosted CI pass."
+  ],
+  "ci_observation": {
+    "head": "abf53930",
+    "pages": {
+      "id": 39424743317,
+      "conclusion": "success"
+    },
+    "macos": {
+      "id": 39424743242,
+      "status": "pending"
+    },
+    "older_macos": {
+      "id": 39418260717,
+      "status": "in_progress"
+    },
+    "meaning": "Read-only observation while current batch was building; not a CI pass."
+  },
+  "protected_unrelated_worktree_files": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  },
+  "layout_review": {
+    "initial_capture": "build/qa/presentation-result-captures/presentation-result-{light,dark}.png",
+    "finding": "New preview selector compressed navigation captions; Save format caption was truncated.",
+    "repair": "Split navigation/preview and view/zoom into separate rows; full-size navigation captions and wider Save format picker. Result navigation is labeled Previous/Next slide.",
+    "affected_recheck": "passed",
+    "native_log": "build/qa/presentation-result-layout-native-2026-10-20.log",
+    "build_log": "build/qa/presentation-result-layout-build-2026-10-20.log",
+    "build_exit_code": 0,
+    "owned_receiver_pids": [
+      4462,
+      4465
+    ],
+    "owned_receivers_independently_absent": true,
+    "visual_review": "Final light/dark 1900x1520 native captures inspected; Previous/Next slide, Changes only, preview and format captions visible. Inactive offscreen windows, no physical Office rendering."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/presentation-result-light.png",
+      "sha256": "3f8bcad045ecd885ef10674e8d834462c4ba0622a34d793533b9fcb2672687ee",
+      "width": 1900,
+      "height": 1520
+    },
+    {
+      "path": "docs/site/assets/presentation-result-dark.png",
+      "sha256": "f08ae8901f00909e0f84c77cc533aa8fd042a0a6ad1a9c896fd882e43f72fc04",
+      "width": 1900,
+      "height": 1520
+    }
+  ],
+  "resources": {
+    "localization": "38 languages, 1305 pinned keys; generated/check commands; not complete translation coverage.",
+    "help": "46 guides, 51 topics, 66 files; rebuilt before app build.",
+    "site": {
+      "log": "build/qa/presentation-result-site-2026-10-20.log",
+      "documents": 385,
+      "unresolved_fragments": 0,
+      "result": "passed"
+    },
+    "ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1574,
+      "pending_control_reviews": 85,
+      "meaning": "Source review coverage only; not completion percentage."
+    }
+  },
+  "goal_turn": "progress: implemented connected end-user workflow family, reviewed and validated actual source/native changes; full application goal remains active.",
+  "validated_source_hashes": {
+    "Sources/TurtleGitCore/PresentationRevision.swift": "8aae3af280c847e564f9be0b438586d6d64fd634a178d44afcb25393eea6f12a",
+    "Sources/TurtleGitCore/PresentationComparison.swift": "d27ed07c81ce74be231abc4040b733753b13e2641f3b4d734120695d39a5bb82",
+    "Sources/TurtleGitMac/PowerPointComparisonAutomation.swift": "e50bc6c6e834f13f6d8bc887384abe8a6a0d4a4306513757e87805beaa767618",
+    "Sources/TurtleGitMac/PresentationComparisonWindow.swift": "e9bdfdeef84982222048d24bdb888e5b4c4fa2e699173002499cd6b3963e9c09",
+    "Sources/TurtleGitMac/PresentationRevisionReview.swift": "a2083d0fdc10cf508e9a55078fa038de3bf14262f80a7fec91594caaf457c5ff",
+    "Sources/TurtleGitMac/DiffToolSettings.swift": "c9e584c8b7176059d4c082857b16ce60055fb35102acc72571b0bf84de0ef877"
+  }
+}

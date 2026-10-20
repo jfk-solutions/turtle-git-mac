@@ -46,8 +46,17 @@ public struct PresentationRevisionReview: Sendable {
     public init(base:PresentationPackage,destination:PresentationPackage,cancellation:OperationCancellation? = nil)throws {
         let old=try RevisionDeck(base,cancellation:cancellation),new=try RevisionDeck(destination,cancellation:cancellation)
         self.base=base;self.destination=destination
-        baseManifest=try old.manifest();destinationManifest=try new.manifest()
-        baseOrder=old.slides.map(\.id);destinationOrder=new.slides.map(\.id)
+        let originalBaseManifest=try old.manifest(),originalDestinationManifest=try new.manifest()
+        let oldByID=Dictionary(uniqueKeysWithValues:old.slides.map{($0.id,$0)}),newByID=Dictionary(uniqueKeysWithValues:new.slides.map{($0.id,$0)})
+        let identities=try revisionMatch(old.slides.map(\.id),new.slides.map(\.id),fingerprint:{isNew,id in
+            let deck=isNew ? new:old,slide=(isNew ? newByID[id]:oldByID[id])!
+            return try deck.slideIdentityFingerprint(slide,cancellation:cancellation)
+        },similarity:{a,b in try old.slideSimilarity(oldByID[a]!,new,newByID[b]!)},cancellation:cancellation)
+        let oldKeys=Dictionary(uniqueKeysWithValues:identities.compactMap{pair in pair.base.map{($0,pair.id)}}),newKeys=Dictionary(uniqueKeysWithValues:identities.compactMap{pair in pair.destination.map{($0,pair.id)}})
+        baseOrder=old.slides.map{oldKeys[$0.id]!};destinationOrder=new.slides.map{newKeys[$0.id]!}
+        baseManifest=originalBaseManifest
+        let manifestIDs=Dictionary(uniqueKeysWithValues:identities.compactMap{pair in pair.destination.map{($0,pair.base ?? $0)}})
+        destinationManifest=PresentationSlideManifest(slides:originalDestinationManifest.slides.map {slide in PresentationSlide(pageIndex:slide.pageIndex,stableID:slide.stableID.flatMap{manifestIDs[$0]},text:slide.text,notes:slide.notes,visualFingerprint:slide.visualFingerprint)})
         requiredFileExtension=(old.hasMacros || new.hasMacros) ? "pptm":"pptx"
         invalidatesDigitalSignatures=old.hasSignatures || new.hasSignatures
         notices=invalidatesDigitalSignatures ? ["Saving a reviewed presentation removes package digital signatures. The saved deck must be signed again."]:[]
@@ -60,41 +69,52 @@ public struct PresentationRevisionReview: Sendable {
         let common=Set(baseOrder).intersection(destinationOrder)
         let reordered=baseOrder.filter{common.contains($0)} != destinationOrder.filter{common.contains($0)}
         orderChange=reordered ? change("slide-order","Slide order","Accept New's slide order or retain Base's order. Added and restored slides keep their neighboring positions.",.slideMoved):nil
-        let oldByID=Dictionary(uniqueKeysWithValues:old.slides.map{($0.id,$0)}),newByID=Dictionary(uniqueKeysWithValues:new.slides.map{($0.id,$0)})
         var shapeCount=0
-        for id in baseOrder + destinationOrder.filter({oldByID[$0] == nil}) {
+        for identity in identities {
+            let id=identity.id
             try cancellation?.check()
-            let priorSlide=oldByID[id],newSlide=newByID[id],prefix="slide-"+id
+            let priorSlide=identity.base.flatMap{oldByID[$0]},newSlide=identity.destination.flatMap{newByID[$0]},prefix="slide-"+id
             if priorSlide == nil || newSlide == nil {
                 let added=priorSlide == nil,index=(newSlide ?? priorSlide)!.index
                 let key=change(prefix, "Slide \(index+1): " + (added ? "added":"deleted"), added ? "Accept to include the complete New slide and its dependencies.":"Accept to remove this slide; reject to restore the complete Base slide.",added ? .slideAdded:.slideDeleted,priorSlide?.index,newSlide?.index)
-                plans.append(.init(id:id,base:priorSlide?.path,destination:newSlide?.path,whole:key,shapes:[],order:nil));continue
+                plans.append(.init(id:id,base:priorSlide?.path,destination:newSlide?.path,baseID:identity.base,destinationID:identity.destination,whole:key,identities:[],shapes:[],order:nil));continue
             }
             let a=priorSlide!,b=newSlide!
             let oldShapes=try old.shapes(a),newShapes=try new.shapes(b)
             shapeCount += oldShapes.count+newShapes.count;guard shapeCount<=40000 else{throw PresentationRevisionFailure.unsupported("More than 20,000 shapes per compared deck")}
             let oldMap=Dictionary(uniqueKeysWithValues:oldShapes.map{($0.id,$0)}),newMap=Dictionary(uniqueKeysWithValues:newShapes.map{($0.id,$0)})
-            let ids=oldShapes.map(\.id)+newShapes.map(\.id).filter{oldMap[$0] == nil}
+            let shapeIdentities=try revisionMatch(oldShapes.map(\.id),newShapes.map(\.id),fingerprint:{isNew,id in
+                let deck=isNew ? new:old,slide=isNew ? b:a,shape=(isNew ? newMap[id]:oldMap[id])!
+                return try deck.shapeIdentityFingerprint(shape,slide:slide,cancellation:cancellation)
+            },similarity:{a,b in revisionShapeSimilarity(oldMap[a]!,newMap[b]!)},cancellation:cancellation)
+            var oldShapeKeys=Dictionary(uniqueKeysWithValues:shapeIdentities.compactMap{pair in pair.base.map{($0,pair.id)}}),newShapeKeys=Dictionary(uniqueKeysWithValues:shapeIdentities.compactMap{pair in pair.destination.map{($0,pair.id)}})
+            for pair in shapeIdentities {
+                if let oldID=pair.base,let newID=pair.destination {
+                    let nested=try revisionNestedMatches(base:old,destination:new,old:oldMap[oldID]!,new:newMap[newID]!,oldSlide:a,newSlide:b,cancellation:cancellation)
+                    for match in nested {if let id=match.base{oldShapeKeys[id]=pair.id+"-"+match.id};if let id=match.destination{newShapeKeys[id]=pair.id+"-"+match.id}}
+                }
+            }
             var shapeChanges:[RevisionShapePlan]=[]
-            for shapeID in ids {
-                let x=oldMap[shapeID],y=newMap[shapeID]
-                if try old.shapeFingerprint(x,slide:a,cancellation:cancellation) != new.shapeFingerprint(y,slide:b,cancellation:cancellation) {
+            for pair in shapeIdentities {
+                let shapeID=pair.id,x=pair.base.flatMap{oldMap[$0]},y=pair.destination.flatMap{newMap[$0]}
+                if try old.shapeFingerprint(x,slide:a,identities:oldShapeKeys,cancellation:cancellation) != new.shapeFingerprint(y,slide:b,identities:newShapeKeys,cancellation:cancellation) {
                     let kind:PresentationRevisionChange.Kind=x == nil ? .shapeAdded:y == nil ? .shapeDeleted:.shapeChanged
                     shapeChanges.append(.init(id:shapeID,change:prefix+"-shape-"+shapeID,kind:kind,name:y?.name ?? x?.name ?? "Shape "+shapeID))
                 }
             }
-            let shapeOrderChanged=oldShapes.map(\.id).filter{newMap[$0] != nil} != newShapes.map(\.id).filter{oldMap[$0] != nil}
+            let paired=Set(shapeIdentities.filter{$0.base != nil && $0.destination != nil}.map(\.id))
+            let shapeOrderChanged=oldShapes.map{oldShapeKeys[$0.id]!}.filter{paired.contains($0)} != newShapes.map{newShapeKeys[$0.id]!}.filter{paired.contains($0)}
             let envChanged=try old.slideEnvironmentFingerprint(a,cancellation:cancellation) != new.slideEnvironmentFingerprint(b,cancellation:cancellation)
             let inseparable=try old.requiresAtomicSlide(a) || new.requiresAtomicSlide(b)
             if envChanged || (inseparable && (!shapeChanges.isEmpty || shapeOrderChanged)) {
                 let key=change(prefix+"-environment","Slide \(b.index+1): slide content and environment","Choose the complete slide, including shapes, notes, layout, timing, transitions and dependent content. These changes are reviewed together to preserve their references.",.slideEnvironment,a.index,b.index)
-                plans.append(.init(id:id,base:a.path,destination:b.path,whole:key,shapes:[],order:nil))
+                plans.append(.init(id:id,base:a.path,destination:b.path,baseID:identity.base,destinationID:identity.destination,whole:key,identities:[],shapes:[],order:nil))
             } else {
                 for shape in shapeChanges {
                     _=change(shape.change,"Slide \(b.index+1): "+shape.name,shape.kind == .shapeAdded ? "Added shape or group, including its linked content.":shape.kind == .shapeDeleted ? "Deleted shape or group.":"Changed shape or group, including its formatting and linked content.",shape.kind,a.index,b.index)
                 }
                 let order=shapeOrderChanged ? change(prefix+"-shape-order","Slide \(b.index+1): shape order","Choose New or Base stacking order for the retained shapes.",.shapeOrder,a.index,b.index):nil
-                plans.append(.init(id:id,base:a.path,destination:b.path,whole:nil,shapes:shapeChanges,order:order))
+                plans.append(.init(id:id,base:a.path,destination:b.path,baseID:identity.base,destinationID:identity.destination,whole:nil,identities:shapeIdentities,shapes:shapeChanges,order:order))
             }
         }
         self.changes=changes;self.plans=plans
@@ -116,8 +136,8 @@ public struct PresentationRevisionReview: Sendable {
         // Choosing either complete revision preserves every opaque package member.
         if changes.allSatisfy({decisions[$0.id] == true}) {return try RevisionOutput.finish(destination,extension:requiredFileExtension,cancellation:cancellation)}
         if changes.allSatisfy({decisions[$0.id] == false}) {return try RevisionOutput.finish(base,extension:requiredFileExtension,cancellation:cancellation)}
-        if old.types.values.contains(where:{$0.lowercased().contains("comment") || $0.lowercased().contains("person")}) || new.types.values.contains(where:{$0.lowercased().contains("comment") || $0.lowercased().contains("person")}) {
-            throw PresentationRevisionFailure.unsupported("Mixed decisions in presentations with comment/author registries are not supported. Choose one complete revision to preserve comment identities.")
+        if old.hasModernComments || new.hasModernComments {
+            throw PresentationRevisionFailure.unsupported("Mixed decisions with modern threaded comments/person registries are not supported. Choose one complete revision to preserve threaded identities.")
         }
         let anchorNew=environmentChange.map{decisions[$0] == true} ?? false
         let anchor=anchorNew ? new:old,other=anchorNew ? old:new
@@ -135,7 +155,7 @@ public struct PresentationRevisionReview: Sendable {
         for plan in selected {
             let anchorPath=anchorNew ? plan.destination:plan.base
             let foreignPath=anchorNew ? plan.base:plan.destination
-            try output.reserveSlide(id:plan.id,anchor:anchorPath,foreign:foreignPath)
+            try output.reserveSlide(id:plan.id,anchor:anchorPath,foreign:foreignPath,anchorID:anchorNew ? plan.destinationID:plan.baseID,foreignID:anchorNew ? plan.baseID:plan.destinationID)
         }
         for plan in selected {
             try cancellation?.check()
@@ -155,8 +175,85 @@ public struct PresentationRevisionReview: Sendable {
     }
 }
 
+private struct RevisionIdentity:Sendable {let id:String,base:String?,destination:String?}
+/// Match only mutually unique candidates. Ambiguous duplicates deliberately stay
+/// additions/deletions; ordinal proximity is never evidence of identity.
+private func revisionMatch(_ base:[String],_ destination:[String],fingerprint:(Bool,String)throws->String,similarity:(String,String)throws->Double,cancellation:OperationCancellation?)throws->[RevisionIdentity] {
+    var pairs:[String:String]=[:],used=Set<String>()
+    for id in base where destination.contains(id){pairs[id]=id;used.insert(id)}
+    var old:[String:[String]]=[:],new:[String:[String]]=[:]
+    for id in base where pairs[id]==nil {try cancellation?.check();old[try fingerprint(false,id),default:[]].append(id)}
+    for id in destination where !used.contains(id) {try cancellation?.check();new[try fingerprint(true,id),default:[]].append(id)}
+    for key in old.keys.sorted() where old[key]!.count==1 && new[key]?.count==1 {let a=old[key]![0],b=new[key]![0];pairs[a]=b;used.insert(b)}
+    let remainingOld=base.filter{pairs[$0]==nil},remainingNew=destination.filter{!used.contains($0)}
+    // Bound the quadratic fallback. Exact matches above remain available even
+    // for very large shape collections.
+    if remainingOld.count*remainingNew.count<=262144 {
+        var aBest:[String:(String,Double,Double)]=[:],bBest:[String:(String,Double,Double)]=[:]
+        for a in remainingOld {for b in remainingNew {
+            try cancellation?.check();let score=try similarity(a,b)
+            func update(_ old:(String,Double,Double)?,_ id:String)->(String,Double,Double) {
+                guard let old else{return(id,score,0)}
+                if score>old.1{return(id,score,old.1)};return(old.0,old.1,max(old.2,score))
+            }
+            aBest[a]=update(aBest[a],b);bBest[b]=update(bBest[b],a)
+        }}
+        for a in remainingOld {
+            guard let best=aBest[a],best.1>=0.82,best.1-best.2>=0.12,let reverse=bBest[best.0],reverse.0==a,reverse.1>=0.82,reverse.1-reverse.2>=0.12 else{continue}
+            pairs[a]=best.0;used.insert(best.0)
+        }
+    }
+    return base.map{RevisionIdentity(id:"b"+$0,base:$0,destination:pairs[$0])}+destination.filter{!used.contains($0)}.map{RevisionIdentity(id:"n"+$0,base:nil,destination:$0)}
+}
+private func revisionWords(_ text:String)->Set<String> {Set(text.lowercased().split{!$0.isLetter && !$0.isNumber}.map(String.init))}
+private func revisionOverlap(_ a:Set<String>,_ b:Set<String>)->Double {if a.isEmpty && b.isEmpty{return 1};return Double(a.intersection(b).count)/Double(a.union(b).count)}
+/// Prefix-independent structural XML, preserving meaningful leaf text, unknown
+/// attributes and comments. Relationship and shape identity values are supplied
+/// by callers; namespace declaration spelling and XML declarations are not data.
+private func revisionCanonical(_ node:XMLNode,ids:[String:String]=[:],relationships:[String:String]=[:],ignoreNames:Bool=false)->String {
+    guard let element=node as? XMLElement else {
+        if node.kind == .comment{return "comment:"+(node.stringValue ?? "")}
+        return "text:"+(node.stringValue ?? "")
+    }
+    let name="{"+(element.uri ?? "")+"}"+revisionLocal(element)
+    let attributes=(element.attributes ?? []).compactMap {attr->String? in
+        let local=revisionLocal(attr),uri=attr.uri ?? ""
+        var value=attr.stringValue ?? ""
+        if revisionIs(element,"cNvPr",revisionPresentationNS) {
+            if local=="id"{value=revisionAttribute(element,"id") ?? value;value=ids[value] ?? value}
+            if local=="name",ignoreNames{return nil}
+        }
+        if (element.uri==revisionDrawingNS && ["stCxn","endCxn"].contains(revisionLocal(element)) && local=="id") || (element.uri==revisionPresentationNS && local=="spid") {value=revisionAttribute(element,local) ?? value;value=ids[value] ?? value}
+        if uri==revisionOfficeRelationshipNS {value=relationships[value] ?? value}
+        return "{"+uri+"}"+local+"="+String(value.utf8.count)+":"+value
+    }.sorted().joined(separator:"|")
+    let hasElements = !revisionChildren(element).isEmpty
+    let children=(element.children ?? []).filter {child in !(hasElements && child.kind == .text && (child.stringValue ?? "").trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)}.map{revisionCanonical($0,ids:ids,relationships:relationships,ignoreNames:ignoreNames)}.joined(separator:"|")
+    return name+"["+attributes+"]("+children+")"
+}
+
+private func revisionNestedShapes(_ shape:RevisionShape)->[RevisionShape] {
+    revisionDescendants(shape.element).dropFirst().filter {node in node.uri==revisionPresentationNS && ["sp","pic","graphicFrame","cxnSp","grpSp","contentPart"].contains(revisionLocal(node))}.compactMap {node in
+        guard let identity=revisionDescendants(node).first(where:{revisionIs($0,"cNvPr",revisionPresentationNS)}),let id=revisionAttribute(identity,"id") else{return nil}
+        return .init(id:id,name:revisionAttribute(identity,"name") ?? "Shape "+id,element:node)
+    }
+}
+private func revisionShapeText(_ shape:RevisionShape)->String {revisionDescendants(shape.element).filter{revisionIs($0,"t",revisionDrawingNS)}.compactMap(\.stringValue).joined(separator:" ")}
+private func revisionShapeGeometry(_ shape:RevisionShape)->String {revisionLocal(shape.element)+"|"+revisionDescendants(shape.element).filter{revisionIs($0,"xfrm",revisionDrawingNS)}.map{revisionCanonical($0)}.joined(separator:"|")}
+private func revisionShapeSimilarity(_ a:RevisionShape,_ b:RevisionShape)->Double {
+    guard revisionLocal(a.element)==revisionLocal(b.element) else{return 0}
+    let old=revisionShapeText(a),new=revisionShapeText(b),sameGeometry=revisionShapeGeometry(a)==revisionShapeGeometry(b)
+    let sameName = !a.name.isEmpty && a.name==b.name && a.name.range(of:"^(Shape|Picture|TextBox|Rectangle|Oval|Connector|Group) [0-9]+$",options:.regularExpression)==nil
+    if !old.isEmpty,old==new {return sameGeometry ? 0.98:sameName ? 0.90:0}
+    if sameName,sameGeometry,revisionOverlap(revisionWords(old),revisionWords(new))>=0.50{return 0.92}
+    return 0
+}
+private func revisionNestedMatches(base:RevisionDeck,destination:RevisionDeck,old:RevisionShape,new:RevisionShape,oldSlide:RevisionSlide,newSlide:RevisionSlide,cancellation:OperationCancellation?)throws->[RevisionIdentity] {
+    let a=revisionNestedShapes(old),b=revisionNestedShapes(new),oldMap=Dictionary(uniqueKeysWithValues:a.map{($0.id,$0)}),newMap=Dictionary(uniqueKeysWithValues:b.map{($0.id,$0)})
+    return try revisionMatch(a.map(\.id),b.map(\.id),fingerprint:{isNew,id in try (isNew ? destination:base).shapeIdentityFingerprint((isNew ? newMap:oldMap)[id]!,slide:isNew ? newSlide:oldSlide,cancellation:cancellation)},similarity:{a,b in revisionShapeSimilarity(oldMap[a]!,newMap[b]!)},cancellation:cancellation)
+}
 private struct RevisionDecisionDelta:Sendable {let id:String,old:Bool?,new:Bool}
-private struct RevisionSlidePlan:Sendable {let id:String,base:String?,destination:String?,whole:String?,shapes:[RevisionShapePlan],order:String?}
+private struct RevisionSlidePlan:Sendable {let id:String,base:String?,destination:String?,baseID:String?,destinationID:String?,whole:String?,identities:[RevisionIdentity],shapes:[RevisionShapePlan],order:String?}
 private struct RevisionShapePlan:Sendable {let id:String,change:String,kind:PresentationRevisionChange.Kind,name:String}
 private struct RevisionSlide {let id:String,path:String,index:Int}
 private struct RevisionShape {let id:String,name:String,element:XMLElement}
@@ -166,7 +263,12 @@ private func revisionLocal(_ node:XMLNode)->String {(node.name ?? "").split(sepa
 private func revisionChildren(_ node:XMLElement)->[XMLElement] {(node.children ?? []).compactMap{$0 as? XMLElement}}
 private func revisionChild(_ node:XMLElement,_ name:String)->XMLElement? {revisionChildren(node).first{revisionLocal($0)==name}}
 private func revisionDescendants(_ node:XMLElement)->[XMLElement] {[node]+revisionChildren(node).flatMap(revisionDescendants)}
-private func revisionAttribute(_ node:XMLElement,_ name:String)->String? {node.attribute(forName:name)?.stringValue}
+private func revisionAttribute(_ node:XMLElement,_ name:String)->String? {
+    guard let value=node.attribute(forName:name)?.stringValue else{return nil}
+    let local=revisionLocal(node)
+    let numeric=(node.uri==revisionPresentationNS && ((name=="id" && ["sldId","sldMasterId","cNvPr","cmAuthor"].contains(local)) || (name=="authorId" && local=="cm") || (name=="idx" && local=="cm"))) || (node.uri==revisionDrawingNS && name=="id" && ["stCxn","endCxn"].contains(local))
+    return numeric ? UInt32(value).map(String.init) ?? value:value
+}
 private func revisionSet(_ node:XMLElement,_ name:String,_ value:String) {if let attr=node.attribute(forName:name){attr.stringValue=value}else{node.addAttribute(XMLNode.attribute(withName:name,stringValue:value) as! XMLNode)}}
 private func revisionXML(_ data:Data,_ path:String)throws->XMLDocument {
     guard data.count<=64*1024*1024 else{throw PresentationRevisionFailure.invalid("XML part exceeds its size budget: "+path)}
@@ -233,13 +335,18 @@ private func revisionMergedOrder(primary:[String],secondary:[String],included:Se
 
 private let revisionPresentationNS="http://schemas.openxmlformats.org/presentationml/2006/main"
 private let revisionDrawingNS="http://schemas.openxmlformats.org/drawingml/2006/main"
+private let revisionClassicCommentsType="application/vnd.openxmlformats-officedocument.presentationml.comments+xml"
+private let revisionClassicAuthorsType="application/vnd.openxmlformats-officedocument.presentationml.commentAuthors+xml"
 private let revisionContentNS="http://schemas.openxmlformats.org/package/2006/content-types"
 private func revisionIs(_ node:XMLElement,_ name:String,_ uri:String)->Bool {revisionLocal(node)==name && node.uri==uri}
-private final class RevisionFingerprintCache {var raw:[String:String]=[:];var graph:[String:String]=[:]}
+private final class RevisionFingerprintCache {var raw:[String:String]=[:];var graph:[String:String]=[:];var relations:[String:[String:String]]=[:];var shapes:[String:[RevisionShape]]=[:]}
 private struct RevisionDeck {
     private let fingerprints=RevisionFingerprintCache()
     let entries:[String:Data],presentation:String,slides:[RevisionSlide],types:[String:String],defaults:[String:String]
-    var hasMacros:Bool {types.values.contains{$0.contains("macroEnabled") || $0.contains("vbaProject")} || entries.keys.contains{$0.lowercased().hasSuffix("vbaproject.bin")}}
+    var partTypes:[String:String] {Dictionary(uniqueKeysWithValues:entries.keys.compactMap {path in
+        guard !path.hasSuffix("/"),!path.hasSuffix(".rels"),let type=types[path] ?? defaults[(path as NSString).pathExtension.lowercased()] else{return nil};return(path,type)
+    })}
+    var hasMacros:Bool {partTypes.values.contains{$0.contains("macroEnabled") || $0.contains("vbaProject")} || entries.keys.contains{$0.lowercased().hasSuffix("vbaproject.bin")}}
     var hasSignatures:Bool {entries.keys.contains{$0.hasPrefix("_xmlsignatures/")} || ((try? revisionRelationships(entries,part:"").contains{$0.type.contains("digital-signature")}) ?? false)}
     init(_ package:PresentationPackage,cancellation:OperationCancellation?)throws {
         entries=package.entries
@@ -304,6 +411,7 @@ private struct RevisionDeck {
         guard revisionIs(root,"sld",revisionPresentationNS),let cs=revisionChildren(root).first(where:{revisionIs($0,"cSld",revisionPresentationNS)}),let tree=revisionChildren(cs).first(where:{revisionIs($0,"spTree",revisionPresentationNS)}) else{throw PresentationRevisionFailure.invalid("Missing slide shape tree")};return tree
     }
     func shapes(_ slide:RevisionSlide)throws->[RevisionShape] {
+        if let cached=fingerprints.shapes[slide.path]{return cached}
         let shapeTree=try tree(slide)
         var seen=Set<String>(),allIDs=Set(revisionChildren(shapeTree).filter{revisionIs($0,"nvGrpSpPr",revisionPresentationNS)}.flatMap(revisionDescendants).filter{revisionIs($0,"cNvPr",revisionPresentationNS)}.compactMap{revisionAttribute($0,"id")}),result:[RevisionShape]=[]
         for node in revisionChildren(shapeTree) where !["nvGrpSpPr","grpSpPr","extLst"].contains(revisionLocal(node)) {
@@ -313,7 +421,7 @@ private struct RevisionDeck {
             guard let identity=ids.first,let id=revisionAttribute(identity,"id"),UInt32(id) != nil,seen.insert(id).inserted else{throw PresentationRevisionFailure.invalid("Missing or duplicate shape identity")}
             result.append(.init(id:id,name:revisionAttribute(identity,"name") ?? "Shape "+id,element:node))
         }
-        return result
+        fingerprints.shapes[slide.path]=result;return result
     }
     func manifest()throws->PresentationSlideManifest {
         let result=try PresentationSlideManifest(slides:slides.map {slide in
@@ -345,16 +453,82 @@ private struct RevisionDeck {
         }
         try visit(part,0);let value=revisionHash(Data(records.joined(separator:"\n").utf8));if fingerprints.graph.count<50000{fingerprints.graph[key]=value};return value
     }
-    func shapeFingerprint(_ shape:RevisionShape?,slide:RevisionSlide,cancellation:OperationCancellation?)throws->String? {
-        guard let shape else{return nil}
-        let refs=revisionRelationshipIDs(shape.element),rels=try revisionRelationships(entries,part:slide.path),map=Dictionary(uniqueKeysWithValues:rels.map{($0.id,$0)})
-        var parts=[shape.element.xmlString(options:[.nodePreserveAll])]
-        for id in refs.sorted() {
-            guard let rel=map[id] else{throw PresentationRevisionFailure.invalid("Shape references a missing relationship")}
-            parts.append(id+":"+rel.type+":"+rel.target)
-            if !rel.external {parts.append(try graphFingerprint(revisionTarget(rel.target,from:slide.path),excluding:[slide.path,presentation],cancellation:cancellation))}
+    var hasModernComments:Bool {partTypes.values.contains {type in let value=type.lowercased();return value.contains("person") || (value.contains("comment") && type != revisionClassicCommentsType && type != revisionClassicAuthorsType)}}
+    func classicAuthorSemantics()throws->[String:String] {
+        let registries=try revisionRelationships(entries,part:presentation).filter{$0.type==revisionOfficeRelationshipNS+"/commentAuthors" && !$0.external}
+        guard registries.count==1 else{throw PresentationRevisionFailure.invalid("Classic comments require one author registry")}
+        let root=try document(revisionTarget(registries[0].target,from:presentation)).rootElement()!
+        guard revisionIs(root,"cmAuthorLst",revisionPresentationNS) else{throw PresentationRevisionFailure.invalid("Invalid classic comment author registry")}
+        var result:[String:String]=[:]
+        for author in revisionChildren(root) {
+            guard revisionIs(author,"cmAuthor",revisionPresentationNS),let id=revisionAttribute(author,"id"),result[id]==nil else{throw PresentationRevisionFailure.invalid("Invalid classic comment author identity")}
+            let copy=author.copy() as! XMLElement;copy.removeAttribute(forName:"id");copy.removeAttribute(forName:"lastIdx");result[id]=revisionHash(Data(revisionCanonical(copy).utf8))
         }
-        return revisionHash(Data(parts.joined(separator:"\n").utf8))
+        return result
+    }
+    func semanticGraphFingerprint(_ part:String,excluding:Set<String>,cancellation:OperationCancellation?)throws->String {
+        let cacheKey="semantic:"+part+"|"+excluding.sorted().joined(separator:"|")
+        if let value=fingerprints.graph[cacheKey]{try cancellation?.check();return value}
+        var count=0
+        func visit(_ path:String,_ ancestry:Set<String>)throws->String {
+            try cancellation?.check();count += 1
+            guard ancestry.count<=128,count<=40000 else{throw PresentationRevisionFailure.unsupported("Semantic dependency graph exceeds review budget")}
+            let type=try contentType(path)
+            if excluding.contains(path){return "reference:"+type}
+            if ancestry.contains(path){return "cycle:"+type}
+            guard let data=entries[path] else{throw PresentationRevisionFailure.invalid("Missing dependency "+path)}
+            var next=ancestry;next.insert(path)
+            var relations:[String:String]=[:]
+            for rel in try revisionRelationships(entries,part:path) {
+                relations[rel.id]=rel.type+":"+(rel.external ? "external:"+rel.target:try visit(revisionTarget(rel.target,from:path),next))
+            }
+            let content:String
+            if (path as NSString).pathExtension.lowercased()=="xml" || type.hasSuffix("+xml") || type=="application/xml" {
+                let root=try revisionXML(data,path).rootElement()!
+                if type==revisionClassicCommentsType {
+                    let authors=try classicAuthorSemantics()
+                    for comment in revisionChildren(root) where revisionIs(comment,"cm",revisionPresentationNS) {
+                        guard let id=revisionAttribute(comment,"authorId"),let author=authors[id] else{throw PresentationRevisionFailure.invalid("Classic comment references an unknown author")};revisionSet(comment,"authorId",author)
+                    }
+                }
+                var shapeIDs:[String:String]=[:]
+                for (index,node) in revisionDescendants(root).filter({revisionIs($0,"cNvPr",revisionPresentationNS)}).enumerated(){if let id=revisionAttribute(node,"id"){shapeIDs[id]="local-\(index)"}}
+                content=revisionCanonical(root,ids:shapeIDs,relationships:relations)
+            } else {content=revisionHash(data)}
+            return revisionHash(Data((type+"|"+content+"|"+relations.values.sorted().joined(separator:"|")).utf8))
+        }
+        let value=try visit(part,[]);if fingerprints.graph.count<50000{fingerprints.graph[cacheKey]=value};return value
+    }
+    func semanticRelationships(_ slide:RevisionSlide,cancellation:OperationCancellation?)throws->[String:String] {
+        if let cached=fingerprints.relations[slide.path]{try cancellation?.check();return cached}
+        var result:[String:String]=[:]
+        for rel in try revisionRelationships(entries,part:slide.path) {
+            result[rel.id]=rel.type+":"+(rel.external ? "external:"+rel.target:try semanticGraphFingerprint(revisionTarget(rel.target,from:slide.path),excluding:[slide.path,presentation],cancellation:cancellation))
+        }
+        fingerprints.relations[slide.path]=result;return result
+    }
+    func shapeIdentityFingerprint(_ shape:RevisionShape,slide:RevisionSlide,cancellation:OperationCancellation?)throws->String {
+        var ids:[String:String]=[:]
+        for (index,node) in revisionDescendants(shape.element).filter({revisionIs($0,"cNvPr",revisionPresentationNS)}).enumerated(){if let id=revisionAttribute(node,"id"){ids[id]="local-\(index)"}}
+        return revisionHash(Data(revisionCanonical(shape.element,ids:ids,relationships:try semanticRelationships(slide,cancellation:cancellation),ignoreNames:true).utf8))
+    }
+    func shapeFingerprint(_ shape:RevisionShape?,slide:RevisionSlide,identities:[String:String],cancellation:OperationCancellation?)throws->String? {
+        guard let shape else{return nil};var ids=identities
+        let identity=identities[shape.id] ?? shape.id
+        for (index,node) in revisionDescendants(shape.element).filter({revisionIs($0,"cNvPr",revisionPresentationNS)}).enumerated(){if let id=revisionAttribute(node,"id"),ids[id]==nil{ids[id]=identity+"-child-\(index)"}}
+        return revisionHash(Data(revisionCanonical(shape.element,ids:ids,relationships:try semanticRelationships(slide,cancellation:cancellation)).utf8))
+    }
+    func slideIdentityFingerprint(_ slide:RevisionSlide,cancellation:OperationCancellation?)throws->String {
+        let shapeParts=try shapes(slide).map{try shapeIdentityFingerprint($0,slide:slide,cancellation:cancellation)}
+        return revisionHash(Data((shapeParts.joined(separator:"|")+"|"+(try slideEnvironmentFingerprint(slide,cancellation:cancellation))).utf8))
+    }
+    func slideSimilarity(_ slide:RevisionSlide,_ other:RevisionDeck,_ next:RevisionSlide)throws->Double {
+        let oldShapes=try shapes(slide),newShapes=try other.shapes(next)
+        let oldWords=revisionWords(oldShapes.map{revisionShapeText($0)}.joined(separator:" ")),newWords=revisionWords(newShapes.map{revisionShapeText($0)}.joined(separator:" "))
+        guard min(oldWords.count,newWords.count)>=3 else{return 0}
+        let text=revisionOverlap(oldWords,newWords);guard text>=0.70 else{return 0}
+        let geometry=revisionOverlap(Set(oldShapes.map{revisionShapeGeometry($0)}),Set(newShapes.map{revisionShapeGeometry($0)}))
+        return 0.65*text+0.35*geometry
     }
     func slideEnvironmentFingerprint(_ slide:RevisionSlide,cancellation:OperationCancellation?)throws->String {
         let doc=try document(slide.path),root=doc.rootElement()!,shapes=try shapes(slide)
@@ -362,12 +536,12 @@ private struct RevisionDeck {
         guard let cs=revisionChild(root,"cSld"),let tree=revisionChild(cs,"spTree") else{throw PresentationRevisionFailure.invalid("Missing shape tree")}
         for node in revisionChildren(tree) where !["nvGrpSpPr","grpSpPr","extLst"].contains(revisionLocal(node)){node.detach()}
         let envRefs=revisionRelationshipIDs(root)
-        var parts=[root.xmlString(options:[.nodePreserveAll])]
+        var rootIDs:[String:String]=[:];for node in revisionDescendants(root) where revisionIs(node,"cNvPr",revisionPresentationNS){if let id=revisionAttribute(node,"id"){rootIDs[id]="root"}}
+        var parts=[revisionCanonical(root,ids:rootIDs,relationships:try semanticRelationships(slide,cancellation:cancellation))]
         for rel in try revisionRelationships(entries,part:slide.path).sorted(by:{$0.id<$1.id}) where !shapeRefs.contains(rel.id) || envRefs.contains(rel.id) {
-            parts.append(rel.id+":"+rel.type+":"+rel.target)
-            if !rel.external {parts.append(try graphFingerprint(revisionTarget(rel.target,from:slide.path),excluding:[slide.path,presentation],cancellation:cancellation))}
+            parts.append(rel.type+":"+(rel.external ? rel.target:try semanticGraphFingerprint(revisionTarget(rel.target,from:slide.path),excluding:[slide.path,presentation],cancellation:cancellation)))
         }
-        return revisionHash(Data(parts.joined(separator:"\n").utf8))
+        return revisionHash(Data((parts.first!+"|"+parts.dropFirst().sorted().joined(separator:"|")).utf8))
     }
     func requiresAtomicSlide(_ slide:RevisionSlide)throws->Bool {
         let root=try document(slide.path).rootElement()!
@@ -399,17 +573,26 @@ private struct RevisionDeck {
 }
 
 private struct RevisionOutput {
-    var entries:[String:Data],slidePaths:[String:String]=[:]
+    var entries:[String:Data],slidePaths:[String:String]=[:],slideNumbers:[String:String]=[:]
     let anchor:RevisionDeck,foreign:RevisionDeck
     private var mapping:[String:String]=[:],pinned=Set<String>(),imported=Set<String>(),counter=0
     private var typeOverrides:[String:String]=[:]
+    private var usedSlideNumbers=Set<UInt32>()
+    private var authorsPrepared=false,authorIDs:[String:String]=[:],commentIndices:[String:Set<UInt32>]=[:]
+    private var authorsDocument:XMLDocument?,authorsPath:String?,newAuthorRegistry:String?
     init(anchor:RevisionDeck,foreign:RevisionDeck,cancellation:OperationCancellation?)throws {
         try cancellation?.check();self.anchor=anchor;self.foreign=foreign;entries=anchor.entries
-        mapping[foreign.presentation]=anchor.presentation;pinned.insert(foreign.presentation)
+        mapping[foreign.presentation]=anchor.presentation;pinned.insert(foreign.presentation);usedSlideNumbers=Set(anchor.slides.compactMap{UInt32($0.id)})
     }
-    mutating func reserveSlide(id:String,anchor:String?,foreign:String?)throws {
+    mutating func reserveSlide(id:String,anchor:String?,foreign:String?,anchorID:String?,foreignID:String?)throws {
         let path=anchor ?? allocate(foreign ?? "ppt/slides/slide.xml")
         slidePaths[id]=path
+        if let anchorID {slideNumbers[id]=anchorID}
+        else {
+            var numeric=UInt32(foreignID ?? "") ?? 256
+            if usedSlideNumbers.contains(numeric){numeric=256;while usedSlideNumbers.contains(numeric){guard numeric<UInt32.max else{throw PresentationRevisionFailure.unsupported("Slide identity space exhausted")};numeric += 1}}
+            usedSlideNumbers.insert(numeric);slideNumbers[id]=String(numeric)
+        }
         if let foreign {mapping[foreign]=path;pinned.insert(foreign)}
     }
     private mutating func allocate(_ source:String)->String {
@@ -420,6 +603,79 @@ private struct RevisionOutput {
             if entries[name]==nil && !mapping.values.contains(name) && !slidePaths.values.contains(name){return name}
         }
     }
+    private mutating func prepareAuthors(cancellation:OperationCancellation?)throws {
+        if authorsPrepared{return};authorsPrepared=true
+        let sourceEdges=try revisionRelationships(foreign.entries,part:foreign.presentation).filter{$0.type==revisionOfficeRelationshipNS+"/commentAuthors" && !$0.external}
+        guard sourceEdges.count==1 else{throw PresentationRevisionFailure.invalid("Classic comments require one author registry")}
+        let sourcePath=try revisionTarget(sourceEdges[0].target,from:foreign.presentation),sourceDoc=try foreign.document(sourcePath),sourceRoot=sourceDoc.rootElement()!
+        guard revisionIs(sourceRoot,"cmAuthorLst",revisionPresentationNS),try revisionRelationships(foreign.entries,part:sourcePath).isEmpty else{throw PresentationRevisionFailure.unsupported("Extended classic comment author registries cannot be combined independently")}
+        let sourceAuthors=revisionChildren(sourceRoot)
+        guard sourceAuthors.count<=10000,sourceAuthors.allSatisfy({revisionIs($0,"cmAuthor",revisionPresentationNS) && revisionRelationshipIDs($0).isEmpty}) else{throw PresentationRevisionFailure.unsupported("Unsupported classic comment author registry entries")}
+        let anchorEdges=try revisionRelationships(anchor.entries,part:anchor.presentation).filter{$0.type==revisionOfficeRelationshipNS+"/commentAuthors" && !$0.external}
+        guard anchorEdges.count<=1 else{throw PresentationRevisionFailure.invalid("Duplicate classic comment author registries")}
+        let targetDoc:XMLDocument,targetPath:String
+        if let existing=anchorEdges.first {
+            targetPath=try revisionTarget(existing.target,from:anchor.presentation);targetDoc=try anchor.document(targetPath)
+            guard revisionIs(targetDoc.rootElement()!,"cmAuthorLst",revisionPresentationNS),try revisionRelationships(anchor.entries,part:targetPath).isEmpty else{throw PresentationRevisionFailure.unsupported("Extended classic comment author registries cannot be combined independently")}
+        } else {
+            targetPath=allocate(sourcePath);targetDoc=sourceDoc.copy() as! XMLDocument
+            targetDoc.rootElement()!.setChildren([]);newAuthorRegistry=targetPath
+            typeOverrides[targetPath]=revisionClassicAuthorsType
+        }
+        let root=targetDoc.rootElement()!
+        for namespace in sourceRoot.namespaces ?? [] {
+            let prefix=namespace.name ?? ""
+            if let existing=root.namespace(forPrefix:prefix) {guard existing.stringValue==namespace.stringValue else{throw PresentationRevisionFailure.unsupported("Conflicting comment author namespace prefixes")}}
+            else {root.addNamespace(namespace.copy() as! XMLNode)}
+        }
+        func authorKey(_ node:XMLElement)->String {
+            let copied=node.copy() as! XMLElement;copied.removeAttribute(forName:"id");copied.removeAttribute(forName:"lastIdx");return revisionCanonical(copied)
+        }
+        var used=Set<UInt32>(),known:[String:[String]]=[:]
+        for author in revisionChildren(root) {
+            guard revisionIs(author,"cmAuthor",revisionPresentationNS),let id=revisionAttribute(author,"id"),let numeric=UInt32(id),used.insert(numeric).inserted else{throw PresentationRevisionFailure.invalid("Invalid classic comment author identity")}
+            known[authorKey(author),default:[]].append(id)
+        }
+        let grouped=Dictionary(grouping:sourceAuthors,by:authorKey)
+        var sourceIDs=Set<String>()
+        for author in sourceAuthors {
+            try cancellation?.check()
+            guard let id=revisionAttribute(author,"id"),UInt32(id) != nil,sourceIDs.insert(id).inserted else{throw PresentationRevisionFailure.invalid("Invalid source comment author identity")}
+            let key=authorKey(author)
+            if let matches=known[key],matches.count==1,grouped[key]?.count==1 {authorIDs[id]=matches[0];continue}
+            var numeric=UInt32(id)!
+            if used.contains(numeric){numeric=0;while used.contains(numeric){guard numeric<UInt32.max else{throw PresentationRevisionFailure.unsupported("Comment author identity space exhausted")};numeric += 1}}
+            used.insert(numeric);let mapped=String(numeric),copied=author.copy() as! XMLElement;revisionSet(copied,"id",mapped)
+            root.addChild(copied);known[key,default:[]].append(mapped);authorIDs[id]=mapped
+        }
+        for (path,type) in anchor.partTypes where type==revisionClassicCommentsType {
+            for node in revisionChildren(try anchor.document(path).rootElement()!) where revisionIs(node,"cm",revisionPresentationNS) {
+                if let author=revisionAttribute(node,"authorId"),let idx=revisionAttribute(node,"idx").flatMap(UInt32.init){commentIndices[author,default:[]].insert(idx)}
+            }
+        }
+        authorsDocument=targetDoc;authorsPath=targetPath;entries[targetPath]=revisionData(targetDoc)
+    }
+    private mutating func importClassicComments(_ data:Data,path:String,cancellation:OperationCancellation?)throws->Data {
+        try prepareAuthors(cancellation:cancellation)
+        let doc=try revisionXML(data,path),root=doc.rootElement()!
+        guard revisionIs(root,"cmLst",revisionPresentationNS),revisionChildren(root).count<=50000 else{throw PresentationRevisionFailure.invalid("Invalid classic comments part")}
+        for comment in revisionChildren(root) {
+            try cancellation?.check()
+            guard revisionIs(comment,"cm",revisionPresentationNS),let author=revisionAttribute(comment,"authorId"),let mapped=authorIDs[author],let raw=revisionAttribute(comment,"idx"),var idx=UInt32(raw) else{throw PresentationRevisionFailure.invalid("Classic comment has an unknown author or index")}
+            // Legacy comment extensions may encode threading references by index.
+            // Do not reinterpret unknown schemas while changing those identities.
+            guard !revisionDescendants(comment).contains(where:{revisionLocal($0)=="extLst" || $0.uri != revisionPresentationNS}) else{throw PresentationRevisionFailure.unsupported("Extended/threaded classic comments cannot be remapped independently")}
+            if commentIndices[mapped,default:[]].contains(idx) {
+                idx=(commentIndices[mapped]?.max() ?? 0)
+                repeat {guard idx<UInt32.max else{throw PresentationRevisionFailure.unsupported("Comment index space exhausted")};idx += 1}while commentIndices[mapped,default:[]].contains(idx)
+            }
+            commentIndices[mapped,default:[]].insert(idx);revisionSet(comment,"authorId",mapped);revisionSet(comment,"idx",String(idx))
+            if let node=revisionChildren(authorsDocument!.rootElement()!).first(where:{revisionAttribute($0,"id")==mapped}) {
+                let previous=revisionAttribute(node,"lastIdx").flatMap(UInt32.init) ?? 0;revisionSet(node,"lastIdx",String(max(previous,idx)))
+            }
+        }
+        entries[authorsPath!]=revisionData(authorsDocument!);return revisionData(doc)
+    }
     private mutating func importPart(_ path:String,cancellation:OperationCancellation?,depth:Int=0)throws->String {
         try cancellation?.check();guard depth<=128,imported.count<=20000 else{throw PresentationRevisionFailure.unsupported("Dependency graph exceeds export budget")}
         if let mapped=mapping[path],pinned.contains(path) || imported.contains(path){return mapped}
@@ -429,14 +685,17 @@ private struct RevisionOutput {
         // slide choice would silently change another slide's notes formatting.
         let type=try foreign.contentType(path)
         if type.contains("notesMaster") || type.contains("handoutMaster") {
-            let existing=anchor.types.filter{$0.value==type}.map(\.key)
+            let existing=anchor.partTypes.filter{$0.value==type}.map(\.key)
             if let first=existing.first {
-                if try foreign.graphFingerprint(path,excluding:[foreign.presentation],cancellation:cancellation)==anchor.graphFingerprint(first,excluding:[anchor.presentation],cancellation:cancellation) {mapping[path]=first;pinned.insert(path);return first}
+                if try foreign.semanticGraphFingerprint(path,excluding:[foreign.presentation],cancellation:cancellation)==anchor.semanticGraphFingerprint(first,excluding:[anchor.presentation],cancellation:cancellation) {mapping[path]=first;pinned.insert(path);return first}
                 throw PresentationRevisionFailure.unsupported("Mixed slides require different presentation-wide notes or handout masters. Choose one complete revision instead.")
             }
         }
         let target=mapping[path] ?? allocate(path);mapping[path]=target;imported.insert(path)
-        entries[target]=foreign.entries[path];typeOverrides[target]=type
+        if type==revisionClassicAuthorsType {try prepareAuthors(cancellation:cancellation);mapping[path]=authorsPath!;pinned.insert(path);return authorsPath!}
+        if type==revisionClassicCommentsType {entries[target]=try importClassicComments(foreign.entries[path]!,path:path,cancellation:cancellation)}
+        else {entries[target]=foreign.entries[path]}
+        typeOverrides[target]=type
         try copyRelationships(from:path,to:target,cancellation:cancellation,depth:depth+1)
         return target
     }
@@ -465,17 +724,19 @@ private struct RevisionOutput {
         try copyRelationships(from:path,to:target,cancellation:cancellation)
     }
     mutating func mergeSlide(plan:RevisionSlidePlan,base:RevisionDeck,destination:RevisionDeck,target:String,anchorNew:Bool,decisions:[String:Bool],cancellation:OperationCancellation?)throws {
-        let old=RevisionSlide(id:plan.id,path:plan.base!,index:0),new=RevisionSlide(id:plan.id,path:plan.destination!,index:0)
+        let old=RevisionSlide(id:plan.baseID!,path:plan.base!,index:0),new=RevisionSlide(id:plan.destinationID!,path:plan.destination!,index:0)
         let oldShapes=try base.shapes(old),newShapes=try destination.shapes(new)
         let oldMap=Dictionary(uniqueKeysWithValues:oldShapes.map{($0.id,$0)}),newMap=Dictionary(uniqueKeysWithValues:newShapes.map{($0.id,$0)})
+        let oldKeys=Dictionary(uniqueKeysWithValues:plan.identities.compactMap{pair in pair.base.map{($0,pair.id)}}),newKeys=Dictionary(uniqueKeysWithValues:plan.identities.compactMap{pair in pair.destination.map{($0,pair.id)}})
         let changeMap=Dictionary(uniqueKeysWithValues:plan.shapes.map{($0.id,$0)})
-        var chosen:[String:Bool]=[:]
-        for id in Set(oldMap.keys).union(newMap.keys) {
-            let useNew=changeMap[id].map{decisions[$0.change] == true} ?? anchorNew
-            if (useNew ? newMap[id]:oldMap[id]) != nil {chosen[id]=useNew}
+        var chosen:[String:Bool]=[:],selectedShapes:[String:RevisionShape]=[:]
+        for pair in plan.identities {
+            let useNew=changeMap[pair.id].map{decisions[$0.change] == true} ?? anchorNew
+            if let raw=useNew ? pair.destination:pair.base,let shape=(useNew ? newMap:oldMap)[raw] {chosen[pair.id]=useNew;selectedShapes[pair.id]=shape}
         }
         let orderNew=plan.order.map{decisions[$0] == true} ?? anchorNew
-        let order=revisionMergedOrder(primary:(orderNew ? newShapes:oldShapes).map(\.id),secondary:(orderNew ? oldShapes:newShapes).map(\.id),included:Set(chosen.keys))
+        let oldOrder=oldShapes.map{oldKeys[$0.id]!},newOrder=newShapes.map{newKeys[$0.id]!}
+        let order=revisionMergedOrder(primary:orderNew ? newOrder:oldOrder,secondary:orderNew ? oldOrder:newOrder,included:Set(chosen.keys))
         let doc=try anchor.document(anchorNew ? new.path:old.path),root=doc.rootElement()!
         guard let cs=revisionChild(root,"cSld"),let tree=revisionChild(cs,"spTree") else{throw PresentationRevisionFailure.invalid("Missing output shape tree")}
         for node in revisionChildren(tree) where !["nvGrpSpPr","grpSpPr","extLst"].contains(revisionLocal(node)){node.detach()}
@@ -483,11 +744,44 @@ private struct RevisionOutput {
         if let bytes=entries[relPath] {relDoc=try revisionXML(bytes,relPath)}
         else {relDoc=try revisionXML(Data(("<Relationships xmlns=\""+revisionRelationshipNS+"\"/>").utf8),relPath)}
         var used=Set(revisionChildren(relDoc.rootElement()!).compactMap{revisionAttribute($0,"Id")})
+        // Allocate output IDs once for both source views. Keep chosen anchor
+        // IDs where possible, then remap imported top-level and nested group IDs.
+        var oldIDs:[String:String]=[:],newIDs:[String:String]=[:]
+        var usedIDs=Set(revisionDescendants(tree).filter{revisionIs($0,"cNvPr",revisionPresentationNS)}.compactMap{revisionAttribute($0,"id")}.compactMap(UInt32.init))
+        for pair in plan.identities where chosen[pair.id] == anchorNew {
+            for node in revisionDescendants(selectedShapes[pair.id]!.element) where revisionIs(node,"cNvPr",revisionPresentationNS) {if let id=revisionAttribute(node,"id"),let number=UInt32(id){usedIDs.insert(number)}}
+        }
+        func allocated(_ desired:String,preserve:Bool)throws->String {
+            if preserve{return desired}
+            var number=UInt32(desired) ?? 2
+            if usedIDs.contains(number){number=2;while usedIDs.contains(number){guard number<UInt32.max else{throw PresentationRevisionFailure.unsupported("Shape identity space exhausted")};number += 1}}
+            usedIDs.insert(number);return String(number)
+        }
+        for pair in plan.identities where chosen[pair.id] != nil {
+            let useNew=chosen[pair.id]!,shape=selectedShapes[pair.id]!,fromAnchor=useNew==anchorNew
+            let topID=try allocated((anchorNew ? pair.destination:pair.base) ?? shape.id,preserve:fromAnchor)
+            if let id=pair.base{oldIDs[id]=topID};if let id=pair.destination{newIDs[id]=topID}
+            let selectedNested=revisionDescendants(shape.element).filter{revisionIs($0,"cNvPr",revisionPresentationNS)}.dropFirst()
+            var chosenNested:[String:String]=[:]
+            for node in selectedNested {if let id=revisionAttribute(node,"id"){chosenNested[id]=try allocated(id,preserve:fromAnchor)}}
+            if useNew {newIDs.merge(chosenNested){_,new in new}}else{oldIDs.merge(chosenNested){_,new in new}}
+            if let oldID=pair.base,let newID=pair.destination,let a=oldMap[oldID],let b=newMap[newID] {
+                let matches=try revisionNestedMatches(base:base,destination:destination,old:a,new:b,oldSlide:old,newSlide:new,cancellation:cancellation)
+                for match in matches {if let a=match.base,let b=match.destination,let mapped=chosenNested[useNew ? b:a] {oldIDs[a]=mapped;newIDs[b]=mapped}}
+            }
+        }
         for id in order {
             try cancellation?.check()
             let useNew=chosen[id]!,source=useNew ? destination:base,sourceSlide=useNew ? new:old
-            let original=(useNew ? newMap[id]:oldMap[id])!.element
+            let original=selectedShapes[id]!.element
             let node=original.copy() as! XMLElement
+            let identityMap=useNew ? newIDs:oldIDs
+            for descendant in revisionDescendants(node) {
+                if revisionIs(descendant,"cNvPr",revisionPresentationNS),let sourceID=revisionAttribute(descendant,"id"),let mapped=identityMap[sourceID]{revisionSet(descendant,"id",mapped)}
+                if descendant.uri==revisionDrawingNS,["stCxn","endCxn"].contains(revisionLocal(descendant)),let sourceID=revisionAttribute(descendant,"id") {
+                    guard let mapped=identityMap[sourceID] else{throw PresentationRevisionFailure.unsupported("A selected connector references a rejected or ambiguously matched shape. Review its target and connector together.")};revisionSet(descendant,"id",mapped)
+                }
+            }
             if useNew != anchorNew {
                 // Preserve foreign prefixes used anywhere in the imported shape.
                 let foreignRoot=try source.document(sourceSlide.path).rootElement()!
@@ -540,7 +834,7 @@ private struct RevisionOutput {
         for id in order {
             try cancellation?.check();let path=slidePaths[id]!,rid=nextID();pathToRel[path]=rid
             let rel=XMLElement(name:"Relationship",uri:revisionRelationshipNS);revisionSet(rel,"Id",rid);revisionSet(rel,"Type",revisionOfficeRelationshipNS+"/slide");revisionSet(rel,"Target",revisionRelative(path,from:anchor.presentation));relsRoot.addChild(rel)
-            let node=XMLElement(name:"p:sldId",uri:revisionPresentationNS);revisionSet(node,"id",id);revisionSet(node,"r:id",rid);list.addChild(node)
+            let node=XMLElement(name:"p:sldId",uri:revisionPresentationNS);revisionSet(node,"id",slideNumbers[id]!);revisionSet(node,"r:id",rid);list.addChild(node)
         }
         // Custom shows contain relationship IDs; sections contain numeric slide
         // IDs. Rewrite retained references and refuse a dangling selection.
@@ -549,7 +843,12 @@ private struct RevisionOutput {
             if revisionIs(node,"sld",revisionPresentationNS),let oldID=RevisionDeck.relationshipID(node),let path=previous[oldID] {
                 guard let rid=pathToRel[path] else{throw PresentationRevisionFailure.unsupported("A custom show refers to a rejected slide. Choose a complete revision or retain that slide.")};revisionSet(node,"r:id",rid)
             }
-            if revisionLocal(node)=="sldId",node.parent !== list,let id=revisionAttribute(node,"id"),!order.contains(id){throw PresentationRevisionFailure.unsupported("A presentation section refers to a rejected slide. Choose a complete revision or retain that slide.")}
+            if revisionLocal(node)=="sldId",node.parent !== list,let id=revisionAttribute(node,"id") {
+                guard let source=anchor.slides.first(where:{$0.id==id}),let key=slidePaths.first(where:{$0.value==source.path})?.key,let number=slideNumbers[key] else{throw PresentationRevisionFailure.unsupported("A presentation section refers to a rejected slide. Choose a complete revision or retain that slide.")};revisionSet(node,"id",number)
+            }
+        }
+        if let path=newAuthorRegistry {
+            let rel=XMLElement(name:"Relationship",uri:revisionRelationshipNS);revisionSet(rel,"Id",nextID());revisionSet(rel,"Type",revisionOfficeRelationshipNS+"/commentAuthors");revisionSet(rel,"Target",revisionRelative(path,from:anchor.presentation));relsRoot.addChild(rel)
         }
         // Register imported master graphs so PowerPoint treats their themes and
         // layouts as editable presentation content, not unreachable package parts.

@@ -1,9 +1,9 @@
 # PowerPoint presentation comparison
 
 TurtleGit can compare captured `.ppt`, `.pptx` and `.pptm` presentations in a
-native review window. For `.pptx` and `.pptm`, it also reviews package-aware
-slide and shape revisions and saves an editable copy. Microsoft PowerPoint is
-needed for rendered source-slide previews and binary `.ppt` comparison. When
+native review window. It reviews package-aware slide and shape revisions and
+saves an editable copy. Microsoft PowerPoint is needed for rendered previews,
+normalizing binary `.ppt` inputs and saving legacy `.ppt` output. When
 PowerPoint is unavailable, Open XML presentations can still be reviewed through
 their package metadata and revision decisions. The original files remain unchanged.
 
@@ -59,19 +59,31 @@ are reviewed as a unit. Changes whose references must stay together, such as a
 slide environment with notes/timing/layout changes, are labeled as a complete
 slide decision. The selected dependency graph is carried into the output.
 
-After every entry has a decision, **Save Editable Copy…** writes a `.pptx` or
-`.pptm` presentation through a native Save panel. Macro-bearing inputs require a
-macro-enabled output extension. TurtleGit preserves opaque macro parts without
+After every entry has a decision, **Save Editable Copy…** writes a presentation
+through a native Save panel. Choose Open XML output (`.pptx` or `.pptm`) or
+**PowerPoint 97–2003 (.ppt)**. Binary inputs default to legacy output; legacy
+conversion requires installed PowerPoint. Macro-bearing inputs require `.pptm`
+when saving Open XML. TurtleGit preserves opaque macro parts without
 executing them. Package digital signatures are removed when saving reviewed
 output; the file must be signed again. The originals, their aliases and TurtleGit's
 captured inputs cannot be selected as the output.
 
-The source slide previews remain **Base** and **New** throughout review. They do
-not render the combined result; open the saved copy in PowerPoint to inspect it.
+The **Source slides** view keeps the original **Base** and **New** previews. After
+resolving the decisions, choose **Preview Result** to render the actual combined
+presentation through PowerPoint. **Combined result** has its own slide navigation
+and text/notes. Changing a decision marks that preview stale; press Preview Result
+again to update it. Changing decisions does not automatically open PowerPoint.
+The source/result display choice is saved with the other comparison preferences.
+Rendering a preview does not save the editable copy or mark its decisions saved.
+
+For binary `.ppt` inputs, PowerPoint first creates private macro-enabled Open XML
+copies. The revision editor works on those normalized copies, keeping the original
+binary files untouched. Legacy Save As converts a private resolved snapshot, then
+publishes its bytes to the selected destination only after PowerPoint confirms
+closure. Format conversion can change unsupported legacy features; inspect the
+saved file in PowerPoint before relying on fidelity for a particular presentation.
 A package error or unsupported mixed combination reports its reason rather than
-silently flattening the content. A binary `.ppt` comparison remains visual and
-has no editable package review. Save to Open XML separately before using revision
-decisions for that format.
+silently flattening the content.
 
 Closing a review or quitting the app with unsaved decisions offers **Discard / Cancel**. Save the
 editable copy before closing to retain the result. Decisions belong to the current
@@ -89,18 +101,23 @@ changes below the fingerprint resolution can require inspection at higher zoom.
 
 The package revision engine adds slide and shape/group decisions and editable
 Open XML output; it does not reproduce Windows PowerPoint's entire revision UI.
-Individual children inside groups, arbitrary presentation-wide reference changes,
-all animation/transition/comment combinations, binary conversion/save-back and
-merged-result rendering still require broader implementation or acceptance.
+Individual children inside groups, arbitrary presentation-wide reference changes
+and all animation/transition/comment combinations still require broader
+implementation or acceptance. Binary conversion and result rendering require
+installed-PowerPoint acceptance beyond the injected adapter checks.
 Unsupported combinations report a reason instead of losing dependent content. This adapter is a comparison tool; conflict merging retains the
 existing configured merge-tool workflow.
 
 The package editor currently accepts transitional Open XML with UTF-8 XML. Strict
 Open XML namespaces, UTF-16/non-UTF-8 XML, DTD/entity declarations, encrypted or
 ZIP64 archives and unknown top-level shape constructs report an explicit reason.
-Mixed choices involving incompatible comment-author registries, global notes or
-handout masters, namespace prefixes, duplicate group-child IDs or references to
-rejected shapes/slides can be refused. Choose a coherent complete revision or
+Stable identities are matched first. Regenerated slide/shape IDs can be matched
+by unique content/dependency anchors and sufficiently distinct similarity;
+ambiguous duplicates remain additions/deletions. Classic comment authors and
+per-author comment indexes are remapped when combining revisions. Modern threaded
+comments/person registries still require a coherent complete revision. Mixed
+choices involving incompatible global notes or handout masters, namespace prefixes,
+duplicate group-child IDs or references to rejected shapes/slides can be refused. Choose a coherent complete revision or
 adjust the decisions; the editor does not silently discard those references.
 
 Package limits are 20,000 ZIP members, 128 MiB per member, 512 MiB expanded and

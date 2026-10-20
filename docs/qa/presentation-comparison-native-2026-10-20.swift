@@ -129,7 +129,7 @@ private extension NSWindow {
         do{
             let test=ProcessInfo.processInfo.environment["TURTLEGIT_PRESENTATION_CASE"] ?? "review"
             if test != "review" {
-                switch test {case "automation":try await PowerPointAutomationVerification.verify(root:root);case "routing":try await routing(root:root,prefs:prefs);case "lifecycle":try await lifecycle(root:root,prefs:prefs);case "revision":try await PresentationRevisionNativeVerification.verify(root:root,git:URL(fileURLWithPath:CommandLine.arguments.count>2 ? CommandLine.arguments[2]:"/usr/bin/git"));default:throw Failure(description:"Unknown presentation case")}
+                switch test {case "automation":try await PowerPointAutomationVerification.verify(root:root);case "routing":try await routing(root:root,prefs:prefs);case "lifecycle":try await lifecycle(root:root,prefs:prefs);case "revision":try await PresentationRevisionNativeVerification.verify(root:root,git:URL(fileURLWithPath:CommandLine.arguments.count>2 ? CommandLine.arguments[2]:"/usr/bin/git"));case "revision-automation":try await PowerPointRevisionAutomationVerification.verify(root:root,git:URL(fileURLWithPath:CommandLine.arguments.count>2 ? CommandLine.arguments[2]:"/usr/bin/git"));case "result":try await PresentationResultNativeVerification.verify(root:root,git:URL(fileURLWithPath:CommandLine.arguments.count>2 ? CommandLine.arguments[2]:"/usr/bin/git"));default:throw Failure(description:"Unknown presentation case")}
                 try await cleanup();print("PASS: presentation native review completed");return
             }
             let a=root.appendingPathComponent("old 雪.pptx"),b=root.appendingPathComponent("new.pptx"),old=Data([0,1,2,3]),new=Data([4,5,6,7])

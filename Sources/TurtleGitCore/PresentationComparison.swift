@@ -22,6 +22,10 @@ public struct PresentationComparisonPreview: Sendable {
     public let destinationPDF: URL
     public let baseManifest: URL
     public let destinationManifest: URL
+    /// Binary inputs are normalized by the owned PowerPoint export transaction.
+    /// OOXML inputs already are immutable captured packages.
+    public var basePackage: URL { base.pathExtension.lowercased() == "ppt" ? directory.appendingPathComponent("base-normalized.pptm") : base }
+    public var destinationPackage: URL { destination.pathExtension.lowercased() == "ppt" ? directory.appendingPathComponent("new-normalized.pptm") : destination }
     public static func prepare(_ document: FileComparisonDocument, in root: URL, cancellation: OperationCancellation) throws -> Self {
         try cancellation.check()
         guard !document.base.isDeleted, !document.destination.isDeleted else { throw PresentationComparisonFailure.absent }

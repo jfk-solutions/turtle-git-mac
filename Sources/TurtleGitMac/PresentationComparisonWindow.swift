@@ -60,7 +60,7 @@ private enum PresentationReviewText {
         return "\(added) added · \(deleted) deleted · \(modified) modified · \(moved) moved"
     }
     init(preview:PresentationComparisonPreview,manifest:PresentationComparisonManifest,permissions:[RepositoryAccessLease],preferences:UserDefaults,baseTitle:String,destinationTitle:String,protectedInputs:[URL]=[],initialReview:PresentationRevisionReview?=nil) {
-        revision=PresentationRevisionWindowModel(preview:preview,protectedInputs:protectedInputs,initialReview:initialReview)
+        revision=PresentationRevisionWindowModel(preview:preview,protectedInputs:protectedInputs,initialReview:initialReview,preferences:preferences)
         self.preview=preview;self.manifest=manifest;self.permissions=permissions;self.preferences=preferences;self.baseTitle=baseTitle;self.destinationTitle=destinationTitle
         mode=Mode(rawValue:preferences.string(forKey:"PresentationReview.Mode") ?? "") ?? .paired
         changesOnly=preferences.bool(forKey:"PresentationReview.ChangesOnly")
@@ -228,7 +228,7 @@ private enum PresentationReviewText {
     func windowWillClose(_ notification:Notification){retirementOwner=self;closing=true;model.retire();panel?.cancel(nil);cancelExportError();finishClose()}
     private func finishClose(){
         guard closing,!released,model.pending==0,!exporting,exportError==nil,window?.attachedSheet==nil else{return}
-        released=true;model.onDrain={};model.releaseResources();model.preview.discard();onClosed();retirementOwner=nil
+        released=true;model.onDrain={};model.releaseResources();if !model.revision.retainPrivateArtifacts {model.preview.discard()};onClosed();retirementOwner=nil
     }
     private func cancelExportError(){
         guard let alert=exportError else{return}
@@ -252,7 +252,7 @@ private enum PresentationReviewText {
     }
     func chooseEditableExport(){
         guard model.canAct,model.revision.canSave,!exporting,let window,window.attachedSheet==nil else{return}
-        let panel=NSSavePanel();panel.nameFieldStringValue="Reviewed presentation."+model.revision.suggestedExtension;panel.title="Save Editable Copy"
+        let panel=NSSavePanel();panel.nameFieldStringValue="Reviewed presentation."+model.revision.preferredSaveExtension;panel.title="Save Editable Copy"
         self.panel=panel;exporting=true;model.reserveExport()
         presentExport(panel,window){ [self] response in
             Task { @MainActor [self] in
@@ -281,24 +281,36 @@ private enum PresentationReviewText {
 }
 private struct PresentationComparisonDialog:View {
     @ObservedObject var model:PresentationComparisonWindowModel
+    @ObservedObject var revision:PresentationRevisionWindowModel
     let saveEditable:()->Void,export:()->Void,close:()->Void
+    init(model:PresentationComparisonWindowModel,saveEditable:@escaping()->Void,export:@escaping()->Void,close:@escaping()->Void) {
+        self.model=model;revision=model.revision;self.saveEditable=saveEditable;self.export=export;self.close=close
+    }
     private func status(_ row:PresentationSlideComparison)->Color {
         switch row.change {case .added:return .green;case .deleted:return .red;case .modified:return .orange;case .unchanged:return row.isMoved ? .blue:.secondary}
     }
     private func icon(_ row:PresentationSlideComparison)->MenuIcon {switch row.change {case .added:return .add;case .deleted:return .revert;case .modified:return .compare;case .unchanged:return row.isMoved ? .mergeMoved:.status}}
     var body:some View {
         VStack(spacing:0){
-            HStack {
-                Button{model.navigate(-1)}label:{CommandLabel(title:"Previous change",icon:.mergePreviousDifference)}
-                Button{model.navigate(1)}label:{CommandLabel(title:"Next change",icon:.mergeNextDifference)}
-                Toggle("Changes only",isOn:$model.changesOnly).toggleStyle(.checkbox)
-                Spacer();Picker("View",selection:$model.mode){ForEach(PresentationComparisonWindowModel.Mode.allCases,id:\.self){Text($0.rawValue).tag($0)}}.frame(width:220).disabled(!model.sourcePreviewsAvailable)
-                Button("−"){model.fit=false;model.zoom=max(0.1,model.zoom/1.25)}.disabled(!model.sourcePreviewsAvailable)
-                Text(model.fit ? "Fit":"\(Int(model.zoom*100))%").frame(width:45)
-                Button("+"){model.fit=false;model.zoom=min(8,model.zoom*1.25)}.disabled(!model.sourcePreviewsAvailable)
-                Button("Fit"){model.fit=true}.disabled(!model.sourcePreviewsAvailable)
+            VStack(spacing:8) {
+                HStack {
+                    Button{if revision.previewMode == .result {revision.navigateResult(-1)}else{model.navigate(-1)}}label:{CommandLabel(title:revision.previewMode == .result ? "Previous slide":"Previous change",icon:.mergePreviousDifference)}.fixedSize()
+                    Button{if revision.previewMode == .result {revision.navigateResult(1)}else{model.navigate(1)}}label:{CommandLabel(title:revision.previewMode == .result ? "Next slide":"Next change",icon:.mergeNextDifference)}.fixedSize()
+                    Toggle("Changes only",isOn:$model.changesOnly).toggleStyle(.checkbox).fixedSize().disabled(revision.previewMode == .result)
+                    Spacer()
+                    Picker("Preview",selection:$revision.previewMode){ForEach(PresentationRevisionWindowModel.PreviewMode.allCases,id:\.self){Text($0.rawValue).tag($0)}}.frame(width:260)
+                }
+                HStack {
+                    Picker("View",selection:$model.mode){ForEach(PresentationComparisonWindowModel.Mode.allCases,id:\.self){Text($0.rawValue).tag($0)}}.frame(width:260).disabled(revision.previewMode == .result || !model.sourcePreviewsAvailable)
+                    Spacer()
+                    Button("−"){model.fit=false;model.zoom=max(0.1,model.zoom/1.25)}.disabled(revision.previewMode == .sources && !model.sourcePreviewsAvailable)
+                    Text(model.fit ? "Fit":"\(Int(model.zoom*100))%").frame(width:45)
+                    Button("+"){model.fit=false;model.zoom=min(8,model.zoom*1.25)}.disabled(revision.previewMode == .sources && !model.sourcePreviewsAvailable)
+                    Button("Fit"){model.fit=true}.disabled(revision.previewMode == .sources && !model.sourcePreviewsAvailable)
+                }
             }.padding(10).disabled(!model.canAct || model.busy)
             Divider()
+            if revision.previewMode == .result {PresentationResultCanvas(model:revision,fit:model.fit,zoom:model.zoom)}else{
             HSplitView {
                 List(selection:$model.selection){ForEach(model.visibleIndices,id:\.self){index in
                     let row=model.rows[index]
@@ -332,10 +344,11 @@ private struct PresentationComparisonDialog:View {
                     }
                 }.frame(minWidth:570,maxWidth:.infinity,maxHeight:.infinity)
             }
+            }
             Divider()
             PresentationRevisionReviewPanel(model:model.revision,save:saveEditable)
             Divider()
-            HStack {Text(model.summary).font(.caption);Spacer();if model.busy || model.rendering{Button("Cancel"){model.cancel()}};Button{model.copyReview()}label:{CommandLabel(title:"Copy Review",icon:.copy)}.disabled(!model.canAct || model.rows.isEmpty);Button{export()}label:{CommandLabel(title:"Export Review…",icon:.saveAs)}.disabled(!model.canAct || model.rows.isEmpty);Button("Close",action:close).keyboardShortcut(.cancelAction);Button("Help"){if model.canAct{TurtleGitHelp.show(.presentations)}}.disabled(!model.canAct)}.padding(10)
+            HStack {Text(model.summary).font(.caption);Spacer();if model.busy || model.rendering || revision.resultBusy || revision.resultRendering {Button("Cancel"){model.cancel()}};Button{model.copyReview()}label:{CommandLabel(title:"Copy Review",icon:.copy)}.disabled(!model.canAct || model.rows.isEmpty);Button{export()}label:{CommandLabel(title:"Export Review…",icon:.saveAs)}.disabled(!model.canAct || model.rows.isEmpty);Button("Close",action:close).keyboardShortcut(.cancelAction);Button("Help"){if model.canAct{TurtleGitHelp.show(.presentations)}}.disabled(!model.canAct)}.padding(10)
             Text("Source visual comparison and editable package revision review. Animations and macro execution are not previewed.").font(.caption).foregroundStyle(.secondary).padding(.bottom,8)
         }
     }

@@ -80,7 +80,7 @@ import TurtleGitCore
         let before=try [preview.base,preview.destination].map{try Data(contentsOf:$0)}
         let event=PowerPointComparisonAutomation.event(preview,cancellationFile:preview.directory.appendingPathComponent("automation.cancel"))
         let arguments=event.paramDescriptor(forKeyword:0x2d2d2d2d)
-        try require(arguments?.numberOfItems==5 && arguments?.atIndex(1)?.stringValue==preview.base.path && arguments?.atIndex(2)?.stringValue==preview.destination.path && arguments?.atIndex(3)?.stringValue==preview.basePDF.path,"Private paths must be event arguments, never script substitutions")
+        try require(arguments?.numberOfItems==7 && arguments?.atIndex(1)?.stringValue==preview.base.path && arguments?.atIndex(2)?.stringValue==preview.destination.path && arguments?.atIndex(3)?.stringValue==preview.basePDF.path,"Private paths must be event arguments, never script substitutions")
         let result=try await PowerPointComparisonAutomation.export(preview,cancellation:.init(),dependencies:.init(compile:stub,applicationAvailable:{true},execute:{_,_ in
             do {try pdf(preview.basePDF);try pdf(preview.destinationPDF);return success}
             catch {return .init(result:nil,error:[NSAppleScript.errorNumber:-1,NSAppleScript.errorMessage:"Injected private PDF failed"])}

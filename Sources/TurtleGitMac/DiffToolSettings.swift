@@ -490,6 +490,10 @@ struct DiffToolAssociationEditor: View {
                 var initialReview:PresentationRevisionReview?
                 do {
                     manifest=try await exportPowerPoint(preview,token)
+                    // A binary source is editable only after this same owned
+                    // export has produced its private OpenXML normalization.
+                    // Package loading and result rendering use those captured
+                    // files; the original .ppt is never an editable working file.
                 } catch PowerPointComparisonAutomation.Failure.application {
                     dispatched=false
                     // OOXML revision decisions do not need Office. Only a proven

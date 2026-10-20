@@ -67,8 +67,9 @@ affected rechecks. These passes do not establish a complete hosted CI pass.
 That original checkpoint established native slide review, before editable
 package revision decisions were added. It did not establish shape review or
 merged-deck output. The connected package family below extends that scope;
-Windows review comments, complete animation/transition/macro behavior, binary
-save-back and embedded-object runtime acceptance remain open.
+Complete Windows review/comment/animation/transition/macro behavior and
+embedded-object runtime acceptance remain open. The subsequent binary/result
+family below adds private legacy conversion and combined-result preview.
 Finite raster fingerprints can miss sub-resolution visual changes. Mac standard
 Open lacks a `with window false` parameter; exact owned windows are hidden after
 open, so a live Office acceptance run must account for possible initial exposure.
@@ -115,24 +116,23 @@ The native window connects selected/all accept/reject, undo/redo, unresolved and
 unsaved state, a native Save Editable Copy panel, original/alias protection,
 cancellation/draining and Discard/Cancel closure. Missing PowerPoint falls back
 to package metadata review for `.pptx`/`.pptm`; an uncertain Office export does not
-transfer its files into a disposable review. Base/New visual previews remain
-source previews, not a rendered merged deck. Macro parts are preserved without
+transfer its files into a disposable review. Base/New visual previews remain source previews; the separate explicit
+combined-result rendering workflow is described below. Macro parts are preserved without
 execution and require macro-enabled output. Invalidated package signatures are
 removed and disclosed.
 
 This advances the source revision workflow without claiming full Windows engine
-parity. Binary `.ppt` normalization/save-back, merged result rendering, independent
-group-child decisions, complete comment/animation/presentation-wide reference
-combinations and physical Office reopening remain explicit gaps. Signed sandbox,
+parity. Independent group-child decisions, complete comment/animation/presentation-wide
+reference combinations and physical Office reopening remain explicit gaps. Signed sandbox,
 TCC/file grants, minimum-OS acceptance and App Store review remain unverified.
 
 The package structure and separate slide/layout/master/theme/notes relationships
 follow Microsoft's [PresentationML structure](https://learn.microsoft.com/en-us/office/open-xml/presentation/structure-of-a-presentationml-document)
 and [slide document model](https://learn.microsoft.com/en-us/office/open-xml/presentation/working-with-presentation-slides).
 
-Nonvisual slide/shape identities currently drive package matching. Regenerated
-IDs are treated as deletion/addition; package-level visual identity rematching
-remains open. Source raster review retains its separate visual anchors.
+Nonvisual slide/shape identities are matched first. The binary/result family
+below extends matching when an editor regenerates those IDs. Source raster review
+retains its separate visual anchors.
 
 ### Editable revision captures
 
@@ -149,3 +149,61 @@ show live Office rendering or a synthesized merged-slide preview.
 28 distinct focused Core methods, passing native workflows and independent ZIP/XML
 output checks after the actual save-identity and retired-Quit repairs. These checks
 do not establish live Office reopening or complete source parity.
+
+
+## Legacy inputs, combined-result rendering and identity matching
+
+Binary `.ppt` source export also saves a private macro-enabled Open XML package,
+using the installed Mac dictionary's named Save As enumerators. Revision review
+reads those normalized packages. It never replaces the captured binary sources.
+The same serialized automation worker renders resolved result snapshots or
+converts them to private legacy `.ppt` output. The native Save As workflow alone
+publishes output to the user-selected destination after confirmed Office closure.
+
+The native window has explicit Source slides / Combined result modes, Preview
+Result, result slide navigation/text and current/stale decision tracking. Editing
+decisions invalidates the existing preview and cancels obsolete work. A new
+render requires an explicit action; stale callbacks cannot publish over newer
+decisions. Previewing does not clear unsaved decisions. Binary inputs default to
+legacy output; Open XML output remains available. Cancellation, retirement and
+uncertain Office ownership retain the existing captured-input lifetime rules.
+
+Matching uses stable IDs, mutually unique normalized content/dependency anchors,
+then bounded similarity with a uniqueness margin. Ambiguous duplicate content
+remains separate additions/deletions. Output slide/shape IDs and connector/group
+references are remapped for selected mixed sources. Classic comment authors and
+comment indexes are merged consistently; equivalent notes-master graphs can be
+reused. Modern threaded-comment/person combinations remain explicitly unsupported
+for independent mixed choices. Groups remain atomic and animation/reference
+changes can still require a whole-slide decision. Exact whole-revision choices
+preserve the selected source package entries when no security/format rewrite is
+required.
+
+Actual PowerPoint normalization, rendering and legacy format fidelity still need
+live acceptance, including hidden slides, macros, embedded content, Automation
+prompts and signed file access. Injected conversion replies and a CFB header are
+transport checks; they do not prove a real legacy deck can be reopened. The
+existing editable/source captures above predate this result-preview family.
+
+
+### Result-preview captures and grouped checkpoint
+
+The following are actual offscreen native windows with a private generated PDF
+from the exported mixed-decision snapshot. The green rectangle is a fixture
+rendering, not a live PowerPoint conversion. The slide list records New first /
+Base second, while the revision panel retains separate accepted/rejected shape
+decisions and unsaved state. Both appearances were inspected; navigation and
+format controls retain full captions after the layout repair.
+
+![Combined result, light](site/assets/presentation-result-light.png)
+
+![Combined result, dark](site/assets/presentation-result-dark.png)
+
+[Result-family evidence](qa/presentation-result-family-2026-10-20.json) records the
+19 focused revision-engine tests, Debug build and grouped native adapter, routing,
+review, lifecycle, editable revision and result cases. Real private repositories
+under Apple Git and bundled Git retain their HEAD, raw index and tracked source
+bytes. Independent ZIP/XML checks validate the mixed Open XML output in addition
+to the existing complete-New PPTX/PPTM cases. Apple-event execution and result
+PDFs were injected; the installed PowerPoint terminology compiled. These checks
+do not establish live Office fidelity, a complete CI pass or App Store acceptance.
