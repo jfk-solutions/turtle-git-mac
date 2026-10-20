@@ -389,6 +389,7 @@ jobs:
           python3 scripts/test-add-revert-file-flow.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-log-file-identities.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-log-controls-layout.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+          python3 scripts/test-primary-conditional.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-comparison-workflow.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-file-transfer-family.py --only identities --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
           python3 scripts/test-workspace-files.py --only workspace --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"

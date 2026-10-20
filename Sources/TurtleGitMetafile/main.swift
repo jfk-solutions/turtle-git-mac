@@ -228,52 +228,9 @@ private final class NativeRasterComposite {
                 try sourcePixels.withUnsafeBytes { (src:UnsafeRawBufferPointer) in
                     try patternPixels.withUnsafeBytes { (pat:UnsafeRawBufferPointer) in
                         try selectionPixels.withUnsafeBytes { (mono:UnsafeRawBufferPointer) in
-                            for pixel in 0..<pixels {
-                                let offset=pixel*4,c=Int(area[offset+3]);if c==0{continue}
-                                func straight(_ bytes:UnsafeRawBufferPointer,_ channel:Int)throws->UInt8 {
-                                    let a=Int(bytes[offset+3]);guard a>0,a+2>=c else{throw invalid("transparent required transfer operand")}
-                                    return UInt8(min(255,(Int(bytes[offset+channel])*255+a/2)/a))
-                                }
-                                if mode == "alpha" {
-                                    let a=Int(src[offset+3])
-                                    // Source is an inverse-mapped full-device
-                                    // plane. Only independent geometry supplies
-                                    // edge/clip coverage; apply it exactly once.
-                                    guard perPixel || a==255 else{throw invalid("constant-alpha source plane is not opaque")}
-                                    let denominator=255*255
-                                    let effective=(a*constant*c+denominator/2)/denominator
-                                    for channel in 0..<3 {
-                                        let value=(Int(src[offset+channel])*constant*c+denominator/2)/denominator+(Int(dst[offset+channel])*(255-effective)+127)/255
-                                        dst[offset+channel]=UInt8(min(255,value))
-                                    }
-                                    dst[offset+3]=UInt8(min(255,effective+(Int(dst[offset+3])*(255-effective)+127)/255))
-                                    continue
-                                }
-                                var rop=foreground
-                                if mode == "mask" {
-                                    let r=try straight(mono,0),g=try straight(mono,1),b=try straight(mono,2)
-                                    // The parser admits only 1-bit mask data, but
-                                    // native SVG mapping can antialias cell edges.
-                                    // Requantize that achromatic sample once; do
-                                    // not blend foreground/background truth tables.
-                                    guard Int(max(r,max(g,b)))-Int(min(r,min(g,b)))<=2 else{throw invalid("mask is not monochrome at device pixels")}
-                                    rop=r>=128 ? foreground:background
-                                    if rop==0xaa {continue} // Preserve destination RGBA exactly.
-                                }
-                                if mode == "transparent" {
-                                    let r=try straight(src,0),g=try straight(src,1),b=try straight(src,2)
-                                    if (Int(r)<<16 | Int(g)<<8 | Int(b))==key {continue}
-                                }
-                                let usesSource=depends(rop,2,0x33),usesPattern=depends(rop,4,0x0f),oldAlpha=Int(dst[offset+3])
-                                for channel in 0..<3 {
-                                    let old=Int(dst[offset+channel]),d=UInt8(min(255,old+255-oldAlpha))
-                                    let sourceByte=usesSource ? try straight(src,channel):0
-                                    let patternByte=usesPattern ? try straight(pat,channel):0
-                                    let result=Int(apply(rop,patternByte,sourceByte,d))
-                                    dst[offset+channel]=UInt8((result*c+old*(255-c)+127)/255)
-                                }
-                                dst[offset+3]=UInt8(c+(oldAlpha*(255-c)+127)/255)
-                            }
+                            try evaluateTransfer(dst:dst,area:area,src:src,pat:pat,mono:mono,pixels:pixels,
+                                                 mode:mode,foreground:foreground,background:background,
+                                                 key:key,constant:constant,perPixel:perPixel)
                         }
                     }
                 }
@@ -281,6 +238,61 @@ private final class NativeRasterComposite {
         }
         return try encode(output,width:width,height:height)
     }
+    // Keep pointer borrowing separate from pixel evaluation. Older distribution
+    // compilers otherwise time out inferring the five nested Data closures.
+    private func evaluateTransfer(dst:UnsafeMutableRawBufferPointer,area:UnsafeRawBufferPointer,
+                                  src:UnsafeRawBufferPointer,pat:UnsafeRawBufferPointer,
+                                  mono:UnsafeRawBufferPointer,pixels:Int,mode:String,
+                                  foreground:Int,background:Int,key:Int,constant:Int,
+                                  perPixel:Bool)throws {
+        for pixel in 0..<pixels {
+            let offset=pixel*4,c=Int(area[offset+3]);if c==0{continue}
+            func straight(_ bytes:UnsafeRawBufferPointer,_ channel:Int)throws->UInt8 {
+                let a=Int(bytes[offset+3]);guard a>0,a+2>=c else{throw invalid("transparent required transfer operand")}
+                return UInt8(min(255,(Int(bytes[offset+channel])*255+a/2)/a))
+            }
+            if mode == "alpha" {
+                let a=Int(src[offset+3])
+                // Source is an inverse-mapped full-device
+                // plane. Only independent geometry supplies
+                // edge/clip coverage; apply it exactly once.
+                guard perPixel || a==255 else{throw invalid("constant-alpha source plane is not opaque")}
+                let denominator=255*255
+                let effective=(a*constant*c+denominator/2)/denominator
+                for channel in 0..<3 {
+                    let value=(Int(src[offset+channel])*constant*c+denominator/2)/denominator+(Int(dst[offset+channel])*(255-effective)+127)/255
+                    dst[offset+channel]=UInt8(min(255,value))
+                }
+                dst[offset+3]=UInt8(min(255,effective+(Int(dst[offset+3])*(255-effective)+127)/255))
+                continue
+            }
+            var rop=foreground
+            if mode == "mask" {
+                let r=try straight(mono,0),g=try straight(mono,1),b=try straight(mono,2)
+                // The parser admits only 1-bit mask data, but
+                // native SVG mapping can antialias cell edges.
+                // Requantize that achromatic sample once; do
+                // not blend foreground/background truth tables.
+                guard Int(max(r,max(g,b)))-Int(min(r,min(g,b)))<=2 else{throw invalid("mask is not monochrome at device pixels")}
+                rop=r>=128 ? foreground:background
+                if rop==0xaa {continue} // Preserve destination RGBA exactly.
+            }
+            if mode == "transparent" {
+                let r=try straight(src,0),g=try straight(src,1),b=try straight(src,2)
+                if (Int(r)<<16 | Int(g)<<8 | Int(b))==key {continue}
+            }
+            let usesSource=depends(rop,2,0x33),usesPattern=depends(rop,4,0x0f),oldAlpha=Int(dst[offset+3])
+            for channel in 0..<3 {
+                let old=Int(dst[offset+channel]),d=UInt8(min(255,old+255-oldAlpha))
+                let sourceByte=usesSource ? try straight(src,channel):0
+                let patternByte=usesPattern ? try straight(pat,channel):0
+                let result=Int(apply(rop,patternByte,sourceByte,d))
+                dst[offset+channel]=UInt8((result*c+old*(255-c)+127)/255)
+            }
+            dst[offset+3]=UInt8(c+(oldAlpha*(255-c)+127)/255)
+        }
+    }
+
 }
 
 /// Bounded geometric EMF+ pen playback. Input paths are generated by the private

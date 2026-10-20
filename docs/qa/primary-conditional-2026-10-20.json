@@ -1,0 +1,165 @@
+{
+  "date": "2026-10-20",
+  "implementation_baseline": "717aa04a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "dialogs": [
+    "src/Resources/TortoiseProcENG.rc/IDD_COMMITDLG",
+    "src/Resources/TortoiseProcENG.rc/IDD_LOGMESSAGE",
+    "src/Resources/TortoiseProcENG.rc/IDD_CHANGEDFILES"
+  ],
+  "scope": "Commit native split action/focus/source links; Log native date menus/loading/statistics/navigation/Cancel; Working Tree fresh scope/staged acquisition/default cancellation/retained results/source backdrop. Typed metafile evaluator fixes hosted compiler expression complexity.",
+  "validation": {
+    "core": {
+      "log": "build/qa/primary-conditional-core-2026-10-20.log",
+      "passed": 7,
+      "failures": 0,
+      "scope": "Six classic mask/parallelogram/transparent/alpha transfer pixel/refusal methods and bundled source icon decode method; no full Core repeat."
+    },
+    "runtime_builds": [
+      "build/qa/primary-conditional-metafile-build-2026-10-20.log",
+      "build/qa/primary-conditional-libgit2-build-2026-10-20.log"
+    ],
+    "app_builds": [
+      {
+        "log": "build/qa/primary-conditional-build-2026-10-20.log",
+        "exit_code": 65,
+        "reason": "Unrebuilt metafile NOTICE provenance refused at embedding; Swift app sources compiled."
+      },
+      {
+        "log": "build/qa/primary-conditional-final-build-2026-10-20.log",
+        "exit_code": 65,
+        "reason": "Metafile reconstructed; remaining libgit2 NOTICE provenance refused at embedding."
+      },
+      {
+        "log": "build/qa/primary-conditional-embed-build-2026-10-20.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/primary-conditional-keyboard-build-2026-10-20.log",
+        "exit_code": 0,
+        "reason": "Affected Commit keyboard repair; runtimes reused."
+      }
+    ],
+    "native": {
+      "distinct_case_engine_pairs": 6,
+      "passed_cases": {
+        "commit_system": "build/qa/primary-conditional-repaired-native-2026-10-20.log",
+        "commit_bundled": "build/qa/primary-conditional-bundled-final-2026-10-20.log",
+        "log_system": "build/qa/primary-conditional-log-status-keyboard-2026-10-20.log",
+        "status_system": "build/qa/primary-conditional-status-keyboard-repair-2026-10-20.log",
+        "log_and_status_bundled": "build/qa/primary-conditional-bundled-log-status-pass-2026-10-20.log"
+      },
+      "failures_and_repairs": [
+        "Fixture WorkingTreeFile.path compile accesses corrected to entry.path.",
+        "Focused Space exposed actual momentary split-control selectedSegment mismatch; production uses dedicated guarded primary keyboard callback.",
+        "Fixture failed to locate SwiftUI Cancel as NSButton and then virtual AX; focused diagnostic confirmed empty virtual AX children on hidden NSHostingView. Actual window Escape and default Return dispatch now verify cancellation; screenshots/source provide separate button presence evidence.",
+        "Fixture injected Failure lacked LocalizedError, producing generic Foundation text; errorDescription now deterministic.",
+        "One attempted check refused stale CommitActionControl objects before launching."
+      ],
+      "all_attempt_logs": [
+        "build/qa/primary-conditional-bundled-final-2026-10-20.log",
+        "build/qa/primary-conditional-bundled-log-status-pass-2026-10-20.log",
+        "build/qa/primary-conditional-log-ax-diagnostic-2026-10-20.log",
+        "build/qa/primary-conditional-log-ax-raw-2026-10-20.log",
+        "build/qa/primary-conditional-log-status-2026-10-20.log",
+        "build/qa/primary-conditional-log-status-final-2026-10-20.log",
+        "build/qa/primary-conditional-log-status-keyboard-2026-10-20.log",
+        "build/qa/primary-conditional-native-2026-10-20.log",
+        "build/qa/primary-conditional-native-final-2026-10-20.log",
+        "build/qa/primary-conditional-repaired-native-2026-10-20.log",
+        "build/qa/primary-conditional-status-keyboard-repair-2026-10-20.log"
+      ]
+    },
+    "owned_receiver_pids": [
+      24625,
+      26322,
+      26718,
+      26723,
+      27100,
+      27283,
+      27471,
+      27719,
+      27841
+    ],
+    "independently_absent": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/commit-conditional-dark.png",
+        "sha256": "ab6f6c07ba171a782585d8468582826705adf6e3d569ca715ad0c030489c1005",
+        "width": 2000,
+        "height": 1584,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/commit-conditional-light.png",
+        "sha256": "34af237b215c2b2822e82d2c0247dd69ce97338964a4344e3c7d9b0caaad9a63",
+        "width": 2000,
+        "height": 1584,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/log-conditional-dark.png",
+        "sha256": "bf0b5afa1ffd6a52aa4b789be9521f19af01f2a45fa226140b59022e29ee404c",
+        "width": 2240,
+        "height": 1624,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/log-conditional-light.png",
+        "sha256": "7f084de10dbc483d48cdf928e88872de90797547c69b9f017c2f1f2d7703992f",
+        "width": 2240,
+        "height": 1624,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/status-conditional-dark.png",
+        "sha256": "7a2523b839968d74117ffc13f05c486d9cf5c65bd61cf37ecc91812fbe7278bb",
+        "width": 2200,
+        "height": 1324,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/status-conditional-light.png",
+        "sha256": "054098a96df58f54185b0bf229b1e661734e5711ce96517ee12c61c558922767",
+        "width": 2200,
+        "height": 1324,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/status-refresh-conditional-dark.png",
+        "sha256": "f69d47113da9be82c9185a9560ab706d8571f092bb24e5e784d07d463dc6ca61",
+        "width": 2200,
+        "height": 1324,
+        "individually_viewed": true
+      },
+      {
+        "path": "docs/site/assets/status-refresh-conditional-light.png",
+        "sha256": "e6347710a66ce7f6564474f026b497a5413223edbd7a44ebb04466ecefc940e9",
+        "width": 2200,
+        "height": 1324,
+        "individually_viewed": true
+      }
+    ],
+    "localizations": "build-localizations.py --write and --check passed: 38 languages, 1306 keys",
+    "help": "No bundled help-topic guide changed.",
+    "source_static_repairs": [
+      "Gregorian year2100 upper endpoint independent of user display calendar.",
+      "Jump candidate indices preserve displayed synthetic working-tree row instead of removing it before source first-row guard."
+    ]
+  },
+  "ci": {
+    "baseline_macos_run": 39491639513,
+    "baseline_macos_conclusion": "failure",
+    "failed_step": "Build pinned universal WMF and EMF renderer",
+    "baseline_pages_run": 39491639577,
+    "baseline_pages_conclusion": "success",
+    "new_hosted_result": "pending push/run; local Swift6.4 does not prove Xcode16.4 success"
+  },
+  "remaining": [
+    "Physical pointer/menu tracking and VoiceOver/virtual accessibility acceptance",
+    "All conditional light/dark and large-history/repository source layout acceptance",
+    "Complete current hosted macOS integration run",
+    "Current installed signed Finder workflows and App Store distribution signing/export/submission",
+    "Whole-app upstream behavioral and visual parity remains unproven"
+  ]
+}

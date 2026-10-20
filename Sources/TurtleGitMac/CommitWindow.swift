@@ -39,6 +39,15 @@ import UniformTypeIdentifiers
         if let editor=view as? CommitMessageTextView {return editor}
         return view.subviews.compactMap {messageEditor(in:$0)}.first
     }
+    func fileTable(in view:NSView? = nil)->NSTableView? {
+        guard let view=view ?? window?.contentView else{return nil}
+        if let table=view as? NSTableView,table.tableColumns.count>1 {return table}
+        return view.subviews.compactMap{fileTable(in:$0)}.first
+    }
+    @discardableResult func focusFileList()->Bool {
+        guard commandsAvailable,model.fileListAvailable,let window,let table=fileTable() else{return false}
+        return window.makeFirstResponder(table)
+    }
     var onClosed: () -> Void = {}
     private(set) var partial: PatchWindowController?
     private(set) var stagingHintAlert:NSAlert?
@@ -2721,10 +2730,6 @@ struct CommitDialog: View {
                 }
                 if let error = model.issueProviderError { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
                 if !model.fileOperationTitle.isEmpty { HStack { Text(model.fileOperationCancelling ? "Cancelling…" : model.fileOperationTitle).font(.caption); Spacer(); Button("Cancel operation") { model.cancelFileOperation() }.disabled(model.fileOperationCancelling) } }
-                if let operation = model.operation {
-                    CommandLabel(title: operation.title, icon: operation == .merge ? .merge : operation == .cherryPick ? .cherryPick : .revert).font(.callout).foregroundStyle(.orange)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
                 GeometryReader { geometry in
                     let maximum = max(245.0, geometry.size.height - 288)
                     let height = min(max(messagePaneHeight, 245), maximum)
@@ -2757,16 +2762,14 @@ struct CommitDialog: View {
                     Toggle("Show Whole Project", isOn: $model.showWholeProject).disabled(model.scopePaths.isEmpty)
                     Toggle("Message only", isOn: $model.messageOnly)
                 }.toggleStyle(.checkbox).disabled(model.inputsBlocked)
+                if let operation=model.operation {
+                    CommandLabel(title:operation.title,icon:operation == .merge ? .merge:operation == .cherryPick ? .cherryPick:.revert)
+                        .font(.caption).foregroundStyle(.orange).lineLimit(2).help(operation.title)
+                        .accessibilityIdentifier("Commit operation state")
+                }
                 Button("Refresh") { model.reload() }.disabled(!model.canRefresh)
                 Spacer()
-                HStack(spacing: 0) {
-                    Button(LocalizedStringKey(model.currentCompletionAction.rawValue)) { model.commitCurrentAction() }.keyboardShortcut(.return, modifiers: [.command])
-                    if model.replaySplit == nil && model.historyCombine == nil { Menu {
-                        ForEach(CommitWindowModel.CompletionAction.allCases, id: \.self) { action in
-                            Button { model.commit(action) } label: { CommandLabel(title: action.rawValue, icon: action == .push ? .push : .commit) }
-                        }
-                    } label: { Image(systemName: "chevron.down") }.menuIndicator(.hidden).fixedSize().accessibilityLabel("Commit actions") }
-                }.disabled(!model.canCommit || model.inputsBlocked)
+                CommitActionControl(model:model).fixedSize().disabled(!model.canCommit || model.inputsBlocked)
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel)
                 Button("Help") { TurtleGitHelp.show(.commit) }.disabled(model.inputsBlocked)
             }
@@ -2841,10 +2844,10 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                             Spacer()
                             VStack(alignment: .trailing, spacing: 6) {
                                 if model.stagingEnabled {
-                                    Button(LocalizedStringKey(model.partialMode == false ? "Hide Staging «" : "Partial Staging »")) { model.showPartial(false) }
-                                    Button(LocalizedStringKey(model.partialMode == true ? "Hide Unstaging «" : "Partial Unstaging »")) { model.showPartial(true) }
+                                    Button(LocalizedStringKey(model.partialMode == false ? "Hide Staging «" : "Partial Staging »")) { model.showPartial(false) }.buttonStyle(.link)
+                                    Button(LocalizedStringKey(model.partialMode == true ? "Hide Unstaging «" : "Partial Unstaging »")) { model.showPartial(true) }.buttonStyle(.link)
                                 } else {
-                                    Button(LocalizedStringKey(model.viewingPatch ? "Hide Patch «" : "View Patch »")) { model.showViewPatch() }
+                                    Button(LocalizedStringKey(model.viewingPatch ? "Hide Patch «" : "View Patch »")) { model.showViewPatch() }.buttonStyle(.link)
                                 }
                                 Text(model.stagingEnabled ? FileListLabels.stagingSummary(staged:model.stagedEntries.count,unstaged:model.unstagedEntries.count):FileListLabels.selectionSummary(checked:model.checkedPathsForCommit.count,shown:model.visibleEntries.count)).font(.caption)
                             }
@@ -3068,7 +3071,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
         } else { groupRule }
     }
     private var groupRule: some View { Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1) }
-    func checkButton(_ title: String, enabled: Bool = true, action: @escaping (Bool) -> Void) -> some View { Button(LocalizedStringKey(title)) {action(!NSEvent.modifierFlags.contains(.shift))}.buttonStyle(.plain).foregroundStyle(enabled ? Color.blue : Color.secondary).disabled(!enabled).help(title == "None" ? "Uncheck all files. Shift-click checks all files." : "Check matching files. Shift-click unchecks matching files.") }
+    func checkButton(_ title: String, enabled: Bool = true, action: @escaping (Bool) -> Void) -> some View { Button {action(!NSEvent.modifierFlags.contains(.shift))} label: {Text(LocalizedStringKey(title)).underline(enabled).fontWeight(title == "All" || title == "None" ? .semibold:.regular)}.buttonStyle(.plain).foregroundStyle(enabled ? Color.accentColor : Color.secondary).disabled(!enabled).help(title == "None" ? "Uncheck all files. Shift-click checks all files." : "Check matching files. Shift-click unchecks matching files.") }
 }
 
 /// Keep the source destination/issue bands on one line when they fit. At the
@@ -3376,7 +3379,7 @@ private struct CommitProgressDialog: View {
 @MainActor final class CommitCommandMenu:NSObject,NSMenuItemValidation,NSMenuDelegate {
     enum Command:String,CaseIterable {
         case current="Current commit action",commit="Commit",recommit="ReCommit",push="Commit & Push"
-        case refresh="Refresh",focus="Focus commit message",history="Recent messages…",hash="Pick commit hash…",message="Pick commit message…",pasteFiles="Paste file list",signOff="Add Signed-off-by"
+        case refresh="Refresh",focus="Focus commit message",focusFiles="Focus file list",history="Recent messages…",hash="Pick commit hash…",message="Pick commit message…",pasteFiles="Paste file list",signOff="Add Signed-off-by"
         case all="All",none="None",unversioned="Unversioned",versioned="Versioned",added="Added",deleted="Deleted",modified="Modified",files="Files",submodules="Submodules"
         case staging="Staging support (EXPERIMENTAL)",showUnversioned="Show Unversioned Files",whole="Show Whole Project",messageOnly="Message only",amend="Amend Last Commit"
         case patch="View Patch",partialStage="Partial Staging",partialUnstage="Partial Unstaging",help="Commit Help"
@@ -3418,7 +3421,7 @@ private struct CommitProgressDialog: View {
         func group(_ title:String,_ commands:[Command]) {let caption=NSLocalizedString(title,comment:"");let item=NSMenuItem(title:caption,action:nil,keyEquivalent:"");let child=NSMenu(title:caption);child.delegate=self;item.submenu=child;menu.addItem(item);append(commands,to:child)}
         append([.current],to:menu);group("Commit actions",[.commit,.recommit,.push]);menu.addItem(.separator())
         group("Check files",[.all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules])
-        group("Message",[.focus,.history,.hash,.message,.pasteFiles,.signOff])
+        group("Message",[.focus,.history,.hash,.message,.pasteFiles,.signOff]);append([.focusFiles],to:menu)
         group("Options",[.staging,.showUnversioned,.whole,.messageOnly,.amend])
         append([.patch,.partialStage,.partialUnstage,.refresh,.help],to:menu)
         let index=main.items.firstIndex(where:{item in
@@ -3458,6 +3461,7 @@ private struct CommitProgressDialog: View {
         case .current,.commit:return model.canCommit
         case .recommit,.push:return model.canCommit && model.replaySplit==nil && model.historyCombine==nil
         case .all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules:return !model.messageOnly && model.visibleEntries.contains{predicate(command,$0)}
+        case .focusFiles:return model.fileListAvailable && owner.fileTable() != nil
         case .history:return model.messageHistory?.entries.isEmpty==false && owner.messageEditor() != nil
         case .hash,.message,.pasteFiles:return owner.messageEditor() != nil
         case .whole:return !model.scopePaths.isEmpty
@@ -3501,6 +3505,7 @@ private struct CommitProgressDialog: View {
         case .push:model.commit(.push)
         case .refresh:model.reload()
         case .focus:model.focusMessage()
+        case .focusFiles:owner.focusFileList()
         case .history,.hash,.message,.pasteFiles:owner.messageEditor()?.performCommitMenuCommand(command)
         case .signOff:model.addSignOff()
         case .all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules:
@@ -3523,6 +3528,10 @@ private struct CommitProgressDialog: View {
         if event.keyCode==96,flags.isEmpty {if enabled(.refresh) {perform(.refresh)};return true}
         if [36,76].contains(event.keyCode),flags == .control {if enabled(.current) {perform(.current)};return true}
         guard let text=event.charactersIgnoringModifiers?.lowercased() else {return false}
+        if flags == .option,["m","f"].contains(text),!((owner?.window?.firstResponder as? NSTextView)?.isEditable ?? false) {
+            let command:Command=text == "m" ? .focus:.focusFiles
+            if enabled(command) {perform(command)};return true
+        }
         for item in items {guard let invocation=item.representedObject as? Invocation,let binding=shortcut(invocation.command),binding.0.lowercased()==text,binding.1==flags,attached(item) else {continue};if enabled(invocation.command) {invoke(item)};return true}
         return false
     }
@@ -3532,6 +3541,8 @@ private struct CommitProgressDialog: View {
         case .recommit:return ("\r",[.command,.option])
         case .push:return ("\r",[.command,.shift])
         case .refresh:return (String(UnicodeScalar(NSF5FunctionKey)!),[])
+        case .focus:return ("m",[.command,.option])
+        case .focusFiles:return ("f",[.command,.option])
         default:return nil
         }
     }
@@ -3541,6 +3552,7 @@ private struct CommitProgressDialog: View {
         case .current,.commit,.recommit,.amend,.signOff:return .commit
         case .refresh:return .refresh
         case .focus,.messageOnly:return .editor
+        case .focusFiles:return .status
         case .history,.hash,.message:return .log
         case .pasteFiles:return .copy
         case .help:return .help

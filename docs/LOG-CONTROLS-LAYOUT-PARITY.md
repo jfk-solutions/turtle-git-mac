@@ -92,3 +92,10 @@ was compared directly; its image blob matches the pinned resource. The retained
 zero-size, two-pane NSSplitView warning during shared child handling also occurs
 in earlier reference-navigation records. This batch does not claim that warning
 is resolved, nor identify a unique production root cause from the message alone.
+
+
+## Primary conditional control follow-up
+
+[The shared conditional UI audit](PRIMARY-CONDITIONAL-UI-PARITY.md) records the
+Commit split control, Log control states and Working Tree refresh/cancellation
+follow-up, with focused validation and remaining acceptance kept explicit.

@@ -2745,3 +2745,10 @@ restoration before client PostCommit, failed-attempt message history, captured
 result publication and a deliberate ReCommit editor/checkbox reset boundary.
 The record retains source ordering, native recovery adaptations and actual
 validation scope separately from full-dialog/signed acceptance.
+
+
+## Primary conditional control follow-up
+
+[The shared conditional UI audit](PRIMARY-CONDITIONAL-UI-PARITY.md) records the
+Commit split control, Log control states and Working Tree refresh/cancellation
+follow-up, with focused validation and remaining acceptance kept explicit.

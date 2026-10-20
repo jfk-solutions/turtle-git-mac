@@ -210,6 +210,10 @@ final class StatusNativeWindow: NSWindow {
     @Published private(set) var hasStash = false
     var updateTitle: (URL) -> Void = { _ in }
     @Published private(set) var currentOperation = ""
+    @Published private(set) var refreshing = false
+    @Published private(set) var refreshFailure: String?
+    @Published private(set) var refreshCancelled = false
+    @Published private(set) var hasStatusSnapshot = false
     @Published private(set) var cancelling = false
     var readStatus: (OperationCancellation) async throws -> [WorkingTreeFile]
     var embeddedReload: (() -> Void)?
@@ -219,7 +223,7 @@ final class StatusNativeWindow: NSWindow {
     var clipboard = NSPasteboard.general
     func installEmbeddedFiles(_ rows:[WorkingTreeFile],statistics:GitPathMap<CommitFile>,metadata:GitPathMap<StatusListMetadata>,submodules: some Sequence<String>,hasHead:Bool,rebase:Bool,hasLFS:Bool) { let submodules = GitPathSet(submodules);
         guard !retired,!busy else {return};menuGeneration = UUID()
-        files = rows;self.statistics = statistics;fileMetadata = metadata;self.submodules = submodules
+        files = rows;self.statistics = statistics;fileMetadata = metadata;self.submodules = submodules;hasStatusSnapshot = true
         self.hasHead = hasHead;conflictRebase = rebase;self.hasLFS = hasLFS
         selection.formIntersection(GitPathSet(rows.map(\.id)))
     }
@@ -379,6 +383,22 @@ final class StatusNativeWindow: NSWindow {
         return FileListLabels.counts("{shown} files shown, {staged} staged, {modified} modified, {unversioned} unversioned",values:["shown":rows.count,"staged":rows.filter {$0.entry.staged}.count,"modified":rows.filter {$0.state == .modified}.count,"unversioned":rows.filter {$0.state == .untracked}.count])
     }
     var folderFiltersEnabled: Bool { invocation.singleDirectory }
+    var controlsBlocked: Bool { busy || confirmingQuit || retired || !actionOwnerAvailable() }
+    var canCancelCurrentOperation: Bool { !retired && !confirmingQuit && !cancelling && (operationCancellation != nil || ownerCancellation != nil) }
+    var primaryActionTitle: String { busy ? (cancelling ? String(localized: "Cancelling…") : String(localized: "Cancel")) : String(localized: "OK") }
+    var primaryActionEnabled: Bool { !retired && !confirmingQuit && (busy ? canCancelCurrentOperation : actionOwnerAvailable()) }
+    func performPrimaryAction() { guard primaryActionEnabled else { return }; if busy { _ = cancelOperation() } else { close() } }
+    var branchCaption: String { !hasStatusSnapshot ? "" : branch.isEmpty ? (hasHead ? String(localized: "Detached HEAD") : String(localized: "Unborn branch")) : branch }
+    var emptyListMessage: String {
+        if let refreshFailure { return refreshFailure }
+        if refreshCancelled && !hasStatusSnapshot { return String(localized: "Refresh cancelled. Refresh to read the working tree.") }
+        return String(localized: "No files to show with the current setting.\nCheck one or more settings below to see unversioned, ignored and/or unmodified files.")
+    }
+    var refreshNotice: String? {
+        if let refreshFailure, hasStatusSnapshot { return refreshFailure }
+        if refreshCancelled && hasStatusSnapshot { return String(localized: "Refresh cancelled. The last working tree results are still displayed.") }
+        return nil
+    }
     var stashActions: [RepositoryAction] { hasStash ? [.stash, .stashPop, .stashApply, .stashList] : [.stash] }
     func stashMenuSnapshot()->StatusStashMenuSnapshot? {
         guard !retired,!busy,!confirmingQuit,actionOwnerAvailable() else {return nil}
@@ -428,13 +448,21 @@ final class StatusNativeWindow: NSWindow {
         selection = []
     }
     func setFilter(_ value: WorkingTreeFilter) {
-        guard !retired, !busy, !confirmingQuit else { return }
-        let position = fileListRefresh.begin(preferences:defaults,selectedIDs:selection)
+        guard !controlsBlocked, value != filter else { return }
+        let previous = filter
+        // These two ChangedDlg controls acquire a fresh Git snapshot. Repainting
+        // an old whole-tree cache misses files changed since the last refresh.
+        let requiresRefresh = previous.wholeProject != value.wholeProject || previous.showAllStaged != value.showAllStaged || previous.paths != value.paths
         menuGeneration = UUID(); filter = value
         defaults.set(value.showUnversioned, forKey: "AddBeforeCommit")
         defaults.set(value.showAllStaged, forKey: "ChangedFilesIncludeStaged")
         if !value.paths.isEmpty { defaults.set(value.wholeProject, forKey: wholeProjectKey) }
-        selection.formIntersection(GitPathSet(visibleFiles.map(\.id)));if !position.remember {selection = []};updateScopeTitle()
+        updateScopeTitle()
+        if requiresRefresh { reload(); return }
+        // The native acquisition already includes unversioned/ignored/flagged
+        // rows, so their source loaded-category toggles can reuse that snapshot.
+        let position = fileListRefresh.begin(preferences:defaults,selectedIDs:selection)
+        selection.formIntersection(GitPathSet(visibleFiles.map(\.id)));if !position.remember {selection = []}
         Task { [self] in await fileListRefresh.restore(position,ids:tableRows.map { $0.row.id });fileListRefresh.finish(position) }
     }
     @discardableResult func cancelOperation() -> Bool {
@@ -449,14 +477,17 @@ final class StatusNativeWindow: NSWindow {
     private func isLive(_ token: OperationCancellation) -> Bool {
         !retired && operationCancellation === token && !token.isCancelled
     }
-    private func runOperation(_ title: String, reportCancellation:Bool = true, operation: @escaping (OperationCancellation) async throws -> Void, completed: @escaping () -> Void = {}, failed: @escaping () -> Void = {}) {
+    private func runOperation(_ title: String, reportCancellation:Bool = true, statusRefresh:Bool = false, operation: @escaping (OperationCancellation) async throws -> Void, completed: @escaping () -> Void = {}, failed: @escaping () -> Void = {}) {
         guard !retired, !busy, !confirmingQuit,actionOwnerAvailable() else { return }
         let token = OperationCancellation(); operationCancellation = token
-        busy = true; cancelling = false; currentOperation = title; Self.activeOperations += 1
+        busy = true; cancelling = false; currentOperation = title; refreshing = statusRefresh; Self.activeOperations += 1
         Task {
             defer {
                 Self.activeOperations -= 1
-                if operationCancellation === token { operationCancellation = nil; busy = false; cancelling = false; currentOperation = "" }
+                if operationCancellation === token {
+                    if statusRefresh && token.isCancelled && !retired { refreshCancelled = true }
+                    operationCancellation = nil; busy = false; cancelling = false; currentOperation = ""; refreshing = false
+                }
                 withExtendedLifetime(access) {}
                 if refreshRequested && !retired && !busy && !confirmingQuit { refreshRequested = false; reload() }
             }
@@ -464,18 +495,19 @@ final class StatusNativeWindow: NSWindow {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 try await operation(token)
                 guard isLive(token) else { return }
-                operationCancellation = nil; busy = false; cancelling = false; currentOperation = ""; completed()
+                operationCancellation = nil; busy = false; cancelling = false; currentOperation = ""; refreshing = false; completed()
             } catch {
                 guard !retired else { return }
                 let diagnostic = token.isCancelled ? "Operation cancelled. Any completed changes are retained; refresh to inspect the working tree." : error.localizedDescription
-                operationCancellation = nil; busy = false; cancelling = false; currentOperation = ""; failed()
+                if statusRefresh { refreshCancelled = token.isCancelled; refreshFailure = token.isCancelled ? nil : error.localizedDescription }
+                operationCancellation = nil; busy = false; cancelling = false; currentOperation = ""; refreshing = false; failed()
                 if !token.isCancelled || reportCancellation {self.error = diagnostic}
             }
         }
     }
     func reload() {
         let repository=self.repository.capturingDiffBackend(preferences:defaults)
-        guard !retired, !busy, !confirmingQuit else { return }
+        guard !retired, !busy, !confirmingQuit, actionOwnerAvailable() else { return }
         if let embeddedReload {embeddedReload();return}
         menuGeneration = UUID(); refreshRequested = false
         let resetPosition = resetPositionOnReload || pendingScope != nil
@@ -483,7 +515,8 @@ final class StatusNativeWindow: NSWindow {
         let position = fileListRefresh.begin(preferences:defaults,reset:resetPosition,selectedIDs:selection)
         let acceptedFilter = filter
         let scopePaths = acceptedFilter.paths
-        runOperation("Refreshing working tree…",reportCancellation:false,operation: { [self] token in
+        refreshFailure = nil; refreshCancelled = false
+        runOperation("Refreshing working tree…",reportCancellation:false,statusRefresh:true,operation: { [self] token in
             defer {fileListRefresh.finish(position)}
             // Publish one complete snapshot. A failed/cancelled read retains the prior table.
             let nextInvocation = try await repository.workingTreeInvocation(paths: scopePaths, cancellation: token)
@@ -506,7 +539,7 @@ final class StatusNativeWindow: NSWindow {
                 }
             guard isLive(token) else { return }
             resetPositionOnReload = false
-            invocation = nextInvocation; hasStash = nextStash; hasHead = nextHasHead; updateScopeTitle()
+            invocation = nextInvocation; hasStash = nextStash; hasHead = nextHasHead; hasStatusSnapshot = true; refreshFailure = nil; refreshCancelled = false; updateScopeTitle()
             changelists = nextChangelists; files = nextFiles; branch = nextBranch; conflictRebase = nextRebase; submodules = GitPathSet(nextSubmodules)
             hasLFS = nextLFS; fileMetadata = nextMetadata
             statistics = GitPathMap(nextStatistics.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
@@ -834,9 +867,13 @@ struct StatusDialog: View {
         let rowsByID = GitPathMap(uniqueKeysWithValues: rows.map { ($0.id,$0) })
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Button(model.branch.isEmpty ? "Unborn / detached HEAD" : model.branch) { model.performDialogAction(.switchBranch) }.buttonStyle(.link)
-                Spacer(); if model.busy { Text(model.currentOperation).font(.caption); ProgressView().controlSize(.small) }
-            }
+                if !model.refreshing && model.hasStatusSnapshot {
+                    Button(model.branchCaption) { model.performDialogAction(.switchBranch) }.buttonStyle(.link).disabled(model.controlsBlocked)
+                        .help("Switch or checkout a branch")
+                }
+                Spacer()
+                if model.busy { Text(model.currentOperation).font(.caption); ProgressView().controlSize(.small) }
+            }.frame(minHeight: 20)
             Table(model.tableRows, selection: $model.nativeFileSelection, sortOrder: Binding(get: { model.sortOrder.map { StatusGroupedSort(column: $0.column, order: $0.order) } }, set: { model.setSortOrder($0.map { StatusFileSort(column: $0.column, order: $0.order) }) })) {
                 TableColumn("Path", sortUsing: StatusGroupedSort(column: .path)) { item in
                     if let row = item.contents {
@@ -852,11 +889,11 @@ struct StatusDialog: View {
                 TableColumn("Last modified", sortUsing: StatusGroupedSort(column: .lastModified)) { item in groupCell(item, column: .lastModified) }.width(min: 150, ideal: 170)
                 TableColumn("File size", sortUsing: StatusGroupedSort(column: .fileSize)) { item in groupCell(item, column: .fileSize) }.width(min: 70, ideal: 100)
                 TableColumn("LFS Lock", sortUsing: StatusGroupedSort(column: .lfsOwner)) { item in groupCell(item, column: .lfsOwner) }.width(min: 100, ideal: 160)
-            }.fileListFont()
+            }.fileListFont().disabled(model.controlsBlocked)
             .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
                 guard !model.busy, !model.confirmingQuit, !model.retired else { return false }; return model.onTransferDrop(providers)
             }
-            .background(CommitFileInteraction(rows: model.tableRows.map(\.row), leadingColumnCount: 0, selectionLabelInset:22, keyboardDeleteEnabled: true,configureRefresh:{model.fileListRefresh.attach($0)},preferences:model.colorPreferences,
+            .background(CommitFileInteraction(rows: model.tableRows.map(\.row), leadingColumnCount: 0, selectionLabelInset:22, keyboardDeleteEnabled: true,configureRefresh:{model.fileListRefresh.attach($0)},watermarkIcon:.statusBackdrop,preferences:model.colorPreferences,
                 visibleColumns: Set(model.visibleColumns), availableColumns: model.availableColumns, columnText: { entry, column in
                     rowsByID[entry.path].map { model.columnText($0,column) } ?? ""
                 }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths,
@@ -960,7 +997,21 @@ struct StatusDialog: View {
                 else { model.diff(ids) }
             }
             .frame(minHeight: 300)
-            .overlay { if rows.isEmpty && !model.busy { Text("No files to show with the current setting.\nCheck one or more settings below to see unversioned, ignored and/or unmodified files.").foregroundStyle(.secondary).allowsHitTesting(false) } }
+            .overlay {
+                if model.refreshing {
+                    HStack { ProgressView().controlSize(.small); Text("Refreshing working tree…") }
+                        .padding(12).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8)).allowsHitTesting(false)
+                } else if rows.isEmpty && !model.busy {
+                    Text(model.emptyListMessage).foregroundStyle(model.refreshFailure == nil ? Color.secondary : Color.red)
+                        .multilineTextAlignment(.center).padding(24).allowsHitTesting(false)
+                }
+            }
+            if let notice = model.refreshNotice, !rows.isEmpty, !model.busy {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: model.refreshFailure == nil ? "info.circle" : "exclamationmark.triangle")
+                    Text(notice).font(.callout).textSelection(.enabled)
+                }.foregroundStyle(model.refreshFailure == nil ? Color.secondary : Color.red)
+            }
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Toggle("Show unversioned files", isOn: Binding(get: { model.filter.showUnversioned }, set: { var value = model.filter; value.showUnversioned = $0; model.setFilter(value) })).disabled(!model.folderFiltersEnabled)
@@ -970,24 +1021,23 @@ struct StatusDialog: View {
                     Toggle("Show Whole Project", isOn: Binding(get: { model.filter.wholeProject }, set: { var value = model.filter; value.wholeProject = $0; model.setFilter(value) })).disabled(model.filter.paths.isEmpty)
                 }.toggleStyle(.checkbox)
                 Spacer()
-                StatusStatisticsField(model:model).frame(width:440,height:48,alignment:.topLeading)
-            }
+                StatusStatisticsField(model:model).frame(minWidth: 280, idealWidth: 440, maxWidth: 440, minHeight: 48, alignment:.topLeading)
+                    .opacity(model.refreshing ? 0 : 1).accessibilityHidden(model.refreshing)
+            }.disabled(model.controlsBlocked)
             HStack {
                 Spacer()
-                Button("Save unified diff") { model.scopeUnifiedDiff(alternate: NSEvent.modifierFlags.contains(.shift)) }
-                    .help("Open the invocation scope as a unified diff. Hold Shift to use the alternative viewer; save from the viewer.")
-                StatusStashMenu(model:model).frame(width:100,height:24)
-                Button("Commit") { model.performDialogAction(.commit) }
-                Button("Refresh") { model.reload() }.keyboardShortcut("r")
-                Button("OK") { model.close() }.keyboardShortcut(.defaultAction)
+                HStack {
+                    Button("Save unified diff") { model.scopeUnifiedDiff(alternate: NSEvent.modifierFlags.contains(.shift)) }
+                        .help("Open the invocation scope as a unified diff. Hold Shift to use the alternative viewer; save from the viewer.")
+                    StatusStashMenu(model:model).frame(width:100,height:24)
+                    Button("Commit") { model.performDialogAction(.commit) }
+                    Button("Refresh") { model.reload() }.keyboardShortcut("r")
+                }.disabled(model.controlsBlocked)
+                Button(model.primaryActionTitle) { model.performPrimaryAction() }
+                    .keyboardShortcut(.defaultAction).disabled(!model.primaryActionEnabled).frame(minWidth: 72)
+                    .accessibilityIdentifier("WorkingTree.PrimaryAction")
             }
-        }.padding(12).disabled(model.busy || model.confirmingQuit || model.retired)
-        .overlay(alignment: .bottomLeading) {
-            if model.busy && !model.currentOperation.isEmpty {
-                Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancelOperation() }
-                    .disabled(model.cancelling || model.retired).padding(12)
-            }
-        }
+        }.padding(12)
         .onChange(of: model.filter) { _ in model.selection.formIntersection(GitPathSet(model.visibleFiles.map(\.id))) }
         .alert("Git operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }

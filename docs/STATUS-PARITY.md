@@ -461,3 +461,10 @@ The connected status-read recovery is tracked in
 [missing staged-file parity](MISSING-STAGED-FILES-PARITY.md), with the source
 three-choice prompt, per-read apply-to-rest and explicit refresh notice. Its
 grouped checkpoint remains separate from older dialog checks above.
+
+
+## Primary conditional control follow-up
+
+[The shared conditional UI audit](PRIMARY-CONDITIONAL-UI-PARITY.md) records the
+Commit split control, Log control states and Working Tree refresh/cancellation
+follow-up, with focused validation and remaining acceptance kept explicit.

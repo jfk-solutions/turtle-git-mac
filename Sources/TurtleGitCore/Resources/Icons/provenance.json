@@ -1631,6 +1631,11 @@
       "asset": "UpdateBackground.ico",
       "source": "src/Resources/UpdateBackground.ico",
       "sha256": "4d198ad20f998cff1205ea48f315b607dd030026d95a684cc1a205750278b10f"
+    },
+    {
+      "asset": "CFMBackground.ico",
+      "source": "src/Resources/CFMBackground.ico",
+      "sha256": "c4dac848a21502a529dae41e554592cb35e042fe51cc9013b666aa4a74615f94"
     }
   ]
 }

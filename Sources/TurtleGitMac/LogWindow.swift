@@ -1103,7 +1103,7 @@ struct LogCommandRequest: Identifiable {
     }
     private var startReferenceCancellation: OperationCancellation?
     private(set) static var activeReferenceReads = 0
-    var canChangeStartReference: Bool { !isInvalidated && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails && !unifiedViewerBusy && !findBlocked && !orderingBlocked && !referencePickerBlocked && window?.attachedSheet == nil }
+    var canChangeStartReference: Bool { !isInvalidated && !confirmingQuit && NSApp.modalWindow == nil && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails && !unifiedViewerBusy && !findBlocked && !orderingBlocked && !referencePickerBlocked && window?.attachedSheet == nil }
     var effectiveReferenceScope: HistoryReferenceScope { allBranches ? .all : referenceScope }
     var referenceExpression: String { revisionRange?.expression ?? endRevision ?? (startRevisions.isEmpty ? "HEAD" : startRevisions.joined(separator: " ")) }
     var startReferenceTitle: String {
@@ -1603,6 +1603,19 @@ struct LogCommandRequest: Identifiable {
     var selectionNavigation = HistorySelectionNavigation()
     private(set) var selectionMark: String?
     var canNavigateLog: Bool { canFollowMessageLink && jumpAlert == nil }
+    func chooseJumpKind(_ kind:HistoryJumpKind) { guard canNavigateLog else{return};jumpKind=kind }
+    func canJump(up:Bool)->Bool {
+        guard canNavigateLog else{return false}
+        if jumpKind == .selectionHistory {return canMoveHistory(up:up)}
+        guard !includesWorkingTree,!selected.isEmpty,let first=entries.first,!selected.contains(first.hash) else{return false}
+        // Do not scan all candidate ancestry/labels on every view update. The
+        // captured jump operation resolves candidates and reports no more hits.
+        if !up && (jumpKind == .parent1 || jumpKind == .parent2) {
+            let parent=jumpKind == .parent2 ? 1:0
+            return entries.first(where:{selected.contains($0.hash)}).map{$0.parents.count>parent} ?? false
+        }
+        return true
+    }
     func canMoveHistory(up:Bool) -> Bool {
         canNavigateLog && !selectionNavigation.hashes.isEmpty && (up ? selectionNavigation.location > 0:selectionNavigation.location + 1 < selectionNavigation.hashes.count)
     }
@@ -1651,7 +1664,8 @@ struct LogCommandRequest: Identifiable {
         if jumpKind == .selectionHistory {moveSelectionHistory(up:up,selectTarget:false);return}
         guard !includesWorkingTree else {return}
         let repository = self.repository.capturingDiffBackend(preferences:labelDefaults)
-        let snapshot = entries.filter { !$0.hash.isEmpty }, selection = selected, kind = jumpKind
+        // Candidate indices follow the displayed source list, including its working-tree row.
+        let snapshot = entries, selection = selected, kind = jumpKind
         guard kind.candidates(entries: snapshot, selected: selection, up: up) != nil else { return }
         select([])
         let token = OperationCancellation(); jumpCancellation = token; let request = jumpGeneration
@@ -1707,20 +1721,29 @@ struct LogCommandRequest: Identifiable {
     var historyLimitTitle: String { historyLimit.scale.requiresNumber ? historyLimit.scale.title(number: historyLimit.number) : "From:" }
     var defaultHistoryLimitScale: HistoryLimitScale { HistoryLimitDefaults.load(defaults: labelDefaults).scale }
     func chooseHistoryLimit(_ scale: HistoryLimitScale) {
-        guard !busy, !isInvalidated else { return }; initializedHistoryLimit = true; historyLimit.scale = scale
+        guard canChangeLogControls else { return }; initializedHistoryLimit = true; historyLimit.scale = scale
         if scale == .noLimit { labelDefaults.removeObject(forKey: HistoryLimitDefaults.fromDateKey(root: repository.root)) }
         reload()
     }
     func changeHistoryFrom(_ date: Date) {
-        guard !busy, !isInvalidated else { return }; initializedHistoryLimit = true
-        from = min(date, to); historyLimit.from = HistoryLimitScope.startOfDay(from); historyLimit.scale = .selectedDate
+        guard canChangeLogControls else {return}
+        let selected = HistoryLimitScope.startOfDay(min(Self.boundedHistoryDate(date),to))
+        guard historyLimit.from != selected else{return};initializedHistoryLimit = true
+        from = selected; historyLimit.from = selected; historyLimit.scale = .selectedDate
         if defaultHistoryLimitScale == .selectedDate { HistoryLimitDefaults.saveFrom(historyLimit.from!, root: repository.root, defaults: labelDefaults) }
         reload()
     }
     func changeHistoryTo(_ date: Date) {
-        guard !busy, !isInvalidated else { return }; initializedHistoryLimit = true
-        to = max(date, from); historyLimit.until = HistoryLimitScope.endOfDay(to); reload()
+        guard canChangeLogControls else {return}
+        let selected = HistoryLimitScope.endOfDay(max(Self.boundedHistoryDate(date),from))
+        guard historyLimit.until != selected else{return};initializedHistoryLimit = true
+        to = selected; historyLimit.until = selected; reload()
     }
+    static var maximumHistoryDate:Date {
+        var calendar=Calendar(identifier:.gregorian);calendar.timeZone = .current
+        return calendar.date(from:DateComponents(year:2100,month:1,day:2,hour:23,minute:59,second:59)) ?? Date(timeIntervalSince1970:4_102_617_599)
+    }
+    private static func boundedHistoryDate(_ date:Date)->Date {min(max(date,Date(timeIntervalSince1970:0)),maximumHistoryDate)}
     @Published var busy = false {
         didSet { if busy != oldValue { fileMenuGeneration = UUID(); retireLogControlMenus() }; if !busy { scheduleRepositoryRefresh() } }
     }
@@ -2149,10 +2172,11 @@ struct LogCommandRequest: Identifiable {
             if request == actionGeneration { actionCancellation=nil;activeActionHashes=[] }
         }
     }
+    var canShowStatistics:Bool {canChangeLogControls && entries.contains{!$0.hash.isEmpty}}
     func showStatistics() {
-        guard !busy, !isInvalidated, !entries.isEmpty else { return }
+        guard canShowStatistics else { return }
         if let statisticsWindow { statisticsWindow.showWindow(nil); statisticsWindow.window?.makeKeyAndOrderFront(nil); return }
-        let controller = StatisticsWindowController(repository: repository, access: access, entries: entries, defaults: labelDefaults)
+        let controller = StatisticsWindowController(repository: repository, access: access, entries: entries.filter{!$0.hash.isEmpty}, defaults: labelDefaults)
         controller.onClosed = { [weak self] in self?.statisticsWindow = nil }
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
@@ -3333,22 +3357,17 @@ struct LogDialog: View {
         VStack(spacing: 8) {
             DialogCommandRows(spacing:6) {
                 LogControlMenuButton(model: model, kind: .reference).frame(minWidth: 125, idealWidth: 135, maxWidth: 145)
-                Menu(model.historyLimitTitle) {
-                    Button("No limitation") { model.chooseHistoryLimit(.noLimit) }
-                    if model.defaultHistoryLimitScale.requiresNumber && model.historyLimit.number > 0 {
-                        Divider()
-                        Button(model.defaultHistoryLimitScale.title(number: model.historyLimit.number)) { model.chooseHistoryLimit(model.defaultHistoryLimitScale) }
-                    }
-                    Divider()
-                    Button("Configure default") { model.configureHistoryDefaults = true }
-                }.fixedSize(horizontal: true, vertical: false).disabled(model.busy)
-                DatePicker("From:", selection: Binding(get: { model.from }, set: { model.changeHistoryFrom($0) }), displayedComponents: .date).labelsHidden().fixedSize(horizontal: true, vertical: false).disabled(model.busy)
-                DatePicker("To:", selection: Binding(get: { model.to }, set: { model.changeHistoryTo($0) }), displayedComponents: .date).fixedSize(horizontal: true, vertical: false).disabled(model.busy)
+                LogControlMenuButton(model: model, kind: .limit).fixedSize()
+                LogHistoryDatePicker(model: model, from: true).fixedSize()
+                HStack(spacing:4) {
+                    Text("To:")
+                    LogHistoryDatePicker(model: model, from: false).fixedSize()
+                }
                 LogFilterField(model: model).frame(minWidth:140,idealWidth:180).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
                 HStack(spacing:6) {
-                Picker("Jump", selection: $model.jumpKind) {
+                Picker("Jump", selection: Binding(get:{model.jumpKind},set:model.chooseJumpKind)) {
                     ForEach(HistoryJumpKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                }.labelsHidden().frame(width: 150).help("Jump to revision · Option-Left/Right goes Back/Forward")
+                }.labelsHidden().frame(width: 150).disabled(!model.canNavigateLog).help("Jump to revision · Option-Left/Right goes Back/Forward")
                 .contextMenu { TurtleGitContextMenu {
                     Button {model.moveSelectionHistory(up:true,selectTarget:true)} label: {CommandLabel(title:"Back",icon:.jumpUp)}.disabled(!model.canMoveHistory(up:true))
                     Button {model.moveSelectionHistory(up:false,selectTarget:true)} label: {CommandLabel(title:"Forward",icon:.jumpDown)}.disabled(!model.canMoveHistory(up:false))
@@ -3358,8 +3377,8 @@ struct LogDialog: View {
                     Divider()
                     Button {model.pasteGitHash()} label: {CommandLabel(title:"Go to copied commit hash",icon:.copy)}.disabled(!model.canNavigateLog)
                 } }
-                Button { model.jump(up: true) } label: { CommandLabel(title: "", icon: .jumpUp) }.help("Jump up").accessibilityLabel("Jump up").disabled(model.busy || model.jumping)
-                Button { model.jump(up: false) } label: { CommandLabel(title: "", icon: .jumpDown) }.help("Jump down").accessibilityLabel("Jump down").disabled(model.busy || model.jumping)
+                Button { model.jump(up: true) } label: { CommandLabel(title: "", icon: .jumpUp) }.help("Jump up").accessibilityLabel("Jump up").disabled(!model.canJump(up:true))
+                Button { model.jump(up: false) } label: { CommandLabel(title: "", icon: .jumpDown) }.help("Jump down").accessibilityLabel("Jump down").disabled(!model.canJump(up:false))
                 }
 
             }.font(.system(size: 12))
@@ -3420,7 +3439,7 @@ struct LogDialog: View {
                 Button("Help") { TurtleGitHelp.show(.log) }
             }
             VStack(alignment:.leading,spacing:4) {
-                if model.busy { ProgressView().controlSize(.small); if model.loadingHistory { Text("Read \(model.loadedRevisionCount) revisions…").font(.caption).foregroundStyle(.secondary) } }
+                if model.busy && !model.loadingHistory { ProgressView().controlSize(.small) }
                 if model.patchPreviewLoading { ProgressView("Reading patch…").controlSize(.small) }
                 if let error = model.patchPreviewError { Text(error).foregroundStyle(.red).font(.caption) }
                 if let error = model.patchPreferenceError { Text("Could not remember View Patch: " + error).foregroundStyle(.red).font(.caption) }
@@ -3429,12 +3448,19 @@ struct LogDialog: View {
             }.frame(maxWidth:.infinity,alignment:.leading)
             HStack {
                 Button("Refresh") { model.refreshFromSourceCommand() }.disabled(!model.canUseSourceCommands)
-                Button("Statistics") { model.showStatistics() }.disabled(model.busy || model.entries.isEmpty || model.isInvalidated)
-                LogControlMenuButton(model: model, kind: .walk).fixedSize()
-                LogControlMenuButton(model: model, kind: .view).fixedSize()
+                if model.loadingHistory {
+                    HStack(spacing:8) {
+                        ProgressView().controlSize(.small)
+                        Text("Read \(model.loadedRevisionCount) revisions…").font(.caption).foregroundStyle(.secondary)
+                    }.accessibilityIdentifier("Log.HistoryLoading")
+                } else {
+                    Button("Statistics") { model.showStatistics() }.disabled(!model.canShowStatistics)
+                    LogControlMenuButton(model: model, kind: .walk).fixedSize()
+                    LogControlMenuButton(model: model, kind: .view).fixedSize()
+                }
                 Spacer()
                 Button("OK") { model.accept() }.disabled(model.selecting && !model.canAcceptSelection).keyboardShortcut(.defaultAction)
-                if model.selecting { Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction) }
+                Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
             }
         }.padding(12).frame(minWidth: 1040, minHeight: 650)
         .alert("Git operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
@@ -3559,7 +3585,7 @@ struct LogDialog: View {
     }
 }
 
-enum LogControlMenuKind: String { case reference, walk, view }
+enum LogControlMenuKind: String { case reference, limit, walk, view }
 
 /// An item retains its own target because NSMenuItem.target is weak. Every leaf
 /// in a popup shares one receipt, including nested label choices and recents.
@@ -3604,6 +3630,15 @@ enum LogControlMenuKind: String { case reference, walk, view }
                     item(title, icon: .log, localized: false) { $0.chooseStartReference(reference,remember: true) }.toolTip = reference
                 }
             }
+        case .limit:
+            item("No limitation", icon: .log, checked: model.historyLimit.scale == .noLimit) { $0.chooseHistoryLimit(.noLimit) }
+            let scale = model.defaultHistoryLimitScale
+            if scale.requiresNumber && model.historyLimit.number > 0 {
+                menu.addItem(.separator())
+                item(scale.title(number:model.historyLimit.number), icon:.log, checked:model.historyLimit.scale == scale, localized:false) { $0.chooseHistoryLimit(scale) }
+            }
+            menu.addItem(.separator())
+            item("Configure default", icon:.settings) { $0.configureHistoryDefaults = true }
         case .walk:
             for command in [HistoryWalkCommand.firstParent,.noMerges,.followRenames,.fullHistory] {
                 item(command.rawValue, icon: .log, checked: model.historyWalk.contains(command), enabled: model.canToggleHistoryWalk(command)) { $0.toggleHistoryWalk(command) }
@@ -3670,6 +3705,9 @@ struct LogControlMenuButton: NSViewRepresentable {
             button.title = model.startReferenceTitle; button.toolTip = model.referenceExpression
             button.contentTintColor = .linkColor; button.setAccessibilityLabel("Start reference: " + model.startReferenceTitle)
             button.primary = { [weak model] in model?.browseStartReference() }
+        case .limit:
+            button.title = model.historyLimitTitle == "From:" ? NSLocalizedString("From:",comment:""):model.historyLimitTitle
+            button.setAccessibilityLabel(button.title); button.toolTip = NSLocalizedString("History limitation",comment:""); button.primary = nil
         case .walk:
             button.title = (model.historyWalk.isActive ? "✓ ":"") + NSLocalizedString("Walk Behavior",comment:"")
             button.setAccessibilityLabel(NSLocalizedString("Walk Behavior",comment:"")); button.primary = nil
@@ -3681,6 +3719,46 @@ struct LogControlMenuButton: NSViewRepresentable {
     }
     static func dismantleNSView(_ button: LogControlButton, coordinator: ()) {
         button.isEnabled = false; button.buildMenu = nil; button.primary = nil; button.target = nil; button.action = nil
+    }
+}
+
+/// From's context menu is the source date control's limitation menu; the
+/// visible From button exposes the same commands to keyboard/accessibility users.
+@MainActor final class LogDateControl: NSDatePicker {
+    var buildMenu:(()->NSMenu?)?
+    override func menu(for event:NSEvent)->NSMenu? {buildMenu?() ?? super.menu(for:event)}
+}
+struct LogHistoryDatePicker:NSViewRepresentable {
+    @ObservedObject var model:LogWindowModel
+    let from:Bool
+    func makeCoordinator()->Coordinator {Coordinator(model:model,from:from)}
+    func makeNSView(context:Context)->LogDateControl {
+        let picker=LogDateControl();picker.datePickerStyle = .textFieldAndStepper;picker.datePickerElements = .yearMonthDay
+        picker.datePickerMode = .single;picker.font = .systemFont(ofSize:12);picker.isBezeled=true;picker.drawsBackground=true
+        picker.target=context.coordinator;picker.action=#selector(Coordinator.changed(_:))
+        picker.setContentHuggingPriority(.required,for:.horizontal)
+        return picker
+    }
+    func updateNSView(_ picker:LogDateControl,context:Context) {
+        context.coordinator.model=model;context.coordinator.from=from
+        picker.identifier = .init(from ? "Log.Date.From":"Log.Date.To")
+        picker.minDate=Date(timeIntervalSince1970:0);picker.maxDate=LogWindowModel.maximumHistoryDate
+        let value=from ? model.from:model.to
+        if picker.dateValue != value {picker.dateValue=value};picker.isEnabled=model.canChangeLogControls
+        picker.setAccessibilityLabel(NSLocalizedString(from ? "From:":"To:",comment:""))
+        if from {picker.buildMenu={ [weak model] in model.map{LogControlMenus.make(model:$0,kind:.limit)} }} else {picker.buildMenu=nil}
+    }
+    static func dismantleNSView(_ picker:LogDateControl,coordinator:Coordinator) {
+        picker.isEnabled=false;picker.target=nil;picker.action=nil;picker.buildMenu=nil;coordinator.model=nil
+    }
+    @MainActor final class Coordinator:NSObject {
+        weak var model:LogWindowModel?
+        var from:Bool
+        init(model:LogWindowModel,from:Bool){self.model=model;self.from=from}
+        @objc func changed(_ sender:NSDatePicker){
+            guard let model,model.canChangeLogControls else{return}
+            if from {model.changeHistoryFrom(sender.dateValue)} else {model.changeHistoryTo(sender.dateValue)}
+        }
     }
 }
 

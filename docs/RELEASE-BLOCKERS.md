@@ -54,3 +54,11 @@ queue/run and is not certified by Pages.
 The subsequent [Pages run39344337613](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39344337613) completed successfully for e5e12647. This publishes the replay inspection and Blame fixture updates; it does not certify the macOS integration run.
 
 The later [813fc0f5 macOS run39393164202](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39393164202) passed all three host-supported universal helper contract steps (local references, replay inspection and single-commit details). At this checkpoint its application/Finder build remained in progress. This verifies those hosted helper steps after the architecture-runner repair, not a full integration pass or the newer history/submodule batch.
+
+
+The latest pushed [717aa04a macOS run39491639513](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39491639513)
+failed; its [Pages run39491639577](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39491639577)
+succeeded. The primary conditional UI continuation separates the metafile pixel
+loop from nested Data closures after Xcode 16.4 timed out type-checking that
+expression. Local universal helper reconstruction and seven focused Core checks
+pass; a new complete hosted macOS pass remains required.

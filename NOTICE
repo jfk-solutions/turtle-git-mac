@@ -1588,3 +1588,8 @@ including src/turtleGitHatch.js. Configuration/MetafileRuntime.json records its
 source URL, full-source hash and revision. No other Wine components are linked
 or required. WmfEmfViewer retains its MIT license; the application's own license
 is unchanged.
+
+Working Tree list background rendering also adapts ChangedDlg.cpp,
+Copyright (C) 2008-2026 TortoiseGit and 2003-2008 TortoiseSVN, under GPL
+version 2 or later. CFMBackground.ico is retained unchanged from the pinned
+source under the existing GPL resource license choice; provenance records its hash.

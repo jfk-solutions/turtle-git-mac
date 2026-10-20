@@ -61,7 +61,7 @@ import TurtleGitCore
         guard let bridge = views(owner.window?.contentView).compactMap({ $0 as? LogPaneLayoutBridge.Probe }).first else { throw Failure(description:"Missing pane bridge") }
         try await wait(owner.window) { bridge.restored && bridge.split?.arrangedSubviews.count == 3 }
         let buttons = views(owner.window?.contentView).compactMap { $0 as? LogControlButton }
-        try require(Set(buttons.compactMap { $0.identifier?.rawValue }) == ["Log.Control.reference","Log.Control.walk","Log.Control.view"],"Native control buttons missing")
+        try require(Set(buttons.compactMap { $0.identifier?.rawValue }) == ["Log.Control.reference","Log.Control.limit","Log.Control.walk","Log.Control.view"],"Native control buttons missing")
         let reference = LogControlMenus.make(model:model,kind:.reference)
         try require(reference.items.map(\.title) == ["Browse references…","HEAD → \"main\"","FETCH_HEAD","All","All basic refs","All local branches"],"Reference source order differs")
         try require(reference.items[2].isEnabled == false && reference.items[0].image != nil,"FETCH_HEAD or original command artwork wrong")
