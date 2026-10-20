@@ -33,7 +33,8 @@ import TurtleGitCore
             model.commit(); try await wait(model)
             let actual = try await body(repo)
             precondition(Data(actual.utf8) == Data(expected.utf8), "Commit bytes differ: " + actual.debugDescription)
-            precondition(model.message == draft && model.messageHistory?.entries.first == draft)
+            precondition(Data(model.message.utf8) == Data(raw.utf8), "Serialization rewrote the visible editor draft")
+            precondition(model.messageHistory?.entries.first.map { Data($0.utf8) } == Data(draft.utf8), "Serialized history draft differs")
         }
         try await attempt(" \nTitle \r\n\r\n\r\n# keep \r\nBody \t \n", expected: "Title\n\n# keep\nBody \t\n", draft: "Title \r\n\r\n\r\n# keep \r\nBody \t")
         defaults.set(true, forKey: "StripCommentedLines")
@@ -49,7 +50,13 @@ import TurtleGitCore
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout, history = model.messageHistory?.entries
         model.commit(); try await wait(model, allowError: true); precondition(model.error != nil)
         let refusedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), refusedHead = try await repo.run(["rev-parse", "HEAD"]).stdout
-        precondition(index == refusedIndex && head == refusedHead && model.messageHistory?.entries == history)
+        precondition(index == refusedIndex && head == refusedHead)
+        // SaveCommitUnicodeFile can emit an empty file for a nonempty
+        // all-comment buffer; OnOK still saves that failed attempt to history.
+        // Native Core rejects before index mutation, preserving the same draft.
+        let refusedDraft="; only comment"
+        let expectedRefusedHistory=Array(([refusedDraft]+(history ?? []).filter { Data($0.utf8) != Data(refusedDraft.utf8) }).prefix(model.messageHistory?.limit ?? 25))
+        precondition(Data(model.message.utf8)==Data(refusedDraft.utf8) && model.messageHistory?.entries==expectedRefusedHistory)
         // A real edit pause proves the Rebase model consumes the same formatter.
         let rebaseRoot = root.appendingPathComponent("rebase-fixture"); try FileManager.default.createDirectory(at: rebaseRoot, withIntermediateDirectories: true)
         let rebaseRepo = GitRepository(root: rebaseRoot, executable: executable); try await configure(rebaseRepo)

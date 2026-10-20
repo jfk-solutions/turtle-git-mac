@@ -1387,9 +1387,12 @@ trailing spaces/CR are still processed as source does, but blank lines are kept.
 Each written line ends in LF. Ordinary comments remain when stripping is off.
 Git's configured final cleanup can independently alter the supplied text.
 
-The dialog and Recent messages retain the outer-trimmed draft, including stripped
-comments; Git receives the separately formatted contents. Commit formats after
-its preflight prompts, before calling the existing selected/full-index engines.
+The visible editor retains the user's raw draft and Undo. Recent messages retain
+the separately prepared, outer-trimmed attempt, including stripped comments;
+Git receives the formatted contents. The connected result-lifecycle family fixes
+the earlier conflation of those buffers: client PreCommit output, issue insertion
+and file serialization do not overwrite the editor. Commit formats after its
+preflight prompts, before calling the existing selected/full-index engines.
 Rebase edit, squash and checked-conflict continuation consume the same formatter.
 Comment stripping also bypasses the source conflict-hint warning because those
 comment lines are being removed. The existing Core APIs remain explicit and do
@@ -2733,3 +2736,12 @@ Yes/Create Branch, No/detached commit and Cancel decisions, rechecks the branch
 after child completion and preserves issue-field contents in cancelled draft
 history. Its record separates native transaction placement from upstream index
 ordering and retains full-dialog/physical/signed acceptance gaps.
+
+
+## Commit result recovery and next-draft lifecycle
+
+[The connected completion family](COMMIT-RESULT-LIFECYCLE-PARITY.md) covers
+restoration before client PostCommit, failed-attempt message history, captured
+result publication and a deliberate ReCommit editor/checkbox reset boundary.
+The record retains source ordering, native recovery adaptations and actual
+validation scope separately from full-dialog/signed acceptance.

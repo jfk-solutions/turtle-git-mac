@@ -1,0 +1,203 @@
+{
+  "date": "2026-10-20",
+  "base": "e58e4252935cd0966c5c2aedfc0f8784e158273e",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "previous_goal_turn": "progress: detached Commit and cancelled issue draft recovery published e58e4252.",
+  "scope": [
+    "Saved working-copy restoration before client PostCommit and changelist pruning before result completion.",
+    "Captured failed-attempt/amend history after result acknowledgement; no history for preflight abort.",
+    "One template/Start-hook ReCommit snapshot with retained issue ID, fresh default author, reset observer fences and dedicated editor Undo sessions.",
+    "All attempted owner lifetimes drain pending restoration/hooks; completion diagnostics retain actual Git success."
+  ],
+  "core": {
+    "changed": false,
+    "rerun": false,
+    "reason": "Implementation is native model/editor sequencing and ownership; Core code unchanged."
+  },
+  "build": {
+    "initial_log": "build/qa/commit-result-build-2026-10-20.log",
+    "initial_exit_code": 65,
+    "failure": "New coordinator initializer/session method lacked main-actor annotations for accessing the native model.",
+    "repair": "Add @MainActor to those two methods.",
+    "repair_log": "build/qa/commit-result-build-actor-repair-2026-10-20.log",
+    "result": "passed across grouped checkpoint and focused repairs",
+    "repair_exit_code": 0,
+    "warnings": "Existing Swift concurrency/capture/deprecation and local simulator/toolchain exit-zero diagnostics; not a warning-free build.",
+    "affected_repairs": [
+      {
+        "log": "build/qa/commit-result-build-head-recovery-2026-10-20.log",
+        "result": "passed",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/commit-result-build-editor-buffer-2026-10-20.log",
+        "result": "passed",
+        "exit_code": 0
+      }
+    ],
+    "final_log": "build/qa/commit-result-build-editor-buffer-2026-10-20.log"
+  },
+  "native": {
+    "result": "passed",
+    "cases": [
+      "restoration",
+      "failure",
+      "editor",
+      "format",
+      "lifetime"
+    ],
+    "engines": [
+      "Apple Git 2.54.0",
+      "bundled Git 2.55.0"
+    ],
+    "scope": "Private real Git, actual client hook scripts, native text edits/Undo, exact commit/history/editor bytes and manual restoration. Git exit receipt wrapper forwards the selected engine unchanged. Late hook configuration reads and restoration scheduling use injected held boundaries; these do not prove every live hung external-hook process.",
+    "failures_and_repairs": [
+      {
+        "log": "build/qa/commit-result-native-2026-10-20.log",
+        "owned_receiver_pid": 23347,
+        "cause": "Restoration case failed compound successful-Git/retained-copy/skipped-posthook assertion for an actual directory obstruction; exact component under diagnosis.",
+        "follow_up": "Add per-field diagnostics and an actual Git post-commit invocation receipt. Keep real obstruction/assertions unchanged.",
+        "core_or_app_repeated": false
+      },
+      {
+        "log": "build/qa/commit-result-native-diagnostics-2026-10-20.log",
+        "owned_receiver_pid": 23923,
+        "cause": "Actual Git post-commit directory replacement caused Git to create HEAD then exit128 with fatal mmap failure. Fixture incorrectly assumed the error occurred only in later native restoration.",
+        "repair": "Keep actual Git-failure/changed-HEAD regression with explicit cautious warning; add separate native restoration failure after Git successfully returns using real writer.",
+        "production_changed": true
+      },
+      {
+        "log": "build/qa/commit-result-native-recovery-2026-10-20.log",
+        "owned_receiver_pid": 25939,
+        "cause": "Unedited-template fixture used text without the source-normalized final LF, so it correctly did not trigger the unchanged-template warning.",
+        "repair": "Assert exact loaded template including LF and use that draft; correct unstarted Start-hook input expectation to retain LF.",
+        "core_or_app_repeated": false
+      },
+      {
+        "log": "build/qa/commit-result-native-editors-lifetime-2026-10-20.log",
+        "owned_receiver_pid": 26869,
+        "cause": "Real failed ReCommit preserved an Undo operation but serialization/issue insertion had replaced visible editor text without updating its Undo ranges. Exact native Undo did not recover its prior draft.",
+        "repair": "Source-faithful separate visible raw draft and local hook/issue/format attempt buffer. Strengthen formatter receiver to verify raw editor, normalized history and Git bytes independently.",
+        "production_changed": true
+      },
+      {
+        "log": "build/qa/commit-result-native-editor-buffer-2026-10-20.log",
+        "owned_receiver_pid": 27750,
+        "cause": "After the source buffer fix, raw editor/history assertions passed, but model readiness still preceded SwiftUI re-enabling NSTextView. Undo invoked while disabled consumed its operation without changing text.",
+        "repair": "Await actual editor.isEditable, exact rendered draft and released progress; preserve exact Undo and independent history assertions. Both subsequent editor runs observed editable=false at model acknowledgement, then true and correct Undo after view settlement.",
+        "core_or_app_repeated": false
+      }
+    ],
+    "passing_cases": [
+      {
+        "case": "restoration",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-result-native-recovery-2026-10-20.log",
+        "pid": 24719
+      },
+      {
+        "case": "restoration",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-result-native-recovery-2026-10-20.log",
+        "pid": 25330
+      },
+      {
+        "case": "failure",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-result-native-editors-lifetime-2026-10-20.log",
+        "pid": 26448
+      },
+      {
+        "case": "failure",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-result-native-editors-lifetime-2026-10-20.log",
+        "pid": 26655
+      },
+      {
+        "case": "format",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-result-native-format-2026-10-20.log",
+        "pid": 28033
+      },
+      {
+        "case": "format",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-result-native-format-2026-10-20.log",
+        "pid": 28553
+      },
+      {
+        "case": "editor",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-result-native-editor-ready-2026-10-20.log",
+        "pid": 29824
+      },
+      {
+        "case": "editor",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-result-native-editor-ready-2026-10-20.log",
+        "pid": 30067
+      },
+      {
+        "case": "lifetime",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-result-native-editor-ready-2026-10-20.log",
+        "pid": 30310
+      },
+      {
+        "case": "lifetime",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-result-native-editor-ready-2026-10-20.log",
+        "pid": 30542
+      }
+    ],
+    "distinct_case_engine_runs": 10,
+    "owned_receiver_pids_reaped": [
+      23347,
+      23923,
+      24719,
+      25330,
+      25939,
+      26448,
+      26655,
+      26869,
+      27750,
+      28033,
+      28553,
+      29824,
+      30067,
+      30310,
+      30542
+    ],
+    "owned_receivers_independently_absent": true,
+    "retained_results": "Restoration/failure assertions with unchanged raw/simple messages retain their pre-buffer-fix passes. Affected editor/format and previously unstarted lifetime cases pass against the final source. No full native or Core rerun.",
+    "git_partial_failure_receipts": "Actual forwarded Apple and bundled Git commit subprocesses both exited128 after HEAD changed; original exit was preserved and progress warned before retry. Native replacement error was tested separately after successful Git return."
+  },
+  "explicit_gaps": [
+    "Physical keyboard/IME/VoiceOver and all conditional caller/layout combinations.",
+    "Every external hook/plugin/editor and actual hung child-process combination.",
+    "Signed sandbox/TCC/file grants, installed Finder and App Store distribution.",
+    "Complete current hosted CI, minimum OS/architecture and whole application parity."
+  ],
+  "protected_unrelated_worktree_files": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  },
+  "resources": {
+    "localization": "38 languages,1305 keys; write/check passed. English fallback retained.",
+    "help": "46 guides,51 topics,66 files,3651838 bytes; rebuilt before final app build and freshness check passed.",
+    "coverage": "130 dialogs:120 partial family audits,10 pending,0 certified;1574 mapped and85 pending controls. Audit coverage only.",
+    "site": "388 documents rendered; no unresolved fragments. Log: build/qa/commit-result-site-2026-10-20.log"
+  },
+  "adaptations": [
+    "Native restoration failure retains copies and skips client PostCommit; source CopyFile loop does not inspect individual replacement errors.",
+    "Native completion errors retain successful Git state, suppress post-action handoffs and remain recoverable.",
+    "Only accepted template/Start-hook publication begins the new editor session; obsolete/failed reads retain the previous draft/Undo."
+  ],
+  "validated_source_hashes": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "658ff6380b927cdbc1ee248df52918764c97221aa55250231dccf0736b384cbe",
+    "Sources/TurtleGitMac/CommitMessageEditor.swift": "0302e478e30bbbfe21ca7444ec807bc0e5b61a947fc201e18127b0420dd7cf3b",
+    "docs/qa/commit-result-lifecycle-native-2026-10-20.swift": "075b0131deed6432fea1c2e4dc5c69fa3251fc11d241c6ef46748d11ccb423aa",
+    "docs/qa/commit-message-file-native-2026-10-07.swift": "6777c7578867e42d9918f485e4236f1431520639b0a930e52cf2a7d10352cfa3",
+    "scripts/test-commit-result-lifecycle.py": "897a0deb2be9281896e808046dddc11f04b8d00e1c1c36911c6513aed8df4509"
+  }
+}

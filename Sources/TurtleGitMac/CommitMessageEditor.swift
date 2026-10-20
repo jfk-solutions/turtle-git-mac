@@ -28,7 +28,7 @@ struct CommitMessageEditor: NSViewRepresentable {
         return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
-        guard let editor = scroll.documentView as? CommitMessageTextView else { return }
+        guard let editor = scroll.documentView as? CommitMessageTextView,model.messageFocusAvailable,!context.coordinator.invalidated else {return}
         context.coordinator.updateModel(model)
         editor.isEditable = enabled && !model.loadingAmendMessage; editor.model = model
         editor.sourceLinkAvailable = { [weak model] in model?.messageFocusAvailable == true && model?.busy == false && model?.confirmingQuit == false }
@@ -38,6 +38,7 @@ struct CommitMessageEditor: NSViewRepresentable {
             editor.string = model.message
             editor.setSelectedRange(NSRange(location: min(range.location, (model.message as NSString).length), length: 0))
         }
+        context.coordinator.updateMessageSession(editor)
         editor.spellingPreferences = model.messageEditorPreferences
         editor.applyProjectPresentation()
         editor.applyIssueStyles(model.issueMessageStyles, base: MessageEditorFont.resolve(name: fontName, size: fontSize))
@@ -55,12 +56,18 @@ struct CommitMessageEditor: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextViewDelegate {
         private(set) var model: CommitWindowModel
         private var selectionCaret = MessageSelectionCaret()
+        private var messageSession:UUID
         private var positionGeneration = 0
         private var focusQueued = false
-        private var invalidated = false
+        private(set) var invalidated = false
         private weak var observedWindow: NSWindow?
         private var sheetObserver: NSObjectProtocol?
-        init(_ model: CommitWindowModel) { self.model = model }
+        @MainActor init(_ model: CommitWindowModel) { self.model = model;messageSession=model.messageEditorSession }
+        @MainActor func updateMessageSession(_ editor:CommitMessageTextView) {
+            guard !invalidated,model.messageFocusAvailable,editor.model === model,messageSession != model.messageEditorSession else{return}
+            messageSession=model.messageEditorSession
+            editor.resetMessageSession()
+        }
         deinit { if let sheetObserver { NotificationCenter.default.removeObserver(sheetObserver) } }
         func updateModel(_ value: CommitWindowModel) {
             guard model !== value else { return }
@@ -128,6 +135,14 @@ struct CommitMessageEditor: NSViewRepresentable {
 }
 
 final class CommitMessageTextView: ProjectMessageTextView {
+    private let messageUndoManager=UndoManager()
+    override var undoManager:UndoManager? {messageUndoManager}
+    func resetMessageSession() {
+        guard model?.messageFocusAvailable==true else{return}
+        breakUndoCoalescing();messageUndoManager.removeAllActions()
+        completionPopup.close();dismissSpellingSuggestions()
+        setSelectedRange(NSRange(location:0,length:0))
+    }
     weak var model: CommitWindowModel?
     var onAttachmentChange: (@MainActor () -> Void)?
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); applyProjectPresentation(); onAttachmentChange?() }

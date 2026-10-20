@@ -491,16 +491,16 @@ import UniformTypeIdentifiers
         }
         logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close()
         addProgressController?.close()
-        if addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending {
+        if addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending || model.attemptWorkPending {
             Task{@MainActor [self] in
-                while addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending {
+                while addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending || model.attemptWorkPending {
                     await withCheckedContinuation{reply in DispatchQueue.main.asyncAfter(deadline:.now()+0.005){reply.resume()}}
                 };onClosed()
             }
         } else {onClosed()}
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if model.preparingCommitIdentity || model.preparingDetachedHead || model.detachedHeadWorkPending {model.cancel();return false}
+        if model.preparingCommitIdentity || model.preparingDetachedHead || model.detachedHeadWorkPending || model.attemptWorkPending {model.cancel();return false}
         if model.missingStagedRecovery.busy { model.missingStagedRecovery.cancel(); return false }
         if model.submoduleLog.isReading { model.submoduleLog.cancel(); return false }
         guard sender.attachedSheet == nil, !hasMessagePicker, partial?.model.busy != true, partial?.window?.attachedSheet == nil, !model.unifiedViewerBusy else { return false }
@@ -627,6 +627,7 @@ import UniformTypeIdentifiers
     @Published var entries: [StatusEntry] = [] { didSet { if entries != oldValue { fileMenuGeneration = UUID() } } }
     @Published var indexFlagFiles: [WorkingTreeFile] = []
     @Published var restoreCopies: GitPathMap<WorkingFileRestoreCopy> = [:] { didSet { fileMenuGeneration = UUID() } }
+    var restoreWorkingCopy:((WorkingFileRestoreCopy,OperationCancellation?)async throws->Void)?
     enum RestoreChoice { case restore, keep, cancel }
     var chooseRestoreCopies: (Bool, @escaping (RestoreChoice) -> Void) -> Void = { _, choose in choose(.keep) }
     @Published var comparisonBase: String?
@@ -641,6 +642,15 @@ import UniformTypeIdentifiers
     @Published private(set) var commitIdentityPrepared=false
     @Published var hasCommitIdentitySettings=false
     private var acceptedCommitIdentity:ReplayUserIdentity?
+    @Published private(set) var messageEditorSession=UUID()
+    @Published private(set) var attemptWorkPending=false
+    private var pendingRecommitSession=false
+    private var resetMetadataTransitions:[String:Bool]=[:]
+    private func consumesResetTransition(_ key:String,value:Bool)->Bool {
+        guard let expected=resetMetadataTransitions.removeValue(forKey:key) else{return false}
+        return value==expected
+    }
+
     private func requireCommitIdentity(_ token:OperationCancellation)async throws->Bool {
         if commitIdentityPrepared{return true}
         // SwiftUI may deliver checkbox observers after caller presets were
@@ -1398,8 +1408,12 @@ import UniformTypeIdentifiers
         guard paths.contains(where: { restoreCopies[$0] != nil }) else { return }
         try validateRestoreAccess()
         for path in paths.sorted() {
+            try cancellation?.check()
+            guard messageFocusAvailable else{throw OperationCancellationFailure.cancelled}
             guard let copy = restoreCopies[path] else { continue }
-            try await repository.restoreWorkingFile(copy, cancellation: cancellation)
+            if let restoreWorkingCopy {try await restoreWorkingCopy(copy,cancellation)}else{try await repository.restoreWorkingFile(copy, cancellation: cancellation)}
+            try cancellation?.check()
+            guard messageFocusAvailable else{throw OperationCancellationFailure.cancelled}
             restoreCopies.removeValue(forKey: path)
         }
     }
@@ -1646,8 +1660,8 @@ import UniformTypeIdentifiers
                 let nextStaged = GitPathMap(try await readReload(token) { try await repository.stagingFiles(staged:true,base:nextBase,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
                 let nextUnstaged = GitPathMap(try await readReload(token) { try await repository.stagingFiles(staged:false,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
                 let nextAuthor:String?
-                if !hasLoaded && author.isEmpty {
-                    if let identity=acceptedCommitIdentity {nextAuthor="\(identity.authorName) <\(identity.authorEmail)>"}
+                if !hasLoaded && (author.isEmpty || pendingRecommitSession) {
+                    if !pendingRecommitSession,let identity=acceptedCommitIdentity {nextAuthor="\(identity.authorName) <\(identity.authorEmail)>"}
                     else {nextAuthor=try await readReload(token) {try await readAuthor(amend:false,repository:repository,cancellation:token)}}
                 } else { nextAuthor=nil }
                 let provider = try await readNativeIssueProvider(token)
@@ -1659,7 +1673,7 @@ import UniformTypeIdentifiers
                     let identity = try await readReload(token) { try await repository.commitMessageHistoryIdentity(cancellation:token) }
                     let limit = dialogDefaults.object(forKey:"MaxHistoryItems") as? Int ?? dialogDefaults.object(forKey:"Commit.MaxHistoryItems") as? Int ?? 25
                     nextHistory = CommitMessageHistory(repositoryIdentity:identity,defaults:dialogDefaults,limit:limit)
-                    seed = try await readReload(token) { try await loadMessageSeed(cancellation:token) }
+                    seed = try await readReload(token) { try await loadMessageSeed(includeOperationMessages:!pendingRecommitSession,cancellation:token) }
                 } else { nextIssueProperties=nil;nextProjectSettings=nil;nextHistory=nil;seed=nil }
                 var nextOwners:GitPathMap<String>=[:],nextLocked=GitPathSet(),nextOwnershipKnown=false
                 var warnings=seed?.warnings ?? []
@@ -1677,7 +1691,13 @@ import UniformTypeIdentifiers
                 }
                 var nextMessage=draftMessage,nextIssueID=draftIssueID
                 if let seed {
-                    if draftMessage.isEmpty && !nextAmend && !commandLineMessageProvided {
+                    if pendingRecommitSession {
+                        // ReCommit installs only the new template, preserving
+                        // its issue field as CommitDlg does. Initial operation
+                        // messages and command-line presets belong to the old
+                        // preparation and must not replace this next draft.
+                        nextMessage=seed.template
+                    } else if draftMessage.isEmpty && !nextAmend && !commandLineMessageProvided {
                         let separated=(nextIssueProperties ?? issueProperties).separateIssueLine(from:seed.message)
                         nextMessage=separated.message;nextIssueID=separated.issueID
                     }
@@ -1688,7 +1708,7 @@ import UniformTypeIdentifiers
                         self.error=error.localizedDescription;busy=false;close();return
                     }
                 }
-                if !loadedMessage, let commandLineIssueID { nextIssueID = commandLineIssueID }
+                if !loadedMessage,!pendingRecommitSession,let commandLineIssueID {nextIssueID=commandLineIssueID}
                 try await recoverMissingStagedFiles(nextEntries, repository: repository, token: token,
                     scope: requestedScope, wholeProject: requestedWholeProject)
                 _ = try await readReload(token) { () }
@@ -1727,12 +1747,16 @@ import UniformTypeIdentifiers
                     }
                 }
                 droppedChecks=[];selection.formIntersection(GitPathSet(entries.map(\.id)))
-                if author.isEmpty,let nextAuthor {author=nextAuthor}
+                if author.isEmpty || pendingRecommitSession,let nextAuthor {author=nextAuthor}
                 hasLoaded=true
                 if let seed {
                     issueProperties=nextIssueProperties!;projectSettings=nextProjectSettings!;messageHistory=nextHistory;messageTemplate=seed.template
                     if message.utf8.elementsEqual(draftMessage.utf8),issueID.utf8.elementsEqual(draftIssueID.utf8) {message=nextMessage;issueID=nextIssueID}
                     loadedMessage=true
+                    // CommitDlg clears Undo when installing the next template.
+                    // Accept the complete native template/Start-hook snapshot
+                    // first; failed/obsolete reloads cannot retire the draft.
+                    if pendingRecommitSession {pendingRecommitSession=false;messageEditorSession=UUID()}
                 }
                 if !warnings.isEmpty {reloadError=warnings.joined(separator:"\n\n");self.error=reloadError}
                 else if self.error == reloadError {self.error=nil;reloadError=nil}
@@ -1934,6 +1958,7 @@ import UniformTypeIdentifiers
         return Date(timeIntervalSince1970:TimeInterval(commit.author.time))
     }
     func amendChanged() {
+        if consumesResetTransition("amend",value:amend){return}
         guard messageFocusAvailable,commitIdentityPrepared,!preparingCommitIdentity else { return }
         if replaySplit != nil || historyCombine != nil { comparisonChanged(); return }
         let repository=self.repository.capturingDiffBackend(preferences:dialogDefaults)
@@ -1990,6 +2015,7 @@ import UniformTypeIdentifiers
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
     func invalidateForClose() {
+        pendingRecommitSession=false;resetMetadataTransitions=[:]
         missingStagedRecovery.retire()
         preferenceCancellation?.cancel();pendingStagingPreference=nil;pendingPatchPreference=nil
         unversionedPromptRequest=UUID();unversionedPromptPending=false;unversionedPromptVisible=false;cancelUnversionedFilesPrompt()
@@ -2012,11 +2038,13 @@ import UniformTypeIdentifiers
         appliedMessageFocusRequest = request
     }
     func comparisonChanged() {
+        if consumesResetTransition("comparison",value:amendDiffToLastCommit){return}
         guard messageFocusAvailable,commitIdentityPrepared,!preparingCommitIdentity else{return}
         hasLoaded = false
         reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
     }
     func authorChanged(repository captured:GitRepository?=nil) {
+        if consumesResetTransition("author",value:setAuthor){return}
         guard messageFocusAvailable,commitIdentityPrepared,!preparingCommitIdentity else { return }
         authorCancellation?.cancel(); authorCancellation = nil
         authorGeneration += 1
@@ -2043,6 +2071,7 @@ import UniformTypeIdentifiers
         }
     }
     func dateChanged(repository captured:GitRepository?=nil) {
+        if consumesResetTransition("date",value:setAuthorDate){return}
         guard messageFocusAvailable,commitIdentityPrepared,!preparingCommitIdentity else { return }
         dateCancellation?.cancel(); dateCancellation = nil
         dateGeneration += 1
@@ -2139,11 +2168,15 @@ import UniformTypeIdentifiers
         options.authorDate = setAuthorDate ? authorDate : nil; options.resetAuthorDate = amend && setAuthorDate && resetAuthorDate; options.messageOnly = messageOnly; options.newBranch = createBranch ? newBranch : nil
         if let date=options.authorDate,!options.resetAuthorDate,date < Date(timeIntervalSince1970:0) {error="Invalid time";return}
         if !staging { options.checkboxIndexPolicy = CommitCheckboxIndexPolicy(paths:GitPathSet(visibleEntries.map(\.path)),defaults:dialogDefaults) }
+        let historyForAttempt=messageHistory
+        let nonAmendHistoryForAttempt=options.amend && !nonAmendMessage.isEmpty && !GitReferenceName.equal(nonAmendMessage,messageTemplate) ? nonAmendMessage:nil
         let preflight=UUID(),preflightToken=OperationCancellation();preflightRequest=preflight;preflightCancellation=preflightToken
-        busy = true;Self.activeCommitPreflights += 1
+        busy = true;attemptWorkPending=true;Self.activeCommitPreflights += 1
         Task { [self,access] in
-            var commitAttempted = false
-            defer { if commitAttempted,messageFocusAvailable {unversionedDefaults.set(showUnversionedForAttempt,forKey:"AddBeforeCommit")};detachedHeadWorkPending=false;Self.activeCommitPreflights -= 1;withExtendedLifetime(access) {};if preflightRequest==preflight { preflightCancellation=nil } }
+            var commitAttempted = false,commitSucceeded=false
+            var attemptedHistoryMessage:String?
+            var headBeforeAttempt:Data?
+            defer { if commitAttempted,messageFocusAvailable {unversionedDefaults.set(showUnversionedForAttempt,forKey:"AddBeforeCommit")};detachedHeadWorkPending=false;attemptWorkPending=false;Self.activeCommitPreflights -= 1;withExtendedLifetime(access) {};if preflightRequest==preflight { preflightCancellation=nil } }
             var progress: CommitProgressWindowModel?
             var selectedPostAction: CommitPostAction?
             do {
@@ -2199,7 +2232,7 @@ import UniformTypeIdentifiers
                     guard choice.0 else { busy = false; return }
                     if choice.1 { dialogDefaults.set(true, forKey: "CommitMessageContainsConflictHint") }
                 }
-                if let hook = try await clientHooks.run(.preCommit, repository: repository, access: access, paths: committedPaths.sorted().map { repository.root.appendingPathComponent($0).path }, message: text, allowContinue: true) { text = hook.message; message = text }
+                if let hook = try await clientHooks.run(.preCommit, repository: repository, access: access, paths: committedPaths.sorted().map { repository.root.appendingPathComponent($0).path }, message: text, allowContinue: true) { text = hook.message }
                 try validatePreflight(preflight,preflightToken)
                 let prepared = text == rawMessage ? validation : try await repository.prepareIssueCommit(properties: properties, message: text, issueID:rawIssueID,cancellation:preflightToken)
                 try validatePreflight(preflight,preflightToken)
@@ -2220,19 +2253,28 @@ import UniformTypeIdentifiers
                 try validatePreflight(preflight,preflightToken)
                 guard try await prepareDetachedHead(options:options,request:preflight,token:preflightToken) else{busy=false;return}
                 try validatePreflight(preflight,preflightToken)
-                text = prepared.message; message = text
+                // OnOK mutates its attempt buffer, not the source editor.
+                // Publishing issue insertion or serialization into the editor
+                // would invalidate its existing native Undo ranges on failure.
+                text = prepared.message
                 try provider?.checkCommit(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID))
                 let isGitSVN = try await repository.finderMetadata(knownBare:false,cancellation:preflightToken).hasGitSVN
                 let written = try await repository.prepareCommitMessageFile(text, stripComments: dialogDefaults.bool(forKey: "StripCommentedLines"), sanitize:dialogDefaults.object(forKey:"SanitizeCommitMsg") as? Bool ?? true,cancellation:preflightToken)
-                text = written.contents; message = written.draft
+                text = written.contents
                 try validatePreflight(preflight,preflightToken)
                 let result = CommitProgressWindowModel(repository: repository, action: action, staging: staging, paths: paths, options: options, preferences: dialogDefaults, cancellable: replaySplit == nil && historyCombine == nil)
                 progress = result; commitProgress = result
                 onCommitProgress?(result)
                 let presented = onCommitProgress != nil && !result.dismissWithoutWindow
                 let output: String
-                commitAttempted = true
                 if let historyCombine { try await repository.verifyHistoryCombineAmend(historyCombine) }
+                // Git can create a commit and still return failure during later
+                // hook/index work. Retain an exact witness, including unborn
+                // HEAD, without treating a changed ref as proof of our success.
+                let initialHead=try await repository.run(["rev-parse","--verify","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:preflightToken)
+                try validatePreflight(preflight,preflightToken)
+                headBeforeAttempt=initialHead.stdout
+                commitAttempted = true;attemptedHistoryMessage=written.draft
                 let countedReplay = replaySplit != nil
                 if countedReplay { RebaseWindowModel.beginReplayWork() }
                 defer { if countedReplay { RebaseWindowModel.endReplayWork() } }
@@ -2248,52 +2290,64 @@ import UniformTypeIdentifiers
                     }
                     for await _ in updates { result.consume(parser.processPending(), parser: parser) }
                     result.consume(parser.processPending(), parser: parser); result.consume(parser.finish(), parser: parser)
-                    output = try await operation.value
+                    output = try await operation.value;commitSucceeded=true
                 }
                 guard messageFocusAvailable,preflightRequest==preflight,!preflightToken.isCancelled else {
                     result.complete(output:output,success:true,cancelled:false,postActions:[]);commitProgress=nil;return
                 }
-                var postHookFailure: String?
+                var completionFailure: String?
                 if let provider {
-                    do { let revision = try await repository.run(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .newlines); try provider.commitFinished(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID), revision: revision) }
-                    catch { postHookFailure = "The commit succeeded, but its issue-provider completion failed.\n\n" + error.localizedDescription }
+                    do {
+                        let revision = try await repository.run(["rev-parse", "--verify", "HEAD"],cancellation:preflightToken).text.trimmingCharacters(in: .newlines)
+                        try validatePreflight(preflight,preflightToken)
+                        try provider.commitFinished(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID), revision: revision)
+                    } catch { completionFailure = "The commit succeeded, but its issue-provider completion failed.\n\n" + error.localizedDescription }
                 }
-                do { _ = try await clientHooks.run(.postCommit, repository: repository, access: access, amend: options.amend) }
-                catch { postHookFailure = (postHookFailure.map { $0 + "\n\n" } ?? "") + "The commit succeeded, but its post-commit hook failed.\n\n" + error.localizedDescription }
                 try validatePreflight(preflight,preflightToken)
-                messageHistory?.add(written.draft)
-                if options.amend && !nonAmendMessage.isEmpty && !GitReferenceName.equal(nonAmendMessage,messageTemplate) { messageHistory?.add(nonAmendMessage) }
+                var restored=true
+                do {try await restoreSavedCopies(GitPathSet(restoreCopies.keys),cancellation:result.cancellation)}
+                catch {
+                    restored=false
+                    completionFailure=(completionFailure.map{$0+"\n\n"} ?? "")+"The commit succeeded, but restoring saved working copies failed. The remaining copies are retained in this dialog.\n\n"+error.localizedDescription
+                }
+                try validatePreflight(preflight,preflightToken)
+                // Source RestoreFiles precedes the client PostCommit hook. A
+                // failed native restoration retains recovery and must not run
+                // a hook against the wrong working-copy contents.
+                if restored {
+                    do { _ = try await clientHooks.run(.postCommit, repository: repository, access: access, amend: options.amend,cancellation:result.cancellation) }
+                    catch { completionFailure = (completionFailure.map { $0 + "\n\n" } ?? "") + "The commit succeeded, but its post-commit hook failed.\n\n" + error.localizedDescription }
+                }
+                try validatePreflight(preflight,preflightToken)
+                if !preserveChangelists {
+                    do {
+                        let remaining=try await repository.pruneChangelists(retainingPathNames:retainedChangelists,scope:pruningScope,cancellation:preflightToken)
+                        try validatePreflight(preflight,preflightToken);changelists=remaining
+                    } catch {completionFailure=(completionFailure.map{$0+"\n\n"} ?? "")+"The commit succeeded, but updating changelists failed.\n\n"+error.localizedDescription}
+                }
+                try validatePreflight(preflight,preflightToken)
+                historyForAttempt?.add(written.draft)
+                if let nonAmendHistoryForAttempt {historyForAttempt?.add(nonAmendHistoryForAttempt)}
                 if !result.isAbandoned { onCommitted(output) }
-                result.complete(output: output + (postHookFailure.map { "\n" + $0 } ?? ""), success: true, cancelled: false, postActions: replaySplit == nil && historyCombine == nil ? (isGitSVN ? [.svnDCommit, .push, .pull, .recommit, .createTag] : [.push, .pull, .recommit, .createTag]) : [])
+                let postActions:[CommitPostAction]=completionFailure==nil && replaySplit==nil && historyCombine==nil ? (isGitSVN ? [.svnDCommit,.push,.pull,.recommit,.createTag]:[.push,.pull,.recommit,.createTag]):[]
+                if let completionFailure {result.appendDiagnostic(completionFailure)}
+                result.complete(output:output,success:true,cancelled:false,postActions:postActions)
                 if action != .commit || replaySplit != nil || historyCombine != nil || !presented || result.isAbandoned { result.choose(nil) }
                 selectedPostAction = await result.waitForChoice()
                 try validatePreflight(preflight,preflightToken)
                 rememberCompletionAction(action)
                 commitProgress = nil
-                do { try await restoreSavedCopies(GitPathSet(restoreCopies.keys)) }
-                catch {
-                    self.error = "The commit succeeded, but restoring saved working copies failed. The remaining copies are retained in this dialog.\n\n" + error.localizedDescription
-                    busy = false; reload(); return
-                }
-                if !preserveChangelists {
-                    do { changelists = try await repository.pruneChangelists(retainingPathNames: retainedChangelists, scope: pruningScope) }
-                    catch {
-                        self.error = "The commit succeeded, but updating changelists failed.\n\n" + error.localizedDescription
-                        busy = false; reload(); return
-                    }
-                }
-                if let postHookFailure { self.error = postHookFailure; busy = false; reload(); return }
+                if let completionFailure {self.error=completionFailure;busy=false;reload();return}
                 if action == .recommit || selectedPostAction == .recommit {
-                    do {
-                        let seed = try await loadMessageSeed(includeOperationMessages: false, cancellation: preflightToken)
-                        messageTemplate = seed.template
-                        let separated = properties.separateIssueLine(from: seed.template)
-                        message = separated.message; issueID = separated.issueID
-                        if !seed.warnings.isEmpty { self.error = seed.warnings.joined(separator: "\n\n") }
-                    } catch {
-                        guard messageFocusAvailable, !preflightToken.isCancelled else { return }
-                        messageTemplate = ""; message = ""; self.error = error.localizedDescription
-                    }
+                    invalidateMetadataLoads()
+                    // These are controlled reset transitions, not user toggles.
+                    // Keep their delayed SwiftUI callbacks from restoring the
+                    // previous amend buffer over the accepted next template.
+                    if amend {resetMetadataTransitions["amend"]=false}
+                    if amendDiffToLastCommit {resetMetadataTransitions["comparison"]=false}
+                    if setAuthor {resetMetadataTransitions["author"]=false}
+                    if setAuthorDate {resetMetadataTransitions["date"]=false}
+                    pendingRecommitSession=true
                     createBranch = false; newBranch = ""; amend = false; amendDiffToLastCommit = false; amendMessage = ""; nonAmendMessage = ""; setAuthorDate = false; resetAuthorDate = false; setAuthor = false; messageOnly = false
                     selectFilesAutomatically = true
                     checked = []; selection = []; hasLoaded = false; loadedMessage = false
@@ -2310,22 +2364,48 @@ import UniformTypeIdentifiers
                 }
             } catch {
                 guard messageFocusAvailable,preflightRequest==preflight,!preflightToken.isCancelled else {
-                    if let progress { progress.complete(output:error.localizedDescription,success:false,cancelled:true,postActions:[]);progress.choose(nil) };commitProgress=nil;return
+                    if let progress { progress.complete(output:error.localizedDescription,success:commitSucceeded,cancelled:!commitSucceeded,postActions:[]);progress.choose(nil) };commitProgress=nil;return
                 }
-                let commitError = error.localizedDescription
+                var commitError = error.localizedDescription
+                if commitAttempted,!commitSucceeded,let headBeforeAttempt {
+                    let currentHead=try? await repository.run(["rev-parse","--verify","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:preflightToken)
+                    guard messageFocusAvailable,preflightRequest==preflight,!preflightToken.isCancelled else{commitProgress=nil;return}
+                    if let currentHead,currentHead.stdout != headBeforeAttempt {
+                        let warning="Git reported an error, but HEAD changed during the attempt. A commit may already exist. Inspect Log before retrying."
+                        if let progress {
+                            if progress.output.isEmpty {progress.appendDiagnostic((error as? GitFailure)?.message ?? commitError)}
+                            progress.appendDiagnostic(warning)
+                        }
+                        commitError += "\n\n"+warning
+                    }
+                }
                 let shownInProgress = progress != nil && onCommitProgress != nil && progress?.dismissWithoutWindow != true
                 if let progress {
                     progress.complete(output: (error as? GitFailure)?.message ?? commitError, success: false, cancelled: progress.cancellation.isCancelled, postActions: [], exitCode: (error as? GitFailure)?.code)
                     if !shownInProgress || progress.cancelled { progress.choose(nil) }
-                    _ = await progress.waitForChoice(); rememberCompletionAction(action); commitProgress = nil
+                    _ = await progress.waitForChoice()
+                    guard messageFocusAvailable,preflightRequest==preflight,!preflightToken.isCancelled else{commitProgress=nil;return}
+                    rememberCompletionAction(action); commitProgress = nil
                 }
+                guard messageFocusAvailable,preflightRequest==preflight,!preflightToken.isCancelled else{return}
                 var failureMessage = shownInProgress ? "" : commitError
-                if commitAttempted && !restoreCopies.isEmpty, await chooseSavedCopies(allowCancel: false) == .restore {
-                    do { try await restoreSavedCopies(GitPathSet(restoreCopies.keys)) }
-                    catch { failureMessage = commitError + "\n\nRestoring saved working copies failed: " + error.localizedDescription }
+                if commitAttempted && !restoreCopies.isEmpty {
+                    let choice=await chooseSavedCopies(allowCancel:false)
+                    guard messageFocusAvailable,preflightRequest==preflight,!preflightToken.isCancelled else{return}
+                    if choice == .restore {
+                        do {try await restoreSavedCopies(GitPathSet(restoreCopies.keys),cancellation:preflightToken)}
+                        catch {failureMessage=commitError+"\n\nRestoring saved working copies failed: "+error.localizedDescription}
+                    }
                 }
-                if commitAttempted, let created = options.newBranch, (try? await repository.branch()) == created {
-                    createBranch = false; newBranch = ""
+                guard messageFocusAvailable,preflightRequest==preflight,!preflightToken.isCancelled else{return}
+                if commitAttempted, let created = options.newBranch {
+                    let current=try? await repository.branch(cancellation:preflightToken)
+                    guard messageFocusAvailable,preflightRequest==preflight,!preflightToken.isCancelled else{return}
+                    if current==created {createBranch=false;newBranch=""}
+                }
+                if commitAttempted,let attemptedHistoryMessage {
+                    historyForAttempt?.add(attemptedHistoryMessage)
+                    if let nonAmendHistoryForAttempt {historyForAttempt?.add(nonAmendHistoryForAttempt)}
                 }
                 self.error = failureMessage.isEmpty ? nil : failureMessage
                 busy = false; reload()
@@ -3143,6 +3223,12 @@ enum CommitPostAction: String, CaseIterable, Hashable {
         self.postActions = isAbandoned ? [] : postActions; busy = false; cancelling = false
         if isAbandoned { choose(nil); return }
         if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { choose(nil) }
+    }
+    func appendDiagnostic(_ text:String) {
+        guard busy,!isAbandoned else{return}
+        let diagnostic=GitCliOutputParser(limit:outputLimit)
+        diagnostic.appendChunk(Data(("\n"+text+"\n").utf8))
+        consume(diagnostic.processPending(),parser:diagnostic);consume(diagnostic.finish(),parser:diagnostic)
     }
     func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
         guard busy, !isAbandoned else { return }

@@ -120,6 +120,22 @@ history even though it cannot be committed with numeric issue validation enabled
 The Commit split button offers Commit, ReCommit, and Commit & Push. ReCommit
 continues the commit workflow; Commit & Push hands the result to Push. A commit
 or push failure is reported in its owning workflow. Read the output before retrying.
+A successful commit restores files marked for restoration before the client
+post-commit hook runs. HEAD keeps the committed contents; the working file gets
+the saved full contents. If completion reports a restoration or post-hook error,
+Git may already have committed: inspect the result and remaining saved copies
+before retrying. Git can also create a commit and then return an error. If the
+result warns that HEAD changed during the attempt, inspect Log before retrying;
+the warning does not assume that a concurrent HEAD change belongs to this commit.
+
+The editor keeps your draft while issue lines, hook output and formatting are
+prepared separately for Git. Failed attempted messages are retained in Recent
+messages after acknowledging the
+failed result. ReCommit reads the next template, runs the Start Commit hook and clears the
+previous draft's Undo history once the new draft is ready. It retains the separate
+issue field. New edits can be undone normally; a failed commit
+keeps the current draft's Undo history.
+
 See [Getting started](GETTING-STARTED.md#use-the-staging-area).
 
 ## Log and RefLog

@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The [Commit result and next-draft family](COMMIT-RESULT-LIFECYCLE-PARITY.md)
+connects saved-file restoration before client PostCommit, captured failed-attempt
+Recent messages and an editor-owned ReCommit Undo/reset boundary. It includes
+reset observer, raw editor/attempt buffer separation and completion cancellation
+ownership. The Debug app and ten native case/engine checks passed across the
+grouped checkpoint and focused repairs; Core was unchanged. [Evidence](qa/commit-result-lifecycle-2026-10-20.json)
+retains the Git partial-failure discovery, exact-byte checks and owned cleanup. Full physical, signed and application parity remain separate work.
+
 The [Commit safety and draft-recovery family](COMMIT-SAFETY-PARITY.md) connects
 detached-HEAD Yes/Create Branch, No and Cancel, actual branch re-reading and
 owned child cancellation with issue-field recovery in cancelled message history.
