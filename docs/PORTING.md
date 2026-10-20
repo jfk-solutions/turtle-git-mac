@@ -4061,3 +4061,41 @@ projection corrections. Only affected scopes repeated; Core/app were not rebuilt
 for fixture repairs. All nine recorded receiver PIDs, including failed attempts,
 are absent. These scoped passes do not certify current hosted CI or signed
 Finder/App Store deployment.
+
+
+### Ordered command transport and connected result workflows — October 20, 2026
+
+The Fetch/Pull/Push command family now retains original path-list count, order
+and duplicate roots through direct arguments and authorized pathfile decoding.
+Each original multi-root entry uses strict working-tree/bare-root preparation;
+invalid entries are skipped, and individual dialog Cancel or operation failure
+continues to later roots. Fetch remote and Push branch presets remain editable
+captured input in each actual form.
+
+Native transport ownership spans options, actual Git operations and result
+windows plus source-modal Reset, Switch, Rebase, Stash, Request Pull and mail
+follow-ups. Independent source-process commands remain separate windows. Saved
+primary grants can cover roots independently; missing batch authority uses an
+owned asynchronous folder chooser. Workspace retirement/adoption and Quit cancel
+the current owned chain and remaining queue, while exact workers and detached
+sheets retain their access and accounting until drainage. The same lifetime
+mechanism covers Finder Services without replacing its distinct source-menu
+eligibility rules.
+
+[Command-line behavior](COMMAND-LINE.md),
+[transport presentation](TRANSPORT-PRESENTATION.md) and
+[batch evidence](qa/command-transport-batch-family-2026-10-20.json) distinguish
+this connected source scope from current full hosted integration, physical
+interaction, signed sandbox grants and App Store distribution acceptance.
+
+
+The checkpoint passed four focused Core parser methods, the final app build and
+ten distinct native case/engine combinations: six CLI dialog/effect/lifetime
+combinations with both Git engines, plus related Services, retained network,
+Request Pull and Format Patch groups with system Git. The recorded failures
+exposed an explicit-self compile error, directory-hint URL enrollment mismatch
+and an overbroad CLI bare-Pull guard; affected app/native checks passed after
+repair. The older network fixture also needed its optional reader-hook fallback.
+All fourteen recorded receiver PIDs are independently absent. No complete Core
+rerun followed native-only repairs, and no complete hosted, installed signed or
+whole-port claim follows from this scoped checkpoint.

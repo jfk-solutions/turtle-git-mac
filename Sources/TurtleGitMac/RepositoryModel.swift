@@ -38,28 +38,62 @@ private enum FinderServicePresentationContext {
     deinit { if let observer { NotificationCenter.default.removeObserver(observer) } }
 }
 
-/// One actual transport form and its retained worker lifetime in a Services
-/// batch. Closing an individual form advances; retiring its initiating owner
-/// cancels that form and waits for its exact workers before releasing authority.
-@MainActor private final class FinderServiceTransportStep {
-    private(set) var controller:NSWindowController?
-    private(set) var closed=false
-    private var cancelled=false
-    private var pending:()->Bool={false}
+/// Source-modal successors belong to the same captured root. Independent Log,
+/// Commit and similar commands deliberately run outside this chain.
+@MainActor private protocol TransportBatchWindow:AnyObject {
+    var onClosed:()->Void {get set}
+    var transportBatchWorkPending:Bool {get}
+}
+extension FetchWindowController:TransportBatchWindow {}
+extension PushWindowController:TransportBatchWindow {}
+extension ResetWindowController:TransportBatchWindow {}
+extension SwitchWindowController:TransportBatchWindow {}
+extension RebaseWindowController:TransportBatchWindow {}
+extension StashWindowController:TransportBatchWindow {}
+extension StashRestoreWindowController:TransportBatchWindow {}
+extension MergeWindowController:TransportBatchWindow {}
+extension RequestPullWindowController:TransportBatchWindow {}
+extension FormatPatchWindowController:TransportBatchWindow {}
+private enum TransportBatchPresentationContext {
+    @TaskLocal static var chain:RepositoryTransportBatchChain?
+}
+@MainActor private final class RepositoryTransportBatchChain {
+    @MainActor private final class Node {
+        let controller:NSWindowController
+        let pending:()->Bool
+        var closed=false
+        init(_ controller:NSWindowController,pending:@escaping()->Bool){self.controller=controller;self.pending=pending}
+    }
+    let command:Bool
+    let root:URL
+    private let allowed:()->Bool
+    private var nodes:[Node]=[]
+    private var closingFences=0
+    private(set) var cancelled=false
+    init(root:URL,command:Bool,allowed:@escaping()->Bool){self.root=root;self.command=command;self.allowed=allowed}
+    var controller:NSWindowController? {nodes.first?.controller}
+    var canPresent:Bool {!cancelled && allowed()}
     func capture(_ controller:NSWindowController) {
-        guard self.controller == nil else{return}
-        if let fetch=controller as? FetchWindowController {
-            self.controller=fetch;pending={fetch.serviceWorkPending}
-            let original=fetch.onClosed
-            fetch.onClosed={ [weak self] in original();self?.closed=true }
-        } else if let push=controller as? PushWindowController {
-            self.controller=push;pending={push.serviceWorkPending}
-            let original=push.onClosed
-            push.onClosed={ [weak self] in original();self?.closed=true }
+        guard !nodes.contains(where:{$0.controller === controller}),let owned=controller as? any TransportBatchWindow else{return}
+        let node=Node(controller,pending:{owned.transportBatchWorkPending || controller.window?.sheetParent != nil || controller.window?.attachedSheet != nil});nodes.append(node)
+        let original=owned.onClosed
+        owned.onClosed={ [weak self,weak node] in
+            // Reserve before original cleanup: a source modal callback can
+            // launch its successor immediately after onClosed returns.
+            self?.closingFences += 1
+            original();node?.closed=true
+            DispatchQueue.main.async { [weak self] in self?.closingFences -= 1 }
         }
     }
-    var hasPendingWork:Bool {!closed || pending()}
-    func cancel(){guard !cancelled else{return};cancelled=true;controller?.close()}
+    var hasPendingWork:Bool {closingFences>0 || nodes.contains{!$0.closed || $0.pending()}}
+    func handoff(_ action:()->Void) {
+        guard canPresent else{return}
+        closingFences += 1
+        defer{closingFences -= 1}
+        TransportBatchPresentationContext.$chain.withValue(self,operation:action)
+    }
+    func releaseCompleted(){guard !hasPendingWork else{return};nodes.removeAll()}
+    func cancel(){guard !cancelled else{return};cancelled=true;for node in nodes where !node.closed {if let window=node.controller.window {window.sheetParent?.endSheet(window,returnCode:.abort)};node.controller.close()}}
 }
 
 /// One folder chooser, captured before any modal/native reply can arrive.
@@ -418,12 +452,33 @@ private enum FinderServicePresentationContext {
     /// children offscreen without replacing their models or Git operations.
     var finderServiceWorkflowPresentation:((RepositoryAction,NSWindowController,GitRepository,RepositoryAccessLease?)->Void)?
     private var finderServiceDispatch:FinderServiceDispatchIdentity? {FinderServicePresentationContext.current}
-    private func prepareFinderServiceWorkflow(_ controller:NSWindowController,repository:GitRepository,access:RepositoryAccessLease?) {
-        guard let context=finderServiceDispatch,context.root==repository.root else{return}
-        finderServiceTransportStep?.capture(controller)
+    var commandTransportWorkflowPresentation:((RepositoryAction,NSWindowController,GitRepository,RepositoryAccessLease?)->Void)?
+    @discardableResult private func prepareFinderServiceWorkflow(_ controller:NSWindowController,repository:GitRepository,access:RepositoryAccessLease?)->Bool {
+        if let chain=TransportBatchPresentationContext.chain,GitReferenceName.equal(chain.root.standardizedFileURL.resolvingSymlinksInPath().path,repository.root.standardizedFileURL.resolvingSymlinksInPath().path),controller is any TransportBatchWindow {
+            chain.capture(controller)
+            guard chain.canPresent else{return false}
+            let action:RepositoryAction
+            switch controller {
+            case let fetch as FetchWindowController:action=fetch.model.isPull ? .pull:.fetch
+            case is PushWindowController:action = .push
+            case is ResetWindowController:action = .reset
+            case is SwitchWindowController:action = .switchBranch
+            case is RebaseWindowController:action = .rebase
+            case is StashWindowController:action = .stash
+            case let restore as StashRestoreWindowController:action=restore.model.pop ? .stashPop:.stashApply
+            case is MergeWindowController:action = .merge
+            case is RequestPullWindowController:action = .requestPull
+            default:action = .formatPatch
+            }
+            if chain.command {commandTransportWorkflowPresentation?(action,controller,repository,access)}
+            else {finderServiceWorkflowPresentation?(action,controller,repository,access)}
+            return true
+        }
+        guard let context=finderServiceDispatch,context.root==repository.root else{return true}
         finderServiceWorkflowPresentation?(context.action,controller,repository,access)
+        return true
     }
-    private var finderServiceTransportStep:FinderServiceTransportStep?
+    private var finderServiceTransportStep:RepositoryTransportBatchChain?
     private var finderServiceOwner:RepositoryWindowOwner?
     private var finderServiceFolderChoice:RepositoryCreationFolderChoice?
     private var finderServiceWorkers=0
@@ -476,7 +531,7 @@ private enum FinderServicePresentationContext {
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { hasPendingFinderServiceWork || mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { hasPendingFinderServiceWork || commandRepositoryBatchCancellation != nil || commandTransportFolderChoice != nil || mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
     private var resolutionCommandPreparation: RepositoryWindowOwner?
     private var resolutionCommandFolderChoice: RepositoryCreationFolderChoice?
     private var silentResolveSessions = GitPathMap<FileListComparisonSession>()
@@ -553,7 +608,7 @@ private enum FinderServicePresentationContext {
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true;cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true;cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -1277,7 +1332,7 @@ private enum FinderServicePresentationContext {
         // Keep the current operation's generation and busy ownership intact.
         // Stop a transport batch before it can adopt another captured root.
         if commandRepositoryBatchCancellation != nil {
-            commandRepositoryBatchCancellation?.cancel()
+            cancelCommandTransportBatch()
             adoptionCancellation?.cancel()
             repositoryPermissionPrompt?.cancel()
         }
@@ -1656,7 +1711,7 @@ private enum FinderServicePresentationContext {
                             self?.refreshAfterConflictChange(root)
                             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                         }
-                        imageConflictWindows[key] = controller; prepareFinderServiceWorkflow(controller,repository:repository,access:access); presentConflictWindow(controller); return
+                        imageConflictWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller); return
                     }
                     try await validateConflictEditorEntry(entry, repository: repository, token: token)
                     request.dismissProgress()
@@ -1667,7 +1722,7 @@ private enum FinderServicePresentationContext {
                         self?.refreshAfterConflictChange(root)
                         if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                     }
-                    textConflictWindows[key] = controller; prepareFinderServiceWorkflow(controller,repository:repository,access:access); presentConflictWindow(controller); return
+                    textConflictWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller); return
                 }
                 let root = repository.root, key = root.path + "\0" + path
                 try await validateConflictEditorEntry(entry, repository: repository, token: token)
@@ -1681,7 +1736,7 @@ private enum FinderServicePresentationContext {
                 }
                 controller.model.onLog = { [weak self] child, revision in self?.showLog(repository: child, access: access, paths: [], endRevision: revision) }
                 controller.model.onReset = { [weak self, weak controller] child, revision, done in self?.showReset(repository: child, access: access, revision: revision, completion: done, dismissed: { [weak controller] in controller?.model.dismissReset() }) }
-                submoduleConflictWindows[key] = controller; prepareFinderServiceWorkflow(controller,repository:repository,access:access); presentConflictWindow(controller)
+                submoduleConflictWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller)
                 }
             } catch { if !retired, !request.session.cancellation.isCancelled, !confirmingQuit { self.error = error.localizedDescription } }
         }
@@ -1699,7 +1754,7 @@ private enum FinderServicePresentationContext {
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
         }
         controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [path], endRevision: revision) }
-        deleteConflictWindows[key] = controller; prepareFinderServiceWorkflow(controller,repository:repository,access:access); presentConflictWindow(controller)
+        deleteConflictWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller)
     }
     func configureResetInteractions(_ controller: ResetWindowController, repository: GitRepository, access: RepositoryAccessLease?, completion: (() -> Void)? = nil) {
         let root = repository.root, preferences = controller.model.presentationPreferences
@@ -1745,7 +1800,7 @@ private enum FinderServicePresentationContext {
         if let mode { controller.model.mode = mode }
         controller.onClosed = { [weak self] in self?.resetWindows.removeValue(forKey: key); dismissed?() }
         configureResetInteractions(controller, repository: repository, access: access, completion: completion)
-        resetWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        resetWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func refreshAfterConflictChange(_ root:URL) {
         ConflictListRefreshPolicy.perform(preferences:fileComparisonPreferences) {
@@ -1791,7 +1846,7 @@ private enum FinderServicePresentationContext {
         }
         presentation?.apply(to: controller.window)
         resolveWindows[key] = controller
-        prepareFinderServiceWorkflow(controller,repository:repository,access:access)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         if let resolveWindowPresentation { resolveWindowPresentation(controller) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
@@ -1810,7 +1865,7 @@ private enum FinderServicePresentationContext {
                 self.output = output; Task { await self.refresh() }
             }
             ignoreWindows[key] = controller
-            prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+            guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         } catch { self.error = error.localizedDescription }
     }
     private func showRemove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], keepLocal: Bool) {
@@ -1916,7 +1971,7 @@ private enum FinderServicePresentationContext {
                 controller.model.onRestoreChanged = { [weak model = controller.model] in model?.onIgnoreChanged("Working copies restored.") }
                 controller.model.onDeleteChanged = controller.model.onIgnoreChanged
                 addWindows[key] = controller; controller.model.setScope(paths); controller.model.reload()
-                prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+                guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
             } catch { if !retired, !owner.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
@@ -2207,7 +2262,7 @@ private enum FinderServicePresentationContext {
     func showSynchronization(sequence: Int? = nil) {
         guard !busy, !confirmingQuit, !bare, let repository else { return }
         let key = repository.root.path, access = activeAccess
-        if let existing = synchronizationWindows[key] { prepareFinderServiceWorkflow(existing,repository:repository,access:access); existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        if let existing = synchronizationWindows[key] { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = SynchronizationWindowController(repository: repository, access: access, preferences: fileComparisonPreferences, sequence: sequence)
         controller.configureExport = { [weak self] child in self?.configureExportInteractions(child, repository: repository, access: access) }
         controller.configureBranchPicker = { [weak self] model in self?.configureReferenceBrowser(model, repository: repository, access: access) }
@@ -2321,7 +2376,7 @@ private enum FinderServicePresentationContext {
             if child.model.busy { child.showWindow(nil) } else { child.close() }
         }
         controller.onClosed = { [weak self] in self?.synchronizationWindows.removeValue(forKey: key) }
-        synchronizationWindows[key] = controller; prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        synchronizationWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
 
     private func showAddProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal, backend: GitLibGit2Configuration? = nil, preservePathOrder: Bool = false) {
@@ -2351,7 +2406,7 @@ private enum FinderServicePresentationContext {
             self.showLog(repository: repository, access: access, paths: [path], preferences: capturedPreferences)
         }
         addProgressWindows[id] = controller
-        prepareFinderServiceWorkflow(controller,repository:repository,access:access)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         if let presentation = addProgressWindowPresentation { presentation(controller) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
         controller.model.start()
@@ -2429,7 +2484,7 @@ private enum FinderServicePresentationContext {
 
         revertWindows[root.path] = controller
         controller.model.setScope(paths)
-        prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     var submoduleDiffPresentation:((SubmoduleDiffWindowController)->Void)?
     private func showSubmoduleDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, preferences: UserDefaults? = nil, appearance: NSAppearance? = nil, alpha: CGFloat? = nil) {
@@ -2468,7 +2523,7 @@ private enum FinderServicePresentationContext {
         configureRevisionComparisonInteractions(controller.model, repository: repository, access: access)
         revisionComparisonWindows[key] = controller
         controller.model.load()
-        prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showRevisionGraph(repository: GitRepository, access: RepositoryAccessLease?) {
         let key = repository.root.path + "\0" + repository.executable.path
@@ -2716,7 +2771,7 @@ private enum FinderServicePresentationContext {
             controller.model.comparisonDefaults = defaults
             if let appearance { controller.window?.appearance = appearance }
             if let alpha { controller.window?.alphaValue = alpha }
-            prepareFinderServiceWorkflow(controller,repository:repository,access:access)
+            guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
             if let fileComparisonWindowPresentation { fileComparisonWindowPresentation(controller) }
             else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
         }
@@ -2927,7 +2982,7 @@ private enum FinderServicePresentationContext {
         }
         referenceLogWindows[root.path] = controller
         controller.model.reference = reference; controller.model.reload()
-        prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showStashRestore(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
@@ -2936,7 +2991,7 @@ private enum FinderServicePresentationContext {
         let independentServiceRequest=finderServiceDispatch.map{[RepositoryAction.stashApply,.stashPop].contains($0.action)} ?? false
         if !independentServiceRequest,let existing = stashRestoreWindows.first(where: { key, controller in
             (key == baseKey || key.hasPrefix(baseKey + "\0")) && controller.model.preferences === preferences
-        })?.value { prepareFinderServiceWorkflow(existing,repository:repository,access:access); existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        })?.value { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         guard !stashMutationIsBusy(repository.root) else { error = "Wait for the current stash operation to finish."; return }
         let key = stashRestoreWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString
         let controller = stashRestoreWindowFactory?(repository, access, pop, reference, showChanges) ?? StashRestoreWindowController(repository: repository, access: access, pop: pop, reference: reference, showChanges: showChanges, preferences: preferences)
@@ -2954,7 +3009,7 @@ private enum FinderServicePresentationContext {
         }
         presentation?.apply(to: controller.window)
         stashRestoreWindows[key] = controller
-        prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
     }
     private func showWorktreeList(repository: GitRepository, access: RepositoryAccessLease?) {
         let key = repository.root.path
@@ -3021,6 +3076,7 @@ private enum FinderServicePresentationContext {
             self.requestPullWindows.removeValue(forKey: key)
         }
         requestPullWindows[key] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         if let requestPullPresentation { requestPullPresentation(controller) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
@@ -3062,7 +3118,10 @@ private enum FinderServicePresentationContext {
         }
         let key = rootKey + (commandLaunch ? "\0command-format-patch" : suffix)
         let existing = formatPatchWindows[key]
-        guard existing?.canReuse != false else { return }
+        if let existing,!existing.canReuse {
+            guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}
+            existing.showWindow(nil);existing.window?.makeKeyAndOrderFront(nil);return
+        }
         let controller = existing ?? FormatPatchWindowController(repository: repository, access: access, preset: preset, sendMail: sendMail, preferences: preferences ?? fileComparisonPreferences)
         if sendMail && controller.model.optionsAvailable { controller.model.sendMail = true }
         controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
@@ -3076,7 +3135,7 @@ private enum FinderServicePresentationContext {
             if self?.root?.path == rootKey { self?.output = output; Task { await self?.refresh() } }
         }
         formatPatchWindows[key] = controller
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     func configureBrowserRevisionPicker(_ controller:RepositoryBrowserWindowController,repository:GitRepository,access:RepositoryAccessLease?) {
         controller.configureLogPicker={ [weak self] log in self?.configureSelectableLog(log,repository:repository,access:access) }
@@ -3163,7 +3222,7 @@ private enum FinderServicePresentationContext {
             self.blameWindows[available]=controller
         }
         if let options { controller.model.configure(options:options,line:line) } else if let line { controller.model.selectOriginalLine(line) }
-        blameWindows[key]=controller;prepareFinderServiceWorkflow(controller,repository:repository,access:access);controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
+        blameWindows[key]=controller;guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return};controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
     }
     private func refreshRepositoryLogs(_ root: URL) {
         configuredLogModels=configuredLogModels.filter { $0.value.model?.isInvalidated == false }
@@ -3449,6 +3508,7 @@ private enum FinderServicePresentationContext {
         mergeAbortWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     func configureMergeInteractions(_ controller: MergeWindowController, repository: GitRepository, access: RepositoryAccessLease?, showStashPop: Bool = false) {
+        let transportChain=TransportBatchPresentationContext.chain
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
@@ -3467,19 +3527,22 @@ private enum FinderServicePresentationContext {
             self.showMergeAbort(repository: repository, access: access, preferences: preferences, presentation: model.handoffPresentation)
         }
         controller.model.onPostAction = { [weak self, weak model = controller.model] action, request in
-            guard let self, !self.retired, !self.confirmingQuit, let model else { return }
-            let presentation = model.handoffPresentation
-            switch action {
-            case .resolve: self.showResolve(repository: repository, access: access, paths: [], quick: nil, preferences: preferences, presentation: presentation)
-            case .commit: self.showCommitDialog(repository: repository, access: access, paths: [], preferences: preferences, presentation: presentation)
-            case .stash:
-                var followUp = StashSaveFollowUp(); followUp.mergeRevision = request.revision
-                self.showStash(repository: repository, access: access, followUp: followUp, preferences: preferences, presentation: presentation)
-            case .stashPop: self.showStashRestore(repository: repository, access: access, pop: true, preferences: preferences, presentation: presentation)
-            case .push: self.showPush(repository: repository, access: access, preferences: preferences, presentation: presentation)
-            case .svnDCommit: self.showSVN(.dcommit, repository: repository, access: access, preferences: preferences, presentation: presentation)
-            case .mergeUnrelated, .removeBranch: break
+            self?.performTransportHandoff(transportChain,modal:![MergePostAction.resolve,.commit,.svnDCommit].contains(action)) {
+                guard let self, !self.retired, !self.confirmingQuit, let model else { return }
+                let presentation = model.handoffPresentation
+                switch action {
+                case .resolve: self.showResolve(repository: repository, access: access, paths: [], quick: nil, preferences: preferences, presentation: presentation)
+                case .commit: self.showCommitDialog(repository: repository, access: access, paths: [], preferences: preferences, presentation: presentation)
+                case .stash:
+                    var followUp = StashSaveFollowUp(); followUp.mergeRevision = request.revision
+                    self.showStash(repository: repository, access: access, followUp: followUp, preferences: preferences, presentation: presentation)
+                case .stashPop: self.showStashRestore(repository: repository, access: access, pop: true, preferences: preferences, presentation: presentation)
+                case .push: self.showPush(repository: repository, access: access, preferences: preferences, presentation: presentation)
+                case .svnDCommit: self.showSVN(.dcommit, repository: repository, access: access, preferences: preferences, presentation: presentation)
+                case .mergeUnrelated, .removeBranch: break
+
             }
+        }
         }
     }
     func configureLogRevert(_ log:LogWindowModel,repository:GitRepository,access:RepositoryAccessLease?) {
@@ -3497,13 +3560,13 @@ private enum FinderServicePresentationContext {
     private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, showStashPop: Bool = false, commandLaunch: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
         let key = repository.root.path + "\0" + (commandLaunch ? "command-merge" : UUID().uuidString)
-        if let existing = mergeWindows[key] { prepareFinderServiceWorkflow(existing,repository:repository,access:access); existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        if let existing = mergeWindows[key] { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = MergeWindowController(repository: repository, access: access, preferences: preferences ?? fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.mergeWindows.removeValue(forKey: key) }
         configureMergeInteractions(controller, repository: repository, access: access, showStashPop: showStashPop)
         presentation?.apply(to: controller.window)
         mergeWindows[key] = controller; controller.model.load(revision: revision)
-        prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func stashMutationIsBusy(_ root: URL) -> Bool {
         stashWindows.values.contains { $0.model.repository.root == root && ($0.model.busy || $0.model.preparing || $0.model.confirmingUntracked || $0.model.hasIdentitySettings || $0.model.progress != nil) }
@@ -3513,7 +3576,7 @@ private enum FinderServicePresentationContext {
         guard !retired, !confirmingQuit else { return }
         let preferences = preferences ?? fileComparisonPreferences
         let root = repository.root, key = repository.root.path + "\0" + (commandLaunch ? "command-stash" : UUID().uuidString)
-        if let existing = stashWindows[key] { prepareFinderServiceWorkflow(existing,repository:repository,access:access); existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        if let existing = stashWindows[key] { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         guard !stashMutationIsBusy(root) else { error = "Wait for the current stash operation to finish."; return }
         let controller = StashWindowController(repository: repository, access: access, preferences: preferences)
         if let message { controller.model.options.message = message }
@@ -3524,9 +3587,10 @@ private enum FinderServicePresentationContext {
         presentation?.apply(to: controller.window)
         stashWindows[key] = controller
         controller.model.prepare()
-        prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     func configureStashInteractions(_ controller: StashWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
+        let transportChain=TransportBatchPresentationContext.chain
         let root = repository.root, preferences = controller.model.preferences
         let changed: (String) -> Void = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
@@ -3538,13 +3602,16 @@ private enum FinderServicePresentationContext {
         controller.model.onSaved = { result in changed(result.output) }
         controller.model.onFailed = changed
         controller.model.onPostAction = { [weak self, weak model = controller.model] action, request in
-            guard let self, !self.retired, !self.confirmingQuit, let model else { return }
-            let presentation = model.handoffPresentation
-            switch action {
-            case .pull: self.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(stashSave: request), preferences: preferences, presentation: presentation)
-            case .merge: if let revision = request.mergeRevision { self.showMerge(repository: repository, access: access, revision: revision, showStashPop: true, preferences: preferences, presentation: presentation) }
-            case .pop, .apply: self.showStashRestore(repository: repository, access: access, pop: action == .pop, preferences: preferences, presentation: presentation)
+            self?.performTransportHandoff(transportChain,modal:true) {
+                guard let self, !self.retired, !self.confirmingQuit, let model else { return }
+                let presentation = model.handoffPresentation
+                switch action {
+                case .pull: self.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(stashSave: request), preferences: preferences, presentation: presentation)
+                case .merge: if let revision = request.mergeRevision { self.showMerge(repository: repository, access: access, revision: revision, showStashPop: true, preferences: preferences, presentation: presentation) }
+                case .pop, .apply: self.showStashRestore(repository: repository, access: access, pop: action == .pop, preferences: preferences, presentation: presentation)
+
             }
+        }
         }
     }
     private func configureCommitInteractions(_ model: CommitWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
@@ -3594,14 +3661,15 @@ private enum FinderServicePresentationContext {
         }
     }
     private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, afterFetch: Bool = false, fromLog: Bool = false, owner: NSWindow? = nil, force: Bool? = nil, commandLaunch: Bool = false, onDismissed: (() -> Void)? = nil, onResult: ((Bool) -> Void)? = nil, onRequestedLog: (() -> Void)? = nil, preferences: UserDefaults? = nil) {
+        let transportChain=TransportBatchPresentationContext.chain
         let root = repository.root
         let existing = rebaseWindows[root.path]
         if commandLaunch, let existing {
-            prepareFinderServiceWorkflow(existing,repository:repository,access:access); existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
+            guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             error = "Close the existing Rebase dialog before launching another Rebase command."
             return
         }
-        if let existing, existing.window?.sheetParent != nil { existing.window?.makeKeyAndOrderFront(nil); return }
+        if let existing, existing.window?.sheetParent != nil { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = existing ?? RebaseWindowController(repository: repository, access: access, preferences: preferences ?? fileComparisonPreferences)
         let inherited = controller.model.columnPreferences
         controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
@@ -3647,8 +3715,8 @@ private enum FinderServicePresentationContext {
         controller.model.completionFromLog = fromLog
         controller.model.completionAutoStart = autoStart
         controller.model.onCompletedLog = onRequestedLog ?? { [weak self] in self?.showLog(repository: repository, access: access, paths: [], preferences: inherited) }
-        controller.model.onCompletedPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source, preferences: inherited) }
-        controller.model.onCompletedMail = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset, sendMail: true, preferences: inherited) }
+        controller.model.onCompletedPush = { [weak self] source in self?.performTransportHandoff(transportChain,modal:true) {self?.showPush(repository: repository, access: access, source: source, preferences: inherited)} }
+        controller.model.onCompletedMail = { [weak self] preset in self?.performTransportHandoff(transportChain,modal:true) {self?.showFormatPatch(repository: repository, access: access, preset: preset, sendMail: true, preferences: inherited)} }
         controller.model.configureCommitSelection = { [weak self] commit in self?.configureCommitInteractions(commit, repository: repository, access: access) }
         let revisionFiles=controller.model.revisionFiles
         revisionFiles.onFileLog={ [weak self] path,revision in self?.showLog(repository:repository,access:access,paths:[path],endRevision:revision,preferences:inherited) }
@@ -3695,10 +3763,17 @@ private enum FinderServicePresentationContext {
         }
         rebaseWindows[root.path] = controller
         if existing == nil || controller.model.finished || upstream != nil || cherryPick != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick, force: force) }
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         if let owner, let child = controller.window { owner.beginSheet(child) }
-        else { prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+        else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
+    }
+    private func performTransportHandoff(_ chain:RepositoryTransportBatchChain?,modal:Bool,operation:()->Void) {
+        guard let chain else{operation();return}
+        if modal {chain.handoff(operation)}
+        else {TransportBatchPresentationContext.$chain.withValue(nil,operation:operation)}
     }
     private func configureFetchInteractions(_ controller: FetchWindowController, repository: GitRepository, access: RepositoryAccessLease?, followUp: PullFollowUp = PullFollowUp()) {
+        let transportChain=TransportBatchPresentationContext.chain
         let root = repository.root, preferences = controller.model.presentationPreferences
         controller.model.onNotificationLog={ [weak self] child,grant,paths,old,new in
             guard let self,!self.retired,!self.confirmingQuit else{return}
@@ -3721,35 +3796,41 @@ private enum FinderServicePresentationContext {
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onPullPostAction = { [weak self] action, result in
-            switch action {
-            case .resolve: self?.showResolve(repository: repository, access: access, paths: [], quick: nil, preferences: preferences)
-            case .commit: self?.showCommitDialog(repository: repository, access: access, paths: [], preferences: preferences)
-            case .pull: self?.showFetch(repository: repository, access: access, isPull: true, preferences: preferences)
-            case .stash:
-                var request = StashSaveFollowUp(); request.showPull = true
-                self?.showStash(repository: repository, access: access, followUp: request, preferences: preferences)
-            case .reset: self?.showReset(repository: repository, access: access, revision: result.resetRevision.isEmpty ? "HEAD" : result.resetRevision, mode: .hard, preferences: preferences)
-            case .stashPop: self?.showStashRestore(repository: repository, access: access, pop: true, preferences: preferences)
-            case .diff: self?.showRevisionComparison(repository: repository, access: access, from: .revision(result.oldHead), to: .revision(result.newHead), preferences: preferences)
-            case .log: self?.showLog(repository: repository, access: access, paths: [], revisionRange: HistoryRevisionRange(from: result.oldHead, to: result.newHead), preferences: preferences)
-            case .push: self?.showPush(repository: repository, access: access, preferences: preferences)
-            case .submoduleUpdate: self?.showSubmoduleUpdate(repository: repository, access: access, scope: [], preferences: preferences)
-            case .mergeUnrelated: break
+            self?.performTransportHandoff(transportChain,modal:![PullPostAction.resolve,.commit,.diff,.log,.submoduleUpdate].contains(action)) {
+                switch action {
+                case .resolve: self?.showResolve(repository: repository, access: access, paths: [], quick: nil, preferences: preferences)
+                case .commit: self?.showCommitDialog(repository: repository, access: access, paths: [], preferences: preferences)
+                case .pull: self?.showFetch(repository: repository, access: access, isPull: true, preferences: preferences)
+                case .stash:
+                    var request = StashSaveFollowUp(); request.showPull = true
+                    self?.showStash(repository: repository, access: access, followUp: request, preferences: preferences)
+                case .reset: self?.showReset(repository: repository, access: access, revision: result.resetRevision.isEmpty ? "HEAD" : result.resetRevision, mode: .hard, preferences: preferences)
+                case .stashPop: self?.showStashRestore(repository: repository, access: access, pop: true, preferences: preferences)
+                case .diff: self?.showRevisionComparison(repository: repository, access: access, from: .revision(result.oldHead), to: .revision(result.newHead), preferences: preferences)
+                case .log: self?.showLog(repository: repository, access: access, paths: [], revisionRange: HistoryRevisionRange(from: result.oldHead, to: result.newHead), preferences: preferences)
+                case .push: self?.showPush(repository: repository, access: access, preferences: preferences)
+                case .submoduleUpdate: self?.showSubmoduleUpdate(repository: repository, access: access, scope: [], preferences: preferences)
+                case .mergeUnrelated: break
+                }
             }
         }
         controller.model.onFetchPostAction = { [weak self] action, revision in
-            switch action {
-            case .log: self?.showLog(repository: repository, access: access, paths: [], preferences: preferences)
-            case .reset: self?.showReset(repository: repository, access: access, revision: revision.isEmpty ? "HEAD" : revision, mode: .hard, preferences: preferences)
-            case .fetch: self?.showFetch(repository: repository, access: access, preferences: preferences)
-            case .rebase: self?.showRebase(repository: repository, access: access, afterFetch: true, preferences: preferences)
-            case .switchBranch: self?.showSwitch(repository: repository, access: access, preferences: preferences)
-            case .resolve: self?.showCommitDialog(repository: repository, access: access, paths: [], preferences: preferences)
-            case .retry: break
+            self?.performTransportHandoff(transportChain,modal:![FetchPostAction.log,.resolve].contains(action)) {
+                switch action {
+                case .log: self?.showLog(repository: repository, access: access, paths: [], preferences: preferences)
+                case .reset: self?.showReset(repository: repository, access: access, revision: revision.isEmpty ? "HEAD" : revision, mode: .hard, preferences: preferences)
+                case .fetch: self?.showFetch(repository: repository, access: access, preferences: preferences)
+                case .rebase: self?.showRebase(repository: repository, access: access, afterFetch: true, preferences: preferences)
+                case .switchBranch: self?.showSwitch(repository: repository, access: access, preferences: preferences)
+                case .resolve: self?.showCommitDialog(repository: repository, access: access, paths: [], preferences: preferences)
+                case .retry: break
+                }
             }
         }
         controller.model.onRebase = { [weak self] upstream, autoStart, preserveMerges in
-            self?.showRebase(repository: repository, access: access, upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, afterFetch: true, preferences: preferences)
+            self?.performTransportHandoff(transportChain,modal:true) {
+                self?.showRebase(repository: repository, access: access, upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, afterFetch: true, preferences: preferences)
+            }
         }
     }
     var transportClipboardText: () -> String? = { NSPasteboard.general.string(forType: .string) ?? NSPasteboard.general.string(forType: .fileURL) }
@@ -3762,7 +3843,7 @@ private enum FinderServicePresentationContext {
         controller.model.clipboardText = transportClipboardText
         presentation?.apply(to: controller.window)
         fetchWindows[key] = controller; controller.model.load(remote: remote, allRemotes: allRemotes)
-        prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showPush(repository: GitRepository, access: RepositoryAccessLease?, source: String? = nil, preserveAllBranches: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
@@ -3773,9 +3854,10 @@ private enum FinderServicePresentationContext {
         controller.model.clipboardText = transportClipboardText
         presentation?.apply(to: controller.window)
         pushWindows[key] = controller; controller.model.load(source: source, preserveAllBranches: preserveAllBranches)
-        prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configurePushInteractions(_ controller: PushWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
+        let transportChain=TransportBatchPresentationContext.chain
         controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         let root = repository.root
@@ -3784,25 +3866,27 @@ private enum FinderServicePresentationContext {
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onPostAction = { [weak self] action, options, superproject in
-            guard let self else { return }
-            switch action {
-            case .requestPull: self.showRequestPull(repository: repository, access: access, end: options.destination)
-            case .push: self.showPush(repository: repository, access: access, source: options.source)
-            case .switchBranch: self.showSwitch(repository: repository, access: access)
-            case .pull: self.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(showPush: true))
-            case .fetch: self.showFetch(repository: repository, access: access, remote: options.allRemotes ? nil : options.remote, allRemotes: options.allRemotes)
-            case .commitSuperproject:
-                guard let superproject else { return }
-                if !GitRuntime.isAppStoreBuild || access?.hasSecurityScope == true && access?.contains(superproject) == true {
-                    self.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable), access: access, paths: [])
-                } else {
-                    let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.directoryURL = superproject
-                    panel.prompt = "Authorize super project"; panel.message = "Choose the super project folder to open its Commit dialog."
-                    panel.begin { [weak self] response in
-                        guard response == .OK, let folder = panel.url else { return }
-                        let lease = RepositoryAccessLease(url: folder)
-                        guard lease.hasSecurityScope, lease.contains(superproject) else { self?.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
-                        self?.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable), access: lease, paths: [])
+            self?.performTransportHandoff(transportChain,modal:action != .commitSuperproject) {
+                guard let self else { return }
+                switch action {
+                case .requestPull: self.showRequestPull(repository: repository, access: access, end: options.destination)
+                case .push: self.showPush(repository: repository, access: access, source: options.source)
+                case .switchBranch: self.showSwitch(repository: repository, access: access)
+                case .pull: self.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(showPush: true))
+                case .fetch: self.showFetch(repository: repository, access: access, remote: options.allRemotes ? nil : options.remote, allRemotes: options.allRemotes)
+                case .commitSuperproject:
+                    guard let superproject else { return }
+                    if !GitRuntime.isAppStoreBuild || access?.hasSecurityScope == true && access?.contains(superproject) == true {
+                        self.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable), access: access, paths: [])
+                    } else {
+                        let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.directoryURL = superproject
+                        panel.prompt = "Authorize super project"; panel.message = "Choose the super project folder to open its Commit dialog."
+                        panel.begin { [weak self] response in
+                            guard response == .OK, let folder = panel.url else { return }
+                            let lease = RepositoryAccessLease(url: folder)
+                            guard lease.hasSecurityScope, lease.contains(superproject) else { self?.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
+                            self?.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable), access: lease, paths: [])
+                        }
                     }
                 }
             }
@@ -3838,10 +3922,11 @@ private enum FinderServicePresentationContext {
         configureReferenceInteractions(controller, repository: repository, access: access)
         presentation?.apply(to: controller.window)
         referenceWindows[key] = controller; controller.model.load(revision: revision, name: name)
-        prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     @discardableResult private func showSwitchProgress(repository: GitRepository, access: RepositoryAccessLease?, reference: String, parent: NSWindow, preferences: UserDefaults = .standard, completion: (() -> Void)? = nil) -> SwitchProgressWindowController? {
-        guard !retired, !confirmingQuit else { completion?(); return nil }
+        let transportChain=TransportBatchPresentationContext.chain
+        guard transportChain?.canPresent != false,!retired, !confirmingQuit else { completion?(); return nil }
         let id = UUID(), root = repository.root
         let controller = SwitchProgressWindowController(model: SwitchProgressWindowModel(repository: repository, access: access, reference: reference, preferences: preferences))
         controller.onClosed = { [weak self] in self?.switchProgressWindows.removeValue(forKey: id); completion?() }
@@ -3852,7 +3937,7 @@ private enum FinderServicePresentationContext {
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         let inherited = controller.model.presentationPreferences
-        controller.model.onPostAction = { [weak self, weak model = controller.model] action, branch in guard let model else { return }; self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation) }
+        controller.model.onPostAction = { [weak self, weak model = controller.model] action, branch in guard let model else { return }; self?.performTransportHandoff(transportChain,modal:![SwitchPostAction.submoduleUpdate,.commit,.resolve].contains(action)) {self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation)} }
         switchProgressWindows[id] = controller
         if let window = controller.window { MergeWindowPresentation(parent).apply(to: window); parent.beginSheet(window) }
         controller.model.start(); return controller
@@ -3901,6 +3986,7 @@ private enum FinderServicePresentationContext {
         model.configureSwitch = { [weak self] controller in self?.configureSwitchInteractions(controller, repository: repository, access: access) }
     }
     func configureSwitchInteractions(_ controller: SwitchWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
+        let transportChain=TransportBatchPresentationContext.chain
         let root = repository.root
         controller.model.onSwitched = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
@@ -3915,7 +4001,7 @@ private enum FinderServicePresentationContext {
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         let inherited = controller.model.presentationPreferences
-        controller.model.onPostAction = { [weak self, weak model = controller.model] action, branch in guard let model else { return }; self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation) }
+        controller.model.onPostAction = { [weak self, weak model = controller.model] action, branch in guard let model else { return }; self?.performTransportHandoff(transportChain,modal:![SwitchPostAction.submoduleUpdate,.commit,.resolve].contains(action)) {self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access, preferences: inherited, presentation: model.handoffPresentation)} }
         controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
@@ -3929,7 +4015,7 @@ private enum FinderServicePresentationContext {
         controller.onClosed = { [weak self] in self?.switchWindows.removeValue(forKey: key) }
         configureSwitchInteractions(controller, repository: repository, access: access)
         switchWindows[key] = controller; controller.model.load(revision: revision)
-        prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     func execute(_ action: RepositoryAction, value: String) {
         dialog = nil
@@ -4047,10 +4133,13 @@ private enum FinderServicePresentationContext {
                 let selected:FinderRequest
                 do{selected=try command.request(paths:[path])}
                 catch{failures.append(path.path+": "+error.localizedDescription);continue}
-                let step=FinderServiceTransportStep();finderServiceTransportStep=step
                 let nextGeneration=expectedGeneration+1
+                let step=RepositoryTransportBatchChain(root:path,command:false,allowed:{ [weak self] in self.map{!$0.retired && !$0.confirmingQuit && !token.isCancelled && $0.adoptionGeneration==nextGeneration} ?? false});finderServiceTransportStep=step
+                defer{step.releaseCompleted()}
                 let opened:Bool=await withCheckedContinuation { continuation in
-                    openSession(lease,selected:selected,action:request.action,commandRootOnly:true,onFinished:{continuation.resume(returning:$0)},handoffOwner:owner,serviceCommand:command)
+                    TransportBatchPresentationContext.$chain.withValue(step) {
+                        openSession(lease,selected:selected,action:request.action,commandRootOnly:true,onFinished:{continuation.resume(returning:$0)},handoffOwner:owner,serviceCommand:command)
+                    }
                 }
                 guard adoptionGeneration==nextGeneration else {
                     token.cancel();step.cancel()
@@ -4365,7 +4454,7 @@ private enum FinderServicePresentationContext {
         if invocation.request.action == .clone {
             showClone(directory: invocation.request.paths.first, source: invocation.sourceURL, exactPath: invocation.exactClonePath); return
         }
-        if [.fetch, .pull, .push].contains(invocation.request.action), invocation.request.paths.count > 1 {
+        if [.fetch, .pull, .push].contains(invocation.request.action), invocation.transportPaths.count > 1 {
             launchCommandRepositoryBatch(invocation, cancellation: cancellation); return
         }
         let backend:GitLibGit2Configuration?=invocation.request.action == .cat ? (HistoricalMaterializationContext.backend ?? captureCommandMaterializationBackend?() ?? .load(from:fileComparisonPreferences)):nil
@@ -4761,7 +4850,7 @@ private enum FinderServicePresentationContext {
     }
     private func activateCommandLine(_ invocation: PrimaryCommandInvocation, message: String?, selectedRevision: String?, repository: GitRepository, access: RepositoryAccessLease, outputAccess: RepositoryAccessLease?) {
         let paths = invocation.request.relativePaths(root: repository.root)
-        if bare && invocation.request.action.requiresWorkingTree { activate(invocation.request.action, paths: paths); return }
+        if bare && invocation.request.action.requiresWorkingTree && invocation.request.action != .pull { activate(invocation.request.action, paths: paths); return }
         switch invocation.request.action {
         case .cat:
             guard let file = invocation.outputFile, let permission = outputAccess, let revision = invocation.catRevision, let path = paths.first else { return }
@@ -4859,29 +4948,112 @@ private enum FinderServicePresentationContext {
         }
     }
     private var commandRepositoryBatchCancellation: OperationCancellation?
+    private var commandTransportOwner:RepositoryWindowOwner?
+    private var commandTransportFolderChoice:RepositoryCreationFolderChoice?
+    private var commandTransportChain:RepositoryTransportBatchChain?
+    var presentCommandTransportFolderPanel:((NSOpenPanel,NSWindow?,@escaping(NSApplication.ModalResponse)->Void)->Void)?
+    var selectedCommandTransportFolderURL:(NSOpenPanel)->URL?={$0.url}
+    private func cancelCommandTransportBatch(){commandRepositoryBatchCancellation?.cancel();commandTransportOwner?.cancellation.cancel();commandTransportFolderChoice?.cancel();commandTransportChain?.cancel()}
+    private func commandTransportAccess(_ paths:[URL],owner:RepositoryWindowOwner) async -> RepositoryAccessLease? {
+        guard !owner.cancellation.isCancelled,!retired,!confirmingQuit,workspaceWindow?.attachedSheet==nil else{return nil}
+        let choice=RepositoryCreationFolderChoice(window:workspaceWindow,owner:owner),panel=choice.panel
+        commandTransportFolderChoice=choice
+        panel.title="Allow repository folder access";panel.prompt="Allow Access"
+        panel.message="Choose a folder containing the selected repository roots to allow this command batch."
+        panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.showsHiddenFiles=true
+        panel.directoryURL=paths.first?.deletingLastPathComponent();panel.alphaValue=workspaceWindow?.alphaValue ?? 1;panel.appearance=workspaceWindow?.appearance
+        let folder:URL?=await withCheckedContinuation { continuation in
+            choice.onFinished={ selected in continuation.resume(returning:selected) }
+            choice.begin(present:presentCommandTransportFolderPanel,selected:selectedCommandTransportFolderURL)
+        }
+        while panel.sheetParent != nil || panel.attachedSheet != nil {try? await Task.sleep(nanoseconds:5_000_000)}
+        if commandTransportFolderChoice === choice {commandTransportFolderChoice=nil}
+        guard !retired,!confirmingQuit,!owner.cancellation.isCancelled,let folder else{return nil}
+        let lease=RepositoryAccessLease(url:folder,provider:repositoryBookmarkProvider)
+        guard paths.allSatisfy({lease.contains($0)}),!requiresRepositoryScope || lease.hasSecurityScope else {
+            error="The selected folder does not authorize every requested repository.";return nil
+        }
+        return lease
+    }
     private func launchCommandRepositoryBatch(_ invocation: PrimaryCommandInvocation, cancellation: OperationCancellation?) {
-        let token = cancellation ?? OperationCancellation()
-        commandRepositoryBatchCancellation = token
-        let owner = workspaceWindow
-        let observer = owner.map { NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: $0, queue: .main) { _ in token.cancel() } }
+        let owner=RepositoryWindowOwner(window:workspaceWindow),token=cancellation ?? owner.cancellation
+        commandRepositoryBatchCancellation=token;commandTransportOwner=owner
         Self.activeCommandFileOperations += 1
-        let batchGeneration = adoptionGeneration
-        Task {
-            var expectedGeneration = batchGeneration
-            defer {
-                if let observer { NotificationCenter.default.removeObserver(observer) }
-                if commandRepositoryBatchCancellation === token { commandRepositoryBatchCancellation = nil }
-                Self.activeCommandFileOperations -= 1
+        let batchGeneration=adoptionGeneration
+        Task { [self,owner] in
+            let cancellationMonitor=Task { @MainActor [weak self] in
+                while !Task.isCancelled,!token.isCancelled,!owner.cancellation.isCancelled {do{try await Task.sleep(nanoseconds:20_000_000)}catch{return}}
+                guard !Task.isCancelled else{return}
+                token.cancel();owner.cancellation.cancel();self?.commandTransportFolderChoice?.cancel();self?.commandTransportChain?.cancel()
             }
-            for path in invocation.request.paths {
-                guard !token.isCancelled, !confirmingQuit, adoptionGeneration == expectedGeneration else { return }
-                let next = invocation.selecting([path])
-                let nextGeneration = expectedGeneration + 1
-                let opened = await withCheckedContinuation { continuation in
-                    handleFinderRequest(next.request, invocation: next, commandCancellation: token, commandRootOnly: true, completion: { continuation.resume(returning: $0) })
+            defer{cancellationMonitor.cancel()}
+            var expectedGeneration=batchGeneration,failures:[String]=[]
+            var leases:[RepositoryAccessLease]=[]
+            defer {
+                commandTransportChain=nil
+                if commandTransportOwner === owner {commandTransportOwner=nil}
+                if commandRepositoryBatchCancellation === token {commandRepositoryBatchCancellation=nil}
+                Self.activeCommandFileOperations -= 1
+                if !retired,!token.isCancelled,!owner.cancellation.isCancelled,!failures.isEmpty {error=failures.joined(separator:"\n")}
+                withExtendedLifetime((leases,owner)){}
+            }
+            @MainActor func allowed()->Bool {!retired && !confirmingQuit && !token.isCancelled && !owner.cancellation.isCancelled && adoptionGeneration==expectedGeneration}
+            if let activeAccess,!requiresRepositoryScope || activeAccess.hasSecurityScope {leases.append(activeAccess)}
+            if let store=accessStore {
+                for saved in store.repositories {
+                    if let lease=try? store.acquire(saved.id,requireSecurityScope:requiresRepositoryScope),invocation.transportPaths.contains(where:{lease.contains($0)}) {leases.append(lease)}
                 }
-                guard opened, adoptionGeneration == nextGeneration else { return }
-                expectedGeneration = nextGeneration
+            }
+            // Preserve the explicit CLI permission seam per selected root. The
+            // real application obtains missing collective authority in one
+            // cancellable owned common-folder sheet, never runModal().
+            if commandLineRepositoryPermission == nil,!invocation.transportPaths.allSatisfy({path in leases.contains{$0.contains(path)}}) {
+                guard let lease=await commandTransportAccess(invocation.transportPaths,owner:owner) else {token.cancel();return}
+                leases.append(lease)
+            }
+            owner.onCancelled={ [weak self] in token.cancel();self?.commandTransportChain?.cancel() }
+            for path in invocation.transportPaths {
+                while busy,allowed(){try? await Task.sleep(nanoseconds:10_000_000)}
+                guard allowed() else{return}
+                var access=leases.first{$0.contains(path) && (!requiresRepositoryScope || $0.hasSecurityScope)}
+                if access==nil,let permission=commandLineRepositoryPermission {
+                    do {
+                        access=try permission([path])
+                        guard allowed() else{return}
+                        if let access {
+                            guard access.contains(path),!requiresRepositoryScope || access.hasSecurityScope else {throw RepositoryAccessFailure.securityScopeUnavailable}
+                            leases.append(access)
+                        }
+                    } catch {failures.append(path.path+": "+error.localizedDescription);continue}
+                }
+                guard let access else{failures.append(path.path+": "+RepositoryAccessFailure.securityScopeUnavailable.localizedDescription);continue}
+                let nextGeneration=expectedGeneration+1
+                let chain=RepositoryTransportBatchChain(root:path,command:true,allowed:{ [weak self] in self.map{!$0.retired && !$0.confirmingQuit && !token.isCancelled && !owner.cancellation.isCancelled && $0.adoptionGeneration==nextGeneration} ?? false})
+                commandTransportChain=chain
+                defer{chain.releaseCompleted()}
+                let next=invocation.selecting([path])
+                let opened:Bool=await withCheckedContinuation { continuation in
+                    TransportBatchPresentationContext.$chain.withValue(chain) {
+                        openSession(access,selected:next.request,action:next.request.action,invocation:next,commandRootOnly:true,onFinished:{continuation.resume(returning:$0)},handoffOwner:owner)
+                    }
+                }
+                if adoptionGeneration != nextGeneration {
+                    token.cancel();chain.cancel()
+                    while chain.hasPendingWork {try? await Task.sleep(nanoseconds:10_000_000)}
+                    return
+                }
+                expectedGeneration=nextGeneration
+                if !opened || chain.controller == nil {
+                    if let failure=error {failures.append(path.path+": "+failure)}
+                    if commandTransportChain === chain {commandTransportChain=nil}
+                    continue
+                }
+                while chain.hasPendingWork {
+                    if !allowed(){token.cancel();chain.cancel()}
+                    try? await Task.sleep(nanoseconds:10_000_000)
+                }
+                if commandTransportChain === chain {commandTransportChain=nil}
+                guard allowed() else{return}
             }
         }
     }

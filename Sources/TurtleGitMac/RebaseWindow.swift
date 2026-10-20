@@ -8,6 +8,15 @@ import TurtleGitCore
 
 @MainActor final class RebaseWindowController: NSWindowController, NSWindowDelegate {
     let model: RebaseWindowModel
+    private var retiredBatchChildren:[()->Bool]=[]
+    var transportBatchWorkPending:Bool {
+        model.pendingBatchWorkers>0 || model.revisionMenuLog.pendingHistoryLoads>0 || model.revisionMenuLog.noteWorkPending ||
+        (logPicker?.model.pendingHistoryLoads ?? 0)>0 || (referencePicker?.model.pendingReferenceReads ?? 0)>0 ||
+        splitCommitPicker?.model.attemptWorkPending == true || stashRestore?.transportBatchWorkPending == true ||
+        logPicker?.window?.sheetParent != nil || referencePicker?.window?.sheetParent != nil ||
+        identitySettings?.window?.sheetParent != nil || retiredBatchChildren.contains{$0()} ||
+        window?.attachedSheet != nil || window?.sheetParent != nil
+    }
     private(set) var revisionFind: RevisionGraphFindController?
     private(set) var containingWindows: [UUID: CommitContainingReferencesWindowController] = [:]
     private var historyAlert: (UUID, NSAlert, CheckedContinuation<NSApplication.ModalResponse, Never>)?
@@ -456,7 +465,12 @@ import TurtleGitCore
         if !model.active && model.hasReplayStash { model.finishReplay(); return false }
         return true
     }
-    func windowWillClose(_ notification: Notification) { if let pending = historyAlert { finishHistoryAlert(pending.0, response: .abort); window?.endSheet(pending.1.window, returnCode: .abort); pending.1.window.close() }; revisionFind?.close(); revisionFind = nil; Array(containingWindows.values).forEach { $0.close() }; containingWindows = [:]; retireReferencePicker(); model.retire(); identitySettings?.retire(); retireCommitPicker();conflictAddWindow?.close();conflictAddWindow=nil;conflictIgnoreWindow?.close();conflictIgnoreWindow=nil;Array(conflictUnifiedWindows.values).forEach {$0.close()};conflictUnifiedWindows=[:]; if let pending = replayQuestion { finishReplayQuestion(pending.0, answer: Int.max) }; if let pending = conflictPanel { finishConflictPanel(pending.0, accepted: false) }; conflictRevertWindow?.close();conflictRevertWindow=nil; conflictBaseViewer?.close(); conflictBaseViewer = nil; notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil
+    func windowWillClose(_ notification: Notification) {
+        if let child=logPicker {retiredBatchChildren.append{child.model.pendingHistoryLoads>0 || child.window?.sheetParent != nil}}
+        if let child=referencePicker {retiredBatchChildren.append{child.model.pendingReferenceReads>0 || child.window?.sheetParent != nil}}
+        if let child=splitCommitPicker {retiredBatchChildren.append{child.model.attemptWorkPending || child.window?.sheetParent != nil}}
+        if let child=stashRestore {retiredBatchChildren.append{child.transportBatchWorkPending || child.window?.sheetParent != nil}}
+        if let pending = historyAlert { finishHistoryAlert(pending.0, response: .abort); window?.endSheet(pending.1.window, returnCode: .abort); pending.1.window.close() }; revisionFind?.close(); revisionFind = nil; Array(containingWindows.values).forEach { $0.close() }; containingWindows = [:]; retireReferencePicker(); model.retire(); identitySettings?.retire(); retireCommitPicker();conflictAddWindow?.close();conflictAddWindow=nil;conflictIgnoreWindow?.close();conflictIgnoreWindow=nil;Array(conflictUnifiedWindows.values).forEach {$0.close()};conflictUnifiedWindows=[:]; if let pending = replayQuestion { finishReplayQuestion(pending.0, answer: Int.max) }; if let pending = conflictPanel { finishConflictPanel(pending.0, accepted: false) }; conflictRevertWindow?.close();conflictRevertWindow=nil; conflictBaseViewer?.close(); conflictBaseViewer = nil; notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil
         if model.revisionMenuLog.noteWorkPending {
             Task{@MainActor [self] in while model.revisionMenuLog.noteWorkPending{try? await Task.sleep(nanoseconds:5_000_000)};onClosed()}
         }else{onClosed()}
@@ -507,6 +521,7 @@ struct RebaseReferenceRequest {
     private var columnToken: OperationCancellation?
     private var columnGeneration = UUID()
     private var columnSignature: [String] = []
+    private(set) var pendingBatchWorkers=0
     static private(set) var activeColumnReads = 0
     static private(set) var activeStashRestorations = 0
     var readColumnMetadata: ([LogEntry],OperationCancellation) async throws -> ReplayColumnMetadata
@@ -572,9 +587,9 @@ struct RebaseReferenceRequest {
     }
     func resetConflictColumns(choose:@escaping () async -> Bool,onAccepted:@escaping ()->Void) {
         guard conflictColumnsAvailable else { return }
-        let generation=conflictMenuGeneration;busy=true;Self.activePreparationReads += 1
+        let generation=conflictMenuGeneration;busy=true;Self.activePreparationReads += 1;pendingBatchWorkers += 1
         Task { [self,access] in
-            defer { Self.activePreparationReads -= 1;withExtendedLifetime(access) {};if !retired {busy=false;loadPendingHandoff()} }
+            defer { Self.activePreparationReads -= 1;pendingBatchWorkers -= 1;withExtendedLifetime(access) {};if !retired {busy=false;loadPendingHandoff()} }
             guard await choose(),!retired,generation==conflictMenuGeneration,fileRecovery else { return }
             conflictFileColumns=StatusListColumnSettings();conflictFileColumns.save(to:messageDefaults,key:Self.conflictColumnKey);onAccepted()
         }
@@ -803,10 +818,10 @@ struct RebaseReferenceRequest {
             if let value { options.upstream = value }
             reloadPlan(force: value != nil); loadPendingHandoff(); return
         }
-        let token = OperationCancellation(); referenceCancellation = token; Self.activePreparationReads += 1; cancellingPreparation = false
+        let token = OperationCancellation(); referenceCancellation = token; Self.activePreparationReads += 1;pendingBatchWorkers += 1; cancellingPreparation = false
         Task {
             defer {
-                Self.activePreparationReads -= 1; withExtendedLifetime(access) {}
+                Self.activePreparationReads -= 1;pendingBatchWorkers -= 1; withExtendedLifetime(access) {}
                 if referenceCancellation === token { referenceCancellation = nil; referenceRequest = nil; pickingReference = nil; cancellingPreparation = false; loadPendingHandoff() }
             }
             do {
@@ -873,9 +888,9 @@ struct RebaseReferenceRequest {
         // or restore operation to await.
         if !hasReplayStash { if let after { after() } else { close() }; return }
         busy=true;let request=OperationCancellation();replayPreparationCancellation=request
-        Self.activeStashRestorations += 1
+        Self.activeStashRestorations += 1;pendingBatchWorkers += 1
         Task {
-            defer { busy=false;Self.activeStashRestorations -= 1;if replayPreparationCancellation === request { replayPreparationCancellation=nil };withExtendedLifetime(access) {} }
+            defer { busy=false;Self.activeStashRestorations -= 1;pendingBatchWorkers -= 1;if replayPreparationCancellation === request { replayPreparationCancellation=nil };withExtendedLifetime(access) {} }
             do {
                 if hasReplayStash {
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -1035,10 +1050,10 @@ struct RebaseReferenceRequest {
         guard acceptsConflictFileMenu(menu) else { return }
         let alternate=ComparisonToolInvocation.capture
         let token = OperationCancellation(); conflictFileCancellation = token; preparingConflictFiles = true; cancellingPreparation = false; busy = true; error = nil
-        Self.activePreparationReads += 1
+        Self.activePreparationReads += 1;pendingBatchWorkers += 1
         Task {
             defer {
-                Self.activePreparationReads -= 1; withExtendedLifetime(access) {}
+                Self.activePreparationReads -= 1;pendingBatchWorkers -= 1; withExtendedLifetime(access) {}
                 if conflictFileCancellation === token { conflictFileCancellation = nil; preparingConflictFiles = false; cancellingPreparation = false; if !retired { busy = false; loadPendingHandoff() } }
             }
             do { try await validateConflictFileMenu(menu, token: token); try await ComparisonToolInvocation.$alternate.withValue(alternate) {try await operation(token)} }
@@ -1248,10 +1263,10 @@ struct RebaseReferenceRequest {
         guard !retired,!busy,!selectingSplit,!paths.isEmpty else {return}
         let captured=conflictIdentity,request=UUID(),token=OperationCancellation(),alternate=ComparisonToolInvocation.capture
         conflictDiffGeneration=request;conflictDiffCancellation=token;preparingConflictDiff=true;cancellingPreparation=false;busy=true
-        Self.activePreparationReads += 1
+        Self.activePreparationReads += 1;pendingBatchWorkers += 1
         Task {
             defer {
-                Self.activePreparationReads -= 1;withExtendedLifetime(access) {}
+                Self.activePreparationReads -= 1;pendingBatchWorkers -= 1;withExtendedLifetime(access) {}
                 if conflictDiffCancellation === token {conflictDiffCancellation=nil;preparingConflictDiff=false;cancellingPreparation=false;if !retired {busy=viewingConflictBase;if !viewingConflictBase {loadPendingHandoff()}}}
             }
             do {
@@ -1597,14 +1612,14 @@ struct RebaseReferenceRequest {
         guard force || signature != columnSignature else { return }
         columnSignature = signature; columnToken?.cancel()
         let request = UUID(), token = OperationCancellation(), read = readColumnMetadata
-        columnGeneration = request; columnToken = token; loadingColumnMetadata = true; Self.activeColumnReads += 1
-        Task { [weak self, access] in
+        columnGeneration = request; columnToken = token; loadingColumnMetadata = true; Self.activeColumnReads += 1;pendingBatchWorkers += 1
+        Task { [self, access] in
             defer {
-                Self.activeColumnReads -= 1; withExtendedLifetime(access) {}
-                if let self, self.columnToken === token { self.columnToken = nil; self.loadingColumnMetadata = false }
+                Self.activeColumnReads -= 1;pendingBatchWorkers -= 1; withExtendedLifetime(access) {}
+                if self.columnToken === token { self.columnToken = nil; self.loadingColumnMetadata = false }
             }
             do {
-                guard let self else { return }; try self.requireAccess()
+                try self.requireAccess()
                 let result = try await read(commits,token)
                 // Reuse the source-style peeled hash/name map within this
                 // existing owned read; menu actions never start a Git lookup.
@@ -1624,7 +1639,7 @@ struct RebaseReferenceRequest {
                 self.revisionBisectTerms = bisectTerms
                 self.onRefreshRevisionFind()
             } catch {
-                guard let self, !self.retired, self.columnGeneration == request, !token.isCancelled else { return }
+                guard !self.retired, self.columnGeneration == request, !token.isCancelled else { return }
                 self.error = error.localizedDescription
             }
         }
@@ -1648,11 +1663,11 @@ struct RebaseReferenceRequest {
             return
         }; planCancellation?.cancel(); detailCancellation?.cancel(); planSignature = nil
         let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
-        let token = OperationCancellation(); initialCancellation = token; cancellingPreparation = false; Self.activePreparationReads += 1
+        let token = OperationCancellation(); initialCancellation = token; cancellingPreparation = false; Self.activePreparationReads += 1;pendingBatchWorkers += 1
         busy = true; planGeneration += 1; detailGeneration += 1
         Task {
             var started = false
-            defer { Self.activePreparationReads -= 1; withExtendedLifetime(access) {}; if initialCancellation === token { initialCancellation = nil; cancellingPreparation = false }; if !started && !retired { busy = false; refreshColumnMetadata(force:true); onRefreshRevisionFind(); loadPendingHandoff() } }
+            defer { Self.activePreparationReads -= 1;pendingBatchWorkers -= 1; withExtendedLifetime(access) {}; if initialCancellation === token { initialCancellation = nil; cancellingPreparation = false }; if !started && !retired { busy = false; refreshColumnMetadata(force:true); onRefreshRevisionFind(); loadPendingHandoff() } }
             do {
                 try requireAccess()
                 projectSettings = try await preparedRead(token) { try await repository.projectDialogSettings(source: .effective, cancellation: token) }
@@ -1700,10 +1715,10 @@ struct RebaseReferenceRequest {
         let request = planGeneration, token = OperationCancellation(); planCancellation = token; planSignature = signature
         plan = nil; draftEntries = []; selection = []; files = []; message = ""
         guard !snapshot.branch.isEmpty, !snapshot.upstream.isEmpty else { planCancellation = nil; loadingPlan = false; return }
-        loadingPlan = true; cancellingPreparation = false; Self.activePreparationReads += 1
+        loadingPlan = true; cancellingPreparation = false; Self.activePreparationReads += 1;pendingBatchWorkers += 1
         Task {
             defer {
-                Self.activePreparationReads -= 1; withExtendedLifetime(access) {}
+                Self.activePreparationReads -= 1;pendingBatchWorkers -= 1; withExtendedLifetime(access) {}
                 if planCancellation === token { planCancellation = nil; loadingPlan = false; cancellingPreparation = false }
             }
             do {
@@ -1788,12 +1803,12 @@ struct RebaseReferenceRequest {
         let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
         let token = OperationCancellation(), generation = planGeneration
         mainlineCancellation = token; preparingMainline = true; cancellingPreparation = false; busy = true; error = nil
-        Self.activePreparationReads += 1
+        Self.activePreparationReads += 1;pendingBatchWorkers += 1
         let controls = controlMenuGeneration
         Task {
             var start = false
             defer {
-                Self.activePreparationReads -= 1; withExtendedLifetime(access) {}
+                Self.activePreparationReads -= 1;pendingBatchWorkers -= 1; withExtendedLifetime(access) {}
                 if mainlineCancellation === token {
                     mainlineCancellation = nil; preparingMainline = false; cancellingPreparation = false
                     if !retired { busy = false; if start { execute("start") } else { loadPendingHandoff() } }
@@ -1846,10 +1861,10 @@ struct RebaseReferenceRequest {
         // Column metadata refreshes only change presentation. Fence the accepted
         // insertion against actual replay inputs and row identities instead.
         let intent = insertionIntent
-        Self.activePreparationReads += 1
+        Self.activePreparationReads += 1;pendingBatchWorkers += 1
         Task {
             defer {
-                Self.activePreparationReads -= 1; withExtendedLifetime(access) {}
+                Self.activePreparationReads -= 1;pendingBatchWorkers -= 1; withExtendedLifetime(access) {}
                 if insertionCancellation === token {
                     insertionCancellation = nil; addingCommits = false; cancellingPreparation = false
                     if !retired { busy = false; loadPendingHandoff() }
@@ -1902,10 +1917,10 @@ struct RebaseReferenceRequest {
         let token = OperationCancellation()
         actionEditCancellation = token; editingPendingActions = true; busy = true; cancellingPreparation = false
         let generation = formContext
-        Self.activePreparationReads += 1
+        Self.activePreparationReads += 1;pendingBatchWorkers += 1
         Task {
             defer {
-                Self.activePreparationReads -= 1; withExtendedLifetime(access) {}
+                Self.activePreparationReads -= 1;pendingBatchWorkers -= 1; withExtendedLifetime(access) {}
                 if actionEditCancellation === token {
                     actionEditCancellation = nil; editingPendingActions = false; cancellingPreparation = false
                     if !retired { busy = false; loadPendingHandoff() }
@@ -2015,9 +2030,9 @@ struct RebaseReferenceRequest {
         files = []; selectedFiles=[]; message = "";revisionFiles.clearEmbeddedSnapshot()
         guard let entry = entries.first(where: { selection.contains($0.id) }), !fileRecovery else { return }
         message = entry.commit.message
-        let token = OperationCancellation(); detailCancellation = token; Self.activePreparationReads += 1
+        let token = OperationCancellation(); detailCancellation = token; Self.activePreparationReads += 1;pendingBatchWorkers += 1
         Task {
-            defer { Self.activePreparationReads -= 1; withExtendedLifetime(access) {}; if detailCancellation === token { detailCancellation = nil } }
+            defer { Self.activePreparationReads -= 1;pendingBatchWorkers -= 1; withExtendedLifetime(access) {}; if detailCancellation === token { detailCancellation = nil } }
             do {
                 try requireAccess()
                 let base:ComparisonRevision=entry.commit.parents.first.map(ComparisonRevision.revision) ?? .emptyTree
@@ -2033,10 +2048,10 @@ struct RebaseReferenceRequest {
         if busy || revisionFiles.busy || pendingConfirmation != nil {pendingSessionRefresh=true;return}
         let request=UUID(),token=OperationCancellation(),previous=conflictIdentity,wasActive=active
         sessionGeneration=request;sessionCancellation=token;refreshingSession=true;cancellingPreparation=false;busy=true
-        Self.activePreparationReads += 1
+        Self.activePreparationReads += 1;pendingBatchWorkers += 1
         Task {
             defer {
-                Self.activePreparationReads -= 1;withExtendedLifetime(access) {}
+                Self.activePreparationReads -= 1;pendingBatchWorkers -= 1;withExtendedLifetime(access) {}
                 if sessionCancellation === token {sessionCancellation=nil;refreshingSession=false;cancellingPreparation=false;if !retired {busy=false;loadPendingHandoff()}}
             }
             do {
@@ -2081,11 +2096,11 @@ struct RebaseReferenceRequest {
         busy = true; tab = 2
         let repository=captured ?? self.repository.capturingDiffBackend(preferences:messageDefaults)
         let preparation = OperationCancellation(); replayPreparationCancellation = preparation; replaying = true; cancellingReplay = false; replayStopped = false
-        Self.beginReplayWork(); LocalGitCommandProgress.begin()
+        Self.beginReplayWork();pendingBatchWorkers += 1; LocalGitCommandProgress.begin()
         Task {
             var followRecovery = false, followEmpty = false, finishingReplay = false
             var skippedID = action == "skip" ? state?.stoppedEntryID : nil
-            defer { Self.endReplayWork(); LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; if replayPreparationCancellation === preparation { replayPreparationCancellation = nil; replaying = false; cancellingReplay = false }; if !finishingReplay { busy = false }; if !retired && !preparation.isCancelled { if followEmpty { execute("continue") } else if followRecovery { resumeConflictSelection(afterCommit: true) } else { loadPendingHandoff() } } }
+            defer { Self.endReplayWork();pendingBatchWorkers -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; if replayPreparationCancellation === preparation { replayPreparationCancellation = nil; replaying = false; cancellingReplay = false }; if !finishingReplay { busy = false }; if !retired && !preparation.isCancelled { if followEmpty { execute("continue") } else if followRecovery { resumeConflictSelection(afterCommit: true) } else { loadPendingHandoff() } } }
             do {
                 try requireAccess()
                 let prefix = output
@@ -2223,10 +2238,10 @@ struct RebaseReferenceRequest {
         guard canRequest("continue"), let expected = state else { return }
         let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
         let head = conflictHead, draft = amendMessage, token = OperationCancellation()
-        messageSelectionCancellation = token; preparingMessageSelection = true; busy = true; Self.activePreparationReads += 1
+        messageSelectionCancellation = token; preparingMessageSelection = true; busy = true; Self.activePreparationReads += 1;pendingBatchWorkers += 1
         Task { [self, access] in
             defer {
-                Self.activePreparationReads -= 1; withExtendedLifetime(access) {}
+                Self.activePreparationReads -= 1;pendingBatchWorkers -= 1; withExtendedLifetime(access) {}
                 if messageSelectionCancellation === token { messageSelectionCancellation = nil; preparingMessageSelection = false; cancellingPreparation = false }
             }
             do {
@@ -2249,17 +2264,17 @@ struct RebaseReferenceRequest {
         }
     }
     func beginSplitSelection() {
-        guard canSplit else { return }; busy = true; Self.beginReplayWork()
+        guard canSplit else { return }; busy = true; Self.beginReplayWork();pendingBatchWorkers += 1
         Task {
-            defer { Self.endReplayWork(); withExtendedLifetime(access) {} }
+            defer { Self.endReplayWork();pendingBatchWorkers -= 1; withExtendedLifetime(access) {} }
             do { try requireAccess(); let split = try await repository.beginRebaseSplit(); guard !retired else { return }; state = try await repository.rebaseState(); guard !retired else { return }; busy = false; selectingSplit = true; showSplitSelection(split, amendMessage) }
             catch { if !retired { busy = false; self.error = error.localizedDescription } }
         }
     }
     private func resumeConflictSelection(afterCommit: Bool = false) {
-        guard !busy, !selectingSplit, let continuation = state?.split, continuation.conflictRecovery == true else { return }; busy = true; Self.beginReplayWork()
+        guard !busy, !selectingSplit, let continuation = state?.split, continuation.conflictRecovery == true else { return }; busy = true; Self.beginReplayWork();pendingBatchWorkers += 1
         Task {
-            defer { Self.endReplayWork(); withExtendedLifetime(access) {} }
+            defer { Self.endReplayWork();pendingBatchWorkers -= 1; withExtendedLifetime(access) {} }
             do {
                 try requireAccess()
                 let remaining = try await repository.rebaseSplitHasRemainingChanges(); guard !retired else { return }
@@ -2278,9 +2293,9 @@ struct RebaseReferenceRequest {
         }
     }
     func splitSelectionClosed(committed: Bool) {
-        guard !retired, selectingSplit else { return }; selectingSplit = false; busy = true; Self.beginReplayWork()
+        guard !retired, selectingSplit else { return }; selectingSplit = false; busy = true; Self.beginReplayWork();pendingBatchWorkers += 1
         Task {
-            defer { Self.endReplayWork(); withExtendedLifetime(access) {} }
+            defer { Self.endReplayWork();pendingBatchWorkers -= 1; withExtendedLifetime(access) {} }
             do {
                 state = try await repository.rebaseState(); guard !retired else { return }; splitCommit = state?.split != nil && state?.split?.conflictRecovery != true
                 guard committed else { if state?.split?.parts == 0 { let draft = amendMessage; try await repository.cancelUnstartedRebaseSplit(); try await loadConflictFiles(); amendMessage = draft; splitCommit = false }; busy = false; loadPendingHandoff(); return }

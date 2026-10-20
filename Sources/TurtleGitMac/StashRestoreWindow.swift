@@ -17,6 +17,7 @@ struct StashRestorePrompt {
 /// They do not use AutoCloseGitProgress or the Git progress Retry menu.
 @MainActor final class StashRestoreWindowModel: ObservableObject {
     private(set) static var activeOperations = 0
+    private(set) var pendingTransportOperations=0
     let repository: GitRepository
     let pop: Bool
     private let access: RepositoryAccessLease?
@@ -69,13 +70,13 @@ struct StashRestorePrompt {
     }
     func start() {
         guard !started, !invalidated, !confirmingQuit else { return }; started = true
-        let token = OperationCancellation(); cancellation = token; Self.activeOperations += 1
+        let token = OperationCancellation(); cancellation = token; Self.activeOperations += 1; pendingTransportOperations += 1
         busy = true; onStateChanged()
         Task { await execute(token) }
     }
     private func execute(_ token: OperationCancellation) async {
         LocalGitCommandProgress.begin()
-        defer { Self.activeOperations -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; busy = false; cancelling = false; confirmingCancellation = false; cancellation = nil; currentWork = ""; percentage = nil }
+        defer { Self.activeOperations -= 1; pendingTransportOperations -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; busy = false; cancelling = false; confirmingCancellation = false; cancellation = nil; currentWork = ""; percentage = nil }
 
         do {
             guard !invalidated else { return }
@@ -137,6 +138,7 @@ struct StashRestorePrompt {
     var onChanged: (String) -> Void { get { model.onChanged } set { model.onChanged = newValue } }
     var onViewChanges: () -> Void { get { model.onViewChanges } set { model.onViewChanges = newValue } }
     var onClosed: () -> Void = {}
+    var transportBatchWorkPending:Bool {model.pendingTransportOperations>0 || window?.attachedSheet != nil || window?.sheetParent != nil}
     private let spinner = NSProgressIndicator()
     private let running = NSTextField(labelWithString: "Stash operation running…")
     private let waiting = NSTextField(labelWithString: "Please wait…")

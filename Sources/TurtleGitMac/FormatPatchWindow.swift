@@ -46,6 +46,8 @@ import TurtleGitCore
     }
     private(set) var patch: PatchWindowController?
     private var sendPatch: SendMailWorkflow?
+    private var transportRetiredMail:SendMailWorkflow?
+    var transportBatchWorkPending:Bool {model.hasPendingWork || sendPatch?.transportBatchWorkPending == true || transportRetiredMail?.transportBatchWorkPending == true || window?.attachedSheet != nil || window?.sheetParent != nil}
     private let mailPreferences: UserDefaults
     private let mailPresentation: ((NSWindowController) -> Void)?
     private var mailSnapshot:MergeWindowPresentation?
@@ -112,13 +114,13 @@ import TurtleGitCore
         guard !retired else{return};retired=true
         NotificationCenter.default.removeObserver(self)
         choiceRequest=nil;pendingChoice=nil;pendingDirectory=nil;model.hasOptionSheet=false
-        model.saveActionLog();model.invalidate();cancellationAnswer?(.abort);sendPatch?.invalidate();sendPatch=nil;model.composingMail=false
+        model.saveActionLog();model.invalidate();cancellationAnswer?(.abort);transportRetiredMail=sendPatch;sendPatch?.invalidate();sendPatch=nil;model.composingMail=false
         let progress=progressController;progress?.close()
         directoryAnswer?(.cancel)
         retiredReferencePicker=referencePicker;retiredLogPicker=picker
         referencePicker?.abandonPresentation();referencePicker=nil;picker?.close();picker=nil;patch?.close();patch=nil
         if let window,let sheet=window.attachedSheet,sheet !== progress?.window{window.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)}
-        let release=FormatPatchRelease(window:window,parent:window?.sheetParent,ready:{ [self] in !model.hasPendingWork && cancellationAlert == nil && progressController == nil && directoryPanel == nil && retiredReferencePicker?.window?.sheetParent == nil && retiredLogPicker?.window?.sheetParent == nil && (retiredReferencePicker?.model.pendingReferenceReads ?? 0) == 0 && (retiredLogPicker?.model.pendingHistoryLoads ?? 0) == 0 }){ [self] in
+        let release=FormatPatchRelease(window:window,parent:window?.sheetParent,ready:{ [self] in transportRetiredMail?.transportBatchWorkPending != true && !model.hasPendingWork && cancellationAlert == nil && progressController == nil && directoryPanel == nil && retiredReferencePicker?.window?.sheetParent == nil && retiredLogPicker?.window?.sheetParent == nil && (retiredReferencePicker?.model.pendingReferenceReads ?? 0) == 0 && (retiredLogPicker?.model.pendingHistoryLoads ?? 0) == 0 }){ [self] in
             self.ownerRelease=nil;retiredReferencePicker=nil;retiredLogPicker=nil;observations.removeAll();model.saveDrainedActionLog();let done=onClosed;onClosed={};done()
         };ownerRelease=release;release.start()
     }

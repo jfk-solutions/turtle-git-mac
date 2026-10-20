@@ -51,3 +51,20 @@ scope, failures and repairs. The 33 affected Core cases passed cumulatively; the
 Debug build and new policy plus retained Clone, Push and Fetch/Pull native groups
 passed on system and prepared bundled Git. All receivers were reaped. Local
 passes do not establish complete hosted or distribution acceptance.
+
+
+## Ordered command transport workflows
+
+Repeated command-line Fetch/Pull/Push repository selections use one connected
+workflow per original root entry. The batch waits through options, operation and
+result windows and source-modal follow-up actions. A Retry or Reset does not let
+the next repository overtake the first. Separate-process source commands such as
+Log remain independent native windows. Existing source icons, editable presets,
+progress controls and result actions are retained.
+
+Closing an initiating workspace cancels the owned chain and remaining queue;
+closing one ordinary repository workflow continues to the next root. Authority
+and Quit accounting outlive cancelled workers and detached sheets. See the
+[command-line contract](COMMAND-LINE.md) and
+[recorded batch evidence](qa/command-transport-batch-family-2026-10-20.json) for
+actual acceptance scope and remaining installed/signed checks.

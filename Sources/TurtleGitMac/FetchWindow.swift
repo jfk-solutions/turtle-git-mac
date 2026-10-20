@@ -9,6 +9,7 @@ import TurtleGitCore
     static var activeProgressReleases: Int { TransportProgressRelease.activeCount }
     var onClosed: () -> Void = {}
     private var serviceDrainChecks:[()->Bool]=[]
+    var transportBatchWorkPending:Bool {serviceWorkPending}
     var serviceWorkPending:Bool {model.pendingOperations>0 || serviceDrainChecks.contains{$0()} || window?.attachedSheet != nil}
     var presentPullProgress: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; child.alphaValue = owner.alphaValue; child.appearance = owner.appearance; owner.beginSheet(child); return true }
     private(set) var remoteReferenceController: RemoteReferenceWindowController?

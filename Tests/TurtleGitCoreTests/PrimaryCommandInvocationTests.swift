@@ -634,6 +634,47 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         let replay=try parse(["/command:rebase","/upstream:refs/heads/main","/force"])
         XCTAssertEqual(replay.upstream,"refs/heads/main");XCTAssertTrue(replay.forceRebase)
     }
+    func testTransportOrgPathListPreservesDuplicateCountOrderAndExactNames() throws {
+        let names=["second 雪[*]\n","first","second 雪[*]\n","caf\u{e9}","cafe\u{301}"]
+        for command in ["fetch","pull","push"] {
+            let preset=command == "fetch" ? ["--remote=team remote"]:command == "push" ? ["--branch=refs/heads/topic"]:[]
+            let value=try parse(["--command="+command]+names.map{"--path="+$0}+preset)
+            XCTAssertEqual(value.transportPaths.map{Data($0.path.utf8)},names.map{Data(("/repo/"+$0).utf8)})
+            XCTAssertEqual(value.request.paths.count,4,"FinderRequest remains deduplicated; transport uses orgPathList")
+            let duplicate=try parse(["/command:"+command,"/path:subfolder*subfolder"])
+            XCTAssertEqual(duplicate.request.paths.count,1)
+            XCTAssertEqual(duplicate.transportPaths.count,2,"Repeated invalid folders must still enter strict multi-root validation")
+            XCTAssertEqual(duplicate.transportPaths.map(\.path),["/repo/subfolder","/repo/subfolder"])
+            let child=value.selecting([value.transportPaths[1]])
+            XCTAssertEqual(child.transportPaths.map(\.path),["/repo/first"])
+            XCTAssertEqual(child.remote,value.remote);XCTAssertEqual(child.pushBranch,value.pushBranch)
+            XCTAssertEqual(value.transportPaths.count,5,"Selecting a child must not mutate the original invocation")
+        }
+        XCTAssertTrue(try parse(["--command=commit"]).transportPaths.isEmpty)
+    }
+    func testTransportPathFilesKeepOriginalSequenceAndPresetsBeforeAuthorizedDeletion() throws {
+        let directory=try temporaryDirectory();defer {try? FileManager.default.removeItem(at:directory)}
+        let file=directory.appendingPathComponent("paths")
+        let names=["root second","root first","root second","cafe\u{301}","caf\u{e9}"]
+        for command in ["fetch","pull","push"] {
+            for nul in [false,true] {
+                let bytes=nul ? Data((names.joined(separator:"\0")+"\0").utf8):Data((names.joined(separator:"\r\n")+"\r\n").utf8)
+                try bytes.write(to:file)
+                let preset=command == "fetch" ? ["--remote=literal remote"]:command == "push" ? ["--branch=topic"]:[]
+                let value=try parse(["--command="+command,"--pathfile="+file.path,"--deletepathfile"]+(nul ? ["--pathfile0"]:[])+preset)
+                let token=OperationCancellation();token.cancel()
+                XCTAssertThrowsError(try value.resolvingPathFile(cancellation:token))
+                XCTAssertEqual(try Data(contentsOf:file),bytes)
+                let resolved=try value.resolvingPathFile(cancellation:OperationCancellation())
+                XCTAssertEqual(resolved.transportPaths.map{Data($0.path.utf8)},names.map{Data(("/repo/"+$0).utf8)})
+                XCTAssertEqual(resolved.request.paths.count,4)
+                XCTAssertNil(resolved.pathFile);XCTAssertFalse(FileManager.default.fileExists(atPath:file.path))
+                let child=resolved.selecting([resolved.transportPaths[0]])
+                XCTAssertEqual(child.remote,value.remote);XCTAssertEqual(child.pushBranch,value.pushBranch)
+                XCTAssertEqual(child.transportPaths.count,1)
+            }
+        }
+    }
     func testRepositoryBatchKeepsCapturedTransportOptions() throws {
         let invocation=try parse(["--command=push","--path=/first","--path=/second","--branch=topic"])
         XCTAssertEqual(invocation.request.paths.map(\.path),["/first","/second"])

@@ -305,6 +305,8 @@ final class ApplicationMailContext: @unchecked Sendable {
     private(set) var targetPicker: NSOpenPanel?
     private var targetCancellation:OperationCancellation?
     private(set) static var activeTargetReads=0
+    private(set) var pendingTargetReads=0
+    var transportBatchWorkPending:Bool {pendingTargetReads>0 || model.pendingLoads>0 || window?.attachedSheet != nil || window?.sheetParent != nil}
     var presentTargetPanel:(NSOpenPanel,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void = {panel,owner,reply in panel.beginSheetModal(for:owner,completionHandler:reply)}
     var selectedTarget:(NSOpenPanel)->URL? = {$0.url}
     private var targetGeneration = 0
@@ -394,10 +396,10 @@ final class ApplicationMailContext: @unchecked Sendable {
             self.targetPicker = nil
             guard response == .OK, let directory = self.selectedTarget(panel) else { self.choosingTarget = false; self.model.retireForm(); return }
             let lease = RepositoryAccessLease(url: directory),token=OperationCancellation()
-            self.targetCancellation=token;Self.activeTargetReads+=1
+            self.targetCancellation=token;Self.activeTargetReads+=1;self.pendingTargetReads+=1
             Task { @MainActor [self] in
                 defer {
-                    Self.activeTargetReads-=1;withExtendedLifetime(lease) {}
+                    Self.activeTargetReads-=1;self.pendingTargetReads-=1;withExtendedLifetime(lease) {}
                     if self.targetCancellation === token {self.targetCancellation=nil}
                     if !self.retired,self.targetGeneration==generation {self.choosingTarget=false;self.model.retireForm()}
                 }
@@ -1008,7 +1010,17 @@ private struct SendPatchProgressDialog: View {
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
     private(set) var options: SendPatchWindowController?, progress: SendPatchProgressWindowController?
-    private var finished = false
+    private var finished = false, finishing = false
+    private var completionDrain:Task<Void,Never>?
+    private var retiredChildren:[NSWindowController]=[]
+    var transportBatchWorkPending:Bool {
+        let current:[NSWindowController?]=[options,progress]
+        return (current.compactMap{$0}+retiredChildren).contains { child in
+            if let result=child as? SendPatchProgressWindowController {return result.model.hasPendingWork || result.window?.attachedSheet != nil || result.window?.sheetParent != nil}
+            if let form=child as? SendPatchWindowController {return form.transportBatchWorkPending}
+            return child.window?.attachedSheet != nil || child.window?.sheetParent != nil
+        }
+    }
     private let completion: (String?) -> Void
     private let present: (NSWindowController) -> Void
     private let applicationContext: ApplicationMailContext?
@@ -1020,14 +1032,16 @@ private struct SendPatchProgressDialog: View {
         let controller = SendPatchWindowController(files: files, access: fileAccess, preferences: preferences, repository: repository, repositoryAccess: access, presentation: presentation, customSubject: customSubject, appOwnedFiles: appOwnedFiles, choosePatchTarget: applicationContext != nil)
         options = controller
         controller.model.onSubmit = { [weak self] request in
-            guard let self, !self.finished, self.progress == nil else { return }
+            guard let self, !self.finished, !self.finishing, self.progress == nil else { return }
             let model = SendPatchProgressModel(request: request, repository: repository, access: access, preferences: preferences, applicationContext: self.applicationContext)
             let progress = SendPatchProgressWindowController(model: model); self.progress = progress
             progress.onClosed = { [weak self, weak model] in self?.finish(model?.success == true ? nil : model?.error) }
             self.present(progress); model.start()
         }
-        controller.onClosed = { [weak self] in
-            guard let self else { return }; self.options = nil
+        controller.onClosed = { [weak self,weak controller] in
+            guard let self else { return }
+            if let controller {self.retainClosing(controller)}
+            self.options = nil
             if self.progress == nil { self.finish(nil) }
         }
     }
@@ -1035,8 +1049,11 @@ private struct SendPatchProgressDialog: View {
     /// Forced owner closure cancels work and suppresses workflow completion.
     /// Generated patches remain on disk, as with upstream cancellation.
     func invalidate() {
-        guard !finished else { return }; finished = true
-        let children: [NSWindowController] = [options, progress].compactMap { $0 }
+        guard !finished else { return }; finished = true;finishing=false
+        completionDrain?.cancel();completionDrain=nil
+        let current:[NSWindowController?]=[options,progress]
+        current.compactMap{$0}.forEach{retainClosing($0)}
+        let children=retiredChildren
         options?.model.invalidate(); progress?.model.invalidate()
         options = nil; progress = nil
         for child in children {
@@ -1047,7 +1064,24 @@ private struct SendPatchProgressDialog: View {
             child.close()
         }
     }
+    private func retainClosing(_ child:NSWindowController) {
+        if !retiredChildren.contains(where:{$0 === child}) {retiredChildren.append(child)}
+    }
     private func finish(_ error: String?) {
-        guard !finished else { return }; finished = true; options = nil; progress = nil; completion(error)
+        guard !finished,!finishing else { return };finishing=true
+        let current:[NSWindowController?]=[options,progress]
+        current.compactMap{$0}.forEach{retainClosing($0)}
+        options=nil;progress=nil
+        // Ordinary Cancel can close the form before its canceled metadata
+        // reader exits. Keep the real form and all scopes through that drain,
+        // then release the source-modal parent exactly once.
+        completionDrain=Task { @MainActor [self] in
+            while !finished,transportBatchWorkPending {
+                do{try await Task.sleep(nanoseconds:10_000_000)}catch{return}
+            }
+            guard !finished,!Task.isCancelled else{return}
+            finished=true;finishing=false;completionDrain=nil;retiredChildren.removeAll()
+            completion(error)
+        }
     }
 }

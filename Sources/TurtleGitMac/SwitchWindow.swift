@@ -119,6 +119,18 @@ extension UserDefaults {
 @MainActor final class SwitchWindowController: NSWindowController, NSWindowDelegate {
     let model: SwitchWindowModel
     var onClosed: () -> Void = {}
+    private var retiredProgress:SwitchProgressWindowModel?
+    private var retiredReference:ReferenceBrowserWindowController?
+    private var retiredLog:LogWindowController?
+    var transportBatchWorkPending:Bool {
+        model.hasPendingReferenceReads || model.progress?.hasPendingWork == true || retiredProgress?.hasPendingWork == true ||
+        progressController?.model.hasPendingWork == true ||
+        (referencePicker?.model.pendingReferenceReads ?? 0)>0 || (retiredReference?.model.pendingReferenceReads ?? 0)>0 ||
+        (commitPicker?.model.pendingHistoryLoads ?? 0)>0 || (retiredLog?.model.pendingHistoryLoads ?? 0)>0 ||
+        referencePicker?.window?.sheetParent != nil || retiredReference?.window?.sheetParent != nil ||
+        commitPicker?.window?.sheetParent != nil || retiredLog?.window?.sheetParent != nil || tagAlert != nil ||
+        window?.attachedSheet != nil || window?.sheetParent != nil
+    }
     private(set) var progressController: SwitchProgressWindowController?
     static var activeChildReleases:Int {SwitchChildRelease.activeCount}
     private var closed=false
@@ -190,7 +202,9 @@ extension UserDefaults {
         DialogGeometry.attach(window, identifier: "SwitchWindowController")
     }
     func windowWillClose(_ notification:Notification) {
-        guard !closed else{return};closed=true;model.invalidate();pickers.invalidate()
+        guard !closed else{return};closed=true
+        retiredProgress=model.progress;retiredReference=referencePicker;retiredLog=commitPicker
+        model.invalidate();pickers.invalidate()
         let alert=tagAlert,reply=tagReply;tagAlert=nil;tagReply=nil
         if let alert {let release=SwitchChildRelease(window:alert.window,parent:window) {reply?(false)};release.start()} else {reply?(false)}
         let controller=progressController;progressController=nil

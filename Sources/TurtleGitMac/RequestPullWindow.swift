@@ -44,6 +44,8 @@ import TurtleGitCore
     var activeOperation: Bool { model.busy || model.hasPendingWork || model.waitingForHandoff || model.openingEditor || model.confirmingError || model.composingMail || model.choosingStart || !drainingPickers.isEmpty || window?.attachedSheet != nil }
 
     private var sendPatch: SendMailWorkflow?
+    private var transportRetiredMail:SendMailWorkflow?
+    var transportBatchWorkPending:Bool {model.hasPendingWork || sendPatch?.transportBatchWorkPending == true || transportRetiredMail?.transportBatchWorkPending == true || window?.attachedSheet != nil || window?.sheetParent != nil}
     private let mailPreferences: UserDefaults
     private let mailPresentation: ((NSWindowController) -> Void)?
     init(repository: GitRepository, access: RepositoryAccessLease?, end: String? = nil, repositoryURL: String? = nil, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
@@ -177,12 +179,12 @@ import TurtleGitCore
     private func retire(){
         guard !retired else{return};retired=true;NotificationCenter.default.removeObserver(self)
         model.invalidate();pickerRequest=nil;pendingStart=nil;model.choosingStart=false
-        sendPatch?.invalidate();sendPatch=nil;model.composingMail=false;errorAnswer?(.abort)
+        transportRetiredMail=sendPatch;sendPatch?.invalidate();sendPatch=nil;model.composingMail=false;errorAnswer?(.abort)
         retiredPicker=picker;picker?.close();picker=nil
         let waiting=waitingController;waitingController=nil;waiting?.close()
         if let window,let sheet=window.attachedSheet{window.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)}
         let release=RequestPullRelease(window:window,parent:window?.sheetParent,ready:{ [self] in
-            !self.model.hasPendingWork && self.errorAlert == nil && self.drainingPickers.isEmpty && (self.retiredPicker?.model.pendingHistoryLoads ?? 0) == 0 && self.retiredPicker?.window?.sheetParent == nil && waiting?.window?.sheetParent == nil
+            self.transportRetiredMail?.transportBatchWorkPending != true && !self.model.hasPendingWork && self.errorAlert == nil && self.drainingPickers.isEmpty && (self.retiredPicker?.model.pendingHistoryLoads ?? 0) == 0 && self.retiredPicker?.window?.sheetParent == nil && waiting?.window?.sheetParent == nil
         }){ [self] in self.release=nil;self.retiredPicker=nil;self.observations.removeAll();let done=self.onClosed;self.onClosed={};done() }
         self.release=release;release.start()
     }

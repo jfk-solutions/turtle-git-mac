@@ -205,17 +205,36 @@ focuses an existing Rebase dialog and asks that it be closed before applying new
 presets, preserving its current plan.
 
 Fetch, Pull and Push accept multiple repository roots through repeated literal
-`--path` or a path file. TurtleGit prepares them in selection order, acquiring each
-root's own permission and metadata access, then presents an independently owned
-options window for each. Each window captures its own repository, transport
-presets and access lease. These native windows are nonmodal; no operation starts
-until its user accepts it. Closing/changing the initiating workspace, declining
-permission, an invalid root or preparation failure stops the remaining queue;
-previously opened windows remain available. This adapts the Windows modal loop:
-the source can continue past invalid items, whereas native preparation stops at
-that error. A multi-root selection must contain roots, rather than files or
-subdirectories. A single repository request still accepts normal in-repository
-selection paths. Another CLI request cannot retarget a batch already preparing.
+`--path` or a path file. Original order and repeated roots are retained, matching
+upstream's `orgPathList`; repeated inputs still use the multi-root rules. Each
+item must be an actual working-tree root or bare-repository root. Invalid files,
+subdirectories and non-repositories report preparation errors and are skipped so
+later roots can still be handled. A single repository request retains normal
+in-repository selection behavior.
+
+The batch presents one actual options dialog at a time, with its own repository,
+access lease and captured presets (`remote` for Fetch, `branch` for Push). No
+transport starts until the user accepts its options. Cancelling or failing one
+repository does not prevent later roots. The next root waits for the current
+dialog, operation/result, sheets and source-modal follow-up chain to finish.
+Independent source commands, such as Log or Commit launched from a result, keep
+their own windows and do not hold the transport queue.
+
+| Result action | Batch behavior |
+| --- | --- |
+| Fetch/Pull/Push again, Retry, Reset, Switch or Rebase | Finish this repository's workflow before advancing |
+| Stash Save, Stash Apply/Pop, Request Pull or mail after Rebase | Finish the connected source-modal workflow before advancing |
+| Log, Commit, Resolve, comparison, Submodule Update or Commit Superproject | Open independently, matching upstream's separate-process command |
+
+
+Existing primary grants can cover roots separately; otherwise the batch uses an
+owned asynchronous folder chooser. Declining the batch's access request stops it.
+A chooser reply never grants access after cancellation or owner closure. Closing
+or replacing the initiating workspace or quitting cancels the current owned
+workflow and stops the remaining queue, retaining worker/grant accounting until
+actual drainage. A later command or Service cannot retarget a pending batch.
+The [transport batch evidence](qa/command-transport-batch-family-2026-10-20.json)
+records the verified scope and remaining installed/signed acceptance.
 
 Source review for this continuation covers
 `Commands/{Clone,Fetch,Pull,Push,Branch,Tag,Switch,RepositoryBrowser,RefLog,Rebase}Command.cpp`,

@@ -5,6 +5,9 @@ import TurtleGitCore
 @MainActor final class StashWindowController: NSWindowController, NSWindowDelegate {
     let model: StashWindowModel
     var onClosed: () -> Void = {}
+    private var transportRetiredProgress:StashSaveProgressWindowController?
+    var transportBatchWorkPending:Bool {model.pendingTransportReads>0 || transportRetiredProgress?.model.hasPendingWork == true || window?.attachedSheet != nil || window?.sheetParent != nil}
+
     private(set) var progressController: StashSaveProgressWindowController?
     static var activeChildReleases: Int { StashChildRelease.activeCount }
     private var identitySettings: SettingsSheetController?
@@ -95,7 +98,7 @@ import TurtleGitCore
     }
     func windowWillClose(_ notification:Notification) {
         guard notification.object as? NSWindow === window,!closed else{return};closed=true
-        let progress=progressController;progressController=nil
+        let progress=progressController;transportRetiredProgress=progress;progressController=nil
         model.afterClose=nil;model.invalidate();identitySettings?.retire()
         let warning=warning,reply=warningReply;self.warning=nil;warningReply=nil
         if let warning {
@@ -119,6 +122,7 @@ import TurtleGitCore
     var repositoryAccess:RepositoryAccessLease? {access}
     var handoffPresentation:MergeWindowPresentation?
     static private(set) var activePreparations=0
+    private(set) var pendingTransportReads=0
     private var interactionGeneration=0
     @Published var confirmingQuit=false {didSet {if oldValue != confirmingQuit {formRevision=UUID();interactionGeneration += 1};progress?.confirmingQuit=confirmingQuit}}
     @Published var hasIdentitySettings=false
@@ -191,11 +195,11 @@ import TurtleGitCore
     private func prepareSubmission(_ snapshot:StashSaveOptions) {beginPreparation(snapshot:snapshot,saveAfter:false)}
     private func beginPreparation(snapshot:StashSaveOptions?,saveAfter:Bool) {
         guard !invalidated,!confirmingQuit,!busy,!preparing else{return}
-        preparing=true;busy=true;formRevision=UUID();let token=OperationCancellation(),request=followUp;preparationToken=token;Self.activePreparations += 1
+        preparing=true;busy=true;formRevision=UUID();let token=OperationCancellation(),request=followUp;preparationToken=token;Self.activePreparations += 1; pendingTransportReads += 1
         Task { [self,access] in
             var accepted=false
             defer {
-                Self.activePreparations -= 1;withExtendedLifetime(access) {}
+                Self.activePreparations -= 1; pendingTransportReads -= 1;withExtendedLifetime(access) {}
                 if preparationToken === token {preparationToken=nil;preparing=false;busy=false
                     if !invalidated {becameIdle();if closeAfterPreparation {close()} else if accepted && !confirmingQuit {if let snapshot {perform(snapshot,followUp:request)} else if saveAfter {save()}}}
                 }

@@ -159,9 +159,11 @@ preferences and offscreen windows with system and bundled Git. It distinguishes
 review-only dialog opening from actual Stash Apply/Pop effects. Multi-root transport verification also covers ordered dialogs, invalid-root
 skipping, per-dialog Cancel continuation, owner-close cancellation and retained
 worker/grant/Quit accounting. The previous six-service evidence remains historical
-and does not certify this expansion. The separate primary-command batch still
-has its recorded sequential-modal/skip-on-failure gap; this Services expansion
-does not claim that CLI gap fixed.
+and does not certify this expansion. A later
+[command-line transport batch](COMMAND-LINE.md) implements ordered original-root
+iteration and source-modal successor ownership. Services shares that connected
+transport lifetime while retaining its own source-menu eligibility and normalized
+selection contract; CLI preserves its original path-list count and duplicates.
 Physical Services registration, signed grants, menu gestures and full Finder
 parity still need their own acceptance.
 

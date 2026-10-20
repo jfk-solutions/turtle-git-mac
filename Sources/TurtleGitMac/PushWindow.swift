@@ -8,6 +8,7 @@ import TurtleGitCore
     let model: PushWindowModel
     var onClosed: () -> Void = {}
     private var serviceRetiredSheet:NSWindow?
+    var transportBatchWorkPending:Bool {serviceWorkPending}
     var serviceWorkPending:Bool {model.pendingOperations>0 || window?.attachedSheet != nil || serviceRetiredSheet?.sheetParent != nil}
     private var closingPreparation = false
     private(set) var referencePicker: ReferenceBrowserWindowController?

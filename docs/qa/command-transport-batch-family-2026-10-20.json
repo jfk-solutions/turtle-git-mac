@@ -1,0 +1,162 @@
+{
+  "status": "focused-local-validation-passed",
+  "scope": "Original ordered command-line Fetch/Pull/Push root batches, options, permissions, source-modal result chains and actual cancellation lifetime",
+  "source": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/Commands/FetchCommand.cpp:28-48",
+      "src/TortoiseProc/Commands/PullCommand.cpp:28-48",
+      "src/TortoiseProc/Commands/PushCommand.cpp:32-57",
+      "src/TortoiseProc/AppUtils.cpp:2326-2420",
+      "src/TortoiseProc/AppUtils.cpp:2468-2510",
+      "src/TortoiseProc/AppUtils.cpp:2608-2645",
+      "src/TortoiseProc/AppUtils.cpp:2866-2910",
+      "src/TortoiseProc/AppUtils.cpp:2110-2140"
+    ],
+    "contract": "orgPathList count/order/duplicates choose strict multi-root iteration; retVal &= modal action does not short-circuit on individual failure or cancellation",
+    "independent_post_actions": [
+      "Log",
+      "Commit",
+      "Resolve",
+      "Diff",
+      "SubmoduleUpdate",
+      "CommitSuperproject"
+    ]
+  },
+  "implementation": [
+    "Preserved original CLI orgPathList count/order/duplicates through arguments, pathfiles and per-root child presets",
+    "Strict multi-root worktree/bare-root validation with skip-and-continue after invalid entries or individual Cancel/failure",
+    "Actual options/operation/result/modal successor chain with source-independent post-actions excluded",
+    "Independent primary saved grants or owned asynchronous common-folder authority before discovery; original per-root CLI injection retained",
+    "Per-instance deferred worker/read/progress/sheet drainage through forced owner/Quit/adoption retirement",
+    "Actual closed mail forms retained for ordinary Cancel until readers drain; forced retirement suppresses completion",
+    "Late successor rejection, callback chaining and terminal chain-cycle release"
+  ],
+  "checks": [
+    {
+      "name": "Focused transport parser group",
+      "result": "4 methods passed",
+      "log": "build/qa/command-transport-batch-core-2026-10-20.log",
+      "scope": "Network/reference presets, ordered duplicate original paths and pathfiles, child presets, strict option refusals and cancellation/deletion; no full Core rerun"
+    },
+    {
+      "name": "Initial app build",
+      "result": "failed",
+      "log": "build/qa/command-transport-batch-app-2026-10-20.log",
+      "failure": "New target-read counter in nested closure required explicit self",
+      "repair": "Explicit self on counter; static existing-modal review enrolled Rebase sheets and busy Format Patch owners without changing drafts."
+    },
+    {
+      "name": "App compiler repair build",
+      "result": "passed",
+      "log": "build/qa/command-transport-batch-app-repair-2026-10-20.log"
+    },
+    {
+      "name": "Initial native command and shared Services groups",
+      "result": "failed",
+      "logs": [
+        "build/qa/command-transport-batch-native-2026-10-20.log",
+        "build/qa/command-transport-batch-services-2026-10-20.log"
+      ],
+      "failure": "First CLI form not enrolled and shared Services batch owner-close did not drain held metadata worker. Canonically equal URLs carried different directory hints and failed full-URL enrollment comparison.",
+      "repair": "Enrollment compares canonical Git paths; affected app/native groups repaired and passed. CLI fixture now hides every private-process window independently of routing hooks and closes uncaptured forms on failure."
+    },
+    {
+      "name": "Canonical path routing app recheck",
+      "result": "passed",
+      "log": "build/qa/command-transport-batch-app-routing-repair-2026-10-20.log"
+    },
+    {
+      "name": "CLI bare Pull diagnostic",
+      "result": "failed",
+      "logs": [
+        "build/qa/command-transport-batch-native-routing-repair-2026-10-20.log",
+        "build/qa/command-transport-batch-dialogs-diagnostic-2026-10-20.log"
+      ],
+      "failure": "Generic working-tree guard skipped CLI Pull options for a bare root, so following A arrived where bare root was required. Detailed diagnostics retained original action/root/scope assertion.",
+      "repair": "CLI .pull opens options for bare roots as AppUtils::Pull does; Finder eligibility/execution checks preserved. Affected app and six final CLI case/engine combinations passed."
+    },
+    {
+      "name": "Related Services/network/mail native group",
+      "result": "four distinct cases passed with system Git",
+      "logs": [
+        "build/qa/command-transport-batch-services-routing-repair-2026-10-20.log",
+        "build/qa/command-transport-batch-network-repair-2026-10-20.log",
+        "build/qa/command-transport-batch-request-pull-2026-10-20.log",
+        "build/qa/command-transport-batch-format-patch-2026-10-20.log"
+      ],
+      "scope": [
+        "Services ordered Fetch, invalid roots, Cancel continuation, owner-close held metadata cancellation/drain",
+        "Existing eleven CLI network/reference routes and three ordered worktree transport batches",
+        "Request Pull waiting/editor/mail/forced read and picker lifetimes",
+        "Format Patch operations, recovery, forced close, nested sheet and picker lifetimes"
+      ],
+      "fixture_repairs": [
+        "Older network fixture captured now-optional Rebase readSession hook as nonoptional; fallback now invokes the actual repository snapshot when no override exists",
+        "Primary command fixture now hides all owned windows before ordering independently of routing hooks; preserves isVisible-based assertions"
+      ],
+      "not_repeated_for": "Subsequent CLI-only bare Pull gate change does not alter these passed worktree/Services/mail paths"
+    },
+    {
+      "name": "CLI bare Pull app recheck",
+      "result": "passed",
+      "log": "build/qa/command-transport-batch-app-bare-pull-repair-2026-10-20.log"
+    },
+    {
+      "name": "Final CLI transport family native group",
+      "result": "six case/engine combinations passed with system and bundled Git",
+      "log": "build/qa/command-transport-batch-native-bare-pull-repair-2026-10-20.log",
+      "cases": {
+        "dialogs": "All three commands: raw duplicate roots/order, invalid/non-root skip, CLI bare and bisect opening, remote/branch presets, independent primary grants, per-root Cancel and unchanged repository snapshots",
+        "effects": "Actual local Fetch/Pull/Push, retained result acknowledgement, Fetch\u2192Switch modal chain, actual rejecting remote hook and next-root continuation",
+        "lifetime": "Owned collective folder grant Cancel/late/retry; normal and forced mail preview-reader cancellation; held actual Fetch subprocess owner-close cancellation, retained Quit accounting and exact worker/batch/process drain"
+      }
+    },
+    {
+      "name": "Generated resources and site",
+      "result": "localization/help checks, dialog ledger reconciliation and site generation passed",
+      "site_log": "build/qa/command-transport-batch-site-2026-10-20.log",
+      "scope": "130 dialogs with 120 partial family audits and 10 pending family reviews; 85 pending controls. Audit coverage counts do not represent feature completion."
+    }
+  ],
+  "remaining": [
+    "Current complete hosted integration",
+    "Installed signed sandbox grants and actual app/Finder gestures",
+    "Intel execution of current revision",
+    "Full dialog layout/accessibility/input acceptance",
+    "Distribution signing/export and App Store acceptance",
+    "Only recorded modal successor paths exercised; complete source-modal chain physical/UI acceptance remains open",
+    "No actual SMTP delivery or complete current visual comparison of all source dialogs"
+  ],
+  "owned_receivers": {
+    "pids": [
+      72510,
+      72765,
+      73550,
+      73874,
+      74112,
+      74431,
+      74554,
+      74897,
+      75728,
+      76200,
+      76668,
+      77177,
+      77689,
+      77876
+    ],
+    "independently_absent": true,
+    "scope": "Fourteen receiver attempts including failed native cases; private helper PID assertions and runner finally cleanup retain ownership on failure/timeout. No unrelated app was terminated."
+  },
+  "hosted_observation": {
+    "revision": "b80d56bc",
+    "pages_run": 39473282314,
+    "pages_state": "success",
+    "macos_run": 39473282288,
+    "macos_state": "pending",
+    "active_older_run": 39465414507,
+    "active_older_job": 118778296054,
+    "active_older_step": "Git integration tests",
+    "scope": "Earlier revision observation; current batch has no complete hosted result."
+  }
+}

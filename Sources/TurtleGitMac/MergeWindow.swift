@@ -12,6 +12,11 @@ import TurtleGitCore
 @MainActor final class MergeWindowController: NSWindowController, NSWindowDelegate {
     let model: MergeWindowModel
     var onClosed: () -> Void = {}
+    private var transportRetiredProgress:MergeProgressWindowController?
+    private var transportRetiredReference:ReferenceBrowserWindowController?
+    private var transportRetiredLog:LogWindowController?
+    var transportBatchWorkPending:Bool {model.pendingTransportReads>0 || transportRetiredProgress?.model.hasPendingWork == true || (transportRetiredReference?.model.pendingReferenceReads ?? 0)>0 || (transportRetiredLog?.model.pendingHistoryLoads ?? 0)>0 || transportRetiredReference?.window?.sheetParent != nil || transportRetiredLog?.window?.sheetParent != nil || window?.attachedSheet != nil || window?.sheetParent != nil}
+
     private var pickers: VersionPickerCoordinator!
     var referencePicker: ReferenceBrowserWindowController? { pickers.referencePicker }
     var commitPicker: LogWindowController? { pickers.commitPicker }
@@ -80,6 +85,8 @@ import TurtleGitCore
         }
     }
     func windowWillClose(_ notification: Notification) {
+        transportRetiredProgress=progressController
+        transportRetiredReference=pickers.referencePicker;transportRetiredLog=pickers.commitPicker
         model.saveMessageHistoryForClose(); model.invalidate(); identitySettings?.retire(); pickers.invalidate()
         let controller = progressController; progressController = nil
         controller?.close()
@@ -110,6 +117,7 @@ import TurtleGitCore
 
 @MainActor final class MergeWindowModel: ObservableObject, VersionPickerModel {
     private(set) static var activeReads = 0
+    private(set) var pendingTransportReads=0
     @Published var confirmingQuit=false { didSet { if confirmingQuit != oldValue {formRevision=UUID()};progress?.confirmingQuit=confirmingQuit } }
     @Published var hasHistory=false {didSet {if hasHistory != oldValue {formRevision=UUID()}}}
     @Published var hasIdentitySettings=false {didSet {if hasIdentitySettings != oldValue {formRevision=UUID()}}}
@@ -216,10 +224,10 @@ import TurtleGitCore
         guard !invalidated, pickerTarget == .branch else { return }
         let requested = name ?? revision, draft = commitRevision, selectionDraft = versionPickerDraft
         let token = OperationCancellation(); referenceSelectionToken = token; busy = true
-        Self.activeReads += 1
+        Self.activeReads += 1; pendingTransportReads += 1
         Task {
             var applied = false
-            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion() } }
+            defer { Self.activeReads -= 1; pendingTransportReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion() } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
@@ -260,9 +268,9 @@ import TurtleGitCore
     func load(revision preset: String? = nil) {
         guard !closed,!confirmingQuit,!busy,!hasHistory,!hasIdentitySettings,pickerTarget == nil,progress == nil else{return}; busy = true; preparing=true;prepared=false;formRevision=UUID()
         let token = OperationCancellation(); loadToken = token
-        Self.activeReads += 1
+        Self.activeReads += 1; pendingTransportReads += 1
         Task {
-            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if loadToken === token { loadToken = nil; busy = false;preparing=false;if !closed {becameIdle();if closeAfterPreparation {close()}} } }
+            defer { Self.activeReads -= 1; pendingTransportReads -= 1; withExtendedLifetime(access) {}; if loadToken === token { loadToken = nil; busy = false;preparing=false;if !closed {becameIdle();if closeAfterPreparation {close()}} } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 try await requirePreparation(token)
@@ -299,9 +307,9 @@ import TurtleGitCore
         snapshot.sanitizeMessage=preferences.object(forKey:"SanitizeCommitMsg") as? Bool ?? true
         let acceptedTarget=target,acceptedStashPop=showStashPop,acceptedMessage=message
         busy=true;preparing=true;formRevision=UUID()
-        let token=OperationCancellation();loadToken=token;Self.activeReads += 1
+        let token=OperationCancellation();loadToken=token;Self.activeReads += 1; pendingTransportReads += 1
         Task {
-            defer {Self.activeReads -= 1;withExtendedLifetime(access) {};if loadToken === token {loadToken=nil;preparing=false;if progress == nil {busy=false};if !closed {becameIdle();if closeAfterPreparation {close()}}}}
+            defer {Self.activeReads -= 1; pendingTransportReads -= 1;withExtendedLifetime(access) {};if loadToken === token {loadToken=nil;preparing=false;if progress == nil {busy=false};if !closed {becameIdle();if closeAfterPreparation {close()}}}}
             do {try await requirePreparation(token);try token.check();guard !closed else{return}}
             catch {if !closed,!token.isCancelled {self.error=error.localizedDescription};return}
             saveAcceptedMessageHistory(message:acceptedMessage,noCommit:snapshot.noCommit)

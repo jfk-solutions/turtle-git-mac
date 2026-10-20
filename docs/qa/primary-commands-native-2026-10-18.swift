@@ -1,4 +1,5 @@
 import AppKit
+import ObjectiveC
 import TurtleGitCore
 
 @main struct PrimaryCommandsVerification {
@@ -29,6 +30,7 @@ import TurtleGitCore
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:git)},snapshotWriter:{_ in true},comparisonMarks:WorkingComparisonMarkStore(storageURL:container.appendingPathComponent("marks.json")))
         workspace.requiresRepositoryScope=false;workspace.fileComparisonPreferences=prefs;workspace.transportClipboardText={nil}
         workspace.commandLineRepositoryPermission={paths in RepositoryAccessLease(url:paths[0])}
+        workspace.commandTransportWorkflowPresentation={_,controller,_,_ in controller.window?.alphaValue=0;controller.window?.setFrameOrigin(NSPoint(x:-20000,y:-20000))}
         defer {workspace.stopMonitoringForTermination();for window in NSApp.windows {window.close()}}
         func windows<T>(_ type:T.Type)->[T] {NSApp.windows.filter(\.isVisible).compactMap {$0.delegate as? T}}
         func invoke(_ args:[String]) {workspace.handleCommandLine(arguments:args,currentDirectory:roots[0].path)}
@@ -83,7 +85,8 @@ import TurtleGitCore
         queuedModel.readSession={identity,token in
             sessionReads += 1
             if sessionReads==1 {await withCheckedContinuation {gate=$0}}
-            return try await readSession(identity,token)
+            if let readSession {return try await readSession(identity,token)}
+            return try await repo.rebaseSessionSnapshot(retaining:identity,cancellation:token)
         }
         defer {gate?.resume();queued.close()}
         queuedModel.load(upstream:base.hash)
@@ -93,24 +96,33 @@ import TurtleGitCore
         try await wait {!queuedModel.busy && sessionReads>=2}
         try require(queuedModel.options.force && queuedModel.options.upstream=="refs/remotes/origin/main","Force-only deferred Rebase load lost its preset")
         queued.close()
-        // Each transport root gets its own owned form; no operation is accepted.
+        // Source transports are ordered modal workflows: Cancel one accepted
+        // root before the next root may present, without starting Git transport.
         for command in ["fetch","pull","push"] {
             invoke(["--command="+command,"--path",roots[0].path,"--path",roots[1].path])
-            try await wait {!workspace.busy && RepositoryModel.activeCommandFileOperations==0}
-            print("Batch launch diagnostic: command=\(command), fetch=\(windows(FetchWindowController.self).map {($0.model.repository.root.path,$0.model.busy,$0.model.error ?? "none")}), push=\(windows(PushWindowController.self).count), error=\(workspace.error ?? "none")")
-            if command=="push" {
-                try await wait {windows(PushWindowController.self).count==2 && windows(PushWindowController.self).allSatisfy {!$0.model.busy}}
-                let all=windows(PushWindowController.self)
-                try require(Set(all.map {$0.model.repository.root.resolvingSymlinksInPath().path})==Set(roots.map {$0.resolvingSymlinksInPath().path}),"Multi-root Push reused one repository model");all.forEach {$0.close()}
-            } else {
-                try await wait {windows(FetchWindowController.self).count==2 && windows(FetchWindowController.self).allSatisfy {!$0.model.busy}}
-                let all=windows(FetchWindowController.self)
-                try require(Set(all.map {$0.model.repository.root.resolvingSymlinksInPath().path})==Set(roots.map {$0.resolvingSymlinksInPath().path}) && all.allSatisfy {$0.model.isPull==(command=="pull")},"Multi-root transport reused root or wrong mode");all.forEach {$0.close()}
+            for (index,root) in roots.enumerated() {
+                if command=="push" {
+                    try await wait {windows(PushWindowController.self).count==1 && windows(PushWindowController.self).allSatisfy {!$0.model.busy && !$0.model.preparing}}
+                    let child=try requireOne(windows(PushWindowController.self))
+                    try require(child.model.repository.root.resolvingSymlinksInPath().path==root.resolvingSymlinksInPath().path,"Ordered Push reused/reordered repository \(index)")
+                    child.model.cancel()
+                    try await wait {!child.serviceWorkPending && child.window?.isVisible==false}
+                } else {
+                    try await wait {windows(FetchWindowController.self).count==1 && windows(FetchWindowController.self).allSatisfy {!$0.model.busy && !$0.model.preparing}}
+                    let child=try requireOne(windows(FetchWindowController.self))
+                    try require(child.model.repository.root.resolvingSymlinksInPath().path==root.resolvingSymlinksInPath().path && child.model.isPull==(command=="pull"),"Ordered transport reused/reordered root or wrong mode \(index)")
+                    child.model.cancel()
+                    try await wait {!child.serviceWorkPending && child.window?.isVisible==false}
+                }
             }
+            try await wait {!workspace.busy && !workspace.hasPendingRepositoryWork && RepositoryModel.activeCommandFileOperations==0}
         }
         invoke(["--command=fetch","--path",roots[0].appendingPathComponent("file").path,"--path",roots[1].path])
-        try await wait {!workspace.busy && RepositoryModel.activeCommandFileOperations==0}
-        try require(windows(FetchWindowController.self).isEmpty && workspace.error != nil,"Batch transport accepted a file instead of a repository root")
+        try await wait {windows(FetchWindowController.self).count==1 && windows(FetchWindowController.self).first?.model.preparing==false}
+        let afterInvalid=try requireOne(windows(FetchWindowController.self))
+        try require(afterInvalid.model.repository.root.resolvingSymlinksInPath().path==roots[1].resolvingSymlinksInPath().path,"Invalid first path prevented later valid root or widened to containing repository")
+        afterInvalid.model.cancel()
+        try await wait {!workspace.busy && !workspace.hasPendingRepositoryWork && RepositoryModel.activeCommandFileOperations==0}
         let cancelled=RepositoryModel(startMonitoring:false,initializePreferences:false)
         cancelled.commandLineRepositoryPermission={_ in cancelled.stopMonitoringForTermination();return nil}
         cancelled.handleCommandLine(arguments:["--command=fetch","--path",roots[0].path,"--path",roots[1].path],currentDirectory:roots[0].path)
@@ -118,7 +130,7 @@ import TurtleGitCore
         try require(windows(FetchWindowController.self).isEmpty,"Cancelled root authorization continued the command batch");cancelled.stopMonitoringForTermination()
         try require(try await repo.run(["show-ref"]).stdout==refsBefore && Data(contentsOf:roots[0].appendingPathComponent(".git/index"))==index,"Opening network/reference options changed refs or index")
         try require(!FileManager.default.fileExists(atPath:cloneDestination.path),"Clone ran without acceptance")
-        print("PASS: network/reference command family: eleven native dialog routes; Clone exact-path URL edits; Fetch/Pull/Push mode/source; Branch/Tag base/name; Switch, browsers, RefLog and Force Rebase; three two-repository transport batches; cancelled grants; no implicit clone/transport/ref mutation; owned windows closed")
+        print("PASS: network/reference command family: eleven native dialog routes; Clone exact-path URL edits; Fetch/Pull/Push mode/source; Branch/Tag base/name; Switch, browsers, RefLog and Force Rebase; three ordered two-repository transport batches; invalid-root continuation; cancelled grants; no implicit clone/transport/ref mutation; owned windows closed")
     }
     static func requireOne<T>(_ values:[T]) throws -> T {guard values.count==1,let value=values.first else {throw Failure(description:"Expected one native launch dialog")};return value}
     @MainActor static func verifyIO() async throws {
@@ -254,6 +266,10 @@ import TurtleGitCore
     }
     @MainActor static func main() async throws {
         NSApp.setActivationPolicy(.prohibited)
+        let ordered=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!
+        let hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.turtleGitPrimaryCommandOrder(_:relativeTo:)))!
+        method_exchangeImplementations(ordered,hidden)
+        defer {method_exchangeImplementations(ordered,hidden)}
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "conflicts" { try await verifyConflictCommands(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "resolve" { try await verifyResolveCommands(); return }
         if CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "services" { try await verifyServiceCommands(); return }
@@ -385,5 +401,12 @@ import TurtleGitCore
         try require(permissions==1,"Authorized repository session was not reused")
         try await wait {CommitWindowModel.activeReloads==0 && LogWindowModel.activeHistoryLoads==0 && ResolveWindowModel.activeOperations==0}
         print("PASS: once-only startup in both readiness orders; all six primary command dialogs; literal scope; Commit presets, file permissions and draft refusal; configured Log; revision/file-pair/directory Diff; unchanged Git state before acceptance; cancelled and unrelated grants refused; owned windows closed")
+    }
+}
+
+private extension NSWindow {
+    @objc func turtleGitPrimaryCommandOrder(_ place:NSWindow.OrderingMode,relativeTo otherWindowNumber:Int) {
+        alphaValue=0
+        turtleGitPrimaryCommandOrder(place,relativeTo:otherWindowNumber)
     }
 }

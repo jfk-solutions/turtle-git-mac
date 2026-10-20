@@ -55,6 +55,10 @@ public struct PrimaryCommandInvocation: Sendable {
     public let blameRevision: String?
     /// SendMailCommand uses orgPathList: preserve order and duplicate files.
     public private(set) var mailFiles: [URL]
+    /// Fetch/Pull/Push dispatch orgPathList, including duplicate entries. Its
+    /// original count chooses the source strict multi-root route; the normal
+    /// FinderRequest intentionally deduplicates and cannot supply this list.
+    public private(set) var transportPaths: [URL]
     public let updateVisible: Bool
     public let forceUpdate: Bool
     public let transferTarget: URL?
@@ -360,7 +364,7 @@ public struct PrimaryCommandInvocation: Sendable {
             catch { throw Failure("Select a relative submodule path inside the superproject.") }
             return path
         }
-        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff, .showCompare, .editConflict].contains(action) ? values["alternative"] != nil : nil, requestPullEnd: action == .requestPull ? values["endrev"].flatMap { $0.isEmpty ? nil : $0 } : nil, requestPullURL: action == .requestPull ? values["url"].flatMap { $0.isEmpty ? nil : $0 } : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: commandOutput, importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, submoduleBase: try values["bkpath"].map(file), selectedSubmodule: selectedSubmodule, synchronizationSequence: synchronizationSequence, graphOutputFormat: graphOutputFormat, catRevision: catRevision, unified: values["unified"] != nil, diffSubmodule: action == .diff && values["submodule"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, mailFiles: action == .sendMail ? urls : [], updateVisible: action == .updateCheck && values["visible"] != nil, forceUpdate: action == .updateCheck && values["force"] != nil, transferTarget: transferTarget, transferFiles: action.isDropTransfer ? urls : [], renameTransfer: action == .dropMove && values["rename"] != nil, settingsPage: action == .settings ? values["page"] : nil, wizardPage: action == .firstStartWizard ? values["page"].map { Int(Int32($0) ?? 0) } : nil, worktreeDropTarget: worktreeDropTarget, forceLFSUnlock: action == .lfsUnlock && values["force"] != nil, resolveOptions: action == .resolve ? ResolveCommandOptions(silent: values["silent"] != nil, noQuestion: values["noquestion"] != nil) : nil, forceRebase: action == .rebase && values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
+        return Self(request: FinderRequest(action: action, paths: urls, alternateTool: [.diff, .previousDiff, .showCompare, .editConflict].contains(action) ? values["alternative"] != nil : nil, requestPullEnd: action == .requestPull ? values["endrev"].flatMap { $0.isEmpty ? nil : $0 } : nil, requestPullURL: action == .requestPull ? values["url"].flatMap { $0.isEmpty ? nil : $0 } : nil), pathFile: try values["pathfile"].map(file), deletePathFile: values["deletepathfile"] != nil, nulPathFile: values["pathfile0"] != nil, currentDirectory: currentDirectory, secondaryPath: try values["path2"].map(file), outputFile: commandOutput, importTarget: try values["droptarget"].flatMap { $0.isEmpty ? nil : try file($0) }, formatPatchPreset: patchPreset, bisectCommand: bisect, submoduleBase: try values["bkpath"].map(file), selectedSubmodule: selectedSubmodule, synchronizationSequence: synchronizationSequence, graphOutputFormat: graphOutputFormat, catRevision: catRevision, unified: values["unified"] != nil, diffSubmodule: action == .diff && values["submodule"] != nil, line: line, sourceURL: values["url"], exactClonePath: values["exactpath"] != nil, remote: values["remote"], creationName: values["name"], pushBranch: values["branch"], reflogReference: reflog, upstream: upstream, blameRevision: blameRevision, mailFiles: action == .sendMail ? urls : [], transportPaths: [.fetch,.pull,.push].contains(action) ? urls : [], updateVisible: action == .updateCheck && values["visible"] != nil, forceUpdate: action == .updateCheck && values["force"] != nil, transferTarget: transferTarget, transferFiles: action.isDropTransfer ? urls : [], renameTransfer: action == .dropMove && values["rename"] != nil, settingsPage: action == .settings ? values["page"] : nil, wizardPage: action == .firstStartWizard ? values["page"].map { Int(Int32($0) ?? 0) } : nil, worktreeDropTarget: worktreeDropTarget, forceLFSUnlock: action == .lfsUnlock && values["force"] != nil, resolveOptions: action == .resolve ? ResolveCommandOptions(silent: values["silent"] != nil, noQuestion: values["noquestion"] != nil) : nil, forceRebase: action == .rebase && values["force"] != nil, message: values["msg"] ?? values["logmsg"], messageFile: try values["logmsgfile"].map(file), issueID: values["bugid"], wholeProject: values["wholeproject"] != nil, historyExpression: expression, selectedRevision: selected, historyLimit: limit, search: values["findstring"], searchFields: fields, searchRegex: values["findregex"] != nil ? true : values["findtext"] != nil ? false : nil, diffFrom: from, diffTo: to)
     }
 
     private static func validateSelection(_ urls: [URL], action: RepositoryAction) throws {
@@ -436,6 +440,7 @@ public struct PrimaryCommandInvocation: Sendable {
         resolved.pathFile = nil
         resolved.request = FinderRequest(action: request.action, paths: urls, alternateTool: request.alternateTool, requestPullEnd: request.requestPullEnd, requestPullURL: request.requestPullURL)
         if request.action == .sendMail { resolved.mailFiles = urls }
+        if [.fetch,.pull,.push].contains(request.action) {resolved.transportPaths=urls}
         if request.action.isDropTransfer { resolved.transferFiles = urls }
         return resolved
     }
@@ -445,6 +450,7 @@ public struct PrimaryCommandInvocation: Sendable {
         var value = self
         value.request = FinderRequest(action: request.action, paths: paths, alternateTool: request.alternateTool, requestPullEnd: request.requestPullEnd, requestPullURL: request.requestPullURL)
         if request.action == .sendMail { value.mailFiles = paths }
+        if [.fetch,.pull,.push].contains(request.action) {value.transportPaths=paths}
         return value
     }
     public static func writeSelectedRevision(_ revision: String?, to file: URL, cancellation: OperationCancellation) throws {

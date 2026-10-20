@@ -13,6 +13,17 @@ struct ResetChooserDraft: Equatable {
 @MainActor final class ResetWindowController: NSWindowController, NSWindowDelegate {
     static var activeChildReleases:Int {ResetChildRelease.activeCount}
     let model: ResetWindowModel
+    private var retiredProgress:ResetProgressWindowModel?
+    private var retiredLogPickers:[LogWindowController]=[]
+    private var retiredReferencePickers:[ReferenceBrowserWindowController]=[]
+    var transportBatchWorkPending:Bool {
+        model.pendingBatchWorkers>0 || model.chooser.hasPendingReferenceReads ||
+        model.progress?.hasPendingWork == true || retiredProgress?.hasPendingWork == true ||
+        progressController?.model.hasPendingWork == true ||
+        ([commitPicker].compactMap{$0}+retiredLogPickers).contains{$0.model.pendingHistoryLoads>0 || $0.window?.sheetParent != nil} ||
+        ([referencePicker].compactMap{$0}+retiredReferencePickers).contains{$0.model.pendingReferenceReads>0 || $0.window?.sheetParent != nil} ||
+        !childReleases.isEmpty || release != nil || window?.attachedSheet != nil || window?.sheetParent != nil
+    }
     private var release:ResetChildRelease?
     private var childReleases:[UUID:ResetChildRelease]=[:]
     private var closedActions:[()->Void]=[]
@@ -178,7 +189,10 @@ struct ResetChooserDraft: Equatable {
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.confirmingQuit {return false}; if model.cancelReads(closeAfter: true) { return false }; return !model.showingModifiedFiles && !model.showingCommitPicker && !model.showingReferencePicker && !model.busy && !model.confirmingHard && model.progress == nil && !model.chooser.busy && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) {
-        guard !closed else { return }; closed = true; pendingSheetResult = nil;model.afterClose=nil; NotificationCenter.default.removeObserver(self); model.invalidate()
+        guard !closed else { return }; closed = true; retiredProgress=model.progress
+        if let commitPicker {retiredLogPickers.append(commitPicker)}
+        if let referencePicker {retiredReferencePickers.append(referencePicker)}
+        pendingSheetResult = nil;model.afterClose=nil; NotificationCenter.default.removeObserver(self); model.invalidate()
         if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
         progressController?.close(); progressController = nil
         referencePicker?.close(); referencePicker = nil; referencePickerRequest = nil
@@ -195,6 +209,7 @@ struct ResetChooserDraft: Equatable {
 }
 @MainActor final class ResetWindowModel: ObservableObject {
     private(set) static var activeReads = 0
+    private(set) var pendingBatchWorkers=0
     struct FormContext:Equatable {let owner:ObjectIdentifier;let generation:Int;let draft:ResetChooserDraft}
     private var formGeneration=0
     var formContext:FormContext {FormContext(owner:ObjectIdentifier(self),generation:formGeneration,draft:pickerDraft)}
@@ -282,10 +297,10 @@ struct ResetChooserDraft: Equatable {
         guard !confirmingQuit, referenceSelectionAvailable, showingReferencePicker else { return }
         referenceSelectionToken?.cancel(); let token = OperationCancellation(); referenceSelectionToken = token
         let revision = name ?? chooser.revision, commitDraft = chooser.commitRevision, context = formContext
-        Self.activeReads += 1
+        Self.activeReads += 1;pendingBatchWorkers += 1
         Task {
             var applied = false
-            defer { Self.activeReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; showingReferencePicker = false; if applied { initialModeFocusPending = false; referenceFocusRequest += 1 }; completion() } }
+            defer { Self.activeReads -= 1;pendingBatchWorkers -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; showingReferencePicker = false; if applied { initialModeFocusPending = false; referenceFocusRequest += 1 }; completion() } }
             do {
                 try validateAccess()
                 let references = try await chooser.repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
@@ -334,10 +349,10 @@ struct ResetChooserDraft: Equatable {
         loaded=true;busy = true; chooser.load(revision: initialRevision)
         let request = OperationCancellation()
         loadCancellation = request
-        Self.activeReads += 1
+        Self.activeReads += 1;pendingBatchWorkers += 1
         loadTask = Task { [self, access] in
             defer {
-                Self.activeReads -= 1
+                Self.activeReads -= 1;pendingBatchWorkers -= 1
                 if loadCancellation === request { loadCancellation = nil; loadTask = nil; busy = false; onReadSettled() }
                 withExtendedLifetime(access) {}
             }
@@ -358,10 +373,10 @@ struct ResetChooserDraft: Equatable {
         let revision = chooser.revision, mode = mode, request = OperationCancellation()
         resetCancellation = request
         let context = formContext
-        Self.activeReads += 1
+        Self.activeReads += 1;pendingBatchWorkers += 1
         Task { [self, access] in
             defer {
-                Self.activeReads -= 1
+                Self.activeReads -= 1;pendingBatchWorkers -= 1
                 if resetCancellation === request { resetCancellation = nil; busy = false; onReadSettled() }
                 withExtendedLifetime(access) {}
             }
@@ -395,11 +410,11 @@ struct ResetChooserDraft: Equatable {
             progress = result; onProgress(result); if progress === result { result.start() }
         } else {
             let backend=GitLibGit2Configuration.load(from:preferences),recycle=preferences.object(forKey:"RevertWithRecycleBin") == nil || preferences.bool(forKey:"RevertWithRecycleBin")
-            let request = OperationCancellation(); resetCancellation = request; LocalGitCommandProgress.begin()
+            let request = OperationCancellation(); resetCancellation = request;pendingBatchWorkers += 1; LocalGitCommandProgress.begin()
             Task { [self, access, repository = chooser.repository] in
                 var completedOutput: String?
                 defer {
-                    LocalGitCommandProgress.end(); withExtendedLifetime(access) {}
+                    pendingBatchWorkers -= 1;LocalGitCommandProgress.end(); withExtendedLifetime(access) {}
                     if resetCancellation === request {
                         resetCancellation = nil; busy = false
                         if let output = completedOutput { onChanged(output); onReset(output); close() }
