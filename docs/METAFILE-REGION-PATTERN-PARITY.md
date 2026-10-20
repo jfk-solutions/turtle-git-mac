@@ -144,3 +144,7 @@ repaired that fixture without changing production routing or relaxing its image
 assertion. Only failed/unrun native pairs were repeated. All five receivers,
 including the failed attempt, were reaped and independently absent by PID/group.
 No full local Core suite or current signed/hosted acceptance is claimed.
+
+The [compressed-path continuation](METAFILE-PATH-PARITY.md) supersedes the earlier
+relative/RLE region-path refusal. Region tree, coordinate and mask budgets remain
+independent of the shared path decoding/tracing budgets.

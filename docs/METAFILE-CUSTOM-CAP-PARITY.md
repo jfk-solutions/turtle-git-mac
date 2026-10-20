@@ -128,3 +128,7 @@ geometry, following the reference painting branch. Getter tests alone do not
 prove an additional triangular shaft adornment. Invisible/zero/outlined arrow
 shaft metrics remain part of the explicit Windows-oracle boundary; analytic
 fixtures must not be described as Windows-certified pixels.
+
+The [shared compressed-path continuation](METAFILE-PATH-PARITY.md) reuses the
+specified cap path encodings for ordinary paths, regions and accepted gradient
+boundaries. Cap-local limits and winding behavior remain in place.

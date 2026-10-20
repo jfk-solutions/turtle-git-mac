@@ -947,7 +947,10 @@ extension MetafileImageTests {
         }
     }
     private func penPixels(_ name: String) throws -> PenPixels {
-        let value = try image("plus-pen-" + name + ".emf")
+        try metafilePixels("plus-pen-"+name+".emf")
+    }
+    private func metafilePixels(_ name:String) throws -> PenPixels {
+        let value = try image(name)
         let width = value.pixels.width, height = value.pixels.height
         XCTAssertEqual(width, 96, name); XCTAssertEqual(height, 64, name)
         var bytes = [UInt8](repeating: 0, count: width * height * 4)
@@ -1007,7 +1010,9 @@ extension MetafileImageTests {
                    penCap(x, y, at: b, start: false, cap: end, width: width))
     }
     private func penAssert(_ name: String, distance: (Double, Double) -> Double, file: StaticString = #filePath, line: UInt = #line) throws {
-        let value = try penPixels(name)
+        try assertInk(penPixels(name),name:name,distance:distance,file:file,line:line)
+    }
+    private func assertInk(_ value:PenPixels,name:String,distance:(Double,Double)->Double,file:StaticString=#filePath,line:UInt=#line) throws {
         var wrong: [String] = [], checked = 0, redSamples = 0
         // Ignore only the independently defined one-pixel antialias boundary.
         // Both ink interiors and the complete surrounding white canvas count.
@@ -1224,6 +1229,87 @@ extension MetafileImageTests {
         }
         for name in ["brush-version", "legacy-unversioned-brush", "transform-singular", "compound-odd", "inset-compound"] {
             XCTAssertNil(ComparisonImage(bytes: try data("unsupported-pen-" + name + ".emf")), name)
+        }
+    }
+}
+
+extension MetafileImageTests {
+    private func compressedPixels(_ name:String) throws -> PenPixels {try metafilePixels("plus-compressed-path-"+name+".emf")}
+    private func compressedSame(_ name:String,_ control:String,file:StaticString=#filePath,line:UInt=#line) throws {
+        let value=try compressedPixels(name),expected=try compressedPixels(control)
+        XCTAssertEqual(value.width,expected.width,file:file,line:line);XCTAssertEqual(value.height,expected.height,file:file,line:line)
+        let wrong=zip(value.bytes,expected.bytes).filter{abs(Int($0.0)-Int($0.1))>2}.count
+        XCTAssertEqual(wrong,0,"\(name) differs from independent float coordinate control \(control)",file:file,line:line)
+    }
+    func testCompressedPathsPreserveAlternateFillSubpathsAndPointMetadata() throws {
+        for encoding in ["float","short","relative","relative-c"] {
+            let name="fill-"+encoding
+            try assertInk(compressedPixels(name),name:name) {x,y in max(self.penBox(x,y,8,8,88,56),-self.penBox(x,y,24,20,72,44))}
+            if encoding != "float" {try compressedSame(name,"fill-float")}
+        }
+        for encoding in ["float","relative"] {try compressedSame("metadata-"+encoding,"fill-float")}
+    }
+    func testCompressedPathsSignedIntegerLimitsAndRLE63BoundaryRetainEveryPoint() throws {
+        for name in ["integer-limits","long-runs"] {
+            try compressedSame(name+"-relative",name+"-float")
+            try assertInk(compressedPixels(name+"-relative"),name:name) {self.penBox($0,$1,8,12,72,52)}
+        }
+        try compressedSame("integer7-boundary-relative","integer7-boundary-float")
+        try assertInk(compressedPixels("integer7-boundary-relative"),name:"signed7-boundaries") {self.penBox($0,$1,8,8,71.5,39.75)}
+    }
+    func testCompressedPathsStrokeCubicTriplesSubpathsAndExplicitClose() throws {
+        for encoding in ["float","short","relative","relative-c"] {
+            if encoding != "float" {try compressedSame("stroke-"+encoding,"stroke-float")}
+            let value=try compressedPixels("stroke-"+encoding)
+            // Cubic t=.5 gives (28,18), independent of the decoder/outline.
+            for(x,y) in [(28,18),(8,46),(48,46),(76,48)] {let p=value.pixel(x,y);XCTAssertGreaterThan(p[0],240);XCTAssertLessThan(p[1],15)}
+            for(x,y) in [(28,40),(28,48),(56,48)] {let p=value.pixel(x,y);XCTAssertGreaterThan(p[1],240)}
+        }
+        try compressedSame("cubic-metadata-relative","cubic-metadata-float")
+        let closed=try compressedPixels("cubic-metadata-relative")
+        XCTAssertGreaterThan(closed.pixel(28,48)[0],240);XCTAssertLessThan(closed.pixel(28,48)[1],15,"Close belongs to the cubic endpoint and closes its figure")
+    }
+    func testCompressedPathsRegionAndDeviceCapturedClipUseActualBoundaries() throws {
+        for encoding in ["float","short","relative","relative-c"] {
+            try compressedSame("region-"+encoding,"fill-float")
+            try compressedSame("clip-"+encoding,"clip-float")
+            try assertInk(compressedPixels("clip-"+encoding),name:"captured-clip-"+encoding) {self.penBox($0,$1,16,12,80,52)}
+        }
+    }
+    func testCompressedPathsEmbeddedCapsUseSamePhysicalEndpointGeometry() throws {
+        for encoding in ["float","short","relative","relative-c"] {
+            try compressedSame("cap-"+encoding,"cap-float")
+            try assertInk(compressedPixels("cap-"+encoding),name:"custom-cap-"+encoding) {min(self.penBox($0,$1,20,30,76,34),self.penBox($0,$1,76,24,88,40))}
+        }
+    }
+    func testCompressedPathsExistingEllipseGradientSubsetKeepsItsOwnPaintAndTransform() throws {
+        for encoding in ["float","short","relative","relative-c"] {
+            try compressedSame("gradient-"+encoding,"gradient-float")
+            let value=try compressedPixels("gradient-"+encoding)
+            XCTAssertGreaterThan(value.pixel(48,32)[0],240);XCTAssertLessThan(value.pixel(48,32)[2],15)
+            XCTAssertGreaterThan(value.pixel(66,32)[2],240);XCTAssertLessThan(value.pixel(66,32)[0],15)
+            XCTAssertGreaterThan(value.pixel(8,8)[1],240)
+        }
+    }
+    func testMalformedCompressedPathsRefuseAllSharedConsumersAndAggregateBudgets() throws {
+        let names=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("unsupported-compressed-path-") && $0.hasSuffix(".emf")}.sorted()
+        XCTAssertEqual(names.count,41,"Keep every independently framed refusal fixture enrolled")
+        let budgetDiagnostics=["unsupported-compressed-path-aggregate-points.emf":"aggregate decoded path point limit",
+                               "unsupported-compressed-path-relative-coordinate-budget.emf":"path coordinate budget exceeded"]
+        for name in names {
+            let original=try data(name)
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(original),name) {error in
+                if let expected=budgetDiagnostics[name] {
+                    guard let failure=error as? MetafileImageFailure,case .failed(let diagnostic)=failure else {
+                        return XCTFail("\(name) must reach the explicit decoder budget, not fail through a deadline/runtime/output error: \(error)")
+                    }
+                    XCTAssertTrue(diagnostic.contains(expected),"\(name): expected explicit budget diagnostic '\(expected)', got '\(diagnostic)'")
+                }
+            }
+            XCTAssertEqual(try data(name),original)
+        }
+        for suffix in ["relative-truncated","region-rle-overrun","cap-relative-truncated","gradient-relative-truncated"] {
+            XCTAssertNil(ComparisonImage(bytes:try data("unsupported-compressed-path-"+suffix+".emf")),suffix)
         }
     }
 }

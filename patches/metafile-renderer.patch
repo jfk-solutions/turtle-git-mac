@@ -106,7 +106,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,447 @@
+@@ -0,0 +1,424 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -117,6 +117,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +  function u32(b, o) { if (o < 0 || o+4 > b.length) fail('truncated record'); return (b[o]|b[o+1]<<8|b[o+2]<<16|b[o+3]<<24)>>>0; }
 +  function i32(b,o) { return u32(b,o)|0; }
 +  function f32(b,o) { if(o < 0 || o+4 > b.length) fail('truncated floating-point record'); const v=new DataView(b.buffer,b.byteOffset,b.byteLength).getFloat32(o,true); if(!Number.isFinite(v)||Math.abs(v)>1e9) fail('invalid coordinate'); return v; }
++  const paths=require('./turtleGitPaths')({fail,u32,f32});
 +  const escape = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 +  const matrix = a => a.map(v => { if(!Number.isFinite(v)||Math.abs(v)>1e12) fail('invalid transform'); return String(v); }).join(' ');
 +  function normalizePaintColors(svg) {
@@ -197,25 +198,8 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +        if(length<12 || length>data.length-offset) fail('invalid region path length');
 +        const pathData=data.subarray(offset,offset+length);offset+=length;
 +        graphicsVersion(pathData,0);
-+        const n=u32(pathData,4),flags=u32(pathData,8),stride=flags&0x4000?4:8;
-+        if(flags&~0x4000) fail('unsupported region path point encoding');
-+        points+=n;if(points>262144) fail('region path point limit');
-+        const size=12+n*(stride+1);
-+        if(size>length || length-size>3 || length%4) fail('invalid region path framing');
-+        // Validate every coordinate with the same finite/range policy as records.
-+        if(!(flags&0x4000))for(let i=0;i<n*2;i++)f32(pathData,12+i*4);
-+        const types=pathData.subarray(12+n*stride,12+n*stride+n);let bezier=0,started=false;
-+        for(const value of types) {
-+          const type=value&15;
-+          if(value&0x40) fail('invalid region path point flags');
-+          if(type===0) {if(bezier)fail('incomplete region Bezier');started=true;}
-+          else if(type===1) {if(!started||bezier)fail('invalid region path line');}
-+          else if(type===3) {if(!started)fail('missing region path start');bezier=(bezier+1)%3;}
-+          else fail('invalid region path point type');
-+          if(value&0x80) {if(bezier)fail('incomplete region Bezier');started=false;}
-+        }
-+        if(bezier)fail('incomplete region Bezier');
-+        return {kind:'path',path:d._emfPlusParsePath(pathData.subarray(4))};
++        const n=u32(pathData,4);points+=n;if(points>262144)fail('region path point limit');
++        return {kind:'path',path:paths.decode(d,pathData.subarray(4),{maxPoints:262144})};
 +      }
 +      if(type===0x10000002)return {kind:'empty'};
 +      if(type===0x10000003)return {kind:'infinite'};
@@ -275,9 +259,9 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    if(!layout.path)return;
 +    this._nodes.push('<path d="'+escape(layout.path)+'" fill="'+escape(this.fillStyle)+'" fill-rule="nonzero" stroke="none" '+this._attr()+'/>');
 +  };
-+  const paint=require('./turtleGitPaint')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,escape,matrix,currentMatrix,rawBitmap});
++  const paint=require('./turtleGitPaint')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,escape,matrix,currentMatrix,rawBitmap,paths});
 +  const images=require('./turtleGitImages')({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix});
-+  const pens=require('./turtleGitPens')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,unitScale,currentMatrix,paint});
++  const pens=require('./turtleGitPens')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,unitScale,currentMatrix,paint,paths});
 +  // Existing drawing routines operate in local coordinates. Wrap each completed
 +  // record in the captured full affine matrix, preserving rotated ellipses/text/pens.
 +  ep._emfPlusMapPoint=function(x,y){return{x,y};};
@@ -313,7 +297,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +      case 0x4033: {
 +        const path=this.emfPlusObjects[flags&255];if(!path||path.type!=='path')fail('missing clip path');
 +        this._emfPlusTracePath(path);const geometry=ctx._d();ctx.beginPath();
-+        combineClip(this,'<path d="'+escape(geometry)+'" fill="white" transform="matrix('+matrix(currentMatrix(this))+')"/>',(flags>>>8)&15);return;
++        combineClip(this,'<path d="'+escape(geometry)+'" fill="white" fill-rule="evenodd" transform="matrix('+matrix(currentMatrix(this))+')"/>',(flags>>>8)&15);return;
 +      }
 +      case 0x4034: {
 +        if(data.length!==0)fail('invalid clip region record');
@@ -355,6 +339,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +      if(p.size!==p.total)fail('truncated continued object');
 +      data=new Uint8Array(p.size);let o=0;for(const bytes of p.parts){data.set(bytes,o);o+=bytes.length;}s.objectParts=null;
 +    }
++    if(type===3){if(id>63)fail('invalid path object index');graphicsVersion(data,0);this.emfPlusObjects[id]={type:'path',...this._emfPlusParsePath(data.subarray(4))};return;}
 +    if(type===4){parseRegion(this,id,data);return;}
 +    if(type===7){
 +      if(id>63 || data.length<60)fail('truncated string format');graphicsVersion(data,0);
@@ -428,20 +413,12 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +  };
 +  const originalDraw=ep.draw;
 +  ep.draw=function(document,options){const bounds=document.header.bounds;if(bounds)this.coordinateTransformer.setDeviceOrg(bounds.left,bounds.top);return originalDraw.call(this,document,options);};
-+  const parsePath=ep._emfPlusParsePath;
-+  ep._emfPlusParsePath=function(data){const count=u32(data,0),flags=u32(data,4);if(count>1000000)fail('path point limit');if(flags&0x800)fail('unsupported relative EMF+ path encoding');const path=parsePath.call(this,data);if(!path||path.points.length!==count||path.pointTypes.length!==count)fail('truncated EMF+ path');return path;};
-+  ep._emfPlusTracePath=function(path){
-+    this.ctx.beginPath();let bezier=[];
-+    for(let i=0;i<path.count;i++){
-+      const point=path.points[i],type=path.pointTypes[i]&15;if(!point)fail('missing path point');
-+      if(type===0){if(bezier.length)fail('incomplete Bezier');this.ctx.moveTo(point.x,point.y);}
-+      else if(type===1){if(bezier.length)fail('incomplete Bezier');this.ctx.lineTo(point.x,point.y);}
-+      else if(type===3){bezier.push(point);if(bezier.length===3){this.ctx.bezierCurveTo(bezier[0].x,bezier[0].y,bezier[1].x,bezier[1].y,bezier[2].x,bezier[2].y);bezier=[];}}
-+      else fail('unsupported path point type');
-+      if(path.pointTypes[i]&128){if(bezier.length)fail('incomplete Bezier');this.ctx.closePath();}
-+    }
-+    if(bezier.length)fail('incomplete Bezier');
-+  };
++  ep._emfPlusParsePath=function(data){return paths.decode(this,data);};
++  ep._emfPlusTracePath=function(path){paths.trace(this.ctx,path);};
++  // Path objects carry no winding mode. GDI+ path playback uses Alternate;
++  // restore the surrounding canvas rule so other record families keep theirs.
++  const fillPath=ep.processEmfPlusFillPath;
++  ep.processEmfPlusFillPath=function(flags,data){const saved=this.ctx.fillRule;this.ctx.fillRule='evenodd';try{return fillPath.call(this,flags,data);}finally{this.ctx.fillRule=saved;}};
 +  SvgContext.prototype.measureText=function(text){const f=this._parseFont();const width=__turtleMeasureText(String(text),f.rawFamily,f.sizeNum,f.weight==='bold',f.style==='italic');if(!Number.isFinite(width)||width<0)fail('invalid text measurement');return{width};};
 +  // Never turn a bitmap that could not be rendered into a plausible grey box.
 +  SvgContext.prototype.drawImage=function(){fail('unsupported canvas image serialization');};
@@ -798,7 +775,7 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +// Geometry remains in local drawing coordinates; the record's world/page/device
 +// transform is applied by turtleGit.js to the completed drawing node.
 +module.exports = function installGradientPaint(helpers) {
-+  const {EmfPlusDrawer, SvgContext, fail, u32, i32, f32, state, escape, matrix, currentMatrix,rawBitmap} = helpers;
++  const {EmfPlusDrawer, SvgContext, fail, u32, i32, f32, state, escape, matrix, currentMatrix,rawBitmap,paths} = helpers;
 +  const hatchCells = require('./turtleGitHatch');
 +  const ep = EmfPlusDrawer.prototype, originalResolve = ep._emfPlusResolveBrush;
 +  const identity = () => [1,0,0,1,0,0];
@@ -875,13 +852,13 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +    }
 +    return result;
 +  }
-+  function ellipse(data,offset,size) {
-+    if(size!==132) fail('unsupported path-gradient boundary encoding');
++  function ellipse(d,data,offset,size) {
++    if(size<12||size>data.length-offset)fail('invalid path-gradient boundary extent');
 +    version(data,offset);
-+    if(u32(data,offset+4)!==13 || u32(data,offset+8)!==0) fail('unsupported path-gradient boundary path');
-+    const p=Array.from({length:13},(_,i)=>[f32(data,offset+12+i*8),f32(data,offset+16+i*8)]);
-+    for(let i=0;i<13;i++) if(data[offset+116+i] !== (i===0?0:i===12?0x83:3)) fail('path gradient requires one closed cubic ellipse');
-+    // The final three path-alignment bytes have no drawing semantics.
++    const path=paths.decode(d,data.subarray(offset+4,offset+size),{maxPoints:13});
++    if(path.count!==13)fail('unsupported path-gradient boundary path');
++    const p=path.points.map(p=>[p.x,p.y]);
++    for(let i=0;i<13;i++)if(path.pointTypes[i] !== (i===0?0:i===12?0x83:3))fail('path gradient requires one closed cubic ellipse');
 +    const c=p[0].map((v,i)=>(v+p[6][i])/2),u=p[0].map((v,i)=>(v-p[6][i])/2),v=p[3].map((x,i)=>(x-p[9][i])/2),k=.5522847498307936;
 +    const coefficients=[[1,0],[1,k],[k,1],[0,1],[-k,1],[-1,k],[-1,0],[-1,-k],[-k,-1],[0,-1],[k,-1],[1,-k],[1,0]];
 +    const magnitude=Math.max(...p.flat().map(Math.abs)), radius=Math.max(...u.map(Math.abs),...v.map(Math.abs));
@@ -974,7 +951,7 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +      if(count<1 || count>4096) fail('invalid path-gradient surrounding color count');
 +      const surround=r.uint();
 +      for(let i=1;i<count;i++) if(r.uint()!==surround) fail('unsupported multicolor path-gradient boundary');
-+      const size=r.uint(),boundary=ellipse(data,r.offset,size);r.offset+=size;
++      const size=r.uint(),boundary=ellipse(this,data,r.offset,size);r.offset+=size;
 +      if(center.some((value,i)=>Math.abs(value-boundary.center[i])>boundary.tolerance)) fail('unsupported off-center path gradient');
 +      // For radial factors, start/end are boundary/center according to GDI+.
 +      const paint=optional(r,flags,flags&8?color(surround):centerColor,flags&8?centerColor:color(surround),true);r.finish();
@@ -1162,7 +1139,6 @@ diff --git a/src/utils/nestedMetafilePlayer.js b/src/utils/nestedMetafilePlayer.
          // Callers are EMF+ DrawImage handlers; wording kept for log continuity.
          console.log('EMF+ nested EMF render failed:', /** @type {Error} */ (e).message);
          return null;
-
 diff --git a/src/turtleGitGdiClip.js b/src/turtleGitGdiClip.js
 --- /dev/null
 +++ b/src/turtleGitGdiClip.js
@@ -1326,15 +1302,14 @@ diff --git a/src/turtleGitGdiClip.js b/src/turtleGitGdiClip.js
 +    return result;
 +  };
 +};
-
 diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 --- /dev/null
 +++ b/src/turtleGitPens.js
-@@ -0,0 +1,226 @@
+@@ -0,0 +1,198 @@
 +// Original TurtleGit EMF+ pen playback, MIT. MS-EMFPLUS 2.2.1.7,
 +// 2.2.2.33/34 and drawing records. Native outlines are painted by the existing
 +// bounded solid/gradient/hatch/texture pipeline; no pen becomes a guessed color.
-+module.exports = function installPens({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,unitScale,currentMatrix,paint}) {
++module.exports = function installPens({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,unitScale,currentMatrix,paint,paths}) {
 +  const ep=EmfPlusDrawer.prototype,identity=()=>[1,0,0,1,0,0];
 +  const color=argb=>'rgba('+((argb>>>16)&255)+','+((argb>>>8)&255)+','+(argb&255)+','+((argb>>>24)/255)+')';
 +  function version(data,offset) {const v=u32(data,offset);if(v!==0xdbc01001&&v!==0xdbc01002)fail('unsupported pen graphics version');}
@@ -1345,31 +1320,11 @@ diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 +  // Cap paths are complete versioned EmfPlusPath objects. Decode locally so
 +  // their coordinates are not transformed by the current document/world state.
 +  function capPath(d,data) {
-+    version(data,0);const count=u32(data,4),flags=u32(data,8);let offset=12;
-+    if(count>65536||flags&~0x4800)fail('invalid custom cap path count or flags');
-+    charge(d,count);const points=[],types=[];let x=0,y=0;
-+    function integer(){if(offset>=data.length)fail('truncated cap relative point');const a=data[offset++];if(!(a&128))return(a&127)<<25>>25;if(offset>=data.length)fail('truncated cap relative point');return(((a&127)<<8)|data[offset++])<<17>>17;}
-+    for(let i=0;i<count;i++) {
-+      if(flags&0x800){x+=integer();y+=integer();}
-+      else if(flags&0x4000){if(offset+4>data.length)fail('truncated cap short point');x=(data[offset]|data[offset+1]<<8)<<16>>16;y=(data[offset+2]|data[offset+3]<<8)<<16>>16;offset+=4;}
-+      else{x=f32(data,offset);y=f32(data,offset+4);offset+=8;}
-+      if(!Number.isFinite(x)||!Number.isFinite(y)||Math.abs(x)>65536||Math.abs(y)>65536)fail('custom cap coordinate budget exceeded');points.push([x,y]);
-+    }
-+    if(flags&0x800) {
-+      while(types.length<count){if(offset+2>data.length)fail('truncated cap path type run');const header=data[offset++],type=data[offset++],n=header&63;if(!(header&64)||!!(header&128)!==((type&15)===3)||!n||n>count-types.length)fail('invalid cap path type run');for(let j=0;j<n;j++)types.push(type);}
-+    } else {if(offset+count>data.length)fail('truncated cap path types');for(let i=0;i<count;i++)types.push(data[offset++]);}
-+    tail(data,offset);const out=[];let open=false;
-+    for(let i=0;i<count;i++) {
-+      const type=types[i],kind=type&15,p=points[i];
-+      if(type&~0xb3)fail('invalid custom cap path point type');
-+      if(kind===0){out.push('M '+p.join(' '));open=true;}
-+      else if(kind===1){if(!open)fail('custom cap path missing start');out.push('L '+p.join(' '));}
-+      else if(kind===3){if(!open||i+2>=count||(types[i+1]&15)!==3||(types[i+2]&15)!==3||(types[i]&128)||(types[i+1]&128)||types[i+1]&~0xb3||types[i+2]&~0xb3)fail('invalid custom cap cubic sequence');out.push('C '+points[i].concat(points[i+1],points[i+2]).join(' '));i+=2;}
-+      else fail('invalid custom cap point kind');
-+      if(types[i]&128){out.push('Z');open=false;}
-+    }
-+    return out.join(' ');
++    version(data,0);
++    const path=paths.decode(d,data.subarray(4),{maxPoints:65536,maxCoordinate:65536});
++    charge(d,path.count);return paths.svg(path);
 +  }
++
 +  function customCap(d,data) {
 +    if(data.length<8||data.length>8*1024*1024)fail('invalid custom cap extent');version(data,0);
 +    const type=u32(data,4);let offset=8;
@@ -1516,15 +1471,7 @@ diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 +  };
 +  ep.processEmfPlusDrawPath=function(flags,data) {
 +    tail(data,4);const id=flags&255,path=this.emfPlusObjects[id];if(id>63||!path||path.type!=='path')fail('missing EMF+ stroke path');
-+    charge(this,path.count);prepare(this,u32(data,0));const ctx=this.ctx;ctx.beginPath();let open=false;
-+    for(let i=0;i<path.count;i++) {
-+      const type=path.pointTypes[i],kind=type&15,p=path.points[i];if(type&~0xb3)fail('invalid stroke path point type');
-+      if(kind===0){ctx.moveTo(p.x,p.y);open=true;}
-+      else if(kind===1){if(!open)fail('stroke path missing start');ctx.lineTo(p.x,p.y);}
-+      else if(kind===3){if(!open||i+2>=path.count||(path.pointTypes[i+1]&15)!==3||(path.pointTypes[i+2]&15)!==3||(type&128)||(path.pointTypes[i+1]&128)||path.pointTypes[i+1]&~0xb3||path.pointTypes[i+2]&~0xb3)fail('invalid stroke path cubic sequence');const a=path.points[i+1],b=path.points[i+2];ctx.bezierCurveTo(p.x,p.y,a.x,a.y,b.x,b.y);i+=2;}
-+      else fail('invalid stroke path point kind');
-+      if(path.pointTypes[i]&128){ctx.closePath();open=false;}
-+    }
++    charge(this,path.count);prepare(this,u32(data,0));const ctx=this.ctx;paths.trace(ctx,path);
 +    ctx.stroke();
 +  };
 +  function cardinal(ctx,p,tension,closed,offset=0,segments=closed?p.length:p.length-1) {
@@ -1556,4 +1503,94 @@ diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 +    for(let i=1;i<p.length;i+=3)ctx.bezierCurveTo(p[i].x,p[i].y,p[i+1].x,p[i+1].y,p[i+2].x,p[i+2].y);ctx.stroke();
 +  };
 +  return{parsePen,parseCustomCap};
++};
+diff --git a/src/turtleGitPaths.js b/src/turtleGitPaths.js
+--- /dev/null
++++ b/src/turtleGitPaths.js
+@@ -0,0 +1,86 @@
++// Original TurtleGit bounded EmfPlusPath wire reader, MIT.
++// MS-EMFPLUS 2.2.1.6, 2.2.2.31/32/37. R couples PointR and type RLE;
++// C is ignored when R is set. Unspecified bits are not inferred as fill modes.
++module.exports = function createPathCodec({fail,u32,f32}) {
++  function charge(d,count) {
++    const total=(d.ctx._turtleDecodedPathPoints||0)+count;
++    if(total>1048576)fail('aggregate decoded path point limit');
++    d.ctx._turtleDecodedPathPoints=total;
++  }
++  function decode(d,data,{maxPoints=1000000,maxCoordinate=1e9}={}) {
++    if(!data||data.length<8||data.length>16*1024*1024)fail('invalid path byte extent');
++    const count=u32(data,0),flags=u32(data,4),relative=!!(flags&0x0800),compressed=!relative&&!!(flags&0x4000);
++    if(count>maxPoints||flags&~0x4800)fail('invalid path count or flags');
++    // Refuse impossible point storage before allocating arrays. Types have at
++    // least one byte when uncompressed, or one two-byte run per 63 points.
++    const minimum=count*(relative?2:compressed?4:8)+(relative?2*Math.ceil(count/63):count);
++    if(minimum>data.length-8)fail('truncated path points or types');
++    charge(d,count);
++    let offset=8,x=0,y=0;
++    const points=new Array(count),pointTypes=new Uint8Array(count);
++    function integer() {
++      if(offset>=data.length)fail('truncated relative path coordinate');
++      const first=data[offset++];
++      if(!(first&128))return(first&127)<<25>>25;
++      if(offset>=data.length)fail('truncated relative path coordinate');
++      return(((first&127)<<8)|data[offset++])<<17>>17;
++    }
++    for(let i=0;i<count;i++) {
++      if(relative){x+=integer();y+=integer();}
++      else if(compressed){if(offset+4>data.length)fail('truncated short path point');x=(data[offset]|data[offset+1]<<8)<<16>>16;y=(data[offset+2]|data[offset+3]<<8)<<16>>16;offset+=4;}
++      else{x=f32(data,offset);y=f32(data,offset+4);offset+=8;}
++      if(!Number.isFinite(x)||!Number.isFinite(y)||Math.abs(x)>maxCoordinate||Math.abs(y)>maxCoordinate)fail('path coordinate budget exceeded');
++      points[i]={x,y};
++    }
++    if(relative) {
++      let index=0;
++      while(index<count) {
++        if(offset+2>data.length)fail('truncated path type run');
++        const header=data[offset++],type=data[offset++],n=header&63;
++        if(!(header&64)||!!(header&128)!==((type&15)===3)||!n||n>count-index)fail('invalid path type run');
++        pointTypes.fill(type,index,index+n);index+=n;
++      }
++    } else {
++      if(offset+count>data.length)fail('truncated path types');
++      pointTypes.set(data.subarray(offset,offset+count));offset+=count;
++    }
++    // Padding bytes are unspecified, not necessarily zero. Accept only the
++    // optional bytes needed for DWORD alignment, never arbitrary trailing data.
++    const padding=(4-offset%4)%4;
++    if(data.length!==offset&&data.length!==offset+padding)fail('invalid path alignment extent');
++    let open=false;
++    for(let i=0;i<count;i++) {
++      const type=pointTypes[i],kind=type&15;
++      if(type&~0xb3)fail('invalid path point flags');
++      if(kind===0)open=true;
++      else if(kind===1){if(!open)fail('path line missing start');}
++      else if(kind===3) {
++        if(!open||i+2>=count||(pointTypes[i+1]&15)!==3||(pointTypes[i+2]&15)!==3||(type&128)||(pointTypes[i+1]&128)||pointTypes[i+1]&~0xb3||pointTypes[i+2]&~0xb3)fail('invalid path cubic sequence');
++        i+=2;
++      } else fail('invalid path point kind');
++      if(pointTypes[i]&128)open=false;
++    }
++    // Coordinates have already been accumulated once, in path space. Neither
++    // the tracer nor callers may apply PointR deltas a second time.
++    return {count,points,pointTypes,relative:false,wireRelative:relative,rle:relative,compressed,fillRule:'evenodd'};
++  }
++  function visit(path,emit) {
++    for(let i=0;i<path.count;i++) {
++      const p=path.points[i],kind=path.pointTypes[i]&15;
++      if(kind===0)emit('M',[p.x,p.y]);
++      else if(kind===1)emit('L',[p.x,p.y]);
++      else {const a=path.points[i+1],b=path.points[i+2];emit('C',[p.x,p.y,a.x,a.y,b.x,b.y]);i+=2;}
++      if(path.pointTypes[i]&128)emit('Z',[]);
++    }
++  }
++  function trace(ctx,path) {
++    const total=(ctx._turtleTracedPathPoints||0)+path.count;
++    if(total>1048576)fail('aggregate traced path point limit');
++    ctx._turtleTracedPathPoints=total;ctx.beginPath();
++    visit(path,(kind,p)=>{if(kind==='M')ctx.moveTo(p[0],p[1]);else if(kind==='L')ctx.lineTo(p[0],p[1]);else if(kind==='C')ctx.bezierCurveTo(...p);else ctx.closePath();});
++  }
++  function svg(path) {
++    const parts=[];visit(path,(kind,p)=>parts.push(kind+(p.length?' '+p.join(' '):'')));return parts.join(' ');
++  }
++  return {decode,trace,svg};
 +};

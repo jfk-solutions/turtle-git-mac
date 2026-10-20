@@ -217,3 +217,7 @@ and default attributes to the retained WMF/classic EMF/EMF+ samples.
 
 All helper input/output limits, cancellation, timeouts and native ownership
 rules continue to apply; no painting feature grants filesystem or network access.
+
+The [compressed-path continuation](METAFILE-PATH-PARITY.md) now shares the wire
+reader for that same accepted ellipse boundary. Short/relative encoding does
+not relax the thirteen-point geometry, center or tolerance rules above.

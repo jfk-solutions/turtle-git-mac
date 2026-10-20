@@ -283,3 +283,5 @@ reviewed full-window light/dark captures.
 - [Single-commit details and message workflows](SINGLE-COMMIT-DETAILS-PARITY.md)
 
 [History navigation, deletion and child-submodule inspection](HISTORY-INSPECTION-PARITY.md) records the connected source7/12 continuation and acceptance scope.
+
+[Compressed EMF+ path playback](METAFILE-PATH-PARITY.md) covers shared drawing, clipping, region, custom-cap and accepted gradient-boundary decoding.

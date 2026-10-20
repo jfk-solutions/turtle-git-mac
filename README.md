@@ -405,7 +405,8 @@ operation/recovery behavior and remaining acceptance records.
 Windows metafile comparison uses the [bundled renderer](docs/METAFILE-RUNTIME.md)
 for WMF, EMF and EMF+, including [custom pen caps](docs/METAFILE-CUSTOM-CAP-PARITY.md),
 native comparison, dropped previews and conflict
-panes. Embedded EMF+ bitmap images and textures include indexed palettes and
+panes. [Compressed paths](docs/METAFILE-PATH-PARITY.md) share bounded decoding
+across drawing, clipping, regions, custom caps and accepted gradient boundaries. Embedded EMF+ bitmap images and textures include indexed palettes and
 16-bit RGB555/RGB565/ARGB1555. [Formatted EMF+ text](docs/METAFILE-TEXT-PARITY.md)
 uses native glyph outlines for wrapping, direction, tabs, spacing and trimming.
 [Classic EMF clipping](docs/METAFILE-CLASSIC-CLIP-PARITY.md) includes region

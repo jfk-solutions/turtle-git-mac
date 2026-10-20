@@ -20,13 +20,16 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
         throw Failure(message:"Metafile consumers did not settle at \(line); \(diagnostic())")
     }
     static func descendants(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap(descendants)}
-    static func verify()async throws {
+    static func verify(compressedPaths:Bool=false)async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),corpus=URL(fileURLWithPath:CommandLine.arguments[3])
         let corpusFiles=try FileManager.default.contentsOfDirectory(at:corpus,includingPropertiesForKeys:nil).filter { ["wmf","emf"].contains($0.pathExtension.lowercased()) }.sorted {$0.lastPathComponent < $1.lastPathComponent}
-        let nativeSamples:Set<String>=["clip-vector.wmf","classic-vector.emf","classic-bitmap.emf","plus-transform.emf","plus-bitmap-text.emf","plus-compressed-crop.emf","plus-gradient-transform.emf","plus-image-attributes.emf","plus-region-path.emf","plus-region-state.emf","plus-hatch-atlas.emf","plus-texture-world.emf","plus-region-texture.emf","plus-raw-indexed1-positive.emf","plus-raw-indexed4-negative.emf","plus-raw-indexed8-positive.emf","plus-raw-rgb555-negative.emf","plus-raw-rgb565-positive.emf","plus-raw-argb1555-negative.emf","plus-raw-texture-indexed-alpha.emf","plus-raw-texture-rgb565-positive.emf","plus-formatted-tabs.emf","plus-formatted-rtl.emf","plus-formatted-vertical.emf","plus-formatted-tracking.emf","plus-formatted-ellipsis.emf","plus-formatted-gradient.emf","classic-clip-region-xor.emf","classic-clip-region-diff.emf","classic-clip-meta-repeated.emf","classic-clip-offset-offcanvas.emf","classic-clip-path-and.emf","classic-clip-rect-world.emf","plus-pen-compound.emf","plus-pen-transform.emf","plus-pen-inset.emf","plus-pen-asymmetric-caps.emf","plus-pen-dash-round.emf","plus-pen-gradient.emf","plus-pen-custom-fill.emf","plus-pen-custom-stroke.emf","plus-pen-custom-both-paths.emf","plus-pen-custom-arrow-filled.emf","plus-pen-custom-arrow-notch.emf","plus-pen-custom-world-clip.emf"]
-        let samples=corpusFiles.filter {nativeSamples.contains($0.lastPathComponent)},unsupported=corpusFiles.filter {$0.lastPathComponent.hasPrefix("unsupported-")}
+        let legacySamples:Set<String>=["clip-vector.wmf","classic-vector.emf","classic-bitmap.emf","plus-transform.emf","plus-bitmap-text.emf","plus-compressed-crop.emf","plus-gradient-transform.emf","plus-image-attributes.emf","plus-region-path.emf","plus-region-state.emf","plus-hatch-atlas.emf","plus-texture-world.emf","plus-region-texture.emf","plus-raw-indexed1-positive.emf","plus-raw-indexed4-negative.emf","plus-raw-indexed8-positive.emf","plus-raw-rgb555-negative.emf","plus-raw-rgb565-positive.emf","plus-raw-argb1555-negative.emf","plus-raw-texture-indexed-alpha.emf","plus-raw-texture-rgb565-positive.emf","plus-formatted-tabs.emf","plus-formatted-rtl.emf","plus-formatted-vertical.emf","plus-formatted-tracking.emf","plus-formatted-ellipsis.emf","plus-formatted-gradient.emf","classic-clip-region-xor.emf","classic-clip-region-diff.emf","classic-clip-meta-repeated.emf","classic-clip-offset-offcanvas.emf","classic-clip-path-and.emf","classic-clip-rect-world.emf","plus-pen-compound.emf","plus-pen-transform.emf","plus-pen-inset.emf","plus-pen-asymmetric-caps.emf","plus-pen-dash-round.emf","plus-pen-gradient.emf","plus-pen-custom-fill.emf","plus-pen-custom-stroke.emf","plus-pen-custom-both-paths.emf","plus-pen-custom-arrow-filled.emf","plus-pen-custom-arrow-notch.emf","plus-pen-custom-world-clip.emf"]
+        let compressedSamples:Set<String> = Set(["fill","region","cap"].flatMap { family in ["relative","float"].map {"plus-compressed-path-"+family+"-"+$0+".emf"} })
+        let nativeSamples = compressedPaths ? compressedSamples : legacySamples.union(compressedSamples)
+        let samples=corpusFiles.filter {nativeSamples.contains($0.lastPathComponent)},unsupported=corpusFiles.filter {compressedPaths ? $0.lastPathComponent.hasPrefix("unsupported-compressed-path-") : $0.lastPathComponent.hasPrefix("unsupported-")}
+        if compressedPaths {try require(!unsupported.isEmpty,"Compressed-path malformed native corpus missing")}
         try require(samples.count == nativeSamples.count,"Representative native metafile corpus incomplete")
-        try require(samples.contains {$0.pathExtension.lowercased()=="wmf"} && samples.filter {$0.pathExtension.lowercased()=="emf"}.count >= 2 && samples.contains {$0.lastPathComponent.lowercased().contains("plus")},"Provide representative WMF, EMF and EMF+ corpus files")
+        if !compressedPaths {try require(samples.contains {$0.pathExtension.lowercased()=="wmf"} && samples.filter {$0.pathExtension.lowercased()=="emf"}.count >= 2 && samples.contains {$0.lastPathComponent.lowercased().contains("plus")},"Provide representative WMF, EMF and EMF+ corpus files")}
         let inputs=try samples.map {try Data(contentsOf:$0)},bad=Data("unsupported image side\n".utf8)
         let suite="TurtleGit.MetafileConsumers.QA."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         prefs.set(0,forKey:"AutoCloseGitProgress");DialogGeometry.install(preferences:prefs)
@@ -78,6 +81,21 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                 try require(owner.model.document?.base.bytes == inputs[index] && owner.model.document?.destination.bytes == bad && (try Data(contentsOf:left)) == inputs[index] && (try Data(contentsOf:right)) == bad,"Metafile rendering rewrote original bytes")
                 if first == nil {first=owner} else {owner.close()}
             }
+            if compressedPaths {
+                // Compare the actual compact records against independently
+                // encoded float paths in both native IDiff panes.
+                for family in ["fill","region","cap"] {
+                    let left=corpus.appendingPathComponent("plus-compressed-path-"+family+"-relative.emf"),right=corpus.appendingPathComponent("plus-compressed-path-"+family+"-float.emf")
+                    let leftBytes=try Data(contentsOf:left),rightBytes=try Data(contentsOf:right)
+                    try require(leftBytes != rightBytes,"Compressed native control must use distinct wire encodings")
+                    let pair=track(FileComparisonWindowController(images:try ImageFileComparison(base:left,destination:right),permissions:[],preferences:prefs))
+                    pair.model.load();try await wait{!pair.model.busy && pair.model.document != nil}
+                    guard let compact=pair.model.imageComparison?.base?.pixels,let control=pair.model.imageComparison?.destination?.pixels else {throw Failure(message:"Compressed/control native pair failed for \(family); \(comparisonState(pair))")}
+                    try require(try raster(compact)==raster(control),"Native compressed/control raster mismatch for \(family)")
+                    try require(pair.model.document?.base.bytes==leftBytes && pair.model.document?.destination.bytes==rightBytes,"Compressed comparison replaced wire bytes")
+                    pair.close()
+                }
+            }
             for sample in unsupported {
                 let bytes=try Data(contentsOf:sample),owner=track(FileComparisonWindowController(images:try ImageFileComparison(base:sample,destination:nil),permissions:[],preferences:prefs))
                 owner.model.load();try await wait {!owner.model.busy && owner.model.document != nil}
@@ -86,7 +104,10 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             }
             guard let first else {throw Failure(message:"No metafile comparison")}
             let original=first.model.document!,pane=first.model.imageViewerModel,drop=root.appendingPathComponent("preview.emf")
-            let preview=try firstSample(samples,withExtension:"emf"),previewBytes=try Data(contentsOf:preview)
+            let preview:URL
+            if compressedPaths {preview=corpus.appendingPathComponent("plus-compressed-path-fill-relative.emf")}
+            else {preview=try firstSample(samples,withExtension:"emf")}
+            let previewBytes=try Data(contentsOf:preview)
             try previewBytes.write(to:drop)
             try require(pane.dropFile(drop,base:false),"Metafile pane drop refused")
             try await wait {!pane.receivingDrop}
@@ -109,6 +130,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try await wait {first.window?.attachedSheet == nil && !first.model.busy && first.model.document?.base.path == samples[0].path}
             try require(loader.retired && first.model.imageComparison?.base != nil && first.model.imageComparison?.destination != nil && ImageLoadWindowController.activeReleases == 0,"Open did not reload after actual native chooser detach; \(comparisonState(first)); chooserRetired=\(loader.retired)")
 
+            if !compressedPaths {
             let merge=track(FileComparisonWindowController(comparison:try WorkingFileComparison(base:samples[0],destination:samples[0]),permissions:[],preferences:prefs,deferInitialLoad:true))
             var unexpectedDecodes=0
             merge.model.useInternalMergeViewer();merge.model.decodeImages={_,_ in unexpectedDecodes += 1;throw Failure(message:"Merge entered image decoder")}
@@ -125,6 +147,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try await wait(diagnostic:{comparisonState(textMerge)}) {textMerge.window?.contentView?.layoutSubtreeIfNeeded();return !textMerge.model.busy && !textMerge.model.filtering && descendants(textMerge.window!.contentView!).compactMap {$0 as? NSTextView}.filter {["Base file","Destination file"].contains($0.accessibilityLabel() ?? "")}.count == 2}
             try require(textMerge.model.viewerSelection == .merge && textMerge.model.imageComparison == nil && textMerge.model.draftText(base:true) == String(decoding:svgBytes,as:UTF8.self) && unexpectedDecodes == 0,"Explicit Merge did not expose the original text in native editors; \(comparisonState(textMerge)); unexpectedDecodes=\(unexpectedDecodes)")
 
+            }
             // A noncooperative decoder must not block the main actor or release
             // the captured comparison session before its true completion.
             let late=track(FileComparisonWindowController(comparison:try WorkingFileComparison(base:samples[0],destination:samples[0]),permissions:[],preferences:prefs,deferInitialLoad:true))
@@ -174,7 +197,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             let repo=GitRepository(root:work,executable:git),path="drawing.emf",file=work.appendingPathComponent(path)
             _ = try await repo.run(["init","-b","main"])
             for (key,value) in [("user.name","Metafile consumers QA"),("user.email","metafile@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",key,value])}
-            let wmfIndex=samples.firstIndex {$0.pathExtension.lowercased()=="wmf"}!,classicIndex=samples.firstIndex {$0.pathExtension.lowercased()=="emf" && !$0.lastPathComponent.lowercased().contains("plus")}!,plusIndex=samples.firstIndex {$0.pathExtension.lowercased()=="emf" && $0.lastPathComponent.lowercased().contains("plus")}!
+            let wmfIndex=compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-fill-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="wmf"}!,classicIndex=compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-region-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="emf" && !$0.lastPathComponent.lowercased().contains("plus")}!,plusIndex=compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-cap-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="emf" && $0.lastPathComponent.lowercased().contains("plus")}!
             try inputs[wmfIndex].write(to:file);try await repo.stage([path]);_ = try await repo.commit(message:"base WMF")
             _ = try await repo.run(["switch","-c","side"]);try inputs[classicIndex].write(to:file);try await repo.stage([path]);_ = try await repo.commit(message:"incoming EMF")
             _ = try await repo.run(["switch","main"]);try inputs[plusIndex].write(to:file);try await repo.stage([path]);_ = try await repo.commit(message:"mine EMF+")
@@ -186,6 +209,8 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try require(conflict.model.images.count == 3 && ImageConflictSide.allCases.allSatisfy {conflict.model.canSelect($0) && conflict.model.panes[$0]?.currentImage(base:true)?.pixels.width == 96 && conflict.model.panes[$0]?.currentImage(base:true)?.pixels.height == 64},"Three-side WMF/EMF/EMF+ conflict failed to decode: \(conflict.model.error ?? "none")")
             conflict.model.reload();try await wait {!conflict.model.busy}
             try require(conflict.model.images.count == 3,"Metafile conflict reload lost an image")
+            try require(conflict.model.document.contents[.base]==inputs[wmfIndex] && conflict.model.document.contents[.theirs]==inputs[classicIndex] && conflict.model.document.contents[.mine]==inputs[plusIndex],"Metafile conflict decoding rewrote source stage encodings")
+            if !compressedPaths {
             // The newly accepted region, hatch and texture families also enter
             // actual three-stage conflict panes, not only standalone decoders.
             let patternWork=root.appendingPathComponent("pattern repository")
@@ -232,6 +257,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             rawConflict.close();try await wait {ImageConflictWindowModel.activeOperations==0 && rawConflict.window?.isVisible != true}
             try require(try await rawRepo.run(["rev-parse","HEAD"]).stdout==rawHead,"Indexed/16-bit preview moved HEAD")
             try require((try Data(contentsOf:rawWork.appendingPathComponent(".git/index")))==rawIndex && (try Data(contentsOf:rawFile))==rawWorking,"Indexed/16-bit preview mutated conflict index/working bytes")
+            }
             let priorImages=conflict.model.images.mapValues(\.id)
             var reloadToken:OperationCancellation?
             conflict.model.decodeImages={_,token in reloadToken=token;return await withCheckedContinuation {conflictHold=$0}}
@@ -254,8 +280,17 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try require((try Data(contentsOf:work.appendingPathComponent(".git/index"))) == index && (try Data(contentsOf:file)) == working,"Metafile preview mutated conflict state")
             for (sample,bytes) in zip(samples,inputs) {try require(try Data(contentsOf:sample) == bytes,"Metafile renderer modified corpus bytes")}
             try await cleanup()
-            print("PASS: actual WMF/EMF/EMF+, indexed/16bit raw and region/hatch/texture default two-side and conflict decode/reload, unsupported-side IDiff and explicit Merge routing, preview-only drop, cancellation/late-result/session/grant/Quit ownership; original corpus/comparison/conflict HEAD/index/working bytes unchanged")
+            if compressedPaths {print("PASS: compressed EMF+ normal/region/custom-cap native IDiff raster controls, malformed refusal, drop/reload, exact Git conflict stages, chooser/cancel/late-result/grant/Quit ownership; original bytes and HEAD/index unchanged")}
+            else {print("PASS: actual WMF/EMF/EMF+, indexed/16bit raw and region/hatch/texture default two-side and conflict decode/reload, unsupported-side IDiff and explicit Merge routing, preview-only drop, cancellation/late-result/session/grant/Quit ownership; original corpus/comparison/conflict HEAD/index/working bytes unchanged")}
         } catch {let original=error;do {try await cleanup()}catch {throw Failure(message:"\(original); cleanup: \(error)")};throw original}
+    }
+    private static func raster(_ image:CGImage)throws->Data {
+        var bytes=Data(count:image.width*image.height*4)
+        let rendered=bytes.withUnsafeMutableBytes { storage -> Bool in
+            guard let context=CGContext(data:storage.baseAddress,width:image.width,height:image.height,bitsPerComponent:8,bytesPerRow:image.width*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue) else{return false}
+            context.draw(image,in:CGRect(x:0,y:0,width:image.width,height:image.height));return true
+        }
+        try require(rendered,"Could not rasterize native compressed path pair");return bytes
     }
     private static func firstSample(_ files:[URL],withExtension ext:String)throws->URL {
         guard let file=files.first(where:{$0.pathExtension.lowercased()==ext}) else {throw Failure(message:"Missing "+ext+" corpus")};return file

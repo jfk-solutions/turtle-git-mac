@@ -77,16 +77,17 @@ inputs without a usable extent instead of inventing a default 800×600 viewport.
 The [region and pattern extension](METAFILE-REGION-PATTERN-PARITY.md) adds bounded
 region trees, region fill/clip records, all 53 hatch styles and bitmap texture
 brushes. Its own evidence separates newly accepted behavior from this older
-checkpoint. Relative/RLE region paths, negative region rectangle extents, singular
+checkpoint. The [compressed-path extension](METAFILE-PATH-PARITY.md) adds relative/RLE region
+paths and shares validation with drawing, clipping, custom caps and accepted
+gradient boundaries. Negative region rectangle extents, singular
 region fill transforms and nested-metafile textures remain explicit refusals.
 
 ## Explicit remaining format behavior
 
 The [formatted text extension](METAFILE-TEXT-PARITY.md) adds native shaped glyph outlines for DrawString layouts, including direction, tabs, tracking, wrapping and trimming. This is useful three-format support, not complete GDI compatibility. Remaining
 unsupported features include driver/glyph strings,
-DisplayFormatControl, locale-specific digit substitution and measured-character-range queries, relative
-compressed path encodings and gradients outside the
-[accepted painting subset](METAFILE-PAINTING-PARITY.md), custom-cap pen objects,
+DisplayFormatControl, locale-specific digit substitution and measured-character-range queries, gradients outside the
+[accepted painting subset](METAFILE-PAINTING-PARITY.md),
 file-format-only Left/Outset/Right pen alignment, alternate-format/terminal-server
 records and source-copy compositing. The [pen extension](METAFILE-PEN-PARITY.md)
 adds transformed nibs, compound bands, standard caps, joins, dash styles and
@@ -146,4 +147,4 @@ retained and bundled. It is a self-contained decoder reference, whereas
 layout2vector supplies independent export writers. TurtleGit retains its own
 framing checks, explicit unsupported-record errors, budgets, native text/bitmap
 bridges and affine playback. BaseHmiTypes' EMF+ object reader covers paths and
-images; it does not supply the outstanding EMF+ pen implementation.
+images; TurtleGit retains its own bounded pen and custom-cap implementation.

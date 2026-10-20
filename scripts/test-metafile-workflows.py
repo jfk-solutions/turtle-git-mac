@@ -7,6 +7,7 @@ import tempfile
 from native_receiver import build_receiver, run_receiver
 
 CASES = {
+    'compressed-paths': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'consumers': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'conflict': ('image-conflict-native-2026-10-10.swift', 'ImageConflictVerification'),
     'conflict-owned': ('image-conflict-owned-native-2026-10-16.swift', 'ImageConflictOwnedVerification'),
@@ -25,19 +26,19 @@ root = Path(__file__).resolve().parent.parent
 generated = root/'build/qa/metafile-native-sources'
 generated.mkdir(parents=True, exist_ok=True)
 fixtures = []
-for filename, _ in CASES.values():
+for filename in dict.fromkeys(filename for filename, _ in CASES.values()):
     path = generated/filename
     contents = (root/'docs/qa'/filename).read_text().replace('@main ', '', 1)
     if not path.is_file() or path.read_text() != contents:
         path.write_text(contents)
     fixtures.append(path)
-dispatch = '\n'.join('case "'+case+'": try await '+name+'.verify()' for case, (_, name) in CASES.items())
+dispatch = '\n'.join('case "'+case+'": try await '+name+'.verify('+('compressedPaths:true' if case == 'compressed-paths' else '')+')' for case, (_, name) in CASES.items())
 main = generated/'MetafileWorkflowMain.swift'
-main.write_text('''import AppKit
+main_contents = '''import AppKit
 import ObjectiveC
 private extension NSWindow {
     @objc func turtleGitMetafileOrder(_ place: NSWindow.OrderingMode, relativeTo number: Int) {
-        alphaValue = 0
+        alphaValue = 0;setFrameOrigin(.init(x:-12000,y:-12000))
         turtleGitMetafileOrder(place, relativeTo: number)
     }
 }
@@ -58,21 +59,23 @@ private extension NSWindow {
         print("PASS: metafile workflow completed")
     }
 }
-''')
+'''
+if not main.is_file() or main.read_text() != main_contents:
+    main.write_text(main_contents)
 receiver = build_receiver(root, fixtures+[main], generated)
 with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temporary:
     folder = Path(temporary)
-    environment = dict(os.environ, DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0')
-    for key in ['GIT_CONFIG_PARAMETERS', 'GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_AUTHOR_DATE', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL', 'GIT_COMMITTER_DATE']:
-        environment.pop(key, None)
+    environment = {key:value for key,value in os.environ.items() if not key.startswith('GIT_')}
+    environment.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0')
     for case in args.only or CASES:
         for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
             directory = folder/(case+str(index)); directory.mkdir()
             config = directory/'global.config'; config.write_text('')
             private_temporary=directory/'temporary';private_temporary.mkdir(mode=0o700)
-            environment.update(GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'), TMPDIR=str(private_temporary)+'/', TURTLEGIT_METAFILE_CASE=case)
+            private_home=directory/'home';private_home.mkdir(mode=0o700)
+            environment.update(CFFIXED_USER_HOME=str(private_home), GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'), TMPDIR=str(private_temporary)+'/', TURTLEGIT_METAFILE_CASE=case)
             command = [str(receiver), str(directory), str(git.absolute())]
-            if case == 'consumers': command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
+            if case in ['consumers','compressed-paths']: command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
             print('Checking metafile '+case+' with '+str(git), flush=True)
             result = run_receiver(command, cwd=root, env=environment, capture_output=True, text=True,
                                   timeout_sample=directory/'timeout.sample.txt')

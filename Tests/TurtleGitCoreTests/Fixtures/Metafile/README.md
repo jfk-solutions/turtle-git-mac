@@ -265,3 +265,52 @@ separate explicit refusal pending Windows playback evidence.
 
 These are analytic geometry and independent shape-control fixtures. They are
 not Windows-produced pixel captures and do not certify every GDI+ cap variant.
+
+## Shared compressed EMF+ paths
+
+`plus-compressed-path-*.emf` adds 34 original accepted records, all with a
+96×64 canvas. Ordinary fill/stroke paths, captured path clips, region paths,
+custom-cap paths and the existing canonical ellipse-gradient boundary each have
+independent absolute Float32 controls and equivalent signed-short, relative R,
+and R|C forms. The R|C pairs prove that C is ignored when R is set. Same-winding
+nested rectangles deliberately retain Alternate/even-odd fill for normal and
+region paths; marker and dash-mode point metadata do not select winding fill.
+Custom caps retain their separate winding consumer semantics.
+
+Independent rectangle/ring bounds check actual native pixels across the full
+canvas, excluding only a one-pixel analytic antialias boundary. Cubic t=.5 is
+known independently at (28,18), and a second open figure leaves a real gap.
+The closed cubic counterpart adds the closing line rather than changing its
+control points. The relative coordinates include separately chosen signed
+7-/15-bit components, literal hand-authored -16384/+16383 encodings, and signed
+7-bit -64/+63 boundaries. A 67-point rectangle exercises a 63+2 type run without
+losing collinear vertices. Nonzero optional alignment bytes are ignored.
+
+The representative consumer pairs are `fill-relative`/`fill-float`,
+`region-relative`/`region-float`, and `cap-relative`/`cap-float`. The first two
+paint the red outer rectangle (8,8)–(88,56), with the white hole
+(24,20)–(72,44). The cap pair paints the red shaft (20,30)–(76,34) and outward
+box (76,24)–(88,40). All pair members have identical intended native pixels.
+
+`unsupported-compressed-path-*.emf` contains 41 independently framed refusals:
+bad versions/reserved flags, count overflow and budgets, truncated float/short/
+PointR/type data, invalid or mismatched RLE headers/run totals, unsupported point
+types, interrupted or prematurely closed cubic triples, nonfinite/unbounded
+coordinates, unrelated trailing bytes, and the same malformed nested payloads
+in regions, caps and gradients. Two individually valid 524,289-point objects
+exceed the conversion-wide 1,048,576-point reservation. Another relative path
+has individually valid Integer15 deltas whose cumulative coordinate exceeds
+the existing coordinate limit. Input bytes must remain unchanged after refusal.
+
+The binary contract follows Microsoft's [EmfPlusPath](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/b539cf16-6232-4705-9f6e-6f914705145f),
+[PointR](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/c861a0d4-39f0-4f6c-bad9-e3f7bf63205e)
+and [PathPointTypeRLE](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/1acc6ffc-ff99-40fe-925e-b90869b7d02c)
+structures. No independent winding flag, arbitrary gradient boundary geometry,
+or Windows pixel certification is inferred from a successful compressed decode.
+
+The retained `plus-pen-custom-padding.emf` uses a redundant explicit closing
+vertex: its Float32 path occupies 57 meaningful bytes plus three nonzero padding
+bytes, for the required DWORD-aligned size60. The earlier fixture appended two
+bytes to an already aligned size48 path; that was invalid wire framing rather
+than a supported padding variation. Its rectangle and independent pixel oracle
+are unchanged, as is the separate outer-cap tail.

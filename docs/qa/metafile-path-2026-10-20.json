@@ -1,0 +1,205 @@
+{
+  "date": "2026-10-20",
+  "family": "Shared compressed EMF+ paths for drawing, regions, custom caps and accepted gradient boundaries",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "renderer_pin": "4e0d6d6807349ebfc8f8c681009c14f9e57621ff",
+  "source_contract": {
+    "path": "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/b539cf16-6232-4705-9f6e-6f914705145f",
+    "pointR": "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/c861a0d4-39f0-4f6c-bad9-e3f7bf63205e",
+    "typeRLE": "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/1acc6ffc-ff99-40fe-925e-b90869b7d02c",
+    "GDIplus_point_flags": "https://learn.microsoft.com/en-us/windows/win32/api/gdiplusenums/ne-gdiplusenums-pathpointtype"
+  },
+  "implementation": {
+    "shared_reader": "src/turtleGitPaths.js reconstructed from tracked patch; R couples relative points/typeRLE, C ignored with R; short/Float32 otherwise",
+    "consumers": [
+      "Normal FillPath/DrawPath/captured path clip",
+      "RegionNodePath",
+      "Custom cap embedded paths",
+      "Existing thirteen-point canonical ellipse-gradient boundary"
+    ],
+    "budget": "Per-consumer bounds retained; conversion-wide decoded and traced points each1048576 before expansion; repeated object replacement does not reset decoded work",
+    "painting": "Explicit Alternate FillPath/pathclip, retained region Alternate and customcap winding; markers/DashMode metadata not new per-segment dash semantics"
+  },
+  "fixtures": {
+    "accepted": 34,
+    "refusals": 41,
+    "previous_binary_sha256_unchanged": false,
+    "scope": "Original complete binary fixtures and independent literal geometry, not Windows GDI+ captures",
+    "intentional_previous_fixture_repair": {
+      "file": "plus-pen-custom-padding.emf",
+      "reason": "Valid nonzero Path alignment while retaining same Float32 geometry"
+    },
+    "previous_binary_sha256_unchanged_except": [
+      "plus-pen-custom-padding.emf"
+    ]
+  },
+  "validation": [
+    {
+      "check": "Pinned universal renderer build",
+      "result": "passed; exact patch reconstructed from pristine source",
+      "log": "build/qa/metafile-path-runtime-2026-10-20.log"
+    },
+    {
+      "check": "Universal runtime validation",
+      "result": "passed; source/license/hash reconstruction, arm64 and x86_64 conversion/rejection",
+      "log": "build/qa/metafile-path-runtime-validation-2026-10-20.log"
+    },
+    {
+      "check": "Initial relevant Core group",
+      "result": "19 executed;18 passed including all7newmethods; existing custom-padding fixture failed",
+      "log": "build/qa/metafile-path-core-2026-10-20.log"
+    },
+    {
+      "check": "Debug app build with rebuilt runtime",
+      "result": "passed",
+      "log": "build/qa/metafile-path-app-2026-10-20.log"
+    },
+    {
+      "check": "Focused Core padding/budget repair",
+      "result": "passed both affected methods;19distinct methods have passing evidence across original18passes + repairedcapmethod",
+      "log": "build/qa/metafile-path-core-padding-repair-2026-10-20.log",
+      "scope": "Budget assertions require explicit decode-limit diagnostics; runtime missing/deadline do not count. No full Core/Metafile suite rerun."
+    },
+    {
+      "check": "Grouped native compressed-path consumers",
+      "result": "passed with Apple Git and bundled Git",
+      "log": "build/qa/metafile-path-native-2026-10-20.log",
+      "scope": "Actual new normal/region/cap raster pairs, IDiff, drop/conflict bytes, malformed refusal and existing injected chooser/cancel/late/grant/Quit ownership fences",
+      "reaped_receivers": [
+        72753,
+        72935
+      ],
+      "independent_pid_absence": true
+    },
+    {
+      "check": "Packaged renderer identity",
+      "result": "matched rebuilt runtime",
+      "renderer_sha256": "b2e88f9e1e21c99dc6c65e3582cf0d3c7cd387641244edee432627ec281bb751",
+      "scope": "Debug ad-hoc app resource identity; not Apple Development/distribution-signed acceptance"
+    },
+    {
+      "check": "Dialog coverage reconciliation",
+      "result": "passed, no whole-dialog certification",
+      "log": "build/qa/metafile-path-coverage-2026-10-20.log"
+    },
+    {
+      "check": "Documentation site",
+      "result": "passed:376 documents, no unresolved fragments",
+      "log": "build/qa/metafile-path-site-2026-10-20.log"
+    },
+    {
+      "check": "Native resources",
+      "result": "localization and Help checks passed;38languages1303keys;44guides51topics64files",
+      "scope": "No product label or included Help guide changed in this renderer batch"
+    }
+  ],
+  "repairs": [
+    {
+      "failure": "Existing customcap-padding fixture adds2bytes to an alreadyDWORDaligned48bytepath, violating the specified alignment purpose.",
+      "repair": "Same rectangle with redundant explicit closingpoint, raw57bytes +3nonzeroalignmentbytes; retain Float32 encoding and exact existing geometry assertions. Decoder strictalignment unchanged.",
+      "scope": "Fixture-only; no runtime/app rebuild required. Repeat failedcapmethod and strengthened budget diagnostic method only."
+    }
+  ],
+  "explicit_gaps": [
+    "Full current hosted integration",
+    "Windows GDI+ pixel/font/antialiasing acceptance",
+    "Arbitrary gradient boundaries and optional paint semantics",
+    "Driver/glyph text and remaining classic raster/bitmap features",
+    "Current signed installed image/Finder workflows",
+    "App Store distribution and entire application parity"
+  ],
+  "no_complete_port_claim": true,
+  "source_sha256": {
+    "patches/metafile-renderer.patch": "8d9bf71b4f7ebdb259e071552837c4eda2ed7fe731d7e72a0b9001f1751d6a3c",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate.py": "97aae5cd75aed38a6997e9ace31cc86284935f190ab980e60d6d2dab3cfdf5aa",
+    "Tests/TurtleGitCoreTests/MetafileImageTests.swift": "5c4ce5d575e4e81d7bbf4543434cca9cf7644591d43ec6172e0bcd0d3be0b400",
+    "docs/qa/metafile-consumers-native-2026-10-18.swift": "1728d623d60299b0d6cf9c248df358b17bc1dbf05eedb9effe7b43121135eaaf",
+    "scripts/test-metafile-workflows.py": "79075f57751891cf7f1145f13fca68615b31607abedae712ad57b5f810e7ae2a"
+  },
+  "fixture_sha256": {
+    "plus-compressed-path-cap-float.emf": "f27e7d294c466cc1c555c481b442f68daa0eeef2fab051febb3b1e2dad67fb67",
+    "plus-compressed-path-cap-relative-c.emf": "4f9416a0151b1dd2e5031434a9843d1f74b6d38d16ba9c9f487b5306a8a7e9c1",
+    "plus-compressed-path-cap-relative.emf": "5c14ccb50949fd5de4cbaba616287a7dc7972e329fb19d9f5790729c7d306664",
+    "plus-compressed-path-cap-short.emf": "9ecd3b51e0b075bf050e6c4d05992eab67a33f307a8e59e5e69b07f5e2b9f97c",
+    "plus-compressed-path-clip-float.emf": "27be32cf3f8f46b437c2396259a2ac2b6810449c4e4393595846e56fe37cbb47",
+    "plus-compressed-path-clip-relative-c.emf": "6e5951715cb95ff57f0f284fd3fc9675cf6db2e1ec913601e928693f25e7ddd6",
+    "plus-compressed-path-clip-relative.emf": "7ddf095d84d21a0fd2f7cfc2c1d7b992d8499edeeb0619567c51db399c5d45e1",
+    "plus-compressed-path-clip-short.emf": "b54bb4627f0ae1d82125a3f6681d177906572b2b32cb44b7437ef213a7bc73b5",
+    "plus-compressed-path-cubic-metadata-float.emf": "cd69297a37a98fab0fcaab7b4da4ea412bd90aaccd143f9f9740630ad86fa515",
+    "plus-compressed-path-cubic-metadata-relative.emf": "cdef166cf30cc05366a0cf191a5bf488c2ac8e952d3b2cb4f23ec3978f4b7d0f",
+    "plus-compressed-path-fill-float.emf": "ab06dc5eed8262cc112e8fa643486e81de7473523587368d5411d016a7bc66b3",
+    "plus-compressed-path-fill-relative-c.emf": "9698770e696436ad4ad9a3979bb0902866c0122d6c1929f754dcaa03f33c2dca",
+    "plus-compressed-path-fill-relative.emf": "5e1cec96e216cf587308355fdad049f0ab5962ee0a587ef47795be1e2d882543",
+    "plus-compressed-path-fill-short.emf": "b2bc21e5a5f2586d499a22acfaa83720a39ea1e147fc56b43e90773347ff6784",
+    "plus-compressed-path-gradient-float.emf": "22270e90d80c64fccd551d908d37c30c6decf00dcb349dfc25301b5cbeede742",
+    "plus-compressed-path-gradient-relative-c.emf": "dd9559155343eb391dae16ea76c2c93f0e7e6965296888b91885eff2cc43c369",
+    "plus-compressed-path-gradient-relative.emf": "8a4038f52df7cf9fcb56da67c00f4a68b13f075d0c5f2140ae0c70705156a82e",
+    "plus-compressed-path-gradient-short.emf": "77524020260e03b1ae41f489c0a7f97f16104020dd1de0ffd1fca8e3a9846f4d",
+    "plus-compressed-path-integer-limits-float.emf": "65f31e7019d4bbe59a032e92655b2546feddefd20fe229e84e496a2c3e7cce47",
+    "plus-compressed-path-integer-limits-relative.emf": "942e49ddcefab601be5dad155eb86c54e9f91ae590b161c46c9df02735f81f74",
+    "plus-compressed-path-integer7-boundary-float.emf": "e7356627c30e9c99bc171f29ba066778f95a0ff2f7fbd6133a63a3b1ae196ed7",
+    "plus-compressed-path-integer7-boundary-relative.emf": "35d8cac117e942316338fa6230362807a507d12cea91425e81573c9e0207d775",
+    "plus-compressed-path-long-runs-float.emf": "b7ebb02308c3bc5dba79f5d6340836d9daa92ae92d05abab74804123b37d5f72",
+    "plus-compressed-path-long-runs-relative.emf": "30dcdaeb1cb60219d62dae5ea6841c60de2708d42c15224c12715eca1fca9473",
+    "plus-compressed-path-metadata-float.emf": "57f58a640174d03844a5edc91a173758ee29da0a5a3c014429e70147fc275da6",
+    "plus-compressed-path-metadata-relative.emf": "ef8ca549da1ad9b0d5a52c5e7e4a2d7a32405f01089db6ec858c39c6fceb09a2",
+    "plus-compressed-path-region-float.emf": "72376158f7cb3aca374ba5f3338b49464596310658026a9db97039a77abc39a3",
+    "plus-compressed-path-region-relative-c.emf": "17e7903935ad534bcc1cf89cd6c70e299296735a25ebec774e628fbc6e3447b3",
+    "plus-compressed-path-region-relative.emf": "0bd8af2bc072b69e2addea1887bfd82aaf3ed0d1125edd522dfe8686b3d2917a",
+    "plus-compressed-path-region-short.emf": "a957fe4f2e8cc1b1be021e9c400b6f04461f2062627c26366dbd223510aa73be",
+    "plus-compressed-path-stroke-float.emf": "a52730f3cee2ab2cdf8bfb8d1eed0f225d225b42eb606f5ed0e17f62f51dcf53",
+    "plus-compressed-path-stroke-relative-c.emf": "4248fbb6c3bd698da275d72e0fab8a6387af0a54f7e5d73a784f851880b34082",
+    "plus-compressed-path-stroke-relative.emf": "f0373347ccf6120365c89bf994fc2b5d3e12631eb02358f3108862deff8c806e",
+    "plus-compressed-path-stroke-short.emf": "e11e0d8cb2ba6f5d7d7f95e4d35468e1047472548e32fc89580648139f7c2020",
+    "unsupported-compressed-path-aggregate-points.emf": "7494dbf7c4b8fee24e810496855d29e466474c982a7041f14224f1bd5422cc36",
+    "unsupported-compressed-path-cap-relative-truncated.emf": "9b0cf390b858e72620a18413303a5295f50a73c99ea0901e94380a661ca0a14b",
+    "unsupported-compressed-path-cap-rle-overrun.emf": "26026082dc6d487c6c1adbea91ab739e270533e3b062e8f21df5740712b2901c",
+    "unsupported-compressed-path-count-budget.emf": "97f1f797c309f9f45f6d67ab9b32740789054fa51ca535bd4713359c7370ef15",
+    "unsupported-compressed-path-count-overflow.emf": "7c5e2a795936abcc183b7cc548e485a7654e0c44bfadd47ba2ddbbf5e7ede516",
+    "unsupported-compressed-path-cubic-close-control-float.emf": "243bfb45ad56bb48a0b0adbedad3d76d1fd7aa5f89b5f4213b7cdbc379b840ed",
+    "unsupported-compressed-path-cubic-close-control-relative.emf": "02db5925f1573de91fb3c3f9f1d6920825fc570900b4fa9c7513e578578bd03a",
+    "unsupported-compressed-path-cubic-interrupted-float.emf": "cd43832d3fb605a1dc4abb0151297ff53e826a0b8ebee9cf911ed6391ff53807",
+    "unsupported-compressed-path-cubic-interrupted-relative.emf": "8b03d5b5ca816a32ecf2305f4d46d35cc63c7b7f21589eb31f1a28504064363c",
+    "unsupported-compressed-path-cubic-short-float.emf": "fe4253fbfd864388ff526052419259af27b75a908fefce5c683b69dbfcf091c3",
+    "unsupported-compressed-path-cubic-short-relative.emf": "030b37ab72666276aa59346e822f76549f9e560d33b194d65bce5b9e3792ac91",
+    "unsupported-compressed-path-first-cubic-float.emf": "5cfbf5b2b2f68d163b779cb792782868019da7b73e5dcd218e626d10063939fa",
+    "unsupported-compressed-path-first-cubic-relative.emf": "f4c09a7a9da285fe509b34753cc34742529ef6196dbd7e1fda97b6eee983cd41",
+    "unsupported-compressed-path-first-line-float.emf": "71955325f5fa1286e5dbe6f435ac3aa019580ebfc3943a1e561ab6799c01fc1d",
+    "unsupported-compressed-path-first-line-relative.emf": "80a8454abf28dba6201fcbf0e7cecfe2b4bd8f3ef07df26f2c87d85289aad728",
+    "unsupported-compressed-path-flags-reserved.emf": "1aefcd13aa0802af8a77134ea469eb43ea2fc39338aef66ef49b60480a7c1a18",
+    "unsupported-compressed-path-flags-rle-alone.emf": "cfc14304c84163605adbb47a09f1a757040c0e72c4aecbcb6d0e3b0e76afdd48",
+    "unsupported-compressed-path-flags-winding.emf": "8699eeff2824e50341764b8039dca58cf05ce66fbcffaf2184c4c752a23f1658",
+    "unsupported-compressed-path-float-infinite.emf": "303a7279214a47b9bd93b73e36c4b035da32ef55374cea26f56a5976b43e54d0",
+    "unsupported-compressed-path-float-nan.emf": "8610e79b8d5a6fd3d9621a7e6a1e4af6ea1bdaec7f8836e9ead2681836159035",
+    "unsupported-compressed-path-float-truncated.emf": "f2c334275814f1819e17f8f330f1df5b3bb4acbd7933948e2699ea095a9b0454",
+    "unsupported-compressed-path-gradient-relative-truncated.emf": "eda30cf1e755e44ac05acadb79a489e97a704555a80cdef06f7aae2f57777ebb",
+    "unsupported-compressed-path-region-relative-truncated.emf": "2377dc29a029d0a9d1180716871399efebd967a257d8570a5cd43c43816b0d1e",
+    "unsupported-compressed-path-region-rle-overrun.emf": "80c2e2c99e256157a4d3b38188f16338a9222a6cc6ce92e4cb28a4dfe8b01f57",
+    "unsupported-compressed-path-relative-coordinate-budget.emf": "501fead52f0008adb353e079afcd29b7875b821e9151867d2300c041532e3602",
+    "unsupported-compressed-path-relative-second-truncated.emf": "0e24db2b4b18a8289892c698ea9f2f1e0ceb24de819f970444c350a7910fb868",
+    "unsupported-compressed-path-relative-truncated.emf": "01a49aaab63809fc1b13f9d3b4c4c0404c8b5025fbddfedc96a2c793c8b7484b",
+    "unsupported-compressed-path-relative-types-truncated.emf": "843c13cac12290ec95b3f94e494a6fa59b9510cbd8f33d8feee039f41deeaa64",
+    "unsupported-compressed-path-rle-bezier-kind.emf": "68a71740475e0565946309d2c651d58ec984d666b22fb28a5262655e786e5c00",
+    "unsupported-compressed-path-rle-marker.emf": "a2f1aab5d919c3ee36dfcc0956f5edf81accd0f5307a8ab09b49d11492c5c9aa",
+    "unsupported-compressed-path-rle-overrun.emf": "9d6f12bb871e7682c9135385a1273f1c09d61dcbbe67ae03586cd97630c23672",
+    "unsupported-compressed-path-rle-type-reserved.emf": "8d6a9a67e8f8f0f020a8c00eaf1aec058c2d362bd18f1168e9aa947d75d8fbbe",
+    "unsupported-compressed-path-rle-underrun.emf": "8c33e9b39fa55bf8a0470dc905314eb94391caada15cb6757d846de6e1530a3a",
+    "unsupported-compressed-path-rle-zero.emf": "02d5d5a60526938aea0d6eab4da46ba1d832f73d184c055da5c5dc707c7f6406",
+    "unsupported-compressed-path-short-truncated.emf": "f391fe5fba056a7b734e50e8e86e8fd09db850a29c1407e761f2b8849ad4e57e",
+    "unsupported-compressed-path-trailing-data.emf": "13f21d09dad2268c353be3dc2a52f7e2436c56c5a5c489f12e3525ca579626ec",
+    "unsupported-compressed-path-type-reserved-float.emf": "87008d583282a955f8eb650388d34fc98bb2c5d77cddf731f620ed874acd5528",
+    "unsupported-compressed-path-type-reserved-relative.emf": "8d6a9a67e8f8f0f020a8c00eaf1aec058c2d362bd18f1168e9aa947d75d8fbbe",
+    "unsupported-compressed-path-type-unknown-float.emf": "93c9b9ef0ad4c9a7214a0b9c24ddd0b1c4e75b095ddbc3e35bc2426ab4cab6a6",
+    "unsupported-compressed-path-type-unknown-relative.emf": "7ad2da91e18426c1e018770164318c6775351996a90c54e645a9c8cdc15c63f9",
+    "unsupported-compressed-path-version.emf": "173bef9211ef70b7b368a7fbec8a614b0fa27658720dd878edfa5956622d73d7"
+  },
+  "hosted_previous_batches": {
+    "macOS_813fc0f5": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39393164202",
+    "macOS_813fc0f5_last_observed": "in progress",
+    "macOS_9520a3d9": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39395291353",
+    "macOS_9520a3d9_last_observed": "pending",
+    "Pages_9520a3d9": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39395291252",
+    "Pages_9520a3d9_last_observed": "success",
+    "scope": "No full current hosted CI or this renderer batch hosted pass claimed"
+  }
+}
