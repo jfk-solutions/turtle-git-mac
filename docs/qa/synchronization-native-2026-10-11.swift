@@ -79,13 +79,24 @@ import TurtleGitCore
         precondition(menu.items.count == 4 && menu.items.allSatisfy { $0.image != nil && $0.isEnabled })
         var shown: [String] = [], compared: (String, String)?, reflog = ""
         model.onLog = { shown.append($0) }; model.onReferenceCompare = { compared = ($0, $1) }; model.onReferenceLog = { reflog = $0 }
-        for item in menu.items { _ = NSApp.sendAction(item.action!, to: item.target, from: item) }
+        for index in menu.items.indices {
+            let current = refsTable.menu(for: event)!.items[index]
+            _ = NSApp.sendAction(current.action!, to: current.target, from: current)
+        }
+        let consumed = refsTable.menu(for: event)!.items[0]
+        _ = NSApp.sendAction(consumed.action!, to: consumed.target, from: consumed)
+        let shownBeforeReuse = shown
+        _ = NSApp.sendAction(consumed.action!, to: consumed.target, from: consumed)
+        precondition(shown == shownBeforeReuse)
+        shown.removeLast()
         precondition(shown == [changed.oldHash!, incoming] && compared?.0 == changed.oldHash && compared?.1 == incoming && reflog == "refs/remotes/origin/review")
         let hideMenu = refsTable.headerView!.menu(for: event)!, hide = hideMenu.items.first!
         precondition(hide.state == .off)
         _ = NSApp.sendAction(hide.action!, to: hide.target, from: hide)
-        precondition(model.hideUnchangedReferences && model.referenceRows.allSatisfy { $0.kind != .same } && preferences.bool(forKey: "RefCompareHideUnchanged"))
-        _ = NSApp.sendAction(hide.action!, to: hide.target, from: hide)
+        precondition(model.hideUnchangedReferences && model.referenceRows.allSatisfy { $0.kind != .same } && !preferences.bool(forKey: "RefCompareHideUnchanged"))
+        let freshHide = refsTable.headerView!.menu(for: event)!.items.first!
+        _ = NSApp.sendAction(freshHide.action!, to: freshHide.target, from: freshHide)
+        precondition(!model.hideUnchangedReferences && !preferences.bool(forKey:"RefCompareHideUnchanged"))
         model.tab = 2
         owner.window!.contentView!.layoutSubtreeIfNeeded()
         try await settle { views(owner.window!.contentView!).compactMap { $0 as? SubmoduleProgressTextView }.contains { $0.string == model.commandOutput } }
@@ -733,7 +744,10 @@ import TurtleGitCore
         try await settle { views(owner.window!.contentView!).compactMap { $0 as? NSTableView }.contains { $0.tableColumns.first?.title == "Tag" } }
         let table = views(owner.window!.contentView!).compactMap { $0 as? NSTableView }.first { $0.tableColumns.first?.title == "Tag" }!
         precondition(table.tableColumns.map(\.title) == ["Tag", "Status", "Local hash", "Local message", "Remote hash", "Remote message"])
-        func field(_ row: Int, _ column: Int) -> NSTextField { table.delegate!.tableView!(table, viewFor: table.tableColumns[column], row: row) as! NSTextField }
+        func field(_ row: Int, _ column: Int) -> NSTextField {
+            let view=table.delegate!.tableView!(table, viewFor:table.tableColumns[column],row:row)!
+            return (view as? NSTableCellView)?.textField ?? (view as! NSTextField)
+        }
         func settleTable() async throws {
             try await settle {
                 table.numberOfRows == model.tagRows.count && (0..<table.numberOfRows).allSatisfy { index in
@@ -758,7 +772,9 @@ import TurtleGitCore
         var logs = [String](), comparison: (String, String)?, changed = 0
         model.onTagsChanged = { changed += 1 }
         model.onLog = { logs.append($0) }; model.onReferenceCompare = { comparison = ($0, $1) }
-        for item in items.prefix(3) { send(item) }
+        for index in 0..<3 {send(menu("different").items.filter{!$0.isSeparatorItem}[index])}
+        let consumedLog=menu("different").items.first!;send(consumedLog)
+        let logsBeforeReuse=logs;send(consumedLog);precondition(logs==logsBeforeReuse);logs.removeLast()
         precondition(logs == [previous, head] && comparison?.0 == previous && comparison?.1 == head)
         precondition(menu("same").items.filter { !$0.isSeparatorItem }.count == 3)
         preferences.set(false, forKey: "ShowAppContextMenuIcons"); precondition(menu("different").items.filter { !$0.isSeparatorItem }.allSatisfy { $0.image == nil }); preferences.removeObject(forKey: "ShowAppContextMenuIcons")
@@ -766,7 +782,8 @@ import TurtleGitCore
         let hide = table.headerView!.menu(for: event)!.items.first!; send(hide)
         try await settleTable()
         precondition(model.hideEqualTags && model.tagRows.allSatisfy { $0.kind != .same } && !preferences.bool(forKey: "TagCompareHideEqual"))
-        send(hide); try await settleTable()
+        send(table.headerView!.menu(for:event)!.items.first!);try await settleTable()
+        precondition(!model.hideEqualTags && !preferences.bool(forKey:"TagCompareHideEqual"))
         owner.window!.appearance = NSAppearance(named: .darkAqua); owner.window!.contentView!.layoutSubtreeIfNeeded(); owner.window!.appearance = NSAppearance(named: .aqua)
         func closeCommand() async throws {
             try await settle { owner.commandProgress != nil && !owner.commandProgress!.model.busy && !owner.commandProgress!.model.operation.loadingTags }

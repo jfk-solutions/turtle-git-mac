@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The [Synchronization reference/tag result family](SYNC-REFERENCE-RESULTS-PARITY.md)
+adds fixed native source tables, captured menus and selected Log/Shift Compare/
+RefLog routes, local header filters and owned tag confirmation/error retirement.
+The Debug build and six native case/engine checks passed on first attempts; Core
+was unchanged. Four light/dark captures were reviewed and both receivers are
+independently absent. [Evidence](qa/sync-reference-results-2026-10-21.json) retains
+actual scope and remaining physical, signed, transport and complete source gates.
+
 The [Synchronization file-list family](SYNC-FILE-LIST-PARITY.md) adds native
 incoming/outgoing tables with source comparison and clipboard commands,
 historical icons/colors, exact path selection, sort/display-order dispatch and

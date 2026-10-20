@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-21",
+  "implementation_baseline": "dd63c6e2",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "dialogs": [
+    "src/Resources/TortoiseProcENG.rc/IDD_SYNC"
+  ],
+  "scope": "Ref List and Compare Tags: fixed source columns, icons, native fonts, eight-character hashes, single-line display/full tooltips, source sorting/header widths, window-local filters, captured menu ownership, Shift alternate comparison, actual Log/Compare/RefLog routes and guarded tag operations/confirmation/cancellation.",
+  "validation": {
+    "core": "Unchanged; no Core suite repeated. Actual Git snapshots/ref deletion and configured native child routing run in the native group.",
+    "app_build": {
+      "log": "build/qa/sync-reference-results-build-2026-10-21.log",
+      "exit_code": 0,
+      "diagnostics": "Local Xcode reported CoreSimulator version and command-exit-zero diagnostics plus existing Swift warnings; xcodebuild completed with exit 0 and current app objects linked into receivers."
+    },
+    "native": {
+      "log": "build/qa/sync-reference-results-native-2026-10-21.log",
+      "distinct_case_engine_pairs": 6,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "cases": [
+        "references: actual fetched snapshots, seven columns/source icons/font/hash/tooltips and single-line captions; header and row menus, sorting/filter defaults; actual RepositoryModel Log selected/end hash, Shift Comparison alternateTool and RefLog using captured preferences with hidden presentation.",
+        "tags: six columns, no row icons, source command order/icons, logical/reversed sorting and header sizing, local filters, captured Log/Compare, injected transport failures and real Yes/No local tag deletion plus remote-delete failure scope.",
+        "ownership: stale selection/tab/header/remote/snapshot/read/Quit/sheet/closed receipts, delayed confirmation/error/loading/worker retirement and cancellation drainage."
+      ],
+      "failures_and_repairs": [],
+      "key_scope": "Only owned key-window query injected for prohibited/offscreen receiver. Real first-responder, sheet, modal, model and owner guards retained; physical key tracking unproven."
+    },
+    "owned_receiver_pids": [
+      39654,
+      40396
+    ],
+    "independently_absent": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/sync-reference-results-dark.png",
+        "sha256": "afb47e871d1c27b4be4c72424fb077aa0d74c92c0e4409a6b9ebc346c9829740",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/sync-reference-results-light.png",
+        "sha256": "89f5d54b6efdc880fc247f2b0082f47c632997649b01e0b7e401a7a4117febd6",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/sync-tag-results-dark.png",
+        "sha256": "393edff834db7879539d1a7722b1aa1b68de2d737e01236a23c4daca5df62a89",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/sync-tag-results-light.png",
+        "sha256": "7ee6dd0faef42a87d9aca85eb1439122a20462c4e190917ce6e44b298f0dd2c5",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      }
+    ],
+    "capture_note": "Tag captures deliberately show the retained injected transport diagnostic after failure/refill, not an authenticated remote failure. Header-sized source columns truncate long rows with full values in tooltips.",
+    "localizations": {
+      "write": {
+        "languages": 38,
+        "keys": 1308
+      },
+      "check": "passed"
+    },
+    "dialog_coverage_reconcile": "passed; partial family audit retained",
+    "legacy_fixture": "Related older Sync fixture assertions updated for one-use menus, local filters and native cell adapter; whole legacy fixture was not rerun. New grouped receiver exercises these behaviors."
+  },
+  "remaining": [
+    "Physical pointer/key/menu tracking and VoiceOver",
+    "All locale/layout combinations and complete Sync/source parity",
+    "Authenticated remote transport and signed installed grants/external tool handoffs",
+    "Complete current hosted CI pass",
+    "Signed distribution and App Store acceptance"
+  ]
+}

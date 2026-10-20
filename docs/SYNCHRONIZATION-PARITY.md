@@ -1,5 +1,14 @@
 # Git Synchronization parity
 
+The [reference and tag result family](SYNC-REFERENCE-RESULTS-PARITY.md) now uses
+fixed source columns, native fonts, eight-character hashes, source sorting and
+header widths, window-local filters and captured menus. Log selects the clicked
+revision; Shift comparison and first-hop Log/Compare/RefLog preferences survive
+routing. Tag deletion retains its snapshot and remote through owned confirmation
+and retirement. The Debug build and six native case/engine checks pass; four
+light/dark captures were reviewed. [Evidence](qa/sync-reference-results-2026-10-21.json)
+keeps physical, signed, authenticated transport and complete source gates open.
+
 The [incoming and outgoing file-list family](SYNC-FILE-LIST-PARITY.md) replaces
 both Changelists with native source-restricted comparison/clipboard tables,
 independent saved columns, sorting and owned reset. Exact historical paths,

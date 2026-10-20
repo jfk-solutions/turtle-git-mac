@@ -282,6 +282,7 @@
 		99462F18C848C00FFE7E64D0 /* FirstStartWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E466B2519722A3DA9A50629 /* FirstStartWizard.swift */; };
 		99BEB818AE916B4F613CFBCA /* Network.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC01522DAA88EDA69EC39985 /* Network.framework */; };
 		9A231DB2AB704CC8E89188CC /* UnifiedDiffAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0798256025F9255AA83AB053 /* UnifiedDiffAppearance.swift */; };
+		9AF25DFC2150DDD85C7DF7B2 /* SynchronizationReferenceResults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E9CB1F5743F536DB3F72DE3 /* SynchronizationReferenceResults.swift */; };
 		9B2EC959297C2E28D596ACCE /* RequestPull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A118CF3A03416CA1144F4DE /* RequestPull.swift */; };
 		9E622C7C59E4097D00A01885 /* HookSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B6C7223527745421AF60617 /* HookSettings.swift */; };
 		9E86F9AB226AFE398D3E1F6E /* LFSLocksTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49FCBFED2C9CC4E19476062C /* LFSLocksTable.swift */; };
@@ -702,6 +703,7 @@
 		4D63D5938D6276B5A071748C /* TurtleGitSMTP.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TurtleGitSMTP.h; sourceTree = "<group>"; };
 		4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffAppearanceSettings.swift; sourceTree = "<group>"; };
 		4E11987C6F9546E908AD60BA /* FinderSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderSync.swift; sourceTree = "<group>"; };
+		4E9CB1F5743F536DB3F72DE3 /* SynchronizationReferenceResults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizationReferenceResults.swift; sourceTree = "<group>"; };
 		4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitWindow.swift; sourceTree = "<group>"; };
 		503EB6C117DFA00C93B0C519 /* LogFilterField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogFilterField.swift; sourceTree = "<group>"; };
 		50B9BC6078F637B8F0A3E3E2 /* GitWorktrees.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitWorktrees.swift; sourceTree = "<group>"; };
@@ -1290,6 +1292,7 @@
 				977DAB97DBBB903654C73A78 /* SwitchWindow.swift */,
 				F6EF0B95838332AF2D08641C /* SynchronizationActionControl.swift */,
 				7FA9CD77011B00EE76A976A3 /* SynchronizationFileList.swift */,
+				4E9CB1F5743F536DB3F72DE3 /* SynchronizationReferenceResults.swift */,
 				C191EB3114FCD115254AAA17 /* SynchronizationWindow.swift */,
 				396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */,
 				792C774F2364FC09D00A6FCE /* TurtleGitHelp.swift */,
@@ -2448,6 +2451,7 @@
 				A74A3FE8744154EDF768C63C /* SwitchWindow.swift in Sources */,
 				4AB236EFE2FFE917DB9EAD6D /* SynchronizationActionControl.swift in Sources */,
 				4156DA7CC800D81319F91575 /* SynchronizationFileList.swift in Sources */,
+				9AF25DFC2150DDD85C7DF7B2 /* SynchronizationReferenceResults.swift in Sources */,
 				F6B3C505BC2E9980A04CD4E1 /* SynchronizationWindow.swift in Sources */,
 				98048D0E5A3F46AB730E8DB2 /* TextConflictWindow.swift in Sources */,
 				827581DA51F1B9C0932E2982 /* TurtleGitHelp.swift in Sources */,

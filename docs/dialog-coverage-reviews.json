@@ -1009,6 +1009,10 @@
         {
           "path": "Sources/TurtleGitMac/SynchronizationActionControl.swift",
           "anchor": "struct SynchronizationActionControl"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SynchronizationReferenceResults.swift",
+          "anchor": "struct SynchronizationReferenceResults"
         }
       ],
       "parity_document": "docs/SYNCHRONIZATION-PARITY.md",

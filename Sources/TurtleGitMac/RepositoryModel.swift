@@ -2306,7 +2306,7 @@ private enum TransportBatchPresentationContext {
     func showSynchronization(sequence: Int? = nil) {
         guard !busy, !confirmingQuit, !bare, let repository else { return }
         let key = repository.root.path, access = activeAccess
-        if let existing = synchronizationWindows[key] { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        if let existing = synchronizationWindows[key] { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; if let synchronizationWindowPresentation {synchronizationWindowPresentation(existing)} else {existing.showWindow(nil);existing.window?.makeKeyAndOrderFront(nil)};return }
         let controller = SynchronizationWindowController(repository: repository, access: access, preferences: fileComparisonPreferences, sequence: sequence)
         controller.configureExport = { [weak self] child in self?.configureExportInteractions(child, repository: repository, access: access) }
         controller.configureBranchPicker = { [weak self] model in self?.configureReferenceBrowser(model, repository: repository, access: access) }
@@ -2334,14 +2334,27 @@ private enum TransportBatchPresentationContext {
             if action == .sync { self?.showSubmoduleSync(repository: repository, access: access, scope: []) }
             else { self?.showSubmoduleUpdate(repository: repository, access: access, scope: []) }
         }
-        controller.model.onTagLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [], endRevision: revision, selectedRevision: revision) }
+        controller.model.onResultLog = { [weak self,weak controller] revision in
+            guard let controller,!controller.model.closed else{return}
+            self?.showLog(repository:repository,access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:controller.model.preferences,sourceWindow:controller.window)
+        }
+        controller.model.onTagLog = { [weak controller] revision in controller?.model.onResultLog?(revision) }
         controller.model.onTagsChanged = { [weak self] in
             guard let self else { return }
             self.refreshRepositoryLogs(repository.root)
             if self.root?.path == repository.root.path { Task { await self.refresh() } }
         }
-        controller.model.onReferenceLog = { [weak self] reference in self?.showReferenceLog(repository: repository, access: access, reference: reference) }
-        controller.model.onReferenceCompare = { [weak self] old, new in self?.showRevisionComparison(repository: repository, access: access, from: .revision(old), to: .revision(new)) }
+        controller.model.onReferenceLog = { [weak self,weak controller] reference in
+            guard let controller,!controller.model.closed else{return}
+            self?.showReferenceLog(repository:repository,access:access,reference:reference,preferences:controller.model.preferences)
+        }
+        controller.model.onReferenceCompare = { [weak self,weak controller] old,new in
+            guard let controller,!controller.model.closed else{return}
+            let alternate=ComparisonToolInvocation.capture
+            ComparisonToolInvocation.$alternate.withValue(alternate) {
+                self?.showRevisionComparison(repository:repository,access:access,from:.revision(old),to:.revision(new),preferences:controller.model.preferences)
+            }
+        }
         controller.model.onHistoryCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
         controller.model.onResolve = { [weak self] paths in self?.showResolve(repository: repository, access: access, paths: paths, quick: nil) }
         controller.model.onConflictAction = { [weak self, weak controller] action, paths in
@@ -2420,7 +2433,8 @@ private enum TransportBatchPresentationContext {
             if child.model.busy { child.showWindow(nil) } else { child.close() }
         }
         controller.onClosed = { [weak self] in self?.synchronizationWindows.removeValue(forKey: key) }
-        synchronizationWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        synchronizationWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
+        if let synchronizationWindowPresentation {synchronizationWindowPresentation(controller)} else {controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
     }
 
     private func showAddProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal, backend: GitLibGit2Configuration? = nil, preservePathOrder: Bool = false) {
@@ -2572,7 +2586,8 @@ private enum TransportBatchPresentationContext {
         configureRevisionComparisonInteractions(controller.model, repository: repository, access: access)
         revisionComparisonWindows[key] = controller
         controller.model.load()
-        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
+        if let revisionComparisonWindowPresentation {revisionComparisonWindowPresentation(controller)} else {controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
     }
     private func showRevisionGraph(repository: GitRepository, access: RepositoryAccessLease?) {
         let key = repository.root.path + "\0" + repository.executable.path
@@ -2655,6 +2670,9 @@ private enum TransportBatchPresentationContext {
     var browserWindowPresentation: ((RepositoryBrowserWindowController) -> Void)?
     var fileComparisonWindowPresentation: ((FileComparisonWindowController) -> Void)?
     var logWindowPresentation: ((LogWindowController) -> Void)?
+    var referenceLogWindowPresentation: ((ReferenceLogWindowController) -> Void)?
+    var synchronizationWindowPresentation: ((SynchronizationWindowController) -> Void)?
+    var revisionComparisonWindowPresentation: ((RevisionComparisonWindowController) -> Void)?
     var submoduleUpdateWindowPresentation: ((SubmoduleUpdateWindowController) -> Void)?
     var captureCommandMaterializationBackend:(()->GitLibGit2Configuration)?
     var fileComparisonPreferences: UserDefaults = .standard
@@ -3011,11 +3029,15 @@ private enum TransportBatchPresentationContext {
         controller.model.setScope(paths)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showReferenceLog(repository: GitRepository, access: RepositoryAccessLease?, reference: String) {
-        let root = repository.root
-        let controller = referenceLogWindows[root.path] ?? ReferenceLogWindowController(repository: repository, access: access, reference: reference, preferences:fileComparisonPreferences)
-        let operationPreferences = controller.model.preferences
-        controller.onClosed = { [weak self] in self?.referenceLogWindows.removeValue(forKey: root.path) }
+    private func showReferenceLog(repository: GitRepository, access: RepositoryAccessLease?, reference: String, preferences:UserDefaults?=nil) {
+        let root=repository.root,requestedPreferences=preferences ?? fileComparisonPreferences
+        let reusable=referenceLogWindows.first {_,controller in
+            controller.model.repository.root.path==root.path && controller.model.repository.executable.path==repository.executable.path && controller.model.preferences === requestedPreferences && controller.model.canRefresh && controller.window?.attachedSheet==nil
+        }
+        let key=reusable?.key ?? (referenceLogWindows[root.path]==nil ? root.path:root.path+"\0context\0"+UUID().uuidString)
+        let controller=reusable?.value ?? ReferenceLogWindowController(repository:repository,access:access,reference:reference,preferences:requestedPreferences)
+        let operationPreferences=controller.model.preferences
+        controller.onClosed = { [weak self,weak controller] in guard let self,let controller,self.referenceLogWindows[key] === controller else{return};self.referenceLogWindows.removeValue(forKey:key) }
         controller.model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
         controller.model.onLogRange = { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range) }
         controller.model.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
@@ -3047,9 +3069,10 @@ private enum TransportBatchPresentationContext {
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        referenceLogWindows[root.path] = controller
+        referenceLogWindows[key] = controller
         controller.model.reference = reference; controller.model.reload()
-        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
+        if let referenceLogWindowPresentation {referenceLogWindowPresentation(controller)} else {controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
     }
     private func showStashRestore(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }

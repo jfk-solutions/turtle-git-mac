@@ -649,6 +649,7 @@ final class SynchronizationNativeWindow: NSWindow {
             let alert = NSAlert(); alert.alertStyle = .critical; alert.messageText = "TurtleGit"; alert.informativeText = details
             alert.addButton(withTitle: "OK"); alert.window.alphaValue = window.alphaValue; self.pullAlert = alert
             _ = await alert.beginSheetModal(for: window)
+            await Self.detachInlineSheet(alert.window)
             if self.pullAlert === alert { self.pullAlert = nil }
         }
         model.confirmTagDeletion = { [weak self] action, row, snapshot in
@@ -657,6 +658,7 @@ final class SynchronizationNativeWindow: NSWindow {
             alert.informativeText = "Do you really want to delete \"\(row.tag.rawValue)\"?" + (action == .deleteRemote ? "\nRemote: \(snapshot.remote)" : "")
             alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); alert.window.alphaValue = window.alphaValue; self.pullAlert = alert
             let response = await alert.beginSheetModal(for: window)
+            await Self.detachInlineSheet(alert.window)
             if self.pullAlert === alert { self.pullAlert = nil }
             return response == .alertFirstButtonReturn
         }
@@ -1173,12 +1175,12 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     }
     @Published var localBranch = ""
     @Published var remoteBranch = ""
-    @Published var remote = ""
+    @Published var remote = "" {didSet {if !GitReferenceName.equal(remote,oldValue) {resultGeneration=UUID()}}}
     var remoteWasSelected = false
     @Published var force = false
     @Published var confirmingQuit = false {
         didSet {
-            if confirmingQuit != oldValue { formRevision=UUID();fileListGeneration=UUID() }
+            if confirmingQuit != oldValue { formRevision=UUID();fileListGeneration=UUID();resultGeneration=UUID() }
             conflictFileActionsStorage?.confirmingQuit = confirmingQuit
             comparison.confirmingQuit = confirmingQuit
             incomingComparison.confirmingQuit = confirmingQuit
@@ -1186,7 +1188,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
             for viewer in incomingComparison.unifiedWindows.values { viewer.model.confirmingQuit = confirmingQuit }
         }
     }
-    @Published var tab = 0 { didSet { if tab != oldValue { fileListGeneration=UUID() } } }
+    @Published var tab = 0 { didSet { if tab != oldValue { fileListGeneration=UUID();resultGeneration=UUID() } } }
     @Published private(set) var incomingFromPatch = false
     private var lastTransportOldHash: String?
     @Published private(set) var incomingCommits: [LogEntry]?
@@ -1198,7 +1200,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     @Published private(set) var stashAction: SynchronizationStashAction = .save
     @Published private(set) var submoduleAction: SynchronizationSubmoduleAction = .update
     @Published private(set) var comparingTags = false
-    @Published private(set) var tagSnapshot: SynchronizationTagSnapshot?
+    @Published private(set) var tagSnapshot: SynchronizationTagSnapshot? {didSet {resultGeneration=UUID()}}
     private(set) var tagBackend:GitLibGit2Configuration?
     var captureTagBackend:(()->GitLibGit2Configuration)?
     @Published var hideEqualTags = false
@@ -1447,18 +1449,19 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     var fileSelection:GitPathSet {get {displayedFileList.selection} set {displayedFileList.selection=newValue}}
     func beginFileListQuestion(){Self.activeInlineOperations += 1}
     func endFileListQuestion(){Self.activeInlineOperations -= 1}
-    @Published private(set) var referenceChanges: [SynchronizationReferenceChange] = []
-    @Published var hideUnchangedReferences = false { didSet { preferences.set(hideUnchangedReferences, forKey: "RefCompareHideUnchanged") } }
+    private(set) var resultGeneration=UUID()
+    @Published private(set) var referenceChanges: [SynchronizationReferenceChange] = [] {didSet {resultGeneration=UUID()}}
+    @Published var hideUnchangedReferences = false
     var referenceRows: [SynchronizationReferenceChange] {
         referenceChanges.filter { !hideUnchangedReferences || $0.kind != .same }.sorted {
             if $0.kind != $1.kind { return $0.kind.rawValue < $1.kind.rawValue }
-            return $0.name.rawValue.localizedStandardCompare($1.name.rawValue) == .orderedAscending
+            return SynchronizationResultPresentation.compare($0.name.rawValue,$1.name.rawValue,logical:!preferences.bool(forKey:"NoStrCmpLogical")) == .orderedAscending
         }
     }
     @Published private(set) var outgoing: SynchronizationOutgoing? {didSet {if tab==1 && outgoing?.comparison==nil {tab=0}}}
     @Published private(set) var graph: [CommitGraphRow] = []
     @Published private(set) var busy = false { didSet {
-        if busy != oldValue {fileListGeneration=UUID()}
+        if busy != oldValue {fileListGeneration=UUID();resultGeneration=UUID()}
         if busy { cancelHistoryActions() }
         else if tab == 6 { conflictFileActionsStorage?.requestReload() }
     } }
@@ -1585,6 +1588,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     @Published var managingRemotes = false {didSet {if managingRemotes != oldValue {formRevision=UUID()}}}
     var onStashOptions: () -> Void = {}
     var onSubmoduleOptions: (SynchronizationSubmoduleAction) -> Void = { _ in }
+    var onResultLog: ((String) -> Void)?
     var onTagLog: ((String) -> Void)?
     var onTagsChanged: () -> Void = {}
     var onReferenceLog: (String) -> Void = { _ in }
@@ -1761,7 +1765,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         case nil: return ""
         }
     }
-    func invalidate() { formRevision=UUID();fileListGeneration=UUID();outgoingFileList.retire();incomingFileList.retire(); inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll();closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { formRevision=UUID();fileListGeneration=UUID();resultGeneration=UUID();outgoingFileList.retire();incomingFileList.retire(); inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll();closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
         guard !closed, !confirmingQuit, !confirmingCancellation, !transportRunning, !hasBlockingChild, window?.attachedSheet==nil else { return }
         formRevision=UUID()
@@ -1988,6 +1992,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         tagBackend=backend
         sshSettings.save(preferences, key: historyKey + ".autoload")
         let attempt = beginInlineAttempt(request, command: false)
+        let reviewedGeneration=resultGeneration
         Task {
             defer { releaseInlineAttempt(attempt) }
             let coordinator = action == .deleteLocal ? factory?() : nil
@@ -1998,7 +2003,8 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
                 try checkTagAccess()
                 if action == .deleteLocal || action == .deleteRemote {
                     let accepted = await confirmTagDeletion(action, row, snapshot)
-                    guard !closed, token === request, !request.isCancelled, accepted else { return }
+                    guard !closed, !confirmingQuit, resultGeneration==reviewedGeneration, token === request, !request.isCancelled, accepted,
+                          GitReferenceName(remote)==GitReferenceName(snapshot.remote),tagSnapshot?.rows.contains(row)==true,tagSnapshot.map({GitReferenceName($0.remote)})==GitReferenceName(snapshot.remote) else { return }
                 }
                 let result: Result<SynchronizationProgressResult, Error>
                 if action == .deleteLocal {
@@ -2483,14 +2489,8 @@ private struct SynchronizationDialog: View {
             }
             if model.tab == 7 {
                 SynchronizationTagTable(model: model)
-                    .overlay { if model.tagRows.isEmpty { Text(model.busy ? "Please wait…" : "No differences found.").foregroundStyle(.secondary).allowsHitTesting(false) } }
             } else if model.tab == 3 {
                 SynchronizationReferenceTable(model: model)
-                    .overlay {
-                        if model.referenceRows.isEmpty {
-                            Text(model.transportRunning ? "Please wait…" : "No differences found.").foregroundStyle(.secondary).allowsHitTesting(false)
-                        }
-                    }
             } else if model.tab == 2 {
                 SubmoduleProgressOutputView(text: model.commandOutput, completed: model.inlineCommandFinished,
                     completionRange: model.completionRange, success: model.inlineCompletionSucceeded, preferences: model.preferences)
@@ -3141,228 +3141,9 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
     }
 }
 
-private final class SynchronizationReferenceNativeTable: NSTableView {
-    var makeMenu: () -> NSMenu? = { nil }
-    override func menu(for event: NSEvent) -> NSMenu? {
-        let row = row(at: convert(event.locationInWindow, from: nil))
-        if row >= 0 { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
-        return makeMenu()
-    }
-}
 private final class SynchronizationReferenceHeader: NSTableHeaderView {
     var makeMenu: () -> NSMenu? = { nil }
     override func menu(for event: NSEvent) -> NSMenu? { makeMenu() }
-}
-private struct SynchronizationReferenceTable: NSViewRepresentable {
-    @ObservedObject var model: SynchronizationWindowModel
-    func makeCoordinator() -> Coordinator { Coordinator(model) }
-    func makeNSView(context: Context) -> NSScrollView {
-        let table = SynchronizationReferenceNativeTable(); table.rowHeight = 24
-        let titles = ["Reference", "Type", "Change", "Old hash", "Old message", "New hash", "New message"]
-        for (index, title) in titles.enumerated() {
-            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(String(index)))
-            column.title = NSLocalizedString(title,comment:""); column.width = [180.0, 110, 140, 100, 200, 100, 200][index]
-            column.sortDescriptorPrototype = NSSortDescriptor(key: String(index), ascending: true)
-            table.addTableColumn(column)
-        }
-        table.delegate = context.coordinator; table.dataSource = context.coordinator
-        let header = SynchronizationReferenceHeader(); header.makeMenu = { [weak coordinator = context.coordinator] in coordinator?.headerMenu() }; table.headerView = header
-        table.makeMenu = { [weak table, weak coordinator = context.coordinator] in coordinator?.rowMenu(table?.selectedRow ?? -1) }
-        if model.preferences === UserDefaults.standard { table.autosaveName = "TurtleGit.SyncRefs.Columns"; table.autosaveTableColumns = true }
-        let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.documentView = table
-        context.coordinator.table = table;context.coordinator.updateSelectionStyle(); return scroll
-    }
-    func updateNSView(_ scroll: NSScrollView, context: Context) {
-        context.coordinator.model = model; context.coordinator.reload()
-    }
-    static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator) {if let table=coordinator.table {NativeListSelection.remove(from:table)}}
-    @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
-        var model: SynchronizationWindowModel
-        weak var table: NSTableView?
-        var rows: [SynchronizationReferenceChange] = []
-        init(_ model: SynchronizationWindowModel) { self.model = model }
-        private func field(_ row: SynchronizationReferenceChange, _ column: Int) -> String {
-            switch column {
-            case 0: return row.shortName
-            case 1: return row.typeName
-            case 2: return row.change
-            case 3: return row.oldHash ?? ""
-            case 4: return row.oldMessage
-            case 5: return row.newHash ?? ""
-            default: return row.newMessage
-            }
-        }
-        func updateSelectionStyle() {
-            guard let table else{return}
-            NativeListSelection.install(on:table,preferences:model.preferences,primaryColumn:table.tableColumn(withIdentifier:.init("0")),labelText:{[weak self] row in
-                guard let self,self.rows.indices.contains(row) else{return nil};return self.rows[row].shortName
-            },leadingInset:22)
-        }
-        func reload() {
-            updateSelectionStyle()
-            let selected = table.flatMap { rows.indices.contains($0.selectedRow) ? rows[$0.selectedRow].id : nil }
-            rows = model.referenceRows
-            if let descriptor = table?.sortDescriptors.first, let column = Int(descriptor.key ?? "") {
-                rows = rows.enumerated().sorted { a, b in
-                    let lhs = field(a.element, column), rhs = field(b.element, column)
-                    let order = [0, 4, 6].contains(column) ? lhs.localizedStandardCompare(rhs) : lhs.compare(rhs, options: .literal)
-                    if order == .orderedSame { return a.offset < b.offset }
-                    return descriptor.ascending ? order == .orderedAscending : order == .orderedDescending
-                }.map(\.element)
-            }
-            table?.reloadData()
-            if let selected, let index = rows.firstIndex(where: { $0.id == selected }) { table?.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
-            else { table?.deselectAll(nil) }
-        }
-        func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) { reload() }
-        func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
-        func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
-            guard rows.indices.contains(row), let index = Int(column?.identifier.rawValue ?? "") else { return nil }
-            let entry = rows[row]
-            let value = field(entry, index)
-            let text = NSTextField(labelWithString: [3, 5].contains(index) ? String(value.prefix(8)) : value)
-            text.lineBreakMode = .byTruncatingTail; text.toolTip = value
-            if index == 0, let icon = ReferenceTypeIcon(referenceName: entry.name.rawValue)?.image() {
-                let image = NSImageView(image: icon); image.setContentHuggingPriority(.required, for: .horizontal)
-                let stack = NSStackView(views: [image, text]); stack.orientation = .horizontal; stack.spacing = 4; return stack
-            }
-            return text
-        }
-        private var available: Bool { !model.closed && !model.busy && !model.confirmingQuit && !model.confirmingCancellation && !model.hasBlockingChild }
-        func headerMenu() -> NSMenu {
-            let menu = NSMenu(); menu.autoenablesItems = false
-            let item = NSMenuItem(title: "Hide unchanged refs", action: #selector(toggleUnchanged), keyEquivalent: "")
-            item.target = self; item.state = model.hideUnchangedReferences ? .on : .off; menu.addItem(item); return menu
-        }
-        @objc func toggleUnchanged() { model.hideUnchangedReferences.toggle() }
-        func rowMenu(_ row: Int) -> NSMenu? {
-            guard rows.indices.contains(row) else { return nil }
-            let entry = rows[row], menu = NSMenu(); menu.autoenablesItems = false
-            func add(_ title: String, _ selector: Selector, _ icon: MenuIcon) {
-                let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.target = self
-                item.representedObject = entry; item.isEnabled = available
-                item.image = MenuPresentationSettings.applicationContextIcons(defaults: model.preferences) ? icon.image() : nil
-                menu.addItem(item)
-            }
-            if let hash = entry.oldHash { add("Show log of " + String(hash.prefix(8)), #selector(oldLog(_:)), .log) }
-            if let hash = entry.newHash, entry.oldHash != hash { add("Show log of " + String(hash.prefix(8)), #selector(newLog(_:)), .log) }
-            if entry.oldHash != nil && entry.newHash != nil && entry.oldHash != entry.newHash { add("Compare revisions", #selector(compare(_:)), .compare) }
-            add("Reflog", #selector(reflog(_:)), .log); return menu
-        }
-        @objc func oldLog(_ sender: NSMenuItem) { guard available, let row = sender.representedObject as? SynchronizationReferenceChange, let hash = row.oldHash else { return }; model.onLog(hash) }
-        @objc func newLog(_ sender: NSMenuItem) { guard available, let row = sender.representedObject as? SynchronizationReferenceChange, let hash = row.newHash else { return }; model.onLog(hash) }
-        @objc func compare(_ sender: NSMenuItem) { guard available, let row = sender.representedObject as? SynchronizationReferenceChange, let old = row.oldHash, let new = row.newHash else { return }; model.onReferenceCompare(old, new) }
-        @objc func reflog(_ sender: NSMenuItem) { guard available, let row = sender.representedObject as? SynchronizationReferenceChange else { return }; model.onReferenceLog(row.name.rawValue) }
-    }
-}
-
-private struct SynchronizationTagTable: NSViewRepresentable {
-    @ObservedObject var model: SynchronizationWindowModel
-    func makeCoordinator() -> Coordinator { Coordinator(model) }
-    func makeNSView(context: Context) -> NSScrollView {
-        let table = SynchronizationReferenceNativeTable(); table.rowHeight = 24
-        let titles = ["Tag", "Status", "Local hash", "Local message", "Remote hash", "Remote message"]
-        for (index, title) in titles.enumerated() {
-            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(String(index)))
-            column.title = NSLocalizedString(title,comment:""); column.width = [180.0, 100, 100, 200, 100, 200][index]
-            column.sortDescriptorPrototype = NSSortDescriptor(key: String(index), ascending: true)
-            table.addTableColumn(column)
-        }
-        table.delegate = context.coordinator; table.dataSource = context.coordinator
-        if model.preferences.bool(forKey: "SortTagsReversed") { table.sortDescriptors = [NSSortDescriptor(key: "0", ascending: false)] }
-        let header = SynchronizationReferenceHeader(); header.makeMenu = { [weak coordinator = context.coordinator] in coordinator?.headerMenu() }; table.headerView = header
-        table.makeMenu = { [weak table, weak coordinator = context.coordinator] in coordinator?.rowMenu(table?.selectedRow ?? -1) }
-        if model.preferences === UserDefaults.standard { table.autosaveName = "TurtleGit.SyncTags.Columns"; table.autosaveTableColumns = true }
-        let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.documentView = table
-        context.coordinator.table = table; context.coordinator.reload(); return scroll
-    }
-    func updateNSView(_ scroll: NSScrollView, context: Context) { context.coordinator.model = model; context.coordinator.reload() }
-    static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator) {if let table=coordinator.table {NativeListSelection.remove(from:table)}}
-    @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
-        var model: SynchronizationWindowModel
-        weak var table: NSTableView?
-        var rows: [SynchronizationTagRow] = []
-        init(_ model: SynchronizationWindowModel) { self.model = model }
-        private func field(_ row: SynchronizationTagRow, _ column: Int) -> String {
-            switch column {
-            case 0: return row.name.rawValue
-            case 1: return row.kind.title
-            case 2: return row.localHash ?? ""
-            case 3: return row.localMessage
-            case 4: return row.remoteHash ?? ""
-            default: return row.remoteMessage
-            }
-        }
-        func updateSelectionStyle() {
-            guard let table else{return}
-            NativeListSelection.install(on:table,preferences:model.preferences,primaryColumn:table.tableColumn(withIdentifier:.init("0")),labelText:{[weak self] row in
-                guard let self,self.rows.indices.contains(row) else{return nil};return self.rows[row].name.rawValue
-            },leadingInset:2)
-        }
-        func reload() {
-            updateSelectionStyle()
-            let selected = table.flatMap { rows.indices.contains($0.selectedRow) ? rows[$0.selectedRow].id : nil }
-            let descriptor = table?.sortDescriptors.first, column = Int(descriptor?.key ?? "0") ?? 0
-            let logical = !model.preferences.bool(forKey: "NoStrCmpLogical")
-            rows = model.tagRows.enumerated().sorted { a, b in
-                let lhs = field(a.element, column), rhs = field(b.element, column)
-                let order = logical && [0, 3, 5].contains(column) ? lhs.localizedStandardCompare(rhs) : lhs.compare(rhs, options: .literal)
-                if order == .orderedSame { return a.offset < b.offset }
-                return descriptor?.ascending == false ? order == .orderedDescending : order == .orderedAscending
-            }.map(\.element)
-            table?.reloadData()
-            if let selected, let index = rows.firstIndex(where: { $0.id == selected }) { table?.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
-            else { table?.deselectAll(nil) }
-        }
-        func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) { reload() }
-        func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
-        func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
-            guard rows.indices.contains(row), let index = Int(column?.identifier.rawValue ?? "") else { return nil }
-            let value = field(rows[row], index)
-            let text = NSTextField(labelWithString: [2, 4].contains(index) ? String(value.prefix(8)) : value)
-            text.lineBreakMode = .byTruncatingTail; text.toolTip = value
-            return text
-        }
-        private var available: Bool { !model.closed && !model.busy && !model.confirmingQuit && !model.confirmingCancellation && !model.hasBlockingChild }
-        func headerMenu() -> NSMenu {
-            let menu = NSMenu(); menu.autoenablesItems = false
-            let item = NSMenuItem(title: "Hide unchanged", action: #selector(toggleEqual), keyEquivalent: "")
-            item.target = self; item.state = model.hideEqualTags ? .on : .off; item.isEnabled = available; menu.addItem(item); return menu
-        }
-        @objc func toggleEqual() { guard available else { return }; model.hideEqualTags.toggle() }
-        func rowMenu(_ index: Int) -> NSMenu? {
-            guard rows.indices.contains(index) else { return nil }
-            let row = rows[index], menu = NSMenu(); menu.autoenablesItems = false
-            func add(_ title: String, _ selector: Selector, _ icon: MenuIcon) {
-                let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.target = self
-                item.representedObject = row; item.isEnabled = available
-                item.image = MenuPresentationSettings.applicationContextIcons(defaults: model.preferences) ? icon.image() : nil
-                menu.addItem(item)
-            }
-            if let hash = row.localHash { add("Show log of " + String(hash.prefix(8)), #selector(localLog(_:)), .log) }
-            if row.kind != .same {
-                if let hash = row.remoteHash { add("Show log of " + String(hash.prefix(8)), #selector(remoteLog(_:)), .log) }
-                if row.localHash != nil, row.remoteHash != nil { add("Compare with previous revision", #selector(compare(_:)), .compare) }
-                if !menu.items.isEmpty { menu.addItem(.separator()) }
-                if row.allows(.fetch) { add("Fetch", #selector(fetch(_:)), .fetch) }
-                if row.allows(.push) { add("Push", #selector(push(_:)), .commit) }
-            }
-            if !menu.items.isEmpty { menu.addItem(.separator()) }
-            if row.allows(.deleteLocal) { add("Delete local tag", #selector(deleteLocal(_:)), .remove) }
-            if row.allows(.deleteRemote) { add("Delete tag on remote", #selector(deleteRemote(_:)), .remove) }
-            return menu
-        }
-        private func current(_ sender: NSMenuItem) -> SynchronizationTagRow? {
-            guard available, let row = sender.representedObject as? SynchronizationTagRow, model.tagSnapshot?.rows.contains(row) == true else { return nil }; return row
-        }
-        @objc func localLog(_ sender: NSMenuItem) { guard let row = current(sender), let hash = row.localHash else { return }; (model.onTagLog ?? model.onLog)(hash) }
-        @objc func remoteLog(_ sender: NSMenuItem) { guard let row = current(sender), let hash = row.remoteHash else { return }; (model.onTagLog ?? model.onLog)(hash) }
-        @objc func compare(_ sender: NSMenuItem) { guard let row = current(sender), let local = row.localHash, let remote = row.remoteHash else { return }; model.onReferenceCompare(local, remote) }
-        @objc func fetch(_ sender: NSMenuItem) { guard let row = current(sender) else { return }; model.performTag(.fetch, row: row) }
-        @objc func push(_ sender: NSMenuItem) { guard let row = current(sender) else { return }; model.performTag(.push, row: row) }
-        @objc func deleteLocal(_ sender: NSMenuItem) { guard let row = current(sender) else { return }; model.performTag(.deleteLocal, row: row) }
-        @objc func deleteRemote(_ sender: NSMenuItem) { guard let row = current(sender) else { return }; model.performTag(.deleteRemote, row: row) }
-    }
 }
 
 private struct SynchronizationConflictRow: Identifiable {
