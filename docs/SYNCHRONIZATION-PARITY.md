@@ -1,5 +1,12 @@
 # Git Synchronization parity
 
+The [incoming and outgoing file-list family](SYNC-FILE-LIST-PARITY.md) replaces
+both Changelists with native source-restricted comparison/clipboard tables,
+independent saved columns, sorting and owned reset. Exact historical paths,
+native activation and stale action guards have a grouped checkpoint with both Git
+engines. This remains a partial review of `IDD_SYNC`; physical, signed and complete
+dialog acceptance remain open.
+
 The connected [Synchronization/SVN entry family](COMMAND-LINE.md#synchronization-and-svn-entry)
 adds all five source command routes, Sync sequence placement, owning preferences
 and preserved SVN questions/options across competing requests. Existing native

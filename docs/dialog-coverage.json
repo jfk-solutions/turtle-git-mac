@@ -3280,7 +3280,15 @@
       "native_sources": [
         {
           "path": "Sources/TurtleGitMac/SynchronizationWindow.swift",
-          "origin": "recorded-control-mapping"
+          "anchor": "final class SynchronizationWindowModel"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SynchronizationFileList.swift",
+          "anchor": "struct SynchronizationFiles"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SynchronizationActionControl.swift",
+          "anchor": "struct SynchronizationActionControl"
         },
         {
           "path": "Sources/TurtleGitMac/ReferenceBrowserWindow.swift",
@@ -3312,18 +3320,62 @@
         "docs/PRIMARY-COMMAND-BANDS.md",
         "docs/REMOTE-REFERENCE-ENGINE-PARITY.md",
         "docs/SOURCE-FORM-CONTROLS-PARITY.md",
+        "docs/SYNC-FILE-LIST-PARITY.md",
+        "docs/SYNCHRONIZATION-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/dialog-geometry-2026-10-08.json",
+        "docs/qa/export-version-pickers-2026-10-11.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
+        "docs/qa/git-process-exit-2026-10-11.json",
+        "docs/qa/history-workflow-batch-2026-10-11.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/primary-command-bands-2026-10-17.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/remote-reference-engine-2026-10-19.json",
         "docs/qa/saved-data-2026-10-08.json",
         "docs/qa/source-form-controls-2026-10-20.json",
-        "docs/qa/temporary-files-2026-10-08.json"
+        "docs/qa/stash-reference-cancellation-2026-10-11.json",
+        "docs/qa/sync-child-progress-2026-10-17.json",
+        "docs/qa/sync-conflict-files-2026-10-17.json",
+        "docs/qa/sync-file-list-2026-10-20.json",
+        "docs/qa/sync-recovery-2026-10-17.json",
+        "docs/qa/sync-replay-hooks-2026-10-14.json",
+        "docs/qa/sync-svn-commands-2026-10-18.json",
+        "docs/qa/synchronization-apply-native-2026-10-11.json",
+        "docs/qa/synchronization-branch-picker-native-2026-10-11.json",
+        "docs/qa/synchronization-checkout-2026-10-11.json",
+        "docs/qa/synchronization-clipboard-2026-10-11.json",
+        "docs/qa/synchronization-email-core-2026-10-11.json",
+        "docs/qa/synchronization-email-native-2026-10-11.json",
+        "docs/qa/synchronization-export-2026-10-11.json",
+        "docs/qa/synchronization-fetch-rebase-2026-10-11.json",
+        "docs/qa/synchronization-find-2026-10-11.json",
+        "docs/qa/synchronization-history-native-2026-10-11.json",
+        "docs/qa/synchronization-history-operations-2026-10-11.json",
+        "docs/qa/synchronization-layout-order-2026-10-11.json",
+        "docs/qa/synchronization-manage-native-2026-10-11.json",
+        "docs/qa/synchronization-native-fetch-2026-10-11.json",
+        "docs/qa/synchronization-owned-rebase-2026-10-11.json",
+        "docs/qa/synchronization-pull-native-2026-10-11.json",
+        "docs/qa/synchronization-pull-preflight-2026-10-11.json",
+        "docs/qa/synchronization-push-native-2026-10-11.json",
+        "docs/qa/synchronization-reference-2026-10-11.json",
+        "docs/qa/synchronization-revision-list-2026-10-11.json",
+        "docs/qa/synchronization-selection-native-2026-10-11.json",
+        "docs/qa/synchronization-shift-options-2026-10-11.json",
+        "docs/qa/synchronization-stash-lifecycle-2026-10-11.json",
+        "docs/qa/synchronization-stash-native-2026-10-11.json",
+        "docs/qa/synchronization-submodule-lifecycle-2026-10-11.json",
+        "docs/qa/synchronization-submodule-native-2026-10-11.json",
+        "docs/qa/synchronization-tags-backend-2026-10-11.json",
+        "docs/qa/synchronization-tags-native-2026-10-11.json",
+        "docs/qa/synchronization-tags-presentation-2026-10-11.json",
+        "docs/qa/synchronization-transport-2026-10-11.json",
+        "docs/qa/synchronization-window-2026-10-11.json",
+        "docs/qa/temporary-files-2026-10-08.json",
+        "docs/qa/working-selection-identities-2026-10-17.json"
       ]
     },
     {

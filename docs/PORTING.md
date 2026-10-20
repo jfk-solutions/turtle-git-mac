@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+The [Synchronization file-list family](SYNC-FILE-LIST-PARITY.md) adds native
+incoming/outgoing tables with source comparison and clipboard commands,
+historical icons/colors, exact path selection, sort/display-order dispatch and
+separate saved columns. Reset, tab/snapshot replacement and closure retain owned
+guards. The Debug app and both native groups with both Git engines pass; the
+affected rendering group passed after a newline-caption repair. Four final
+captures were reviewed and all owned receivers are absent.
+[Evidence](qa/sync-file-list-2026-10-20.json) records failures and actual scope;
+Core was unchanged. Physical, signed and complete source acceptance remain open.
+
 The [native reference and transport controls](SOURCE-FORM-CONTROLS-PARITY.md)
 connect source form menus and focus across Branch, Tag, Switch, Merge and Reset,
 owned Push F5 refresh, four Synchronization split controls and one-second typing

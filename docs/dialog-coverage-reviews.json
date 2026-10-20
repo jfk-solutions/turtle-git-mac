@@ -993,6 +993,26 @@
           "anchor": "int tg_add("
         }
       ]
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "id": "IDD_SYNC",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitMac/SynchronizationWindow.swift",
+          "anchor": "final class SynchronizationWindowModel"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SynchronizationFileList.swift",
+          "anchor": "struct SynchronizationFiles"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SynchronizationActionControl.swift",
+          "anchor": "struct SynchronizationActionControl"
+        }
+      ],
+      "parity_document": "docs/SYNCHRONIZATION-PARITY.md",
+      "status": "partial"
     }
   ]
 }

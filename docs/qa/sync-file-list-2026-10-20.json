@@ -1,0 +1,115 @@
+{
+  "date": "2026-10-20",
+  "implementation_baseline": "bef230ec",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "dialogs": [
+    "src/Resources/TortoiseProcENG.rc/IDD_SYNC"
+  ],
+  "scope": "Both native incoming/outgoing Changelists: source restricted compare/clipboard actions, historical row identities/icons/colors, five columns, numeric/path sorting, independent layout persistence/reset/autofit, native Return/Shift/doubleclick and exact clipboard paths, captured action ownership and parent cancellation.",
+  "validation": {
+    "core": "Unchanged; no Core suite repeated. Real Git projections and shared comparison dispatch are exercised in the native group.",
+    "app_builds": [
+      {
+        "log": "build/qa/sync-file-list-build-2026-10-20.log",
+        "exit_code": 65,
+        "reason": "New reset nested Task needed explicit self; font size expected Int."
+      },
+      {
+        "log": "build/qa/sync-file-list-repaired-build-2026-10-20.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/sync-file-list-cell-build-2026-10-20.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/sync-file-list-caption-build-2026-10-20.log",
+        "exit_code": 0
+      }
+    ],
+    "native": {
+      "distinct_case_engine_pairs": 4,
+      "full_group_log": "build/qa/sync-file-list-exact-index-native-2026-10-20.log",
+      "affected_lists_recheck": "build/qa/sync-file-list-caption-native-2026-10-20.log",
+      "cases": [
+        "lists: both actual incoming/outgoing tables, real outgoing/tracking and incoming snapshots, rename/type/gitlink/tab/newline/leading-dash/NFC+NFD, actual Return/Shift/double-action, source clipboard native selectors and one-use receipts, default-nil and displayed descending comparison order, actual header sorts/toggle/reset Yes+No and persisted layout reopen, unchanged HEAD/index.",
+        "ownership: stale tab/header/selection/snapshot/read-busy/Quit/sheet/closed receipts, actual reload and worker drain, late reset rejection and closed native key."
+      ],
+      "key_scope": "Only exact owned key-window query injected for nonactivating receiver; actual first responder/event window/sheet/modal/model guards remain. No physical key ownership claim.",
+      "failures_and_repairs": [
+        "Fixture GitResult.stdout Data explicitly decoded for revision hashes; private busy setter replaced by actual model.reload/read completion.",
+        "NativeListSelection wraps delegate: fixture uses actual table.dataSource coordinator. Native table actions remain exercised.",
+        "Mac Git argv preprocessing collapsed the initial NFC/NFD fixture. Raw NUL index-info input and private core.precomposeunicode=false now create both paths; actual committed raw ls-tree proves both before UI checks.",
+        "Four captures exposed literal newline filename wrapping across24pt rows. Native single-line flags alone still produced32pt intrinsic/actual height. Focused actual geometry and failure captures confirmed it. Display-only control glyphs now feed cells, selection overlays and autofit while raw tooltips/clipboard stay exact. Strict geometry assertions remain."
+      ],
+      "attempt_logs": [
+        "build/qa/sync-file-list-api-native-2026-10-20.log",
+        "build/qa/sync-file-list-build-2026-10-20.log",
+        "build/qa/sync-file-list-caption-build-2026-10-20.log",
+        "build/qa/sync-file-list-caption-native-2026-10-20.log",
+        "build/qa/sync-file-list-cell-build-2026-10-20.log",
+        "build/qa/sync-file-list-cell-diagnostic-2026-10-20.log",
+        "build/qa/sync-file-list-cell-native-2026-10-20.log",
+        "build/qa/sync-file-list-coordinator-native-2026-10-20.log",
+        "build/qa/sync-file-list-exact-index-native-2026-10-20.log",
+        "build/qa/sync-file-list-native-2026-10-20.log",
+        "build/qa/sync-file-list-repaired-build-2026-10-20.log"
+      ]
+    },
+    "localizations": {
+      "write": {
+        "languages": 38,
+        "keys": 1308
+      },
+      "check": "passed"
+    },
+    "owned_receiver_pids": [
+      35727,
+      36004,
+      36199,
+      36540,
+      37041,
+      37211,
+      37451,
+      37672
+    ],
+    "independently_absent": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/sync-incoming-files-light.png",
+        "sha256": "fa97580bcd55fae09a4a5286bd8f2f9e08bcb9b1ab5608ee90e8b1774e37615f",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/sync-incoming-files-dark.png",
+        "sha256": "b107ebc36bd64eae21706fcc822987748ba29a5348ec8cbf84edbb835e4dd05e",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/sync-outgoing-files-light.png",
+        "sha256": "24d14147643d42d622d41b79e10ffe5fa62ff92398519a6a00fe4e990397acf8",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/sync-outgoing-files-dark.png",
+        "sha256": "aa3cb05ed098b565d13444667565139283a3a41b0e48b2d3f53e0cd9774252cb",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      }
+    ]
+  },
+  "remaining": [
+    "Physical pointer/key tracking, VoiceOver, complete locale/layout combinations",
+    "Installed signed and external comparison/grant acceptance",
+    "Broader forced worker/cancellation combinations outside current fixture",
+    "Complete current hosted integration pass",
+    "Full Synchronization/source-port acceptance and App Store distribution"
+  ]
+}

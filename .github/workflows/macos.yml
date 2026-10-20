@@ -864,6 +864,8 @@ jobs:
           python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Synchronization outgoing, Fetch transports and owner lifetime
         run: python3 scripts/test-synchronization-dialog.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Native Synchronization incoming and outgoing file lists
+        run: python3 scripts/test-sync-file-list.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Pull and Fetch submodule defaults
         run: python3 scripts/test-fetch-submodule-defaults.py
       - name: Native Commit conflict-hint preflight

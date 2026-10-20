@@ -1075,7 +1075,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
 @MainActor final class SynchronizationWindowModel: ObservableObject {
     private(set) static var activeInlineOperations = 0
     private var inlineAttempts: [UUID: SynchronizationInlineAttempt] = [:]
-    var hasPendingInlineWork: Bool { !inlineAttempts.isEmpty }
+    var hasPendingInlineWork: Bool { !inlineAttempts.isEmpty || outgoingFileList.hasPendingQuestion || incomingFileList.hasPendingQuestion || comparison.hasOwnedPreparation || incomingComparison.hasOwnedPreparation }
 
     private(set) static var activePushWorkflows=0
     lazy var clientHooks=ClientHookSession(preferences:preferences)
@@ -1178,7 +1178,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     @Published var force = false
     @Published var confirmingQuit = false {
         didSet {
-            if confirmingQuit != oldValue { formRevision=UUID() }
+            if confirmingQuit != oldValue { formRevision=UUID();fileListGeneration=UUID() }
             conflictFileActionsStorage?.confirmingQuit = confirmingQuit
             comparison.confirmingQuit = confirmingQuit
             incomingComparison.confirmingQuit = confirmingQuit
@@ -1186,7 +1186,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
             for viewer in incomingComparison.unifiedWindows.values { viewer.model.confirmingQuit = confirmingQuit }
         }
     }
-    @Published var tab = 0 { didSet { if tab != oldValue { fileSelection = [] } } }
+    @Published var tab = 0 { didSet { if tab != oldValue { fileListGeneration=UUID() } } }
     @Published private(set) var incomingFromPatch = false
     private var lastTransportOldHash: String?
     @Published private(set) var incomingCommits: [LogEntry]?
@@ -1440,7 +1440,13 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     var pushActionTitle: String {
         switch pushAction { case .pushTags: return "Push tags"; case .pushNotes: return "Push notes"; default: return "Push" }
     }
-    @Published var fileSelection = Set<String>()
+    private(set) var fileListGeneration=UUID()
+    lazy var outgoingFileList=SynchronizationFileListState(owner:self,incoming:false)
+    lazy var incomingFileList=SynchronizationFileListState(owner:self,incoming:true)
+    var displayedFileList:SynchronizationFileListState {tab==5 ? incomingFileList:outgoingFileList}
+    var fileSelection:GitPathSet {get {displayedFileList.selection} set {displayedFileList.selection=newValue}}
+    func beginFileListQuestion(){Self.activeInlineOperations += 1}
+    func endFileListQuestion(){Self.activeInlineOperations -= 1}
     @Published private(set) var referenceChanges: [SynchronizationReferenceChange] = []
     @Published var hideUnchangedReferences = false { didSet { preferences.set(hideUnchangedReferences, forKey: "RefCompareHideUnchanged") } }
     var referenceRows: [SynchronizationReferenceChange] {
@@ -1449,9 +1455,10 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
             return $0.name.rawValue.localizedStandardCompare($1.name.rawValue) == .orderedAscending
         }
     }
-    @Published private(set) var outgoing: SynchronizationOutgoing?
+    @Published private(set) var outgoing: SynchronizationOutgoing? {didSet {if tab==1 && outgoing?.comparison==nil {tab=0}}}
     @Published private(set) var graph: [CommitGraphRow] = []
     @Published private(set) var busy = false { didSet {
+        if busy != oldValue {fileListGeneration=UUID()}
         if busy { cancelHistoryActions() }
         else if tab == 6 { conflictFileActionsStorage?.requestReload() }
     } }
@@ -1701,7 +1708,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     @Published var creatingHistoryReference = false
     var hasBlockingChild: Bool { conflictFileActionsStorage?.busy == true || conflictFileActionsStorage?.unifiedViewerBusy == true || hasOtherBlockingChild }
     private var hasOtherBlockingChild: Bool {
-        historyReferencesBlocking() || operatingHistory || exportingHistory || creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
+        outgoingFileList.resettingColumns || incomingFileList.resettingColumns || historyReferencesBlocking() || operatingHistory || exportingHistory || creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
             child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
         }
     }
@@ -1741,6 +1748,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         if transportRunning { return cancelling ? "Cancelling…" : (currentWork.isEmpty ? "Running Git…" : currentWork) }
         if waitingForInput {return "Waiting for input"}
         if busy { return "Loading…" }
+        if [1,5].contains(tab),let fileError=displayedComparison.error {return fileError}
         if let historyNoteWarning { return historyNoteWarning + (error.map { "\n\n" + $0 } ?? "") }
         if let error { return error }
         if comparingTags { return "\(tagRows.count) tags" }
@@ -1753,7 +1761,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         case nil: return ""
         }
     }
-    func invalidate() { formRevision=UUID(); inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll();closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { formRevision=UUID();fileListGeneration=UUID();outgoingFileList.retire();incomingFileList.retire(); inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll();closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
         guard !closed, !confirmingQuit, !confirmingCancellation, !transportRunning, !hasBlockingChild, window?.attachedSheet==nil else { return }
         formRevision=UUID()
@@ -1762,7 +1770,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         comparingTags = false; tagSnapshot = nil; if tab == 7 { tab = 0 }
         let retainedError = preserveError ? error : nil
         let request = OperationCancellation(); token = request; formReadToken=request; busy = true; error = retainedError
-        outgoing = nil; graph = []; fileSelection = []; comparison.snapshot = nil
+        outgoing = nil; graph = []; fileSelection = []; comparison.snapshot = nil;comparison.error=nil
         let local = localBranch, selectedRemote = remote, selectedBranch = remoteBranch, forced = force
         let selectedChoice = remoteWasSelected
         if refreshRemoteSelection { urlHistory = FetchDialogHistory.load(preferences, key: historyKey + ".urls", caseSensitive: true, maxItems: Int(Int32.max)) }
@@ -1866,7 +1874,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
         let request = OperationCancellation(); token?.cancel(); token = request; busy = true; error = nil
         comparingTags = false; tagSnapshot = nil
-        incomingFromPatch = true; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil
+        incomingFromPatch = true; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil;incomingComparison.error=nil
         let attempt = beginInlineAttempt(request, command: false)
         Task {
             defer { releaseInlineAttempt(attempt) }
@@ -1947,7 +1955,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         comparingTags = true; tagSnapshot = nil; tab = 7; error = nil; commandOutput = ""; referenceChanges = []
         completionRange = nil; commandCancelled = false; inlineCommandFinished = false; inlineCompletionSucceeded = false
         commandCompleted = false; percentage = nil; currentWork = ""
-        incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
+        incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil;incomingComparison.error=nil; conflicts = []
         let selectedRemote = remote
         sshSettings.save(preferences, key: historyKey + ".autoload")
         let attempt = beginInlineAttempt(request, command: false)
@@ -2135,7 +2143,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         guard !closed, !confirmingQuit, !confirmingCancellation, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         let selected = action ?? stashAction; stashAction = selected
         if shift { if selected == .save { onStashOptions() }; return }
-        incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
+        incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil;incomingComparison.error=nil; conflicts = []
         comparingTags = false; tagSnapshot = nil
         let operationID = UUID(); transportID = operationID
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
@@ -2183,7 +2191,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         let operationID = UUID(); transportID = operationID
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
         cancelling = false; commandCompleted = false; commandSucceeded = false; referenceChanges = []
-        incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil; conflicts = []
+        incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil;incomingComparison.error=nil; conflicts = []
         outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
         if shift { completionRange = nil; commandCancelled = false; inlineCommandFinished = false; inlineCompletionSucceeded = false }
         var options = SynchronizationTransportOptions(action: action)
@@ -2418,10 +2426,9 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         } else { cancelling = true; request.cancel() }
     }
     func compareFiles(unified: Bool) {
-        let child = displayedComparison
-        guard !closed, !confirmingQuit, !busy, child.snapshot != nil, !fileSelection.isEmpty else { return }
-        if unified { child.showPatch(fileSelection, alternate: ComparisonToolInvocation.capture) }
-        else { child.compare(fileSelection) }
+        let list=displayedFileList
+        guard let receipt=list.capture(list.selection) else{return}
+        list.compare(receipt,unified:unified,alternate:ComparisonToolInvocation.capture)
     }
 }
 
@@ -2494,7 +2501,7 @@ private struct SynchronizationDialog: View {
             } else if model.tab == 6 {
                 SynchronizationConflictFiles(model:model,actions:model.conflictFileActions)
             } else {
-                SynchronizationFiles(model: model)
+                SynchronizationFiles(model: model).id(model.tab)
                 HStack {
                     Button { model.compareFiles(unified: false) } label: { CommandLabel(title: "Compare two revisions", icon: .compare) }.disabled(model.fileSelection.isEmpty || model.busy)
                     Button { model.compareFiles(unified: true) } label: { CommandLabel(title: "Show unified diff", icon: .compare) }.disabled(model.fileSelection.isEmpty || model.busy)
@@ -2508,7 +2515,7 @@ private struct SynchronizationDialog: View {
                     if model.incomingCommits != nil { Text("In Commits").tag(4) }
                     if model.incomingComparison.snapshot?.files.isEmpty == false { Text("In Changelist").tag(5) }
                     if !model.conflicts.isEmpty || model.tab == 6 { Text("Conflicts").tag(6) }
-                    Text("Out Commits").tag(0); Text("Out Changelist").tag(1); Text("Ref List").tag(3)
+                    Text("Out Commits").tag(0); if model.outgoing?.comparison != nil {Text("Out Changelist").tag(1)}; Text("Ref List").tag(3)
                 }
             }.labelsHidden().pickerStyle(.segmented)
             DialogCommandRows {
@@ -2526,7 +2533,7 @@ private struct SynchronizationDialog: View {
             }
             HStack {
                 if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
-                Text(model.status).foregroundStyle(model.error == nil && model.historyNoteWarning == nil ? Color.secondary : Color.red).textSelection(.enabled)
+                Text(model.status).foregroundStyle(model.error == nil && model.historyNoteWarning == nil && (![1,5].contains(model.tab) || model.displayedComparison.error==nil) ? Color.secondary : Color.red).textSelection(.enabled)
                 Spacer()
                 if model.transportRunning {
                     Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancelTransport() }
@@ -2538,33 +2545,6 @@ private struct SynchronizationDialog: View {
             }
         }.padding(12).disabled(model.confirmingQuit).onAppear { model.reload(initial: true) }
         .gitDockProgress(model.inlineDockProgress)
-    }
-}
-
-private struct SynchronizationFiles: View {
-    @ObservedObject var model: SynchronizationWindowModel
-    private var files: [CommitFile] { model.displayedComparison.snapshot?.files ?? [] }
-    private func state(_ file: CommitFile) -> FileState {
-        switch file.action.first { case "A": return .added; case "D": return .deleted; default: return .modified }
-    }
-    var body: some View {
-        Table(files, selection: $model.fileSelection) {
-                    TableColumn("Path") { file in
-                        HStack {
-                            Image(nsImage: state(file).icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16)
-                            Text(file.path).foregroundStyle(model.fileSelection.contains(file.id) ? Color.primary : state(file).textColor(preferences: model.preferences))
-                        }.help(file.oldPath.map { "Renamed from " + $0 } ?? file.path)
-                    }
-                    TableColumn("Extension") { file in Text(file.fileExtension) }.width(80)
-                    TableColumn("Status") { file in Text(FileListLabels.caption(file.status)) }.width(70)
-                    TableColumn("Added") { file in Text(file.addedText) }.width(65)
-                    TableColumn("Deleted") { file in Text(file.removedText) }.width(65)
-                }.background(NativeListSelectionProbe(preferences:model.preferences,primaryTitle:"Path",labelText:{row in
-                    guard files.indices.contains(row) else{return nil};return files[row].path
-                },leadingInset:23)).contextMenu {
-                    Button { model.compareFiles(unified: false) } label: { CommandLabel(title: "Compare two revisions", icon: .compare) }
-                    Button { model.compareFiles(unified: true) } label: { CommandLabel(title: "Show unified diff", icon: .compare) }
-                }
     }
 }
 

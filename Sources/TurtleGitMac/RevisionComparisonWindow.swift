@@ -483,10 +483,20 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         }
     }
 
-    func compare(_ ids: some Sequence<String>) {
+    /// Reorder only the already validated selection; unknown/duplicate paths
+    /// cannot expand a captured list action to unrelated files.
+    private func orderedComparisonFiles(_ files:[CommitFile],paths:[String]?)->[CommitFile] {
+        guard let paths else{return files}
+        let lookup=GitPathMap(files.map {($0.path,$0)},uniquingKeysWith:{first,_ in first})
+        var seen=GitPathSet(),result:[CommitFile]=[]
+        for path in paths {if seen.insert(path).inserted,let file=lookup[path] {result.append(file)}}
+        result.append(contentsOf:files.filter {!seen.contains($0.path)})
+        return result
+    }
+    func compare(_ ids: some Sequence<String>, orderedPaths:[String]?=nil) {
         let ids = GitPathSet(ids)
         guard !closed, !busy, !confirmingQuit, let snapshot else { return }
-        let files = visibleFiles.filter { ids.contains($0.path) }
+        let files = orderedComparisonFiles(visibleFiles.filter { ids.contains($0.path) },paths:orderedPaths)
         runFiles(files) { [self] token in
         for file in files {
             guard !closed, !token.isCancelled else { return }
@@ -542,11 +552,11 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         }
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); updatePatch()
     }
-    func showPatch(_ ids: some Sequence<String>, alternate: Bool) {
+    func showPatch(_ ids: some Sequence<String>, alternate: Bool, orderedPaths:[String]?=nil) {
         let repository=self.repository.capturingDiffBackend(preferences:preferences)
         let ids = GitPathSet(ids)
         guard !closed, !busy, !confirmingQuit, let snapshot, !unifiedWindows.values.contains(where: { $0.model.busy }) else { return }
-        let files = visibleFiles.filter { ids.contains($0.path) }
+        let files = orderedComparisonFiles(visibleFiles.filter { ids.contains($0.path) },paths:orderedPaths)
         guard !files.isEmpty else { return }
         runFiles(files) { [self] token in
             var failures: [String] = []
