@@ -160,8 +160,9 @@ The [Rebase revision menu family](REBASE-REVISION-MENU-PARITY.md) adds source
 row-action eligibility/order, all merge-parent/unified mode choices, inherited
 icons/default comparison, native keyboard/AX entry and exact captured receipts.
 [Batch evidence](qa/rebase-revision-menus-2026-10-18.json) records the grouped
-checkpoint. Older/custom structural session conversion and the remaining shared
-Log menu commands remain open.
+checkpoint. The [older/external session adoption family](REBASE-SESSION-ADOPTION-PARITY.md)
+extends recognized structural recovery; arbitrary custom commands and the
+remaining shared Log menu commands remain open.
 
 The [captured Settings sheet family](SETTINGS-SHEET-PARITY.md) repairs real
 Close/OK/Cancel across Rebase, Git Properties and Unified Diff. It preserves
@@ -4233,3 +4234,34 @@ attempt, are independently absent. Generated localization/Help checks passed and
 the built Help bytes match the generated guide. Installed Finder Services
 activation, signed sandbox operation, minimum-OS/keyboard/VoiceOver/visual
 acceptance, complete upstream parity and App Store distribution remain unproven.
+
+### Paused older/external Rebase action recovery — October 20, 2026
+
+Recognized older and externally created paused sessions now feed the durable
+Pick/Edit/Squash/Skip workflow. A read-only projection retains full occurrence
+history and the current draft identity. The first explicit future-action change
+publishes the adopted command skeleton and requested action with captured
+identity/message metadata. Completed Git commands and current HEAD/index/worktree
+remain untouched. Structural labels, reset/merge and reference-update commands
+retain their original meaning rather than being regenerated under new names.
+
+The existing native window, action menus/icons, keys, saved drafts and cancellation
+ownership remain connected through save, reopen and actual Continue. Unsupported
+custom commands are refused without discarding their todo. Checked journal
+publication retains rollback/roll-forward at the todo commit point and the older
+journal compatibility boundary. [Source comparison](REBASE-SESSION-ADOPTION-PARITY.md)
+and [batch evidence](qa/rebase-session-adoption-family-2026-10-20.json) distinguish
+this accepted family from arbitrary custom conversion, physical/visual/minimum-OS
+acceptance, complete upstream parity and signed/App Store distribution.
+
+The checkpoint passed twenty distinct focused Core methods cumulatively and six
+native case/engine combinations with system and bundled Git. Initial static
+review repaired repeated-hash identity in the remaining reader before Core
+validation. Native preparation needed an entry annotation correction; structural
+QA then needed a valid earlier Skip target rather than the source-refused merge
+first parent. The passed groups stayed intact. A confirmed Current Skip display
+bookkeeping gap received its affected app refresh and one additional actual
+Skip/reopen/future-edit/Continue regression, without rerunning passed suites.
+All seven native receivers, including the failed runtime attempt, are
+independently absent. Generated localization/Help checks passed. These local
+results do not certify complete hosted, physical, signed or whole-port parity.

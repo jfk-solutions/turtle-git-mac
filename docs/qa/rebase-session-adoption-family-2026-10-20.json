@@ -1,0 +1,135 @@
+{
+  "status": "focused-local-validation-passed",
+  "scope": "Recognized older/external paused Rebase sessions, durable future actions, reopen/Continue and Current Skip compatibility",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Pure action snapshot with stable completed/current/pending occurrence projection, including repeated hashes and original merge objects",
+    "Existing native Pick/Edit/Squash/Skip menus/icons/keys and Saving replay actions status; no separate adoption approval",
+    "One checked journal publication of adopted skeleton plus requested action and identity/message metadata",
+    "Preserved done bytes, current message draft, HEAD/index/worktree while editing future actions; captured repository/access ownership",
+    "Git label/reset/merge -C/update-ref skeleton retained rather than regenerated under incompatible native labels",
+    "Pending merge Edit owned break and safe contiguous structural leaf Squash; unsupported controls and unsafe boundaries refused",
+    "Older optional-action identity archives recovered from valid captured message configuration or matching commands",
+    "Legacy five-file journal versions1/2 and their two v2 extra-file variants retained alongside adopted six-file journals",
+    "Durable Current Skip bookkeeping retained in adopted histories after later future-action edits"
+  ],
+  "checks": [
+    {
+      "name": "Initial Debug app build",
+      "result": "passed",
+      "log": "build/qa/rebase-adoption-app-2026-10-20.log"
+    },
+    {
+      "name": "Pre-test remaining-row occurrence repair",
+      "result": "affected app build passed",
+      "cause": "Static reader review found identity-free remaining/current entries still assigned occurrence0 while full replay distinguished repeated hashes",
+      "repair": "Use the same recognized projection for full and remaining/current readers; focused duplicate-occurrence regression included before Core checkpoint",
+      "log": "build/qa/rebase-adoption-app-occurrence-repair-2026-10-20.log"
+    },
+    {
+      "name": "Focused Core group",
+      "result": "19 methods passed, zero failures",
+      "classes": [
+        "RebasePendingActionTests",
+        "RebaseSessionAdoptionTests"
+      ],
+      "retained_methods": 10,
+      "new_methods": 9,
+      "log": "build/qa/rebase-adoption-core-2026-10-20.log",
+      "assertions": [
+        "Actual raw-Git external linear and --rebase-merges pauses; snapshot byte purity",
+        "Future Edit, Squash, original merge topology, old optional-action archives and actual headless editor Continue",
+        "External update-ref maps source branch to actual final Squash result",
+        "Repeated hashes keep exact unique occurrence IDs in full and remaining readers",
+        "Unknown commands, stale bytes, locks and cancellation preserve metadata",
+        "Actual generated journal old/new todo commit-point recovery with later Continue",
+        "Retained native structural, Cherry Pick occurrence/mainline/attribution and journal behavior"
+      ]
+    },
+    {
+      "name": "Initial native fixture preparation",
+      "result": "no receiver launched; entry discovery failed",
+      "log": "build/qa/rebase-adoption-native-2026-10-20.log",
+      "repair": "Reorder MainActor/main annotations to match existing receiver entry discovery"
+    },
+    {
+      "name": "Native linear and first structural attempt",
+      "result": "linear external/legacy cases passed with both engines; structural fixture requested source-refused merge-first-parent Skip",
+      "receiver_pids": [
+        2752,
+        7670,
+        11410
+      ],
+      "log": "build/qa/rebase-adoption-native-entry-repair-2026-10-20.log",
+      "repair": "Use an earlier skippable linear occurrence whose retained descendant supplies the merge first parent; keep real Skip/deleted-file/topology assertions and source refusal unchanged"
+    },
+    {
+      "name": "Affected structural and previously unrun ownership native cases",
+      "result": "four case/engine combinations passed",
+      "receiver_pids": [
+        14198,
+        17143,
+        20086,
+        20631
+      ],
+      "log": "build/qa/rebase-adoption-native-structural-fixture-repair-2026-10-20.log",
+      "assertions": [
+        "Actual source menu target/action and icons for future Pick/Edit/Squash/Skip",
+        "Current draft, original message/index/HEAD and row identity retained across saves",
+        "Durable reopen and actual native Continue, final Skip disk effect and retained merge topology",
+        "External and legacy native archives exercised independently in each topology",
+        "Held actual pure preparation receipt, normal Cancel and forced-close token ownership",
+        "Application Quit barrier, deferred worker drain, no late metadata/action write and fresh-owner retry"
+      ]
+    },
+    {
+      "name": "Confirmed Current Skip compatibility repair",
+      "result": "affected app build and one new Core method passed",
+      "cause": "Adopted projection omitted existing skipped-step sidecar, so subsequent pause/reopen could display original action instead of completed Skip",
+      "repair": "Overlay recorded logical skipped steps and permit their completed-command difference without weakening pending-command validation",
+      "logs": [
+        "build/qa/rebase-adoption-app-skip-bookkeeping-repair-2026-10-20.log",
+        "build/qa/rebase-adoption-core-current-skip-repair-2026-10-20.log"
+      ],
+      "assertions": [
+        "Actual current Skip reaches next pause",
+        "Completed Skip and exact remaining IDs survive reopen",
+        "Another future-action publication/reopen retains completed Skip",
+        "Later actual Continue completes"
+      ]
+    },
+    {
+      "name": "Owned cleanup",
+      "result": "All seven receiver PIDs independently absent; exact private helper cleanup on every native attempt; focused Core xctest exited normally",
+      "receiver_pids": [
+        2752,
+        7670,
+        11410,
+        14198,
+        17143,
+        20086,
+        20631
+      ]
+    },
+    {
+      "name": "Generated resources",
+      "result": "Localization/Help checks passed; Help book regenerated before app build; dialog coverage reconciled"
+    }
+  ],
+  "core_boundary": "Twenty distinct methods passed cumulatively: ten retained pending-action methods plus ten adoption methods. The initial nineteen were not repeated after the Current Skip repair; only the new affected regression ran.",
+  "native_boundary": "Six successful case/engine combinations cumulatively, with external/legacy scenarios inside each topology. Passed linear cases were not repeated after structural fixture correction. Earlier native cases had no completed Current Skip marker and were not rerun after its focused Core repair.",
+  "remaining": [
+    "Arbitrary exec/fixup/reword/new-root or custom control conversion; unsafe cross-label/reset/update-ref/break/merge Squash",
+    "Native structural or Cherry Pick sessions with entire identity archive missing, which can erase original topology/attribution",
+    "Source native structural generator refusal for an unreplayed selected merge first parent remains",
+    "Every mixed menu selection, external conflict variant, metadata corruption/external race and filesystem/power-loss scenario",
+    "Physical input/VoiceOver/visual parity, minimum macOS/Intel and installed signed sandbox execution",
+    "Complete hosted integration, whole upstream parity and App Store distribution acceptance"
+  ],
+  "hashes": {
+    "Sources/TurtleGitCore/Rebase.swift": "886ea0512fde9ee2951fe18ebcf9420fb221c93ada8498f12d4385cb96a32f3d",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "08b9ecbb58edbd9931e1ee8f99af0d616694700c746c97112b70ad7dd1b1e474",
+    "Tests/TurtleGitCoreTests/RebaseSessionAdoptionTests.swift": "be5053e0c7018057b27407170d6aaaee4dfffea6f92895981e0850d95231f552",
+    "docs/qa/rebase-adoption-native-2026-10-20.swift": "f84c534695d856648be637c020694cad16ad7d04e1192622a82d0532fe984b1f"
+  }
+}

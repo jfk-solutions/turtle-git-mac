@@ -81,3 +81,18 @@ Source check: packaged Git 2.55.0's `sequencer.c`,
 `todo_list_add_update_ref_commands` attaches branch decorations to commit items
 present in the generated todo. The complete pinned source archive is retained
 under `build/git-source` and included with the packaged runtime's license files.
+
+
+## Editing an older or externally started session
+
+At a stopped Edit, conflict or Squash message, open Rebase and select future
+commits to change Pick, Edit, Squash or Skip. Recognized older and Git-generated
+sessions use the same action menus and keys. Saving those future actions keeps
+the current message draft, completed steps, index and working files; it does not
+restart the rebase. Reopening retains the saved choices. Preparation can be
+cancelled; if a save has already completed, the window displays its saved result.
+
+Plans containing unsupported custom commands are retained and refused for native
+action conversion. Continue/Abort keep their existing recovery behavior; TurtleGit
+does not silently discard custom commands. See the
+[accepted session scope and remaining limits](REBASE-SESSION-ADOPTION-PARITY.md).

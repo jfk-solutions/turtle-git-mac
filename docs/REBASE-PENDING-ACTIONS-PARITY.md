@@ -43,7 +43,9 @@ and rewrites only the future suffix, including merge Edit breaks, source parent
 labels, Squash-group labels and deferred branch reference updates. An already
 executed Edit is retained when a future Squash extends its group. Source-invalid
 structural plans, including an unreplayed first merge parent, remain refused.
-Older/custom Git-generated structural todos are not silently converted.
+Recognized older and Git-generated external sessions now use the
+[captured adoption family](REBASE-SESSION-ADOPTION-PARITY.md). Their existing
+structural skeleton is retained; arbitrary custom todos remain refused.
 
 Message-editor metadata is created if the session gains its first Squash. It
 retains captured author dates, messages, encoding and attribution while updating
@@ -67,7 +69,7 @@ menus, bulk controls and structural row/recovery checks share the checkpoint.
 Actual outcomes and failures: [batch evidence](qa/rebase-pending-actions-2026-10-18.json).
 
 Remaining: physical mouse/keyboard/VoiceOver and all mixed selection combinations,
-all external Git races and filesystem crash scenarios, older/custom structural
+all external Git races and filesystem crash scenarios, unsupported custom structural
 session conversion, full source enabled/omitted matrix, minimum macOS/Intel,
 signed sandbox/Finder/App Store and complete Rebase visual parity. The remaining
 shared Log commands in Rebase are tracked separately; the whole port is unfinished.

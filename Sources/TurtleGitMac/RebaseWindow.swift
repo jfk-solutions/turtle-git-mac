@@ -1364,6 +1364,7 @@ struct RebaseReferenceRequest {
         return DockProgressState(busy && !hasReplayQuestion && !confirmingReplayCancellation ? .running : .paused, percentage: percentage)
     }
     var status: String {
+        if editingPendingActions { return "Saving replay actions…" }
         if replayStopped { return completion }
         if finished { return completion }
         if state?.squashMessage?.skipBaseHead != nil { return "Continue retries the approved empty-group Skip." }
@@ -1403,8 +1404,8 @@ struct RebaseReferenceRequest {
             }
         }
     }
-    /// Rebase's source list enables its action bits in the choosing phase.
-    /// Running/paused replay plans remain owned by the sequencer, not this draft.
+    /// Choosing edits stay in the local draft. Paused action edits use a captured
+    /// sequencer receipt, including recognized older or external sessions.
     var revisionContextPolicy: HistoryContextMenuPolicy {
         var policy = HistoryContextMenuPolicy.rebase
         if editable || canEditPendingActions { policy.commands.formUnion([.rebasePick, .rebaseSquash, .rebaseEdit, .rebaseSkip]) }

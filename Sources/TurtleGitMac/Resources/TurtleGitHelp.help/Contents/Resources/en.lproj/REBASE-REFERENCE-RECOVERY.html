@@ -66,4 +66,15 @@ Git versions; older runtimes are explicitly skipped for this feature. Evidence:
 <code>todo_list_add_update_ref_commands</code> attaches branch decorations to commit items
 present in the generated todo. The complete pinned source archive is retained
 under <code>build/git-source</code> and included with the packaged runtime's license files.</p>
+<h2 id="editing-an-older-or-externally-started-session">Editing an older or externally started session</h2>
+<p>At a stopped Edit, conflict or Squash message, open Rebase and select future
+commits to change Pick, Edit, Squash or Skip. Recognized older and Git-generated
+sessions use the same action menus and keys. Saving those future actions keeps
+the current message draft, completed steps, index and working files; it does not
+restart the rebase. Reopening retains the saved choices. Preparation can be
+cancelled; if a save has already completed, the window displays its saved result.</p>
+<p>Plans containing unsupported custom commands are retained and refused for native
+action conversion. Continue/Abort keep their existing recovery behavior; TurtleGit
+does not silently discard custom commands. See the
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/REBASE-SESSION-ADOPTION-PARITY.html">accepted session scope and remaining limits</a>.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>
