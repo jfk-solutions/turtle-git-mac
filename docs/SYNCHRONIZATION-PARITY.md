@@ -1,5 +1,14 @@
 # Git Synchronization parity
 
+The [incoming/outgoing commit-list family](SYNC-COMMIT-LIST-PARITY.md) connects
+conditional SVN columns, source parsing, independent saved layouts, confirmed
+content-fit reset and configured font metrics. Native menus retain their selected
+results and source side, while root feedback and metadata workers drain through
+closure. Shift comparisons receive the owning preferences. The Debug app and
+four native case/engine checks pass after a fixture-only source correction;
+[actual evidence](qa/sync-history-controls-2026-10-21.json) retains that failure,
+configured-font captures and remaining installed/physical/signed/source gates.
+
 The [reference and tag result family](SYNC-REFERENCE-RESULTS-PARITY.md) now uses
 fixed source columns, native fonts, eight-character hashes, source sorting and
 header widths, window-local filters and captured menus. Log selects the clicked

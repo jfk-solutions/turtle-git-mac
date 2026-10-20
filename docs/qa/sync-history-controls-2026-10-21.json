@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-21",
+  "implementation_baseline": "915b34e0",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "dialogs": [
+    "src/Resources/TortoiseProcENG.rc/IDD_SYNC"
+  ],
+  "scope": "Incoming/outgoing native commit lists: conditional SVN column/pinned parsing, independent captured column layouts and legacy import, source confirmed content-fit reset, configurable font metrics and single-line captions, owned root feedback, Shift parent/working comparisons and originating preferences, one-use row/header menus and retired controls, parent/action/ancestry/clipboard/diff worker drainage.",
+  "validation": {
+    "core": "Unchanged; no Core suite repeated. Existing IssueRegex runtime and actual private Git projections consumed by native group.",
+    "app_build": {
+      "log": "build/qa/sync-history-controls-build-2026-10-21.log",
+      "exit_code": 0
+    },
+    "native": {
+      "status": "passed after fixture-only source expectation correction",
+      "initial_log": "build/qa/sync-history-controls-native-2026-10-21.log",
+      "failures_and_repairs": [
+        "First controls assertion incorrectly expected an SVN revision from ordinary subject-plus-trailer messages. Existing IssueRegexTests and pinned FindSVNRev/GetSubjectBody retain whole-message anchors and return blank for those messages. Fixture expectations corrected to exact helper output; production regex unchanged. No native cases had passed before this failure."
+      ],
+      "log": "build/qa/sync-history-controls-source-svn-native-2026-10-21.log",
+      "distinct_case_engine_pairs": 4,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "cases": [
+        "controls: actual forced outgoing graph and completed-patch incoming range; marker-gated SVN column/cells against pinned helper; standalone positive parser cases; source menu/icon masks, full-row/large font/single-line cells; actual configured Shift comparison and originating preferences, metadata-caption publication; independent headers, Reset Yes/No and content fitting, saved widths and actual reopen.",
+        "ownership: no-marker column absence, captured clipboard selection away/back, tab/header/source identity, busy/read/Quit/sheet, root warning forced-close participation in global ownership, retired native callbacks and late reset refusal with actual drainage."
+      ],
+      "key_scope": "Owned offscreen native Return event and actual first responder, sheet and owner guards. No physical key/menu tracking claim."
+    },
+    "owned_receiver_pids": [
+      42796,
+      43233,
+      43976
+    ],
+    "independently_absent": true,
+    "legacy_layout_migration": "Static peer reviewed only: actual AppKit autosave import, only standard store with no explicit layout, then disable legacy autosave and save explicit side layout. Native checks use private stores and do not exercise user standard preferences.",
+    "legacy_fixture": "Related synchronization-revision-list-native-2026-10-11.swift updated for captured menu ownership, source reset/root messages and single-line captions; whole older fixture not rerun.",
+    "captures": [
+      {
+        "path": "docs/site/assets/sync-incoming-commits-dark.png",
+        "sha256": "85ac60b2175c6dabdd7b1cbc3b721cdac83a7a0c0dd1df338deb07d8bfbebc90",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/sync-incoming-commits-light.png",
+        "sha256": "9b7ee13af44c7ab306c00c9f5e357fa2317193f7b97851ca6e770b36c1da3d23",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/sync-outgoing-commits-dark.png",
+        "sha256": "aec6812913dcd466e09995f81b05147b72473a255a85f3c9ce076fa89a82a3c0",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/sync-outgoing-commits-light.png",
+        "sha256": "64ff04d7815f00366aeac4a9f8709308ac4578bacf84d873fd154693d02e3bac",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      }
+    ],
+    "capture_note": "Complete owned window surfaces with configured Menlo 24-point Log font. Large text and badges exercise row metrics; horizontal scrolling retains offscreen columns. These are configured-font acceptance captures, not default-size visual parity evidence.",
+    "localizations": {
+      "write": {
+        "languages": 38,
+        "keys": 1308
+      },
+      "check": "passed"
+    },
+    "dialog_coverage_reconcile": "passed; partial family audit retained"
+  },
+  "remaining": [
+    "Physical pointer/key/menu tracking and VoiceOver",
+    "Actual legacy installed preferences migration",
+    "All locale/layout combinations and complete Sync/source parity",
+    "Signed installed grants and external-tool/authenticated transport acceptance",
+    "Complete current hosted CI pass",
+    "Signed distribution and App Store acceptance"
+  ]
+}

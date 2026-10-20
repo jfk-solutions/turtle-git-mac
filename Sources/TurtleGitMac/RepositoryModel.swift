@@ -2355,7 +2355,13 @@ private enum TransportBatchPresentationContext {
                 self?.showRevisionComparison(repository:repository,access:access,from:.revision(old),to:.revision(new),preferences:controller.model.preferences)
             }
         }
-        controller.model.onHistoryCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
+        controller.model.onHistoryCompare = { [weak self,weak controller] from,to in
+            guard let controller,!controller.model.closed else{return}
+            let alternate=ComparisonToolInvocation.capture
+            ComparisonToolInvocation.$alternate.withValue(alternate) {
+                self?.showRevisionComparison(repository:repository,access:access,from:from,to:to,preferences:controller.model.preferences)
+            }
+        }
         controller.model.onResolve = { [weak self] paths in self?.showResolve(repository: repository, access: access, paths: paths, quick: nil) }
         controller.model.onConflictAction = { [weak self, weak controller] action, paths in
             guard let self, let controller, !controller.model.closed else { return }

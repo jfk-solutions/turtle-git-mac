@@ -5035,7 +5035,8 @@ final class HistoryTableView: NSTableView {
         // CLogDlg::OnOK refuses Return while the revision list owns focus.
         // Its comparison preference may act, but a disabled comparison must
         // never fall through to the window's default OK/Close button.
-        _ = onReturn?(); return true
+        ComparisonToolInvocation.$alternate.withValue(event.modifierFlags.contains(.shift)) {_ = onReturn?()}
+        return true
     }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if performRevisionReturn(with:event) { return true }

@@ -1,5 +1,14 @@
 # TurtleGit for Mac — full port tracking
 
+The [Synchronization commit-list family](SYNC-COMMIT-LIST-PARITY.md) adds captured
+In/Out menus, source SVN metadata, scoped layouts and confirmed content-fit reset,
+font-sized native rows, owned root feedback and event-specific Shift comparisons.
+The Debug app and four native case/engine checks pass after correcting a fixture's
+SVN trailer assumption; production was unchanged by that correction. Core was not
+repeated. Four configured-font light/dark captures were reviewed and all three
+receivers are absent. [Evidence](qa/sync-history-controls-2026-10-21.json) keeps
+legacy installed migration, physical, signed and complete source acceptance open.
+
 The [Synchronization reference/tag result family](SYNC-REFERENCE-RESULTS-PARITY.md)
 adds fixed native source tables, captured menus and selected Log/Shift Compare/
 RefLog routes, local header filters and owned tag confirmation/error retirement.

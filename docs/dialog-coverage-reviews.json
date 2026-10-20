@@ -1013,6 +1013,10 @@
         {
           "path": "Sources/TurtleGitMac/SynchronizationReferenceResults.swift",
           "anchor": "struct SynchronizationReferenceResults"
+        },
+        {
+          "path": "Sources/TurtleGitMac/SynchronizationCommitList.swift",
+          "anchor": "struct SynchronizationHistoryTable"
         }
       ],
       "parity_document": "docs/SYNCHRONIZATION-PARITY.md",

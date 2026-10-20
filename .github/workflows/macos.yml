@@ -864,6 +864,8 @@ jobs:
           python3 scripts/test-synchronization-history.py --revision-list --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Synchronization outgoing, Fetch transports and owner lifetime
         run: python3 scripts/test-synchronization-dialog.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Native Synchronization incoming and outgoing commit controls
+        run: python3 scripts/test-sync-history-controls.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Synchronization incoming and outgoing file lists
         run: python3 scripts/test-sync-file-list.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Synchronization reference and tag results

@@ -2080,6 +2080,7 @@
         "docs/qa/stash-reference-cancellation-2026-10-11.json",
         "docs/qa/sync-child-progress-2026-10-17.json",
         "docs/qa/sync-conflict-files-2026-10-17.json",
+        "docs/qa/sync-history-controls-2026-10-21.json",
         "docs/qa/sync-recovery-2026-10-17.json",
         "docs/qa/sync-reference-results-2026-10-21.json",
         "docs/qa/sync-replay-hooks-2026-10-14.json",
@@ -3296,6 +3297,10 @@
           "anchor": "struct SynchronizationReferenceResults"
         },
         {
+          "path": "Sources/TurtleGitMac/SynchronizationCommitList.swift",
+          "anchor": "struct SynchronizationHistoryTable"
+        },
+        {
           "path": "Sources/TurtleGitMac/ReferenceBrowserWindow.swift",
           "origin": "recorded-control-mapping"
         },
@@ -3325,6 +3330,7 @@
         "docs/PRIMARY-COMMAND-BANDS.md",
         "docs/REMOTE-REFERENCE-ENGINE-PARITY.md",
         "docs/SOURCE-FORM-CONTROLS-PARITY.md",
+        "docs/SYNC-COMMIT-LIST-PARITY.md",
         "docs/SYNC-FILE-LIST-PARITY.md",
         "docs/SYNC-REFERENCE-RESULTS-PARITY.md",
         "docs/SYNCHRONIZATION-PARITY.md",
@@ -3346,6 +3352,7 @@
         "docs/qa/sync-child-progress-2026-10-17.json",
         "docs/qa/sync-conflict-files-2026-10-17.json",
         "docs/qa/sync-file-list-2026-10-20.json",
+        "docs/qa/sync-history-controls-2026-10-21.json",
         "docs/qa/sync-recovery-2026-10-17.json",
         "docs/qa/sync-reference-results-2026-10-21.json",
         "docs/qa/sync-replay-hooks-2026-10-14.json",
