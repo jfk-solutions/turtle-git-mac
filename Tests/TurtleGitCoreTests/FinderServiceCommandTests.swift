@@ -11,7 +11,7 @@ final class FinderServiceCommandTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         let expected: [(String, RepositoryAction)] = [("log", .log), ("commit", .commit), ("status", .status), ("diff", .diff), ("clone", .clone), ("initialize", .initialize),
             ("pull",.pull),("fetch",.fetch),("push",.push),("synchronize",.synchronize),("rebase",.rebase),("stash",.stash),("stashApply",.stashApply),("stashPop",.stashPop),("stashList",.stashList),("switchBranch",.switchBranch),("merge",.merge),("branch",.branch),("tag",.tag),
-            ("add",.add),("revert",.revert),("resolve",.resolve),("resolveCurrent",.resolveCurrent),("resolveMine",.resolveMine),("resolveTheirs",.resolveTheirs),("blame",.blame),("previousDiff",.previousDiff),("editConflict",.editConflict),("ignore",.ignore),("ignoreMask",.ignoreMask),("ignoreDelete",.ignoreDelete),("ignoreDeleteMask",.ignoreDeleteMask)]
+            ("add",.add),("revert",.revert),("resolve",.resolve),("resolveCurrent",.resolveCurrent),("resolveMine",.resolveMine),("resolveTheirs",.resolveTheirs),("blame",.blame),("previousDiff",.previousDiff),("editConflict",.editConflict),("ignore",.ignore),("ignoreMask",.ignoreMask),("ignoreDelete",.ignoreDelete),("ignoreDeleteMask",.ignoreDeleteMask),("rename",.rename),("remove",.remove),("removeKeep",.removeKeep),("clean",.clean)]
         XCTAssertEqual(Set(FinderServiceCommand.allCases.map(\.rawValue)), Set(expected.map(\.0)))
         for (name, action) in expected {
             let command = try XCTUnwrap(FinderServiceCommand(rawValue: name))
@@ -31,7 +31,7 @@ final class FinderServiceCommandTests: XCTestCase {
             XCTAssertEqual(serviceRequest.paths.map(\.path), request.paths.map(\.path))
             XCTAssertNil(serviceRequest.alternateTool)
         }
-        for invalid in ["", "LOG", "unignore", "remove", "commit&path=/other", " log"] {
+        for invalid in ["", "LOG", "unignore", "remove-force", "commit&path=/other", " log"] {
             XCTAssertNil(FinderServiceCommand(rawValue: invalid))
         }
     }
@@ -194,7 +194,7 @@ final class FinderServiceCommandTests: XCTestCase {
         for suffix in ["&command=log", "&command=commit", "&path", "&path=", "&path=relative", "&path=%00", "&source=/other", "&url=ssh://host/repo", "&endrev=HEAD", "&clipboardpatch=unavailable", "&unknown=value", "&alternate", "&alternate=1", "&alternate=0"] {
             XCTAssertThrowsError(try FinderServiceCommand.request(serviceURL: XCTUnwrap(URL(string: good.absoluteString + suffix))), suffix)
         }
-        for text in ["https://service?command=log&path=/repo", "turtlegit://action?command=log&path=/repo", "turtlegit://service/extra?command=log&path=/repo", "turtlegit://user@service?command=log&path=/repo", "turtlegit://service:1234?command=log&path=/repo", "turtlegit://service?command=log&path=/repo#fragment", "turtlegit://service?path=/repo", "turtlegit://service?command=remove&path=/repo", "turtlegit://service?command=LOG&path=/repo", "turtlegit://service?command=log"] {
+        for text in ["https://service?command=log&path=/repo", "turtlegit://action?command=log&path=/repo", "turtlegit://service/extra?command=log&path=/repo", "turtlegit://user@service?command=log&path=/repo", "turtlegit://service:1234?command=log&path=/repo", "turtlegit://service?command=log&path=/repo#fragment", "turtlegit://service?path=/repo", "turtlegit://service?command=remove-force&path=/repo", "turtlegit://service?command=LOG&path=/repo", "turtlegit://service?command=log"] {
             XCTAssertThrowsError(try FinderServiceCommand.request(serviceURL: XCTUnwrap(URL(string: text))), text)
         }
         // Parser cardinality is raw-input bounded even if every path later deduplicates.
@@ -331,6 +331,105 @@ final class FinderServiceCommandTests: XCTestCase {
         XCTAssertFalse(FinderServiceCommand.ignoreDelete.isEligible(paths:[deleted],snapshot:snapshot))
         XCTAssertFalse(FinderServiceCommand.ignoreDelete.isEligible(paths:[root],snapshot:snapshot))
         XCTAssertFalse(FinderServiceCommand.ignoreDelete.isEligible(paths:[conflict,other],snapshot:snapshot))
+    }
+
+    func testFilesystemServicesPreserveLiteralSelectionAndRejectExecutionPresets() throws {
+        let first=literal("/unwatched/first &?#%\n雪*[-.txt"),second=literal("/unwatched/cafe\u{301}.txt")
+        let commands:[FinderServiceCommand]=[.rename,.remove,.removeKeep,.clean]
+        for command in commands {
+            XCTAssertTrue(command.requiresSourceEligibility)
+            XCTAssertEqual(command.requiresSingleSelection,command == .rename)
+            XCTAssertEqual(command.sourceAction,command.action)
+            let paths=command == .rename ? [first]:[first,second]
+            let wire=try command.serviceURL(paths:paths+[paths[0]])
+            let decoded=try FinderServiceCommand.request(serviceURL:wire)
+            XCTAssertEqual(decoded.action,command.action)
+            XCTAssertEqual(decoded.paths.map{Data($0.path.utf8)},paths.map{Data($0.path.utf8)})
+            XCTAssertTrue(decoded.sources.isEmpty);XCTAssertNil(decoded.alternateTool)
+            for suffix in ["&force=1","&keep=1","&target=/elsewhere","&source=/elsewhere","&submodule=1","&recursive=1","&alternate=0"] {
+                XCTAssertThrowsError(try FinderServiceCommand.request(serviceURL:XCTUnwrap(URL(string:wire.absoluteString+suffix))),command.rawValue+suffix)
+            }
+        }
+        XCTAssertThrowsError(try FinderServiceCommand.rename.request(paths:[first,second]))
+        var forged=URLComponents();forged.scheme="turtlegit";forged.host="service"
+        forged.queryItems=[URLQueryItem(name:"command",value:"rename"),URLQueryItem(name:"path",value:first.path),URLQueryItem(name:"path",value:second.path)]
+        XCTAssertThrowsError(try FinderServiceCommand.request(serviceURL:XCTUnwrap(forged.url)))
+        for alias in ["delete","deleteKeep","cleanup","rm","mv","Rename"] {XCTAssertNil(FinderServiceCommand(rawValue:alias))}
+    }
+
+    func testFilesystemServicesMatchIndependentPinnedConditionsIncludingSubmoduleExceptions() {
+        // Pinned MenuInfo.cpp:142–156. Ordinary roots cannot be renamed/deleted;
+        // submodule-root Rename/Remove exceptions are deliberately distinct from
+        // RemoveKeep. Added leaves remain Rename-eligible, but not Remove.
+        let commands:[FinderServiceCommand]=[.rename,.remove,.removeKeep,.clean]
+        let cases:[(FinderShellFlags,Set<FinderServiceCommand>)]=[
+            ([.inGit,.inVersionedFolder,.onlyOne],[.rename,.remove,.removeKeep]),
+            ([.inGit,.inVersionedFolder,.two],[.remove,.removeKeep]),
+            ([.inGit,.inVersionedFolder,.onlyOne,.added],[.rename]),
+            ([.inVersionedFolder,.onlyOne],[]),
+            ([.folder,.folderInGit,.inGit,.inVersionedFolder,.onlyOne],[.rename,.remove,.removeKeep,.clean]),
+            ([.folder,.folderInGit,.inGit,.inVersionedFolder,.workingTreeRoot,.onlyOne],[.clean]),
+            ([.folder,.folderInGit,.inGit,.inVersionedFolder,.workingTreeRoot,.submodule,.onlyOne],[.rename,.remove,.clean]),
+            ([.folder,.folderInGit,.workingTreeRoot,.submodule],[.rename,.remove,.clean]),
+            ([.folder,.folderInGit,.two],[.clean]),
+            ([.folder,.bare,.onlyOne],[]),
+            ([.folder,.onlyOne],[]),
+            ([],[])
+        ]
+        for(flags,expected)in cases {XCTAssertEqual(Set(commands.filter{$0.isEligible(flags:flags)}),expected,"Filesystem service source clauses changed for \(flags)")}
+    }
+
+    func testFilesystemServicesUseLiveStatusAndLiteralSymlinkLeaf() throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString,isDirectory:true)
+        let directory=root.appendingPathComponent("nested",isDirectory:true)
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        defer {try? FileManager.default.removeItem(at:root)}
+        let normal=root.appendingPathComponent("normal.txt"),added=root.appendingPathComponent("added.txt"),untracked=root.appendingPathComponent("new.txt"),link=root.appendingPathComponent("literal-link")
+        for file in [normal,added,untracked] {try Data().write(to:file)}
+        try FileManager.default.createSymbolicLink(at:link,withDestinationURL:directory)
+        let snapshot=FinderSnapshot(roots:[root.path],states:[root.path:.modified,directory.path:.normal,normal.path:.normal,added.path:.added,untracked.path:.untracked,link.path:.normal])
+        for command in [FinderServiceCommand.rename,.remove,.removeKeep] {
+            XCTAssertTrue(command.isEligible(paths:[normal],snapshot:snapshot))
+            XCTAssertTrue(command.isEligible(paths:[link],snapshot:snapshot),"Git operates on the selected symlink, not its directory target")
+            XCTAssertFalse(command.isEligible(paths:[untracked],snapshot:snapshot))
+            XCTAssertFalse(command.isEligible(paths:[root],snapshot:snapshot))
+        }
+        XCTAssertTrue(FinderServiceCommand.rename.isEligible(paths:[added],snapshot:snapshot))
+        XCTAssertFalse(FinderServiceCommand.remove.isEligible(paths:[added],snapshot:snapshot))
+        XCTAssertFalse(FinderServiceCommand.removeKeep.isEligible(paths:[added],snapshot:snapshot))
+        XCTAssertTrue(FinderServiceCommand.remove.isEligible(paths:[normal,link],snapshot:snapshot))
+        XCTAssertFalse(FinderServiceCommand.rename.isEligible(paths:[normal,link],snapshot:snapshot))
+        XCTAssertTrue(FinderServiceCommand.clean.isEligible(paths:[root,directory],snapshot:snapshot))
+        XCTAssertFalse(FinderServiceCommand.clean.isEligible(paths:[normal],snapshot:snapshot))
+        XCTAssertFalse(FinderServiceCommand.clean.isEligible(paths:[link],snapshot:snapshot))
+        let submodule=FinderSnapshot(roots:[root.path],states:[root.path:.normal],repositories:[root.path:FinderRepositoryMetadata(submoduleParentRoot:root.deletingLastPathComponent().path)])
+        XCTAssertTrue(FinderServiceCommand.rename.isEligible(paths:[root],snapshot:submodule))
+        XCTAssertTrue(FinderServiceCommand.remove.isEligible(paths:[root],snapshot:submodule))
+        XCTAssertFalse(FinderServiceCommand.removeKeep.isEligible(paths:[root],snapshot:submodule))
+        let bare=FinderSnapshot(roots:[root.path],states:[:],repositories:[root.path:FinderRepositoryMetadata(bare:true)])
+        for command in [FinderServiceCommand.rename,.remove,.removeKeep,.clean] {XCTAssertFalse(command.isEligible(paths:[root],snapshot:bare))}
+    }
+
+    func testFilesystemServiceRegistrationPreservesExistingOrderAndSelectorContract() throws {
+        let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let data=try Data(contentsOf:root.appendingPathComponent("Configuration/App-Info.plist"))
+        let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:data,format:nil) as? [String:Any])
+        let services=try XCTUnwrap(plist["NSServices"] as? [[String:Any]])
+        XCTAssertEqual(services.count,36)
+        let names=services.compactMap{$0["NSUserData"] as? String}
+        XCTAssertEqual(Array(names.suffix(4)),["rename","remove","removeKeep","clean"])
+        XCTAssertEqual(Set(names),Set(FinderServiceCommand.allCases.map(\.rawValue)))
+        let originalOrder=["pull","fetch","push","synchronize","commit","diff","log","status","rebase","stash","stashApply","stashPop","stashList","switchBranch","merge","branch","tag","clone","initialize","add","revert","resolve","resolveCurrent","resolveMine","resolveTheirs","blame","previousDiff","editConflict","ignore","ignoreMask","ignoreDelete","ignoreDeleteMask"]
+        XCTAssertEqual(Array(names.prefix(32)),originalOrder)
+        for entry in services.suffix(4) {
+            let command=try XCTUnwrap(entry["NSUserData"] as? String)
+            XCTAssertEqual(entry["NSMessage"] as? String,"performFinderAction")
+            XCTAssertEqual(entry["NSPortName"] as? String,"TurtleGit")
+            XCTAssertEqual(entry["NSSendFileTypes"] as? [String],command == "clean" ? ["public.folder"]:["public.item"])
+            XCTAssertEqual(entry["NSRestricted"] as? Bool,true)
+            XCTAssertEqual((entry["NSRequiredContext"] as? [String:Any])?.count,0)
+            XCTAssertTrue(((entry["NSMenuItem"] as? [String:String])?["default"] ?? "").hasPrefix("TurtleGit: "))
+        }
     }
 
 }

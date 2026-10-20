@@ -205,7 +205,16 @@ import TurtleGitCore
         if MergeEditorOpenWorkflow.activeSaves > 0 || sender.windows.contains(where: { ($0.delegate as? FileComparisonWindowController)?.editorOpenWorkflow != nil || ($0.delegate as? FileComparisonWindowController)?.preparingReplacement == true || ($0.delegate as? TextConflictWindowController)?.editorOpenWorkflow != nil || ($0.delegate as? TextConflictWindowController)?.preparingReplacement == true || ($0.delegate as? WorkingTreePatchWindowController)?.preparingReplacement == true }) { return .terminateCancel }
         if RevertWindowModel.activeOperations > 0 || sender.windows.compactMap({$0.delegate as? RevertWindowController}).contains(where:{$0.model.hasChild || $0.model.commands.busy || $0.window?.attachedSheet != nil}) { return .terminateCancel }
         if ImageComparisonViewModel.activeFileReads > 0 || ImageLoadWindowController.activeReleases > 0 { return .terminateCancel }
-        if CleanProgressWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? CleanProgressWindowController }).contains(where: { $0.model.authorizing || $0.model.confirmingCancellation }) { return .terminateCancel }
+        if FinderFilesystemWorkflowRelease.activeRetirements > 0 || CleanProgressWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? CleanProgressWindowController }).contains(where: { $0.model.authorizing || $0.model.confirmingCancellation }) { return .terminateCancel }
+        if sender.windows.contains(where:{ window in
+            switch window.delegate {
+            case let owner as RenameWindowController:return owner.finderServiceWorkPending
+            case let owner as RemoveWindowController:return owner.finderServiceWorkPending
+            case let owner as CleanWindowController:return owner.finderServiceWorkPending
+            case let owner as CleanProgressWindowController:return owner.finderServiceWorkPending
+            default:return false
+            }
+        }) {return .terminateCancel}
         if CloneWindowModel.activeOperations > 0 || CloneProgressWindowModel.activeOperations > 0 || CreateRepositoryWindowModel.activeOperations > 0 { return .terminateCancel }
         if CloneWindowController.activeChildReleases > 0 || CreateRepositoryWindowController.activeReleases > 0 { return .terminateCancel }
         if BranchTagWindowController.activeReleases > 0 { return .terminateCancel }

@@ -1,0 +1,106 @@
+{
+  "status": "focused-local-validation-passed",
+  "scope": "First-use filesystem Finder Services: Rename, Delete, Delete (keep local), Cleanup and connected native lifetime",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Four appended registered Services, preserving the original 32 entries and their order; 36 total",
+    "Strict typed command envelopes, singleton Rename, ordered multi-path deletion and folder-only Cleanup",
+    "Pinned live shell eligibility, ordinary-root exclusion and distinct registered-submodule root exceptions",
+    "Existing native forms, source artwork, Git effects, preferences and folder-scoped Cleanup preview/removal",
+    "Captured repository, literal symlink leaf and access retained through workspace changes and options-to-progress handoff",
+    "Forced-close retirement, cancellation, deferred final callbacks, late reply fencing and Quit barriers for workers and child sheets"
+  ],
+  "checks": [
+    {
+      "name": "Initial focused Core group",
+      "result": "15 of 16 methods passed; new registration-order assertion failed",
+      "log": "build/qa/finder-filesystem-services-core-2026-10-20.log",
+      "repair": "Assert the complete original 32-entry order from committed registration rather than an assumed six-entry prefix"
+    },
+    {
+      "name": "Affected Core registration method",
+      "result": "passed, zero failures",
+      "log": "build/qa/finder-filesystem-services-core-registration-repair-2026-10-20.log"
+    },
+    {
+      "name": "Debug app build",
+      "result": "passed",
+      "log": "build/qa/finder-filesystem-services-app-2026-10-20.log"
+    },
+    {
+      "name": "Initial native group",
+      "result": "provider case passed; system-Git effects failed at repository identity assertion",
+      "receiver_pids": [
+        92232,
+        92241
+      ],
+      "log": "build/qa/finder-filesystem-services-native-2026-10-20.log",
+      "repair": "Compare exact repository paths instead of URL equality sensitive to directory hints; retain literal symlink target/type assertions"
+    },
+    {
+      "name": "Affected effects and previously unrun ownership group",
+      "result": "effects passed with both engines; system-Git ownership stopped at another URL identity assertion",
+      "receiver_pids": [
+        92410,
+        92938,
+        93463
+      ],
+      "log": "build/qa/finder-filesystem-services-native-path-repair-2026-10-20.log",
+      "repair": "Apply the same exact-path identity comparison to first-use grant and gitlink Delete assertions"
+    },
+    {
+      "name": "Affected ownership group",
+      "result": "passed with system and bundled Git",
+      "receiver_pids": [
+        93593,
+        93961
+      ],
+      "log": "build/qa/finder-filesystem-services-native-ownership-repair-2026-10-20.log",
+      "assertions": [
+        "Actual registered provider and private pasteboards, literal paths, cardinality and retired-provider refusal",
+        "Real staged Rename and symlink mode/unchanged target, ordered Delete and keep-local byte/index effects",
+        "Captured folder Cleanup dry-run then explicit deletion, unchanged HEAD and unrelated workspace",
+        "First-use permission Cancel/replacement/late callbacks; normal-root, untracked and mixed-repository refusal",
+        "Actual registered-gitlink root Rename/Delete exception, keep-local refusal and cancelled Delete",
+        "Held Rename destination preparation and Remove preflight cancellation/deferred callbacks/Quit until producer drains",
+        "Actual linked-worktree Cleanup metadata permission child, forced close and late approval refusal"
+      ]
+    },
+    {
+      "name": "Owned cleanup",
+      "result": "All seven receiver PIDs independently absent; wrapper reaped exact owned processes and private helper cleanup ran on every attempt",
+      "receiver_pids": [
+        92232,
+        92241,
+        92410,
+        92938,
+        93463,
+        93593,
+        93961
+      ]
+    },
+    {
+      "name": "Generated resources",
+      "result": "Localization and Help checks passed; Xcode project regenerated; dialog coverage reconciled; final Help wording required bundle-only refresh",
+      "log": "build/qa/finder-filesystem-services-help-refresh-2026-10-20.log"
+    }
+  ],
+  "core_boundary": "Sixteen distinct FinderServiceCommandTests methods passed cumulatively. Only the failed registration method repeated; no full Core suite rerun.",
+  "native_boundary": "Five distinct successful case/engine combinations: provider once, effects and ownership with system and bundled Git. No passed provider/effects case repeated after ownership-only repair.",
+  "remaining": [
+    "Physical Finder Services menu activation and system-managed ordering/enabling",
+    "Installed signed sandbox authorization, minimum-OS, keyboard/VoiceOver and visual acceptance",
+    "Worktree and Submodule first-use Services and other remaining upstream commands",
+    "Services does not reproduce Explorer per-entry icons or right-drag interception; Finder Sync retains separate menu/icon integration",
+    "Complete hosted integration and App Store distribution acceptance"
+  ],
+  "hashes": {
+    "Sources/TurtleGitCore/FinderRequest.swift": "3ff4df91d1d2d3877aba7723681e204a088746eb0eaf44b6bc1f7a844f8f577e",
+    "Sources/TurtleGitMac/FinderFilesystemWorkflowLifetime.swift": "f12d6dfa88941b2ad827551c87ed149333ad6e8ef2d1f7cfb0cc0979f4862809",
+    "Sources/TurtleGitMac/RenameWindow.swift": "3eeb2fe35cfcb3fcf9cfdbe8790cc531164a33f0b2bf9b99290773b9b2c6b232",
+    "Sources/TurtleGitMac/RemoveWindow.swift": "01dd2a24b613a656e57311442aed6eddc2aad43df8c8cc083dddee1e634b6884",
+    "Sources/TurtleGitMac/CleanWindow.swift": "8a295f86704b820a43efc6a130c1eed932119ef08d1d912ec57b6dc975516a81",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "2a6809cc943ca9a684981445b33af8571f53312a1ef2f0baf67254d96b02781c",
+    "Configuration/App-Info.plist": "996618ebaabf83ba967a26f8beb726520a39c896eb960335d84d12672c762b55"
+  }
+}

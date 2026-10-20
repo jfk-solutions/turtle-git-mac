@@ -58,6 +58,7 @@
 		1979E37CB9AAE2C56AB7BEE7 /* CommitMessageHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */; };
 		199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0144901E0020C531A5D86FB /* RepositoryAccess.swift */; };
 		1A69AA4536DD6B5565199815 /* LibreOfficeComparisonAutomation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C736B7D87B43E2E36549A6B /* LibreOfficeComparisonAutomation.swift */; };
+		1B349E13BC3AB3C4D24E4F8D /* FinderFilesystemWorkflowLifetime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BE47E78B73920C120053078 /* FinderFilesystemWorkflowLifetime.swift */; };
 		1BA28775A9F962B4A6F1D19B /* SSHKeyImportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72865D9AC73996DD71D1991A /* SSHKeyImportWindow.swift */; };
 		1C3518D6A25C8AF5ED0B0B29 /* SubmoduleSyncWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0939C1284CC5B9339D0C0356 /* SubmoduleSyncWindow.swift */; };
 		1C5D534467F62ADEB174D595 /* IssueProviderCommitReceipt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15E13DD478C7EB89AB13706F /* IssueProviderCommitReceipt.swift */; };
@@ -777,6 +778,7 @@
 		7A48D22D1E6D22153CBA3744 /* Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Push.swift; sourceTree = "<group>"; };
 		7A4B370EB64932B2909A8228 /* CloneWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloneWindow.swift; sourceTree = "<group>"; };
 		7BD26E6495039510A4AA65A2 /* SubversionMergePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubversionMergePresentation.swift; sourceTree = "<group>"; };
+		7BE47E78B73920C120053078 /* FinderFilesystemWorkflowLifetime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderFilesystemWorkflowLifetime.swift; sourceTree = "<group>"; };
 		7C3A0368920E97DF4AFA1318 /* BlameMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameMenuCommands.swift; sourceTree = "<group>"; };
 		7D861E87DCA7F3D938BFDF07 /* SSHKeyGenerationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyGenerationWindow.swift; sourceTree = "<group>"; };
 		7E85FED91C2F9C44EB16228A /* SubmoduleAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleAdd.swift; sourceTree = "<group>"; };
@@ -1139,6 +1141,7 @@
 				2D827F5DBDAAB1F3B311E007 /* FileTransferClipboard.swift */,
 				915E15D41336AA69D1B13F32 /* FinderBackgroundService.swift */,
 				D093EAD0CE5B754453B7C11E /* FinderContextMenuSettings.swift */,
+				7BE47E78B73920C120053078 /* FinderFilesystemWorkflowLifetime.swift */,
 				A3F90E32273723C62C5C2E88 /* FinderOverlaySettings.swift */,
 				99649DB8EC94705917C269A1 /* FinderWatchedRepositories.swift */,
 				5E466B2519722A3DA9A50629 /* FirstStartWizard.swift */,
@@ -2292,6 +2295,7 @@
 				188D90E5D9C8F798DE3CD305 /* FileTransferClipboard.swift in Sources */,
 				CDA5CA2296FD4B376D9C26E6 /* FinderBackgroundService.swift in Sources */,
 				4556F8934B7D589ABF9888FA /* FinderContextMenuSettings.swift in Sources */,
+				1B349E13BC3AB3C4D24E4F8D /* FinderFilesystemWorkflowLifetime.swift in Sources */,
 				AB3FEF9D5BF2A47C6276F174 /* FinderOverlaySettings.swift in Sources */,
 				F55B370208C201A2907D179C /* FinderWatchedRepositories.swift in Sources */,
 				99462F18C848C00FFE7E64D0 /* FirstStartWizard.swift in Sources */,

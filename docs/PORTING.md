@@ -4170,3 +4170,33 @@ receivers, including the failed attempt, and the terminated owned Core process
 are independently absent. [Batch evidence](qa/native-issue-provider-family-2026-10-20.json)
 records the actual scope and failures. No complete hosted, installed physical or
 signed distribution claim follows from these local checks.
+
+### First-use Finder filesystem Services — October 20, 2026
+
+Rename, Delete, Delete (keep local) and Cleanup now join the registered macOS
+Services family. These entries connect existing native forms and Git operations
+after repository discovery, access authorization and the pinned shell's live
+eligibility rules. Rename retains singleton selection; both Delete modes retain
+ordered paths and distinct index/disk effects; Cleanup keeps folder scopes through
+its options-to-progress handoff. Ordinary repository-root exclusions and the
+registered-submodule exceptions remain command-specific. Selected symlink leaves
+retain their literal identity.
+
+Forms keep the repository captured at dispatch while the workspace can open
+another repository. Forced close retires panels/questions, cancels work and
+fences late replies; final callbacks and access release wait for actual workers
+and child-sheet detachment. Application Quit observes open children and detached
+retirement. Retired Rename/Delete forms cannot be reused before drainage.
+
+The [Services guide](FINDER-SERVICES.md) records registration, source rules and
+remaining physical Finder/signed sandbox acceptance. The grouped checkpoint and
+actual failures are recorded in [batch evidence](qa/finder-filesystem-services-family-2026-10-20.json).
+The checkpoint passed sixteen distinct focused Core methods cumulatively, the
+app build and five native case/engine combinations: provider registration once,
+plus effects and ownership with system and bundled Git. New fixture assertions
+needed corrections for the committed registration order and URL directory hints;
+only failed or previously unrun scopes repeated. All seven native receiver PIDs,
+including failed attempts, are independently absent. Generated localization/Help
+checks passed and the final Help wording received a bundle resource refresh.
+This expansion does not establish all Finder commands, installed extension
+acceptance, complete upstream dialog parity or App Store readiness.

@@ -9,6 +9,13 @@ import TurtleGitCore
     var request: RemovalRequest { model.request }
     var onClosed: () -> Void = {}
     var onChanged: (String) -> Void { get { model.onChanged } set { model.onChanged = newValue } }
+    private var closing=false
+    private var release:FinderFilesystemWorkflowRelease?
+    private var retiringChildren:[NSWindow]=[]
+    private var underlyingWorkPending:Bool {question != nil || model.pendingOperations>0 || window?.sheetParent != nil || window?.attachedSheet != nil || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
+    var finderServiceCanPresent:Bool {!closing && !model.retired}
+    var finderServiceWorkPending:Bool {release != nil || underlyingWorkPending}
+    var transportBatchWorkPending:Bool {finderServiceWorkPending}
     private var question: (UUID, NSAlert, (Bool) -> Void)?
     var presentQuestion: (NSWindow, NSAlert, @escaping (NSApplication.ModalResponse) -> Void) -> Bool = { owner, alert, reply in
         guard owner.attachedSheet == nil else { return false }; alert.beginSheetModal(for: owner, completionHandler: reply); return true
@@ -29,6 +36,7 @@ import TurtleGitCore
         guard !model.retired, question == nil, let window, window.attachedSheet == nil else { return false }
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = detail; alert.alertStyle = .warning
         for (index, title) in buttons.enumerated() { let button = alert.addButton(withTitle: title); button.keyEquivalent = index == defaultIndex ? "\r" : "" }
+        alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
         let id = UUID(); model.hasQuestion = true
         return await withCheckedContinuation { continuation in
             question = (id, alert, { continuation.resume(returning: $0) })
@@ -40,11 +48,17 @@ import TurtleGitCore
         if pending.1.window.sheetParent === window { window?.endSheet(pending.1.window) }; pending.1.window.orderOut(nil); pending.2(accepted)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.hasQuestion && !model.confirmingCancellation }
-    func windowWillClose(_ notification: Notification) { guard !model.retired else { return }; model.retire(); if let pending = question { settle(pending.0, accepted: false) }; onClosed() }
+    func windowWillClose(_ notification:Notification){
+        guard notification.object as? NSWindow === window,!closing else{return};closing=true;model.retire()
+        if let pending=question{retiringChildren.append(pending.1.window);settle(pending.0,accepted:false);pending.1.window.close()}
+        if let window{if let child=window.attachedSheet{retiringChildren.append(child);window.endSheet(child,returnCode:.abort);child.close()};window.sheetParent?.endSheet(window,returnCode:.abort)}
+        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();let done=onClosed;onClosed={};done()};self.release=release;release.start()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RemoveWindowModel: ObservableObject, ActionLogProgress {
     static private(set) var activeOperations = 0
+    private(set) var pendingOperations=0
     let repository: GitRepository
     let request: RemovalRequest
     let access: RepositoryAccessLease?
@@ -75,10 +89,10 @@ import TurtleGitCore
     func retire() { if busy { cancelled = true }; retired = true; token?.cancel(); saveActionLog() }
     func start() {
         guard !started, !retired else { return }; started = true; busy = true; preparing = true
-        let token = OperationCancellation(); self.token = token; Self.activeOperations += 1; LocalGitCommandProgress.begin(); ProgressActionLog.nextAttempt(self, savePrevious: false)
+        let token = OperationCancellation(); self.token = token; Self.activeOperations += 1;pendingOperations += 1; LocalGitCommandProgress.begin(); ProgressActionLog.nextAttempt(self, savePrevious: false)
         Task {
             var attempted = false
-            defer { Self.activeOperations -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; if self.token === token { self.token = nil; busy = false; preparing = false; cancelling = false; current = "" }; if attempted && !retired { onChanged(output) } }
+            defer { Self.activeOperations -= 1;pendingOperations -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; if self.token === token { self.token = nil; busy = false; preparing = false; cancelling = false; current = "" }; if attempted && !retired { onChanged(output) } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 var plans: [(String, Result<RemovalPlan, Error>)] = []
@@ -114,8 +128,8 @@ import TurtleGitCore
     func cancel() {
         guard busy, !retired, !hasQuestion, !confirmingCancellation, !cancelling, let token else { return }
         if preparing || !preferences.bool(forKey: "ConfirmKillProcess") { cancelling = true; token.cancel(); return }
-        confirmingCancellation = true
-        Task { let accepted = await confirmCancel(); confirmingCancellation = false; if accepted && !retired && self.token === token { cancelling = true; token.cancel() } }
+        confirmingCancellation = true;Self.activeOperations += 1;pendingOperations += 1
+        Task { [self] in defer{Self.activeOperations -= 1;pendingOperations -= 1};let accepted=await confirmCancel();confirmingCancellation=false;if accepted && !retired && self.token === token{cancelling=true;token.cancel()} }
     }
     var actionLogRepository: URL { repository.root }
     var actionLogEligible: Bool { started }

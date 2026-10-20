@@ -1,6 +1,6 @@
 # TurtleGit selected-file Services
 
-TurtleGit advertises thirty-two macOS Services for selected files and folders. They give
+TurtleGit advertises thirty-six macOS Services for selected files and folders. They give
 users an entry point outside Finder Sync's monitored repositories, through the
 system's **Services** menu. They also work with file selections supplied by other
 apps that support macOS Services. Availability and ordering are controlled by
@@ -28,10 +28,14 @@ macOS; these entries do not extend Finder Sync's ordinary context-menu coverage.
 | TurtleGit: Edit conflict… | Existing conflict editor for the first captured selected path |
 | TurtleGit: Add to ignore list… / Ignore by extension… | Existing Ignore Type/File review with name or extension patterns |
 | TurtleGit: Delete and add to ignore list… / Delete and ignore by extension… | Ignore review followed by the existing keep-local/removal confirmation |
+| TurtleGit: Rename… | Existing single-item Rename dialog, including destination review and Git progress |
+| TurtleGit: Delete / Delete (keep local) | Existing ordered selected-path removal, confirmation and progress; keep-local stages removal while retaining working files |
+| TurtleGit: Clean up… | Existing folder-scoped Cleanup options, preview and explicit removal progress |
 
-Clone and Create advertise folder selections only. They require one existing,
+Clone, Create and Clean up advertise folder selections only. Clone and Create require one existing,
 ordinary directory; filesystem roots, symlink leaves and Git administrative paths
-are refused. Dialog validation and user confirmation still apply. Two-file Diff
+are refused. Cleanup retains its source Git-folder eligibility and can capture
+several folders in one repository. Dialog validation and user confirmation still apply. Two-file Diff
 validates both files before comparison; selecting two directories does not turn it
 into an unsupported directory-comparison operation. Git-dependent commands retain
 their existing repository, working-tree and selection restrictions.
@@ -101,7 +105,7 @@ permission.
 
 ## Registration and source scope
 
-`Configuration/App-Info.plist` supplies the thirty-two `NSServices` declarations.
+`Configuration/App-Info.plist` supplies the thirty-six `NSServices` declarations.
 `ApplicationDelegate.swift` installs one provider after startup preparation,
 restores a previous provider only if TurtleGit still owns the registration, and
 retires pending service input during termination. Opening a menu does not execute
@@ -112,8 +116,9 @@ The pinned source comparison is TortoiseGit revision
 `7338078f8ddd924b8cddee35f512f2286072136d`, particularly
 `TortoiseShell/ContextMenu.cpp` selection initialization and command dispatch, and
 `TortoiseShell/MenuInfo.cpp` Log, Commit, ShowChanged, Diff, Clone, CreateRepo,
-Pull/Fetch/Push/Sync, Switch/Merge/Branch/Tag/Rebase all four stash entries, Add/Revert/Resolve, Blame, PreviousDiff, ConflictEditor
-and the four Ignore/IgnoreDelete variants.
+Pull/Fetch/Push/Sync, Switch/Merge/Branch/Tag/Rebase, all four stash entries,
+Add/Revert/Resolve, Blame, PreviousDiff, ConflictEditor, the four
+Ignore/IgnoreDelete variants, and Rename/Remove/RemoveKeep/Cleanup.
 Those Explorer commands are not restricted to a previously watched-root list.
 macOS Services supplies the missing selected-item entry point; its system menu
 placement differs from Explorer and from TurtleGit's existing Finder Sync menus.
@@ -126,7 +131,7 @@ The implementation follows Apple's
 [Services properties](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/properties.html)
 for file UTIs, required context, message/user-data mapping and restricted actions,
 and its [service-provider lifecycle](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/providing.html).
-Clone and Create advertise `public.folder`; the other thirty advertise
+Clone, Create and Clean up advertise `public.folder`; the other thirty-three advertise
 `public.item`, with operation eligibility checked after access and discovery.
 The bundle uses file services rather than treating a plain text path as a file.
 
@@ -191,3 +196,34 @@ The focused runner is `scripts/test-finder-file-services.py`. The
 [selected-file batch evidence](qa/finder-file-services-family-2026-10-20.json)
 records the actual grouped results. Physical Services gestures, signed sandbox
 grants and complete source UI parity remain separate acceptance requirements.
+
+## Rename, Delete and Cleanup expansion — October 20, 2026
+
+Four further Services connect the existing filesystem dialogs for previously
+unmonitored selections. Rename accepts one normalized item. Delete and Delete
+(keep local) retain the ordered selection, their distinct Git/index/disk effects,
+and the existing confirmation/error choices. Cleanup accepts source-eligible
+folders and passes their exact repository-relative scopes into its options and
+progress windows. Preview is non-destructive; removal remains an explicit choice.
+
+Eligibility comes from the pinned shell's live rules after access and discovery.
+Ordinary repository roots cannot be renamed or removed through these commands.
+The source's registered-submodule-root Rename/Remove exceptions resolve against
+the superproject; keep-local retains its distinct exclusion. Selected symlinks
+remain literal Git leaves, preserving their targets and containing repository.
+Mixed repositories, unavailable source states and invalid cardinality fail
+without substituting the current workspace selection.
+
+The native forms retain their captured repository and scope if the workspace
+opens another repository. Cleanup's later options-to-progress handoff preserves
+the original Services identity and permission. Retired Rename/Delete dialogs
+cannot be reused while their old workers are draining. Closing an owner retires
+its destination/authorization panels and confirmation sheets, fences late replies
+and defers final close callbacks until actual workers and children release. Quit
+also waits for open native children and detached retirement work.
+
+The grouped native entry point is `scripts/test-finder-filesystem-services.py`.
+Its private repositories and pasteboards cover actual Git effects and captured
+dispatch; [batch evidence](qa/finder-filesystem-services-family-2026-10-20.json)
+records executed checks and failures. Physical Finder Services menu activation,
+installed signed sandbox grants and App Store distribution remain separate gates.

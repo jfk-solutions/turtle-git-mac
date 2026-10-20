@@ -7,6 +7,7 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     case log,commit,status,diff,clone,initialize
     case pull,fetch,push,synchronize,rebase,stash,stashApply,stashPop,stashList,switchBranch,merge,branch,tag
     case add,revert,resolve,resolveCurrent,resolveMine,resolveTheirs,blame,previousDiff,editConflict,ignore,ignoreMask,ignoreDelete,ignoreDeleteMask
+    case rename,remove,removeKeep,clean
     public static let maximumPaths=10000
     public static let maximumRequestBytes=1048576
     public struct Failure:LocalizedError,Sendable {
@@ -23,7 +24,7 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     }
     public var requiresSingleSelection:Bool {
         switch self {
-        case .clone,.initialize,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag,.blame,.previousDiff:return true
+        case .clone,.initialize,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag,.blame,.previousDiff,.rename:return true
         default:return false
         }
     }

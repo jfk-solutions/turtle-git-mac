@@ -20,6 +20,16 @@ private enum FinderServicePresentationContext {
     @TaskLocal static var current:FinderServiceDispatchIdentity?
 }
 
+/// Filesystem forms remain independent windows after Services preparation.
+/// A native presentation callback must not revive a retired captured form.
+@MainActor private protocol FinderFilesystemWorkflowWindow:AnyObject {
+    var finderServiceCanPresent:Bool {get}
+}
+extension RenameWindowController:FinderFilesystemWorkflowWindow {}
+extension RemoveWindowController:FinderFilesystemWorkflowWindow {}
+extension CleanWindowController:FinderFilesystemWorkflowWindow {}
+extension CleanProgressWindowController:FinderFilesystemWorkflowWindow {}
+
 /// Delayed repository work belongs to the window that launched it, even when
 /// that window closes before preparation or creation reports completion.
 @MainActor private final class RepositoryWindowOwner {
@@ -454,6 +464,8 @@ private enum TransportBatchPresentationContext {
     private var finderServiceDispatch:FinderServiceDispatchIdentity? {FinderServicePresentationContext.current}
     var commandTransportWorkflowPresentation:((RepositoryAction,NSWindowController,GitRepository,RepositoryAccessLease?)->Void)?
     @discardableResult private func prepareFinderServiceWorkflow(_ controller:NSWindowController,repository:GitRepository,access:RepositoryAccessLease?)->Bool {
+        let filesystem=controller as? any FinderFilesystemWorkflowWindow
+        guard filesystem?.finderServiceCanPresent != false else{return false}
         if let chain=TransportBatchPresentationContext.chain,GitReferenceName.equal(chain.root.standardizedFileURL.resolvingSymlinksInPath().path,repository.root.standardizedFileURL.resolvingSymlinksInPath().path),controller is any TransportBatchWindow {
             chain.capture(controller)
             guard chain.canPresent else{return false}
@@ -474,9 +486,9 @@ private enum TransportBatchPresentationContext {
             else {finderServiceWorkflowPresentation?(action,controller,repository,access)}
             return true
         }
-        guard let context=finderServiceDispatch,context.root==repository.root else{return true}
+        guard let context=finderServiceDispatch,GitReferenceName.equal(context.root.standardizedFileURL.resolvingSymlinksInPath().path,repository.root.standardizedFileURL.resolvingSymlinksInPath().path) else{return true}
         finderServiceWorkflowPresentation?(context.action,controller,repository,access)
-        return true
+        return filesystem == nil || (!retired && !confirmingQuit && filesystem?.finderServiceCanPresent == true)
     }
     private var finderServiceTransportStep:RepositoryTransportBatchChain?
     private var finderServiceOwner:RepositoryWindowOwner?
@@ -1417,7 +1429,9 @@ private enum TransportBatchPresentationContext {
         }
     }
     private func showRename(repository: GitRepository, access: RepositoryAccessLease?, source: String) {
+        guard !retired,!confirmingQuit else{return}
         let root = repository.root, key = GitPathRowIdentity.encode(root.path + "\0" + source)
+        guard renameWindows[key]?.model.retired != true else {error="The previous Rename window is still closing. Wait for its operation to finish.";return}
         let controller = renameWindows[key] ?? RenameWindowController(repository: repository, access: access, source: source, preferences: fileComparisonPreferences)
         controller.onClosed = { [weak self] in self?.renameWindows.removeValue(forKey: key) }
         controller.model.onRenamed = { [weak self] old, new, output in
@@ -1434,6 +1448,7 @@ private enum TransportBatchPresentationContext {
             if self?.root == root { Task { await self?.refresh() } }
         }
         renameWindows[key] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     func showMove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], clipboard: [URL]? = nil, destination: URL? = nil, renameFirst: Bool = false, stopOnError: Bool = true, automaticallyStart: Bool = false, preferences: UserDefaults? = nil) {
@@ -1869,9 +1884,11 @@ private enum TransportBatchPresentationContext {
         } catch { self.error = error.localizedDescription }
     }
     private func showRemove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], keepLocal: Bool) {
+        guard !retired,!confirmingQuit else{return}
         do {
             let request = try RemovalRequest(paths: paths, keepLocal: keepLocal)
             let root = repository.root, key = root.path + "\0" + String(keepLocal) + "\0" + request.paths.joined(separator: "\0")
+            guard removeWindows[key]?.model.retired != true else {error="The previous Delete window is still closing. Wait for its operation to finish.";return}
             let controller = removeWindows[key] ?? removeWindowFactory?(repository, access, request) ?? RemoveWindowController(repository: repository, access: access, request: request, preferences: fileComparisonPreferences)
             controller.onClosed = { [weak self] in self?.removeWindows.removeValue(forKey: key) }
             controller.onChanged = { [weak self] output in
@@ -1880,6 +1897,7 @@ private enum TransportBatchPresentationContext {
                 self.output = output; Task { await self.refresh() }
             }
             removeWindows[key] = controller
+            guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
         } catch { self.error = error.localizedDescription }
     }
@@ -2418,12 +2436,13 @@ private enum TransportBatchPresentationContext {
             error = "A Cleanup dialog is already open. Close it before opening another command-line Cleanup."; return
         }
         let root = repository.root, defaults = preferences ?? fileComparisonPreferences
-        let reusable = cleanWindows.first { _, value in GitReferenceName.equal(value.model.repository.root.path, root.path) && value.model.presentationPreferences === defaults && value.window?.attachedSheet == nil }
+        let reusable = cleanWindows.first { _, value in !value.model.retired && GitReferenceName.equal(value.model.repository.root.path, root.path) && value.model.presentationPreferences === defaults && value.window?.attachedSheet == nil }
         let key = reusable?.key ?? (cleanWindows[root.path] == nil ? root.path : root.path + "\0" + UUID().uuidString)
         let controller = reusable?.value ?? cleanWindowFactory?(repository) ?? CleanWindowController(repository: repository, defaults: defaults)
         presentation?.apply(to: controller.window)
         let inherited = controller.model.presentationPreferences
         let inheritedPresentation = controller.window.map(MergeWindowPresentation.init)
+        let serviceContext=finderServiceDispatch
         controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.cleanWindows[key] === controller else { return }; self.cleanWindows.removeValue(forKey: key) }
         controller.model.setScope(paths)
         controller.model.onAccepted = { [weak self] request in
@@ -2442,9 +2461,13 @@ private enum TransportBatchPresentationContext {
             }
             inheritedPresentation?.apply(to: progress.window)
             self.cleanProgressWindows[id] = progress
-            progress.showWindow(nil); progress.window?.makeKeyAndOrderFront(nil); progress.model.start()
+            FinderServicePresentationContext.$current.withValue(serviceContext) {
+                guard self.prepareFinderServiceWorkflow(progress,repository:repository,access:access) else{progress.close();return}
+                progress.showWindow(nil); progress.window?.makeKeyAndOrderFront(nil); progress.model.start()
+            }
         }
         cleanWindows[key] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showRevert(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {

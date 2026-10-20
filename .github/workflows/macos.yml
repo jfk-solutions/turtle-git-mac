@@ -410,6 +410,8 @@ jobs:
         run: python3 scripts/test-finder-service-workflows.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First-use Finder selected-file workflow Services
         run: python3 scripts/test-finder-file-services.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: First-use Finder filesystem workflow Services
+        run: python3 scripts/test-finder-filesystem-services.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Finder selected-source transfer workflow
         run: python3 scripts/test-finder-source-transfers.py --only source --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Project dialog source forms and owned icon chooser

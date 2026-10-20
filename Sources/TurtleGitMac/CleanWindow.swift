@@ -68,6 +68,13 @@ struct CleanDialogRequest {
 @MainActor final class CleanWindowController: NSWindowController, NSWindowDelegate {
     let model: CleanWindowModel
     var onClosed: () -> Void = {}
+    private var closing=false
+    private var release:FinderFilesystemWorkflowRelease?
+    private var retiringChildren:[NSWindow]=[]
+    private var underlyingWorkPending:Bool {window?.sheetParent != nil || window?.attachedSheet != nil || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
+    var finderServiceCanPresent:Bool {!closing && !model.retired}
+    var finderServiceWorkPending:Bool {release != nil || underlyingWorkPending}
+    var transportBatchWorkPending:Bool {finderServiceWorkPending}
     init(repository: GitRepository, defaults: UserDefaults = .standard) {
         model = CleanWindowModel(repository: repository, defaults: defaults)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 510, height: 330), styleMask: [.titled, .closable], backing: .buffered, defer: false)
@@ -80,7 +87,11 @@ struct CleanDialogRequest {
         DialogGeometry.attach(window, identifier: "CleanWindowController")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    func windowWillClose(_ notification: Notification) { model.retire(); onClosed(); onClosed = {} }
+    func windowWillClose(_ notification:Notification){
+        guard notification.object as? NSWindow === window,!closing else{return};closing=true;model.retire()
+        if let window{if let child=window.attachedSheet{retiringChildren.append(child);window.endSheet(child,returnCode:.abort);child.close()};window.sheetParent?.endSheet(window,returnCode:.abort)}
+        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();let done=onClosed;onClosed={};done()};self.release=release;release.start()
+    }
 }
 
 private struct CleanDialog: View {
@@ -119,6 +130,7 @@ private struct CleanDialog: View {
 
 @MainActor final class CleanProgressWindowModel: ObservableObject {
     static var activeOperations = 0
+    private(set) var pendingOperations=0
     @Published private(set) var authorizing = false
     private(set) var additionalAccess: [RepositoryAccessLease] = []
     var requiresSecurityScope = GitRuntime.isAppStoreBuild
@@ -164,6 +176,7 @@ private struct CleanDialog: View {
     private var cancellation: OperationCancellation?
     private var started = false
     private var invalidated = false
+    var isRetired:Bool {invalidated}
     private let preferences: UserDefaults
     private let autoClosePolicy: GitProgressAutoClose
     private var lastPreviewOnly = false
@@ -227,9 +240,9 @@ private struct CleanDialog: View {
         current = previewOnly ? "Previewing cleanup…" : permanently ? "Removing files…" : "Moving files to Trash…"
         let cancellation = OperationCancellation(); self.cancellation = cancellation
         let session=CleanOperationAccess([access].compactMap {$0} + additionalAccess)
-        Self.activeOperations += 1
+        Self.activeOperations += 1;pendingOperations += 1
         Task { [self,session] in
-            defer { Self.activeOperations -= 1; withExtendedLifetime(session) {}; if self.cancellation === cancellation { self.cancellation = nil; busy = false } }
+            defer { Self.activeOperations -= 1;pendingOperations -= 1; withExtendedLifetime(session) {}; if self.cancellation === cancellation { self.cancellation = nil; busy = false } }
             do {
                 if requiresSecurityScope && !session.leases.contains(where: { $0.hasSecurityScope && $0.contains(repository.root) }) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let prepare:CleanRepositoryAccessPreparation = { [self,session] location,token in try await self.prepareMetadata(at:location,session:session,cancellation:token) }
@@ -276,6 +289,16 @@ private struct CleanDialog: View {
 @MainActor final class CleanProgressWindowController: NSWindowController, NSWindowDelegate {
     let model: CleanProgressWindowModel
     var onClosed: () -> Void = {}
+    private var closing=false
+    private var release:FinderFilesystemWorkflowRelease?
+    private var retiringChildren:[NSWindow]=[]
+    private var pendingAuthorizationMonitors=0
+    private var cancellationQuestion:(UUID,NSAlert,(Bool)->Void)?
+    var presentQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool={parent,alert,reply in guard parent.attachedSheet==nil else{return false};alert.beginSheetModal(for:parent,completionHandler:reply);return true}
+    private var underlyingWorkPending:Bool {model.pendingOperations>0 || pendingAuthorizationMonitors>0 || authorizationPanel != nil || cancellationQuestion != nil || window?.sheetParent != nil || window?.attachedSheet != nil || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
+    var finderServiceCanPresent:Bool {!closing && !model.isRetired}
+    var finderServiceWorkPending:Bool {release != nil || underlyingWorkPending}
+    var transportBatchWorkPending:Bool {finderServiceWorkPending}
     private(set) var authorizationPanel: NSOpenPanel?
     var presentAuthorization: (NSOpenPanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, owner, completion in panel.beginSheetModal(for: owner, completionHandler: completion) }
     var selectedAuthorizationURL: (NSOpenPanel) -> URL? = { $0.url }
@@ -286,17 +309,19 @@ private struct CleanDialog: View {
         guard let reply=authorizationReply else {return};authorizationReply=nil;authorizationID=UUID()
         authorizationMonitor?.cancel();authorizationMonitor=nil
         let panel=authorizationPanel;authorizationPanel=nil
-        if dismiss,let panel {panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil);panel.close()}
+        if let panel {retiringChildren.append(panel);if dismiss || panel.sheetParent != nil {panel.sheetParent?.endSheet(panel,returnCode:selected == nil ? .cancel:.OK)};panel.orderOut(nil);panel.close()}
         reply(selected)
     }
     private func chooseMetadataFolder(_ requirement:RepositoryMetadataAccessRequirement,cancellation:OperationCancellation) async -> URL? {
         guard !cancellation.isCancelled,authorizationPanel==nil,let window,window.attachedSheet==nil else {return nil}
         let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.showsHiddenFiles=true;panel.prompt="Allow Access"
         panel.title="Allow repository folder access";panel.message=requirement.explanation + "\n\nSelect this folder or a containing parent:\n" + requirement.folder.path
-        panel.directoryURL=requirement.folder;authorizationPanel=panel;let identity=UUID();authorizationID=identity
-        authorizationMonitor=Task { [weak self] in
+        panel.directoryURL=requirement.folder;panel.alphaValue=window.alphaValue;panel.appearance=window.appearance;authorizationPanel=panel;let identity=UUID();authorizationID=identity
+        pendingAuthorizationMonitors += 1
+        authorizationMonitor=Task { [self] in
+            defer{pendingAuthorizationMonitors -= 1}
             while !cancellation.isCancelled {do {try await Task.sleep(nanoseconds:25_000_000)} catch {return}}
-            self?.finishRequiredAuthorization(nil,dismiss:true)
+            finishRequiredAuthorization(nil,dismiss:true)
         }
         return await withCheckedContinuation { continuation in
             authorizationReply={continuation.resume(returning:$0)}
@@ -320,29 +345,44 @@ private struct CleanDialog: View {
             guard let self, !self.model.authorizing, !self.model.confirmingCancellation, window?.attachedSheet == nil else { return }
             if self.model.busy { self.model.cancel() } else { window?.close() }
         }
-        model.confirmCancellation = { [weak window] choose in
-            guard let window, window.attachedSheet == nil else { choose(false); return }
-            let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
-            let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
-            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
-        }
+        model.confirmCancellation={ [weak self] choose in guard let self else{choose(false);return};self.confirmCancellation(choose) }
 
         DialogGeometry.attach(window, identifier: "ProgressDlg")
+    }
+    private func confirmCancellation(_ choose:@escaping(Bool)->Void){
+        guard !closing,cancellationQuestion==nil,let window,window.attachedSheet==nil else{choose(false);return}
+        let alert=NSAlert();alert.alertStyle = .informational;alert.messageText="The process is still running.";alert.informativeText="Are you sure to abort?"
+        let yes=alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No");yes.keyEquivalent="\r";alert.window.defaultButtonCell=yes.cell as? NSButtonCell
+        alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
+        let identity=UUID();cancellationQuestion=(identity,alert,choose)
+        if !presentQuestion(window,alert,{[weak self] response in self?.finishCancellation(identity,accepted:response == .alertFirstButtonReturn)}){finishCancellation(identity,accepted:false)}
+    }
+    private func finishCancellation(_ identity:UUID,accepted:Bool){
+        guard let pending=cancellationQuestion,pending.0==identity else{return};cancellationQuestion=nil;retiringChildren.append(pending.1.window)
+        pending.1.window.sheetParent?.endSheet(pending.1.window);pending.1.window.orderOut(nil);pending.1.window.close();pending.2(accepted && !closing)
     }
     func chooseAuthorizationFolder() {
         guard authorizationPanel == nil, let window, window.attachedSheet == nil, model.beginAuthorization() else { return }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.prompt = "Authorize"
         panel.message = "Authorize the repository, an external Git/common directory, or a required submodule folder for this cleanup. Then retry to prepare a fresh plan."
-        panel.directoryURL = model.repository.root; authorizationPanel = panel
+        panel.directoryURL = model.repository.root;panel.alphaValue=window.alphaValue;panel.appearance=window.appearance;authorizationPanel = panel
         presentAuthorization(panel, window) { [weak self, panel] response in
-            guard let self, self.authorizationPanel === panel else { return }; self.authorizationPanel = nil
-            let lease = response == .OK ? self.selectedAuthorizationURL(panel).map { RepositoryAccessLease(url: $0) } : nil
+            guard let self,!self.closing,self.authorizationPanel === panel else{return};self.authorizationPanel=nil;self.retiringChildren.append(panel)
+            let lease = response == .OK ? self.selectedAuthorizationURL(panel).map { RepositoryAccessLease(url:$0,provider:self.model.bookmarkProvider) } : nil
+            panel.sheetParent?.endSheet(panel,returnCode:response);panel.orderOut(nil);panel.close()
             self.model.finishAuthorization(lease)
         }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.authorizing && !model.confirmingCancellation && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); if let panel = authorizationPanel { window?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }; authorizationPanel = nil; onClosed(); onClosed = {} }
+    func windowWillClose(_ notification:Notification){
+        guard notification.object as? NSWindow === window,!closing else{return};closing=true;model.saveActionLog();model.invalidate()
+        if let panel=authorizationPanel{retiringChildren.append(panel);panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil);panel.close()};authorizationPanel=nil
+        authorizationMonitor?.cancel();authorizationMonitor=nil
+        if let pending=cancellationQuestion{finishCancellation(pending.0,accepted:false)}
+        if let window{if let child=window.attachedSheet{retiringChildren.append(child);window.endSheet(child,returnCode:.abort);child.close()};window.sheetParent?.endSheet(window,returnCode:.abort)}
+        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();let done=onClosed;onClosed={};done()};self.release=release;release.start()
+    }
 }
 
 enum CleanPostAction: String, Hashable {
