@@ -1041,6 +1041,13 @@ require review; a dialog count is not a count of all upstream UI.
 
 ## Current integration verification
 
+The [1cfadcc3 hosted run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39494884494)
+completed its Core stage with 2,489 tests, two skipped and two failures. The
+legacy failed-Pick receipt incompatibility has a focused two-method local repair
+pass, retaining all recovery guards. MaskBlt matrix rendering is under diagnosis;
+no complete hosted pass follows from the scoped local checks.
+[Evidence](qa/ci-1cfadcc3-core-failures-2026-10-21.json) records both failures.
+
 The latest complete local SwiftPM suite passed **980 tests, zero failures**, with
 one optional MX probe skipped, on October 11, 2026. The system Git 2.50.1 / Swift
 6.3.3 process exited normally after 874.897 seconds. It covers the recorded Core

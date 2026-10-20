@@ -289,6 +289,21 @@ final class RebaseFailedPickTests: XCTestCase {
             XCTAssertFalse(FileManager.default.fileExists(atPath:journalURL.path))
             XCTAssertEqual(try Data(contentsOf:directory.appendingPathComponent("done")),Data(base64Encoded:(committed ? after:before)["done"]!["bytes"]!))
         }
+        // Legacy omission permits only an absent adoption file. A new marker
+        // must not be discarded while upgrading the receipt's file schema.
+        let markerURL=directory.appendingPathComponent("turtlegit-adopted-plan.json")
+        let markerBytes=try JSONSerialization.data(withJSONObject:["version":1,"structural":false,"originals":[:],"merges":[]] as [String:Any])
+        let resumedState=try await repo.rebaseState()
+        let resumed=RebaseExecution(output:"",exitCode:1,state:resumedState,witnessedHead:captured.head,witnessedSession:captured.sessionIdentity)
+        try markerBytes.write(to:markerURL)
+        do {_ = try await repo.failedPickRecovery(after:resumed);XCTFail("Legacy intent ignored newly present adoption metadata")} catch RebaseFailure.changed {}
+        XCTAssertEqual(try Data(contentsOf:markerURL),markerBytes)
+        XCTAssertEqual(try Data(contentsOf:directory.appendingPathComponent(marker)),intentData)
+        let untouchedHead=try await repo.rebaseCommit("HEAD")
+        XCTAssertEqual(untouchedHead.hash,captured.head)
+        let untouchedIndex=try await repo.run(["ls-files","--stage","-v","-z"]).stdout
+        XCTAssertEqual(untouchedIndex,index)
+        try FileManager.default.removeItem(at:markerURL)
         let reopened=GitRepository(root:root,executable:repo.executable)
         let completed=try await reopened.continueRebase()
         XCTAssertEqual(completed.exitCode,0,completed.output);XCTAssertFalse(completed.state.active)

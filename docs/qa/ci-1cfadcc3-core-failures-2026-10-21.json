@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-21",
+  "run": 39494884494,
+  "job": 118877976080,
+  "revision": "1cfadcc3",
+  "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39494884494",
+  "state": "completed",
+  "conclusion": "failure",
+  "scope": "Hosted Intel Core integration stage, after pinned runtimes and application/Finder build. Later native stages not reached.",
+  "tests": 2489,
+  "skipped": 2,
+  "failures": 2,
+  "unexpected_failures": 1,
+  "failed_methods": [
+    "MetafileImageTests.testClassicMaskBltAllForegroundAndBackgroundTruthBytes",
+    "RebaseFailedPickTests.testInterruptedRescheduledSkipPublicationRestoresOrCompletesDurableIntent"
+  ],
+  "excerpts": [
+    "2026-10-20T21:50:02.8260300Z /Users/runner/work/turtle-git-mac/turtle-git-mac/Tests/TurtleGitCoreTests/MetafileImageTests.swift:12: error: -[TurtleGitCoreTests.MetafileImageTests testClassicMaskBltAllForegroundAndBackgroundTruthBytes] : XCTUnwrap failed: expected non-nil value of type \"ComparisonImage\" - Could not render classic-maskblt-matrix.emf",
+    "2026-10-20T21:58:20.7889260Z /Users/runner/work/turtle-git-mac/turtle-git-mac/Sources/TurtleGitCore/Rebase.swift:1575: error: -[TurtleGitCoreTests.RebaseFailedPickTests testInterruptedRescheduledSkipPublicationRestoresOrCompletesDurableIntent] : failed: caught error: \"changed\"",
+    "2026-10-20T22:23:54.4138720Z \t Executed 2489 tests, with 2 tests skipped and 2 failures (1 unexpected) in 3711.359 (3711.726) seconds",
+    "2026-10-20T22:23:54.4142290Z \t Executed 2489 tests, with 2 tests skipped and 2 failures (1 unexpected) in 3711.359 (3711.738) seconds",
+    "2026-10-20T22:23:54.4593930Z ##[error]Process completed with exit code 1."
+  ],
+  "repair_status": "Rebase legacy receipt compatibility repaired and focused local check passed; MaskBlt rendering failure under diagnosis. No complete hosted pass claimed.",
+  "rebase_repair": {
+    "cause": "Persisted pre-adoption failed-Pick intents have five action-edit files; current snapshots add the sixth adoption-file entry, even when absent. Strict dictionary equality falsely refused the old receipt.",
+    "change": "Normalize only a missing adoption-file entry when actual bytes are absent. Preserve all file/session/HEAD/index/worktree guards, and refuse newly present adoption metadata.",
+    "local_check": {
+      "log": "build/qa/ci-rebase-intent-compatibility-2026-10-21.log",
+      "methods": [
+        "RebaseFailedPickTests.testInterruptedRescheduledSkipPublicationRestoresOrCompletesDurableIntent",
+        "RebaseFailedPickTests.testFailedSkipKeepsCleanupIntentAcrossReopenAndContinue"
+      ],
+      "passed": 2,
+      "failed": 0,
+      "engine": "/usr/bin/git",
+      "elapsed_seconds": 8.292,
+      "scope": "SwiftPM Core sources; existing app only supplies unchanged headless editor entry. No app/native/full Core rerun and no bundled-engine claim."
+    }
+  }
+}

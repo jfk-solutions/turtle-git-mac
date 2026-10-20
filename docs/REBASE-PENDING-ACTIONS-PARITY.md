@@ -73,3 +73,15 @@ all external Git races and filesystem crash scenarios, unsupported custom struct
 session conversion, full source enabled/omitted matrix, minimum macOS/Intel,
 signed sandbox/Finder/App Store and complete Rebase visual parity. The remaining
 shared Log commands in Rebase are tracked separately; the whole port is unfinished.
+
+## Older failed-Pick receipt compatibility — October 21, 2026
+
+A completed hosted run exposed an older five-file failed-Pick intent being
+compared with the newer six-file action-edit snapshot. The new adoption-file
+entry is now treated as absent in that legacy receipt only when its actual bytes
+are absent. Newly present adoption metadata still refuses recovery; all other
+file, session, HEAD, index and worktree checks stay strict. The original
+interrupted-publication rollback/commit/Continue assertions remain, with an added
+negative adoption-marker case. Two focused system-Git Core methods pass;
+[hosted failure and local repair evidence](qa/ci-1cfadcc3-core-failures-2026-10-21.json)
+retains the separate unresolved MaskBlt failure and complete hosted gate.
