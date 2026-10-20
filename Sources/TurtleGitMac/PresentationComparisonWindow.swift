@@ -11,6 +11,7 @@ private enum PresentationReviewText {
 @MainActor final class PresentationComparisonWindowModel:ObservableObject {
     private(set) static var activeRequests=0
     let preview:PresentationComparisonPreview,manifest:PresentationComparisonManifest
+    let revision:PresentationRevisionWindowModel
     let preferences:UserDefaults,baseTitle:String,destinationTitle:String
     private var permissions:[RepositoryAccessLease]
     @Published private(set) var rows:[PresentationSlideComparison]=[]
@@ -52,22 +53,33 @@ private enum PresentationReviewText {
     var canAct:Bool {!retired && !confirmingQuit && actionsAllowed()}
     var visibleIndices:[Int] {rows.indices.filter{!changesOnly || rows[$0].change != .unchanged || rows[$0].isMoved}}
     var current:PresentationSlideComparison? {selection.flatMap{rows.indices.contains($0) ? rows[$0]:nil}}
+    var sourcePreviewsAvailable:Bool {FileManager.default.fileExists(atPath:preview.basePDF.path) && FileManager.default.fileExists(atPath:preview.destinationPDF.path)}
     var summary:String {
         let added=rows.filter{$0.change == .added}.count,deleted=rows.filter{$0.change == .deleted}.count
         let modified=rows.filter{$0.change == .modified}.count,moved=rows.filter(\.isMoved).count
         return "\(added) added · \(deleted) deleted · \(modified) modified · \(moved) moved"
     }
-    init(preview:PresentationComparisonPreview,manifest:PresentationComparisonManifest,permissions:[RepositoryAccessLease],preferences:UserDefaults,baseTitle:String,destinationTitle:String) {
+    init(preview:PresentationComparisonPreview,manifest:PresentationComparisonManifest,permissions:[RepositoryAccessLease],preferences:UserDefaults,baseTitle:String,destinationTitle:String,protectedInputs:[URL]=[],initialReview:PresentationRevisionReview?=nil) {
+        revision=PresentationRevisionWindowModel(preview:preview,protectedInputs:protectedInputs,initialReview:initialReview)
         self.preview=preview;self.manifest=manifest;self.permissions=permissions;self.preferences=preferences;self.baseTitle=baseTitle;self.destinationTitle=destinationTitle
         mode=Mode(rawValue:preferences.string(forKey:"PresentationReview.Mode") ?? "") ?? .paired
         changesOnly=preferences.bool(forKey:"PresentationReview.ChangesOnly")
         fit=(preferences.object(forKey:"PresentationReview.Fit") as? NSNumber)?.boolValue ?? true
         let saved=preferences.double(forKey:"PresentationReview.Zoom");zoom=saved.isFinite && (0.1...8).contains(saved) ? saved:1
+        revision.actionsAllowed={ [weak self] in self?.canAct==true }
+        revision.onSelection={ [weak self] change in
+            guard let self,let change,let index=rows.firstIndex(where:{row in
+                (change.baseSlideIndex != nil && row.base?.pageIndex==change.baseSlideIndex) || (change.destinationSlideIndex != nil && row.destination?.pageIndex==change.destinationSlideIndex)
+            }) else{return};selection=index
+        }
+        revision.onBegin={ [weak self] in self?.begin() }
+        revision.onEnd={ [weak self] in self?.end() }
     }
     private func begin(){pending+=1;Self.activeRequests+=1}
     private func end(){pending-=1;Self.activeRequests-=1;if retired && pending==0 {onDrain()}}
     func start(){
         guard canAct,!busy else{return}
+        revision.start()
         token?.cancel();renderToken?.cancel();let token=OperationCancellation(),request=UUID();self.token=token;generation=request
         busy=true;error=nil;rows=[];selection=nil;images=nil;begin()
         let preview=preview,manifest=manifest
@@ -75,11 +87,13 @@ private enum PresentationReviewText {
             defer {end();withExtendedLifetime(permissions){}}
             do {
                 let report=try await Task.detached(priority:.userInitiated){
+                    guard FileManager.default.fileExists(atPath:preview.basePDF.path),FileManager.default.fileExists(atPath:preview.destinationPDF.path) else {return try PresentationComparisonReport(base:manifest.base.slides,destination:manifest.destination.slides,cancellation:token)}
                     let fingerprints=try PresentationComparisonRendering.fingerprints(base:preview.basePDF,destination:preview.destinationPDF,baseCount:manifest.base.slides.count,destinationCount:manifest.destination.slides.count,cancellation:token)
                     func enriched(_ slides:[PresentationSlide],_ hashes:[String])->[PresentationSlide] {zip(slides,hashes).map{slide,hash in PresentationSlide(pageIndex:slide.pageIndex,stableID:slide.stableID,text:slide.text,notes:slide.notes,visualFingerprint:hash)}}
                     return try PresentationComparisonReport(base:enriched(manifest.base.slides,fingerprints.0),destination:enriched(manifest.destination.slides,fingerprints.1),cancellation:token)
                 }.value
-                guard !retired,generation==request,!token.isCancelled else{return}
+                guard !retired,generation==request else{return}
+                if token.isCancelled {busy=false;self.token=nil;self.error="Review preparation cancelled. Retry to prepare the slides again.";return}
                 rows=report.rows;busy=false;self.token=nil;selection=visibleIndices.first
             }catch{
                 guard !retired,generation==request else{return};busy=false;self.token=nil
@@ -87,19 +101,21 @@ private enum PresentationReviewText {
             }
         }
     }
-    func cancel(){guard !retired else{return};token?.cancel();renderToken?.cancel()}
-    func retire(){guard !retired else{return};retired=true;token?.cancel();renderToken?.cancel();generation=UUID();renderGeneration=UUID();if pending==0 {onDrain()}}
+    func cancel(){guard !retired else{return};token?.cancel();renderToken?.cancel();revision.cancel()}
+    func retire(){guard !retired else{return};retired=true;revision.retire();token?.cancel();renderToken?.cancel();generation=UUID();renderGeneration=UUID();if pending==0 {onDrain()}}
     func releaseResources(){guard retired,pending==0 else{return};permissions=[];images=nil}
     func renderSelection(){
         renderToken?.cancel();renderGeneration=UUID();images=nil;renderError=nil
         guard canAct,let current else{rendering=false;return}
+        guard sourcePreviewsAvailable else{rendering=false;return}
         let token=OperationCancellation(),request=renderGeneration;renderToken=token;rendering=true;begin()
         let preview=preview,baseCount=manifest.base.slides.count,destinationCount=manifest.destination.slides.count
         Task { [self] in
             defer {end();withExtendedLifetime(permissions){}}
             do {
                 let pair=try await Task.detached(priority:.userInitiated){try PresentationComparisonRendering.pair(base:preview.basePDF,destination:preview.destinationPDF,baseCount:baseCount,destinationCount:destinationCount,baseIndex:current.base?.pageIndex,destinationIndex:current.destination?.pageIndex,cancellation:token)}.value
-                guard !retired,renderGeneration==request,!token.isCancelled else{return};images=pair;rendering=false;renderToken=nil
+                guard !retired,renderGeneration==request else{return};rendering=false;renderToken=nil
+                if token.isCancelled {renderError="Slide rendering cancelled. Retry to display this slide again.";return};images=pair
             }catch{guard !retired,renderGeneration==request else{return};rendering=false;renderToken=nil;renderError=token.isCancelled ? "Slide rendering cancelled. Retry to display this slide again.":error.localizedDescription}
         }
     }
@@ -118,11 +134,18 @@ private enum PresentationReviewText {
             if PresentationReviewText.differs(row.base?.notes,row.destination?.notes) {result+="Base notes:\n\(row.base?.notes ?? "")\nNew notes:\n\(row.destination?.notes ?? "")\n"}
             result+="\n"
         }
+        if let review=revision.review {
+            result+="Editable revision decisions\n"
+            for change in review.changes {
+                let decision=review.decisions[change.id].map{$0 ? "Accepted New":"Rejected Base"} ?? "Unresolved"
+                result+="\(decision): \(change.title)\n\(change.detail)\n"
+            }
+        }
         return result
     }
     func reserveExport(){begin()}
     func finishExport(){end()}
-    func exportReview(to url:URL)throws {guard canAct,!rows.isEmpty else{return};try Data(reviewText.utf8).write(to:url,options:.atomic)}
+    func exportReview(to url:URL)throws {guard canAct,!rows.isEmpty else{return};try revision.validateDestination(url,requirePresentationExtension:false);try Data(reviewText.utf8).write(to:url,options:.atomic)}
 }
 
 @MainActor final class PresentationComparisonWindowController:NSWindowController,NSWindowDelegate {
@@ -137,22 +160,71 @@ private enum PresentationReviewText {
     var selectedExportURL:(NSSavePanel)->URL? = {$0.url}
     var exportErrorWindow:NSWindow? {exportError?.window}
     private var exporting=false
-    init(preview:PresentationComparisonPreview,manifest:PresentationComparisonManifest,permissions:[RepositoryAccessLease],preferences:UserDefaults,baseTitle:String,destinationTitle:String) {
-        model=PresentationComparisonWindowModel(preview:preview,manifest:manifest,permissions:permissions,preferences:preferences,baseTitle:baseTitle,destinationTitle:destinationTitle)
-        let window=NSWindow(contentRect:NSRect(x:0,y:0,width:1120,height:760),styleMask:[.titled,.closable,.resizable,.miniaturizable],backing:.buffered,defer:false)
-        window.title="\(baseTitle) → \(destinationTitle) — Presentation comparison — TurtleGit";window.isReleasedWhenClosed=false;window.minSize=NSSize(width:850,height:580)
+    private var closeAfterExport=false
+    private var discardAlert:NSAlert?
+    private var discardReply:((Bool)->Void)?
+    var presentDiscard:(NSAlert,NSWindow,@escaping(Bool)->Void)->Void={alert,window,reply in alert.beginSheetModal(for:window){reply($0 == .alertFirstButtonReturn)}}
+    init(preview:PresentationComparisonPreview,manifest:PresentationComparisonManifest,permissions:[RepositoryAccessLease],preferences:UserDefaults,baseTitle:String,destinationTitle:String,protectedInputs:[URL]=[],initialReview:PresentationRevisionReview?=nil) {
+        model=PresentationComparisonWindowModel(preview:preview,manifest:manifest,permissions:permissions,preferences:preferences,baseTitle:baseTitle,destinationTitle:destinationTitle,protectedInputs:protectedInputs,initialReview:initialReview)
+        let window=NSWindow(contentRect:NSRect(x:0,y:0,width:1240,height:1000),styleMask:[.titled,.closable,.resizable,.miniaturizable],backing:.buffered,defer:false)
+        window.title="\(baseTitle) → \(destinationTitle) — Presentation comparison — TurtleGit";window.isReleasedWhenClosed=false;window.minSize=NSSize(width:950,height:760)
         super.init(window:window);window.delegate=self
-        window.contentViewController=NSHostingController(rootView:PresentationComparisonDialog(model:model,export:{ [weak self] in self?.chooseExport() },close:{ [weak self] in self?.close() }))
+        window.contentViewController=NSHostingController(rootView:PresentationComparisonDialog(model:model,saveEditable:{ [weak self] in self?.chooseEditableExport() },export:{ [weak self] in self?.chooseExport() },close:{ [weak self] in self?.close() }))
         model.actionsAllowed={ [weak self,weak window] in self?.closing==false && self?.exportError==nil && window?.attachedSheet==nil }
         model.onDrain={ [weak self] in self?.finishClose() }
         window.center();DialogGeometry.attach(window,identifier:"PresentationComparison");TurtleGitHelp.attach(window,topic:.presentations);model.start()
     }
     required init?(coder:NSCoder){fatalError("init(coder:) is not supported")}
     override func close(){
-        guard !closing else{finishClose();return};retirementOwner=self;closing=true;model.retire();panel?.cancel(nil);cancelExportError()
+        guard !closing else{finishClose();return}
+        guard discardAlert==nil else{return}
+        if exporting {closeAfterExport=true;model.revision.cancel();panel?.cancel(nil);return}
+        if model.revision.isDirty {
+            guard let window,window.attachedSheet==nil,!exporting else{return}
+            let alert=NSAlert();alert.messageText="Discard presentation review decisions?"
+            alert.informativeText="Save an editable copy before closing to keep your accepted and rejected revisions."
+            alert.addButton(withTitle:"Discard");alert.addButton(withTitle:"Cancel");alert.buttons[1].keyEquivalent="\r"
+            alert.window.appearance=window.appearance;alert.window.alphaValue=window.alphaValue
+            discardAlert=alert;model.confirmingQuit=true;model.reserveExport()
+            var answered=false
+            let reply:(Bool)->Void={ [self] discard in
+                guard !answered else{return};answered=true
+                Task { @MainActor [self] in
+                    while window.attachedSheet===alert.window {try? await Task.sleep(nanoseconds:5_000_000)}
+                    discardAlert=nil;discardReply=nil;model.confirmingQuit=false;model.finishExport()
+                    if discard {closeConfirmed()}
+                }
+            }
+            discardReply=reply;presentDiscard(alert,window,reply);return
+        }
+        closeConfirmed()
+    }
+    func confirmQuit()async->Bool {
+        guard model.revision.isDirty else{return true}
+        guard !closing,discardAlert==nil,let window,window.attachedSheet==nil else{return false}
+        let alert=NSAlert();alert.messageText="Discard presentation review decisions before quitting?"
+        alert.informativeText="Save an editable copy before quitting to keep your accepted and rejected revisions."
+        alert.addButton(withTitle:"Discard");alert.addButton(withTitle:"Cancel");alert.buttons[1].keyEquivalent="\r"
+        alert.window.appearance=window.appearance;alert.window.alphaValue=window.alphaValue
+        discardAlert=alert;model.reserveExport()
+        return await withCheckedContinuation {continuation in
+            var answered=false
+            let reply:(Bool)->Void={ [self] discard in
+                guard !answered else{return};answered=true
+                Task { @MainActor [self] in
+                    while window.attachedSheet===alert.window {try? await Task.sleep(nanoseconds:5_000_000)}
+                    discardAlert=nil;discardReply=nil;model.finishExport();continuation.resume(returning:discard)
+                }
+            }
+            discardReply=reply;presentDiscard(alert,window,reply)
+        }
+    }
+    func discardAfterApprovedQuit(){closeConfirmed()}
+    private func closeConfirmed(){
+        guard !closing else{return};retirementOwner=self;closing=true;model.retire();panel?.cancel(nil);cancelExportError()
         window?.orderOut(nil);super.close();finishClose()
     }
-    func windowShouldClose(_ sender:NSWindow)->Bool {!exporting && sender.attachedSheet==nil}
+    func windowShouldClose(_ sender:NSWindow)->Bool {guard !exporting,sender.attachedSheet==nil else{return false};close();return false}
     func windowWillClose(_ notification:Notification){retirementOwner=self;closing=true;model.retire();panel?.cancel(nil);cancelExportError();finishClose()}
     private func finishClose(){
         guard closing,!released,model.pending==0,!exporting,exportError==nil,window?.attachedSheet==nil else{return}
@@ -178,6 +250,20 @@ private enum PresentationReviewText {
         exportErrorReply=reply
         alert.beginSheetModal(for:window,completionHandler:{_ in reply()})
     }
+    func chooseEditableExport(){
+        guard model.canAct,model.revision.canSave,!exporting,let window,window.attachedSheet==nil else{return}
+        let panel=NSSavePanel();panel.nameFieldStringValue="Reviewed presentation."+model.revision.suggestedExtension;panel.title="Save Editable Copy"
+        self.panel=panel;exporting=true;model.reserveExport()
+        presentExport(panel,window){ [self] response in
+            Task { @MainActor [self] in
+                while window.attachedSheet===panel {try? await Task.sleep(nanoseconds:5_000_000)}
+                defer {exporting=false;self.panel=nil;model.finishExport();finishClose();if closeAfterExport {closeAfterExport=false;close()}}
+                guard !closing,response == .OK,let url=selectedExportURL(panel) else{return}
+                let granted=url.startAccessingSecurityScopedResource();defer {if granted{url.stopAccessingSecurityScopedResource()}}
+                do {try await model.revision.save(to:url)}catch{if !closing && !(error is OperationCancellationFailure) && !(error is CancellationError){showExportError(error)}}
+            }
+        }
+    }
     func chooseExport(){
         guard model.canAct,!model.rows.isEmpty,!exporting,let window,window.attachedSheet==nil else{return}
         let panel=NSSavePanel();panel.nameFieldStringValue="Presentation comparison.txt";panel.title="Export Review";self.panel=panel;exporting=true;model.reserveExport()
@@ -185,7 +271,7 @@ private enum PresentationReviewText {
             Task { @MainActor [self] in
                 // Release the sheet before allowing another request or close.
                 while window.attachedSheet===panel {try? await Task.sleep(nanoseconds:5_000_000)}
-                defer {exporting=false;self.panel=nil;model.finishExport();finishClose()}
+                defer {exporting=false;self.panel=nil;model.finishExport();finishClose();if closeAfterExport {closeAfterExport=false;close()}}
                 guard !closing,response == .OK,let url=selectedExportURL(panel) else{return}
                 let granted=url.startAccessingSecurityScopedResource();defer {if granted{url.stopAccessingSecurityScopedResource()}}
                 do {try model.exportReview(to:url)}catch{showExportError(error)}
@@ -195,7 +281,7 @@ private enum PresentationReviewText {
 }
 private struct PresentationComparisonDialog:View {
     @ObservedObject var model:PresentationComparisonWindowModel
-    let export:()->Void,close:()->Void
+    let saveEditable:()->Void,export:()->Void,close:()->Void
     private func status(_ row:PresentationSlideComparison)->Color {
         switch row.change {case .added:return .green;case .deleted:return .red;case .modified:return .orange;case .unchanged:return row.isMoved ? .blue:.secondary}
     }
@@ -206,11 +292,11 @@ private struct PresentationComparisonDialog:View {
                 Button{model.navigate(-1)}label:{CommandLabel(title:"Previous change",icon:.mergePreviousDifference)}
                 Button{model.navigate(1)}label:{CommandLabel(title:"Next change",icon:.mergeNextDifference)}
                 Toggle("Changes only",isOn:$model.changesOnly).toggleStyle(.checkbox)
-                Spacer();Picker("View",selection:$model.mode){ForEach(PresentationComparisonWindowModel.Mode.allCases,id:\.self){Text($0.rawValue).tag($0)}}.frame(width:220)
-                Button("−"){model.fit=false;model.zoom=max(0.1,model.zoom/1.25)}
+                Spacer();Picker("View",selection:$model.mode){ForEach(PresentationComparisonWindowModel.Mode.allCases,id:\.self){Text($0.rawValue).tag($0)}}.frame(width:220).disabled(!model.sourcePreviewsAvailable)
+                Button("−"){model.fit=false;model.zoom=max(0.1,model.zoom/1.25)}.disabled(!model.sourcePreviewsAvailable)
                 Text(model.fit ? "Fit":"\(Int(model.zoom*100))%").frame(width:45)
-                Button("+"){model.fit=false;model.zoom=min(8,model.zoom*1.25)}
-                Button("Fit"){model.fit=true}
+                Button("+"){model.fit=false;model.zoom=min(8,model.zoom*1.25)}.disabled(!model.sourcePreviewsAvailable)
+                Button("Fit"){model.fit=true}.disabled(!model.sourcePreviewsAvailable)
             }.padding(10).disabled(!model.canAct || model.busy)
             Divider()
             HSplitView {
@@ -230,8 +316,16 @@ private struct PresentationComparisonDialog:View {
                     else if model.visibleIndices.isEmpty {Text("No changed slides.").frame(maxWidth:.infinity,maxHeight:.infinity)}
                     else {
                         HStack {Text(model.baseTitle).lineLimit(1).help(model.baseTitle);Spacer();Text(model.destinationTitle).lineLimit(1).help(model.destinationTitle)}.font(.caption).padding(.horizontal,8)
-                        PresentationSlideCanvas(images:model.images,mode:model.mode,fit:model.fit,zoom:model.zoom).overlay{if model.rendering{ProgressView()}}
-                        if let error=model.renderError {HStack{Text(error).foregroundStyle(.red);Button("Retry"){model.renderSelection()}}.padding(6)}
+                        if model.sourcePreviewsAvailable {
+                            PresentationSlideCanvas(images:model.images,mode:model.mode,fit:model.fit,zoom:model.zoom).overlay{if model.rendering{ProgressView()}}
+                            if let error=model.renderError {HStack{Text(error).foregroundStyle(.red);Button("Retry"){model.renderSelection()}}.padding(6)}
+                        } else {
+                            VStack(spacing:12){
+                                Image(systemName:"doc.text.magnifyingglass").font(.system(size:36)).foregroundStyle(.secondary)
+                                Text("Source slide previews require Microsoft PowerPoint.").font(.headline)
+                                Text("Review the package revisions below. Accept or reject changes and save an editable copy.").font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                            }.padding(24).frame(maxWidth:.infinity,maxHeight:.infinity).frame(minHeight:230).background(Color(nsColor:.controlBackgroundColor))
+                        }
                         if let row=model.current {DisclosureGroup("Text and notes") {
                             HStack(alignment:.top){details(row.base,changedText:PresentationReviewText.differs(row.base?.text,row.destination?.text),changedNotes:PresentationReviewText.differs(row.base?.notes,row.destination?.notes));Divider();details(row.destination,changedText:PresentationReviewText.differs(row.base?.text,row.destination?.text),changedNotes:PresentationReviewText.differs(row.base?.notes,row.destination?.notes))}.frame(height:150)
                         }.padding(8)}
@@ -239,8 +333,10 @@ private struct PresentationComparisonDialog:View {
                 }.frame(minWidth:570,maxWidth:.infinity,maxHeight:.infinity)
             }
             Divider()
+            PresentationRevisionReviewPanel(model:model.revision,save:saveEditable)
+            Divider()
             HStack {Text(model.summary).font(.caption);Spacer();if model.busy || model.rendering{Button("Cancel"){model.cancel()}};Button{model.copyReview()}label:{CommandLabel(title:"Copy Review",icon:.copy)}.disabled(!model.canAct || model.rows.isEmpty);Button{export()}label:{CommandLabel(title:"Export Review…",icon:.saveAs)}.disabled(!model.canAct || model.rows.isEmpty);Button("Close",action:close).keyboardShortcut(.cancelAction);Button("Help"){if model.canAct{TurtleGitHelp.show(.presentations)}}.disabled(!model.canAct)}.padding(10)
-            Text("Visual slide review. Animations, macros and structural accept/reject are not compared.").font(.caption).foregroundStyle(.secondary).padding(.bottom,8)
+            Text("Source visual comparison and editable package revision review. Animations and macro execution are not previewed.").font(.caption).foregroundStyle(.secondary).padding(.bottom,8)
         }
     }
     private func details(_ slide:PresentationSlide?,changedText:Bool,changedNotes:Bool)->some View {

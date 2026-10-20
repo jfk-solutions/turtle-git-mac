@@ -79,6 +79,6 @@ Save As interaction, all document formats, actual TCC/file grants, physical nati
 questions, signed Finder/AppStore and full source parity remain unverified.
 Word merge requires Word and has no automatic LibreOffice fallback, matching
 `merge-doc.js`. [LibreOffice/OpenDocument merge](LIBREOFFICE-COMPARISON.md) is a
-separate adapter. PowerPoint shape-level revision decisions and editable merged
-output remain open. See
+separate adapter. PowerPoint has Open XML revision decisions and editable-copy
+output; binary PPT editing and complete Windows revision parity remain open. See
 [Excel comparison](EXCEL-COMPARISON.md) for its separate adapter/acceptance scope.

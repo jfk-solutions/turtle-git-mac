@@ -81,6 +81,7 @@ LibreOffice is not installed in the current development environment. Live Writer
 Calc rendering, nested-runtime launch compatibility, actual document formats,
 macro/reference loading, Save As, minimum OS and signed sandbox/App Store access
 remain unverified. The app's preparation profile and Launch Services code do not
-prove App Store acceptance. PowerPoint has native slide comparison, while shape-level revision decisions
-and editable merged output remain a separate gap; its inspected Mac scripting
+prove App Store acceptance. PowerPoint has native slide comparison and Open XML revision decisions with
+editable-copy output; binary PPT editing and complete revision parity remain
+open. Its inspected Mac scripting
 dictionary lacks the Windows presentation Merge API.

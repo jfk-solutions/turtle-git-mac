@@ -1,5 +1,19 @@
 # TurtleGit for Mac — full port tracking
 
+The [Open XML presentation revision family](POWERPOINT-COMPARISON-PARITY.md#open-xml-revision-decisions-and-editable-output)
+adds a bounded ZIP reader/writer, package-aware slide/shape/group decisions,
+dependency graph import, undo/redo and editable-copy output. Native ownership
+connects unresolved/dirty state, original/alias protection, Save As, cancellation
+and Discard/Cancel closure. An unavailable PowerPoint installation permits
+package metadata review for PPTX/PPTM. Binary PPT normalization/save-back, merged
+preview rendering, independent group-child decisions, complete mixed-reference
+combinations and physical/signed acceptance remain open.
+The Debug build, 28 distinct focused Core methods across the checkpoint and
+affected repair, native workflow checks and independent saved-output ZIP/XML
+checks pass. [Evidence](qa/presentation-revision-family-2026-10-20.json) records
+the actual failures/repairs, captures and ownership scope.
+
+
 The connected [Word/LibreOffice handoff family](WORD-AUTOMATION-PARITY.md) adds
 unavailable-Word comparison fallback, pinned outline/master/reading view gates,
 result-window/document exclusion checks, verified macro-security restoration,

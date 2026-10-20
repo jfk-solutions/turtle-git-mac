@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>PowerPoint presentation comparison</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-presentations"></a><h1 id="powerpoint-presentation-comparison">PowerPoint presentation comparison</h1>
 <p>TurtleGit can compare captured <code>.ppt</code>, <code>.pptx</code> and <code>.pptm</code> presentations in a
-native slide-review window. Microsoft PowerPoint must be installed to export the
-slides. The original files remain unchanged.</p>
+native review window. For <code>.pptx</code> and <code>.pptm</code>, it also reviews package-aware
+slide and shape revisions and saves an editable copy. Microsoft PowerPoint is
+needed for rendered source-slide previews and binary <code>.ppt</code> comparison. When
+PowerPoint is unavailable, Open XML presentations can still be reviewed through
+their package metadata and revision decisions. The original files remain unchanged.</p>
 <h2 id="open-a-comparison">Open a comparison</h2>
 <p>Compare two revisions or working files through the ordinary file-comparison
 commands. New settings include the three PowerPoint associations. With saved
@@ -28,21 +31,63 @@ zoom are saved in the owning settings domain; the selected slide belongs to the
 current comparison.</p>
 <p>Expand <strong>Text and notes</strong> to read slide text and speaker notes. Their headings
 highlight changed fields. <strong>Copy Review</strong> and <strong>Export Review…</strong> produce a text
-summary with slide indices, actions, moves and changed text/notes. Cancel stops
+summary with slide indices, actions, moves and changed text/notes. Editable review
+entries also include their Accepted New / Rejected Base / Unresolved decisions. Cancel stops
 preparation or rendering, and Retry can restart the cancelled or failed read.
 Close cancels the window's remaining work and releases its captured files after
 that work retires. Help opens this guide offline when the bundled book is present.</p>
+<h2 id="accept-or-reject-revisions">Accept or reject revisions</h2>
+<p>For a supported Open XML presentation, <strong>Editable revision review</strong> lists changed
+slides, shapes/groups, stacking order and shared presentation properties. Select
+an entry to read its scope and the corresponding Base/New text and notes.
+<strong>Accept selected</strong> takes New; <strong>Reject selected</strong> keeps Base. <strong>Accept all</strong> and
+<strong>Reject all</strong> decide the full review. Undo and Redo restore decision changes;
+Command-Z and Shift-Command-Z use the same review history.</p>
+<p>Pictures, charts, embedded content, layouts and themes are package dependencies,
+not just visible text. The review compares linked content as well as XML. Groups
+are reviewed as a unit. Changes whose references must stay together, such as a
+slide environment with notes/timing/layout changes, are labeled as a complete
+slide decision. The selected dependency graph is carried into the output.</p>
+<p>After every entry has a decision, <strong>Save Editable Copy…</strong> writes a <code>.pptx</code> or
+<code>.pptm</code> presentation through a native Save panel. Macro-bearing inputs require a
+macro-enabled output extension. TurtleGit preserves opaque macro parts without
+executing them. Package digital signatures are removed when saving reviewed
+output; the file must be signed again. The originals, their aliases and TurtleGit's
+captured inputs cannot be selected as the output.</p>
+<p>The source slide previews remain <strong>Base</strong> and <strong>New</strong> throughout review. They do
+not render the combined result; open the saved copy in PowerPoint to inspect it.
+A package error or unsupported mixed combination reports its reason rather than
+silently flattening the content. A binary <code>.ppt</code> comparison remains visual and
+has no editable package review. Save to Open XML separately before using revision
+decisions for that format.</p>
+<p>Closing a review or quitting the app with unsaved decisions offers <strong>Discard / Cancel</strong>. Save the
+editable copy before closing to retain the result. Decisions belong to the current
+review session. Closing or cancelling during work cancels its captured token and
+keeps file grants/private inputs alive until the actual reader or writer settles.
+An in-flight atomic save may already have committed before cancellation arrives.</p>
 <h2 id="current-scope">Current scope</h2>
 <p>The Windows script uses PowerPoint's presentation Merge/revision interface.
 <a href="https://support.microsoft.com/en-us/office/track-changes-in-your-presentation-35dad781-50f7-4c4f-9b15-cf418f03c279">Microsoft documents that this interface is unavailable on Mac</a>.
 TurtleGit provides slide review through private PowerPoint PDF exports and slide
 metadata. It compares a finite raster representation, text and notes; tiny visual
 changes below the fingerprint resolution can require inspection at higher zoom.</p>
-<p>Shape-level accept/reject, editable merged presentations, review comments,
-animations, transitions, embedded-object behavior and macro contents remain open
-parity work. This adapter is a comparison tool; conflict merging retains the
+<p>The package revision engine adds slide and shape/group decisions and editable
+Open XML output; it does not reproduce Windows PowerPoint's entire revision UI.
+Individual children inside groups, arbitrary presentation-wide reference changes,
+all animation/transition/comment combinations, binary conversion/save-back and
+merged-result rendering still require broader implementation or acceptance.
+Unsupported combinations report a reason instead of losing dependent content. This adapter is a comparison tool; conflict merging retains the
 existing configured merge-tool workflow.</p>
-<p>The current limits are 512 slides per side, 128 MiB per exported PDF and 64 MiB of
+<p>The package editor currently accepts transitional Open XML with UTF-8 XML. Strict
+Open XML namespaces, UTF-16/non-UTF-8 XML, DTD/entity declarations, encrypted or
+ZIP64 archives and unknown top-level shape constructs report an explicit reason.
+Mixed choices involving incompatible comment-author registries, global notes or
+handout masters, namespace prefixes, duplicate group-child IDs or references to
+rejected shapes/slides can be refused. Choose a coherent complete revision or
+adjust the decisions; the editor does not silently discard those references.</p>
+<p>Package limits are 20,000 ZIP members, 128 MiB per member, 512 MiB expanded and
+768 MiB archived; XML/dependency/shape traversal has additional bounded limits.
+The current visual limits are 512 slides per side, 128 MiB per exported PDF and 64 MiB of
 exported slide text/notes across both sides. The PowerPoint metadata walk also
 limits the captured shape count and text units. The reader checks that the export accounts for every
 manifest slide, including hidden slides, and reports missing pages instead of

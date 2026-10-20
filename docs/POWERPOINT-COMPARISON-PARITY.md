@@ -51,7 +51,8 @@ difference views, shared fit/zoom and selectable text/notes. It persists display
 preferences, copies or exports a review report, offers cancellation/retry and
 contextual offline Help. Closing, refused presentation, sheets, retirement and
 application Quit retain/cancel/drain the actual owned work before removing files.
-No work writes a merged deck or repository staging state.
+The connected Open XML revision engine now adds editable-copy output, described
+below. It does not stage repository changes or resolve a Git conflict.
 
 ## Validation and explicit gaps
 
@@ -63,9 +64,11 @@ The [dated evidence](qa/powerpoint-comparison-2026-10-20.json) records the initi
 build/fixture failures, a repaired recursive control observer, and only the
 affected rechecks. These passes do not establish a complete hosted CI pass.
 
-This is a native slide-review adaptation with partial source parity. It leaves
-shape-level accept/reject, an editable revision-merged deck, Windows review
-comments, animations/transitions/macros and embedded-object behavior open.
+That original checkpoint established native slide review, before editable
+package revision decisions were added. It did not establish shape review or
+merged-deck output. The connected package family below extends that scope;
+Windows review comments, complete animation/transition/macro behavior, binary
+save-back and embedded-object runtime acceptance remain open.
 Finite raster fingerprints can miss sub-resolution visual changes. Mac standard
 Open lacks a `with window false` parameter; exact owned windows are hidden after
 open, so a live Office acceptance run must account for possible initial exposure.
@@ -91,3 +94,58 @@ reviewed after replacing an incomplete component-cache capture.
 
 ![Native presentation comparison, overlay-dark](site/assets/presentation-review-overlay-dark.png)
 
+
+## Open XML revision decisions and editable output
+
+`PresentationPackage` reads bounded ZIP32 stored/DEFLATE members with checksum,
+local/central header, path, duplicate and aggregate-size checks. It writes a
+deterministic stored ZIP package while preserving opaque member bytes. ZIP64,
+encrypted archives and unsupported compression are refused explicitly.
+
+`PresentationRevisionReview` follows PresentationML slide IDs and per-slide
+nonvisual shape IDs, compares shape XML and linked content, and records explicit
+New/Base decisions. Added/deleted slides, slide ordering, shape/group changes and
+stacking order are reviewable. Inseparable slide environment/reference changes
+are a complete-slide decision. A shared presentation decision chooses the anchor
+metadata/settings; dependency import allocates identities before traversing
+cycles and rewrites part relationships/content types for the selected graph.
+Groups are atomic shapes. Unsafe mixed decisions fail with a reason.
+
+The native window connects selected/all accept/reject, undo/redo, unresolved and
+unsaved state, a native Save Editable Copy panel, original/alias protection,
+cancellation/draining and Discard/Cancel closure. Missing PowerPoint falls back
+to package metadata review for `.pptx`/`.pptm`; an uncertain Office export does not
+transfer its files into a disposable review. Base/New visual previews remain
+source previews, not a rendered merged deck. Macro parts are preserved without
+execution and require macro-enabled output. Invalidated package signatures are
+removed and disclosed.
+
+This advances the source revision workflow without claiming full Windows engine
+parity. Binary `.ppt` normalization/save-back, merged result rendering, independent
+group-child decisions, complete comment/animation/presentation-wide reference
+combinations and physical Office reopening remain explicit gaps. Signed sandbox,
+TCC/file grants, minimum-OS acceptance and App Store review remain unverified.
+
+The package structure and separate slide/layout/master/theme/notes relationships
+follow Microsoft's [PresentationML structure](https://learn.microsoft.com/en-us/office/open-xml/presentation/structure-of-a-presentationml-document)
+and [slide document model](https://learn.microsoft.com/en-us/office/open-xml/presentation/working-with-presentation-slides).
+
+Nonvisual slide/shape identities currently drive package matching. Regenerated
+IDs are treated as deletion/addition; package-level visual identity rematching
+remains open. Source raster review retains its separate visual anchors.
+
+### Editable revision captures
+
+Actual native light/dark windows with private synthetic Open XML packages,
+accepted/rejected shape decisions and unavailable source previews. The saved
+outputs were checked independently with ZIP/XML readers. These captures do not
+show live Office rendering or a synthesized merged-slide preview.
+
+![Editable revision decisions, light](site/assets/presentation-revision-light.png)
+
+![Editable revision decisions, dark](site/assets/presentation-revision-dark.png)
+
+[Revision-family evidence](qa/presentation-revision-family-2026-10-20.json) records
+28 distinct focused Core methods, passing native workflows and independent ZIP/XML
+output checks after the actual save-identity and retired-Quit repairs. These checks
+do not establish live Office reopening or complete source parity.

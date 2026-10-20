@@ -9,8 +9,9 @@ When Word is unavailable, this comparison association automatically tries the
 Permission denial, an ambiguous Word result or a timeout does not dispatch a
 second comparison. The adapter is offered for `.doc`, `.docx`,
 `.docm`, `.dot`, `.dotx` and `.odt`. Actual format conversion is performed by Word.
-[PowerPoint comparison](POWERPOINT-COMPARISON.md) has a separate native slide
-review; shape-level revision decisions and editable merged output remain open.
+[PowerPoint comparison](POWERPOINT-COMPARISON.md) has separate native slide and
+Open XML revision review with editable-copy output; binary PPT editing, combined
+result rendering and complete Windows revision parity remain open.
 [Excel comparison](EXCEL-COMPARISON.md) has its own native adapter.
 [Word merge](WORD-MERGE.md) now has its own three-way workflow.
 

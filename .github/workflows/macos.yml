@@ -431,7 +431,7 @@ jobs:
       - name: WMF and EMF native comparison consumers and colors
         run: python3 scripts/test-metafile-workflows.py --only positioned-text --only compressed-paths --only consumers --only colors --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: PowerPoint export contracts and native slide comparison
-        run: python3 scripts/test-presentation-comparison.py
+        run: python3 scripts/test-presentation-comparison.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: LibreOffice comparison and tracked-change merge owners
         run: python3 scripts/test-libreoffice-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Word automation ownership and security contracts

@@ -129,7 +129,7 @@ private extension NSWindow {
         do{
             let test=ProcessInfo.processInfo.environment["TURTLEGIT_PRESENTATION_CASE"] ?? "review"
             if test != "review" {
-                switch test {case "automation":try await PowerPointAutomationVerification.verify(root:root);case "routing":try await routing(root:root,prefs:prefs);case "lifecycle":try await lifecycle(root:root,prefs:prefs);default:throw Failure(description:"Unknown presentation case")}
+                switch test {case "automation":try await PowerPointAutomationVerification.verify(root:root);case "routing":try await routing(root:root,prefs:prefs);case "lifecycle":try await lifecycle(root:root,prefs:prefs);case "revision":try await PresentationRevisionNativeVerification.verify(root:root,git:URL(fileURLWithPath:CommandLine.arguments.count>2 ? CommandLine.arguments[2]:"/usr/bin/git"));default:throw Failure(description:"Unknown presentation case")}
                 try await cleanup();print("PASS: presentation native review completed");return
             }
             let a=root.appendingPathComponent("old 雪.pptx"),b=root.appendingPathComponent("new.pptx"),old=Data([0,1,2,3]),new=Data([4,5,6,7])
@@ -155,7 +155,10 @@ private extension NSWindow {
             let duplicate=root.appendingPathComponent("same-pixels.pdf");try pdf(duplicate,colors:[red,green,blue],title:"Different metadata")
             let hashes=try await Task.detached{try PresentationComparisonRendering.fingerprints(base:prepared.basePDF,destination:duplicate,baseCount:3,destinationCount:3,cancellation:OperationCancellation())}.value
             try require(hashes.0==hashes.1,"Visual comparison used PDF metadata rather than pixels")
-            let failed=try preview(),retry=PresentationComparisonWindowController(preview:failed,manifest:manifest,permissions:[],preferences:prefs,baseTitle:"Old",destinationTitle:"New");owners.append(retry);retry.showWindow(nil)
+            // Missing PDFs now intentionally support metadata-only package review.
+            // Corrupt present exports must still fail and support an actual retry.
+            let failed=try preview();try Data([0]).write(to:failed.basePDF);try Data([0]).write(to:failed.destinationPDF)
+            let retry=PresentationComparisonWindowController(preview:failed,manifest:manifest,permissions:[],preferences:prefs,baseTitle:"Old",destinationTitle:"New");owners.append(retry);retry.showWindow(nil)
             try await wait{!retry.model.busy && retry.model.error != nil};try pdf(failed.basePDF,colors:[red,green,blue]);try pdf(failed.destinationPDF,colors:[green,yellow,gray]);retry.model.start();try await wait{!retry.model.busy && retry.model.pending==0};try require(retry.model.error==nil && !retry.model.rows.isEmpty,"Rendering failure could not retry")
             let early=try preview();try pdf(early.basePDF,colors:[red,green,blue]);try pdf(early.destinationPDF,colors:[green,yellow,gray]);let neverShown=PresentationComparisonWindowController(preview:early,manifest:manifest,permissions:[],preferences:prefs,baseTitle:"Old",destinationTitle:"New");owners.append(neverShown)
             try require(neverShown.model.pending>0,"Initial rendering did not reserve lifetime synchronously");neverShown.close();try require(FileManager.default.fileExists(atPath:early.directory.path),"Close discarded preview before worker drain");try await wait{!FileManager.default.fileExists(atPath:early.directory.path)}

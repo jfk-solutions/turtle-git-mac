@@ -476,19 +476,40 @@ struct DiffToolAssociationEditor: View {
             return try await openDocumentComparison(document,word:program.builtIn == .wordDocument,permissions:permissions,cancellation:cancellation,owner:owner)
         }
         if program.builtIn == .powerPointPresentation {
-            let token=cancellation ?? OperationCancellation(),requestOwner=OfficeDiffRequestOwner(window:owner,cancellation:token)
-            activeRequests += 1
-            defer {activeRequests -= 1;withExtendedLifetime(permissions){};withExtendedLifetime(requestOwner){}}
+            let token=cancellation ?? OperationCancellation(),requestOwner=OfficeDiffRequestOwner(window:owner,cancellation:token),requestIdentity=UUID()
+            activeRequests += 1;documentRequests[requestIdentity]=token
+            defer {documentRequests.removeValue(forKey:requestIdentity);activeRequests -= 1;withExtendedLifetime(permissions){};withExtendedLifetime(requestOwner){}}
+            return try await withTaskCancellationHandler {
+            try token.check();try Task.checkCancellation()
             let privateRoot=try TurtleGitTemporaryStorage.root
             let preview=try await Task.detached {try PresentationComparisonPreview.prepare(document,in:privateRoot,cancellation:token)}.value
             var dispatched=false,exportCompleted=false,transferred=false
             do {
                 try token.check();try Task.checkCancellation();dispatched=true
-                let manifest=try await exportPowerPoint(preview,token);exportCompleted=true
+                let manifest:PresentationComparisonManifest
+                var initialReview:PresentationRevisionReview?
+                do {
+                    manifest=try await exportPowerPoint(preview,token)
+                } catch PowerPointComparisonAutomation.Failure.application {
+                    dispatched=false
+                    // OOXML revision decisions do not need Office. Only a proven
+                    // unavailable exporter may fall back: an uncertain Apple event
+                    // can still own these private inputs beyond this callback.
+                    let formats=[preview.base,preview.destination].map{$0.pathExtension.lowercased()}
+                    guard formats.allSatisfy({["pptx","pptm"].contains($0)}) else {throw PowerPointComparisonAutomation.Failure.application}
+                    try token.check();try Task.checkCancellation()
+                    let review=try await Task.detached(priority:.userInitiated) {
+                        try PresentationRevisionReview(base:PresentationPackage.read(from:preview.base,cancellation:token),destination:PresentationPackage.read(from:preview.destination,cancellation:token),cancellation:token)
+                    }.value
+                    initialReview=review
+                    manifest=PresentationComparisonManifest(base:review.baseManifest,destination:review.destinationManifest)
+                }
+                exportCompleted=true
                 try token.check();try Task.checkCancellation()
                 guard owner?.attachedSheet==nil else{throw CocoaError(.userCancelled)}
+                let protectedInputs=[document.base.path,document.destination.path].map{path in path.hasPrefix("/") ? URL(fileURLWithPath:path):root.appendingPathComponent(path)}
                 let controller=PresentationComparisonWindowController(preview:preview,manifest:manifest,permissions:permissions,preferences:preferences,
-                    baseTitle:document.base.path+" : "+document.base.revision.label,destinationTitle:document.destination.path+" : "+document.destination.revision.label)
+                    baseTitle:document.base.path+" : "+document.base.revision.label,destinationTitle:document.destination.path+" : "+document.destination.revision.label,protectedInputs:protectedInputs,initialReview:initialReview)
                 controller.window?.appearance=owner?.appearance
                 let identity=UUID();presentationWindows[identity]=controller
                 controller.onClosed={presentationWindows.removeValue(forKey:identity)}
@@ -501,6 +522,7 @@ struct DiffToolAssociationEditor: View {
                 if !transferred,(!dispatched || exportCompleted || (error as? PowerPointComparisonAutomation.Failure)?.possiblyOpened==false){preview.discard()}
                 throw error
             }
+            } onCancel: {token.cancel()}
         }
         if program.builtIn == .excelWorkbook || program.builtIn == .excelWorkbookFast {
             let token=cancellation ?? OperationCancellation()

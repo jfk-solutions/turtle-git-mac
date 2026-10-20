@@ -290,6 +290,7 @@ import AppKit
         if sender.windows.compactMap({ $0.delegate as? WorktreeListWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? CommitContainingReferencesWindowController }).contains(where: { $0.busy || $0.hasBlockingChild }) { return .terminateCancel }
         let reviews = sender.windows.compactMap { $0.delegate as? WorkingTreePatchWindowController }
+        let presentations = sender.windows.compactMap { $0.delegate as? PresentationComparisonWindowController }.filter { !$0.model.retired }
         let imports = sender.windows.compactMap { $0.delegate as? ImportPatchWindowController }
         let controllers = sender.windows.compactMap { $0.delegate as? TextConflictWindowController }
         let commits = sender.windows.compactMap { $0.delegate as? CommitWindowController }
@@ -341,7 +342,7 @@ import AppKit
         let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
         guard !adds.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !addProgress.contains(where: { $0.model.busy }), !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !submoduleDiffs.contains(where: { $0.model.busy || $0.model.hasUpdateChild }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) else { return .terminateCancel }
-        guard patchDocuments.contains(where: { $0.documentSession.dirty }) || !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.hasUnsavedEditorWork }) || fileComparisons.contains(where: { $0.model.dirty }) || reviews.contains(where: { $0.model.dirty }) else { return finishBackgroundWatches(sender) }
+        guard patchDocuments.contains(where: { $0.documentSession.dirty }) || !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.hasUnsavedEditorWork }) || fileComparisons.contains(where: { $0.model.dirty }) || reviews.contains(where: { $0.model.dirty }) || presentations.contains(where: { $0.model.revision.isDirty }) else { return finishBackgroundWatches(sender) }
         confirmingQuit = true
         for controller in patchDocuments { controller.model.confirmingQuit = true }
         for controller in lfsLocks { controller.model.confirmingQuit = true }
@@ -397,6 +398,9 @@ import AppKit
             for controller in reviews where allowQuit && controller.model.dirty {
                 if !(await controller.model.resolveDraft(discardImmediately: false)) { allowQuit = false; break }
             }
+            for controller in presentations where allowQuit && controller.model.revision.isDirty {
+                if !(await controller.confirmQuit()) {allowQuit=false;break}
+            }
             for controller in fileComparisons where allowQuit && controller.model.dirty {
                 controller.window?.makeKeyAndOrderFront(nil)
                 let alert = NSAlert(); alert.messageText = "Save changes to “\(controller.model.unsavedFilesDescription)” before quitting?"
@@ -440,7 +444,7 @@ import AppKit
                     if !(await controller.model.confirmQuit()) { allowQuit = false; break }
                 }
             }
-            if allowQuit { for commit in commits { commit.model.restoreCopies.removeAll() } }
+            if allowQuit { for commit in commits { commit.model.restoreCopies.removeAll() };for presentation in presentations {presentation.discardAfterApprovedQuit()} }
             if allowQuit, startupMergeToolActive { repositoryModel?.closeMergeToolLaunchesAfterApprovedQuit(); return }
             if allowQuit { repositoryModel?.stopMonitoringForTermination();await repositoryModel?.finderWatches?.shutdown();await repositoryModel?.shutdownFinderPublication() }
             for browser in browsers { browser.model.confirmingQuit = false }

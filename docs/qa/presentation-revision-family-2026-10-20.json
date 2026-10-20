@@ -1,0 +1,165 @@
+{
+  "date": "2026-10-20",
+  "base": "9746810470b51dc2d3e3ecb0ef41e9d1cce70638",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Bounded CRC-checked ZIP32 stored/DEFLATE reader and deterministic lossless-member writer.",
+    "Package-aware slide/shape/group revision review with dependency fingerprints/import, selected/all New/Base decisions, delta undo/redo, ordering, notes/environment units, macro preservation and signature invalidation.",
+    "Native editable Save As, exact original/alias protections, saved checkpoint/report decisions, dirty-close/global Quit, ownership/cancellation/draining, source-only previews and unavailable-Office metadata routing."
+  ],
+  "core": {
+    "initial_compile_failures": [
+      "FoundationXML unavailable as a separate module in this Apple SDK; fixed optional import.",
+      "Optional a/b same-scope redeclarations; renamed optional bindings."
+    ],
+    "passing_checkpoint": {
+      "log": "build/qa/presentation-revision-core-bindings-2026-10-20.log",
+      "methods": 27,
+      "groups": {
+        "PresentationComparisonTests": 9,
+        "PresentationPackageTests": 7,
+        "PresentationRevisionTests": 11
+      }
+    },
+    "affected_recheck": {
+      "log": "build/qa/presentation-revision-core-save-2026-10-20.log",
+      "methods": 12,
+      "groups": [
+        "PresentationRevisionTests"
+      ],
+      "reason": "Repair actual no-op complete-revision export creating a false metadata change; new PPTX/PPTM member-equality/metadata invariant."
+    },
+    "unique_methods": 28,
+    "full_core_suite_run": false
+  },
+  "build": {
+    "initial_failure_logs": [
+      "build/qa/presentation-revision-app-2026-10-20.log",
+      "build/qa/presentation-revision-app-import-2026-10-20.log"
+    ],
+    "passing_logs": [
+      "build/qa/presentation-revision-app-bindings-2026-10-20.log",
+      "build/qa/presentation-revision-app-save-2026-10-20.log",
+      "build/qa/presentation-revision-app-retirement-2026-10-20.log",
+      "build/qa/presentation-revision-app-help-2026-10-20.log"
+    ],
+    "final_result": "passed",
+    "final_known_exit_zero_diagnostics": 1,
+    "final_resource_build": "Bundled guides updated after documentation freeze; no production code changes after final passing native checkpoint."
+  },
+  "native_failures": [
+    {
+      "log": "build/qa/presentation-revision-native-2026-10-20.log",
+      "cause": "Fixture guard-let shadowed optional published controller, blocking nil reset. No receiver started.",
+      "repair": "Use separate fallbackController binding; no production change."
+    },
+    {
+      "log": "build/qa/presentation-revision-native-fixture-2026-10-20.log",
+      "cause": "Old missing-PDF fixture expected error, while metadata-only review now intentionally accepts absent previews.",
+      "repair": "Keep failure/retry assertion by supplying two corrupt present PDFs; independent new package fixture verifies missing-preview metadata route."
+    },
+    {
+      "log": "build/qa/presentation-revision-native-metadata-2026-10-20.log",
+      "cause": "Actual complete accepted export reserialized unchanged Content_Types XML and produced false shared presentation difference on re-review."
+    },
+    {
+      "log": "build/qa/presentation-revision-native-save-diagnostic-2026-10-20.log",
+      "cause": "Diagnostic confirms exactly presentation-property difference; saved URL and native saved checkpoint were correct.",
+      "repair": "Preserve original package members when signatures/type do not need mutation; add Core byte-identity/no-new-change invariant."
+    },
+    {
+      "log": "build/qa/presentation-revision-native-save-2026-10-20.log",
+      "cause": "Retired controller remained in NSApp.windows and still claimed dirty decisions; approved global Quit was refused.",
+      "repair": "Exclude retired presentation controllers from Quit collection and unsaved-state claims; retain immutable decisions for publication fences."
+    }
+  ],
+  "native": {
+    "passing_automation_log": "build/qa/presentation-revision-native-fixture-2026-10-20.log",
+    "final_passing_log": "build/qa/presentation-revision-native-retirement-2026-10-20.log",
+    "families": [
+      "Unchanged PowerPoint automation contract/terminology (not repeated after unrelated private package/native repairs).",
+      "Existing source PDF review and corrupt-export retry.",
+      "Association/caller routing and ownership.",
+      "Cancellation, report export/error sheet and closed-work lifecycle.",
+      "Editable package revision decisions, Save As, original/alias/macro guards, dirty-close/Quit, blocked writer retirement and unavailable-only fallback."
+    ],
+    "revision_runs": 2,
+    "git_scope": "Runner supplied system/bundled Git URLs to isolated revision runs, but this package fixture executes no Git commands. Do not claim Git-engine compatibility from those repetitions.",
+    "independent_output_checks": "Python standard-library ZIP CRC and ElementTree verify every internal relationship target, slide/master/layout/theme graph, chosen text and PPTX/PPTM type/VBA bytes for both saved output pairs. No production reader imported.",
+    "owned_receivers_reaped_and_independently_absent": [
+      1388,
+      1389,
+      1485,
+      1489,
+      1490,
+      1502,
+      1549,
+      1910,
+      2204,
+      2209,
+      2211,
+      2217,
+      2223
+    ],
+    "office_commands_executed": false,
+    "term_compilation": "Installed PowerPoint fixed handler compiled; no export command executed.",
+    "private_ownership": "Private temporary inputs, config/home/prefs/pasteboard; hidden/offscreen receivers; held workers drained before file/grant release. Pasteboard released.",
+    "user_documents_touched": false
+  },
+  "visual": {
+    "rejected_initial_capture": "Missing source PDFs misleadingly displayed two No slide canvases and a red Retry error.",
+    "repair": "Informational source-preview-unavailable view, disabled preview controls; actual rendering errors remain errors.",
+    "final_accepted": [
+      {
+        "path": "docs/site/assets/presentation-revision-light.png",
+        "sha256": "b70ae2dea88f2ec30e45ff77fe53d01e5f54d5c131ed9daa162f78a99fe2edbd",
+        "dimensions": [
+          1900,
+          1520
+        ]
+      },
+      {
+        "path": "docs/site/assets/presentation-revision-dark.png",
+        "sha256": "51db0fa3e1c3af4906711ce889c2228a56b400fad1957cd9bcf325e4605c4141",
+        "dimensions": [
+          1900,
+          1520
+        ]
+      }
+    ],
+    "inspection": "Both full actual native captures visually inspected: controls fit, selected/accepted/rejected states visible, honest source-only preview boundary. Synthetic Open XML inputs; no live Office rendering."
+  },
+  "resources": {
+    "localization": "38 languages / 1305 pinned keys; write/check passed, catalog unchanged; no complete translation claim.",
+    "help": "46 guides / 51 topics / 66 files / 3647569 bytes; write/check passed after final cross-guide corrections, bundled resource build passed.",
+    "site_log": "build/qa/presentation-revision-site-2026-10-20.log",
+    "dialog_coverage": "130 pinned resource/id pairs,120 partial family audits,10 pending,0 certified;1574 mapped/85 pending controls. Coverage is not feature completion.",
+    "site": "385 documents; zero unresolved fragments; new light/dark revision screenshots present."
+  },
+  "limits": [
+    "No live PowerPoint opening/rendering of outputs, full schema/converter/runtime acceptance or real TCC/file grants.",
+    "Binary PPT normalization/save-back and merged-result rendering remain missing.",
+    "Groups atomic; reset nonvisual identities are deletion/addition; strict namespaces/non-UTF8 XML/DTD/ZIP64/encrypted archives/unknown top-level constructs refused.",
+    "Incompatible comment/person registries, global notes/handout masters, prefix/shape ID collisions and dangling shape/slide references can refuse mixed decisions; no full Windows review-engine parity.",
+    "No signed minimum-OS/Finder/App Store validation, App Review approval or complete hosted CI certification."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/PresentationPackage.swift": "1d6d2ae2a2cbe8d76ea704bdb74d6ede3e8346d2a2732f9f7c2f56f5b49cb301",
+    "Sources/TurtleGitCore/PresentationRevision.swift": "4fe83fe2a4eb4e2df64f3522ede6a4545bc7be37040d938de1fd12aab8f26abc",
+    "Sources/TurtleGitMac/PresentationComparisonWindow.swift": "9898a3e98e8dd748e319e08a99c62cfc1131bb7763b8ed2816c3422043b0a0bc",
+    "Sources/TurtleGitMac/PresentationRevisionReview.swift": "efc3dbe433e09b7da89681c862b5b818dcd3eff367ebd267dbb252e9f733bb70",
+    "Sources/TurtleGitMac/DiffToolSettings.swift": "5feba4a7dc6d50af814f4aca82d49dd72b9aac85d44fc05e92f6b1a985717b94",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "da3be0c6b9679361062c0333cdb76a17574fac2a552bf64cec96bdd024e2a04b",
+    "Tests/TurtleGitCoreTests/PresentationPackageTests.swift": "60e40aa645a25f11f936c1f8feda9e09487b3aab6bf5445c8931d2ca293f0656",
+    "Tests/TurtleGitCoreTests/PresentationRevisionTests.swift": "14effe6ff97b8cae73df5c422d7d2e2ddae9801dd6d8f06456816ac540e64487",
+    "docs/qa/presentation-revision-native-2026-10-20.swift": "55802003318030e6ea9ce85ecabe9bd13f415f0d60ffc694234d28419a0d6ee3",
+    "scripts/test-presentation-comparison.py": "9afaa1a1996801c33c9c374eb49852ce7a25ec7c777ab1b9868ec30e6d5d6832"
+  },
+  "hosted_ci_observation": {
+    "previous_head": "97468104",
+    "pages": "success",
+    "macOS": "pending",
+    "older_593153c8_macOS": "in_progress",
+    "scope": "Read once before this batch push; no full current-head hosted certification."
+  }
+}
