@@ -35,13 +35,61 @@
 	<array>
 		<dict>
 			<key>NSMenuItem</key>
-			<dict><key>default</key><string>TurtleGit: Show log…</string></dict>
+			<dict><key>default</key><string>TurtleGit: Pull…</string></dict>
 			<key>NSMessage</key>
 			<string>performFinderAction</string>
 			<key>NSPortName</key>
 			<string>TurtleGit</string>
 			<key>NSUserData</key>
-			<string>log</string>
+			<string>pull</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Fetch…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>fetch</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Push…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>push</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Sync…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>synchronize</string>
 			<key>NSSendFileTypes</key>
 			<array><string>public.item</string></array>
 			<key>NSRequiredContext</key>
@@ -67,6 +115,38 @@
 		</dict>
 		<dict>
 			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Diff…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>diff</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Show log…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>log</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
 			<dict><key>default</key><string>TurtleGit: Check for modifications…</string></dict>
 			<key>NSMessage</key>
 			<string>performFinderAction</string>
@@ -83,13 +163,141 @@
 		</dict>
 		<dict>
 			<key>NSMenuItem</key>
-			<dict><key>default</key><string>TurtleGit: Diff…</string></dict>
+			<dict><key>default</key><string>TurtleGit: Rebase…</string></dict>
 			<key>NSMessage</key>
 			<string>performFinderAction</string>
 			<key>NSPortName</key>
 			<string>TurtleGit</string>
 			<key>NSUserData</key>
-			<string>diff</string>
+			<string>rebase</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Stash changes…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>stash</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Stash Apply</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>stashApply</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Stash Pop</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>stashPop</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Stash List</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>stashList</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Switch/Checkout…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>switchBranch</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Merge…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>merge</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Create Branch…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>branch</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Create Tag…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>tag</string>
 			<key>NSSendFileTypes</key>
 			<array><string>public.item</string></array>
 			<key>NSRequiredContext</key>

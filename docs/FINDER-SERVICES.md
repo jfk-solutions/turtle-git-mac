@@ -1,6 +1,6 @@
 # TurtleGit selected-file Services
 
-TurtleGit advertises six macOS Services for selected files and folders. They give
+TurtleGit advertises nineteen macOS Services for selected files and folders. They give
 users an entry point outside Finder Sync's monitored repositories, through the
 system's **Services** menu. They also work with file selections supplied by other
 apps that support macOS Services. Availability and ordering are controlled by
@@ -14,6 +14,14 @@ macOS; these entries do not extend Finder Sync's ordinary context-menu coverage.
 | TurtleGit: Diff… | Two selected regular files use direct comparison; other selection counts use the existing repository Diff workflow |
 | TurtleGit: Clone… | Existing Clone dialog, starting from one selected directory |
 | TurtleGit: Create repository… | Existing Create repository dialog for one selected directory |
+| TurtleGit: Pull… / Fetch… / Push… | Existing transport dialogs for the selected repository |
+| TurtleGit: Sync… | Existing Synchronization window |
+| TurtleGit: Create Branch… / Create Tag… | Existing branch and tag dialogs |
+| TurtleGit: Switch/Checkout… | Existing Switch dialog |
+| TurtleGit: Merge… / Rebase… | Existing integration dialogs |
+| TurtleGit: Stash changes… | Existing Stash Save dialog |
+| TurtleGit: Stash Apply / Stash Pop | Apply or pop the selected repository's newest stash through the existing progress workflow |
+| TurtleGit: Stash List | Existing stash history window |
 
 Clone and Create advertise folder selections only. They require one existing,
 ordinary directory; filesystem roots, symlink leaves and Git administrative paths
@@ -21,6 +29,29 @@ are refused. Dialog validation and user confirmation still apply. Two-file Diff
 validates both files before comparison; selecting two directories does not turn it
 into an unsupported directory-comparison operation. Git-dependent commands retain
 their existing repository, working-tree and selection restrictions.
+
+The transport, branch, integration and stash Services use the source menu
+predicates after repository access and discovery. They inspect the actual
+selection, working-tree/bare state, merge/bisect state and stash availability; a
+stale Finder badge is not authority to launch an unavailable action. Most of
+these operations require one selected item under the source rules. Fetch, Pull
+and Push also accept several selected repository roots. Their batch opens each
+actual transport dialog in selection order and waits for its closure and workers
+to drain before proceeding. Non-root or ineligible selections report a preparation
+error and are skipped; cancelling one transport dialog continues to the next root.
+Closing the initiating workspace or cancelling the whole request stops the
+remaining queue. Existing separate saved grants can cover the selected roots;
+otherwise an owned folder chooser requests a common folder. Each root retains
+its actual primary lease; metadata grants do not widen that repository boundary.
+Other Git-dependent multi-path Services retain their one-repository restriction.
+Selecting an ineligible item never substitutes another operation.
+
+Opening transport, branch, switch, merge, rebase or Stash Save presents the
+existing operation window for review. **Stash Apply** and **Stash Pop** execute
+the explicitly selected action after permission and eligibility checks, following
+TortoiseGit; Pop removes the stash only after a successful application. Stash List
+opens the existing stash history. Each operation keeps its own access and
+cancellation lifetime even if the workspace subsequently changes repositories.
 
 Launch the installed TurtleGit app bundle once so macOS can discover its Services.
 Select files or a folder in Finder and look under **Services** in the context menu
@@ -51,7 +82,8 @@ owner remain accounted for until they actually release; closing an owner or
 quitting cannot turn a late reply into approval. Existing operations retain their
 own cancellation behavior and do not promise rollback after a completed write.
 
-The command and paths remain captured through permission and discovery. They are
+The command and paths remain captured through permission and discovery, including
+the ordered root list of a transport batch. They are
 not replaced by a later Finder selection or workspace selection. A busy workspace
 or Quit confirmation rejects a new service immediately. During cold startup one
 typed request can wait for the workspace; a second request is rejected, and a
@@ -63,7 +95,7 @@ permission.
 
 ## Registration and source scope
 
-`Configuration/App-Info.plist` supplies the six `NSServices` declarations.
+`Configuration/App-Info.plist` supplies the nineteen `NSServices` declarations.
 `ApplicationDelegate.swift` installs one provider after startup preparation,
 restores a previous provider only if TurtleGit still owns the registration, and
 retires pending service input during termination. Services do not automatically
@@ -72,18 +104,22 @@ stage, commit, clone or initialize anything merely because a menu opens.
 The pinned source comparison is TortoiseGit revision
 `7338078f8ddd924b8cddee35f512f2286072136d`, particularly
 `TortoiseShell/ContextMenu.cpp` selection initialization and command dispatch, and
-`TortoiseShell/MenuInfo.cpp` Log, Commit, ShowChanged, Diff, Clone and CreateRepo.
+`TortoiseShell/MenuInfo.cpp` Log, Commit, ShowChanged, Diff, Clone, CreateRepo,
+Pull/Fetch/Push/Sync, Switch/Merge/Branch/Tag/Rebase and all four stash entries.
 Those Explorer commands are not restricted to a previously watched-root list.
 macOS Services supplies the missing selected-item entry point; its system menu
 placement differs from Explorer and from TurtleGit's existing Finder Sync menus.
-Services does not reproduce Explorer right-drag interception or per-entry shell
+macOS determines Services ordering and may hide ineligible types before TurtleGit
+is called; semantic Git eligibility is checked in the app. Services does not
+reproduce Explorer right-drag interception or per-entry shell
 icons. Native operation windows retain their existing controls and source artwork.
 
 The implementation follows Apple's
 [Services properties](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/properties.html)
 for file UTIs, required context, message/user-data mapping and restricted actions,
 and its [service-provider lifecycle](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/providing.html).
-Folder services advertise `public.folder`; the other four advertise `public.item`.
+Clone and Create advertise `public.folder`; the other seventeen advertise
+`public.item`, with operation eligibility checked after access and discovery.
 The bundle uses file services rather than treating a plain text path as a file.
 
 ## Validation and remaining acceptance
@@ -103,3 +139,20 @@ adjustment if an installed signed Services invocation does not supply sufficient
 selected-item access before the app's explicit permission chooser. System menu
 visibility is separate from the existing Finder Sync activation and badge checks.
 This family does not establish complete Explorer integration or whole-port parity.
+
+
+## Repository workflow expansion — October 20, 2026
+
+The [workflow batch evidence](qa/finder-service-workflows-family-2026-10-20.json)
+records the new service declarations, exact request contracts, live source
+eligibility and owned dialog/operation handoffs. The focused runner is
+`scripts/test-finder-service-workflows.py`, using private pasteboards, repositories,
+preferences and offscreen windows with system and bundled Git. It distinguishes
+review-only dialog opening from actual Stash Apply/Pop effects. Multi-root transport verification also covers ordered dialogs, invalid-root
+skipping, per-dialog Cancel continuation, owner-close cancellation and retained
+worker/grant/Quit accounting. The previous six-service evidence remains historical
+and does not certify this expansion. The separate primary-command batch still
+has its recorded sequential-modal/skip-on-failure gap; this Services expansion
+does not claim that CLI gap fixed.
+Physical Services registration, signed grants, menu gestures and full Finder
+parity still need their own acceptance.

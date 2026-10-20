@@ -9,7 +9,8 @@ final class FinderServiceCommandTests: XCTestCase {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let expected: [(String, RepositoryAction)] = [("log", .log), ("commit", .commit), ("status", .status), ("diff", .diff), ("clone", .clone), ("initialize", .initialize)]
+        let expected: [(String, RepositoryAction)] = [("log", .log), ("commit", .commit), ("status", .status), ("diff", .diff), ("clone", .clone), ("initialize", .initialize),
+            ("pull",.pull),("fetch",.fetch),("push",.push),("synchronize",.synchronize),("rebase",.rebase),("stash",.stash),("stashApply",.stashApply),("stashPop",.stashPop),("stashList",.stashList),("switchBranch",.switchBranch),("merge",.merge),("branch",.branch),("tag",.tag)]
         XCTAssertEqual(Set(FinderServiceCommand.allCases.map(\.rawValue)), Set(expected.map(\.0)))
         for (name, action) in expected {
             let command = try XCTUnwrap(FinderServiceCommand(rawValue: name))
@@ -31,6 +32,61 @@ final class FinderServiceCommandTests: XCTestCase {
         }
         for invalid in ["", "LOG", "revert", "remove", "commit&path=/other", " log"] {
             XCTAssertNil(FinderServiceCommand(rawValue: invalid))
+        }
+    }
+
+    func testExpandedServicesPreserveSelectionsAndApplySourceCardinality() throws {
+        let commands:[FinderServiceCommand]=[.pull,.fetch,.push,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag]
+        let first=literal("/unwatched service 雪/folder &?\n"),second=literal("/unwatched service 雪/other")
+        let multiple:Set<FinderServiceCommand>=[.pull,.fetch,.push]
+        for command in commands {
+            XCTAssertTrue(command.requiresSourceEligibility,command.rawValue)
+            XCTAssertEqual(command.requiresSingleSelection,!multiple.contains(command))
+            XCTAssertEqual(command.action.rawValue,command.rawValue)
+            let request=try command.request(paths:[first,first])
+            XCTAssertEqual(request.paths.map{Data($0.path.utf8)},[Data(first.path.utf8)])
+            let envelope=try command.serviceURL(paths:[first,first]),decoded=try FinderServiceCommand.request(serviceURL:envelope)
+            XCTAssertEqual(decoded.action,command.action);XCTAssertEqual(decoded.paths.map{Data($0.path.utf8)},[Data(first.path.utf8)])
+            XCTAssertTrue(decoded.sources.isEmpty);XCTAssertNil(decoded.alternateTool)
+            if multiple.contains(command) {
+                let pair=try FinderServiceCommand.request(serviceURL:command.serviceURL(paths:[first,second]))
+                XCTAssertEqual(pair.paths.map{Data($0.path.utf8)},[first,second].map{Data($0.path.utf8)})
+            }else{
+                XCTAssertThrowsError(try command.request(paths:[first,second]))
+                var forged=URLComponents();forged.scheme="turtlegit";forged.host="service"
+                forged.queryItems=[URLQueryItem(name:"command",value:command.rawValue),URLQueryItem(name:"path",value:first.path),URLQueryItem(name:"path",value:second.path)]
+                XCTAssertThrowsError(try FinderServiceCommand.request(serviceURL:XCTUnwrap(forged.url)))
+            }
+            for control in ["&source=/other","&branch=main","&ref=refs/stash","&force=1","&url=ssh://example.invalid/repo","&alternate=0","&alternate=1"] {
+                XCTAssertThrowsError(try FinderServiceCommand.request(serviceURL:XCTUnwrap(URL(string:envelope.absoluteString+control))),command.rawValue+control)
+            }
+        }
+        for legacy in [FinderServiceCommand.log,.commit,.status,.diff,.clone,.initialize]{XCTAssertFalse(legacy.requiresSourceEligibility)}
+        for alias in ["sync","stashSave","createBranch","createTag","switch","stashdrop","stashClear"] {XCTAssertNil(FinderServiceCommand(rawValue:alias))}
+    }
+
+    func testExpandedServicesFollowIndependentPinnedMenuConditions() throws {
+        let commands:[FinderServiceCommand]=[.pull,.fetch,.push,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag]
+        let ordinary:Set<FinderServiceCommand>=[.pull,.fetch,.push,.synchronize,.rebase,.stash,.switchBranch,.merge,.branch,.tag]
+        // Independent expected commands, taken from MenuInfo.cpp:35–46,
+        // 102–113 and 167–176, rather than querying the shared predicate itself.
+        let cases:[(FinderShellFlags,Set<FinderServiceCommand>)]=[
+            ([.folder,.folderInGit,.inGit,.onlyOne],ordinary),
+            ([.folder,.folderInGit,.inGit,.onlyOne,.stash],Set(commands)),
+            ([.inGit,.inVersionedFolder,.onlyOne],[.stash]),
+            ([.inVersionedFolder,.onlyOne],[]),
+            ([.folder,.bare,.onlyOne],[.fetch,.push]),
+            ([.folder,.folderInGit,.inGit,.onlyOne,.merge],[.fetch,.push,.switchBranch,.branch,.tag]),
+            ([.folder,.folderInGit,.inGit,.onlyOne,.bisect],[.fetch,.push,.stash,.switchBranch,.branch,.tag]),
+            ([.folder,.folderInGit,.inGit,.onlyOne,.merge,.stash],[.fetch,.push,.stashApply,.stashPop,.stashList,.switchBranch,.branch,.tag]),
+            ([.folder,.folderInGit,.inGit,.workingTreeRoot,.two],[.pull,.fetch,.push]),
+            ([.folder,.folderInGit,.inGit,.two],[]),
+            ([.folder,.bare,.two],[.fetch,.push]),
+            ([],[])
+        ]
+        for(flags,expected)in cases {
+            let actual=Set(commands.filter{$0.isEligible(flags:flags)})
+            XCTAssertEqual(actual,expected,"Source Services clauses differ for flags \(flags)")
         }
     }
 

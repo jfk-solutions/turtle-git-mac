@@ -3,14 +3,31 @@ import Darwin
 
 /// Native Services is an explicit first-use route, independent of Finder cache.
 /// Its wire envelope conveys selection and tool choice, never repository access.
-public enum FinderServiceCommand:String,CaseIterable,Sendable {
+public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     case log,commit,status,diff,clone,initialize
+    case pull,fetch,push,synchronize,rebase,stash,stashApply,stashPop,stashList,switchBranch,merge,branch,tag
     public static let maximumPaths=10000
     public static let maximumRequestBytes=1048576
     public struct Failure:LocalizedError,Sendable {
         public let message:String
         public var errorDescription:String? {message}
         public init(_ message:String){self.message=message}
+    }
+    public var action:RepositoryAction {RepositoryAction(rawValue:rawValue)!}
+    /// The original six Services retain their established explicit-selection
+    /// behavior. New repository Services apply MenuInfo's actual state clauses
+    /// after the app obtains access and reads fresh repository/status metadata.
+    public var requiresSourceEligibility:Bool {
+        switch self {case .log,.commit,.status,.diff,.clone,.initialize:return false;default:return true}
+    }
+    public var requiresSingleSelection:Bool {
+        switch self {
+        case .clone,.initialize,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag:return true
+        default:return false
+        }
+    }
+    public func isEligible(flags:FinderShellFlags)->Bool {
+        !requiresSourceEligibility || FinderShellRules.allows(action,flags:flags)
     }
     public func request(paths:[URL],alternateTool:Bool?=nil)throws->FinderRequest {
         guard !paths.isEmpty,paths.count<=Self.maximumPaths else{throw Failure("Select between 1 and 10,000 files or folders for TurtleGit.")}
@@ -27,13 +44,13 @@ public enum FinderServiceCommand:String,CaseIterable,Sendable {
         }
         let normalized=FinderRequest.normalizedSelection(paths)
         guard normalized.allSatisfy({!$0.pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame})}) else{throw Failure("Git's administrative directory cannot be selected.")}
+        guard !requiresSingleSelection || normalized.count==1 else{throw Failure("Select one item for "+action.title)}
         if self == .clone || self == .initialize {
             guard normalized.count==1,normalized[0].path != "/",
                   let attributes=try? FileManager.default.attributesOfItem(atPath:normalized[0].path),attributes[.type] as? FileAttributeType == .typeDirectory else {
                 throw Failure("Select one existing directory for Clone or Create repository.")
             }
         }
-        guard let action=RepositoryAction(rawValue:rawValue) else{throw Failure("Unknown TurtleGit service.")}
         let request=FinderRequest(action:action,paths:normalized,alternateTool:alternateTool)
         _=try Self.envelope(request)
         return request

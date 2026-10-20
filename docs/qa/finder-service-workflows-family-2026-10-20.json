@@ -1,0 +1,143 @@
+{
+  "status": "focused-local-validation-passed",
+  "scope": "Thirteen first-use Finder transport/reference/integration/stash Services, nineteen total declarations, and ordered multi-root transport handoff",
+  "source": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "files": [
+      "src/TortoiseShell/MenuInfo.cpp",
+      "src/TortoiseShell/ContextMenu.cpp:1604-1627",
+      "src/TortoiseProc/Commands/PullCommand.cpp",
+      "src/TortoiseProc/Commands/FetchCommand.cpp",
+      "src/TortoiseProc/Commands/PushCommand.cpp"
+    ],
+    "batch_contract": "Ordered full transport workflows for valid selected roots; invalid roots and individual failure/cancel do not prevent later roots"
+  },
+  "new_commands": [
+    "pull",
+    "fetch",
+    "push",
+    "synchronize",
+    "rebase",
+    "stash",
+    "stashApply",
+    "stashPop",
+    "stashList",
+    "switchBranch",
+    "merge",
+    "branch",
+    "tag"
+  ],
+  "implementation": [
+    "Strict typed envelopes retain cardinality, literal paths and bounds without preset/authority injection",
+    "Granted live repository/status metadata drives pinned shell eligibility",
+    "Actual native dialogs retain captured repository/access; explicit Stash Apply/Pop execute source actions",
+    "Ordered transport batches reuse separate primary grants or one owned common-folder chooser; metadata scopes do not widen primary containment",
+    "Batch waits actual child closure and instance worker/sheet drainage, skips invalid roots and continues after individual Cancel",
+    "Owner/Quit/adoption retirement closes current child and retains grants/accounting until drain"
+  ],
+  "checks": [
+    {
+      "name": "Focused Core group",
+      "result": "11 methods passed",
+      "log": "build/qa/finder-service-workflows-core-2026-10-20.log",
+      "scope": "10 FinderServiceCommand methods plus existing source gate regression; no full Core rerun"
+    },
+    {
+      "name": "Native app build",
+      "result": "passed",
+      "logs": [
+        "build/qa/finder-service-workflows-app-2026-10-20.log",
+        "build/qa/finder-service-workflows-app-batch-2026-10-20.log",
+        "build/qa/finder-service-workflows-app-repair-2026-10-20.log"
+      ],
+      "repair": "Source review expanded initial built scope to ordered batches; its local continuation helper needed explicit @MainActor. Only affected app compilation repeated."
+    },
+    {
+      "name": "Existing provider/registration regression",
+      "result": "passed once",
+      "log": "build/qa/finder-service-workflows-provider-2026-10-20.log",
+      "scope": "Strict modern/legacy pasteboard, declarations/selectors, startup/busy/Quit and standalone receipt"
+    },
+    {
+      "name": "Expanded provider and single-root workflows",
+      "result": "provider once, routing with both Git engines passed",
+      "log": "build/qa/finder-service-workflows-native-2026-10-20.log",
+      "scope": [
+        "All thirteen new provider commands and cold/standalone dispatch",
+        "Actual eleven review/history dialog classes/modes captured scoped A while B was active",
+        "Actual Apply keeps stash; actual Pop restores worktree and drops stash once",
+        "Bare Fetch/Push; unborn dialogs and no-stash refusal; actual merge-state restrictions",
+        "Owned Fetch grant Cancel/late/retry and unrelated repository byte preservation"
+      ]
+    },
+    {
+      "name": "Affected multi-root native group",
+      "result": "passed with both Git engines after fixture repair",
+      "log": "build/qa/finder-service-workflows-batch-repair-2026-10-20.log",
+      "scope": [
+        "Actual Fetch A then B, skipping non-root nested folder",
+        "One child at once, Cancel advances only after child/read drainage",
+        "Separate primary leases remain independent",
+        "Real held metadata Git subprocess; owner close stops later B, retains Quit accounting and reaps worker"
+      ]
+    },
+    {
+      "name": "Crash-path helper cleanup",
+      "result": "dedicated private process-group cleanup probe passed",
+      "scope": "Python finally releases private gate and retires only this fixture helpers even after Swift trap; no further app/Core run"
+    },
+    {
+      "name": "Generated Help/localization, plist syntax, whitespace and dialog reconciliation",
+      "result": "passed"
+    }
+  ],
+  "validation_failures": [
+    {
+      "failure": "PID-file existence raced numeric PID publication; forced optional unwrap trapped",
+      "repair": "Wait for positive parsed PID and active read; only batch cases rerun on both engines"
+    },
+    {
+      "failure": "Swift trap skipped defer and held Git wrapper61724 survived its receiver group",
+      "repair": "Exact owned wrapper group stopped and confirmed absent. Python finally now releases/cleans private helpers on success/failure/timeout; dedicated cleanup probe passed."
+    }
+  ],
+  "cleanup": {
+    "receivers": [
+      59209,
+      59221,
+      59222,
+      60416,
+      61610,
+      61978,
+      62133
+    ],
+    "failed_wrapper": 61724,
+    "all_recorded_pids_absent": true,
+    "no_private_held_wrapper_remaining": true,
+    "windows": "Private offscreen windows/pasteboards/preferences; no unrelated applications terminated"
+  },
+  "warnings": [
+    "Unbundled private-pasteboard checks emit sandbox_extension_consume Operation not permitted; passes do not certify signed grants",
+    "Xcode printed some command failed with exit code0/no output diagnostics; final build exited0 and native receivers linked current objects"
+  ],
+  "hashes": {
+    "Sources/TurtleGitCore/FinderRequest.swift": "fd3cf9cb047491bb120634032e7b7f29d43ff8fa41fc74134f389ace231f75b7",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "5c926ce6d4e120d24c5bf66da6caa7cf952ff38dc8a2698e04458aaa3a59e285",
+    "Sources/TurtleGitMac/FetchWindow.swift": "86b62e7ba097a4d4170fdbb1c16fd3f2b0220fd46a006c3b533154886163a7ac",
+    "Sources/TurtleGitMac/PushWindow.swift": "4f64bb2d2389cbd3b5d65017bd9efc1656c22257397b55892b95deaf1e911422",
+    "Configuration/App-Info.plist": "b7c3019d64cc80838c89ca26b100e11987ac9112643aaba559a28ec83ed606c7"
+  },
+  "hosted_observation": {
+    "head": "ffcb9585",
+    "pages": "success",
+    "macos": "pending; prior1103d0d5 in progress. No full hosted green claim."
+  },
+  "remaining": [
+    "Physical Services registration, Finder/other-app gestures, Services declaration localization and per-entry icon API limits",
+    "Signed installed permissions, sandbox and App Store acceptance",
+    "Native multi-root held-worker checks exercise Fetch; Pull/Push share coordinator and their single-root dialogs were checked, but distinct multi-root Pull/Push physical workflows remain unverified",
+    "Separate primary-command batch still opens independent forms and stops on first invalid preparation; not fixed here",
+    "Other first-use Services such as Add/Revert/Resolve/Blame remain outside these nineteen declarations",
+    "Complete Finder/Explorer visual and application parity remain unproven"
+  ]
+}

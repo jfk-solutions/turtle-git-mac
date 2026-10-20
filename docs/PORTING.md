@@ -4006,3 +4006,27 @@ records 19 passing focused Core methods plus the new actual-Git bundled check,
 and passing native groups with both Git engines. Two pixel-fixture assumptions
 were corrected from retained output; no extra app/Core rebuild was needed.
 Physical, full hosted, signed and complete dialog acceptance remain open.
+
+
+### First-use Finder repository workflow Services — October 20, 2026
+
+Thirteen additional selected-item Services connect transport, branch/tag,
+Switch, Merge/Rebase and the four stash actions to existing native workflows.
+The typed request retains source cardinality and literal selection; discovery
+checks live source eligibility before dispatch, with owned repository access and
+independent child lifetimes. Multi-root Pull/Fetch/Push keeps selected-root order,
+waits for each actual dialog and worker drain, skips invalid roots and continues
+after per-dialog cancellation. Owner closure cancels the remaining queue while
+retaining live operation/grant accounting. Explicit Stash Apply/Pop retain source execution
+semantics. The [scope and remaining acceptance](FINDER-SERVICES.md) and
+[batch evidence](qa/finder-service-workflows-family-2026-10-20.json) distinguish
+local checks from physical registration, signed grants and complete Finder parity.
+
+The focused checkpoint passed eleven Core methods, the existing provider check,
+and expanded provider/routing checks with both Git engines. The multi-root Fetch
+case passed with both engines after a PID-publication fixture race was repaired.
+A trapped receiver exposed a private held-helper cleanup gap; the owned wrapper
+was stopped and a dedicated Python cleanup probe passed. The final app build
+passed after an explicit main-actor annotation repair; Core was not rerun for
+native-only changes. Evidence records exact scope and separate CLI,
+physical/signed and unverified Pull/Push multi-root acceptance limits.

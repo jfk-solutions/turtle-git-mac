@@ -7,6 +7,8 @@ import TurtleGitCore
 @MainActor final class PushWindowController: NSWindowController, NSWindowDelegate {
     let model: PushWindowModel
     var onClosed: () -> Void = {}
+    private var serviceRetiredSheet:NSWindow?
+    var serviceWorkPending:Bool {model.pendingOperations>0 || window?.attachedSheet != nil || serviceRetiredSheet?.sheetParent != nil}
     private var closingPreparation = false
     private(set) var referencePicker: ReferenceBrowserWindowController?
     var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
@@ -130,6 +132,7 @@ import TurtleGitCore
         return alert
     }
     func windowWillClose(_ notification: Notification) {
+        serviceRetiredSheet=window?.attachedSheet
         NotificationCenter.default.removeObserver(self); pickerRequest = nil; pendingPicker = nil; pickerFocus = nil
         model.invalidate(); referencePicker?.abandonPresentation(); referencePicker = nil; progressController?.close(); progressController = nil
         let logPicker = sourceLogPicker, refLogPicker = sourceRefLogPicker
@@ -151,6 +154,7 @@ import TurtleGitCore
 
 @MainActor final class PushWindowModel: ObservableObject {
     static var activePreparationReads = 0
+    private(set) var pendingOperations=0
     static var activePushWorkflows = 0
     let repository: GitRepository
     let sshSettings: SSHTransportSettings
@@ -239,10 +243,10 @@ import TurtleGitCore
         formRevision = UUID(); loadPresetSource = source; loadPresetPreserveAll = preserveAllBranches
         sourceToken?.cancel(); generation += 1
         busy = true; error = nil; preparationNeedsRetry = false
-        let token = OperationCancellation(); metadataToken = token; Self.activePreparationReads += 1
+        let token = OperationCancellation(); metadataToken = token; Self.activePreparationReads += 1; pendingOperations += 1
         Task { [self, access] in
             defer {
-                Self.activePreparationReads -= 1
+                Self.activePreparationReads -= 1; pendingOperations -= 1
                 if metadataToken === token { metadataToken = nil; busy = false; if !invalidated { becameIdle() } }
                 withExtendedLifetime(access) {}
             }
@@ -276,10 +280,10 @@ import TurtleGitCore
         formRevision = UUID(); sourceToken?.cancel(); generation += 1
         let snapshot = options, token = OperationCancellation()
         metadataToken = token; busy = true; error = nil; preparationNeedsRetry = false; retryRemoteCatalog = true
-        Self.activePreparationReads += 1
+        Self.activePreparationReads += 1; pendingOperations += 1
         Task { [self, access] in
             defer {
-                Self.activePreparationReads -= 1
+                Self.activePreparationReads -= 1; pendingOperations -= 1
                 if metadataToken === token { metadataToken = nil; busy = false; if !invalidated { becameIdle() } }
                 withExtendedLifetime(access) {}
             }
@@ -365,10 +369,10 @@ import TurtleGitCore
         sourceToken?.cancel(); sourceToken = nil
         guard !FetchDialogHistory.trim(source).isEmpty else { preparingSource = false; preparationNeedsRetry = false; localBranch = nil; adjustSettings(); becameIdle(); return }
         let token = OperationCancellation(); sourceToken = token; preparingSource = true; preparationNeedsRetry = false
-        Self.activePreparationReads += 1
+        Self.activePreparationReads += 1; pendingOperations += 1
         Task { [self, access] in
             defer {
-                Self.activePreparationReads -= 1
+                Self.activePreparationReads -= 1; pendingOperations -= 1
                 if sourceToken === token { sourceToken = nil; preparingSource = false; if !invalidated { becameIdle() } }
                 withExtendedLifetime(access) {}
             }
@@ -471,9 +475,9 @@ import TurtleGitCore
         if snapshot.arbitraryURL { snapshot.remote = FetchDialogHistory.trim(url) }
         let sshFactory = sshSettings.capture()
         let token = OperationCancellation(); cancellation = token; cancelling = false; error = nil
-        busy = true; Self.activePushWorkflows += 1
+        busy = true; Self.activePushWorkflows += 1; pendingOperations += 1
         Task { [self, access] in
-            defer { Self.activePushWorkflows -= 1; withExtendedLifetime(access) {}; cancellation = nil; cancelling = false; confirmingCancellation = false; if !invalidated { busy = progress != nil } }
+            defer { Self.activePushWorkflows -= 1; pendingOperations -= 1; withExtendedLifetime(access) {}; cancellation = nil; cancelling = false; confirmingCancellation = false; if !invalidated { busy = progress != nil } }
             do {
                 try validateRepositoryAccess()
                 try await repository.validatePushOptions(snapshot, cancellation: token)

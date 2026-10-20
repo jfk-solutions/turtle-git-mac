@@ -139,8 +139,9 @@ remaining acceptance work.
 
 ## Finder integration
 
-The app also advertises six selected-file **Services**: Show log, Commit, Check
-for modifications, Diff, Clone and Create repository. These use captured paths
+The app also advertises nineteen selected-file **Services**, including Log, Commit,
+Diff, Clone/Create, transport, branch/switch, merge/rebase and stash workflows.
+These use captured paths
 and owned permission workflows outside monitored roots; their system Services
 placement differs from Finder Sync context menus. Physical registration and signed
 acceptance are still pending. See [selected-file Services](docs/FINDER-SERVICES.md).

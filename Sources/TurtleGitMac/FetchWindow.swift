@@ -8,6 +8,8 @@ import TurtleGitCore
     let model: FetchWindowModel
     static var activeProgressReleases: Int { TransportProgressRelease.activeCount }
     var onClosed: () -> Void = {}
+    private var serviceDrainChecks:[()->Bool]=[]
+    var serviceWorkPending:Bool {model.pendingOperations>0 || serviceDrainChecks.contains{$0()} || window?.attachedSheet != nil}
     var presentPullProgress: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; child.alphaValue = owner.alphaValue; child.appearance = owner.appearance; owner.beginSheet(child); return true }
     private(set) var remoteReferenceController: RemoteReferenceWindowController?
     var configureRemoteReferences: (RemoteReferenceWindowController) -> Void = { _ in }
@@ -126,6 +128,10 @@ import TurtleGitCore
         child.model.refresh()
     }
     func windowWillClose(_ notification: Notification) {
+        // Forced owner retirement can precede cancellation settlement. Retain
+        // the exact workers/sheets, rather than waiting on unrelated dialogs.
+        if let child=progressController {serviceDrainChecks.append{child.model.pendingOperations>0 || child.window?.sheetParent != nil}}
+        if let child=fetchProgressController {serviceDrainChecks.append{child.model.pendingOperations>0 || child.notificationFiles.busy || child.window?.sheetParent != nil}}
         NotificationCenter.default.removeObserver(self); remotePickerRequest = nil; remotePickerCompletion = nil; remotePickerFocus = nil
         model.invalidate(); remoteReferenceController?.close(); remoteReferenceController = nil
         let fetch = fetchProgressController; fetchProgressController = nil; fetch?.close()
@@ -144,6 +150,7 @@ import TurtleGitCore
 }
 @MainActor final class FetchWindowModel: ObservableObject {
     static var activePreparationReads = 0
+    private(set) var pendingOperations=0
     static var activeProgressOperations: Int { PullProgressWindowModel.activeOperations + FetchProgressWindowModel.activeOperations }
     let repository: GitRepository
     let isPull: Bool
@@ -247,10 +254,10 @@ import TurtleGitCore
     func load(remote presetRemote: String? = nil, allRemotes presetAllRemotes: Bool? = nil) {
         guard !invalidated, !confirmingQuit, !busy, !preparingRemote, !browsing, progress == nil, fetchProgress == nil else { return }; formRevision = UUID(); busy = true; error = nil; preparationNeedsRetry = false
         loadPresetRemote = presetRemote; loadPresetAllRemotes = presetAllRemotes
-        let token = OperationCancellation(); metadataToken = token; Self.activePreparationReads += 1
+        let token = OperationCancellation(); metadataToken = token; Self.activePreparationReads += 1; pendingOperations += 1
         Task { [self, access] in
             defer {
-                Self.activePreparationReads -= 1
+                Self.activePreparationReads -= 1; pendingOperations -= 1
                 if metadataToken === token { metadataToken = nil; busy = false; if !invalidated { becameIdle() } }
                 withExtendedLifetime(access) {}
             }
@@ -360,10 +367,10 @@ import TurtleGitCore
         guard !invalidated, !busy, !browsing, !managing, progress == nil, fetchProgress == nil else { return }
         generation += 1; let request = generation, remote = options.remote
         remoteToken?.cancel(); let token = OperationCancellation(); remoteToken = token; preparingRemote = true; preparationNeedsRetry = false
-        Self.activePreparationReads += 1
+        Self.activePreparationReads += 1; pendingOperations += 1
         Task { [self, access] in
             defer {
-                Self.activePreparationReads -= 1
+                Self.activePreparationReads -= 1; pendingOperations -= 1
                 if remoteToken === token { remoteToken = nil; preparingRemote = false; if !invalidated { becameIdle() } }
                 withExtendedLifetime(access) {}
             }
@@ -700,6 +707,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
 }
 @MainActor final class PullProgressWindowModel: ObservableObject {
     private(set) static var activeOperations = 0
+    private(set) var pendingOperations=0
     @Published var confirmingQuit = false
     var presentationAvailable: () -> Bool = { true }
     var closeForHandoff: ((@escaping () -> Void) -> Void)?
@@ -772,8 +780,8 @@ enum PullPostAction: String, CaseIterable, Hashable {
     private func execute(_ snapshot: PullOptions) async {
         let repository=self.repository.capturingDiffBackend(preferences:preferences)
         guard !invalidated else { return }
-        Self.activeOperations += 1
-        defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
+        Self.activeOperations += 1; pendingOperations += 1
+        defer { Self.activeOperations -= 1; pendingOperations -= 1; withExtendedLifetime(access) {} }
         busy = true; success = false; cancelled = false; cancelling = false; resetOutput(); postActions = []; newHead = ""
         do { try validateAccess(); if cancellation.isCancelled { throw OperationCancellationFailure.cancelled } }
         catch { guard !invalidated else { return }; output = error.localizedDescription; cancelled = cancellation.isCancelled; completed(); return }
@@ -866,9 +874,9 @@ enum PullPostAction: String, CaseIterable, Hashable {
         guard let onPostAction else { return }
         if action == .reset {
             dispatchingAction = true; let token = OperationCancellation(); inspectionToken = token
-            Self.activeOperations += 1
+            Self.activeOperations += 1; pendingOperations += 1
             Task {
-                defer { Self.activeOperations -= 1; withExtendedLifetime(access) {}; if inspectionToken === token { inspectionToken = nil } }
+                defer { Self.activeOperations -= 1; pendingOperations -= 1; withExtendedLifetime(access) {}; if inspectionToken === token { inspectionToken = nil } }
                 var revision = ""
                 do {
                     try validateAccess()
@@ -1019,6 +1027,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     var notificationAccess:RepositoryAccessLease? {access}
     func notificationFailure(_ text:String){output=GitProgressFailureOutput.renderDetails(text,existing:output,limit:outputLimit)}
     private(set) static var activeOperations = 0
+    private(set) var pendingOperations=0
     @Published var confirmingQuit = false
     var presentationAvailable: () -> Bool = { true }
     var closeForHandoff: ((@escaping () -> Void) -> Void)?
@@ -1124,8 +1133,8 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     }
     private func execute() async {
         guard !invalidated else { return }
-        Self.activeOperations += 1
-        defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
+        Self.activeOperations += 1; pendingOperations += 1
+        defer { Self.activeOperations -= 1; pendingOperations -= 1; withExtendedLifetime(access) {} }
         notifications.begin("Fetch");notificationWarnings=[]
         busy = true; success = false; cancelled = false; cancelling = false; merging = false; explicitCloseRequested = false; deferredRebase = nil; resetOutput(); postActions = []
         do {
@@ -1253,9 +1262,9 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     func perform(_ action: FetchPostAction) {
         guard !fileActionBusy,!invalidated, !confirmingQuit, presentationAvailable(), !dispatched, !busy, !confirmingCancellation, !confirmingRebaseDecision, !dispatchingAction, postActions.contains(action) else { return }
         if action == .rebase, let fetched = pendingRebase, onOwnedRebase != nil {
-            dispatchingAction = true; Self.activeOperations += 1
+            dispatchingAction = true; Self.activeOperations += 1; pendingOperations += 1
             Task {
-                defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
+                defer { Self.activeOperations -= 1; pendingOperations -= 1; withExtendedLifetime(access) {} }
                 _ = await openOwnedRebase(fetched)
                 guard !invalidated else { return }; onCompleted(); finishCompletion()
             }
@@ -1266,9 +1275,9 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         guard let onPostAction else { return }
         if action == .reset {
             dispatchingAction = true; let token = OperationCancellation(); inspectionToken = token
-            Self.activeOperations += 1
+            Self.activeOperations += 1; pendingOperations += 1
             Task {
-                defer { Self.activeOperations -= 1; withExtendedLifetime(access) {}; if inspectionToken === token { inspectionToken = nil } }
+                defer { Self.activeOperations -= 1; pendingOperations -= 1; withExtendedLifetime(access) {}; if inspectionToken === token { inspectionToken = nil } }
                 var revision = ""
                 do {
                     try validateAccess(); let defaults = try await repository.pullDefaults(cancellation: token)

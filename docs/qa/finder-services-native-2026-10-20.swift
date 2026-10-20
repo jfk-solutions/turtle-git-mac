@@ -71,7 +71,7 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
         receiver.retire();try require(invoke(receiver,modern,"log") != nil && packets.count==count,"Retired provider dispatched")
         let plist=try PropertyListSerialization.propertyList(from:Data(contentsOf:URL(fileURLWithPath:CommandLine.arguments[3])),format:nil) as! [String:Any]
         let services=plist["NSServices"] as? [[String:Any]] ?? []
-        try require(services.count==6 && Set(services.compactMap{$0["NSUserData"] as? String})==Set(["log","commit","status","diff","clone","initialize"]),"Plist six commands differ from provider")
+        try require(services.count==FinderServiceCommand.allCases.count && Set(services.compactMap{$0["NSUserData"] as? String})==Set(FinderServiceCommand.allCases.map(\.rawValue)),"Plist commands differ from provider")
         let selector=NSSelectorFromString("performFinderAction:userData:error:")
         try require(receiver.responds(to:selector),"Declared Objective-C selector is unavailable")
         for service in services {
@@ -131,7 +131,7 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
         tool.retireFinderServices();tool.workspaceOpenHandoff.retire();reply?(nil);reply=nil
         try require(!tool.workspaceOpenHandoff.hasPendingWork && invoke(tool.finderServicesProvider,modern,"log") != nil,"Retired tool leaked receipt or accepted a late service")
         try require(try Data(contentsOf:first)==Data("unchanged\n".utf8),"Services mutated selected file")
-        print("PASS: private NSPasteboard modern/legacy strict ordered Services, malformed/mixed rejection, six plist selectors, cold/warm/busy/Quit lifecycle and standalone launch receipt")
+        print("PASS: private NSPasteboard modern/legacy strict ordered Services, malformed/mixed rejection, declared plist selectors, cold/warm/busy/Quit lifecycle and standalone launch receipt")
     }
     @MainActor static func routing()async throws {
         let directory=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2])

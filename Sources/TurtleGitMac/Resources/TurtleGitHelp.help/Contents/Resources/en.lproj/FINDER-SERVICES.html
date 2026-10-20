@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>TurtleGit selected-file Services</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="turtlegit-selected-file-services">TurtleGit selected-file Services</h1>
-<p>TurtleGit advertises six macOS Services for selected files and folders. They give
+<p>TurtleGit advertises nineteen macOS Services for selected files and folders. They give
 users an entry point outside Finder Sync's monitored repositories, through the
 system's <strong>Services</strong> menu. They also work with file selections supplied by other
 apps that support macOS Services. Availability and ordering are controlled by
@@ -37,6 +37,38 @@ macOS; these entries do not extend Finder Sync's ordinary context-menu coverage.
 <td>TurtleGit: Create repository…</td>
 <td>Existing Create repository dialog for one selected directory</td>
 </tr>
+<tr>
+<td>TurtleGit: Pull… / Fetch… / Push…</td>
+<td>Existing transport dialogs for the selected repository</td>
+</tr>
+<tr>
+<td>TurtleGit: Sync…</td>
+<td>Existing Synchronization window</td>
+</tr>
+<tr>
+<td>TurtleGit: Create Branch… / Create Tag…</td>
+<td>Existing branch and tag dialogs</td>
+</tr>
+<tr>
+<td>TurtleGit: Switch/Checkout…</td>
+<td>Existing Switch dialog</td>
+</tr>
+<tr>
+<td>TurtleGit: Merge… / Rebase…</td>
+<td>Existing integration dialogs</td>
+</tr>
+<tr>
+<td>TurtleGit: Stash changes…</td>
+<td>Existing Stash Save dialog</td>
+</tr>
+<tr>
+<td>TurtleGit: Stash Apply / Stash Pop</td>
+<td>Apply or pop the selected repository's newest stash through the existing progress workflow</td>
+</tr>
+<tr>
+<td>TurtleGit: Stash List</td>
+<td>Existing stash history window</td>
+</tr>
 </tbody>
 </table>
 <p>Clone and Create advertise folder selections only. They require one existing,
@@ -45,6 +77,27 @@ are refused. Dialog validation and user confirmation still apply. Two-file Diff
 validates both files before comparison; selecting two directories does not turn it
 into an unsupported directory-comparison operation. Git-dependent commands retain
 their existing repository, working-tree and selection restrictions.</p>
+<p>The transport, branch, integration and stash Services use the source menu
+predicates after repository access and discovery. They inspect the actual
+selection, working-tree/bare state, merge/bisect state and stash availability; a
+stale Finder badge is not authority to launch an unavailable action. Most of
+these operations require one selected item under the source rules. Fetch, Pull
+and Push also accept several selected repository roots. Their batch opens each
+actual transport dialog in selection order and waits for its closure and workers
+to drain before proceeding. Non-root or ineligible selections report a preparation
+error and are skipped; cancelling one transport dialog continues to the next root.
+Closing the initiating workspace or cancelling the whole request stops the
+remaining queue. Existing separate saved grants can cover the selected roots;
+otherwise an owned folder chooser requests a common folder. Each root retains
+its actual primary lease; metadata grants do not widen that repository boundary.
+Other Git-dependent multi-path Services retain their one-repository restriction.
+Selecting an ineligible item never substitutes another operation.</p>
+<p>Opening transport, branch, switch, merge, rebase or Stash Save presents the
+existing operation window for review. <strong>Stash Apply</strong> and <strong>Stash Pop</strong> execute
+the explicitly selected action after permission and eligibility checks, following
+TortoiseGit; Pop removes the stash only after a successful application. Stash List
+opens the existing stash history. Each operation keeps its own access and
+cancellation lifetime even if the workspace subsequently changes repositories.</p>
 <p>Launch the installed TurtleGit app bundle once so macOS can discover its Services.
 Select files or a folder in Finder and look under <strong>Services</strong> in the context menu
 or Finder menu. If an entry is disabled or hidden, review macOS Keyboard settings
@@ -70,7 +123,8 @@ Cancelling the chooser stops the request. Its sheet, callbacks and repository
 owner remain accounted for until they actually release; closing an owner or
 quitting cannot turn a late reply into approval. Existing operations retain their
 own cancellation behavior and do not promise rollback after a completed write.</p>
-<p>The command and paths remain captured through permission and discovery. They are
+<p>The command and paths remain captured through permission and discovery, including
+the ordered root list of a transport batch. They are
 not replaced by a later Finder selection or workspace selection. A busy workspace
 or Quit confirmation rejects a new service immediately. During cold startup one
 typed request can wait for the workspace; a second request is rejected, and a
@@ -80,7 +134,7 @@ handoff receipt until Launch Services replies. Its private
 <code>turtlegit://service</code> envelope selects the owned Services route and conveys no
 permission.</p>
 <h2 id="registration-and-source-scope">Registration and source scope</h2>
-<p><code>Configuration/App-Info.plist</code> supplies the six <code>NSServices</code> declarations.
+<p><code>Configuration/App-Info.plist</code> supplies the nineteen <code>NSServices</code> declarations.
 <code>ApplicationDelegate.swift</code> installs one provider after startup preparation,
 restores a previous provider only if TurtleGit still owns the registration, and
 retires pending service input during termination. Services do not automatically
@@ -88,17 +142,21 @@ stage, commit, clone or initialize anything merely because a menu opens.</p>
 <p>The pinned source comparison is TortoiseGit revision
 <code>7338078f8ddd924b8cddee35f512f2286072136d</code>, particularly
 <code>TortoiseShell/ContextMenu.cpp</code> selection initialization and command dispatch, and
-<code>TortoiseShell/MenuInfo.cpp</code> Log, Commit, ShowChanged, Diff, Clone and CreateRepo.
+<code>TortoiseShell/MenuInfo.cpp</code> Log, Commit, ShowChanged, Diff, Clone, CreateRepo,
+Pull/Fetch/Push/Sync, Switch/Merge/Branch/Tag/Rebase and all four stash entries.
 Those Explorer commands are not restricted to a previously watched-root list.
 macOS Services supplies the missing selected-item entry point; its system menu
 placement differs from Explorer and from TurtleGit's existing Finder Sync menus.
-Services does not reproduce Explorer right-drag interception or per-entry shell
+macOS determines Services ordering and may hide ineligible types before TurtleGit
+is called; semantic Git eligibility is checked in the app. Services does not
+reproduce Explorer right-drag interception or per-entry shell
 icons. Native operation windows retain their existing controls and source artwork.</p>
 <p>The implementation follows Apple's
 <a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/properties.html">Services properties</a>
 for file UTIs, required context, message/user-data mapping and restricted actions,
 and its <a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/providing.html">service-provider lifecycle</a>.
-Folder services advertise <code>public.folder</code>; the other four advertise <code>public.item</code>.
+Clone and Create advertise <code>public.folder</code>; the other seventeen advertise
+<code>public.item</code>, with operation eligibility checked after access and discovery.
 The bundle uses file services rather than treating a plain text path as a file.</p>
 <h2 id="validation-and-remaining-acceptance">Validation and remaining acceptance</h2>
 <p>The batch adds Core selection/envelope checks and a grouped native fixture for
@@ -115,4 +173,18 @@ adjustment if an installed signed Services invocation does not supply sufficient
 selected-item access before the app's explicit permission chooser. System menu
 visibility is separate from the existing Finder Sync activation and badge checks.
 This family does not establish complete Explorer integration or whole-port parity.</p>
+<h2 id="repository-workflow-expansion--october-20-2026">Repository workflow expansion — October 20, 2026</h2>
+<p>The <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/finder-service-workflows-family-2026-10-20.json">workflow batch evidence</a>
+records the new service declarations, exact request contracts, live source
+eligibility and owned dialog/operation handoffs. The focused runner is
+<code>scripts/test-finder-service-workflows.py</code>, using private pasteboards, repositories,
+preferences and offscreen windows with system and bundled Git. It distinguishes
+review-only dialog opening from actual Stash Apply/Pop effects. Multi-root transport verification also covers ordered dialogs, invalid-root
+skipping, per-dialog Cancel continuation, owner-close cancellation and retained
+worker/grant/Quit accounting. The previous six-service evidence remains historical
+and does not certify this expansion. The separate primary-command batch still
+has its recorded sequential-modal/skip-on-failure gap; this Services expansion
+does not claim that CLI gap fixed.
+Physical Services registration, signed grants, menu gestures and full Finder
+parity still need their own acceptance.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>
