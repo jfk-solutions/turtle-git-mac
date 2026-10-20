@@ -97,7 +97,7 @@ struct FinderMenuSourceVerification {
         cell.check.performClick(nil)
         try require(model.mask(.primary) == before ^ FinderMenuEntry.allCases[0].mask && table.selectedRow == 0, "Native checkbox did not toggle/select original row: enabled=\(cell.check.isEnabled), attached=\(cell.check.window === window), cellWindow=\(String(describing: cell.window)), tableWindow=\(table.window === window), modelWindow=\(model.window === window), active=\(String(describing: model.activePage)), selected=\(table.selectedRow), before=\(before), after=\(model.mask(.primary)), state=\(cell.check.state.rawValue), tableFrame=\(table.frame)")
         try await wait { cell.check.state == (model.mask(.primary) & FinderMenuEntry.allCases[0].mask == 0 ? .off : .on) }
-        try await wait { (table.delegate as? FinderMenuSettingsList.Coordinator)?.mask == model.mask(.primary) }
+        try await wait { (NativeListSelection.originalDelegate(of:table) as? FinderMenuSettingsList.Coordinator)?.mask == model.mask(.primary) }
         guard let space = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: " ", charactersIgnoringModifiers: " ", isARepeat: false, keyCode: 49) else { throw Failure(description: "Native Space event missing") }
         table.keyDown(with: space)
         try require(model.mask(.primary) == before, "Native selected-row Space did not toggle")

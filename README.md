@@ -148,6 +148,10 @@ matching group access. Build and launch the app, enable **TurtleGit Finder** in
 System Settings' extension controls, then open a repository in the app to
 register its monitored folder. The settings location depends on macOS version.
 
+[List selection highlighting](docs/LIST-SELECTION.md) describes the shared
+Advanced preference for file, reference and progress lists. Revision history
+retains its source-defined whole-row selection.
+
 Settings → General → **Context Menu** controls which commands appear directly
 in Finder's menu. **Context Menu 2** chooses commands that require Shift.
 The first page also supports path exclusions and hiding outside-repository menus.

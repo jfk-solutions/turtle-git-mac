@@ -33,7 +33,7 @@ import TurtleGitCore
         defer { owner.close() }
         owner.window?.contentView?.layoutSubtreeIfNeeded()
         try await wait { !owner.model.busy && find(owner.window!.contentView!)?.numberOfRows==3 }
-        let model=owner.model,table=find(owner.window!.contentView!)!,coordinator=table.delegate as! RepositoryBrowserContentsTable.Coordinator
+        let model=owner.model,table=find(owner.window!.contentView!)!,coordinator=NativeListSelection.originalDelegate(of:table) as! RepositoryBrowserContentsTable.Coordinator
         try await wait { findTree(owner.window!.contentView!)?.numberOfRows==2 }
         let tree=findTree(owner.window!.contentView!)!,treeCoordinator=tree.delegate as! RepositoryBrowserFolderTree.Coordinator
         try require(tree.accessibilityLabel()=="Repository folders" && tree.allowsTypeSelect && !tree.allowsMultipleSelection,"Native folder tree configuration")

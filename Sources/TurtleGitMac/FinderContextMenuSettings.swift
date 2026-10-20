@@ -23,7 +23,7 @@ import TurtleGitCore
     private(set) weak var window: NSWindow?
     private var ownerObserver: NSObjectProtocol?
     private var saved: FinderMenuSettings
-    private let defaults: UserDefaults
+    let defaults: UserDefaults
     private let publish: (FinderMenuSettings) throws -> Bool
     private let notify: () -> Void
     var message: String? { error ?? notice }
@@ -206,7 +206,7 @@ struct FinderMenuSettingsList: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) { context.coordinator.update() }
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) { coordinator.retire() }
-    final class MenuTable: NSTableView {
+    final class MenuTable: NativeListSelectionTableView {
         var toggleSelection: (() -> Void)?
         override func keyDown(with event: NSEvent) {
             if event.keyCode == 49 && event.modifierFlags.intersection([.command,.control,.option]).isEmpty { toggleSelection?() }
@@ -222,6 +222,7 @@ struct FinderMenuSettingsList: NSViewRepresentable {
         func numberOfRows(in tableView: NSTableView) -> Int { FinderMenuEntry.allCases.count }
         func update() {
             guard live, let model, let table else { return }
+            NativeListSelection.install(on:table,preferences:model.defaults,primaryColumn:table.tableColumns.first,labelText:{row in FinderMenuEntry.allCases.indices.contains(row) ? FinderMenuEntry.allCases[row].title:nil},leadingInset:26)
             captured = model.context(page); mask = model.mask(page)
             let selected = table.selectedRow
             table.reloadData()
@@ -247,7 +248,7 @@ struct FinderMenuSettingsList: NSViewRepresentable {
             }
             return cell
         }
-        func retire() { live = false; table?.toggleSelection = nil; table?.delegate = nil; table?.dataSource = nil; model = nil }
+        func retire() { live = false;if let table {NativeListSelection.remove(from:table)}; table?.toggleSelection = nil; table?.delegate = nil; table?.dataSource = nil; model = nil }
     }
     final class MenuRow: NSTableCellView {
         let check = NSButton(checkboxWithTitle: "", target: nil, action: nil)

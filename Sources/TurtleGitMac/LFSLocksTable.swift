@@ -55,7 +55,11 @@ struct LFSLocksTable: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView { context.coordinator.make() }
     func updateNSView(_ view: NSScrollView, context: Context) { _ = background; _ = fileFont; _ = fontName; _ = fontSize; _ = tooltip; context.coordinator.refresh() }
-    static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) { coordinator.cancelListPosition() }
+    static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) {
+        coordinator.cancelListPosition();NativeListSelection.remove(from:coordinator.table)
+        coordinator.table.delegate=nil;coordinator.table.dataSource=nil;coordinator.table.menu?.delegate=nil
+        coordinator.table.prepareContext={_,_ in};coordinator.table.focusRow={_ in};coordinator.table.toggleChecks={};coordinator.table.copyRows={_ in};coordinator.table.refreshRows={}
+    }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         let model: LFSLocksWindowModel
         let table: LFSLocksNativeTable
@@ -114,6 +118,9 @@ struct LFSLocksTable: NSViewRepresentable {
         }
         func refresh() {
             guard !updating else { return }; updating = true; defer { updating = false }
+            let preferences=model.presentationPreferences
+            let font:NSFont=preferences.bool(forKey:"LogFontForFileListCtrl") ? MessageEditorFont.resolve(name:preferences.string(forKey:"LogFontName") ?? MessageEditorFont.defaultName,size:preferences.object(forKey:"LogFontSize") as? Int ?? MessageEditorFont.defaultSize):.systemFont(ofSize:NSFont.systemFontSize)
+            NativeListSelection.install(on:table,preferences:preferences,primaryColumn:table.tableColumns.first(where:{$0.identifier.rawValue==StatusListColumn.path.rawValue}),labelText:{[weak self] row in guard let self,self.displayedRows.indices.contains(row) else{return nil};return self.displayedRows[row].text(.path)},font:font,leadingInset:22)
             let order = model.fileColumns.order.filter { nativeColumns.contains($0) }
             for (offset, definition) in order.enumerated() {
                 let index = table.column(withIdentifier: .init(definition.rawValue))

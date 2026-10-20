@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Choosing list selection highlighting</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="choosing-list-selection-highlighting">Choosing list selection highlighting</h1>
+<p>Open <strong>Settings → Advanced</strong> and edit <code>FullRowSelect</code>.</p>
+<ul>
+<li><code>true</code> highlights a selected item's whole row. This is the default.</li>
+<li><code>false</code> highlights its primary label, leaving the other columns in their
+ordinary presentation.</li>
+<li>An empty value restores the default when you Apply.</li>
+</ul>
+<p>Apply accepts the change; Cancel discards the draft. The setting belongs to the
+preferences of the window that opened the list.</p>
+<p>The preference applies to file lists, repository contents, worktrees, LFS locks, reference leaves,
+containing references, Synchronization file/reference/tag lists, operation
+results, Import Patch, Find results and the corresponding Settings lists.
+A checkbox remains a checkbox; selecting a row does not stage, unstage or
+change the checked files. Copy, keyboard navigation and context commands still
+operate on the selected row identities.</p>
+<p>Log, Reflog, Rebase and embedded revision-history lists always highlight full
+rows, following TortoiseGit. Repository and reference namespace trees, Blame's
+source grid and editors retain their own selection behavior.</p>
+<p>The primary label follows its logical column after you reorder or resize
+columns. Long labels are clipped to the available cell, and hidden primary
+columns do not move the highlight to a different field.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

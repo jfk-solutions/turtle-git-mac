@@ -1,0 +1,172 @@
+{
+  "date": "2026-10-20",
+  "family": "Source configurable file/reference/progress list selection",
+  "status": "scoped grouped checkpoint passed after focused repairs; complete source/platform acceptance remains open",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": {
+    "policy": "FullRowSelect defaults true, any saved nonzero source DWORD enabled; strict Advanced boolean/blank/Apply/Cancel retained",
+    "file_lists": "Commit/WorkingTree/changed files/revision comparison shared probe, Add, LFS Locks, Resolve, Sync raw changed files and conflicts",
+    "reference_lists": "BrowseRefs leaves, containing references, Sync references/tags, Find results",
+    "other_lists": "Repository Browser contents, Worktree List, file/LFS operation results, ImportPatch, Hook/issue-provider/tool-association/context-menu Settings",
+    "excluded": "Source-forced full-row Log/Reflog/Rebase/embedded history; namespace/directory trees, Blame source grid and editors"
+  },
+  "retained_behavior": [
+    "Stable row identities and multiselection",
+    "Native checkbox actions and inline editing",
+    "Keyboard/context targeting and Copy receipts",
+    "Custom result backgrounds, status colors, watermark and column persistence",
+    "Captured preferences and exact-owner detach/retirement"
+  ],
+  "implementation_notes": [
+    "Hook Settings previously had a partial first-column clip; this batch refines its label geometry",
+    "Shared proxy forwards original delegate methods; fixture casts unwrap the original without dropping behavioral assertions",
+    "Unknown supplied SwiftUI row classes retain original behavior with table-local public drawSelection/interiorBackgroundStyle decoration and restoration"
+  ],
+  "validation": [
+    {
+      "check": "Project/source generation",
+      "result": "passed",
+      "log": "build/qa/list-selection-project-2026-10-20.log"
+    },
+    {
+      "check": "Focused Core policy/store tests",
+      "result": "5 passed, 0 failures; default, strict boolean edits, blank restoration and failed-batch atomicity retained",
+      "log": "build/qa/list-selection-core-2026-10-20.log"
+    },
+    {
+      "check": "Native labels and Help resources",
+      "result": "generated;38languages1305keys,46guides51topics66files",
+      "logs": [
+        "build/qa/list-selection-localizations-2026-10-20.log",
+        "build/qa/list-selection-help-2026-10-20.log"
+      ]
+    },
+    {
+      "check": "Initial Debug app build",
+      "result": "failed; MergeToolSettings Advanced sheet referenced preferences without storing it",
+      "log": "build/qa/list-selection-app-2026-10-20.log",
+      "repair": "Store and propagate exact owner preferences in both MergeToolSettings initializers and program form; private tool-settings fixture now supplies its preference suite"
+    },
+    {
+      "check": "Repaired Debug app build",
+      "result": "passed; stored Merge Tool owner preferences",
+      "log": "build/qa/list-selection-app-repair-2026-10-20.log"
+    },
+    {
+      "check": "Final native integration build",
+      "result": "passed; raw Resolve status list included, shared file-list fallback label inset excludes icons with source-specific spacing",
+      "log": "build/qa/list-selection-app-geometry-2026-10-20.log"
+    },
+    {
+      "check": "Initial native fixture compilation",
+      "result": "failed; read-only Reference Browser selection setter used in fixture",
+      "repair": "Use model.select API without exposing or weakening production setters",
+      "log": "build/qa/list-selection-native-2026-10-20.log"
+    },
+    {
+      "check": "Native adapter reorder assertion",
+      "result": "initial failure; AppKit column layout pending; same geometry assertion passed after waiting for layout",
+      "log": "build/qa/list-selection-native-repair-2026-10-20.log",
+      "reaped_pid": 90736
+    },
+    {
+      "check": "Focused native adapter",
+      "result": "passed; actual AppKit/SwiftUI controls, row geometry, checkbox, keyboard, original class/delegate restoration",
+      "log": "build/qa/list-selection-native-layout-2026-10-20.log",
+      "reaped_pid": 90790
+    },
+    {
+      "check": "Initial family geometry attempts",
+      "result": "failed; fixture moved Add Path before pinned checkbox, existing guard correctly restored its position",
+      "logs": [
+        "build/qa/list-selection-native-layout-2026-10-20.log",
+        "build/qa/list-selection-native-families-geometry-2026-10-20.log"
+      ],
+      "reaped_pids": [
+        90791,
+        90950
+      ],
+      "repair": "Reorder within permitted data columns; keep source checkbox pin guard and assertions"
+    },
+    {
+      "check": "Grouped actual native families",
+      "result": "passed with Apple Git and bundled Git; direct table controls, private domains, reorder/hide, Add checkbox, reference rename, Contains/Progress Copy, Sync local refs/tags, Browser, forced history exclusion and retirement",
+      "log": "build/qa/list-selection-native-families-2026-10-20.log",
+      "reaped_pids": [
+        91048,
+        91144
+      ]
+    },
+    {
+      "check": "Initial WindowServer visual acceptance",
+      "result": "AppKit label/full correct; SwiftUI label/full remained visually identical whole-row selection; not accepted",
+      "log": "build/qa/list-selection-captures-2026-10-20.log",
+      "reaped_pid": 91253,
+      "cause": "Public NSTableRowView contract bypasses drawSelection for sourceList style; explicit native selection style suppression/restoration repair pending"
+    },
+    {
+      "check": "Rendering repair Debug app build",
+      "result": "passed; explicit table/row selection style capture/suppression/restoration and layer-backed label overlay",
+      "log": "build/qa/list-selection-app-rendering-2026-10-20.log"
+    },
+    {
+      "check": "Style/layer rendering repair grouped native check",
+      "result": "adapter and both Git family cases passed; secondary-column WindowServer pixel oracle confirms whole-row suppression; visual inspection rejected shifted fallback caption baseline/inset",
+      "log": "build/qa/list-selection-native-rendering-2026-10-20.log",
+      "reaped_pids": [
+        91501,
+        91520,
+        91616
+      ],
+      "repair": "Vertically center fallback native text-cell frame; remove arbitrary no-icon fixture inset; retain actual native-field geometry and production icon spacing"
+    },
+    {
+      "check": "Final caption baseline app build",
+      "result": "passed",
+      "log": "build/qa/list-selection-app-baseline-2026-10-20.log"
+    },
+    {
+      "check": "Affected adapter and actual visual acceptance",
+      "result": "passed; source styles and semantic selection retained, fallback caption vertically centered, no-icon inset removed; eight real WindowServer images, native style metadata and secondary-column pixel oracle passed; final light/dark images visually inspected",
+      "log": "build/qa/list-selection-native-baseline-2026-10-20.log",
+      "reaped_pid": 91932,
+      "note": "Only affected adapter/capture repeated; passing five Core methods and real family actions were not rerun for caption-only geometry correction"
+    },
+    {
+      "check": "Generated resources, source review ledger and website",
+      "result": "localization check38languages1305keys and Help46guides51topics66files passed; source ledger130dialogs120partial10pending0certified/1574mapped85pending controls; website381documents with no unresolved fragments; whitespace check passed",
+      "logs": [
+        "build/qa/list-selection-localizations-check-2026-10-20.log",
+        "build/qa/list-selection-help-check-2026-10-20.log",
+        "build/qa/list-selection-dialog-coverage-2026-10-20.log",
+        "build/qa/list-selection-site-2026-10-20.log"
+      ],
+      "note": "Source ledger counts are review coverage, not a feature completion percentage"
+    }
+  ],
+  "remaining": [
+    "Windows pixel/font metrics and all assistive input devices",
+    "Every Settings/list variant and minimum macOS/current physical signed distribution",
+    "Raw Resolve/Sync file lists use tested bridge but were not independently populated in this checkpoint",
+    "Complete current hosted integration and source dialog/application parity remain unproven"
+  ],
+  "captures": [
+    {
+      "artifact": "docs/site/assets/list-selection-label-light.png",
+      "sha256": "52658fdcaf532bfb8dc947e915090a4c80c976e85edc0e7c59cdfc37a9cafb3a"
+    },
+    {
+      "artifact": "docs/site/assets/list-selection-full-light.png",
+      "sha256": "d390e5d478231e693784c3810e5360c6be37814d2b186747ca2418c235ec49f4"
+    },
+    {
+      "artifact": "docs/site/assets/list-selection-label-dark.png",
+      "sha256": "1799bba2f605c084020331cc3b96e309efcbe3fee278649cf19aa6e1f3e7df44"
+    },
+    {
+      "artifact": "docs/site/assets/list-selection-full-dark.png",
+      "sha256": "64ac8a688f55a5bbf06573aa330a2f774989d2514a9aa56cd10c0568fd4f4418"
+    }
+  ],
+  "cleanup": "Owned native receivers report reaped; independent ps confirms absence. Capture children complete before receiver drain. No unrelated user applications terminated."
+}

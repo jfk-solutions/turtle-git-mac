@@ -537,7 +537,9 @@ private struct ResolveDialog: View {
                         TableColumn("Path") { row in let entry = row.entry; HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()); Text(entry.path).foregroundStyle(FileState.conflicted.textColor) }.repositoryFileHelp(repository: model.repository.root, path: entry.path, preferences: model.preferences) }.width(min: 260, ideal: 440)
                         TableColumn("Extension") { Text(StatusListClipboard.fileExtension($0.entry.path,isDirectory:$0.entry.isSubmodule)) }.width(70)
                         TableColumn("Status") { _ in Text("Conflicted").foregroundStyle(FileState.conflicted.textColor) }.width(95)
-                    }.disabled(!model.canInteract).fileListFont().background(ResolveSelectionMarkProbe(model:model)).contextMenu(forSelectionType: String.self) { ids in
+                    } .disabled(!model.canInteract).fileListFont().background(ResolveSelectionMarkProbe(model:model))
+                    .background(NativeListSelectionProbe(preferences:model.preferences,primaryTitle:"Path",labelText:{row in model.entries.indices.contains(row) ? model.entries[row].path:nil},font:model.preferences.bool(forKey:"LogFontForFileListCtrl") ? MessageEditorFont.resolve(name:model.preferences.string(forKey:"LogFontName") ?? MessageEditorFont.defaultName,size:model.preferences.object(forKey:"LogFontSize") as? Int ?? MessageEditorFont.defaultSize):nil,leadingInset:24))
+                    .contextMenu(forSelectionType: String.self) { ids in
                         let target = model.fileMenu(GitPathRowIdentity.paths(ids))
                         TurtleGitContextMenu {
                             ResolveSelectionMenu(paths:target.entries.map(\.path),rebase:model.rebase,canEdit:target.entries.count == 1) {action,paths in

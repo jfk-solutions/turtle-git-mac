@@ -23,7 +23,7 @@ import TurtleGitCore
         return views(owner.window?.contentView).compactMap{$0 as? FileOperationProgressNativeTable}.first!
     }
     static func coordinator(_ table:FileOperationProgressNativeTable)throws->FileOperationProgressTable.Coordinator {
-        guard let value=table.delegate as? FileOperationProgressTable.Coordinator else {throw Failure(description:"Actual shared Revert table coordinator missing")};return value
+        guard let value=NativeListSelection.originalDelegate(of:table) as? FileOperationProgressTable.Coordinator else {throw Failure(description:"Actual shared Revert table coordinator missing")};return value
     }
     static func select(_ table:FileOperationProgressNativeTable,path:String)async throws {
         let source=try coordinator(table)

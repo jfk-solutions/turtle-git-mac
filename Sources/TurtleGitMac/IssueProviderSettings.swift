@@ -71,6 +71,36 @@ struct IssueProviderSettingsPage: View {
 private struct IssueProviderSettingsWindowProbe: NSViewRepresentable {
     let model: IssueProviderSettingsModel
     func makeNSView(context: Context) -> Probe { let view = Probe(); view.model = model; return view }
-    func updateNSView(_ view: Probe, context: Context) { model.window = view.window }
-    final class Probe: NSView { weak var model: IssueProviderSettingsModel?; override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.window = window } }
+    func updateNSView(_ view: Probe, context: Context) { view.model=model;model.window = view.window;view.scheduleSelection() }
+    static func dismantleNSView(_ view:Probe,coordinator:()) {view.retire();view.model=nil}
+    final class Probe: NSView {
+        weak var model: IssueProviderSettingsModel?
+        private weak var table:NSTableView?
+        private weak var primary:NSTableColumn?
+        private var generation=UUID(),retired=false
+        override func viewDidMoveToWindow() {super.viewDidMoveToWindow();model?.window=window;if window==nil {detach()}else{scheduleSelection()}}
+        override func viewDidMoveToSuperview() {super.viewDidMoveToSuperview();scheduleSelection()}
+        override func layout() {super.layout();scheduleSelection()}
+        private func findTable(in view:NSView)->NSTableView? {
+            if let table=view as? NSTableView,!(table is NSOutlineView) {return table}
+            for child in view.subviews {if let table=findTable(in:child){return table}}
+            return nil
+        }
+        func scheduleSelection() {
+            guard !retired,window != nil else{return}
+            let receipt=UUID();generation=receipt
+            DispatchQueue.main.async {[weak self] in
+                guard let self,!self.retired,self.generation==receipt,self.window != nil,let model=self.model else{return}
+                var ancestor=self.superview,found:NSTableView?
+                while let view=ancestor,found==nil {found=self.findTable(in:view);ancestor=view.superview}
+                guard let found,found.tableColumns.count>=2 else{return}
+                if self.table !== found {self.detach();self.table=found;self.primary=found.tableColumns[1]}
+                // Native Enabled is a separate checkbox column; the source's
+                // logical first label is the Working tree path, not that state.
+                NativeListSelection.install(on:found,preferences:model.preferences,primaryColumn:self.primary,labelText:{[weak model] row in guard let model,model.rows.indices.contains(row) else{return nil};return model.rows[row].path})
+            }
+        }
+        private func detach() {generation=UUID();if let table {NativeListSelection.remove(from:table)};table=nil;primary=nil}
+        func retire() {retired=true;detach()}
+    }
 }

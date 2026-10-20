@@ -12,6 +12,12 @@ struct WorktreeListTable: NSViewRepresentable {
         context.coordinator.model = model; context.coordinator.update()
     }
 
+    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator) {
+        guard let table=coordinator.table else{return}
+        NativeListSelection.remove(from:table);table.delegate=nil;table.dataSource=nil;table.target=nil;table.menu?.delegate=nil
+        if let header=table.headerView as? WorktreeTableHeaderView {header.buildMenu={nil};header.fitColumn={_,_ in}}
+    }
+
     @MainActor final class Coordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource, NSMenuDelegate {
         static let columns: [(String, String, CGFloat)] = [("path", "Path", 150), ("hash", "Hash", 100), ("branch", "Branch", 100), ("locked", "Locked", 100), ("reason", "Reason", 100)]
         static let settingsKey = "WorktreeList.Columns.v1"
@@ -51,6 +57,7 @@ struct WorktreeListTable: NSViewRepresentable {
         }
         func update() {
             guard let table else { return }
+            NativeListSelection.install(on:table,preferences:defaults,primaryColumn:table.tableColumns.first(where:{$0.identifier.rawValue=="path"}),labelText:{[weak self] row in guard let self,self.model.rows.indices.contains(row) else{return nil};return self.model.rows[row].path.path},font:.systemFont(ofSize:12),leadingInset:22)
             updating = true; defer { updating = false }
             let next = model.rows.map { row in ([row.id] + Self.columns.map { value($0.0, row: row) }).joined(separator: "\0") }
             if next != snapshot { snapshot = next; table.reloadData() }
@@ -221,7 +228,7 @@ struct WorktreeListTable: NSViewRepresentable {
     }
 }
 
-final class WorktreeTableView: NSTableView {
+final class WorktreeTableView: NativeListSelectionTableView {
     private let defaults: UserDefaults
     private let backdrop = MenuIcon.repositoryBackdrop.image(size: 128)
     init(defaults: UserDefaults) { self.defaults = defaults; super.init(frame: .zero) }
@@ -245,7 +252,7 @@ final class WorktreeTableView: NSTableView {
         menu?.update(); return menu
     }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.keyCode == 96, let coordinator = delegate as? WorktreeListTable.Coordinator { coordinator.model.reload(); return true }
+        if event.keyCode == 96, let coordinator = NativeListSelection.originalDelegate(of:self) as? WorktreeListTable.Coordinator { coordinator.model.reload(); return true }
         return super.performKeyEquivalent(with: event)
     }
 }

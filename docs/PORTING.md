@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The [list-selection presentation family](LIST-SELECTION-PARITY.md) ports the
+source FullRowSelect policy across file, reference, progress and related
+Settings/Find/Import lists, preserving forced-full revision history.
+The Core policy/store group, Debug app and grouped native checks passed across
+the checkpoint and focused repairs. Real light/dark captures caught and verified
+the source-list painting and fallback-baseline corrections; the family record
+retains source/platform and full-dialog acceptance gaps.
+
 The [Finder status-policy family](FINDER-STATUS-POLICY-PARITY.md) connects all four
 cache choices, exact index-case policy, source stat/content thresholds and global
 command ownership across Settings, foreground/watched publishers, the helper and

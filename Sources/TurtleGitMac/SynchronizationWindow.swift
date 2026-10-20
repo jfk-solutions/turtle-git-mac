@@ -2500,7 +2500,9 @@ private struct SynchronizationFiles: View {
                     TableColumn("Status") { file in Text(FileListLabels.caption(file.status)) }.width(70)
                     TableColumn("Added") { file in Text(file.addedText) }.width(65)
                     TableColumn("Deleted") { file in Text(file.removedText) }.width(65)
-                }.contextMenu {
+                }.background(NativeListSelectionProbe(preferences:model.preferences,primaryTitle:"Path",labelText:{row in
+                    guard files.indices.contains(row) else{return nil};return files[row].path
+                },leadingInset:23)).contextMenu {
                     Button { model.compareFiles(unified: false) } label: { CommandLabel(title: "Compare two revisions", icon: .compare) }
                     Button { model.compareFiles(unified: true) } label: { CommandLabel(title: "Show unified diff", icon: .compare) }
                 }
@@ -3129,11 +3131,12 @@ private struct SynchronizationReferenceTable: NSViewRepresentable {
         table.makeMenu = { [weak table, weak coordinator = context.coordinator] in coordinator?.rowMenu(table?.selectedRow ?? -1) }
         if model.preferences === UserDefaults.standard { table.autosaveName = "TurtleGit.SyncRefs.Columns"; table.autosaveTableColumns = true }
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.documentView = table
-        context.coordinator.table = table; return scroll
+        context.coordinator.table = table;context.coordinator.updateSelectionStyle(); return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.model = model; context.coordinator.reload()
     }
+    static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator) {if let table=coordinator.table {NativeListSelection.remove(from:table)}}
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         var model: SynchronizationWindowModel
         weak var table: NSTableView?
@@ -3150,7 +3153,14 @@ private struct SynchronizationReferenceTable: NSViewRepresentable {
             default: return row.newMessage
             }
         }
+        func updateSelectionStyle() {
+            guard let table else{return}
+            NativeListSelection.install(on:table,preferences:model.preferences,primaryColumn:table.tableColumn(withIdentifier:.init("0")),labelText:{[weak self] row in
+                guard let self,self.rows.indices.contains(row) else{return nil};return self.rows[row].shortName
+            },leadingInset:22)
+        }
         func reload() {
+            updateSelectionStyle()
             let selected = table.flatMap { rows.indices.contains($0.selectedRow) ? rows[$0.selectedRow].id : nil }
             rows = model.referenceRows
             if let descriptor = table?.sortDescriptors.first, let column = Int(descriptor.key ?? "") {
@@ -3228,6 +3238,7 @@ private struct SynchronizationTagTable: NSViewRepresentable {
         context.coordinator.table = table; context.coordinator.reload(); return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) { context.coordinator.model = model; context.coordinator.reload() }
+    static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator) {if let table=coordinator.table {NativeListSelection.remove(from:table)}}
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         var model: SynchronizationWindowModel
         weak var table: NSTableView?
@@ -3243,7 +3254,14 @@ private struct SynchronizationTagTable: NSViewRepresentable {
             default: return row.remoteMessage
             }
         }
+        func updateSelectionStyle() {
+            guard let table else{return}
+            NativeListSelection.install(on:table,preferences:model.preferences,primaryColumn:table.tableColumn(withIdentifier:.init("0")),labelText:{[weak self] row in
+                guard let self,self.rows.indices.contains(row) else{return nil};return self.rows[row].name.rawValue
+            },leadingInset:2)
+        }
         func reload() {
+            updateSelectionStyle()
             let selected = table.flatMap { rows.indices.contains($0.selectedRow) ? rows[$0.selectedRow].id : nil }
             let descriptor = table?.sortDescriptors.first, column = Int(descriptor?.key ?? "0") ?? 0
             let logical = !model.preferences.bool(forKey: "NoStrCmpLogical")

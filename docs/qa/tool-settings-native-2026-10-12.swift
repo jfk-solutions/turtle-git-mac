@@ -11,7 +11,7 @@ import TurtleGitCore
         let suite="TurtleGit.ToolSettingsNative."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         defer{prefs.removePersistentDomain(forName:suite)}
         let a=entry(".a"),b=entry(".b"),c=entry(".c")
-        let associations=ToolAssociationsModel(associations:[c,a,b],tool:"diff")
+        let associations=ToolAssociationsModel(associations:[c,a,b],tool:"diff",preferences:prefs)
         try require(associations.rows.map(\.pattern)==[".a",".b",".c"],"Association sorting differs")
         associations.selected=b.id;associations.remove()
         try require(associations.selected==c.id && associations.draft.count==2,"Remove failed to select next row")
@@ -24,7 +24,7 @@ import TurtleGitCore
         try require(associations.draft.count==2 && associations.valid,"Duplicate edit overwrote another association")
         associations.edit();changed=associations.editing!;changed.pattern=".z";associations.accept(changed)
         try require(associations.rows.map(\.pattern)==[".a",".z"] && associations.selected==changed.id,"Renamed association lost sorted selection")
-        let mergeAssociations=ToolAssociationsModel(associations:[],tool:"merge");mergeAssociations.add()
+        let mergeAssociations=ToolAssociationsModel(associations:[],tool:"merge",preferences:prefs);mergeAssociations.add()
         try require(mergeAssociations.editing?.program.arguments=="%base %theirs %mine %merged","Merge Add used diff arguments")
         mergeAssociations.accept(nil)
         let tableWindow=NSWindow(contentRect:NSRect(x:0,y:0,width:720,height:400),styleMask:[.titled],backing:.buffered,defer:false);tableWindow.isReleasedWhenClosed=false
@@ -42,7 +42,7 @@ import TurtleGitCore
         let diff=ToolSettingsDraft(DiffToolPreferences(),valid:{$0.valid},persist:{try $0.save(to:prefs)})
         let merge=ToolSettingsDraft(MergeToolPreferences(),valid:{$0.valid},persist:{try $0.save(to:prefs)})
         let transaction=SettingsTransaction(),window=NSWindow(contentRect:NSRect(x:0,y:0,width:900,height:900),styleMask:[.titled],backing:.buffered,defer:false);window.isReleasedWhenClosed=false
-        let host=NSHostingView(rootView:VStack{DiffToolSettings(model:diff);MergeToolSettings(model:merge)}.environment(\.settingsTransaction,transaction));window.contentView=host;host.layoutSubtreeIfNeeded()
+        let host=NSHostingView(rootView:VStack{DiffToolSettings(model:diff,preferences:prefs);MergeToolSettings(model:merge,preferences:prefs)}.environment(\.settingsTransaction,transaction));window.contentView=host;host.layoutSubtreeIfNeeded()
         defer{transaction.invalidate();window.contentView=nil;window.close()}
         diff.value.associations=associations.draft;merge.value.associations=[original];merge.value.blockWhileMerging=true
         try await wait{transaction.modified};transaction.apply(closeAfter:false);try await wait{!transaction.busy}

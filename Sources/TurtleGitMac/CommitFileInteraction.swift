@@ -265,6 +265,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     let rows: [StatusListRow]
     var leadingColumnCount = 1
+    var selectionLabelInset:CGFloat = 24
     var keyboardDeleteEnabled = true
     var nativeColumns = StatusListColumn.allCases
     var rowTexts: [[StatusListColumn: String]]? = nil
@@ -298,7 +299,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     func updateNSView(_ view: Probe, context: Context) {
         view.preferences=preferences
         view.fileListFont = useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil
-        view.leadingColumnCount = leadingColumnCount; view.keyboardDeleteEnabled = keyboardDeleteEnabled
+        view.leadingColumnCount = leadingColumnCount; view.selectionLabelInset=selectionLabelInset; view.keyboardDeleteEnabled = keyboardDeleteEnabled
         view.nativeColumns = nativeColumns; view.rowTexts = rowTexts; view.itemIDs = itemIDs
         view.copyIDs = copyIDs; view.copyColumnIDs = copyColumnIDs; view.captureColumnCopy = captureColumnCopy; view.toggleCheckIDs = toggleCheckIDs
         view.columnText = columnText
@@ -317,6 +318,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         var fileListFont: NSFont?
         var rows: [StatusListRow] = []
         var leadingColumnCount = 1
+        var selectionLabelInset:CGFloat = 24
         var keyboardDeleteEnabled = true
         var nativeColumns = StatusListColumn.allCases
         var rowTexts: [[StatusListColumn: String]]? = nil
@@ -516,6 +518,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             let currentObjects = Set(table.tableColumns.map(ObjectIdentifier.init))
             let originalObjects = Set(originalColumns.map(ObjectIdentifier.init))
             if configuredTable !== table || currentObjects != originalObjects || layoutObservers.isEmpty {
+                if let previous=configuredTable,previous !== table {NativeListSelection.remove(from:previous)}
                 for observer in geometryObservers { NotificationCenter.default.removeObserver(observer) }; geometryObservers = []
                 groupHeaders?.removeFromSuperview(); groupHeaders = nil
                 watermark?.removeFromSuperview(); watermark = nil
@@ -541,6 +544,11 @@ struct CommitFileInteraction: NSViewRepresentable {
             let byDefinition = Dictionary(uniqueKeysWithValues: originalColumns.dropFirst(leadingColumnCount).compactMap { column -> (StatusListColumn, NSTableColumn)? in
                 columnDefinitions[ObjectIdentifier(column)].map { ($0, column) }
             })
+            NativeListSelection.install(on:table,preferences:preferences,primaryColumn:byDefinition[.path],labelText:{[weak self] row in
+                guard let self,self.rows.indices.contains(row),self.rows[row].group==nil else{return nil}
+                if let texts=self.rowTexts,texts.indices.contains(row) {return texts[row][.path]}
+                return self.rows[row].entry.map{self.columnText($0,.path)}
+            },font:fileListFont,leadingInset:selectionLabelInset)
             desiredColumns = Array(originalColumns.prefix(leadingColumnCount)) + savedOrder.compactMap { byDefinition[$0] }
             desiredWidths = originalWidths
             for (definition, column) in byDefinition where visibleColumns.contains(definition) && savedWidths[definition] == nil {
@@ -645,6 +653,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
         }
         func stopObserving() {
+            if let configuredTable {NativeListSelection.remove(from:configuredTable)}
             finishResetQuestion(false)
             if let closeObserver {NotificationCenter.default.removeObserver(closeObserver);self.closeObserver=nil}
             integrationActive = false; integrationGeneration = UUID(); configurationScheduled = false

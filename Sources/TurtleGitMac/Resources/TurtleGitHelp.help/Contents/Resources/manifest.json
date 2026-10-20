@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "280dc442f6df6933a63323c7ddf0677f26b1b8ea6f75f934fe3aa7f84e263654",
+    "Contents/Info.plist": "8329faea77ee80683190efc2de72f3d50b293fab69fba144b32690ea9b7f8fda",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "01d9789d13afd9ece8aac7c7a97615b55f0e9e37f5211445b613f67b4d166d39",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "940fa5e112b44a1c585a13339c8d07f16d36149a2ab0a9295b31c44728f0287d",
@@ -23,6 +23,7 @@
     "Contents/Resources/en.lproj/LFS.html": "0fce6bd22bff5a9eacdc281918aba1ae37941f892c13100e5f17625d83dc6178",
     "Contents/Resources/en.lproj/LIBGIT2-TRANSPORT.html": "d0937a9e57486185d7c306bb7f709efdade5ef961daca8c2242a7d9cffc2f449",
     "Contents/Resources/en.lproj/LIBREOFFICE-COMPARISON.html": "e451291b0f37adf06688ea828a60151aa49859948cf576e20961989fd3b9e236",
+    "Contents/Resources/en.lproj/LIST-SELECTION.html": "17213eb9b191a9c46bfd20b849ccb97c694584946faf28a6c510b07851178fde",
     "Contents/Resources/en.lproj/LOG-FIND.html": "6f557107c2666c5117ca34d1486449389f82e74eade846a50d75a3a676d7b739",
     "Contents/Resources/en.lproj/MERGE-FILTERS.html": "fd3810301986f74435fb161b42c4abff1bb1f53347e5e2cd9eae51f4c8b2a8af",
     "Contents/Resources/en.lproj/MERGE-TOOL.html": "04f0830be9589106a99ab85d2a3dd7a7dbb8d6bcbdaad8248f5d37d33e4347e9",
@@ -62,8 +63,8 @@
     "Contents/Resources/en.lproj/images/ed3713977296-image-conflict-undecodable-light.png": "138d20aa5da3ab6b283e6d2d69e78639534af3cbef1a2bbbb686ab48aa3b1446",
     "Contents/Resources/en.lproj/images/f49a195c8c35-cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
     "Contents/Resources/en.lproj/images/f7856202ab6a-commit-file-groups-language-de-dark.png": "e7f075b32f6ff02494ead9db85a9da57039ad1a108cda57cadbe40c895f988ed",
-    "Contents/Resources/en.lproj/index.html": "133e2479950d37902ae6a29e384f9d84319f46b177b8ef871c908f6843d2e71d",
-    "Contents/Resources/en.lproj/topics.json": "d51ea85d21b0bda155a2750cb0582616ba13a4c9a33b78623fa19b910f802f76"
+    "Contents/Resources/en.lproj/index.html": "740fe4a094c666f55fee01d2f33503b53139e211a0257e13cf2654aa23996a62",
+    "Contents/Resources/en.lproj/topics.json": "946a675a424a87bd13f16d61e397cc49e1d8a417c7b82a83f8a842d59c62ca7b"
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
@@ -87,6 +88,7 @@
     "docs/LFS.md": "e8b3f0ed2af880058d2c59e82e32942fa8c7a3ca957626fb55c55d74afcc6ffa",
     "docs/LIBGIT2-TRANSPORT.md": "2c7c1caa9a96eff7b5c93fa3deae28662e298f97a3318efc75b96d0b8b15a498",
     "docs/LIBREOFFICE-COMPARISON.md": "8ec86dfbadbfd8d76f9feaca94e331c8fed7fca41886cf256a380da5db0533bc",
+    "docs/LIST-SELECTION.md": "232668a1da8fa2990ce59256f81cffd10e50c9703bae5fffabf3a3c95755d9e7",
     "docs/LOG-FIND.md": "76d55d6d65a79e6bb066468bddd465e81c3a038b4289e2db84a3ded13c5d7e9e",
     "docs/MERGE-FILTERS.md": "c32dbedd77e3f6903bb05bac9d9edc9efbdfad6942bdaad57752a27c7107f028",
     "docs/MERGE-TOOL.md": "016985a213a8bc9cdc571552ebccc1cabe4095ad4d3b30d0a415ec307bd43a05",
@@ -111,7 +113,7 @@
     "docs/WORD-COMPARISON.md": "4abfaf00ef834ee9788858006e4272d16f9961a7a42147a97e5d09dfd0350fd2",
     "docs/WORD-MERGE.md": "ffed41df55c03977f430e784cd444e2b5616b77422a79119f11df0f53631ef6d",
     "docs/ZIP-COMPARISON.md": "1fa7085d96970e6cc85ef8edb5e94f12277617d5c91614f1fd05c92362576241",
-    "docs/help-topics.json": "d51ea85d21b0bda155a2750cb0582616ba13a4c9a33b78623fa19b910f802f76",
+    "docs/help-topics.json": "946a675a424a87bd13f16d61e397cc49e1d8a417c7b82a83f8a842d59c62ca7b",
     "docs/site/assets/binary-comparison-dark.png": "13944fd1b3128d1a46cadfabc89f4245a0008a379a7b1ad18e8b77365e618c8d",
     "docs/site/assets/binary-comparison-light.png": "0dda7bddf5a03dbf5bad64e6481f89121752721f2d4bb16995f29a406f2bb04b",
     "docs/site/assets/cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",

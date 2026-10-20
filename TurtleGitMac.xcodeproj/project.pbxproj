@@ -131,6 +131,7 @@
 		46F03179364D977A48FD1EC5 /* Changelists.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA08DAA6757DBD3FB0045BC5 /* Changelists.swift */; };
 		471772E43763EFBC99CF45AB /* PatchDocumentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 513BD09BF0F8FC608F46B9E0 /* PatchDocumentSession.swift */; };
 		474CDC2930F387A838093934 /* GitIdentityDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9162AD3A361D9BBCBA036367 /* GitIdentityDisplay.swift */; };
+		47C90FA5782CF28164E939B7 /* NativeListSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = B533A6FFAFFC30F53C371E5B /* NativeListSelection.swift */; };
 		48DD87A5E7EFF4B3B5A65756 /* HistoryContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 785EA4A8140D3A35CD9D32F5 /* HistoryContextMenu.swift */; };
 		48FAEDE446D237548B7AFA7B /* MergeOpenWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5ECE8E964DD38B678A58BE /* MergeOpenWindow.swift */; };
 		4B0B5DB397498EF493E58BE1 /* FinderCacheTray.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BA2413C2104D89DB7CAE240 /* FinderCacheTray.swift */; };
@@ -880,6 +881,7 @@
 		B44383F950F24C4B2CFFBD82 /* GitSingleCommitDetails.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitSingleCommitDetails.swift; sourceTree = "<group>"; };
 		B448BFA0806C28AEC8AE9126 /* SerialPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SerialPatch.swift; sourceTree = "<group>"; };
 		B4DE08A2852733DA440A85CB /* GitCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitCredentials.swift; sourceTree = "<group>"; };
+		B533A6FFAFFC30F53C371E5B /* NativeListSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeListSelection.swift; sourceTree = "<group>"; };
 		B733277271B0769B1CB05397 /* GitReferenceName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitReferenceName.swift; sourceTree = "<group>"; };
 		B8BDE176DAEFC2951FD10AA5 /* WorkspaceOpenHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceOpenHandoff.swift; sourceTree = "<group>"; };
 		B975BF437A681B29D6A21240 /* SubmoduleUpdateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdateWindow.swift; sourceTree = "<group>"; };
@@ -1180,6 +1182,7 @@
 				5223DFD2A4DD4A2D03A544FA /* MissingStagedFileRecovery.swift */,
 				9FA1B00CA442E623732196B4 /* NativeFixedFontChoice.swift */,
 				65BAEACE3DFED3450B1FD93F /* NativeFontSizeChoice.swift */,
+				B533A6FFAFFC30F53C371E5B /* NativeListSelection.swift */,
 				92BCC367833CF7B0CCC10BC6 /* NativeWatermarkTable.swift */,
 				586A85599BCC6EF0DE6B1042 /* NetworkSettings.swift */,
 				A257C0CA956E0F3CCCBD435C /* PatchClipboard.swift */,
@@ -2320,6 +2323,7 @@
 				0F5692E27DE7CC5C20F31062 /* MissingStagedFileRecovery.swift in Sources */,
 				E0C3C88D342ACD61766B9E6A /* NativeFixedFontChoice.swift in Sources */,
 				8018F6DD761929B2D54820EF /* NativeFontSizeChoice.swift in Sources */,
+				47C90FA5782CF28164E939B7 /* NativeListSelection.swift in Sources */,
 				BBF557294334CDAEE1937ADD /* NativeWatermarkTable.swift in Sources */,
 				D9322B0364F93F87A7132897 /* NetworkSettings.swift in Sources */,
 				A79BF60CDBEDA5B4F781B0A5 /* PatchClipboard.swift in Sources */,

@@ -33,7 +33,7 @@ import TurtleGitCore
         await model.refresh()
         try require(model.checked == ["new-b"],"Unchecked path contaminated its canonical neighbor after refresh")
         let table=views(owner.window!.contentView!).compactMap {$0 as? LFSLocksNativeTable}.first!
-        let coordinator=table.delegate as! LFSLocksTable.Coordinator
+        let coordinator=NativeListSelection.originalDelegate(of:table) as! LFSLocksTable.Coordinator
         model.selection=["new-b"];coordinator.refresh()
         try require(table.selectedRowIndexes.count==1 && GitReferenceName.equal(coordinator.itemIDs![table.selectedRow],"new-b"),"Native selection lost exact row")
         model.checkClicked("new-b",value:false);try require(model.checked.isEmpty,"Checkbox affected another path")

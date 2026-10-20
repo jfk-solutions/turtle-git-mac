@@ -107,10 +107,12 @@ public struct AdvancedSettingsStore {
 /// DWORD interpretation follows the source registry consumers, including the
 /// minimum-three multiple-diff safeguard and strict greater-than list threshold.
 public struct AdvancedListBehavior: Sendable {
+    public let fullRowSelect: Bool
     public let localBranchesFirst: Bool
     public let tooManyFiles: UInt32
     public let diffWarning: UInt32
     public init(defaults: UserDefaults = .standard) {
+        fullRowSelect = ((defaults.object(forKey: "FullRowSelect") as? NSNumber)?.uint32Value ?? 1) != 0
         localBranchesFirst = !defaults.bool(forKey: "NoSortLocalBranchesFirst")
         tooManyFiles = (defaults.object(forKey: "LogTooManyItemsThreshold") as? NSNumber)?.uint32Value ?? 1000
         diffWarning = (defaults.object(forKey: "NumDiffWarning") as? NSNumber)?.uint32Value

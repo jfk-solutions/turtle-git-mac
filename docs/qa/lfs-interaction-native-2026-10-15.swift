@@ -82,7 +82,7 @@ import TurtleGitCore
         model.setColumn(.lfsOwner,visible:true);model.setSortOrder([LFSFileSort(column:.path)])
         try await wait { views(owner.window!.contentView!).contains { $0 is LFSLocksNativeTable } }
         let lockedTable = views(owner.window!.contentView!).compactMap { $0 as? LFSLocksNativeTable }.first!
-        let nativeList = lockedTable.delegate as! LFSLocksTable.Coordinator
+        let nativeList = NativeListSelection.originalDelegate(of:lockedTable) as! LFSLocksTable.Coordinator
         try require((lockedTable.headerView?.frame.height ?? 0) > 0,"Native list header has no visible height")
         try require(lockedTable.watermarkImage != nil && lockedTable.backdropRect(in:NSRect(x:0,y:0,width:500,height:300)) != nil,"Native lock-list watermark missing")
         model.selection = ["1","2"];nativeList.contextColumn = .lfsOwner

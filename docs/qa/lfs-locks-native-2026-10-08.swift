@@ -44,7 +44,7 @@ import TurtleGitCore
         precondition(table.numberOfRows == 2 && table.tableColumns.count == 7)
         precondition(MenuIcon.lock.image() != nil && MenuIcon.unlock.image() != nil)
         try await settle { table.headerView?.menu?.item(withTitle: "Filename") != nil && table.tableColumns.filter { !$0.isHidden }.count == 4 }
-        func locksProbe() -> LFSLocksTable.Coordinator { table.delegate as! LFSLocksTable.Coordinator }
+        func locksProbe() -> LFSLocksTable.Coordinator { NativeListSelection.originalDelegate(of:table) as! LFSLocksTable.Coordinator }
         precondition(locksProbe().nativeColumns == LFSLocksWindowModel.columns && locksProbe().itemIDs?.count == 2)
         precondition(table.tableColumns[2].isHidden && table.tableColumns[4].isHidden && table.tableColumns[5].isHidden)
         precondition(locksProbe().columnMenu().item(withTitle: "Status") == nil)
@@ -93,7 +93,7 @@ import TurtleGitCore
         try await settle {
             let views = descendants(reopen.window!.contentView!)
             guard let table = views.compactMap({ $0 as? NSTableView }).first,
-                  let probe = table.delegate as? LFSLocksTable.Coordinator else { return false }
+                  let probe = NativeListSelection.originalDelegate(of:table) as? LFSLocksTable.Coordinator else { return false }
             return probe.columnDefinition(atNativeIndex: 1) == .lfsOwner && abs(table.tableColumns[1].width - 217) < 0.5
         }
         precondition(reopen.model.fileColumns == savedLocksColumns); reopen.window?.close()
@@ -273,7 +273,7 @@ import TurtleGitCore
         positionController.window!.contentView!.layoutSubtreeIfNeeded()
         try await settle { descendants(positionController.window!.contentView!).contains { $0 is LFSLocksNativeTable } }
         let positionTable = descendants(positionController.window!.contentView!).compactMap { $0 as? NSTableView }.first!
-        let positionProbe = positionTable.delegate as! LFSLocksTable.Coordinator
+        let positionProbe = NativeListSelection.originalDelegate(of:positionTable) as! LFSLocksTable.Coordinator
         try await settle { positionTable.numberOfRows == 160 && positionProbe.itemIDs?.count == 160 && positionTable.headerView?.menu != nil }
         precondition(positionModel.saveColumnLayout(order: positionModel.fileColumns.order, widths: [.path:1200]))
         try await settle { abs(positionTable.tableColumns[1].width - 1200) < 0.5 }

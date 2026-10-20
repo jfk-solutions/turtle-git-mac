@@ -76,7 +76,7 @@ struct FileOperationProgressTable: NSViewRepresentable {
     func makeCoordinator()->Coordinator {Coordinator(self)}
     func makeNSView(context:Context)->NSScrollView {context.coordinator.make()}
     func updateNSView(_ view:NSScrollView,context:Context) {context.coordinator.parent=self;if context.coordinator.generation != state.generation{context.coordinator.resetAttempt()};context.coordinator.reloadPreservingSelection()}
-    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator){coordinator.table.makeMenu={nil};coordinator.table.copySelection={};coordinator.table.resultAvailable={false};coordinator.table.retainedMenuTargets=[];coordinator.table.target=nil;coordinator.table.delegate=nil;coordinator.table.dataSource=nil}
+    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator){NativeListSelection.remove(from:coordinator.table);coordinator.table.makeMenu={nil};coordinator.table.copySelection={};coordinator.table.resultAvailable={false};coordinator.table.retainedMenuTargets=[];coordinator.table.target=nil;coordinator.table.delegate=nil;coordinator.table.dataSource=nil}
     @MainActor final class Coordinator:NSObject,NSTableViewDataSource,NSTableViewDelegate {
         var parent:FileOperationProgressTable
         let table:FileOperationProgressNativeTable
@@ -87,7 +87,13 @@ struct FileOperationProgressTable: NSViewRepresentable {
         private var restoringSort=false
         private var displayedRowIDs:[UUID]=[]
         private var preservingSelection=false
+        func updateSelectionStyle() {
+            NativeListSelection.install(on:table,preferences:parent.state.preferences,primaryColumn:table.tableColumn(withIdentifier:.init("action")),labelText:{[weak self] row in
+                guard let self else{return nil};let values=self.rows;guard values.indices.contains(row) else{return nil};return NSLocalizedString(values[row].action,comment:"")
+            },leadingInset:parent.fileRowIcons ? 23:2)
+        }
         func reloadPreservingSelection() {
+            updateSelectionStyle()
             let selected=Set(table.selectedRowIndexes.compactMap{displayedRowIDs.indices.contains($0) ? displayedRowIDs[$0]:nil})
             displayedRowIDs=rows.map(\.id)
             preservingSelection=true
@@ -122,7 +128,7 @@ struct FileOperationProgressTable: NSViewRepresentable {
             displayedRowIDs=rows.map(\.id)
             table.dataSource=self;table.delegate=self;table.rowHeight=22;table.allowsMultipleSelection=true;table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
             for (id,title,width) in [("action","Action",120.0),("path","Path",560.0)] {let column=NSTableColumn(identifier:.init(id));column.title=NSLocalizedString(title,comment:"");column.width=width;column.sortDescriptorPrototype=NSSortDescriptor(key:id,ascending:true);table.addTableColumn(column)}
-            table.target=self;table.doubleAction=#selector(openRow(_:));table.makeMenu={ [weak self] in self?.menu() };table.copySelection={ [weak self] in self?.copySelected() };table.resultAvailable={ [weak self] in self?.parent.keyboardAllowed==true };scroll.documentView=table;return scroll
+            table.target=self;table.doubleAction=#selector(openRow(_:));table.makeMenu={ [weak self] in self?.menu() };table.copySelection={ [weak self] in self?.copySelected() };table.resultAvailable={ [weak self] in self?.parent.keyboardAllowed==true };scroll.documentView=table;updateSelectionStyle();return scroll
         }
         func numberOfRows(in tableView:NSTableView)->Int {rows.count}
         func tableViewSelectionDidChange(_ notification:Notification){if !preservingSelection {selectionGeneration=UUID()}}

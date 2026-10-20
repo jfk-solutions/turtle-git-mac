@@ -20,7 +20,7 @@ private extension NSWindow {
     static func table(_ window:NSWindow)async throws->FileOperationProgressNativeTable {
         try await wait {window.contentView?.layoutSubtreeIfNeeded();return views(window.contentView).contains{$0 is FileOperationProgressNativeTable}}
         let result=views(window.contentView).compactMap{$0 as? FileOperationProgressNativeTable}.first!
-        try await wait {guard let source=result.delegate as? FileOperationProgressTable.Coordinator else{return false};return result.numberOfRows==source.rows.count}
+        try await wait {guard let source=NativeListSelection.originalDelegate(of:result) as? FileOperationProgressTable.Coordinator else{return false};return result.numberOfRows==source.rows.count}
         return result
     }
     static func verifyViewport(_ table:FileOperationProgressNativeTable,minimumRows:Int)throws {
@@ -32,7 +32,7 @@ private extension NSWindow {
         try require(table.backdropRect(in:NSRect(x:20,y:70,width:500,height:240)) == NSRect(x:392,y:182,width:128,height:128),"Full-size list watermark lost viewport anchoring")
     }
     static func coordinator(_ table:FileOperationProgressNativeTable)throws->FileOperationProgressTable.Coordinator {
-        guard let value=table.delegate as? FileOperationProgressTable.Coordinator else {throw Failure(description:"Actual notification coordinator missing")};return value
+        guard let value=NativeListSelection.originalDelegate(of:table) as? FileOperationProgressTable.Coordinator else {throw Failure(description:"Actual notification coordinator missing")};return value
     }
     static func select(_ table:FileOperationProgressNativeTable,_ predicate:(FileOperationProgressRow)->Bool)throws->FileOperationProgressRow {
         let source=try coordinator(table),rows=source.rows

@@ -669,6 +669,7 @@ struct ImportPatchNativeList:NSViewRepresentable {
     }
     func updateNSView(_ scroll:NSScrollView,context:Context) {context.coordinator.model=model;context.coordinator.update()}
     static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator) {
+        if let table=coordinator.table {NativeListSelection.remove(from:table)}
         coordinator.retired=true;coordinator.table?.lifetime.retire();coordinator.table?.delegate=nil;coordinator.table?.dataSource=nil;coordinator.table?.buildMenu={nil};coordinator.table?.activate={};coordinator.table?.toggleChecks={}
     }
     @MainActor final class Coordinator:NSObject,NSTableViewDataSource,NSTableViewDelegate {
@@ -692,6 +693,7 @@ struct ImportPatchNativeList:NSViewRepresentable {
                 rows=model.items;renderedRevision=model.catalogRevision;table.reloadData()
                 table.enclosingScrollView?.contentView.scroll(to:origin)
             }
+            NativeListSelection.install(on:table,preferences:model.previewDocument.appearancePreferences,primaryColumn:table.tableColumns.first,labelText:{[weak self] row in guard let self,self.rows.indices.contains(row) else{return nil};return self.rows[row].file.path},leadingInset:29)
             let selected=IndexSet(rows.indices.filter {model.selection.contains(rows[$0].id)})
             if selected != table.selectedRowIndexes {table.selectRowIndexes(selected,byExtendingSelection:false)}
             table.isEnabled=model.editable
@@ -717,7 +719,7 @@ struct ImportPatchNativeList:NSViewRepresentable {
         }
         func tableView(_ tableView:NSTableView,rowViewForRow row:Int)->NSTableRowView? {
             guard rows.indices.contains(row) else{return nil}
-            let view=NSTableRowView()
+            let view=NativeListSelectionRowView()
             if [.success,.failed,.skipped].contains(rows[row].state) {
                 view.backgroundColor=NSColor(name:nil) {appearance in NSColor(white:appearance.bestMatch(from:[.darkAqua,.aqua]) == .darkAqua ? 0.25:0.78,alpha:1)}
             };return view

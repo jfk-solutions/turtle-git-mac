@@ -20,6 +20,9 @@ for baseline and update rules.
 
 ## Guides and project status
 
+- [Choosing list selection highlighting](LIST-SELECTION.md)
+- [List selection source comparison](LIST-SELECTION-PARITY.md)
+
 - [Choosing Finder status behavior](FINDER-STATUS-POLICY.md)
 - [Finder status-policy source comparison](FINDER-STATUS-POLICY-PARITY.md)
 - [Getting started with TurtleGit for Mac](GETTING-STARTED.md)

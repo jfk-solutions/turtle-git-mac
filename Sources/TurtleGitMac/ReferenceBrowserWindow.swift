@@ -919,6 +919,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         let folderMenu = NSMenu(); folderMenu.delegate = context.coordinator; tree.menu = folderMenu
         for view in [tree, table] { let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder; scroll.documentView = view; split.addArrangedSubview(scroll) }
         context.coordinator.tree = tree; context.coordinator.table = table
+        context.coordinator.updateSelectionStyle()
         split.setPosition(model.columnLayout.divider, ofDividerAt: 0)
         return split
     }
@@ -926,7 +927,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         let coordinator = context.coordinator; coordinator.model = model; coordinator.update()
         DispatchQueue.main.async { [weak coordinator, weak table = coordinator.table, weak split] in guard let coordinator,!coordinator.retired, let table else { return }; if let split, !coordinator.positioned, split.bounds.width > 0 { coordinator.updating = true;split.setPosition(min(coordinator.model.columnLayout.divider,max(120,split.bounds.width - 320)), ofDividerAt: 0);coordinator.updating = false; coordinator.positioned = true }; coordinator.model.focusIfReady(table) }
     }
-    static func dismantleNSView(_ split: NSSplitView, coordinator: Coordinator) { coordinator.retired = true;(coordinator.tree as? ReferenceBrowserNamespaceOutline)?.selectionMenu.retire();(coordinator.table as? ReferenceBrowserRenameTable)?.selectionMenu.retire();split.delegate = nil; coordinator.tree?.delegate = nil; coordinator.tree?.dataSource = nil; coordinator.tree?.menu?.delegate = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil; coordinator.table?.menu?.delegate = nil;(coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.buildMenu = { nil };(coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.fit = {_,_ in} }
+    static func dismantleNSView(_ split: NSSplitView, coordinator: Coordinator) { if let table=coordinator.table {NativeListSelection.remove(from:table)};coordinator.retired = true;(coordinator.tree as? ReferenceBrowserNamespaceOutline)?.selectionMenu.retire();(coordinator.table as? ReferenceBrowserRenameTable)?.selectionMenu.retire();split.delegate = nil; coordinator.tree?.delegate = nil; coordinator.tree?.dataSource = nil; coordinator.tree?.menu?.delegate = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil; coordinator.table?.menu?.delegate = nil;(coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.buildMenu = { nil };(coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.fit = {_,_ in} }
     @MainActor final class Folder: NSObject { let key: GitReferenceName; var children: [Folder] = []; weak var parent: Folder?; init(_ key: GitReferenceName) { self.key = key } }
     @MainActor final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate, NSMenuDelegate, NSSplitViewDelegate {
         private let wordCommands=GitInputWordCommands()
@@ -988,8 +989,16 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             }
             return menu
         }
+        func updateSelectionStyle() {
+            guard let table else{return}
+            NativeListSelection.install(on:table,preferences:model.preferences,primaryColumn:table.tableColumn(withIdentifier:.init("name")),labelText:{[weak self] row in
+                guard let self,self.visible.indices.contains(row) else{return nil}
+                return self.model.text(self.visible[row],column:"name")
+            },leadingInset:2)
+        }
         func update() {
             guard !retired,let tree, let table else { return }
+            updateSelectionStyle()
             if model.renameReference != nil { tree.isEnabled = false; renameField?.isEditable = !model.busy; return }
             if renameField != nil { renameField?.delegate = nil; table.window?.makeFirstResponder(table); renameField = nil }
             updating = true; defer { updating = false }

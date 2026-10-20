@@ -47,7 +47,7 @@ import TurtleGitCore
         let add = AddWindowController(repository:repo,access:nil,defaults:prefs),model = add.model
         defer {add.close()};add.window!.alphaValue = 0;add.window!.orderFront(nil);model.setScope([a,b]);model.reload()
         try await wait(add.window) {!model.busy && model.entries.count == 2}
-        guard let table = views(add.window?.contentView).compactMap({$0 as? NSTableView}).first,let coordinator = table.delegate as? AddFileTable.Coordinator else {throw Failure(description:"Native Add list unavailable")}
+        guard let table = views(add.window?.contentView).compactMap({$0 as? NSTableView}).first,let coordinator = NativeListSelection.originalDelegate(of:table) as? AddFileTable.Coordinator else {throw Failure(description:"Native Add list unavailable")}
         try await wait(add.window) {table.numberOfRows == 2}
         func addIndex(_ path:String)->Int {coordinator.rows.firstIndex {GitReferenceName.equal($0.path,path)}!}
         func addButton(_ path:String)->NSButton? {views(add.window?.contentView).compactMap {$0 as? NSButton}.first {$0.accessibilityLabel().map {GitReferenceName.equal($0,"Add "+path)} == true}}

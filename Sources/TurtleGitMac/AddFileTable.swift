@@ -55,6 +55,7 @@ struct AddFileTable: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView { context.coordinator.fileListFont = fileListFont; return context.coordinator.make() }
     func updateNSView(_ view: NSScrollView, context: Context) { _ = showFullPathTooltip; context.coordinator.fileListFont = fileListFont; context.coordinator.refresh() }
+    static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator) {NativeListSelection.remove(from:coordinator.table)}
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         let model: AddWindowModel
         private let nativeTable = AddNativeTable(icon: .addBackdrop)
@@ -131,7 +132,13 @@ struct AddFileTable: NSViewRepresentable {
             clipboard.submenu = submenu; menu.addItem(clipboard)
             table.menu = menu; scroll.documentView = table; applyingColumns = false; refresh(); return scroll
         }
+        func updateSelectionStyle() {
+            NativeListSelection.install(on:table,preferences:model.presentationPreferences,primaryColumn:table.tableColumn(withIdentifier:.init("path")),labelText:{[weak self] row in
+                guard let self else{return nil};let values=self.rows;guard values.indices.contains(row) else{return nil};return values[row].path
+            },font:fileListFont,leadingInset:23)
+        }
         func refresh() {
+            updateSelectionStyle()
             applyColumnLayout()
             table.allowsColumnResizing = model.columnCommandsAvailable
             table.allowsColumnReordering = model.columnCommandsAvailable

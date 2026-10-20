@@ -92,7 +92,7 @@ import TurtleGitCore
         try await wait(browser.window) {!browser.model.busy && browser.model.snapshot != nil}
         browser.model.folder=GitReferenceName("refs/heads/feature");browser.model.select([GitReferenceName("refs/heads/feature/topic-name")],last:GitReferenceName("refs/heads/feature/topic-name"))
         try await wait(browser.window) {browser.model.canRename}
-        guard let table=views(browser.window?.contentView).compactMap({$0 as? NSTableView}).first(where:{!($0 is NSOutlineView)}),let coordinator=table.delegate as? ReferenceBrowserNativeView.Coordinator else{throw Failure(description:"Reference table missing")}
+        guard let table=views(browser.window?.contentView).compactMap({$0 as? NSTableView}).first(where:{!($0 is NSOutlineView)}),let coordinator=NativeListSelection.originalDelegate(of:table) as? ReferenceBrowserNativeView.Coordinator else{throw Failure(description:"Reference table missing")}
         try await wait(browser.window) {table.numberOfRows==1 && table.selectedRow==0}
         coordinator.beginRename()
         try await wait(browser.window) {views(table).compactMap{$0 as? NSTextField}.contains{$0.accessibilityLabel()=="Rename branch" && $0.currentEditor() != nil}}

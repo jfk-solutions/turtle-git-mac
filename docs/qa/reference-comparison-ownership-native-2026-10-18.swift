@@ -48,7 +48,7 @@ import TurtleGitCore
         window.alphaValue = 0; window.orderFront(nil); model.load()
         try await wait { !model.busy && model.snapshot != nil && ReferenceBrowserWindowModel.activeReads == 0 }
         guard let table = views(window.contentView!).compactMap({ $0 as? ReferenceBrowserRenameTable }).first,
-              let coordinator = table.delegate as? ReferenceBrowserNativeView.Coordinator,
+              let coordinator = NativeListSelection.originalDelegate(of:table) as? ReferenceBrowserNativeView.Coordinator,
               let menu = table.menu else { throw Failure(description: "Native reference report/menu missing") }
         func select(_ names: Set<GitReferenceName>, last: GitReferenceName? = nil) async throws {
             let folder = model.snapshot!.initialSelection(names.first!.rawValue).folder

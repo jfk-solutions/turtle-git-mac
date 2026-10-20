@@ -85,6 +85,9 @@ private final class CommitReferencesWindow: NSWindow {
         let column = NSTableColumn(identifier: .init("reference")); column.title = "Ref"; table.addTableColumn(column)
         table.headerView = nil; table.allowsMultipleSelection = true; table.dataSource = self; table.delegate = self; table.rowHeight = 22
         table.target = self; table.doubleAction = #selector(navigateReference)
+        NativeListSelection.install(on:table,preferences:preferences,primaryColumn:column,labelText:{[weak self] row in
+            guard let self,self.rows.indices.contains(row) else{return nil};return self.rows[row].rawValue
+        },leadingInset:24)
         let menu = NSMenu(); menu.delegate = self; table.menu = menu
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.documentView = table; scroll.borderType = .bezelBorder
         let top = NSStackView(views: [self.revision, chooser]); top.orientation = .horizontal
@@ -256,7 +259,7 @@ private final class CommitReferencesWindow: NSWindow {
     func copySelection() { guard canAct else { return }; let names = selectedReferences; if !names.isEmpty { copyText(names.map(\.rawValue).joined(separator: "\n") + "\n") } }
     func windowShouldClose(_ sender: NSWindow) -> Bool { canAct && unifiedViewer?.model.busy != true && unifiedViewer?.window?.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) {
-        closed = true; cancelRead(); revisionTimer?.invalidate(); filterTimer?.invalidate()
+        closed = true;NativeListSelection.remove(from:table); cancelRead(); revisionTimer?.invalidate(); filterTimer?.invalidate()
         if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
         picker?.close(); picker = nil; unifiedViewer?.close(); unifiedViewer = nil; onClosed()
         updateAvailability(); NotificationCenter.default.removeObserver(self)

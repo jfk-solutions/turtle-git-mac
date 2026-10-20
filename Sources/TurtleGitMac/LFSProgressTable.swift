@@ -105,6 +105,7 @@ struct LFSProgressTable: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView { context.coordinator.make() }
     func updateNSView(_ scroll: NSScrollView, context: Context) { _ = background; context.coordinator.refresh() }
+    static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator) {if let table=coordinator.table {NativeListSelection.remove(from:table)}}
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         private weak var model: LFSLocksWindowModel?
         private(set) var table: NativeWatermarkTable!
@@ -132,7 +133,14 @@ struct LFSProgressTable: NSViewRepresentable {
             refresh(); return scroll
         }
         private var rows: [LFSProgressRow] { displayedRows }
+        func updateSelectionStyle() {
+            guard let table,let model else{return}
+            NativeListSelection.install(on:table,preferences:model.presentationPreferences,primaryColumn:table.tableColumn(withIdentifier:.init("action")),labelText:{[weak self] row in
+                guard let self,self.rows.indices.contains(row) else{return nil};return self.rows[row].action
+            },leadingInset:2)
+        }
         func refresh() {
+            updateSelectionStyle()
             let selected = Set(table.selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].id : nil })
             let follow = table.enclosingScrollView.map { $0.documentVisibleRect.maxY >= table.bounds.maxY - table.rowHeight * 2 } ?? true
             if renderedGeneration != model?.progressGeneration { renderedGeneration = model?.progressGeneration; sortedColumn = nil; ascending = true }

@@ -317,7 +317,7 @@ struct HookSettingsNativeList:NSViewRepresentable {
     func makeCoordinator()->Coordinator{Coordinator(model)}
     func makeNSView(context:Context)->NSScrollView{context.coordinator.make()}
     func updateNSView(_ view:NSScrollView,context:Context){context.coordinator.update()}
-    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator){coordinator.table.target=nil;coordinator.table.delegate=nil;coordinator.table.dataSource=nil;coordinator.table.toggleFocused={false}}
+    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator){NativeListSelection.remove(from:coordinator.table);coordinator.table.target=nil;coordinator.table.delegate=nil;coordinator.table.dataSource=nil;coordinator.table.toggleFocused={false}}
     @MainActor final class Coordinator:NSObject,NSTableViewDataSource,NSTableViewDelegate {
         let model:HookSettingsModel
         let table=HookSettingsNativeTableView()
@@ -338,7 +338,7 @@ struct HookSettingsNativeList:NSViewRepresentable {
         }
         func update(){
             updating=true;defer{updating=false}
-            table.fullRowSelect=(model.preferences.object(forKey:"FullRowSelect") as? NSNumber)?.boolValue ?? true
+            NativeListSelection.install(on:table,preferences:model.preferences,primaryColumn:table.tableColumns.first,labelText:{[weak self] row in guard let self,self.model.hooks.indices.contains(row) else{return nil};return self.model.hooks[row].type.rawValue},leadingInset:26)
             table.reloadData()
             let selected=IndexSet(model.hooks.indices.filter{model.selection.contains(model.hooks[$0].id)})
             if table.selectedRowIndexes != selected{table.selectRowIndexes(selected,byExtendingSelection:false)}
@@ -381,12 +381,7 @@ struct HookSettingsNativeList:NSViewRepresentable {
     }
 }
 @MainActor final class HookSettingsEnableButton:NSButton {var hookID=""}
-@MainActor final class HookSettingsNativeTableView:NSTableView {
-    var fullRowSelect=true
+@MainActor final class HookSettingsNativeTableView:NativeListSelectionTableView {
     var toggleFocused:()->Bool={false}
-    override func highlightSelection(inClipRect clipRect:NSRect){
-        guard !fullRowSelect,!tableColumns.isEmpty else{super.highlightSelection(inClipRect:clipRect);return}
-        NSGraphicsContext.saveGraphicsState();NSBezierPath(rect:rect(ofColumn:0).intersection(clipRect)).addClip();super.highlightSelection(inClipRect:clipRect);NSGraphicsContext.restoreGraphicsState()
-    }
     override func keyDown(with event:NSEvent){if event.charactersIgnoringModifiers==" ",event.modifierFlags.intersection([.command,.option,.control,.shift]).isEmpty,toggleFocused(){return};super.keyDown(with:event)}
 }

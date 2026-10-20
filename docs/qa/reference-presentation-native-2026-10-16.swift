@@ -33,7 +33,7 @@ struct ReferencePresentationVerification {
         defer {owner.close()};owner.commandKeyWindow={window};window.alphaValue=0;window.orderFront(nil);model.load()
         try await wait {window.contentView?.layoutSubtreeIfNeeded();return !model.busy && model.rows.count==41 && find(NSTableView.self,in:window.contentView,label:"References")?.numberOfRows==41}
         let table=find(NSTableView.self,in:window.contentView,label:"References")!,tree=find(NSOutlineView.self,in:window.contentView,label:"Reference namespaces")!,field=find(NSSearchField.self,in:window.contentView,label:"Filter references")!
-        let coordinator=table.delegate as! ReferenceBrowserNativeView.Coordinator,header=table.headerView as! RepositoryBrowserColumnHeader,split=tree.enclosingScrollView!.superview as! NSSplitView
+        let coordinator=NativeListSelection.originalDelegate(of:table) as! ReferenceBrowserNativeView.Coordinator,header=table.headerView as! RepositoryBrowserColumnHeader,split=tree.enclosingScrollView!.superview as! NSSplitView
         try await wait {coordinator.positioned}
         try require(model.sortColumn=="name" && !model.descending && model.columnLayout.order.first=="hash" && model.columnLayout.order.count==9 && model.columnLayout.visible.contains("name") && model.columnLayout.divider==190,"Malformed persistence did not normalize source defaults")
         try require(table.tableColumn(withIdentifier:.init("hash"))!.width==404 && table.tableColumn(withIdentifier:.init("name"))!.width==210,"Invalid width or original hash width restoration")

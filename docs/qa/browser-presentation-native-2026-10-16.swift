@@ -32,7 +32,7 @@ import TurtleGitCore
         defer {owner.close()};model.clipboard=clipboard;owner.commandKeyWindow={window};window.alphaValue=0;window.orderFront(nil)
         func table()->NSTableView? {views(window.contentView!).compactMap{$0 as? NSTableView}.first{$0.accessibilityLabel()=="Repository contents"}}
         try await wait {window.contentView?.layoutSubtreeIfNeeded();return !model.busy && model.entries.count==45 && table()?.numberOfRows==45}
-        let list=table()!,coordinator=list.delegate as! RepositoryBrowserContentsTable.Coordinator,header=list.headerView as! RepositoryBrowserColumnHeader
+        let list=table()!,coordinator=NativeListSelection.originalDelegate(of:list) as! RepositoryBrowserContentsTable.Coordinator,header=list.headerView as! RepositoryBrowserColumnHeader
         let split=views(window.contentView!).compactMap{$0 as? NSSplitView}.first{$0.isVertical && $0.arrangedSubviews.count==2}!
         do {try await wait {abs(split.arrangedSubviews[0].frame.width-333)<2}}
         catch {throw Failure(description:"Divider restore: width=\(split.arrangedSubviews[0].frame.width), bounds=\(split.bounds), model=\(String(describing:model.dividerWidth)), delegate=\(String(describing:split.delegate)), fields=\(Mirror(reflecting:split.delegate as Any).children.map{String(describing:$0)})") }

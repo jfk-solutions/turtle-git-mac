@@ -12,6 +12,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
     func updateNSView(_ view:NSScrollView,context:Context) { context.coordinator.model=model;context.coordinator.update() }
     static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator) {
         coordinator.retired = true
+        if let table=coordinator.table {NativeListSelection.remove(from:table)}
         coordinator.table?.delegate = nil;coordinator.table?.dataSource = nil;coordinator.table?.menu?.delegate = nil
         (coordinator.table as? RepositoryBrowserNativeTable)?.contentsAttached={_ in}
         (coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.buildMenu = {nil}
@@ -69,6 +70,9 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             let key=sort?.keyPath == \RepositoryBrowserEntry.fileExtension ? "extension" : sort?.keyPath == \RepositoryBrowserEntry.sizeSort ? "size" : "name"
             let descriptor=NSSortDescriptor(key:key,ascending:sort?.order != .reverse)
             if table.sortDescriptors != [descriptor] { table.sortDescriptors=[descriptor] }
+            NativeListSelection.install(on:table,preferences:model.preferences,primaryColumn:table.tableColumns.first{$0.identifier.rawValue=="name"},labelText:{[weak self] row in
+                guard let self,self.rows.indices.contains(row) else{return nil};return self.rows[row].name
+            },font:.systemFont(ofSize:12),leadingInset:25)
             table.isEnabled=available;table.allowsColumnResizing=available;table.allowsColumnReordering=available
             if table.window != nil{model.contentsTableAttached(table)}
         }

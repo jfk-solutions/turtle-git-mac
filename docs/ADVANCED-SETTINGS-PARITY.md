@@ -1,9 +1,9 @@
 # Advanced Settings port audit
 
 Target: TortoiseGit commit `7338078f8ddd924b8cddee35f512f2286072136d`.
-The native editor and storage are implemented. This is not complete settings or
-application parity: most setting consumers and native visual/gesture acceptance
-remain pending.
+The native editor and storage are implemented. Later family checkpoints below
+identify delivered consumers and their evidence; complete Settings/application
+parity and native visual/gesture acceptance remain open.
 
 ## Source and catalogue
 
@@ -60,6 +60,11 @@ are stored for subsequent ports; their row tooltips state that they have no
 effect yet. Storage/editor parity is not proof of their runtime behavior.
 
 ## Verification and remaining scope
+
+The connected [list-selection family](LIST-SELECTION-PARITY.md) adds the
+`FullRowSelect` consumer across file, reference, progress and related Settings
+lists. Revision-history rows retain their source-forced full-row selection.
+Its checkpoint records actual implementation and remaining acceptance.
 
 The connected [Finder status-policy family](FINDER-STATUS-POLICY-PARITY.md)
 implements `OverlaysCaseSensitive`, `TGitCacheCheckContentMaxSize` and `BlockStatus`

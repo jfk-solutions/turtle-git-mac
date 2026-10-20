@@ -856,7 +856,7 @@ struct StatusDialog: View {
             .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
                 guard !model.busy, !model.confirmingQuit, !model.retired else { return false }; return model.onTransferDrop(providers)
             }
-            .background(CommitFileInteraction(rows: model.tableRows.map(\.row), leadingColumnCount: 0, keyboardDeleteEnabled: true,configureRefresh:{model.fileListRefresh.attach($0)},preferences:model.colorPreferences,
+            .background(CommitFileInteraction(rows: model.tableRows.map(\.row), leadingColumnCount: 0, selectionLabelInset:22, keyboardDeleteEnabled: true,configureRefresh:{model.fileListRefresh.attach($0)},preferences:model.colorPreferences,
                 visibleColumns: Set(model.visibleColumns), availableColumns: model.availableColumns, columnText: { entry, column in
                     rowsByID[entry.path].map { model.columnText($0,column) } ?? ""
                 }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths,

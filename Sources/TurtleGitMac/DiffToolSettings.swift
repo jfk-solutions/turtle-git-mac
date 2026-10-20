@@ -146,7 +146,7 @@ struct DiffToolSettings: View {
             }.padding(20)
         }
         .settingsParticipant("diff", page: .diff, value: model.value, modified: { model.modified }, validate: { model.validationError }, apply: { model.apply() }, cancel: model.cancel)
-        .sheet(isPresented: $advanced) { DiffToolAssociations(associations: model.value.associations) { value in if let value { model.value.associations = value }; advanced = false } }
+        .sheet(isPresented: $advanced) { DiffToolAssociations(associations: model.value.associations,preferences:preferences) { value in if let value { model.value.associations = value }; advanced = false } }
     }
 }
 @MainActor final class ToolAssociationsModel: ObservableObject {
@@ -156,7 +156,8 @@ struct DiffToolSettings: View {
     @Published private(set) var editorIdentity=UUID()
     @Published private(set) var focusRequest=UUID()
     let tool: String
-    init(associations: [DiffToolAssociation], tool: String) { draft = associations; self.tool = tool }
+    let preferences:UserDefaults
+    init(associations: [DiffToolAssociation], tool: String,preferences:UserDefaults = .standard) { draft = associations; self.tool = tool;self.preferences=preferences }
     var rows: [DiffToolAssociation] { draft.sorted { $0.normalizedPattern.localizedStandardCompare($1.normalizedPattern) == .orderedAscending } }
     var valid: Bool { draft.allSatisfy(\.valid) && Set(draft.map(\.normalizedPattern)).count == draft.count && (tool != "merge" || draft.allSatisfy { MergeToolPreferences.supports($0.program.builtIn) }) }
     func restoreDefaults() {
@@ -198,8 +199,8 @@ struct DiffToolSettings: View {
 struct DiffToolAssociations: View {
     @StateObject private var model: ToolAssociationsModel
     let completed: ([DiffToolAssociation]?) -> Void
-    init(associations: [DiffToolAssociation], tool: String = "diff", completed: @escaping ([DiffToolAssociation]?) -> Void) {
-        _model = StateObject(wrappedValue: ToolAssociationsModel(associations: associations, tool: tool)); self.completed = completed
+    init(associations: [DiffToolAssociation], tool: String = "diff",preferences:UserDefaults = .standard, completed: @escaping ([DiffToolAssociation]?) -> Void) {
+        _model = StateObject(wrappedValue: ToolAssociationsModel(associations: associations, tool: tool,preferences:preferences)); self.completed = completed
     }
     init(model: ToolAssociationsModel, completed: @escaping ([DiffToolAssociation]?) -> Void) { _model = StateObject(wrappedValue: model); self.completed = completed }
     var body: some View {
@@ -235,7 +236,7 @@ struct ToolAssociationsTable: NSViewRepresentable {
     @ObservedObject var model: ToolAssociationsModel
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView {
-        let table = NSTableView(); table.allowsMultipleSelection = false; table.allowsEmptySelection = true
+        let table = NativeListSelectionTableView(); table.allowsMultipleSelection = false; table.allowsEmptySelection = true
         table.usesAlternatingRowBackgroundColors = true; table.rowHeight = 24
         table.setAccessibilityLabel("Advanced " + model.tool + " tool associations")
         for (identifier, title, width) in [("extension", "Extension", 160.0), ("program", "Program", 490.0)] {
@@ -251,6 +252,7 @@ struct ToolAssociationsTable: NSViewRepresentable {
     func updateNSView(_ view: NSScrollView, context: Context) {
         let coordinator = context.coordinator; coordinator.model = model; coordinator.rows = model.rows
         guard let table = coordinator.table else { return }
+        NativeListSelection.install(on:table,preferences:model.preferences,primaryColumn:table.tableColumns.first,labelText:{[weak coordinator] row in guard let coordinator,coordinator.rows.indices.contains(row) else{return nil};return coordinator.rows[row].pattern})
         coordinator.updating = true; table.reloadData()
         if let index = coordinator.rows.firstIndex(where: { $0.id == model.selected }) { table.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
         else { table.deselectAll(nil) }
@@ -263,6 +265,7 @@ struct ToolAssociationsTable: NSViewRepresentable {
     }
     static func dismantleNSView(_ view: NSScrollView, coordinator: Coordinator) {
         coordinator.retire()
+        if let table=coordinator.table {NativeListSelection.remove(from:table)}
         coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil; coordinator.table?.target = nil; coordinator.table = nil
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
@@ -555,17 +558,19 @@ struct DiffToolAssociationEditor: View {
 }
 
 struct MergeToolSettings: View {
+    private let preferences:UserDefaults
     @StateObject private var model: ToolSettingsDraft<MergeToolPreferences>
     @State private var advanced = false
     init(preferences: UserDefaults = .standard) {
+        self.preferences=preferences
         _model = StateObject(wrappedValue: ToolSettingsDraft(MergeToolPreferences.load(from: preferences), valid: { $0.valid }, persist: { try $0.save(to: preferences) }))
     }
-    init(model: ToolSettingsDraft<MergeToolPreferences>) { _model = StateObject(wrappedValue: model) }
+    init(model: ToolSettingsDraft<MergeToolPreferences>,preferences:UserDefaults = .standard) {self.preferences=preferences; _model = StateObject(wrappedValue: model) }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             GroupBox("Configure the program used for merging different revisions of files") {
                 VStack(alignment: .leading, spacing: 12) {
-                    DiffProgramForm(program: $model.value.program, tool: "merge")
+                    DiffProgramForm(program: $model.value.program, tool: "merge",preferences:preferences)
                     Toggle("Block while merging", isOn: $model.value.blockWhileMerging).disabled(!model.value.program.enabled && !model.value.associations.contains { $0.program.enabled }).onChange(of: model.value.blockWhileMerging) { if !$0 { model.value.trustExitCode = false } }
                     Toggle("Trust the exit code", isOn: $model.value.trustExitCode).disabled(!model.value.trustExitCode && (!model.value.blockWhileMerging || !model.value.supportsTrustedExit))
                     Text("Executable tools report an exit code. Trust resolves only exit code zero; otherwise blocking mode asks whether to mark the result resolved. App bundles use that question. Word merging has no trusted exit status; save the reviewed document as the original conflicting file before marking it resolved.").font(.caption).foregroundStyle(.secondary)
@@ -577,7 +582,7 @@ struct MergeToolSettings: View {
             Spacer()
         }.padding(20)
         .settingsParticipant("mergeTool", page: .mergeTool, value: model.value, modified: { model.modified }, validate: { model.validationError }, apply: { model.apply() }, cancel: model.cancel)
-        .sheet(isPresented: $advanced) { DiffToolAssociations(associations: model.value.associations, tool: "merge") { value in if let value { model.value.associations = value }; advanced = false } }
+        .sheet(isPresented: $advanced) { DiffToolAssociations(associations: model.value.associations, tool: "merge",preferences:preferences) { value in if let value { model.value.associations = value }; advanced = false } }
     }
 }
 

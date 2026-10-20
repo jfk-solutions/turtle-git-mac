@@ -983,7 +983,7 @@ final class RevisionGraphFindWindow: NSWindow {
     let regex = NSButton(checkboxWithTitle: "Regular Expression", target: nil, action: nil)
     let findButton = NSButton(title: "Find", target: nil, action: nil)
     let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
-    let table = NSTableView()
+    let table = NativeListSelectionTableView()
     let referenceFilter = NSTextField()
     let status = NSTextField(labelWithString: "")
     private let repository: GitRepository
@@ -1063,6 +1063,7 @@ final class RevisionGraphFindWindow: NSWindow {
         table.headerView = nil; table.rowHeight = 22; table.delegate = self; table.dataSource = self
         table.target = self; table.action = #selector(referenceClicked); table.allowsMultipleSelection = false
         table.setAccessibilityLabel("References; click to go to revision")
+        NativeListSelection.install(on:table,preferences:preferences,primaryColumn:column,labelText:{[weak self] row in guard let self,self.visibleReferences.indices.contains(row) else{return nil};return self.visibleReferences[row]},leadingInset:21)
         let scroller = NSScrollView(); scroller.hasVerticalScroller = true; scroller.documentView = table
         scroller.heightAnchor.constraint(greaterThanOrEqualToConstant: 160).isActive = true
         referenceFilter.delegate = self; referenceFilter.setAccessibilityLabel("Reference filter")
@@ -1235,6 +1236,7 @@ final class RevisionGraphFindWindow: NSWindow {
     @objc private func cancelFind() { window?.performClose(nil) }
     func windowWillClose(_ notification: Notification) {
         guard !closed else { return }; closed = true; request = UUID()
+        NativeListSelection.remove(from:table)
         NotificationCenter.default.removeObserver(self); failures.removeAll(); acknowledgingFailure = false; loadingReferences = false; pendingReferenceRefresh = false
         if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
         errorAlert = nil; token?.cancel(); worker?.cancel(); refToken.cancel(); refWorker?.cancel(); filterWorker?.cancel(); updateAvailability(); onClosed()
