@@ -2,6 +2,7 @@
 import XCTest
 import AppKit
 import ImageIO
+import CoreText
 import Darwin
 @testable import TurtleGitCore
 
@@ -1404,4 +1405,159 @@ extension MetafileImageTests {
         }
         for name in ["path-cubic-count","path-rle-overrun","overlong-inset","object-truncated"] {XCTAssertNil(ComparisonImage(bytes:try data("unsupported-pen-custom-"+name+".emf")),name)}
     }
+    private func positionedInk(_ bytes:Data)throws->TextInk {
+        let rendered=try XCTUnwrap(ComparisonImage(bytes:bytes)),width=rendered.pixels.width,height=rendered.pixels.height
+        XCTAssertEqual(width,96);XCTAssertEqual(height,64)
+        var rgba=[UInt8](repeating:0,count:width*height*4)
+        try rgba.withUnsafeMutableBytes { storage in
+            let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+            context.draw(rendered.pixels,in:CGRect(x:0,y:0,width:width,height:height))
+        }
+        return TextInk(width:width,height:height,points:Set((0..<width*height).filter{let p=$0*4;return rgba[p+3]>128 && rgba[p]<128 && rgba[p+1]<128 && rgba[p+2]<128}))
+    }
+    private func positionedInk(_ name:String)throws->TextInk {try positionedInk(data(name+".emf"))}
+    /// Resolve actual installed cmap IDs, then change only the wire's glyph-mode
+    /// bit and UInt16 values. Positions, font, brush and framing remain original.
+    private func positionedRawGlyphCopy(_ original:Data)throws->Data {
+        var bytes=original
+        func u32(_ p:Int)throws->Int {try XCTUnwrap(p>=0 && p+4<=bytes.count ? (0..<4).reduce(0){$0|Int(bytes[p+$1])<<($1*8)}:nil)}
+        func put32(_ value:Int,_ p:Int){for k in 0..<4{bytes[p+k]=UInt8(truncatingIfNeeded:value>>(k*8))}}
+        func replace(_ p:Int,_ count:Int)throws {
+            XCTAssertGreaterThan(count,0);XCTAssertLessThan(count,1024)
+            let chars=try (0..<count).map { index -> UniChar in let q=p+index*2;return try XCTUnwrap(q+2<=bytes.count ? UInt16(bytes[q])|UInt16(bytes[q+1])<<8:nil) }
+            let font=CTFontCreateWithName("Helvetica" as CFString,18,nil)
+            var glyphs=[CGGlyph](repeating:0,count:count)
+            let mapped=chars.withUnsafeBufferPointer{characters in glyphs.withUnsafeMutableBufferPointer{output in CTFontGetGlyphsForCharacters(font,characters.baseAddress!,output.baseAddress!,count)}}
+            XCTAssertTrue(mapped)
+            for (index,glyph) in glyphs.enumerated(){XCTAssertGreaterThan(glyph,0);let q=p+index*2;bytes[q]=UInt8(truncatingIfNeeded:glyph);bytes[q+1]=UInt8(truncatingIfNeeded:glyph>>8)}
+        }
+        var cursor=88,found=false
+        while cursor+8<=bytes.count {
+            let type=try u32(cursor),size=try u32(cursor+4);guard size>=8,cursor+size<=bytes.count else{throw NSError(domain:"Positioned fixture framing",code:1)}
+            if type==84 {let body=cursor+8,count=try u32(body+36),offset=try u32(body+40);try replace(cursor+offset,count);put32(try u32(body+44)|0x10,body+44);found=true}
+            if type==70,cursor+16<=bytes.count,bytes.subdata(in:cursor+12..<cursor+16)==Data("EMF+".utf8) {
+                var item=cursor+16
+                while item+12<=cursor+size {
+                    let kind=Int(bytes[item])|Int(bytes[item+1])<<8,length=try u32(item+4)
+                    guard length>=12,item+length<=cursor+size else{throw NSError(domain:"Positioned plus fixture framing",code:1)}
+                    if kind==0x4036 {let body=item+12,count=try u32(body+12);try replace(body+16,count);put32((try u32(body+4)) & ~1,body+4);found=true}
+                    item+=length
+                }
+            }
+            cursor+=size
+        }
+        XCTAssertTrue(found);XCTAssertNotEqual(bytes,original);return bytes
+    }
+    func testPositionedDriverUnicodeAndRuntimeRawGlyphsMatchClassicExplicitDx()throws {
+        let original=try data("plus-driver-positioned.emf"),driver=try positionedInk(original),classic=try positionedInk("classic-positioned-dx")
+        XCTAssertEqual(driver.points,classic.points);XCTAssertEqual(driver.columnRuns.count,3)
+        if driver.columnRuns.count==3 {XCTAssertEqual(driver.columnRuns[1].minX-driver.columnRuns[0].minX,28);XCTAssertEqual(driver.columnRuns[2].minX-driver.columnRuns[1].minX,28)}
+        XCTAssertEqual(try positionedInk(positionedRawGlyphCopy(original)).points,driver.points)
+        let classicBytes=try data("classic-positioned-dx.emf")
+        XCTAssertEqual(try positionedInk(positionedRawGlyphCopy(classicBytes)).points,classic.points)
+        XCTAssertEqual(try data("plus-driver-positioned.emf"),original);XCTAssertEqual(try data("classic-positioned-dx.emf"),classicBytes)
+    }
+    func testPositionedDriverRealizedAdvanceAndVerticalUseActualFontMetrics()throws {
+        let natural=try positionedInk("plus-driver-natural"),unused=try positionedInk("plus-driver-natural-unused")
+        XCTAssertEqual(natural.points,unused.points,"Unused realized-position slots must not affect paint")
+        let font=CTFontCreateWithName("Helvetica" as CFString,18,nil);var character=UniChar(72),glyph=CGGlyph(),advance=CGSize.zero
+        XCTAssertTrue(CTFontGetGlyphsForCharacters(font,&character,&glyph,1));CTFontGetAdvancesForGlyphs(font,.horizontal,&glyph,&advance,1)
+        XCTAssertEqual(natural.columnRuns.count,3)
+        if natural.columnRuns.count==3 {for index in 1...2{XCTAssertEqual(natural.columnRuns[index].minX-natural.columnRuns[index-1].minX,advance.width,accuracy:1)}}
+        XCTAssertEqual(try positionedInk("classic-positioned-natural").points,natural.points)
+        let horizontal=try positionedInk("plus-driver-single"),vertical=try positionedInk("plus-driver-vertical-single")
+        let clockwise=Set(horizontal.points.map{point -> Int in let x=point%96,y=point/96;return (28+x-32)*96+32-(y-28)})
+        let matched=vertical.points.filter{point in (-1...1).contains{dy in (-1...1).contains{dx in clockwise.contains(point+dy*96+dx)}}}.count
+        XCTAssertGreaterThan(vertical.points.count,20);XCTAssertGreaterThan(Double(matched)/Double(max(1,vertical.points.count)),0.9)
+        let verticalNatural=try positionedInk("plus-driver-vertical-natural"),bounds=try XCTUnwrap(verticalNatural.bounds)
+        XCTAssertGreaterThan(bounds.height,bounds.width*1.5,"Vertical realized advances must follow the rotated font direction")
+    }
+    func testPositionedVerticalDriverMatrixPrecedesVerticalOrientation()throws {
+        let original=try positionedInk("plus-driver-single"),transformed=try positionedInk("plus-driver-vertical-matrix")
+        // Independent noncommuting M then clockwise V, about the supplied
+        // alphabetic origin. Reversing the order makes a wide short H instead.
+        let expected=Set(original.points.map{point -> Int in
+            let u=Double(point%96-32),v=Double(point/96-28)
+            let x=Int((32-v).rounded()),y=Int((28+2*u+0.25*v).rounded());return y*96+x
+        })
+        let covered=transformed.points.filter{point in (-2...2).contains{dy in (-2...2).contains{dx in expected.contains(point+dy*96+dx)}}}.count
+        let bounds=try XCTUnwrap(transformed.bounds)
+        XCTAssertGreaterThan(bounds.height,bounds.width*1.5)
+        XCTAssertGreaterThan(Double(covered)/Double(max(1,transformed.points.count)),0.85,"Driver matrix and vertical orientation were applied in reversed order")
+    }
+    func testPositionedGlyphMatricesAndWorldClipsPreserveSuppliedOrigins()throws {
+        let baseline=try positionedInk("plus-driver-positioned")
+        XCTAssertEqual(try positionedInk("plus-driver-translated").points,baseline.points,"Driver matrix translation is unused, not a second origin transform")
+        XCTAssertEqual(try positionedInk("plus-driver-fractional").points,try positionedInk("plus-driver-limit-subpixel").points,"Subpixel raster hint must not quantize the outline's supplied origins")
+        let translated=Set(baseline.points.map{$0+12*96+4})
+        XCTAssertEqual(try positionedInk("plus-driver-world").points,translated)
+        XCTAssertEqual(try positionedInk("classic-positioned-world").points,translated)
+        let clipped=try positionedInk("plus-driver-clipped"),expected=Set(baseline.points.filter{$0%96<48})
+        XCTAssertEqual(clipped.points,expected);XCTAssertEqual(try positionedInk("classic-positioned-clipped").points,expected)
+        let matrix=try positionedInk("plus-driver-linear-matrix")
+        XCTAssertNotEqual(matrix.points,baseline.points);XCTAssertEqual(matrix.columnRuns.count,3)
+        if matrix.columnRuns.count==3 {XCTAssertEqual(matrix.columnRuns[1].minX-matrix.columnRuns[0].minX,28,accuracy:1);XCTAssertEqual(matrix.columnRuns[2].minX-matrix.columnRuns[1].minX,28,accuracy:1)}
+        for name in ["plus-driver-state","classic-positioned-state"] {let pixel=try rgb(image(name+".emf"),84,52);XCTAssertLessThan(pixel[0],0.05);XCTAssertGreaterThan(pixel[2],0.95,"Restored state retained text clip")}
+    }
+    func testClassicPositionedPdyAlignmentUpdateCPAndOpaqueRects()throws {
+        let baseline=try positionedInk("classic-positioned-dx")
+        XCTAssertEqual(try positionedInk("classic-positioned-path").points,baseline.points,"BeginPath must accumulate glyph outlines until FillPath")
+        for name in ["center","right"] {XCTAssertEqual(try positionedInk("classic-positioned-"+name).points,baseline.points,name)}
+        XCTAssertEqual(try positionedInk("classic-positioned-pdy").points,try positionedInk("plus-driver-pdy-control").points,"PDY positive deltas must move up in source font coordinates")
+        XCTAssertEqual(try positionedInk("classic-positioned-updatecp").points,try positionedInk("classic-positioned-updatecp-control").points)
+        for direction in ["right","center"] {XCTAssertEqual(try positionedInk("classic-positioned-updatecp-"+direction).points,try positionedInk("classic-positioned-updatecp-"+direction+"-control").points,direction)}
+        let opaque=try image("classic-positioned-opaque.emf"),empty=try image("classic-positioned-empty-opaque.emf")
+        for image in [opaque,empty] {let interior=try rgb(image,6,6),outside=try rgb(image,2,2);XCTAssertLessThan(interior[0],0.05);XCTAssertGreaterThan(interior[1],0.95);XCTAssertGreaterThan(outside[0],0.95);XCTAssertGreaterThan(outside[1],0.95)}
+        XCTAssertEqual(try positionedInk("classic-positioned-empty-opaque").points.count,0)
+        XCTAssertGreaterThan(try positionedInk("classic-positioned-opaque").points.count,50)
+    }
+    func testClassicPositionedCompatibleInkAndAdvancesHaveIndependentMappings()throws {
+        for name in ["dx","natural","reflect-dx","reflect-natural","yreflect"] {
+            XCTAssertEqual(try positionedInk("classic-positioned-compatible-"+name).points,try positionedInk("plus-driver-compatible-"+name).points,name)
+        }
+        let explicit=try positionedInk("classic-positioned-compatible-dx"),natural=try positionedInk("classic-positioned-compatible-natural")
+        XCTAssertEqual(explicit.columnRuns.count,2);XCTAssertEqual(natural.columnRuns.count,2)
+        if explicit.columnRuns.count==2,natural.columnRuns.count==2 {
+            XCTAssertEqual(explicit.columnRuns[1].minX-explicit.columnRuns[0].minX,40)
+            let font=CTFontCreateWithName("Helvetica" as CFString,18,nil);var character=UniChar(72),glyph=CGGlyph(),advance=CGSize.zero
+            XCTAssertTrue(CTFontGetGlyphsForCharacters(font,&character,&glyph,1));CTFontGetAdvancesForGlyphs(font,.horizontal,&glyph,&advance,1)
+            XCTAssertEqual(natural.columnRuns[1].minX-natural.columnRuns[0].minX,advance.width,accuracy:1,"Compatible natural advances were stretched by world.m11")
+            XCTAssertEqual(explicit.columnRuns[0].width,natural.columnRuns[0].width,accuracy:1,"Compatible glyph ink was horizontally stretched")
+        }
+        XCTAssertEqual(try positionedInk("classic-positioned-compatible-scale-metadata").points,explicit.points,"exScale/eyScale conversion metadata must not repeat the captured DC mapping")
+    }
+    func testClassicPositionedCellHeightAndAverageWidthUseActualFontMetrics()throws {
+        let normal=try XCTUnwrap(positionedInk("classic-positioned-em-height").bounds),cell=try XCTUnwrap(positionedInk("classic-positioned-cell-height").bounds)
+        let font=CTFontCreateWithName("Arial" as CFString,18,nil),scale=18/(CTFontGetAscent(font)+CTFontGetDescent(font))
+        XCTAssertEqual(cell.height,normal.height*scale,accuracy:2);XCTAssertLessThan(cell.height,normal.height)
+        let small=try XCTUnwrap(positionedInk("classic-positioned-width10").bounds),large=try XCTUnwrap(positionedInk("classic-positioned-width20").bounds)
+        XCTAssertEqual(large.width,small.width*2,accuracy:2);XCTAssertEqual(large.height,small.height,accuracy:1)
+        let a=try positionedInk("classic-positioned-width10-natural"),b=try positionedInk("classic-positioned-width20-natural")
+        XCTAssertEqual(a.columnRuns.count,3);XCTAssertEqual(b.columnRuns.count,3)
+        if a.columnRuns.count==3,b.columnRuns.count==3 {XCTAssertEqual(b.columnRuns[1].minX-b.columnRuns[0].minX,2*(a.columnRuns[1].minX-a.columnRuns[0].minX),accuracy:2)}
+        XCTAssertGreaterThan(try positionedInk("plus-driver-cmap-fallback").points.count,50,"Unicode cmap path may use native font substitution")
+    }
+    func testPositionedTextBrushesAndMalformedRecordsKeepOriginalBytes()throws {
+        let normal=try image("plus-driver-positioned.emf"),gradient=try image("plus-driver-gradient.emf"),hatch=try image("plus-driver-hatch.emf")
+        var red=0,blue=0,pattern=0
+        for y in 10..<30 {for x in 6..<80 {let a=try rgb(gradient,x,y),b=try rgb(hatch,x,y),n=try rgb(normal,x,y);if a[0]>0.2 && a[2]<0.3 && a[1]<0.5{red+=1};if a[2]>0.2 && a[0]<0.3 && a[1]<0.5{blue+=1};if n[0]<0.5 && (b[0]>0.5 || b[2]>0.5){pattern+=1}}}
+        XCTAssertGreaterThan(red,5);XCTAssertGreaterThan(blue,5);XCTAssertGreaterThan(pattern,20)
+        let names=try FileManager.default.contentsOfDirectory(at:fixtures,includingPropertiesForKeys:nil).filter{$0.lastPathComponent.hasPrefix("unsupported-positioned-text-")}
+        XCTAssertGreaterThanOrEqual(names.count,15)
+        let budgetDiagnostics=["unsupported-positioned-text-driver-per-call-budget.emf":"positioned text unit limit",
+                               "unsupported-positioned-text-driver-aggregate-budget.emf":"aggregate positioned text unit limit"]
+        for url in names {
+            let bytes=try Data(contentsOf:url)
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(bytes),url.lastPathComponent) { error in
+                if let expected=budgetDiagnostics[url.lastPathComponent] {
+                    guard let failure=error as? MetafileImageFailure,case .failed(let diagnostic)=failure else {
+                        return XCTFail("\(url.lastPathComponent) must reach explicit positioned budget, not deadline/runtime/output failure: \(error)")
+                    }
+                    XCTAssertTrue(diagnostic.contains(expected),"\(url.lastPathComponent): expected '\(expected)', got '\(diagnostic)'")
+                }
+            }
+            XCTAssertEqual(try Data(contentsOf:url),bytes)
+        }
+    }
+
 }

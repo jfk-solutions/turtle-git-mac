@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
 import UniformTypeIdentifiers
+import CoreText
 import TurtleGitCore
 
 private final class MetafileConsumerScopeLog {var starts=0,stops=0}
@@ -20,16 +21,23 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
         throw Failure(message:"Metafile consumers did not settle at \(line); \(diagnostic())")
     }
     static func descendants(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap(descendants)}
-    static func verify(compressedPaths:Bool=false)async throws {
+    static func verify(compressedPaths:Bool=false,positionedText:Bool=false)async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),corpus=URL(fileURLWithPath:CommandLine.arguments[3])
         let corpusFiles=try FileManager.default.contentsOfDirectory(at:corpus,includingPropertiesForKeys:nil).filter { ["wmf","emf"].contains($0.pathExtension.lowercased()) }.sorted {$0.lastPathComponent < $1.lastPathComponent}
         let legacySamples:Set<String>=["clip-vector.wmf","classic-vector.emf","classic-bitmap.emf","plus-transform.emf","plus-bitmap-text.emf","plus-compressed-crop.emf","plus-gradient-transform.emf","plus-image-attributes.emf","plus-region-path.emf","plus-region-state.emf","plus-hatch-atlas.emf","plus-texture-world.emf","plus-region-texture.emf","plus-raw-indexed1-positive.emf","plus-raw-indexed4-negative.emf","plus-raw-indexed8-positive.emf","plus-raw-rgb555-negative.emf","plus-raw-rgb565-positive.emf","plus-raw-argb1555-negative.emf","plus-raw-texture-indexed-alpha.emf","plus-raw-texture-rgb565-positive.emf","plus-formatted-tabs.emf","plus-formatted-rtl.emf","plus-formatted-vertical.emf","plus-formatted-tracking.emf","plus-formatted-ellipsis.emf","plus-formatted-gradient.emf","classic-clip-region-xor.emf","classic-clip-region-diff.emf","classic-clip-meta-repeated.emf","classic-clip-offset-offcanvas.emf","classic-clip-path-and.emf","classic-clip-rect-world.emf","plus-pen-compound.emf","plus-pen-transform.emf","plus-pen-inset.emf","plus-pen-asymmetric-caps.emf","plus-pen-dash-round.emf","plus-pen-gradient.emf","plus-pen-custom-fill.emf","plus-pen-custom-stroke.emf","plus-pen-custom-both-paths.emf","plus-pen-custom-arrow-filled.emf","plus-pen-custom-arrow-notch.emf","plus-pen-custom-world-clip.emf"]
         let compressedSamples:Set<String> = Set(["fill","region","cap"].flatMap { family in ["relative","float"].map {"plus-compressed-path-"+family+"-"+$0+".emf"} })
-        let nativeSamples = compressedPaths ? compressedSamples : legacySamples.union(compressedSamples)
-        let samples=corpusFiles.filter {nativeSamples.contains($0.lastPathComponent)},unsupported=corpusFiles.filter {compressedPaths ? $0.lastPathComponent.hasPrefix("unsupported-compressed-path-") : $0.lastPathComponent.hasPrefix("unsupported-")}
-        if compressedPaths {try require(!unsupported.isEmpty,"Compressed-path malformed native corpus missing")}
+        let positionedSamples:Set<String> = ["plus-driver-positioned.emf","plus-driver-natural.emf","plus-driver-vertical-natural.emf","plus-driver-linear-matrix.emf","plus-driver-vertical-matrix.emf","plus-driver-gradient.emf","classic-positioned-dx.emf","classic-positioned-pdy.emf","classic-positioned-opaque.emf","classic-positioned-compatible-dx.emf","plus-driver-compatible-dx.emf"]
+        let nativeSamples = positionedText ? positionedSamples : compressedPaths ? compressedSamples : legacySamples.union(compressedSamples).union(positionedSamples)
+        var samples=corpusFiles.filter {nativeSamples.contains($0.lastPathComponent)},unsupported=corpusFiles.filter {positionedText ? $0.lastPathComponent.hasPrefix("unsupported-positioned-text-") : compressedPaths ? $0.lastPathComponent.hasPrefix("unsupported-compressed-path-") : $0.lastPathComponent.hasPrefix("unsupported-")}
+        if compressedPaths || positionedText {try require(!unsupported.isEmpty,"Compressed-path malformed native corpus missing")}
         try require(samples.count == nativeSamples.count,"Representative native metafile corpus incomplete")
-        if !compressedPaths {try require(samples.contains {$0.pathExtension.lowercased()=="wmf"} && samples.filter {$0.pathExtension.lowercased()=="emf"}.count >= 2 && samples.contains {$0.lastPathComponent.lowercased().contains("plus")},"Provide representative WMF, EMF and EMF+ corpus files")}
+        if !compressedPaths && !positionedText {try require(samples.contains {$0.pathExtension.lowercased()=="wmf"} && samples.filter {$0.pathExtension.lowercased()=="emf"}.count >= 2 && samples.contains {$0.lastPathComponent.lowercased().contains("plus")},"Provide representative WMF, EMF and EMF+ corpus files")}
+        if positionedText {
+            for name in ["plus-driver-positioned","classic-positioned-dx"] {
+                let bytes=try rawGlyphCopy(Data(contentsOf:corpus.appendingPathComponent(name+".emf"))),copy=root.appendingPathComponent(name+"-native-glyphs.emf")
+                try bytes.write(to:copy);samples.append(copy)
+            }
+        }
         let inputs=try samples.map {try Data(contentsOf:$0)},bad=Data("unsupported image side\n".utf8)
         let suite="TurtleGit.MetafileConsumers.QA."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         prefs.set(0,forKey:"AutoCloseGitProgress");DialogGeometry.install(preferences:prefs)
@@ -96,6 +104,18 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                     pair.close()
                 }
             }
+            if positionedText {
+                for names in [["plus-driver-positioned","classic-positioned-dx"],["classic-positioned-compatible-dx","plus-driver-compatible-dx"],["plus-driver-positioned","plus-driver-positioned-native-glyphs"],["classic-positioned-dx","classic-positioned-dx-native-glyphs"]] {
+                    func url(_ name:String)->URL {name.hasSuffix("native-glyphs") ? root.appendingPathComponent(name+".emf") : corpus.appendingPathComponent(name+".emf")}
+                    let left=url(names[0]),right=url(names[1]),leftBytes=try Data(contentsOf:left),rightBytes=try Data(contentsOf:right)
+                    let pair=track(FileComparisonWindowController(images:try ImageFileComparison(base:left,destination:right),permissions:[],preferences:prefs))
+                    pair.model.load();try await wait{!pair.model.busy && pair.model.document != nil}
+                    guard let a=pair.model.imageComparison?.base?.pixels,let b=pair.model.imageComparison?.destination?.pixels else {throw Failure(message:"Positioned glyph native pair failed; \(comparisonState(pair))")}
+                    try require(try raster(a)==raster(b),"Native positioned/cmap/raw-glyph raster mismatch: \(names)")
+                    try require(pair.model.document?.base.bytes==leftBytes && pair.model.document?.destination.bytes==rightBytes,"Positioned native comparison changed source bytes")
+                    pair.close()
+                }
+            }
             for sample in unsupported {
                 let bytes=try Data(contentsOf:sample),owner=track(FileComparisonWindowController(images:try ImageFileComparison(base:sample,destination:nil),permissions:[],preferences:prefs))
                 owner.model.load();try await wait {!owner.model.busy && owner.model.document != nil}
@@ -105,7 +125,8 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             guard let first else {throw Failure(message:"No metafile comparison")}
             let original=first.model.document!,pane=first.model.imageViewerModel,drop=root.appendingPathComponent("preview.emf")
             let preview:URL
-            if compressedPaths {preview=corpus.appendingPathComponent("plus-compressed-path-fill-relative.emf")}
+            if positionedText {preview=corpus.appendingPathComponent("plus-driver-positioned.emf")}
+            else if compressedPaths {preview=corpus.appendingPathComponent("plus-compressed-path-fill-relative.emf")}
             else {preview=try firstSample(samples,withExtension:"emf")}
             let previewBytes=try Data(contentsOf:preview)
             try previewBytes.write(to:drop)
@@ -130,7 +151,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try await wait {first.window?.attachedSheet == nil && !first.model.busy && first.model.document?.base.path == samples[0].path}
             try require(loader.retired && first.model.imageComparison?.base != nil && first.model.imageComparison?.destination != nil && ImageLoadWindowController.activeReleases == 0,"Open did not reload after actual native chooser detach; \(comparisonState(first)); chooserRetired=\(loader.retired)")
 
-            if !compressedPaths {
+            if !compressedPaths && !positionedText {
             let merge=track(FileComparisonWindowController(comparison:try WorkingFileComparison(base:samples[0],destination:samples[0]),permissions:[],preferences:prefs,deferInitialLoad:true))
             var unexpectedDecodes=0
             merge.model.useInternalMergeViewer();merge.model.decodeImages={_,_ in unexpectedDecodes += 1;throw Failure(message:"Merge entered image decoder")}
@@ -197,7 +218,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             let repo=GitRepository(root:work,executable:git),path="drawing.emf",file=work.appendingPathComponent(path)
             _ = try await repo.run(["init","-b","main"])
             for (key,value) in [("user.name","Metafile consumers QA"),("user.email","metafile@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",key,value])}
-            let wmfIndex=compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-fill-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="wmf"}!,classicIndex=compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-region-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="emf" && !$0.lastPathComponent.lowercased().contains("plus")}!,plusIndex=compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-cap-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="emf" && $0.lastPathComponent.lowercased().contains("plus")}!
+            let wmfIndex=positionedText ? samples.firstIndex{$0.lastPathComponent=="classic-positioned-dx.emf"}! : compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-fill-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="wmf"}!,classicIndex=positionedText ? samples.firstIndex{$0.lastPathComponent=="plus-driver-positioned.emf"}! : compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-region-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="emf" && !$0.lastPathComponent.lowercased().contains("plus")}!,plusIndex=positionedText ? samples.firstIndex{$0.lastPathComponent=="plus-driver-gradient.emf"}! : compressedPaths ? samples.firstIndex{$0.lastPathComponent=="plus-compressed-path-cap-relative.emf"}! : samples.firstIndex {$0.pathExtension.lowercased()=="emf" && $0.lastPathComponent.lowercased().contains("plus")}!
             try inputs[wmfIndex].write(to:file);try await repo.stage([path]);_ = try await repo.commit(message:"base WMF")
             _ = try await repo.run(["switch","-c","side"]);try inputs[classicIndex].write(to:file);try await repo.stage([path]);_ = try await repo.commit(message:"incoming EMF")
             _ = try await repo.run(["switch","main"]);try inputs[plusIndex].write(to:file);try await repo.stage([path]);_ = try await repo.commit(message:"mine EMF+")
@@ -210,7 +231,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             conflict.model.reload();try await wait {!conflict.model.busy}
             try require(conflict.model.images.count == 3,"Metafile conflict reload lost an image")
             try require(conflict.model.document.contents[.base]==inputs[wmfIndex] && conflict.model.document.contents[.theirs]==inputs[classicIndex] && conflict.model.document.contents[.mine]==inputs[plusIndex],"Metafile conflict decoding rewrote source stage encodings")
-            if !compressedPaths {
+            if !compressedPaths && !positionedText {
             // The newly accepted region, hatch and texture families also enter
             // actual three-stage conflict panes, not only standalone decoders.
             let patternWork=root.appendingPathComponent("pattern repository")
@@ -280,9 +301,40 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try require((try Data(contentsOf:work.appendingPathComponent(".git/index"))) == index && (try Data(contentsOf:file)) == working,"Metafile preview mutated conflict state")
             for (sample,bytes) in zip(samples,inputs) {try require(try Data(contentsOf:sample) == bytes,"Metafile renderer modified corpus bytes")}
             try await cleanup()
-            if compressedPaths {print("PASS: compressed EMF+ normal/region/custom-cap native IDiff raster controls, malformed refusal, drop/reload, exact Git conflict stages, chooser/cancel/late-result/grant/Quit ownership; original bytes and HEAD/index unchanged")}
+            if positionedText {print("PASS: positioned Unicode/raw glyph native pairs, malformed refusal, dropped preview, three-stage conflict, chooser/cancel/late-result/grant/Quit ownership; source bytes and HEAD/index unchanged")}
+            else if compressedPaths {print("PASS: compressed EMF+ normal/region/custom-cap native IDiff raster controls, malformed refusal, drop/reload, exact Git conflict stages, chooser/cancel/late-result/grant/Quit ownership; original bytes and HEAD/index unchanged")}
             else {print("PASS: actual WMF/EMF/EMF+, indexed/16bit raw and region/hatch/texture default two-side and conflict decode/reload, unsupported-side IDiff and explicit Merge routing, preview-only drop, cancellation/late-result/session/grant/Quit ownership; original corpus/comparison/conflict HEAD/index/working bytes unchanged")}
         } catch {let original=error;do {try await cleanup()}catch {throw Failure(message:"\(original); cleanup: \(error)")};throw original}
+    }
+    private static func rawGlyphCopy(_ original:Data)throws->Data {
+        var bytes=original
+        func u32(_ p:Int)throws->Int {try { guard p>=0,p+4<=bytes.count else{throw Failure(message:"Native glyph fixture offset")};return (0..<4).reduce(0){$0|Int(bytes[p+$1])<<($1*8)} }()}
+        func put32(_ value:Int,_ p:Int){for k in 0..<4{bytes[p+k]=UInt8(truncatingIfNeeded:value>>(k*8))}}
+        func replace(_ p:Int,_ count:Int)throws {
+            try require(count>0 && count<1024,"Native glyph fixture count")
+            let chars=try (0..<count).map { index -> UniChar in let q=p+index*2;guard q+2<=bytes.count else{throw Failure(message:"Native glyph fixture truncated")};return UInt16(bytes[q])|UInt16(bytes[q+1])<<8 }
+            let font=CTFontCreateWithName("Helvetica" as CFString,18,nil)
+            var glyphs=[CGGlyph](repeating:0,count:count)
+            let mapped=chars.withUnsafeBufferPointer{characters in glyphs.withUnsafeMutableBufferPointer{output in CTFontGetGlyphsForCharacters(font,characters.baseAddress!,output.baseAddress!,count)}}
+            try require(mapped,"Native Helvetica cmap unavailable")
+            for (index,glyph) in glyphs.enumerated(){try require(glyph>0,"Native Helvetica glyph missing");let q=p+index*2;bytes[q]=UInt8(truncatingIfNeeded:glyph);bytes[q+1]=UInt8(truncatingIfNeeded:glyph>>8)}
+        }
+        var cursor=88,found=false
+        while cursor+8<=bytes.count {
+            let type=try u32(cursor),size=try u32(cursor+4);guard size>=8,cursor+size<=bytes.count else{throw NSError(domain:"Positioned fixture framing",code:1)}
+            if type==84 {let body=cursor+8,count=try u32(body+36),offset=try u32(body+40);try replace(cursor+offset,count);put32(try u32(body+44)|0x10,body+44);found=true}
+            if type==70,cursor+16<=bytes.count,bytes.subdata(in:cursor+12..<cursor+16)==Data("EMF+".utf8) {
+                var item=cursor+16
+                while item+12<=cursor+size {
+                    let kind=Int(bytes[item])|Int(bytes[item+1])<<8,length=try u32(item+4)
+                    guard length>=12,item+length<=cursor+size else{throw NSError(domain:"Positioned plus fixture framing",code:1)}
+                    if kind==0x4036 {let body=item+12,count=try u32(body+12);try replace(body+16,count);put32((try u32(body+4)) & ~1,body+4);found=true}
+                    item+=length
+                }
+            }
+            cursor+=size
+        }
+        try require(found && bytes != original,"Native glyph fixture unchanged");return bytes
     }
     private static func raster(_ image:CGImage)throws->Data {
         var bytes=Data(count:image.width*image.height*4)

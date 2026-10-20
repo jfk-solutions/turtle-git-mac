@@ -46,9 +46,12 @@ CoreText, CoreGraphics and ImageIO. Before creating its JavaScriptCore VM the
 helper sets `JSC_useJIT=false`, using the interpreter without an allow-JIT or
 unsigned-executable-memory entitlement, following [WebKit’s interpreter
 configuration](https://webkit.org/blog/6411/javascriptcore-csi-a-crash-site-investigation-story/).
-Runtime font metrics and [formatted text glyph outlines](METAFILE-TEXT-PARITY.md) use CoreText; raw GDI+
+Runtime font metrics, [formatted text glyph outlines](METAFILE-TEXT-PARITY.md)
+and [positioned glyph geometry](METAFILE-POSITIONED-TEXT-PARITY.md) use CoreText; raw GDI+
 BGR/BGRA bitmaps are converted to PNG using ImageIO. Platform font substitution
 can differ from Windows when an original font is unavailable.
+Raw glyph indices instead require the matching installed font and style,
+because substituting a face changes the meaning of those indices.
 
 The reconstruction cache incorporates pins, all build/adapter/patch script hashes,
 architecture/deployment flags, compiler version and SDK version. Each runtime

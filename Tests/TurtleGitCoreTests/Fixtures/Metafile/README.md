@@ -314,3 +314,48 @@ bytes, for the required DWORD-aligned size60. The earlier fixture appended two
 bytes to an already aligned size48 path; that was invalid wire framing rather
 than a supported padding variation. Its rectangle and independent pixel oracle
 are unchanged, as is the separate outer-cap tail.
+
+## Positioned Unicode and glyph-index text
+
+The 52 original `plus-driver-*` / `classic-positioned-*` pictures use Helvetica
+at an 18-pixel em height on a 96×64 canvas, except the paired Arial
+positive-cell/negative-em height controls. Arial has a different ascent+descent
+from its em height, so those pictures distinguish the two sizing modes. They contain no font outlines or
+platform-dependent glyph IDs. The three explicit `H` origins are (8,28),
+(36,28), (64,28), in alphabetic baseline coordinates. Native and Core checks
+make private raw-glyph record copies using the installed font's actual cmap;
+only the glyph-mode bit and UInt16 values change. Corpus bytes stay unchanged.
+
+The independent comparisons cover:
+
+- Driver Unicode, privately mapped glyph IDs and classic `Dx=28` paths with
+  identical intended pixels. Natural advances come from the actual font.
+- RealizedAdvance's first meaningful origin and ignored remaining wire slots,
+  including NaN/Infinity in unused slots; all GlyphCount slots remain present.
+- Clockwise vertical glyphs/advances, fractional origins and the subpixel hint,
+  glyph-local shear, unused driver-matrix translation, and separate graphics
+  world translation. The combined vertical/anisotropic-shear fixture applies
+  the driver matrix **before** vertical orientation, about the supplied origin.
+- Gradient/hatch glyph brushes, captured clipping and restored graphics state.
+- GM_COMPATIBLE horizontal anisotropy: explicit Dx follows the full mapping,
+  while glyph ink and natural advances use the uniform realized font. Separate
+  driver controls cover X/Y reflections and ignored exScale/eyScale conversion
+  metadata, distinguishing compensation from mirrored or stretched glyphs.
+- Classic signed `Dx/Pdy` (positive Pdy moves up), center/right baseline
+  alignment, and Left/Right/Center `TA_UPDATECP` continuation controls.
+- Explicit clipped/opaque rectangles, zero-character opaque output,
+  transparent BeginPath/FillPath, positive cell height, and two requested
+  average font widths. Width controls distinguish glyph scaling from advances.
+
+The 22 `unsupported-positioned-text-*` records independently exercise invalid
+font/brush references, reserved options, counts, truncated positions/displacements,
+UTF-16 errors, missing raw-glyph fonts, glyph IDs outside the selected font,
+nonfinite meaningful coordinates/matrices, malformed matrix-presence values,
+invalid string/Dx offsets, and the explicit opaque-BeginPath boundary. A Unicode
+cmap request may substitute a missing family; a raw-glyph request may not.
+The 32,769-unit fixture exceeds the per-call 32,768 limit; nine 32,768-space
+records exceed the conversion-wide 262,144-unit limit without manufacturing
+large glyph outlines. This is an explicit refusal, not a partial rendering.
+
+These controls establish native outline placement and ownership, not Windows
+ClearType/subpixel raster certification or availability of every installed font.

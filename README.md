@@ -409,6 +409,9 @@ panes. [Compressed paths](docs/METAFILE-PATH-PARITY.md) share bounded decoding
 across drawing, clipping, regions, custom caps and accepted gradient boundaries. Embedded EMF+ bitmap images and textures include indexed palettes and
 16-bit RGB555/RGB565/ARGB1555. [Formatted EMF+ text](docs/METAFILE-TEXT-PARITY.md)
 uses native glyph outlines for wrapping, direction, tabs, spacing and trimming.
+[Positioned metafile text](docs/METAFILE-POSITIONED-TEXT-PARITY.md) adds driver
+strings, glyph-index output and classic text advances, with explicit font and
+record limits and a separate implementation checkpoint.
 [Classic EMF clipping](docs/METAFILE-CLASSIC-CLIP-PARITY.md) includes region
 Boolean combinations, clip offsets and independent metaregions.
 [EMF+ pen strokes](docs/METAFILE-PEN-PARITY.md) include linear nib transforms,

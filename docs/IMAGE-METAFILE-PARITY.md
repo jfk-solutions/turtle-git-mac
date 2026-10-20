@@ -84,9 +84,12 @@ region fill transforms and nested-metafile textures remain explicit refusals.
 
 ## Explicit remaining format behavior
 
-The [formatted text extension](METAFILE-TEXT-PARITY.md) adds native shaped glyph outlines for DrawString layouts, including direction, tabs, tracking, wrapping and trimming. This is useful three-format support, not complete GDI compatibility. Remaining
-unsupported features include driver/glyph strings,
-DisplayFormatControl, locale-specific digit substitution and measured-character-range queries, gradients outside the
+The [formatted text extension](METAFILE-TEXT-PARITY.md) adds native shaped glyph outlines for DrawString layouts, including direction, tabs, tracking, wrapping and trimming.
+The separate [positioned text family](METAFILE-POSITIONED-TEXT-PARITY.md)
+connects driver strings, font-specific glyph indices and classic W text advances
+to native outlines, with its own checkpoint and font/record limits. This is
+useful three-format support, not complete GDI compatibility. Remaining
+unsupported features include DisplayFormatControl, locale-specific digit substitution and measured-character-range queries, gradients outside the
 [accepted painting subset](METAFILE-PAINTING-PARITY.md),
 file-format-only Left/Outset/Right pen alignment, alternate-format/terminal-server
 records and source-copy compositing. The [pen extension](METAFILE-PEN-PARITY.md)

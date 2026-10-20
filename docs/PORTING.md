@@ -1,5 +1,11 @@
 # TurtleGit for Mac — full port tracking
 
+The [positioned metafile text family](METAFILE-POSITIONED-TEXT-PARITY.md) connects
+driver strings, caller-provided glyph indices and classic text displacements to
+native font geometry and the existing comparison/preview/conflict consumers.
+Its checkpoint records grouped runtime, Core and native validation alongside
+remaining Windows font, physical and signed acceptance.
+
 The [EMF+ custom-cap family](METAFILE-CUSTOM-CAP-PARITY.md) connects versioned
 cap objects, native endpoint geometry and brush painting through comparison,
 preview and conflict panes. Default fill/stroke precedence, adjustable arrows,

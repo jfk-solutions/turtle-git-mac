@@ -968,3 +968,123 @@ cp_half=U(PV,cp_half_count,0x800)+bytes(2*cp_half_count)+cp_line_type_runs(cp_ha
 cp_cumulative_count=61040
 cp_cumulative=U(PV,cp_cumulative_count,0x800)+bytes((0,0))+bytes.fromhex('bf ff 00')*(cp_cumulative_count-1)+cp_line_type_runs(cp_cumulative_count)
 cp_bad('relative-coordinate-budget',cp_cumulative)
+
+# Positioned text: independent alphabetic origins, original glyph-free records.
+# Raw glyph equivalents are made privately at runtime using the installed
+# Helvetica cmap; no font-version-dependent glyph IDs are stored in the corpus.
+pt_face='Helvetica'.encode('utf-16le')
+pt_font=U(PV)+F(18)+U(2,0,0,len(pt_face)//2)+pt_face
+pt_origins=((8,28),(36,28),(64,28))
+def pt_driver(text='HHH',positions=pt_origins,options=1,matrix=None,brush=None,font=pt_font,flags=None,raw=None,count=None):
+ raw=text.encode('utf-16le') if raw is None else raw
+ body=U(0xff000000 if brush is None else 0,options,0 if matrix is None else 1,len(raw)//2 if count is None else count)+raw+b''.join(F(*point) for point in positions)+(b'' if matrix is None else F(*matrix))
+ rs=[ep(0x4008,font,0x601)]
+ if brush is not None:rs.append(ep(0x4008,brush,0x100))
+ rs.append(ep(0x4036,body,(0x8001 if brush is None else 1) if flags is None else flags))
+ return rs
+def pt_write(name,records):
+ (P/('plus-driver-'+name+'.emf')).write_bytes(plus([ep(0x400A,U(0xffffffff,1)+F(0,0,96,64),0x8000)]+records))
+pt_write('positioned',pt_driver())
+pt_write('pdy-control',pt_driver(positions=((8,28),(36,28),(64,20))))
+pt_write('natural',pt_driver(positions=((8,28),(77,55),(90,50)),options=1|4))
+pt_write('natural-unused',pt_driver(positions=((8,28),(float('nan'),float('inf')),(float('-inf'),float('nan'))),options=1|4))
+pt_write('single',pt_driver(text='H',positions=((32,28),)))
+pt_write('vertical-single',pt_driver(text='H',positions=((32,28),),options=1|2))
+pt_write('vertical-natural',pt_driver(positions=((32,12),(77,55),(90,50)),options=1|2|4))
+pt_write('translated',pt_driver(matrix=(1,0,0,1,4,12)))
+pt_write('linear-matrix',pt_driver(matrix=(1,0,.25,1,0,0)))
+pt_write('fractional',pt_driver(positions=((8.25,28.5),(36.25,28.5),(64.25,28.5))))
+pt_write('limit-subpixel',pt_driver(positions=((8.25,28.5),(36.25,28.5),(64.25,28.5)),options=1|8))
+pt_write('world', [ep(0x402D,F(4,12))]+pt_driver())
+pt_write('clipped',[ep(0x4032,F(0,0,48,64))]+pt_driver())
+pt_write('gradient',pt_driver(brush=linear(transform=(80,0,0,20,8,10),stops=[(0,0xffff0000),(1,0xff0000ff)])))
+pt_write('hatch',pt_driver(brush=U(PV,1,0,0xffff0000,0xff0000ff)))
+pt_write('state',[ep(0x4025,U(77)),ep(0x4032,F(0,0,48,64))]+pt_driver()+[ep(0x4026,U(77)),ep(0x400A,U(0xff0000ff,1)+F(80,48,8,8),0x8000)])
+
+def pt_classic_font(face='Helvetica',height=-18,width=0):
+ name=face.encode('utf-16le');assert len(name)<=62
+ lf=I(height,width,0,0,400)+bytes((0,0,0,1,0,0,0,0))+name+bytes(64-len(name))
+ assert len(lf)==92
+ return record(82,U(1)+lf+bytes(228))
+def pt_classic_text(text='HHH',reference=(8,28),dx=(28,28,28),options=0,rect=(0,0,96,64),raw=None,count=None,graphics=2,scale=(1,1)):
+ raw=text.encode('utf-16le') if raw is None else raw
+ count=len(raw)//2 if count is None else count
+ string=pad(raw);offdx=76+len(string) if dx is not None else 0
+ body=I(0,0,96,64)+U(graphics)+F(*scale)+I(*reference)+U(count,76,options)+I(*rect)+U(offdx)+string+(b'' if dx is None else I(*dx))
+ return record(84,body)
+def pt_classic(records,align=24,bk=1,height=-18,width=0,face="Helvetica"):
+ return emf([brush(2,0xffffff),selected(2),selected(0x80000008),record(43,I(0,0,96,64)),pt_classic_font(height=height,width=width,face=face),selected(1),record(24,U(0)),record(25,U(0xffffff)),record(18,U(bk)),record(22,U(align))]+records)
+def pt_cwrite(name,records,**kwargs):(P/('classic-positioned-'+name+'.emf')).write_bytes(pt_classic(records,**kwargs))
+pt_cwrite('dx',[pt_classic_text()])
+pt_cwrite('pdy',[pt_classic_text(dx=(28,0,28,8,28,0),options=0x2000)])
+pt_cwrite('natural',[pt_classic_text(dx=None)])
+pt_cwrite('center',[pt_classic_text(reference=(50,28))],align=24|6)
+pt_cwrite('right',[pt_classic_text(reference=(92,28))],align=24|2)
+pt_cwrite('clipped',[pt_classic_text(options=4,rect=(0,0,48,64))])
+pt_cwrite('opaque',[record(25,U(0x00ff00)),pt_classic_text(options=2,rect=(4,4,92,56))])
+pt_cwrite('empty-opaque',[record(25,U(0x00ff00)),pt_classic_text(text='',dx=None,options=2,rect=(4,4,92,56))])
+pt_cwrite('world',[record(35,F(1,0,0,1,4,12)),pt_classic_text()])
+pt_cwrite('updatecp',[record(27,I(8,28)),pt_classic_text(text='H',reference=(90,50),dx=(28,)),pt_classic_text(text='H',reference=(90,50),dx=(28,))],align=24|1)
+pt_cwrite('updatecp-control',[pt_classic_text(text='HH',dx=(28,28))])
+# RIGHT updates CP to the left origin; CENTER leaves the reference unchanged.
+pt_cwrite('updatecp-right',[record(27,I(64,28)),pt_classic_text(text='H',reference=(0,0),dx=(28,)),pt_classic_text(text='H',reference=(0,0),dx=(28,))],align=24|2|1)
+pt_cwrite('updatecp-right-control',[pt_classic_text(text='H',reference=(36,28),dx=(28,)),pt_classic_text(text='H',reference=(8,28),dx=(28,))])
+pt_cwrite('updatecp-center',[record(27,I(50,28)),pt_classic_text(text='H',reference=(0,0),dx=(28,)),pt_classic_text(text='H',reference=(0,0),dx=(28,))],align=24|6|1)
+pt_cwrite('updatecp-center-control',[pt_classic_text(text='H',reference=(36,28),dx=(28,)),pt_classic_text(text='H',reference=(36,28),dx=(28,))])
+pt_cwrite('state',[record(33),pt_classic_text(options=4,rect=(0,0,48,64)),record(34,I(-1)),brush(3,0xff0000),selected(3),record(43,I(80,48,88,56))])
+# Framing and semantic refusals are independent records, never partial pictures.
+def pt_bad(name,records,classic=False):
+ (P/('unsupported-positioned-text-'+name+'.emf')).write_bytes(pt_classic(records) if classic else plus(records))
+pt_bad('driver-font-ref',pt_driver(flags=0x800f))
+pt_bad('driver-brush-ref',pt_driver(flags=1))
+pt_bad('driver-options',pt_driver(options=0x10))
+pt_bad('driver-count',pt_driver(count=0xffffffff))
+pt_bad('driver-positions',pt_driver(positions=((8,28),)))
+pt_bad('driver-utf16',pt_driver(raw=H(0xd800),positions=((8,28),)))
+pt_bad('driver-nan',pt_driver(positions=((float('nan'),28),(36,28),(64,28))))
+pt_bad('driver-matrix-nan',pt_driver(matrix=(1,0,0,float('nan'),0,0)))
+pt_bad('driver-glyph-bounds',pt_driver(raw=H(0xffff),positions=((8,28),),options=0))
+pt_missing_face='TurtleGit Missing Exact Font QA!'.encode('utf-16le')
+pt_bad('driver-font-substitution',pt_driver(options=0,font=U(PV)+F(18)+U(2,0,0,len(pt_missing_face)//2)+pt_missing_face))
+pt_write('cmap-fallback',pt_driver(font=U(PV)+F(18)+U(2,0,0,len(pt_missing_face)//2)+pt_missing_face))
+pt_bad('classic-dx-short',[pt_classic_text(dx=(28,))],classic=True)
+pt_bad('classic-pdy-short',[pt_classic_text(dx=(28,0,28),options=0x2000)],classic=True)
+pt_bad('classic-utf16',[pt_classic_text(raw=H(0xd800),dx=(28,))],classic=True)
+pt_bad('classic-glyph-bounds',[pt_classic_text(raw=H(0xffff),dx=(28,),options=0x10)],classic=True)
+pt_bad('classic-options',[pt_classic_text(options=0x80000000)],classic=True)
+pt_matrix_flag=pt_driver();pt_matrix_flag[-1]=pp_changed(pt_matrix_flag[-1],20,U(2))
+pt_bad('driver-matrix-present',pt_matrix_flag)
+pt_bad('classic-string-offset',[pp_changed(pt_classic_text(),48,U(12))],classic=True)
+pt_bad('classic-dx-offset',[pp_changed(pt_classic_text(),72,U(0xfffffff0))],classic=True)
+pt_bad('classic-count',[pt_classic_text(count=0xffffffff)],classic=True)
+
+pt_cwrite('cell-height',[pt_classic_text()],height=18,face='Arial')
+pt_cwrite('em-height',[pt_classic_text()],height=-18,face='Arial')
+pt_cwrite('width10',[pt_classic_text(text='H',dx=(28,))],width=10)
+pt_cwrite('width20',[pt_classic_text(text='H',dx=(28,))],width=20)
+pt_cwrite('width10-natural',[pt_classic_text(dx=None)],width=10)
+pt_cwrite('width20-natural',[pt_classic_text(dx=None)],width=20)
+pt_bad('driver-per-call-budget',pt_driver(raw=H(32)*32769,positions=((0,0),)*32769))
+pt_aggregate=pt_driver(raw=H(32)*32768,positions=((0,0),)*32768)
+pt_bad('driver-aggregate-budget',[pt_aggregate[0]]+[pt_aggregate[-1]]*9)
+pt_write('vertical-matrix',pt_driver(text='H',positions=((32,28),),options=1|2,matrix=(2,0,.25,1,0,0)))
+pt_cwrite('path',[record(59),pt_classic_text(),record(60),brush(3,0),selected(3),record(62,I(0,0,96,64))])
+pt_bad('classic-opaque-path',[record(59),pt_classic_text(options=2),record(60),record(62,I(0,0,96,64))],classic=True)
+
+# GM_COMPATIBLE realizes uniform glyph ink from |world.m22| while supplied
+# displacements follow the full compensated map. Natural font metrics instead
+# follow the realized font, so horizontal anisotropy must not double advances.
+pt_compatible_x=record(35,F(2,0,0,1,0,0))
+pt_compatible_reflect=record(35,F(-1,0,0,1,96,0))
+pt_compatible_yreflect=record(35,F(1,0,0,-1,0,64))
+pt_cwrite('compatible-dx',[pt_compatible_x,pt_classic_text(text='HH',dx=(20,20),graphics=1)])
+pt_write('compatible-dx',pt_driver(text='HH',positions=((16,28),(56,28))))
+pt_cwrite('compatible-natural',[pt_compatible_x,pt_classic_text(text='HH',dx=None,graphics=1)])
+pt_write('compatible-natural',pt_driver(text='HH',positions=((16,28),(77,55)),options=1|4))
+pt_cwrite('compatible-reflect-dx',[pt_compatible_reflect,pt_classic_text(text='HH',reference=(60,28),dx=(20,20),graphics=1)])
+pt_write('compatible-reflect-dx',pt_driver(text='HH',positions=((36,28),(56,28))))
+pt_cwrite('compatible-reflect-natural',[pt_compatible_reflect,pt_classic_text(text='HH',reference=(60,28),dx=None,graphics=1)])
+pt_write('compatible-reflect-natural',pt_driver(text='HH',positions=((36,28),(77,55)),options=1|4))
+pt_cwrite('compatible-yreflect',[pt_compatible_yreflect,pt_classic_text(text='HH',dx=(20,20),graphics=1)])
+pt_write('compatible-yreflect',pt_driver(text='HH',positions=((8,36),(28,36))))
+pt_cwrite('compatible-scale-metadata',[pt_compatible_x,pt_classic_text(text='HH',dx=(20,20),graphics=1,scale=(3,5))])

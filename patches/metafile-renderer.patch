@@ -43,6 +43,15 @@ diff --git a/src/modules/drawers/emfDrawer.js b/src/modules/drawers/emfDrawer.js
 diff --git a/src/modules/drawers/emfPlusDrawer.js b/src/modules/drawers/emfPlusDrawer.js
 --- a/src/modules/drawers/emfPlusDrawer.js
 +++ b/src/modules/drawers/emfPlusDrawer.js
+@@ -45,7 +45,7 @@
+   0x401A: 'processEmfPlusDrawImage',         // EmfPlusDrawImage
+   0x401B: 'processEmfPlusDrawImagePoints',   // EmfPlusDrawImagePoints
+   0x401C: 'processEmfPlusDrawString',        // EmfPlusDrawString
+-  0x4036: null,  // EmfPlusDrawDriverString
++  0x4036: 'processEmfPlusDrawDriverString',  // EmfPlusDrawDriverString
+ 
+   // ========== 状态/渲染参数记录 ==========
+   0x401D: null,   // EmfPlusSetRenderingOrigin
 @@ -524,7 +524,7 @@
          defs + body + '</g>'
        );
@@ -106,7 +115,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,424 @@
+@@ -0,0 +1,425 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -308,7 +317,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +        if(s.clip){const m=currentMatrix(this),x=f32(data,0),y=f32(data,4);s.clip=mask(this,'<g transform="translate('+(m[0]*x+m[2]*y)+' '+(m[1]*x+m[3]*y)+')">'+masked(s.clip,fullRect(this,'white'))+'</g>');}return;
 +      }
 +      case 0x4013: if(data.length!==4)fail('invalid region fill record');break;
-+      case 0x4036:case 0x4037:case 0x4038:case 0x4039:case 0x403A: fail('unsupported EMF+ painting/region record 0x'+type.toString(16));
++      case 0x4037:case 0x4038:case 0x4039:case 0x403A: fail('unsupported EMF+ painting/region record 0x'+type.toString(16));
 +      case 0x4005:case 0x4006:case 0x4007: fail('unsupported EMF+ alternate-format records');
 +      case 0x4023: if((flags&255)!==0)fail('unsupported source-copy compositing');return;
 +    }
@@ -495,6 +504,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    }
 +    return oldEmfRecord.call(this,type,data);
 +  };
++  require('./turtleGitPositionedText')({EmfPlusDrawer,EmfDrawer,fail,u32,i32,f32,state,unitScale,escape,matrix});
 +  require('./turtleGitGdiClip')({EmfDrawer,fail,u32,i32,escape});
 +  function validateRecords(bytes){
 +    if(bytes.length>=88&&u32(bytes,0)===1&&u32(bytes,40)===0x464d4520){
@@ -1593,4 +1603,166 @@ diff --git a/src/turtleGitPaths.js b/src/turtleGitPaths.js
 +    const parts=[];visit(path,(kind,p)=>parts.push(kind+(p.length?' '+p.join(' '):'')));return parts.join(' ');
 +  }
 +  return {decode,trace,svg};
++};
+diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
+--- /dev/null
++++ b/src/turtleGitPositionedText.js
+@@ -0,0 +1,158 @@
++// Original TurtleGit positioned EMF+/GDI text playback, MIT.
++// MS-EMFPLUS DrawDriverString; MS-EMF EmrText/EMR_EXTTEXTOUTW.
++// Native CoreText outlines are painted through existing brush/clip consumers.
++module.exports = function installPositionedText({EmfPlusDrawer,EmfDrawer,fail,u32,i32,f32,state,unitScale,escape,matrix}) {
++  const ep=EmfPlusDrawer.prototype,ed=EmfDrawer.prototype,identity=()=>[1,0,0,1,0,0];
++  function charge(ctx,count) {
++    if(count>32768)fail('positioned text unit limit');
++    const total=(ctx._turtlePositionedUnits||0)+count;
++    if(total>262144)fail('aggregate positioned text unit limit');ctx._turtlePositionedUnits=total;
++  }
++  function layout(face,size,bold,italic,options) {
++    if(typeof globalThis.__turtlePositionedText!=='function')fail('native positioned text adapter unavailable');
++    const result=__turtlePositionedText(face,size,bold,italic,options);
++    if(!result||typeof result.path!=='string'||result.path.length>32*1024*1024||!Array.isArray(result.bounds)||result.bounds.length!==4||!Array.isArray(result.advance)||result.advance.length!==2||result.bounds.concat(result.advance,[result.ascent,result.descent]).some(v=>!Number.isFinite(v)||Math.abs(v)>1e9)||result.ascent<0||result.descent<0)fail('invalid native positioned text result');
++    return result;
++  }
++  function tail(data,end) {
++    if(end>data.length||data.length-end>3)fail('invalid positioned text record extent');
++    // EMF+ DWORD alignment bytes have no text semantics.
++  }
++  function units(data,offset,count) {
++    if(offset<0||offset+count*2>data.length)fail('truncated positioned text values');
++    return Array.from({length:count},(_,i)=>data[offset+i*2]|data[offset+i*2+1]<<8);
++  }
++  ep.processEmfPlusDrawDriverString=function(flags,data) {
++    const fontID=flags&255,font=this.emfPlusObjects[fontID];
++    if(fontID>63||!font||font.type!=='font')fail('missing driver string font');
++    const brush=u32(data,0),options=u32(data,4),hasMatrix=u32(data,8),count=u32(data,12);
++    if(options&~15||hasMatrix>1||!count)fail('invalid driver string options or count');
++    charge(this.ctx,count);
++    // Even RealizedAdvance records reserve one position slot per UTF16 value;
++    // only the first slot is meaningful. Unused slots are not float operands.
++    const positionOffset=16+count*2,end=positionOffset+count*8+hasMatrix*24;tail(data,end);
++    const values=units(data,16,count),realized=!!(options&4),positions=[];
++    for(let i=0;i<(realized?1:count);i++)positions.push([f32(data,positionOffset+i*8),f32(data,positionOffset+i*8+4)]);
++    const glyphMatrix=hasMatrix?Array.from({length:6},(_,i)=>f32(data,positionOffset+count*8+i*4)):identity();
++    const s=state(this),size=font.emSize*unitScale(font.sizeUnit,s.dpiY)/unitScale(s.unit,s.dpiY);
++    const result=layout(font.face,size,font.weight==='bold',font.italic.trim()==='italic',{values,cmap:!!(options&1),positions,realizedAdvance:realized,vertical:!!(options&2),limitSubpixel:!!(options&8),matrix:glyphMatrix,horizontal:0,baseline:0,underline:!!(font.styleFlags&4),strikeout:!!(font.styleFlags&8)});
++    if(!(flags&0x8000)&&brush>63)fail('invalid driver string brush');
++    const ctx=this.ctx;ctx.save();
++    try {ctx.fillStyle=this._emfPlusResolveBrush(flags,brush);ctx.fillGlyphPaths(result);}finally{ctx.restore();}
++    // Glyph IDs are deliberately not decoded as Unicode or emitted as SVG text.
++    ctx._nodes.push('<desc>'+escape(font.face)+' positioned '+(options&1?'Unicode':'glyph indexes')+'</desc>');
++  };
++  function textState(d) {return d._turtlePositionedTextState||(d._turtlePositionedTextState={align:0,background:2});}
++  const align=ed.processEmfSetTextAlign,bkMode=ed.processEmfSetBkMode;
++  ed.processEmfSetTextAlign=function(data) {
++    if(data.length!==4)fail('invalid GDI text alignment record');const value=u32(data,0);
++    if(value&~0x1f||![0,2,6].includes(value&6)||![0,8,24].includes(value&24))fail('unsupported GDI text alignment');
++    textState(this).align=value;return align.call(this,data);
++  };
++  ed.processEmfSetBkMode=function(data) {
++    if(data.length!==4||![1,2].includes(u32(data,0)))fail('invalid GDI text background mode');
++    textState(this).background=u32(data,0);return bkMode.call(this,data);
++  };
++  // Stock fonts and explicit LOGFONT objects both flow through applyGdiObject.
++  // Keep the selected font witness in sync instead of retaining a stale font
++  // when SelectObject changes from an explicit font to a stock handle.
++  const apply=ed.applyGdiObject;
++  ed.applyGdiObject=function(object){if(object&&object.type==='font')this.gdiObjectManager._currentFont=object;return apply.call(this,object);};
++  const draw=ed.draw;ed.draw=function(document,options){this._turtlePositionedTextState=null;return draw.call(this,document,options);};
++  const capture=ed._captureDcState,restore=ed._restoreDcState;
++  ed._captureDcState=function(){const result=capture.call(this);result.turtlePositionedText={...textState(this)};result.turtleTextFont=this.gdiObjectManager.currentFont;result.turtleTextPosition={...this.currentPos};return result;};
++  ed._restoreDcState=function(saved){const result=restore.call(this,saved);if(saved){this._turtlePositionedTextState={...(saved.turtlePositionedText||{align:0,background:2})};this.gdiObjectManager._currentFont=saved.turtleTextFont;if(saved.turtleTextPosition)this.currentPos={...saved.turtleTextPosition};}return result;};
++  function point(d,x,y){const p=d.coordinateTransformer.transform(x,y);if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||Math.abs(p.x)>1e9||Math.abs(p.y)>1e9)fail('invalid positioned text device point');return[p.x,p.y];}
++  function polygon(d,points,color) {
++    if(!points.length)return;
++    const geometry='M '+points.map(p=>p.join(' ')).join(' L ')+' Z',ctx=d.ctx;
++    ctx._nodes.push('<path d="'+geometry+'" fill="'+escape(color)+'" stroke="none" '+ctx._attr()+'/>');
++  }
++  function rectangle(d,rect) {
++    // ExtTextOut maps the two RECT corners then orders the device rectangle;
++    // font escapement does not rotate its opaque/clipping rectangle.
++    const a=point(d,rect[0],rect[1]),b=point(d,rect[2],rect[3]),l=Math.min(a[0],b[0]),r=Math.max(a[0],b[0]),t=Math.min(a[1],b[1]),bottom=Math.max(a[1],b[1]);
++    return [[l,t],[r,t],[r,bottom],[l,bottom]];
++  }
++  function clipRect(d,rect) {
++    const ctx=d.ctx,id='turtle-positioned-clip-'+ctx._defs.length;
++    if(ctx._defs.length>=65536)fail('positioned text clip definition budget');
++    const points=rectangle(d,rect);
++    ctx._defs.push('<clipPath id="'+id+'" clipPathUnits="userSpaceOnUse"><path d="M '+points.map(p=>p.join(' ')).join(' L ')+' Z"/></clipPath>');return id;
++  }
++  function mapped(m,x,y){return[m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]];}
++  const originalA=ed.processEmfExtTextOutA;
++  ed.processEmfExtTextOutA=function(data){if(data.length>=48&&u32(data,44)&0x10)fail('ANSI glyph-index text is unsupported');return originalA.call(this,data);};
++  ed.processEmfExtTextOutW=function(data) {
++    if(data.length<68)fail('truncated GDI positioned text header');
++    const graphics=u32(data,16),scaleX=f32(data,20),scaleY=f32(data,24),count=u32(data,36),stringOffset=u32(data,40)-8,options=u32(data,44),dxOffset=u32(data,64);
++    if(![1,2].includes(graphics)||options&~0x3016)fail('unsupported GDI positioned text options');
++    charge(this.ctx,count);
++    const ts=textState(this),horizontal=(ts.align&6)===2?2:(ts.align&6)===6?1:0,baseline=(ts.align&24)===24?0:(ts.align&24)===8?2:1;
++    const rect=[i32(data,48),i32(data,52),i32(data,56),i32(data,60)];
++    if(options&6&& (rect[0]>rect[2]||rect[1]>rect[3]))fail('invalid GDI text rectangle');
++    if(this.pathState==='active'&&((options&2)||ts.background===2))fail('opaque GDI path text is unsupported');
++    // Explicit opaque rectangles are independent of string length and clipping.
++    if(options&2)polygon(this,rectangle(this,rect),this.fillColor);
++    if(!count)return;
++    if(stringOffset<68||stringOffset%2||stringOffset+count*2>data.length)fail('invalid GDI text string offset');
++    const values=units(data,stringOffset,count),positions=[],pdy=!!(options&0x2000);
++    let advance=null,x=0,y=0;
++    if(pdy&&!dxOffset)fail('GDI PDY text requires displacements');
++    if(dxOffset) {
++      const start=dxOffset-8,size=count*(pdy?8:4);
++      if(start<68||start%4||start+size>data.length||start<stringOffset+count*2&&stringOffset<start+size)fail('invalid GDI displacement offset');
++      for(let i=0;i<count;i++) {positions.push([x,y]);x+=i32(data,start+i*(pdy?8:4));if(pdy)y-=i32(data,start+i*8+4);if(Math.abs(x)>1e9||Math.abs(y)>1e9)fail('GDI text displacement budget');}
++      advance=[x,y];
++    } else positions.push([0,0]);
++    const font=this.gdiObjectManager.currentFont||{},parsed=this.ctx._parseFont();
++    const height=font.height||-parsed.sizeNum,face=font.faceName||parsed.rawFamily;
++    if(!Number.isFinite(height)||Math.abs(height)>16384)fail('invalid GDI text font height');
++    const base=this.coordinateTransformer.getSvgMatrix();
++    let escapement=(font.escapement||0)%3600;
++    if(graphics===1&&base.a*base.d<0)escapement=-escapement;
++    const orientation=graphics===2?(font.orientation||0)%3600:escapement;
++    const angle=-escapement*Math.PI/1800,cos=Math.cos(angle),sin=Math.sin(angle),relativeAngle=(escapement-orientation)*Math.PI/1800;
++    let nativeMatrix=[Math.cos(relativeAngle),Math.sin(relativeAngle),-Math.sin(relativeAngle),Math.cos(relativeAngle),0,0],layoutMatrix=identity();
++    const reference=ts.align&1?this.currentPos:{x:i32(data,28),y:i32(data,32)},origin=point(this,reference.x,reference.y);
++    let output=[base.a*cos+base.c*sin,base.b*cos+base.d*sin,-base.a*sin+base.c*cos,-base.b*sin+base.d*cos,origin[0],origin[1]];
++    // Compatible explicit displacements follow the DC with reflected device
++    // axes compensated. Font ink/metrics instead use uniform |M22| scaling.
++    // Q=P^-1 D decouples those two contracts without moving glyph origins.
++    if(graphics===1) {
++      if(base.a<0){output[0]=-output[0];output[2]=-output[2];}
++      if(base.d<0){output[1]=-output[1];output[3]=-output[3];}
++      const det=output[0]*output[3]-output[1]*output[2],scale=Math.abs(base.d);
++      if(!Number.isFinite(det)||Math.abs(det)<1e-20||!scale)fail('singular compatible text font mapping');
++      const desired=[scale*cos,scale*sin,-scale*sin,scale*cos];
++      nativeMatrix=[(output[3]*desired[0]-output[2]*desired[1])/det,(-output[1]*desired[0]+output[0]*desired[1])/det,(output[3]*desired[2]-output[2]*desired[3])/det,(-output[1]*desired[2]+output[0]*desired[3])/det,0,0];
++      layoutMatrix=nativeMatrix.slice();
++    }
++    matrix(output);matrix(nativeMatrix);matrix(layoutMatrix);
++    const result=layout(face,Math.abs(height),(font.weight||400)>=700,!!font.italic,{values,cmap:!(options&0x10),positions,realizedAdvance:!dxOffset,vertical:false,limitSubpixel:false,matrix:nativeMatrix,layoutMatrix,outputTransform:output,horizontal,baseline,underline:!!font.underline,strikeout:!!font.strikeOut,cellHeight:height>0,averageWidth:font.width||0,classic:true,advance});
++    const ctx=this.ctx;
++    if(this.pathState==='active') {
++      if(result.path){ctx._segments.push(result.path);ctx._hasSubpath=true;const b=ctx._turtlePaintBounds;ctx._turtlePaintBounds=b?[Math.min(b[0],result.bounds[0]),Math.min(b[1],result.bounds[1]),Math.max(b[2],result.bounds[2]),Math.max(b[3],result.bounds[3])]:result.bounds.slice();}
++    } else {
++      const first=ctx._nodes.length;
++      if(ts.background===2&&(options&6)!==6) {
++        const fraction=horizontal===1?.5:horizontal===2?1:0,offset=baseline===1?result.ascent:baseline===2?-result.descent:0;
++        const baselinePoint=mapped(output,layoutMatrix[2]*offset-fraction*result.advance[0],layoutMatrix[3]*offset-fraction*result.advance[1]),metricScale=graphics===1?Math.abs(base.d):Math.hypot(base.c,base.d);
++        const left=baselinePoint[0],right=left+output[0]*result.advance[0]+output[2]*result.advance[1],top=baselinePoint[1]-result.ascent*metricScale,bottom=baselinePoint[1]+result.descent*metricScale;
++        if(right>left&&bottom>top)polygon(this,[[left,top],[right,top],[right,bottom],[left,bottom]],this.fillColor);
++      }
++      const saved=ctx.fillStyle;ctx.fillStyle=this.textColor;
++      try {ctx.fillGlyphPaths(result);}finally{ctx.fillStyle=saved;}
++      if(options&4&&ctx._nodes.length>first){const nodes=ctx._nodes.splice(first).join('');ctx._nodes.push('<g clip-path="url(#'+clipRect(this,rect)+')">'+nodes+'</g>');}
++    }
++    // UpdateCP uses the device-space aligned endpoint, converted back through
++    // the DC mapping: Left advances, Right retreats, Center retains the point.
++    if((ts.align&1)&&horizontal!==1) {
++      const determinant=base.a*base.d-base.b*base.c;
++      if(!Number.isFinite(determinant)||Math.abs(determinant)<1e-20)fail('singular GDI current-position mapping');
++      const sign=horizontal===2?-1:1,dx=sign*(output[0]*result.advance[0]+output[2]*result.advance[1]),dy=sign*(output[1]*result.advance[0]+output[3]*result.advance[1]);
++      this.currentPos={x:reference.x+(base.d*dx-base.c*dy)/determinant,y:reference.y+(-base.b*dx+base.a*dy)/determinant};
++    }
++    ctx._nodes.push('<desc>'+escape(face)+' positioned '+(options&0x10?'glyph indexes':'Unicode')+'</desc>');
++  };
 +};

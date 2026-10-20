@@ -49,8 +49,9 @@ this renderer chooses deterministic unchanged digits for neutral DigitLanguage.
 Explicit national/traditional substitution and non-neutral DigitLanguage remain
 refusals. Measured-character ranges are fully bounded metadata and do not alter DrawString
 paint; this does not add a MeasureCharacterRanges API. DisplayFormatControl remains
-explicitly unsupported. Glyph-ID `DrawDriverString` is a separate remaining
-painting family, not silently treated as Unicode DrawString.
+explicitly unsupported. Glyph-ID `DrawDriverString` has a separate
+[positioned-text implementation and checkpoint](METAFILE-POSITIONED-TEXT-PARITY.md);
+it is never silently treated as Unicode DrawString.
 
 Beyond the explicit tab list, this native implementation repeats the final
 interval with its initial phase preserved. Without explicit stops it uses eight

@@ -598,6 +598,181 @@ private final class NativeTextLayout {
         guard !bad else { throw invalid("invalid or oversized outline output") }
         pathBytes += bytes; return result
     }
+    /// Driver strings have already been laid out by their producer. Never send
+    /// their characters through CTLine shaping, kerning or font fallback runs.
+    func positioned(face:String,size:Double,bold:Bool,italic:Bool,options:JSValue) throws -> [String:Any] {
+        guard size.isFinite,size>0,size<=65_536,!face.isEmpty,face.utf8.count<=4096,
+              options.isObject,!options.isNull,!options.isUndefined else {throw invalid("invalid positioned font or options")}
+        func boolean(_ key:String,_ fallback:Bool=false) throws -> Bool {
+            guard let value=options.forProperty(key),!value.isUndefined else{return fallback}
+            guard value.isBoolean else {throw invalid("invalid positioned "+key)};return value.toBool()
+        }
+        func length(_ value:JSValue,_ maximum:Int) throws -> Int {
+            guard let count=value.forProperty("length"),count.isNumber else {throw invalid("missing positioned array length")}
+            let n=count.toDouble();guard n.isFinite,n>=0,n.rounded()==n,n<=Double(maximum) else {throw invalid("positioned array count limit")};return Int(n)
+        }
+        func vector(_ value:JSValue) throws -> CGPoint {
+            guard value.isArray,try length(value,2)==2 else {throw invalid("invalid positioned vector")}
+            var result=[CGFloat]();result.reserveCapacity(2)
+            for index in 0..<2 {
+                guard let component=value.atIndex(index),component.isNumber else {throw invalid("non-numeric positioned coordinate")}
+                let n=component.toDouble();guard n.isFinite,abs(n)<=1_000_000_000 else {throw invalid("positioned coordinate limit")};result.append(CGFloat(n))
+            }
+            return CGPoint(x:result[0],y:result[1])
+        }
+        func matrix(_ key:String,ignoreTranslation:Bool=false) throws -> CGAffineTransform {
+            guard let value=options.forProperty(key),!value.isUndefined else{return .identity}
+            guard value.isArray,try length(value,6)==6 else {throw invalid("invalid positioned "+key)}
+            var entries=[CGFloat]();entries.reserveCapacity(6)
+            for index in 0..<6 {
+                guard let component=value.atIndex(index),component.isNumber else {throw invalid("non-numeric positioned matrix")}
+                let n=component.toDouble()
+                guard n.isFinite,(ignoreTranslation && index>=4) || abs(n)<=(index<4 ? 10_000_000:1_000_000_000) else {throw invalid("positioned matrix limit")}
+                entries.append(ignoreTranslation && index>=4 ? 0:CGFloat(n))
+            }
+            return CGAffineTransform(a:entries[0],b:entries[1],c:entries[2],d:entries[3],tx:entries[4],ty:entries[5])
+        }
+        let cmap=try boolean("cmap"),realized=try boolean("realizedAdvance"),vertical=try boolean("vertical"),classic=try boolean("classic")
+        _ = try boolean("limitSubpixel") // Vector outlines have no glyph bitmap cache.
+        let underline=try boolean("underline"),strikeout=try boolean("strikeout"),cellHeight=try boolean("cellHeight")
+        let horizontal=try number(options,"horizontal"),baseline=try number(options,"baseline")
+        guard [0.0,1,2].contains(horizontal),[0.0,1,2].contains(baseline),
+              let values=options.forProperty("values"),let positions=options.forProperty("positions"),positions.isArray else {throw invalid("invalid positioned alignment or arrays")}
+        let kind=JSValueGetTypedArrayType(values.context.jsGlobalContextRef,values.jsValueRef,nil)
+        guard values.isArray || kind==kJSTypedArrayTypeUint16Array else {throw invalid("positioned values must be UInt16")}
+        let count=try length(values,32_768),positionCount=try length(positions,32_768)
+        guard positionCount==(realized && count>0 ? 1:count) || (realized && positionCount==count),
+              count<=maximumGlyphs-shapedGlyphs,count<=262_144-textUnits else {throw invalid("aggregate positioned glyph/text budget exceeded")}
+        var explicitAdvance:CGPoint?
+        if let value=options.forProperty("advance"),!value.isUndefined,!value.isNull {explicitAdvance=try vector(value)}
+        let glyphMatrix=try matrix("matrix",ignoreTranslation:true),layoutMatrix=try matrix("layoutMatrix",ignoreTranslation:true),outputTransform=try matrix("outputTransform")
+        // Validate the complete typed payload before reserving native arrays.
+        for index in 0..<count {
+            guard let value=values.atIndex(index),value.isNumber else {throw invalid("non-numeric positioned glyph")}
+            let n=value.toDouble();guard n.isFinite,n>=0,n<=65535,n.rounded()==n else {throw invalid("positioned glyph is not UInt16")}
+        }
+        for index in 0..<positionCount {_ = try vector(positions.atIndex(index))}
+        shapedGlyphs+=count;textUnits+=count
+        var units=[UniChar]();units.reserveCapacity(count)
+        for index in 0..<count {units.append(UInt16(values.atIndex(index).toDouble()))}
+        var skipped=[Bool](repeating:false,count:count)
+        if cmap {
+            var index=0
+            while index<count {
+                let value=units[index]
+                if (0xd800...0xdbff).contains(value) {
+                    guard index+1<count,(0xdc00...0xdfff).contains(units[index+1]) else {throw invalid("malformed positioned UTF-16")}
+                    skipped[index+1]=true;index+=2
+                } else {guard !(0xdc00...0xdfff).contains(value) else {throw invalid("malformed positioned UTF-16")};index+=1}
+            }
+        }
+        let requestedFace=face.hasPrefix("@") ? String(face.dropFirst()):face
+        var font=CTFontCreateWithName(requestedFace as CFString,size,nil)
+        func requestedFont(_ value:CTFont)->Bool {
+            let names=[CTFontCopyFamilyName(value),CTFontCopyPostScriptName(value),CTFontCopyFullName(value)].map{$0 as String}
+            return names.contains(where:{$0.compare(requestedFace,options:[.caseInsensitive],locale:Locale(identifier:"en_US_POSIX")) == .orderedSame})
+        }
+        if !cmap,!requestedFont(font) {throw invalid("raw glyph font is not installed: "+face)}
+        var traits:CTFontSymbolicTraits=[]
+        if bold {traits.insert(.boldTrait)};if italic {traits.insert(.italicTrait)}
+        if !traits.isEmpty {
+            if let changed=CTFontCreateCopyWithSymbolicTraits(font,CTFontGetSize(font),nil,traits,traits) {font=changed}
+            else if !cmap {throw invalid("raw glyph font style is not installed: "+face)}
+        }
+        if !cmap,!requestedFont(font) {throw invalid("raw glyph font style substituted another family: "+face)}
+        if cellHeight {
+            let nativeHeight=CTFontGetAscent(font)+CTFontGetDescent(font)
+            let adjusted=size*Double(CTFontGetSize(font))/Double(nativeHeight)
+            guard nativeHeight.isFinite,nativeHeight>0,adjusted.isFinite,adjusted>0,adjusted<=65_536 else {throw invalid("invalid positioned font cell metrics")}
+            font=CTFontCreateCopyWithAttributes(font,adjusted,nil,nil)
+        }
+        let requestedWidth=try number(options,"averageWidth")
+        var widthScale=CGFloat(1)
+        if requestedWidth != 0 {
+            guard let table=CTFontCopyTable(font,CTFontTableTag(0x4f532f32),[]) as Data?,table.count>=4 else {throw invalid("positioned average width requires OS/2 font metrics")}
+            let average=CGFloat(Int16(bitPattern:UInt16(table[2])<<8|UInt16(table[3]))),units=CGFloat(CTFontGetUnitsPerEm(font))
+            guard average>0,units>0 else {throw invalid("invalid positioned average-width font metric")}
+            // LOGFONT negative width is an absolute requested average width,
+            // matching native GDI's font-selection normalization.
+            widthScale=CGFloat(abs(requestedWidth))/(average*CTFontGetSize(font)/units)
+            guard widthScale.isFinite,widthScale>0,widthScale<=10_000_000 else {throw invalid("positioned average-width scale limit")}
+        }
+        let ascent=CTFontGetAscent(font),descent=CTFontGetDescent(font)
+        guard ascent.isFinite,descent.isFinite,ascent>=0,descent>=0,ascent+descent>0 else {throw invalid("invalid positioned font metrics")}
+        var glyphs=[CGGlyph](repeating:0,count:count)
+        if cmap {if count>0 {_ = CTFontGetGlyphsForCharacters(font,units,&glyphs,count)}}
+        else {glyphs=units}
+        let glyphCount=CTFontGetGlyphCount(font)
+        guard glyphs.enumerated().allSatisfy({skipped[$0.offset] || Int($0.element)<glyphCount}) else {throw invalid("raw glyph index exceeds selected font")}
+        var advances=[CGSize](repeating:.zero,count:count)
+        if count>0 {_ = CTFontGetAdvancesForGlyphs(font,.horizontal,glyphs,&advances,count)}
+        guard advances.allSatisfy({$0.width.isFinite && $0.height.isFinite && abs($0.width)<=10_000_000 && abs($0.height)<=10_000_000}) else {throw invalid("positioned glyph advance limit")}
+        func fontVector(_ x:CGFloat,_ y:CGFloat)->CGPoint {
+            // Input uses font y-up. Convert to page y-down, apply the driver's
+            // linear matrix, then turn a vertical run clockwise. GDI+'s row
+            // order is driver M followed by V (Prepend into the vertical matrix).
+            let scaledX=x*widthScale
+            let mx=glyphMatrix.a*scaledX-glyphMatrix.c*y,my=glyphMatrix.b*scaledX-glyphMatrix.d*y
+            return vertical ? CGPoint(x:-my,y:mx):CGPoint(x:mx,y:my)
+        }
+        func layoutVector(_ x:CGFloat,_ y:CGFloat)->CGPoint {
+            // GDI's escapement controls the baseline separately from each
+            // glyph's orientation. The caller maps the complete classic run by
+            // escapement; its relative glyph matrix must not rotate advances.
+            if !classic {return fontVector(x,y)}
+            let px=x*widthScale,py = -y
+            return CGPoint(x:layoutMatrix.a*px+layoutMatrix.c*py,y:layoutMatrix.b*px+layoutMatrix.d*py)
+        }
+        var origins=[CGPoint](repeating:.zero,count:count),cursor=CGPoint.zero,first=CGPoint.zero,lastIndex:Int?
+        if count>0 {first=try vector(positions.atIndex(0));cursor=first}
+        for index in 0..<count where !skipped[index] {
+            if realized {origins[index]=cursor} else {origins[index]=try vector(positions.atIndex(index))}
+            lastIndex=index
+            let step=layoutVector(advances[index].width,0)
+            if realized {cursor.x+=step.x;cursor.y+=step.y}
+        }
+        var advance=CGPoint.zero
+        if let explicitAdvance {advance=explicitAdvance}
+        else if realized {advance=CGPoint(x:cursor.x-first.x,y:cursor.y-first.y)}
+        else if let lastIndex {let step=layoutVector(advances[lastIndex].width,0);advance=CGPoint(x:origins[lastIndex].x-first.x+step.x,y:origins[lastIndex].y-first.y+step.y)}
+        guard advance.x.isFinite,advance.y.isFinite,abs(advance.x)<=1_000_000_000,abs(advance.y)<=1_000_000_000 else {throw invalid("positioned run advance limit")}
+        let alignFactor=horizontal==1 ? CGFloat(0.5):horizontal==2 ? 1:0
+        let baselineShift=baseline==1 ? layoutVector(0,-ascent):baseline==2 ? layoutVector(0,descent):.zero
+        let shift=CGPoint(x:baselineShift.x-alignFactor*advance.x,y:baselineShift.y-alignFactor*advance.y)
+        let output=CGMutablePath()
+        let columnX=fontVector(1,0),columnY=fontVector(0,1)
+        for index in 0..<count where !skipped[index] {
+            let origin=CGPoint(x:origins[index].x+shift.x,y:origins[index].y+shift.y)
+            let transform=CGAffineTransform(a:columnX.x,b:columnX.y,c:columnY.x,d:columnY.y,tx:origin.x,ty:origin.y)
+            if let path=CTFontCreatePathForGlyph(font,glyphs[index],nil) {try append(path,to:output,transform:transform)}
+            else {
+                var glyph=glyphs[index],rect=CGRect.zero
+                _ = CTFontGetBoundingRectsForGlyphs(font,.horizontal,&glyph,&rect,1)
+                guard rect.isNull || rect.isEmpty else {throw invalid("selected positioned glyph has no vector outline")}
+            }
+        }
+        func decoration(_ position:CGFloat,_ thickness:CGFloat) throws {
+            guard position.isFinite,thickness.isFinite,thickness>0 else {throw invalid("invalid positioned decoration metrics")}
+            let offset=fontVector(0,position),cross=fontVector(0,thickness)
+            let indices=(0..<count).filter{!skipped[$0]}
+            for (ordinal,index) in indices.enumerated() {
+                let start=origins[index],end=ordinal+1<indices.count ? origins[indices[ordinal+1]]:CGPoint(x:first.x+advance.x,y:first.y+advance.y)
+                let p=CGPoint(x:start.x+shift.x+offset.x,y:start.y+shift.y+offset.y),q=CGPoint(x:end.x+shift.x+offset.x,y:end.y+shift.y+offset.y)
+                let path=CGMutablePath();path.move(to:p);path.addLine(to:q);path.addLine(to:CGPoint(x:q.x+cross.x,y:q.y+cross.y));path.addLine(to:CGPoint(x:p.x+cross.x,y:p.y+cross.y));path.closeSubpath()
+                try append(path,to:output)
+            }
+        }
+        if underline {try decoration(CTFontGetUnderlinePosition(font),CTFontGetUnderlineThickness(font))}
+        if strikeout {
+            guard let table=CTFontCopyTable(font,CTFontTableTag(0x4f532f32),[]) as Data?,table.count>=30 else {throw invalid("positioned strikeout requires OS/2 font metrics")}
+            func signed(_ offset:Int)->CGFloat {CGFloat(Int16(bitPattern:UInt16(table[offset])<<8|UInt16(table[offset+1])))*CTFontGetSize(font)/CGFloat(CTFontGetUnitsPerEm(font))}
+            let thickness=signed(26);try decoration(signed(28)-thickness,thickness)
+        }
+        let mapped=CGMutablePath();mapped.addPath(output,transform:outputTransform)
+        let bounds=mapped.boundingBoxOfPath
+        guard bounds.isNull || [bounds.minX,bounds.minY,bounds.maxX,bounds.maxY].allSatisfy({$0.isFinite && abs($0)<=1_000_000_000}) else {throw invalid("positioned output bounds limit")}
+        return ["path":try svg(mapped),"bounds":bounds.isNull ? [0.0,0,0,0]:[Double(bounds.minX),Double(bounds.minY),Double(bounds.maxX),Double(bounds.maxY)],"advance":[Double(advance.x),Double(advance.y)],"ascent":Double(ascent),"descent":Double(descent)]
+    }
     func layout(_ original: String, face: String, size: Double, bold: Bool, italic: Bool, options: JSValue) throws -> [String: Any] {
         guard size.isFinite, size > 0, size <= 65_536, face.utf8.count <= 4096,
               original.utf16.count <= 32_768, original.utf16.count <= 262_144 - textUnits,
@@ -926,6 +1101,11 @@ private func run() throws {
         catch ConversionError.invalid(let message) { nativeError(message); return [:] }
         catch { nativeError("Formatted metafile text layout failed: " + String(describing: error)); return [:] }
     }
+    let positionedText:@convention(block) (String,Double,Bool,Bool,JSValue)->NSDictionary = {face,size,bold,italic,options in
+        do {return try textLayout.positioned(face:face,size:size,bold:bold,italic:italic,options:options) as NSDictionary}
+        catch ConversionError.invalid(let message) {nativeError(message);return [:]}
+        catch {nativeError("Positioned metafile glyph layout failed: "+String(describing:error));return [:]}
+    }
     let strokeGeometry = NativeStrokeGeometry()
     let strokePath: @convention(block) (String, JSValue) -> NSDictionary = { path, options in
         do { return try strokeGeometry.stroke(path, options: options) as NSDictionary }
@@ -1022,6 +1202,7 @@ private func run() throws {
     context.setObject(base64, forKeyedSubscript: "__turtleBase64" as NSString)
     context.setObject(measure, forKeyedSubscript: "__turtleMeasureText" as NSString)
     context.setObject(layoutText, forKeyedSubscript: "__turtleLayoutText" as NSString)
+    context.setObject(positionedText,forKeyedSubscript:"__turtlePositionedText" as NSString)
     context.setObject(strokePath, forKeyedSubscript: "__turtleStrokePath" as NSString)
     context.setObject(bitmap, forKeyedSubscript: "__turtleBitmapNative" as NSString)
     context.evaluateScript("""

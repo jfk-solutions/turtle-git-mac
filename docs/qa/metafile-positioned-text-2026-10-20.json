@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-20",
+  "family": "Positioned EMF+ driver strings and classic EMF text across image consumers",
+  "status": "scoped batch passed; whole port and signed acceptance remain open",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "renderer_pin": "4e0d6d6807349ebfc8f8c681009c14f9e57621ff",
+  "source_contract": {
+    "driver_string": "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/b794b780-e9a8-4682-af65-9b614aecfbe6",
+    "driver_flags": "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/d21f08ce-2fd4-49f2-9796-b41e93d1d7d5",
+    "classic_emr_text": "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/dd585d0a-5d7c-4034-963a-1141af836972",
+    "classic_alignment": "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-settextalign",
+    "logfont": "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-logfontw",
+    "average_width": "https://learn.microsoft.com/en-us/typography/opentype/spec/os2#xavgcharwidth",
+    "updatecp_reference": "https://github.com/wine-mirror/wine/blob/840a939ee526137639665ff5f587224d6a36403f/dlls/win32u/font.c#L5993",
+    "updatecp_reference_sha256": "2506cc3a28701f18775eab1bbe6ac829bc0ea958411e5e3ee2eb6a031f1de1a5",
+    "driver_matrix_reference": "https://github.com/wine-mirror/wine/blob/840a939ee526137639665ff5f587224d6a36403f/dlls/gdiplus/graphics.c",
+    "driver_matrix_reference_sha256": "7bf6401ecde86d45ac164f0943d5e07f076f8863501445bed6b32748ebf277cc"
+  },
+  "validation": [
+    {
+      "check": "Reconstruct and build universal runtime",
+      "result": "passed",
+      "log": "build/qa/metafile-positioned-runtime-2026-10-20.log"
+    },
+    {
+      "check": "Validate runtime and execute both architectures",
+      "result": "passed",
+      "log": "build/qa/metafile-positioned-runtime-validation-2026-10-20.log",
+      "scope": "arm64 and x86_64 baseline conversion/rejection; source/license/hash reconstruction, deployment/linkage"
+    },
+    {
+      "check": "Initial relevant Core group",
+      "result": "21 executed;20 passed,1 new fixture assertion failed",
+      "log": "build/qa/metafile-positioned-core-2026-10-20.log",
+      "failure": "Cell-height test assumed Helvetica ascent+descent exceeds em. Native Helvetica18 ascent13.8603515625 +descent4.1396484375 is exactly18, so both actual ink heights13 are correct."
+    },
+    {
+      "check": "Debug app build with reconstructed runtime",
+      "result": "passed",
+      "log": "build/qa/metafile-positioned-app-2026-10-20.log"
+    },
+    {
+      "check": "Focused cell-height Core repair",
+      "result": "passed;21 distinct relevant Core methods now have passing evidence across original20passes and repairedmethod",
+      "log": "build/qa/metafile-positioned-core-cell-repair-2026-10-20.log",
+      "scope": "Only affected method repeated; no full local Core or Metafile suite rerun"
+    },
+    {
+      "check": "Native label resource check",
+      "result": "passed;38languages1303keys",
+      "log": "build/qa/metafile-positioned-localizations-2026-10-20.log"
+    },
+    {
+      "check": "Bundled Help consistency",
+      "result": "passed;includedguides unchanged",
+      "log": "build/qa/metafile-positioned-help-2026-10-20.log"
+    },
+    {
+      "check": "Grouped native positioned-text consumers",
+      "result": "passed with Apple Git and bundled Git",
+      "log": "build/qa/metafile-positioned-native-2026-10-20.log",
+      "scope": "11staticrepresentatives+2privatecmapglyphcopies; actual imagepanes/pairs, drop, three-stageconflict, malformedrefusal and chooser/cancel/late/grant/Quit ownership; sourcebytes HEAD/index unchanged; linkedDebug consumers use developmenthelper",
+      "reaped_receivers": [
+        78040,
+        78244
+      ],
+      "independent_pid_absence": true
+    },
+    {
+      "check": "Packaged renderer and source identity",
+      "result": "matched reconstructed runtime",
+      "renderer_sha256": "9a85f1949f13d8a7a3b82ddd0b1e7e2a53ebd0adc0901dd59a9bef553e4218b9",
+      "unsigned_helper_sha256": "39dad636686b9c83ae34ce23e23cba8bd80ccd45ab267050ae0aa369d627444c",
+      "embedded_helper_sha256": "dfc48182e7ffc197115220caf5c7471beb550cd44fddbdf8b8c29a501329539a",
+      "scope": "Debug ad-hoc-signed helper manifest preserves matching unsigned hash; source-input dictionaries match; no distribution-signed execution claim"
+    },
+    {
+      "check": "Dialog coverage reconciliation",
+      "result": "passed;130dialogs120partial10pending0certified;1659controls1572mapped87pending",
+      "log": "build/qa/metafile-positioned-coverage-2026-10-20.log",
+      "scope": "Ledger counts are audit coverage, not feature completion percentages"
+    },
+    {
+      "check": "Documentation website",
+      "result": "passed;377documents,0unresolvedfragments",
+      "log": "build/qa/metafile-positioned-site-2026-10-20.log"
+    }
+  ],
+  "remaining": [
+    "Empty driver records, opaque BeginPath text and unimplemented classic text option/record variants",
+    "Independent Windows driver-matrix, font mapper and raster-metric captures",
+    "Fonts unavailable on macOS, color/bitmap-only glyph outlines and device-specific rounding",
+    "Remaining classic text record variants and advanced locale shaping",
+    "Physical image-window, current signed deployment and App Store acceptance",
+    "Other metafile drawing families and whole TortoiseGit port"
+  ],
+  "implementation": {
+    "native": "Shared CoreText positioned geometry on the existing NativeTextLayout instance; direct cmap/raw glyphs, natural or supplied origins, separate glyph/layout/output matrices and shared budgets",
+    "renderer": "DrawDriverString and classic EMR_EXTTEXTOUTW with text state, current-position continuation, Dx/Pdy, font geometry, opaque/clipped output and transparent BeginPath",
+    "compatible_mapping": "P for explicit displacements, Q=P^-1D for glyphs/natural advances/baseline with upright uniform vertical device scale",
+    "matrix_order": "Driver linear matrix before vertical clockwise turn; translation ignored per Wine font-vector reference, independent Windows captures pending",
+    "limits": "32768 per call; shared262144 text/glyph units,2000000 outline elements,32MiB serialized text paths"
+  },
+  "fixtures": {
+    "accepted": 52,
+    "refusals": 22,
+    "new_core_methods": 8,
+    "retained_fixture_count": 616,
+    "retained_binary_sha256_unchanged": true,
+    "oracle": "Original records, independent geometry/font metrics and runtime-installed cmap IDs; no Windows capture certification"
+  },
+  "repairs": [
+    {
+      "failure": "New positive cell-height fixture uses a font whose native cell height equals its em height",
+      "repair": "Replaced new cell-height fixture with Arial18 and added matching negative-height em control; actual Arial ascent16.294921875+descent3.814453125=20.109375. Retained strict smaller-height and independent native-metric ratio assertions.",
+      "scope": "New fixture/Core method only; runtime/app unchanged; affectedmethod passed focusedrecheck"
+    }
+  ]
+}
