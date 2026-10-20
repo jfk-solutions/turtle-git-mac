@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The [Commit safety and draft-recovery family](COMMIT-SAFETY-PARITY.md) connects
+detached-HEAD Yes/Create Branch, No and Cancel, actual branch re-reading and
+owned child cancellation with issue-field recovery in cancelled message history.
+It retains explicit index-order adaptations and physical/signed/full-dialog gaps.
+Eight focused Core methods, the Debug app and six native case/engine checks passed
+across the grouped checkpoint and focused repairs. [Evidence](qa/commit-safety-family-2026-10-20.json)
+retains actual failures, private-context scope, captures and owned cleanup.
+
 The [Commit preparation and SSH signing family](COMMIT-IDENTITY-PARITY.md)
 adds the source identity gate before status/template/Start-hook loading, owned
 Git Settings repair, effective author defaults and retained command/replay

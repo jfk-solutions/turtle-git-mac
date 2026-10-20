@@ -2,6 +2,25 @@ import XCTest
 @testable import TurtleGitCore
 
 final class IssueTrackerTests: XCTestCase {
+    func testCancelledDraftRetainsInvalidIssueFieldWithoutValidationOrMatching() throws {
+        let properties = IssueTrackerProperties(values: ["bugtraq.message": "Refs: %BUGID%", "bugtraq.logregex": "[", "bugtraq.number": "true"])
+        let raw = "Recover 🐢\nRefs: ABC-42\n"
+        XCTAssertFalse(properties.validatesIssueID("ABC-42"))
+        // Cancel does not invoke the malformed regex or discard an ID that
+        // Commit would reject, and compareExistingBugID is deliberately false.
+        XCTAssertEqual(properties.messageForCancelledDraft(message: raw, issueID: "  ABC-42  "), raw + "\nRefs: ABC-42\n")
+        XCTAssertEqual(properties.messageForCancelledDraft(message: raw, issueID: " \n\t"), raw)
+        XCTAssertEqual(properties.messageForCancelledDraft(message: "", issueID: "42"), "\nRefs: 42\n")
+        XCTAssertEqual(raw, "Recover 🐢\nRefs: ABC-42\n")
+    }
+    func testCancelledDraftSourceCommaNormalizationAndPrepend() {
+        let properties = IssueTrackerProperties(values: ["bugtraq.message": "Issue %BUGID% (%BUGID%)", "bugtraq.append": "false"])
+        XCTAssertEqual(properties.messageForCancelledDraft(message: "Body\r\n", issueID: " 42 , 73, 99 "), "Issue 42,73,99 (42,73,99)\nBody\r\n")
+        // Replacement follows source single Replace passes, not arbitrary
+        // whitespace canonicalization; tabs and repeated spaces survive.
+        XCTAssertEqual(properties.messageForCancelledDraft(message: "Body", issueID: "42,  73\t,99"), "Issue 42, 73\t,99 (42, 73\t,99)\nBody")
+        XCTAssertEqual(IssueTrackerProperties().messageForCancelledDraft(message: "Body", issueID: "42"), "Body\n\n")
+    }
     private var parser: URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
     }

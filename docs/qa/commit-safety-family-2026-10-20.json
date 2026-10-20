@@ -1,0 +1,162 @@
+{
+  "date": "2026-10-20",
+  "base": "29d195f8d0ca7eaf72ac1d76a938c84d73565642",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "previous_goal_turn": "progress: Commit preparation/signing batch published as 29d195f8.",
+  "scope": [
+    "Source detached-HEAD Yes/Create Branch, No and Cancel, real branch re-read and captured native ownership.",
+    "Cancelled issue-field recovery before template/amend history comparison, retaining invalid IDs and raw editor state."
+  ],
+  "adaptations": [
+    "Native warning precedes atomic Core checkbox index preparation; source prepares index before warning.",
+    "Explicit newBranch stays inside existing Core create/switch path and bypasses redundant warning; failure aborts.",
+    "Cancelled-history composition uses a derived value, preserving source editor text on repeated rejected Cancel."
+  ],
+  "core": {
+    "log": "build/qa/commit-safety-core-2026-10-20.log",
+    "group": "IssueTrackerTests",
+    "methods": 8,
+    "result": "passed",
+    "full_suite_run": false
+  },
+  "build": {
+    "initial_log": "build/qa/commit-safety-build-2026-10-20.log",
+    "initial_exit_code": 65,
+    "failure": "Cancel call sites used optional chaining on a nonoptional IssueTrackerProperties. Removed optional chaining; Core unchanged.",
+    "repair_log": "build/qa/commit-safety-build-repair-2026-10-20.log",
+    "result": "passed after focused native type repair",
+    "repair_exit_code": 0,
+    "warnings": "Existing Swift actor/capture/deprecation and local simulator/toolchain diagnostics; not a warning-free build."
+  },
+  "native": {
+    "result": "passed",
+    "scope": "Private real repositories, offscreen native windows/buttons and full BranchTag workflow. Injected delayed branch/read preparation for late-callback drain, not live hung Git child verification; actions fixture runs real Rebase Split Commit.",
+    "failures_and_repairs": [
+      {
+        "log": "build/qa/commit-safety-native-2026-10-20.log",
+        "owned_receiver_pid": 16467,
+        "cause": "Fixture waited for an NSButton titled OK in a SwiftUI footer; timed out before actual invalid-name action.",
+        "repair": "Use dialog native Return default action, retaining real error/retry and Git state assertions.",
+        "core_or_app_repeated": false
+      },
+      {
+        "log": "build/qa/commit-safety-native-default-action-2026-10-20.log",
+        "owned_receiver_pid": 18306,
+        "cause": "Amend fixture asserted cancellation completion while its comparison/status reload was still running.",
+        "repair": "Await actual ready form and public asynchronous Cancel completion before unchanged exact issue/non-Amend history assertions.",
+        "core_or_app_repeated": false
+      }
+    ],
+    "passing_cases": [
+      {
+        "case": "detached",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-safety-native-default-action-2026-10-20.log",
+        "pid": 16830
+      },
+      {
+        "case": "detached",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-safety-native-default-action-2026-10-20.log",
+        "pid": 17537
+      },
+      {
+        "case": "history",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-safety-native-history-actions-2026-10-20.log",
+        "pid": 18780
+      },
+      {
+        "case": "history",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-safety-native-history-actions-2026-10-20.log",
+        "pid": 19185
+      },
+      {
+        "case": "actions",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-safety-native-history-actions-2026-10-20.log",
+        "pid": 19588
+      },
+      {
+        "case": "actions",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-safety-native-history-actions-2026-10-20.log",
+        "pid": 20731
+      }
+    ],
+    "distinct_case_engine_runs": 6,
+    "owned_receiver_pids_reaped": [
+      16467,
+      16830,
+      17537,
+      18306,
+      18780,
+      19185,
+      19588,
+      20731
+    ],
+    "owned_receivers_independently_absent": true,
+    "retained_results": "Both detached case/engine passes retained; only affected history and previously unstarted actions run after fixture sequencing repair. No Core or app repeat for either native fixture repair.",
+    "cases": [
+      "detached",
+      "history",
+      "actions"
+    ],
+    "engines": [
+      "Apple Git 2.54.0",
+      "bundled Git 2.55.0"
+    ]
+  },
+  "explicit_gaps": [
+    "Physical keyboard/VoiceOver and every conditional Commit caller/layout.",
+    "All live Git child/hook/editor/plugin interactions, minimum OS/architecture acceptance.",
+    "Signed sandbox/TCC grants, installed Finder and App Store distribution acceptance.",
+    "Full current hosted CI and whole application TortoiseGit parity."
+  ],
+  "protected_unrelated_worktree_files": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/commit-detached-warning-light.png",
+      "width": 520,
+      "height": 444,
+      "sha256": "ab51fa04229109ad88b813220fe15fda2faa199aeb45feef91a8f383eecacd6f"
+    },
+    {
+      "path": "docs/site/assets/commit-detached-warning-dark.png",
+      "width": 520,
+      "height": 444,
+      "sha256": "d408daad2d957304518a47cf009c95c6589fac9a08c760e6534c2e7867d070c0"
+    },
+    {
+      "path": "docs/site/assets/commit-detached-create-branch-light.png",
+      "width": 1320,
+      "height": 1120,
+      "sha256": "7a6dce419e1ad593967b1930362648ff6e56096e60d507c8e2b7a2cf7f00cf24"
+    },
+    {
+      "path": "docs/site/assets/commit-detached-create-branch-dark.png",
+      "width": 1320,
+      "height": 1120,
+      "sha256": "1dd76e01373f116f643ea0a550eea8a8bf284b7a586a35b6cad4971209a53442"
+    }
+  ],
+  "capture_scope": "Actual invisible/offscreen native warning and owned Create Branch sheet in both appearances, visually inspected. Captured during initial run before fixture footer-selector repair; production unchanged.",
+  "validated_source_hashes": {
+    "Sources/TurtleGitCore/IssueTracker.swift": "fc6bc1cc99639cd0dc3d4f97eeb650c73f849419f3585b310c41bd8234c42295",
+    "Sources/TurtleGitMac/CommitWindow.swift": "45910c25a2a46f5c21f74bf725524566693611aa41993adadb0c1f401a9a0cf2",
+    "Sources/TurtleGitMac/BranchTagWindow.swift": "0860266091846445cc8d1df82649ef9a2822777cc6fe4e6b8284af6f7fa533ed",
+    "Tests/TurtleGitCoreTests/IssueTrackerTests.swift": "b7f45f5504fc57d7c7d8c36e36519fff61c8a82165e9888d89397c5f12bd9242",
+    "docs/qa/commit-detached-native-2026-10-20.swift": "984d97d7401f56e39b4f5cabae4ab03db1650f1cb89d3e1d76c01452856e979e",
+    "scripts/test-commit-safety.py": "5c09078cc9df08d122f88ffa8ac6a94afab38c270334a970e9624e7510367ad0"
+  },
+  "resources": {
+    "localization": "38 languages,1305 keys; write/check passed. English fallback retained.",
+    "help": "46 guides,51 topics,66 files; rebuilt before app build, freshness check passed.",
+    "coverage": "130 dialogs:120 partial family audits,10 pending,0 certified;1574 mapped and85 pending controls. Audit coverage only.",
+    "site": "387 documents rendered; no unresolved fragments. Log: build/qa/commit-safety-site-2026-10-20.log"
+  }
+}

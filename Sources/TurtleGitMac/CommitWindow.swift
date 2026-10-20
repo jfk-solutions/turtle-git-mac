@@ -21,6 +21,13 @@ import UniformTypeIdentifiers
     init(alert:NSAlert,token:OperationCancellation,completion:@escaping(Bool)->Void){self.alert=alert;self.token=token;self.completion=completion}
 }
 
+@MainActor private final class CommitDetachedQuestionState {
+    let alert:NSAlert,token:OperationCancellation
+    var completion:((CommitWindowModel.DetachedHeadChoice)->Void)?,watcher:Task<Void,Never>?
+    var settling=false
+    init(alert:NSAlert,token:OperationCancellation,completion:@escaping(CommitWindowModel.DetachedHeadChoice)->Void){self.alert=alert;self.token=token;self.completion=completion}
+}
+
 @MainActor final class CommitWindowController: NSWindowController, NSWindowDelegate {
     let model: CommitWindowModel
     private(set) var commandMenu:CommitCommandMenu?
@@ -53,6 +60,11 @@ import UniformTypeIdentifiers
     var identityNavigation:SettingsNavigationController? {identitySettings?.navigation}
     var presentCommitIdentityQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool={owner,alert,reply in alert.beginSheetModal(for:owner,completionHandler:reply);return true}
     var configureCommitIdentitySettings:(SettingsSheetController)->Void={_ in}
+    private var detachedQuestionState:CommitDetachedQuestionState?
+    var detachedQuestion:NSAlert? {detachedQuestionState?.alert}
+    private(set) var detachedBranch:BranchTagWindowController?
+    var configureDetachedBranch:(BranchTagWindowController)->Void={_ in}
+    var presentDetachedQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool={owner,alert,reply in alert.beginSheetModal(for:owner,completionHandler:reply);return true}
     private var historyWindow: NSWindow?
     var makeHistoryWindow: () -> NSWindow = {
         NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 320), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
@@ -77,6 +89,9 @@ import UniformTypeIdentifiers
         window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model).defaultAppStorage(defaults))
         super.init(window: window); model.comparisonWindow = window; model.missingStagedRecovery.ownerWindow = window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
+        model.confirmDetachedHead={ [weak self] token in await self?.askDetachedHead(token) ?? .cancel }
+        model.createDetachedBranch={ [weak self] token in await self?.showDetachedBranch(token) ?? false }
+        model.retireDetachedChildren={ [weak self] in self?.retireDetachedChildren() }
         model.repairCommitIdentity={ [weak self] token in await self?.repairCommitIdentity(token) ?? false }
         model.retireCommitIdentitySettings={ [weak self] in self?.retireCommitIdentityChildren() }
         model.presentAddProgress={ [weak self] paths,mode,backend,token in
@@ -386,6 +401,71 @@ import UniformTypeIdentifiers
         if let pending=commitIdentityQuestion {settleCommitIdentityQuestion(pending,accepted:false)}
         identitySettings?.retire()
     }
+    private func askDetachedHead(_ token:OperationCancellation)async->CommitWindowModel.DetachedHeadChoice {
+        guard !closingCommit,!model.confirmingQuit,!token.isCancelled,detachedQuestionState==nil,let owner=window,owner.attachedSheet==nil else{return .cancel}
+        let alert=NSAlert();alert.alertStyle = .warning;alert.messageText="Current HEAD is detached, you are working on (no branch).";alert.informativeText="Do you want to create a branch now?"
+        alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No");alert.addButton(withTitle:"Cancel").keyEquivalent="\u{1b}"
+        alert.window.alphaValue=owner.alphaValue;alert.window.appearance=owner.effectiveAppearance
+        return await withCheckedContinuation {reply in
+            let pending=CommitDetachedQuestionState(alert:alert,token:token){reply.resume(returning:$0)}
+            detachedQuestionState=pending
+            pending.watcher=Task{@MainActor [weak self,weak pending] in
+                while !Task.isCancelled {
+                    guard let self,let pending,self.detachedQuestionState === pending,!pending.settling else{return}
+                    if token.isCancelled || self.closingCommit {self.settleDetachedQuestion(pending,choice:.cancel);return}
+                    try? await Task.sleep(nanoseconds:10_000_000)
+                }
+            }
+            if !presentDetachedQuestion(owner,alert,{ [weak self,weak pending] response in
+                guard let self,let pending else{return}
+                self.settleDetachedQuestion(pending,choice:response == .alertFirstButtonReturn ? .createBranch:response == .alertSecondButtonReturn ? .continueDetached:.cancel)
+            }){settleDetachedQuestion(pending,choice:.cancel)}
+        }
+    }
+    private func settleDetachedQuestion(_ pending:CommitDetachedQuestionState,choice:CommitWindowModel.DetachedHeadChoice) {
+        guard detachedQuestionState === pending,!pending.settling else{return};pending.settling=true;pending.watcher?.cancel();pending.watcher=nil
+        let child=pending.alert.window,parent=child.sheetParent ?? window
+        if child.sheetParent != nil || parent?.attachedSheet === child {parent?.endSheet(child,returnCode:.abort)}
+        child.orderOut(nil)
+        Task{@MainActor [self,pending] in
+            while child.sheetParent != nil || parent?.attachedSheet === child || child.attachedSheet != nil {
+                await withCheckedContinuation{reply in DispatchQueue.main.asyncAfter(deadline:.now()+0.005){reply.resume()}}
+            }
+            child.close();if detachedQuestionState === pending{detachedQuestionState=nil}
+            let reply=pending.completion;pending.completion=nil
+            reply?(closingCommit || model.confirmingQuit || pending.token.isCancelled ? .cancel:choice)
+        }
+    }
+    private func showDetachedBranch(_ token:OperationCancellation)async->Bool {
+        guard !closingCommit,!model.confirmingQuit,!token.isCancelled,detachedBranch==nil,let owner=window,owner.attachedSheet==nil else{return false}
+        let child=BranchTagWindowController(repository:model.repository,access:model.access,isTag:false,preferences:preferences)
+        detachedBranch=child;model.hasDetachedBranch=true
+        child.window?.alphaValue=owner.alphaValue;child.window?.appearance=owner.effectiveAppearance
+        child.model.load(revision:"HEAD");child.model.switchAfterCreation=true
+        return await withCheckedContinuation{continuation in
+            var settled=false
+            let watcher=Task{@MainActor [weak self,weak child] in
+                while !Task.isCancelled && !settled {
+                    guard let self,let child,self.detachedBranch === child else{return}
+                    if token.isCancelled || self.closingCommit {child.close();return}
+                    try? await Task.sleep(nanoseconds:10_000_000)
+                }
+            }
+            child.onClosed={ [weak self,weak child] in
+                guard !settled else{return};settled=true;watcher.cancel()
+                let success=child?.model.completedSuccessfully==true
+                if self?.detachedBranch === child {self?.detachedBranch=nil;self?.model.hasDetachedBranch=false}
+                continuation.resume(returning:success && self?.closingCommit==false && self?.model.confirmingQuit==false && !token.isCancelled)
+            }
+            configureDetachedBranch(child)
+            guard !settled,child.model.active,!token.isCancelled,!closingCommit else{child.close();return}
+            if let sheet=child.window {owner.beginSheet(sheet)}else{child.close()}
+        }
+    }
+    private func retireDetachedChildren() {
+        if let pending=detachedQuestionState {settleDetachedQuestion(pending,choice:.cancel)}
+        detachedBranch?.close()
+    }
     private func finishUnversionedFilesPrompt() {
         let answer=unversionedFilesAnswer;unversionedFilesAnswer=nil
         if let alert=unversionedFilesAlert {
@@ -395,12 +475,12 @@ import UniformTypeIdentifiers
         }
         answer?(nil)
     }
-    func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending;addProgressController?.model.confirmingQuit=pending }
+    func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending;addProgressController?.model.confirmingQuit=pending;detachedBranch?.model.confirmingQuit=pending }
     func windowWillClose(_ notification: Notification) {
         // End-sheet callbacks may run synchronously while native children retire.
         // Fence owner actions before dismissing any of those children.
         closingCommit = true
-        retireCommitIdentityChildren()
+        retireCommitIdentityChildren();retireDetachedChildren()
         commandMenu?.retire();visibilitySheetObservation=nil;finishUnversionedFilesPrompt()
         let hintAnswer=stagingHintAnswer;stagingHintAnswer=nil;stagingHintAlert=nil;hintAnswer?(nil)
         templatePanel?.cancel(nil); templatePanel = nil
@@ -411,16 +491,16 @@ import UniformTypeIdentifiers
         }
         logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close()
         addProgressController?.close()
-        if addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity {
+        if addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending {
             Task{@MainActor [self] in
-                while addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity {
+                while addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending {
                     await withCheckedContinuation{reply in DispatchQueue.main.asyncAfter(deadline:.now()+0.005){reply.resume()}}
                 };onClosed()
             }
         } else {onClosed()}
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if model.preparingCommitIdentity {model.cancel();return false}
+        if model.preparingCommitIdentity || model.preparingDetachedHead || model.detachedHeadWorkPending {model.cancel();return false}
         if model.missingStagedRecovery.busy { model.missingStagedRecovery.cancel(); return false }
         if model.submoduleLog.isReading { model.submoduleLog.cancel(); return false }
         guard sender.attachedSheet == nil, !hasMessagePicker, partial?.model.busy != true, partial?.window?.attachedSheet == nil, !model.unifiedViewerBusy else { return false }
@@ -815,6 +895,48 @@ import UniformTypeIdentifiers
     var confirmUneditedTemplate: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     var confirmUnresolvedConflicts:([String],@escaping (Bool)->Void)->Void = { _,choose in choose(false) }
     var confirmBranchTagCollision:(String,@escaping (Bool)->Void)->Void = { _,choose in choose(false) }
+    enum DetachedHeadChoice {case createBranch,continueDetached,cancel}
+    var readCommitBranch:((OperationCancellation)async throws->String)?
+    var confirmDetachedHead:(OperationCancellation)async->DetachedHeadChoice={_ in .cancel}
+    var createDetachedBranch:(OperationCancellation)async->Bool={_ in false}
+    var retireDetachedChildren:()->Void={}
+    @Published private(set) var preparingDetachedHead=false
+    @Published private(set) var detachedHeadWorkPending=false
+    @Published var hasDetachedBranch=false
+    /// CommitDlg::CheckHeadDetach follows optional branch creation. An explicit
+    /// new-branch option is created/switched by the existing commit engine before
+    /// commit; failure there aborts, so it cannot produce a detached commit.
+    private func prepareDetachedHead(options:CommitOptions,request:UUID,token:OperationCancellation)async throws->Bool {
+        guard replaySplit==nil,historyCombine==nil,options.newBranch==nil else{return true}
+        detachedHeadWorkPending=true;preparingDetachedHead=true;defer{preparingDetachedHead=false}
+        while true {
+            let current:String
+            if let readCommitBranch {current=try await readCommitBranch(token)}else{current=try await repository.branch(cancellation:token)}
+            try validatePreflight(request,token)
+            if !current.isEmpty {branch=current;return true}
+            let choice=await confirmDetachedHead(token);try validatePreflight(request,token)
+            switch choice {
+            case .cancel:return false
+            case .continueDetached:return true
+            case .createBranch:
+                guard await createDetachedBranch(token) else {try validatePreflight(request,token);return false}
+                try validatePreflight(request,token)
+                // The branch dialog can change its switch choice; do not infer
+                // an attached HEAD from creation alone. Re-read after release.
+            }
+        }
+    }
+    private func cancelDetachedHeadPreparation(closeWindow:Bool,completion:((Bool)->Void)?)->Bool {
+        guard preparingDetachedHead,let token=preflightCancellation else{return false}
+        guard !pendingReloadCancel,!confirmingQuit || !closeWindow else{completion?(false);return true}
+        pendingReloadCancel=true;token.cancel();retireDetachedChildren()
+        Task{@MainActor [self] in
+            while preparingDetachedHead || detachedHeadWorkPending {try? await Task.sleep(nanoseconds:5_000_000)}
+            pendingReloadCancel=false
+            guard messageFocusAvailable else{completion?(false);return}
+            busy=false;cancel(closeWindow:closeWindow,completion:completion,confirmationAccepted:false)
+        };return true
+    }
     private var preflightCancellation:OperationCancellation?
     private var preflightRequest=UUID()
     private(set) static var activeCommitPreflights=0
@@ -1877,7 +1999,7 @@ import UniformTypeIdentifiers
         issueProviderGeneration = UUID(); issueProviderBusy = false
         fileMenuGeneration = UUID(); fileOperationToken?.cancel(); cancelChangelist()
         diffSession?.cancel(); diffSession = nil
-        retireCommitIdentitySettings();clientHooks.retire(); submoduleLog.retire();fileListRefresh.retire()
+        retireCommitIdentitySettings();retireDetachedChildren();clientHooks.retire(); submoduleLog.retire();fileListRefresh.retire()
         reloadCancellation?.cancel(); reloadTask?.cancel(); lfsOwnerCancellation?.cancel()
         reloadCancellation = nil; reloadTask = nil; lfsOwnerCancellation = nil
         pendingReloadCancel = false; busy = false
@@ -2021,7 +2143,7 @@ import UniformTypeIdentifiers
         busy = true;Self.activeCommitPreflights += 1
         Task { [self,access] in
             var commitAttempted = false
-            defer { if commitAttempted,messageFocusAvailable {unversionedDefaults.set(showUnversionedForAttempt,forKey:"AddBeforeCommit")};Self.activeCommitPreflights -= 1;withExtendedLifetime(access) {};if preflightRequest==preflight { preflightCancellation=nil } }
+            defer { if commitAttempted,messageFocusAvailable {unversionedDefaults.set(showUnversionedForAttempt,forKey:"AddBeforeCommit")};detachedHeadWorkPending=false;Self.activeCommitPreflights -= 1;withExtendedLifetime(access) {};if preflightRequest==preflight { preflightCancellation=nil } }
             var progress: CommitProgressWindowModel?
             var selectedPostAction: CommitPostAction?
             do {
@@ -2081,8 +2203,6 @@ import UniformTypeIdentifiers
                 try validatePreflight(preflight,preflightToken)
                 let prepared = text == rawMessage ? validation : try await repository.prepareIssueCommit(properties: properties, message: text, issueID:rawIssueID,cancellation:preflightToken)
                 try validatePreflight(preflight,preflightToken)
-                text = prepared.message; message = text
-                try provider?.checkCommit(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID))
                 if !options.messageOnly {
                     let candidates = staging ? visibleEntries.filter { isStaged($0) }.map(\.path) : visibleEntries.filter { paths.contains($0.path) }.map(\.path)
                     let dirty = try await repository.commitDirtySubmodules(paths:candidates,cancellation:preflightToken)
@@ -2098,6 +2218,10 @@ import UniformTypeIdentifiers
                     }
                 }
                 try validatePreflight(preflight,preflightToken)
+                guard try await prepareDetachedHead(options:options,request:preflight,token:preflightToken) else{busy=false;return}
+                try validatePreflight(preflight,preflightToken)
+                text = prepared.message; message = text
+                try provider?.checkCommit(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID))
                 let isGitSVN = try await repository.finderMetadata(knownBare:false,cancellation:preflightToken).hasGitSVN
                 let written = try await repository.prepareCommitMessageFile(text, stripComments: dialogDefaults.bool(forKey: "StripCommentedLines"), sanitize:dialogDefaults.object(forKey:"SanitizeCommitMsg") as? Bool ?? true,cancellation:preflightToken)
                 text = written.contents; message = written.draft
@@ -2218,12 +2342,13 @@ import UniformTypeIdentifiers
     var inputsBlocked:Bool {!commitIdentityPrepared || preparingCommitIdentity || operationInputsBlocked}
     var canRefresh:Bool {messageFocusAvailable && !operationInputsBlocked}
     var fileListAvailable:Bool {messageFocusAvailable && !messageOnly && !inputsBlocked}
-    var canCancel: Bool { messageFocusAvailable && !stagingHintVisible && !unversionedPromptVisible && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil) }
+    var canCancel: Bool { messageFocusAvailable && !stagingHintVisible && !unversionedPromptVisible && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil || preparingDetachedHead) }
     func cancel(closeWindow: Bool = true, completion: ((Bool) -> Void)? = nil) {
         cancel(closeWindow: closeWindow, completion: completion, confirmationAccepted: false)
     }
     private func cancel(closeWindow: Bool, completion: ((Bool) -> Void)?, confirmationAccepted: Bool) {
         guard messageFocusAvailable else { completion?(false); return }
+        if cancelDetachedHeadPreparation(closeWindow:closeWindow,completion:completion){return}
         if preparingCommitIdentity,let token=reloadCancellation,let task=reloadTask {
             guard !pendingReloadCancel,!confirmingQuit || !closeWindow else{completion?(false);return}
             pendingReloadCancel=true;token.cancel();task.cancel();retireCommitIdentitySettings()
@@ -2263,7 +2388,8 @@ import UniformTypeIdentifiers
                     self.cancel(closeWindow: closeWindow, completion: completion, confirmationAccepted: true)
                 }
             }
-            let changed = !message.isEmpty && !GitReferenceName.equal(message,amend ? originalAmendMessage : messageTemplate)
+            let recoveredMessage = issueProperties.messageForCancelledDraft(message: message, issueID: issueID)
+            let changed = !recoveredMessage.isEmpty && !GitReferenceName.equal(recoveredMessage,amend ? originalAmendMessage : messageTemplate)
             if !confirmationAccepted, (changed || !entries.isEmpty), !dialogDefaults.bool(forKey: "Commit.SkipCancelConfirmation") {
                 confirmCancel(stop)
             } else { stop(true) }
@@ -2273,10 +2399,11 @@ import UniformTypeIdentifiers
         if let commitProgress { commitProgress.cancel(); completion?(false); return }
         guard !busy, !confirmingQuit || !closeWindow else { completion?(false); return }
         if !commitIdentityPrepared {if closeWindow {close()};completion?(true);return}
-        let changed = !message.isEmpty && !GitReferenceName.equal(message,amend ? originalAmendMessage : messageTemplate)
+        let recoveredMessage = issueProperties.messageForCancelledDraft(message: message, issueID: issueID)
+        let changed = !recoveredMessage.isEmpty && !GitReferenceName.equal(recoveredMessage,amend ? originalAmendMessage : messageTemplate)
         let finish = { [weak self] in
             guard let self, self.messageFocusAvailable else { completion?(false); return }
-            if changed { self.messageHistory?.add(self.message) }
+            if changed { self.messageHistory?.add(recoveredMessage) }
             if self.amend && !self.nonAmendMessage.isEmpty && !GitReferenceName.equal(self.nonAmendMessage,self.messageTemplate) { self.messageHistory?.add(self.nonAmendMessage) }
             if closeWindow { self.restoreCopies.removeAll(); self.close() }
             completion?(true)

@@ -2724,3 +2724,12 @@ existing OpenSSH response helper without changing transport classification.
 Its grouped evidence distinguishes actual implementation/checks from physical,
 signed and full Commit acceptance; older broad identity/signing statements above
 retain their historical scope.
+
+
+## Detached HEAD and cancelled draft recovery
+
+[The connected safety family](COMMIT-SAFETY-PARITY.md) follows the source
+Yes/Create Branch, No/detached commit and Cancel decisions, rechecks the branch
+after child completion and preserves issue-field contents in cancelled draft
+history. Its record separates native transaction placement from upstream index
+ordering and retains full-dialog/physical/signed acceptance gaps.

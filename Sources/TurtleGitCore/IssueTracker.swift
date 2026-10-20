@@ -112,6 +112,19 @@ public struct IssueTrackerProperties: Sendable, Equatable {
             return found.text.substring(with: NSRange(location: offset, length: part.utf16.count))
         }
     }
+    /// CCommitDlg::OnCancel calls UpdateLogMsgByBugId(false) before comparing
+    /// the draft with its template and saving history. Recovery must retain the
+    /// field even when it is invalid for Commit, and must not run regex/plugin
+    /// validation or suppress a matching issue line already in the editor.
+    /// Keep this derived value separate from the editor so rejecting Cancel and
+    /// asking again do not accumulate issue lines in the visible draft.
+    public func messageForCancelledDraft(message: String, issueID: String) -> String {
+        let id = issueID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !id.isEmpty else { return message }
+        let normalized = id.replacingOccurrences(of: ", ", with: ",").replacingOccurrences(of: " ,", with: ",")
+        let line = messageTemplate.replacingOccurrences(of: "%BUGID%", with: normalized)
+        return append ? message + "\n" + line + "\n" : line + "\n" + message
+    }
     public func prepareCommit(message: String, issueID: String, executable: URL? = nil,cancellation:OperationCancellation? = nil) throws -> IssueCommitPreparation {
         try cancellation?.check()
         guard validatesIssueID(issueID) else {

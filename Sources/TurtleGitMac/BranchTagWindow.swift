@@ -242,6 +242,7 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
     private var loadToken: OperationCancellation?
     private var creationToken: OperationCancellation?
     private var invalidated = false, finished = false
+    var completedSuccessfully:Bool {finished}
     @Published private(set) var formRevision = UUID()
     private var conflictSnapshot: (ReferenceCreationOptions, Bool, Bool, Bool, Int)?
     private var descriptionSnapshot: ReferenceCreationOptions?

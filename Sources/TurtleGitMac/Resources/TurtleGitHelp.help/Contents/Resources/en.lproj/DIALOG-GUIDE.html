@@ -87,6 +87,15 @@ including staged files outside the displayed scope.</p>
 <p>Mode and patch visibility are saved per repository. If saving fails, the error is
 shown and the current view stays usable; the next window uses the last saved
 settings. Cancel waits for an active preference write to stop before continuing.</p>
+<p>When HEAD is detached, Commit asks whether to create a branch. Choose <strong>Yes</strong> to
+open Create Branch with switching enabled, <strong>No</strong> to commit while detached, or
+<strong>Cancel</strong> to return to your draft. If you create a branch without switching,
+Commit asks again. Cancelling Create Branch abandons that commit attempt. A branch
+already created remains available if the later commit fails.</p>
+<p>When cancelling a draft, the saved message history includes the separate issue
+field using the project's issue-line template. Declining cancellation keeps the
+editor and issue field unchanged. An invalid issue ID can still be recovered from
+history even though it cannot be committed with numeric issue validation enabled.</p>
 <p>The Commit split button offers Commit, ReCommit, and Commit &amp; Push. ReCommit
 continues the commit workflow; Commit &amp; Push hands the result to Push. A commit
 or push failure is reported in its owning workflow. Read the output before retrying.
