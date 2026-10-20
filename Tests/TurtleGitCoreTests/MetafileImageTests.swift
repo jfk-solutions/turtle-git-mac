@@ -1732,7 +1732,20 @@ extension MetafileImageTests {
         // Literal P=F0,S=CC,D=AA enumerate the three-input truth table in
         // their eight bit positions. A masked foreground n must return n;
         // the opposite selector independently returns its complemented table.
-        let name="classic-maskblt-matrix.emf",before=try data(name),pixels=try booleanPixels(name)
+        let name="classic-maskblt-matrix.emf",before=try data(name)
+        let started=ProcessInfo.processInfo.systemUptime
+        let pixels:PenPixels
+        do {
+            // Decode once with the ordinary deadline. Keep the real failure
+            // visible instead of ComparisonImage's intentionally failable API.
+            let helper=ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_METAFILE_HELPER"].map { URL(fileURLWithPath:$0) }
+            let svg=try XCTUnwrap(MetafileImageDecoder.convert(before,executable:helper),"Expected metafile output for "+name)
+            let rendered=try XCTUnwrap(ComparisonImage(bytes:svg),"Could not rasterize decoded "+name)
+            pixels=try booleanPixels(rendered,name:name)
+        } catch {
+            XCTFail("\(name) decoder failed after \(ProcessInfo.processInfo.systemUptime-started)s: \(error)")
+            throw error
+        }
         for n in 0..<256 {
             booleanGray(pixels,(n%16)*4+1,(n/16)*4+2,n,"ROP4 foreground \(n)")
             booleanGray(pixels,(n%16)*4+3,(n/16)*4+2,255-n,"ROP4 background \(255-n)")

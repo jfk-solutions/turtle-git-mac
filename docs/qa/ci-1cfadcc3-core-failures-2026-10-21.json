@@ -22,7 +22,7 @@
     "2026-10-20T22:23:54.4142290Z \t Executed 2489 tests, with 2 tests skipped and 2 failures (1 unexpected) in 3711.359 (3711.738) seconds",
     "2026-10-20T22:23:54.4593930Z ##[error]Process completed with exit code 1."
   ],
-  "repair_status": "Rebase legacy receipt compatibility repaired and focused local check passed; MaskBlt rendering failure under diagnosis. No complete hosted pass claimed.",
+  "repair_status": "Rebase legacy receipt compatibility repaired and two focused local methods passed. Matrix now exposes decoder error/elapsed time; original renderer retained. Hosted MaskBlt cause and complete current hosted pass remain open.",
   "rebase_repair": {
     "cause": "Persisted pre-adoption failed-Pick intents have five action-edit files; current snapshots add the sixth adoption-file entry, even when absent. Strict dictionary equality falsely refused the old receipt.",
     "change": "Normalize only a missing adoption-file entry when actual bytes are absent. Preserve all file/session/HEAD/index/worktree guards, and refuse newly present adoption metadata.",
@@ -38,5 +38,37 @@
       "elapsed_seconds": 8.292,
       "scope": "SwiftPM Core sources; existing app only supplies unchanged headless editor entry. No app/native/full Core rerun and no bundled-engine claim."
     }
+  },
+  "metafile_diagnostic": {
+    "change": "Matrix calls explicit decoder once with the ordinary 15-second deadline, then rasterizes its returned SVG and retains all 256 foreground/background truth-byte assertions and unchanged input. Test-only helper override supports isolated architecture diagnostics.",
+    "pre_change_x86": {
+      "log": "build/qa/metafile-mask-matrix-diagnostic-2026-10-21.log",
+      "methods": 1,
+      "failures": 0,
+      "matrix_seconds": 7.76,
+      "scope": "Original packaged universal helper forced x86_64 under Rosetta; not physical Intel or hosted reproduction."
+    },
+    "rejected_cache_experiment": {
+      "production_shipped": false,
+      "design": "Per-conversion validated exact SVG/dimensions plane cache with original budgets, 16 entries/16 MiB.",
+      "build_log": "build/qa/metafile-plane-cache-build-2026-10-21.log",
+      "core_log": "build/qa/metafile-plane-cache-core-2026-10-21.log",
+      "methods": 6,
+      "failures": 0,
+      "arm_matrix_seconds": 4.49,
+      "x86_log": "build/qa/metafile-plane-cache-x86-2026-10-21.log",
+      "x86_methods": 1,
+      "x86_failures": 0,
+      "x86_matrix_seconds": 9.62,
+      "decision": "No demonstrated improvement from the isolated x86 measurements; cache removed rather than claimed as a hosted fix. No further benchmarks or broad suite repeated."
+    },
+    "restored_renderer": {
+      "build_log": "build/qa/metafile-original-runtime-restored-2026-10-21.log",
+      "embed_log": "build/qa/metafile-original-runtime-restored-embed-2026-10-21.log",
+      "source_sha256": "b1445b87ebb3b84dab902a1b64de67ec70a63132612b339af3dc62b0c7aa3cf0",
+      "source_runtime_embedded_provenance_match": true,
+      "verification": "Universal runtime reconstructed/structurally validated and embedded; source equals original HEAD renderer. No production renderer change remains. Original-renderer x86 matrix passed before experiment; checks were not repeated after exact restoration."
+    },
+    "remaining": "The 22.326-second hosted unwrap suggests a deadline/resource hypothesis, but no original decoder error was captured. Local pass and uncontrolled timings do not prove that cause or a fix."
   }
 }
