@@ -25,13 +25,13 @@ import Darwin
             continuation.resume(throwing: Failure(description: "Obsolete query error"))
         }
     }
-    @MainActor static func wait(_ host: NSView, until ready: () -> Bool) async throws {
+    @MainActor static func wait(_ host: NSView, line: UInt = #line, until ready: () -> Bool) async throws {
         for _ in 0..<500 {
             host.layoutSubtreeIfNeeded()
             if ready() { return }
             try await Task.sleep(nanoseconds: 10_000_000)
         }
-        throw Failure(description: "Timed out waiting for native transition")
+        throw Failure(description: "Timed out waiting for native transition at line \(line); reloads=\(CommitWindowModel.activeReloads), metadata=\(CommitWindowModel.activeMetadataOperations)")
     }
     @MainActor static func settle(_ host: NSView) async throws {
         for _ in 0..<20 { host.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
@@ -175,8 +175,14 @@ import Darwin
         try require(model.author == replayAuthor && model.authorDate == replayDate && model.message == "Replay supplied draft")
         try require(!model.loadingAuthorIdentity && !model.loadingAuthorDate && authors.count == 6 && dates.count == 4)
         try require(authors.pending.isEmpty && dates.pending.isEmpty && author.stringValue == replayAuthor)
-        guard let replayPicker = find(NSDatePicker.self, in: host) else { throw Failure(description: "Replay date picker missing") }
-        try require(replayPicker.dateValue == replayDate)
+        guard let replayPicker = find(NSDatePicker.self, in: host, label: "Author date"),
+              let replayTime = find(NSDatePicker.self, in: host, label: "Author time") else { throw Failure(description: "Replay date/time pickers missing") }
+        // Native source controls are separate: the calendar widget carries the
+        // local day at midnight; the time widget retains the complete timestamp.
+        let replayDay = CommitAuthorDateControl.calendar.startOfDay(for: replayDate)
+        guard replayPicker.dateValue == replayDay, replayTime.dateValue == replayDate else {
+            throw Failure(description: "Replay native date/time mismatch: day=\(replayPicker.dateValue.timeIntervalSince1970), expectedDay=\(replayDay.timeIntervalSince1970), time=\(replayTime.dateValue.timeIntervalSince1970), expectedTime=\(replayDate.timeIntervalSince1970)")
+        }
         // Presets suppress their installation notification, not future user
         // checkbox changes: those must still run the ordinary source handlers.
         model.setAuthor = false; try await wait(host) { authors.count == 7 }
@@ -236,20 +242,27 @@ import Darwin
         // Git cancellation plumbing, not just injected continuation tokens.
         let wrapper = root.appendingPathComponent("blocked-metadata-git"), marker = root.appendingPathComponent("metadata-child.pid")
         func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
-        let program = "#!/bin/sh\ncase \"$*\" in *'config user.name'*) printf '%s\\n' \"$$\" > " + quote(marker.path) + "; exec /bin/sleep 120 ;; esac\nexec " + quote(repo.executable.path) + " \"$@\"\n"
+        let armed = root.appendingPathComponent(".git/metadata-armed")
+        let program = "#!/bin/sh\nif [ -f " + quote(armed.path) + " ]; then\ncase \"$*\" in *'--get user.name'*) printf '%s\\n' \"$$\" > " + quote(marker.path) + "; exec /bin/sleep 120 ;; esac\nfi\nexec " + quote(repo.executable.path) + " \"$@\"\n"
         try Data(program.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: wrapper.path)
         let blockedRepo = GitRepository(root: root, executable: wrapper)
         let blocked = CommitWindowController(repository: blockedRepo, access: nil, defaults: prefs)
         guard let blockedHost = blocked.window?.contentView else { throw Failure(description: "Blocked host missing") }
         defer { blocked.model.invalidateForClose(); blocked.close() }
-        blocked.model.authorChanged()
+        blocked.model.reload(); try await wait(blockedHost) { ready(blocked.model) && blocked.model.commitIdentityPrepared }
+        try require(blocked.model.error == nil)
+        let retainedBlockedAuthor = "Retained blocked draft <blocked@example.test>"
+        blocked.model.author = retainedBlockedAuthor; try Data().write(to: armed)
+        // A real post-initialization Set-author transition must request the
+        // default identity; avoid imitating the initial unchecked empty preset.
+        blocked.model.setAuthor = true
         try await wait(blockedHost) { FileManager.default.fileExists(atPath: marker.path) }
         let child = Int32(try String(contentsOf: marker, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines))!
         try require(kill(child, 0) == 0 && blocked.model.loadingAuthorIdentity)
         blocked.close()
         try await wait(blockedHost) { kill(child, 0) == -1 && errno == ESRCH }
         try await settle(blockedHost)
-        try require(!blocked.model.loadingAuthorIdentity && blocked.model.error == nil && blocked.model.author.isEmpty)
+        try require(!blocked.model.loadingAuthorIdentity && blocked.model.error == nil && blocked.model.author == retainedBlockedAuthor)
         let headAfter = try await repo.run(["rev-parse", "HEAD"]).text
         let configAfter = try Data(contentsOf: root.appendingPathComponent(".git/config"))
         try require(headAfter == head && configAfter == config)

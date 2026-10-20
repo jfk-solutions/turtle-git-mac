@@ -844,6 +844,8 @@ import TurtleGitCore
             }
             let accepted:Bool
             if let commit {
+                commit.model.reload(); try await settle { !commit.model.busy && commit.model.commitIdentityPrepared }
+                precondition(commit.model.error == nil)
                 commit.makeLFSOperation = factory; commit.model.busy = true
                 commit.model.refreshPartial = { changed += 1 }; commit.onPullAfterLFSLock = { routedPull += 1 }
                 accepted = commit.model.onLFSOperation(["tracked"],true)

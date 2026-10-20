@@ -74,6 +74,12 @@ not remove it from Git; use the applicable remove/keep-local workflow separately
 
 ## Commit
 
+Commit first checks the configured author and committer identity. If a name or
+email is missing, choose **Yes** to open Git Settings, set the values and accept
+with **OK**. TurtleGit checks again after Settings closes; **No** abandons this
+Commit request. The Start Commit hook and file/template preparation wait for a
+complete identity. Your captured paths and message presets stay with the request.
+
 Write the commit message above the changed-file list. In ordinary mode, check the
 files to include. Use the Check links to select categories. Show Unversioned Files
 includes new files in the list; review what is checked before committing.

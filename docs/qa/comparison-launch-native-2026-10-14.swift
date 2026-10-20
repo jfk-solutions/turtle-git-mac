@@ -254,6 +254,8 @@ import TurtleGitCore
         // Aggregated status-list GNU patches stay one captured patch, without a many-viewer warning.
         let commit = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: prefs, dialogDefaults: prefs)
         defer { commit.invalidateForClose() }
+        commit.reload(); try await wait { !commit.busy && commit.commitIdentityPrepared }
+        try require(commit.error == nil, "Commit comparison initialization failed")
         commit.entries = try await repo.status(refreshIndex: false)
         var commitPatch = Data(); commit.onUnifiedDiff = { bytes, alternate in try require(alternate, "Commit lost Shift choice"); commitPatch = bytes }
         commit.diff(paths: Set(paths), staged: false, alternate: true)

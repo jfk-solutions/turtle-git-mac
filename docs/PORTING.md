@@ -1,13 +1,25 @@
 # TurtleGit for Mac — full port tracking
 
+The [Commit preparation and SSH signing family](COMMIT-IDENTITY-PARITY.md)
+adds the source identity gate before status/template/Start-hook loading, owned
+Git Settings repair, effective author defaults and retained command/replay
+presets. Local SSH signing uses the existing secure helper with explicit helper
+precedence and cancellation. Eleven distinct focused Core methods and eighteen
+native case/engine checks passed across the grouped checkpoint and affected
+repairs. [Evidence](qa/commit-preparation-family-2026-10-20.json) records failures,
+cleanup and actual scope; physical, external-agent and signed acceptance remain
+open.
+
 The [Open XML presentation revision family](POWERPOINT-COMPARISON-PARITY.md#open-xml-revision-decisions-and-editable-output)
 adds a bounded ZIP reader/writer, package-aware slide/shape/group decisions,
 dependency graph import, undo/redo and editable-copy output. Native ownership
 connects unresolved/dirty state, original/alias protection, Save As, cancellation
 and Discard/Cancel closure. An unavailable PowerPoint installation permits
-package metadata review for PPTX/PPTM. Binary PPT normalization/save-back, merged
-preview rendering, independent group-child decisions, complete mixed-reference
-combinations and physical/signed acceptance remain open.
+package metadata review for PPTX/PPTM. The [legacy/result continuation](POWERPOINT-COMPARISON-PARITY.md#legacy-inputs-combined-result-rendering-and-identity-matching)
+adds private binary PPT normalization/Save As, explicit combined-result previews,
+regenerated-ID matching and classic comment remapping. Independent group-child
+decisions, complete mixed-reference combinations and physical/signed acceptance
+remain open.
 The Debug build, 28 distinct focused Core methods across the checkpoint and
 affected repair, native workflow checks and independent saved-output ZIP/XML
 checks pass. [Evidence](qa/presentation-revision-family-2026-10-20.json) records
@@ -20,8 +32,8 @@ result-window/document exclusion checks, verified macro-security restoration,
 exact private-input cleanup and cooperative cancellation with worker draining.
 Merge remains Word-only unless LibreOffice is explicitly selected. New-window
 identification is conservative; concurrent user window activity and live Office,
-TCC, format and signed distribution acceptance remain open. PowerPoint shape-level
-revision decisions and editable merged output remain a separate implementation gap.
+TCC, format and signed distribution acceptance remain open. The subsequent PowerPoint family above adds shape-level
+revision decisions and editable output while retaining explicit parity gaps.
 The Debug build and all eight focused native case/engine combinations pass;
 [batch evidence](qa/word-office-family-2026-10-20.json) records the injected Office
 boundary and owned-process cleanup. Core was unchanged and was not rerun.

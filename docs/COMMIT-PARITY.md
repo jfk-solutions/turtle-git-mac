@@ -2712,3 +2712,15 @@ The connected status-read recovery is tracked in
 [missing staged-file parity](MISSING-STAGED-FILES-PARITY.md), with the source
 three-choice prompt, per-read apply-to-rest and explicit refresh notice. Its
 grouped checkpoint remains separate from older dialog checks above.
+
+
+## Initial identity repair and local SSH signing — October 20, 2026
+
+The [Commit preparation family](COMMIT-IDENTITY-PARITY.md) connects the source
+four-value identity check before initial status/template/Start-hook preparation,
+repeated owned Git Settings repair, captured request/preset preservation and
+ordinary effective author seeding. Local Git signing commands also inherit the
+existing OpenSSH response helper without changing transport classification.
+Its grouped evidence distinguishes actual implementation/checks from physical,
+signed and full Commit acceptance; older broad identity/signing statements above
+retain their historical scope.

@@ -51,4 +51,12 @@ multiline responses keep the dialog open instead of silently truncating input.</
 <p>This is a native OpenSSH adaptation, not certification of the complete upstream
 TortoisePlink host-key dialog. Live-server, security-key device and signed
 sandbox interaction remain acceptance work.</p>
+<h2 id="ssh-signing">SSH signing</h2>
+<p>When Git is configured to sign commits or tags with an encrypted SSH key, local
+signing commands can use the same secure OpenSSH response window. The owning
+Git operation controls cancellation. Explicit askpass helpers and requirement
+settings keep their precedence; TurtleGit does not change the login agent or
+signing configuration. Existing GPG pinentry and external signing agents keep
+their configured behavior. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/COMMIT-IDENTITY-PARITY.html">Commit preparation and signing</a>
+for the source boundary, validation scope and remaining signed acceptance.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

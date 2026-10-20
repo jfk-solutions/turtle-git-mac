@@ -38,6 +38,8 @@ import TurtleGitCore
         try require(parentLogs == [[path]] && childLogs.map(\.path) == [child.root.path], "Status Log routes are not separate: parents=\(parentLogs), children=\(childLogs), expected=\(child.root), error=\(status.model.error ?? "none")")
         let commit = CommitWindowModel(repository: parent, access: nil, unversionedDefaults: defaults, dialogDefaults: defaults)
         defer { commit.invalidateForClose() }
+        commit.reload(); try await wait { !commit.busy && commit.commitIdentityPrepared }
+        try require(commit.error == nil, "Commit submodule Log owner did not initialize")
         commit.submodules = [path]; commit.onSubmoduleLog = { childLogs.append($0.root) }; commit.showSubmoduleLog(path)
         try await wait { !commit.busy && SubmoduleWorkingLogSession.activeReads == 0 }
         try require(childLogs.map(\.path) == [child.root.path, child.root.path], "Commit child history missing")

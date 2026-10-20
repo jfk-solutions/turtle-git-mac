@@ -91,7 +91,9 @@ import TurtleGitCore
         let saved = StatusListColumnSettings.load(from: defaults)
         precondition(saved == model.fileColumns && saved.widths.count == 1)
         let restored = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: defaults, dialogDefaults: defaults)
-        precondition(restored.fileColumns == saved)
+        defer { restored.invalidateForClose() }
+        restored.reload(); try await settle { !restored.busy && restored.commitIdentityPrepared }
+        precondition(restored.error == nil && restored.fileColumns == saved)
         restored.entries = model.entries; restored.statistics = model.statistics; restored.fileMetadata = model.fileMetadata
         let restoreWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 500), styleMask: [.titled], backing: .buffered, defer: false)
         restoreWindow.isReleasedWhenClosed = false
@@ -203,6 +205,8 @@ import TurtleGitCore
         let owner = CommitWindowController(repository: repo, access: nil, defaults: defaults)
         owner.window!.contentViewController = NSHostingController(rootView: CommitDialog(model: owner.model).defaultAppStorage(defaults))
         owner.window!.alphaValue = 0; owner.window!.orderFront(nil)
+        owner.model.reload(); try await settle { !owner.model.busy && owner.model.commitIdentityPrepared }
+        precondition(owner.model.error == nil)
         owner.model.setFileColumn(.fileSize, visible: true)
         let oldColumns = owner.model.fileColumns, oldSort = owner.model.fileSortOrder
         var reply: CheckedContinuation<Bool, Never>?, answered = false, accepted = 0, prompts = 0
@@ -217,6 +221,9 @@ import TurtleGitCore
         owner.window!.close()
         precondition(!owner.model.messageFocusAvailable && !owner.model.busy)
         let replacement = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: defaults, dialogDefaults: defaults)
+        defer { replacement.invalidateForClose() }
+        replacement.reload(); try await settle { !replacement.busy && replacement.commitIdentityPrepared }
+        precondition(replacement.error == nil)
         replacement.setFileColumn(.fileName, visible: true)
         let freshColumns = replacement.fileColumns
         precondition(freshColumns != StatusListColumnSettings())

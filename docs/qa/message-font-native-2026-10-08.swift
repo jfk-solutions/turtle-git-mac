@@ -22,7 +22,13 @@ import TurtleGitCore
         defer { prefs.removePersistentDomain(forName: suite); prefs.synchronize() }
         let repo = GitRepository(root: URL(fileURLWithPath: CommandLine.arguments[1]), executable: URL(fileURLWithPath: CommandLine.arguments[2]))
         _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Message Font QA"]); _ = try await repo.run(["config", "user.email", "font@example.invalid"])
+        _ = try await repo.run(["config", "core.hooksPath", "/dev/null"])
         let commit = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: prefs, dialogDefaults: prefs)
+        defer { commit.invalidateForClose() }
+        commit.reload()
+        for _ in 0..<3000 { if !commit.busy { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!commit.busy && commit.commitIdentityPrepared && commit.error == nil)
         let merge = MergeWindowModel(repository: repo, access: nil, preferences: prefs)
         commit.formattingEnabled = true; commit.message = "*bold* normal"; merge.message = "Merge draft 雪"
         let commitHost = NSHostingView(rootView: VStack { CommitMessageEditor(model: commit); CommitMessagePositionIndicator(model: commit) }.defaultAppStorage(prefs))

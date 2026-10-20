@@ -169,6 +169,8 @@ import TurtleGitCore
         trace("loaded author metadata bounds")
         // Loading an unsupported author day rejects only the date SetTime, retaining its previous day.
         let metadata=CommitWindowModel(repository:repo,access:nil,unversionedDefaults:prefs,dialogDefaults:prefs)
+        metadata.reload();try await wait {!metadata.busy && metadata.commitIdentityPrepared}
+        try require(metadata.error==nil,"Metadata date owner initialization failed")
         metadata.amend=true;metadata.setAuthorDate=true;metadata.authorDate=clock
         for raw in [calendar.date(from:DateComponents(year:1969,month:12,day:31,hour:9,minute:8,second:7))!,calendar.date(from:DateComponents(year:2100,month:1,day:1,hour:11,minute:12,second:13))!] {
             metadata.queryCommitAuthorDate={_ in raw};metadata.dateChanged();try await wait {!metadata.loadingAuthorDate}
@@ -218,6 +220,10 @@ import TurtleGitCore
         let identityRead=CommitWindowModel(repository:repo,access:nil,unversionedDefaults:prefs,dialogDefaults:prefs)
         let dateRead=CommitWindowModel(repository:repo,access:nil,unversionedDefaults:prefs,dialogDefaults:prefs)
         let amendRead=CommitWindowModel(repository:repo,access:nil,unversionedDefaults:prefs,dialogDefaults:prefs)
+        for reader in [identityRead,dateRead,amendRead] {
+            reader.reload();try await wait {!reader.busy && reader.commitIdentityPrepared}
+            try require(reader.error==nil,"Metadata cancellation owner initialization failed")
+        }
         var authorReply:CheckedContinuation<String?,Never>?,dateReply:CheckedContinuation<Date?,Never>?,amendReply:CheckedContinuation<String?,Never>?
         var authorToken:OperationCancellation?,dateToken:OperationCancellation?,amendToken:OperationCancellation?
         defer {

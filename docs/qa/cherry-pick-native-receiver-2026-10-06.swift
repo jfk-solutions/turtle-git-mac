@@ -1390,6 +1390,9 @@ import TurtleGitCore
     let head = try await repo.run(["rev-parse", "HEAD"]).stdout
     let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
     let commit = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: defaults)
+    defer { commit.invalidateForClose() }
+    commit.reload(); try await settleCommit(commit)
+    precondition(commit.commitIdentityPrepared && commit.error == nil)
     commit.entries = try await repo.status(refreshIndex: false)
     let log = LogWindowModel(repository: repo, access: nil, labelDefaults: defaults); defer { log.invalidate() }
     precondition(commit.showUnversioned && log.showUnversionedFiles && defaults.object(forKey: "AddBeforeCommit") == nil)

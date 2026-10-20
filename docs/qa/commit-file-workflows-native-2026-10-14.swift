@@ -80,6 +80,8 @@ import TurtleGitCore
         try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
         let delayed = CommitWindowModel(repository: GitRepository(root: root, executable: wrapper), access: nil, unversionedDefaults: prefs, dialogDefaults: prefs)
         defer { delayed.invalidateForClose() }
+        delayed.reload(); try await settled(delayed)
+        try require(delayed.commitIdentityPrepared && delayed.error == nil, "Delayed staging owner did not initialize")
         delayed.entries = model.entries
         let refreshedEntries = try await repo.status(refreshIndex: false)
         var refreshReply: CheckedContinuation<[StatusEntry], Never>?

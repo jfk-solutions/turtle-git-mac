@@ -61,6 +61,11 @@ preserves the previous index; inspect the result before retrying. See
 patterns. Review the path and pattern before saving. Ignoring a tracked file does
 not remove it from Git; use the applicable remove/keep-local workflow separately.</p>
 <a name="topic-commit"></a><h2 id="commit">Commit</h2>
+<p>Commit first checks the configured author and committer identity. If a name or
+email is missing, choose <strong>Yes</strong> to open Git Settings, set the values and accept
+with <strong>OK</strong>. TurtleGit checks again after Settings closes; <strong>No</strong> abandons this
+Commit request. The Start Commit hook and file/template preparation wait for a
+complete identity. Your captured paths and message presets stay with the request.</p>
 <p>Write the commit message above the changed-file list. In ordinary mode, check the
 files to include. Use the Check links to select categories. Show Unversioned Files
 includes new files in the list; review what is checked before committing.</p>

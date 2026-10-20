@@ -1,0 +1,298 @@
+{
+  "date": "2026-10-20",
+  "base": "8c9fbef6e1ffa7a80516872c92643d53a4e287c6",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "previous_goal_turn": "progress: legacy presentation/result workflow implemented, validated and pushed as 8c9fbef6.",
+  "scope": [
+    "Source four-value identity gate before initial Commit status/template/Start hook; repeated owned Git Settings repair and retained command/replay presets.",
+    "Effective author seeding/toggling and initial-error form disablement with Refresh/F5 and Cancel available.",
+    "Independent local SSH signing askpass routing, preserved explicit helper policies and inherited signer cancellation/drain."
+  ],
+  "source_adaptation": "An uninitialized disabled native Commit host owns the macOS question/Settings sheet; upstream CheckUserData runs before constructing CCommitDlg.",
+  "core": {
+    "initial_log": "build/qa/commit-preparation-core-2026-10-20.log",
+    "groups": {
+      "GitAskpassTests": 6,
+      "ReplayUserIdentityTests": 3,
+      "SSHSigningAskpassTests": 2
+    },
+    "methods": 11,
+    "result": "passed",
+    "bundled_git_log": "build/qa/commit-preparation-core-bundled-2026-10-20.log",
+    "bundled_git_methods": 1,
+    "bundled_git_result": "passed",
+    "distinct_methods": 11,
+    "actual_signing": "Apple Git 2.54.0 and bundled Git 2.55.0 encrypted Ed25519 commit/tag/rebase signing and cryptographic verification, wrong-passphrase failure and retry, explicit helper precedence, live askpass/helper child cancellation and retry. Private synthetic passphrases/keys; no user key or public server.",
+    "full_suite_run": false
+  },
+  "build": {
+    "log": "build/qa/commit-preparation-build-2026-10-20.log",
+    "result": "passed",
+    "exit_code": 0,
+    "known_exit_zero_diagnostics": 5,
+    "warnings": "Existing Swift concurrency/capture and simulator/toolchain diagnostics; not a warning-free build.",
+    "affected_native_repairs": [
+      {
+        "log": "build/qa/commit-preparation-presets-build-2026-10-20.log",
+        "result": "passed",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/commit-preparation-observers-build-2026-10-20.log",
+        "result": "passed",
+        "exit_code": 0
+      }
+    ]
+  },
+  "native": {
+    "result": "passed",
+    "initial_failure": {
+      "log": "build/qa/commit-preparation-native-2026-10-20.log",
+      "owned_receiver_pid": 6916,
+      "cause": "Owned Git Settings opened and Cancel/reoffer worked, but the fixture timed out selecting editable Name/Email fields after choosing Local. Under diagnosis; later cases not started in this attempt.",
+      "point": "commit-identity-native-2026-10-20.swift:136",
+      "core_or_build_repeated": false
+    },
+    "distinct_case_engine_runs": 18,
+    "passing_cases": [
+      {
+        "case": "author",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-preparation-native-retained-2026-10-20.log",
+        "passed": true,
+        "pid": 7152
+      },
+      {
+        "case": "author",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-preparation-native-retained-2026-10-20.log",
+        "passed": true,
+        "pid": 7239
+      },
+      {
+        "case": "focus",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-preparation-native-retained-2026-10-20.log",
+        "passed": true,
+        "pid": 7324
+      },
+      {
+        "case": "focus",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-preparation-native-retained-2026-10-20.log",
+        "passed": true,
+        "pid": 7376
+      },
+      {
+        "case": "refresh",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-preparation-native-retained-2026-10-20.log",
+        "passed": true,
+        "pid": 7431
+      },
+      {
+        "case": "refresh",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-preparation-native-retained-2026-10-20.log",
+        "passed": true,
+        "pid": 7713
+      },
+      {
+        "case": "actions",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-preparation-native-retained-2026-10-20.log",
+        "passed": true,
+        "pid": 8007
+      },
+      {
+        "case": "actions",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-preparation-native-retained-2026-10-20.log",
+        "passed": true,
+        "pid": 9157
+      },
+      {
+        "case": "columns",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-preparation-native-columns-editors-2026-10-20.log",
+        "passed": true,
+        "pid": 10561
+      },
+      {
+        "case": "columns",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-preparation-native-columns-editors-2026-10-20.log",
+        "passed": true,
+        "pid": 10796
+      },
+      {
+        "case": "font",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-preparation-native-columns-editors-2026-10-20.log",
+        "passed": true,
+        "pid": 11030
+      },
+      {
+        "case": "font",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-preparation-native-columns-editors-2026-10-20.log",
+        "passed": true,
+        "pid": 11088
+      },
+      {
+        "case": "suggestions",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-preparation-native-columns-editors-2026-10-20.log",
+        "passed": true,
+        "pid": 11141
+      },
+      {
+        "case": "suggestions",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-preparation-native-columns-editors-2026-10-20.log",
+        "passed": true,
+        "pid": 11200
+      },
+      {
+        "case": "identity",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-preparation-native-presets-2026-10-20.log",
+        "passed": true,
+        "pid": 12176
+      },
+      {
+        "case": "identity",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-preparation-native-presets-2026-10-20.log",
+        "passed": true,
+        "pid": 12461
+      },
+      {
+        "case": "metadata",
+        "git": "/usr/bin/git",
+        "log": "build/qa/commit-preparation-native-metadata-final-2026-10-20.log",
+        "passed": true,
+        "pid": 13478
+      },
+      {
+        "case": "metadata",
+        "git": "build/git-runtime/Git/bin/git",
+        "log": "build/qa/commit-preparation-native-metadata-final-2026-10-20.log",
+        "passed": true,
+        "pid": 13983
+      }
+    ],
+    "all_owned_receiver_pids": [
+      6916,
+      7152,
+      7239,
+      7324,
+      7376,
+      7431,
+      7713,
+      8007,
+      9157,
+      10306,
+      10392,
+      10561,
+      10796,
+      11030,
+      11088,
+      11141,
+      11200,
+      11258,
+      11483,
+      12176,
+      12461,
+      12744,
+      13478,
+      13983
+    ],
+    "owned_receivers_independently_absent": true,
+    "scope": "Actual app-object linked native controls/transactions and private real Git repositories. Positive identity case saves local name/email via real Git Settings controls and OK, checks global configuration and raw HEAD/index/source/template bytes, actual Start hook ordering, presets, retry/No, forced closure and late callbacks. No physical keyboard/signed acceptance.",
+    "retained_results": "Unchanged prepared-author/branch/refresh/action/column/editor assertions retain their passing pre-repair runs. Only identity and metadata were rechecked for observer fixes; the full native/Core suites were not rerun.",
+    "failures_and_repairs": [
+      {
+        "log": "build/qa/commit-preparation-native-2026-10-20.log",
+        "cause": "Fixture assumed AX labels reside on native NSTextFields and clicked before current source control readiness.",
+        "repair": "Wait for live enabled Local radio/selection/read completion; locate real fields by AX captions or bounded User Info visual order; preserve actual native edit/save and storage assertions."
+      },
+      {
+        "log": "build/qa/commit-preparation-native-retained-2026-10-20.log",
+        "cause": "Runner created private global config/home/temp inside an existing fixture Git root, adding unexpected untracked entries to the seven-file sorting fixture.",
+        "repair": "Move all isolation storage beside the Git root. Sorting assertions unchanged; rerun affected columns and previously unstarted cases."
+      },
+      {
+        "log": "build/qa/commit-preparation-native-identity-controls-2026-10-20.log",
+        "cause": "Fixture assumed SwiftUI Save to uses NSPopUpButton. Local source selection already sets Local destination.",
+        "repair": "Use real Local source, real Name/Email native edits and real OK; assert actual Local config and unchanged private global config bytes."
+      },
+      {
+        "log": "build/qa/commit-preparation-native-identity-apply-2026-10-20.log",
+        "cause": "Actual delayed initial checkbox observers could overwrite explicit author/date presets while identity was unprepared or just repaired.",
+        "repair": "Fence initial amend/comparison/author/date observers; retain enabled initial author/date installation signatures through Settings. Rerun actual identity workflow on both engines."
+      },
+      {
+        "log": "build/qa/commit-preparation-native-columns-editors-2026-10-20.log",
+        "cause": "Existing metadata fixture compared the day-only picker with a full timestamp; production deliberately projects startOfDay.",
+        "repair": "Assert both AX controls separately: Author date calendar startOfDay and Author time complete instant; retain full model attribution/date assertions."
+      },
+      {
+        "log": "build/qa/commit-preparation-native-presets-2026-10-20.log",
+        "cause": "An unchecked initial false/empty signature could suppress a later default-author read; the blocking fixture used that signature.",
+        "repair": "Capture only enabled initial preset signatures; unchecked defaults have no installation transition. Blocking query fixture exercises a real post-initialization Set author transition, preserves its draft, and retains real child PID/death checks; focused metadata pass on both engines."
+      }
+    ]
+  },
+  "explicit_gaps": [
+    "Physical keyboard/accessibility and complete caller/dialog/layout acceptance.",
+    "Real external GPG pinentry/agents and hardware signing devices; signed helper/inherited-sandbox and TCC/file grants.",
+    "Installed Finder, minimum-OS/architectures, full current hosted CI and App Store acceptance.",
+    "Complete TortoiseGit application/dialog behavior parity."
+  ],
+  "protected_unrelated_worktree_files": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  },
+  "fixture_initialization": "Existing native fixtures now perform real initial Commit preparation before gated actions; they preserve behavioral assertions and do not set readiness flags. New initial-read-error form policy retains dedicated Refresh/F5 and Cancel paths.",
+  "captures": [
+    {
+      "path": "docs/site/assets/commit-missing-identity-light.png",
+      "width": 520,
+      "height": 436,
+      "sha256": "d4848a1da5dd0e50f0d7d9f22f064420e5829008edbe171425ed03ff12042fd1"
+    },
+    {
+      "path": "docs/site/assets/commit-missing-identity-dark.png",
+      "width": 520,
+      "height": 436,
+      "sha256": "22f7a82cb2850e555fb06b9369c624d78789083208784ac3883b9c1cc270f229"
+    },
+    {
+      "path": "docs/site/assets/commit-identity-settings-light.png",
+      "width": 2080,
+      "height": 1480,
+      "sha256": "5f566f449eda918e3b4a6dcfd47796ed742569953043847ed1c861221f18e92c"
+    },
+    {
+      "path": "docs/site/assets/commit-identity-settings-dark.png",
+      "width": 2080,
+      "height": 1480,
+      "sha256": "7bdbb7c42aa1c738b3ae39a374d17f7064aed66337aa0405b38a2420a3572e82"
+    }
+  ],
+  "capture_scope": "Actual inactive offscreen native question and owned Git Settings child, both appearances visually inspected. Captured in the passing identity checkpoint before the final unchecked-signature-only correction; layout unchanged. No physical Finder/keyboard/signing-device capture.",
+  "resources": {
+    "localization": "38 languages, 1305 pinned keys; write/check passed. English fallback remains.",
+    "help": "46 guides, 51 topics, 66 files; rebuilt before batch build, freshness check passed.",
+    "site": "386 documents rendered; no unresolved fragments. Log: build/qa/commit-preparation-site-2026-10-20.log",
+    "coverage": "130 dialogs:120 partial family audits,10 pending,0 certified;1574 mapped and85 pending controls. Audit coverage only."
+  },
+  "validated_source_hashes": {
+    "Sources/TurtleGitCore/GitAskpassRuntime.swift": "d4b5188acd857207585209ad7b66e3dc8be9ce07f3bfef359ffc80d8b49d7a37",
+    "Sources/TurtleGitMac/CommitWindow.swift": "4651ab7d9bfe159f885b6f8eb4060554f20277abfcca6cd744065c67e9eec1af",
+    "Tests/TurtleGitCoreTests/SSHSigningAskpassTests.swift": "26774802e4aaa0c9ecf85c0e77b592e53700cf505d26ad2947e7cd4c342f8a78",
+    "docs/qa/commit-identity-native-2026-10-20.swift": "1ccbf25f38eed15a0ba0139a231cfae37291645992603548238151bc9de97710",
+    "scripts/test-commit-preparation.py": "e28a56d479ead932f8e85e224dae0d6e68aa2db5a07276e61b63397e070f7523"
+  }
+}

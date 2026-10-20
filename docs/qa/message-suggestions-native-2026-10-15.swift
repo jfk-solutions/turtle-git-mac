@@ -54,13 +54,17 @@ import TurtleGitCore
         let folder = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2]), repo = GitRepository(root: folder, executable: git)
         _ = try await repo.run(["init", "-b", "main"])
         _ = try await repo.run(["-c", "user.name=Suggestions QA", "-c", "user.email=qa@example.invalid", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "baseline"])
+        _ = try await repo.run(["config", "user.name", "Suggestions QA"]); _ = try await repo.run(["config", "user.email", "qa@example.invalid"])
+        _ = try await repo.run(["config", "core.hooksPath", "/dev/null"])
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout
         let suite = "TurtleGit.MessageSuggestions." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         defaults.set(false, forKey: "Autocompletion"); defaults.set(true, forKey: "Spellchecker")
         let commit = CommitWindowController(repository: repo, access: nil, defaults: defaults)
         defer { commit.close() }
-        commit.window?.contentView?.layoutSubtreeIfNeeded(); try await wait { !commit.model.busy }
+        commit.model.reload(); try await wait { !commit.model.busy && commit.model.commitIdentityPrepared }
+        try require(commit.model.error == nil, "Commit spelling owner initialization failed")
+        commit.window?.contentView?.layoutSubtreeIfNeeded()
         guard let commitEditor = find(commit.window!.contentView!) else { throw Failure(description: "Commit native editor missing") }
         try exercise(commitEditor, commit.window!, defaults)
         let merge = MergeMessageTextView(frame: NSRect(x: 0, y: 0, width: 600, height: 180))

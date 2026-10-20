@@ -14,11 +14,19 @@ import UniformTypeIdentifiers
     }
 }
 
+@MainActor private final class CommitIdentityQuestionState {
+    let alert:NSAlert,token:OperationCancellation
+    var completion:((Bool)->Void)?,watcher:Task<Void,Never>?
+    var settling=false
+    init(alert:NSAlert,token:OperationCancellation,completion:@escaping(Bool)->Void){self.alert=alert;self.token=token;self.completion=completion}
+}
+
 @MainActor final class CommitWindowController: NSWindowController, NSWindowDelegate {
     let model: CommitWindowModel
     private(set) var commandMenu:CommitCommandMenu?
     func windowDidResignKey(_ notification:Notification) {commandMenu?.remove()}
     var commandsAvailable:Bool {!closingCommit && !hasMessagePicker && !model.inputsBlocked && window?.attachedSheet==nil && model.messageFocusAvailable}
+    var refreshCommandAvailable:Bool {!closingCommit && !hasMessagePicker && model.canRefresh && window?.attachedSheet==nil}
     func messageEditor(in view:NSView? = nil)->CommitMessageTextView? {
         guard let view=view ?? window?.contentView else {return nil}
         if let editor=view as? CommitMessageTextView {return editor}
@@ -38,6 +46,13 @@ import UniformTypeIdentifiers
     private let preferences: UserDefaults
     private(set) var templatePanel: NSOpenPanel?
     private var closingCommit = false
+    private var commitIdentityQuestion:CommitIdentityQuestionState?
+    var identityQuestion:NSAlert? {commitIdentityQuestion?.alert}
+    private var identitySettings:SettingsSheetController?
+    var identitySettingsWindow:NSWindow? {identitySettings?.window}
+    var identityNavigation:SettingsNavigationController? {identitySettings?.navigation}
+    var presentCommitIdentityQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool={owner,alert,reply in alert.beginSheetModal(for:owner,completionHandler:reply);return true}
+    var configureCommitIdentitySettings:(SettingsSheetController)->Void={_ in}
     private var historyWindow: NSWindow?
     var makeHistoryWindow: () -> NSWindow = {
         NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 320), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
@@ -62,6 +77,8 @@ import UniformTypeIdentifiers
         window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model).defaultAppStorage(defaults))
         super.init(window: window); model.comparisonWindow = window; model.missingStagedRecovery.ownerWindow = window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
+        model.repairCommitIdentity={ [weak self] token in await self?.repairCommitIdentity(token) ?? false }
+        model.retireCommitIdentitySettings={ [weak self] in self?.retireCommitIdentityChildren() }
         model.presentAddProgress={ [weak self] paths,mode,backend,token in
             guard let self,!self.closingCommit,!self.model.confirmingQuit,self.addProgressController==nil,let owner=self.window,owner.attachedSheet==nil,!token.isCancelled else{return false}
             return await withCheckedContinuation { continuation in
@@ -293,6 +310,82 @@ import UniformTypeIdentifiers
         commandMenu=CommitCommandMenu(owner:self);window.commandMenu=commandMenu
         DialogGeometry.attach(window, identifier: "CommitWindowController")
     }
+    /// AppUtils::CheckUserData precedes CCommitDlg and its Start hook. The
+    /// captured, still-uninitialized native Commit host owns the macOS sheet;
+    /// no repository status/template/hook preparation runs before this loop.
+    private func repairCommitIdentity(_ token:OperationCancellation)async->Bool {
+        guard !closingCommit,!model.confirmingQuit,!token.isCancelled,commitIdentityQuestion==nil,identitySettings==nil,let owner=window,owner.attachedSheet==nil else{return false}
+        let alert=NSAlert();alert.alertStyle = .critical
+        alert.messageText="User name and email must be set before commit."
+        alert.informativeText="Do you want to set these now?"
+        alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No")
+        alert.window.alphaValue=owner.alphaValue;alert.window.appearance=owner.effectiveAppearance
+        let accepted=await withCheckedContinuation { continuation in
+            let pending=CommitIdentityQuestionState(alert:alert,token:token){continuation.resume(returning:$0)}
+            commitIdentityQuestion=pending
+            pending.watcher=Task{@MainActor [weak self,weak pending] in
+                while !Task.isCancelled {
+                    guard let self,let pending,self.commitIdentityQuestion === pending,!pending.settling else{return}
+                    if token.isCancelled || self.closingCommit {self.settleCommitIdentityQuestion(pending,accepted:false);return}
+                    try? await Task.sleep(nanoseconds:10_000_000)
+                }
+            }
+            if !presentCommitIdentityQuestion(owner,alert,{[weak self,weak pending] response in
+                guard let self,let pending else{return};self.settleCommitIdentityQuestion(pending,accepted:response == .alertFirstButtonReturn)
+            }) {settleCommitIdentityQuestion(pending,accepted:false)}
+        }
+        guard accepted,!closingCommit,!model.confirmingQuit,!token.isCancelled,owner.attachedSheet==nil else{return false}
+        return await showCommitIdentitySettings(token)
+    }
+    private func settleCommitIdentityQuestion(_ pending:CommitIdentityQuestionState,accepted:Bool) {
+        guard commitIdentityQuestion === pending,!pending.settling else{return}
+        pending.settling=true;pending.watcher?.cancel();pending.watcher=nil
+        let child=pending.alert.window,parent=child.sheetParent ?? window
+        if child.sheetParent != nil || parent?.attachedSheet === child {parent?.endSheet(child,returnCode:accepted ? .alertFirstButtonReturn:.abort)}
+        child.orderOut(nil)
+        Task{@MainActor [self,pending] in
+            // End-sheet callbacks can precede actual AppKit detachment. Retain
+            // the question and reload ownership until the native child retires.
+            while child.sheetParent != nil || parent?.attachedSheet === child || child.attachedSheet != nil {
+                await withCheckedContinuation{reply in DispatchQueue.main.asyncAfter(deadline:.now()+0.005){reply.resume()}}
+            }
+            child.close()
+            if commitIdentityQuestion === pending {commitIdentityQuestion=nil}
+            let reply=pending.completion;pending.completion=nil
+            reply?(accepted && !closingCommit && !model.confirmingQuit && !pending.token.isCancelled)
+        }
+    }
+    private func showCommitIdentitySettings(_ token:OperationCancellation)async->Bool {
+        guard !closingCommit,!model.confirmingQuit,!token.isCancelled,identitySettings==nil,let owner=window,owner.attachedSheet==nil else{return false}
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false)
+        workspace.root=model.repository.root;workspace.settingsContextOverride=(model.repository,model.access,true)
+        let child=SettingsSheetController(workspace:workspace,preferences:preferences,initialPage:.git,title:"Settings – TurtleGit for Mac")
+        identitySettings=child;model.hasCommitIdentitySettings=true
+        child.window?.alphaValue=owner.alphaValue;child.window?.appearance=owner.effectiveAppearance
+        configureCommitIdentitySettings(child)
+        return await withCheckedContinuation {continuation in
+            var settled=false
+            let watcher=Task{@MainActor [weak self,weak child] in
+                while !Task.isCancelled && !settled {
+                    guard let self,let child,self.identitySettings === child else{return}
+                    if token.isCancelled || self.closingCommit {child.retire();return}
+                    try? await Task.sleep(nanoseconds:10_000_000)
+                }
+            }
+            child.onClosed={ [weak self,weak child] _ in
+                guard !settled else{return};settled=true;watcher.cancel()
+                if let self,self.identitySettings === child {self.identitySettings=nil;self.model.hasCommitIdentitySettings=false}
+                // Cancel/OK only finish Settings. Neither certifies identity:
+                // the model always reads all four values again.
+                continuation.resume(returning:self?.closingCommit==false && self?.model.confirmingQuit==false && !token.isCancelled)
+            }
+            child.presentSheet(for:owner)
+        }
+    }
+    private func retireCommitIdentityChildren() {
+        if let pending=commitIdentityQuestion {settleCommitIdentityQuestion(pending,accepted:false)}
+        identitySettings?.retire()
+    }
     private func finishUnversionedFilesPrompt() {
         let answer=unversionedFilesAnswer;unversionedFilesAnswer=nil
         if let alert=unversionedFilesAlert {
@@ -307,6 +400,7 @@ import UniformTypeIdentifiers
         // End-sheet callbacks may run synchronously while native children retire.
         // Fence owner actions before dismissing any of those children.
         closingCommit = true
+        retireCommitIdentityChildren()
         commandMenu?.retire();visibilitySheetObservation=nil;finishUnversionedFilesPrompt()
         let hintAnswer=stagingHintAnswer;stagingHintAnswer=nil;stagingHintAlert=nil;hintAnswer?(nil)
         templatePanel?.cancel(nil); templatePanel = nil
@@ -316,9 +410,17 @@ import UniformTypeIdentifiers
             historyWindow = nil; window?.endSheet(child); child.orderOut(nil); child.close()
         }
         logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close()
-        if let child=addProgressController{child.close();Task{@MainActor [self] in while addProgressController != nil{try? await Task.sleep(nanoseconds:10_000_000)};onClosed()}}else{onClosed()}
+        addProgressController?.close()
+        if addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity {
+            Task{@MainActor [self] in
+                while addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity {
+                    await withCheckedContinuation{reply in DispatchQueue.main.asyncAfter(deadline:.now()+0.005){reply.resume()}}
+                };onClosed()
+            }
+        } else {onClosed()}
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.preparingCommitIdentity {model.cancel();return false}
         if model.missingStagedRecovery.busy { model.missingStagedRecovery.cancel(); return false }
         if model.submoduleLog.isReading { model.submoduleLog.cancel(); return false }
         guard sender.attachedSheet == nil, !hasMessagePicker, partial?.model.busy != true, partial?.window?.attachedSheet == nil, !model.unifiedViewerBusy else { return false }
@@ -452,6 +554,36 @@ import UniformTypeIdentifiers
     @Published var unstagedStatistics: GitPathMap<CommitFile> = [:]
     @Published var stagingEnabled = false { didSet { if stagingEnabled != oldValue { fileMenuGeneration = UUID() } } }
     @Published var viewingPatch = false
+    var readCommitIdentity:((OperationCancellation)async throws->ReplayUserIdentity)?
+    var repairCommitIdentity:(OperationCancellation)async->Bool={_ in false}
+    var retireCommitIdentitySettings:()->Void={}
+    @Published private(set) var preparingCommitIdentity=false
+    @Published private(set) var commitIdentityPrepared=false
+    @Published var hasCommitIdentitySettings=false
+    private var acceptedCommitIdentity:ReplayUserIdentity?
+    private func requireCommitIdentity(_ token:OperationCancellation)async throws->Bool {
+        if commitIdentityPrepared{return true}
+        // SwiftUI may deliver checkbox observers after caller presets were
+        // installed, including after an identity Settings round trip. Capture
+        // enabled installation values once; false is the view's initial state
+        // and creates no checkbox transition to consume. A later real toggle
+        // still refreshes defaults. Existing replay snapshots stay authoritative.
+        if replayAuthorPreset==nil,setAuthor {replayAuthorPreset=(setAuthor,author)}
+        if replayDatePreset==nil,setAuthorDate {replayDatePreset=(setAuthorDate,authorDate,resetAuthorDate)}
+        preparingCommitIdentity=true
+        defer {preparingCommitIdentity=false}
+        while true {
+            let identity=try await readReload(token) {
+                if let readCommitIdentity {return try await readCommitIdentity(token)}
+                return try await repository.replayUserIdentity(cancellation:token)
+            }
+            guard !confirmingQuit else{throw OperationCancellationFailure.cancelled}
+            if identity.complete {acceptedCommitIdentity=identity;commitIdentityPrepared=true;return true}
+            let repair=try await readReload(token) {await repairCommitIdentity(token)}
+            guard !confirmingQuit else{throw OperationCancellationFailure.cancelled}
+            if !repair{return false}
+        }
+    }
     private var loadedPreferences = false
     private var persistedStaging: Bool?
     @Published var partialMode: Bool?
@@ -818,6 +950,7 @@ import UniformTypeIdentifiers
     var fileListEmptyMessage:String? {
         guard visibleEntries.isEmpty else {return nil}
         if pendingReloadCancel {return "Cancelling…"}
+        if preparingCommitIdentity {return "Checking Git user data…"}
         if reloadCancellation != nil {return hasLoaded ? "Refreshing changes…":"Loading changes…"}
         if let fileListReadError {return "Could not load changes.\n"+fileListReadError}
         if fileListReadCancelled {return "Refresh cancelled. Press F5 to retry."}
@@ -1364,6 +1497,7 @@ import UniformTypeIdentifiers
             }
             do {
                 try validateRestoreAccess()
+                guard try await requireCommitIdentity(token) else {busy=false;close();return}
                 // Collect the entire next display before changing the accepted
                 // one. Every suspension checks both token and owning window.
                 let preferences:CommitPreferences?
@@ -1391,11 +1525,8 @@ import UniformTypeIdentifiers
                 let nextUnstaged = GitPathMap(try await readReload(token) { try await repository.stagingFiles(staged:false,cancellation:token) }.map {($0.path,$0)},uniquingKeysWith:{_,new in new})
                 let nextAuthor:String?
                 if !hasLoaded && author.isEmpty {
-                    nextAuthor = try await readReload(token) {
-                        let name=(try? await repository.run(["config","user.name"],cancellation:token).text.trimmingCharacters(in:.newlines)) ?? ""
-                        let email=(try? await repository.run(["config","user.email"],cancellation:token).text.trimmingCharacters(in:.newlines)) ?? ""
-                        return name.isEmpty ? "" : "\(name) <\(email)>"
-                    }
+                    if let identity=acceptedCommitIdentity {nextAuthor="\(identity.authorName) <\(identity.authorEmail)>"}
+                    else {nextAuthor=try await readReload(token) {try await readAuthor(amend:false,repository:repository,cancellation:token)}}
                 } else { nextAuthor=nil }
                 let provider = try await readNativeIssueProvider(token)
                 let nextIssueProperties:IssueTrackerProperties?,nextProjectSettings:ProjectDialogSettings?,nextHistory:CommitMessageHistory?,seed:CommitMessageSeed?
@@ -1490,7 +1621,7 @@ import UniformTypeIdentifiers
                 unversionedPromptPending=visibleEntries.isEmpty && hasHiddenUnversionedFiles && operation != .merge
             } catch {
                 if messageFocusAvailable,reloadCancellation === token {
-                    if token.isCancelled {fileListReadCancelled=true}
+                    if token.isCancelled || error is OperationCancellationFailure || error is CancellationError {fileListReadCancelled=true}
                     else {fileListReadError=error.localizedDescription;reloadError=error.localizedDescription;self.error=reloadError}
                 }
             }
@@ -1670,9 +1801,9 @@ import UniformTypeIdentifiers
             let previous=try await repository.singleCommitDetails(revision:"HEAD",cancellation:cancellation).asLogEntry()
             return "\(previous.author) <\(previous.email)>"
         }
-        let name=try await repository.run(["config","user.name"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
-        let email=try await repository.run(["config","user.email"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
-        return "\(name) <\(email)>"
+        let identity:ReplayUserIdentity
+        if let readCommitIdentity {identity=try await readCommitIdentity(cancellation)}else{identity=try await repository.replayUserIdentity(cancellation:cancellation)}
+        return "\(identity.authorName) <\(identity.authorEmail)>"
     }
     private func readAuthorDate(repository:GitRepository,cancellation:OperationCancellation) async throws -> Date? {
         if let queryCommitAuthorDate {return try await queryCommitAuthorDate(cancellation)}
@@ -1681,7 +1812,7 @@ import UniformTypeIdentifiers
         return Date(timeIntervalSince1970:TimeInterval(commit.author.time))
     }
     func amendChanged() {
-        guard messageFocusAvailable else { return }
+        guard messageFocusAvailable,commitIdentityPrepared,!preparingCommitIdentity else { return }
         if replaySplit != nil || historyCombine != nil { comparisonChanged(); return }
         let repository=self.repository.capturingDiffBackend(preferences:dialogDefaults)
         let wasLoading = loadingAmendMessage, failedRead = amendMessageReadFailed
@@ -1746,7 +1877,7 @@ import UniformTypeIdentifiers
         issueProviderGeneration = UUID(); issueProviderBusy = false
         fileMenuGeneration = UUID(); fileOperationToken?.cancel(); cancelChangelist()
         diffSession?.cancel(); diffSession = nil
-        clientHooks.retire(); submoduleLog.retire();fileListRefresh.retire()
+        retireCommitIdentitySettings();clientHooks.retire(); submoduleLog.retire();fileListRefresh.retire()
         reloadCancellation?.cancel(); reloadTask?.cancel(); lfsOwnerCancellation?.cancel()
         reloadCancellation = nil; reloadTask = nil; lfsOwnerCancellation = nil
         pendingReloadCancel = false; busy = false
@@ -1759,11 +1890,12 @@ import UniformTypeIdentifiers
         appliedMessageFocusRequest = request
     }
     func comparisonChanged() {
+        guard messageFocusAvailable,commitIdentityPrepared,!preparingCommitIdentity else{return}
         hasLoaded = false
         reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
     }
     func authorChanged(repository captured:GitRepository?=nil) {
-        guard messageFocusAvailable else { return }
+        guard messageFocusAvailable,commitIdentityPrepared,!preparingCommitIdentity else { return }
         authorCancellation?.cancel(); authorCancellation = nil
         authorGeneration += 1
         loadingAuthorIdentity = false
@@ -1789,7 +1921,7 @@ import UniformTypeIdentifiers
         }
     }
     func dateChanged(repository captured:GitRepository?=nil) {
-        guard messageFocusAvailable else { return }
+        guard messageFocusAvailable,commitIdentityPrepared,!preparingCommitIdentity else { return }
         dateCancellation?.cancel(); dateCancellation = nil
         dateGeneration += 1
         loadingAuthorDate = false
@@ -2082,7 +2214,9 @@ import UniformTypeIdentifiers
             return label.padding(toLength: max(10, label.count), withPad: " ", startingAt: 0) + " " + entry.path + "\n"
         }.joined()
     }
-    var inputsBlocked:Bool {loadingImportedMessage || busy || issueProviderBusy || confirmingQuit || pendingReloadCancel || savingPreferences || stagingHintVisible || unversionedPromptVisible}
+    private var operationInputsBlocked:Bool {loadingImportedMessage || busy || issueProviderBusy || confirmingQuit || pendingReloadCancel || savingPreferences || stagingHintVisible || unversionedPromptVisible}
+    var inputsBlocked:Bool {!commitIdentityPrepared || preparingCommitIdentity || operationInputsBlocked}
+    var canRefresh:Bool {messageFocusAvailable && !operationInputsBlocked}
     var fileListAvailable:Bool {messageFocusAvailable && !messageOnly && !inputsBlocked}
     var canCancel: Bool { messageFocusAvailable && !stagingHintVisible && !unversionedPromptVisible && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil) }
     func cancel(closeWindow: Bool = true, completion: ((Bool) -> Void)? = nil) {
@@ -2090,6 +2224,16 @@ import UniformTypeIdentifiers
     }
     private func cancel(closeWindow: Bool, completion: ((Bool) -> Void)?, confirmationAccepted: Bool) {
         guard messageFocusAvailable else { completion?(false); return }
+        if preparingCommitIdentity,let token=reloadCancellation,let task=reloadTask {
+            guard !pendingReloadCancel,!confirmingQuit || !closeWindow else{completion?(false);return}
+            pendingReloadCancel=true;token.cancel();task.cancel();retireCommitIdentitySettings()
+            Task{@MainActor [weak self] in
+                await task.value
+                guard let self,self.messageFocusAvailable else{completion?(false);return}
+                self.pendingReloadCancel=false
+                if closeWindow {self.close()};completion?(true)
+            };return
+        }
         if missingStagedRecovery.busy { missingStagedRecovery.cancel(); completion?(false); return }
         guard !stagingHintVisible,!unversionedPromptVisible else {completion?(false);return}
         if let task=preferenceTask {
@@ -2128,6 +2272,7 @@ import UniformTypeIdentifiers
         if let token = lfsOwnerCancellation { token.cancel(); completion?(false); return }
         if let commitProgress { commitProgress.cancel(); completion?(false); return }
         guard !busy, !confirmingQuit || !closeWindow else { completion?(false); return }
+        if !commitIdentityPrepared {if closeWindow {close()};completion?(true);return}
         let changed = !message.isEmpty && !GitReferenceName.equal(message,amend ? originalAmendMessage : messageTemplate)
         let finish = { [weak self] in
             guard let self, self.messageFocusAvailable else { completion?(false); return }
@@ -2352,7 +2497,7 @@ struct CommitDialog: View {
                     Toggle("Show Whole Project", isOn: $model.showWholeProject).disabled(model.scopePaths.isEmpty)
                     Toggle("Message only", isOn: $model.messageOnly)
                 }.toggleStyle(.checkbox).disabled(model.inputsBlocked)
-                Button("Refresh") { model.reload() }.disabled(model.inputsBlocked)
+                Button("Refresh") { model.reload() }.disabled(!model.canRefresh)
                 Spacer()
                 HStack(spacing: 0) {
                     Button(LocalizedStringKey(model.currentCompletionAction.rawValue)) { model.commitCurrentAction() }.keyboardShortcut(.return, modifiers: [.command])
@@ -3040,7 +3185,9 @@ private struct CommitProgressDialog: View {
         }
     }
     private func enabled(_ command:Command)->Bool {
-        guard ready,let owner else {return false};let model=owner.model
+        guard active,let owner else{return false}
+        if command == .refresh {return owner.refreshCommandAvailable}
+        guard ready else{return false};let model=owner.model
         switch command {
         case .current,.commit:return model.canCommit
         case .recommit,.push:return model.canCommit && model.replaySplit==nil && model.historyCombine==nil

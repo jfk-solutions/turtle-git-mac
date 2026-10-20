@@ -60,3 +60,14 @@ multiline responses keep the dialog open instead of silently truncating input.
 This is a native OpenSSH adaptation, not certification of the complete upstream
 TortoisePlink host-key dialog. Live-server, security-key device and signed
 sandbox interaction remain acceptance work.
+
+
+## SSH signing
+
+When Git is configured to sign commits or tags with an encrypted SSH key, local
+signing commands can use the same secure OpenSSH response window. The owning
+Git operation controls cancellation. Explicit askpass helpers and requirement
+settings keep their precedence; TurtleGit does not change the login agent or
+signing configuration. Existing GPG pinentry and external signing agents keep
+their configured behavior. See [Commit preparation and signing](COMMIT-IDENTITY-PARITY.md)
+for the source boundary, validation scope and remaining signed acceptance.

@@ -98,6 +98,10 @@ import TurtleGitCore
         prefs.set(false, forKey: "LogFontForFileListCtrl"); try await settle(addHost); precondition(addTable.rowHeight == defaultHeight)
 
         let commit = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: prefs, dialogDefaults: prefs)
+        defer { commit.invalidateForClose() }
+        commit.reload()
+        for _ in 0..<3000 { if !commit.busy { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!commit.busy && commit.commitIdentityPrepared && commit.error == nil)
         commit.entries = try await repo.status(); commit.selection = GitPathSet(commit.entries.map(\.id)); commit.checked = commit.selection
         let commitSelection = commit.selection, commitChecked = commit.checked
         let commitHost = NSHostingView(rootView: CommitDialog(model: commit).fileTable(commit.entries, staged: nil).defaultAppStorage(prefs))

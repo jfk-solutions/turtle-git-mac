@@ -47,6 +47,10 @@ import Darwin
         let configured = "Configured 雪 <configured@example.test>"
         let model = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: prefs, dialogDefaults: prefs)
         model.branch = "main"; model.author = configured; model.message = "Preserved message"
+        defer { model.invalidateForClose() }
+        model.reload()
+        for _ in 0..<3000 { if !model.busy { break }; try await Task.sleep(nanoseconds:10_000_000) }
+        try require(model.commitIdentityPrepared && !model.busy && model.error == nil)
         let host = NSHostingView(rootView: CommitDialog(model: model).defaultAppStorage(prefs))
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1000, height: 760), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentView = host

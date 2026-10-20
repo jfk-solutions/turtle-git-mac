@@ -781,6 +781,8 @@ jobs:
           --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native branch revision number display
         run: python3 scripts/test-branch-revision-number.py
+      - name: Commit identity repair and effective author controls
+        run: python3 scripts/test-commit-preparation.py --only identity --only author --only focus --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Native Commit columns, sorting and closed-owner settings
         run: python3 scripts/test-commit-column-sorting.py
       - name: Native scoped Commit commands and keyboard actions

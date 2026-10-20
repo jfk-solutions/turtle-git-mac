@@ -18,8 +18,14 @@ import TurtleGitCore
         defer { prefs.removePersistentDomain(forName: suite); prefs.synchronize() }
         let repo = GitRepository(root: URL(fileURLWithPath: CommandLine.arguments[1]), executable: URL(fileURLWithPath: CommandLine.arguments[2]))
         _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Private Branch Focus QA"])
+        _ = try await repo.run(["config", "user.email", "focus@example.invalid"])
         let model = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: prefs, dialogDefaults: prefs)
         model.branch = "main"; model.newBranch = "feature/雪😀"; model.message = "Preserved draft"
+        defer { model.invalidateForClose() }
+        model.reload()
+        for _ in 0..<3000 { if !model.busy { break }; try await Task.sleep(nanoseconds:10_000_000) }
+        precondition(model.commitIdentityPrepared && !model.busy && model.error == nil, "Branch fixture must complete real identity preparation")
         let host = NSHostingView(rootView: CommitDialog(model: model).defaultAppStorage(prefs))
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1000, height: 760), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentView = host
