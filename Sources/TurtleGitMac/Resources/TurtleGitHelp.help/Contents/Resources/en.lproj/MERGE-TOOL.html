@@ -62,6 +62,13 @@ only explicitly supplied input objects whose identity and contents still match
 the captured input, after owned editor work drains; it preserves changed inputs
 and the merged output. It never removes a symlink target. This is a deliberate
 macOS ownership adaptation to the source cleanup flag.</p>
+<p>In a three-file merge, <strong>View → Line diff bar</strong> can display a compact Theirs/Mine
+comparison below the panes. It follows the inspected line and always shows
+whitespace and inline differences, even when those markers are hidden in the
+editors. The strip preserves your selection and keyboard focus. Three-file
+loads initially hide it; changing Locator visibility restores its saved choice.
+<strong>View → Line numbers</strong> changes the current window's numbering without changing
+the Merge Editor Settings default.</p>
 <p>See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-TOOL-ENTRY-PARITY.html">the source entry review</a> and
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-TOOL-COMPARISON-PARITY.html">two-file behavior review</a> for remaining states and
 platform differences. This does not certify complete TortoiseMerge parity.</p>

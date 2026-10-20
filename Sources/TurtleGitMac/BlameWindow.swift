@@ -303,6 +303,26 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         let enabled=labelDefaults.bool(forKey: "EnableGravatar");if showGravatar != enabled {showGravatar=enabled}
         refreshAuthorImage()
     }
+    private var attributionDates: [Date: String] = [:]
+    private var attributionDateSettings: HistoryDateSettings?
+    private var attributionDateTick: Int?
+    private var attributionDateEnvironment = ""
+    private var dateEnvironmentKey: String { Locale.current.identifier + ":" + TimeZone.current.identifier + ":" + String(TimeZone.current.secondsFromGMT()) }
+    var attributionDateKey: String {
+        let settings=HistoryDateSettings.load(defaults:labelDefaults)
+        return "\(settings.shortDate):\(settings.relative):\(settings.useSystemLocale):" + dateEnvironmentKey + ":" + (settings.relative ? String(Int(Date().timeIntervalSince1970)) : "absolute")
+    }
+    func attributionDate(_ date: Date, now: Date = Date()) -> String {
+        let settings = HistoryDateSettings.load(defaults: labelDefaults)
+        let tick = settings.relative ? Int(now.timeIntervalSince1970) : nil
+        let environment=dateEnvironmentKey
+        if attributionDateSettings != settings || attributionDateTick != tick || attributionDateEnvironment != environment {
+            attributionDates = [:]; attributionDateSettings = settings; attributionDateTick = tick; attributionDateEnvironment=environment
+        }
+        if let cached = attributionDates[date] { return cached }
+        let value = settings.format(ISO8601DateFormatter().string(from: date),now:now)
+        attributionDates[date] = value; return value
+    }
     @Published private(set) var syntaxEnabled = true
     @Published private(set) var wrapLongLines = false
     func setWrapLongLines(_ value: Bool) { guard !busy else { return }; wrapLongLines = value; labelDefaults.set(value,forKey:"Blame.WrapLongLines") }
@@ -332,7 +352,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
             if marginFields.contains(.logID) { return ranks[line.hash].map { String(historyCount - $0) } ?? "0" }
             return String(line.hash.prefix(8))
         case "author": return repeated ? "" : line.author
-        case "date": return repeated ? "" : DateFormatter.localizedString(from:line.date,dateStyle:.short,timeStyle:.short)
+        case "date": return repeated ? "" : attributionDate(line.date)
         case "filename": return repeated && lines[row - 1].filename == line.filename ? "" : line.filename
         case "original": return String(line.originalLine)
         default: return String(line.number)
@@ -1694,9 +1714,11 @@ private struct BlameTable: NSViewRepresentable {
         return container
     }
     func updateNSView(_ container: BlameSourceContainer, context: Context) {
-        let coordinator = context.coordinator; coordinator.model = model
-        guard let table = coordinator.table else { return }
-        coordinator.updating = true
+        let coordinator = context.coordinator
+        // Closing and SwiftUI detachment are separate events. A queued update
+        // must not measure/reload the old table after the owner has retired.
+        guard !model.retired, !container.retired, let table = coordinator.table else { return }
+        coordinator.model = model; coordinator.updating = true
         for column in table.tableColumns {
             switch column.identifier.rawValue {
             case "author": column.isHidden = !model.marginFields.contains(.author)
@@ -1714,9 +1736,27 @@ private struct BlameTable: NSViewRepresentable {
         }
         coordinator.updateColumnMetrics(table)
         container.installNavigation(model)
-        container.updateSource(model)
+        let changedRows = container.updateSource(model)
+        let dataKey = "\(model.historyVersion):\(model.sourceFont.fontName):\(model.effectiveFontSize):\(model.attributionDateKey):" + model.marginFields.map(\.rawValue).sorted().joined(separator:",")
         let viewportOrigin = container.scroll.contentView.bounds.origin
-        table.reloadData()
+        if coordinator.attributionKey != dataKey {
+            coordinator.attributionKey = dataKey; table.reloadData(); container.attributionReloaded()
+        } else {
+            // Repaint existing visible cells only. Offscreen rows obtain current
+            // metadata and colors from the delegate when AppKit creates them.
+            let dark = table.effectiveAppearance.bestMatch(from:[.aqua,.darkAqua]) == .darkAqua
+            for row in changedRows where model.lines.indices.contains(row) {
+                if let rowView = table.rowView(atRow:row,makeIfNecessary:false) as? BlameRowView {
+                    let line=model.lines[row], selected=[1,2].contains(model.highlightKind(line))
+                    rowView.ageColor=blameSourceBackground(model,line:line,dark:dark);rowView.revisionHighlighted=selected;rowView.needsDisplay=true
+                    for column in table.tableColumns.indices {
+                        if let cell=table.view(atColumn:column,row:row,makeIfNecessary:false) as? BlameMetadataCell {
+                            cell.label.textColor=selected ? .alternateSelectedControlTextColor:.labelColor
+                        }
+                    }
+                }
+            }
+        }
         table.setFrameSize(NSSize(width:table.tableColumns.filter { !$0.isHidden }.reduce(CGFloat(0)) { $0 + $1.width },height:table.frame.height))
         container.scroll.contentView.scroll(to: viewportOrigin)
         container.scroll.reflectScrolledClipView(container.scroll.contentView)
@@ -1729,10 +1769,13 @@ private struct BlameTable: NSViewRepresentable {
             container.selectSourceLine(request.line, wholeLine: request.wholeLine, includeBreak: request.includeBreak)
         }
         container.locator.presentation = model.presentation
-        container.locator.ranks = model.lines.map { model.ranks[$0.hash] }
+        if coordinator.locatorHistoryVersion != model.historyVersion {
+            coordinator.locatorHistoryVersion=model.historyVersion
+            container.locator.ranks = model.lines.map { model.ranks[$0.hash] }
+        }
         container.locator.historyCount = model.historyCount
         container.locator.colorAge = model.colorAge
-        container.locator.needsDisplay = true
+        container.locator.refreshViewport()
         coordinator.updating = false
     }
     static func dismantleNSView(_ container: BlameSourceContainer, coordinator: Coordinator) {
@@ -1749,9 +1792,10 @@ private struct BlameTable: NSViewRepresentable {
         var presentation: GitBlamePresentation?
         var zoomLevel: Int?
         private var metricsKey = ""
+        var attributionKey = "", locatorHistoryVersion = -1
         init(_ model: BlameWindowModel) { self.model = model }
         func updateColumnMetrics(_ table: NSTableView) {
-            let key = "\(model.historyVersion):\(model.sourceFont.fontName):\(model.effectiveFontSize):" + model.marginFields.map(\.rawValue).sorted().joined(separator:",")
+            let key = "\(model.historyVersion):\(model.sourceFont.fontName):\(model.effectiveFontSize):\(model.attributionDateKey):" + model.marginFields.map(\.rawValue).sorted().joined(separator:",")
             guard metricsKey != key else { return };metricsKey = key
             let font = model.sourceFont
             func width(_ values: Set<String>) -> CGFloat {
@@ -1769,7 +1813,7 @@ private struct BlameTable: NSViewRepresentable {
                 case "author": measured = width(Set(model.lines.map(\.author)))
                 case "filename": measured = width(Set(model.lines.map(\.filename)))
                 case "original": measured = width([String(model.lines.map(\.originalLine).max() ?? 1)])
-                case "date": measured = width(Set(Set(model.lines.map(\.date)).map { DateFormatter.localizedString(from:$0,dateStyle:.short,timeStyle:.short) }))
+                case "date": measured = width(Set(Set(model.lines.map(\.date)).map { model.attributionDate($0) }))
                 default: continue
                 }
                 column.minWidth=24;column.maxWidth=1_000_000
@@ -1985,7 +2029,17 @@ private final class BlameSourceScrollView: NSScrollView {
     }
 }
 
-private final class BlameSourceContainer: NSView {
+struct BlameRenderWork: Equatable {
+    var documentRebuilds = 0, baseStylePasses = 0, geometryRebuilds = 0
+    var highlightRowsPainted = 0, foregroundRowsStyled = 0, attributionReloads = 0
+}
+@MainActor protocol BlameRenderWorkProviding {
+    var renderWork: BlameRenderWork { get }
+    func renderedRowBackground(_ row: Int) -> NSColor?
+    var locatorDrawingCount: Int { get }
+}
+
+private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
     let scroll = BlameSourceScrollView()
     let locator = BlameLocatorView()
     let sourceScroll = BlameSourceScrollView()
@@ -1996,13 +2050,32 @@ private final class BlameSourceContainer: NSView {
     private var lineLengths: [Int] = []
     private var synchronizing = false
     private(set) var settingSelection = false
-    private var retired = false
+    private(set) var retired = false
     private var renderedRevision: String?
     private var renderedEncoding: GitBlameEncoding?
     private var renderedPresentation: GitBlamePresentation?
     private var renderedZoomLevel: Int?
     private var renderedContents: Data?
     private var renderedLineCount = -1
+    private(set) var renderWork = BlameRenderWork()
+    var locatorDrawingCount: Int { locator.drawingCount }
+    func attributionReloaded() { if !retired { renderWork.attributionReloads += 1 } }
+    func renderedRowBackground(_ row: Int) -> NSColor? { editor.rowColors.indices.contains(row) ? editor.rowColors[row] : nil }
+    private var geometryGeneration = 0, measuredGeneration = -1
+    private var measuredWidth: CGFloat?
+    private var baseStyle: NSAttributedString?
+    private var paintedSyntaxGeneration = -1, paintedSyntaxRevision = -1
+    private var syntaxRevision = 0
+    private var paintedDark: Bool?, paintedPalette: GitBlamePresentation?, paintedAge: Bool?
+    private var paintedHistoryVersion = -1
+    private struct Highlights: Equatable {
+        var selected: Set<String>, selectedAuthor: String?, stickyHash: String?, stickyAuthor: String?
+        var hoverHash: String?, hoverAuthor: String?
+    }
+    private var paintedHighlights: Highlights?
+    private var hashRows: [String: IndexSet] = [:], authorRows: [String: IndexSet] = [:]
+    private var paintedKinds: [Int] = []
+    private var headingColumns: [String] = []
     private var gutterWidth: CGFloat = 270
     private var syntaxText: String?
     private var syntaxPath = ""
@@ -2046,6 +2119,7 @@ private final class BlameSourceContainer: NSView {
         retired = true; editor.delegate = nil; editor.onContextMenu = { _,_ in }
         syntaxGeneration += 1; syntaxToken?.cancel(); syntaxTask?.cancel()
         editor.retired = true; editor.isSelectable = false
+        baseStyle=nil;hashRows=[:];authorRows=[:]
         editor.keyboardContextRow=nil;editor.contextMenuAvailable={false};editor.copyAvailable={false};editor.publishCopy={_ in};editor.onOpen = {};editor.onFind = {}; editor.onFindNext = { _ in }; editor.onGoTo = {}
         editor.tooltipForRow={_ in nil};editor.removeAllToolTips()
         scroll.onZoom={_ in};sourceScroll.onZoom={_ in}
@@ -2105,21 +2179,24 @@ private final class BlameSourceContainer: NSView {
         editor.window?.makeFirstResponder(editor)
         editor.scrollRangeToVisible(range)
     }
-    func updateSource(_ model: BlameWindowModel) {
-        guard !retired else { return }
+    @discardableResult func updateSource(_ model: BlameWindowModel) -> IndexSet {
+        guard !retired else { return [] }
         if let table = scroll.documentView as? NSTableView {
             gutterWidth = table.tableColumns.filter { !$0.isHidden }.reduce(CGFloat(0)) { $0 + $1.width }
-            annotationHeading.subviews.forEach { $0.removeFromSuperview() }
-            for column in table.tableColumns where !column.isHidden {
-                let label = NSTextField(labelWithString:column.identifier.rawValue == "revision" && model.marginFields.contains(.logID) ? "Log ID" : column.title)
-                label.font = .systemFont(ofSize:11); label.maximumNumberOfLines = 1
-                label.frame.size = NSSize(width:column.width,height:22); annotationHeading.addSubview(label)
+            let columns = table.tableColumns.filter { !$0.isHidden }.map { $0.identifier.rawValue + ":" + String(Double($0.width)) + ":" + (model.marginFields.contains(.logID) ? "id" : "hash") }
+            if columns != headingColumns {
+                headingColumns = columns
+                annotationHeading.subviews.forEach { $0.removeFromSuperview() }
+                for column in table.tableColumns where !column.isHidden {
+                    let label = NSTextField(labelWithString:column.identifier.rawValue == "revision" && model.marginFields.contains(.logID) ? "Log ID" : column.title)
+                    label.font = .systemFont(ofSize:11); label.maximumNumberOfLines = 1
+                    label.frame.size = NSSize(width:column.width,height:22); annotationHeading.addSubview(label)
+                }
+                layoutAnnotationHeading(); needsLayout = true
             }
-            layoutAnnotationHeading()
-            needsLayout = true
         }
         let changed = renderedRevision != model.snapshot?.revision || renderedEncoding != model.snapshot?.encoding ||
-            renderedPresentation != model.presentation || renderedZoomLevel != model.zoomLevel || renderedContents != model.snapshot?.contents ||
+            renderedPresentation?.fontName != model.presentation.fontName || renderedPresentation?.fontSize != model.presentation.fontSize || renderedPresentation?.tabSize != model.presentation.tabSize || renderedZoomLevel != model.zoomLevel || renderedContents != model.snapshot?.contents ||
             renderedLineCount != model.lines.count || wrapped != model.wrapLongLines
         if changed,let row=editor.sourceRow(atY:sourceScroll.contentView.bounds.minY),editor.rowRectangles.indices.contains(row) {
             let origin=sourceScroll.contentView.bounds.origin
@@ -2131,6 +2208,7 @@ private final class BlameSourceContainer: NSView {
         editor.textContainer?.widthTracksTextView = wrapped
         let selected = editor.selectedRange()
         if changed {
+            renderWork.documentRebuilds += 1
             renderedRevision = model.snapshot?.revision; renderedEncoding = model.snapshot?.encoding
             renderedPresentation = model.presentation; renderedLineCount = model.lines.count
             renderedZoomLevel=model.zoomLevel;renderedContents=model.snapshot?.contents
@@ -2157,49 +2235,118 @@ private final class BlameSourceContainer: NSView {
             if sameText, selected.location != NSNotFound, NSMaxRange(selected) <= location { editor.setSelectedRange(selected) }
             else { editor.setSelectedRange(NSRange(location:0,length:0)) }
             settingSelection = false
-            desiredSourceWidth = model.lines.reduce(CGFloat(300)) { max($0, model.displayedSource($1).size().width + 24) }
         }
         requestSyntax(model)
         let dark = effectiveAppearance.bestMatch(from:[.aqua,.darkAqua]) == .darkAqua
-        editor.rowColors = model.lines.map { line in blameSourceBackground(model, line:line, dark:dark) }
-        editor.textStorage?.beginEditing()
-        if let storage = editor.textStorage, storage.length > 0 {
-            storage.addAttribute(.foregroundColor,value:NSColor.labelColor,range:NSRange(location:0,length:storage.length))
-            storage.removeAttribute(.backgroundColor,range:NSRange(location:0,length:storage.length))
-            storage.removeAttribute(NSAttributedString.Key("TurtleGitBlameEOLFill"),range:NSRange(location:0,length:storage.length))
-            storage.addAttribute(.font,value:model.sourceFont,range:NSRange(location:0,length:storage.length))
+        let historyChanged = paintedHistoryVersion != model.historyVersion || paintedKinds.count != model.lines.count
+        if historyChanged {
+            paintedHistoryVersion = model.historyVersion; hashRows = [:]; authorRows = [:]
+            for (row, line) in model.lines.enumerated() {
+                hashRows[line.hash, default: []].insert(row); authorRows[line.author, default: []].insert(row)
+            }
+            paintedKinds = Array(repeating: -1, count: model.lines.count)
+        }
+        let selectedEntry = model.selectedHistoryEntry, sticky = model.highlightedLine, hover = model.hoverLine
+        let highlights = Highlights(selected: model.selectedLogHashes, selectedAuthor: selectedEntry?.author,
+                                    stickyHash: sticky?.hash, stickyAuthor: sticky?.author, hoverHash: hover?.hash, hoverAuthor: hover?.author)
+        let syntaxChanged = paintedSyntaxGeneration != syntaxGeneration || paintedSyntaxRevision != syntaxRevision
+        let styleChanged = changed || syntaxChanged || paintedDark != dark
+        let paletteChanged = historyChanged || paintedDark != dark || paintedPalette != model.presentation || paintedAge != model.colorAge
+        var dirty = IndexSet()
+        if historyChanged || paletteChanged || styleChanged { dirty = IndexSet(integersIn: 0..<model.lines.count) }
+        else if let prior = paintedHighlights, prior != highlights {
+            func hashes(_ values: Set<String>) { for value in values { dirty.formUnion(hashRows[value] ?? []) } }
+            func authors(_ old: String?, _ new: String?) {
+                guard old != new else { return }
+                for value in [old,new].compactMap({ $0 }) { dirty.formUnion(authorRows[value] ?? []) }
+            }
+            hashes(prior.selected.symmetricDifference(highlights.selected))
+            if prior.stickyHash != highlights.stickyHash { hashes(Set([prior.stickyHash,highlights.stickyHash].compactMap { $0 })) }
+            if prior.hoverHash != highlights.hoverHash { hashes(Set([prior.hoverHash,highlights.hoverHash].compactMap { $0 })) }
+            authors(prior.selectedAuthor,highlights.selectedAuthor); authors(prior.stickyAuthor,highlights.stickyAuthor); authors(prior.hoverAuthor,highlights.hoverAuthor)
+        }
+        if styleChanged, let storage = editor.textStorage {
+            renderWork.baseStylePasses += 1
+            storage.beginEditing()
+            let all = NSRange(location: 0, length: storage.length)
+            storage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: all)
+            storage.removeAttribute(.backgroundColor, range: all)
+            storage.removeAttribute(NSAttributedString.Key("TurtleGitBlameEOLFill"), range: all)
+            storage.addAttribute(.font, value: model.sourceFont, range: all)
             if model.syntaxEnabled, let result = syntaxResult {
                 for item in result.ranges where NSMaxRange(item.range) <= storage.length {
                     guard let style = result.styles[String(item.style)] else { continue }
                     if let rgb = style.foreground, let color = blameSyntaxColor(rgb,dark:dark) { storage.addAttribute(.foregroundColor,value:color,range:item.range) }
                     if let rgb = style.background, let color = blameSyntaxColor(rgb,dark:dark) { storage.addAttribute(.backgroundColor,value:color,range:item.range) }
                     var font=model.sourceFont
-                    if let family=style.font {
-                        font=NSFont(name:family,size:model.sourceFont.pointSize) ?? NSFont(name:"Menlo",size:model.sourceFont.pointSize) ?? .monospacedSystemFont(ofSize:model.sourceFont.pointSize,weight:.regular)
-                    }
+                    if let family=style.font { font=NSFont(name:family,size:model.sourceFont.pointSize) ?? NSFont(name:"Menlo",size:model.sourceFont.pointSize) ?? .monospacedSystemFont(ofSize:model.sourceFont.pointSize,weight:.regular) }
                     if style.bold == true { font=NSFontManager.shared.convert(font,toHaveTrait:.boldFontMask) }
                     storage.addAttribute(.font,value:font,range:item.range)
-                    if style.eolFilled == true,let rgb=style.background,let color=blameSyntaxColor(rgb,dark:dark) {
-                        storage.addAttribute(NSAttributedString.Key("TurtleGitBlameEOLFill"),value:color,range:item.range)
+                    if style.eolFilled == true,let rgb=style.background,let color=blameSyntaxColor(rgb,dark:dark) { storage.addAttribute(NSAttributedString.Key("TurtleGitBlameEOLFill"),value:color,range:item.range) }
+                }
+            }
+            storage.endEditing(); baseStyle = NSAttributedString(attributedString: storage)
+            if changed || syntaxChanged {
+                geometryGeneration += 1
+                desiredSourceWidth=max(300,ceil(storage.size().width)+editor.textContainerInset.width*2+24)
+            }
+        }
+        if editor.rowColors.count != model.lines.count { editor.rowColors = Array(repeating: .clear, count: model.lines.count) }
+        editor.textStorage?.beginEditing()
+        for row in dirty where model.lines.indices.contains(row) && ranges.indices.contains(row) {
+            let line = model.lines[row]
+            let kind: Int
+            if highlights.selected.contains(line.hash) { kind = 1 }
+            else if highlights.selectedAuthor == line.author { kind = 2 }
+            else if highlights.stickyHash == line.hash { kind = 1 }
+            else if highlights.stickyAuthor == line.author { kind = 2 }
+            else if highlights.hoverHash == line.hash { kind = 3 }
+            else if highlights.hoverAuthor == line.author { kind = 4 }
+            else { kind = 0 }
+            let wasSelected = [1,2].contains(paintedKinds[row]), isSelected = [1,2].contains(kind)
+            // A new annotation history can remove the selected revision while
+            // retaining identical source bytes. Its old kind has been discarded
+            // with the row indexes, so explicitly restore cached syntax colors.
+            if styleChanged || historyChanged || wasSelected != isSelected, let storage = editor.textStorage, let baseStyle {
+                renderWork.foregroundRowsStyled += 1
+                let range = ranges[row]
+                if isSelected {
+                    storage.addAttribute(.foregroundColor,value:NSColor.alternateSelectedControlTextColor,range:range)
+                    storage.removeAttribute(NSAttributedString.Key("TurtleGitBlameEOLFill"),range:range)
+                } else {
+                    for key in [NSAttributedString.Key.foregroundColor, NSAttributedString.Key("TurtleGitBlameEOLFill")] {
+                        storage.removeAttribute(key,range:range)
+                        baseStyle.enumerateAttribute(key,in:range) { value,subrange,_ in
+                            if let value { storage.addAttribute(key,value:value,range:subrange) }
+                        }
                     }
                 }
             }
-            for (row,line) in model.lines.enumerated() where [1,2].contains(model.highlightKind(line)) && ranges.indices.contains(row) {
-                storage.addAttribute(.foregroundColor,value:NSColor.alternateSelectedControlTextColor,range:ranges[row])
-                storage.removeAttribute(NSAttributedString.Key("TurtleGitBlameEOLFill"),range:ranges[row])
+            if paletteChanged || paintedKinds[row] != kind {
+                editor.rowColors[row] = blameSourceBackground(model,line:line,dark:dark,highlightKind:kind)
+                if editor.rowRectangles.indices.contains(row) { editor.setNeedsDisplay(editor.rowRectangles[row]) }
             }
+            paintedKinds[row] = kind
         }
         editor.textStorage?.endEditing()
-        if let storage=editor.textStorage { desiredSourceWidth=max(300,ceil(storage.size().width)+editor.textContainerInset.width*2+24) }
-        reflowSource();editor.refreshRevisionTooltips();editor.needsDisplay=true
+        renderWork.highlightRowsPainted += dirty.count
+        paintedHighlights = highlights; paintedDark = dark; paintedPalette = model.presentation; paintedAge = model.colorAge
+        paintedSyntaxGeneration = syntaxGeneration; paintedSyntaxRevision = syntaxRevision
+        reflowSource()
+        return dirty
     }
     private func reflowSource() {
         guard !retired, !reflowing, let manager=editor.layoutManager, let textContainer=editor.textContainer else { return }
+        let width=wrapped ? max(30,sourceScroll.contentSize.width) : max(desiredSourceWidth,sourceScroll.contentSize.width)
+        guard measuredGeneration != geometryGeneration || measuredWidth != width else {
+            editor.frame.size.height=max(editor.rowRectangles.last?.maxY ?? 0,sourceScroll.contentSize.height)
+            return
+        }
+        measuredGeneration=geometryGeneration; measuredWidth=width; renderWork.geometryRebuilds += 1
         reflowing=true; defer { reflowing=false }
         let origin=sourceScroll.contentView.bounds.origin
         let first=pendingReflowAnchor?.row ?? editor.sourceRow(atY:origin.y)
         let within=pendingReflowAnchor?.within ?? first.flatMap { editor.rowRectangles.indices.contains($0) ? origin.y-editor.rowRectangles[$0].minY : nil } ?? 0
-        let width=wrapped ? max(30,sourceScroll.contentSize.width) : max(desiredSourceWidth,sourceScroll.contentSize.width)
         editor.frame.size.width=width
         textContainer.containerSize=NSSize(width:wrapped ? max(1,width-editor.textContainerInset.width*2) : CGFloat.greatestFiniteMagnitude,height:CGFloat.greatestFiniteMagnitude)
         manager.ensureLayout(for:textContainer)
@@ -2230,6 +2377,7 @@ private final class BlameSourceContainer: NSView {
             sourceScroll.contentView.scroll(to:sourceScroll.contentView.constrainBoundsRect(NSRect(origin:next,size:sourceScroll.contentView.bounds.size)).origin)
         }
         sourceScroll.reflectScrolledClipView(sourceScroll.contentView)
+        pendingReflowAnchor=nil; editor.refreshRevisionTooltips()
     }
     private func requestSyntax(_ model: BlameWindowModel) {
         if !model.syntaxEnabled {
@@ -2251,7 +2399,7 @@ private final class BlameSourceContainer: NSView {
             do {
                 let result = try await model.syntaxOperation(text,path,tabs,helper,token)
                 guard let self, !self.retired, self.syntaxGeneration == generation, !token.isCancelled, !Task.isCancelled else { return }
-                self.syntaxResult = result; model.syntaxWorking = false; self.updateSource(model)
+                self.syntaxResult = result; self.syntaxRevision += 1; model.syntaxWorking = false; self.updateSource(model)
             } catch {
                 guard let self, !self.retired, self.syntaxGeneration == generation, !token.isCancelled, !Task.isCancelled else { return }
                 model.syntaxWorking = false; model.syntaxError = error.localizedDescription
@@ -2264,7 +2412,7 @@ private final class BlameSourceContainer: NSView {
         let target = fromSource ? scroll : sourceScroll
         var next = target.contentView.bounds.origin; next.y = origin.y
         target.contentView.scroll(to: target.contentView.constrainBoundsRect(NSRect(origin:next,size:target.contentView.bounds.size)).origin)
-        target.reflectScrolledClipView(target.contentView); locator.needsDisplay = true
+        target.reflectScrolledClipView(target.contentView); locator.refreshViewport()
         layoutAnnotationHeading()
         synchronizing = false
     }
@@ -2287,7 +2435,7 @@ private final class BlameSourceContainer: NSView {
         pendingReflowAnchor=nil
         editor.refreshRevisionTooltips()
         synchronize(fromSource:true)
-        locator.needsDisplay = true
+        locator.refreshViewport()
     }
 }
 
@@ -2459,16 +2607,17 @@ private final class BlameSourceTextView: NSTextView, BlameSourceTooltipProviding
     }
 }
 
-@MainActor private func blameSourceBackground(_ model: BlameWindowModel, line: GitBlameLine, dark: Bool) -> NSColor {
+@MainActor private func blameSourceBackground(_ model: BlameWindowModel, line: GitBlameLine, dark: Bool, highlightKind: Int? = nil) -> NSColor {
     let value = model.presentation.ageColor(rank:model.ranks[line.hash],historyCount:model.historyCount,dark:dark,enabled:model.colorAge)
     let color = NSColor(srgbRed:CGFloat((value >> 16) & 255) / 255,green:CGFloat((value >> 8) & 255) / 255,blue:CGFloat(value & 255) / 255,alpha:1)
-    switch model.highlightKind(line) {
+    let kind = highlightKind ?? model.highlightKind(line)
+    switch kind {
     case 1: return dark ? NSColor(srgbRed:0,green:30.0/255,blue:80.0/255,alpha:1) : .selectedContentBackgroundColor
     case 2:
         let selected = dark ? NSColor(srgbRed:0,green:30.0/255,blue:80.0/255,alpha:1) : .selectedContentBackgroundColor
         return selected.blended(withFraction:dark ? 0.15 : 0.35,of:dark ? NSColor(srgbRed:240.0/255,green:240.0/255,blue:240.0/255,alpha:1) : .white) ?? selected
     case 3,4:
-        let percentage = model.highlightKind(line) == 3 ? 20 : 10
+        let percentage = kind == 3 ? 20 : 10
         let level = ((dark ? 240 : 0) * percentage + (dark ? 32 : 255) * (100 - percentage)) / 100
         return NSColor(srgbRed:CGFloat(level)/255,green:CGFloat(level)/255,blue:CGFloat(level)/255,alpha:1)
     default: return model.colorAge && model.ranks[line.hash] != nil ? color : dark ? NSColor(srgbRed:32.0/255,green:32.0/255,blue:32.0/255,alpha:1) : .white
@@ -2478,10 +2627,16 @@ private final class BlameSourceTextView: NSTextView, BlameSourceTooltipProviding
 private final class BlameLocatorView: NSView {
     weak var table: NSTableView?
     weak var scroll: NSScrollView?
-    var presentation = GitBlamePresentation()
-    var ranks: [Int?] = []
-    var historyCount = 0
-    var colorAge = true
+    var presentation = GitBlamePresentation() { didSet { if presentation != oldValue { needsDisplay=true } } }
+    var ranks: [Int?] = [] { didSet { needsDisplay=true } }
+    var historyCount = 0 { didSet { if historyCount != oldValue { needsDisplay=true } } }
+    var colorAge = true { didSet { if colorAge != oldValue { needsDisplay=true } } }
+    private var visibleRows: NSRange?
+    private(set) var drawingCount = 0
+    func refreshViewport() {
+        let next = table.map { $0.rows(in:visibleBlameSourceRect($0)) }
+        if next != visibleRows { visibleRows=next; needsDisplay=true }
+    }
     override var isFlipped: Bool { true }
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -2492,6 +2647,7 @@ private final class BlameLocatorView: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
     override func draw(_ dirtyRect: NSRect) {
+        drawingCount += 1
         let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         let background = dark ? NSColor(srgbRed: 32.0 / 255, green: 32.0 / 255, blue: 32.0 / 255, alpha: 1) : .white
         background.setFill(); bounds.fill()

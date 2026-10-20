@@ -16,6 +16,12 @@ macOS 13.
 
 ## Current capabilities and limits
 
+The connected history/editor presentation batch adds
+[three-pane conflict line inspection](docs/MERGE-CONFLICT-INSPECTION-PARITY.md),
+[Blame rendering that reuses source styles and geometry during hover/selection](docs/BLAME-RENDERING-PARITY.md),
+and [Revision Graph filter feedback, menu artwork and complete hover metadata](docs/GRAPH-PRESENTATION-PARITY.md).
+The family records retain their remaining source and platform acceptance work.
+
 Log revision menus adapt to root, merge, multi-selection, working-tree and bare
 contexts; see [popup behavior and remaining acceptance](docs/LOG-POPUP-VARIANTS.md).
 

@@ -375,6 +375,19 @@ supersedes a pending caret restoration.
 
 In two-pane and one-pane comparison, Previous/Next difference searches from the
 active pane's caret and selects the whole source-state block. Control-Up/Down, Option-Up/Down and F7/Shift-F7 use the same navigation.
+
+In a three-pane conflict editor, **View → Line diff bar** shows the aligned
+Theirs line above the Mine line. Move the caret or pointer over a source line to
+inspect it. The bar displays whitespace and inline differences independently of
+the main panes' visibility choices, and follows each source's horizontal offset.
+It is read-only and does not change the result, selection or resolved state.
+Three-pane loads initially hide the bar while retaining its saved View choice;
+an explicit View command reveals it. Changing Locator visibility restores that
+saved choice.
+The View menu also toggles source/result line numbers. As in TortoiseGitMerge,
+inline-difference traversal is available in two-pane comparison; three-pane
+conflict inspection uses the line-diff bar.
+
 In two-pane Compare, the caret also advances to the first inline difference when
 inline display is enabled.
 Neutral Base and Mine rows are separate stops; filtered common rows are skipped.

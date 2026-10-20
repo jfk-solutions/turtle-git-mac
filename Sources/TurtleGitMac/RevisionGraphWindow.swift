@@ -46,6 +46,7 @@ final class RevisionGraphSurface: NSView {
     // Upstream CRevisionGraphDlg owns this numeric position, independent of Find lifetime.
     var findSearchIndex = 0
     var options = RevisionGraphOptions()
+    var hasActiveFilter: Bool { options.onlyCurrentBranch || options.onlyLocalBranches || !options.from.isEmpty || !options.to.isEmpty }
     @Published private(set) var nodes: [RevisionGraphNode] = []
     @Published private(set) var geometry: RevisionGraphLayout?
     @Published private(set) var busy = false
@@ -264,8 +265,12 @@ final class RevisionGraphNativeWindow: NSWindow {
     var command: (String) -> Void = { _ in }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if let canvas=firstResponder as? RevisionGraphCanvas,canvas.performContextKey(event) { return true }
-        if event.keyCode == 96 { command("refresh"); return true }
-        if event.modifierFlags.contains(.command), let key = event.charactersIgnoringModifiers {
+        let modifiers = event.modifierFlags.intersection([.command, .control, .shift, .option])
+        if event.keyCode == 96, modifiers.isEmpty { command("refresh"); return true }
+        // The plus glyph needs Shift on common keyboard layouts; Option/Control
+        // variants remain available to their own responders.
+        if modifiers == [.command, .shift], event.charactersIgnoringModifiers == "+" { command("zoomIn"); return true }
+        if modifiers == .command, let key = event.charactersIgnoringModifiers {
             if key == "+" || key == "=" { command("zoomIn"); return true }
             if key == "-" { command("zoomOut"); return true }
             if key == "f" { command("find"); return true }
@@ -278,7 +283,24 @@ enum RevisionGraphReferenceCommand {
     case switchBranch(String, hash: String), checkout(String, hash: String), delete([String], hash: String)
 }
 
-@MainActor final class RevisionGraphWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation, NSComboBoxDelegate {
+/// Source checked toolbar commands retain a visible mark independently of mouse-down.
+final class RevisionGraphToolbarButton: NSButton {
+    override func draw(_ dirtyRect: NSRect) {
+        if state == .on {
+            let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 4, yRadius: 4)
+            let contrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+            let color = isEnabled ? NSColor.controlAccentColor : NSColor.disabledControlTextColor
+            color.withAlphaComponent(contrast ? 0.25 : 0.18).setFill(); path.fill()
+            color.withAlphaComponent(isEnabled ? 0.8 : 0.5).setStroke()
+            path.lineWidth = contrast ? 1.5 : 1; path.stroke()
+        }
+        super.draw(dirtyRect)
+    }
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance(); needsDisplay = true
+    }
+}
+@MainActor final class RevisionGraphWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation, NSComboBoxDelegate, NSMenuDelegate {
     let model: RevisionGraphWindowModel
     let canvas: RevisionGraphCanvas
     let scroll = NSScrollView()
@@ -312,17 +334,22 @@ enum RevisionGraphReferenceCommand {
         window.isReleasedWhenClosed = false; window.contentMinSize = CGSize(width: 700, height: 420)
         super.init(window: window); window.delegate = self
         let bar = NSStackView(); bar.orientation = .horizontal; bar.spacing = 8
-        for (title, commands) in [("File", [("Save graph as…", "save"), ("Exit", "close")]),
-                                 ("View", [("Zoom in", "zoomIn"), ("Zoom out", "zoomOut"), ("Zoom to 100%", "zoom100"), ("Fit height", "fitHeight"), ("Fit width", "fitWidth"), ("Fit graph", "fit"), ("Filter…", "filter"), ("Find…", "find"), ("Show Overview", "overview"), ("Show branchings and merges", "branchings"), ("Show all tags", "tags"), ("Arrows point towards merges", "arrows")]),
+        for (title, commands) in [("File", [("Save graph as…", "save"), ("", ""), ("Exit", "close")]),
+                                 ("View", [("Zoom in", "zoomIn"), ("Zoom out", "zoomOut"), ("Zoom to 100%", "zoom100"), ("Fit height", "fitHeight"), ("Fit width", "fitWidth"), ("Fit graph", "fit"), ("", ""), ("Filter…", "filter"), ("Find…", "find"), ("", ""), ("Show Overview", "overview"), ("Show branchings and merges", "branchings"), ("Show all tags", "tags"), ("Arrows point towards merges", "arrows")]),
                                  ("Git", [("Compare revisions", "compare"), ("Compare HEAD revisions", "compareHead"), ("Unified diff", "unified"), ("Unified diff of HEAD revisions", "unifiedHead")]), ("Help", [("Help", "help")])] {
             let popup = NSPopUpButton(frame: .zero, pullsDown: true); popup.addItem(withTitle: title)
-            for (label, command) in commands { popup.menu?.addItem(menuItem(label, command: command)) }
+            for (label, command) in commands {
+                popup.menu?.addItem(command.isEmpty ? .separator() : presentationMenuItem(label, command: command))
+            }
+            popup.menu?.delegate = self
             bar.addArrangedSubview(popup)
         }
         let toolbar = NSStackView(); toolbar.orientation = .horizontal; toolbar.spacing = 2
         toolbar.identifier = NSUserInterfaceItemIdentifier("RevisionGraphToolbar")
         func addButton(_ title: String, _ command: String, _ image: NSImage?) {
-            let button = NSButton(image: image ?? NSImage(), target: self, action: #selector(clicked(_:)))
+            let button = ["filter", "overview"].contains(command)
+                ? RevisionGraphToolbarButton(image: image ?? NSImage(), target: self, action: #selector(clicked(_:)))
+                : NSButton(image: image ?? NSImage(), target: self, action: #selector(clicked(_:)))
             button.bezelStyle = .regularSquare; button.isBordered = false
             button.identifier = NSUserInterfaceItemIdentifier(command); button.toolTip = title; button.setAccessibilityLabel(title)
             button.widthAnchor.constraint(equalToConstant: 27).isActive = true
@@ -434,6 +461,44 @@ enum RevisionGraphReferenceCommand {
     private func menuItem(_ title: String, command: String, icon: MenuIcon? = nil) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: #selector(menuCommand(_:)), keyEquivalent: ""); item.target = self; item.representedObject = command
         item.image = icon?.contextImage(defaults: model.preferences); return item
+    }
+    /// Original toolbar tiles also identify their corresponding View commands.
+    /// Captions and accelerator metadata share the same guarded dispatch as buttons.
+    private func presentationMenuItem(_ title: String, command: String) -> NSMenuItem {
+        let item = menuItem(title, command: command)
+        item.image = presentationImage(command)
+        if let key = ["zoomIn": "+", "zoomOut": "-", "find": "f"][command] {
+            item.keyEquivalent = key; item.keyEquivalentModifierMask = .command
+        }
+        return item
+    }
+    private func presentationImage(_ command: String) -> NSImage? {
+        guard MenuPresentationSettings.applicationContextIcons(defaults: model.preferences) else { return nil }
+        let glyphs: [String: RevisionGraphToolbarIcon] = ["zoomIn": .zoomIn, "zoomOut": .zoomOut, "zoom100": .zoom100, "fitHeight": .fitHeight, "fitWidth": .fitWidth, "fit": .fitGraph, "filter": .filter, "overview": .overview, "find": .find]
+        let icons: [String: MenuIcon] = ["save": .saveAs, "compare": .compare, "compareHead": .compare, "unified": .unifiedDiff, "unifiedHead": .unifiedDiff, "help": .help]
+        if let glyph = glyphs[command], let image = glyph.image()?.copy() as? NSImage {
+            image.size = NSSize(width: 16, height: 16); return image
+        }
+        return icons[command]?.contextImage(defaults: model.preferences)
+    }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        // Retain menu item identities and shortcut targets while reflecting the
+        // current icon preference from this window's owning preferences suite.
+        for item in menu.items {
+            guard let command = item.representedObject as? String else { continue }
+            item.image = presentationImage(command)
+            item.isEnabled = validateMenuItem(item)
+        }
+    }
+    private func isChecked(_ command: String) -> Bool {
+        switch command {
+        case "filter": return model.hasActiveFilter
+        case "overview": return model.showOverview
+        case "branchings": return model.options.showBranchingsAndMerges
+        case "tags": return model.options.showAllTags
+        case "arrows": return model.arrowsTowardMerges
+        default: return false
+        }
     }
     private func referenceItem(_ title: String, command: RevisionGraphReferenceCommand, icon: MenuIcon) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: #selector(menuCommand(_:)), keyEquivalent: "")
@@ -567,7 +632,7 @@ enum RevisionGraphReferenceCommand {
             }
         }
         guard let command = item.representedObject as? String else { return true }
-        item.state = ((command == "overview" && model.showOverview) || (command == "branchings" && model.options.showBranchingsAndMerges) || (command == "tags" && model.options.showAllTags) || (command == "arrows" && model.arrowsTowardMerges)) ? .on : .off
+        item.state = isChecked(command) ? .on : .off
         if model.busy || model.closed || filter != nil || exporting || window?.attachedSheet != nil || hasFindError { return command == "close" }
         if ["compare", "unified"].contains(command) { return model.selection.count == 2 }
         if ["compareHead", "compareWorking", "unifiedHead", "log", "browse", "copyRefs"].contains(command) { return command == "log" ? !model.selection.isEmpty : model.selection.count == 1 && (command != "compareWorking" || !model.bare) }
@@ -611,7 +676,7 @@ enum RevisionGraphReferenceCommand {
         zoomBox.isEnabled = !model.busy && !model.closed && filter == nil && !exporting && window?.attachedSheet == nil && !hasFindError
         for button in toolbarButtons {
             button.isEnabled = zoomBox.isEnabled
-            button.state = button.identifier?.rawValue == "overview" && model.showOverview ? .on : .off
+            button.state = isChecked(button.identifier?.rawValue ?? "") ? .on : .off
         }
         canvas.resize(to: scroll.contentSize); canvas.needsDisplay = true; overview.updateFrame(); overview.needsDisplay = true
         overview.isHidden = !model.showOverview || model.busy || model.nodes.isEmpty || model.nodes.count > 10_000
@@ -703,6 +768,32 @@ enum RevisionGraphReferenceCommand {
     }
 }
 
+/// TooltipText's author identity, local minute precision and bounded full message.
+/// AppKit owns screen fitting and line wrapping instead of the Windows DC helper.
+enum RevisionGraphTooltip {
+    static func text(_ node: RevisionGraphNode, timeZone: TimeZone = .current) -> String {
+        let parser = ISO8601DateFormatter()
+        var date = parser.date(from: node.authorDate)
+        if date == nil {
+            parser.formatOptions.insert(.withFractionalSeconds)
+            date = parser.date(from: node.authorDate)
+        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = timeZone; formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        let dateText = date.map { formatter.string(from: $0) } ?? node.authorDate
+        let message = LogEntry.splitHistoryMessage(node.message)
+        let text = node.hash + "\n" + node.author + " <" + node.authorEmail + "> " + dateText + "\n\n" + message.subject + "\n" + message.body
+        let utf16 = text as NSString
+        guard utf16.length > 8_000 else { return text }
+        // CString limits UTF-16 units. Preserve a scalar if the boundary meets a pair.
+        var length = 8_000
+        if (0xD800...0xDBFF).contains(utf16.character(at: length - 1)) { length -= 1 }
+        return utf16.substring(to: length) + "..."
+    }
+}
+
 @MainActor final class RevisionGraphCanvas: NSView, NSViewToolTipOwner {
     var interactionAllowed: () -> Bool = { true }
     let model: RevisionGraphWindowModel
@@ -759,8 +850,8 @@ enum RevisionGraphReferenceCommand {
         updateAccessibleNodes()
     }
     @objc func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData: UnsafeMutableRawPointer?) -> String {
-        guard let hash = hit(point), let node = model.nodes.first(where: { $0.hash == hash }) else { return "" }
-        return [hash, node.author, node.authorDate, node.message].filter { !$0.isEmpty }.joined(separator: "\n")
+        guard interactionAllowed(), !model.closed, !model.busy, let hash = hit(point), let node = model.nodes.first(where: { $0.hash == hash }) else { return "" }
+        return RevisionGraphTooltip.text(node)
     }
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
     override func draw(_ dirtyRect: NSRect) {

@@ -772,7 +772,9 @@ extension MergeEditorCommandMenu {
                 case .toolbar(let value):guard let state = bar?.commandState(value) else { return nil };return .init(enabled:enabled && state.enabled,checked:state.checked)
                 case .saveAs:return .init(enabled:enabled && model.sourceMutationsAllowed)
                 case .enableEdit:return .init(enabled:false,checked:text()?.isEditable == true)
-                case .useFile,.useBothFirst,.useBothLast,.nextInline,.previousInline,.lineDiff,.lineNumbers,.moved:return nil
+                case .useFile,.useBothFirst,.useBothLast,.nextInline,.previousInline,.moved:return nil
+                case .lineDiff:return .init(enabled:enabled,checked:model.showLineDiffBar)
+                case .lineNumbers:return .init(enabled:enabled,checked:model.showLineNumbers)
                 case .nextPane,.previousPane:return .init(enabled:enabled && MergeMarkedWordInterface.panes(in:window?.contentView).filter{!$0.isHiddenOrHasHiddenAncestor}.count > 1)
                 case .overwrite:return .init(enabled:enabled && (text() as? MergeTypingProviding)?.mergeTypingAllowed == true,checked:(text() as? MergeTypingProviding)?.mergeOverwrite == true)
                 case .cycleEnding:return .init(enabled:enabled && (text() as? MergeTypingProviding)?.canCycleCurrentEnding == true)
@@ -805,6 +807,8 @@ extension MergeEditorCommandMenu {
                 case .findNext,.findPrevious:if let text = text() { MergeFindInterface.perform(command == .findNext ? .nextMatch : .previousMatch,in:text) }
                 case .findSelectionNext,.findSelectionPrevious:if let text = text() {MergeFindInterface.selection(upwards:command == .findSelectionPrevious,in:text)}
                 case .clearSearch:text()?.turtleClearFindHighlights(nil)
+                case .lineDiff:model.setLineDiffBar(!model.showLineDiffBar)
+                case .lineNumbers:model.setLineNumbers(!model.showLineNumbers)
                 case .toolbarVisible:model.setToolbarVisible(!model.showToolbar)
                 case .statusVisible:model.setStatusBarVisible(!model.showStatusBar)
                 case .locator:var value = model.locatorPreferences;value.visible.toggle();model.setLocatorPreferences(value)

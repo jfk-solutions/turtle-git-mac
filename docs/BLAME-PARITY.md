@@ -1457,3 +1457,13 @@ selection, a native selectable property grid, full descriptions, Copy-value
 commands/icons and collapsible groups. Earlier passive property-stack and missing
 avatar descriptions are superseded by this continuation. The dated grouped
 record retains actual validation and remaining physical/signed/full-port work.
+
+## Cached source rendering and configured attribution dates — October 20, 2026
+
+The [connected rendering family](BLAME-RENDERING-PARITY.md) separates historical
+source construction, base syntax styles, selected/hovered revision painting and
+native glyph geometry. Ordinary pointer/selection changes retain the document,
+source selection and viewport; actual content/font/wrap/width changes reflow.
+Attribution dates now share configured Log date policy and matching column
+measurement. The family record distinguishes implementation from its grouped
+validation and remaining physical/signed/full-port acceptance.

@@ -728,3 +728,16 @@ both Git engines, result/source colors, all four block choices, aligned typing,
 both-order copy/cleanup and format/encoding. All eight owned receivers were reaped
 and independently absent. These checks do not certify the complete Merge dialog
 or the still-pending hosted wrapped-editor gate.
+
+
+## Three-way line inspection — October 20, 2026
+
+The [connected inspection family](MERGE-CONFLICT-INSPECTION-PARITY.md) adds the
+source View/Locator line-diff visibility transitions, captured Theirs/Mine
+inspection from source and mapped result rows, shared two-file/three-way TextKit
+rendering, local forced whitespace/inline colors, per-side horizontal positions
+and guarded menu/context actions. Native line-number visibility now applies to
+all three panes. Ordinary three-way loads still start with the pane hidden.
+Read-only source panes and disabled three-way inline traversal follow the pinned
+source; they are not missing editing features. The grouped checkpoint retains
+actual validation and remaining physical, visual, signed and complete-port limits.

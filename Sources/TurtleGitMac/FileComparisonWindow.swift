@@ -3111,17 +3111,32 @@ private struct MergeLineDiffBar: NSViewRepresentable {
     convenience init() { self.init(frame: .zero) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func update(_ model: FileComparisonWindowModel) {
+        let row = model.lineDiffRow
+        update(cells: row.map { [$0.base, $0.destination] },
+               pairedDiff: row.flatMap { MergeInlineComparison(base:$0.base.displayText,destination:$0.destination.displayText,word:model.inlineWordDiff,maximumLength:model.generalPreferences.maximumInlineLength) },
+               font: model.generalPreferences.nativeFont,
+               tabWidths: [model.tabWidth(base: true), model.tabWidth(base: false)],
+               maximumInlineLength: model.generalPreferences.maximumInlineLength,
+               endingIcons: model.whitespaceDisplay.endingIcons,
+               horizontalOffsets: [model.previewHorizontalOffsets[true] ?? 0, model.previewHorizontalOffsets[false] ?? 0],
+               labels: ["Base", "Mine"])
+    }
+    /// Shared by two-file and three-way inspection. It never changes editor
+    /// options, selections or focus; whitespace and inline inspection are local.
+    func update(cells: [MergeSourceCell]?, pairedDiff: MergeInlineComparison?, font: NSFont,
+                tabWidths: [Int], maximumInlineLength: Int, endingIcons: Bool,
+                horizontalOffsets: [CGFloat], labels: [String]) {
         lines = []; displayedStrings = []
-        guard let row = model.lineDiffRow, let index = model.previewRow else {
+        let labels = labels.count == 2 ? labels : ["Left", "Right"]
+        setAccessibilityLabel("Line diff bar, " + labels[0] + " above " + labels[1])
+        guard let cells, cells.count == 2 else {
             setAccessibilityValue("No line under pointer"); needsDisplay = true; return
         }
-        let pairedDiff = model.inlineDifference(index, force: true)
-        let font = model.generalPreferences.nativeFont
-        for base in [true, false] {
-            let cell = base ? row.base : row.destination, other = base ? row.destination : row.base
-            let diff = cell.displayText.utf16.count <= model.generalPreferences.maximumInlineLength ? pairedDiff : nil
+        for index in 0..<2 {
+            let base = index == 0, cell = cells[index], other = cells[1 - index]
+            let diff = cell.displayText.utf16.count <= maximumInlineLength ? pairedDiff : nil
             let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
-            paragraph.defaultTabInterval = CGFloat(model.tabWidth(base: base)) * (" " as NSString).size(withAttributes: [.font: font]).width
+            paragraph.defaultTabInterval = CGFloat(tabWidths.indices.contains(index) ? tabWidths[index] : 4) * (" " as NSString).size(withAttributes: [.font: font]).width
             let background = diff == nil ? MergePalette.color(cell.state) : MergePalette.inlineCommon
             let storage = NSTextStorage(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: MergePalette.foreground(cell.state), .backgroundColor: background, .paragraphStyle: paragraph])
             if let diff {
@@ -3132,12 +3147,12 @@ private struct MergeLineDiffBar: NSViewRepresentable {
             let layout = NSLayoutManager(), container = NSTextContainer(containerSize: NSSize(width: 10_000_000, height: Self.lineHeight(font)))
             container.lineFragmentPadding = 0; layout.addTextContainer(container); storage.addLayoutManager(layout)
             let renderer = MergeWhitespaceRenderer(); renderer.removal = base; renderer.highlightEndings = true
-            renderer.update(text: storage.string, cells: [cell], otherCells: [other], preferences: .init(visible: true, endingIcons: model.whitespaceDisplay.endingIcons))
+            renderer.update(text: storage.string, cells: [cell], otherCells: [other], preferences: .init(visible: true, endingIcons: endingIcons))
             lines.append(Line(storage: storage, layout: layout, container: container, renderer: renderer, font: font, background: background,
-                              missing: (base ? diff?.baseMissing : diff?.destinationMissing) ?? [], horizontalOffset: model.previewHorizontalOffsets[base] ?? 0))
+                              missing: (base ? diff?.baseMissing : diff?.destinationMissing) ?? [], horizontalOffset: horizontalOffsets.indices.contains(index) ? horizontalOffsets[index] : 0))
             displayedStrings.append(cell.displayText)
         }
-        setAccessibilityValue("Base: " + displayedStrings[0] + "\nMine: " + displayedStrings[1]); needsDisplay = true
+        setAccessibilityValue(labels[0] + ": " + displayedStrings[0] + "\n" + labels[1] + ": " + displayedStrings[1]); needsDisplay = true
     }
     override func draw(_ dirtyRect: NSRect) {
         MergePalette.color(.normal).setFill(); bounds.fill()

@@ -1,0 +1,225 @@
+{
+  "date": "2026-10-20",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "base": "23aca2ca",
+  "scope": [
+    "Three-way conflict inspection and shared two-file line-diff rendering, source-hidden initial visibility, caret/hover/source mapping, menus/icons, ownership and preferences.",
+    "Blame document/style/geometry reuse, indexed highlight changes, attribution dates, syntax restoration, history replacement and retired-view publication fence.",
+    "Revision Graph grouped/icon menus and exact shortcuts, applied filter feedback with persistent checked painting, complete bounded author/date/message tooltips."
+  ],
+  "core": {
+    "run": false,
+    "reason": "No Core sources changed. This batch exercises current Core consumers through the actual native models; no full or redundant focused Core suite was repeated."
+  },
+  "builds": [
+    {
+      "log": "build/qa/history-editor-app-2026-10-20.log",
+      "result": "passed"
+    },
+    {
+      "log": "build/qa/history-editor-app-repair-2026-10-20.log",
+      "result": "passed",
+      "reason": "Actual Blame retirement fence and Graph persistent checked paint repairs."
+    },
+    {
+      "log": "build/qa/history-editor-app-history-2026-10-20.log",
+      "result": "passed",
+      "reason": "Confirmed same-content history replacement syntax restoration repair."
+    }
+  ],
+  "initial_failures": [
+    {
+      "log": "build/qa/history-editor-native-2026-10-20.log",
+      "result": "failed",
+      "pid": 94297,
+      "cause": "Real retired Blame table update after private preference cleanup; source container refused styling but outer representable still reloaded attribution metadata.",
+      "repair": "Reject retired model/container before metrics, table reload or navigation. Strict unchanged-work assertion retained."
+    },
+    {
+      "log": "build/qa/history-editor-native-remaining-2026-10-20.log",
+      "result": "graph passed both engines; Merge timed out",
+      "pids": [
+        94379,
+        94427,
+        94465
+      ],
+      "cause": "Merge receiver selected first matching removed Base100 display row then expected added101/102."
+    },
+    {
+      "log": "build/qa/history-editor-merge-diagnostic-2026-10-20.log",
+      "result": "failed diagnostic",
+      "pid": 94654,
+      "repair": "Receiver now verifies removed100/100 and separately selects exact added101 payload. No shipping change for this fixture error."
+    },
+    {
+      "log": "build/qa/history-editor-native-repair-2026-10-20.log",
+      "result": "Blame/Graph passed both engines; Merge three-way passed then two-file timed out",
+      "pids": [
+        94900,
+        94967,
+        95037,
+        95084,
+        95129
+      ],
+      "cause": "Two-file receiver requested one-shot preview while async Subversion filtering still owned alignment.",
+      "repair": "Wait for filtering completion and actual attached source editors before the one-shot preview; assertions and timeout retained."
+    },
+    {
+      "log": "build/qa/history-editor-merge-pair-diagnostic-2026-10-20.log",
+      "result": "fixture compile failed; no receiver started",
+      "cause": "Diagnostic interpolated private FileComparisonWindowModel.retired.",
+      "repair": "Removed inaccessible diagnostic field; no behavioral assertion or shipping change."
+    },
+    {
+      "log": "build/qa/history-editor-merge-pair-diagnostic-repair-2026-10-20.log",
+      "result": "failed diagnostic",
+      "pid": 95327,
+      "cause": "Confirmed correct paired source101/102 alignment but preview nil after earlier request during filtering."
+    },
+    {
+      "log": "build/qa/history-editor-native-final-2026-10-20.log",
+      "result": "failed transient hover assertion",
+      "pid": 95491,
+      "cause": "No render rebuild counters changed, but the hover paint/background assertion failed after an optimistic fixed 80ms settle; exact transient cause was not reproduced by diagnostic runs.",
+      "repair": "Retain the assertion and diagnostics; await observable affected-row paint before measuring work rather than treating elapsed settle time as native readiness."
+    },
+    {
+      "log": "build/qa/history-editor-merge-final-2026-10-20.log",
+      "result": "failed two-file preview settlement",
+      "pid": 95628,
+      "cause": "Alignment had finished filtering, but queued alignmentSelections restored a zero-width caret and cleared the one-shot preview.",
+      "repair": "Await actual consumed selection receipts, initial-navigation/editorconfig/owned-work completion and positive-width source editors; immediately assert preview acceptance. No source behavior/assertion or timeout was removed."
+    }
+  ],
+  "review_repairs": [
+    "Blame highlight priority retains selected revision, selected author, sticky revision/author and transient hover ordering.",
+    "Relative date cache uses per-second epoch only on ordinary view updates, with no timer; locale/timezone identity and explicit fixture clocks avoid stale recent-second strings.",
+    "Graph default momentary borderless button state alone did not guarantee persistent visible feedback. Dedicated original-icon buttons paint a native checked background; real light/dark enabled/disabled pixels are asserted outside the icon.",
+    "Blame same-content history replacement now restores cached syntax foreground/EOL when the selected revision leaves the visible history; no unnecessary text/font/geometry reconstruction."
+  ],
+  "native": {
+    "runner": "scripts/test-history-editor-presentation-native.py",
+    "result": "passed all three scoped families with Apple Git and bundled Git across grouped checkpoint and focused repairs",
+    "graph": {
+      "result": "passed both engines; no rerun after unrelated Blame-only changes",
+      "log": "build/qa/history-editor-native-repair-2026-10-20.log",
+      "pids": [
+        95037,
+        95084
+      ]
+    },
+    "blame": {
+      "result": "passed both engines with final source and observable-paint receipt fixture",
+      "logs": [
+        "build/qa/history-editor-native-apple-receipts-2026-10-20.log",
+        "build/qa/history-editor-blame-bundled-receipts-2026-10-20.log"
+      ],
+      "pids": [
+        96196,
+        96282
+      ]
+    },
+    "merge": {
+      "result": "passed both engines with consumed native-selection receipts and complete three-way/two-file rendering assertions",
+      "logs": [
+        "build/qa/history-editor-native-apple-receipts-2026-10-20.log",
+        "build/qa/history-editor-native-bundled-final-2026-10-20.log"
+      ],
+      "pids": [
+        96266,
+        96046
+      ]
+    },
+    "diagnostic_passes": {
+      "logs": [
+        "build/qa/history-editor-blame-hover-diagnostic-2026-10-20.log",
+        "build/qa/history-editor-native-bundled-final-2026-10-20.log"
+      ],
+      "pids": [
+        95866,
+        95968
+      ]
+    },
+    "fixture_readiness": "Render receipt/style predicates and consumed caret/engine receipts replace optimistic elapsed settling for expected changes. Same-revision no-extra-work checks remain. Timeouts and behavioral assertions retained."
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/merge-conflict-inspection-dark.png",
+      "width": 2240,
+      "height": 1726,
+      "sha256": "093279818043e1f3f65dfc33a362669030954178c9211fce7e0a78dde512c4c8",
+      "scope": "Actual inactive native three-pane window, private inputs; WindowServer capture inspected for strip geometry, paired 101/102 and both appearances."
+    },
+    {
+      "path": "docs/site/assets/merge-conflict-inspection-light.png",
+      "width": 2240,
+      "height": 1726,
+      "sha256": "42fec20e5df99cc0a2705129b61c80fc65a06c95dc47caf40f579231dbbb3098",
+      "scope": "Actual inactive native three-pane window, private inputs; WindowServer capture inspected for strip geometry, paired 101/102 and both appearances."
+    }
+  ],
+  "cleanup": {
+    "policy": "Private repositories, CFFIXED_USER_HOME/config/TMPDIR, preferences, pasteboard and geometry. Normal windows alpha0/offscreen; only deliberate compositor captures briefly visible without activation. Owned screenshot children reaped. Fixtures close and await their model work; runner owns/reaps its process group.",
+    "independent_process_check": {
+      "result": "passed; all recorded owned receiver PIDs independently absent",
+      "pids": [
+        94297,
+        94379,
+        94427,
+        94465,
+        94654,
+        94900,
+        94967,
+        95037,
+        95084,
+        95129,
+        95327,
+        95491,
+        95628,
+        95866,
+        95968,
+        96046,
+        96196,
+        96266,
+        96282
+      ]
+    }
+  },
+  "resources": {
+    "localization_write": {
+      "languages": 38,
+      "keys": 1305,
+      "result": "passed"
+    },
+    "help_write": {
+      "documents": 46,
+      "topics": 51,
+      "files": 66,
+      "result": "passed"
+    },
+    "checks": {
+      "localizations": "passed 38 languages / 1305 keys",
+      "help": "passed 46 documents / 51 topics / 66 files",
+      "site": "passed; 384 documents, 0 unresolved fragments",
+      "dialog_reconciliation": "passed; counts are review coverage, not feature completion"
+    }
+  },
+  "remaining": [
+    "Physical pointer/keyboard/VoiceOver and all minimum-OS/display/font/encoding variants.",
+    "Full source-dialog behavior and visual parity; the scoped families do not certify the entire port.",
+    "Current full hosted integration, installed signed Finder runtime and App Store distribution acceptance."
+  ],
+  "final_input_sha256": {
+    "Sources/TurtleGitMac/BlameWindow.swift": "8c8b10da5a23707bb66b1b2301506b06260015235da9942589180bdec38f5c7e",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "516d552a42c0871eb6756ce03fa7099d79f71e4e1f92c88b828dfb291129203b",
+    "Sources/TurtleGitMac/MergeComparisonControls.swift": "e78055c1a9b0107507158e0953d6606b2bf47f2967dda0239d6f77316eba24ec",
+    "Sources/TurtleGitMac/MergeEditorToolbar.swift": "f25114f3e5fb9cff8951d2e98d6d240bf534de64787cd2b43df42155a7519b80",
+    "Sources/TurtleGitMac/RevisionGraphWindow.swift": "d293aba1ed3665870567a4fdd2b007242822a5260c6404b437f4f9e8d321d00d",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "88c798794ac6bc576d4fd07deca27fbd7542419c3a33ab2f13c3fc70a77e526f",
+    "docs/qa/blame-rendering-native-2026-10-20.swift": "614c177ae68177e5b285114fa59d4adaff32b8ceac31ef067bce36c2f989241a",
+    "docs/qa/graph-presentation-native-2026-10-20.swift": "b9f7758f76ecf6d3377eb166ebe999f86ed98c6dbefc7b91a09da5f1e22e2429",
+    "docs/qa/merge-conflict-inspection-native-2026-10-20.swift": "d5735cf1c0554f0e828ebb8e3a2c83cccfb6d847cc951d6234b4634303acf393",
+    "scripts/test-history-editor-presentation-native.py": "2acb43f45fa047ba959b14dcb1671e4311ab9cd74a2c4704b9088e379dc500fc"
+  },
+  "validation_limits": "Current local scoped checks pass. Initial transient hover assertion exact cause remains unproven; diagnostics are retained and native expected-change readiness now waits actual paint receipts. Complete hosted CI, all original dialogs, physical/signed Finder and App Store acceptance are not established."
+}

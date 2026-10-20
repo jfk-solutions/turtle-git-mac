@@ -394,7 +394,7 @@ private enum MergeSourceSide {
     private let access: RepositoryAccessLease?
     @Published var document: TextConflictDocument?
     private(set) var sourceLayoutRevision = 0
-    @Published var sourceComparison: MergeSourceComparison? { didSet { inlineCache = [:]; alignedResultCache = nil; sourceLayoutRevision &+= 1 } }
+    @Published var sourceComparison: MergeSourceComparison? { didSet { inlineCache = [:]; alignedResultCache = nil; sourceLayoutRevision &+= 1; clearLinePreview() } }
     lazy var folding: MergeFoldingController = {
         let value = makeFoldingController()
         value.expanded = { [weak self] _ in self?.synchronizeResultFolding() }
@@ -640,8 +640,79 @@ private enum MergeSourceSide {
             showToolbar = MergeEditorChrome.visible("Toolbar",defaults:comparisonDefaults)
             showStatusBar = MergeEditorChrome.visible("StatusBar",defaults:comparisonDefaults)
             editorPreferences = .load(from:comparisonDefaults)
+            showLineNumbers = editorPreferences.showLineNumbers
+            showLineDiffBar = comparisonDefaults.object(forKey:"TurtleGitMerge.LineDiff") == nil || comparisonDefaults.bool(forKey:"TurtleGitMerge.LineDiff")
             initialEditorConfigDefault = editorPreferences.enableEditorConfig
         } }
+    }
+    @Published private(set) var showLineDiffBar = true
+    // The source hides this pane on each three-way load without changing the
+    // saved View checkmark; a later View/Locator command can reveal it.
+    @Published private(set) var lineDiffBarVisible = false
+    @Published private(set) var showLineNumbers = MergeEditorPreferences.load().showLineNumbers
+    @Published private(set) var previewRow: Int?
+    @Published private(set) var previewHorizontalOffsets: [Bool: CGFloat] = [:]
+    private weak var previewOwner: MergeTextView?
+    func setLineDiffBar(_ value: Bool) {
+        guard sourceToolsAllowed else { return }
+        showLineDiffBar = value; lineDiffBarVisible = value
+        comparisonDefaults.set(value, forKey:"TurtleGitMerge.LineDiff")
+    }
+    func setLineNumbers(_ value: Bool) {
+        guard sourceToolsAllowed else { return }
+        showLineNumbers = value; invalidateLineRulers()
+    }
+    fileprivate func clearLinePreview() {
+        previewOwner = nil
+        if previewRow != nil { previewRow = nil }
+    }
+    var lineDiffCells: [MergeSourceCell]? {
+        guard sourceToolsAllowed, let index = previewRow, let rows = sourceComparison?.rows,
+              rows.indices.contains(index) else { return nil }
+        return [rows[index].theirs, rows[index].mine]
+    }
+    var lineDiffComparison: MergeInlineComparison? {
+        guard let cells = lineDiffCells else { return nil }
+        // LineDiffBar paints left and right with local forced whitespace/inline,
+        // independently of main-editor toggles. It never compares Base/result.
+        return MergeInlineComparison(base:cells[0].displayText,destination:cells[1].displayText,
+            word:inlineWordDiff,maximumLength:generalPreferences.maximumInlineLength)
+    }
+    var lineDiffTabWidths: [Int] {
+        let left = sourceScrolls.first { $0.key.hasPrefix("Theirs") }?.key ?? "Theirs"
+        let right = sourceScrolls.first { $0.key.hasPrefix("Mine") }?.key ?? "Mine"
+        return [tabWidths[left] ?? editorPreferences.tabWidth, tabWidths[right] ?? editorPreferences.tabWidth]
+    }
+    fileprivate func previewLine(in view: MergeTextView, offset: Int?) {
+        guard sourceToolsAllowed, view.model === self, view.window === window,
+              view.mergeSourceRowsReady, view.sourceSide != nil || view.mergeEditable else { return }
+        guard let offset, offset >= 0, offset < view.string.utf16.count else {
+            if previewOwner === view { clearLinePreview() }; return
+        }
+        let ranges = navigationRanges(view)
+        guard let row = ranges.lastIndex(where: { $0.location <= offset }), NSMaxRange(ranges[row]) >= offset else {
+            if previewOwner === view { clearLinePreview() }; return
+        }
+        let sourceRow: Int?
+        if view.sourceCells != nil { sourceRow = row }
+        else {
+            sourceRow = resultPresentation.navigationMap.sourceRows(resultRange:.init(location:offset,length:0))?.lowerBound
+        }
+        guard let sourceRow, sourceComparison?.rows.indices.contains(sourceRow) == true else {
+            if previewOwner === view { clearLinePreview() }; return
+        }
+        previewOwner = view
+        if previewRow != sourceRow { previewRow = sourceRow }
+        refreshLinePreviewOffsets()
+    }
+    private func refreshLinePreviewOffsets() {
+        var next: [Bool:CGFloat] = [:]
+        for reference in sourceScrolls.values {
+            guard let scroll = reference.view, let view = scroll.documentView as? MergeTextView,
+                  view.model === self, view.window === window, let side = view.sourceSide else { continue }
+            next[side == .mine] = scroll.contentView.bounds.minX
+        }
+        if previewHorizontalOffsets != next { previewHorizontalOffsets = next }
     }
     @Published private(set) var generalPreferences = MergeGeneralPreferences.load()
     @Published private(set) var showInlineDiff = true
@@ -711,6 +782,7 @@ private enum MergeSourceSide {
     }
     func setLocatorPreferences(_ value: MergeLocatorPreferences) {
         guard !externalReloadBlocksCommands,!preservingSourceCopies,!retired, !busy, !confirmingQuit else { return }
+        if locatorPreferences.visible != value.visible { lineDiffBarVisible = showLineDiffBar }
         locatorPreferences = value; value.save(to: comparisonDefaults)
     }
     func registerLocatorResult(_ scroll: NSScrollView) { locatorResultScroll = scroll }
@@ -782,6 +854,7 @@ private enum MergeSourceSide {
         sourceExporter.retire()
         folding.retire(); resultFolding.retire()
         lineWrapping.retire()
+        clearLinePreview(); previewHorizontalOffsets = [:]
         retired = true; loadGeneration += 1; loadCancellation?.cancel(); loadCancellation = nil
         regexList?.retire(); regexList = nil
         cancelEditorConfigReads(); editorConfigAccess.retire()
@@ -1015,9 +1088,9 @@ private enum MergeSourceSide {
     var onChanged: (String) -> Void = { _ in }
     private var sourceScrolls: [String: WeakMergeScroll] = [:]
     private var synchronizingScroll = false
-    func registerSourceScroll(_ scroll: NSScrollView, label: String) { sourceScrolls[label] = WeakMergeScroll(scroll); refreshLocatorViewport() }
+    func registerSourceScroll(_ scroll: NSScrollView, label: String) { sourceScrolls[label] = WeakMergeScroll(scroll); refreshLocatorViewport(); refreshLinePreviewOffsets() }
     func sourceDidScroll(_ scroll: NSScrollView) {
-        defer { refreshLocatorViewport(from:scroll) }
+        defer { refreshLocatorViewport(from:scroll); refreshLinePreviewOffsets() }
         guard !synchronizingScroll else { return }
         synchronizingScroll = true; defer { synchronizingScroll = false }
         var peers = sourceScrolls.values.compactMap { $0.view }
@@ -1130,6 +1203,7 @@ private enum MergeSourceSide {
             guard let self else { return }
             self.paneTabEpoch = UUID()
             let next = MergeEditorPreferences.load(from:self.comparisonDefaults)
+            self.showLineNumbers = next.showLineNumbers
             self.locatorPreferences = .load(from: self.comparisonDefaults)
             self.wrapLines = self.comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
             self.whitespaceDisplay = .load(from: self.comparisonDefaults)
@@ -1223,6 +1297,7 @@ private enum MergeSourceSide {
                 mergeToolInitialLoad = false
             }
         }
+        lineDiffBarVisible = false
         document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.generatedResult, comparison: comparison).reconciling(next.initialResult); result = next.initialResult; encoding = next.encoding
         savedIgnoredConflicts = resultPresentation.ignoredConflicts
         savedSourceChoiceRevision = resultPresentation.sourceChoiceRevision
@@ -1269,6 +1344,7 @@ private enum MergeSourceSide {
     fileprivate func focusNavigation(_ view: MergeTextView) {
         guard view.mergeEditable || view.sourceSide != nil else { return }
         if lastNavigationView !== view { lastNavigationView = view; objectWillChange.send() }
+        previewLine(in:view,offset:view.selectedRange().location)
     }
     private func navigationStates(_ view: MergeTextView) -> [MergeSourceState] {
         guard view.sourceCells == nil || view.sourceLayoutRevision == sourceLayoutRevision else { return [] }
@@ -1307,6 +1383,7 @@ private enum MergeSourceSide {
     fileprivate func navigationSelectionChanged(_ view: MergeTextView) {
         guard !retired, !selectingNavigationBlock, window?.firstResponder === view,
               view.sourceCells == nil || view.sourceLayoutRevision == sourceLayoutRevision else { return }
+        previewLine(in:view,offset:view.selectedRange().location)
         if view.mergeEditable {
             let nextCaret = view.serializedSelection(view.selectedRange()) ?? view.selectedRange()
             if caret != nextCaret { caret = nextCaret }
@@ -1700,7 +1777,7 @@ private struct TextConflictDialog: View {
                 }.padding(8).background(Color(nsColor:.controlBackgroundColor))
             }
             HStack {
-                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed, toolbarVisible:model.showToolbar, applyToolbar:model.setToolbarVisible, statusBarVisible:model.showStatusBar, applyStatusBar:model.setStatusBarVisible)
+                MergeViewControls(preferences: model.locatorPreferences, apply: model.setLocatorPreferences, whitespace: model.whitespaceDisplay, applyWhitespace: model.setWhitespaceDisplay, wrapLines: model.wrapLines, applyWrap: model.setWrapLines, collapsed: model.folding.collapsed, applyCollapsed: model.setCollapsed, toolbarVisible:model.showToolbar, applyToolbar:model.setToolbarVisible, statusBarVisible:model.showStatusBar, applyStatusBar:model.setStatusBarVisible, lineDiffBar:model.showLineDiffBar, applyLineDiffBar:model.setLineDiffBar, lineNumbers:model.showLineNumbers, applyLineNumbers:model.setLineNumbers)
                 MergeInlineControls(enabled: model.showInlineDiff, word: model.inlineWordDiff, applyEnabled: model.setInlineDiff, applyWord: model.setInlineWordDiff).disabled(model.busy || model.confirmingQuit || model.sourceComparison == nil)
                 MergeComparisonControls(options: model.comparisonOptions, apply: model.setComparisonOptions, supportsComments: model.supportsComments)
                 Menu("Regex Filter: " + (model.regexFilterName ?? "No Filter")) {
@@ -1732,6 +1809,10 @@ private struct TextConflictDialog: View {
                     pane("Merged · \(model.resultPath)", text: model.result, editable: true)
                     }
                 }
+                if model.lineDiffBarVisible {
+                    Divider()
+                    MergeConflictLineDiffBar(model:model).frame(height:MergeLineDiffPreview.lineHeight(model.generalPreferences.nativeFont) * 2)
+                }
                 if model.showStatusBar {
                 HStack {
                     Text(model.blocks.isEmpty ? (MergeText.hasMarkers(model.result) ? "Incomplete conflict markers" : "No remaining conflicts") : "\(model.blocks[min(model.selectedConflict,model.blocks.count - 1)].isIgnored ? "Ignored conflict" : "Conflict") \(min(model.selectedConflict + 1, model.blocks.count)) of \(model.blocks.count)").foregroundStyle(model.blocks.isEmpty ? Color.secondary : .red)
@@ -1751,6 +1832,17 @@ private struct TextConflictDialog: View {
         .onReceive(NotificationCenter.default.publisher(for: .mergeRegexFiltersChanged)) { _ in model.refreshRegexFilters() }
     }
 }
+private struct MergeConflictLineDiffBar: NSViewRepresentable {
+    @ObservedObject var model: TextConflictWindowModel
+    func makeNSView(context:Context) -> MergeLineDiffPreview { MergeLineDiffPreview() }
+    func updateNSView(_ view:MergeLineDiffPreview,context:Context) {
+        view.update(cells:model.lineDiffCells,pairedDiff:model.lineDiffComparison,font:model.generalPreferences.nativeFont,
+            tabWidths:model.lineDiffTabWidths,maximumInlineLength:model.generalPreferences.maximumInlineLength,
+            endingIcons:model.whitespaceDisplay.endingIcons,
+            horizontalOffsets:[model.previewHorizontalOffsets[false] ?? 0,model.previewHorizontalOffsets[true] ?? 0],labels:["Theirs","Mine"])
+    }
+}
+
 private struct MergeEditor: NSViewRepresentable {
     @ObservedObject var model: TextConflictWindowModel
     let text: String
@@ -1908,7 +2000,7 @@ private struct MergeEditor: NSViewRepresentable {
         if presentationChanged { view.needsDisplay = true }
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = sourceCells?.map(\.lineNumber)
         if let ruler = scroll.verticalRulerView as? MergeLineRuler {
-            ruler.showNumbers = model.editorPreferences.showLineNumbers
+            ruler.showNumbers = model.showLineNumbers
             let records = sourceCells ?? zip(MergeRegexFilters.lines(text), model.resultStates).enumerated().map {
                 MergeSourceCell(text:$0.element.0,lineNumber:$0.offset + 1,state:$0.element.1)
             }
@@ -1969,13 +2061,30 @@ private struct MergeEditor: NSViewRepresentable {
     var mergeSourceRowsReady:Bool { get }
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class MergeTextView: MergePaneInputTextView, MergeEditorPresentationProviding, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverProviding, MergeEditorPresentationProviding, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
     override var paneInputLayout:MergeFoldTextLayout {foldLayout}
     override var paneInputCells:[MergeSourceCell]? {sourceCells}
     override var paneInputRevision:Int {mergeEditable ? model?.resultPresentationRevision ?? -1:model?.sourceLayoutRevision ?? -1}
     override var paneInputAllowed:Bool {navigationAllowed && model?.ownsPaneInput(self)==true}
     override var paneInputMutationAllowed:Bool {paneInputAllowed && mergeTypingAllowed}
     override func paneInputBegan(){beginUserNavigation();model?.clearNavigationBlockSelection()}
+    private var lineDiffTracking: NSTrackingArea?
+    override func updateTrackingAreas() {
+        if let lineDiffTracking { removeTrackingArea(lineDiffTracking) }
+        let area = NSTrackingArea(rect:.zero,options:[.mouseMoved,.mouseEnteredAndExited,.activeInKeyWindow,.inVisibleRect],owner:self)
+        addTrackingArea(area); lineDiffTracking = area
+        super.updateTrackingAreas()
+    }
+    func previewLine(atDisplayOffset offset: Int?) { model?.previewLine(in:self,offset:offset) }
+    override func mouseMoved(with event: NSEvent) {
+        guard let layoutManager, let textContainer else { return }
+        let point = convert(event.locationInWindow,from:nil)
+        let local = NSPoint(x:point.x - textContainerOrigin.x,y:point.y - textContainerOrigin.y)
+        let used = layoutManager.usedRect(for:textContainer)
+        guard local.y >= used.minY,local.y < used.maxY else { previewLine(atDisplayOffset:nil); return }
+        previewLine(atDisplayOffset:layoutManager.characterIndex(for:local,in:textContainer,fractionOfDistanceBetweenInsertionPoints:nil))
+    }
+    override func mouseExited(with event: NSEvent) { previewLine(atDisplayOffset:nil) }
     let presentationCache = MergeEditorPresentationCache()
     var presentationDepth = 0
     var marginSelectionAllowed: Bool { navigationAllowed && window?.attachedSheet == nil }
@@ -2386,6 +2495,15 @@ private final class MergeTextView: MergePaneInputTextView, MergeEditorPresentati
         editingItem("Next difference", #selector(nextDifference(_:)), MenuIcon.mergeNextDifference.contextImage(defaults:defaults), model?.canNavigateBlock(1,conflictsOnly:false) == true)
         editingItem("Previous conflict", #selector(previousConflict(_:)), MenuIcon.mergePreviousConflict.contextImage(defaults:defaults), model?.canNavigateBlock(-1,conflictsOnly:true) == true)
         editingItem("Next conflict", #selector(nextConflict(_:)), MenuIcon.mergeNextConflict.contextImage(defaults:defaults), model?.canNavigateBlock(1,conflictsOnly:true) == true)
+        let inspection = NSMenuItem(title:"View",action:nil,keyEquivalent:"")
+        let inspectionMenu = NSMenu(title:"View"); inspectionMenu.autoenablesItems = false
+        for (title,action,checked) in [("Line diff bar",#selector(toggleLineDiffBar(_:)),model?.showLineDiffBar == true),("Line numbers",#selector(toggleLineNumbers(_:)),model?.showLineNumbers == true)] {
+            let item = NSMenuItem(title:title,action:action,keyEquivalent:"")
+            item.target = self; item.isEnabled = navigationAllowed && model?.ownsPaneInput(self) == true
+            item.image = MenuIcon.compare.contextImage(defaults:defaults)
+            item.state = checked ? .on : .off; inspectionMenu.addItem(item)
+        }
+        inspection.submenu = inspectionMenu; menu.addItem(inspection)
         if let sourceSide {
             menu.addItem(.separator())
             for (index,choice) in MergeBlockChoice.allCases.enumerated() {
@@ -2434,6 +2552,14 @@ private final class MergeTextView: MergePaneInputTextView, MergeEditorPresentati
         encodingsItem.submenu = encodingsMenu; menu.addItem(encodingsItem)
         return menu
     }
+    @objc private func toggleLineDiffBar(_ sender: Any?) {
+        guard navigationAllowed,let model,model.ownsPaneInput(self) else { return }
+        model.setLineDiffBar(!model.showLineDiffBar)
+    }
+    @objc private func toggleLineNumbers(_ sender: Any?) {
+        guard navigationAllowed,let model,model.ownsPaneInput(self) else { return }
+        model.setLineNumbers(!model.showLineNumbers)
+    }
     @objc private func copyFromContext(_ sender: Any?) { copy(sender) }
     @objc private func cutFromContext(_ sender: Any?) { cut(sender) }
     @objc private func pasteFromContext(_ sender: Any?) { paste(sender) }
@@ -2447,6 +2573,7 @@ private final class MergeTextView: MergePaneInputTextView, MergeEditorPresentati
         if menuItem.action == NSSelectorFromString("undo:") { return historyAllowed && mergeUndoManager.canUndo }
         if menuItem.action == NSSelectorFromString("redo:") { return historyAllowed && mergeUndoManager.canRedo }
         if menuItem.action == #selector(goToSourceLine(_:)) { return canNavigateToSourceLine }
+        if menuItem.action == #selector(toggleLineDiffBar(_:)) || menuItem.action == #selector(toggleLineNumbers(_:)) { return navigationAllowed && model?.ownsPaneInput(self) == true }
         if menuItem.action == #selector(copyFromContext(_:)) || menuItem.action == NSSelectorFromString("copy:") { return !(clipboardText ?? "").isEmpty }
         if menuItem.action == #selector(cutFromContext(_:)) || menuItem.action == NSSelectorFromString("cut:") { return clipboardWritable && !(clipboardText ?? "").isEmpty }
         if menuItem.action == #selector(pasteFromContext(_:)) || menuItem.action == NSSelectorFromString("paste:") { return clipboardWritable && NSPasteboard.general.availableType(from: [.string]) != nil }

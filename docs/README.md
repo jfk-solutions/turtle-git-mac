@@ -20,6 +20,9 @@ for baseline and update rules.
 
 ## Guides and project status
 
+- [Blame rendering and attribution dates](BLAME-RENDERING-PARITY.md)
+- [Revision Graph command and hover presentation](GRAPH-PRESENTATION-PARITY.md)
+- [Three-pane conflict line inspection](MERGE-CONFLICT-INSPECTION-PARITY.md)
 - [Choosing list selection highlighting](LIST-SELECTION.md)
 - [List selection source comparison](LIST-SELECTION-PARITY.md)
 

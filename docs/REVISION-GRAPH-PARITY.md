@@ -738,3 +738,8 @@ The final Debug build and both grouped native engine cases passed. See
 [node-command evidence](qa/graph-node-commands-2026-10-15.json) for exact scope,
 compile repairs, the interrupted preference-isolation run and cleanup records.
 Core data/layout code was unchanged and its suites were not rerun.
+
+The connected [Graph presentation family](GRAPH-PRESENTATION-PARITY.md) adds source
+menu groups, current icon preferences, accelerator metadata, applied-filter feedback
+and bounded author/date/message tooltips. Its scoped batch evidence remains
+separate from complete Graph or application acceptance.

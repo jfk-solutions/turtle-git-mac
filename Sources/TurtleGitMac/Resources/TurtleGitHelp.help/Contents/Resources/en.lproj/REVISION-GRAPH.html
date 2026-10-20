@@ -70,6 +70,15 @@ checking one disables the other, clears To, and disables To and its browser.
 Uncheck the active scope to re-enable the other controls. <strong>Cancel</strong>
 discards the sheet's changes. <strong>Reset filter</strong> clears the range and branch
 scopes and immediately refreshes the graph.</p>
+<p>The Filter command and toolbar button show a checkmark while an accepted From,
+To, current-branch or local-branches filter is active. Editing the open sheet
+does not change that mark until you accept; Cancel retains the applied filter.
+File and View menus group related commands and use the original command icons.
+The application menu-icon preference controls those icons.</p>
+<p>Hover over a graph node to see its full revision, author name and email, local
+date and time to the minute, subject and message body. Long tooltips are bounded;
+AppKit wraps and positions them within the screen. Owned sheets and active reads
+suppress tooltips from the previous graph.</p>
 <p><strong>Show all tags</strong>, <strong>Show branchings and merges</strong>, and <strong>Arrows point towards
 merges</strong> are separate View commands. These affect the graph's reduction or arrow
 direction, independently of the range filter. These three choices and overview

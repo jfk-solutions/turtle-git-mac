@@ -15,8 +15,10 @@ Each preview line follows its pane's horizontal scroll position.
 
 The strip is read-only and does not become first responder or change selection,
 Undo, text, staging or disk. Mouse exit, invalid rows, alignment rebuild and
-window retirement clear it. Single-file comparisons suppress it; three-pane
-merge windows do not display the bar, matching the source's ordinary layout.
+window retirement clear it. Single-file comparisons suppress it. Three-way
+merges hide it initially but retain source View/Locator commands that can reveal
+it; the connected [three-way inspection family](MERGE-CONFLICT-INSPECTION-PARITY.md)
+implements those commands and shares this renderer.
 
 Native verification is included in the existing grouped Merge and LFS/mail
 receivers. It covers persistence, pointer-to-row mapping with UTF-16 text,
@@ -24,6 +26,7 @@ forced whitespace/inline rendering, changed CRLF, light/dark drawing and
 selection/history/file invariants, plus exit/rebuild/retirement guards.
 
 Remaining: physical pointer/keyboard/VoiceOver and minimum-size acceptance,
-Windows docking/layout fidelity, exceptional three-pane bar visibility,
-line-number margin parity, and libsvn repeated-token inline tie behavior.
+Windows docking/layout fidelity, line-number margin parity and broader inline
+matching acceptance. Three-way visibility is implemented in the connected family
+above, rather than inferred complete from its two-file evidence.
 Screenshots from focused rendering are QA evidence, not whole-window acceptance.

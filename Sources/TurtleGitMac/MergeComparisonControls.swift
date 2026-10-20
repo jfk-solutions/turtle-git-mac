@@ -84,12 +84,18 @@ struct MergeViewControls: View {
     var applyToolbar: (Bool) -> Void = { _ in }
     var statusBarVisible = true
     var applyStatusBar: (Bool) -> Void = { _ in }
+    var lineDiffBar: Bool? = nil
+    var applyLineDiffBar: (Bool) -> Void = { _ in }
+    var lineNumbers: Bool? = nil
+    var applyLineNumbers: (Bool) -> Void = { _ in }
     var canSwitchSides = false
     var switchSides: () -> Void = {}
     var body: some View {
         Menu("View") {
             Toggle("Toolbar",isOn:Binding(get:{toolbarVisible},set:applyToolbar))
             Toggle("Status Bar",isOn:Binding(get:{statusBarVisible},set:applyStatusBar))
+            if let lineDiffBar { Toggle("Line diff bar",isOn:Binding(get:{lineDiffBar},set:applyLineDiffBar)) }
+            if let lineNumbers { Toggle("Line numbers",isOn:Binding(get:{lineNumbers},set:applyLineNumbers)) }
             Divider()
             Toggle("Moved blocks", isOn:Binding(get:{movedBlocks},set:applyMovedBlocks)).disabled(!canChangeMovedBlocks)
             Toggle("Wrap long lines", isOn: Binding(get: { wrapLines }, set: applyWrap))

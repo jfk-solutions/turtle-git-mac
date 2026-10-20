@@ -1,5 +1,18 @@
 # TurtleGit for Mac — full port tracking
 
+The connected history/editor presentation batch adds the source-available
+[three-way line-diff inspection pane](MERGE-CONFLICT-INSPECTION-PARITY.md),
+[Blame incremental style/highlight/layout updates and attribution date preferences](BLAME-RENDERING-PARITY.md),
+and [Revision Graph filter marks, menu artwork/shortcuts and full bounded hover metadata](GRAPH-PRESENTATION-PARITY.md).
+The three families retain captured preferences, native input ownership and
+read-only inspection semantics. Three-way source editing and inline traversal
+remain source-disabled; Graph's existing geometry persistence is preserved.
+The family records distinguish these changes from complete dialog and signed
+acceptance. The Debug build and all three scoped native families passed with
+Apple and bundled Git across grouped validation and focused repairs.
+[Evidence](qa/history-editor-presentation-2026-10-20.json) retains the initial
+failures, actual repair scope and owned cleanup; Core code was unchanged.
+
 The [list-selection presentation family](LIST-SELECTION-PARITY.md) ports the
 source FullRowSelect policy across file, reference, progress and related
 Settings/Find/Import lists, preserving forced-full revision history.
