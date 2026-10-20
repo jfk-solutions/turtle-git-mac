@@ -548,7 +548,10 @@ extension GitRepository {
         try cancellation?.check()
         guard !(try rebaseState(cancellation: cancellation).active) else { throw RebaseFailure.active }
         guard Set(existing.map(\.id)).count == existing.count, existing.allSatisfy({ $0.occurrence >= 0 }) else { throw RebaseFailure.plan }
-        let commits = try revisions.reversed().map { try rebaseCommit($0, cancellation: cancellation) }
+        let commits = try revisions.reversed().map { revision in
+            let hash=try rebaseRevision(revision,cancellation:cancellation)
+            return try singleCommitDetails(revision:hash,cancellation:cancellation).asLogEntry()
+        }
         var entries = existing
         for commit in commits {
             var entry = RebaseEntry(commit: commit)
@@ -679,7 +682,11 @@ extension GitRepository {
         })
         let remaining=state.active && includeReplay ? try remainingRebaseEntries(cancellation:cancellation):[]
         let replay=state.active && includeReplay ? try rebaseReplayEntries(cancellation:cancellation):[]
-        let messageCommit = state.active && !head.isEmpty && (state.isEditPause || state.squashMessage != nil || state.split != nil) ? try rebaseCommit(head, cancellation: cancellation) : nil
+        let messageCommit:LogEntry?
+        if state.active && !head.isEmpty && (state.isEditPause || state.squashMessage != nil || state.split != nil) {
+            if state.isEditPause && state.session?.addCherryPickedFrom == true {messageCommit=try singleCommitDetails(revision:"HEAD",cancellation:cancellation).asLogEntry()}
+            else {messageCommit=try rebaseCommit(head,cancellation:cancellation)}
+        } else {messageCommit=nil}
         let final=try rebaseState(cancellation:cancellation),finalHead=try run(["rev-parse","--verify","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:cancellation).text.trimmingCharacters(in:.newlines)
         try cancellation?.check()
         guard state.active == final.active,identity == RebaseConflictIdentity(final),state.stoppedAction == final.stoppedAction,
@@ -916,17 +923,29 @@ extension GitRepository {
                 }
             } else if emptySquashChoice != nil { throw RebaseFailure.changed }
             guard let squashMessage, !squashMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw RebaseFailure.message }
+            // Source captures HEAD's first author for every squash date policy.
+            // Read at approval, where the metadata is actually consumed, rather
+            // than persisting an unused copy when the preceding Edit pauses.
+            guard case .commit(let firstMetadata)=try singleCommitDetails(revision:"HEAD") else {throw GitSingleCommitFailure.notCommit}
+            guard try rebaseRevision("HEAD")==firstMetadata.objectID else {throw RebaseFailure.changed}
             let messageFile = try makeCommitMessageFile(squashMessage, appendFinalNewline: false); defer { messageFile.remove() }
             pending.message = squashMessage
             let request = try rebasePath("rebase-merge/turtlegit-squash-message.json")
             try JSONEncoder().encode(pending).write(to: request, options: .atomic)
             let date: String
             switch pending.datePolicy {
-            case .first: date = try rebaseCommit("HEAD").date
+            case .first: date = firstMetadata.author.date
             case .latest: date = pending.latestDate
             case .current: date = ISO8601DateFormatter().string(from: Date())
             }
-            output = try run(["commit", "--amend", "--cleanup=verbatim", "-F", messageFile.url.path, "--date", date] + (empty ? ["--allow-empty"] : [])).text
+            // Git's amend already retains raw author bytes. Replacing a legacy
+            // encoded signature with UTF-8 environment text would corrupt its
+            // identity under the original commit encoding. The selected receipt
+            // decides when the Unicode author can be supplied losslessly.
+            let author=firstMetadata.author
+            let authorEnvironment=Data(author.name.utf8)==author.nameBytes && Data(author.email.utf8)==author.emailBytes
+                ? ["GIT_AUTHOR_NAME":author.name,"GIT_AUTHOR_EMAIL":author.email]:[:]
+            output = try run(["commit", "--amend", "--cleanup=verbatim", "-F", messageFile.url.path, "--date", date] + (empty ? ["--allow-empty"] : []),environmentOverrides:authorEnvironment).text
             try FileManager.default.removeItem(at: request)
         }
         let result = try recoverRebase("--continue")

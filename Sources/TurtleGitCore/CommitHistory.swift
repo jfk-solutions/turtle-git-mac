@@ -984,11 +984,9 @@ extension GitRepository {
             try cancellation?.check()
             guard (parent.count == 40 || parent.count == 64) && parent.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw LogRevertFailure.parent }
             do {
-                let result = try run(["show", "--encoding=UTF-8", "-s", "--no-notes", "--format=%s", parent, "--"], cancellation: cancellation)
-                var subject = String(decoding: result.stdout, as: UTF8.self)
-                if subject.hasSuffix("\n") { subject.removeLast() }
+                let subject=try singleCommitDetails(revision:parent,cancellation:cancellation).asLogEntry().subject
                 choices.append(LogParentChoice(number: index + 1, hash: parent, subject: subject))
-            } catch is GitFailure { choices.append(LogParentChoice(number: index + 1, hash: parent)) }
+            } catch {try cancellation?.check();choices.append(LogParentChoice(number: index + 1, hash: parent)) }
         }
         try cancellation?.check()
         return choices

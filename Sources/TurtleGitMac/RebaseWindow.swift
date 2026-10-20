@@ -693,9 +693,9 @@ struct RebaseReferenceRequest {
     private var mainlineCancellation: OperationCancellation?
     @Published private(set) var addingCommits = false
     @Published private(set) var preparingMainline = false
-    var readAddedEntries: ([RebaseEntry], [String], OperationCancellation) async throws -> [RebaseEntry]
-    var readAddedPlan: (RebasePlan, [String], OperationCancellation) async throws -> RebasePlan
-    var readMainlineChoices: (LogEntry, OperationCancellation) async throws -> [LogParentChoice]
+    var readAddedEntries: (([RebaseEntry], [String], OperationCancellation) async throws -> [RebaseEntry])?
+    var readAddedPlan: ((RebasePlan, [String], OperationCancellation) async throws -> RebasePlan)?
+    var readMainlineChoices: ((LogEntry, OperationCancellation) async throws -> [LogParentChoice])?
     var cancelMainlineQuestion: () -> Void = {}
     private var planSignature: Data?
     @Published private(set) var loadingPlan = false
@@ -753,6 +753,9 @@ struct RebaseReferenceRequest {
         let rows=(plan?.entries ?? replayRows).flatMap {[$0.id,$0.action.rawValue,String($0.mainline ?? 0)]}.map {GitReferenceName($0)}
         let paths=checkedConflicts.sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)}.map {GitReferenceName($0)}
         return referenceIntent + targets + rows + paths
+    }
+    private var insertionIntent: [GitReferenceName] {
+        replayIntent + draftEntries.flatMap { [$0.id, $0.action.rawValue, String($0.mainline ?? 0)] }.map { GitReferenceName($0) }
     }
     func answerConfirmation(_ question:ActionConfirmation,proceed:Bool) {
         guard !retired,pendingConfirmation?.id == question.id else{return}
@@ -938,6 +941,18 @@ struct RebaseReferenceRequest {
         selectedConflicts.formIntersection(GitPathSet(snapshot.rows.map(\.id)))
         if !snapshot.fileRecovery {checkedConflicts=[]}
         installReplayMessage(snapshot)
+    }
+    private func readAddedEntriesValue(_ entries:[RebaseEntry],_ revisions:[String],_ token:OperationCancellation,repository:GitRepository) async throws -> [RebaseEntry] {
+        if let readAddedEntries {return try await readAddedEntries(entries,revisions,token)}
+        return try await repository.addingRebaseEntries(entries,revisions:revisions,cancellation:token)
+    }
+    private func readAddedPlanValue(_ plan:RebasePlan,_ revisions:[String],_ token:OperationCancellation,repository:GitRepository) async throws -> RebasePlan {
+        if let readAddedPlan {return try await readAddedPlan(plan,revisions,token)}
+        return try await repository.addingRebaseCommits(plan,revisions:revisions,cancellation:token)
+    }
+    private func readMainlineChoicesValue(_ commit:LogEntry,_ token:OperationCancellation,repository:GitRepository) async throws -> [LogParentChoice] {
+        if let readMainlineChoices {return try await readMainlineChoices(commit,token)}
+        return try await repository.logParentChoices(commit,cancellation:token)
     }
     private func readPlanValue(_ options:RebaseOptions,_ cancellation:OperationCancellation,repository captured:GitRepository?=nil) async throws -> RebasePlan {
         if let readPlan {return try await readPlan(options,cancellation)}
@@ -1353,9 +1368,6 @@ struct RebaseReferenceRequest {
         let column=saved.flatMap { Self.conflictColumns.contains($0) ? $0:nil } ?? .path
         conflictSortOrder=[RebaseConflictSort(column:column,order:messageDefaults.bool(forKey:Self.conflictColumnKey+".SortDescending") ? .reverse:.forward)]
         readColumnMetadata = { try await repository.replayColumnMetadata($0,cancellation:$1) }
-        readAddedEntries = { try await repository.capturingDiffBackend(preferences:messageDefaults).addingRebaseEntries($0, revisions: $1, cancellation: $2) }
-        readAddedPlan = { try await repository.capturingDiffBackend(preferences:messageDefaults).addingRebaseCommits($0, revisions: $1, cancellation: $2) }
-        readMainlineChoices = { try await repository.logParentChoices($0, cancellation: $1) }
         prepareReplayMessage={try await repository.prepareCommitMessageFile($0,stripComments:$1,sanitize:$2,cancellation:$3).contents}
         validateOnto = { try await repository.rebaseOntoSelection($0, branch: $1, upstream: $2, cancellation: $3) }
         self.fullCommitMessageOnLogLine = messageDefaults.bool(forKey: "FullCommitMessageOnLogLine")
@@ -1664,7 +1676,7 @@ struct RebaseReferenceRequest {
                 options.upstream = upstream ?? (defaults.trackedRemote.isEmpty || defaults.trackedBranch.isEmpty ? "" : "refs/remotes/" + defaults.trackedRemote + "/" + defaults.trackedBranch)
                 if !options.upstream.isEmpty {
                     let value=try await preparedRead(token) {try await readPlanValue(options,token,repository:repository)}
-                    let summaries=try await readReferenceTooltips(value,cancellation:token)
+                    let summaries=try await readReferenceTooltips(value,repository:repository,cancellation:token)
                     guard !retired,!token.isCancelled else{return}
                     plan=value;referenceTooltips=summaries;selection=Set(entries.first.map {[$0.id]} ?? []);selectCommit()
                 }
@@ -1678,7 +1690,7 @@ struct RebaseReferenceRequest {
         var snapshot = options; if !ontoEnabled { snapshot.onto = "" }
         let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
         let backend=repository.libgit2Configuration
-        let signature = Data([snapshot.branch, snapshot.upstream, snapshot.onto, String(snapshot.force), String(snapshot.preserveMerges), String(snapshot.squashDate.rawValue),String(backend?.enabled ?? true),String(backend?.mask ?? GitLibGit2Configuration.defaultMask),backend?.helperURL?.path ?? ""].joined(separator: "\0").utf8)
+        let signature = Data([snapshot.branch, snapshot.upstream, snapshot.onto, String(snapshot.force), String(snapshot.preserveMerges), String(snapshot.squashDate.rawValue),String(backend?.enabled ?? true),String(backend?.mask ?? GitLibGit2Configuration.defaultMask),backend?.helperURL?.path ?? "",(try? repository.singleCommitBackendIdentity()) ?? "single-commit-unavailable"].joined(separator: "\0").utf8)
         if !force, planCancellation?.isCancelled != true, planSignature == signature, loadingPlan || plan != nil { return }
         planCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1
         let request = planGeneration, token = OperationCancellation(); planCancellation = token; planSignature = signature
@@ -1692,7 +1704,7 @@ struct RebaseReferenceRequest {
             }
             do {
                 try requireAccess(); let value = try await readPlanValue(snapshot, token,repository:repository)
-                let summaries=try await readReferenceTooltips(value,cancellation:token)
+                let summaries=try await readReferenceTooltips(value,repository:repository,cancellation:token)
                 guard !retired, request == planGeneration, planCancellation === token, !token.isCancelled, editable else { return }
                 plan = value;referenceTooltips=summaries; selection = Set(entries.first.map { [$0.id] } ?? []); selectCommit(); onRefreshRevisionFind()
             } catch RebaseFailure.revision { /* Incomplete or unavailable reference: keep Start unavailable. */ }
@@ -1704,13 +1716,13 @@ struct RebaseReferenceRequest {
         guard let plan,GitReferenceName.equal(plan.options.branch,options.branch),GitReferenceName.equal(plan.options.upstream,options.upstream) else{return name}
         return referenceTooltips[branch ? plan.branchHash:plan.upstreamHash] ?? name
     }
-    private func readReferenceTooltips(_ plan:RebasePlan,cancellation:OperationCancellation) async throws -> [String:String] {
+    private func readReferenceTooltips(_ plan:RebasePlan,repository:GitRepository,cancellation:OperationCancellation) async throws -> [String:String] {
         var result:[String:String]=[:]
         let dates=HistoryDateSettings(shortDate:false,relative:false,useSystemLocale:HistoryDateSettings.load(defaults:messageDefaults).useSystemLocale)
         for hash in [plan.branchHash,plan.upstreamHash] where result[hash]==nil {
             try cancellation.check()
             do {
-                let commit=try await repository.rebaseCommit(hash,cancellation:cancellation)
+                let commit=try await repository.singleCommitDetails(revision:hash,cancellation:cancellation).asLogEntry()
                 try cancellation.check()
                 let text="Revision: "+commit.hash+"\nAuthor: "+commit.author+" <"+commit.email+">\nDate: "+dates.format(commit.date,absolute:true)+"\nMessage:\n"+commit.message
                 var units=Array(text.utf16.prefix(8000))
@@ -1769,6 +1781,7 @@ struct RebaseReferenceRequest {
     }
     private func prepareCherryPick() {
         guard canStart, var snapshot = plan else { return }
+        let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
         let token = OperationCancellation(), generation = planGeneration
         mainlineCancellation = token; preparingMainline = true; cancellingPreparation = false; busy = true; error = nil
         Self.activePreparationReads += 1
@@ -1786,7 +1799,7 @@ struct RebaseReferenceRequest {
                 try requireAccess(); try token.check()
                 for index in snapshot.entries.indices where snapshot.entries[index].action != .skip && snapshot.entries[index].commit.parents.count > 1 {
                     let commit = snapshot.entries[index].commit
-                    let choices = try await preparedRead(token) { try await readMainlineChoices(commit, token) }
+                    let choices = try await preparedRead(token) { try await readMainlineChoicesValue(commit, token,repository:repository) }
                     guard generation == planGeneration, controls == controlMenuGeneration else { return }
                     guard let parent = await chooseMainline(commit, choices) else { return }
                     try token.check()
@@ -1820,12 +1833,15 @@ struct RebaseReferenceRequest {
     }
     func addCommits(_ revisions: [String]) {
         guard canAdd, !revisions.isEmpty else { return }
+        let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
         let snapshot = plan, draft = draftEntries
         var settings = options; if !ontoEnabled { settings.onto = "" }
         planCancellation?.cancel(); detailCancellation?.cancel(); busy = true; planGeneration += 1; detailGeneration += 1
         let generation = planGeneration, token = OperationCancellation()
         insertionCancellation = token; addingCommits = true; cancellingPreparation = false; error = nil
-        let controls = controlMenuGeneration
+        // Column metadata refreshes only change presentation. Fence the accepted
+        // insertion against actual replay inputs and row identities instead.
+        let intent = insertionIntent
         Self.activePreparationReads += 1
         Task {
             defer {
@@ -1839,23 +1855,23 @@ struct RebaseReferenceRequest {
                 try requireAccess(); try token.check()
                 let added: [RebaseEntry], updated: RebasePlan?
                 if let snapshot {
-                    let value = try await preparedRead(token) { try await readAddedPlan(snapshot, revisions, token) }
+                    let value = try await preparedRead(token) { try await readAddedPlanValue(snapshot, revisions, token,repository:repository) }
                     updated = value; added = value.entries
                 } else {
-                    let draftResult = try await preparedRead(token) { try await readAddedEntries(draft, revisions, token) }
+                    let draftResult = try await preparedRead(token) { try await readAddedEntriesValue(draft, revisions, token,repository:repository) }
                     var captured: RebasePlan?
-                    do { captured = try await preparedRead(token) { try await readPlanValue(settings, token) } }
+                    do { captured = try await preparedRead(token) { try await readPlanValue(settings, token,repository:repository) } }
                     catch RebaseFailure.revision { try token.check() /* Incomplete references keep the editable draft. */ }
                     if let captured {
-                        let value = try await preparedRead(token) { try await readAddedPlan(captured, draftResult.reversed().map { $0.commit.hash }, token) }
+                        let value = try await preparedRead(token) { try await readAddedPlanValue(captured, draftResult.reversed().map { $0.commit.hash }, token,repository:repository) }
                         updated = value; added = value.entries
                     } else { updated = nil; added = draftResult }
                 }
                 try token.check()
-                guard !retired, generation == planGeneration, controls == controlMenuGeneration, insertionCancellation === token else { return }
+                guard !retired, generation == planGeneration, intent == insertionIntent, insertionCancellation === token else { return }
                 plan = updated; draftEntries = updated == nil ? added : []
                 selection = Set(added.suffix(revisions.count).map(\.id)); selectCommit()
-            } catch { if !retired, !token.isCancelled, generation == planGeneration, controls == controlMenuGeneration, insertionCancellation === token { self.error = error.localizedDescription } }
+            } catch { if !retired, !token.isCancelled, generation == planGeneration, intent == insertionIntent, insertionCancellation === token { self.error = error.localizedDescription } }
         }
     }
     func setAction(_ action: RebaseAction, ids: Set<String>? = nil) {
@@ -1877,6 +1893,7 @@ struct RebaseReferenceRequest {
         guard canEditPendingActions, let captured = state, let editorExecutable,
               !revisionActionChoices(ids).isEmpty, let head = conflictHead.isEmpty ? nil : conflictHead else { return }
         let recovery = conflictIdentity
+        let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
         let original = replayRows.map { [$0.id, $0.action.rawValue, String(describing: $0.progress)] }
         let token = OperationCancellation()
         actionEditCancellation = token; editingPendingActions = true; busy = true; cancellingPreparation = false
@@ -1900,7 +1917,7 @@ struct RebaseReferenceRequest {
                 var mainlines: [String: Int] = [:]
                 if captured.isCherryPick {
                     for row in expected.replay where ids.contains(row.id) && row.progress == .pending && row.commit.parents.count > 1 && row.mainline == nil && (changes[row.id] ?? action) != .skip {
-                        let choices = try await readMainlineChoices(row.commit, token)
+                        let choices = try await readMainlineChoicesValue(row.commit, token,repository:repository)
                         guard !retired, !token.isCancelled, formContext == generation else { return }
                         guard let parent = await chooseMainline(row.commit, choices) else { return }
                         try token.check(); mainlines[row.id] = parent
@@ -1987,6 +2004,7 @@ struct RebaseReferenceRequest {
         if plan != nil { plan?.entries = values } else { draftEntries = values }
     }
     func selectCommit() {
+        let repository=self.repository.capturingDiffBackend(preferences:messageDefaults)
         guard !retired else { return }; detailCancellation?.cancel()
         if !busy { refreshColumnMetadata() }
         detailGeneration += 1; let request = detailGeneration

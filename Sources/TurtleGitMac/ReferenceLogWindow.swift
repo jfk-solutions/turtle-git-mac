@@ -152,6 +152,7 @@ import TurtleGitCore
     @Published var information: String?
     @Published private(set) var diffParents: [String: [LogParentChoice]] = [:]
     private var requestedDiffParents = Set<String>()
+    private(set) var diffParentsBackendIdentity:String?
     private var invalidated = false
     var isInvalidated:Bool {invalidated}
     @Published private(set) var mutating=false
@@ -686,6 +687,10 @@ import TurtleGitCore
     func formatPatchPreset(_ ids: Set<String>) -> FormatPatchPreset? { FormatPatchPreset.referenceLogSelection(entries: entries, selected: ids) }
     func invalidate() { cancelOwned();loadToken=nil;deleteQuestion=nil;confirmingDelete=false;combineToken?.cancel(); combineToken = nil; combineCandidate = nil; noteLog.invalidate(); noteChanges = nil; invalidated = true; generation += 1; revisionReadToken?.cancel(); revisionReadToken = nil }
     func requestDiffParents(_ entry:ReferenceLogEntry) {
+        guard !invalidated else{return}
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
+        let identity=(try? repository.singleCommitBackendIdentity()) ?? "single-commit-unavailable"
+        if diffParentsBackendIdentity != identity {diffParents=[:];requestedDiffParents=[];diffParentsBackendIdentity=identity}
         guard !invalidated,entries.contains(where:{$0.id==entry.id && $0.hash==entry.hash}),requestedDiffParents.insert(entry.hash).inserted else {return}
         let request=generation,(operation,token)=startOwned()
         Task { [self,repository,access] in
@@ -693,8 +698,8 @@ import TurtleGitCore
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
                 let parents=try await repository.referenceLogDiffParents(entry.hash,cancellation:token)
-                guard !invalidated,!token.isCancelled,request==generation else {return};diffParents[entry.hash]=parents
-            } catch {if !invalidated,!token.isCancelled,request==generation {diffParents[entry.hash]=[]}}
+                guard !invalidated,!token.isCancelled,request==generation,diffParentsBackendIdentity==identity else {return};diffParents[entry.hash]=parents
+            } catch {if !invalidated,!token.isCancelled,request==generation,diffParentsBackendIdentity==identity {diffParents[entry.hash]=[]}}
         }
     }
     func canInspect(_ ids: Set<String>, mode: ReferenceLogDiffMode = .parent(1)) -> Bool {

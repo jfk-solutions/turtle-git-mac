@@ -771,6 +771,7 @@ struct LogCommandRequest: Identifiable {
     private var actionGeneration = 0
     var loadingActions: Bool { actionCancellation != nil }
     @Published var parentMetadata: [String: [LogParentChoice]] = [:]
+    private(set) var parentMetadataBackendIdentity:String?
     @Published var mergeActive = false
     @Published var conflictRebase = false
     @Published var bisectActive = false
@@ -2280,7 +2281,10 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func select(_ hashes: Set<String>,mark:String? = nil,recordNavigation:Bool = true) {
+        guard !isInvalidated else{return}
         let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
+        let identity=(try? repository.singleCommitBackendIdentity()) ?? "single-commit-unavailable"
+        if parentMetadataBackendIdentity != identity {parentMetadata=[:];parentMetadataBackendIdentity=identity}
         selectionMark = mark.flatMap {hashes.contains($0) ? $0:nil} ?? selectionMark.flatMap {hashes.contains($0) ? $0:nil} ?? entries.first(where:{hashes.contains($0.hash)})?.hash
         messageLinkGeneration = UUID()
         if hashes != selected { cancelWorkingCommandRead(); cancelFollowedComparison(); cancelIntegrationRead() }
@@ -2297,7 +2301,9 @@ struct LogCommandRequest: Identifiable {
         if selectedWorkingTree { updateWorkingFiles(); return }
         guard let revision else { return }
         let cancellation = OperationCancellation(); detailCancellation = cancellation
+        Self.activeActionReads += 1
         Task {
+            defer {Self.activeActionReads -= 1;withExtendedLifetime(access){}}
             do {
                 if revision.parents.count > 1 {
                     let groups = try await repository.logFileGroups(in: revision, cache: fileCache, cancellation: cancellation)

@@ -30,6 +30,16 @@ lists retain actual merge-parent groups, renamed paths, binary counts and object
 metadata; changing engines cannot reuse a cache belonging to the other engine.
 See the [diff/history source scope](DIFF-BACKEND-PARITY.md).
 
+Single-commit details use GetCommit bit `0x4000`, enabled by default. Commit
+amendment, accepted Log message selection, Rebase reference details and eligible
+message/metadata reads, containing-reference details, comparison endpoints and
+parent captions use the source-selected reader. Declared encodings apply to
+names, email addresses and the full raw message; display subjects split at the
+first line feed. Mailmap remains a separate display choice. Working Tree and
+explicit tree endpoints retain their own types. Bulk history and hash-only
+structural metadata use their existing readers. See
+[single-commit source scope](SINGLE-COMMIT-DETAILS-PARITY.md).
+
 Replay and merge readiness use their own source inspection choices. MergeBase
 bit `0x80` selects the common-ancestor/fast-forward decision; CheckConflicts bit
 `0x2000` selects index conflict presence; GetConflictInfo bit `0x20000` selects

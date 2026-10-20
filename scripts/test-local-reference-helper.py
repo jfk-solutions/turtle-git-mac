@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Focused actual-helper local reference contracts; no transport/full runtime rerun."""
 import argparse, base64, json, os, pathlib, subprocess, tempfile
+from helper_architectures import execution_prefixes
 
 
 def main():
@@ -10,7 +11,7 @@ def main():
     parser.add_argument('--all-architectures', action='store_true')
     args = parser.parse_args()
     helper = args.helper.resolve()
-    prefixes = [['/usr/bin/arch', '-arm64'], ['/usr/bin/arch', '-x86_64']] if args.all_architectures else [[]]
+    prefixes = execution_prefixes(helper, args.all_architectures)
     for prefix in prefixes:
         with tempfile.TemporaryDirectory(prefix='turtlegit-local-refs-') as temporary:
             root = pathlib.Path(temporary)

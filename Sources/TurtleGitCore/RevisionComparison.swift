@@ -189,11 +189,21 @@ extension GitRepository {
         for path in scope { _ = try restoreLocation(path) }
         let token = cancellation ?? OperationCancellation()
         try token.check()
-        func resolve(_ side: ComparisonRevision) throws -> ComparisonRevision {
-            if case .revision(let name) = side { return .revision(try comparisonObject(name, cancellation: token)) }
-            return side
+        func resolve(_ side: ComparisonRevision) throws -> (ComparisonRevision,ComparisonRevisionDetails?) {
+            guard case .revision(let name)=side else{return(side,nil)}
+            // FileDiffDlg passes the original expression to GetCommit. Peeling
+            // it first would incorrectly bypass the selected engine's tree
+            // fallback rules and could resolve moving references twice.
+            let value=try singleCommitDetails(revision:name,allowTree:true,useMailmap:useMailmap,cancellation:token)
+            switch value {
+            case .commit(let commit):return(.revision(commit.objectID),try comparisonDetails(value,cancellation:token))
+            case .tree(let oid):return(.revision(oid),try comparisonDetails(value,cancellation:token))
+            case .workingTree:throw RevisionComparisonFailure.range
+            }
         }
-        var old = try resolve(from), new = try resolve(to)
+        let resolvedOld=try resolve(from),resolvedNew=try resolve(to)
+        var old=resolvedOld.0
+        let new=resolvedNew.0
         // FileDiffDlg uses the single IsFastForward/common-ancestor result only
         // for the explicit common-ancestor option. Generic/tree/working-copy
         // comparison and structural merge-base --all requests stay independent.
@@ -203,7 +213,7 @@ extension GitRepository {
         }
         let args = try comparisonArguments(from: old, to: new, options: options, cancellation: token)
         let files = CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"] + scope, cancellation: token).stdout, statistics: try run(args + ["--numstat", "-z", "--"] + scope, cancellation: token).stdout, raw: try run(args + ["--raw", "-z", "--"] + scope, cancellation: token).stdout).filter { $0.hasStatistics || $0.isSubmodule }
-        return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: try comparisonDetails(old, useMailmap: useMailmap, cancellation: token), toDetails: try comparisonDetails(new, useMailmap: useMailmap, cancellation: token), files: files, options: options, scopePaths: scope, diffDetection: diffDetection)
+        return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: resolvedOld.1, toDetails: resolvedNew.1, files: files, options: options, scopePaths: scope, diffDetection: diffDetection)
     }
     public func revisionComparisonPatch(_ snapshot: RevisionComparisonSnapshot, paths: [String] = []) throws -> String {
         String(decoding: try revisionComparisonPatchData(snapshot, paths: paths), as: UTF8.self)
@@ -215,14 +225,15 @@ extension GitRepository {
         for path in selected { _ = try restoreLocation(path) }
         return try unifiedDiffData(arguments:comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options, detection: snapshot.diffDetection, cancellation: token) + ["--"] + GitPathSet(selected).sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) },cancellation:token,backend:backend)
     }
-    private func comparisonDetails(_ side: ComparisonRevision, useMailmap: Bool, cancellation: OperationCancellation? = nil) throws -> ComparisonRevisionDetails? {
-        guard case .revision(let hash) = side else { return nil }
-        if try run(["cat-file", "-t", hash], cancellation: cancellation).text == "tree\n" {
-            return ComparisonRevisionDetails(shortHash: String(hash.prefix(12)), isTree: true, subject: "Tree", author: "", authorDate: nil, committerDate: nil)
+    private func comparisonDetails(_ details:GitSingleCommitDetails,cancellation:OperationCancellation?=nil) throws -> ComparisonRevisionDetails? {
+        switch details {
+        case .tree(let oid):
+            return ComparisonRevisionDetails(shortHash:String(oid.prefix(12)),isTree:true,subject:"Tree",author:"",authorDate:nil,committerDate:nil)
+        case .commit(let value):
+            let short=try run(["rev-parse","--short",value.objectID],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+            return ComparisonRevisionDetails(shortHash:short,subject:value.subject,author:value.author.name,authorDate:Date(timeIntervalSince1970:TimeInterval(value.author.time)),committerDate:Date(timeIntervalSince1970:TimeInterval(value.committer.time)))
+        case .workingTree:return nil
         }
-        let fields = try run(["show", "--encoding=UTF-8", "--no-patch", "--no-notes", "--format=%h%x00%s%x00" + GitIdentityDisplay(useMailmap: useMailmap).authorName + "%x00%at%x00%ct", hash, "--"], cancellation: cancellation).text.trimmingCharacters(in: .newlines).components(separatedBy: "\0")
-        guard fields.count == 5 else { throw RevisionComparisonFailure.range }
-        return ComparisonRevisionDetails(shortHash: fields[0], subject: fields[1], author: fields[2], authorDate: TimeInterval(fields[3]).map(Date.init(timeIntervalSince1970:)), committerDate: TimeInterval(fields[4]).map(Date.init(timeIntervalSince1970:)))
     }
     private func comparisonArguments(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions, detection: GitDiffDetection? = nil, cancellation: OperationCancellation? = nil) throws -> [String] {
         guard from != .workingTree || to != .workingTree else { throw RevisionComparisonFailure.range }

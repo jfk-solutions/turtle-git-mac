@@ -12,6 +12,7 @@
 		D70CBD079255C3E3C124A40A /* GitRemoteAuthenticationPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46938DDFD48D330EE215308F /* GitRemoteAuthenticationPrompt.swift */; };
 		1AD4A71DA5508AEAEE2943EB /* GitLibGit2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C600950836DC1172081DEF0 /* GitLibGit2.swift */; };
 		D194379E7C65423DB5DBCC78 /* GitReplayInspection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8967151FEEC453CAB8F7A52 /* GitReplayInspection.swift */; };
+		868C2BFB82B34605B826A90B /* GitSingleCommitDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87BCA7CD54B48B6BD6FC361 /* GitSingleCommitDetails.swift */; };
 		B02EC37B1C424382A891B81C /* GitLocalReferenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 192A6BFD91764B4EAC9A707C /* GitLocalReferenceEngine.swift */; };
 		AB1C5E8CEF08C47DCDF25198 /* SecurityInterface.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB0CB365EEFF6DBDAC30CD93 /* SecurityInterface.framework */; };
 		6E9C211F63BF121EEBABF693 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 388C1314131AD02CE01C4045 /* Security.framework */; };
@@ -561,6 +562,7 @@
 		46938DDFD48D330EE215308F /* GitRemoteAuthenticationPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRemoteAuthenticationPrompt.swift; sourceTree = "<group>"; };
 		3C600950836DC1172081DEF0 /* GitLibGit2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitLibGit2.swift; sourceTree = "<group>"; };
 		F8967151FEEC453CAB8F7A52 /* GitReplayInspection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitReplayInspection.swift; sourceTree = "<group>"; };
+		B87BCA7CD54B48B6BD6FC361 /* GitSingleCommitDetails.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitSingleCommitDetails.swift; sourceTree = "<group>"; };
 		192A6BFD91764B4EAC9A707C /* GitLocalReferenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitLocalReferenceEngine.swift; sourceTree = "<group>"; };
 		DB0CB365EEFF6DBDAC30CD93 /* SecurityInterface.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SecurityInterface.framework; path = System/Library/Frameworks/SecurityInterface.framework; sourceTree = SDKROOT; };
 		388C1314131AD02CE01C4045 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
@@ -1341,6 +1343,7 @@
 				46938DDFD48D330EE215308F /* GitRemoteAuthenticationPrompt.swift */,
 				3C600950836DC1172081DEF0 /* GitLibGit2.swift */,
 				F8967151FEEC453CAB8F7A52 /* GitReplayInspection.swift */,
+				B87BCA7CD54B48B6BD6FC361 /* GitSingleCommitDetails.swift */,
 				192A6BFD91764B4EAC9A707C /* GitLocalReferenceEngine.swift */,
 				5DF97A8F1598CCBAA1B7AC76 /* HistoricalMaterialization.swift */,
 				C67F27BFB40588DC92B4F276 /* SMTPCertificateTransport.swift */,
@@ -1974,6 +1977,7 @@
 				D70CBD079255C3E3C124A40A /* GitRemoteAuthenticationPrompt.swift in Sources */,
 				1AD4A71DA5508AEAEE2943EB /* GitLibGit2.swift in Sources */,
 				D194379E7C65423DB5DBCC78 /* GitReplayInspection.swift in Sources */,
+				868C2BFB82B34605B826A90B /* GitSingleCommitDetails.swift in Sources */,
 				B02EC37B1C424382A891B81C /* GitLocalReferenceEngine.swift in Sources */,
 				AFB2AAD9F34973F6A1EA3098 /* HistoricalMaterialization.swift in Sources */,
 				A7C474571496517A0BA42FB2 /* SMTPCertificateTransport.swift in Sources */,

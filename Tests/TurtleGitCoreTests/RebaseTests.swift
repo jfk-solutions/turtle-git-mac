@@ -1207,14 +1207,14 @@ final class RebaseTests: XCTestCase {
         let helper = root.appendingPathComponent("slow-add-git"), marker = root.appendingPathComponent("add-started")
         let script = """
         #!/bin/sh
-        if [ "$4" = show ]; then
+        if [ "$4" = cat-file ]; then
           : > "$3/add-started"
           exec /bin/sleep 30
         fi
         exec /usr/bin/git "$@"
         """
         try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
-        let slow = GitRepository(root: root, executable: helper), token = OperationCancellation()
+        let slow = GitRepository(root: root, executable: helper,libgit2Configuration:.init(enabled:false)), token = OperationCancellation()
         let task = Task { try await slow.addingRebaseCommits(plan, revisions: ["HEAD"], cancellation: token) }
         for _ in 0..<500 { if FileManager.default.fileExists(atPath: marker.path) { break }; try await Task.sleep(nanoseconds: 10_000_000) }
         XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path)); token.cancel()

@@ -1822,7 +1822,7 @@ final class CommitHistoryTests: XCTestCase {
         exec /usr/bin/git "$@"
         """
         try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
-        let slow = GitRepository(root: root, executable: wrapper), token = OperationCancellation(), snapshot = entry
+        let slow = GitRepository(root: root, executable: wrapper,libgit2Configuration:.init(enabled:false)), token = OperationCancellation(), snapshot = entry
         let task = Task { try await slow.logParentChoices(snapshot, cancellation: token) }
         defer { token.cancel() }
         let marker = URL(fileURLWithPath: wrapper.path + ".started"), deadline = Date().addingTimeInterval(5)

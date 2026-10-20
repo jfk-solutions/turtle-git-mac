@@ -54,7 +54,7 @@ struct Arguments{
             if arg == "--turtlegit-reset-notifications"{guard !resetNotifications else{try refuse("Repeated Reset notification request")};resetNotifications=true;continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-single-commit"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         guard !transferNotifications || command == "clone" || command == "fetch" else{try refuse("Transfer notifications require Clone or Fetch")}
@@ -105,7 +105,7 @@ struct Arguments{
             }else{operands.append(arg)}
         }
         guard configs.count<=2048 else{try refuse("Too many command configuration values")}
-        if command == "turtlegit-unified-diff" || command == "turtlegit-history-diff" || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) {
+        if command == "turtlegit-unified-diff" || command == "turtlegit-history-diff" || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) || command=="turtlegit-single-commit" {
             guard operands.isEmpty else{try refuse("Private diff command requires only a stdin request")}
         }else if command == "reset" || command == "revert" {
             guard operands.count==1,!operands[0].isEmpty,!operands[0].contains("\0"),operands[0].utf8.count<=1_048_576,command != "revert" || revertNoCommit else{try refuse("Reset/Revert requires one explicit revision; Revert requires --no-commit")};revision=operands[0]
@@ -246,6 +246,22 @@ struct PrivateInspectionRequest {
     }
 }
 
+struct PrivateSingleCommitRequest:Decodable {
+    let version:Int
+    let revision:String
+    let allowTree:Bool
+    static func read()throws->Self {
+        var data=Data()
+        while let part=try FileHandle.standardInput.read(upToCount:65_536),!part.isEmpty {
+            guard !cancelled(),part.count<=2_097_152-data.count else{try refuse("Single-commit request exceeds bounds or was cancelled")};data.append(part)
+        }
+        guard let fields=try JSONSerialization.jsonObject(with:data) as? [String:Any],Set(fields.keys)==Set(["version","revision","allowTree"]) else{try refuse("Invalid single-commit request fields")}
+        let value=try JSONDecoder().decode(Self.self,from:data)
+        guard value.version==1,!value.revision.isEmpty,!value.revision.contains("\0"),value.revision.utf8.count<=1_048_576 else{try refuse("Invalid single-commit revision or version")}
+        return value
+    }
+}
+
 final class CallbackContext{
     let directory:String,configs:[String]
     var httpConfiguration:HTTPConfiguration?
@@ -352,6 +368,54 @@ final class CallbackContext{
         }
         _=resetNotification({["kind":"file","path":path]})
     }
+    private var singleCommitCount=0,singleCommitBytes=0
+    func singleCommitRecord(_ object:[String:Any],row:Bool=false)throws {
+        guard !cancelled(),singleCommitCount<=128 else{try refuse("Single-commit request cancelled or exceeds bounds")}
+        let data=try JSONSerialization.data(withJSONObject:object,options:[.sortedKeys])
+        let frame=Data(("TurtleGit SingleCommit v1:"+data.base64EncodedString()+"\n").utf8)
+        guard frame.count<=2_097_152,frame.count<=67_108_864-singleCommitBytes else{try refuse("Single-commit output exceeds bounds")}
+        try FileHandle.standardOutput.write(contentsOf:frame);singleCommitBytes+=frame.count
+        if row{singleCommitCount+=1}
+    }
+    private func singleCommitData(_ pointer:UnsafePointer<CChar>?,limit:Int)throws->Data {
+        guard let pointer else{try refuse("Missing single-commit metadata")}
+        let size=strnlen(pointer,limit+1)
+        guard size<=limit else{try refuse("Single-commit metadata exceeds bounds")}
+        return Data(bytes:pointer,count:size)
+    }
+    func singleCommit(_ pointer:UnsafePointer<tg_single_commit>?)throws {
+        guard let value=pointer?.pointee else{try refuse("Missing single-commit result")}
+        let oid=try notificationString(value.oid)
+        guard PrivateDiffRequest.fullOID(oid) else{try refuse("Invalid single-commit object ID")}
+        if value.object_type==1 {
+            try singleCommitRecord(["kind":"tree","oid":oid,"objectType":"tree"],row:true);return
+        }
+        guard value.object_type==0,value.parent_count<=4096,value.parent_count==0 || value.parents != nil else{try refuse("Invalid single-commit type or parent count")}
+        let tree=try notificationString(value.tree)
+        let parents=try (0..<value.parent_count).map{try notificationString(value.parents![$0])}
+        guard PrivateDiffRequest.fullOID(tree),parents.allSatisfy(PrivateDiffRequest.fullOID) else{try refuse("Invalid single-commit tree or parents")}
+        let encoding=try value.encoding.map{try singleCommitData($0,limit:1_048_576)}
+        let fields:[(String,Data)]=[
+            ("authorName",try singleCommitData(value.author_name,limit:1_048_576)),
+            ("authorEmail",try singleCommitData(value.author_email,limit:1_048_576)),
+            ("committerName",try singleCommitData(value.committer_name,limit:1_048_576)),
+            ("committerEmail",try singleCommitData(value.committer_email,limit:1_048_576)),
+            ("message",try singleCommitData(value.message,limit:16_777_216))]
+        var metadata:[String:Any]=["kind":"commit","oid":oid,"objectType":"commit","tree":tree,"parents":parents,
+            "authorTime":value.author_time,"authorOffset":value.author_offset,"committerTime":value.committer_time,"committerOffset":value.committer_offset]
+        metadata["encodingBytes"]=encoding.map{$0.count as Any} ?? NSNull()
+        for (name,data) in fields{metadata[name+"Bytes"]=data.count}
+        try singleCommitRecord(metadata,row:true)
+        let payloads=encoding.map{[("encoding",$0)]} ?? []
+        for (name,data) in payloads+fields {
+            for start in stride(from:0,to:data.count,by:524_288) {
+                guard !cancelled() else{try refuse("Single-commit request cancelled")}
+                let part=data.subdata(in:start..<min(data.count,start+524_288))
+                try singleCommitRecord(["kind":"bytes","field":name,"data":part.base64EncodedString()],row:true)
+            }
+        }
+    }
+    func finishSingleCommit()throws {try singleCommitRecord(["kind":"end","count":singleCommitCount])}
     private var inspectionCount=0,inspectionBytes=0
     func inspectionRecord(_ object:[String:Any],row:Bool=false)throws {
         guard !cancelled(),inspectionCount<=100_000 else{try refuse("Inspection cancelled or exceeds bounds")}
@@ -685,7 +749,15 @@ func run()throws->Int32{
     let diffRequest=try (args.command == "turtlegit-unified-diff" || args.command == "turtlegit-history-diff") ? PrivateDiffRequest(command:args.command):nil
     let localRequest=try PrivateLocalReferenceRequest.commands.contains(args.command) ? PrivateLocalReferenceRequest(command:args.command):nil
     let inspectionRequest=try PrivateInspectionRequest.commands.contains(args.command) ? PrivateInspectionRequest(command:args.command):nil
+    let singleCommitRequest=try args.command=="turtlegit-single-commit" ? PrivateSingleCommitRequest.read():nil
     let owner=CallbackContext(directory:args.directory,configs:args.configs);var options=callbacks(owner);options.verbose=args.verbose ? 1:0;options.force_fetch=args.force ? 1:0
+    if singleCommitRequest != nil {
+        try owner.singleCommitRecord(["kind":"header"])
+        options.single_commit={row,raw in
+            do{try context(raw).singleCommit(row);return 0}
+            catch{output("Single commit: "+error.localizedDescription+"\n");return -1}
+        }
+    }
     if let inspectionRequest {
         try owner.inspectionRecord(["kind":"header","operation":inspectionRequest.operation])
         options.inspection={row,raw in
@@ -743,6 +815,7 @@ func run()throws->Int32{
     }
     let result:Int32=withStrings(args.configs){config,count in
         options.config_values=config;options.config_count=count
+        if let request=singleCommitRequest{return tg_read_single_commit(args.directory,request.revision,request.allowTree ? 1:0,&options)}
         if let request=inspectionRequest {
             if let merge=request.mergeBase{return tg_inspect_merge_base(args.directory,merge.from,merge.to,&options)}
             if let clean=request.clean{return tg_inspect_clean(args.directory,clean.stagedOK ? 1:0,&options)}
@@ -773,6 +846,7 @@ func run()throws->Int32{
     if diffRequest?.history != nil {try owner.finishHistory()}
     if let localRequest {try owner.finishLocalReferences(localRequest)}
     if inspectionRequest != nil{try owner.finishInspection()}
+    if singleCommitRequest != nil{try owner.finishSingleCommit()}
     return 0
 }
 do{exit(try run())}catch{output("turtlegit-libgit2: "+error.localizedDescription+"\n");exit(cancelled() ? 130:2)}

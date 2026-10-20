@@ -180,6 +180,10 @@ the operation before mutation. Current resolution retains its separate Git path.
 For an ordinary Edit continuation, staged-only changes use normal amendment;
 unstaged changes open the checked-file Commit dialog. Empty-Squash recovery keeps
 its approved Skip intent if an index lock interrupts the operation.
+The [single-commit detail family](docs/SINGLE-COMMIT-DETAILS-PARITY.md) connects
+source-selected commit metadata to amendment, replay messages, containing
+references, comparison endpoints and parent captions, preserving declared
+encodings, raw identities and accepted backend ownership.
 
 An [older development-signed candidate](docs/qa/finder-installed-2026-10-17.json)
 passed installed activation, live ignored/modified/normal badges, repository access,

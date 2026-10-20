@@ -342,7 +342,7 @@ import UniformTypeIdentifiers
         guard !closingCommit, !model.inputsBlocked, let window, window.attachedSheet == nil,
               historyWindow == nil, logPicker == nil else { return }
         let picker = LogWindowController(repository: model.repository, access: model.access, onChoose: { [weak self] revision in
-            if let revision { insert(message ? revision.message : revision.hash) }
+            if let revision {if message {self?.model.importLogMessage(revision.hash,insert:insert)} else {insert(revision.hash)}}
             if let self, !self.closingCommit { self.model.reload() }
         },labelDefaults:model.colorPreferences)
         logPicker = picker
@@ -741,9 +741,9 @@ import UniformTypeIdentifiers
     static private(set) var activeMetadataOperations = 0
     var nativeAuthorInputAvailable: Bool { messageFocusAvailable && !inputsBlocked && setAuthor && !loadingAuthorIdentity }
     var nativeAuthorDateInputAvailable: Bool { messageFocusAvailable && !inputsBlocked && setAuthorDate && !loadingAuthorDate && !(amend && resetAuthorDate) }
-    var queryCommitAuthor: (Bool, OperationCancellation) async throws -> String?
-    var queryCommitAuthorDate: (OperationCancellation) async throws -> Date?
-    var queryAmendMessage: (OperationCancellation) async throws -> String?
+    var queryCommitAuthor: ((Bool, OperationCancellation) async throws -> String?)?
+    var queryCommitAuthorDate: ((OperationCancellation) async throws -> Date?)?
+    var queryAmendMessage: ((OperationCancellation) async throws -> String?)?
     @Published var showUnversioned = true { didSet { if showUnversioned != oldValue { fileMenuGeneration = UUID() } } }
     private let unversionedDefaults: UserDefaults
     var messageEditorPreferences: UserDefaults { dialogDefaults }
@@ -795,24 +795,6 @@ import UniformTypeIdentifiers
         queryHistoryIssue = { try await repository.issueFieldValue(properties: $0, message: $1, cancellation: $2) }
         queryCommitStatus = { try await repository.commitDialogStatus(amendToParent: $0, cancellation: $1) }
         queryStagingStates = { try await repository.commitStagingStates(for: $0, base: $1, cancellation: $2) }
-        queryCommitAuthor = { amend, cancellation in
-            if amend {
-                var options = HistoryOptions(); options.useMailmap = false; options.limit = 1
-                guard let previous = try await repository.history(options: options, cancellation: cancellation).first else { return nil }
-                return "\(previous.author) <\(previous.email)>"
-            }
-            let name = try await repository.run(["config", "user.name"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-            let email = try await repository.run(["config", "user.email"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-            return "\(name) <\(email)>"
-        }
-        queryCommitAuthorDate = { cancellation in
-            let value = try await repository.run(["show", "-s", "--format=%at", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-            return TimeInterval(value).map { Date(timeIntervalSince1970: $0) }
-        }
-        queryAmendMessage = { cancellation in
-            var options = HistoryOptions(); options.limit = 1
-            return try await repository.history(options: options, cancellation: cancellation).first?.message
-        }
         fileColumns = .load(from: dialogDefaults)
         completionAction = CompletionAction(sourceIndex: dialogDefaults.integer(forKey: "CommitLastAction"))
         selectFilesAutomatically = dialogDefaults.object(forKey: "SelectFilesForCommit") as? Bool ?? true
@@ -1291,7 +1273,7 @@ import UniformTypeIdentifiers
         return changelists.name(for: entry.path).map { origin + (origin.isEmpty ? "" : "\n") + "Changelist: " + $0 } ?? origin
     }
     var checkedPathsForCommit: GitPathSet { GitPathSet(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
-    var canCommit: Bool { messageFocusAvailable && !stagingStateNeedsRefresh && !savingPreferences && !stagingHintVisible && !unversionedPromptVisible && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && (!amend || !amendMessageReadFailed) && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: { isStaged($0) }) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { messageFocusAvailable && !stagingStateNeedsRefresh && !savingPreferences && !stagingHintVisible && !unversionedPromptVisible && !issueProviderBusy && !pendingReloadCancel && !busy && !confirmingQuit && !loadingAuthorIdentity && !loadingAuthorDate && !loadingAmendMessage && !loadingImportedMessage && (!amend || !amendMessageReadFailed) && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: { isStaged($0) }) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && message.trimmingCharacters(in: .whitespacesAndNewlines).utf16.count >= projectSettings.minimumLength && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { GitReferenceName.equal(path,source) ? destination : path.utf8.starts(with:(source + "/").utf8) ? destination + path.dropFirst(source.count) : path }
         checked = GitPathSet(checked.map(moved)); selection = GitPathSet(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -1661,15 +1643,53 @@ import UniformTypeIdentifiers
         if stagingEnabled { moveToStage(GitPathSet(visibleEntries.filter { isStaged($0) }.map(\.id)), staged: false) }
         else { checked.subtract(visibleEntries.map(\.id)) }
     }
+    @Published private(set) var loadingImportedMessage=false
+    private var importedMessageCancellation:OperationCancellation?
+    private(set) var amendDetailsBackendIdentity:String?
+    func importLogMessage(_ revision:String,insert:@escaping(String)->Void) {
+        guard messageFocusAvailable,!confirmingQuit else{return}
+        importedMessageCancellation?.cancel()
+        let repository=self.repository.capturingDiffBackend(preferences:dialogDefaults)
+        let token=OperationCancellation(),draft=message
+        importedMessageCancellation=token;loadingImportedMessage=true;Self.activeMetadataOperations += 1
+        Task {
+            defer {Self.activeMetadataOperations -= 1;if importedMessageCancellation === token {importedMessageCancellation=nil;loadingImportedMessage=false};withExtendedLifetime(access){}}
+            do {
+                try validateRestoreAccess()
+                guard case .commit(let details)=try await repository.singleCommitDetails(revision:revision,cancellation:token) else {throw GitSingleCommitFailure.notCommit}
+                try token.check()
+                guard messageFocusAvailable,!confirmingQuit,importedMessageCancellation === token,message.utf8.elementsEqual(draft.utf8) else{return}
+                loadingImportedMessage=false;insert(details.subject+"\n"+details.body)
+            } catch {if messageFocusAvailable,importedMessageCancellation === token,!token.isCancelled {self.error=error.localizedDescription}}
+        }
+    }
+    private func readAuthor(amend:Bool,repository:GitRepository,cancellation:OperationCancellation) async throws -> String? {
+        if let queryCommitAuthor {return try await queryCommitAuthor(amend,cancellation)}
+        try validateRestoreAccess()
+        if amend {
+            let previous=try await repository.singleCommitDetails(revision:"HEAD",cancellation:cancellation).asLogEntry()
+            return "\(previous.author) <\(previous.email)>"
+        }
+        let name=try await repository.run(["config","user.name"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+        let email=try await repository.run(["config","user.email"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+        return "\(name) <\(email)>"
+    }
+    private func readAuthorDate(repository:GitRepository,cancellation:OperationCancellation) async throws -> Date? {
+        if let queryCommitAuthorDate {return try await queryCommitAuthorDate(cancellation)}
+        try validateRestoreAccess()
+        guard case .commit(let commit)=try await repository.singleCommitDetails(revision:"HEAD",cancellation:cancellation) else{return nil}
+        return Date(timeIntervalSince1970:TimeInterval(commit.author.time))
+    }
     func amendChanged() {
         guard messageFocusAvailable else { return }
         if replaySplit != nil || historyCombine != nil { comparisonChanged(); return }
+        let repository=self.repository.capturingDiffBackend(preferences:dialogDefaults)
         let wasLoading = loadingAmendMessage, failedRead = amendMessageReadFailed
         amendMessageReadFailed = false
         invalidateMetadataLoads()
         if amend {
             nonAmendMessage = message
-            if !amendMessage.isEmpty { finishAmendMessage(amendMessage); return }
+            if !amendMessage.isEmpty { finishAmendMessage(amendMessage,repository:repository); return }
             loadingAmendMessage = true
             let generation = amendGeneration, draft = message, token = OperationCancellation()
             amendCancellation = token
@@ -1678,11 +1698,14 @@ import UniformTypeIdentifiers
                 defer { Self.activeMetadataOperations -= 1; if generation == amendGeneration { loadingAmendMessage = false; amendCancellation = nil } }
                 do {
                     if token.isCancelled { throw OperationCancellationFailure.cancelled }
-                    let previous = try await queryAmendMessage(token)
+                    let identity=try await repository.singleCommitBackendIdentity(cancellation:token)
+                    let previous:String?
+                    if let queryAmendMessage {previous=try await queryAmendMessage(token)} else {try validateRestoreAccess();guard case .commit(let commit)=try await repository.singleCommitDetails(revision:"HEAD",cancellation:token) else {throw GitSingleCommitFailure.notCommit};previous=commit.subject+"\n"+commit.body}
                     if token.isCancelled { throw OperationCancellationFailure.cancelled }
                     guard generation == amendGeneration, amend else { return }
                     guard let previous else { throw StatusFileActionFailure(message: "Could not read the last commit message.") }
-                    finishAmendMessage(message.utf8.elementsEqual(draft.utf8) ? previous : message)
+                    amendDetailsBackendIdentity=identity
+                    finishAmendMessage(message.utf8.elementsEqual(draft.utf8) ? previous : message,repository:repository)
                 } catch { if generation == amendGeneration, amend, messageFocusAvailable, !token.isCancelled { amendMessageReadFailed = true; self.error = error.localizedDescription; requestMessageFocus() } }
             }
         } else {
@@ -1692,6 +1715,7 @@ import UniformTypeIdentifiers
         }
     }
     private func invalidateMetadataLoads() {
+        importedMessageCancellation?.cancel();importedMessageCancellation=nil;loadingImportedMessage=false
         authorCancellation?.cancel(); dateCancellation?.cancel(); amendCancellation?.cancel()
         authorCancellation = nil; dateCancellation = nil; amendCancellation = nil
         authorGeneration += 1; dateGeneration += 1; amendGeneration += 1
@@ -1699,9 +1723,9 @@ import UniformTypeIdentifiers
         amendMessageReadFailed = false
         replayAuthorPreset = nil; replayDatePreset = nil
     }
-    private func finishAmendMessage(_ value: String) {
+    private func finishAmendMessage(_ value: String,repository:GitRepository) {
         message = value; originalAmendMessage = value; loadingAmendMessage = false; amendMessageReadFailed = false
-        dateChanged(); authorChanged(); requestMessageFocus(); comparisonChanged()
+        dateChanged(repository:repository); authorChanged(repository:repository); requestMessageFocus(); comparisonChanged()
     }
     func focusMessage() {guard !inputsBlocked else {return};requestMessageFocus()}
     private func requestMessageFocus() {
@@ -1738,7 +1762,7 @@ import UniformTypeIdentifiers
         hasLoaded = false
         reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
     }
-    func authorChanged() {
+    func authorChanged(repository captured:GitRepository?=nil) {
         guard messageFocusAvailable else { return }
         authorCancellation?.cancel(); authorCancellation = nil
         authorGeneration += 1
@@ -1747,6 +1771,7 @@ import UniformTypeIdentifiers
             replayAuthorPreset = nil
             if setAuthor == preset.enabled, author.utf8.elementsEqual(preset.value.utf8) { return }
         }
+        let repository=captured ?? self.repository.capturingDiffBackend(preferences:dialogDefaults)
         let generation = authorGeneration, wasAmend = amend, wasSetAuthor = setAuthor, draft = author
         let token = OperationCancellation(); authorCancellation = token
         loadingAuthorIdentity = true
@@ -1755,7 +1780,7 @@ import UniformTypeIdentifiers
             defer { Self.activeMetadataOperations -= 1; if generation == authorGeneration { loadingAuthorIdentity = false; authorCancellation = nil } }
             do {
                 if token.isCancelled { throw OperationCancellationFailure.cancelled }
-                let value = try await queryCommitAuthor(wasAmend, token)
+                let value = try await readAuthor(amend:wasAmend,repository:repository,cancellation:token)
                 if token.isCancelled { throw OperationCancellationFailure.cancelled }
                 guard generation == authorGeneration, amend == wasAmend, setAuthor == wasSetAuthor,
                       author.utf8.elementsEqual(draft.utf8), let value else { return }
@@ -1763,7 +1788,7 @@ import UniformTypeIdentifiers
             } catch { if generation == authorGeneration, amend == wasAmend, setAuthor == wasSetAuthor { self.error = error.localizedDescription } }
         }
     }
-    func dateChanged() {
+    func dateChanged(repository captured:GitRepository?=nil) {
         guard messageFocusAvailable else { return }
         dateCancellation?.cancel(); dateCancellation = nil
         dateGeneration += 1
@@ -1775,6 +1800,7 @@ import UniformTypeIdentifiers
         resetAuthorDate = false
         guard setAuthorDate else { return }
         if !amend { authorDate = Date(); return }
+        let repository=captured ?? self.repository.capturingDiffBackend(preferences:dialogDefaults)
         let generation = dateGeneration, draft = authorDate
         let token = OperationCancellation(); dateCancellation = token
         loadingAuthorDate = true
@@ -1783,7 +1809,7 @@ import UniformTypeIdentifiers
             defer { Self.activeMetadataOperations -= 1; if generation == dateGeneration { loadingAuthorDate = false; dateCancellation = nil } }
             do {
                 if token.isCancelled { throw OperationCancellationFailure.cancelled }
-                let value = try await queryCommitAuthorDate(token)
+                let value = try await readAuthorDate(repository:repository,cancellation:token)
                 if token.isCancelled { throw OperationCancellationFailure.cancelled }
                 guard generation == dateGeneration, amend, setAuthorDate, authorDate == draft, let value else { return }
                 authorDate = CommitAuthorDateControl.loaded(value,retainingDay:draft)
@@ -2056,7 +2082,7 @@ import UniformTypeIdentifiers
             return label.padding(toLength: max(10, label.count), withPad: " ", startingAt: 0) + " " + entry.path + "\n"
         }.joined()
     }
-    var inputsBlocked:Bool {busy || issueProviderBusy || confirmingQuit || pendingReloadCancel || savingPreferences || stagingHintVisible || unversionedPromptVisible}
+    var inputsBlocked:Bool {loadingImportedMessage || busy || issueProviderBusy || confirmingQuit || pendingReloadCancel || savingPreferences || stagingHintVisible || unversionedPromptVisible}
     var fileListAvailable:Bool {messageFocusAvailable && !messageOnly && !inputsBlocked}
     var canCancel: Bool { messageFocusAvailable && !stagingHintVisible && !unversionedPromptVisible && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil) }
     func cancel(closeWindow: Bool = true, completion: ((Bool) -> Void)? = nil) {

@@ -16,8 +16,7 @@ extension GitRepository {
         let parents=String(decoding:try run(["rev-list","--parents","-n","1",hash,"--"],cancellation:cancellation).stdout,as:UTF8.self).split(whereSeparator:\.isWhitespace).dropFirst().map(String.init)
         return try parents.enumerated().map { index, parent in
             try cancellation?.check()
-            var subject=(try? run(["show","--encoding=UTF-8","-s","--no-notes","--format=%s",parent,"--"],cancellation:cancellation).stdout).map{String(decoding:$0,as:UTF8.self)}
-            if subject?.hasSuffix("\n") == true { subject?.removeLast() }
+            let subject=(try? singleCommitDetails(revision:parent,cancellation:cancellation).asLogEntry())?.subject
             try cancellation?.check()
             return LogParentChoice(number: index + 1, hash: parent, subject: subject)
         }

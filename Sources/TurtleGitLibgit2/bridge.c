@@ -770,3 +770,42 @@ int tg_inspect_conflict_info(const char *path,const char *const *paths,size_t co
  }
  done:git_index_free(index);git_repository_free(repo);return result;
 }
+
+/* GitRev::GetCommit(string, allowTree), not the unconditionally gitdll-backed
+ * GetCommitFromHash overload. Getter strings stay in their declared encoding;
+ * no summary folding, message trimming, or UTF-8 conversion occurs here. */
+int tg_read_single_commit(const char *path,const char *revision,int allow_tree,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_object *object=NULL;git_commit *commit=NULL;git_tree *tree=NULL;char *peeled_revision=NULL;char **parents=NULL;size_t parent_count=0;int result=0;
+ context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};tg_single_commit row={0};char oid[GIT_OID_MAX_HEXSIZE+1],tree_oid[GIT_OID_MAX_HEXSIZE+1];
+ size_t revision_length=strnlen(revision,1048577);if(!revision_length||revision_length>1048576){git_error_set_str(GIT_ERROR_OBJECT,"Invalid single-commit revision");return -1;}
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0)goto done;
+ peeled_revision=malloc(revision_length+4);if(!peeled_revision){result=-1;goto done;}memcpy(peeled_revision,revision,revision_length);memcpy(peeled_revision+revision_length,"^{}",4);
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ result=git_revparse_single(&object,repo,peeled_revision);
+ if(result==0)result=git_commit_lookup(&commit,repo,git_object_id(object));
+ if(result<0){
+  if(!allow_tree)goto done;
+  git_error_clear();git_object_free(object);object=NULL;
+  /* Source fallback uses the ORIGINAL revision, without recursively peeling
+   * an annotated tag to a tree. Direct tree IDs/expressions are accepted. */
+  if((result=git_revparse_single(&object,repo,revision))<0||(result=git_tree_lookup(&tree,repo,git_object_id(object)))<0)goto done;
+  row.object_type=1;git_oid_tostr(oid,sizeof(oid),git_tree_id(tree));row.oid=oid;
+ }else{
+  const git_signature *author=git_commit_author(commit),*committer=git_commit_committer(commit);
+  if(!author||!committer){git_error_set_str(GIT_ERROR_OBJECT,"Commit is missing author or committer metadata");result=-1;goto done;}
+  parent_count=git_commit_parentcount(commit);if(parent_count>4096){git_error_set_str(GIT_ERROR_OBJECT,"Commit parent count exceeds bounds");result=-1;goto done;}
+  if(parent_count){parents=calloc(parent_count,sizeof(char *));if(!parents){result=-1;goto done;}}
+  for(size_t i=0;i<parent_count;i++){
+   if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+   const git_oid *parent=git_commit_parent_id(commit,(unsigned int)i);if(!parent){git_error_set_str(GIT_ERROR_OBJECT,"Invalid commit parent");result=-1;goto done;}
+   parents[i]=malloc(GIT_OID_MAX_HEXSIZE+1);if(!parents[i]){result=-1;goto done;}git_oid_tostr(parents[i],GIT_OID_MAX_HEXSIZE+1,parent);
+  }
+  git_oid_tostr(oid,sizeof(oid),git_commit_id(commit));git_oid_tostr(tree_oid,sizeof(tree_oid),git_commit_tree_id(commit));
+  row.object_type=0;row.oid=oid;row.tree=tree_oid;row.parents=(const char *const *)parents;row.parent_count=parent_count;
+  row.encoding=git_commit_message_encoding(commit);row.author_name=author->name;row.author_email=author->email;row.author_time=author->when.time;row.author_offset=author->when.offset;
+  row.committer_name=committer->name;row.committer_email=committer->email;row.committer_time=committer->when.time;row.committer_offset=committer->when.offset;row.message=git_commit_message_raw(commit);
+ }
+ if(stopped(&ctx)){result=GIT_EUSER;goto done;}
+ result=callbacks->single_commit?callbacks->single_commit(&row,callbacks->payload):0;
+ done:if(parents){for(size_t i=0;i<parent_count;i++)free(parents[i]);free(parents);}free(peeled_revision);git_tree_free(tree);git_commit_free(commit);git_object_free(object);git_repository_free(repo);return result;
+}

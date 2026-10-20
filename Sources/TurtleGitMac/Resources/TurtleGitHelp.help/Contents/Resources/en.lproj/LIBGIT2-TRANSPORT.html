@@ -27,6 +27,15 @@ Index-only and editable staging patches keep their existing Git reader. History
 lists retain actual merge-parent groups, renamed paths, binary counts and object
 metadata; changing engines cannot reuse a cache belonging to the other engine.
 See the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/DIFF-BACKEND-PARITY.html">diff/history source scope</a>.</p>
+<p>Single-commit details use GetCommit bit <code>0x4000</code>, enabled by default. Commit
+amendment, accepted Log message selection, Rebase reference details and eligible
+message/metadata reads, containing-reference details, comparison endpoints and
+parent captions use the source-selected reader. Declared encodings apply to
+names, email addresses and the full raw message; display subjects split at the
+first line feed. Mailmap remains a separate display choice. Working Tree and
+explicit tree endpoints retain their own types. Bulk history and hash-only
+structural metadata use their existing readers. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SINGLE-COMMIT-DETAILS-PARITY.html">single-commit source scope</a>.</p>
 <p>Replay and merge readiness use their own source inspection choices. MergeBase
 bit <code>0x80</code> selects the common-ancestor/fast-forward decision; CheckConflicts bit
 <code>0x2000</code> selects index conflict presence; GetConflictInfo bit <code>0x20000</code> selects

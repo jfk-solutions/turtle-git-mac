@@ -165,3 +165,13 @@ accepted native workflows. Structural all-base queries, generic conflict lists,
 Current resolution and the disabled source Log-revert clean guard retain their
 separate boundaries. Its implementation checkpoint and remaining acceptance are
 recorded together.
+
+
+### Single-commit details continuation — October 20, 2026
+
+The [single-commit detail family](SINGLE-COMMIT-DETAILS-PARITY.md) connects source
+GetCommit14 to editable message/identity consumers, replay Add and Squash,
+containing references, comparison endpoints and parent captions. Declared
+encoding and raw signature/message bytes retain source boundaries; bulk history
+and immutable hash readers remain independent. Its dated checkpoint records the
+grouped validation and remaining acceptance.

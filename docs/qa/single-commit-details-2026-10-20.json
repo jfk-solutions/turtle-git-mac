@@ -1,0 +1,216 @@
+{
+  "date": "2026-10-20",
+  "family": "Source-selected single-commit details and connected message workflows",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": {
+    "gate": "GitRev.cpp246 GetCommit string command14, defaultmask bit0x4000",
+    "parser": "GitRev.cpp98-136 declared encoding, raw signatures/message, first LF",
+    "callers": [
+      "CommitDlg1529/2206/2753/2996/3091",
+      "RebaseDlg776/1704/2021/2556/3099",
+      "CommitIsOnRefsDlg452",
+      "FileDiffDlg279",
+      "GitLogListBase1711",
+      "GitStatusListCtrl4585"
+    ]
+  },
+  "boundaries": [
+    "Bulk history, GetCommitFromHash and GetParentFromHash remain separate",
+    "Typed Working Tree bypass; ordinary zero revision still requires actual object",
+    "Selected library allowTree uses original reference, CLI/gitdll equivalent may peel tree tags",
+    "Required editable reads retain drafts and report errors; optional captions retain hash fallback",
+    "Native Git Squash consumes selected first-author metadata at approval under every date policy; raw legacy identities retain existing Git author bytes"
+  ],
+  "validation": [
+    {
+      "check": "Universal helper build",
+      "result": "passed",
+      "log": "build/qa/single-commit-helper-build-2026-10-20.log"
+    },
+    {
+      "check": "Local reference helper contracts on arm64 and x86_64/Rosetta",
+      "result": "passed",
+      "log": "build/qa/single-commit-reference-helper-repair-2026-10-20.log"
+    },
+    {
+      "check": "Replay inspection helper contracts on arm64 and x86_64/Rosetta",
+      "result": "passed",
+      "log": "build/qa/single-commit-replay-helper-repair-2026-10-20.log"
+    },
+    {
+      "check": "Injected Intel capability selection with real lipo verification of both binary slices",
+      "result": "passed",
+      "limit": "Injected sysctl capability=0; not actual Intel host acceptance. Returned only x86_64 execution prefix and reported skipped ARM execution."
+    },
+    {
+      "check": "Single-commit helper contracts on arm64 and x86_64/Rosetta",
+      "result": "passed",
+      "log": "build/qa/single-commit-helper-fixture-repair-2026-10-20.log"
+    },
+    {
+      "check": "Relevant Core group",
+      "result": "60 distinct methods have passing evidence: original 60-method group had 58 passes and two fixture failures, then both repaired methods passed",
+      "logs": [
+        "build/qa/single-commit-core-repair-2026-10-20.log",
+        "build/qa/single-commit-core-fixture-repair-2026-10-20.log"
+      ],
+      "scope": "Focused group, not full current Core/CI suite"
+    },
+    {
+      "check": "Debug macOS app build",
+      "result": "passed",
+      "log": "build/qa/single-commit-app-repair-2026-10-20.log",
+      "scope": "xcodebuild terminal exit0, CODE_SIGNING_ALLOWED=NO; current native fixtures use this app"
+    },
+    {
+      "check": "First grouped native check",
+      "result": "Commit passed with Apple Git and bundled Git; stopped in Apple Git Rebase Add assertion; endpoints and ownership not reached",
+      "log": "build/qa/single-commit-native-2026-10-20.log",
+      "reaped_receivers": [
+        57088,
+        57822,
+        58528
+      ],
+      "independent_pid_absence": true
+    },
+    {
+      "check": "Generated label/Help resources",
+      "result": "passed",
+      "counts": {
+        "languages": 38,
+        "label_keys": 1303,
+        "help_documents": 44,
+        "help_topics": 51,
+        "help_files": 64
+      },
+      "scope": "Resource consistency, not complete localization/help acceptance"
+    },
+    {
+      "check": "Native receiver cache freshness guard",
+      "result": "Unreached-case attempt refused stale RebaseWindow.swift after production repair; no receiver compiled or launched",
+      "log": "build/qa/single-commit-native-endpoints-ownership-2026-10-20.log",
+      "scope": "Rebuild required; not a workflow check pass"
+    },
+    {
+      "check": "Affected Debug app build after Add repair",
+      "result": "passed",
+      "log": "build/qa/single-commit-app-add-repair-2026-10-20.log"
+    },
+    {
+      "check": "Focused native continuation after Add repair",
+      "result": "Controlled Add overlap and metadata assertion reached successfully, then separate replay setup threw revision; complete Rebase case not passed",
+      "log": "build/qa/single-commit-native-repair-2026-10-20.log",
+      "reaped_receivers": [
+        59081
+      ],
+      "scope": "No Core/helper/Commit repetition"
+    },
+    {
+      "check": "Focused native Rebase/endpoints/ownership continuation",
+      "result": "passed all six case/engine pairs; with original two Commit passes, eight distinct pairs have passing evidence",
+      "log": "build/qa/single-commit-native-edit-fixture-2026-10-20.log",
+      "scope": "Apple Git and bundled Git; source14 enabled/disabled, raw metadata, actual column/Add overlap, endpoint/parent cache replacement, captured backend cascades, late injected replies and real helper cancellation/retirement",
+      "receivers_reaped_all_attempts": [
+        57088,
+        57822,
+        58528,
+        59081,
+        59362,
+        59868,
+        60389,
+        60644,
+        60898,
+        61050
+      ],
+      "independent_process_table_absence": true,
+      "child_cleanup": "Ownership case asserts both held helper and child PIDs absent before completing; all case runners drain tracked owners and windows."
+    },
+    {
+      "check": "Dialog coverage reconciliation after source/parity documentation freeze",
+      "result": "passed; no dialog certified complete",
+      "log": "build/qa/single-commit-coverage-final-2026-10-20.log"
+    },
+    {
+      "check": "Documentation site",
+      "result": "passed: 374 documents, no unresolved fragments",
+      "log": "build/qa/single-commit-site-2026-10-20.log",
+      "scope": "Local build; new hosted Pages deployment not yet observed"
+    }
+  ],
+  "repairs": [
+    {
+      "failure": "Initial Core and app compilation: two RevisionComparisonDetails constructors referenced a nonexistent type.",
+      "repair": "Use existing ComparisonRevisionDetails for tree and commit endpoints.",
+      "scope": "No tests reached in initial Core run; affected grouped Core and app checks restarted after repair."
+    },
+    {
+      "failure": "Initial three helper checks stopped at lipo -verify_arch argument compatibility.",
+      "repair": "Verify arm64 and x86_64 separately; retain both slice requirements.",
+      "scope": "All three affected helper groups restarted; helper binary unchanged."
+    },
+    {
+      "failure": "New helper and two Core raw-object fixtures were refused by hash-object fsck badDate for intentionally negative author timestamps.",
+      "repair": "Write those raw historical objects with hash-object --literally; retain signed timestamp assertions.",
+      "scope": "New helper contracts repeated on both slices; only the two failed Core methods repeated."
+    },
+    {
+      "failure": "Native Rebase Add silently omitted accepted rows when background column metadata changed the general control-menu epoch.",
+      "repair": "Fence Add publication using actual replay/draft intent plus existing plan generation, token and retirement checks. Cosmetic metadata no longer invalidates Add.",
+      "regression": "Hold a genuine computed Add receipt, finish forced column metadata, require cosmetic epoch change without plan generation change, release and retain exact added row/message/backend assertions.",
+      "scope": "Affected app build and Rebase native case; Core/helper/Commit native passes retained."
+    },
+    {
+      "failure": "Native Rebase continuation stopped with revision during separate -x Edit fixture setup; root cause not established by that unqualified diagnostic.",
+      "repair": "Use a real content-changing UTF8 commit for actual applied -x Edit, keeping Latin1 tooltip/Add data and assertions; add bounded plan/start/hash diagnostics.",
+      "scope": "Fixture only; no unsupported-legacy claim or app rebuild from this change."
+    }
+  ],
+  "ci_host_architecture": {
+    "observed_failure_run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39344337591",
+    "job": 118376197433,
+    "failure": "Local-reference helper fixture attempted arm64 execution on Intel: arch: Unknown architecture: arm64",
+    "change": "All three helper runners verify both universal slices; ARM hardware executes both, Intel executes x86_64 with explicit unsupported ARM execution report",
+    "scope": "Do not infer ARM behavior from Intel structural verification; local ARM/Rosetta and injected host-selection checks recorded separately"
+  },
+  "explicit_gaps": [
+    "Full current hosted integration suite",
+    "Physical keyboard/accessibility and complete layout acceptance",
+    "Installed signed grants, real Intel/minimum-version runtime acceptance",
+    "All legacy code-page availability and oversized/corrupt Git objects",
+    "Complete upstream application parity",
+    "Remaining history/submodule ancestry and Combine-commits clean-state consumers"
+  ],
+  "no_complete_port_claim": true,
+  "next_connected_family": {
+    "scope": "Remaining selected-engine ancestry decisions and Combine readiness",
+    "consumers": [
+      "Log Tag/Branch fast-forward Jump Up/Down: CommitHistory.swift1049-1059; source LogDlg2641/2649/2743/2751",
+      "Single-branch Browser deletion warnings: ReferenceBrowser.swift310; source BrowseRefsDlg681",
+      "Shared local-head history deletion warnings: HistoryReferenceDeletion.swift57; source AppUtils3855",
+      "Child submodule comparison/conflict classification: SubmoduleComparison.swift190-191 and SubmoduleConflict.swift66-67; source GitDiff335/338",
+      "Combine preparation and begin: CommitHistory.swift1712-1713/1737-1738; source GitLogListAction643"
+    ],
+    "boundaries": [
+      "Reuse existing helper7/12; do not replace structural --all graph queries",
+      "Carry accepted backend/executable/grants/cancellation into child checkout",
+      "Source clean check excludes untracked/submodule dirtiness; disabled Log revert clean block remains excluded"
+    ],
+    "status": "Source audit only; no implementation or verification claimed"
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitSingleCommitDetails.swift": "bec5cdcefe101126a75f499b3c674f9217e8c54336dccd121b737fc3eb7d18c6",
+    "Sources/TurtleGitLibgit2/main.swift": "598d6c75958644d19cb0379e3fcf4001874a86b49db8a77cbed2e24574b44d8b",
+    "Sources/TurtleGitLibgit2/bridge.c": "1c5c8b4de446b69d4b2759be70cfce97921514a53dcb2001fc37b12eeec55dd9",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "7b8df883889e2aa69216f48c7fd21b7b75f079f174bba05c36a450714f32f64a",
+    "Tests/TurtleGitCoreTests/GitSingleCommitDetailsTests.swift": "3cb92bd8fee6b1fa5bf6466a9e84aa3df65d4784373af5e0dffea6279fc26a70",
+    "docs/qa/single-commit-native-2026-10-20.swift": "01f50dcd58bdf94b06d61c8a06300ae9c40f506066416b272b33febb98174975",
+    "scripts/helper_architectures.py": "417994c39d824515533c639bac28bdf9e36494461e5c82298ceddeb15b67421a"
+  },
+  "core_scope": {
+    "CommitContainingReferencesTests": 4,
+    "GitSingleCommitDetailsTests": 16,
+    "RebaseMessageEditingTests": 3,
+    "RebaseTests": 11,
+    "RevisionComparisonTests": 24
+  }
+}
