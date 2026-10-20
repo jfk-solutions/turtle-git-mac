@@ -2,6 +2,43 @@ import XCTest
 @testable import TurtleGitCore
 
 final class IgnoreTests: XCTestCase {
+    func testSourceExtensionSuffixIncludesDotfilesTrailingDotsAndExactSpelling() throws {
+        let cases:[(String,String?)]=[("plain",nil),("parent.dot/plain",nil),(".profile",".profile"),("folder/.profile",".profile"),("archive.tar.gz",".gz"),("trailing.","."),(".double.name",".name"),("folder.ext/",nil),("literal\\name.TXT",".TXT"),("x.cafe\u{301}",".cafe\u{301}"),("x.\u{301}suffix",".\u{301}suffix")]
+        for(path,expected)in cases {
+            XCTAssertEqual(IgnoreOptions.extensionSuffix(for:path).map{Data($0.utf8)},expected.map{Data($0.utf8)},path)
+        }
+        let mask=try IgnoreOptions(paths:[".profile","trailing.","archive.tar.gz"],mask:true)
+        XCTAssertEqual(mask.pattern(for:".profile"),"/*.profile")
+        XCTAssertEqual(mask.pattern(for:"trailing."),"/*.")
+        XCTAssertEqual(mask.pattern(for:"archive.tar.gz"),"/*.gz")
+    }
+    func testSourceExtensionMasksHaveRealGitEffectsAndSkipDirectoryLeaves() async throws {
+        let helper=CommitSelectionTests(),(root,repo)=try await helper.fixture()
+        defer {try? FileManager.default.removeItem(at:root)}
+        let names=[".profile","other.profile","archive.tar.gz","other.gz","trailing.","other.","plain","unrelated.txt"]
+        for name in names {try helper.write(root,name,"local bytes\n")}
+        let directory=root.appendingPathComponent("folder.directory",isDirectory:true)
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        let link=root.appendingPathComponent("link.alias")
+        try FileManager.default.createSymbolicLink(at:link,withDestinationURL:directory)
+        let index=try await repo.run(["ls-files","--stage","-z"]).stdout
+        var options=try IgnoreOptions(paths:[".profile","archive.tar.gz","trailing.","plain","folder.directory","link.alias"],mask:true)
+        options.scope = .recursively
+        _ = try await repo.addIgnoreRules(options)
+        XCTAssertEqual(try String(contentsOf:root.appendingPathComponent(".gitignore")),"*.profile\n*.gz\n*.\n*.alias\n")
+        for name in names {
+            let actual=try await ignored(repo,name)
+            XCTAssertEqual(actual,[".profile","other.profile","archive.tar.gz","other.gz","trailing.","other."].contains(name),name)
+            XCTAssertEqual(try String(contentsOf:root.appendingPathComponent(name)),"local bytes\n")
+        }
+        let directoryIgnored=try await ignored(repo,"folder.directory")
+        XCTAssertFalse(directoryIgnored,"Directory names never create extension mask rules")
+        let linkIgnored=try await ignored(repo,"link.alias")
+        XCTAssertTrue(linkIgnored,"A symlink is the selected Git file, even when its target is a directory")
+        let after=try await repo.run(["ls-files","--stage","-z"]).stdout
+        XCTAssertEqual(after,index)
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath:link.path),directory.path)
+    }
     func testCanonicalPeerRulesAndRemovalSelectionsRemainExact() async throws {
         let (root,repo,_)=try await GitPatchTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
         let names=["caf\u{e9}.tmp","cafe\u{301}.tmp"]

@@ -25,13 +25,21 @@ public struct IgnoreOptions: Sendable {
         guard !paths.contains(where: { $0.contains("\n") || $0.contains("\r") }) else { throw IgnoreFailure.lineBreak }
         self.mask = mask
     }
+    /// CTGitPath::GetFileExtension returns the last dot and its suffix,
+    /// including dotfiles and a trailing dot. macOS backslashes remain literal
+    /// filename characters. Callers exclude directory leaves separately.
+    public static func extensionSuffix(for path:String)->String? {
+        guard let name=path.utf8.split(separator:47,omittingEmptySubsequences:false).last,
+              let dot=name.lastIndex(of:46) else{return nil}
+        return String(decoding:name[dot...],as:UTF8.self)
+    }
     public func pattern(for path: String) -> String? {
         let name = (path as NSString).lastPathComponent
-        let extensionName = (name as NSString).pathExtension
-        if mask && extensionName.isEmpty { return nil }
+        let extensionSuffix = Self.extensionSuffix(for:path)
+        if mask && extensionSuffix == nil { return nil }
         // The leading star is intentional only in extension-mask mode. All path
         // characters remain literal, including macOS names invalid on Windows.
-        let item = mask ? "*." + Self.escape(extensionName) : Self.escape(name)
+        let item = mask ? "*" + Self.escape(extensionSuffix!) : Self.escape(name)
         guard scope == .containingFolder else { return item }
         let parent = (path as NSString).deletingLastPathComponent
         let prefix = destination != .containingFolders && !parent.isEmpty ? Self.escape(parent) + "/" : ""
@@ -116,6 +124,10 @@ extension GitRepository {
         }
         for path in options.paths {
             try cancellation?.check()
+            if options.mask {
+                let type=(try? FileManager.default.attributesOfItem(atPath:root.appendingPathComponent(path).path))?[.type] as? FileAttributeType
+                if type == .typeDirectory {continue}
+            }
             guard let pattern = options.pattern(for: path) else { continue }
             let url: URL
             switch options.destination {

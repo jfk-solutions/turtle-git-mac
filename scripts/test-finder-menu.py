@@ -37,12 +37,19 @@ import TurtleGitCore
         ]
         let nativeBySource = Dictionary(uniqueKeysWithValues: mapping.map { ($0.value, $0.key) })
         let projected = sourceOrder.groups.map { $0.compactMap { nativeBySource[$0] } }.filter { !$0.isEmpty }
-        precondition(FinderShellMenuLayout.groups.map { $0.filter { $0 != .properties && !$0.isFileTransfer } }.filter { !$0.isEmpty } == projected, "Every implemented source root command must preserve pinned MenuInfo order/group")
+        // Properties adapts Explorer's property page; direct New Worktree
+        // adapts DropNewWorktree for an explicitly captured source selection.
+        // Neither is a MenuInfo root entry. Verify their exact native positions
+        // independently while retaining every mapped source ordering assertion.
+        let nativeAdaptations:Set<RepositoryAction>=[.properties,.worktreeCreate]
+        precondition(FinderShellMenuLayout.groups.map { $0.filter { !nativeAdaptations.contains($0) && !$0.isFileTransfer } }.filter { !$0.isEmpty } == projected, "Every implemented source root command must preserve pinned MenuInfo order/group")
         let adapted = projected.map { group -> [RepositoryAction] in
-            guard let settings = group.firstIndex(of: .settings) else { return group }
-            var result = group; result.insert(.properties, at: settings); return result
+            var result=group
+            if let settings=result.firstIndex(of:.settings) {result.insert(.properties,at:settings)}
+            if let worktrees=result.firstIndex(of:.worktreeList) {result.insert(.worktreeCreate,at:worktrees)}
+            return result
         }
-        precondition(FinderShellMenuLayout.groups.map { $0.filter { !$0.isFileTransfer } }.filter { !$0.isEmpty } == adapted, "Native property-page adaptation must precede Settings")
+        precondition(FinderShellMenuLayout.groups.map { $0.filter { !$0.isFileTransfer } }.filter { !$0.isEmpty } == adapted, "Native Properties must precede Settings and source-selection New Worktree must precede Worktrees")
         precondition(Set(projected.flatMap { $0 }) == Set(mapping.keys))
         func allCommands(showIcons: Bool = true) -> FinderMenuSettings {
             var settings = FinderMenuSettings(showIcons: showIcons)
@@ -74,7 +81,7 @@ import TurtleGitCore
             let visible = Set(actual.flatMap { $0 })
             let expected = adapted.map { $0.filter { visible.contains($0) } }.filter { !$0.isEmpty }
             precondition(actual.filter { !$0.isEmpty } == expected, "Visible menu groups must match independent source projection")
-            precondition(!visible.contains(.worktreeCreate), "New Worktree belongs in the manager")
+            precondition(!visible.contains(.worktreeCreate), "A baseline without an explicit source selection must not offer direct New Worktree")
         }
         func make(_ paths: [URL], settings: FinderMenuSettings, mark: WorkingComparisonMarkSnapshot? = nil) -> NSMenu {
             FinderMenuBuilder.make(paths: paths, snapshot: snapshot, settings: settings,
@@ -156,6 +163,22 @@ import TurtleGitCore
         print("Context Menu policy: default/direct placement, Shift-only defaults, nested ignore routing/icons, all-direct omission, toolbar, exclusions and unversioned membership pass against the actual builder.")
         let ignoring = items(make([untracked], settings: allCommands()))
         precondition(ignoring.contains { $0.title == "Add to ignore list" && $0.submenu?.items.count == 2 })
+        for name in [".profile", "trailing.", "extensionless"] {
+            let path = folder.appendingPathComponent(name)
+            try Data("fixture".utf8).write(to: path)
+            let live = FinderSnapshot(roots: [folder.path], states: [path.path: .untracked])
+            let menu = FinderMenuBuilder.make(paths: [path], snapshot: live, settings: allCommands(),
+                comparisonMark: nil, target: target, actionSelector: selector)
+            let masks = items(menu).filter { ($0.representedObject as? FinderMenuCommand)?.request.action == .ignoreMask }
+            precondition(masks.count == (name == "extensionless" ? 0 : 1))
+            if name != "extensionless" { precondition(masks[0].title == "*" + IgnoreOptions.extensionSuffix(for: path.path)!) }
+        }
+        let noExtension = [folder.appendingPathComponent("first"), folder.appendingPathComponent("second")]
+        for path in noExtension { try Data("fixture".utf8).write(to: path) }
+        let noExtensionSnapshot = FinderSnapshot(roots: [folder.path], states: GitPathMap(uniqueKeysWithValues: noExtension.map { ($0.path, FileState.untracked) }))
+        let noExtensionMenu = FinderMenuBuilder.make(paths: noExtension, snapshot: noExtensionSnapshot, settings: allCommands(),
+            comparisonMark: nil, target: target, actionSelector: selector)
+        precondition(items(noExtensionMenu).contains { ($0.representedObject as? FinderMenuCommand)?.request.action == .ignoreMask }, "Source multi-selection offers mask even without extensions")
         let versioned = items(make([tracked], settings: allCommands()))
         precondition(versioned.contains { $0.title == "Delete and add to ignore list" && $0.submenu?.items.count == 2 })
         precondition(versioned.contains { ($0.representedObject as? FinderMenuCommand)?.request.action == .remove && $0.isEnabled })
@@ -396,7 +419,7 @@ import TurtleGitCore
         print("Actual pair menu receiver: two outside files expose Diff alongside utilities and retain ordered paths; file/folder selection is excluded. Native comparison activation remains pending.")
         verifyOrder(outsideFileMenu)
         precondition(outsideFileMenu.items[0].submenu!.items.filter { !$0.isSeparatorItem && FinderShellMenuLayout.action($0)?.isApplicationUtility != true }.count == 1, "A lone mark command needs no leading separator")
-        print("Actual layout receiver: all \(mapping.count) implemented root entries match pinned MenuInfo fixture order/groups; six-case visible projections, nested Ignore positions, sparse toolbar/outside-file separators and manager-only New Worktree passed. Activated Finder still pending.")
+        print("Actual layout receiver: all \(mapping.count) implemented root entries match pinned MenuInfo fixture order/groups; six-case visible projections, nested Ignore positions, sparse toolbar/outside-file separators and source-selection-only direct New Worktree passed. Activated Finder still pending.")
         let actualRoot = folder.appendingPathComponent("actual-parent", isDirectory: true)
         let actualSource = folder.appendingPathComponent("actual-source", isDirectory: true)
         for directory in [actualRoot, actualSource] {

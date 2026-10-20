@@ -4030,3 +4030,34 @@ was stopped and a dedicated Python cleanup probe passed. The final app build
 passed after an explicit main-actor annotation repair; Core was not rerun for
 native-only changes. Evidence records exact scope and separate CLI,
 physical/signed and unverified Pull/Push multi-root acceptance limits.
+
+
+### First-use Finder selected-file workflow Services — October 20, 2026
+
+Thirteen additional Services complete the selected-file Add/Revert, Resolve,
+Blame/previous-version/conflict-editor and four Ignore routes, for thirty-two
+Service declarations. Live source predicates retain cardinality, literal paths
+and repository ownership; asynchronous preparation carries its originating
+Services context into actual child windows. Add selected files and quick Resolve
+retain their real Git effects; folder Add, Revert, Ignore and other review dialogs
+retain their native controls and questions. Multiple Edit Conflict paths consume
+the first captured path, matching upstream. Ignore mask menus and rules retain
+upstream dotfile/trailing-dot suffixes and multi-selection behavior; directory
+leaves are skipped and symlinks remain Git leaves.
+
+[Source scope and remaining acceptance](FINDER-SERVICES.md) and the
+[batch evidence](qa/finder-file-services-family-2026-10-20.json) distinguish focused
+local checks from physical menu registration, signed sandbox access, full hosted
+integration and complete TortoiseGit dialog parity. The separate CLI transport
+batch gap remains open.
+
+
+The focused checkpoint passed twenty-three Core methods, the app build, the
+actual Finder menu builder and five distinct Services provider/path/conflict
+case/engine combinations. Initial compilation exposed a Core reference to an
+app-only helper; the equivalent enum gate repaired the layer boundary. Native
+fixtures needed Git check-ignore flag, Open-readiness and source-menu adaptation
+projection corrections. Only affected scopes repeated; Core/app were not rebuilt
+for fixture repairs. All nine recorded receiver PIDs, including failed attempts,
+are absent. These scoped passes do not certify current hosted CI or signed
+Finder/App Store deployment.

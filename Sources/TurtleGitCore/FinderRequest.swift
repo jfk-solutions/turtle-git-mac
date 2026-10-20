@@ -6,6 +6,7 @@ import Darwin
 public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     case log,commit,status,diff,clone,initialize
     case pull,fetch,push,synchronize,rebase,stash,stashApply,stashPop,stashList,switchBranch,merge,branch,tag
+    case add,revert,resolve,resolveCurrent,resolveMine,resolveTheirs,blame,previousDiff,editConflict,ignore,ignoreMask,ignoreDelete,ignoreDeleteMask
     public static let maximumPaths=10000
     public static let maximumRequestBytes=1048576
     public struct Failure:LocalizedError,Sendable {
@@ -22,16 +23,46 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     }
     public var requiresSingleSelection:Bool {
         switch self {
-        case .clone,.initialize,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag:return true
+        case .clone,.initialize,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag,.blame,.previousDiff:return true
         default:return false
         }
     }
+    /// Dynamic Resolve/Ignore children inherit their parent's MenuInfo clauses.
+    public var sourceAction:RepositoryAction {
+        switch self {
+        case .resolveCurrent,.resolveMine,.resolveTheirs:return .resolve
+        case .ignoreMask:return .ignore
+        case .ignoreDeleteMask:return .ignoreDelete
+        default:return action
+        }
+    }
+    public var capturesAlternateTool:Bool {self == .diff || self == .previousDiff || self == .editConflict}
     public func isEligible(flags:FinderShellFlags)->Bool {
-        !requiresSourceEligibility || FinderShellRules.allows(action,flags:flags)
+        !requiresSourceEligibility || FinderShellRules.allows(sourceAction,flags:flags)
+    }
+    /// Called only after access and a fresh status read. Parent menu clauses
+    /// alone do not establish usable conflict or ignore targets for children.
+    public func isEligible(paths:[URL],snapshot:FinderSnapshot)->Bool {
+        let paths=FinderRequest.normalizedSelection(paths)
+        let flags=FinderShellRules.flags(paths:paths,snapshot:snapshot)
+        guard !paths.isEmpty,(!requiresSingleSelection || paths.count==1),isEligible(flags:flags) else{return false}
+        if self == .resolveCurrent || self == .resolveMine || self == .resolveTheirs {return snapshot.canResolve(paths)}
+        if action.isIgnore {
+            guard snapshot.canIgnore(paths,deleting:action.removesWhenIgnoring) else{return false}
+            if action.ignoresByExtension {
+                // InsertIgnoreSubmenus offers the multi-selection child even
+                // when every extension is empty; rule generation skips those
+                // names while Delete and Ignore still consumes the selection.
+                if paths.count>1 {return true}
+                let path=paths[0]
+                return !flags.contains(.folder) && IgnoreOptions.extensionSuffix(for:path.path) != nil
+            }
+        }
+        return true
     }
     public func request(paths:[URL],alternateTool:Bool?=nil)throws->FinderRequest {
         guard !paths.isEmpty,paths.count<=Self.maximumPaths else{throw Failure("Select between 1 and 10,000 files or folders for TurtleGit.")}
-        guard self == .diff || alternateTool == nil else{throw Failure("The tool choice is valid only for Diff.")}
+        guard capturesAlternateTool || alternateTool == nil else{throw Failure("The tool choice is valid only for Diff, Diff with previous version, or Edit conflicts.")}
         for path in paths {
             guard path.isFileURL,let parts=URLComponents(url:path,resolvingAgainstBaseURL:false),
                   parts.user==nil,parts.password==nil,parts.port==nil,parts.query==nil,parts.fragment==nil,

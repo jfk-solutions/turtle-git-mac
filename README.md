@@ -139,8 +139,8 @@ remaining acceptance work.
 
 ## Finder integration
 
-The app also advertises nineteen selected-file **Services**, including Log, Commit,
-Diff, Clone/Create, transport, branch/switch, merge/rebase and stash workflows.
+The app also advertises thirty-two selected-file **Services**, including Log, Commit,
+Diff, Clone/Create, transport, branch/switch, merge/rebase, stash, Add/Revert/Resolve, Blame, conflict editing and Ignore workflows.
 These use captured paths
 and owned permission workflows outside monitored roots; their system Services
 placement differs from Finder Sync context menus. Physical registration and signed

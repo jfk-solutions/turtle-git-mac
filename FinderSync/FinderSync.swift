@@ -296,9 +296,11 @@ enum FinderMenuBuilder {
             let named = NSMenuItem(title: name, action: actionSelector, keyEquivalent: "")
             named.target = target; named.image = image(.ignore); named.representedObject = FinderMenuCommand(action: deleting ? .ignoreDelete : .ignore, paths: paths)
             choices.addItem(named)
-            let singleDirectory = paths.count == 1 && snapshot?.states.keys.contains(where: { $0.hasPrefix(paths[0].path + "/") }) == true
-            if !singleDirectory && paths.contains(where: { !$0.pathExtension.isEmpty }) {
-                let title = paths.count == 1 ? "*." + paths[0].pathExtension : captions.ignoreItems(paths.count, byExtension: true)
+            let singleDirectory = paths.count == 1 && ((try? FileManager.default.attributesOfItem(atPath: paths[0].path)[.type]) as? FileAttributeType) == .typeDirectory
+            // The source offers the mask choice for every multi-selection;
+            // extensionless items are skipped when writing ignore patterns.
+            if !singleDirectory && (paths.count > 1 || paths.contains(where: { IgnoreOptions.extensionSuffix(for: $0.path) != nil })) {
+                let title = paths.count == 1 ? "*" + (IgnoreOptions.extensionSuffix(for: paths[0].path) ?? "") : captions.ignoreItems(paths.count, byExtension: true)
                 let mask = NSMenuItem(title: title, action: actionSelector, keyEquivalent: "")
                 mask.target = target; mask.image = image(.ignore); mask.representedObject = FinderMenuCommand(action: deleting ? .ignoreDeleteMask : .ignoreMask, paths: paths)
                 choices.addItem(mask)

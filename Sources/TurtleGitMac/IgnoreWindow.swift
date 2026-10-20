@@ -175,7 +175,7 @@ struct IgnoreSelectionMenu: View {
     var deleting = false
     let action: (RepositoryAction, [String]) -> Void
     var body: some View {
-        let suffixes = paths.map { ($0 as NSString).pathExtension }
+        let suffixes = paths.map { IgnoreOptions.extensionSuffix(for: $0) ?? "" }
         if !deleting && Set(suffixes.map { $0.lowercased() }).count > 1 {
             Button { action(.ignore, paths) } label: { CommandLabel(title: "Ignore \(paths.count) items by name", icon: .ignore) }
             if let suffix = suffixes.first, !suffix.isEmpty {
@@ -184,9 +184,9 @@ struct IgnoreSelectionMenu: View {
         } else {
         Menu {
             Button { action(deleting ? .ignoreDelete : .ignore, paths) } label: { CommandLabel(title: paths.count == 1 ? (paths[0] as NSString).lastPathComponent : "Ignore \(paths.count) items by name", icon: .ignore, localized: false) }
-            let suffixes = paths.map { ($0 as NSString).pathExtension }
+            let suffixes = paths.map { IgnoreOptions.extensionSuffix(for: $0) ?? "" }
             if Set(suffixes.map { $0.lowercased() }).count == 1, let suffix = suffixes.first, !suffix.isEmpty {
-                Button { action(deleting ? .ignoreDeleteMask : .ignoreMask, paths) } label: { CommandLabel(title: paths.count == 1 ? "*." + suffix : "Ignore \(paths.count) items by extension", icon: .ignore, localized: false) }
+                Button { action(deleting ? .ignoreDeleteMask : .ignoreMask, paths) } label: { CommandLabel(title: paths.count == 1 ? "*" + suffix : "Ignore \(paths.count) items by extension", icon: .ignore, localized: false) }
             }
             if paths.count == 1 && !deleting {
                 let folder = (paths[0] as NSString).deletingLastPathComponent

@@ -712,7 +712,7 @@ import TurtleGitCore
             guard !retired else { throw Failure.unavailable }
             guard let userData, let command = FinderServiceCommand(rawValue: userData) else { throw Failure.command }
             let paths = try Self.selection(from: pasteboard)
-            let alternate = command == .diff ? ComparisonToolInvocation.capture : nil
+            let alternate = command.capturesAlternateTool ? ComparisonToolInvocation.capture : nil
             let request = try command.request(paths: paths, alternateTool: alternate)
             try submit(request)
         } catch let failure { error.pointee = failure.localizedDescription as NSString }

@@ -10,7 +10,8 @@ final class FinderServiceCommandTests: XCTestCase {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let expected: [(String, RepositoryAction)] = [("log", .log), ("commit", .commit), ("status", .status), ("diff", .diff), ("clone", .clone), ("initialize", .initialize),
-            ("pull",.pull),("fetch",.fetch),("push",.push),("synchronize",.synchronize),("rebase",.rebase),("stash",.stash),("stashApply",.stashApply),("stashPop",.stashPop),("stashList",.stashList),("switchBranch",.switchBranch),("merge",.merge),("branch",.branch),("tag",.tag)]
+            ("pull",.pull),("fetch",.fetch),("push",.push),("synchronize",.synchronize),("rebase",.rebase),("stash",.stash),("stashApply",.stashApply),("stashPop",.stashPop),("stashList",.stashList),("switchBranch",.switchBranch),("merge",.merge),("branch",.branch),("tag",.tag),
+            ("add",.add),("revert",.revert),("resolve",.resolve),("resolveCurrent",.resolveCurrent),("resolveMine",.resolveMine),("resolveTheirs",.resolveTheirs),("blame",.blame),("previousDiff",.previousDiff),("editConflict",.editConflict),("ignore",.ignore),("ignoreMask",.ignoreMask),("ignoreDelete",.ignoreDelete),("ignoreDeleteMask",.ignoreDeleteMask)]
         XCTAssertEqual(Set(FinderServiceCommand.allCases.map(\.rawValue)), Set(expected.map(\.0)))
         for (name, action) in expected {
             let command = try XCTUnwrap(FinderServiceCommand(rawValue: name))
@@ -30,7 +31,7 @@ final class FinderServiceCommandTests: XCTestCase {
             XCTAssertEqual(serviceRequest.paths.map(\.path), request.paths.map(\.path))
             XCTAssertNil(serviceRequest.alternateTool)
         }
-        for invalid in ["", "LOG", "revert", "remove", "commit&path=/other", " log"] {
+        for invalid in ["", "LOG", "unignore", "remove", "commit&path=/other", " log"] {
             XCTAssertNil(FinderServiceCommand(rawValue: invalid))
         }
     }
@@ -207,25 +208,29 @@ final class FinderServiceCommandTests: XCTestCase {
         }
     }
 
-    func testOnlyDiffCapturesExplicitAlternateToolWithoutChangingSelectedPaths() throws {
+    func testComparisonServicesCaptureExplicitAlternateToolWithoutChangingSelectedPaths() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let paths = [literal("/repo/first 雪 &?.txt"), literal("/repo/second.txt")]
-        for alternate in [false, true] {
-            let request = try FinderServiceCommand.diff.request(paths: paths, alternateTool: alternate)
+        for command in [FinderServiceCommand.diff,.previousDiff,.editConflict] {
+          let paths=command == .previousDiff ? Array(paths.prefix(1)):paths
+          XCTAssertTrue(command.capturesAlternateTool)
+          for alternate in [false, true] {
+            let request = try command.request(paths: paths, alternateTool: alternate)
             XCTAssertEqual(request.alternateTool, alternate)
-            let wire = try FinderServiceCommand.diff.serviceURL(paths: paths, alternateTool: alternate)
+            let wire = try command.serviceURL(paths: paths, alternateTool: alternate)
             let decoded = try FinderServiceCommand.request(serviceURL: wire)
-            XCTAssertEqual(decoded.action, .diff); XCTAssertEqual(decoded.alternateTool, alternate)
+            XCTAssertEqual(decoded.action, command.action); XCTAssertEqual(decoded.alternateTool, alternate)
             XCTAssertEqual(decoded.paths.map { Data($0.path.utf8) }, paths.map { Data($0.path.utf8) })
             XCTAssertThrowsError(try FinderServiceCommand.request(serviceURL: XCTUnwrap(URL(string: wire.absoluteString + "&alternate=1"))))
+        }
         }
         for suffix in ["&alternate=", "&alternate=true", "&alternate=2", "&alternate=-1", "&alternate"] {
             let wire = try FinderServiceCommand.diff.serviceURL(paths: paths)
             XCTAssertThrowsError(try FinderServiceCommand.request(serviceURL: XCTUnwrap(URL(string: wire.absoluteString + suffix))))
         }
-        for command in FinderServiceCommand.allCases where command != .diff {
+        for command in FinderServiceCommand.allCases where !command.capturesAlternateTool {
             _ = try command.request(paths: [directory])
             for alternate in [false, true] {
                 XCTAssertThrowsError(try command.request(paths: [directory], alternateTool: alternate))
@@ -233,4 +238,99 @@ final class FinderServiceCommandTests: XCTestCase {
             }
         }
     }
+    func testSelectedFileServiceCardinalityAliasesAndStrictEnvelopes() throws {
+        let commands:[FinderServiceCommand]=[.add,.revert,.resolve,.resolveCurrent,.resolveMine,.resolveTheirs,.blame,.previousDiff,.editConflict,.ignore,.ignoreMask,.ignoreDelete,.ignoreDeleteMask]
+        let first=literal("/unmonitored/first 雪 &?\n.txt"),second=literal("/unmonitored/second.txt")
+        for command in commands {
+            XCTAssertTrue(command.requiresSourceEligibility)
+            XCTAssertEqual(command.requiresSingleSelection,command == .blame || command == .previousDiff)
+            let singleton=try command.request(paths:[first,first])
+            XCTAssertEqual(singleton.paths.map{Data($0.path.utf8)},[Data(first.path.utf8)])
+            let paths=command.requiresSingleSelection ? [first]:[first,second]
+            let decoded=try FinderServiceCommand.request(serviceURL:command.serviceURL(paths:paths))
+            XCTAssertEqual(decoded.action,command.action)
+            XCTAssertEqual(decoded.paths.map{Data($0.path.utf8)},paths.map{Data($0.path.utf8)})
+            if command.requiresSingleSelection {XCTAssertThrowsError(try command.request(paths:[first,second]))}
+            for suffix in ["&source=/other","&force=1","&ref=HEAD","&command=resolve","&mask=1"] {
+                let wire=try command.serviceURL(paths:paths)
+                XCTAssertThrowsError(try FinderServiceCommand.request(serviceURL:XCTUnwrap(URL(string:wire.absoluteString+suffix))))
+            }
+        }
+        for command in [FinderServiceCommand.resolveCurrent,.resolveMine,.resolveTheirs] {
+            XCTAssertEqual(command.sourceAction,.resolve)
+            XCTAssertTrue(command.isEligible(flags:[.inGit,.conflicted]))
+            XCTAssertTrue(command.isEligible(flags:[.inGit,.folder]))
+            XCTAssertFalse(command.isEligible(flags:[.bare]))
+        }
+        XCTAssertEqual(FinderServiceCommand.ignoreMask.sourceAction,.ignore)
+        XCTAssertEqual(FinderServiceCommand.ignoreDeleteMask.sourceAction,.ignoreDelete)
+        XCTAssertTrue(FinderServiceCommand.ignoreMask.isEligible(flags:[.inVersionedFolder]))
+        XCTAssertTrue(FinderServiceCommand.ignoreDeleteMask.isEligible(flags:[.inVersionedFolder,.inGit]))
+        XCTAssertFalse(FinderServiceCommand.ignoreMask.isEligible(flags:[.inVersionedFolder,.ignored]))
+    }
+
+    func testSelectedFileLiveEligibilityKeepsSourceStatusAndDynamicChildrenDistinct() throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString,isDirectory:true)
+        let folder=root.appendingPathComponent("folder.ext",isDirectory:true)
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        defer {try? FileManager.default.removeItem(at:root)}
+        let normal=root.appendingPathComponent("normal.txt"),added=root.appendingPathComponent("added.txt")
+        let conflict=folder.appendingPathComponent("conflict.txt"),untracked=root.appendingPathComponent("new.txt")
+        let extensionless=root.appendingPathComponent("plain"),extensionlessSecond=root.appendingPathComponent("other-plain"),ignored=root.appendingPathComponent("ignored.txt")
+        let deleted=root.appendingPathComponent("deleted.txt"),other=literal("/other-repository/file.txt")
+        for path in [normal,added,conflict,untracked,extensionless,extensionlessSecond,ignored] {try Data().write(to:path)}
+        let snapshot=FinderSnapshot(roots:[root.path,"/other-repository"],states:[root.path:.modified,folder.path:.conflicted,normal.path:.normal,added.path:.added,conflict.path:.conflicted,untracked.path:.untracked,extensionless.path:.untracked,extensionlessSecond.path:.untracked,ignored.path:.ignored,deleted.path:.deleted,other.path:.conflicted])
+        for command in [FinderServiceCommand.blame,.previousDiff] {
+            XCTAssertTrue(command.isEligible(paths:[normal],snapshot:snapshot))
+            XCTAssertFalse(command.isEligible(paths:[added],snapshot:snapshot))
+            XCTAssertFalse(command.isEligible(paths:[normal,conflict],snapshot:snapshot))
+        }
+        XCTAssertFalse(FinderServiceCommand.blame.isEligible(paths:[folder],snapshot:snapshot))
+        XCTAssertTrue(FinderServiceCommand.editConflict.isEligible(paths:[conflict,normal],snapshot:snapshot))
+        XCTAssertFalse(FinderServiceCommand.editConflict.isEligible(paths:[normal,conflict],snapshot:snapshot),"Source conflict editor consumes representative first path")
+        XCTAssertTrue(FinderServiceCommand.resolve.isEligible(paths:[root],snapshot:snapshot))
+        for command in [FinderServiceCommand.resolveCurrent,.resolveMine,.resolveTheirs] {
+            XCTAssertTrue(command.isEligible(paths:[folder],snapshot:snapshot))
+            XCTAssertTrue(command.isEligible(paths:[conflict,normal],snapshot:snapshot))
+            XCTAssertFalse(command.isEligible(paths:[normal],snapshot:snapshot))
+            XCTAssertFalse(command.isEligible(paths:[conflict,other],snapshot:snapshot))
+        }
+        XCTAssertTrue(FinderServiceCommand.add.isEligible(paths:[untracked],snapshot:snapshot))
+        XCTAssertTrue(FinderServiceCommand.add.isEligible(paths:[ignored],snapshot:snapshot))
+        XCTAssertFalse(FinderServiceCommand.add.isEligible(paths:[normal],snapshot:snapshot))
+        XCTAssertFalse(FinderServiceCommand.revert.isEligible(paths:[normal],snapshot:snapshot))
+        XCTAssertTrue(FinderServiceCommand.revert.isEligible(paths:[deleted],snapshot:snapshot))
+        for command in [FinderServiceCommand.ignore,.ignoreMask] {
+            XCTAssertTrue(command.isEligible(paths:[untracked],snapshot:snapshot))
+            XCTAssertFalse(command.isEligible(paths:[ignored],snapshot:snapshot))
+            XCTAssertFalse(command.isEligible(paths:[normal],snapshot:snapshot))
+            XCTAssertFalse(command.isEligible(paths:[untracked,normal],snapshot:snapshot))
+        }
+        let dotfile=root.appendingPathComponent(".profile"),trailingDot=root.appendingPathComponent("trailing.")
+        try Data().write(to:dotfile);try Data().write(to:trailingDot)
+        let suffixSnapshot=FinderSnapshot(roots:[root.path],states:[dotfile.path:.untracked,trailingDot.path:.untracked])
+        XCTAssertTrue(FinderServiceCommand.ignoreMask.isEligible(paths:[dotfile],snapshot:suffixSnapshot))
+        XCTAssertTrue(FinderServiceCommand.ignoreMask.isEligible(paths:[trailingDot],snapshot:suffixSnapshot))
+        XCTAssertTrue(FinderServiceCommand.ignore.isEligible(paths:[extensionless],snapshot:snapshot))
+        XCTAssertFalse(FinderServiceCommand.ignoreMask.isEligible(paths:[extensionless],snapshot:snapshot))
+        XCTAssertTrue(FinderServiceCommand.ignoreMask.isEligible(paths:[extensionless,untracked],snapshot:snapshot))
+        XCTAssertTrue(FinderServiceCommand.ignoreMask.isEligible(paths:[extensionless,extensionlessSecond],snapshot:snapshot),"Source offers multi-selection masks even when rule generation skips all extensionless names")
+        let mask=try IgnoreOptions(paths:["plain","other-plain"],mask:true)
+        XCTAssertNil(mask.pattern(for:"plain"));XCTAssertNil(mask.pattern(for:"other-plain"))
+        let trackedPlain=FinderSnapshot(roots:[root.path],states:[extensionless.path:.normal,extensionlessSecond.path:.modified])
+        XCTAssertTrue(FinderServiceCommand.ignoreDeleteMask.isEligible(paths:[extensionless,extensionlessSecond],snapshot:trackedPlain))
+        let deleteSelection=try FinderServiceCommand.ignoreDeleteMask.request(paths:[extensionless,extensionlessSecond])
+        XCTAssertEqual(deleteSelection.paths.map{Data($0.path.utf8)},[extensionless,extensionlessSecond].map{Data($0.path.utf8)})
+        XCTAssertTrue(FinderServiceCommand.ignoreDelete.isEligible(paths:[folder],snapshot:snapshot))
+        XCTAssertFalse(FinderServiceCommand.ignoreDeleteMask.isEligible(paths:[folder],snapshot:snapshot))
+        let literalLink=root.appendingPathComponent("link.txt")
+        try FileManager.default.createSymbolicLink(at:literalLink,withDestinationURL:folder)
+        let linkSnapshot=FinderSnapshot(roots:[root.path],states:[literalLink.path:.normal])
+        XCTAssertTrue(FinderServiceCommand.ignoreDeleteMask.isEligible(paths:[literalLink],snapshot:linkSnapshot),"A tracked symlink is the selected Git leaf, not its directory target")
+        XCTAssertTrue(FinderServiceCommand.ignoreDeleteMask.isEligible(paths:[normal,added],snapshot:snapshot))
+        XCTAssertFalse(FinderServiceCommand.ignoreDelete.isEligible(paths:[deleted],snapshot:snapshot))
+        XCTAssertFalse(FinderServiceCommand.ignoreDelete.isEligible(paths:[root],snapshot:snapshot))
+        XCTAssertFalse(FinderServiceCommand.ignoreDelete.isEligible(paths:[conflict,other],snapshot:snapshot))
+    }
+
 }

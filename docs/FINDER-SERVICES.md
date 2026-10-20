@@ -1,6 +1,6 @@
 # TurtleGit selected-file Services
 
-TurtleGit advertises nineteen macOS Services for selected files and folders. They give
+TurtleGit advertises thirty-two macOS Services for selected files and folders. They give
 users an entry point outside Finder Sync's monitored repositories, through the
 system's **Services** menu. They also work with file selections supplied by other
 apps that support macOS Services. Availability and ordering are controlled by
@@ -22,6 +22,12 @@ macOS; these entries do not extend Finder Sync's ordinary context-menu coverage.
 | TurtleGit: Stash changes… | Existing Stash Save dialog |
 | TurtleGit: Stash Apply / Stash Pop | Apply or pop the selected repository's newest stash through the existing progress workflow |
 | TurtleGit: Stash List | Existing stash history window |
+| TurtleGit: Add… / Revert… | Add selected files through progress or review folder contents; review selected changes to revert |
+| TurtleGit: Resolve… / Resolved / Resolve conflict using ‘mine’ or ‘theirs’ | Review conflicts or run the selected resolution through its existing confirmation and progress workflow |
+| TurtleGit: Blame / Diff with previous version | Existing selected-file Blame or previous-revision comparison |
+| TurtleGit: Edit conflict… | Existing conflict editor for the first captured selected path |
+| TurtleGit: Add to ignore list… / Ignore by extension… | Existing Ignore Type/File review with name or extension patterns |
+| TurtleGit: Delete and add to ignore list… / Delete and ignore by extension… | Ignore review followed by the existing keep-local/removal confirmation |
 
 Clone and Create advertise folder selections only. They require one existing,
 ordinary directory; filesystem roots, symlink leaves and Git administrative paths
@@ -95,17 +101,19 @@ permission.
 
 ## Registration and source scope
 
-`Configuration/App-Info.plist` supplies the nineteen `NSServices` declarations.
+`Configuration/App-Info.plist` supplies the thirty-two `NSServices` declarations.
 `ApplicationDelegate.swift` installs one provider after startup preparation,
 restores a previous provider only if TurtleGit still owns the registration, and
-retires pending service input during termination. Services do not automatically
-stage, commit, clone or initialize anything merely because a menu opens.
+retires pending service input during termination. Opening a menu does not execute
+a Service. Invoking Add on files or a quick Resolve command explicitly authorizes
+its existing Git workflow; these entries are not merely navigation shortcuts.
 
 The pinned source comparison is TortoiseGit revision
 `7338078f8ddd924b8cddee35f512f2286072136d`, particularly
 `TortoiseShell/ContextMenu.cpp` selection initialization and command dispatch, and
 `TortoiseShell/MenuInfo.cpp` Log, Commit, ShowChanged, Diff, Clone, CreateRepo,
-Pull/Fetch/Push/Sync, Switch/Merge/Branch/Tag/Rebase and all four stash entries.
+Pull/Fetch/Push/Sync, Switch/Merge/Branch/Tag/Rebase all four stash entries, Add/Revert/Resolve, Blame, PreviousDiff, ConflictEditor
+and the four Ignore/IgnoreDelete variants.
 Those Explorer commands are not restricted to a previously watched-root list.
 macOS Services supplies the missing selected-item entry point; its system menu
 placement differs from Explorer and from TurtleGit's existing Finder Sync menus.
@@ -118,7 +126,7 @@ The implementation follows Apple's
 [Services properties](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/properties.html)
 for file UTIs, required context, message/user-data mapping and restricted actions,
 and its [service-provider lifecycle](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/providing.html).
-Clone and Create advertise `public.folder`; the other seventeen advertise
+Clone and Create advertise `public.folder`; the other thirty advertise
 `public.item`, with operation eligibility checked after access and discovery.
 The bundle uses file services rather than treating a plain text path as a file.
 
@@ -156,3 +164,28 @@ has its recorded sequential-modal/skip-on-failure gap; this Services expansion
 does not claim that CLI gap fixed.
 Physical Services registration, signed grants, menu gestures and full Finder
 parity still need their own acceptance.
+
+
+## Selected-file workflow expansion — October 20, 2026
+
+Thirteen additional Services retain the source selection and live status gates.
+Blame and previous-version comparison require one path. Conflict editing accepts
+multiple paths and uses the first captured path, as upstream does. Mixed
+repositories are refused for these operations. Captured paths never fall back to
+an unrelated current workspace selection. Shift captures the alternate comparison
+tool for Diff, previous-version comparison and conflict editing before discovery.
+
+Add on selected files stages those literal paths through the existing progress
+workflow; selecting a folder opens the Add review. Quick resolution uses the
+existing confirmation and Git workflow. Ignore retains its destination and scope
+review, and delete/ignore retains the keep-local question before removal. Mask
+selection is available for source-eligible multi-selections even when some items
+lack extensions; those items do not generate mask rules. Directory leaves do not
+generate extension masks. Dotfiles and trailing-dot names use upstream's last-dot
+suffix convention, so `.profile` produces `*.profile`. Symlinks remain Git leaves
+in their containing repository.
+
+The focused runner is `scripts/test-finder-file-services.py`. The
+[selected-file batch evidence](qa/finder-file-services-family-2026-10-20.json)
+records the actual grouped results. Physical Services gestures, signed sandbox
+grants and complete source UI parity remain separate acceptance requirements.

@@ -1,0 +1,109 @@
+{
+  "status": "focused-local-validation-passed",
+  "scope": "Thirteen selected-file Finder Services, thirty-two total; source mask semantics and captured native workflow ownership",
+  "source": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "files": [
+      "src/TortoiseShell/MenuInfo.cpp",
+      "src/TortoiseShell/ContextMenu.cpp",
+      "src/TortoiseProc/Commands/ConflictEditorCommand.cpp",
+      "src/TortoiseProc/AppUtils.cpp",
+      "src/Git/TGitPath.cpp"
+    ]
+  },
+  "checks": [
+    {
+      "name": "Focused Core group",
+      "result": "23 methods passed (12 Services, 11 Ignore)",
+      "log": "build/qa/finder-file-services-core-repair-2026-10-20.log",
+      "initial_failure": "Core referenced Mac-only RepositoryAction.quickResolution; replaced with equivalent three Core enum cases. Initial Core/app compilation failed before tests.",
+      "initial_log": "build/qa/finder-file-services-core-2026-10-20.log"
+    },
+    {
+      "name": "Native app build",
+      "result": "passed after Core layer repair",
+      "logs": [
+        "build/qa/finder-file-services-app-2026-10-20.log",
+        "build/qa/finder-file-services-app-repair-2026-10-20.log"
+      ],
+      "note": "Local SDK logged command-exit-zero/no-output diagnostics; final xcodebuild process exited zero."
+    },
+    {
+      "name": "Actual Finder menu builder",
+      "result": "passed",
+      "log": "build/qa/finder-file-services-menu-order-repair-2026-10-20.log",
+      "scope": "Actual menu source/native adaptation ordering, .profile/trailing-dot mask titles, extensionless singleton/multi masks, existing nested routing/icons and localization/transport assertions. No installed extension activation.",
+      "repairs": [
+        "New fixture initially used Dictionary instead of GitPathMap",
+        "Preexisting static source projection omitted native direct New Worktree adaptation; kept independent source/native full order assertions and baseline visibility assertion."
+      ],
+      "initial_logs": [
+        "build/qa/finder-file-services-menu-2026-10-20.log",
+        "build/qa/finder-file-services-menu-repair-2026-10-20.log"
+      ]
+    },
+    {
+      "name": "Selected-file Services provider",
+      "result": "passed once",
+      "log": "build/qa/finder-file-services-native-2026-10-20.log",
+      "scope": "All 13 new private-pasteboard routes and 32 declarations retain literal selection."
+    },
+    {
+      "name": "Native selected paths/conflicts",
+      "result": "Paths and conflicts passed with both Git engines; four final receiver case/engine combinations",
+      "logs": [
+        "build/qa/finder-file-services-native-2026-10-20.log",
+        "build/qa/finder-file-services-native-repair-2026-10-20.log",
+        "build/qa/finder-file-services-native-readiness-repair-2026-10-20.log"
+      ],
+      "repairs": [
+        "Fixture check-ignore needed literalPathspecs:false because check-ignore rejects global literal pathspec magic",
+        "Fixture Open raced Ignore-triggered refresh: now waits readiness and requires actual Open completion receipt and target repository. No production changes after passing app/Core checkpoint."
+      ],
+      "scope": [
+        "Captured literal Revert/Blame/PreviousDiff and workspace A/B routing",
+        "Direct selected-file Add, symlink index mode and unrelated-file preservation; folder Add review",
+        "Four Ignore modes, dotfile mask and actual keep-local/delete effects",
+        "Live bare/normal/added/untracked/mixed gates",
+        "Owned first-use Add grant Cancel, late reply fence, held preflight owner-close/Quit and actual worker drainage",
+        "Resolve review, multi-selection first-path conflict editor, actual Current/Mine/Theirs questions, index/worktree effects and preservation of other conflicts/HEAD/MERGE_HEAD/workspace B"
+      ]
+    },
+    {
+      "name": "Resources and site",
+      "result": "localization/help checks and site generation passed",
+      "site_log": "build/qa/finder-file-services-site-2026-10-20.log",
+      "coverage": "130 pinned dialogs, 120 partial family audits, 10 pending family reviews, 85 pending control reviews; these are audit counts, not completion percentages."
+    }
+  ],
+  "remaining": [
+    "Physical Finder/other-app Services registration and gestures",
+    "Installed signed sandbox permission acceptance",
+    "Full hosted integration and Intel execution",
+    "Complete dialog layout/accessibility/source behavior acceptance",
+    "Separate primary-command transport batch sequential/skip-on-failure gap"
+  ],
+  "hosted_observation": {
+    "revision": "b4e90491",
+    "macos_run": 39470586222,
+    "macos_state": "pending",
+    "pages_run": 39470586189,
+    "pages_state": "success",
+    "note": "Earlier revision only; current uncommitted batch not hosted-validated."
+  },
+  "owned_receivers": {
+    "reaped": [
+      66226,
+      66233,
+      66573,
+      66605,
+      67065,
+      67237,
+      68241,
+      69239,
+      69588
+    ],
+    "independently_absent": true,
+    "note": "Includes failed attempts and actual menu receiver; native runner finally releases only private fixture helpers on failure/timeout. Unsandboxed pasteboard warnings do not prove signed grants."
+  }
+}

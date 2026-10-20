@@ -10,6 +10,16 @@ private enum HistoricalMaterializationContext {
     @TaskLocal static var backend:GitLibGit2Configuration?
 }
 
+/// Async preparation inherits its originating Services request, never the
+/// workspace's later selection or another concurrently prepared child.
+private struct FinderServiceDispatchIdentity:Sendable {
+    let action:RepositoryAction
+    let root:URL
+}
+private enum FinderServicePresentationContext {
+    @TaskLocal static var current:FinderServiceDispatchIdentity?
+}
+
 /// Delayed repository work belongs to the window that launched it, even when
 /// that window closes before preparation or creation reports completion.
 @MainActor private final class RepositoryWindowOwner {
@@ -407,7 +417,7 @@ private enum HistoricalMaterializationContext {
     /// Production uses ordinary windows; native verification can keep owned
     /// children offscreen without replacing their models or Git operations.
     var finderServiceWorkflowPresentation:((RepositoryAction,NSWindowController,GitRepository,RepositoryAccessLease?)->Void)?
-    private var finderServiceDispatch:(action:RepositoryAction,root:URL)?
+    private var finderServiceDispatch:FinderServiceDispatchIdentity? {FinderServicePresentationContext.current}
     private func prepareFinderServiceWorkflow(_ controller:NSWindowController,repository:GitRepository,access:RepositoryAccessLease?) {
         guard let context=finderServiceDispatch,context.root==repository.root else{return}
         finderServiceTransportStep?.capture(controller)
@@ -884,8 +894,7 @@ private enum HistoricalMaterializationContext {
                     // metadata; no Finder cache or prior workspace decides an
                     // unmonitored repository's Services eligibility.
                     let live=FinderSnapshot(roots:[resolved.path],states:cacheStates,repositories:cacheRepositories,overlayEntries:cacheOverlayEntries,indexFlags:cacheIndexFlags,overlayPolicies:cacheOverlayPolicies)
-                    let flags=FinderShellRules.flags(paths:selected.paths,snapshot:live)
-                    guard serviceCommand.isEligible(flags:flags) else {
+                    guard serviceCommand.isEligible(paths:selected.paths,snapshot:live) else {
                         throw FinderServiceCommand.Failure("\(serviceCommand.action.title) is not available for this selection and the repository's current state.")
                     }
                 }
@@ -898,18 +907,23 @@ private enum HistoricalMaterializationContext {
                 if let invocation {
                     activateCommandLine(invocation, message: commandMessage, selectedRevision: commandSelectedRevision, repository: repository!, access: sessionAccess, outputAccess: outputAccess)
                 } else if let action {
-                    let previousServiceDispatch=finderServiceDispatch
-                    if serviceCommand != nil {finderServiceDispatch=(action,resolved)}
-                    defer{finderServiceDispatch=previousServiceDispatch}
                     let paths = actionPaths ?? selected?.relativePaths(root: resolved) ?? []
-                    if action.isFileTransfer, let request = selected, let repository, let destination = request.paths.first {
-                        if let finderTransferPresentation { finderTransferPresentation(request, repository, sessionAccess) }
-                        else if action == .transferFiles { showTransferSelection(repository: repository, access: sessionAccess, sources: request.sources, destination: destination, owner: workspaceWindow, preferences: fileComparisonPreferences) }
-                        else if action == .pasteCopy { showCopy(repository: repository, access: sessionAccess, sources: request.sources, paste: true, folder: destination) }
-                        else { showMove(repository: repository, access: sessionAccess, paths: [], clipboard: request.sources, destination: destination) }
-                    } else if action == .requestPull, let repository {
-                        showRequestPull(repository: repository, access: sessionAccess, end: selected?.requestPullEnd, repositoryURL: selected?.requestPullURL)
-                    } else { activate(action, paths: paths) }
+                    if serviceCommand != nil,let selected {
+                        guard !paths.isEmpty,paths.count==selected.paths.count else {
+                            throw FinderServiceCommand.Failure("Every selected item must belong to the captured repository.")
+                        }
+                    }
+                    let serviceContext=serviceCommand.map{_ in FinderServiceDispatchIdentity(action:action,root:resolved)}
+                    FinderServicePresentationContext.$current.withValue(serviceContext) {
+                        if action.isFileTransfer, let request = selected, let repository, let destination = request.paths.first {
+                            if let finderTransferPresentation { finderTransferPresentation(request, repository, sessionAccess) }
+                            else if action == .transferFiles { showTransferSelection(repository: repository, access: sessionAccess, sources: request.sources, destination: destination, owner: workspaceWindow, preferences: fileComparisonPreferences) }
+                            else if action == .pasteCopy { showCopy(repository: repository, access: sessionAccess, sources: request.sources, paste: true, folder: destination) }
+                            else { showMove(repository: repository, access: sessionAccess, paths: [], clipboard: request.sources, destination: destination) }
+                        } else if action == .requestPull, let repository {
+                            showRequestPull(repository: repository, access: sessionAccess, end: selected?.requestPullEnd, repositoryURL: selected?.requestPullURL)
+                        } else { activate(action, paths: paths) }
+                    }
                 }
                 opened = true; onOpened?()
             } catch {
@@ -1595,7 +1609,7 @@ private enum HistoricalMaterializationContext {
         let key = repository.root.path + "\0" + path
         guard conflictEditorPreparations[key] == nil else { return }
         let alternate = alternateTool ?? ComparisonToolInvocation.capture
-        let owner = owner ?? (commandLaunch ? nil : NSApp.keyWindow ?? workspaceWindow)
+        let owner = owner ?? (finderServiceDispatch != nil ? workspaceWindow : commandLaunch ? nil : NSApp.keyWindow ?? workspaceWindow)
         let defaults = preferences ?? fileComparisonPreferences
         let tools = MergeToolPreferences.load(from: defaults), identities = ConflictIdentityOptions(defaults: defaults)
         let external = openExternalConflict, readEntry = readConflictEditorEntry
@@ -1642,7 +1656,7 @@ private enum HistoricalMaterializationContext {
                             self?.refreshAfterConflictChange(root)
                             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                         }
-                        imageConflictWindows[key] = controller; presentConflictWindow(controller); return
+                        imageConflictWindows[key] = controller; prepareFinderServiceWorkflow(controller,repository:repository,access:access); presentConflictWindow(controller); return
                     }
                     try await validateConflictEditorEntry(entry, repository: repository, token: token)
                     request.dismissProgress()
@@ -1653,7 +1667,7 @@ private enum HistoricalMaterializationContext {
                         self?.refreshAfterConflictChange(root)
                         if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                     }
-                    textConflictWindows[key] = controller; presentConflictWindow(controller); return
+                    textConflictWindows[key] = controller; prepareFinderServiceWorkflow(controller,repository:repository,access:access); presentConflictWindow(controller); return
                 }
                 let root = repository.root, key = root.path + "\0" + path
                 try await validateConflictEditorEntry(entry, repository: repository, token: token)
@@ -1667,7 +1681,7 @@ private enum HistoricalMaterializationContext {
                 }
                 controller.model.onLog = { [weak self] child, revision in self?.showLog(repository: child, access: access, paths: [], endRevision: revision) }
                 controller.model.onReset = { [weak self, weak controller] child, revision, done in self?.showReset(repository: child, access: access, revision: revision, completion: done, dismissed: { [weak controller] in controller?.model.dismissReset() }) }
-                submoduleConflictWindows[key] = controller; presentConflictWindow(controller)
+                submoduleConflictWindows[key] = controller; prepareFinderServiceWorkflow(controller,repository:repository,access:access); presentConflictWindow(controller)
                 }
             } catch { if !retired, !request.session.cancellation.isCancelled, !confirmingQuit { self.error = error.localizedDescription } }
         }
@@ -1685,7 +1699,7 @@ private enum HistoricalMaterializationContext {
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
         }
         controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [path], endRevision: revision) }
-        deleteConflictWindows[key] = controller; presentConflictWindow(controller)
+        deleteConflictWindows[key] = controller; prepareFinderServiceWorkflow(controller,repository:repository,access:access); presentConflictWindow(controller)
     }
     func configureResetInteractions(_ controller: ResetWindowController, repository: GitRepository, access: RepositoryAccessLease?, completion: (() -> Void)? = nil) {
         let root = repository.root, preferences = controller.model.presentationPreferences
@@ -1777,6 +1791,7 @@ private enum HistoricalMaterializationContext {
         }
         presentation?.apply(to: controller.window)
         resolveWindows[key] = controller
+        prepareFinderServiceWorkflow(controller,repository:repository,access:access)
         if let resolveWindowPresentation { resolveWindowPresentation(controller) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
@@ -1795,7 +1810,7 @@ private enum HistoricalMaterializationContext {
                 self.output = output; Task { await self.refresh() }
             }
             ignoreWindows[key] = controller
-            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+            prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         } catch { self.error = error.localizedDescription }
     }
     private func showRemove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], keepLocal: Bool) {
@@ -1901,7 +1916,7 @@ private enum HistoricalMaterializationContext {
                 controller.model.onRestoreChanged = { [weak model = controller.model] in model?.onIgnoreChanged("Working copies restored.") }
                 controller.model.onDeleteChanged = controller.model.onIgnoreChanged
                 addWindows[key] = controller; controller.model.setScope(paths); controller.model.reload()
-                controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+                prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
             } catch { if !retired, !owner.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
@@ -2336,6 +2351,7 @@ private enum HistoricalMaterializationContext {
             self.showLog(repository: repository, access: access, paths: [path], preferences: capturedPreferences)
         }
         addProgressWindows[id] = controller
+        prepareFinderServiceWorkflow(controller,repository:repository,access:access)
         if let presentation = addProgressWindowPresentation { presentation(controller) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
         controller.model.start()
@@ -2413,7 +2429,7 @@ private enum HistoricalMaterializationContext {
 
         revertWindows[root.path] = controller
         controller.model.setScope(paths)
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     var submoduleDiffPresentation:((SubmoduleDiffWindowController)->Void)?
     private func showSubmoduleDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, preferences: UserDefaults? = nil, appearance: NSAppearance? = nil, alpha: CGFloat? = nil) {
@@ -2452,7 +2468,7 @@ private enum HistoricalMaterializationContext {
         configureRevisionComparisonInteractions(controller.model, repository: repository, access: access)
         revisionComparisonWindows[key] = controller
         controller.model.load()
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        prepareFinderServiceWorkflow(controller,repository:repository,access:access); controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showRevisionGraph(repository: GitRepository, access: RepositoryAccessLease?) {
         let key = repository.root.path + "\0" + repository.executable.path
@@ -2557,7 +2573,7 @@ private enum HistoricalMaterializationContext {
     private var fileComparisonSessions: [UUID: FileListComparisonSession] = [:]
     private func prepareFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, selectedCount: Int, owner: NSWindow?, preferences: UserDefaults? = nil, capturedOwner: Bool = false, operation: @escaping (OperationCancellation) async throws -> Void) {
         guard !retired, !busy, !confirmingQuit else { return }
-        let id = UUID(), session = FileListComparisonSession(window: capturedOwner ? owner : owner ?? NSApp.keyWindow ?? workspaceWindow, preferences: preferences ?? fileComparisonPreferences)
+        let id = UUID(), session = FileListComparisonSession(window: capturedOwner ? owner : owner ?? (finderServiceDispatch != nil ? workspaceWindow : NSApp.keyWindow ?? workspaceWindow), preferences: preferences ?? fileComparisonPreferences)
         session.confirmation = fileComparisonQuestion
         fileComparisonSessions[id] = session; busy = true
         Task {
@@ -2700,6 +2716,7 @@ private enum HistoricalMaterializationContext {
             controller.model.comparisonDefaults = defaults
             if let appearance { controller.window?.appearance = appearance }
             if let alpha { controller.window?.alphaValue = alpha }
+            prepareFinderServiceWorkflow(controller,repository:repository,access:access)
             if let fileComparisonWindowPresentation { fileComparisonWindowPresentation(controller) }
             else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
         }
@@ -3146,7 +3163,7 @@ private enum HistoricalMaterializationContext {
             self.blameWindows[available]=controller
         }
         if let options { controller.model.configure(options:options,line:line) } else if let line { controller.model.selectOriginalLine(line) }
-        blameWindows[key]=controller;controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
+        blameWindows[key]=controller;prepareFinderServiceWorkflow(controller,repository:repository,access:access);controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
     }
     private func refreshRepositoryLogs(_ root: URL) {
         configuredLogModels=configuredLogModels.filter { $0.value.model?.isInvalidated == false }
@@ -4993,7 +5010,8 @@ private enum FinderSelectionFailure: LocalizedError {
         stack.translatesAutoresizingMaskIntoConstraints = false; view.addSubview(stack)
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20), stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20), stack.centerYAnchor.constraint(equalTo: view.centerYAnchor)])
         let panel = NSPanel(contentRect: view.frame, styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        panel.title = "Conflict – TurtleGit"; panel.contentView = view; panel.isReleasedWhenClosed = false; panel.delegate = self; self.panel = panel
+        panel.title = "Conflict – TurtleGit"; panel.contentView = view; panel.isReleasedWhenClosed = false; panel.delegate = self
+        panel.alphaValue=owner?.alphaValue ?? 1;panel.appearance=owner?.appearance;self.panel = panel
         if let owner, owner.isVisible, owner.attachedSheet == nil { owner.beginSheet(panel) }
         else { panel.center(); panel.orderFront(nil) }
     }
