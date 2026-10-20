@@ -208,6 +208,13 @@ import TurtleGitCore
         if FinderFilesystemWorkflowRelease.activeRetirements > 0 || CleanProgressWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? CleanProgressWindowController }).contains(where: { $0.model.authorizing || $0.model.confirmingCancellation }) { return .terminateCancel }
         if sender.windows.contains(where:{ window in
             switch window.delegate {
+            case let owner as WorktreeListWindowController:return owner.finderServiceWorkPending
+            case let owner as WorktreeCreateWindowController:return owner.finderServiceWorkPending
+            case let owner as SubmoduleAddWindowController:return owner.finderServiceWorkPending
+            case let owner as SubmoduleAddProgressWindowController:return owner.finderServiceWorkPending
+            case let owner as SubmoduleUpdateWindowController:return owner.finderServiceWorkPending
+            case let owner as SubmoduleUpdateProgressWindowController:return owner.finderServiceWorkPending
+            case let owner as SubmoduleSyncWindowController:return owner.finderServiceWorkPending
             case let owner as RenameWindowController:return owner.finderServiceWorkPending
             case let owner as RemoveWindowController:return owner.finderServiceWorkPending
             case let owner as CleanWindowController:return owner.finderServiceWorkPending

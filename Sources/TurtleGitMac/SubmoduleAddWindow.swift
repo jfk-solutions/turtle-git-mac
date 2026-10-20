@@ -6,6 +6,12 @@ import TurtleGitCore
 @MainActor final class SubmoduleAddWindowController: NSWindowController, NSWindowDelegate {
     let model: SubmoduleAddWindowModel
     var onClosed: () -> Void = {}
+    private var closing=false
+    private var release:FinderFilesystemWorkflowRelease?
+    private var retiringChildren:[NSWindow]=[]
+    var finderServiceCanPresent:Bool {!closing && !model.isRetired}
+    private var underlyingWorkPending:Bool {panel != nil || window?.sheetParent != nil || window?.attachedSheet != nil || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
+    var finderServiceWorkPending:Bool {release != nil || underlyingWorkPending}
     private(set) var panel: NSOpenPanel?
     private var pickerID=UUID()
     var presentOpenPanel:(NSOpenPanel,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void = {panel,owner,reply in panel.beginSheetModal(for:owner,completionHandler:reply)}
@@ -41,11 +47,12 @@ import TurtleGitCore
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.activeOperation && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) {
+    func windowWillClose(_ notification:Notification){
+        guard notification.object as? NSWindow === window,!closing else{return};closing=true
         model.invalidate();pickerID=UUID();let owned=panel;panel=nil;model.picking=false
-        if let owned {owned.sheetParent?.endSheet(owned,returnCode:.cancel);owned.orderOut(nil);owned.cancel(nil)}
-        if let window, let child = window.attachedSheet { window.endSheet(child, returnCode: .abort); child.close() }
-        onClosed()
+        if let owned{retiringChildren.append(owned);owned.sheetParent?.endSheet(owned,returnCode:.cancel);owned.orderOut(nil);owned.cancel(nil);owned.close()}
+        if let window{if let child=window.attachedSheet{retiringChildren.append(child);window.endSheet(child,returnCode:.abort);child.close()};window.sheetParent?.endSheet(window,returnCode:.abort)}
+        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();let done=onClosed;onClosed={};done()};self.release=release;release.start()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -56,6 +63,7 @@ import TurtleGitCore
     private let access: RepositoryAccessLease?, preferences: UserDefaults, basePath: String
     private var sourceAccess: RepositoryAccessLease?, keyAccess: RepositoryAccessLease?
     private var invalidated = false, submitted = false
+    var isRetired:Bool {invalidated || submitted}
     @Published var source: String
     @Published var path: String
     @Published var useBranch = false { didSet { if useBranch != oldValue { formRevision = UUID() } } }

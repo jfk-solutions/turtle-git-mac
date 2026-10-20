@@ -29,6 +29,14 @@ extension RenameWindowController:FinderFilesystemWorkflowWindow {}
 extension RemoveWindowController:FinderFilesystemWorkflowWindow {}
 extension CleanWindowController:FinderFilesystemWorkflowWindow {}
 extension CleanProgressWindowController:FinderFilesystemWorkflowWindow {}
+extension LogWindowController:FinderFilesystemWorkflowWindow {var finderServiceCanPresent:Bool {!model.isInvalidated}}
+extension WorktreeListWindowController:FinderFilesystemWorkflowWindow {}
+extension WorktreeCreateWindowController:FinderFilesystemWorkflowWindow {}
+extension SubmoduleAddWindowController:FinderFilesystemWorkflowWindow {}
+extension SubmoduleAddProgressWindowController:FinderFilesystemWorkflowWindow {}
+extension SubmoduleUpdateWindowController:FinderFilesystemWorkflowWindow {}
+extension SubmoduleUpdateProgressWindowController:FinderFilesystemWorkflowWindow {}
+extension SubmoduleSyncWindowController:FinderFilesystemWorkflowWindow {}
 
 /// Delayed repository work belongs to the window that launched it, even when
 /// that window closes before preparation or creation reports completion.
@@ -911,8 +919,17 @@ private enum TransportBatchPresentationContext {
                 }
                 let prepared=try await prepareRepositoryMetadataAccess(at:location,primary:lease,cancellation:cancellation)
                 try cancellation.check();guard adoption==adoptionGeneration else { return }
-                let sessionAccess=lease.retainingRelatedScopes(prepared.scopes)
+                var sessionAccess=lease.retainingRelatedScopes(prepared.scopes)
+                var discoveredPermissionFolders=prepared.newFolders
                 let candidate = try makeRepository(location)
+                var serviceSelectionSnapshot:FinderSnapshot?
+                if serviceCommand?.action == .logSubmodule {
+                    let childRoot=try await candidate.discoverRoot(cancellation:cancellation)
+                    let child=try makeRepository(childRoot)
+                    let metadata=try await child.finderMetadata(cancellation:cancellation)
+                    try cancellation.check()
+                    serviceSelectionSnapshot=FinderSnapshot(roots:[childRoot.path],states:[childRoot.path:.normal],repositories:[childRoot.path:metadata])
+                }
                 let resolved: URL
                 if submoduleLocation != nil {
                     resolved = try await candidate.discoverRoot(cancellation: cancellation)
@@ -924,14 +941,23 @@ private enum TransportBatchPresentationContext {
                     let requested = first.standardizedFileURL.resolvingSymlinksInPath().path
                     guard GitReferenceName.equal(location.standardizedFileURL.resolvingSymlinksInPath().path, requested), GitReferenceName.equal(resolved.standardizedFileURL.resolvingSymlinksInPath().path, requested) else { throw PrimaryCommandInvocation.Failure("Batch transport commands require repository-root folders.") }
                 }
-                if (requiresRepositoryScope && !lease.hasSecurityScope) || ((requiresRepositoryScope || submoduleLocation != nil) && !lease.contains(resolved)) {
+                if let serviceCommand,[RepositoryAction.logSubmodule,.submoduleUpdate,.submoduleSync].contains(serviceCommand.action),!sessionAccess.contains(resolved) {
+                    guard let handoffOwner else{throw RepositoryAccessFailure.repositoryRootOutsidePermission(resolved.path)}
+                    let parentAccess=try await finderServiceRepositoryAccess(resolved,related:prepared.scopes,owner:handoffOwner,cancellation:cancellation)
+                    sessionAccess=parentAccess.retainingRelatedScopes([lease]+prepared.scopes)
+                    let parentMetadata=try await prepareRepositoryMetadataAccess(at:resolved,primary:sessionAccess,cancellation:cancellation)
+                    sessionAccess=sessionAccess.retainingRelatedScopes(parentMetadata.scopes)
+                    discoveredPermissionFolders += parentMetadata.newFolders
+                    try cancellation.check();guard adoption==adoptionGeneration else{return}
+                }
+                if (requiresRepositoryScope && !sessionAccess.hasSecurityScope) || ((requiresRepositoryScope || submoduleLocation != nil) && !sessionAccess.contains(resolved)) {
                     throw RepositoryAccessFailure.repositoryRootOutsidePermission(resolved.path)
                 }
                 if let selected {
                     for item in selected.paths {
                         let literalSymlink = (try? FileManager.default.attributesOfItem(atPath:item.path))?[.type] as? FileAttributeType == .typeSymbolicLink
                         let permissionTarget = blameSelection || literalSymlink ? item.standardizedFileURL.deletingLastPathComponent() : item
-                        guard lease.contains(permissionTarget), item.path == resolved.path || item.path.hasPrefix(resolved.path + "/") else {
+                        guard sessionAccess.contains(permissionTarget), item.path == resolved.path || item.path.hasPrefix(resolved.path + "/") else {
                             throw FinderSelectionFailure.multipleRepositories
                         }
                         if submoduleLocation != nil || historicalSelection { continue }
@@ -939,7 +965,7 @@ private enum TransportBatchPresentationContext {
                         var directory: ObjCBool = false
                         if (try? FileManager.default.attributesOfItem(atPath:location.path))?[.type] as? FileAttributeType == .typeSymbolicLink || !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue { location.deleteLastPathComponent() }
                         let itemRoot = try await makeRepository(location).discoverSelectionRoot(for: action ?? .status, selected: item,cancellation:cancellation)
-                        guard itemRoot.standardizedFileURL == resolved.standardizedFileURL else { throw FinderSelectionFailure.multipleRepositories }
+                        guard GitReferenceName.equal(itemRoot.standardizedFileURL.path,resolved.standardizedFileURL.path) else { throw FinderSelectionFailure.multipleRepositories }
                     }
                 }
                 try cancellation.check();guard adoption == adoptionGeneration else { return }
@@ -961,13 +987,13 @@ private enum TransportBatchPresentationContext {
                     // metadata; no Finder cache or prior workspace decides an
                     // unmonitored repository's Services eligibility.
                     let live=FinderSnapshot(roots:[resolved.path],states:cacheStates,repositories:cacheRepositories,overlayEntries:cacheOverlayEntries,indexFlags:cacheIndexFlags,overlayPolicies:cacheOverlayPolicies)
-                    guard serviceCommand.isEligible(paths:selected.paths,snapshot:live) else {
+                    guard serviceCommand.isEligible(paths:selected.paths,snapshot:serviceSelectionSnapshot ?? live) else {
                         throw FinderServiceCommand.Failure("\(serviceCommand.action.title) is not available for this selection and the repository's current state.")
                     }
                 }
                 rememberAccess(sessionAccess, repositoryRoot: resolved)
                 if let store=accessStore,let saved=store.repositories.first(where:{$0.lastKnownPath==resolved.standardizedFileURL.resolvingSymlinksInPath().path}) {
-                    do { for folder in prepared.newFolders { try store.addPermission(saved.id,url:folder) };recentRepositories=store.repositories }
+                    do { for folder in discoveredPermissionFolders { try store.addPermission(saved.id,url:folder) };recentRepositories=store.repositories }
                     catch { self.error="The repository is open, but additional folder access could not be saved: "+error.localizedDescription }
                 }
                 holdsBusy = false; busy = false
@@ -2807,7 +2833,7 @@ private enum TransportBatchPresentationContext {
         if self.root == root { self.output = output; Task { await self.refresh() } }
     }
     private func showSubmoduleSync(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], commandLaunch: Bool = false) {
-        guard !confirmingQuit else { return }
+        guard !retired,!confirmingQuit else { return }
         if let existing = submoduleSyncWindows.values.first(where: { $0.model.repository.root == repository.root && $0.model.activeOperation }) {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             if commandLaunch { error = "A Submodule Sync operation is already running. Wait for it before opening another command." }; return
@@ -2818,11 +2844,13 @@ private enum TransportBatchPresentationContext {
             guard !result.entries.isEmpty else { return }
             self?.refreshAfterSubmoduleMutation(repository.root, output: result.output)
         }
-        submoduleSyncWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
+        submoduleSyncWindows[id] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     private func showSubmoduleAdd(repository: GitRepository, access: RepositoryAccessLease?, path: String, commandLaunch: Bool = false) {
-        guard !confirmingQuit else { return }
-        let key = repository.root.path
+        guard !retired,!confirmingQuit else { return }
+        let key = repository.root.path + (finderServiceDispatch == nil ? "":"\0service:"+path)
         if commandLaunch, let existing = submoduleAddWindows[key] {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             error = "A Submodule Add dialog is already open. Close it before opening another command-line Submodule Add."; return
@@ -2831,12 +2859,19 @@ private enum TransportBatchPresentationContext {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             error = "A Submodule Add operation is already running. Wait for it before opening another command."; return
         }
+        guard submoduleAddWindows[key]?.finderServiceCanPresent != false else{error="The previous Submodule Add window is still closing. Wait for it to finish.";return}
         let controller = submoduleAddWindows[key] ?? SubmoduleAddWindowController(repository: repository, access: access, path: path, preferences: fileComparisonPreferences, clipboardText:creationClipboardText())
         controller.onClosed = { [weak self] in self?.submoduleAddWindows.removeValue(forKey: key) }
-        controller.model.onSubmit = { [weak self] progress in self?.showSubmoduleAddProgress(model: progress) }
-        submoduleAddWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        let serviceContext=finderServiceDispatch
+        controller.model.onSubmit = { [weak self] progress in
+            FinderServicePresentationContext.$current.withValue(serviceContext){self?.showSubmoduleAddProgress(model:progress,access:access)}
+        }
+        submoduleAddWindows[key] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showSubmoduleAddProgress(model: SubmoduleAddProgressWindowModel) {
+    private func showSubmoduleAddProgress(model: SubmoduleAddProgressWindowModel,access:RepositoryAccessLease?) {
+        guard !retired,!confirmingQuit else{return}
         let root = model.repository.root, id = UUID()
         let controller = SubmoduleAddProgressWindowController(model: model)
         controller.onClosed = { [weak self] in self?.submoduleAddProgressWindows.removeValue(forKey: id) }
@@ -2844,7 +2879,9 @@ private enum TransportBatchPresentationContext {
             guard result.attempted else { return }
             self?.refreshAfterSubmoduleMutation(root, output: result.output)
         }
-        submoduleAddProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); model.start()
+        submoduleAddProgressWindows[id] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:model.repository,access:access) else{controller.close();return}
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); model.start()
     }
     private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], commandLaunch: Bool = false, completion: (() -> Void)? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
@@ -2858,16 +2895,21 @@ private enum TransportBatchPresentationContext {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             error = "A Submodule Update operation is already running. Wait for it before opening another command."; return
         }
+        guard submoduleUpdateWindows[key]?.finderServiceCanPresent != false else{error="The previous Submodule Update window is still closing. Wait for it to finish.";return}
         let controller = submoduleUpdateWindows[key] ?? SubmoduleUpdateWindowController(repository: repository, access: access, scope: scope, selected: selected, preferences: preferences)
         presentation?.apply(to: controller.window)
         if let sourceWindow {controller.window?.alphaValue=sourceWindow.alphaValue;controller.window?.appearance=sourceWindow.effectiveAppearance}
         controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.submoduleUpdateWindows[key] === controller else { return }; self.submoduleUpdateWindows.removeValue(forKey: key) }
         let progressPreferences = controller.model.presentationPreferences
         let progressPresentation = controller.window.map(MergeWindowPresentation.init)
+        let serviceContext=finderServiceDispatch
         controller.model.onSubmit = { [weak self] paths, options in
-            self?.showSubmoduleUpdateProgress(repository: repository, access: access, paths: paths, options: options, completion: completion, preferences: progressPreferences, presentation: progressPresentation)
+            FinderServicePresentationContext.$current.withValue(serviceContext){
+                self?.showSubmoduleUpdateProgress(repository:repository,access:access,paths:paths,options:options,completion:completion,preferences:progressPreferences,presentation:progressPresentation)
+            }
         }
         submoduleUpdateWindows[key] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         if let submoduleUpdateWindowPresentation { submoduleUpdateWindowPresentation(controller) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
@@ -2884,7 +2926,9 @@ private enum TransportBatchPresentationContext {
         let inherited = controller.model.presentationPreferences
         controller.model.onBisect = { [weak self] operation in self?.showBisect(repository: repository, access: access, operation: operation, preferences: inherited) }
         presentation?.apply(to: controller.window)
-        submoduleUpdateProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
+        submoduleUpdateProgressWindows[id] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     @discardableResult private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, completion: @escaping (Bool) -> Void = { _ in }) -> RevertProgressWindowController {
         let root = repository.root, id = UUID()
@@ -3035,7 +3079,10 @@ private enum TransportBatchPresentationContext {
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
     }
     private func showWorktreeList(repository: GitRepository, access: RepositoryAccessLease?) {
+        guard !retired,!confirmingQuit else{return}
+        let serviceContext=finderServiceDispatch
         let key = repository.root.path
+        guard worktreeListWindows[key]?.finderServiceCanPresent != false else{error="The previous Worktree List window is still closing. Wait for it to finish.";return}
         let controller = worktreeListWindows[key] ?? worktreeListWindowFactory?(repository, access, fileComparisonPreferences) ?? WorktreeListWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
         controller.externalAvailability = { [weak self] in self?.retired == false && self?.confirmingQuit == false }
         controller.onClosed = { [weak self,weak controller] in
@@ -3045,9 +3092,17 @@ private enum TransportBatchPresentationContext {
         let inherited=controller.model.preferences
         controller.onSubmodules = { [weak self,weak controller] path, lease in
             guard let self,!self.retired,!self.confirmingQuit else {return}
-            self.showSubmoduleUpdate(repository: GitRepository(root: path, executable: repository.executable), access: lease, scope: [],preferences:inherited,sourceWindow:controller?.window)
+            let successor=serviceContext.map{FinderServiceDispatchIdentity(action:$0.action,root:path)}
+            FinderServicePresentationContext.$current.withValue(successor){
+                self.showSubmoduleUpdate(repository:GitRepository(root:path,executable:repository.executable),access:lease,scope:[],preferences:inherited,sourceWindow:controller?.window)
+            }
+        }
+        controller.onCreatePresentation={ [weak self] child in
+            guard let self else{return false}
+            return FinderServicePresentationContext.$current.withValue(serviceContext){self.prepareFinderServiceWorkflow(child,repository:repository,access:access)}
         }
         worktreeListWindows[key] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     @discardableResult private func showWorktreeCreate(repository: GitRepository, access: RepositoryAccessLease?, directory: URL? = nil, commandLaunch: Bool = false, preferences: UserDefaults? = nil, destinationAccess: RepositoryAccessLease? = nil) -> WorktreeCreateWindowController? {
@@ -3065,6 +3120,7 @@ private enum TransportBatchPresentationContext {
         let inherited=preferences ?? fileComparisonPreferences
         let controller = worktreeCreateWindows[key] ?? worktreeCreateWindowFactory?(repository, access, inherited, directory) ?? WorktreeCreateWindowController(repository: repository, access: access, preferences: inherited, initialDirectory: directory)
         let presentedPreferences=controller.model.preferences
+        let serviceContext=finderServiceDispatch
         controller.externalAvailability = { [weak self] in self?.retired == false && self?.confirmingQuit == false }
         controller.model.confirmingQuit=confirmingQuit
         if let destinationAccess {controller.model.destinationAccess=destinationAccess}
@@ -3078,13 +3134,17 @@ private enum TransportBatchPresentationContext {
         }
         controller.model.onSubmodules = { [weak self,weak controller] path, lease in
             guard let self,!self.retired,!self.confirmingQuit else {return}
-            self.showSubmoduleUpdate(repository: GitRepository(root: path, executable: repository.executable), access: lease, scope: [],preferences:presentedPreferences,sourceWindow:controller?.window)
+            let successor=serviceContext.map{FinderServiceDispatchIdentity(action:$0.action,root:path)}
+            FinderServicePresentationContext.$current.withValue(successor){
+                self.showSubmoduleUpdate(repository:GitRepository(root:path,executable:repository.executable),access:lease,scope:[],preferences:presentedPreferences,sourceWindow:controller?.window)
+            }
         }
         controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureReferencePicker = { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
         worktreeCreateWindows[key] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return nil}
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         return controller
     }
@@ -3399,6 +3459,9 @@ private enum TransportBatchPresentationContext {
         controller.model.reload()
         if let sourceWindow { controller.window?.appearance = sourceWindow.effectiveAppearance; controller.window?.alphaValue = sourceWindow.alphaValue }
         presentation?.apply(to: controller.window)
+        if finderServiceDispatch?.action == .logSubmodule {
+            guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
+        }
         if let logWindowPresentation { logWindowPresentation(controller) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
@@ -4191,6 +4254,31 @@ private enum TransportBatchPresentationContext {
     }
     /// Services carries only a captured selection. Obtain and retain folder
     /// authority before discovery, without blocking an unowned modal event loop.
+    private func finderServiceRepositoryAccess(_ root:URL,related:[RepositoryAccessLease],owner:RepositoryWindowOwner,cancellation:OperationCancellation) async throws -> RepositoryAccessLease {
+        try cancellation.check()
+        if let value=([activeAccess].compactMap{$0}+related).first(where:{$0.contains(root) && (!requiresRepositoryScope || $0.hasSecurityScope)}){return value}
+        if let store=accessStore {
+            for saved in store.repositories {
+                if let value=try? store.acquire(saved.id,requireSecurityScope:requiresRepositoryScope),value.contains(root){return value}
+            }
+        }
+        let choice=RepositoryCreationFolderChoice(window:workspaceWindow,owner:owner),panel=choice.panel
+        panel.title="Allow containing repository access";panel.prompt="Allow Access"
+        panel.message="This selected submodule belongs to another repository. Choose that repository or a containing folder to perform the command.\n\n"+root.path
+        panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.showsHiddenFiles=true;panel.directoryURL=root
+        panel.alphaValue=workspaceWindow?.alphaValue ?? 1;panel.appearance=workspaceWindow?.appearance
+        finderServiceFolderChoice=choice;finderServiceWorkers += 1
+        defer{finderServiceWorkers -= 1;if finderServiceFolderChoice === choice{finderServiceFolderChoice=nil}}
+        let selected:URL?=await withCheckedContinuation { continuation in
+            choice.onFinished={selected in continuation.resume(returning:selected)}
+            choice.begin(present:presentFinderServiceFolderPanel,selected:selectedFinderServiceFolderURL)
+        }
+        while panel.sheetParent != nil || panel.attachedSheet != nil{try? await Task.sleep(nanoseconds:5_000_000)}
+        try cancellation.check();guard !retired,!confirmingQuit,let selected else{throw OperationCancellationFailure.cancelled}
+        let lease=RepositoryAccessLease(url:selected,provider:repositoryBookmarkProvider)
+        guard lease.contains(root),!requiresRepositoryScope || lease.hasSecurityScope else{throw RepositoryAccessFailure.repositoryRootOutsidePermission(root.path)}
+        return lease
+    }
     @discardableResult func handleFinderService(_ submitted:FinderRequest)->Bool {
         guard !retired,!busy,!confirmingQuit,!hasPendingRepositoryWork,workspaceWindow?.attachedSheet==nil,
               let command=FinderServiceCommand(rawValue:submitted.action.rawValue) else{return false}

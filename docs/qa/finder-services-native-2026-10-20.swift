@@ -75,7 +75,7 @@ private struct FinderServicesScopes:RepositoryBookmarkProvider {
         let selector=NSSelectorFromString("performFinderAction:userData:error:")
         try require(receiver.responds(to:selector),"Declared Objective-C selector is unavailable")
         for service in services {
-            let folderService=["clone","initialize"].contains(service["NSUserData"] as? String ?? "")
+            let folderService=["clone","initialize","clean","worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule"].contains(service["NSUserData"] as? String ?? "")
             try require(service["NSMessage"] as? String=="performFinderAction" && (service["NSSendFileTypes"] as? [String])==[folderService ? "public.folder":"public.item"],"Plist Services selector/input type mismatch")
             try require((service["NSMenuItem"] as? [String:String])?["default"]?.contains("TurtleGit")==true,"Service menu lacks TurtleGit branding")
         }

@@ -4200,3 +4200,36 @@ including failed attempts, are independently absent. Generated localization/Help
 checks passed and the final Help wording received a bundle resource refresh.
 This expansion does not establish all Finder commands, installed extension
 acceptance, complete upstream dialog parity or App Store readiness.
+
+### First-use Finder Worktree and Submodule Services — October 20, 2026
+
+Six linked-repository Services connect native Worktree List/Create, Submodule
+Add/Update/Sync and parent-folder history. Source predicates and literal ordered
+scope survive repository discovery and native successor windows. Worktree List
+uses an explicit singleton macOS boundary; New Worktree adapts the upstream
+right-drag source root into a native destination chooser. Update/Sync selected
+gitlink roots and parent Log retain the containing superproject. Parent-history
+eligibility is evaluated against the selected child's live registration metadata.
+Actual parent primary grants remain distinct from retained metadata grants.
+
+Submodule forms and progress now retain workers, grants, SSH prompts and native
+children through forced close and late responses. Worktree List owns its Create
+child until its worker/picker retirement completes; creation destination replies
+settle exactly once and cannot approve a retired owner. Application Quit observes
+open native children and detached retirement. Services registration preserves the
+previous thirty-six entries in order and appends six folder entries, forty-two
+total. Existing source artwork, control layouts, histories and operation options
+remain shared with the application commands.
+
+The [Services guide](FINDER-SERVICES.md) documents adaptations and remaining gaps;
+[batch evidence](qa/finder-linked-services-family-2026-10-20.json) records actual
+validation. Twenty focused Core methods passed, followed by the app build and
+seven distinct native case/engine combinations cumulatively. The first native
+submodule case found parent Log missing its Services presentation enrollment;
+the affected app build and submodule case, plus previously unrun Worktree and
+ownership cases, passed after that connection was repaired. Passed provider and
+Core checks were not repeated. All eight native receivers, including the failed
+attempt, are independently absent. Generated localization/Help checks passed and
+the built Help bytes match the generated guide. Installed Finder Services
+activation, signed sandbox operation, minimum-OS/keyboard/VoiceOver/visual
+acceptance, complete upstream parity and App Store distribution remain unproven.

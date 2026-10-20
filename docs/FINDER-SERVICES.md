@@ -1,6 +1,6 @@
 # TurtleGit selected-file Services
 
-TurtleGit advertises thirty-six macOS Services for selected files and folders. They give
+TurtleGit advertises forty-two macOS Services for selected files and folders. They give
 users an entry point outside Finder Sync's monitored repositories, through the
 system's **Services** menu. They also work with file selections supplied by other
 apps that support macOS Services. Availability and ordering are controlled by
@@ -31,6 +31,10 @@ macOS; these entries do not extend Finder Sync's ordinary context-menu coverage.
 | TurtleGit: Rename… | Existing single-item Rename dialog, including destination review and Git progress |
 | TurtleGit: Delete / Delete (keep local) | Existing ordered selected-path removal, confirmation and progress; keep-local stages removal while retaining working files |
 | TurtleGit: Clean up… | Existing folder-scoped Cleanup options, preview and explicit removal progress |
+| TurtleGit: Worktree List / New Worktree… | Existing native list and creation forms with destination authorization |
+| TurtleGit: Submodule Add… | Existing source/path/branch/key review and owned clone progress |
+| TurtleGit: Submodule Update… / Submodule Sync | Existing selected-scope update review/progress or immediate URL synchronization |
+| TurtleGit: Show log of this folder | Parent repository history limited to the selected registered submodule root |
 
 Clone, Create and Clean up advertise folder selections only. Clone and Create require one existing,
 ordinary directory; filesystem roots, symlink leaves and Git administrative paths
@@ -105,7 +109,7 @@ permission.
 
 ## Registration and source scope
 
-`Configuration/App-Info.plist` supplies the thirty-six `NSServices` declarations.
+`Configuration/App-Info.plist` supplies the forty-two `NSServices` declarations.
 `ApplicationDelegate.swift` installs one provider after startup preparation,
 restores a previous provider only if TurtleGit still owns the registration, and
 retires pending service input during termination. Opening a menu does not execute
@@ -131,7 +135,8 @@ The implementation follows Apple's
 [Services properties](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/properties.html)
 for file UTIs, required context, message/user-data mapping and restricted actions,
 and its [service-provider lifecycle](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/providing.html).
-Clone, Create and Clean up advertise `public.folder`; the other thirty-three advertise
+Clone, Create, Clean up and the six Worktree/Submodule entries advertise
+`public.folder`; the other thirty-three advertise
 `public.item`, with operation eligibility checked after access and discovery.
 The bundle uses file services rather than treating a plain text path as a file.
 
@@ -227,3 +232,39 @@ Its private repositories and pasteboards cover actual Git effects and captured
 dispatch; [batch evidence](qa/finder-filesystem-services-family-2026-10-20.json)
 records executed checks and failures. Physical Finder Services menu activation,
 installed signed sandbox grants and App Store distribution remain separate gates.
+
+## Worktree and Submodule expansion — October 20, 2026
+
+Six folder Services extend the registered family to forty-two entries. Worktree
+List opens for one working folder or bare repository. New Worktree requires a
+repository root, including bare roots, adapting the upstream right-drag command
+to an explicit macOS source selection and native destination chooser. Services
+has no separate Explorer background-folder context; Worktree List therefore
+requires one explicit folder even though the upstream bare-context clause lacks
+ONLYONE. Multiple roots are refused rather than silently choosing one.
+
+Submodule Add reviews the captured folder's destination prefix, URL, branch and
+SSH key before cloning and staging its gitlink. Update and Sync retain ordered
+folder scopes; selected initialized gitlink roots resolve to their containing
+superproject. Update keeps its file list and options before execution; Sync
+executes the invoked source action. Show log of this folder requires one actual
+registered submodule root and opens its gitlink history in the parent repository.
+Its eligibility uses that child's live registration metadata, independently of
+the parent status snapshot used to execute the history command.
+
+The application retains actual primary repository grants separately from related
+metadata grants. A parent grant needed after child discovery is selected from
+retained/saved authority or obtained through an owned cancellable folder chooser.
+Workspace changes cannot retarget an accepted form. Submodule Add/Update progress
+and Worktree List's creation child keep their captured Services context. A new
+worktree's Submodule Update successor uses its explicitly created path and grant.
+Closing forms retires native choosers/questions, fences late replies and defers
+final callbacks through actual read/operation/SSH/picker drainage. Quit observes
+that work, including closed owners still retiring.
+
+The grouped runner is `scripts/test-finder-linked-services.py` and
+[batch evidence](qa/finder-linked-services-family-2026-10-20.json) records the
+executed scope and any failures. Installed physical Finder Services activation,
+signed sandbox permissions, minimum-OS and complete upstream/App Store acceptance
+remain separate gates. Services keeps macOS's system-managed placement and lacks
+Explorer's per-entry icons and right-drag interception.

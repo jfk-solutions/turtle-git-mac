@@ -3,9 +3,42 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+/// Shared source cancellation question with one reply and owned sheet drainage.
+@MainActor final class SubmoduleServiceQuestion {
+    var presentQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool={parent,alert,reply in guard parent.attachedSheet==nil else{return false};alert.beginSheetModal(for:parent,completionHandler:reply);return true}
+    private var pending:(UUID,NSAlert,(Bool)->Void)?
+    private var releases=0
+    private var retired=false
+    var hasPendingWork:Bool {pending != nil || releases>0}
+    func ask(owner:NSWindow?,choose:@escaping(Bool)->Void){
+        guard !retired,pending==nil,let owner,owner.attachedSheet==nil else{choose(false);return}
+        owner.makeFirstResponder(nil)
+        let alert=NSAlert();alert.messageText="The process is still running.";alert.informativeText="Are you sure to abort?"
+        let yes=alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No");yes.keyEquivalent="\r";alert.window.defaultButtonCell=yes.cell as? NSButtonCell
+        alert.window.alphaValue=owner.alphaValue;alert.window.appearance=owner.appearance
+        let identity=UUID();pending=(identity,alert,choose)
+        if !presentQuestion(owner,alert,{[weak self] response in self?.finish(identity,accepted:response == .alertFirstButtonReturn)}){finish(identity,accepted:false)}
+    }
+    private func finish(_ identity:UUID,accepted:Bool){
+        guard let value=pending,value.0==identity else{return};pending=nil
+        let child=value.1.window,parent=child.sheetParent;releases += 1
+        parent?.endSheet(child,returnCode:accepted ? .alertFirstButtonReturn:.alertSecondButtonReturn);child.orderOut(nil);child.close()
+        let release=FinderFilesystemWorkflowRelease(ready:{child.sheetParent==nil && parent?.attachedSheet !== child}){[self] in value.2(accepted && !retired);releases -= 1};release.start()
+    }
+    func retire(){guard !retired else{return};retired=true;if let value=pending{finish(value.0,accepted:false)}}
+}
+
 @MainActor final class SubmoduleAddProgressWindowController: NSWindowController, NSWindowDelegate {
     let model: SubmoduleAddProgressWindowModel
     var onClosed: () -> Void = {}
+    private var closing=false
+    private var release:FinderFilesystemWorkflowRelease?
+    private var retiringChildren:[NSWindow]=[]
+    private let question=SubmoduleServiceQuestion()
+    var presentQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool {get{question.presentQuestion}set{question.presentQuestion=newValue}}
+    var finderServiceCanPresent:Bool {!closing && !model.isRetired}
+    private var underlyingWorkPending:Bool {model.pendingOperations>0 || question.hasPendingWork || window?.sheetParent != nil || window?.attachedSheet != nil || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
+    var finderServiceWorkPending:Bool {release != nil || underlyingWorkPending}
     init(model: SubmoduleAddProgressWindowModel) {
         self.model = model
         let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -18,27 +51,25 @@ import TurtleGitCore
             guard let window, window.attachedSheet == nil, let child = prompt.window else { return false }
             child.alphaValue=window.alphaValue;child.appearance=window.appearance;window.makeFirstResponder(nil); window.beginSheet(child); return true
         }
-        model.confirmCancellation = { [weak window] choose in
-            guard let window, window.attachedSheet == nil else { choose(false); return }
-            window.makeFirstResponder(nil)
-            let alert = NSAlert(); alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
-            let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
-            alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
-            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
-        }
+        model.confirmCancellation={ [weak self] choose in guard let self else{choose(false);return};self.question.ask(owner:self.window,choose:choose) }
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.activeOperation && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) {
-        model.saveActionLog(); model.invalidate()
-        if let window, let child = window.attachedSheet { window.endSheet(child, returnCode: .abort); child.close() }
-        onClosed()
+    func windowWillClose(_ notification:Notification){
+        guard notification.object as? NSWindow === window,!closing else{return};closing=true
+        if let child=window?.attachedSheet{retiringChildren.append(child)}
+        model.saveActionLog();question.retire();model.invalidate()
+        if let window{if let child=window.attachedSheet{window.endSheet(child,returnCode:.abort);child.close()};window.sheetParent?.endSheet(window,returnCode:.abort)}
+        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();let done=onClosed;onClosed={};done()};self.release=release;release.start()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class SubmoduleAddProgressWindowModel: ObservableObject, ActionLogProgress {
     private(set) static var activeOperations=0
+    private(set) var pendingOperations=0
+    var isRetired:Bool {invalidated}
+    private var activeSSHCoordinator:SSHTransportCoordinator?
     let repository: GitRepository
     private var access: RepositoryAccessLease?, sourceAccess: RepositoryAccessLease?, keyAccess: RepositoryAccessLease?
     var presentationPreferences: UserDefaults { preferences }
@@ -84,13 +115,14 @@ import TurtleGitCore
         let factory = makeSSHCoordinator, identities = identities, presenter = presentSSH
         let grants = (access, sourceAccess, keyAccess)
         let publish=onAttemptCompleted
-        Self.activeOperations += 1
+        Self.activeOperations += 1;pendingOperations += 1
         Task {
             var outcome=SubmoduleAddOutcome(phase:receipt == nil ? .preparing:.configuringKey,added:receipt != nil,receipt:receipt)
             let coordinator:SSHTransportCoordinator?=receipt == nil ? (factory?(repository) ?? SSHTransportCoordinator(repository:repository,identities:identities)):nil
+            activeSSHCoordinator=coordinator
             if factory == nil {coordinator?.present=presenter}
             defer {
-                coordinator?.close();withExtendedLifetime(grants) {};Self.activeOperations -= 1
+                coordinator?.close();if activeSSHCoordinator === coordinator {activeSSHCoordinator=nil};withExtendedLifetime(grants) {};Self.activeOperations -= 1;pendingOperations -= 1
                 publish(outcome)
                 if token === request {token=nil;busy=false;if !invalidated {saveActionLog();finishAutomaticClose()}}
             }
@@ -142,7 +174,7 @@ import TurtleGitCore
         currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to: &output)
     }
 
-    func invalidate() { invalidated = true; token?.cancel(); access = nil; sourceAccess = nil; keyAccess = nil }
+    func invalidate() { invalidated = true; token?.cancel();activeSSHCoordinator?.close(); access = nil; sourceAccess = nil; keyAccess = nil }
     func cancel() {
         guard busy, !invalidated, !confirmingCancellation, !confirmingQuit, !cancelling else { return }
         if preferences.bool(forKey: "ConfirmKillProcess") {

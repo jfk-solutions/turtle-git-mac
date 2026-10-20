@@ -11,7 +11,7 @@ final class FinderServiceCommandTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         let expected: [(String, RepositoryAction)] = [("log", .log), ("commit", .commit), ("status", .status), ("diff", .diff), ("clone", .clone), ("initialize", .initialize),
             ("pull",.pull),("fetch",.fetch),("push",.push),("synchronize",.synchronize),("rebase",.rebase),("stash",.stash),("stashApply",.stashApply),("stashPop",.stashPop),("stashList",.stashList),("switchBranch",.switchBranch),("merge",.merge),("branch",.branch),("tag",.tag),
-            ("add",.add),("revert",.revert),("resolve",.resolve),("resolveCurrent",.resolveCurrent),("resolveMine",.resolveMine),("resolveTheirs",.resolveTheirs),("blame",.blame),("previousDiff",.previousDiff),("editConflict",.editConflict),("ignore",.ignore),("ignoreMask",.ignoreMask),("ignoreDelete",.ignoreDelete),("ignoreDeleteMask",.ignoreDeleteMask),("rename",.rename),("remove",.remove),("removeKeep",.removeKeep),("clean",.clean)]
+            ("add",.add),("revert",.revert),("resolve",.resolve),("resolveCurrent",.resolveCurrent),("resolveMine",.resolveMine),("resolveTheirs",.resolveTheirs),("blame",.blame),("previousDiff",.previousDiff),("editConflict",.editConflict),("ignore",.ignore),("ignoreMask",.ignoreMask),("ignoreDelete",.ignoreDelete),("ignoreDeleteMask",.ignoreDeleteMask),("rename",.rename),("remove",.remove),("removeKeep",.removeKeep),("clean",.clean),("worktreeList",.worktreeList),("worktreeCreate",.worktreeCreate),("submoduleAdd",.submoduleAdd),("submoduleUpdate",.submoduleUpdate),("submoduleSync",.submoduleSync),("logSubmodule",.logSubmodule)]
         XCTAssertEqual(Set(FinderServiceCommand.allCases.map(\.rawValue)), Set(expected.map(\.0)))
         for (name, action) in expected {
             let command = try XCTUnwrap(FinderServiceCommand(rawValue: name))
@@ -415,17 +415,110 @@ final class FinderServiceCommandTests: XCTestCase {
         let data=try Data(contentsOf:root.appendingPathComponent("Configuration/App-Info.plist"))
         let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:data,format:nil) as? [String:Any])
         let services=try XCTUnwrap(plist["NSServices"] as? [[String:Any]])
-        XCTAssertEqual(services.count,36)
+        XCTAssertEqual(services.count,42)
         let names=services.compactMap{$0["NSUserData"] as? String}
-        XCTAssertEqual(Array(names.suffix(4)),["rename","remove","removeKeep","clean"])
+        XCTAssertEqual(Array(names[32..<36]),["rename","remove","removeKeep","clean"])
         XCTAssertEqual(Set(names),Set(FinderServiceCommand.allCases.map(\.rawValue)))
         let originalOrder=["pull","fetch","push","synchronize","commit","diff","log","status","rebase","stash","stashApply","stashPop","stashList","switchBranch","merge","branch","tag","clone","initialize","add","revert","resolve","resolveCurrent","resolveMine","resolveTheirs","blame","previousDiff","editConflict","ignore","ignoreMask","ignoreDelete","ignoreDeleteMask"]
         XCTAssertEqual(Array(names.prefix(32)),originalOrder)
-        for entry in services.suffix(4) {
+        for entry in services[32..<36] {
             let command=try XCTUnwrap(entry["NSUserData"] as? String)
             XCTAssertEqual(entry["NSMessage"] as? String,"performFinderAction")
             XCTAssertEqual(entry["NSPortName"] as? String,"TurtleGit")
             XCTAssertEqual(entry["NSSendFileTypes"] as? [String],command == "clean" ? ["public.folder"]:["public.item"])
+            XCTAssertEqual(entry["NSRestricted"] as? Bool,true)
+            XCTAssertEqual((entry["NSRequiredContext"] as? [String:Any])?.count,0)
+            XCTAssertTrue(((entry["NSMenuItem"] as? [String:String])?["default"] ?? "").hasPrefix("TurtleGit: "))
+        }
+    }
+
+    func testLinkedRepositoryServicesPreserveLiteralScopesAndExplicitContextCardinality() throws {
+        let commands:[FinderServiceCommand]=[.worktreeList,.worktreeCreate,.submoduleAdd,.submoduleUpdate,.submoduleSync,.logSubmodule]
+        let first=literal("/unmonitored/super &?#%\n雪/sub*module"),second=literal("/unmonitored/super &?#%\n雪/other")
+        let multiple:Set<FinderServiceCommand>=[.submoduleUpdate,.submoduleSync]
+        for command in commands {
+            XCTAssertTrue(command.requiresSourceEligibility)
+            XCTAssertEqual(command.requiresSingleSelection,!multiple.contains(command))
+            XCTAssertEqual(command.sourceAction,command.action)
+            let paths=multiple.contains(command) ? [first,second]:[first]
+            let wire=try command.serviceURL(paths:paths+[first]),decoded=try FinderServiceCommand.request(serviceURL:wire)
+            XCTAssertEqual(decoded.action,command.action)
+            XCTAssertEqual(decoded.paths.map{Data($0.path.utf8)},paths.map{Data($0.path.utf8)})
+            XCTAssertTrue(decoded.sources.isEmpty);XCTAssertNil(decoded.alternateTool)
+            if !multiple.contains(command) {XCTAssertThrowsError(try command.request(paths:[first,second]))}
+            for suffix in ["&source=/other","&destination=/new","&ref=main","&force=1","&bkpath=/parent","&submodule=1","&alternate=0"] {
+                XCTAssertThrowsError(try FinderServiceCommand.request(serviceURL:XCTUnwrap(URL(string:wire.absoluteString+suffix))),command.rawValue+suffix)
+            }
+        }
+        for alias in ["parentLog","worktree","newWorktree","subadd","subsync","subupdate","logsubmodule"] {XCTAssertNil(FinderServiceCommand(rawValue:alias))}
+    }
+
+    func testLinkedRepositoryServicesMatchPinnedConditionsAndDocumentedCreateAdaptation() {
+        let commands:[FinderServiceCommand]=[.worktreeList,.worktreeCreate,.submoduleAdd,.submoduleUpdate,.submoduleSync,.logSubmodule]
+        // MenuInfo.cpp:81–82,207–220 and the existing macOS DropNewWorktree
+        // source-root adaptation. This deliberately tests the bare List clause
+        // independently of the explicit singleton Services request boundary.
+        let cases:[(FinderShellFlags,Set<FinderServiceCommand>)]=[
+            ([.folder,.folderInGit,.onlyOne],[.worktreeList,.submoduleAdd]),
+            ([.folder,.folderInGit,.onlyOne,.workingTreeRoot],[.worktreeList,.worktreeCreate,.submoduleAdd]),
+            ([.folder,.folderInGit,.onlyOne,.workingTreeRoot,.submodule],[.worktreeList,.worktreeCreate,.submoduleAdd,.logSubmodule]),
+            ([.folder,.folderInGit,.onlyOne,.submoduleContainer],[.worktreeList,.submoduleAdd,.submoduleUpdate,.submoduleSync]),
+            ([.folder,.folderInGit,.two,.submoduleContainer],[.submoduleUpdate,.submoduleSync]),
+            ([.folder,.bare,.onlyOne],[.worktreeList,.worktreeCreate]),
+            ([.folder,.bare,.two],[.worktreeList]),
+            ([.folder,.folderInGit,.two],[]),
+            ([.inGit,.inVersionedFolder,.onlyOne],[]),
+            ([.folder,.onlyOne],[]),
+            ([],[])
+        ]
+        for(flags,expected)in cases {XCTAssertEqual(Set(commands.filter{$0.isEligible(flags:flags)}),expected,"Linked Services source clauses changed for \(flags)")}
+    }
+
+    func testLinkedRepositoryLiveEligibilitySeparatesChildRootAndParentScopes() throws {
+        let parent=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString,isDirectory:true)
+        let child=parent.appendingPathComponent("registered",isDirectory:true),nested=parent.appendingPathComponent("nested",isDirectory:true),unregistered=parent.appendingPathComponent("unregistered",isDirectory:true)
+        for folder in [child,nested,unregistered] {try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)}
+        defer {try? FileManager.default.removeItem(at:parent)}
+        let file=parent.appendingPathComponent("file.txt"),link=parent.appendingPathComponent("link")
+        try Data().write(to:file);try FileManager.default.createSymbolicLink(at:link,withDestinationURL:child)
+        let superproject=FinderSnapshot(roots:[parent.path],states:[parent.path:.normal,child.path:.normal,nested.path:.normal,file.path:.normal,link.path:.normal],repositories:[parent.path:FinderRepositoryMetadata(hasSubmoduleConfig:true)])
+        for command in [FinderServiceCommand.submoduleUpdate,.submoduleSync] {
+            XCTAssertTrue(command.isEligible(paths:[parent],snapshot:superproject))
+            XCTAssertTrue(command.isEligible(paths:[child,nested],snapshot:superproject),"Parent-scoped pathfile selections must retain multiple folders")
+            XCTAssertFalse(command.isEligible(paths:[file],snapshot:superproject))
+            XCTAssertFalse(command.isEligible(paths:[link],snapshot:superproject),"A literal Git symlink is not a selected submodule directory")
+        }
+        XCTAssertTrue(FinderServiceCommand.worktreeCreate.isEligible(paths:[parent],snapshot:superproject))
+        XCTAssertFalse(FinderServiceCommand.worktreeCreate.isEligible(paths:[nested],snapshot:superproject))
+        XCTAssertTrue(FinderServiceCommand.worktreeList.isEligible(paths:[nested],snapshot:superproject))
+        XCTAssertTrue(FinderServiceCommand.submoduleAdd.isEligible(paths:[nested],snapshot:superproject))
+        XCTAssertFalse(FinderServiceCommand.logSubmodule.isEligible(paths:[child],snapshot:superproject),"Parent-only cache cannot prove selected child registration")
+        let registered=FinderSnapshot(roots:[parent.path,child.path,unregistered.path],states:[parent.path:.normal,child.path:.normal,unregistered.path:.normal],repositories:[parent.path:FinderRepositoryMetadata(hasSubmoduleConfig:true),child.path:FinderRepositoryMetadata(submoduleParentRoot:parent.path),unregistered.path:FinderRepositoryMetadata()])
+        XCTAssertTrue(FinderServiceCommand.logSubmodule.isEligible(paths:[child],snapshot:registered))
+        XCTAssertFalse(FinderServiceCommand.logSubmodule.isEligible(paths:[parent],snapshot:registered))
+        XCTAssertFalse(FinderServiceCommand.logSubmodule.isEligible(paths:[unregistered],snapshot:registered))
+        XCTAssertFalse(FinderServiceCommand.logSubmodule.isEligible(paths:[child,parent],snapshot:registered))
+        let bare=FinderSnapshot(roots:[parent.path,child.path],states:[:],repositories:[parent.path:FinderRepositoryMetadata(bare:true),child.path:FinderRepositoryMetadata(bare:true)])
+        XCTAssertTrue(FinderServiceCommand.worktreeList.isEligible(flags:[.bare,.folder,.two]))
+        XCTAssertFalse(FinderServiceCommand.worktreeList.isEligible(paths:[parent,child],snapshot:bare),"Services has no independent Explorer context folder and must not silently narrow ambiguous roots")
+        XCTAssertTrue(FinderServiceCommand.worktreeList.isEligible(paths:[parent],snapshot:bare))
+        XCTAssertTrue(FinderServiceCommand.worktreeCreate.isEligible(paths:[parent],snapshot:bare))
+        for command in [FinderServiceCommand.submoduleAdd,.submoduleUpdate,.submoduleSync,.logSubmodule] {XCTAssertFalse(command.isEligible(paths:[parent],snapshot:bare))}
+    }
+
+    func testLinkedServiceRegistrationAppendsSixFolderActionsWithoutChangingPriorDeclarations() throws {
+        let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let data=try Data(contentsOf:root.appendingPathComponent("Configuration/App-Info.plist"))
+        let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:data,format:nil) as? [String:Any])
+        let services=try XCTUnwrap(plist["NSServices"] as? [[String:Any]])
+        let names=services.compactMap{$0["NSUserData"] as? String}
+        XCTAssertEqual(services.count,42);XCTAssertEqual(Set(names).count,42)
+        XCTAssertEqual(Array(names.suffix(6)),["worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule"])
+        XCTAssertEqual(Array(names[32..<36]),["rename","remove","removeKeep","clean"])
+        for entry in services.suffix(6) {
+            XCTAssertEqual(entry["NSMessage"] as? String,"performFinderAction")
+            XCTAssertEqual(entry["NSPortName"] as? String,"TurtleGit")
+            XCTAssertEqual(entry["NSSendFileTypes"] as? [String],["public.folder"])
             XCTAssertEqual(entry["NSRestricted"] as? Bool,true)
             XCTAssertEqual((entry["NSRequiredContext"] as? [String:Any])?.count,0)
             XCTAssertTrue(((entry["NSMenuItem"] as? [String:String])?["default"] ?? "").hasPrefix("TurtleGit: "))

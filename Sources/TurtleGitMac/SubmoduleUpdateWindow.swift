@@ -13,6 +13,12 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
 @MainActor final class SubmoduleUpdateWindowController: NSWindowController, NSWindowDelegate {
     let model: SubmoduleUpdateWindowModel
     var onClosed: () -> Void = {}
+    private var closing=false
+    private var release:FinderFilesystemWorkflowRelease?
+    private var retiringChildren:[NSWindow]=[]
+    var finderServiceCanPresent:Bool {!closing && !model.isRetired}
+    private var underlyingWorkPending:Bool {model.pendingReads>0 || window?.sheetParent != nil || window?.attachedSheet != nil || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
+    var finderServiceWorkPending:Bool {release != nil || underlyingWorkPending}
     init(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], preferences: UserDefaults = .standard) {
         model = SubmoduleUpdateWindowModel(repository: repository, access: access, scope: scope, selected: selected, preferences: preferences)
         let size = NSSize(width: 760, height: 500)
@@ -33,12 +39,18 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
         DialogGeometry.attach(window, identifier: "SubmoduleUpdateDialog", legacyName: "SubmoduleUpdateDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.confirmingQuit && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowWillClose(_ notification:Notification){
+        guard notification.object as? NSWindow === window,!closing else{return};closing=true;model.invalidate()
+        if let window{if let child=window.attachedSheet{retiringChildren.append(child);window.endSheet(child,returnCode:.abort);child.close()};window.sheetParent?.endSheet(window,returnCode:.abort)}
+        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();let done=onClosed;onClosed={};done()};self.release=release;release.start()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class SubmoduleUpdateWindowModel: ObservableObject {
     private(set) static var activeReads = 0
+    private(set) var pendingReads=0
+    var isRetired:Bool {invalidated || submitted}
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     var repositoryAccess: RepositoryAccessLease? { access }
@@ -94,11 +106,11 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
     func invalidate() { invalidated = true; formRevision = UUID(); loadToken?.cancel() }
     func load() {
         guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; busy = true; error = nil
-        let token = OperationCancellation(); loadToken = token; Self.activeReads += 1
+        let token = OperationCancellation(); loadToken = token; Self.activeReads += 1;pendingReads += 1
         let requestedScope = wholeProject ? [] : scope
         Task {
             defer {
-                Self.activeReads -= 1
+                Self.activeReads -= 1;pendingReads -= 1
                 if loadToken === token { loadToken = nil; busy = false }
                 withExtendedLifetime(access) {}
             }

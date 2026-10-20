@@ -8,6 +8,7 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     case pull,fetch,push,synchronize,rebase,stash,stashApply,stashPop,stashList,switchBranch,merge,branch,tag
     case add,revert,resolve,resolveCurrent,resolveMine,resolveTheirs,blame,previousDiff,editConflict,ignore,ignoreMask,ignoreDelete,ignoreDeleteMask
     case rename,remove,removeKeep,clean
+    case worktreeList,worktreeCreate,submoduleAdd,submoduleUpdate,submoduleSync,logSubmodule
     public static let maximumPaths=10000
     public static let maximumRequestBytes=1048576
     public struct Failure:LocalizedError,Sendable {
@@ -22,9 +23,12 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     public var requiresSourceEligibility:Bool {
         switch self {case .log,.commit,.status,.diff,.clone,.initialize:return false;default:return true}
     }
+    /// Services has no separate Explorer folder context. Worktree List therefore
+    /// requires one explicit folder even though MenuInfo permits a bare context
+    /// without ONLYONE. New Worktree is the direct macOS source-root adaptation.
     public var requiresSingleSelection:Bool {
         switch self {
-        case .clone,.initialize,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag,.blame,.previousDiff,.rename:return true
+        case .clone,.initialize,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag,.blame,.previousDiff,.rename,.worktreeList,.worktreeCreate,.submoduleAdd,.logSubmodule:return true
         default:return false
         }
     }

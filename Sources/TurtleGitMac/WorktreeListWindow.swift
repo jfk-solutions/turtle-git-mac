@@ -9,6 +9,19 @@ import TurtleGitCore
     var externalAvailability: () -> Bool = { true }
     private(set) var createWindow: WorktreeCreateWindowController?
     private var ownedSheets: [UUID:NSWindow] = [:]
+    private var ownedReplies:[UUID:(NSApplication.ModalResponse)->Void]=[:]
+    private var closing=false
+    private var release:FinderFilesystemWorkflowRelease?
+    private var retiringChildren:[NSWindow]=[]
+    var onCreatePresentation:(WorktreeCreateWindowController)->Bool={_ in true}
+    var finderServiceCanPresent:Bool {!closing && model.active}
+    private var underlyingWorkPending:Bool {model.pendingOperations>0 || !ownedSheets.isEmpty || createWindow != nil || window?.sheetParent != nil || window?.attachedSheet != nil || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
+    var finderServiceWorkPending:Bool {release != nil || underlyingWorkPending}
+    private func settle(_ identity:UUID,response:NSApplication.ModalResponse){
+        guard let reply=ownedReplies.removeValue(forKey:identity) else{return}
+        if let child=ownedSheets.removeValue(forKey:identity){retiringChildren.append(child);child.sheetParent?.endSheet(child,returnCode:response);child.orderOut(nil);child.close()}
+        reply(response)
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences:UserDefaults = .standard) {
         model = WorktreeListWindowModel(repository: repository, access: access,preferences:preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 410), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
@@ -42,11 +55,12 @@ import TurtleGitCore
         DialogGeometry.attach(window, identifier: "WorktreeList", legacyName: "WorktreeList")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { model.canInteract && sender.attachedSheet == nil && createWindow == nil }
-    func windowWillClose(_ notification: Notification) {
-        model.saveActionLog(); model.invalidate()
-        createWindow?.close(); createWindow=nil
-        for sheet in Array(ownedSheets.values) { sheet.sheetParent?.endSheet(sheet,returnCode:.cancel); sheet.orderOut(nil) }; ownedSheets=[:]
-        onClosed()
+    func windowWillClose(_ notification:Notification){
+        guard notification.object as? NSWindow === window,!closing else{return};closing=true;model.saveActionLog();model.invalidate()
+        createWindow?.close()
+        for identity in Array(ownedReplies.keys){settle(identity,response:.abort)}
+        if let window{if let child=window.attachedSheet{retiringChildren.append(child);window.endSheet(child,returnCode:.abort);child.close()};window.sheetParent?.endSheet(window,returnCode:.abort)}
+        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();let done=onClosed;onClosed={};done()};self.release=release;release.start()
     }
     private func ask(title: String, message: String, buttons: [String]) async -> NSApplication.ModalResponse {
         guard model.active, let window else { return .abort }
@@ -55,11 +69,11 @@ import TurtleGitCore
         if title.hasPrefix("Remove worktree"), alert.buttons.count > 1 {
             alert.buttons[0].keyEquivalent=""; alert.buttons[1].keyEquivalent="\r"
         }
-        let identity=UUID(); ownedSheets[identity]=alert.window
+        alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
+        let identity=UUID();ownedSheets[identity]=alert.window
         return await withCheckedContinuation { continuation in
-            alert.beginSheetModal(for: window.attachedSheet ?? window) { [weak self] response in
-                self?.ownedSheets.removeValue(forKey:identity); continuation.resume(returning:response)
-            }
+            ownedReplies[identity]={continuation.resume(returning:$0)}
+            alert.beginSheetModal(for:window.attachedSheet ?? window){[weak self] response in self?.settle(identity,response:response)}
         }
     }
     private func authorizeWorktrees(_ paths: [URL], purpose: WorktreeListWindowModel.AccessPurpose) async throws -> [RepositoryAccessLease] {
@@ -71,11 +85,11 @@ import TurtleGitCore
             panel.title = "Worktree Access – \(path.lastPathComponent)"; panel.prompt = "Allow Access"
             panel.message = purpose == .prune ? "Choose this directory or a parent directory so TurtleGit can check which worktrees are missing before pruning." : "Choose this worktree directory or a parent directory to allow removal."
             panel.directoryURL = path.deletingLastPathComponent()
-            let identity=UUID(); ownedSheets[identity]=panel
-            let response = await withCheckedContinuation { continuation in
-                panel.beginSheetModal(for: window.attachedSheet ?? window) { [weak self] response in
-                    self?.ownedSheets.removeValue(forKey:identity); continuation.resume(returning:response)
-                }
+            panel.alphaValue=window.alphaValue;panel.appearance=window.appearance
+            let identity=UUID();ownedSheets[identity]=panel
+            let response=await withCheckedContinuation { continuation in
+                ownedReplies[identity]={continuation.resume(returning:$0)}
+                panel.beginSheetModal(for:window.attachedSheet ?? window){[weak self] response in self?.settle(identity,response:response)}
             }
             guard model.active, response == .OK, let selected = panel.url else { throw OperationCancellationFailure.cancelled }
             let lease = RepositoryAccessLease(url: selected)
@@ -96,6 +110,7 @@ import TurtleGitCore
         }
         model.childActive=true
         createWindow = controller
+        guard onCreatePresentation(controller),model.active,controller.finderServiceCanPresent else{controller.close();return}
         if let child = controller.window { child.alphaValue = window.alphaValue; child.appearance = window.appearance; window.beginSheet(child) }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -104,6 +119,7 @@ import TurtleGitCore
 @MainActor final class WorktreeListWindowModel: ObservableObject {
     let progressPresentation: GitCommandPresentation
     static var activeOperations = 0
+    private(set) var pendingOperations=0
     let preferences:UserDefaults
     private(set) var active=true
     private(set) var generation=UUID()
@@ -150,9 +166,9 @@ import TurtleGitCore
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, requiresScope: Bool = GitRuntime.isAppStoreBuild,preferences:UserDefaults = .standard) { self.repository = repository; self.access = access; self.requiresScope = requiresScope; self.preferences=preferences; progressPresentation = GitCommandPresentation(defaults: preferences) }
     func beginRequest() -> OperationCancellation {
-        let token=OperationCancellation(); cancellation=token; generation=UUID(); busy=true; Self.activeOperations += 1; return token
+        let token=OperationCancellation(); cancellation=token; generation=UUID(); busy=true; Self.activeOperations += 1;pendingOperations += 1; return token
     }
-    func finishRequest() { busy=false; cancellation=nil; cancelling=false; currentWork=""; percentage=nil; Self.activeOperations -= 1; finishAutomaticClose() }
+    func finishRequest() { busy=false; cancellation=nil; cancelling=false; currentWork=""; percentage=nil; Self.activeOperations -= 1;pendingOperations -= 1; finishAutomaticClose() }
     private func beginProgress() {
         ProgressActionLog.nextAttempt(self, savePrevious: showProgress)
         showProgress=true; output=""; result=""; failed=false; cancelled=false; displayTruncated=false

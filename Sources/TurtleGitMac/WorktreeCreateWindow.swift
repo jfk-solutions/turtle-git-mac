@@ -11,6 +11,18 @@ import TurtleGitCore
     private var cancellationReply: ((Bool) -> Void)?
     private var handoffReply: ((Bool) -> Void)?
     private var directoryPanel:NSOpenPanel?
+    private var directoryReply:((NSApplication.ModalResponse)->Void)?
+    private var retiring=false
+    var directoryBookmarkProvider:any RepositoryBookmarkProvider=SystemRepositoryBookmarkProvider()
+    var presentDirectoryPanel:(NSOpenPanel,NSWindow,@escaping(NSApplication.ModalResponse)->Void)->Void={panel,parent,reply in panel.beginSheetModal(for:parent,completionHandler:reply)}
+    var selectedDirectoryURL:(NSOpenPanel)->URL?={$0.url}
+    var finderServiceCanPresent:Bool {!closed && model.active}
+    var finderServiceWorkPending:Bool {retiring || model.busy || model.chooser.busy || referencePicker != nil || commitPicker != nil || directoryPanel != nil || cancellationAlert != nil || handoffReply != nil || window?.attachedSheet != nil}
+    private func presentDirectory(_ panel:NSOpenPanel,parent:NSWindow,reply:@escaping(NSApplication.ModalResponse)->Void){
+        var answered=false
+        let answer:(NSApplication.ModalResponse)->Void={ [weak self] response in guard !answered else{return};answered=true;self?.directoryReply=nil;reply(response)}
+        directoryReply=answer;presentDirectoryPanel(panel,parent,answer)
+    }
     private var pickers: VersionPickerCoordinator!
     var referencePicker: ReferenceBrowserWindowController? { pickers.referencePicker }
     var commitPicker: LogWindowController? { pickers.commitPicker }
@@ -91,8 +103,9 @@ import TurtleGitCore
         let alert = cancellationAlert, cancelReply = cancellationReply
         cancellationAlert = nil; cancellationReply = nil
         let panel = directoryPanel; directoryPanel = nil
+        let directoryResponse=directoryReply;directoryReply=nil;retiring=true
         let sheets = [window?.attachedSheet, panel, alert?.window].compactMap { $0 }
-        model.saveActionLog(); model.invalidate(); pickers.invalidate()
+        model.saveActionLog(); model.invalidate(); pickers.invalidate();directoryResponse?(.cancel)
         WorktreeCreateWindowModel.activeOperations += 1
         Task { [self] in
             defer { WorktreeCreateWindowModel.activeOperations -= 1 }
@@ -102,7 +115,7 @@ import TurtleGitCore
             while model.busy || model.chooser.busy || referencePicker != nil || commitPicker != nil {
                 try? await Task.sleep(nanoseconds: 5_000_000)
             }
-            onClosed()
+            retiring=false;let done=onClosed;onClosed={};done()
             reply?(acceptedHandoff && !model.confirmingQuit && model.externalAvailability())
         }
     }
@@ -115,14 +128,14 @@ import TurtleGitCore
         directoryPanel=panel
         let draft = [model.directory, model.branchName, String(model.useHead), String(model.createBranch), String(model.detach), String(model.force), String(model.checkout)].map { GitReferenceName($0) }
         WorktreeCreateWindowModel.activeOperations += 1
-        panel.beginSheetModal(for: window) { [weak self] response in
+        presentDirectory(panel,parent:window) { [weak self] response in
             Task { @MainActor in
                 defer { WorktreeCreateWindowModel.activeOperations -= 1 }
                 await Self.detach(panel)
                 guard let self, self.directoryPanel === panel else { return }; self.directoryPanel=nil
                 let current = [self.model.directory, self.model.branchName, String(self.model.useHead), String(self.model.createBranch), String(self.model.detach), String(self.model.force), String(self.model.checkout)].map { GitReferenceName($0) }
-                guard self.model.commandsAvailable, !self.finishing, draft == current, response == .OK, let folder = panel.url else { return }
-                let lease = RepositoryAccessLease(url: folder)
+                guard self.model.commandsAvailable, !self.finishing, draft == current, response == .OK, let folder = self.selectedDirectoryURL(panel) else { return }
+                let lease = RepositoryAccessLease(url:folder,provider:self.directoryBookmarkProvider)
                 guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else { self.model.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
                 self.model.destinationAccess = lease; self.model.directory = folder.path
             }
@@ -135,13 +148,13 @@ import TurtleGitCore
         panel.message = "Choose the worktree directory or an existing parent folder to allow TurtleGit to create it."
         panel.directoryURL = path.deletingLastPathComponent(); panel.alphaValue = window.alphaValue; panel.appearance = window.appearance; directoryPanel = panel
         return await withCheckedContinuation { continuation in
-            panel.beginSheetModal(for: window) { [weak self] response in
+            presentDirectory(panel,parent:window) { [weak self] response in
                 Task { @MainActor in
                     await Self.detach(panel)
                     guard let self, self.directoryPanel === panel else { continuation.resume(returning: nil); return }
                     self.directoryPanel = nil
-                    guard self.model.commandsAvailable, !self.finishing, !cancellation.isCancelled, response == .OK, let selected = panel.url else { continuation.resume(returning: nil); return }
-                    continuation.resume(returning: RepositoryAccessLease(url: selected))
+                    guard self.model.commandsAvailable, !self.finishing, !cancellation.isCancelled, response == .OK, let selected = self.selectedDirectoryURL(panel) else { continuation.resume(returning: nil); return }
+                    continuation.resume(returning: RepositoryAccessLease(url:selected,provider:self.directoryBookmarkProvider))
                 }
             }
         }

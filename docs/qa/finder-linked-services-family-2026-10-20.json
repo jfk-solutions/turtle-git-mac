@@ -1,0 +1,113 @@
+{
+  "status": "focused-local-validation-passed",
+  "scope": "First-use linked-repository Finder Services: Worktree List/Create, Submodule Add/Update/Sync and parent history",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Six folder Services appended after the previous 36 declarations in order; 42 total",
+    "Strict singleton List/Create/Add/parent-history and ordered multi-folder Update/Sync, live source predicates",
+    "Child registration snapshot validates parent-history selection before containing-repository execution",
+    "Actual parent primary authority selected from related/saved grants or owned chooser, separately retaining metadata access",
+    "Captured repository/scope through Submodule Add/Update progress, Worktree List creation sheet and created-path Submodule Update successor",
+    "Forced-close retirement, one-shot destination/question replies, read/Git/SSH/picker drainage and Quit ownership",
+    "Existing native forms, source artwork, histories/options and operation effects shared with app commands"
+  ],
+  "checks": [
+    {
+      "name": "Focused Core FinderServiceCommandTests",
+      "result": "20 methods passed, zero failures; no full Core suite run",
+      "log": "build/qa/finder-linked-services-core-2026-10-20.log"
+    },
+    {
+      "name": "Initial Debug app build",
+      "result": "passed",
+      "log": "build/qa/finder-linked-services-app-2026-10-20.log"
+    },
+    {
+      "name": "Initial native group",
+      "result": "provider passed; system-Git submodule case completed Add/Update/Sync but timed out waiting for parent-Log Services presentation capture",
+      "receiver_pids": [
+        96934,
+        96943
+      ],
+      "log": "build/qa/finder-linked-services-native-2026-10-20.log",
+      "cause": "Existing scoped Log opened through its separate presenter without enrollment in the new Services workflow callback",
+      "repair": "Parent-history Log now enrolls in captured Services context; retired Log refuses re-presentation"
+    },
+    {
+      "name": "Affected app build",
+      "result": "passed",
+      "log": "build/qa/finder-linked-services-app-log-handoff-repair-2026-10-20.log"
+    },
+    {
+      "name": "Affected and previously unrun native cases",
+      "result": "six case/engine combinations passed",
+      "cases": [
+        "submodules",
+        "worktrees",
+        "ownership"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "receiver_pids": [
+        97827,
+        98658,
+        99492,
+        99762,
+        144,
+        407
+      ],
+      "log": "build/qa/finder-linked-services-native-log-handoff-repair-2026-10-20.log",
+      "assertions": [
+        "Actual local Submodule Add twice, gitlink staging and unchanged HEAD without explicit commit",
+        "Selected gitlink Update reaches recorded SHA in child while sibling remains unchanged",
+        "Selected Sync changes only chosen child URL when both siblings have different desired .gitmodules URLs",
+        "Parent Log proves superproject and gitlink history scope; accepted forms survive workspace B",
+        "Actual authorized worktree creation checks branch, checkout, HEAD and list; source bare support and nested-source refusal",
+        "Worktree List Add creates owned native child and detaches/reloads on Cancel",
+        "First-use repository grant Cancel/replacement and late replies; actual Submodule Add source chooser forced close",
+        "Actual Worktree destination authorization panel forced close, cancelled token/drain and late approval refusal",
+        "Held real Sync Git child is cancelled/reaped before owner release, preserving URL/index and refusing delayed mutation"
+      ]
+    },
+    {
+      "name": "Owned cleanup",
+      "result": "All eight native receiver PIDs independently absent, including failed attempt; exact private helper cleanup on every attempt",
+      "receiver_pids": [
+        96934,
+        96943,
+        97827,
+        98658,
+        99492,
+        99762,
+        144,
+        407
+      ]
+    },
+    {
+      "name": "Generated resources",
+      "result": "Localization and Help checks passed; generated Help equals built bundle bytes; dialog coverage reconciled; older provider fixtures updated for expanded declarations/UTIs without rerunning unrelated effect families"
+    }
+  ],
+  "validation_boundary": "Seven distinct successful native combinations cumulatively: provider once, submodules/worktrees/ownership with system and bundled Git. Passed provider and Core group were not repeated after native-only repair.",
+  "remaining": [
+    "Worktree List singleton Services boundary adapts upstream Explorer bare-context clause, which has no ONLYONE condition",
+    "New Worktree explicit source-root selection adapts Explorer right-drag; Services has no per-entry icons or right-drag interception",
+    "Installed physical Finder Services activation, signed sandbox grants and minimum-OS/keyboard/VoiceOver/visual acceptance",
+    "Whole upstream parity, complete hosted CI integration and App Store distribution acceptance",
+    "Paused Rebase older/external session action-edit adoption is a separate known end-user gap"
+  ],
+  "hashes": {
+    "Sources/TurtleGitCore/FinderRequest.swift": "267e5bdcc05fa43026f291a4453322942a913ea5a0fdde21bf7286a46af388e4",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "4cbd23b69dabe0f406315f79142726a59e97e3520ed17a32255481381ae3be64",
+    "Sources/TurtleGitMac/SubmoduleAddWindow.swift": "2fe42b41df18072764dbc63c0c18398c1694e83dcf383719fbc554bfa240fead",
+    "Sources/TurtleGitMac/SubmoduleAddProgressWindow.swift": "9bb02a07664c100b3d8e1304de0ea5f9011014fcbf64d175cc25591e22d78b87",
+    "Sources/TurtleGitMac/SubmoduleUpdateWindow.swift": "9a9aabd3fed2b20750fead446a60aa9fd6a8db8ddda22be57f7f4e585ea8d9a4",
+    "Sources/TurtleGitMac/SubmoduleUpdateProgressWindow.swift": "5d496bd299b75c98b1376f8ad52445ad027e43a12a97e5795011562df8f58f95",
+    "Sources/TurtleGitMac/SubmoduleSyncWindow.swift": "2f967e4456a204e9a5ad94d5acc78686dcaa3281a30b364a3f84fea9efe73b33",
+    "Sources/TurtleGitMac/WorktreeListWindow.swift": "7269d20f18c82b3e04f76c7a27262da5c8808a719108709f60c9739fa30b3f3e",
+    "Sources/TurtleGitMac/WorktreeCreateWindow.swift": "0402ef32e86842bbd33a364d09075282207018b877f65dcb705f3d97c9a1cb50",
+    "Configuration/App-Info.plist": "f3263e892cbf4b8aeb3f21bec7121ec3272bbc08ca060a6a21d8123260dd7eeb"
+  }
+}
