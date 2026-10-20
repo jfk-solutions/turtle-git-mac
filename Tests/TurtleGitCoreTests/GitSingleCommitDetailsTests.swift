@@ -89,6 +89,31 @@ final class GitSingleCommitDetailsTests:XCTestCase {
             XCTAssertEqual(value.objectID,oid);XCTAssertEqual(value.tree,tree);XCTAssertEqual(value.author.name,"Café");XCTAssertEqual(value.message,"Café\n\n body \n\n");XCTAssertEqual(value.author.date,"1970-01-01T05:29:59+05:30");XCTAssertEqual(value.committer.date,"2023-11-14T15:13:20-07:00")
         }
     }
+    func testPackedUnicodeReferencesRetainByteIdentityWithPrecomposedWorkingTreePaths() async throws {
+        let(root,repo,_)=try await GitPatchTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
+        _ = try await repo.run(["config","core.precomposeunicode","true"])
+        let head=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        let tree=try await repo.run(["rev-parse","HEAD^{tree}"]).text.trimmingCharacters(in:.newlines)
+        let other=try await object(repo,data:raw(tree:tree,parents:[head]))
+        let composed="refs/tags/café",decomposed="refs/tags/cafe\u{301}"
+        let records=[(composed,head),(decomposed,other)].sorted{$0.0.utf8.lexicographicallyPrecedes($1.0.utf8)}
+        // Write packed refs directly: filesystem name normalization must not
+        // prevent exercising two distinct Git reference byte sequences.
+        let packed=Data(("# pack-refs with: sorted\n"+records.map{$0.1+" "+$0.0+"\n"}.joined()).utf8)
+        try packed.write(to:root.appendingPathComponent(".git/packed-refs"))
+        let config=try Data(contentsOf:root.appendingPathComponent(".git/config"))
+        for backend in [engine(),GitLibGit2Configuration(enabled:false)] {
+            let first=try commit(await repo.singleCommitDetails(revision:composed,backend:backend))
+            let second=try commit(await repo.singleCommitDetails(revision:decomposed,backend:backend))
+            XCTAssertEqual(first.objectID,head);XCTAssertEqual(second.objectID,other)
+            let peeled=try commit(await repo.singleCommitDetails(revision:decomposed+"^{}",backend:backend))
+            XCTAssertEqual(peeled.objectID,other)
+        }
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/config")),config)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/packed-refs")),packed)
+        let setting=try await repo.run(["config","--get","core.precomposeunicode"]).text.trimmingCharacters(in:.newlines)
+        XCTAssertEqual(setting,"true")
+    }
     func testNestedSignedStyleTagsPeelButTreeFallbackRetainsSelectedBranchSemantics() async throws {
         let(root,repo,_)=try await GitPatchTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
         let head=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines),tree=try await repo.run(["rev-parse","HEAD^{tree}"]).text.trimmingCharacters(in:.newlines)

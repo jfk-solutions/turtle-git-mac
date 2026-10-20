@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Native adaptation of TGitCache.cpp's optional tray and fifteen-row activity window.
 import AppKit
+import Darwin
 
 public struct FinderCacheTrayPreferences: Codable, Equatable, Sendable {
     public var enabled: Bool
@@ -48,6 +49,27 @@ public struct FinderCacheActivitySnapshot: Sendable {
 
 /// Runs in the independent agent. Private activity never enters Finder's shared
 /// snapshot or the authenticated IPC report. Exit is supplied by its process host.
+/// The service menu owns only CacheType. Its shared-record merge and policy
+/// fence must participate in the same transaction as the application settings.
+enum FinderCacheTrayStatusPolicy {
+    static func setCacheMode(_ mode:FinderOverlayCacheMode,overlaysURL:URL,statusURL:URL? = nil) throws {
+        let statusURL=statusURL ?? overlaysURL.deletingLastPathComponent().appendingPathComponent("status.json")
+        var original:Data?,permissions:Any?,next=FinderOverlaySettings()
+        try FinderSnapshotStore(url:statusURL).configureStatusPolicy(policy:{
+            var info=stat()
+            if lstat(overlaysURL.path,&info)==0 {
+                guard info.st_mode&S_IFMT==S_IFREG,info.st_size>=0,info.st_size<=1048576 else{throw GitConfigurationFailure.invalidValue}
+                original=try Data(contentsOf:overlaysURL);permissions=try FileManager.default.attributesOfItem(atPath:overlaysURL.path)[.posixPermissions]
+            } else if errno != ENOENT {throw GitConfigurationFailure.invalidValue}
+            next=try FinderOverlaySettings.readChecked(from:overlaysURL);next.cacheMode=mode
+            return FinderStatusPolicy(settings:next,preferences:try FinderStatusPolicyPreferences.read(from:statusURL))
+        },publish:{_ = try next.write(to:overlaysURL)},rollback:{
+            if let original {try original.write(to:overlaysURL,options:.atomic);if let permissions {try FileManager.default.setAttributes([.posixPermissions:permissions],ofItemAtPath:overlaysURL.path)}}
+            else if FileManager.default.fileExists(atPath:overlaysURL.path) {guard try FileManager.default.attributesOfItem(atPath:overlaysURL.path)[.type] as? FileAttributeType == .typeRegular else{throw GitConfigurationFailure.invalidValue};try FileManager.default.removeItem(at:overlaysURL)}
+        })
+    }
+}
+
 @MainActor public final class FinderCacheTrayController:NSObject,NSMenuDelegate {
     public let menu=NSMenu()
     public private(set) var activityWindow:NSWindow?
@@ -132,7 +154,7 @@ public struct FinderCacheActivitySnapshot: Sendable {
     private func setCacheMode(_ mode:FinderOverlayCacheMode) {
         do {
             guard let overlaysURL else {throw FinderServiceAuthorizationFailure.invalidRequest}
-            try FinderOverlaySettings.updateCacheMode(mode,at:overlaysURL);failure=nil;notify()
+            try FinderCacheTrayStatusPolicy.setCacheMode(mode,overlaysURL:overlaysURL);failure=nil;DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderStatusPolicyPreferences.notification),object:nil);notify()
         }catch{failure=error.localizedDescription;if activityWindow?.isVisible != true {toggleActivity()}}
         refresh()
     }

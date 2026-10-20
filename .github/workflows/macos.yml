@@ -695,6 +695,8 @@ jobs:
         run: python3 scripts/test-status-colors.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Finder cache persistence, shutdown and restart
         run: python3 scripts/test-finder-cache-persistence.py --only settings --only lifecycle --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Finder source cache modes, collection policy and native ownership
+        run: python3 scripts/test-finder-status-policy-native.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Indexed Finder queries, exact roots and foreground cache publication
         run: python3 scripts/test-finder-query-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native clipboard patch chooser and Finder handoff

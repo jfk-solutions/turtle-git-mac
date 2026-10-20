@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 import UniformTypeIdentifiers
+import Darwin
 
 /// The accepted command carries its output engine through permission and
 /// repository-discovery tasks without mutating shared preferences.
@@ -527,6 +528,19 @@ private enum HistoricalMaterializationContext {
     private var cacheStates: GitPathMap<FileState> = [:]
     private var cacheOverlayEntries: GitPathMap<FileState>?
     private var cacheIndexFlags: GitPathMap<FinderIndexFlags>?
+    private var cacheOverlayPolicies:GitPathMap<FinderOverlayPolicyMetadata> = [:]
+    private let finderStatusPolicyProvider:(() throws -> FinderStatusPolicy)?
+    private var finderPolicyObservers:[NSObjectProtocol]=[]
+    private func finderPolicyChanged(operation:Bool) {
+        guard !retired else{return}
+        if operation {
+            guard let policy=try? finderStatusPolicyProvider?(),policy.blockStatus,
+                  policy.cacheMode == .shell || policy.cacheMode == .shellExtended,
+                  !FinderStatusOperationLease.isBlocked() else{return}
+        }
+        eventRefresh?.invalidate()
+        finderWatches?.reloadStatusPolicy(operation:operation)
+    }
     private var cacheRepositories: GitPathMap<FinderRepositoryMetadata> = [:]
     private var monitoredRoots: [String] = []
     var visibleEntries: [StatusEntry] { entries.filter { showIgnored || $0.state != .ignored } }
@@ -553,12 +567,15 @@ private enum HistoricalMaterializationContext {
     }
 
     init(startMonitoring: Bool = true,initializePreferences:Bool = true,repositoryFactory:((URL) throws -> GitRepository)? = nil,snapshotWriter:(@Sendable (FinderSnapshot) throws -> Bool)? = nil,snapshotStore:FinderSnapshotStore? = nil,finderWatches:FinderWatchManager? = nil,savedAccessStore:RepositoryAccessStore? = nil,comparisonMarks:WorkingComparisonMarkStore? = nil,cachePersistenceDefaults:UserDefaults = .standard,
+         finderStatusPolicyProvider:(() throws -> FinderStatusPolicy)? = nil,
          publishCachePersistence:(FinderCachePersistencePreferences) throws -> Void = { if try $0.write() { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCachePersistencePreferences.notification),object:nil) } }) {
         comparisonMarkStore=comparisonMarks ?? WorkingComparisonMarkStore(storageURL:WorkingComparisonMarkStore.defaultStorageURL)
         self.accessStore=savedAccessStore;recentRepositories=savedAccessStore?.repositories ?? []
         self.finderWatches=finderWatches
         self.repositoryFactory=repositoryFactory;self.snapshotWriter=snapshotWriter
         self.snapshotStore=snapshotStore ?? FinderIntegration.snapshotURL.map { FinderSnapshotStore(url:$0) }
+        let policyURL=self.snapshotStore?.url
+        self.finderStatusPolicyProvider=finderStatusPolicyProvider ?? (startMonitoring && initializePreferences ? {try FinderStatusPolicy.read(from:policyURL)}:nil)
         if self.snapshotStore != nil { finderStatus = "Finder cache ready" }
         monitoringEnabled=startMonitoring
         guard startMonitoring && initializePreferences else { return }
@@ -573,8 +590,39 @@ private enum HistoricalMaterializationContext {
         catch { finderStatus = "Finder menu preferences unavailable: " + error.localizedDescription }
         do { _ = try FinderCacheTrayPreferences.from().write() }
         catch { finderStatus = "Finder cache menu preferences unavailable: " + error.localizedDescription }
-        do { _ = try FinderOverlaySettings.effective().write() }
+        do {
+            if let policyURL {
+                let overlayURL=policyURL.deletingLastPathComponent().appendingPathComponent("overlay-settings.json")
+                var bootstrap:FinderOverlaySettings?
+                let configure=FinderStatusSettingsPublication.transaction(statusURL:policyURL,ownedURL:overlayURL)
+                try configure({
+                    let accepted=try FinderOverlaySettings.readChecked(from:overlayURL)
+                    var info=stat();let missing=lstat(overlayURL.path,&info) != 0 && errno==ENOENT
+                    let value=missing ? FinderOverlaySettings.from(defaults:cachePersistenceDefaults):accepted
+                    if missing {bootstrap=value}
+                    return FinderStatusPolicy(settings:value,preferences:try FinderStatusPolicyPreferences.read(from:policyURL))
+                },{if let bootstrap {_ = try bootstrap.write(to:overlayURL)}},{})
+            }
+        }
         catch { finderStatus = "Finder overlay preferences unavailable: " + error.localizedDescription }
+        do {
+            if let policyURL,let readPolicy=self.finderStatusPolicyProvider {
+                var bootstrap:FinderStatusPolicyPreferences?
+                let configure=FinderStatusSettingsPublication.transaction(statusURL:policyURL,ownedURL:policyURL.appendingPathExtension("policy"))
+                try configure({
+                    if !FileManager.default.fileExists(atPath:policyURL.appendingPathExtension("policy").path) {
+                        let preferences=FinderStatusPolicyPreferences.from(defaults:cachePersistenceDefaults);bootstrap=preferences
+                        return FinderStatusPolicy(settings:try FinderOverlaySettings.readChecked(from:policyURL.deletingLastPathComponent().appendingPathComponent("overlay-settings.json")),preferences:preferences)
+                    }
+                    return try readPolicy()
+                },{if let bootstrap {_ = try bootstrap.write(to:policyURL)}},{})
+            }
+        } catch {finderStatus="Finder status policy unavailable: "+error.localizedDescription}
+        for (name,operation) in [(FinderStatusPolicyPreferences.notification,false),(FinderStatusOperationLease.notification,true)] {
+            finderPolicyObservers.append(DistributedNotificationCenter.default().addObserver(forName:NSNotification.Name(name),object:nil,queue:.main) { [weak self] _ in
+                Task { @MainActor in self?.finderPolicyChanged(operation:operation) }
+            })
+        }
         do { workingComparisonMark = try comparisonMarkStore.snapshot() } catch { self.error = error.localizedDescription }
         do {
             let store = try savedAccessStore ?? RepositoryAccessStore(storageURL: RepositoryAccessStore.defaultStorageURL)
@@ -585,10 +633,12 @@ private enum HistoricalMaterializationContext {
                 cacheStates = snapshot.states; monitoredRoots = snapshot.roots; cacheRepositories = snapshot.repositories
                 cacheOverlayEntries = snapshot.overlayEntries
                 cacheIndexFlags = snapshot.indexFlags
+                cacheOverlayPolicies = snapshot.overlayPolicies
             }
         }
 
     }
+    deinit {for observer in finderPolicyObservers {DistributedNotificationCenter.default().removeObserver(observer)}}
     func configureSettingsRemote(_ model: RemoteSettingsWindowModel) {
         let repository = model.repository, access = model.access
         model.onFetch = { [weak self] remote in self?.showFetch(repository: repository, access: access, remote: remote) }
@@ -826,26 +876,28 @@ private enum HistoricalMaterializationContext {
         finderPublicationReads[readID]=token
         defer { finderPublicationReads.removeValue(forKey:readID) }
         let store=snapshotStore
+        let policy=try finderStatusPolicyProvider?()
         var ticket:FinderPublicationTicket?,publicationError:String?,persistenceWarning:String?
         if snapshotWriter==nil,let store {
             do {
                 let session=try publicationSession(store,cancellation:token)
                 persistenceWarning=session.persistenceFailure
-                ticket=try await Task.detached { try store.begin(root:root,session:session,cancellation:token) }.value
+                ticket=try await Task.detached { try store.begin(root:root,session:session,cancellation:token,policy:policy) }.value
             }
             catch { publicationError=error.localizedDescription }
             persistenceWarning=ticket?.persistenceFailure ?? persistenceWarning
         }
-        let collected=try await repository.collectFinderRepository(authorizedRoot:activeAccess?.url ?? root,cancellation:token,watchReady:{ [weak self] directories in if !token.isCancelled { await self?.monitorFiles(directories) } })
+        let collected=try await repository.collectFinderRepository(authorizedRoot:activeAccess?.url ?? root,cancellation:token,watchReady:{ [weak self] directories in if !token.isCancelled { await self?.monitorFiles(directories) } },policy:policy)
         try token.check()
         bare=collected.bare;entries=collected.entries;conflictRebase=collected.conflictIsRebase;submodules=collected.submodules
         selection = (pendingWorkspaceSelection ?? selection).intersection(visibleEntries.map(\.path));pendingWorkspaceSelection=nil
         branch=collected.branch;hasGitSVN=collected.metadata.hasGitSVN;mergeActive=collected.metadata.mergeActive
-        var cached=FinderSnapshot(roots:monitoredRoots,states:cacheStates,repositories:cacheRepositories,overlayEntries:cacheOverlayEntries,indexFlags:cacheIndexFlags)
+        var cached=FinderSnapshot(roots:monitoredRoots,states:cacheStates,repositories:cacheRepositories,overlayEntries:cacheOverlayEntries,indexFlags:cacheIndexFlags,overlayPolicies:cacheOverlayPolicies)
         cached.replaceSubtree(root:root,snapshots:collected.snapshots)
         monitoredRoots = cached.roots; cacheStates = cached.states; cacheRepositories = cached.repositories
         cacheOverlayEntries = cached.overlayEntries
         cacheIndexFlags = cached.indexFlags
+        cacheOverlayPolicies = cached.overlayPolicies
         do {
             if let publicationError { finderStatus="Finder cache unavailable: "+publicationError;return }
             let written:Bool
@@ -855,8 +907,8 @@ private enum HistoricalMaterializationContext {
                 cached=update.snapshot
                 persistenceWarning=update.persistenceFailure
                 monitoredRoots=cached.roots;cacheStates=cached.states;cacheRepositories=cached.repositories
-                cacheOverlayEntries=cached.overlayEntries;cacheIndexFlags=cached.indexFlags
-                guard update.published else { finderStatus="Finder cache update superseded";return }
+                cacheOverlayEntries=cached.overlayEntries;cacheIndexFlags=cached.indexFlags;cacheOverlayPolicies=cached.overlayPolicies
+                guard update.published else { finderStatus="Finder cache update superseded";eventRefresh?.invalidate();return }
                 written=true
             } else { written=false }
             finderStatus = written ? (collected.failures.isEmpty ? "Finder cache updated" : "Finder cache updated; \(collected.failures.count) submodule scan(s) failed: " + collected.failures.sorted { $0.key < $1.key }.map { $0.key + ": " + $0.value }.joined(separator: "; ")) : "Finder cache unavailable: App Group access required"
@@ -867,10 +919,11 @@ private enum HistoricalMaterializationContext {
         guard let repository, !busy, !confirmingQuit else { return }
         busy = true
         let access = activeAccess
+        let finderOwner=UUID();FinderCommandStatusActivity.update(finderOwner,active:true)
         Task {
-            defer { busy = false; withExtendedLifetime(access) {} }
-            do { output = try await operation(repository); try await reload() }
-            catch { self.error = error.localizedDescription; try? await reload() }
+            defer { FinderCommandStatusActivity.update(finderOwner,active:false);busy = false; withExtendedLifetime(access) {} }
+            do { output = try await operation(repository);FinderCommandStatusActivity.update(finderOwner,active:false);try await reload() }
+            catch {FinderCommandStatusActivity.update(finderOwner,active:false);self.error = error.localizedDescription;try? await reload() }
             if let root { refreshStatusWindows(root) }
         }
     }

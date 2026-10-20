@@ -1,5 +1,21 @@
 # TurtleGit for Mac — full port tracking
 
+The [Finder status-policy family](FINDER-STATUS-POLICY-PARITY.md) connects all four
+cache choices, exact index-case policy, source stat/content thresholds and global
+command ownership across Settings, foreground/watched publishers, the helper and
+Finder. Query-only IPC preserves the separate grant endpoint, and transactional
+Apply fences old readers. Universal helper checks, 80 distinct Core methods,
+the Debug app and grouped native checks with Apple/bundled Git passed across the
+initial checkpoint and focused repairs. Actual light/dark page captures accompany
+the family record; installed signed Finder and complete source acceptance remain
+open.
+
+The [hosted Core repair checkpoint](qa/hosted-core-repairs-2026-10-20.json)
+addresses the terminal `813fc0f5` run: process-local Unicode reference handling,
+explicit tree-expression fixtures, current stale-confirmation behavior and the
+actual post-stash inspection boundary. Its 59 affected Core tests passed; that
+focused result does not certify a complete current hosted CI pass.
+
 The [positioned metafile text family](METAFILE-POSITIONED-TEXT-PARITY.md) connects
 driver strings, caller-provided glyph indices and classic text displacements to
 native font geometry and the existing comparison/preview/conflict consumers.

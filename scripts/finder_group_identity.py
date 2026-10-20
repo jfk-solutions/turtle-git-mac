@@ -13,3 +13,7 @@ def app_group(team):
 
 def mach_service(team):
     return app_group(team) + '.cache'
+
+
+def query_mach_service(team):
+    return app_group(team) + '.cache.query'

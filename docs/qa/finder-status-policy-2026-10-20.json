@@ -1,0 +1,178 @@
+{
+  "date": "2026-10-20",
+  "family": "Finder source status cache modes, index case/content policies and bounded command ownership",
+  "status": "grouped checkpoint passed after focused repairs; physical/signed/full-source acceptance remains open",
+  "upstream_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_contract": {
+    "settings": "src/TortoiseProc/Settings/SetOverlayPage.cpp; src/Resources/TortoiseProcENG.rc IDD_SETTINGSOVERLAY",
+    "cache_modes": "src/Git/GitFolderStatus.cpp BuildCache; src/Git/GitStatus.cpp GetAllStatus/GetFileStatus_int",
+    "index": "src/Git/GitIndex.cpp ReadIndex/GetFileStatus",
+    "default_daemon": "src/TGitCache/CachedDirectory.cpp"
+  },
+  "implementation": {
+    "cache_choices": "Default1/ShellExtended3/Shell2/None0 in source order; retained propagation options consumed onlyDefault",
+    "index_case": "true clears index IGNORE_CASE; false retains index caps, exact-first literal paths",
+    "content": "stat/flags before strict KiB filtered hash cutoff; no generic status call bypassing cutoff",
+    "blocking": "Global shared advisory operation ownership; native command and actual mutating process lifetimes, no permanent GUI PID owner; Shell only",
+    "publication": "Per-root policy/effectivecase metadata, immutable tickets and storelocked settings/ownedfile transaction/rollback; context roots and separate grants retained",
+    "query": "Separate Finder-only signed query service; app-only grant service unchanged; bounded authorized-root refresh coalescing, no Git inFinder",
+    "startup": "Only missing shared records migrate UserDefaults, under the same policy/file transaction; malformed authoritative modes fail closed"
+  },
+  "limits": {
+    "per_repository_index_entries": 100000,
+    "worktree_visits": 100000,
+    "depth": 256,
+    "path_bytes": 1048576,
+    "wire_rows": 200000,
+    "wire_bytes": 67108864,
+    "aggregate_hashed_input_bytes": 268435456,
+    "aggregate_hash_boundary_exercised": false
+  },
+  "validation": [
+    {
+      "check": "Project/source generation",
+      "result": "passed",
+      "log": "build/qa/finder-status-project-2026-10-20.log"
+    },
+    {
+      "check": "Universal helper build",
+      "result": "passed; unchanged pinned native libgit2 slices reused, new C bridge and Swift helper built",
+      "log": "build/qa/finder-status-runtime-2026-10-20.log"
+    },
+    {
+      "check": "Native resources before app build",
+      "result": "generated38languages1305keys;Help45guides51topics65files",
+      "logs": [
+        "build/qa/finder-status-localizations-2026-10-20.log",
+        "build/qa/finder-status-help-2026-10-20.log"
+      ]
+    },
+    {
+      "check": "Universal helper execution",
+      "result": "passed; actual new Finder full/light protocol and stat-change classification on arm64 and x86_64; retained clone/fetch/list/deletion/filter/privateindex contracts passed",
+      "log": "build/qa/finder-status-runtime-validation-2026-10-20.log"
+    },
+    {
+      "check": "Initial relevant Core group",
+      "result": "80methods;78passed,2fixture failures",
+      "log": "build/qa/finder-status-core-2026-10-20.log",
+      "failures": [
+        "Old writer migration assertion expects schema3, actual intentional policy schema4",
+        "Case-only Git mv fixture fails on insensitive APFS when core.ignorecase=false"
+      ]
+    },
+    {
+      "check": "Initial Debug app build",
+      "result": "failed after compile at embed-cache-service namespace template check",
+      "log": "build/qa/finder-status-app-2026-10-20.log",
+      "failure": "Embedding expected oneMachService while dedicatedqueryendpoint adds a second; strict expectedset/templateexpansion required the subsequent exact-two-service repair"
+    },
+    {
+      "check": "Focused Core repair",
+      "result": "passed both affected methods; 80 distinct relevant methods pass across the initial 78 and repaired 2",
+      "log": "build/qa/finder-status-core-repair-2026-10-20.log"
+    },
+    {
+      "check": "Exact two-service identity contracts",
+      "result": "passed; missing-query and extra-service templates rejected",
+      "log": "build/qa/finder-status-identity-repair-2026-10-20.log"
+    },
+    {
+      "check": "Repaired Debug app build",
+      "result": "passed; both exact cache/query MachServices embedded; native control refinement still pending",
+      "log": "build/qa/finder-status-app-repair-2026-10-20.log"
+    },
+    {
+      "check": "Initial grouped native attempt and observation repairs",
+      "result": "failed waiting for native radios: current SDK renders SwiftUI choices as graphics views; offscreen hosting AX root exposes no children. Real AppKit controls are being added before retaining all choice/order/enable assertions. All attempted owned receivers reaped.",
+      "logs": [
+        "build/qa/finder-status-native-2026-10-20.log",
+        "build/qa/finder-status-native-repair-2026-10-20.log",
+        "build/qa/finder-status-native-accessibility-2026-10-20.log",
+        "build/qa/finder-status-native-ax-elements-2026-10-20.log"
+      ],
+      "reaped_pids": [
+        85008,
+        85239,
+        85341,
+        85412
+      ],
+      "independent_process_absence": "confirmed ps -p85008,85239,85341,85412 returns no processes"
+    },
+    {
+      "check": "Final native-control Debug app build",
+      "result": "passed; standard AppKit radio/checkbox controls and current Core repair sources compiled",
+      "log": "build/qa/finder-status-native-controls-app-2026-10-20.log"
+    },
+    {
+      "check": "Grouped native workflow",
+      "result": "passed with Apple Git2.54 and bundled Git2.55; actual radio/checkbox clicks, all four collectors, Apply/Cancel, failed publication/retry, unrelated drafts, retired owners, nested local/Dock operation ownership and unchanged HEAD/index/file assertions",
+      "log": "build/qa/finder-status-native-appkit-2026-10-20.log",
+      "reaped_pids": [
+        88451,
+        88469
+      ]
+    },
+    {
+      "check": "Actual light/dark page captures",
+      "result": "passed; invalid offscreen bitmaps discarded, brief WindowServer capture inspected; no full settings/Git test rerun",
+      "log": "build/qa/finder-status-window-captures-2026-10-20.log",
+      "reaped_pids": [
+        88589
+      ],
+      "artifacts": [
+        "docs/site/assets/overlay-cache-policy-light.png",
+        "docs/site/assets/overlay-cache-policy-dark.png"
+      ]
+    },
+    {
+      "check": "Generated resources and published documentation",
+      "result": "localizations38languages1305keys and bundled Help45guides51topics65files check passed; site379documents with no unresolved fragments; diff whitespace check passed",
+      "logs": [
+        "build/qa/finder-status-localizations-check-2026-10-20.log",
+        "build/qa/finder-status-help-check-2026-10-20.log",
+        "build/qa/finder-status-site-2026-10-20.log"
+      ]
+    },
+    {
+      "check": "Pinned source review ledger",
+      "result": "130dialogs;120partial-family audits,10pending,0certified;1574mappedcontrols and85pendingcontrolreviews; not a feature completion percentage",
+      "log": "build/qa/finder-status-dialog-coverage-2026-10-20.log"
+    }
+  ],
+  "remaining": [
+    "Physical current Finder installation, query IPC and App Group deployment",
+    "Distribution-signed and App Store acceptance",
+    "Windows Unicode case equivalence, all filesystems/filters and exact source directory-cache storage/timing",
+    "Explicit collector bounds and whole-port behavior beyond this family"
+  ],
+  "repairs": [
+    {
+      "failure": "Old migration version assertion",
+      "repair": "Expect schema4 while preserving prior counter/id/entry/futureversion checks",
+      "scope": "Affected migration test only"
+    },
+    {
+      "failure": "Case-only rename fixture on insensitive filesystem",
+      "repair": "Two-hop Git mv via private intermediate, retain exact Added vs folded Normal assertions",
+      "scope": "Affected case method only; no production helper change"
+    },
+    {
+      "failure": "App embedding rejects new query MachService",
+      "repair": "Extend strict exact namespace contracts and team substitution to both endpoints, preserve signing/grant boundary assertions",
+      "scope": "Embedding/identity checks and app rebuild"
+    },
+    {
+      "failure": "Compiler reports Optional.none inference in Finder None-mode conditional",
+      "repair": "Use explicit FinderOverlayCacheMode.none",
+      "scope": "Finder extension native source; app rebuild required"
+    }
+  ],
+  "runtime": {
+    "unsigned_helper_sha256": "329d7ac0869a723feed4880724391da6678939cf2e2802d3a4f166fedbc4c0e6",
+    "embedded_signed_helper_sha256": "7b0a3c0174f27a82908da2a250b2449692a8eabee12b3497a22e2fc6774bb37e",
+    "source_inputs_match": true,
+    "embedded_unsigned_provenance_matches": true
+  },
+  "owned_receiver_cleanup": "independent ps confirms all failed/success/capture PIDs absent; no unrelated user applications terminated"
+}

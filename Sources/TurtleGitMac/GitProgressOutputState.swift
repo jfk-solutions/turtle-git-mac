@@ -57,8 +57,9 @@ struct GitProgressOutputState {
 /// original for repository callbacks; only presentation is bounded/CR-normalized.
 @MainActor enum LocalGitCommandProgress {
     private(set) static var activeOperations = 0
-    static func begin() { activeOperations += 1 }
-    static func end() { activeOperations -= 1 }
+    private static let finderOwner=UUID()
+    static func begin() { activeOperations += 1;FinderCommandStatusActivity.update(finderOwner,active:true) }
+    static func end() { activeOperations -= 1;if activeOperations==0 { FinderCommandStatusActivity.update(finderOwner,active:false) } }
     static func stream<T>(preferences: UserDefaults, update: @escaping (GitProgressOutputState) -> Void,
                           resultText: @escaping (T) -> String,
                           operation: @escaping (@escaping @Sendable (GitOutputChunk) -> Void) async throws -> T) async throws -> T {
@@ -170,7 +171,14 @@ struct DockProgressState: Equatable {
 }
 
 @MainActor final class DockProgressRegistry {
-    static let shared = DockProgressRegistry { DockProgressPresenter.shared.present($0) }
+    static let shared:DockProgressRegistry = {
+        let registry=DockProgressRegistry { DockProgressPresenter.shared.present($0) }
+        let owner=registry.finderOwner
+        registry.commandActivity={ FinderCommandStatusActivity.update(owner,active:$0) }
+        return registry
+    }()
+    private let finderOwner=UUID()
+    var commandActivity:((Bool)->Void)?
     private var entries: [UUID: DockProgressState] = [:]
     private(set) var current: DockProgressState?
     var presentation: (DockProgressState?) -> Void
@@ -182,10 +190,30 @@ struct DockProgressState: Equatable {
     func remove(_ owner: UUID) { entries.removeValue(forKey: owner); publish() }
     private func publish() {
         let values = Array(entries.values)
+        commandActivity?(values.contains { $0.kind == .running || $0.kind == .paused })
         let kind: DockProgressState.Kind? = values.contains { $0.kind == .failed } ? .failed : values.contains { $0.kind == .running } ? .running : values.isEmpty ? nil : .paused
         let matching = values.filter { $0.kind == kind }
         let value = kind.map { DockProgressState($0, percentage: matching.contains { $0.percentage == nil } ? nil : matching.compactMap(\.percentage).min()) }
         guard value != current else { return }; current = value; presentation(value)
+    }
+}
+
+/// An app-wide command lease survives individual progress updates and combines
+/// explicit work counters with remote/Commit Dock progress. A retained error
+/// does not block status after work has ended. Ordinary windows own no lease.
+@MainActor enum FinderCommandStatusActivity {
+    private static var owners=Set<UUID>()
+    private static var lease:FinderStatusOperationLease?
+    static var acquire:() throws -> FinderStatusOperationLease? = { try FinderStatusOperationLease.begin() }
+    private(set) static var failure:String?
+    static var activeOwnerCount:Int { owners.count }
+    static func update(_ owner:UUID,active:Bool) {
+        if active { owners.insert(owner) } else { owners.remove(owner) }
+        if owners.isEmpty { lease?.end();lease=nil;failure=nil }
+        else if lease==nil {
+            do { lease=try acquire();failure=nil }
+            catch { failure=error.localizedDescription }
+        }
     }
 }
 

@@ -19,6 +19,7 @@ import TurtleGitCore
             && FileManager.default.isExecutableFile(atPath: root.appendingPathComponent("Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache").path)
     }
     private var queued = false
+    private var policyRefreshQueued=false
     private var sentRevision: Int?
     private var reportRevision: Int?
     private var epoch = UUID()
@@ -38,7 +39,12 @@ import TurtleGitCore
         @unknown default: message = "Background service status is unavailable."
         }
     }
-    func retire() { retired = true; queued = false; epoch = UUID() }
+    func retire() { retired = true; queued = false;policyRefreshQueued=false;epoch = UUID() }
+    func statusPolicyChanged(_ manager:FinderWatchManager) {
+        guard !retired else{return}
+        epoch=UUID();report=nil;reportRevision=nil;lastChecked=nil
+        policyRefreshQueued=true;requestSync(manager)
+    }
     func enable(_ manager: FinderWatchManager) async {
         guard !busy, !retired else { return }; busy = true; defer { finishOperation(manager) }
         do {
@@ -62,7 +68,10 @@ import TurtleGitCore
             guard let manager else { return }
             while queued, enabled, !retired, manager.active {
                 queued = false
-                do { try await synchronize(manager); try await readReport(manager) }
+                do {
+                    if policyRefreshQueued {policyRefreshQueued=false;_ = try await perform(.refresh)}
+                    try await synchronize(manager);try await readReport(manager)
+                }
                 catch { if !retired, manager.active { failure = error.localizedDescription; message = "Background service request failed." }; break }
             }
         }

@@ -7,8 +7,8 @@
     "pending_family_reviews": 10,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 87,
-    "mapped_controls": 1572,
+    "pending_control_reviews": 85,
+    "mapped_controls": 1574,
     "statuses": {
       "pending-review": 10,
       "partial-native-replacement": 89,
@@ -1042,8 +1042,8 @@
       "status": "partial-native-replacement",
       "source_blob": "c14c10664826999d31fcba652a0ea2157377a19f",
       "static_controls": 23,
-      "mapped_controls": 18,
-      "pending_control_reviews": 5,
+      "mapped_controls": 20,
+      "pending_control_reviews": 3,
       "certified_complete": false,
       "native_sources": [
         {
@@ -1053,16 +1053,26 @@
         {
           "path": "Sources/TurtleGitCore/FinderOverlaySettings.swift",
           "anchor": "FinderOverlayPathPolicy"
+        },
+        {
+          "path": "Sources/TurtleGitCore/FinderStatusCollector.swift",
+          "origin": "recorded-control-mapping"
+        },
+        {
+          "path": "Sources/TurtleGitCore/FinderStatusPolicy.swift",
+          "origin": "recorded-control-mapping"
         }
       ],
       "missing_native_references": [],
       "parity_documents": [
-        "docs/FINDER-OVERLAY-SETTINGS-PARITY.md"
+        "docs/FINDER-OVERLAY-SETTINGS-PARITY.md",
+        "docs/FINDER-STATUS-POLICY-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/finder-control-source-family-2026-10-17.json",
         "docs/qa/finder-icons-batch-2026-10-11.json",
         "docs/qa/finder-installed-2026-10-17.json",
+        "docs/qa/finder-status-policy-2026-10-20.json",
         "docs/qa/network-finder-settings-batch-2026-10-11.json",
         "docs/qa/overlay-path-policy-2026-10-15.json"
       ]

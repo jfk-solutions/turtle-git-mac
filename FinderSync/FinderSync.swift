@@ -3,9 +3,12 @@ import FinderSync
 import TurtleGitCore
 import os
 
-/// Finder never launches Git. Only the containing application scans repositories.
+/// Finder never launches Git. Authorized app/service publishers collect status.
 @objc(FinderSync) final class FinderSync: FIFinderSync {
     private let menuDispatch = FinderMenuDispatch()
+    private let statusQueries = FinderObservedStatusQueries()
+    private var observedDirectories=GitPathSet()
+    private var statusPolicy:FinderStatusPolicy?
     private static let handoffLog = Logger(subsystem: "org.turtlegit.macos.finder", category: "handoff")
     private let liveReader = FinderIntegration.snapshotURL.map { FinderSnapshotLiveReader(url:$0) }
     private var snapshot: FinderSnapshot?
@@ -18,12 +21,21 @@ import os
         super.init()
         reload()
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(reload), name: NSNotification.Name(FinderIntegration.notification), object: nil)
+        for name in [FinderStatusPolicyPreferences.notification,FinderStatusOperationLease.notification] {DistributedNotificationCenter.default().addObserver(self,selector:#selector(statusPolicyChanged),name:NSNotification.Name(name),object:nil)}
         for name in [NSWorkspace.didMountNotification, NSWorkspace.didUnmountNotification, NSWorkspace.didRenameVolumeNotification] {
             NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(reload), name: name, object: nil)
         }
     }
-    deinit { DistributedNotificationCenter.default().removeObserver(self); NSWorkspace.shared.notificationCenter.removeObserver(self) }
+    deinit { statusQueries.retire();DistributedNotificationCenter.default().removeObserver(self); NSWorkspace.shared.notificationCenter.removeObserver(self) }
     @objc private func reload() { install(try? liveReader?.read()) }
+    @objc private func statusPolicyChanged() {reload();for path in observedDirectories {requestStatus(path,force:true)}}
+    private func requestStatus(_ path:String,force:Bool=false) {
+        guard let policy=statusPolicy,policy.cacheMode == .shell || policy.cacheMode == .shellExtended else{return}
+        guard !policy.blockStatus || !FinderStatusOperationLease.isBlocked() else{return}
+        statusQueries.request(path,force:force)
+    }
+    override func beginObservingDirectory(at url:URL) {if observedDirectories.count<4096 {observedDirectories.insert(url.path)};requestStatus(url.path,force:true)}
+    override func endObservingDirectory(at url:URL) {observedDirectories.remove(url.path)}
     private func revalidateLivePublication() {
         let live = try? liveReader?.read()
         // Live ownership can change without changing the stored timestamp.
@@ -35,6 +47,7 @@ import os
         let old = badges
         snapshot = live
         let settings = FinderOverlaySettings.read(), changedIcons = iconSet != settings.iconSet
+        statusPolicy=try? FinderStatusPolicy.read()
         let controller = FIFinderSyncController.default()
         let menuSettings = FinderMenuSettings.read()
         let captions = FinderMenuCaptions(language: menuSettings.language, bundle: Bundle(for: FinderSync.self))
@@ -46,23 +59,31 @@ import os
             iconSet = settings.iconSet; badgeLanguage = menuSettings.language
         }
         let fileSystem = FinderOverlayFileSystem(); self.fileSystem = fileSystem
-        if let snapshot {
+        if let snapshot,let policy=statusPolicy,!((policy.cacheMode == .shell || policy.cacheMode == .shellExtended) && policy.blockStatus && FinderStatusOperationLease.isBlocked()) {
             badges = settings.overlayBadges(snapshot: snapshot, volume: { fileSystem.volume($0).kind },
-                isDirectory: fileSystem.isDirectory, caseSensitive: { fileSystem.volume($0).caseSensitive })
+                isDirectory: fileSystem.isDirectory, caseSensitive: { fileSystem.volume($0).caseSensitive },statusPolicy:policy)
         } else { badges = [:] }
-        badgeLookup = FinderOverlayBadgeLookup(badges: badges, caseSensitive: { fileSystem.volume($0).caseSensitive })
+        badgeLookup = FinderOverlayBadgeLookup(badges: badges, caseSensitive: { snapshot?.overlayCaseSensitive(for:$0,fallback:fileSystem.volume($0).caseSensitive) ?? fileSystem.volume($0).caseSensitive })
         controller.directoryURLs = Set((snapshot?.roots ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) })
         let paths = GitPathSet(old.keys).union(GitPathSet(badges.keys))
         for path in paths where changedIcons || old[path] != badges[path] {
             if changedIcons { controller.setBadgeIdentifier("", for: FileTransferPaths.fileURL(path)) }
-            controller.setBadgeIdentifier(badgeLookup.badge(for: path, caseSensitive: fileSystem.volume(path).caseSensitive)?.rawValue ?? "", for: FileTransferPaths.fileURL(path))
+            controller.setBadgeIdentifier(badgeLookup.badge(for: path, caseSensitive: snapshot?.overlayCaseSensitive(for:path,fallback:fileSystem.volume(path).caseSensitive) ?? fileSystem.volume(path).caseSensitive)?.rawValue ?? "", for: FileTransferPaths.fileURL(path))
         }
     }
     override func requestBadgeIdentifier(for url: URL) {
         // A publisher can exit without a distributed notification. Revalidate
         // process leases before serving a previously cached badge.
         revalidateLivePublication()
-        FIFinderSyncController.default().setBadgeIdentifier(badgeLookup.badge(for: url.path, caseSensitive: fileSystem.volume(url.path).caseSensitive)?.rawValue ?? "", for: url)
+        requestStatus(url.path)
+        let blocked=statusPolicy.map {($0.cacheMode == .shell || $0.cacheMode == .shellExtended) && $0.blockStatus && FinderStatusOperationLease.isBlocked()} ?? true
+        let sensitive=snapshot?.overlayCaseSensitive(for:url.path,fallback:fileSystem.volume(url.path).caseSensitive) ?? fileSystem.volume(url.path).caseSensitive
+        var badge=blocked ? nil:badgeLookup.badge(for:url.path,caseSensitive:sensitive)
+        if statusPolicy?.cacheMode == FinderOverlayCacheMode.none,snapshot?.overlayRepositoryRoot(for:url.path) != nil,!url.path.split(separator:"/").contains(".git"),fileSystem.isDirectory(url.path) {
+            let settings=FinderOverlaySettings.read(),allowed=settings.pathPolicy.allows(url.path,fallback:settings.volumes.contains(fileSystem.volume(url.path).kind),caseSensitive:sensitive)
+            if (allowed && !settings.hiddenStates.contains(.normal)) || (!allowed && settings.showExcludedAsNormal) {badge = .normal}
+        }
+        FIFinderSyncController.default().setBadgeIdentifier(badge?.rawValue ?? "",for:url)
     }
     override var toolbarItemName: String { "TurtleGit" }
     override var toolbarItemToolTip: String { "TurtleGit for Mac" }
@@ -73,6 +94,7 @@ import os
         let selection = controller.selectedItemURLs() ?? []
         let targetURL = controller.targetedURL()
         let paths = FinderMenuBuilder.paths(kind: menuKind, selection: selection, target: targetURL)
+        for path in paths.prefix(128) {requestStatus(path.path)}
         let creation = paths.count == 1 ? paths.first : nil
         let menu = FinderMenuBuilder.make(paths: paths, snapshot: snapshot,
             settings: FinderMenuSettings.read(), comparisonMark: try? WorkingComparisonMarkSnapshot.read(),
@@ -354,5 +376,55 @@ enum FinderMenuBuilder {
         if let store { receipt = (try? await Task.detached { try store.publish(bytes) }.value) ?? FinderPatchHandoff.unavailable }
         else { receipt = FinderPatchHandoff.unavailable }
         return FinderRequest(action: request.action, paths: request.paths, alternateTool: request.alternateTool, clipboardPatch: receipt)
+    }
+}
+
+/// Bounded asynchronous hints only. The daemon authenticates this extension and
+/// intersects requested paths with its private restored grants before reading.
+private final class FinderObservedStatusQueries: @unchecked Sendable {
+    private let queue=DispatchQueue(label:"org.turtlegit.macos.finder.observed-status")
+    private var pending=GitPathSet(),recent:GitPathMap<Date>=[:]
+    private var scheduled=false,retired=false
+    private var connection:NSXPCConnection?
+    private var requestID:UUID?
+    private var retryAfter=Date.distantPast
+    private let enabled=FinderIntegration.snapshotURL != nil
+    func request(_ path:String,force:Bool=false) {
+        guard enabled,path.hasPrefix("/"),path.utf8.count<=1048576,!path.utf8.contains(0) else{return}
+        queue.async {[weak self] in
+            guard let self,!self.retired,Date()>=self.retryAfter else{return}
+            if !force,let last=self.recent[path],Date().timeIntervalSince(last)<2 {return}
+            guard self.pending.count<128 || self.pending.contains(path) else{return}
+            self.pending.insert(path);self.schedule()
+        }
+    }
+    func retire() {queue.async {[weak self] in guard let self else{return};self.retired=true;self.pending=[];self.requestID=nil;self.connection?.invalidate();self.connection=nil}}
+    private func schedule() {
+        guard !retired,!scheduled,requestID==nil,!pending.isEmpty else{return};scheduled=true
+        queue.asyncAfter(deadline:.now()+0.2) {[weak self] in guard let self else{return};self.scheduled=false;self.send()}
+    }
+    private func send() {
+        guard !retired,requestID==nil,!pending.isEmpty else{return}
+        let paths=Array(pending.prefix(128));pending=[]
+        do {
+            let data=try JSONEncoder().encode(paths);guard data.count<=2*1024*1024 else{return}
+            let requirement=try FinderCacheServiceIdentity.requirement(identifier:FinderCacheServiceIdentity.bundleIdentifier,team:FinderCacheServiceIdentity.currentTeam())
+            let identity=UUID(),peer=NSXPCConnection(machServiceName:FinderCacheServiceIdentity.queryMachService,options:[])
+            requestID=identity;connection=peer
+            peer.setCodeSigningRequirement(requirement)
+            peer.remoteObjectInterface=NSXPCInterface(with:FinderCacheQueryProtocol.self)
+            peer.invalidationHandler={[weak self] in self?.queue.async {[weak self] in self?.finish(identity,success:false)}}
+            peer.interruptionHandler=peer.invalidationHandler;peer.resume()
+            guard let proxy=peer.remoteObjectProxyWithErrorHandler({[weak self] _ in self?.queue.async {[weak self] in self?.finish(identity,success:false)}}) as? FinderCacheQueryProtocol else{finish(identity,success:false);return}
+            for path in paths {recent[path]=Date()};if recent.count>1024 {recent=GitPathMap(recent.sorted {$0.value>$1.value}.prefix(512).map {($0.key,$0.value)},uniquingKeysWith:{_,last in last})}
+            proxy.refreshObserved(data) {[weak self] error in self?.queue.async {[weak self] in self?.finish(identity,success:error==nil)}}
+            queue.asyncAfter(deadline:.now()+5) {[weak self] in self?.finish(identity,success:false)}
+        } catch {retryAfter=Date().addingTimeInterval(5)}
+    }
+    private func finish(_ identity:UUID,success:Bool) {
+        guard requestID==identity else{return};requestID=nil
+        let peer=connection;connection=nil;peer?.invalidationHandler=nil;peer?.interruptionHandler=nil;peer?.invalidate()
+        if !success {retryAfter=Date().addingTimeInterval(5);pending=[]}
+        schedule()
     }
 }

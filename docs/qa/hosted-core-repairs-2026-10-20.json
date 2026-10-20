@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-20",
+  "status": "focused Core repair checkpoint passed; complete hosted integration remains unproven",
+  "hosted_evidence": {
+    "run": 39393164202,
+    "job": 118529934325,
+    "commit": "813fc0f518b1a43e1f56125c390d2c5224e46acd",
+    "conclusion": "failure",
+    "executed": 2322,
+    "skipped": 2,
+    "failures": 4,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39393164202"
+  },
+  "failures": [
+    {
+      "test": "GitPathIdentityTests.testChangedFilesExactSelectionRevertExportAndPackedReferences",
+      "cause": "Selected libgit2 commit reader precomposes reference operands when core.precomposeunicode=true, collapsing distinct packed Git names",
+      "repair": "Read-only process-local core.precomposeunicode=false; packed NFC/NFD dual-backend regression preserves config and packed-refs bytes"
+    },
+    {
+      "test": "RepositoryBrowserTests.testStandaloneTreesSupportComparisonMarksPatchesAndHistoricalReadsWithoutInventingHistory",
+      "cause": "Fixture passed annotated tree tag where pinned selected GetCommit fallback requires an actual tree expression",
+      "repair": "Use explicit snapshot-tree^{tree} while retaining all comparison/content/history assertions"
+    },
+    {
+      "test": "SubmoduleConflictTests.testDeletionRevalidatesStagesAfterConfirmationSuspendsActor",
+      "cause": "Real stale-confirmation bug at hosted813; current9520a3d9 already throws ResolveFailure.stale when stage identity disappears after confirmation",
+      "repair": "No additional production edit; rerun affected class in the grouped repair check"
+    },
+    {
+      "test": "SynchronizationCommandCompletionTests.testStashAndSubmoduleReceiptsRetainActualCommandOutcomeBeforeInspection",
+      "cause": "Receipt wrapper only recognized rev-parse/status; current stash inspection first uses selected helper13 or CLI ls-files -u and avoids unnecessary full status",
+      "repair": "Pin command-observation wrapper to explicit CLI backend and observe ls-files after receipt; retain metadata/order/outcome assertions"
+    }
+  ],
+  "remaining": [
+    "Focused local validation does not prove a complete current hosted integration pass",
+    "Current latest hosted7c6f macOS run remains in progress"
+  ],
+  "validation": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter 'GitSingleCommitDetailsTests|GitPathIdentityTests|RepositoryBrowserTests|SynchronizationCommandCompletionTests|SubmoduleConflictTests/testDeletionRevalidatesStagesAfterConfirmationSuspendsActor'",
+    "result": "59 tests passed, 0 failures",
+    "duration_seconds": 45.736,
+    "log": "build/qa/hosted-core-repairs-2026-10-20.log",
+    "helper_inputs": "unchanged from Finder batch validated universal runtime"
+  }
+}

@@ -230,8 +230,10 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         public let refreshing: Bool
         public let lastPublication: Date?
         public let failure: String?
-        public init(id: UUID, refreshing: Bool = false, lastPublication: Date? = nil, failure: String? = nil) {
-            self.id = id; self.refreshing = refreshing; self.lastPublication = lastPublication; self.failure = failure
+        public let policyIdentity:String?
+        public let caseSensitive:Bool?
+        public init(id: UUID, refreshing: Bool = false, lastPublication: Date? = nil, failure: String? = nil,policyIdentity:String? = nil,caseSensitive:Bool? = nil) {
+            self.id = id; self.refreshing = refreshing; self.lastPublication = lastPublication; self.failure = failure;self.policyIdentity=policyIdentity;self.caseSensitive=caseSensitive
         }
     }
     public let version: Int
@@ -275,7 +277,9 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         var active=true
         var watchFailure:String?
         var lastPublication:Date?
+        var effectiveCaseSensitive:Bool?
         var cachedDirectories:GitPathSet=[]
+        var lastObservedRequest=Date.distantPast
         init(_ access:FinderServicePersistentAccess,repository:GitRepository) { self.access=access;self.repository=repository }
         func retire() { active=false;monitor?.stop();monitor=nil;refresh?.retire();refresh=nil;token?.cancel();task?.cancel() }
         /// The scheduler wrapper owns the access as well as its collector task.
@@ -302,19 +306,23 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     public var report: FinderCacheServiceReport {
         FinderCacheServiceReport(running: running, roots: permissions.grants.map { grant in
             let session = sessions[grant.id]
-            return .init(id: grant.id, refreshing: session?.token != nil, lastPublication: session?.lastPublication, failure: rootFailures[grant.id])
+            return .init(id: grant.id, refreshing: session?.token != nil, lastPublication: session?.lastPublication, failure: rootFailures[grant.id],policyIdentity:appliedStatusPolicy?.identity,caseSensitive:session?.effectiveCaseSensitive)
         }.sorted { $0.id.uuidString < $1.id.uuidString }, cleanupFailures: Dictionary(uniqueKeysWithValues: cleanupFailures.map { ($0.key.uuidString, $0.value) }),
             cacheSave: appliedCacheSave, cacheFailure: cacheFailure)
     }
     private var publicationSession: FinderPublicationSession?
     private var retiredPublicationSessions: [FinderPublicationSession] = []
+    private var appliedStatusPolicy:FinderStatusPolicy?
+    private var statusPolicyFailure:String?
+    public var readStatusPolicy:(() throws -> FinderStatusPolicy)?
+    public var statusBlocked:(URL)->Bool = {FinderStatusOperationLease.isBlocked(root:$0)}
     private var appliedCacheSave: Bool?
     private var policyFailure: String?
     private var warmFailure: String?
     private var lifecycleFailure: String?
     private var restorationFailure: String?
     private var cacheFailure: String? {
-        let values = [policyFailure, warmFailure, lifecycleFailure, restorationFailure].compactMap { $0 }
+        let values = [policyFailure, statusPolicyFailure, warmFailure, lifecycleFailure, restorationFailure].compactMap { $0 }
         return values.isEmpty ? nil : values.joined(separator: "\n")
     }
     public private(set) var running=false
@@ -344,7 +352,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     public func start(requireSecurityScope:Bool = true) throws {
         guard !running,!transitioning,shutdownTask==nil else { throw FinderCacheServiceFailure.transitioning }
         let restored=try permissions.restore(requireSecurityScope:requireSecurityScope)
-        reloadCachePolicy();retryRetiredPublications()
+        reloadCachePolicy();reloadStatusPolicy();retryRetiredPublications()
         do {
             let session = try cache.startSession()
             publicationSession = session; warmFailure = session.persistenceFailure
@@ -387,9 +395,47 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         } catch { policyFailure = error.localizedDescription }
         changed()
     }
+    private func shell(_ policy:FinderStatusPolicy) -> Bool {policy.cacheMode == .shell || policy.cacheMode == .shellExtended}
+    private func blocked(_ root:URL) -> Bool {guard let policy=appliedStatusPolicy else{return true};return shell(policy) && policy.blockStatus && statusBlocked(root)}
+    /// Only the settings transaction publishes the authoritative store fence.
+    /// Readers never replace that fence with a potentially older captured file.
+    public func reloadStatusPolicy() {
+        do {
+            let next=try readStatusPolicy?() ?? FinderStatusPolicy.read(from:cache.url)
+            statusPolicyFailure=nil
+            if next != appliedStatusPolicy {
+                appliedStatusPolicy=next
+                for session in sessions.values {session.token?.cancel();session.refresh?.invalidate()}
+                if running {notify()}
+            }
+        } catch {statusPolicyFailure=error.localizedDescription;for session in sessions.values {session.token?.cancel()}}
+        changed()
+    }
+    public func operationStateChanged() {
+        guard running,!transitioning else{return}
+        reloadStatusPolicy()
+        for session in sessions.values {
+            if blocked(session.access.root) {session.token?.cancel();do {try cache.fence(root:session.access.root)}catch{rootFailures[session.access.id]=error.localizedDescription}}
+            session.refresh?.invalidate();session.refresh?.kick()
+        }
+        notify();changed()
+    }
+    /// An authenticated Finder query can refresh only an already authorized,
+    /// watched root. Queries never grant access or execute Git in Finder.
+    public func refreshObserved(_ paths:[String]) throws {
+        guard running,!transitioning,paths.count<=128 else{throw FinderServiceAuthorizationFailure.invalidRequest}
+        reloadStatusPolicy()
+        guard let policy=appliedStatusPolicy,shell(policy) else{return}
+        var selected=Set<UUID>()
+        for path in paths {
+            guard path.hasPrefix("/"),path.utf8.count<=1048576,!path.utf8.contains(0),GitReferenceName.equal(FileTransferPaths.lexicalPath(path),path) else{throw FinderServiceAuthorizationFailure.invalidRequest}
+            if let session=sessions.values.filter({FinderSnapshot.contains(path,root:$0.access.root.path)}).max(by:{$0.access.root.path.utf8.count<$1.access.root.path.utf8.count}) {selected.insert(session.access.id)}
+        }
+        for id in selected {guard let session=sessions[id],Date().timeIntervalSince(session.lastObservedRequest)>=0.5 else{continue};session.lastObservedRequest=Date();session.refresh?.invalidate()}
+    }
     public func refresh(_ id:UUID? = nil) {
         guard running,!transitioning else { return }
-        reloadCachePolicy();retryRetiredPublications();cleanup()
+        reloadCachePolicy();reloadStatusPolicy();retryRetiredPublications();cleanup()
         // Permission failures on launch are retriable without replacing the
         // receiver's durable grant registry or interrupting healthy roots.
         do {
@@ -439,7 +485,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
         for access in accesses {
             let session=Session(access,repository:factory(access.root));sessions[access.id]=session
             session.refresh=RepositoryEventRefresh(available:{ [weak self,weak session] in
-                self?.running==true && session?.active==true
+                self?.running==true && session?.active==true && self?.statusPolicyFailure==nil && session.map {self?.blocked($0.access.root)==false} == true
             },refresh:{ [weak self,weak session] in
                 guard let self,let session,session.active else { return }
                 let token=OperationCancellation();session.token=token; self.changed()
@@ -454,20 +500,25 @@ public struct FinderCacheServiceReport: Codable, Sendable {
     private func collect(_ session:Session,token:OperationCancellation) async {
         recordActivity("Crawling folder: " + session.access.root.path)
         do {
-            reloadCachePolicy()
+            reloadCachePolicy();reloadStatusPolicy()
+            guard let policy=appliedStatusPolicy,statusPolicyFailure==nil,!blocked(session.access.root) else {return}
             guard let publicationSession else { throw FinderCacheServiceFailure.transitioning }
-            let ticket=try cache.begin(root:session.access.root,session:publicationSession,cancellation:token)
+            let ticket=try cache.begin(root:session.access.root,session:publicationSession,cancellation:token,policy:policy)
             if let warning=ticket.persistenceFailure { warmFailure=warning;changed() }
-            let collection:FinderRepositoryCollection
+            var collection:FinderRepositoryCollection
             if let collectionOverride {
                 collection=try await collectionOverride(session.repository,session.access,token)
+                // Legacy deterministic test collectors carry their own states;
+                // stamp only missing provenance, never replace explicit metadata.
+                let snapshots=collection.snapshots.map {value -> FinderSnapshot in var value=value;if value.overlayPolicies.isEmpty {value.recordOverlay(policy:policy,caseSensitive:policy.caseSensitive,entries:value.overlayEntries ?? value.states,indexFlags:value.indexFlags ?? [:])};return value}
+                collection=FinderRepositoryCollection(root:collection.root,bare:collection.bare,entries:collection.entries,branch:collection.branch,conflictIsRebase:collection.conflictIsRebase,submodules:collection.submodules,metadata:collection.metadata,watchDirectories:collection.watchDirectories,snapshots:snapshots,failures:collection.failures)
+            } else if shell(policy) || policy.cacheMode == .none {
+                collection=try await session.repository.collectFinderOverlayRepository(authorizedRoot:session.access.lease.url,additionalAuthorizedRoots:session.access.additionalLeases.map(\.url),policy:policy,cancellation:token,watchReady:{[weak self,weak session] paths in await self?.watch(session,paths:paths)})
             } else {
-                collection=try await session.repository.collectFinderRepository(authorizedRoot:session.access.lease.url,additionalAuthorizedRoots:session.access.additionalLeases.map(\.url),cancellation:token,watchReady:{ [weak self,weak session] paths in
-                    await self?.watch(session,paths:paths)
-                })
+                collection=try await session.repository.collectFinderRepository(authorizedRoot:session.access.lease.url,additionalAuthorizedRoots:session.access.additionalLeases.map(\.url),cancellation:token,watchReady:{[weak self,weak session] paths in await self?.watch(session,paths:paths)},policy:policy)
             }
             try token.check()
-            guard running,session.active,sessions[session.access.id]===session else { return }
+            guard running,session.active,sessions[session.access.id]===session,appliedStatusPolicy==policy,!blocked(session.access.root) else { return }
             // An unauthorized shared Git directory must not be silently monitored.
             guard collection.watchDirectories.allSatisfy({ session.access.contains($0) }) else { throw FinderCacheServiceFailure.outsidePermission }
             if let failure=session.watchFailure { throw NSError(domain:"TurtleGit.FinderWatcher",code:1,userInfo:[NSLocalizedDescriptionKey:failure]) }
@@ -475,6 +526,7 @@ public struct FinderCacheServiceReport: Codable, Sendable {
             if publication.published {
                 warmFailure = publication.persistenceFailure
                 session.lastPublication = Date()
+                session.effectiveCaseSensitive=collection.snapshots.first?.overlayPolicies[session.access.root.path]?.caseSensitive
                 var directories=GitPathSet(collection.snapshots.flatMap(\.roots))
                 for snapshot in collection.snapshots {
                     for path in snapshot.states.keys {
@@ -526,6 +578,9 @@ public struct FinderCacheServiceReport: Codable, Sendable {
 
 // Private, authenticated service messages. Standard XPC NSData/NSString payloads
 // avoid sharing Codable implementation objects across the process boundary.
+@objc public protocol FinderCacheQueryProtocol {
+    func refreshObserved(_ request:Data,withReply reply:@escaping (String?)->Void)
+}
 @objc public protocol FinderCacheServiceProtocol {
     func replaceGrants(_ request:Data,withReply reply:@escaping (String?)->Void)
     func refresh(withReply reply:@escaping (String?)->Void)
@@ -534,7 +589,9 @@ public struct FinderCacheServiceReport: Codable, Sendable {
 public enum FinderCacheServiceIdentity {
     public static let bundleIdentifier="org.turtlegit.macos.cache"
     public static let appIdentifier="org.turtlegit.macos"
+    public static let finderIdentifier="org.turtlegit.macos.finder"
     public static let machService=FinderIntegration.group+".cache"
+    public static let queryMachService=FinderIntegration.group+".cache.query"
     public static let agentPlist="org.turtlegit.macos.cache.plist"
     public static func currentTeam() throws -> String {
         var code:SecCode?,staticCode:SecStaticCode?,information:CFDictionary?
@@ -545,7 +602,7 @@ public enum FinderCacheServiceIdentity {
         _ = try requirement(identifier:bundleIdentifier,team:team);return team
     }
     public static func requirement(identifier:String,team:String) throws -> String {
-        guard [bundleIdentifier,appIdentifier].contains(identifier),team.count==10,team.utf8.allSatisfy({ (65...90).contains($0) || (48...57).contains($0) }) else { throw FinderServiceAuthorizationFailure.invalidRequest }
+        guard [bundleIdentifier,appIdentifier,finderIdentifier].contains(identifier),team.count==10,team.utf8.allSatisfy({ (65...90).contains($0) || (48...57).contains($0) }) else { throw FinderServiceAuthorizationFailure.invalidRequest }
         return "anchor apple generic and identifier \"\(identifier)\" and certificate leaf[subject.OU] = \"\(team)\""
     }
 }

@@ -25,7 +25,8 @@ typedef struct {int kind,value;const char *path,*base;const tg_inspection_stage 
 typedef int (*tg_inspection_cb)(const tg_inspection *,void *);
 typedef struct {int object_type;const char *oid,*tree;const char *const *parents;size_t parent_count;const char *encoding,*author_name,*author_email,*committer_name,*committer_email,*message;int64_t author_time,committer_time;int author_offset,committer_offset;} tg_single_commit;
 typedef int (*tg_single_commit_cb)(const tg_single_commit *,void *);
-typedef struct {tg_cancel_cb cancelled;tg_output_cb output;tg_output_cb result;tg_credentials_cb credentials;tg_certificate_cb certificate;tg_url_cb url;tg_http_cb http;void *payload;int verbose;const char *const *config_values;size_t config_count;int force_fetch;tg_filter_cb filter;tg_added_cb added;tg_reference_cb reference_updated;tg_checkout_cb checked_out;tg_reset_file_cb reset_file;tg_reset_progress_cb reset_progress;tg_history_cb history_delta;tg_history_header_cb history_header;tg_local_reference_cb local_reference;tg_inspection_cb inspection;tg_single_commit_cb single_commit;} tg_callbacks;
+typedef int (*tg_finder_cb)(const char *,int,int,int,void *);
+typedef struct {tg_cancel_cb cancelled;tg_output_cb output;tg_output_cb result;tg_credentials_cb credentials;tg_certificate_cb certificate;tg_url_cb url;tg_http_cb http;void *payload;int verbose;const char *const *config_values;size_t config_count;int force_fetch;tg_filter_cb filter;tg_added_cb added;tg_reference_cb reference_updated;tg_checkout_cb checked_out;tg_reset_file_cb reset_file;tg_reset_progress_cb reset_progress;tg_history_cb history_delta;tg_history_header_cb history_header;tg_local_reference_cb local_reference;tg_inspection_cb inspection;tg_single_commit_cb single_commit;tg_finder_cb finder_status;} tg_callbacks;
 int tg_local_references(const char *repository,int scope,tg_callbacks *callbacks);
 int tg_local_reference_names(const char *repository,tg_callbacks *callbacks);
 int tg_containing_references(const char *repository,const char *oid,int tags,int local,int remote,tg_callbacks *callbacks);
@@ -35,6 +36,7 @@ int tg_inspect_clean(const char *repository,int staged_ok,tg_callbacks *callback
 int tg_inspect_conflicts(const char *repository,tg_callbacks *callbacks);
 int tg_inspect_conflict_info(const char *repository,const char *const *paths,size_t count,tg_callbacks *callbacks);
 int tg_read_single_commit(const char *repository,const char *revision,int allow_tree,tg_callbacks *callbacks);
+int tg_finder_status(const char *repository,int full,int case_sensitive,uint32_t limit_kib,tg_callbacks *callbacks);
 int tg_git_init(void);
 void tg_git_shutdown(void);
 const char *tg_git_version(void);

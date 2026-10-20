@@ -137,6 +137,10 @@ Watched Repositories includes a separate Background status column, publication
 times, failure details and a retry action for the embedded cache service.
 [Service setup and current limits](docs/FINDER-SERVICE-DEPLOYMENT.md).
 
+Icon Overlays offers Default, Shell Extended, Shell and None, with the upstream
+status distinctions. [Finder status behavior](docs/FINDER-STATUS-POLICY.md)
+explains case matching, content-check thresholds and command-time status blocking.
+
 Configure your signing team in `TurtleGitMac.xcodeproj`. Register an App Group
 supported by your team and, if necessary, replace `group.org.turtlegit.macos` in
 both entitlements and `FinderIntegration.group`. The app and extension need

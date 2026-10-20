@@ -230,6 +230,12 @@ extension GitRepository {
     }
 }
 
+/// Collector provenance is separate from context-menu status and filesystem case.
+public struct FinderOverlayPolicyMetadata: Codable, Equatable, Sendable {
+    public let identity: String
+    public let caseSensitive: Bool
+    public init(identity: String, caseSensitive: Bool) {self.identity=identity;self.caseSensitive=caseSensitive}
+}
 public struct FinderSnapshot: Codable, Sendable {
     // A value copy may share already-built immutable queries. Any field that
     // changes path/owner eligibility detaches the copy's private query generation.
@@ -242,13 +248,14 @@ public struct FinderSnapshot: Codable, Sendable {
     public var persistenceFailure: String? = nil
     public var repositories: GitPathMap<FinderRepositoryMetadata> { didSet { queries=FinderSnapshotQueries() } }
     public var overlayEntries: GitPathMap<FileState>? { didSet { queries=FinderSnapshotQueries() } }
+    public var overlayPolicies: GitPathMap<FinderOverlayPolicyMetadata> = [:]
     public var indexFlags: GitPathMap<FinderIndexFlags>?
-    public init(roots: [String], states: GitPathMap<FileState>, updated: Date = Date(), repositories: GitPathMap<FinderRepositoryMetadata> = [:], overlayEntries: GitPathMap<FileState>? = nil, indexFlags: GitPathMap<FinderIndexFlags>? = nil) {
+    public init(roots: [String], states: GitPathMap<FileState>, updated: Date = Date(), repositories: GitPathMap<FinderRepositoryMetadata> = [:], overlayEntries: GitPathMap<FileState>? = nil, indexFlags: GitPathMap<FinderIndexFlags>? = nil, overlayPolicies: GitPathMap<FinderOverlayPolicyMetadata> = [:]) {
         self.roots = roots; self.states = states; self.updated = updated; self.repositories = repositories
         self.overlayEntries = overlayEntries
-        self.indexFlags = indexFlags
+        self.indexFlags = indexFlags; self.overlayPolicies = overlayPolicies
     }
-    private enum CodingKeys: String, CodingKey { case roots, states, statesV2, updated, repositories, repositoriesV2, overlayEntries, overlayEntriesV2, indexFlags, indexFlagsV2, liveRevision }
+    private enum CodingKeys: String, CodingKey { case roots, states, statesV2, updated, repositories, repositoriesV2, overlayEntries, overlayEntriesV2, indexFlags, indexFlagsV2, liveRevision, overlayPolicies }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         roots = try values.decode([String].self, forKey: .roots)
@@ -256,6 +263,7 @@ public struct FinderSnapshot: Codable, Sendable {
             ?? GitPathMap(uniqueKeysWithValues: values.decode([String: FileState].self, forKey: .states).map { ($0.key,$0.value) })
         updated = try values.decode(Date.self, forKey: .updated)
         liveRevision = try values.decodeIfPresent(String.self,forKey:.liveRevision)
+        overlayPolicies = try values.decodeIfPresent(GitPathMap<FinderOverlayPolicyMetadata>.self,forKey:.overlayPolicies) ?? [:]
         repositories = try values.decodeIfPresent(GitPathMap<FinderRepositoryMetadata>.self, forKey: .repositoriesV2)
             ?? GitPathMap(uniqueKeysWithValues: (values.decodeIfPresent([String: FinderRepositoryMetadata].self, forKey: .repositories) ?? [:]).map { ($0.key,$0.value) })
         overlayEntries = try values.decodeIfPresent(GitPathMap<FileState>.self, forKey: .overlayEntriesV2)
@@ -275,6 +283,7 @@ public struct FinderSnapshot: Codable, Sendable {
         try values.encode(Self.legacyStates(states),forKey:.states)
         try values.encode(updated,forKey:.updated)
         try values.encodeIfPresent(liveRevision,forKey:.liveRevision)
+        try values.encode(overlayPolicies,forKey:.overlayPolicies)
         try values.encode(repositories,forKey:.repositoriesV2)
         // The lossless field is authoritative for current peers. Keep a stable
         // legacy projection for older installed readers during an app update.
@@ -736,12 +745,12 @@ public struct FinderSubmoduleScan: Sendable {
 
 extension GitRepository {
     /// Foreground app refresh only. Finder consumes the resulting cache without Git.
-    public func finderSubmoduleSnapshots(authorizedRoot: URL,additionalAuthorizedRoots:[URL]? = nil,cancellation:OperationCancellation? = nil) async throws -> FinderSubmoduleScan {
+    public func finderSubmoduleSnapshots(authorizedRoot: URL,additionalAuthorizedRoots:[URL]? = nil,cancellation:OperationCancellation? = nil,policy:FinderStatusPolicy? = nil) async throws -> FinderSubmoduleScan {
         try cancellation?.check()
         guard RepositoryAccessLease.pathIsContained(root, by: authorizedRoot) else {
             throw RepositoryAccessFailure.securityScopeUnavailable
         }
-        return try await scanFinderSubmodules(authorizedRoot:authorizedRoot,additionalAuthorizedRoots:additionalAuthorizedRoots,ancestors:[],cancellation:cancellation)
+        return try await scanFinderSubmodules(authorizedRoot:authorizedRoot,additionalAuthorizedRoots:additionalAuthorizedRoots,ancestors:[],cancellation:cancellation,policy:policy)
     }
     private func configuredFinderSubmodulePaths(cancellation:OperationCancellation?) throws -> GitPathSet {
         let modules = root.appendingPathComponent(".gitmodules")
@@ -757,7 +766,7 @@ extension GitRepository {
         }
         return paths
     }
-    private func scanFinderSubmodules(authorizedRoot: URL, additionalAuthorizedRoots:[URL]?, ancestors:GitPathSet,cancellation:OperationCancellation?) async throws -> FinderSubmoduleScan {
+    private func scanFinderSubmodules(authorizedRoot: URL, additionalAuthorizedRoots:[URL]?, ancestors:GitPathSet,cancellation:OperationCancellation?,policy:FinderStatusPolicy?,light:Bool = false) async throws -> FinderSubmoduleScan {
         try cancellation?.check()
         var result = FinderSubmoduleScan()
         let canonical = root.resolvingSymlinksInPath().path
@@ -776,7 +785,7 @@ extension GitRepository {
                 var directory: ObjCBool = false
                 guard FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) else { continue }
                 guard directory.boolValue else { throw SubmoduleComparisonFailure.unsafeCheckout }
-                let child = GitRepository(root: location, executable: executable)
+                let child = GitRepository(root: location, executable: executable,askpass:askpass,diffDetection:diffDetection,libgit2Configuration:libgit2Configuration)
                 let discovered = try await child.discoverRoot(cancellation:cancellation)
                 // An uninitialized directory inherits its parent's root; it is not a child repository.
                 guard GitReferenceName.equal(discovered.path,location.path), try await !child.isBare(cancellation:cancellation) else { continue }
@@ -788,12 +797,20 @@ extension GitRepository {
                 }
                 let metadata = try await child.finderMetadata(knownBare:false,cancellation:cancellation)
                 guard GitReferenceName.equal(root.path,metadata.submoduleParentRoot) else { continue }
-                let tracked = try await child.trackedPaths(cancellation:cancellation), changes = try await child.status(refreshIndex:false,cancellation:cancellation)
-                var snapshot = FinderSnapshot.build(root: location, tracked: tracked, changes: changes)
-                snapshot.indexFlags = try await child.finderIndexFlags(cancellation:cancellation)
-                snapshot.repositories[location.path] = metadata
+                var snapshot:FinderSnapshot
+                if light,let policy {
+                    let overlay=try await child.collectFinderOverlay(policy:policy,cancellation:cancellation)
+                    snapshot=FinderSnapshot(roots:[location.path],states:overlay.entries,repositories:[location.path:metadata])
+                    snapshot.recordOverlay(policy:policy,caseSensitive:overlay.caseSensitive,entries:overlay.entries,indexFlags:overlay.indexFlags)
+                } else {
+                    let tracked = try await child.trackedPaths(cancellation:cancellation), changes = try await child.status(refreshIndex:false,cancellation:cancellation)
+                    snapshot = FinderSnapshot.build(root: location, tracked: tracked, changes: changes)
+                    snapshot.indexFlags = try await child.finderIndexFlags(cancellation:cancellation)
+                    snapshot.repositories[location.path] = metadata
+                    if let policy {let overlay=try await child.collectFinderOverlay(policy:policy,cancellation:cancellation);snapshot.recordOverlay(policy:policy,caseSensitive:overlay.caseSensitive,entries:overlay.entries,indexFlags:overlay.indexFlags)}
+                }
                 result.snapshots.append(snapshot)
-                let nested = try await child.scanFinderSubmodules(authorizedRoot:authorizedRoot,additionalAuthorizedRoots:additionalAuthorizedRoots,ancestors:visited,cancellation:cancellation)
+                let nested = try await child.scanFinderSubmodules(authorizedRoot:authorizedRoot,additionalAuthorizedRoots:additionalAuthorizedRoots,ancestors:visited,cancellation:cancellation,policy:policy,light:light)
                 result.snapshots.append(contentsOf: nested.snapshots)
                 result.failures.merge(nested.failures) { _, latest in latest }
             } catch { try cancellation?.check();result.failures[failurePath] = error.localizedDescription }
@@ -807,11 +824,20 @@ extension FinderSnapshot {
         guard let url else {return nil};return try? FinderSnapshotStore(url:url).readLive()
     }
     /// Extract restart data without expanding its saved repository authority.
+    public mutating func recordOverlay(policy: FinderStatusPolicy, caseSensitive: Bool, entries: GitPathMap<FileState>, indexFlags: GitPathMap<FinderIndexFlags>) {
+        self.overlayEntries=entries;self.indexFlags=indexFlags
+        for root in roots {overlayPolicies[root] = .init(identity:policy.identity,caseSensitive:caseSensitive)}
+    }
+    public func overlayRepositoryRoot(for path:String) -> String? {exactRepositoryRoot(for:path)}
+    public func overlayCaseSensitive(for path: String, fallback: Bool) -> Bool {
+        guard let root=exactRepositoryRoot(for:path) else{return fallback}
+        return overlayPolicies[root]?.caseSensitive ?? fallback
+    }
     public func subtree(root: URL) -> FinderSnapshot {
         let path=FileTransferPaths.lexicalPath(root.path)
         func belongs(_ candidate:String)->Bool {Self.contains(candidate,root:path)}
         return FinderSnapshot(roots:roots.filter(belongs),states:states.filter {belongs($0.key)},updated:updated,
-            repositories:repositories.filter {belongs($0.key)},overlayEntries:overlayEntries?.filter {belongs($0.key)},indexFlags:indexFlags?.filter {belongs($0.key)})
+            repositories:repositories.filter {belongs($0.key)},overlayEntries:overlayEntries?.filter {belongs($0.key)},indexFlags:indexFlags?.filter {belongs($0.key)},overlayPolicies:overlayPolicies.filter {belongs($0.key)})
     }
     /// Replace one refreshed tree, dropping stale removed/deinitialized child roots.
     /// Other opened repositories survive. Parent gitlink dirtiness contributes to a child-root badge.
@@ -823,13 +849,14 @@ extension FinderSnapshot {
         let preserved = independent.map { candidate -> FinderSnapshot in
             func belongs(_ value: String) -> Bool { Self.contains(value,root:candidate) }
             return FinderSnapshot(roots: roots.filter(belongs), states: states.filter { belongs($0.key) },
-                repositories: repositories.filter { belongs($0.key) }, overlayEntries: overlayEntries?.filter { belongs($0.key) }, indexFlags: indexFlags?.filter { belongs($0.key) })
+                repositories: repositories.filter { belongs($0.key) }, overlayEntries: overlayEntries?.filter { belongs($0.key) }, indexFlags: indexFlags?.filter { belongs($0.key) },overlayPolicies:overlayPolicies.filter { belongs($0.key) })
         }
         roots.removeAll(where: contains)
         states = states.filter { !contains($0.key) }
         repositories = repositories.filter { !contains($0.key) }
         overlayEntries = (overlayEntries ?? states).filter { !contains($0.key) }
         indexFlags = indexFlags?.filter { !contains($0.key) }
+        overlayPolicies = overlayPolicies.filter { !contains($0.key) }
         let priority: [FileState: Int] = [.normal: 0, .ignored: 1, .untracked: 2, .added: 3, .deleted: 4, .modified: 5, .conflicted: 6]
         for snapshot in (snapshots + preserved).sorted(by: { ($0.roots.first?.utf8.count ?? 0) < ($1.roots.first?.utf8.count ?? 0) }) {
             let accepted = snapshot.roots.filter(contains)
@@ -843,6 +870,7 @@ extension FinderSnapshot {
             }
             for (candidate, state) in rootStates where snapshot.repositories[candidate]?.submoduleParentRoot != nil && priority[state, default: 0] > priority[states[candidate] ?? .normal, default: 0] { states[candidate] = state }
             repositories.merge(snapshot.repositories.filter { contains($0.key) }) { _, latest in latest }
+            overlayPolicies.merge(snapshot.overlayPolicies.filter { contains($0.key) }) { _, latest in latest }
         }
         updated = Date()
     }
@@ -862,7 +890,7 @@ public struct FinderRepositoryCollection:Sendable {
     public let failures:GitPathMap<String>
 }
 extension GitRepository {
-    public func collectFinderRepository(authorizedRoot:URL,additionalAuthorizedRoots:[URL]? = nil,cancellation:OperationCancellation? = nil,watchReady:(@Sendable ([URL]) async -> Void)? = nil) async throws -> FinderRepositoryCollection {
+    public func collectFinderRepository(authorizedRoot:URL,additionalAuthorizedRoots:[URL]? = nil,cancellation:OperationCancellation? = nil,watchReady:(@Sendable ([URL]) async -> Void)? = nil,policy:FinderStatusPolicy? = nil) async throws -> FinderRepositoryCollection {
         try cancellation?.check()
         guard RepositoryAccessLease.pathIsContained(root,by:authorizedRoot) else { throw RepositoryAccessFailure.securityScopeUnavailable }
         let bare=try isBare(cancellation:cancellation)
@@ -884,10 +912,33 @@ extension GitRepository {
         var base=FinderSnapshot.build(root:root,tracked:tracked,changes:entries)
         base.indexFlags=try bare ? [:] : finderIndexFlags(cancellation:cancellation)
         base.repositories[root.path]=metadata
-        let children=try await bare ? FinderSubmoduleScan() : finderSubmoduleSnapshots(authorizedRoot:authorizedRoot,additionalAuthorizedRoots:additionalAuthorizedRoots,cancellation:cancellation)
+        let overlayPolicy:FinderStatusPolicy?
+        if let policy,(policy.cacheMode == .shell || policy.cacheMode == .shellExtended),policy.blockStatus,FinderStatusOperationLease.isBlocked(root:root) {overlayPolicy=nil} else {overlayPolicy=policy}
+        if let policy=overlayPolicy {if bare {base.recordOverlay(policy:policy,caseSensitive:policy.caseSensitive,entries:[:],indexFlags:[:])} else {let overlay=try await collectFinderOverlay(policy:policy,cancellation:cancellation);base.recordOverlay(policy:policy,caseSensitive:overlay.caseSensitive,entries:overlay.entries,indexFlags:overlay.indexFlags)}}
+        let children=try await bare ? FinderSubmoduleScan() : finderSubmoduleSnapshots(authorizedRoot:authorizedRoot,additionalAuthorizedRoots:additionalAuthorizedRoots,cancellation:cancellation,policy:overlayPolicy)
         try cancellation?.check()
         return FinderRepositoryCollection(root:root,bare:bare,entries:entries,branch:branch,conflictIsRebase:conflict,submodules:submodules,metadata:metadata,watchDirectories:watch,snapshots:[base]+children.snapshots,failures:children.failures)
     }
+    /// Shell-service reads do not run full worktree status for badge callbacks.
+    /// Context-menu facts are conservative fresh index/light states; each action
+    /// revalidates its actual Git state before mutation in the containing app.
+    public func collectFinderOverlayRepository(authorizedRoot:URL,additionalAuthorizedRoots:[URL]? = nil,policy:FinderStatusPolicy,cancellation:OperationCancellation? = nil,watchReady:(@Sendable ([URL]) async -> Void)? = nil) async throws -> FinderRepositoryCollection {
+        try cancellation?.check()
+        guard RepositoryAccessLease.pathIsContained(root,by:authorizedRoot) else {throw RepositoryAccessFailure.securityScopeUnavailable}
+        let bare=try isBare(cancellation:cancellation),watch=try finderWatchDirectories(cancellation:cancellation)
+        let scopes=[authorizedRoot]+(additionalAuthorizedRoots ?? [])
+        guard watch.allSatisfy({directory in scopes.contains {RepositoryAccessLease.pathIsContained(directory,by:$0)}}) else {throw RepositoryAccessFailure.securityScopeUnavailable}
+        await watchReady?(watch)
+        let metadata=try finderMetadata(knownBare:bare,cancellation:cancellation)
+        let overlay=try await bare ? FinderOverlayCollection(entries:[:],indexFlags:[:],caseSensitive:policy.caseSensitive,policy:policy):collectFinderOverlay(policy:policy,cancellation:cancellation)
+        var base=FinderSnapshot(roots:[root.path],states:overlay.entries,repositories:[root.path:metadata]);base.states[root.path]=base.states[root.path] ?? .normal
+        base.recordOverlay(policy:policy,caseSensitive:overlay.caseSensitive,entries:overlay.entries,indexFlags:overlay.indexFlags)
+        let children=try await bare ? FinderSubmoduleScan():scanFinderSubmodules(authorizedRoot:authorizedRoot,additionalAuthorizedRoots:additionalAuthorizedRoots,ancestors:[],cancellation:cancellation,policy:policy,light:true)
+        let branch=try branch(cancellation:cancellation),conflict=try bare ? false:conflictIsRebase(cancellation:cancellation)
+        let submodules=try bare ? GitPathSet():GitPathSet(submodulePathNames(cancellation:cancellation).map(\.rawValue))
+        return FinderRepositoryCollection(root:root,bare:bare,entries:[],branch:branch,conflictIsRebase:conflict,submodules:submodules,metadata:metadata,watchDirectories:watch,snapshots:[base]+children.snapshots,failures:children.failures)
+    }
+
 }
 
 /// Source CacheSave controls durable restart data, independently of live badges.
@@ -901,10 +952,11 @@ public struct FinderCachePersistencePreferences: Codable, Equatable, Sendable {
     @discardableResult public func write(to url: URL? = FinderIntegration.snapshotURL) throws -> Bool { guard let url else { return false }; try FinderSnapshotStore(url: url).setPersistence(self); return true }
 }
 public enum FinderPublicationFailure: LocalizedError {
-    case invalidUpdate, corruptStore, lockTimeout, retiredSession, corruptWarmCacheReset
+    case invalidUpdate, corruptStore, lockTimeout, retiredSession, corruptWarmCacheReset, policyChanged
     public var errorDescription: String? {
         switch self {
         case .corruptWarmCacheReset: return "The invalid saved Finder cache was discarded and rebuilt from current repository status."
+        case .policyChanged: return "Finder status settings changed while this update was being collected."
         case .invalidUpdate: return "The Finder cache update does not belong to its repository."
         case .corruptStore: return "The Finder cache store is invalid; its previous data was retained."
         case .lockTimeout: return "Another Finder cache writer did not release its lock."
@@ -932,6 +984,7 @@ public struct FinderPublicationTicket: Codable, Sendable {
     public let persistenceFailure: String?
     fileprivate let store: UUID, instance: UUID, session: UUID
     fileprivate let sequence: UInt64
+    public let policyIdentity: String?
 }
 public struct FinderPublicationResult: Sendable {
     public let published: Bool
@@ -987,28 +1040,30 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         }
     }
     private struct Control: Codable {
-        var version = 3
+        var version = 4
         var id = UUID()
         var counter: UInt64 = 0
         var sequences: GitPathMap<UInt64> = [:], consumed: GitPathMap<UInt64> = [:]
         var claims: GitPathMap<UUID> = [:]
         var contributions: [Contribution] = []
+        var statusPolicyIdentity: String?
         var policy = FinderCachePersistencePreferences()
         var warmResetRequired = false
         var legacy = false
         init() {}
-        private enum CodingKeys: String, CodingKey { case version,id,counter,sequences,consumed,claims,contributions,policy,warmResetRequired }
+        private enum CodingKeys: String, CodingKey { case version,id,counter,sequences,consumed,claims,contributions,policy,warmResetRequired,statusPolicyIdentity }
         init(from decoder: Decoder) throws {
             let values=try decoder.container(keyedBy:CodingKeys.self),stored=try values.decode(Int.self,forKey:.version)
-            guard (1...3).contains(stored) else {throw FinderPublicationFailure.corruptStore}
+            guard (1...4).contains(stored) else {throw FinderPublicationFailure.corruptStore}
             legacy=stored<3;id=try values.decode(UUID.self,forKey:.id);counter=try values.decode(UInt64.self,forKey:.counter)
             if stored>=2 {sequences=try values.decode(GitPathMap<UInt64>.self,forKey:.sequences);consumed=try values.decode(GitPathMap<UInt64>.self,forKey:.consumed)}
             else {sequences=GitPathMap(uniqueKeysWithValues:try values.decode([String:UInt64].self,forKey:.sequences).map {($0.key,$0.value)});consumed=GitPathMap(uniqueKeysWithValues:try values.decode([String:UInt64].self,forKey:.consumed).map {($0.key,$0.value)})}
-            if stored==3 {claims=try values.decode(GitPathMap<UUID>.self,forKey:.claims);contributions=try values.decode([Contribution].self,forKey:.contributions);policy=try values.decode(FinderCachePersistencePreferences.self,forKey:.policy);warmResetRequired=try values.decodeIfPresent(Bool.self,forKey:.warmResetRequired) ?? false}
+            if stored>=3 {claims=try values.decode(GitPathMap<UUID>.self,forKey:.claims);contributions=try values.decode([Contribution].self,forKey:.contributions);policy=try values.decode(FinderCachePersistencePreferences.self,forKey:.policy);warmResetRequired=try values.decodeIfPresent(Bool.self,forKey:.warmResetRequired) ?? false}
+            statusPolicyIdentity=try values.decodeIfPresent(String.self,forKey:.statusPolicyIdentity)
         }
         func encode(to encoder: Encoder) throws {
             var values=encoder.container(keyedBy:CodingKeys.self)
-            try values.encode(3,forKey:.version);try values.encode(id,forKey:.id);try values.encode(counter,forKey:.counter);try values.encode(sequences,forKey:.sequences);try values.encode(consumed,forKey:.consumed);try values.encode(claims,forKey:.claims);try values.encode(contributions,forKey:.contributions);try values.encode(policy,forKey:.policy);try values.encode(warmResetRequired,forKey:.warmResetRequired)
+            try values.encode(4,forKey:.version);try values.encodeIfPresent(statusPolicyIdentity,forKey:.statusPolicyIdentity);try values.encode(id,forKey:.id);try values.encode(counter,forKey:.counter);try values.encode(sequences,forKey:.sequences);try values.encode(consumed,forKey:.consumed);try values.encode(claims,forKey:.claims);try values.encode(contributions,forKey:.contributions);try values.encode(policy,forKey:.policy);try values.encode(warmResetRequired,forKey:.warmResetRequired)
         }
     }
     public init(url: URL) { self.url=url }
@@ -1058,7 +1113,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
     }
     private func validate(root: String, snapshots: [FinderSnapshot]) throws {
         func belongs(_ value: String) -> Bool {value.hasPrefix("/") && !value.utf8.contains(0) && GitReferenceName.equal(FileTransferPaths.lexicalPath(value),value) && FinderSnapshot.contains(value,root:root)}
-        guard belongs(root),snapshots.contains(where:{$0.roots.contains(where:{GitReferenceName.equal($0,root)})}),snapshots.allSatisfy({!$0.roots.isEmpty && $0.roots.allSatisfy(belongs) && $0.states.keys.allSatisfy(belongs) && $0.repositories.keys.allSatisfy(belongs) && ($0.overlayEntries ?? [:]).keys.allSatisfy(belongs) && ($0.indexFlags ?? [:]).keys.allSatisfy(belongs)}) else {throw FinderPublicationFailure.invalidUpdate}
+        guard belongs(root),snapshots.contains(where:{$0.roots.contains(where:{GitReferenceName.equal($0,root)})}),snapshots.allSatisfy({!$0.roots.isEmpty && $0.roots.allSatisfy(belongs) && $0.states.keys.allSatisfy(belongs) && $0.repositories.keys.allSatisfy(belongs) && ($0.overlayEntries ?? [:]).keys.allSatisfy(belongs) && ($0.indexFlags ?? [:]).keys.allSatisfy(belongs) && $0.overlayPolicies.allSatisfy({ key,value in belongs(key) && value.identity.utf8.count<=512 && !value.identity.utf8.contains(0) })}) else {throw FinderPublicationFailure.invalidUpdate}
     }
     private func alive(_ id: UUID) throws -> Bool {
         let location=leaseURL(id);var attributes=stat()
@@ -1075,7 +1130,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             if let valid=checked[item.session] {return valid};let valid=try alive(item.session);checked[item.session]=valid;return valid
         }
     }
-    private func projection(_ contributions: [Contribution], id: UUID) -> FinderSnapshot {
+    private func projection(_ contributions: [Contribution], id: UUID, statusPolicyIdentity: String?) -> FinderSnapshot {
         var result=FinderSnapshot(roots:[],states:[:],updated:Date(timeIntervalSince1970:0))
         let sorted=contributions.sorted {a,b in a.root.utf8.count==b.root.utf8.count ? a.sequence<b.sequence : a.root.utf8.count<b.root.utf8.count}
         var revisions: [String] = []
@@ -1083,8 +1138,14 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             result.replaceSubtree(root:FileTransferPaths.fileURL(item.root),snapshots:item.snapshots)
             revisions.append(Data(item.root.utf8).base64EncodedString()+":"+item.session.uuidString+":"+String(item.sequence)+":"+String(item.revision))
         }
+        if let identity=statusPolicyIdentity {
+            let accepted=GitPathSet(result.overlayPolicies.filter {$0.value.identity==identity}.keys)
+            result.overlayEntries=(result.overlayEntries ?? [:]).filter {entry in result.exactRepositoryRoot(for:entry.key).map {accepted.contains($0)} ?? false}
+            result.indexFlags=result.indexFlags?.filter {entry in result.exactRepositoryRoot(for:entry.key).map {accepted.contains($0)} ?? false}
+            result.overlayPolicies=result.overlayPolicies.filter {$0.value.identity==identity}
+        }
         result.updated=contributions.flatMap(\.snapshots).map(\.updated).max() ?? Date(timeIntervalSince1970:0)
-        result.liveRevision=id.uuidString+"/"+revisions.joined(separator:"/");return result
+        result.liveRevision=id.uuidString+"/"+(statusPolicyIdentity ?? "legacy")+"/"+revisions.joined(separator:"/");return result
     }
     private func writeLive(_ state: inout Control) throws -> FinderSnapshot {
         // Read the legacy projection for corruption/type checks, but never use
@@ -1092,7 +1153,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         _ = try read(FinderSnapshot.self,url)
         state.contributions=try live(state)
         try checkControl(state)
-        let result=projection(state.contributions,id:state.id)
+        let result=projection(state.contributions,id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)
         try save(result,url);state.legacy=false;try save(state,controlURL);return result
     }
     private func warmWarning(_ operation: () throws -> Void) -> String? {do {try operation();return nil} catch {return error.localizedDescription}}
@@ -1168,7 +1229,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                     var current=Set<UUID>()
                     for id in cached.liveIDs {if try alive(id) {current.insert(id)}}
                     if current != cached.liveIDs {
-                        cached.snapshot=projection(cached.state.contributions.filter {current.contains($0.session)},id:cached.state.id)
+                        cached.snapshot=projection(cached.state.contributions.filter {current.contains($0.session)},id:cached.state.id,statusPolicyIdentity:cached.state.statusPolicyIdentity)
                         cached.liveIDs=current;liveReadCache=cached
                     }
                     return cached.snapshot
@@ -1179,19 +1240,45 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                 if !state.legacy,raw?.liveRevision != nil {active=try live(state)} else {active=[]}
                 let snapshot: FinderSnapshot
                 if state.legacy || raw?.liveRevision == nil {snapshot=FinderSnapshot(roots:[],states:[:],updated:Date(timeIntervalSince1970:0))}
-                else {snapshot=projection(active,id:state.id)}
+                else {snapshot=projection(active,id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)}
                 liveReadCache=LiveReadCache(control:controlIdentity,raw:rawIdentity,state:state,liveIDs:Set(active.map(\.session)),snapshot:snapshot)
                 return snapshot
             }
             throw POSIXError(.EAGAIN)
         } catch {liveReadCache=nil;throw error}
     }
-    public func begin(root: URL, session supplied: FinderPublicationSession? = nil, cancellation: OperationCancellation? = nil) throws -> FinderPublicationTicket {
+    /// Publishing settings fences in-flight readers without erasing context-menu
+    /// snapshots, watched roots, permissions or live publisher leases.
+    /// Read both settings records, fence readers, and publish the owned record
+    /// under one cross-process writer lock. A second app cannot interleave its
+    /// other-record merge or roll back a later successful writer's setting.
+    public func configureStatusPolicy(policy:() throws -> FinderStatusPolicy,publish:() throws -> Void,rollback:() throws -> Void,cancellation:OperationCancellation? = nil) throws {
+        try locked(cancellation) {
+            var value=try control();let previous=value.statusPolicyIdentity,next=try policy()
+            value.statusPolicyIdentity=next.identity;_ = try writeLive(&value)
+            do {try publish()}
+            catch {
+                let failure=error
+                do {try rollback();value.statusPolicyIdentity=previous;_ = try writeLive(&value)}
+                catch {throw NSError(domain:"TurtleGit.FinderStatusPolicy",code:1,userInfo:[NSLocalizedDescriptionKey:failure.localizedDescription+"\nSettings rollback: "+error.localizedDescription])}
+                throw failure
+            }
+        }
+    }
+    public func setStatusPolicy(_ policy: FinderStatusPolicy, cancellation: OperationCancellation? = nil) throws {
+        try locked(cancellation) {var value=try control();value.statusPolicyIdentity=policy.identity;_ = try writeLive(&value)}
+    }
+    public func fence(root: URL, cancellation: OperationCancellation? = nil) throws {
+        let name=try path(root)
+        try locked(cancellation) {var value=try control();guard value.counter<UInt64.max else{throw FinderPublicationFailure.corruptStore};value.counter+=1;value.sequences[name]=value.counter;_ = try writeLive(&value)}
+    }
+    public func begin(root: URL, session supplied: FinderPublicationSession? = nil, cancellation: OperationCancellation? = nil, policy: FinderStatusPolicy? = nil) throws -> FinderPublicationTicket {
         let root=try path(root)
         let session: FinderPublicationSession
         if let supplied {session=supplied} else {session=try defaultSession(cancellation:cancellation)}
         return try locked(cancellation) {
             var state=try control();try owner(session,state:state);_ = try read(FinderSnapshot.self,url)
+            if let policy {guard state.statusPolicyIdentity == nil || state.statusPolicyIdentity == policy.identity else {throw FinderPublicationFailure.policyChanged};state.statusPolicyIdentity=policy.identity}
             guard state.counter<UInt64.max else {throw FinderPublicationFailure.corruptStore}
             state.counter += 1;state.sequences[root]=state.counter;state.claims[root]=session.id
             state.contributions=try live(state)
@@ -1206,7 +1293,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                 }
             }
             _ = try writeLive(&state)
-            return .init(root:root,persistenceFailure:warning,store:state.id,instance:instance,session:session.id,sequence:state.counter)
+            return .init(root:root,persistenceFailure:warning,store:state.id,instance:instance,session:session.id,sequence:state.counter,policyIdentity:policy?.identity)
         }
     }
     public func publish(_ ticket: FinderPublicationTicket, snapshots: [FinderSnapshot], cancellation: OperationCancellation? = nil) throws -> FinderPublicationResult {
@@ -1214,10 +1301,11 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         sessionLock.lock();let session=owned[ticket.session];sessionLock.unlock()
         return try locked(cancellation) {
             var state=try control();_ = try read(FinderSnapshot.self,url)
-            let latest=projection(try live(state),id:state.id)
+            let latest=projection(try live(state),id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)
             func nested(_ a:String,_ b:String)->Bool {FinderSnapshot.contains(a,root:b)}
             let newer=state.sequences.contains {root,sequence in sequence>ticket.sequence && (nested(root,ticket.root) || nested(ticket.root,root))}
-            guard ticket.instance==instance,ticket.store==state.id,state.claims[ticket.root]==ticket.session,state.sequences[ticket.root]==ticket.sequence,!newer,(state.consumed[ticket.root] ?? 0)<ticket.sequence,let session,session.active,try alive(ticket.session) else {return .init(published:false,snapshot:latest)}
+            guard ticket.policyIdentity==state.statusPolicyIdentity,ticket.instance==instance,ticket.store==state.id,state.claims[ticket.root]==ticket.session,state.sequences[ticket.root]==ticket.sequence,!newer,(state.consumed[ticket.root] ?? 0)<ticket.sequence,let session,session.active,try alive(ticket.session) else {return .init(published:false,snapshot:latest)}
+            if let identity=ticket.policyIdentity {guard snapshots.allSatisfy({snapshot in snapshot.roots.allSatisfy {snapshot.overlayPolicies[$0]?.identity==identity}}) else {throw FinderPublicationFailure.invalidUpdate}}
             state.consumed[ticket.root]=ticket.sequence
             state.contributions.removeAll {$0.session==ticket.session && GitReferenceName.equal($0.root,ticket.root)}
             state.contributions.append(.init(root:ticket.root,session:ticket.session,sequence:ticket.sequence,snapshots:snapshots,restored:false))
@@ -1244,6 +1332,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                     copy.repositories=copy.repositories.filter {!FinderSnapshot.contains($0.key,root:root)}
                     copy.overlayEntries=copy.overlayEntries?.filter {!FinderSnapshot.contains($0.key,root:root)}
                     copy.indexFlags=copy.indexFlags?.filter {!FinderSnapshot.contains($0.key,root:root)}
+                    copy.overlayPolicies=copy.overlayPolicies.filter {!FinderSnapshot.contains($0.key,root:root)}
                     return copy
                 }.filter {!$0.roots.isEmpty}
                 return Contribution(root:item.root,session:item.session,sequence:item.sequence,revision:state.counter,snapshots:snapshots,restored:item.restored)
@@ -1268,7 +1357,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         defer {session.closeLease();sessionLock.lock();owned.removeValue(forKey:session.id);if implicit?.id==session.id {implicit=nil};sessionLock.unlock()}
         return try locked(cancellation) {
             var state=try control();guard session.instance==instance,session.store==state.id else {throw FinderPublicationFailure.retiredSession}
-            let current=projection(try live(state),id:state.id)
+            let current=projection(try live(state),id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)
             let departing=state.contributions.filter {$0.session==session.id}
             let warning=warmWarning {for item in departing {let saved=current.subtree(root:FileTransferPaths.fileURL(item.root));if !saved.roots.isEmpty {try mergeWarm(root:item.root,snapshots:[saved],enabled:state.policy.cacheSave)}}}
             state.contributions.removeAll {$0.session==session.id};state.claims=state.claims.filter {$0.value != session.id}

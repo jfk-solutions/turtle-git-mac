@@ -20,6 +20,26 @@ final class FinderCacheTrayTests:XCTestCase {
         log.append(String(repeating:"👩🏽‍💻",count:600));XCTAssertLessThanOrEqual(log.lines.last!.utf16.count,520)
         XCTAssertTrue(log.lines.last!.allSatisfy{$0==Character("👩🏽‍💻")})
     }
+    func testServiceMenuModeTransactionPreservesAdvancedPolicyAndRejectsOldReaders()throws {
+        let folder=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true);defer{try? FileManager.default.removeItem(at:folder)}
+        let overlays=folder.appendingPathComponent("overlay-settings.json"),status=folder.appendingPathComponent("status.json"),store=FinderSnapshotStore(url:status)
+        var settings=FinderOverlaySettings();settings.cacheMode = .shellExtended;settings.includePaths="/repo/*";settings.iconSet = .modern;_ = try settings.write(to:overlays)
+        let advanced=FinderStatusPolicyPreferences(caseSensitive:false,contentCheckLimitKiB:777,blockStatus:true);_ = try advanced.write(to:status)
+        let original=FinderStatusPolicy(settings:settings,preferences:advanced),owner=try store.startSession();defer{_ = try? store.endSession(owner)}
+        let pending=try store.begin(root:URL(fileURLWithPath:"/repo"),session:owner,policy:original)
+        try FinderCacheTrayStatusPolicy.setCacheMode(.none,overlaysURL:overlays,statusURL:status)
+        var expected=settings;expected.cacheMode = .none
+        XCTAssertEqual(try FinderOverlaySettings.readChecked(from:overlays),expected)
+        XCTAssertEqual(try FinderStatusPolicyPreferences.read(from:status),advanced)
+        XCTAssertThrowsError(try store.begin(root:URL(fileURLWithPath:"/repo"),session:owner,policy:original))
+        var stale=FinderSnapshot(roots:["/repo"],states:["/repo/file":.modified]);stale.recordOverlay(policy:original,caseSensitive:false,entries:stale.states,indexFlags:[:])
+        XCTAssertFalse(try store.publish(pending,snapshots:[stale]).published)
+        let accepted=FinderStatusPolicy(settings:expected,preferences:advanced)
+        XCTAssertNoThrow(try store.begin(root:URL(fileURLWithPath:"/repo"),session:owner,policy:accepted))
+        try FinderCacheTrayStatusPolicy.setCacheMode(.standard,overlaysURL:overlays,statusURL:status)
+        XCTAssertEqual(try FinderStatusPolicy.read(from:status).cacheMode,.standard)
+        XCTAssertEqual(try FinderStatusPolicyPreferences.read(from:status),advanced)
+    }
     func testMenuModePatchPreservesOtherFieldsAndDamagedRecord() throws {
         let folder=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true);defer{try? FileManager.default.removeItem(at:folder)}
         let url=folder.appendingPathComponent("overlays.json");var value=FinderOverlaySettings();value.excludePaths="/private/*";value.hiddenStates=[.ignored];value.iconSet = .modern

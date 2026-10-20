@@ -93,7 +93,7 @@ final class FinderRootIdentityTests: XCTestCase {
         try JSONSerialization.data(withJSONObject:old).write(to:control)
         _ = try store.begin(root:url(a))
         let object=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:control)) as? [String:Any])
-        XCTAssertEqual(object["version"] as? Int,3);XCTAssertEqual(object["counter"] as? Int,21)
+        XCTAssertEqual(object["version"] as? Int,4);XCTAssertEqual(object["counter"] as? Int,21)
         XCTAssertEqual(object["id"] as? String,identity.uuidString)
         let sequences=try XCTUnwrap(object["sequences"] as? [[String:Any]])
         XCTAssertEqual(sequences.count,2)

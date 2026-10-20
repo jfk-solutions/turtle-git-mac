@@ -6,10 +6,12 @@ final class FinderCacheServiceIdentityTests:XCTestCase {
         XCTAssertEqual(FinderIntegration.groupIdentifier(team:"ABCDE12345"),"ABCDE12345.org.turtlegit.macos")
         for team in ["", "adhoc", "abcde12345", "ABCDE1234\"", "ABCDE123456", "ABCDE/2345"] { XCTAssertNil(FinderIntegration.groupIdentifier(team:team)) }
         XCTAssertEqual(FinderCacheServiceIdentity.machService,FinderIntegration.group+".cache")
+        XCTAssertEqual(FinderCacheServiceIdentity.queryMachService,FinderIntegration.group+".cache.query")
+        XCTAssertNotEqual(FinderCacheServiceIdentity.machService,FinderCacheServiceIdentity.queryMachService)
         if FinderIntegration.group == FinderIntegration.groupSuffix { XCTAssertNil(FinderIntegration.container) }
     }
     func testRequirementsPinTeamAndEachPeerIdentifier() throws {
-        for identifier in [FinderCacheServiceIdentity.bundleIdentifier,FinderCacheServiceIdentity.appIdentifier] {
+        for identifier in [FinderCacheServiceIdentity.bundleIdentifier,FinderCacheServiceIdentity.appIdentifier,FinderCacheServiceIdentity.finderIdentifier] {
             let text=try FinderCacheServiceIdentity.requirement(identifier:identifier,team:"ABCDE12345")
             var requirement:SecRequirement?
             XCTAssertEqual(SecRequirementCreateWithString(text as CFString,[],&requirement),errSecSuccess)

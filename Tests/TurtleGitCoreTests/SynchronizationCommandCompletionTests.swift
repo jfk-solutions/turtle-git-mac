@@ -23,6 +23,8 @@ final class SynchronizationCommandCompletionTests:XCTestCase {
         try Data("base\n".utf8).write(to:root.appendingPathComponent("file"));try await repo.stage(["file"]);_ = try await repo.commit(message:"base")
         _ = try await repo.run(["clone","--bare","--",root.path,server.path]);_ = try await repo.run(["remote","add","origin",server.path]);_ = try await repo.run(["fetch","origin"])
         _ = try await repo.run(["config","branch.main.remote","origin"]);_ = try await repo.run(["config","branch.main.merge","refs/heads/main"])
+        // This fixture observes the CLI receipt/inspection ordering through an
+        // executable wrapper. Selected helper inspection has separate coverage.
         let wrapper=folder.appendingPathComponent("receipt-git"),environment=GitRuntime.environment(executable:git).sorted{$0.key<$1.key}.map{"export "+$0.key+"="+quote($0.value)}.joined(separator:"\n")
         let script="""
         #!/bin/sh
@@ -42,7 +44,7 @@ final class SynchronizationCommandCompletionTests:XCTestCase {
           : > "$3/.git/receipt-done"
           exit "$result"
           ;;
-        rev-parse|status)
+        rev-parse|status|ls-files)
           if [ -f "$3/.git/receipt-done" ]; then
             if [ ! -f "$3/.git/receipt-seen" ]; then printf 'metadata preceded receipt\\n' >&2; exit 81; fi
             : > "$3/.git/receipt-metadata"
@@ -54,7 +56,7 @@ final class SynchronizationCommandCompletionTests:XCTestCase {
         exec \(quote(git.path)) "$@"
         """
         try Data(script.utf8).write(to:wrapper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
-        return Fixture(folder:folder,root:root,git:git,control:root.appendingPathComponent(".git/receipt-mode"),seen:root.appendingPathComponent(".git/receipt-seen"),done:root.appendingPathComponent(".git/receipt-done"),metadata:root.appendingPathComponent(".git/receipt-metadata"),ready:root.appendingPathComponent(".git/receipt-ready"),real:repo,wrapped:GitRepository(root:root,executable:wrapper))
+        return Fixture(folder:folder,root:root,git:git,control:root.appendingPathComponent(".git/receipt-mode"),seen:root.appendingPathComponent(".git/receipt-seen"),done:root.appendingPathComponent(".git/receipt-done"),metadata:root.appendingPathComponent(".git/receipt-metadata"),ready:root.appendingPathComponent(".git/receipt-ready"),real:repo,wrapped:GitRepository(root:root,executable:wrapper,libgit2Configuration:.init(enabled:false)))
     }
     private func arm(_ fixture:Fixture,_ mode:String="")throws {
         for path in [fixture.seen,fixture.done,fixture.metadata,fixture.ready] {try? FileManager.default.removeItem(at:path)}

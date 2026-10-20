@@ -96,7 +96,10 @@ final class RepositoryBrowserTests: XCTestCase {
         try await repo.stage([path, literal]); _ = try await repo.commit(message: "second snapshot")
         let second = try await repo.browseRepository(), newer = try XCTUnwrap(second.treeID)
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
-        let comparison = try await repo.revisionComparison(from: .revision("snapshot-tree"), to: .revision(newer))
+        // The selected source GetCommit fallback requires an explicit tree
+        // expression when an annotated tag itself is not a tree object.
+        let snapshotTree = "snapshot-tree^{tree}"
+        let comparison = try await repo.revisionComparison(from: .revision(snapshotTree), to: .revision(newer))
         XCTAssertEqual(comparison.from, .revision(tree)); XCTAssertEqual(comparison.to, .revision(newer))
         XCTAssertEqual(comparison.fromDetails?.isTree, true); XCTAssertEqual(comparison.toDetails?.isTree, true)
         XCTAssertEqual(comparison.fromDetails?.author, ""); XCTAssertNil(comparison.fromDetails?.authorDate)
@@ -114,7 +117,7 @@ final class RepositoryBrowserTests: XCTestCase {
         let working = try await repo.revisionFileComparison(from: .revision(tree), to: .workingTree, paths: [path])
         let workingDocument = try await repo.comparisonFile(working, path: path)
         XCTAssertEqual(workingDocument.base.bytes, original); XCTAssertEqual(workingDocument.destination.bytes, changed)
-        let marked = try await repo.preparedPathComparison(from: .revision(tree), fromPath: path, to: .revision("snapshot-tree"), toPath: path)
+        let marked = try await repo.preparedPathComparison(from: .revision(tree), fromPath: path, to: .revision(snapshotTree), toPath: path)
         let markedDocument = try await repo.comparisonFile(marked, path: path)
         XCTAssertEqual(markedDocument.base.bytes, original); XCTAssertEqual(markedDocument.destination.bytes, original)
         let external = try await repo.historicalWorkingFileComparison(revision: tree, path: path, workingFile: root.appendingPathComponent(literal))

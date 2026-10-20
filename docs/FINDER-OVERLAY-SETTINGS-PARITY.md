@@ -9,11 +9,13 @@ and Icon Set children with the original Overlays.ico. Source group order is reta
 propagation controls, status cache, drive types, exclude/include editors and
 Show excluded folders as normal. Windows A:/B: drive and DLL/elevation switches
 have no direct Finder Sync counterpart; Finder provides the extension surface.
-Default uses the containing app's cached detailed status. None projects normal
+The connected [status-policy family](FINDER-STATUS-POLICY-PARITY.md) now exposes
+Default, Shell Extended, Shell and None in source order. Default uses detailed
+cached status. None projects normal
 badges on known repository folders, without file-state badges. The containing
-app still reads status for its own UI and context-menu eligibility. Shell and
-Shell Extended cache semantics are pending and are not exposed as working modes.
-Unversioned/subrepository propagation controls are disabled in None mode.
+app still reads full status for its own UI. Shell and Shell Extended use the
+pinned lightweight classifier, with different folder recursion. Only Default
+enables and consumes the unversioned/subrepository propagation controls.
 
 Volume preferences cover fixed, removable, network, optical, RAM and unknown
 volumes. Optical/RAM filesystem names and native local/removable volume metadata
@@ -168,8 +170,10 @@ This supersedes the earlier cached-spelling/root-volume limitations for the
 implemented lookup and projection. Real network/RAM/optical mounts, permission
 failures, filesystem Unicode edge cases, mount churn during a snapshot read,
 physical Finder activation and signed sandbox/App Store acceptance remain open.
-Shell and Shell Extended's alternate Windows status engines remain unported and
-are still not exposed as equivalent working modes. All 16 existing icon sets,
+The later [status-policy checkpoint](FINDER-STATUS-POLICY-PARITY.md) supersedes the
+earlier unported Shell-mode and volume-only badge-case limitations. Its native
+collector retains effective index capabilities and source stat/content ordering.
+All 16 existing icon sets,
 handler choices and the independent cache service retain their prior behavior.
 
 Validation: Debug app/framework/Finder-extension build exited 0. The first grouped

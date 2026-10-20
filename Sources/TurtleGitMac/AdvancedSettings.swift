@@ -1,6 +1,38 @@
 import AppKit
 import SwiftUI
+import Darwin
 import TurtleGitCore
+
+/// Serializes the accepted policy fence with its one owned settings file.
+/// Rollback restores exact bytes without replacing another settings page's draft.
+@MainActor enum FinderStatusSettingsPublication {
+    typealias Transaction = (() throws -> FinderStatusPolicy, () throws -> Void, () throws -> Void) throws -> Void
+    static func shared(defaults:UserDefaults,ownedURL:URL?) -> Transaction? {
+        guard defaults === UserDefaults.standard,let statusURL=FinderIntegration.snapshotURL,let ownedURL else{return nil}
+        return transaction(statusURL:statusURL,ownedURL:ownedURL)
+    }
+    static func transaction(statusURL:URL,ownedURL:URL) -> Transaction {
+        return {policy,publish,_ in
+            var original:Data?,permissions:Any?,captured=false
+            try FinderSnapshotStore(url:statusURL).configureStatusPolicy(policy:{
+                var info=stat()
+                if lstat(ownedURL.path,&info)==0 {
+                    guard info.st_mode&S_IFMT==S_IFREG,info.st_size>=0,info.st_size<=1024*1024 else{throw GitConfigurationFailure.invalidValue}
+                    let attributes=try FileManager.default.attributesOfItem(atPath:ownedURL.path)
+                    original=try Data(contentsOf:ownedURL);permissions=attributes[.posixPermissions]
+                } else if errno != ENOENT {throw GitConfigurationFailure.invalidValue}
+                captured=true;return try policy()
+            },publish:publish,rollback:{
+                guard captured else{return}
+                if let original {try original.write(to:ownedURL,options:.atomic);if let permissions {try FileManager.default.setAttributes([.posixPermissions:permissions],ofItemAtPath:ownedURL.path)}}
+                else if FileManager.default.fileExists(atPath:ownedURL.path) {
+                    guard try FileManager.default.attributesOfItem(atPath:ownedURL.path)[.type] as? FileAttributeType == .typeRegular else{throw GitConfigurationFailure.invalidValue}
+                    try FileManager.default.removeItem(at:ownedURL)
+                }
+            })
+        }
+    }
+}
 
 @MainActor final class AdvancedSettingsModel: ObservableObject {
     static let cachePersistencePendingKey = "TurtleGit.CacheSavePublicationPending"
@@ -10,7 +42,16 @@ import TurtleGitCore
     private let publishCachePersistence: (FinderCachePersistencePreferences) throws -> Void
     @Published private(set) var cachePersistencePublicationPending = false
     private let publishCacheTray: (FinderCacheTrayPreferences) throws -> Void
-    @Published var values: [String: String]
+    private let readStatusPolicy: () throws -> FinderStatusPolicy
+    private let publishStatusPolicy: (FinderStatusPolicyPreferences) throws -> Bool
+    private let fenceStatusPolicy: (FinderStatusPolicy) throws -> Void
+    private let notifyStatusPolicy: () -> Void
+    private let configureStatusPolicy:FinderStatusSettingsPublication.Transaction?
+    private var retired=false,pageActive=true,applying=false,revision=UUID()
+    private weak var window:NSWindow?
+    private var ownerObserver:NSObjectProtocol?
+    static let statusPolicyNames:Set<String>=["OverlaysCaseSensitive","TGitCacheCheckContentMaxSize","BlockStatus"]
+    @Published var values: [String: String] {didSet {if oldValue != values {revision=UUID()}}}
     @Published var error: String?
     @Published private var original: [String: String]
     var onApplied: () -> Void = {}
@@ -18,19 +59,78 @@ import TurtleGitCore
     init(defaults: UserDefaults = .standard,
          publishFinderMenu: @escaping (FinderMenuSettings) throws -> Void = { _ = try $0.write() },
          publishCachePersistence: @escaping (FinderCachePersistencePreferences) throws -> Void = { if try $0.write() { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCachePersistencePreferences.notification),object:nil) } },
-         publishCacheTray: @escaping (FinderCacheTrayPreferences) throws -> Void = { if try $0.write() { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCacheTrayPreferences.notification),object:nil) } }) {
+         publishCacheTray: @escaping (FinderCacheTrayPreferences) throws -> Void = { if try $0.write() { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderCacheTrayPreferences.notification),object:nil) } },
+         readStatusPolicy: (() throws -> FinderStatusPolicy)? = nil,
+         publishStatusPolicy: ((FinderStatusPolicyPreferences) throws -> Bool)? = nil,
+         fenceStatusPolicy: ((FinderStatusPolicy) throws -> Void)? = nil,
+         notifyStatusPolicy: (() -> Void)? = nil,
+         configureStatusPolicy: FinderStatusSettingsPublication.Transaction? = nil) {
         self.defaults = defaults; self.publishFinderMenu = publishFinderMenu; self.publishCacheTray = publishCacheTray; self.publishCachePersistence = publishCachePersistence
         store = AdvancedSettingsStore(defaults: defaults); let initial = store.values(); original = initial; values = initial
         cachePersistencePublicationPending=defaults.bool(forKey:Self.cachePersistencePendingKey)
+        self.readStatusPolicy=readStatusPolicy ?? {
+            if defaults === UserDefaults.standard {return try FinderStatusPolicy.read()}
+            return FinderStatusPolicy(settings:FinderOverlaySettings.from(defaults:defaults),preferences:FinderStatusPolicyPreferences.from(defaults:defaults))
+        }
+        self.publishStatusPolicy=publishStatusPolicy ?? {value in defaults === UserDefaults.standard ? try value.write() : false}
+        self.fenceStatusPolicy=fenceStatusPolicy ?? {value in
+            if defaults === UserDefaults.standard,let url=FinderIntegration.snapshotURL {try FinderSnapshotStore(url:url).setStatusPolicy(value)}
+        }
+        self.configureStatusPolicy=configureStatusPolicy ?? FinderStatusSettingsPublication.shared(defaults:defaults,ownedURL:FinderIntegration.snapshotURL?.appendingPathExtension("policy"))
+        self.notifyStatusPolicy=notifyStatusPolicy ?? {
+            DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderStatusPolicyPreferences.notification),object:nil)
+            DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification),object:nil)
+        }
     }
+    deinit {if let ownerObserver {NotificationCenter.default.removeObserver(ownerObserver)}}
+    func activate() {guard !retired else{return};pageActive=true;revision=UUID()}
+    func suspend() {pageActive=false;revision=UUID()}
+    func attach(to owner:NSWindow?) {
+        guard !retired,let owner,window !== owner || ownerObserver==nil else{return}
+        if let ownerObserver {NotificationCenter.default.removeObserver(ownerObserver)}
+        window=owner;revision=UUID()
+        ownerObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:owner,queue:.main){[weak self] _ in
+            MainActor.assumeIsolated {self?.retired=true;self?.pageActive=false;self?.revision=UUID()}
+        }
+    }
+    var canEdit:Bool {!retired && pageActive && !applying && window?.attachedSheet == nil}
+    func owns(_ candidate:NSWindow?)->Bool {window == nil || window === candidate}
     func edit(_ name: String, text: String) -> Bool {
-        guard let setting = AdvancedSettingDefinition.all.first(where: { $0.name == name }), setting.accepts(text) else { return false }
+        guard canEdit,let setting = AdvancedSettingDefinition.all.first(where: { $0.name == name }), setting.accepts(text) else { return false }
         values[name] = text; return true
     }
     func apply() {
+        guard !retired,!applying else{return}
+        let accepted=values,epoch=revision,changes=values.filter {original[$0.key] != $0.value}
+        applying=true;defer {applying=false}
+        var prior:FinderStatusPolicy?,published=false
         do {
-            let changes = values.filter { original[$0.key] != $0.value }
-            try store.apply(changes); original = values; error = nil; RepositoryWindowTitles.refreshAll(); onApplied()
+            for setting in AdvancedSettingDefinition.all where changes[setting.name] != nil {
+                guard setting.accepts(changes[setting.name]!) else{throw AdvancedSettingsFailure.invalidValue(setting.name)}
+            }
+            let updatesStatusPolicy=changes.keys.contains {Self.statusPolicyNames.contains($0)}
+            if updatesStatusPolicy {
+                var next=FinderStatusPolicyPreferences()
+                let derive:() throws -> FinderStatusPolicy = {
+                    let current=try self.readStatusPolicy();prior=current
+                    next=FinderStatusPolicyPreferences(caseSensitive:current.caseSensitive,contentCheckLimitKiB:current.contentCheckLimitKiB,blockStatus:current.blockStatus)
+                    if let text=changes["OverlaysCaseSensitive"] {next.caseSensitive=text.isEmpty || text=="true"}
+                    if let text=changes["BlockStatus"] {next.blockStatus=text=="true"}
+                    if let text=changes["TGitCacheCheckContentMaxSize"] {next.contentCheckLimitKiB=text.isEmpty ? 10240:UInt32(text.utf8.reduce(Int64(0)){min(Int64(Int32.max),$0*10+Int64($1-48))})}
+                    return FinderStatusPolicy(cacheMode:current.cacheMode,caseSensitive:next.caseSensitive,contentCheckLimitKiB:next.contentCheckLimitKiB,blockStatus:next.blockStatus)
+                }
+                let publish:() throws -> Void = {
+                    guard !self.retired,self.revision==epoch,self.values==accepted else{throw GitConfigurationFailure.invalidValue}
+                    published=try self.publishStatusPolicy(next)
+                    guard !self.retired,self.revision==epoch,self.values==accepted else{throw GitConfigurationFailure.invalidValue}
+                }
+                if let configureStatusPolicy {try configureStatusPolicy(derive,publish,{if let prior {_ = try self.publishStatusPolicy(FinderStatusPolicyPreferences(caseSensitive:prior.caseSensitive,contentCheckLimitKiB:prior.contentCheckLimitKiB,blockStatus:prior.blockStatus))}})}
+                else {try fenceStatusPolicy(derive());try publish()}
+            }
+            guard !retired,revision==epoch,values==accepted else{throw GitConfigurationFailure.invalidValue}
+            try store.apply(changes)
+            original = store.values(); values=original; error = nil; RepositoryWindowTitles.refreshAll(); onApplied()
+            if published {notifyStatusPolicy()}
             if changes["CacheSave"] != nil || cachePersistencePublicationPending {
                 cachePersistencePublicationPending = true
                 defaults.set(true,forKey:Self.cachePersistencePendingKey)
@@ -49,7 +149,13 @@ import TurtleGitCore
                 catch { self.error = "Settings saved, but Finder menu preferences could not be updated: " + error.localizedDescription }
             }
         }
-        catch { self.error = error.localizedDescription }
+        catch {
+            if configureStatusPolicy==nil,let prior {
+                if published {_ = try? publishStatusPolicy(FinderStatusPolicyPreferences(caseSensitive:prior.caseSensitive,contentCheckLimitKiB:prior.contentCheckLimitKiB,blockStatus:prior.blockStatus))}
+                try? fenceStatusPolicy(prior)
+            }
+            self.error = error.localizedDescription
+        }
     }
     func cancel() { original = store.values(); values = original; error = nil }
 }
@@ -71,12 +177,13 @@ struct AdvancedSettingsPage: View {
         }.padding(20)
         .settingsParticipant("advanced", page: .advanced, value: model.values, modified: { model.modified },
             apply: { model.apply(); return model.error == nil }, cancel: model.cancel)
-        .onAppear { if !model.modified { model.cancel() }; model.onApplied = { for window in NSApp.windows { if let view = window.contentView { Self.invalidate(view) } } } }
+        .onAppear { model.activate();if !model.modified { model.cancel() }; model.onApplied = { for window in NSApp.windows { if let view = window.contentView { Self.invalidate(view) } } } }
+        .onDisappear {model.suspend()}
         .alert("Advanced Settings", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
             if let closed = notification.object as? NSWindow, closed === windowReference.window { model.cancel() }
         }
-        .background(AdvancedWindowProbe(reference: windowReference))
+        .background(AdvancedWindowProbe(reference: windowReference,model:model))
     }
     private static func invalidate(_ view: NSView) { view.needsDisplay = true; for child in view.subviews { invalidate(child) } }
 }
@@ -110,21 +217,24 @@ struct AdvancedSettingsTable: NSViewRepresentable {
             return column?.identifier.rawValue == "name" ? setting.name : model.values[setting.name]
         }
         func tableView(_ tableView: NSTableView, setObjectValue object: Any?, for column: NSTableColumn?, row: Int) {
-            guard column?.identifier.rawValue == "value", AdvancedSettingDefinition.all.indices.contains(row), let text = object as? String else { return }
+            guard tableView===table,let owner=tableView.window,owner.isVisible,model.owns(owner),model.canEdit,column?.identifier.rawValue == "value", AdvancedSettingDefinition.all.indices.contains(row), let text = object as? String else { return }
             if !model.edit(AdvancedSettingDefinition.all[row].name, text: text) { NSSound.beep() }
             tableView.reloadData()
         }
         func tableView(_ tableView: NSTableView, toolTipFor cell: NSCell, rect: NSRectPointer, tableColumn: NSTableColumn?, row: Int, mouseLocation: NSPoint) -> String {
             guard AdvancedSettingDefinition.all.indices.contains(row) else { return "" }
             let setting = AdvancedSettingDefinition.all[row]
-            let effective: Set<String> = ["CacheSave", "UseCustomWordBreak", "RefreshFileListAfterResolvingConflict", "ReaddUnselectedAddedFilesAfterCommit", "CacheTrayIcon", "DialogTitles", "ShowListFullPathTooltip", "ShortHashLengthForHyperLinkInLogMessage", "DownloadAnimation", "FetchVerbose", "ConflictDontGuessBranchNames", "MaxRefHistoryItems", "DiffSimilarityIndexThreshold", "AutoCompleteMinChars", "AutocompleteParseMaxSize", "AutocompleteParseUnversioned", "AutocompleteRemovesExtensions", "StyleCommitMessages", "ShowListBackgroundImage", "ShowAppContextMenuIcons", "ShowContextMenuIcons", "LogIncludeBoundaryCommits", "LogIncludeWorkingTreeChanges", "LogFontForLogCtrl", "LogFontForFileListCtrl", "NoSortLocalBranchesFirst", "LogTooManyItemsThreshold", "NumDiffWarning", "LogShowSuperProjectSubmodulePointer", "NamedRemoteFetchAll", "RememberFileListPosition", "SanitizeCommitMsg", "SquashDate", "StyleGitOutput", "VersionCheck", "VersionCheckPreview"]
+            let effective: Set<String> = ["OverlaysCaseSensitive", "TGitCacheCheckContentMaxSize", "BlockStatus", "CacheSave", "UseCustomWordBreak", "RefreshFileListAfterResolvingConflict", "ReaddUnselectedAddedFilesAfterCommit", "CacheTrayIcon", "DialogTitles", "ShowListFullPathTooltip", "ShortHashLengthForHyperLinkInLogMessage", "DownloadAnimation", "FetchVerbose", "ConflictDontGuessBranchNames", "MaxRefHistoryItems", "DiffSimilarityIndexThreshold", "AutoCompleteMinChars", "AutocompleteParseMaxSize", "AutocompleteParseUnversioned", "AutocompleteRemovesExtensions", "StyleCommitMessages", "ShowListBackgroundImage", "ShowAppContextMenuIcons", "ShowContextMenuIcons", "LogIncludeBoundaryCommits", "LogIncludeWorkingTreeChanges", "LogFontForLogCtrl", "LogFontForFileListCtrl", "NoSortLocalBranchesFirst", "LogTooManyItemsThreshold", "NumDiffWarning", "LogShowSuperProjectSubmodulePointer", "NamedRemoteFetchAll", "RememberFileListPosition", "SanitizeCommitMsg", "SquashDate", "StyleGitOutput", "VersionCheck", "VersionCheckPreview"]
+            if setting.name=="OverlaysCaseSensitive" {return "Match Finder status paths with exact case when enabled. Disabling compares path case without combining different Unicode spellings."}
+            if setting.name=="TGitCacheCheckContentMaxSize" {return "Maximum file size in KiB for Finder's content check when index stat data changes. Larger files retain stat-based status."}
+            if setting.name=="BlockStatus" {return "Keep cached Finder status while TurtleGit modifies the repository; refresh when the operation finishes."}
             if setting.name=="CacheSave" { return "Save completed Finder status for the next cache session. Disabling this keeps current badges and watched repositories active, but discards saved warm status." }
             if setting.name=="UseLibgit2" { return "Optional libgit2 engine, selected by UseLibgit2_mask, for Add, checkbox Commit preparation, Clone, Fetch, remote-reference listing/deletion and historical file output. Source defaults use libgit2 for Add and filtered historical output and retain Git for checkbox Commit preparation and remote operations; ordinary Push uses Git." }
             if setting.name=="UseCustomWordBreak" {return "URL/path word navigation: 0 uses macOS behavior; 1 customizes path/branch/author fields; 2 also customizes editable history controls. Other nonzero values customize plain fields only."}
             return effective.contains(setting.name) ? setting.name : "This preference has no effect on TurtleGit yet."
         }
         @objc func beginEdit() {
-            guard let table, table.selectedRow >= 0 else { return }
+            guard let table,let owner=table.window,owner.isVisible,model.owns(owner),model.canEdit,table.selectedRow >= 0 else { return }
             let valueColumn = table.column(withIdentifier: NSUserInterfaceItemIdentifier("value"))
             guard valueColumn >= 0 else { return }
             table.editColumn(valueColumn, row: table.selectedRow, with: nil, select: true)
@@ -145,11 +255,13 @@ private final class AdvancedTableView: NSTableView {
 
 private struct AdvancedWindowProbe: NSViewRepresentable {
     let reference: AdvancedSettingsWindowReference
-    func makeNSView(context: Context) -> NSView { let view = Probe(); view.reference = reference; return view }
-    func updateNSView(_ view: NSView, context: Context) { reference.window = view.window }
+    let model:AdvancedSettingsModel
+    func makeNSView(context: Context) -> NSView { let view = Probe(); view.reference = reference;view.model=model; return view }
+    func updateNSView(_ view: NSView, context: Context) { reference.window = view.window;model.attach(to:view.window) }
     private final class Probe: NSView {
         var reference: AdvancedSettingsWindowReference?
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); reference?.window = window }
+        weak var model:AdvancedSettingsModel?
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); reference?.window = window;model?.attach(to:window) }
     }
 }
 

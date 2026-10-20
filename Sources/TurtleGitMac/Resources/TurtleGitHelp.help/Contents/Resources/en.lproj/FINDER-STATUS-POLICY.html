@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Choosing Finder status behavior</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="choosing-finder-status-behavior">Choosing Finder status behavior</h1>
+<p>Open <strong>Settings → Icon Overlays → Status cache</strong> to choose how TurtleGit
+collects badge status. Apply accepts the choice; Cancel keeps the previous one.</p>
+<ul>
+<li><strong>Default</strong> compares working files, the index and HEAD and rolls changes up
+through parent folders. The unversioned-file and subrepository propagation
+options apply in this mode.</li>
+<li><strong>Shell Extended</strong> uses the lighter index/working-file comparison and rolls
+changes up through parent folders.</li>
+<li><strong>Shell</strong> uses the same lighter file comparison, but an ordinary changed file
+affects its direct folder rather than every ancestor.</li>
+<li><strong>None</strong> shows normal badges on repository folders and suppresses file-state
+badges.</li>
+</ul>
+<p>The lighter modes intentionally follow the pinned TortoiseGit implementation:
+staged-only changes can remain Normal, and ignored files can appear unversioned.
+Use Default when badges should include staged/HEAD differences. The app's Working
+Tree window continues to show full Git status in every mode.</p>
+<p>Finder reads published status and submits asynchronous refresh requests. It does
+not run Git. To refresh watched repositories after closing the main app, enable
+the background service and authorize the repository folders in Finder Integration.
+Changing cache mode does not grant access or enable a disabled service.</p>
+<p>Three related rows are available under <strong>Settings → Advanced</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OverlaysCaseSensitive</code></td>
+<td><code>true</code></td>
+<td>Match index paths exactly. With <code>false</code>, retain the repository index's case capability.</td>
+</tr>
+<tr>
+<td><code>TGitCacheCheckContentMaxSize</code></td>
+<td><code>10240</code></td>
+<td>KiB threshold for checking equal-size files whose recorded timestamp changed.</td>
+</tr>
+<tr>
+<td><code>BlockStatus</code></td>
+<td><code>false</code></td>
+<td>Suspend Shell/Shell Extended status reads while native Git command work is active.</td>
+</tr>
+</tbody>
+</table>
+<p>The content threshold is strict: a timestamp-changed file at or above the limit
+is marked Modified without hashing its content. A smaller file can be checked
+against the indexed blob using its configured clean filters. Skip-worktree and
+assume-unchanged flags retain their precedence. The collector does not rewrite
+or refresh the index.</p>
+<p>BlockStatus follows command ownership across all repositories. Merely leaving
+the app open does not suspend status. Cancellation keeps ownership until the
+command drains, and status can resume after the last command owner exits.</p>
+<p>Advanced values remain drafts until Apply. A blank value restores its source
+default. A failed publication retains the prior accepted policy and leaves the
+draft available for retry. These settings have their own shared record, so an
+Advanced Apply does not overwrite a pending Icon Overlays draft.</p>
+<p>The <a href="CACHE-MENU.html">cache menu</a> can disable badges or restore Default while
+preserving the other overlay preferences. Source details, bounds and remaining
+physical/signed acceptance are recorded in the
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/FINDER-STATUS-POLICY-PARITY.html">status-policy audit</a>.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

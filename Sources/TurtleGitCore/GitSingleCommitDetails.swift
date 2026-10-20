@@ -160,7 +160,11 @@ extension GitRepository {
         var value:GitSingleCommitDetails
         if let helper=try selected.executor(for:.getCommit) {
             let packet=try JSONSerialization.data(withJSONObject:["version":1,"revision":revision,"allowTree":allowTree],options:[.sortedKeys]);var output=Data()
-            _ = try run(["turtlegit-single-commit"],cancellation:token,input:packet,retainStandardOutput:false,consumeOutput:{chunk in if case .stdout=chunk.stream {guard output.count+chunk.data.count<=64*1024*1024 else{throw GitSingleCommitFailure.output};output.append(chunk.data)}},executorOverride:helper)
+            // Git reference names are byte identities, even on a volume that
+            // precomposes working-tree paths. libgit2 otherwise normalizes the
+            // reference operand and can resolve a different packed reference.
+            // This read-only process override never changes repository config.
+            _ = try run(["-c","core.precomposeunicode=false","turtlegit-single-commit"],cancellation:token,input:packet,retainStandardOutput:false,consumeOutput:{chunk in if case .stdout=chunk.stream {guard output.count+chunk.data.count<=64*1024*1024 else{throw GitSingleCommitFailure.output};output.append(chunk.data)}},executorOverride:helper)
             value=try GitSingleCommitProtocol.decode(output,cancellation:token)
         } else {
             let commit=try run(["rev-parse","--verify","--quiet","--end-of-options",revision+"^{commit}"],successfulExitCodes:0...1,cancellation:token)

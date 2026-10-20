@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Inspect actual embedded service packaging; never registers a user launch job."""
 import pathlib,plistlib,re,subprocess,sys
-from finder_group_identity import mach_service
+from finder_group_identity import mach_service,query_mach_service
 app=pathlib.Path(sys.argv[1]).resolve()
 helper=app/'Contents/Library/LaunchServices/TurtleGitCache.app'
 exe=helper/'Contents/MacOS/TurtleGitCache'
@@ -10,7 +10,7 @@ assert plist['Label']=='org.turtlegit.macos.cache'
 app_signature=subprocess.run(['/usr/bin/codesign','-dv','--verbose=4',str(app)],capture_output=True,text=True)
 match=re.search(r'^TeamIdentifier=([A-Z0-9]{10})$',app_signature.stderr,re.M)
 team=match.group(1) if match else None
-assert plist['MachServices']=={mach_service(team):True}
+assert plist['MachServices']=={mach_service(team):True,query_mach_service(team):True}
 assert app/plist['BundleProgram']==exe
 assert exe.is_file()
 info=plistlib.load(open(helper/'Contents/Info.plist','rb'))

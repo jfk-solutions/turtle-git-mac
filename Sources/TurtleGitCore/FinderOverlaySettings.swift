@@ -4,7 +4,51 @@ import Darwin
 import AppKit
 
 public enum FinderVolumeKind: String, Codable, CaseIterable, Sendable { case fixed, removable, network, optical, ram, unknown }
-public enum FinderOverlayCacheMode: Int, Codable, Sendable { case none = 0, standard = 1 }
+public enum FinderOverlayCacheMode: Int, Codable, CaseIterable, Sendable { case standard = 1, shellExtended = 3, shell = 2, none = 0 }
+/// Advanced status collection policy is independent of the overlay page's draft.
+public struct FinderStatusPolicyPreferences: Codable, Equatable, Sendable {
+    public var caseSensitive: Bool
+    public var contentCheckLimitKiB: UInt32
+    public var blockStatus: Bool
+    public init(caseSensitive: Bool = true, contentCheckLimitKiB: UInt32 = 10240, blockStatus: Bool = false) {
+        self.caseSensitive=caseSensitive;self.contentCheckLimitKiB=contentCheckLimitKiB;self.blockStatus=blockStatus
+    }
+    public static let notification="org.turtlegit.macos.statusPolicyChanged"
+    public static func from(defaults: UserDefaults = .standard) -> Self {
+        Self(caseSensitive:(defaults.object(forKey:"OverlaysCaseSensitive") as? NSNumber)?.boolValue ?? true,
+             contentCheckLimitKiB:(defaults.object(forKey:"TGitCacheCheckContentMaxSize") as? NSNumber)?.uint32Value ?? 10240,
+             blockStatus:(defaults.object(forKey:"BlockStatus") as? NSNumber)?.boolValue ?? false)
+    }
+    public func save(to defaults: UserDefaults = .standard) {
+        defaults.set(caseSensitive,forKey:"OverlaysCaseSensitive");defaults.set(contentCheckLimitKiB,forKey:"TGitCacheCheckContentMaxSize");defaults.set(blockStatus,forKey:"BlockStatus")
+    }
+    private enum CodingKeys: String, CodingKey {case version,caseSensitive,contentCheckLimitKiB,blockStatus}
+    public init(from decoder: Decoder) throws {
+        let values=try decoder.container(keyedBy:CodingKeys.self)
+        guard try values.decode(Int.self,forKey:.version)==1 else {throw GitConfigurationFailure.invalidValue}
+        caseSensitive=try values.decode(Bool.self,forKey:.caseSensitive)
+        contentCheckLimitKiB=try values.decode(UInt32.self,forKey:.contentCheckLimitKiB)
+        blockStatus=try values.decode(Bool.self,forKey:.blockStatus)
+    }
+    public func encode(to encoder: Encoder) throws {
+        var values=encoder.container(keyedBy:CodingKeys.self);try values.encode(1,forKey:.version)
+        try values.encode(caseSensitive,forKey:.caseSensitive);try values.encode(contentCheckLimitKiB,forKey:.contentCheckLimitKiB);try values.encode(blockStatus,forKey:.blockStatus)
+    }
+    public static func read(from statusURL: URL? = FinderIntegration.snapshotURL) throws -> Self {
+        guard let statusURL else{return Self()};let url=statusURL.appendingPathExtension("policy")
+        var info=stat();if lstat(url.path,&info) != 0 {if errno==ENOENT{return Self()};throw GitConfigurationFailure.invalidValue}
+        guard info.st_mode&S_IFMT==S_IFREG,info.st_size>=0,info.st_size<=4096 else{throw GitConfigurationFailure.invalidValue}
+        return try JSONDecoder().decode(Self.self,from:Data(contentsOf:url))
+    }
+    @discardableResult public func write(to statusURL: URL? = FinderIntegration.snapshotURL) throws -> Bool {
+        guard let statusURL else{return false};let url=statusURL.appendingPathExtension("policy")
+        var info=stat();if lstat(url.path,&info)==0 {guard info.st_mode&S_IFMT==S_IFREG else{throw GitConfigurationFailure.invalidValue}}
+        else if errno != ENOENT {throw GitConfigurationFailure.invalidValue}
+        try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true)
+        try JSONEncoder().encode(self).write(to:url,options:.atomic)
+        try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path);return true
+    }
+}
 public enum FinderOverlayIconSet: String, Codable, CaseIterable, Sendable {
     case blip = "Blip", blipClean = "Blip Clean", cvsClassic = "CVSClassic", dechenesVista = "DechenesVista", dechenesXp = "DechenesXp"
     case flat = "Flat", function = "Function", illustration = "Illustration", modern = "Modern", mufWin7 = "MufWin7", professional = "Professional"
@@ -89,6 +133,14 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
     public static func read(from url: URL? = sharedURL) -> Self {
         guard let url, let data = try? Data(contentsOf: url), let settings = try? JSONDecoder().decode(Self.self, from: data) else { return Self() }; return settings
     }
+    /// Collectors cannot silently reinterpret a corrupt accepted mode as Default.
+    public static func readChecked(from url: URL? = sharedURL) throws -> Self {
+        guard let url else{return Self()};var info=stat()
+        if lstat(url.path,&info) != 0 {if errno==ENOENT{return Self()};throw GitConfigurationFailure.invalidValue}
+        guard info.st_mode&S_IFMT==S_IFREG,info.st_size>=0,info.st_size<=1024*1024 else{throw GitConfigurationFailure.invalidValue}
+        let value=try JSONDecoder().decode(Self.self,from:Data(contentsOf:url))
+        guard value.valid else{throw GitConfigurationFailure.invalidValue};return value
+    }
     /// The helper's cache menu can update shared presentation while the app is
     /// closed. Production reads honor that accepted state before local defaults.
     public static func effective(defaults: UserDefaults = .standard, shared: URL? = nil) -> Self {
@@ -109,12 +161,14 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
     @discardableResult public func write(to url: URL? = sharedURL) throws -> Bool {
         guard valid else { throw GitConfigurationFailure.invalidValue }
         guard let url else { return false }
+        let bytes=try JSONEncoder().encode(self);guard bytes.count<=1024*1024 else{throw GitConfigurationFailure.invalidValue}
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try JSONEncoder().encode(self).write(to: url, options: .atomic); return true
+        try bytes.write(to: url, options: .atomic); return true
     }
     public func save(to defaults: UserDefaults = .standard) throws {
         guard valid else { throw GitConfigurationFailure.invalidValue }
-        defaults.set(try JSONEncoder().encode(self), forKey: "TurtleGit.FinderOverlaySettings")
+        let bytes=try JSONEncoder().encode(self);guard bytes.count<=1024*1024 else{throw GitConfigurationFailure.invalidValue}
+        defaults.set(bytes, forKey: "TurtleGit.FinderOverlaySettings")
     }
     /// Source terminal '*' means recursive and '?' means this path only.
     /// More specific paths win; equal include/exclude specifications prefer include.
@@ -136,16 +190,18 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
     }
     /// Badge projection stays independent of the snapshot used for context-menu
     /// eligibility. No Git command runs in the extension.
-    public func badges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool = { _ in true }) -> GitPathMap<FileState> {
-        projectedBadges(snapshot: snapshot, volume: volume, isDirectory: isDirectory, caseSensitive: caseSensitive, policy: pathPolicy)
+    public func badges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool = { _ in true },statusPolicy:FinderStatusPolicy? = nil) -> GitPathMap<FileState> {
+        projectedBadges(snapshot: snapshot, volume: volume, isDirectory: isDirectory, caseSensitive: caseSensitive, policy: pathPolicy,statusPolicy:statusPolicy)
     }
-    private func projectedBadges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool, policy: FinderOverlayPathPolicy) -> GitPathMap<FileState> {
-        let roots = snapshot.roots.sorted { $0.count > $1.count }
+    private func projectedBadges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool, policy: FinderOverlayPathPolicy,statusPolicy:FinderStatusPolicy?) -> GitPathMap<FileState> {
+        let roots = snapshot.roots.filter {root in statusPolicy == nil || cacheMode == .none || snapshot.overlayPolicies[root]?.identity==statusPolicy?.identity}.sorted { $0.count > $1.count }
+        let accepted=GitPathSet(roots)
+        func effectiveCase(_ path:String)->Bool {snapshot.overlayCaseSensitive(for:path,fallback:caseSensitive(path))}
         let priority: [FileState: Int] = [.normal: 0, .ignored: 1, .untracked: 2, .added: 3, .deleted: 4, .modified: 5, .conflicted: 6]
         var badges: GitPathMap<FileState> = [:], folders = GitPathSet(roots)
         if cacheMode == .none {
             for path in (snapshot.overlayEntries ?? snapshot.states).keys {
-                guard let root = snapshot.exactRepositoryRoot(for:path) else { continue }
+                guard let root = snapshot.exactRepositoryRoot(for:path),accepted.contains(root) else { continue }
                 if isDirectory(path) { folders.insert(path) }
                 var parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(path))
                 while FinderSnapshot.contains(parent.path,root:root) {
@@ -156,18 +212,19 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
         }
         else {
             for (path, state) in snapshot.overlayEntries ?? snapshot.states {
-                guard let root = snapshot.exactRepositoryRoot(for:path) else { continue }
+                guard let root = snapshot.exactRepositoryRoot(for:path),accepted.contains(root) else { continue }
                 if priority[state, default: 0] >= priority[badges[path] ?? .normal, default: 0] { badges[path] = state }
                 var parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(path))
-                let contribution: FileState = state == .untracked ? (unversionedAsModified ? .modified : .normal) : state == .ignored ? .normal : state
+                let contribution: FileState = state == .untracked ? (cacheMode == .standard && unversionedAsModified ? .modified : .normal) : state == .ignored ? .normal : state
                 while FinderSnapshot.contains(parent.path,root:root) {
                     folders.insert(parent.path)
+                    if cacheMode == .shell && isDirectory(path) {break}
                     if priority[contribution, default: 0] >= priority[badges[parent.path] ?? .normal, default: 0] { badges[parent.path] = contribution }
-                    if GitReferenceName.equal(parent.path,root) { break }; parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
+                    if cacheMode == .shell || GitReferenceName.equal(parent.path,root) { break }; parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
                 }
             }
             for root in roots { badges[root] = badges[root] ?? .normal }
-            if recurseSubmodules {
+            if recurseSubmodules && cacheMode == .standard {
                 for root in roots {
                     guard let parentRoot = snapshot.repositories[root]?.submoduleParentRoot, let state = badges[root] else { continue }
                     var parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(root))
@@ -181,18 +238,19 @@ public struct FinderOverlaySettings: Codable, Equatable, Sendable {
         }
         return badges.reduce(into: GitPathMap<FileState>()) { result, entry in
             guard !entry.key.split(separator: "/").contains(".git") else { return }
-            if policy.allows(entry.key, fallback: volumes.contains(volume(entry.key)), caseSensitive: caseSensitive(entry.key)) {
+            if policy.allows(entry.key, fallback: volumes.contains(volume(entry.key)), caseSensitive: effectiveCase(entry.key)) {
                 if !hiddenStates.contains(entry.value) { result[entry.key] = entry.value }
             } else if showExcludedAsNormal && (folders.contains(entry.key) || isDirectory(entry.key)) { result[entry.key] = .normal }
         }
     }
-    public func overlayBadges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool = { _ in true }) -> GitPathMap<FinderOverlayBadge> {
+    public func overlayBadges(snapshot: FinderSnapshot, volume: (String) -> FinderVolumeKind, isDirectory: (String) -> Bool, caseSensitive: (String) -> Bool = { _ in true },statusPolicy:FinderStatusPolicy? = nil) -> GitPathMap<FinderOverlayBadge> {
         let policy = pathPolicy
-        let states = projectedBadges(snapshot: snapshot, volume: volume, isDirectory: isDirectory, caseSensitive: caseSensitive, policy: policy)
+        func effectiveCase(_ path:String)->Bool {snapshot.overlayCaseSensitive(for:path,fallback:caseSensitive(path))}
+        let states = projectedBadges(snapshot: snapshot, volume: volume, isDirectory: isDirectory, caseSensitive: caseSensitive, policy: policy,statusPolicy:statusPolicy)
         return states.mapValues { FinderOverlayBadge(rawValue: $0.rawValue)! }.reduce(into: GitPathMap<FinderOverlayBadge>()) { result, entry in
             var badge = entry.value
-            if cacheMode == .standard, badge == .normal, let flags = snapshot.indexFlags?[entry.key] {
-                guard policy.allows(entry.key, fallback: volumes.contains(volume(entry.key)), caseSensitive: caseSensitive(entry.key)) else { result[entry.key] = badge; return }
+            if cacheMode != .none, badge == .normal, let flags = snapshot.indexFlags?[entry.key] {
+                guard policy.allows(entry.key, fallback: volumes.contains(volume(entry.key)), caseSensitive: effectiveCase(entry.key)) else { result[entry.key] = badge; return }
                 if flags.skipWorktree && showSkipWorktree { badge = .skipWorktree }
                 else if flags.assumeUnchanged && showAssumeUnchanged { badge = .assumeUnchanged }
             }

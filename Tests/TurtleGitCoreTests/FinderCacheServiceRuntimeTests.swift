@@ -227,4 +227,64 @@ final class FinderCacheServiceRuntimeTests:XCTestCase {
         await runtime.shutdown();XCTAssertEqual(provider.starts,provider.stops)
     }
 
+    @MainActor func testShellQueriesStayAuthorizedAndBlockedReadersCannotPublishAfterPolicyChange() async throws {
+        @MainActor final class Reader {
+            var calls=0
+            var hold=false
+            var entered=false
+            var continuation:CheckedContinuation<Void,Never>?
+            func wait() async { entered=true;await withCheckedContinuation {continuation=$0} }
+            func release(){let value=continuation;continuation=nil;value?.resume()}
+        }
+        let folder=try FinderServicePermissionStoreTests().folder()
+        defer{try? FileManager.default.removeItem(at:folder)}
+        let provider=FinderServicePermissionStoreTests.Provider(),root=folder.appendingPathComponent("repo")
+        try await repository(root)
+        let permissions=try FinderServicePermissionStore(url:folder.appendingPathComponent("private/grants.json"),provider:provider),id=UUID()
+        _ = try permissions.install(.init(grants:[.init(id:id,bookmark:Data(("TRANSFER:"+root.path).utf8),repositoryComponents:[])]),transfer:provider)
+        let originalGrants=try Data(contentsOf:permissions.url),cache=FinderSnapshotStore(url:folder.appendingPathComponent("shared/status.json"))
+        let runtime=FinderCacheServiceRuntime(permissions:permissions,cache:cache),reader=Reader()
+        var blocked=true,policy=FinderStatusPolicy(cacheMode:.shell,blockStatus:true)
+        runtime.statusBlocked={_ in blocked};runtime.readStatusPolicy={policy}
+        runtime.collectionOverride={_,_,_ in
+            reader.calls += 1
+            if reader.hold {await reader.wait()}
+            let value=FinderSnapshot(roots:[root.path],states:[root.appendingPathComponent("file").path:.modified])
+            return FinderRepositoryCollection(root:root,bare:false,entries:[],branch:"main",conflictIsRebase:false,submodules:[],metadata:.init(),watchDirectories:[],snapshots:[value],failures:[:])
+        }
+        do {
+            try runtime.start()
+            try runtime.refreshObserved([root.appendingPathComponent("file").path])
+            // An unavailable scheduler retains pending work; no Git reader runs.
+            try await Task.sleep(nanoseconds:300_000_000)
+            XCTAssertEqual(reader.calls,0);XCTAssertNil(runtime.report.roots.first?.lastPublication)
+            XCTAssertThrowsError(try runtime.refreshObserved(["relative/path"]))
+            XCTAssertThrowsError(try runtime.refreshObserved(Array(repeating:root.path,count:129)))
+            blocked=false;runtime.operationStateChanged()
+            try await awaitCache {runtime.report.roots.first?.lastPublication != nil}
+            XCTAssertEqual(runtime.report.roots.first?.policyIdentity,policy.identity)
+            let before=reader.calls
+            try runtime.refreshObserved([folder.appendingPathComponent("unauthorized/file").path])
+            try await Task.sleep(nanoseconds:300_000_000)
+            XCTAssertEqual(reader.calls,before)
+            try runtime.refreshObserved([root.appendingPathComponent("file").path])
+            try await awaitCache {reader.calls>before && runtime.report.roots.first?.refreshing == false}
+            reader.hold=true;runtime.refresh(id)
+            try await awaitCache {reader.entered}
+            blocked=true;runtime.operationStateChanged()
+            policy=FinderStatusPolicy(cacheMode:.shellExtended,caseSensitive:false,blockStatus:true)
+            try cache.setStatusPolicy(policy);runtime.operationStateChanged()
+            XCTAssertTrue(try cache.readLive().overlayPolicies.isEmpty)
+            reader.hold=false;reader.release()
+            try await awaitCache {runtime.report.roots.first?.refreshing == false}
+            XCTAssertTrue(try cache.readLive().overlayPolicies.isEmpty,"Retired reader restored old-policy badges")
+            blocked=false;runtime.operationStateChanged()
+            try await awaitCache {(try? cache.readLive().overlayPolicies[root.path]?.identity)==policy.identity}
+            XCTAssertEqual(runtime.report.roots.first?.caseSensitive,false)
+            XCTAssertEqual(try Data(contentsOf:permissions.url),originalGrants)
+        } catch {reader.release();await runtime.shutdown();throw error}
+        await runtime.shutdown();XCTAssertEqual(provider.starts,provider.stops)
+        XCTAssertFalse(FinderSnapshot.readLive(from:cache.url)?.roots.contains(root.path)==true)
+    }
+
 }

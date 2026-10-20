@@ -27,6 +27,10 @@ public struct GitLibGit2Configuration: Sendable {
     public func requests(_ operation: GitLibGit2Operation) -> Bool { enabled && mask & operation.mask != 0 }
     public func executor(for operation: GitLibGit2Operation, bundle: Bundle = .main) throws -> URL? {
         guard requests(operation) else { return nil }
+        return try runtimeExecutor(bundle:bundle)
+    }
+    /// Internal cache/index readers do not represent a configurable Git command.
+    func runtimeExecutor(bundle:Bundle = .main) throws -> URL {
         if let helperURL {
             guard helperURL.isFileURL, FileManager.default.isExecutableFile(atPath: helperURL.path) else { throw GitLibGit2Failure.runtimeMissing }
             return helperURL

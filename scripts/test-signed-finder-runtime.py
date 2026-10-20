@@ -4,7 +4,7 @@ Clones are run directly, with unique QA bundle IDs; no launch/Finder service is 
 """
 import argparse,base64,hashlib,json,os,platform,plistlib,re,signal,subprocess,tempfile,threading,time,uuid
 from pathlib import Path
-from finder_group_identity import app_group,mach_service
+from finder_group_identity import app_group,mach_service,query_mach_service
 from native_receiver import run_receiver,signal_receiver_group
 ROOT=Path(__file__).resolve().parent.parent
 
@@ -111,7 +111,7 @@ def main():
         requirement='anchor apple generic and identifier "'+identifier+'" and certificate leaf[subject.OU] = "'+args.team+'"'
         subprocess.run(['/usr/bin/codesign','--verify','-R','='+requirement,str(peer)],check=True)
     launch=plistlib.loads((app/'Contents/Library/LaunchAgents/org.turtlegit.macos.cache.plist').read_bytes())
-    if launch.get('MachServices')!={mach_service(args.team):True}:raise ValueError('Packaged service namespace differs')
+    if launch.get('MachServices')!={mach_service(args.team):True,query_mach_service(args.team):True}:raise ValueError('Packaged service namespace differs')
     git=(app/'Contents/Helpers/Git/bin/git').resolve(strict=True)
     git_rights=entitlements(git)
     if signature(git)!=args.team or not all(git_rights.get(key) is True for key in ['com.apple.security.app-sandbox','com.apple.security.inherit']):

@@ -47,6 +47,11 @@ public actor GitRepository {
         let cancellation = cancellation ?? replayCancellation
         let onOutput = onOutput ?? replayCommandOutput(arguments)
         try cancellation?.check()
+        // The parent retains the global Shell-status fence through process
+        // cancellation and drain. It is deliberately close-on-exec and does not
+        // turn a GUI window or an idle app into a permanent cache blocker.
+        let finderOperation=FinderStatusOperationLease.isCommandActivity(arguments) ? (try? FinderStatusOperationLease.begin(root:root,cancellation:cancellation)):nil
+        defer { finderOperation?.end() }
         let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true, attributes: [.posixPermissions:0o700])
         defer { try? FileManager.default.removeItem(at: temporary) }

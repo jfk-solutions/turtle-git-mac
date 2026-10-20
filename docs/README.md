@@ -20,6 +20,8 @@ for baseline and update rules.
 
 ## Guides and project status
 
+- [Choosing Finder status behavior](FINDER-STATUS-POLICY.md)
+- [Finder status-policy source comparison](FINDER-STATUS-POLICY-PARITY.md)
 - [Getting started with TurtleGit for Mac](GETTING-STARTED.md)
 - [Help and the offline Mac manual](HELP.md)
 - [Contextual Help source comparison](HELP-PARITY.md)

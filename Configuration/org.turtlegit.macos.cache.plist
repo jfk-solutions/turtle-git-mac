@@ -10,6 +10,8 @@
 	<dict>
 		<key>$(TeamIdentifierPrefix)org.turtlegit.macos.cache</key>
 		<true/>
+		<key>$(TeamIdentifierPrefix)org.turtlegit.macos.cache.query</key>
+		<true/>
 	</dict>
 	<key>ProcessType</key>
 	<string>Background</string>

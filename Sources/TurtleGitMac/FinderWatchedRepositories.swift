@@ -43,6 +43,8 @@ struct FinderWatchRow:Identifiable {
     private let scopeProvider:any RepositoryBookmarkProvider
     private let repositoryFactory:(URL) throws -> GitRepository
     private let notify:()->Void
+    private let statusPolicyProvider:(() throws -> FinderStatusPolicy)?
+    private var statusPolicyObservers:[NSObjectProtocol]=[]
     private var sessions:[UUID:Session]=[:]
     private var statuses:[UUID:String]=[:]
     private var mutation:OperationCancellation?
@@ -62,12 +64,21 @@ struct FinderWatchRow:Identifiable {
     }
     init(permissions:RepositoryAccessStore,cache:FinderSnapshotStore?,requireScope:Bool = GitRuntime.isAppStoreBuild,scopeProvider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(),
          repositoryFactory:@escaping (URL) throws -> GitRepository = { GitRepository(root:$0,executable:try GitRuntime.executable()) },
+         statusPolicyProvider:(() throws -> FinderStatusPolicy)? = nil,
          notify:@escaping ()->Void = { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification),object:nil) }) {
-        self.permissions=permissions;self.cache=cache;self.requireScope=requireScope;self.scopeProvider=scopeProvider;self.repositoryFactory=repositoryFactory;self.notify=notify;render()
+        self.permissions=permissions;self.cache=cache;self.requireScope=requireScope;self.scopeProvider=scopeProvider;self.repositoryFactory=repositoryFactory;self.notify=notify;self.statusPolicyProvider=statusPolicyProvider;render()
+        if statusPolicyProvider != nil {
+            for (name,operation) in [(FinderStatusPolicyPreferences.notification,false),(FinderStatusOperationLease.notification,true)] {
+                statusPolicyObservers.append(DistributedNotificationCenter.default().addObserver(forName:NSNotification.Name(name),object:nil,queue:.main) { [weak self] _ in
+                    Task { @MainActor in self?.reloadStatusPolicy(operation:operation) }
+                })
+            }
+        }
     }
+    deinit {for observer in statusPolicyObservers {DistributedNotificationCenter.default().removeObserver(observer)}}
     static func production() throws -> FinderWatchManager {
         let url=RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("watched-repositories.json")
-        let manager=try FinderWatchManager(permissions:RepositoryAccessStore(storageURL:url),cache:FinderIntegration.snapshotURL.map { FinderSnapshotStore(url:$0) })
+        let manager=try FinderWatchManager(permissions:RepositoryAccessStore(storageURL:url),cache:FinderIntegration.snapshotURL.map { FinderSnapshotStore(url:$0) },statusPolicyProvider:{try FinderStatusPolicy.read()})
         manager.backgroundService=FinderBackgroundService();return manager
     }
     private func render() {
@@ -102,6 +113,10 @@ struct FinderWatchRow:Identifiable {
         let token=OperationCancellation();session.request=token;pendingOperations += 1;statuses[session.id]="Refreshing…";render()
         defer { session.request=nil;pendingOperations -= 1;withExtendedLifetime(session.lease) {} }
         do {
+            let policy=try statusPolicyProvider?()
+            if let policy,policy.blockStatus,(policy.cacheMode == .shell || policy.cacheMode == .shellExtended),FinderStatusOperationLease.isBlocked() {
+                statuses[session.id]="Waiting for Git command completion";render();return
+            }
             let root=try await session.repository.discoverRoot(cancellation:token)
             guard session.lease.contains(root) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(root.path) }
             session.repository=try repositoryFactory(root)
@@ -118,9 +133,15 @@ struct FinderWatchRow:Identifiable {
             var ticket:FinderPublicationTicket?
             if let cache {
                 let session=try publicationSession(cache,cancellation:token)
-                ticket=try await Task.detached { try cache.begin(root:root,session:session,cancellation:token) }.value
+                ticket=try await Task.detached { try cache.begin(root:root,session:session,cancellation:token,policy:policy) }.value
             }
-            let result=try await session.repository.collectFinderRepository(authorizedRoot:session.lease.url,additionalAuthorizedRoots:session.additionalLeases.map(\.url),cancellation:token,watchReady:{ [weak self,weak session] paths in if let self,let session { await self.install(session,paths) } })
+            let watchReady:@Sendable ([URL]) async -> Void = { [weak self,weak session] paths in if let self,let session { await self.install(session,paths) } }
+            let result:FinderRepositoryCollection
+            if let policy,policy.cacheMode != .standard {
+                result=try await session.repository.collectFinderOverlayRepository(authorizedRoot:session.lease.url,additionalAuthorizedRoots:session.additionalLeases.map(\.url),policy:policy,cancellation:token,watchReady:watchReady)
+            } else {
+                result=try await session.repository.collectFinderRepository(authorizedRoot:session.lease.url,additionalAuthorizedRoots:session.additionalLeases.map(\.url),cancellation:token,watchReady:watchReady,policy:policy)
+            }
             guard active,session.active,!token.isCancelled,sessions[session.id] === session else { return }
             if let cache,let ticket {
                 let published=try await Task.detached { try cache.publish(ticket,snapshots:result.snapshots,cancellation:token) }.value
@@ -139,6 +160,15 @@ struct FinderWatchRow:Identifiable {
     }
     func refresh(_ id:UUID) {
         guard active,!busy else { return };if let session=sessions[id] { session.scheduler?.invalidate() } else { attach(id) }
+    }
+    func reloadStatusPolicy(operation:Bool=false) {
+        guard active else{return}
+        if operation {
+            guard let policy=try? statusPolicyProvider?(),policy.blockStatus,
+                  policy.cacheMode == .shell || policy.cacheMode == .shellExtended else{return}
+        }
+        for session in sessions.values {session.request?.cancel();session.scheduler?.invalidate()}
+        if !operation {backgroundService?.statusPolicyChanged(self)}
     }
     func add(_ url:URL,replacing id:UUID? = nil) async {
         guard active,!busy else { return };busy=true;pendingOperations += 1;error=nil
@@ -211,7 +241,9 @@ struct FinderWatchRow:Identifiable {
     }
     func retire() {
         guard active else { return }
-        active=false;backgroundService?.retire();mutation?.cancel();sessions.values.forEach { $0.retire() };sessions=[:]
+        active=false
+        for observer in statusPolicyObservers {DistributedNotificationCenter.default().removeObserver(observer)};statusPolicyObservers=[]
+        backgroundService?.retire();mutation?.cancel();sessions.values.forEach { $0.retire() };sessions=[:]
         publicationRetirement=Task { [self] in
             while pendingOperations>0 { try? await Task.sleep(nanoseconds:10_000_000) }
             if let cache,let session=cacheSession {

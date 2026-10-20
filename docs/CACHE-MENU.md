@@ -21,8 +21,10 @@ from the menu. The helper remains independent of the main app's windows.
 Enable/Disable Status Cache shares the existing Finder overlay cache-mode
 preference. None uses normal folder badges; Enable restores the default status
 projection. Other icon, volume and include/exclude choices remain unchanged. This
-changes badge presentation; the existing background collector can continue
-watching and publishing repository metadata for Finder context menus. The app
+changes the accepted collection policy and fences pending readers; the helper
+can continue publishing repository metadata for Finder context menus. Shell and
+Shell Extended are additional choices in Icon Overlays; their lighter status
+classification and folder rules are explained in [Finder status behavior](FINDER-STATUS-POLICY.md). The app
 honors the accepted shared setting when it next opens instead of overwriting it
 with older local defaults. A later explicit Settings Apply can replace that
 snapshot. A damaged settings record is reported and retained, allowing retry.

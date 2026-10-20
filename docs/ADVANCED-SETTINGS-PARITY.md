@@ -61,6 +61,13 @@ effect yet. Storage/editor parity is not proof of their runtime behavior.
 
 ## Verification and remaining scope
 
+The connected [Finder status-policy family](FINDER-STATUS-POLICY-PARITY.md)
+implements `OverlaysCaseSensitive`, `TGitCacheCheckContentMaxSize` and `BlockStatus`
+consumers. Their independent shared record and collection fence publish together
+on Apply; blank overrides still restore defaults. The family record tracks
+actual validation and remaining native/signed acceptance separately from this
+catalogue's historical checks.
+
 Four core tests compare the entire catalogue with the pinned fixture, then cover
 strict boolean input, invalid batches without mutation, blank deletion, absent
 unchanged defaults, numeric equivalence, zero, leading zeros, overflow and signed

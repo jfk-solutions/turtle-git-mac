@@ -54,7 +54,7 @@ struct Arguments{
             if arg == "--turtlegit-reset-notifications"{guard !resetNotifications else{try refuse("Repeated Reset notification request")};resetNotifications=true;continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
-            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-single-commit"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
+            guard ["clone","fetch","ls-remote","push","cat-file","add","turtlegit-prepare-index","reset","revert","turtlegit-unified-diff","turtlegit-history-diff","turtlegit-local-refs","turtlegit-containing-refs","turtlegit-delete-local-ref","turtlegit-ref-names","turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info","turtlegit-single-commit","turtlegit-finder-status"].contains(arg) else{try refuse("Unsupported libgit2 command or global option")};command=arg;break
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         guard !transferNotifications || command == "clone" || command == "fetch" else{try refuse("Transfer notifications require Clone or Fetch")}
@@ -105,7 +105,7 @@ struct Arguments{
             }else{operands.append(arg)}
         }
         guard configs.count<=2048 else{try refuse("Too many command configuration values")}
-        if command == "turtlegit-unified-diff" || command == "turtlegit-history-diff" || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) || command=="turtlegit-single-commit" {
+        if command == "turtlegit-unified-diff" || command == "turtlegit-history-diff" || PrivateLocalReferenceRequest.commands.contains(command) || PrivateInspectionRequest.commands.contains(command) || command=="turtlegit-single-commit" || command=="turtlegit-finder-status" {
             guard operands.isEmpty else{try refuse("Private diff command requires only a stdin request")}
         }else if command == "reset" || command == "revert" {
             guard operands.count==1,!operands[0].isEmpty,!operands[0].contains("\0"),operands[0].utf8.count<=1_048_576,command != "revert" || revertNoCommit else{try refuse("Reset/Revert requires one explicit revision; Revert requires --no-commit")};revision=operands[0]
@@ -201,6 +201,17 @@ struct PrivateLocalReferenceRequest {
     }
 }
 
+struct PrivateFinderRequest: Decodable {
+    let version:Int, full:Bool, caseSensitive:Bool, contentCheckLimitKiB:UInt32
+    static func read() throws -> Self {
+        var data=Data()
+        while let bytes=try FileHandle.standardInput.read(upToCount:4096),!bytes.isEmpty {
+            guard !cancelled(),data.count+bytes.count<=4096 else {try refuse("Finder policy request exceeds bounds")};data.append(bytes)
+        }
+        guard let fields=try JSONSerialization.jsonObject(with:data) as? [String:Any],Set(fields.keys)==["version","full","caseSensitive","contentCheckLimitKiB"] else {try refuse("Invalid Finder policy fields")}
+        let value=try JSONDecoder().decode(Self.self,from:data);guard value.version==1 else {try refuse("Invalid Finder policy version")};return value
+    }
+}
 struct PrivateInspectionRequest {
     static let commands=["turtlegit-merge-base","turtlegit-check-clean","turtlegit-check-conflicts","turtlegit-conflict-info"]
     struct MergeBase:Decodable {let version:Int;let from:String;let to:String}
@@ -416,6 +427,25 @@ final class CallbackContext{
         }
     }
     func finishSingleCommit()throws {try singleCommitRecord(["kind":"end","count":singleCommitCount])}
+    private var finderCount=0,finderBytes=0,finderHeader=false
+    func finderRecord(_ object:[String:Any]) throws {
+        let data=try JSONSerialization.data(withJSONObject:object,options:[.sortedKeys])
+        let frame=Data(("TurtleGit Finder v1:"+data.base64EncodedString()+"\n").utf8)
+        guard !cancelled(),frame.count<=2_097_152,finderBytes+frame.count<=67_108_864 else {try refuse("Finder status output exceeds bounds")}
+        finderBytes+=frame.count;FileHandle.standardOutput.write(frame)
+    }
+    func finder(path:UnsafePointer<CChar>?,state:Int32,skip:Int32,assume:Int32) throws {
+        if let path {
+            guard finderHeader,finderCount<200_000,let name=String(validatingCString:path),name.utf8.count<=1_048_576 else {try refuse("Invalid Finder path")}
+            let literal=name.hasSuffix("/") ? String(name.dropLast()):name
+            guard PrivateInspectionRequest.literalPath(literal),(0...6).contains(state) else {try refuse("Invalid Finder status")}
+            try finderRecord(["kind":"entry","path":literal,"state":state,"skipWorktree":skip != 0,"assumeUnchanged":assume != 0]);finderCount+=1
+        }else {
+            guard !finderHeader,(0...1).contains(state) else {try refuse("Invalid Finder header")};finderHeader=true
+            try finderRecord(["kind":"header","caseSensitive":state != 0])
+        }
+    }
+    func finishFinder() throws {guard finderHeader else{try refuse("Missing Finder status header")};try finderRecord(["kind":"end","count":finderCount])}
     private var inspectionCount=0,inspectionBytes=0
     func inspectionRecord(_ object:[String:Any],row:Bool=false)throws {
         guard !cancelled(),inspectionCount<=100_000 else{try refuse("Inspection cancelled or exceeds bounds")}
@@ -749,8 +779,14 @@ func run()throws->Int32{
     let diffRequest=try (args.command == "turtlegit-unified-diff" || args.command == "turtlegit-history-diff") ? PrivateDiffRequest(command:args.command):nil
     let localRequest=try PrivateLocalReferenceRequest.commands.contains(args.command) ? PrivateLocalReferenceRequest(command:args.command):nil
     let inspectionRequest=try PrivateInspectionRequest.commands.contains(args.command) ? PrivateInspectionRequest(command:args.command):nil
+    let finderRequest=try args.command=="turtlegit-finder-status" ? PrivateFinderRequest.read():nil
     let singleCommitRequest=try args.command=="turtlegit-single-commit" ? PrivateSingleCommitRequest.read():nil
     let owner=CallbackContext(directory:args.directory,configs:args.configs);var options=callbacks(owner);options.verbose=args.verbose ? 1:0;options.force_fetch=args.force ? 1:0
+    if finderRequest != nil {
+        options.finder_status={path,state,skip,assume,raw in
+            do{try context(raw).finder(path:path,state:state,skip:skip,assume:assume);return 0}catch{output("Finder status: "+error.localizedDescription+"\n");return -1}
+        }
+    }
     if singleCommitRequest != nil {
         try owner.singleCommitRecord(["kind":"header"])
         options.single_commit={row,raw in
@@ -815,6 +851,7 @@ func run()throws->Int32{
     }
     let result:Int32=withStrings(args.configs){config,count in
         options.config_values=config;options.config_count=count
+        if let request=finderRequest{return tg_finder_status(args.directory,request.full ? 1:0,request.caseSensitive ? 1:0,request.contentCheckLimitKiB,&options)}
         if let request=singleCommitRequest{return tg_read_single_commit(args.directory,request.revision,request.allowTree ? 1:0,&options)}
         if let request=inspectionRequest {
             if let merge=request.mergeBase{return tg_inspect_merge_base(args.directory,merge.from,merge.to,&options)}
@@ -847,6 +884,7 @@ func run()throws->Int32{
     if let localRequest {try owner.finishLocalReferences(localRequest)}
     if inspectionRequest != nil{try owner.finishInspection()}
     if singleCommitRequest != nil{try owner.finishSingleCommit()}
+    if finderRequest != nil{try owner.finishFinder()}
     return 0
 }
 do{exit(try run())}catch{output("turtlegit-libgit2: "+error.localizedDescription+"\n");exit(cancelled() ? 130:2)}

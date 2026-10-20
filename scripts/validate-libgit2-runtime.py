@@ -78,6 +78,27 @@ def main():
                 assert subprocess.run(['/usr/bin/git','-C',target,'show-ref','--quiet','--verify','refs/heads/injected'],env=env,capture_output=True).returncode==1
                 assert (clone/'.git/config').read_bytes()==clone_config and (clone/'.git/index').read_bytes()==clone_index
                 assert git('-C',clone,'rev-parse','HEAD')==head and (clone/'file').read_text()=='first\n' and global_config.read_bytes()==original
+                # Execute the Finder callback/protocol on each requested slice.
+                # Neither full nor lightweight inspection may refresh the index.
+                finder_file=clone/'file';finder_stat=finder_file.stat()
+                def finder_status(full):
+                    payload={'version':1,'full':full,'caseSensitive':True,'contentCheckLimitKiB':10240}
+                    result=subprocess.run(prefix+[str(binary),'-C',str(clone),'turtlegit-finder-status'],input=json.dumps(payload).encode(),env=env,capture_output=True,timeout=30)
+                    assert result.returncode==0,result.stderr.decode(errors='replace')
+                    rows=[]
+                    for line in result.stdout.splitlines():
+                        assert line.startswith(b'TurtleGit Finder v1:')
+                        encoded=line[len(b'TurtleGit Finder v1:'):];packet=base64.b64decode(encoded,validate=True)
+                        assert base64.b64encode(packet)==encoded
+                        rows.append(json.loads(packet))
+                    assert rows[0]=={'kind':'header','caseSensitive':True}
+                    assert rows[-1]=={'kind':'end','count':len(rows)-2}
+                    return {row['path']:row['state'] for row in rows[1:-1]}
+                for full in [False,True]:assert finder_status(full)['file']==0
+                finder_file.write_bytes(b'local\n');os.utime(finder_file,ns=(finder_stat.st_atime_ns,finder_stat.st_mtime_ns+2_000_000_000))
+                for full in [False,True]:assert finder_status(full)['file']==1
+                finder_file.write_bytes(b'first\n');os.utime(finder_file,ns=(finder_stat.st_atime_ns,finder_stat.st_mtime_ns))
+                assert (clone/'.git/index').read_bytes()==clone_index and git('-C',clone,'rev-parse','HEAD')==head
                 # Exact historical blob bytes: builtin CRLF then an external smudge,
                 # binary-check disabled, literal %f path and optional/required errors.
                 literal="space 'é:historical.bin";raw=b'raw\x00historical\n'+b'x'*1_048_576
@@ -193,5 +214,5 @@ def main():
                 assert (clone/'.git/index').read_bytes()==live_before and (clone/'file').read_bytes()==b'first\n'
                 assert (clone/renamed).read_bytes()==b'renamed\x00disk\r\n' and global_config.read_bytes()==original
 
-    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with actual clone/fetch/list/deletion/historical/checkout filters and private-index Add/Commit preparation.'))
+    print('LibGit2: pinned patched source, complete licences, universal macOS13 helper and SDK-only dependencies verified'+(' (structure only).' if args.structure_only else ' with actual Finder full/light status, clone/fetch/list/deletion/historical/checkout filters and private-index Add/Commit preparation.'))
 if __name__=='__main__':main()

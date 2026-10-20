@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 typedef struct {tg_callbacks *callbacks;const char *origin;const char *ssh_command;unsigned int received,indexed,completed;unsigned int recursion;const char *configuration_directory;unsigned int push_rejections;const char *private_index;const char *repository_path;git_repository *notification_repository;} context;
 static int stopped(context *ctx);
@@ -808,4 +809,154 @@ int tg_read_single_commit(const char *path,const char *revision,int allow_tree,t
  if(stopped(&ctx)){result=GIT_EUSER;goto done;}
  result=callbacks->single_commit?callbacks->single_commit(&row,callbacks->payload):0;
  done:if(parents){for(size_t i=0;i<parent_count;i++)free(parents[i]);free(parents);}free(peeled_revision);git_tree_free(tree);git_commit_free(commit);git_object_free(object);git_repository_free(repo);return result;
+}
+
+/* Finder uses GitIndex.cpp's stat-first algorithm, independently of Git's
+ * command mask. Never refresh/write the user's index while collecting badges. */
+static int finder_emit(context *ctx,const char *path,int state,int skip,int assume){
+ if(stopped(ctx))return GIT_EUSER;
+ return ctx->callbacks->finder_status?ctx->callbacks->finder_status(path,state,skip,assume,ctx->callbacks->payload):GIT_EUSER;
+}
+static int finder_same_stat(const struct stat *a,const struct stat *b){
+ return a->st_dev==b->st_dev&&a->st_ino==b->st_ino&&a->st_mode==b->st_mode&&a->st_size==b->st_size&&a->st_mtimespec.tv_sec==b->st_mtimespec.tv_sec&&a->st_mtimespec.tv_nsec==b->st_mtimespec.tv_nsec&&a->st_ctimespec.tv_sec==b->st_ctimespec.tv_sec&&a->st_ctimespec.tv_nsec==b->st_ctimespec.tv_nsec;
+}
+/* No directory symlink traversal, including a replacement of an indexed
+ * directory with a link. Leaf symlinks are inspected without following them. */
+static int finder_parent(int root,const char *path,char **leaf){
+ char *copy=strdup(path);if(!copy)return -1;int fd=dup(root);if(fd<0){free(copy);return -1;}
+ char *start=copy,*slash;
+ while((slash=strchr(start,'/'))){*slash=0;if(!*start||!strcmp(start,".")||!strcmp(start,"..")){close(fd);free(copy);errno=EINVAL;return -1;}
+  int next=openat(fd,start,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);close(fd);fd=next;if(fd<0){free(copy);return -1;}start=slash+1;
+ }
+ if(!*start||!strcmp(start,".")||!strcmp(start,"..")){close(fd);free(copy);errno=EINVAL;return -1;}
+ *leaf=strdup(start);free(copy);if(!*leaf){close(fd);return -1;}return fd;
+}
+static int finder_index_state(git_repository *repo,const git_index_entry *entry,int caps,int root,uint64_t limit,uint64_t *hash_bytes,context *ctx,int *state){
+ int skip=(entry->flags_extended&GIT_INDEX_ENTRY_SKIP_WORKTREE)!=0,assume=(entry->flags&GIT_INDEX_ENTRY_VALID)!=0;
+ *state=0;
+ if(!skip&&!assume){
+  char *leaf=NULL;int parent=finder_parent(root,entry->path,&leaf);struct stat before,after;
+  if(parent<0){if(errno==ENOENT||errno==ENOTDIR||errno==ELOOP)*state=3;else return -1;}
+  else {
+   if(fstatat(parent,leaf,&before,AT_SYMLINK_NOFOLLOW)<0){if(errno==ENOENT||errno==ENOTDIR)*state=3;else{close(parent);free(leaf);return -1;}}
+   else if(entry->mode==GIT_FILEMODE_COMMIT){*state=S_ISDIR(before.st_mode)?0:1;}
+   else {
+    int link=S_ISLNK(before.st_mode),indexed_link=entry->mode==GIT_FILEMODE_LINK;
+    if((link&&!indexed_link)||(!(caps&GIT_INDEX_CAPABILITY_NO_SYMLINKS)&&link!=indexed_link))*state=1;
+    else if(!link&&(uint32_t)before.st_size!=entry->file_size)*state=1;
+    else if((int32_t)before.st_mtimespec.tv_sec==entry->mtime.seconds&&(uint32_t)before.st_mtimespec.tv_nsec==entry->mtime.nanoseconds)*state=0;
+    else if(before.st_size>=0&&(uint64_t)before.st_size<limit){
+     if((uint64_t)before.st_size>268435456-*hash_bytes){git_error_set_str(GIT_ERROR_INDEX,"Finder filtered content exceeds aggregate 256 MiB hash budget");close(parent);free(leaf);return -1;}
+     *hash_bytes+=(uint64_t)before.st_size;
+     git_oid actual;int hash_result=-1;
+     if(stopped(ctx)){close(parent);free(leaf);return GIT_EUSER;}
+     if(link){char target[1048577];ssize_t n=readlinkat(parent,leaf,target,sizeof(target));if(n>=0&&(size_t)n<sizeof(target))hash_result=git_odb_hash(&actual,target,(size_t)n,GIT_OBJECT_BLOB);}
+     else if(S_ISREG(before.st_mode))hash_result=git_repository_hashfile(&actual,repo,entry->path,GIT_OBJECT_BLOB,NULL);
+     if(stopped(ctx)){close(parent);free(leaf);return GIT_EUSER;}
+     *state=hash_result==0&&git_oid_equal(&actual,&entry->id)&&fstatat(parent,leaf,&after,AT_SYMLINK_NOFOLLOW)==0&&finder_same_stat(&before,&after)?0:1;
+     git_error_clear();
+    }else *state=1;
+   }
+   close(parent);free(leaf);
+  }
+ }
+ if(GIT_INDEX_ENTRY_STAGE(entry))*state=6;
+ else if(entry->flags_extended&GIT_INDEX_ENTRY_INTENT_TO_ADD)*state=2;
+ return 0;
+}
+static int finder_tree_entry(git_tree_entry **out,git_repository *repo,git_tree *tree,const char *path,int ignore_case){
+ if(!tree)return GIT_ENOTFOUND;
+ int result=git_tree_entry_bypath(out,tree,path);if(result!=GIT_ENOTFOUND||!ignore_case)return result;
+ git_error_clear();git_tree *owned=NULL;const git_tree *current=tree;char *copy=strdup(path);if(!copy)return -1;
+ char *part=copy,*slash;size_t visited=0;
+ while(1){slash=strchr(part,'/');if(slash)*slash=0;const git_tree_entry *entry=git_tree_entry_byname(current,part);
+  if(!entry){size_t count=git_tree_entrycount(current);for(size_t i=0;i<count;i++){if(++visited>100000){result=-1;goto done;}const git_tree_entry *candidate=git_tree_entry_byindex(current,i);if(!strcasecmp(git_tree_entry_name(candidate),part)){entry=candidate;break;}}}
+  if(!entry){result=GIT_ENOTFOUND;goto done;}
+  if(!slash){result=git_tree_entry_dup(out,entry);goto done;}
+  git_tree *next=NULL;result=git_tree_lookup(&next,repo,git_tree_entry_id(entry));if(result<0)goto done;git_tree_free(owned);owned=next;current=next;part=slash+1;
+ }
+ done:git_tree_free(owned);free(copy);return result;
+}
+typedef struct {context *ctx;git_repository *repo;git_index *index;git_tree *tree;int full,ignore_case;size_t visited;} finder_walk;
+static const git_index_entry *finder_index_entry(git_index *index,const char *path){
+ const git_index_entry *entry=git_index_get_bypath(index,path,0);
+ for(int stage=1;!entry&&stage<=3;stage++)entry=git_index_get_bypath(index,path,stage);
+ return entry;
+}
+static int finder_deleted(const char *root,const git_tree_entry *entry,void *raw){
+ finder_walk *walk=raw;if(stopped(walk->ctx))return GIT_EUSER;
+ if(git_tree_entry_type(entry)==GIT_OBJECT_TREE)return 0;
+ size_t n=strlen(root)+strlen(git_tree_entry_name(entry))+1;if(n>1048576)return -1;
+ char *name=malloc(n);if(!name)return -1;snprintf(name,n,"%s%s",root,git_tree_entry_name(entry));
+ int result=0;if(!finder_index_entry(walk->index,name))result=finder_emit(walk->ctx,name,3,0,0);free(name);return result;
+}
+static int finder_worktree(finder_walk *walk,int fd,const char *prefix,unsigned depth){
+ if(depth>256){git_error_set_str(GIT_ERROR_INDEX,"Finder directory depth exceeds budget");return -1;}
+ int copy=dup(fd);if(copy<0)return -1;DIR *directory=fdopendir(copy);if(!directory){close(copy);return -1;}
+ int result=0;struct dirent *item;
+ while((item=readdir(directory))){
+  if(!strcmp(item->d_name,".")||!strcmp(item->d_name,"..")||!strcasecmp(item->d_name,".git"))continue;
+  if(stopped(walk->ctx)){result=GIT_EUSER;break;}
+  if(++walk->visited>100000){git_error_set_str(GIT_ERROR_INDEX,"Finder worktree exceeds path budget");result=-1;break;}
+  size_t length=strlen(prefix)+strlen(item->d_name)+1;if(length>1048576){result=-1;break;}
+  char *name=malloc(length);if(!name){result=-1;break;}snprintf(name,length,"%s%s",prefix,item->d_name);
+  struct stat info;if(fstatat(fd,item->d_name,&info,AT_SYMLINK_NOFOLLOW)<0){free(name);if(errno==ENOENT)continue;result=-1;break;}
+  const git_index_entry *indexed=finder_index_entry(walk->index,name);
+  if(S_ISDIR(info.st_mode)&&(!indexed||indexed->mode!=GIT_FILEMODE_COMMIT)){
+   int child=openat(fd,item->d_name,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);
+   if(child<0){free(name);result=-1;break;}
+   struct stat admin;int nested=fstatat(child,".git",&admin,AT_SYMLINK_NOFOLLOW)==0;
+   if(nested){if(!indexed)result=finder_emit(walk->ctx,name,4,0,0);}
+   else {char *sub=malloc(length+1);if(!sub)result=-1;else{
+    snprintf(sub,length+1,"%s/",name);size_t position=0;int found=git_index_find_prefix(&position,walk->index,sub);
+    if(found==GIT_ENOTFOUND&&!indexed){git_error_clear();int state=4,ignored=0;git_tree_entry *base=NULL;
+     if(walk->full&&walk->tree&&finder_tree_entry(&base,walk->repo,walk->tree,name,walk->ignore_case)==0)state=3;
+     else if(walk->full){git_error_clear();result=git_ignore_path_is_ignored(&ignored,walk->repo,sub);if(result==0&&ignored)state=5;}
+     git_tree_entry_free(base);if(result==0)result=finder_emit(walk->ctx,name,state,0,0);
+    }else if(found<0&&found!=GIT_ENOTFOUND)result=found;
+    if(result==0)result=finder_worktree(walk,child,sub,depth+1);free(sub);
+   }}
+   close(child);
+  }else if(!indexed){
+   int state=4;git_tree_entry *base=NULL;
+   if(walk->full&&walk->tree&&finder_tree_entry(&base,walk->repo,walk->tree,name,walk->ignore_case)==0)state=3;
+   else if(walk->full){int ignored=0;git_error_clear();result=git_ignore_path_is_ignored(&ignored,walk->repo,name);if(result==0&&ignored)state=5;}
+   git_tree_entry_free(base);if(result==0)result=finder_emit(walk->ctx,name,state,0,0);
+  }
+  free(name);if(result<0)break;
+ }
+ closedir(directory);return result;
+}
+int tg_finder_status(const char *path,int full,int case_sensitive,uint32_t limit_kib,tg_callbacks *callbacks){
+ git_repository *repo=NULL;git_index *index=NULL;git_tree *tree=NULL;git_object *head=NULL;int result=0,root=-1;struct stat index_before,index_after;int had_index=0;char *index_path=NULL;
+ context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};
+ if((result=git_repository_open(&repo,path))<0||(result=configure_repository(repo,&ctx))<0||(result=git_repository_index(&index,repo))<0)goto done;
+ active_context=&ctx;
+ if(!git_repository_workdir(repo)){git_error_set_str(GIT_ERROR_REPOSITORY,"Finder status requires a working tree");result=-1;goto done;}
+ root=open(git_repository_workdir(repo),O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);if(root<0){result=-1;goto done;}
+ const char *ip=git_index_path(index);if(ip){index_path=strdup(ip);had_index=lstat(ip,&index_before)==0;}
+ if((result=git_index_read(index,1))<0)goto done;
+ int caps=git_index_caps(index);if(case_sensitive)caps&=~GIT_INDEX_CAPABILITY_IGNORE_CASE;
+ if((result=git_index_set_caps(index,caps))<0)goto done;
+ if((result=finder_emit(&ctx,NULL,(caps&GIT_INDEX_CAPABILITY_IGNORE_CASE)==0,0,0))<0)goto done;
+ if(full){result=git_revparse_single(&head,repo,"HEAD^{tree}");if(result==GIT_EUNBORNBRANCH||result==GIT_ENOTFOUND){git_error_clear();result=0;}else if(result<0)goto done;else tree=(git_tree *)head;}
+ uint64_t hash_bytes=0;size_t count=git_index_entrycount(index);if(count>100000){git_error_set_str(GIT_ERROR_INDEX,"Finder index exceeds entry budget");result=-1;goto done;}
+ for(size_t i=0;i<count;i++){
+  const git_index_entry *entry=git_index_get_byindex(index,i);int state;
+  if((result=finder_index_state(repo,entry,caps,root,(uint64_t)limit_kib*1024,&hash_bytes,&ctx,&state))<0)goto done;
+  if(full&&(state==0||state==1)){
+   git_tree_entry *base=NULL;int found=tree?finder_tree_entry(&base,repo,tree,entry->path,(caps&GIT_INDEX_CAPABILITY_IGNORE_CASE)!=0):GIT_ENOTFOUND;
+   if(found==GIT_ENOTFOUND){git_error_clear();state=2;}else if(found<0){result=found;goto done;}else if(!git_oid_equal(git_tree_entry_id(base),&entry->id))state=1;
+   git_tree_entry_free(base);
+  }
+  /* One conflict row per literal name; stage flags must not hide conflicts. */
+  if(i&&strcmp(entry->path,git_index_get_byindex(index,i-1)->path)==0)continue;
+  if((result=finder_emit(&ctx,entry->path,state,(entry->flags_extended&GIT_INDEX_ENTRY_SKIP_WORKTREE)!=0,(entry->flags&GIT_INDEX_ENTRY_VALID)!=0&&(entry->flags_extended&GIT_INDEX_ENTRY_SKIP_WORKTREE)==0))<0)goto done;
+ }
+ finder_walk walk={&ctx,repo,index,tree,full,(caps&GIT_INDEX_CAPABILITY_IGNORE_CASE)!=0,0};
+ if(tree&&(result=git_tree_walk(tree,GIT_TREEWALK_PRE,finder_deleted,&walk))<0)goto done;
+ if((result=finder_worktree(&walk,root,"",0))<0)goto done;
+ if(index_path){int exists=lstat(index_path,&index_after)==0;if(exists!=had_index||(exists&&!finder_same_stat(&index_before,&index_after))){git_error_set_str(GIT_ERROR_INDEX,"Finder index changed during collection; retry required");result=-1;goto done;}}
+ if(full){git_object *current=NULL;result=git_revparse_single(&current,repo,"HEAD^{tree}");if(!head&&(result==GIT_ENOTFOUND||result==GIT_EUNBORNBRANCH)){git_error_clear();result=0;}else if(result==0&&(!head||!git_oid_equal(git_object_id(head),git_object_id(current)))){git_error_set_str(GIT_ERROR_REFERENCE,"Finder HEAD changed during collection; retry required");result=-1;}git_object_free(current);}
+ done:free(index_path);if(root>=0)close(root);git_object_free(head);git_index_free(index);git_repository_free(repo);active_context=NULL;return result;
 }
