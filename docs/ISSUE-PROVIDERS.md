@@ -2,8 +2,9 @@
 
 TurtleGit's native issue provider lets Commit offer an issue-selection button,
 update the commit message and issue ID, and check whether an issue is required.
-The embedded **Native issue catalog** works locally. Windows COM providers cannot
-run as native macOS providers; their UUID settings remain available for shared
+The embedded **Native issue catalog** works locally. **HTTP issue provider**
+connects a tracker adapter through the data protocol below. Windows COM providers
+require a native adapter; their UUID settings remain available for shared
 repositories.
 
 ## Configure a working tree
@@ -59,5 +60,85 @@ keys are separate from the Windows provider UUID and parameter fields.
 
 An invalid or unavailable native provider reports a configuration error while
 Commit's ordinary Git workflow remains available. Fix the association or fallback
-and Refresh Commit. Third-party native providers, network-backed catalogs and
-signed provider integration remain open work.
+and Refresh Commit. A remote project fallback requires an enabled association in
+local Issue Tracker Integration before it can send data. Repository configuration
+alone cannot enable remote callbacks or supply credentials.
+
+## Connect a tracker adapter
+
+Add an association for the exact working tree and choose **HTTP issue provider**.
+Open Options and configure the final endpoint and button caption:
+
+```json
+{
+  "endpoint": "https://issues.example.invalid/turtlegit",
+  "linkText": "Choose tickets…"
+}
+```
+
+The endpoint must implement TurtleGit's protocol; a normal tracker website or
+GitHub REST endpoint is not interchangeable with it. Use HTTPS. A local adapter
+can use HTTP at localhost, 127.0.0.1 or ::1. Redirects, URL credentials, query
+strings and unknown parameter fields are refused. Authentication uses an optional
+bearer token configured with Credentials. Tokens live in the app's private
+Keychain service, scoped to the exact endpoint; they are excluded from parameter
+JSON, Git configuration and association preferences. Replacing/removing a token
+is a draft until Settings Apply/OK; Cancel discards it. The editor indicates
+whether a token is stored without revealing its current value.
+
+Apply the association, then refresh Commit. Choose issues to load its searchable
+list. Refresh reloads the list; Cancel preserves the draft message and issue ID.
+OK asks the adapter to prepare the message for the captured selection. A late
+response cannot overwrite a changed draft or a closed Commit window.
+
+The provider checks the prepared message and selected paths before staging or
+committing. A refusal or transport failure stops that attempt. After Git succeeds,
+TurtleGit sends a completion receipt containing the captured full revision ID.
+A completion error or warning reports that Git already succeeded; it does not
+retry the commit. Cancelling an in-flight callback drains its owned network
+request before releasing workflow ownership. An adapter may already have processed
+a request when cancellation arrives, so its completion handler should be
+idempotent for the revision ID.
+
+## Adapter protocol, version 1
+
+All operations POST JSON to the same endpoint, with Content-Type and Accept set
+to application/json. An injected token supplies the Authorization bearer header.
+The request contains the action and immutable context:
+
+```json
+{
+  "version": 1,
+  "action": "listIssues",
+  "context": {
+    "repositoryRoot": "/Users/example/project",
+    "commonRoot": "/Users/example/project/src",
+    "paths": ["src/main.swift"],
+    "message": "Draft commit message",
+    "issueID": "42"
+  }
+}
+```
+
+| Action | Additional request fields | Response fields, alongside `version: 1` |
+| --- | --- | --- |
+| `listIssues` | None | `issues`: array of objects with unique nonempty `id` and `summary` strings |
+| `commitMessage` | `selectedIDs`: array of selected IDs | `message`: replacement text; optional `issueID`, whose omission preserves the current ID |
+| `checkCommit` | None | No additional fields on acceptance |
+| `commitFinished` | `revision`: full Git object ID | Optional `warning` text |
+
+Any response can return a nonempty `error` string to refuse the operation.
+Responses require a successful HTTP status and application/json or an
+application/*+json content type. Bodies are limited to 1 MiB each and lists to
+10,000 items. IDs cannot contain commas, line breaks or NUL; canonically
+equivalent duplicate spellings are ambiguous and refused. Requests have bounded
+deadlines. Sessions use no persistent cookies, credentials or URL cache, and do
+not follow redirects. Server diagnostics are bounded and redact the captured token.
+
+Enabling an association authorizes sending repository/common-root paths, the
+captured path list, draft/commit message, issue ID, selected issues and completed
+revision to that endpoint. The adapter controls its own retention and tracker
+changes. See [Privacy](PRIVACY.md). The embedded adapter exchanges data and does
+not download or execute provider code; native vendor-specific options and Windows
+COM binary compatibility remain outside this implementation. Installed signed,
+minimum-OS and App Store acceptance remain separate release checks.

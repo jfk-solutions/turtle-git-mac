@@ -40,15 +40,28 @@ public enum NativeIssueAssociations {
     }
     public static func validate(_ row: NativeIssueAssociation) throws {
         guard row.path.hasPrefix("/"), !row.path.contains("\0"), (try? URL(fileURLWithPath: row.path).resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { throw NativeIssueProviderFailure.configuration("Choose an existing absolute working-tree folder.") }
-        _ = try NativeIssueCatalogProvider(parameters: row.parameters, identifier: row.provider)
+        _ = try NativeIssueProviderSession(identifier:row.provider,parameters:row.parameters)
     }
 }
 public struct NativeIssueProviderContext: Equatable, Sendable {
     public let repositoryRoot: URL
+    public let commonRoot:URL
     public let paths: [String]
     public let message: String
     public let issueID: String
-    public init(repositoryRoot: URL, paths: [String], message: String, issueID: String) { self.repositoryRoot = repositoryRoot; self.paths = paths; self.message = message; self.issueID = issueID }
+    public init(repositoryRoot: URL, paths: [String], message: String, issueID: String,commonRoot:URL?=nil) {
+        self.repositoryRoot=repositoryRoot;self.paths=paths;self.message=message;self.issueID=issueID
+        if let commonRoot {self.commonRoot=commonRoot}
+        else {
+            let parents=paths.map {path->[String] in
+                guard !path.hasPrefix("/"),!path.split(separator:"/").contains("..") else{return []}
+                return path.utf8.split(separator:47).dropLast().map{String(decoding:$0,as:UTF8.self)}
+            }
+            var common=parents.first ?? []
+            for parent in parents.dropFirst() {var count=0;while count<common.count && count<parent.count && GitReferenceName.equal(common[count],parent[count]) {count += 1};common=Array(common.prefix(count))}
+            self.commonRoot=common.isEmpty ? repositoryRoot:FileTransferPaths.fileURL(repositoryRoot.path+"/"+common.joined(separator:"/"))
+        }
+    }
 }
 public struct NativeIssueProviderResult: Equatable, Sendable {
     public let message: String

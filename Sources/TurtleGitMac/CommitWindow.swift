@@ -491,9 +491,9 @@ import UniformTypeIdentifiers
         }
         logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close()
         addProgressController?.close()
-        if addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending || model.attemptWorkPending {
+        if addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending || model.attemptWorkPending || model.issueProviderWorkPending {
             Task{@MainActor [self] in
-                while addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending || model.attemptWorkPending {
+                while addProgressController != nil || commitIdentityQuestion != nil || identitySettings != nil || model.preparingCommitIdentity || detachedQuestionState != nil || detachedBranch != nil || model.preparingDetachedHead || model.detachedHeadWorkPending || model.attemptWorkPending || model.issueProviderWorkPending {
                     await withCheckedContinuation{reply in DispatchQueue.main.asyncAfter(deadline:.now()+0.005){reply.resume()}}
                 };onClosed()
             }
@@ -742,28 +742,50 @@ import UniformTypeIdentifiers
     var projectIconAccess: RepositoryAccessLease? { access }
     static private(set) var activeIssueProviderOperations = 0
     @Published private(set) var issueProviderBusy = false
-    @Published private(set) var nativeIssueProvider: NativeIssueCatalogProvider?
+    @Published private(set) var issueProviderWorkPending = false
+    @Published private(set) var issueProviderPreflightPending = false
+    @Published private(set) var nativeIssueProvider: NativeIssueProviderSession?
     @Published private(set) var issueProviderError: String?
     private var issueProviderGeneration = UUID()
-    var chooseProviderIssues: (NativeIssueCatalogProvider, NativeIssueProviderContext) async -> NativeIssueProviderResult? = { _, _ in nil }
+    var issueProviderCredentials: any IssueProviderCredentialStore = IssueProviderKeychainStore.shared
+    var chooseProviderIssues: (NativeIssueProviderSession, NativeIssueProviderContext) async -> NativeIssueProviderResult? = { _, _ in nil }
+    var cancelProviderIssues: () -> Void = {}
     var providerContext: NativeIssueProviderContext { NativeIssueProviderContext(repositoryRoot: repository.root, paths: scopePaths, message: message, issueID: issueID) }
     func selectProviderIssues() {
         guard messageFocusAvailable, !inputsBlocked, let provider = nativeIssueProvider else { return }
-        let context = providerContext, generation = UUID(); issueProviderGeneration = generation; issueProviderBusy = true; Self.activeIssueProviderOperations += 1
+        let context = providerContext, generation = UUID(); issueProviderGeneration = generation; issueProviderBusy = true; issueProviderWorkPending = true; Self.activeIssueProviderOperations += 1
         Task {
-            defer { Self.activeIssueProviderOperations -= 1; withExtendedLifetime(access) {}; if issueProviderGeneration == generation { issueProviderBusy = false } }
+            defer { Self.activeIssueProviderOperations -= 1; issueProviderWorkPending = false; withExtendedLifetime(access) {}; if issueProviderGeneration == generation { issueProviderBusy = false } }
             let result = await chooseProviderIssues(provider, context)
             guard messageFocusAvailable, issueProviderGeneration == generation, !confirmingQuit, message.utf8.elementsEqual(context.message.utf8), issueID.utf8.elementsEqual(context.issueID.utf8), scopePaths == context.paths, let result else { return }
             message = result.message; issueID = result.issueID; requestMessageFocus()
         }
     }
-    private func readNativeIssueProvider(_ token: OperationCancellation) async throws -> (provider:NativeIssueCatalogProvider?,error:String?) {
+    private func readNativeIssueProvider(_ token: OperationCancellation) async throws -> (provider:NativeIssueProviderSession?,error:String?) {
         let rows: [NativeIssueAssociation]
         do { rows = try NativeIssueAssociations.load(from: dialogDefaults) }
         catch { return (nil,error.localizedDescription) }
         let association = try await readReload(token) { try await repository.nativeIssueAssociation(rows: rows, cancellation: token) }
-        do { return (try association.map { try NativeIssueCatalogProvider(parameters: $0.parameters, identifier: $0.provider) },nil) }
-        catch { return (nil,error.localizedDescription) }
+        do {
+            guard let association else {return (nil,nil)}
+            var provider = try NativeIssueProviderSession(identifier:association.provider,parameters:association.parameters)
+            if provider.isRemote,let endpoint=provider.endpoint {
+                // Repository configuration cannot authorize sending repository
+                // paths or drafts to a server. An enabled local association is
+                // the user's explicit choice of this provider for this root.
+                guard NativeIssueAssociations.matching(rows,root:repository.root) != nil else {
+                    throw NativeIssueProviderFailure.configuration("Enable an association for this working tree in Issue Tracker Integration before using a remote provider.")
+                }
+                let store=issueProviderCredentials
+                let bearer=try await readReload(token) {try await store.token(for:endpoint)}
+                provider=try NativeIssueProviderSession(identifier:association.provider,parameters:association.parameters,bearerToken:bearer)
+            }
+            try token.check()
+            return (provider,nil)
+        } catch {
+            try token.check()
+            return (nil,error.localizedDescription)
+        }
     }
     @Published var issueProperties = IssueTrackerProperties() { didSet { if issueProperties != oldValue { cancelHistoryIssueUpdate(); scheduleIssueStyling() } } }
     @Published private(set) var issueMessageStyles: [IssueMessageStyle] = []
@@ -948,6 +970,7 @@ import UniformTypeIdentifiers
         };return true
     }
     private var preflightCancellation:OperationCancellation?
+    private var providerCommitAttemptTask: Task<Void,Never>?
     private var preflightRequest=UUID()
     private(set) static var activeCommitPreflights=0
     private func validatePreflight(_ request:UUID,_ token:OperationCancellation) throws {
@@ -2021,8 +2044,9 @@ import UniformTypeIdentifiers
         unversionedPromptRequest=UUID();unversionedPromptPending=false;unversionedPromptVisible=false;cancelUnversionedFilesPrompt()
         stagingHintRequest=UUID();stagingHintVisible=false;stagingHintPending=false
         preflightRequest=UUID();preflightCancellation?.cancel();preflightCancellation=nil
+        if issueProviderPreflightPending {providerCommitAttemptTask?.cancel()}
         if let progress=commitProgress { progress.invalidate();if !progress.busy { progress.choose(nil) } }
-        issueProviderGeneration = UUID(); issueProviderBusy = false
+        issueProviderGeneration = UUID(); issueProviderBusy = false; cancelProviderIssues()
         fileMenuGeneration = UUID(); fileOperationToken?.cancel(); cancelChangelist()
         diffSession?.cancel(); diffSession = nil
         retireCommitIdentitySettings();retireDetachedChildren();clientHooks.retire(); submoduleLog.retire();fileListRefresh.retire()
@@ -2172,11 +2196,17 @@ import UniformTypeIdentifiers
         let nonAmendHistoryForAttempt=options.amend && !nonAmendMessage.isEmpty && !GitReferenceName.equal(nonAmendMessage,messageTemplate) ? nonAmendMessage:nil
         let preflight=UUID(),preflightToken=OperationCancellation();preflightRequest=preflight;preflightCancellation=preflightToken
         busy = true;attemptWorkPending=true;Self.activeCommitPreflights += 1
-        Task { [self,access] in
+        providerCommitAttemptTask = Task { [self,access] in
             var commitAttempted = false,commitSucceeded=false
             var attemptedHistoryMessage:String?
             var headBeforeAttempt:Data?
-            defer { if commitAttempted,messageFocusAvailable {unversionedDefaults.set(showUnversionedForAttempt,forKey:"AddBeforeCommit")};detachedHeadWorkPending=false;attemptWorkPending=false;Self.activeCommitPreflights -= 1;withExtendedLifetime(access) {};if preflightRequest==preflight { preflightCancellation=nil } }
+            defer {
+                if commitAttempted,messageFocusAvailable {unversionedDefaults.set(showUnversionedForAttempt,forKey:"AddBeforeCommit")}
+                detachedHeadWorkPending=false;attemptWorkPending=false;issueProviderPreflightPending=false
+                providerCommitAttemptTask=nil;Self.activeCommitPreflights -= 1
+                withExtendedLifetime(access) {}
+                if preflightRequest==preflight {preflightCancellation=nil}
+            }
             var progress: CommitProgressWindowModel?
             var selectedPostAction: CommitPostAction?
             do {
@@ -2257,7 +2287,12 @@ import UniformTypeIdentifiers
                 // Publishing issue insertion or serialization into the editor
                 // would invalidate its existing native Undo ranges on failure.
                 text = prepared.message
-                try provider?.checkCommit(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID))
+                if let provider {
+                    issueProviderPreflightPending=true
+                    defer {issueProviderPreflightPending=false}
+                    try await provider.checkCommit(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID),cancellation:preflightToken)
+                }
+                try validatePreflight(preflight,preflightToken)
                 let isGitSVN = try await repository.finderMetadata(knownBare:false,cancellation:preflightToken).hasGitSVN
                 let written = try await repository.prepareCommitMessageFile(text, stripComments: dialogDefaults.bool(forKey: "StripCommentedLines"), sanitize:dialogDefaults.object(forKey:"SanitizeCommitMsg") as? Bool ?? true,cancellation:preflightToken)
                 text = written.contents
@@ -2267,6 +2302,7 @@ import UniformTypeIdentifiers
                 onCommitProgress?(result)
                 let presented = onCommitProgress != nil && !result.dismissWithoutWindow
                 let output: String
+                var providerReceipt: IssueProviderCommitReceipt?
                 if let historyCombine { try await repository.verifyHistoryCombineAmend(historyCombine) }
                 // Git can create a commit and still return failure during later
                 // hook/index work. Retain an exact witness, including unborn
@@ -2284,23 +2320,29 @@ import UniformTypeIdentifiers
                     let operation = Task {
                         defer { continuation.finish() }
                         let onOutput: @Sendable (GitOutputChunk) -> Void = { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }
-                        if let replaySplit { return try await repository.commitRebaseSplit(message: text, paths: paths, staging: staging, options: options, expected: replaySplit, onOutput: onOutput) }
-                        if staging { return try await repository.commitIndex(message: text, options: options, cancellation: result.cancellation, onOutput: onOutput) }
-                        return try await repository.commitSelected(message: text, paths: paths, options: options, cancellation: result.cancellation, onOutput: onOutput,backend:backend)
+                        if provider != nil {
+                            let receipt=try await repository.commitForIssueProvider(message:text,paths:paths,staging:staging,options:options,replaySplit:replaySplit,backend:backend,cancellation:result.cancellation,onOutput:onOutput)
+                            return (receipt.output,Optional(receipt))
+                        }
+                        if let replaySplit { return (try await repository.commitRebaseSplit(message: text, paths: paths, staging: staging, options: options, expected: replaySplit, onOutput: onOutput),Optional<IssueProviderCommitReceipt>.none) }
+                        if staging { return (try await repository.commitIndex(message: text, options: options, cancellation: result.cancellation, onOutput: onOutput),Optional<IssueProviderCommitReceipt>.none) }
+                        return (try await repository.commitSelected(message: text, paths: paths, options: options, cancellation: result.cancellation, onOutput: onOutput,backend:backend),Optional<IssueProviderCommitReceipt>.none)
                     }
                     for await _ in updates { result.consume(parser.processPending(), parser: parser) }
                     result.consume(parser.processPending(), parser: parser); result.consume(parser.finish(), parser: parser)
-                    output = try await operation.value;commitSucceeded=true
+                    let completed=try await operation.value
+                    output=completed.0;providerReceipt=completed.1;commitSucceeded=true
                 }
                 guard messageFocusAvailable,preflightRequest==preflight,!preflightToken.isCancelled else {
                     result.complete(output:output,success:true,cancelled:false,postActions:[]);commitProgress=nil;return
                 }
-                var completionFailure: String?
+                var completionFailure: String? = providerReceipt?.warning
                 if let provider {
                     do {
-                        let revision = try await repository.run(["rev-parse", "--verify", "HEAD"],cancellation:preflightToken).text.trimmingCharacters(in: .newlines)
-                        try validatePreflight(preflight,preflightToken)
-                        try provider.commitFinished(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID), revision: revision)
+                        if let revision=providerReceipt?.revision {
+                            let warning=try await provider.commitFinished(context: NativeIssueProviderContext(repositoryRoot:repository.root,paths:committedPaths.sorted(),message:text,issueID:rawIssueID), revision:revision,cancellation:result.cancellation)
+                            if let warning,!warning.isEmpty {completionFailure="The commit succeeded, but its issue provider reported a completion warning.\n\n"+warning}
+                        }
                     } catch { completionFailure = "The commit succeeded, but its issue-provider completion failed.\n\n" + error.localizedDescription }
                 }
                 try validatePreflight(preflight,preflightToken)
@@ -2422,12 +2464,23 @@ import UniformTypeIdentifiers
     var inputsBlocked:Bool {!commitIdentityPrepared || preparingCommitIdentity || operationInputsBlocked}
     var canRefresh:Bool {messageFocusAvailable && !operationInputsBlocked}
     var fileListAvailable:Bool {messageFocusAvailable && !messageOnly && !inputsBlocked}
-    var canCancel: Bool { messageFocusAvailable && !stagingHintVisible && !unversionedPromptVisible && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil || preparingDetachedHead) }
+    var canCancel: Bool { messageFocusAvailable && !stagingHintVisible && !unversionedPromptVisible && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil || preparingDetachedHead || issueProviderPreflightPending) }
     func cancel(closeWindow: Bool = true, completion: ((Bool) -> Void)? = nil) {
         cancel(closeWindow: closeWindow, completion: completion, confirmationAccepted: false)
     }
     private func cancel(closeWindow: Bool, completion: ((Bool) -> Void)?, confirmationAccepted: Bool) {
         guard messageFocusAvailable else { completion?(false); return }
+        if issueProviderPreflightPending,let token=preflightCancellation,let task=providerCommitAttemptTask {
+            guard !pendingReloadCancel,!confirmingQuit || !closeWindow else {completion?(false);return}
+            pendingReloadCancel=true;token.cancel();task.cancel()
+            Task { [self] in
+                await task.value
+                guard messageFocusAvailable else {completion?(false);return}
+                pendingReloadCancel=false;busy=false
+                cancel(closeWindow:closeWindow,completion:completion,confirmationAccepted:confirmationAccepted)
+            }
+            return
+        }
         if cancelDetachedHeadPreparation(closeWindow:closeWindow,completion:completion){return}
         if preparingCommitIdentity,let token=reloadCancellation,let task=reloadTask {
             guard !pendingReloadCancel,!confirmingQuit || !closeWindow else{completion?(false);return}
@@ -2656,7 +2709,7 @@ struct CommitDialog: View {
                     }
                     HStack(spacing:8) {
                         if let provider = model.nativeIssueProvider {
-                            Button { model.selectProviderIssues() } label: { CommandLabel(title:provider.linkText,icon:.settingsIssueTracker).lineLimit(1).truncationMode(.tail) }
+                            Button { model.selectProviderIssues() } label: { CommandLabel(title:provider.linkText,icon:.settingsIssueTracker,localized:false).lineLimit(1).truncationMode(.tail) }
                                 .frame(maxWidth:200).help(provider.linkText).disabled(model.inputsBlocked)
                         }
                         if model.issueProperties.showsIssueField {

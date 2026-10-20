@@ -1042,7 +1042,7 @@ missing. The Commit row was checked against current code on October 20, 2026.
 | --- | --- | --- |
 | Check for modifications | Native standalone Working Tree dialog; columns, scope/filters, statistics, dates, sorting, diff export and basic menus | Full menus, remote checks, progress/cancellation and persistent preferences; see STATUS-PARITY.md |
 | Add | Native scoped checked list, ignored defaults, direct-file progress route, original icons/watermark, tracked history/Blame/base, unified diff, two-file comparison and temporary restoration/Revert menus, cancellable private-index add and index-only executable/symlink post-actions | Full menus, native visual/gesture/signed acceptance; see ADD-PARITY.md |
-| Commit | Native checked-file dialog and optional staging; amend and identity controls; source action menus, message history and completions, client hooks, detached/new-branch handling and ReCommit | External issue-provider adapters/callbacks beyond the embedded catalog; remaining file-type and source-layout/physical/signed acceptance; see ISSUE-PROVIDERS.md and later Commit family sections |
+| Commit | Native checked-file dialog and optional staging; amend and identity controls; source action menus, message history and completions, client hooks, detached/new-branch handling and ReCommit; offline and HTTP issue-provider callbacks | Vendor-specific provider integrations beyond the embedded adapters; remaining file-type and source-layout/physical/signed acceptance; see ISSUE-PROVIDERS.md and later Commit family sections |
 | Log | Native three-pane window; graph, refs, search/date filters, lazy action icons and metadata columns, working-tree row, per-parent file groups, comparisons and revision actions; scoped Add/Commit/Revert, index flags, Ignore/Delete and submodule history routes with actual receiver checks | Full reference chooser/search/walk/view/statistics controls, remaining context commands, group styling and selection-mark gestures, displayed light/dark/keyboard/VoiceOver acceptance and signed handoffs; see LOG-PARITY.md |
 | Diff | Index/worktree/commit textual patches | Side-by-side, syntax highlighting, binary/image handling, external tools |
 | Clone | Native Git/SSH/SVN option groups, captured progress/retry/cancellation, private-agent key loading and remote-key storage, URL/destination history, real Git tests and Log handoff | Full upstream progress, physical picker/Cancel/sheet QA, actual SSH authentication, real SVN/LFS, signed scopes and bare adoption; see CLONE-PARITY.md |
@@ -4136,3 +4136,37 @@ needed preparation repairs before launching; their assertions remain intact.
 All four native receivers are independently absent. [Batch evidence](qa/metafile-masked-transfers-family-2026-10-20.json)
 records failures and scope; this is not a complete hosted, visual or signed
 distribution pass.
+
+### Native issue-provider callbacks and credential workflows — October 20, 2026
+
+The provider registry now supports the retained offline catalog and an embedded
+HTTP/JSON tracker adapter. Settings association selection, validated options,
+credential drafts, Apply/Cancel, picker loading/Refresh/filtering, message/issue
+selection, pre-staging validation and post-success completion form one connected
+workflow. Bearer tokens stay in the exact endpoint's app-private Keychain entry;
+failed or retired Settings publication rolls back credential changes.
+
+An enabled exact-root local association authorizes remote requests. A shared
+project fallback alone cannot send drafts or paths to a server. Requests are
+bounded, ephemeral, redirect-free and cancellable, retaining ownership through
+URLSession invalidation. Native picker close fences late results and waits for
+network/sheet drainage; Commit and application Quit preserve pending ownership.
+Successful Git operations capture their revision within the repository actor
+before provider completion can suspend. Completion warnings/failures retain Git
+success and cannot retry the commit or substitute a later HEAD.
+
+[The user/protocol guide](ISSUE-PROVIDERS.md),
+[source comparison](NATIVE-ISSUE-PROVIDER-PARITY.md) and
+[privacy disclosure](PRIVACY.md) distinguish this data adapter from Windows COM
+binary execution, vendor-specific options/discovery and installed signed/App Store
+acceptance. The checkpoint passed nine distinct focused Core methods
+cumulatively, the app build and six native case/engine combinations with system
+and bundled Git. Compilation needed a provider initializer repair. Core fixtures
+needed bounded process reaping and startup receipt handling; the sampled hung
+test process was terminated only after its helper had exited. Native fixture
+isolation/readiness repairs retained the actual sheet, Git and ownership
+assertions. Only affected or previously unrun checks repeated. All seven native
+receivers, including the failed attempt, and the terminated owned Core process
+are independently absent. [Batch evidence](qa/native-issue-provider-family-2026-10-20.json)
+records the actual scope and failures. No complete hosted, installed physical or
+signed distribution claim follows from these local checks.

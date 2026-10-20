@@ -8,6 +8,7 @@ import TurtleGitCore
     private(set) var picker: IssueProviderPickerController?
     init(model: CommitWindowModel, parent: NSWindow) {
         self.model = model; self.parent = parent
+        model.cancelProviderIssues = { [weak self] in self?.retire() }
         model.chooseProviderIssues = { [weak self] provider, context in
             guard let self, self.model.messageFocusAvailable, self.picker == nil, let parent = self.parent, parent.attachedSheet == nil else { return nil }
             return await withCheckedContinuation { continuation in

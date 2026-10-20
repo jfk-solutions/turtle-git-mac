@@ -38,13 +38,42 @@ order. Changing a selection replaces its exact previous generated line; unrelate
 message lines remain. It makes no remote writes. This is a functional embedded
 provider and a native data contract, not execution of third-party Windows COM code.
 
-Third-party vendor native implementations, external provider discovery/isolation,
-network authentication, arbitrary provider-specific options UI and source error
-fallback parity remain open. Dynamic Git revision-property outputs are not stored
-as SVN revprops. Physical keyboard/menus/options/selection, signed sandbox,
+The embedded HTTP adapter extends this contract with actual remote issue lists,
+message preparation, pre-commit validation and success-only completion. A registry
+supplies provider descriptors, parameter validation and native options. HTTP uses
+version 1 JSON and an exact endpoint; locally enabled exact-root associations
+authorize its callbacks. Project fallback alone cannot authorize network access.
+Bearer credentials are separate Keychain drafts, published only with Settings
+Apply/OK and rolled back on failed or retired publication. HTTP has bounded
+requests, responses and deadlines, no redirects or persistent session state,
+and cancellation waits for URLSession invalidation. Native sheets retire visually
+while their operation and Quit ownership remain until drainage.
+
+Commit captures the full revision within its synchronous repository operation
+before awaiting completion. A delayed callback cannot substitute a newer HEAD.
+Completion errors preserve Git success, report the failure and suppress automatic
+follow-up actions. Callback cancellation cannot retry the successful commit.
+The generic adapter runs as embedded native code in development and Store builds;
+it does not load external binaries or downloaded provider code.
+
+The app declares individual ATS insecure-HTTP exceptions for localhost,
+127.0.0.1 and ::1, matching the adapter's loopback-only HTTP configuration gate.
+No arbitrary-load exception is added. Apple's
+[local networking documentation](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking)
+describes the OS-version differences for IP-address exceptions; installed
+minimum-OS acceptance remains separate from local receiver checks.
+
+Third-party vendor-native discovery, arbitrary provider-specific options UI and
+Windows COM binary execution remain open. The native HTTP adapter stops the
+attempt on transport failure, whereas the pinned COM HRESULT failure path reports
+the error and continues; a provider's explicit refusal blocks both workflows.
+The pinned GetCommitMessage2 declares revision-property arrays but does not
+consume them; the adapter does not invent SVN revprop storage. Physical keyboard/menus/options/selection, signed sandbox,
 minimum-OS and complete source control acceptance remain unverified. No complete
-provider ecosystem or App Store certification is claimed. Grouped evidence follows
-implementation and validation.
+provider ecosystem or App Store certification is claimed. The HTTP family passed
+nine distinct focused Core methods cumulatively, the app build and six grouped
+native case/engine combinations. [The HTTP-family evidence](qa/native-issue-provider-family-2026-10-20.json)
+records fixture/compile repairs, actual assertions, cleanup and remaining gates.
 
 The first grouped checkpoint passed Debug, twelve Core tests and six native cases
 with system and bundled Git. Actual association/draft/Commit/cleanup evidence and

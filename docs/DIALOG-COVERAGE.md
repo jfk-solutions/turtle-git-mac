@@ -68,9 +68,9 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_EXPORT` | partial | 18/18 mapped; 0 pending | [EXPORT-PARITY](EXPORT-PARITY.md), [REVISION-EXPORT](REVISION-EXPORT.md), [SYNCHRONIZATION-PARITY](SYNCHRONIZATION-PARITY.md), [UI-PARITY](UI-PARITY.md); 50 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSTBLAME` | partial-native-replacement | 25/25 mapped; 0 pending | [APPEARANCE](APPEARANCE.md); 12 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_CREATECHANGELIST` | partial | 4/4 mapped; 0 pending | No recorded family document; 0 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSBUGTRAQ` | partial-native-replacement | 5/5 mapped; 0 pending | [NATIVE-ISSUE-PROVIDER-PARITY](NATIVE-ISSUE-PROVIDER-PARITY.md); 1 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSBUGTRAQ` | partial-native-replacement | 5/5 mapped; 0 pending | [NATIVE-ISSUE-PROVIDER-PARITY](NATIVE-ISSUE-PROVIDER-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSBUGTRAQ_CONFIG` | partial-native-replacement | 42/42 mapped; 0 pending | [ISSUE-TRACKER-PARITY](ISSUE-TRACKER-PARITY.md); 10 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSBUGTRAQADV` | partial-native-replacement | 12/12 mapped; 0 pending | [NATIVE-ISSUE-PROVIDER-PARITY](NATIVE-ISSUE-PROVIDER-PARITY.md); 1 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSBUGTRAQADV` | partial-native-replacement | 12/12 mapped; 0 pending | [NATIVE-ISSUE-PROVIDER-PARITY](NATIVE-ISSUE-PROVIDER-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_AUTOTEXTTESTDLG` | partial | 9/9 mapped; 0 pending | [AUTOTEXT-TESTER-PARITY](AUTOTEXT-TESTER-PARITY.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGS_CONFIG` | partial | 2/2 mapped; 0 pending | [ADVANCED-SETTINGS-PARITY](ADVANCED-SETTINGS-PARITY.md), [REMOTE-REFERENCE-ENGINE-PARITY](REMOTE-REFERENCE-ENGINE-PARITY.md); 8 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_CLONE` | partial-native-replacement | 34/34 mapped; 0 pending | [CLONE-PARITY](CLONE-PARITY.md), [REMOTE-PROGRESS-NOTIFICATIONS-PARITY](REMOTE-PROGRESS-NOTIFICATIONS-PARITY.md), [UI-PARITY](UI-PARITY.md); 13 QA records |

@@ -19,6 +19,18 @@ Downloaded pictures in a local temporary subdirectory are reused for up to seven
 days. Expired files can remain until replaced or removed by temporary-file cleanup;
 URLSession can also use its normal HTTP cache. No avatar data is sent to a
 TurtleGit service. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/GRAVATAR.html">the author-picture guide</a>.</p>
+<p>The optional <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/ISSUE-PROVIDERS.html">HTTP issue provider</a> sends data only after the
+user enables an association for the exact working tree in local Settings. Issue
+selection sends repository and common-root paths, the captured path list, draft
+message, issue ID and selected issues to the configured endpoint. Commit sends its
+prepared message and paths for validation, then a completed revision receipt
+after Git succeeds. The tracker adapter controls its own retention and any remote
+issue changes; it may have processed a request before cancellation arrives.
+Project configuration alone cannot authorize these callbacks. Bearer credentials
+are stored in an app-private Keychain service keyed by the exact endpoint,
+separately from association preferences and Git configuration. Requests use an
+ephemeral session without persistent cookies, credential storage or URL caching;
+redirects are refused. The local catalog provider continues to work offline.</p>
 <p>The persistent <a href="ACTION-LOG.html">action log</a> keeps displayed operation output,
 local timestamps and repository paths in private Application Support storage.
 It may include displayed Git/hook output and remote addresses. Its default

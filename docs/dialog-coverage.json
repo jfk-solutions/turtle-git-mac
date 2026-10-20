@@ -2196,7 +2196,8 @@
         "docs/NATIVE-ISSUE-PROVIDER-PARITY.md"
       ],
       "qa_records": [
-        "docs/qa/native-issue-provider-2026-10-14.json"
+        "docs/qa/native-issue-provider-2026-10-14.json",
+        "docs/qa/native-issue-provider-family-2026-10-20.json"
       ]
     },
     {
@@ -2248,7 +2249,8 @@
         "docs/NATIVE-ISSUE-PROVIDER-PARITY.md"
       ],
       "qa_records": [
-        "docs/qa/native-issue-provider-2026-10-14.json"
+        "docs/qa/native-issue-provider-2026-10-14.json",
+        "docs/qa/native-issue-provider-family-2026-10-20.json"
       ]
     },
     {

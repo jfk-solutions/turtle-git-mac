@@ -1,0 +1,122 @@
+{
+  "status": "focused-local-validation-passed",
+  "scope": "Native issue-provider registry, HTTP callbacks, Settings/Keychain drafts, issue selection and Commit ownership",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Retained offline catalog plus embedded version 1 HTTP/JSON tracker adapter",
+    "Registry provider selection, parameter options and exact-root associations",
+    "Bearer credentials staged separately from configuration, published through Settings Apply with rollback",
+    "Async issue list, Refresh/filter/selection and captured message/optional issue-ID output",
+    "Provider validation before staging and actual Git commit",
+    "Revision receipt capture inside repository actor before provider suspension; success-only completion warnings",
+    "Bounded ephemeral HTTP, no redirects/persistent credentials/cookies/cache; cancellation waits network invalidation",
+    "Late-result fencing, hidden/closed native sheet drainage, parent and application Quit ownership",
+    "Remote repository fallback requires enabled local association before requests"
+  ],
+  "checks": [
+    {
+      "name": "Initial Core/app compilation",
+      "result": "failed before tests",
+      "cause": "Struct initializer mixed delegating initialization and direct let-property initialization",
+      "repair": "Catalog branch initializes self with the catalog value; HTTP branch retains direct initialization",
+      "logs": [
+        "build/qa/native-issue-provider-core-2026-10-20.log",
+        "build/qa/native-issue-provider-app-2026-10-20.log"
+      ]
+    },
+    {
+      "name": "Repaired app build",
+      "result": "passed",
+      "log": "build/qa/native-issue-provider-app-repair-2026-10-20.log"
+    },
+    {
+      "name": "Initial focused Core runtime attempt",
+      "result": "four methods passed, then cancellation fixture teardown hung",
+      "log": "build/qa/native-issue-provider-core-repair-2026-10-20.log",
+      "sample": "build/qa/native-issue-provider-owned-sample-2026-10-20.txt",
+      "disposition": "Terminated only owned xctest PID85783 after sample proved Foundation Process.waitUntilExit was blocked with no Python child remaining",
+      "repair": "Fixture now owns posix_spawn PID with bounded TERM/KILL and waitpid reaping; production HTTP unchanged"
+    },
+    {
+      "name": "Affected and previously unrun Core group",
+      "methods": 8,
+      "passed_methods": 7,
+      "result": "one private fixture startup readiness failure",
+      "log": "build/qa/native-issue-provider-core-final-2026-10-20.log",
+      "repair": "Bounded ten-second valid port receipt wait, early-child-exit detection and bounded private stderr diagnostics"
+    },
+    {
+      "name": "Failed startup method recheck",
+      "methods": 1,
+      "result": "passed, zero failures",
+      "log": "build/qa/native-issue-provider-core-startup-repair-2026-10-20.log"
+    },
+    {
+      "name": "Native fixture compilation",
+      "result": "pre-launch actor-isolation and visibility errors repaired",
+      "log": "build/qa/native-issue-provider-native-2026-10-20.log",
+      "repair": "MainActor nested helper, visible private fixture credential actor and public readiness predicates; no production exposure added"
+    },
+    {
+      "name": "Initial native Settings runtime",
+      "result": "post-refusal picker readiness timed out",
+      "log": "build/qa/native-issue-provider-native-repair-2026-10-20.log",
+      "receiver_pids": [
+        87528
+      ],
+      "repair": "Wait for actual error-sheet detachment and accepted reload/input readiness before opening picker/retrying; source guard retained"
+    },
+    {
+      "name": "Native Settings, Commit and lifetime group",
+      "result": "six distinct case/engine combinations passed",
+      "log": "build/qa/native-issue-provider-native-settlement-2026-10-20.log",
+      "cases": [
+        "settings",
+        "commit",
+        "lifetime"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "receiver_pids": [
+        87919,
+        88045,
+        88181,
+        88346,
+        88517,
+        88725
+      ],
+      "assertions": [
+        "Actual association, options and credential draft sheets with Apply/Cancel/Edit/Copy and private credential store",
+        "Offline catalog immediate and generic asynchronous picker, source order/filtering and actual Git commit",
+        "HTTP selection/message/issue-ID preparation; project-fallback no-network authorization gate",
+        "Provider refusal preserves HEAD/index and creates no progress before staging",
+        "Held completion keeps original full revision while external HEAD advances; warning preserves Git success without duplicate commit",
+        "Late edits, picker/Commit retirement, application Quit barriers and progress cancellation drain actual network work"
+      ]
+    },
+    {
+      "name": "Owned cleanup",
+      "result": "All seven native receivers and terminated owned xctest independently absent; private HTTP servers shut down/joined and exact Core helpers reaped"
+    },
+    {
+      "name": "Generated resources",
+      "result": "Localization/Help checks passed; Xcode project regenerated for new sources and dialog resource coverage reconciled"
+    }
+  ],
+  "remaining": [
+    "Windows COM binary execution and vendor-specific discovery/options",
+    "Native HTTP transport failures stop the attempt; pinned COM HRESULT failure reports and continues",
+    "Installed physical Keychain, keyboard/VoiceOver/visual acceptance and minimum-OS execution",
+    "Complete hosted integration and signed/App Store distribution acceptance",
+    "External concurrent Git writers are outside the repository actor's serialization"
+  ],
+  "core_boundary": "Nine distinct focused Core methods passed cumulatively: six session/HTTP and three retained catalog/association methods. Passed configuration method was not repeated; no complete Core suite rerun.",
+  "hashes": {
+    "Sources/TurtleGitCore/NativeIssueProviderSession.swift": "bed22ba2f6e2d18b5c56c1fa5b548e1307ce6c4d88354e56d9529743329679ce",
+    "Sources/TurtleGitCore/NativeIssueHTTPExchange.swift": "8b13cded26ae71c49571134db2a104de9c4449da243a0039d447b9504f22ea76",
+    "Sources/TurtleGitCore/IssueProviderCommitReceipt.swift": "1ebb6034719a2378a229379de7e9aed32661b5a514cc0625c867cc08a090104f",
+    "Sources/TurtleGitMac/IssueProviderCredentials.swift": "a532d579c6c796b52067e0182b5b5b772033abd6742d6dfb4abe574dc3a5594a"
+  }
+}

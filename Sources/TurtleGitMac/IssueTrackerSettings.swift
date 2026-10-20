@@ -252,7 +252,9 @@ import TurtleGitCore
                 }.labelsHidden().frame(width:200).disabled(!model.editable) }
                 GroupBox("Native provider fallback") {
                     VStack(alignment: .leading, spacing: 10) { field(.nativeProvider, title: "Native provider ID:"); field(.nativeParameters, title: "Native parameters:")
-                        Text("Native issue catalog ID: " + NativeIssueCatalogProvider.identifier + ". Enabled exact-path associations take priority.").font(.caption).foregroundStyle(.secondary)
+                        Text(NativeIssueProviderRegistry.descriptors.map{$0.name+": "+$0.identifier}.joined(separator:" · ")+". Enabled exact-path associations take priority.").font(.caption).foregroundStyle(.secondary)
+                        IssueProviderFallbackCredentials(identifier:model.draft.fields[.nativeProvider]?.value ?? "",parameters:model.draft.fields[.nativeParameters]?.value ?? "")
+                        Text("Remote providers require an enabled local association before receiving commit data.").font(.caption).foregroundStyle(.secondary)
                     }.padding(8)
                 }
                 if let error=model.error {Text(error).foregroundStyle(.red).textSelection(.enabled)}

@@ -22,6 +22,19 @@ days. Expired files can remain until replaced or removed by temporary-file clean
 URLSession can also use its normal HTTP cache. No avatar data is sent to a
 TurtleGit service. See [the author-picture guide](GRAVATAR.md).
 
+The optional [HTTP issue provider](ISSUE-PROVIDERS.md) sends data only after the
+user enables an association for the exact working tree in local Settings. Issue
+selection sends repository and common-root paths, the captured path list, draft
+message, issue ID and selected issues to the configured endpoint. Commit sends its
+prepared message and paths for validation, then a completed revision receipt
+after Git succeeds. The tracker adapter controls its own retention and any remote
+issue changes; it may have processed a request before cancellation arrives.
+Project configuration alone cannot authorize these callbacks. Bearer credentials
+are stored in an app-private Keychain service keyed by the exact endpoint,
+separately from association preferences and Git configuration. Requests use an
+ephemeral session without persistent cookies, credential storage or URL caching;
+redirects are refused. The local catalog provider continues to work offline.
+
 The persistent [action log](ACTION-LOG.md) keeps displayed operation output,
 local timestamps and repository paths in private Application Support storage.
 It may include displayed Git/hook output and remote addresses. Its default
