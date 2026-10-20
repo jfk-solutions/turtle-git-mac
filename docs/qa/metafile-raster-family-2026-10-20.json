@@ -1,0 +1,101 @@
+{
+  "status": "focused-local-validation-passed",
+  "scope": "Classic WMF/EMF Boolean raster playback, state, brushes and native consumers",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "All sixteen ROP2 functions and generic 256 ROP3 truth tables",
+    "Source/pattern/destination dependency checks; independent geometric coverage",
+    "WMF DIB/PATBLT and source-independent no-bitmap forms; EMF BITBLT/STRETCHBLT/STRETCHDIBITS",
+    "Strict DIB decoding, source crop/mirror/scale, device brush origin, clipping and saved DC state",
+    "Original bounded AppKit raster bridge; captured repository bytes unchanged"
+  ],
+  "checks": [
+    {
+      "name": "Universal macOS 13 helper reconstruction/build",
+      "result": "passed",
+      "logs": [
+        "build/qa/metafile-raster-runtime-build-2026-10-20.log",
+        "build/qa/metafile-raster-runtime-repair-2026-10-20.log"
+      ]
+    },
+    {
+      "name": "Focused Core group",
+      "methods": 13,
+      "result": "initial two methods failed, followed by focused repair pass",
+      "log": "build/qa/metafile-raster-core-2026-10-20.log",
+      "initial_failed_assertions": 48,
+      "repairs": [
+        "Production classic CreatePen width incorrectly collapsed to one pixel; preserve LOGPEN width and solid fallback for wide dashed pens",
+        "Three malformed palette fixtures incorrectly used 32-bit DIBs without color tables; replaced by indexed DIB_PAL_COLORS requiring unavailable logical palette",
+        "Source-independent EMF operations ignore unused source transforms; added zero/skew cases"
+      ]
+    },
+    {
+      "name": "Affected Core recheck",
+      "methods": 3,
+      "result": "passed, zero failures",
+      "log": "build/qa/metafile-raster-core-repair-2026-10-20.log"
+    },
+    {
+      "name": "Native app build",
+      "result": "passed",
+      "logs": [
+        "build/qa/metafile-raster-app-2026-10-20.log",
+        "build/qa/metafile-raster-app-repair-2026-10-20.log"
+      ]
+    },
+    {
+      "name": "Native comparison consumers and image conflict owners",
+      "result": "four case/engine combinations passed",
+      "cases": [
+        "consumers",
+        "conflict"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/metafile-raster-native-2026-10-20.log",
+      "assertions": [
+        "Decoded pixel values in actual native image panes",
+        "Three-stage conflict input/index/HEAD preservation",
+        "Late decoded receipt cancellation retains worker and Quit ownership until drain"
+      ],
+      "receiver_pids": [
+        53753,
+        53763,
+        53777,
+        53862
+      ],
+      "cleanup": "All four reaped and independently confirmed absent"
+    },
+    {
+      "name": "Help/localization generated resources",
+      "result": "check passed"
+    },
+    {
+      "name": "Dialog resource coverage reconciliation",
+      "result": "generated; counts are not feature completion"
+    }
+  ],
+  "core_boundary": "12 new methods plus one existing affected malformed-input method; eleven passed initially, two repaired and one source-transform extension rechecked. No complete Core suite rerun.",
+  "hashes": {
+    "patches/metafile-renderer.patch": "b8c1c330ca2433fda7396b387f9c074cef3904a1f3a0a37d1d65124e4191e221",
+    "Sources/TurtleGitMetafile/main.swift": "401d5ad44e8b17e1a55b97e9eb30659be7e3dfbca742d598a4fbc6e70bfd3c4e"
+  },
+  "remaining": [
+    "ROP4/masks and parallelogram transfers",
+    "Device-dependent WMF bitmap payloads and unsupported brush variants",
+    "Required transparent pattern operands, source rectangles outside decoded bitmap",
+    "Compressed/profiled DIB variants outside accepted decoder subset",
+    "Dynamic DC brush/pen state, flood fill and framed regions",
+    "Separate EMF+ compositing model",
+    "Exact Windows edge/font/device parity",
+    "Full hosted CI, Intel execution, physical visual acceptance and signed/App Store distribution"
+  ],
+  "hosted_observation": {
+    "previous_commit": "dec160da",
+    "pages": "success",
+    "macos": "queued; no hosted green claim for this batch"
+  }
+}

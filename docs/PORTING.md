@@ -3975,3 +3975,19 @@ with system and bundled Git, and six native case/engine checks passed.
 object timestamp repair, corrupt-state keep-close correction with only the two
 affected native cases repeated, actual scope and owned cleanup. Physical, signed and
 complete upstream dialog acceptance remain open.
+
+
+### Classic WMF/EMF Boolean raster family — October 20, 2026
+
+The connected implementation batch adds full ROP2/ROP3 truth-table evaluation,
+white destination playback, independent coverage and the related WMF DIB/PATBLT
+and EMF bitmap-transfer records. Saved DCs, source crop, brush selection,
+transforms and clipping belong to the same operation contract. The bounded native
+raster bridge retains private helper cancellation and original source bytes.
+The [source scope and limits](METAFILE-RASTER-PARITY.md) distinguish evaluator
+coverage from unsupported masks, transfer geometry, device-dependent formats and
+EMF+ compositing. The [grouped evidence](qa/metafile-raster-family-2026-10-20.json)
+records 13 distinct focused Core methods, the initial failures and three-method
+repair pass, and four passing native case/engine combinations with owned receivers
+reaped. Local scoped passes do not establish full hosted, Windows visual, Intel
+execution or signed distribution acceptance.

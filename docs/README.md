@@ -296,3 +296,5 @@ reviewed full-window light/dark captures.
 [Compressed EMF+ path playback](METAFILE-PATH-PARITY.md) covers shared drawing, clipping, region, custom-cap and accepted gradient-boundary decoding.
 
 [Positioned metafile text](METAFILE-POSITIONED-TEXT-PARITY.md) tracks the connected driver-string, glyph-index and classic text-spacing implementation and its remaining acceptance.
+
+[Classic WMF/EMF raster operations](METAFILE-RASTER-PARITY.md) records Boolean playback, device brushes and remaining format restrictions.

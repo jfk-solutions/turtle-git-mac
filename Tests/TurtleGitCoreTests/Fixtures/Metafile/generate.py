@@ -56,6 +56,7 @@ header=H(1,9,0x300)+U((18+sum(map(len,rs)))//2)+H(4)+U(max(len(x)//2 for x in rs
 (P/'clip-vector.wmf').write_bytes(ph+H(checksum)+header+b''.join(rs))
 # Unsupported painting must throw rather than return a white but successful image.
 (P/'unsupported-region.emf').write_bytes(plus([ep(0x4013,U(0xffff0000),0x8000)]))
+# Historical name retained: valid R2_XORPEN, now covered by the Boolean batch.
 (P/'unsupported-rop.emf').write_bytes(emf([record(20,U(7)),*vector]))
 # Same logical raster extent, different source physical resolution.
 wmf=bytearray((P/'clip-vector.wmf').read_bytes());wmf[14:16]=H(144);checksum=0

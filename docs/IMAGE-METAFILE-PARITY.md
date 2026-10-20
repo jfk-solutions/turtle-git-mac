@@ -101,7 +101,11 @@ brushes. Extended grayscale and 48/64-bit formats, nested WMF images and uncommo
 embedded compressed formats remain open. EMF invert/mask/parallelogram/SetDIBitsToDevice
 records, framed regions and triangle gradients are refused. The
 [classic clipping extension](METAFILE-CLASSIC-CLIP-PARITY.md) covers all five
-GDI region combinations, path clips, rectangle clips, offsets and metaregions. WMF region/flood fill and non-copy raster operations remain open.
+GDI region combinations, path clips, rectangle clips, offsets and metaregions. WMF region/flood fill remains open. The connected
+[classic Boolean raster extension](METAFILE-RASTER-PARITY.md) covers ROP2 and
+ROP3 evaluation with bounded destination/source/pattern playback; unsupported
+transfer records, masks and geometry remain explicit refusals. Its grouped
+validation is pending independently of earlier metafile checkpoints.
 Windows-only fonts can substitute through CoreText. Exact GDI glyph metrics,
 text shaping, pen dash/cap combinations, every classic record variant and pixel
 identity across all Windows metafiles have not been certified.

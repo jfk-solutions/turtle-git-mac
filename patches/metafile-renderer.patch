@@ -115,7 +115,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,425 @@
+@@ -0,0 +1,426 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -506,6 +506,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +  };
 +  require('./turtleGitPositionedText')({EmfPlusDrawer,EmfDrawer,fail,u32,i32,f32,state,unitScale,escape,matrix});
 +  require('./turtleGitGdiClip')({EmfDrawer,fail,u32,i32,escape});
++  require('./turtleGitRaster')({EmfDrawer,WmfDrawer,SvgContext,fail,u32,i32,f32,escape,normalizePaintColors});
 +  function validateRecords(bytes){
 +    if(bytes.length>=88&&u32(bytes,0)===1&&u32(bytes,40)===0x464d4520){
 +      const total=u32(bytes,48),declared=u32(bytes,52),header=u32(bytes,4);if(total!==bytes.length||header<88||header>total||header%4||declared>1000000)fail('invalid EMF header lengths');
@@ -572,6 +573,169 @@ diff --git a/src/turtleGitBitmap.js b/src/turtleGitBitmap.js
 +    const href=globalThis.__turtleBitmap(data.slice(offset,offset+size),width,height,stride,format,palette);
 +    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,'))fail('invalid native raw bitmap result');
 +    return href;
++  };
++};
+diff --git a/src/turtleGitGdiClip.js b/src/turtleGitGdiClip.js
+--- /dev/null
++++ b/src/turtleGitGdiClip.js
+@@ -0,0 +1,159 @@
++// TurtleGit classic GDI region playback. MIT. The mask composition/lifecycle
++// follows BaseHmiTypes' independent renderer (JFK Solutions, MIT); see LICENSE-BaseHmiTypes.
++// EMF+ clips remain owned by turtleGit.js, while WMF retains its own DC clip.
++module.exports = function installGdiClip({EmfDrawer,fail,u32,i32,escape}) {
++  const ep=EmfDrawer.prototype,domain='__TURTLEGIT_GDI_CLIP_DOMAIN__';
++  function point(d,x,y) {
++    const p=d.coordinateTransformer.transform(x,y);
++    if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||Math.abs(p.x)>1e9||Math.abs(p.y)>1e9)fail('invalid GDI clip coordinate');
++    return p;
++  }
++  function state(d) {
++    if(!d._turtleGdiClip) {
++      const o=point(d,0,0),x=point(d,1,0),y=point(d,0,1);
++      d._turtleGdiClip={selected:null,meta:null,initial:[x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y]};
++    }
++    return d._turtleGdiClip;
++  }
++  function budget(ctx,size) {
++    ctx._turtleGdiMaskBytes=(ctx._turtleGdiMaskBytes||0)+size;
++    if(ctx._defs.length>=65536||ctx._turtleGdiMaskBytes>64*1024*1024)fail('GDI region mask budget exceeded');
++  }
++  function mask(d,body) {
++    const ctx=d.ctx;budget(ctx,body.length+300);
++    const id='turtle-gdi-mask-'+ctx._defs.length;
++    ctx._defs.push('<mask id="'+id+'" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" '+domain+' style="mask-type:luminance">'+body+'</mask>');
++    return id;
++  }
++  const masked=(id,body)=>id===null?body:'<g mask="url(#'+id+')">'+body+'</g>';
++  const rect=color=>'<rect '+domain+' fill="'+color+'"/>';
++  function surface(d) {return '<rect x="0" y="0" width="'+d.ctx.canvas.width+'" height="'+d.ctx.canvas.height+'" fill="white"/>';}
++  function inverse(d,id) {return mask(d,rect('white')+masked(id,rect('black')));}
++  function combine(d,a,b,mode) {
++    if(mode===5)return b;
++    if(mode===1)return a===null?b:b===null?a:mask(d,masked(a,masked(b,rect('white'))));
++    // A missing selected region represents the current default surface when a
++    // boolean operation needs a concrete operand; its extent never expands
++    // merely because a later OffsetClipRgn moves a different region.
++    if(a===null)a=mask(d,surface(d));
++    if(b===null)b=mask(d,surface(d));
++    if(mode===2)return mask(d,masked(a,rect('white'))+masked(b,rect('white')));
++    if(mode===3)return mask(d,masked(a,masked(inverse(d,b),rect('white')))+masked(b,masked(inverse(d,a),rect('white'))));
++    if(mode===4)return mask(d,masked(a,masked(inverse(d,b),rect('white'))));
++    fail('invalid GDI region combine mode');
++  }
++  function mode(data,offset) {const result=u32(data,offset);if(result<1||result>5)fail('invalid GDI region combine mode');return result;}
++  function path(d,geometry,rule='nonzero') {return mask(d,'<path d="'+escape(geometry)+'" fill="white" fill-rule="'+rule+'"/>');}
++  function polygon(points) {return 'M '+points.map(p=>p.x+' '+p.y).join(' L ')+' Z';}
++  function region(d,data,bytes) {
++    if(bytes<32||bytes!==data.length-8||u32(data,8)!==32||u32(data,12)!==1)fail('invalid EMF clip region header');
++    const count=u32(data,16),size=u32(data,20);
++    if(count>65536||(size!==0&&size!==count*16)||bytes!==32+count*16)fail('invalid EMF clip region extent');
++    const bounds=Array.from({length:4},(_,i)=>i32(data,24+i*4));
++    if(bounds[0]>bounds[2]||bounds[1]>bounds[3])fail('invalid EMF clip region bounds');
++    const ctx=d.ctx;ctx._turtleGdiRegionRectangles=(ctx._turtleGdiRegionRectangles||0)+count;
++    if(ctx._turtleGdiRegionRectangles>1048576)fail('aggregate GDI region rectangle budget exceeded');
++    const s=state(d),m=s.initial;let geometry='';
++    const map=(x,y)=>{
++      const p={x:m[0]*x+m[2]*y+m[4],y:m[1]*x+m[3]*y+m[5]};
++      if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||Math.abs(p.x)>1e9||Math.abs(p.y)>1e9)fail('invalid GDI region coordinate');
++      return p;
++    };
++    for(let i=0;i<count;i++) {
++      const o=40+i*16,l=i32(data,o),t=i32(data,o+4),r=i32(data,o+8),b=i32(data,o+12);
++      if(l>r||t>b||l<bounds[0]||r>bounds[2]||t<bounds[1]||b>bounds[3])fail('invalid EMF clip rectangle');
++      if(l!==r&&t!==b)geometry+=polygon([map(l,t),map(r,t),map(r,b),map(l,b)])+' ';
++    }
++    return path(d,geometry);
++  }
++  const capture=ep._captureDcState,restore=ep._restoreDcState;
++  ep._captureDcState=function(){const saved=capture.call(this);saved.turtleGdiClip={...state(this)};return saved;};
++  ep._restoreDcState=function(saved){restore.call(this,saved);if(saved&&saved.turtleGdiClip)this._turtleGdiClip={...saved.turtleGdiClip};};
++  ep.processEmfRestoreDC=function(data) {
++    if(data.length!==4)fail('invalid GDI restore record');
++    const level=i32(data,0),depth=this.dcStateStack.length;
++    // Positive values are absolute SaveDC levels, negative values are relative
++    // to the top. The restored state and every newer state are discarded.
++    const count=level<0?-level:depth-level+1;
++    if(!level||count<1||count>depth)fail('unmatched GDI restore');
++    let saved;for(let i=0;i<count;i++){saved=this.dcStateStack.pop();this.ctx.restore();}
++    this._restoreDcState(saved);
++  };
++  const dispatch=ep.processEmfRecordType;
++  ep.processEmfRecordType=function(type,data) {
++    if(this._turtlePlusSeen&&!this._turtleGetDC&&type!==70&&type!==14&&type!==1)return;
++    const s=state(this),ctx=this.ctx;
++    if(type===75) {
++      const bytes=u32(data,0),operation=mode(data,4);
++      if(!bytes){if(data.length!==8||operation!==5)fail('invalid null EMF clip region');s.selected=null;}
++      else s.selected=combine(this,s.selected,region(this,data,bytes),operation);
++      return;
++    }
++    if(type===67) {
++      if(data.length!==4||this.pathState!=='completed')fail('missing completed GDI clip path');
++      const operation=mode(data,0),geometry=ctx._d();
++      if(geometry.length>2*1024*1024)fail('GDI clip path budget exceeded');
++      s.selected=combine(this,s.selected,path(this,geometry,ctx.fillRule==='evenodd'?'evenodd':'nonzero'),operation);
++      this.pathState='idle';this.currentPath=[];ctx.beginPath();return;
++    }
++    if(type===29||type===30) {
++      if(data.length!==16)fail('invalid GDI clip rectangle record');
++      const l=i32(data,0),t=i32(data,4),r=i32(data,8),b=i32(data,12);
++      if(l>r||t>b)fail('invalid GDI clip rectangle');
++      const geometry=l===r||t===b?'':polygon([point(this,l,t),point(this,r,t),point(this,r,b),point(this,l,b)]);
++      s.selected=combine(this,s.selected,path(this,geometry),type===29?4:1);return;
++    }
++    if(type===26) {
++      if(data.length!==8)fail('invalid GDI clip offset record');
++      const a=point(this,0,0),b=point(this,i32(data,0),i32(data,4)),dx=b.x-a.x,dy=b.y-a.y;
++      if(s.selected!==null&&(dx||dy)) {
++        ctx._turtleGdiOffsetX=(ctx._turtleGdiOffsetX||0)+Math.abs(dx);ctx._turtleGdiOffsetY=(ctx._turtleGdiOffsetY||0)+Math.abs(dy);
++        if(ctx._turtleGdiOffsetX>1e6||ctx._turtleGdiOffsetY>1e6)fail('GDI clip offset expansion budget exceeded');
++        s.selected=mask(this,'<g transform="translate('+dx+' '+dy+')">'+masked(s.selected,rect('white'))+'</g>');
++      }
++      return;
++    }
++    if(type===28) {
++      if(data.length!==0)fail('invalid GDI metaregion record');
++      s.meta=combine(this,s.meta,s.selected,1);s.selected=null;return;
++    }
++    if(type===33) {
++      if(data.length!==0||this.dcStateStack.length>=4096)fail('invalid GDI save record or nesting budget');
++    }
++    // A path bracket records geometry without painting. Several upstream GDI
++    // handlers reset/paint even inside BeginPath (notably 32-bit primitives),
++    // which loses previous figures and leaks ink before SelectClipPath.
++    if(this.pathState==='active'&&type===43) {
++      if(data.length!==16)fail('invalid GDI rectangle path record');
++      const l=i32(data,0),t=i32(data,4),r=i32(data,8),b=i32(data,12);
++      const points=[point(this,l,t),point(this,r,t),point(this,r,b),point(this,l,b)];
++      ctx.moveTo(points[0].x,points[0].y);for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);
++      ctx.closePath();return;
++    }
++    const recording=this.pathState==='active'&&[2,3,4,5,6,7,8,41,42,44,45,46,47,54,55,56,85,86,87,88,89,90,91,92].includes(type);
++    const first=ctx._nodes.length,checkpoint=ctx._turtleRasterCheckpoint||0;let result;
++    if(recording) {
++      const begin=ctx.beginPath,fill=ctx.fill,stroke=ctx.stroke;
++      ctx.beginPath=()=>{};ctx.fill=()=>{};ctx.stroke=()=>{};
++      try {result=dispatch.call(this,type,data);}finally{ctx.beginPath=begin;ctx.fill=fill;ctx.stroke=stroke;}
++    } else result=dispatch.call(this,type,data);
++    // EMF+ comments have their own graphics-state clip. GDI GetDC drawing
++    // records arrive separately and use the selected classic/meta regions here.
++    if(type!==70&&(ctx._turtleRasterCheckpoint||0)===checkpoint&&ctx._nodes.length>first&&(s.selected!==null||s.meta!==null)) {
++      const nodes=ctx._nodes.splice(first).join('');ctx._nodes.push(masked(s.meta,masked(s.selected,nodes)));
++    }
++    return result;
++  };
++  const draw=ep.draw;
++  ep.draw=function(document,options) {
++    this._turtleGdiClip=null;
++    const result=draw.call(this,document,options),ctx=this.ctx,x=ctx._turtleGdiOffsetX||0,y=ctx._turtleGdiOffsetY||0;
++    const width=ctx.canvas.width+2*x,height=ctx.canvas.height+2*y;
++    if(width>32768||height>32768||width*height>67108864)fail('GDI clip domain expansion budget exceeded');
++    const bounds='x="'+(-x)+'" y="'+(-y)+'" width="'+width+'" height="'+height+'"';
++    // Resolve after all records, including offsets after restoring old DCs.
++    // Nested metafiles export their defs directly rather than calling getSvg.
++    for(let i=0;i<ctx._defs.length;i++)ctx._defs[i]=ctx._defs[i].split(domain).join(bounds);
++    return result;
 +  };
 +};
 diff --git a/src/turtleGitHatch.js b/src/turtleGitHatch.js
@@ -1138,179 +1302,95 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +  }
 +  return {parseBrush};
 +};
-diff --git a/src/utils/nestedMetafilePlayer.js b/src/utils/nestedMetafilePlayer.js
---- a/src/utils/nestedMetafilePlayer.js
-+++ b/src/utils/nestedMetafilePlayer.js
-@@ -114,6 +114,7 @@
-         }
-         return { nodes: subCtx.nodes, defs: subCtx.defs, width: W || 1, height: H || 1 };
-     } catch (e) {
-+        throw e;
-         // Callers are EMF+ DrawImage handlers; wording kept for log continuity.
-         console.log('EMF+ nested EMF render failed:', /** @type {Error} */ (e).message);
-         return null;
-diff --git a/src/turtleGitGdiClip.js b/src/turtleGitGdiClip.js
+diff --git a/src/turtleGitPaths.js b/src/turtleGitPaths.js
 --- /dev/null
-+++ b/src/turtleGitGdiClip.js
-@@ -0,0 +1,159 @@
-+// TurtleGit classic GDI region playback. MIT. The mask composition/lifecycle
-+// follows BaseHmiTypes' independent renderer (JFK Solutions, MIT); see LICENSE-BaseHmiTypes.
-+// EMF+ clips remain owned by turtleGit.js, while WMF retains its own DC clip.
-+module.exports = function installGdiClip({EmfDrawer,fail,u32,i32,escape}) {
-+  const ep=EmfDrawer.prototype,domain='__TURTLEGIT_GDI_CLIP_DOMAIN__';
-+  function point(d,x,y) {
-+    const p=d.coordinateTransformer.transform(x,y);
-+    if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||Math.abs(p.x)>1e9||Math.abs(p.y)>1e9)fail('invalid GDI clip coordinate');
-+    return p;
++++ b/src/turtleGitPaths.js
+@@ -0,0 +1,86 @@
++// Original TurtleGit bounded EmfPlusPath wire reader, MIT.
++// MS-EMFPLUS 2.2.1.6, 2.2.2.31/32/37. R couples PointR and type RLE;
++// C is ignored when R is set. Unspecified bits are not inferred as fill modes.
++module.exports = function createPathCodec({fail,u32,f32}) {
++  function charge(d,count) {
++    const total=(d.ctx._turtleDecodedPathPoints||0)+count;
++    if(total>1048576)fail('aggregate decoded path point limit');
++    d.ctx._turtleDecodedPathPoints=total;
 +  }
-+  function state(d) {
-+    if(!d._turtleGdiClip) {
-+      const o=point(d,0,0),x=point(d,1,0),y=point(d,0,1);
-+      d._turtleGdiClip={selected:null,meta:null,initial:[x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y]};
++  function decode(d,data,{maxPoints=1000000,maxCoordinate=1e9}={}) {
++    if(!data||data.length<8||data.length>16*1024*1024)fail('invalid path byte extent');
++    const count=u32(data,0),flags=u32(data,4),relative=!!(flags&0x0800),compressed=!relative&&!!(flags&0x4000);
++    if(count>maxPoints||flags&~0x4800)fail('invalid path count or flags');
++    // Refuse impossible point storage before allocating arrays. Types have at
++    // least one byte when uncompressed, or one two-byte run per 63 points.
++    const minimum=count*(relative?2:compressed?4:8)+(relative?2*Math.ceil(count/63):count);
++    if(minimum>data.length-8)fail('truncated path points or types');
++    charge(d,count);
++    let offset=8,x=0,y=0;
++    const points=new Array(count),pointTypes=new Uint8Array(count);
++    function integer() {
++      if(offset>=data.length)fail('truncated relative path coordinate');
++      const first=data[offset++];
++      if(!(first&128))return(first&127)<<25>>25;
++      if(offset>=data.length)fail('truncated relative path coordinate');
++      return(((first&127)<<8)|data[offset++])<<17>>17;
 +    }
-+    return d._turtleGdiClip;
-+  }
-+  function budget(ctx,size) {
-+    ctx._turtleGdiMaskBytes=(ctx._turtleGdiMaskBytes||0)+size;
-+    if(ctx._defs.length>=65536||ctx._turtleGdiMaskBytes>64*1024*1024)fail('GDI region mask budget exceeded');
-+  }
-+  function mask(d,body) {
-+    const ctx=d.ctx;budget(ctx,body.length+300);
-+    const id='turtle-gdi-mask-'+ctx._defs.length;
-+    ctx._defs.push('<mask id="'+id+'" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" '+domain+' style="mask-type:luminance">'+body+'</mask>');
-+    return id;
-+  }
-+  const masked=(id,body)=>id===null?body:'<g mask="url(#'+id+')">'+body+'</g>';
-+  const rect=color=>'<rect '+domain+' fill="'+color+'"/>';
-+  function surface(d) {return '<rect x="0" y="0" width="'+d.ctx.canvas.width+'" height="'+d.ctx.canvas.height+'" fill="white"/>';}
-+  function inverse(d,id) {return mask(d,rect('white')+masked(id,rect('black')));}
-+  function combine(d,a,b,mode) {
-+    if(mode===5)return b;
-+    if(mode===1)return a===null?b:b===null?a:mask(d,masked(a,masked(b,rect('white'))));
-+    // A missing selected region represents the current default surface when a
-+    // boolean operation needs a concrete operand; its extent never expands
-+    // merely because a later OffsetClipRgn moves a different region.
-+    if(a===null)a=mask(d,surface(d));
-+    if(b===null)b=mask(d,surface(d));
-+    if(mode===2)return mask(d,masked(a,rect('white'))+masked(b,rect('white')));
-+    if(mode===3)return mask(d,masked(a,masked(inverse(d,b),rect('white')))+masked(b,masked(inverse(d,a),rect('white'))));
-+    if(mode===4)return mask(d,masked(a,masked(inverse(d,b),rect('white'))));
-+    fail('invalid GDI region combine mode');
-+  }
-+  function mode(data,offset) {const result=u32(data,offset);if(result<1||result>5)fail('invalid GDI region combine mode');return result;}
-+  function path(d,geometry,rule='nonzero') {return mask(d,'<path d="'+escape(geometry)+'" fill="white" fill-rule="'+rule+'"/>');}
-+  function polygon(points) {return 'M '+points.map(p=>p.x+' '+p.y).join(' L ')+' Z';}
-+  function region(d,data,bytes) {
-+    if(bytes<32||bytes!==data.length-8||u32(data,8)!==32||u32(data,12)!==1)fail('invalid EMF clip region header');
-+    const count=u32(data,16),size=u32(data,20);
-+    if(count>65536||(size!==0&&size!==count*16)||bytes!==32+count*16)fail('invalid EMF clip region extent');
-+    const bounds=Array.from({length:4},(_,i)=>i32(data,24+i*4));
-+    if(bounds[0]>bounds[2]||bounds[1]>bounds[3])fail('invalid EMF clip region bounds');
-+    const ctx=d.ctx;ctx._turtleGdiRegionRectangles=(ctx._turtleGdiRegionRectangles||0)+count;
-+    if(ctx._turtleGdiRegionRectangles>1048576)fail('aggregate GDI region rectangle budget exceeded');
-+    const s=state(d),m=s.initial;let geometry='';
-+    const map=(x,y)=>{
-+      const p={x:m[0]*x+m[2]*y+m[4],y:m[1]*x+m[3]*y+m[5]};
-+      if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||Math.abs(p.x)>1e9||Math.abs(p.y)>1e9)fail('invalid GDI region coordinate');
-+      return p;
-+    };
 +    for(let i=0;i<count;i++) {
-+      const o=40+i*16,l=i32(data,o),t=i32(data,o+4),r=i32(data,o+8),b=i32(data,o+12);
-+      if(l>r||t>b||l<bounds[0]||r>bounds[2]||t<bounds[1]||b>bounds[3])fail('invalid EMF clip rectangle');
-+      if(l!==r&&t!==b)geometry+=polygon([map(l,t),map(r,t),map(r,b),map(l,b)])+' ';
++      if(relative){x+=integer();y+=integer();}
++      else if(compressed){if(offset+4>data.length)fail('truncated short path point');x=(data[offset]|data[offset+1]<<8)<<16>>16;y=(data[offset+2]|data[offset+3]<<8)<<16>>16;offset+=4;}
++      else{x=f32(data,offset);y=f32(data,offset+4);offset+=8;}
++      if(!Number.isFinite(x)||!Number.isFinite(y)||Math.abs(x)>maxCoordinate||Math.abs(y)>maxCoordinate)fail('path coordinate budget exceeded');
++      points[i]={x,y};
 +    }
-+    return path(d,geometry);
-+  }
-+  const capture=ep._captureDcState,restore=ep._restoreDcState;
-+  ep._captureDcState=function(){const saved=capture.call(this);saved.turtleGdiClip={...state(this)};return saved;};
-+  ep._restoreDcState=function(saved){restore.call(this,saved);if(saved&&saved.turtleGdiClip)this._turtleGdiClip={...saved.turtleGdiClip};};
-+  ep.processEmfRestoreDC=function(data) {
-+    if(data.length!==4)fail('invalid GDI restore record');
-+    const level=i32(data,0),depth=this.dcStateStack.length;
-+    // Positive values are absolute SaveDC levels, negative values are relative
-+    // to the top. The restored state and every newer state are discarded.
-+    const count=level<0?-level:depth-level+1;
-+    if(!level||count<1||count>depth)fail('unmatched GDI restore');
-+    let saved;for(let i=0;i<count;i++){saved=this.dcStateStack.pop();this.ctx.restore();}
-+    this._restoreDcState(saved);
-+  };
-+  const dispatch=ep.processEmfRecordType;
-+  ep.processEmfRecordType=function(type,data) {
-+    if(this._turtlePlusSeen&&!this._turtleGetDC&&type!==70&&type!==14&&type!==1)return;
-+    const s=state(this),ctx=this.ctx;
-+    if(type===75) {
-+      const bytes=u32(data,0),operation=mode(data,4);
-+      if(!bytes){if(data.length!==8||operation!==5)fail('invalid null EMF clip region');s.selected=null;}
-+      else s.selected=combine(this,s.selected,region(this,data,bytes),operation);
-+      return;
-+    }
-+    if(type===67) {
-+      if(data.length!==4||this.pathState!=='completed')fail('missing completed GDI clip path');
-+      const operation=mode(data,0),geometry=ctx._d();
-+      if(geometry.length>2*1024*1024)fail('GDI clip path budget exceeded');
-+      s.selected=combine(this,s.selected,path(this,geometry,ctx.fillRule==='evenodd'?'evenodd':'nonzero'),operation);
-+      this.pathState='idle';this.currentPath=[];ctx.beginPath();return;
-+    }
-+    if(type===29||type===30) {
-+      if(data.length!==16)fail('invalid GDI clip rectangle record');
-+      const l=i32(data,0),t=i32(data,4),r=i32(data,8),b=i32(data,12);
-+      if(l>r||t>b)fail('invalid GDI clip rectangle');
-+      const geometry=l===r||t===b?'':polygon([point(this,l,t),point(this,r,t),point(this,r,b),point(this,l,b)]);
-+      s.selected=combine(this,s.selected,path(this,geometry),type===29?4:1);return;
-+    }
-+    if(type===26) {
-+      if(data.length!==8)fail('invalid GDI clip offset record');
-+      const a=point(this,0,0),b=point(this,i32(data,0),i32(data,4)),dx=b.x-a.x,dy=b.y-a.y;
-+      if(s.selected!==null&&(dx||dy)) {
-+        ctx._turtleGdiOffsetX=(ctx._turtleGdiOffsetX||0)+Math.abs(dx);ctx._turtleGdiOffsetY=(ctx._turtleGdiOffsetY||0)+Math.abs(dy);
-+        if(ctx._turtleGdiOffsetX>1e6||ctx._turtleGdiOffsetY>1e6)fail('GDI clip offset expansion budget exceeded');
-+        s.selected=mask(this,'<g transform="translate('+dx+' '+dy+')">'+masked(s.selected,rect('white'))+'</g>');
++    if(relative) {
++      let index=0;
++      while(index<count) {
++        if(offset+2>data.length)fail('truncated path type run');
++        const header=data[offset++],type=data[offset++],n=header&63;
++        if(!(header&64)||!!(header&128)!==((type&15)===3)||!n||n>count-index)fail('invalid path type run');
++        pointTypes.fill(type,index,index+n);index+=n;
 +      }
-+      return;
++    } else {
++      if(offset+count>data.length)fail('truncated path types');
++      pointTypes.set(data.subarray(offset,offset+count));offset+=count;
 +    }
-+    if(type===28) {
-+      if(data.length!==0)fail('invalid GDI metaregion record');
-+      s.meta=combine(this,s.meta,s.selected,1);s.selected=null;return;
++    // Padding bytes are unspecified, not necessarily zero. Accept only the
++    // optional bytes needed for DWORD alignment, never arbitrary trailing data.
++    const padding=(4-offset%4)%4;
++    if(data.length!==offset&&data.length!==offset+padding)fail('invalid path alignment extent');
++    let open=false;
++    for(let i=0;i<count;i++) {
++      const type=pointTypes[i],kind=type&15;
++      if(type&~0xb3)fail('invalid path point flags');
++      if(kind===0)open=true;
++      else if(kind===1){if(!open)fail('path line missing start');}
++      else if(kind===3) {
++        if(!open||i+2>=count||(pointTypes[i+1]&15)!==3||(pointTypes[i+2]&15)!==3||(type&128)||(pointTypes[i+1]&128)||pointTypes[i+1]&~0xb3||pointTypes[i+2]&~0xb3)fail('invalid path cubic sequence');
++        i+=2;
++      } else fail('invalid path point kind');
++      if(pointTypes[i]&128)open=false;
 +    }
-+    if(type===33) {
-+      if(data.length!==0||this.dcStateStack.length>=4096)fail('invalid GDI save record or nesting budget');
++    // Coordinates have already been accumulated once, in path space. Neither
++    // the tracer nor callers may apply PointR deltas a second time.
++    return {count,points,pointTypes,relative:false,wireRelative:relative,rle:relative,compressed,fillRule:'evenodd'};
++  }
++  function visit(path,emit) {
++    for(let i=0;i<path.count;i++) {
++      const p=path.points[i],kind=path.pointTypes[i]&15;
++      if(kind===0)emit('M',[p.x,p.y]);
++      else if(kind===1)emit('L',[p.x,p.y]);
++      else {const a=path.points[i+1],b=path.points[i+2];emit('C',[p.x,p.y,a.x,a.y,b.x,b.y]);i+=2;}
++      if(path.pointTypes[i]&128)emit('Z',[]);
 +    }
-+    // A path bracket records geometry without painting. Several upstream GDI
-+    // handlers reset/paint even inside BeginPath (notably 32-bit primitives),
-+    // which loses previous figures and leaks ink before SelectClipPath.
-+    if(this.pathState==='active'&&type===43) {
-+      if(data.length!==16)fail('invalid GDI rectangle path record');
-+      const l=i32(data,0),t=i32(data,4),r=i32(data,8),b=i32(data,12);
-+      const points=[point(this,l,t),point(this,r,t),point(this,r,b),point(this,l,b)];
-+      ctx.moveTo(points[0].x,points[0].y);for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);
-+      ctx.closePath();return;
-+    }
-+    const recording=this.pathState==='active'&&[2,3,4,5,6,7,8,41,42,44,45,46,47,54,55,56,85,86,87,88,89,90,91,92].includes(type);
-+    const first=ctx._nodes.length;let result;
-+    if(recording) {
-+      const begin=ctx.beginPath,fill=ctx.fill,stroke=ctx.stroke;
-+      ctx.beginPath=()=>{};ctx.fill=()=>{};ctx.stroke=()=>{};
-+      try {result=dispatch.call(this,type,data);}finally{ctx.beginPath=begin;ctx.fill=fill;ctx.stroke=stroke;}
-+    } else result=dispatch.call(this,type,data);
-+    // EMF+ comments have their own graphics-state clip. GDI GetDC drawing
-+    // records arrive separately and use the selected classic/meta regions here.
-+    if(type!==70&&ctx._nodes.length>first&&(s.selected!==null||s.meta!==null)) {
-+      const nodes=ctx._nodes.splice(first).join('');ctx._nodes.push(masked(s.meta,masked(s.selected,nodes)));
-+    }
-+    return result;
-+  };
-+  const draw=ep.draw;
-+  ep.draw=function(document,options) {
-+    this._turtleGdiClip=null;
-+    const result=draw.call(this,document,options),ctx=this.ctx,x=ctx._turtleGdiOffsetX||0,y=ctx._turtleGdiOffsetY||0;
-+    const width=ctx.canvas.width+2*x,height=ctx.canvas.height+2*y;
-+    if(width>32768||height>32768||width*height>67108864)fail('GDI clip domain expansion budget exceeded');
-+    const bounds='x="'+(-x)+'" y="'+(-y)+'" width="'+width+'" height="'+height+'"';
-+    // Resolve after all records, including offsets after restoring old DCs.
-+    // Nested metafiles export their defs directly rather than calling getSvg.
-+    for(let i=0;i<ctx._defs.length;i++)ctx._defs[i]=ctx._defs[i].split(domain).join(bounds);
-+    return result;
-+  };
++  }
++  function trace(ctx,path) {
++    const total=(ctx._turtleTracedPathPoints||0)+path.count;
++    if(total>1048576)fail('aggregate traced path point limit');
++    ctx._turtleTracedPathPoints=total;ctx.beginPath();
++    visit(path,(kind,p)=>{if(kind==='M')ctx.moveTo(p[0],p[1]);else if(kind==='L')ctx.lineTo(p[0],p[1]);else if(kind==='C')ctx.bezierCurveTo(...p);else ctx.closePath();});
++  }
++  function svg(path) {
++    const parts=[];visit(path,(kind,p)=>parts.push(kind+(p.length?' '+p.join(' '):'')));return parts.join(' ');
++  }
++  return {decode,trace,svg};
 +};
 diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 --- /dev/null
@@ -1514,96 +1594,6 @@ diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 +  };
 +  return{parsePen,parseCustomCap};
 +};
-diff --git a/src/turtleGitPaths.js b/src/turtleGitPaths.js
---- /dev/null
-+++ b/src/turtleGitPaths.js
-@@ -0,0 +1,86 @@
-+// Original TurtleGit bounded EmfPlusPath wire reader, MIT.
-+// MS-EMFPLUS 2.2.1.6, 2.2.2.31/32/37. R couples PointR and type RLE;
-+// C is ignored when R is set. Unspecified bits are not inferred as fill modes.
-+module.exports = function createPathCodec({fail,u32,f32}) {
-+  function charge(d,count) {
-+    const total=(d.ctx._turtleDecodedPathPoints||0)+count;
-+    if(total>1048576)fail('aggregate decoded path point limit');
-+    d.ctx._turtleDecodedPathPoints=total;
-+  }
-+  function decode(d,data,{maxPoints=1000000,maxCoordinate=1e9}={}) {
-+    if(!data||data.length<8||data.length>16*1024*1024)fail('invalid path byte extent');
-+    const count=u32(data,0),flags=u32(data,4),relative=!!(flags&0x0800),compressed=!relative&&!!(flags&0x4000);
-+    if(count>maxPoints||flags&~0x4800)fail('invalid path count or flags');
-+    // Refuse impossible point storage before allocating arrays. Types have at
-+    // least one byte when uncompressed, or one two-byte run per 63 points.
-+    const minimum=count*(relative?2:compressed?4:8)+(relative?2*Math.ceil(count/63):count);
-+    if(minimum>data.length-8)fail('truncated path points or types');
-+    charge(d,count);
-+    let offset=8,x=0,y=0;
-+    const points=new Array(count),pointTypes=new Uint8Array(count);
-+    function integer() {
-+      if(offset>=data.length)fail('truncated relative path coordinate');
-+      const first=data[offset++];
-+      if(!(first&128))return(first&127)<<25>>25;
-+      if(offset>=data.length)fail('truncated relative path coordinate');
-+      return(((first&127)<<8)|data[offset++])<<17>>17;
-+    }
-+    for(let i=0;i<count;i++) {
-+      if(relative){x+=integer();y+=integer();}
-+      else if(compressed){if(offset+4>data.length)fail('truncated short path point');x=(data[offset]|data[offset+1]<<8)<<16>>16;y=(data[offset+2]|data[offset+3]<<8)<<16>>16;offset+=4;}
-+      else{x=f32(data,offset);y=f32(data,offset+4);offset+=8;}
-+      if(!Number.isFinite(x)||!Number.isFinite(y)||Math.abs(x)>maxCoordinate||Math.abs(y)>maxCoordinate)fail('path coordinate budget exceeded');
-+      points[i]={x,y};
-+    }
-+    if(relative) {
-+      let index=0;
-+      while(index<count) {
-+        if(offset+2>data.length)fail('truncated path type run');
-+        const header=data[offset++],type=data[offset++],n=header&63;
-+        if(!(header&64)||!!(header&128)!==((type&15)===3)||!n||n>count-index)fail('invalid path type run');
-+        pointTypes.fill(type,index,index+n);index+=n;
-+      }
-+    } else {
-+      if(offset+count>data.length)fail('truncated path types');
-+      pointTypes.set(data.subarray(offset,offset+count));offset+=count;
-+    }
-+    // Padding bytes are unspecified, not necessarily zero. Accept only the
-+    // optional bytes needed for DWORD alignment, never arbitrary trailing data.
-+    const padding=(4-offset%4)%4;
-+    if(data.length!==offset&&data.length!==offset+padding)fail('invalid path alignment extent');
-+    let open=false;
-+    for(let i=0;i<count;i++) {
-+      const type=pointTypes[i],kind=type&15;
-+      if(type&~0xb3)fail('invalid path point flags');
-+      if(kind===0)open=true;
-+      else if(kind===1){if(!open)fail('path line missing start');}
-+      else if(kind===3) {
-+        if(!open||i+2>=count||(pointTypes[i+1]&15)!==3||(pointTypes[i+2]&15)!==3||(type&128)||(pointTypes[i+1]&128)||pointTypes[i+1]&~0xb3||pointTypes[i+2]&~0xb3)fail('invalid path cubic sequence');
-+        i+=2;
-+      } else fail('invalid path point kind');
-+      if(pointTypes[i]&128)open=false;
-+    }
-+    // Coordinates have already been accumulated once, in path space. Neither
-+    // the tracer nor callers may apply PointR deltas a second time.
-+    return {count,points,pointTypes,relative:false,wireRelative:relative,rle:relative,compressed,fillRule:'evenodd'};
-+  }
-+  function visit(path,emit) {
-+    for(let i=0;i<path.count;i++) {
-+      const p=path.points[i],kind=path.pointTypes[i]&15;
-+      if(kind===0)emit('M',[p.x,p.y]);
-+      else if(kind===1)emit('L',[p.x,p.y]);
-+      else {const a=path.points[i+1],b=path.points[i+2];emit('C',[p.x,p.y,a.x,a.y,b.x,b.y]);i+=2;}
-+      if(path.pointTypes[i]&128)emit('Z',[]);
-+    }
-+  }
-+  function trace(ctx,path) {
-+    const total=(ctx._turtleTracedPathPoints||0)+path.count;
-+    if(total>1048576)fail('aggregate traced path point limit');
-+    ctx._turtleTracedPathPoints=total;ctx.beginPath();
-+    visit(path,(kind,p)=>{if(kind==='M')ctx.moveTo(p[0],p[1]);else if(kind==='L')ctx.lineTo(p[0],p[1]);else if(kind==='C')ctx.bezierCurveTo(...p);else ctx.closePath();});
-+  }
-+  function svg(path) {
-+    const parts=[];visit(path,(kind,p)=>parts.push(kind+(p.length?' '+p.join(' '):'')));return parts.join(' ');
-+  }
-+  return {decode,trace,svg};
-+};
 diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 --- /dev/null
 +++ b/src/turtleGitPositionedText.js
@@ -1766,3 +1756,374 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 +    ctx._nodes.push('<desc>'+escape(face)+' positioned '+(options&0x10?'glyph indexes':'Unicode')+'</desc>');
 +  };
 +};
+diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
+--- /dev/null
++++ b/src/turtleGitRaster.js
+@@ -0,0 +1,199 @@
++// Original TurtleGit Boolean GDI playback. GPL-2.0-or-later, see NOTICE.
++// SVG snapshots contain only the private renderer's escaped drawing stream.
++module.exports=function installRaster({EmfDrawer,WmfDrawer,SvgContext,fail,u32,i32,f32,escape,normalizePaintColors}) {
++  function need(b,o,n){if(!Number.isSafeInteger(o)||!Number.isSafeInteger(n)||o<0||n<0||o+n>b.length)fail('truncated raster record');}
++  function word(b,o){need(b,o,2);return b[o]|b[o+1]<<8;}
++  function short(b,o){return word(b,o)<<16>>16;}
++  function truth(value){if(value&0xff000000)fail('unsupported raster operation flags');return value>>>16&255;}
++  function depends(op,bit){for(let i=0;i<8;i++)if(((op>>>i)^(op>>>(i^bit)))&1)return true;return false;}
++  function dimension(w,h){if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w>32768||h>32768||w*h>16777216)fail('raster bitmap dimensions exceed limit');}
++  function bitmapBudget(d,n){d.ctx._turtleRasterDecoded=(d.ctx._turtleRasterDecoded||0)+n;if(d.ctx._turtleRasterDecoded>67108864)fail('aggregate raster bitmap budget exceeded');}
++  // Packed DIB parsing is independent of the upstream placeholder-producing
++  // decoder. Scanlines, palettes, masks and RLE commands must be complete.
++  function decodeDib(bytes,bmi,cbBmi,bits,cbBits,usage,d) {
++    need(bytes,bmi,cbBmi);need(bytes,bits,cbBits);if(bits<bmi+cbBmi&&bmi<bits+cbBits)fail('overlapping raster DIB information/pixels');if(cbBmi<12||usage>1)fail('invalid raster DIB information');
++    const header=u32(bytes,bmi),core=header===12;
++    if(!core&&![40,52,56,108,124].includes(header))fail('unsupported raster DIB header');
++    if(header>cbBmi)fail('truncated raster DIB header');
++    const width=core?word(bytes,bmi+4):i32(bytes,bmi+4),signedHeight=core?word(bytes,bmi+6):i32(bytes,bmi+8),height=Math.abs(signedHeight);
++    const planes=word(bytes,bmi+(core?8:12)),depth=word(bytes,bmi+(core?10:14)),compression=core?0:u32(bytes,bmi+16);
++    dimension(width,height);if(planes!==1||![1,4,8,16,24,32].includes(depth)||![0,1,2,3,6].includes(compression))fail('unsupported raster DIB format');
++    if((compression===1&&depth!==8)||(compression===2&&depth!==4)||([3,6].includes(compression)&&![16,32].includes(depth))||(signedHeight<0&&[1,2].includes(compression)))fail('invalid raster DIB compression');
++    if(header===124&&(u32(bytes,bmi+112)||u32(bytes,bmi+116)))fail('external/profiled raster DIB is unsupported');
++    let table=bmi+header,masks=depth===16?[0x7c00,0x3e0,0x1f]:[0xff0000,0xff00,0xff];
++    if(compression===3||compression===6){const count=compression===6?4:3,offset=header===40?table:bmi+40;need(bytes,offset,count*4);if(offset+count*4>bmi+cbBmi)fail('truncated raster bit masks');masks=Array.from({length:count},(_,i)=>u32(bytes,offset+i*4));if(header===40)table+=count*4;}
++    const channels=![16,32].includes(depth)?[]:masks.slice(0,3).map(mask=>{if(!mask||depth<32&&mask>>>depth)fail('invalid raster bit mask');let shift=0;while(((mask>>>shift)&1)===0)shift++;const max=mask>>>shift;if((max&(max+1))!==0)fail('noncontiguous raster bit mask');return{mask,shift,max};});
++    if((masks[0]&masks[1])||(masks[0]&masks[2])||(masks[1]&masks[2]))fail('overlapping raster bit masks');
++    const palette=[],used=core?0:u32(bytes,bmi+32),count=depth<=8?(used||2**depth):0;
++    if(count>2**depth)fail('invalid raster palette count');
++    for(let i=0;i<count;i++){
++      const size=usage===1?2:core?3:4;need(bytes,table,size);if(table+size>bmi+cbBmi)fail('truncated raster palette');
++      if(usage===1){const entry=d.currentPalette&&d.currentPalette.entries&&d.currentPalette.entries[word(bytes,table)];if(!entry)fail('missing raster logical palette');palette.push([entry.r,entry.g,entry.b]);}
++      else palette.push([bytes[table+2],bytes[table+1],bytes[table]]);table+=size;
++    }
++    bitmapBudget(d,width*height);const out=new Uint8ClampedArray(width*height*4);
++    // DIB reserved/alpha bytes are not an AlphaBlend channel in classic BLTs.
++    for(let i=3;i<out.length;i+=4)out[i]=255;
++    function put(x,y,index){if(x<0||x>=width||y<0||y>=height||!palette[index])fail('invalid raster RLE/palette index');const o=((height-1-y)*width+x)*4;out.set(palette[index],o);}
++    if(compression===1||compression===2){
++      if(!palette[0])fail('missing raster RLE palette');for(let i=0;i<out.length;i+=4)out.set(palette[0],i);
++      let p=bits,x=0,y=0,ended=false;const end=bits+cbBits;
++      while(p<end){if(p+2>end)fail('truncated raster RLE command');const n=bytes[p++],value=bytes[p++];
++        if(n){for(let i=0;i<n;i++)put(x++,y,depth===8?value:(i&1?value&15:value>>>4));}
++        else if(value===0){x=0;y++;if(y>height)fail('raster RLE row overflow');}
++        else if(value===1){ended=true;break;}
++        else if(value===2){if(p+2>end)fail('truncated raster RLE delta');x+=bytes[p++];y+=bytes[p++];if(x>width||y>=height)fail('raster RLE delta overflow');}
++        else {const size=depth===8?value:Math.ceil(value/2);if(p+size+(size&1)>end)fail('truncated raster RLE literal');for(let i=0;i<value;i++)put(x++,y,depth===8?bytes[p+i]:(i&1?bytes[p+(i>>1)]&15:bytes[p+(i>>1)]>>>4));p+=size+(size&1);}
++      }if(!ended)fail('missing raster RLE end');
++    } else {
++      const stride=Math.ceil(width*depth/32)*4;if(stride*height>cbBits)fail('truncated raster DIB scanlines');
++      for(let y=0;y<height;y++)for(let x=0;x<width;x++){
++        const row=bits+(signedHeight<0?y:height-1-y)*stride,o=(y*width+x)*4;let color;
++        if(depth<=8){const index=depth===8?bytes[row+x]:depth===4?(x&1?bytes[row+(x>>1)]&15:bytes[row+(x>>1)]>>>4):(bytes[row+(x>>3)]>>>(7-(x&7)))&1;color=palette[index];if(!color)fail('invalid raster palette index');}
++        else if(depth===24)color=[bytes[row+x*3+2],bytes[row+x*3+1],bytes[row+x*3]];
++        else {const v=depth===16?word(bytes,row+x*2):u32(bytes,row+x*4);color=channels.map(c=>Math.round(((v&c.mask)>>>c.shift)*255/c.max));}
++        out.set(color,o);
++      }
++    }
++    const href=d.ctx._pngBase64({width,height,data:out});if(typeof href!=='string'||!href.startsWith('data:image/png;base64,'))fail('raster DIB encoding failed');return{width,height,data:out,href,bottomUp:signedHeight>0};
++  }
++  decodeDib.packed=function(bytes,offset,usage,d){
++    need(bytes,offset,12);const header=u32(bytes,offset),core=header===12;if(!core&&header<40)fail('unsupported packed raster DIB');need(bytes,offset,header);
++    const depth=word(bytes,offset+(core?10:14)),compression=core?0:u32(bytes,offset+16),count=depth<=8?((core?0:u32(bytes,offset+32))||2**depth):0;
++    const size=header+(header===40&&[3,6].includes(compression)?(compression===6?16:12):0)+count*(usage===1?2:core?3:4);
++    return decodeDib(bytes,offset,size,offset+size,bytes.length-offset-size,usage,d);
++  };
++  const brushes=require('./turtleGitRasterBrush')({fail,u32,i32,escape,decodeDib});
++  function svg(ctx,nodes){
++    const saved=ctx._nodes;ctx._nodes=nodes;let result;try{result=ctx.getSvg();}finally{ctx._nodes=saved;}
++    const x=ctx._turtleGdiOffsetX||0,y=ctx._turtleGdiOffsetY||0,domain='x="'+(-x)+'" y="'+(-y)+'" width="'+(ctx.canvas.width+2*x)+'" height="'+(ctx.canvas.height+2*y)+'"';
++    return normalizePaintColors(result.split('__TURTLEGIT_GDI_CLIP_DOMAIN__').join(domain));
++  }
++  function clipped(d,nodes){let body=nodes.join(''),s=d._turtleGdiClip;if(s){if(s.selected!==null)body='<g mask="url(#'+s.selected+')">'+body+'</g>';if(s.meta!==null)body='<g mask="url(#'+s.meta+')">'+body+'</g>';}return[body];}
++  function composite(d,destination,source,pattern,coverage,op){
++    const ctx=d.ctx,width=Math.round(ctx.canvas.width/(ctx._scaleX||1)),height=Math.round(ctx.canvas.height/(ctx._scaleY||1));dimension(width,height);
++    if(typeof __turtleRasterComposite!=='function')fail('native raster compositor unavailable');
++    const href=__turtleRasterComposite(svg(ctx,destination),source?svg(ctx,source):null,pattern?svg(ctx,pattern):null,svg(ctx,coverage),width,height,op);
++    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,'))fail('native raster checkpoint failed');
++    ctx._nodes=['<image x="0" y="0" width="'+width+'" height="'+height+'" preserveAspectRatio="none" href="'+href+'"/>'];ctx._turtleRasterCheckpoint=(ctx._turtleRasterCheckpoint||0)+1;
++  }
++  // Intercept individual fill and stroke paints, not combined record output:
++  // XOR of an overlapping fill and stroke must happen twice in drawing order.
++  for(const name of ['fill','stroke','fillRect','strokeRect']){
++    const paint=SvgContext.prototype[name];if(!paint)continue;
++    SvgContext.prototype[name]=function(...args){
++      const d=this._turtleRasterDrawer,mode=d&&d._turtleRasterMode||13;
++      if(!d||!d._turtleRasterVector)return paint.apply(this,args);
++      const fill=name==='fill'||name==='fillRect',brush=d._turtleRasterBrush,patterned=fill&&brush&&brush.style!==0&&brush.style!==1;
++      const pen=d.gdiObjectManager._currentPen;
++      if(!fill&&(pen?((pen.style&15)===5||pen.color==='transparent'):d._penNull))return;
++      if(fill&&brush&&brush.style===1)return;
++      if(mode===11)return;
++      if(mode===13&&!patterned)return paint.apply(this,args);
++      const before=this._nodes.slice(),first=this._nodes.length,style=this.fillStyle;
++      if(patterned)this.fillStyle='white';let result;
++      try{result=paint.apply(this,args);}finally{this.fillStyle=style;}
++      const painted=this._nodes.splice(first);
++      if(painted.length){
++        const source=clipped(d,painted);
++        if(patterned){
++          const pattern=brushes.pattern(d);if(pattern===null)return result;
++          const id='turtle-raster-coverage-'+this._defs.length;
++          this._defs.push('<mask id="'+id+'" maskUnits="userSpaceOnUse" x="0" y="0" width="'+this.canvas.width+'" height="'+this.canvas.height+'">'+source.join('')+'</mask>');
++          const coverage=['<g mask="url(#'+id+')">'+pattern+'</g>'];
++          let op=0;for(let i=0;i<8;i++)op|=(((mode-1)>>>(((i>>>2)&1)*2+(i&1)))&1)<<i;
++          composite(d,before,null,[pattern],coverage,op);
++        } else composite(d,before,source,null,source,(mode-1)*17);
++      }return result;
++    };
++  }
++
++  function mapping(d,x,y,w,h){const a=d.coordinateTransformer.transform(x,y),b=d.coordinateTransformer.transform(x+w,y),c=d.coordinateTransformer.transform(x,y+h);const values=[b.x-a.x,b.y-a.y,c.x-a.x,c.y-a.y,a.x,a.y];if(values.some(v=>!Number.isFinite(v)||Math.abs(v)>1e9))fail('invalid raster destination transform');return values;}
++  function group(d,m,body){const attr=d.ctx._attr();return '<g transform="matrix('+m.join(' ')+')" '+attr+'>'+body+'</g>';}
++  function transfer(d,op,x,y,w,h,dib,sx,sy,sw,sh){
++    const ctx=d.ctx;if(!w||!h)return;const m=mapping(d,x,y,w,h);
++    if(Math.abs(m[0]*m[3]-m[1]*m[2])<1e-15)fail('singular raster destination transform');
++    const coverage=clipped(d,[group(d,m,'<rect x="0" y="0" width="1" height="1" fill="white"/>')]);
++    let source=null,pattern=null;
++    if(depends(op,2)){
++      if(!dib||!sw||!sh)fail('missing required raster source');
++      if(![sx,sy,sw,sh].every(Number.isFinite)||Math.min(sx,sx+sw)<0||Math.max(sx,sx+sw)>dib.width||Math.min(sy,sy+sh)<0||Math.max(sy,sy+sh)>dib.height)fail('raster source rectangle outside bitmap');
++      const id='turtle-raster-crop-'+ctx._defs.length;ctx._defs.push('<clipPath id="'+id+'"><rect width="1" height="1"/></clipPath>');
++      const image='<g clip-path="url(#'+id+')"><image x="0" y="0" width="'+dib.width+'" height="'+dib.height+'" transform="matrix('+(1/sw)+' 0 0 '+(1/sh)+' '+(-sx/sw)+' '+(-sy/sh)+')" preserveAspectRatio="none" image-rendering="pixelated" href="'+dib.href+'"/></g>';
++      source=clipped(d,[group(d,m,image)]);
++    }
++    if(depends(op,4)){const p=brushes.pattern(d);if(p===null)fail('missing required raster pattern');pattern=clipped(d,[p]);}
++    if(op===0xaa)return;composite(d,ctx._nodes.slice(),source,pattern,coverage,op);
++  }
++  function snapshot(d){return{mode:d._turtleRasterMode||13,brush:d._turtleRasterBrush,bk:d._turtleRasterBkColor,bkMode:d._turtleRasterBkMode,origin:d._turtleRasterBrushOrigin&&d._turtleRasterBrushOrigin.slice(),pen:d.gdiObjectManager._currentPen,penNull:d._penNull,penStock:d._penStockBlack,pos:d.currentPos&&{...d.currentPos},posX:d.currentPosX,posY:d.currentPosY,hasPos:d.hasValidPosition,ct:{...d.coordinateTransformer}};}
++  function restore(d,s){d._turtleRasterMode=s.mode;d._turtleRasterBrush=s.brush;d._turtleRasterBkColor=s.bk;d._turtleRasterBkMode=s.bkMode;d._turtleRasterBrushOrigin=s.origin;d.gdiObjectManager._currentBrush=s.brush;d.gdiObjectManager._currentPen=s.pen;d._penNull=s.penNull;d._penStockBlack=s.penStock;d.currentPos=s.pos;d.currentPosX=s.posX;d.currentPosY=s.posY;d.hasValidPosition=s.hasPos;brushes.refresh(d);}
++  const wp=WmfDrawer.prototype,ep=EmfDrawer.prototype;
++  // Preserve ROP/selected brushes alongside existing EMF clip/mapping snapshots.
++  const capture=ep._captureDcState,release=ep._restoreDcState;
++  ep._captureDcState=function(){const s=capture.call(this);s.turtleRaster=snapshot(this);return s;};
++  ep._restoreDcState=function(s){release.call(this,s);if(s&&s.turtleRaster)restore(this,s.turtleRaster);};
++  const emfVector=new Set([2,3,4,5,6,7,8,41,42,43,44,45,46,47,54,55,56,62,63,64,71,74,85,86,87,88,89,90,91,92]);
++  const wmfVector=new Set([0x213,0x214,0x324,0x325,0x328,0x418,0x41a,0x41b,0x61c,0x61d,0x817,0x830]);
++  ep._afterFillShape=function(){if(this._penNull)return;this.ctx.stroke();};
++  ep.processEmfStrokeAndFillPath=function(){this.ctx.fill();if(!this._penNull)this.ctx.stroke();this.pathState='idle';};
++  // LOGPEN from CreatePen permits widths above one. The ExtCreatePen
++  // PS_COSMETIC restriction must not collapse these classic pens to one pixel.
++  const createPen=ep.processEmfCreatePen;
++  ep.processEmfCreatePen=function(data){need(data,0,20);createPen.call(this,data);const pen=this.gdiObjectManager.objectTable.get(u32(data,0));if(pen)pen._turtleClassicPen=true;};
++  const applyObject=ep.applyGdiObject;
++  ep.applyGdiObject=function(obj){
++    if(obj&&obj.type==='brush'){this._turtleRasterBrush=obj;this.gdiObjectManager._currentBrush=obj;brushes.refresh(this);return;}
++    const result=applyObject.call(this,obj);
++    if(obj&&obj.type==='pen'&&obj._turtleClassicPen&&(obj.style&15)!==5&&obj.width){
++      const width=Math.abs(obj.width),scale=this.coordinateTransformer.getScale();
++      this.ctx.lineWidth=Math.max(1,width*Math.abs(scale.x||1));
++      if(width>1&&(obj.style&15)>=1&&(obj.style&15)<=4)this.ctx.setLineDash([]);
++    }
++    return result;
++  };
++  ep._applyBrushForRegion=function(handle){const saved=this.ctx.fillStyle,bytes=new Uint8Array(4);new DataView(bytes.buffer).setUint32(0,handle,true);if(!brushes.handle(this,'emf',37,bytes))fail('invalid GDI region brush');return saved;};
++  const emf=ep.processEmfRecordType;
++  ep.processEmfRecordType=function(type,data){
++    if(this._turtlePlusSeen&&!this._turtleGetDC&&type!==70&&type!==14&&type!==1)return;
++    if(type===20){if(data.length!==4)fail('invalid EMF ROP2');const mode=u32(data,0);if(mode<1||mode>16)fail('invalid EMF binary raster mode');this._turtleRasterMode=mode;return;}
++    if(brushes.handle(this,'emf',type,data))return;
++    if([76,77,81].includes(type)){
++      const stretchDib=type===81;need(data,0,stretchDib?72:type===77?100:92);const op=truth(u32(data,stretchDib?60:32));
++      const bmi=u32(data,stretchDib?40:76),cbBmi=u32(data,stretchDib?44:80),bits=u32(data,stretchDib?48:84),cbBits=u32(data,stretchDib?52:88),usage=u32(data,stretchDib?56:72);
++      let dib=null;if(bmi||cbBmi||bits||cbBits){if(!bmi||!cbBmi||!bits||!cbBits||bmi<(stretchDib?80:type===77?108:100)||bits<(stretchDib?80:type===77?108:100))fail('incomplete EMF raster DIB');dib=decodeDib(data,bmi-8,cbBmi,bits-8,cbBits,usage,this);}
++      let sx=i32(data,stretchDib?24:36),sy=i32(data,stretchDib?28:40),sw=i32(data,stretchDib?32:type===77?92:24),sh=i32(data,stretchDib?36:type===77?96:28);
++      if(stretchDib&&dib&&dib.bottomUp)sy=dib.height-sy-sh;
++      // Source-independent ROPs have no source DC operand. MS-EMF permits
++      // omitting that bitmap; its unused XformSrc cannot invalidate PATCOPY,
++      // DSTINVERT, BLACKNESS or another source-independent truth function.
++      // Declared DIB ranges above still receive complete framing validation.
++      if(!stretchDib&&depends(op,2)){const a=f32(data,44),b=f32(data,48),c=f32(data,52),e=f32(data,56),tx=f32(data,60),ty=f32(data,64);if(b||c||!a||!e)fail('unsupported EMF source rotation/shear');sx=sx*a+tx;sy=sy*e+ty;sw*=a;sh*=e;}
++      transfer(this,op,i32(data,16),i32(data,20),i32(data,stretchDib?64:24),i32(data,stretchDib?68:28),dib,sx,sy,sw,sh);return;
++    }
++    const ctx=this.ctx,oldDrawer=ctx._turtleRasterDrawer,oldVector=this._turtleRasterVector,regionBrush=type===71?{brush:this._turtleRasterBrush,selected:this.gdiObjectManager._currentBrush,fill:ctx.fillStyle}:null;ctx._turtleRasterDrawer=this;this._turtleRasterVector=emfVector.has(type)&&this.pathState!=='active';
++    try{return emf.call(this,type,data);}finally{ctx._turtleRasterDrawer=oldDrawer;this._turtleRasterVector=oldVector;if(regionBrush){this._turtleRasterBrush=regionBrush.brush;this.gdiObjectManager._currentBrush=regionBrush.selected;ctx.fillStyle=regionBrush.fill;}}
++  };
++  const wmf=wp.processRecord;
++  wp.processRecord=function(record){const type=record.functionId,data=record.data;
++    if(type===0x104){if(data.length!==2)fail('invalid WMF ROP2');const mode=word(data,0);if(mode<1||mode>16)fail('invalid WMF binary raster mode');this._turtleRasterMode=mode;return;}
++    if(type===0x1e){if(data.length||this.ctx._stack.length>=4096)fail('invalid WMF save DC');const s=snapshot(this);this._turtleRasterSaves=this._turtleRasterSaves||[];this._turtleRasterSaves.push(s);this.ctx.save();return;}
++    if(type===0x127){if(data.length!==2)fail('invalid WMF restore DC');const saved=this._turtleRasterSaves||[],value=short(data,0),target=value<0?saved.length+value:value-1;if(!value||target<0||target>=saved.length)fail('invalid WMF restore depth');const s=saved[target];while(saved.length>target){saved.pop();this.ctx.restore();}Object.assign(this.coordinateTransformer,s.ct);restore(this,s);return;}
++    if(brushes.handle(this,'wmf',type,data))return;
++    if(type===0x61d){need(data,0,12);const op=truth(u32(data,0));if(depends(op,2))fail('PATBLT cannot require source bitmap');transfer(this,op,short(data,10),short(data,8),short(data,6),short(data,4),null,0,0,0,0);return;}
++    if([0x940,0xb41,0x922,0xb23].includes(type)&&data.length===((type>>>8)*2)){
++      const stretch=(type&255)===0x41||(type&255)===0x23,op=truth(u32(data,0));
++      if(depends(op,2))fail('WMF transfer without bitmap requires source');
++      const end=data.length;transfer(this,op,short(data,end-2),short(data,end-4),short(data,end-6),short(data,end-8),null,0,0,0,0);return;
++    }
++    if(type===0x922||type===0xb23)fail('device-dependent WMF bitmap layout is unsupported');
++    if([0x940,0xb41,0xf43].includes(type)){
++      const offset=type===0x940?16:type===0xb41?20:22;need(data,0,offset);const op=truth(u32(data,0)),usage=type===0xf43?word(data,4):0;
++      const dib=data.length>offset?decodeDib.packed(data,offset,usage,this):null;
++      const sx=short(data,type===0x940?6:type===0xb41?10:12);let sy=short(data,type===0x940?4:type===0xb41?8:10);const sw=short(data,type===0x940?10:type===0xb41?6:8),sh=short(data,type===0x940?8:type===0xb41?4:6);
++      if(type===0xf43&&dib&&dib.bottomUp)sy=dib.height-sy-sh;
++      transfer(this,op,short(data,offset-2),short(data,offset-4),short(data,offset-6),short(data,offset-8),dib,sx,sy,sw,sh);return;
++    }
++    const ctx=this.ctx,oldDrawer=ctx._turtleRasterDrawer,oldVector=this._turtleRasterVector;ctx._turtleRasterDrawer=this;this._turtleRasterVector=wmfVector.has(type);
++    try{return wmf.call(this,record);}finally{ctx._turtleRasterDrawer=oldDrawer;this._turtleRasterVector=oldVector;}
++  };
++};
+diff --git a/src/turtleGitRasterBrush.js b/src/turtleGitRasterBrush.js
+--- /dev/null
++++ b/src/turtleGitRasterBrush.js
+@@ -0,0 +1,153 @@
++// Copyright (C) TurtleGit contributors. GPL-2.0-or-later.
++// Original classic GDI brush playback; no imported brush implementation.
++module.exports=function createRasterBrush({fail,u32,i32,escape,decodeDib}) {
++  const white={type:'brush',style:0,color:'#ffffff'};
++  const word=(d,o)=>d[o]|d[o+1]<<8;
++  function need(d,n){if(!d||d.length<n)fail('truncated classic brush record');}
++  function color(n){return '#'+[n&255,(n>>>8)&255,(n>>>16)&255].map(x=>x.toString(16).padStart(2,'0')).join('');}
++  function state(d){
++    if(!d._turtleRasterBrush){d._turtleRasterBrush=white;d.ctx.fillStyle=white.color;d.fillColor=white.color;}
++    if(d._turtleRasterBkColor===undefined)d._turtleRasterBkColor='#ffffff';
++    if(d._turtleRasterBkMode===undefined)d._turtleRasterBkMode=2;
++    if(!d._turtleRasterBrushOrigin)d._turtleRasterBrushOrigin=[0,0];
++  }
++  function solid(style,c,hatch){
++    if(style===0)return {type:'brush',style,color:c};
++    if(style===1)return {type:'brush',style,color:'none'};
++    if(style===2&&Number.isInteger(hatch)&&hatch>=0&&hatch<=5)return {type:'brush',style,color:c,hatch};
++    fail('unsupported classic brush style or hatch');
++  }
++  function register(d,f,handle,brush){
++    if(!d.gdiObjectManager)fail('classic object table unavailable');
++    if(f==='emf'){
++      if(!Number.isInteger(handle)||handle===0||handle>=0x80000000)fail('invalid classic brush handle');
++      if(d.gdiObjectManager.objectTable.has(handle))fail('duplicate classic brush handle');
++      d.gdiObjectManager.createObjectAt(handle,brush);
++    }else d.gdiObjectManager.createObject(brush);
++  }
++  function tile(d,brush){
++    if(brush.style===0||brush.style===1)return null;
++    if(brush.style==='dib')return brush.bitmap;
++    const bytes=new Uint8Array(8*8*4),fg=brush.color,bg=d._turtleRasterBkColor;
++    const rgb=s=>[parseInt(s.slice(1,3),16),parseInt(s.slice(3,5),16),parseInt(s.slice(5,7),16)];
++    const a=rgb(fg),b=rgb(bg);
++    for(let y=0;y<8;y++)for(let x=0;x<8;x++){
++      const h=brush.hatch,ink=h===0?y===0:h===1?x===0:h===2?(x+y)%8===0:h===3?(x-y+8)%8===0:h===4?(x===0||y===0):((x+y)%8===0||(x-y+8)%8===0);
++      const o=(y*8+x)*4,c=ink?a:b;
++      bytes[o]=c[0];bytes[o+1]=c[1];bytes[o+2]=c[2];bytes[o+3]=ink||d._turtleRasterBkMode===2?255:0;
++    }
++    return {width:8,height:8,data:bytes};
++  }
++  function geometry(d){
++    const c=d.ctx,w=c.canvas.width/(c._scaleX||1),h=c.canvas.height/(c._scaleY||1);
++    if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0||Math.ceil(w)>32768||Math.ceil(h)>32768||Math.ceil(w)*Math.ceil(h)>16777216)fail('classic brush viewport exceeds limit');
++    return {w,h,width:Math.ceil(w),height:Math.ceil(h)};
++  }
++  function bitmap(d,receipt){
++    if(!receipt||!Number.isInteger(receipt.width)||!Number.isInteger(receipt.height)||receipt.width<1||receipt.height<1||receipt.width>32768||receipt.height>32768||receipt.width*receipt.height>16777216||!receipt.data||receipt.data.length!==receipt.width*receipt.height*4)fail('invalid classic DIB pattern brush');
++    const bytes=new Uint8Array(receipt.data);
++    d._turtleRasterBrushBytes=(d._turtleRasterBrushBytes||0)+bytes.length;
++    if(d._turtleRasterBrushBytes>67108864)fail('aggregate classic pattern brush budget exceeded');
++    return {type:'brush',style:'dib',bitmap:{width:receipt.width,height:receipt.height,data:bytes}};
++  }
++  function encode(receipt){
++    if(typeof globalThis.__turtleBitmap!=='function')fail('native classic brush encoding unavailable');
++    // Decoder receipts are RGBA; native PixelFormat32bppARGB takes B,G,R,A.
++    const bytes=new Uint8Array(receipt.data.length);
++    for(let i=0;i<bytes.length;i+=4){bytes[i]=receipt.data[i+2];bytes[i+1]=receipt.data[i+1];bytes[i+2]=receipt.data[i];bytes[i+3]=receipt.data[i+3];}
++    const href=globalThis.__turtleBitmap(bytes,receipt.width,receipt.height,receipt.width*4,0x26200A);
++    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,'))fail('classic brush encoding failed');
++    return href;
++  }
++  function origin(d){
++    const o=d._turtleRasterBrushOrigin,t=d.coordinateTransformer;
++    return [o[0]-(t&&t.deviceOrgX||0),o[1]-(t&&t.deviceOrgY||0)];
++  }
++  function refresh(d){
++    state(d);const brush=d._turtleRasterBrush,ctx=d.ctx;
++    if(brush.style===0||brush.style===1){ctx.fillStyle=brush.color;d.fillColor=brush.color;return;}
++    // Ordinary primitive playback and raster operands share a device-space tile.
++    // The URL is only a style identity; raster pattern() emits concrete pixels.
++    const brushOrigin=origin(d),cache=ctx._turtleRasterBrushStyleCache;
++    if(cache&&cache.brush===brush&&cache.background===d._turtleRasterBkColor&&cache.mode===d._turtleRasterBkMode&&cache.x===brushOrigin[0]&&cache.y===brushOrigin[1]){ctx.fillStyle=cache.style;d.fillColor=cache.style;return;}
++    const receipt=tile(d,brush),href=encode(receipt);
++    const id='turtle-classic-brush-'+(ctx._turtleRasterBrushSequence=(ctx._turtleRasterBrushSequence||0)+1);
++    const def='<pattern id="'+id+'" patternUnits="userSpaceOnUse" x="'+brushOrigin[0]+'" y="'+brushOrigin[1]+'" width="'+receipt.width+'" height="'+receipt.height+'"><image width="'+receipt.width+'" height="'+receipt.height+'" href="'+escape(href)+'"/></pattern>';
++    ctx._turtleRasterBrushDefinitions=(ctx._turtleRasterBrushDefinitions||0)+def.length;
++    if(ctx._turtleRasterBrushDefinitions>16777216)fail('classic brush definitions exceed limit');
++    ctx._defs.push(def);ctx.fillStyle='url(#'+id+')';d.fillColor=ctx.fillStyle;
++    ctx._turtleRasterBrushStyleCache={brush,background:d._turtleRasterBkColor,mode:d._turtleRasterBkMode,x:brushOrigin[0],y:brushOrigin[1],style:ctx.fillStyle};
++  }
++  function pattern(d){
++    state(d);const b=d._turtleRasterBrush,g=geometry(d);
++    if(b.style===1)return null;
++    if(b.style===0)return '<rect x="0" y="0" width="'+g.w+'" height="'+g.h+'" fill="'+escape(b.color)+'"/>';
++    const t=tile(d,b),o=origin(d);
++    d._turtleRasterPatternPixels=(d._turtleRasterPatternPixels||0)+g.width*g.height;
++    if(d._turtleRasterPatternPixels>67108864)fail('aggregate classic pattern expansion exceeds limit');
++    const bytes=new Uint8Array(g.width*g.height*4);
++    for(let y=0;y<g.height;y++)for(let x=0;x<g.width;x++){
++      const sx=((Math.floor(x+.5-o[0]))%t.width+t.width)%t.width,sy=((Math.floor(y+.5-o[1]))%t.height+t.height)%t.height;
++      const a=(sy*t.width+sx)*4,z=(y*g.width+x)*4;
++      bytes[z]=t.data[a];bytes[z+1]=t.data[a+1];bytes[z+2]=t.data[a+2];bytes[z+3]=t.data[a+3];
++    }
++    const href=encode({data:bytes,width:g.width,height:g.height});
++    return '<image x="0" y="0" width="'+g.w+'" height="'+g.h+'" preserveAspectRatio="none" href="'+escape(href)+'"/>';
++  }
++  function select(d,obj){
++    d._turtleRasterBrush=obj;d.gdiObjectManager._currentBrush=obj;refresh(d);
++  }
++  function stock(d,index){
++    if(index<=5){
++      const shades=['#ffffff','#c0c0c0','#808080','#404040','#000000'];
++      select(d,index===5?solid(1,'none'):solid(0,shades[index]));return true;
++    }
++    if(index>=6&&index<=8){
++      const p={type:'pen',style:index===8?5:0,color:index===8?'transparent':index===6?'#ffffff':'#000000',width:index===8?0:1,_isStockPen:true};
++      d.gdiObjectManager._currentPen=p;
++      d.applyGdiObject(p);d._penNull=index===8;d._penStockBlack=index===7;
++      return true;
++    }
++    // Dynamic DC_BRUSH/DC_PEN need their corresponding color state; never guess.
++    if(index===18||index===19)fail('dynamic classic DC brush/pen is unsupported');
++    return false;
++  }
++  function handle(d,f,type,data){
++    state(d);if(f!=='wmf'&&f!=='emf')fail('invalid classic brush format');
++    const emf=f==='emf';
++    if(type===(emf?25:0x201)){need(data,4);d._turtleRasterBkColor=color(u32(data,0));refresh(d);return true;}
++    if(type===(emf?18:0x102)){need(data,emf?4:2);const mode=emf?u32(data,0):word(data,0);if(mode!==1&&mode!==2)fail('invalid classic background mode');d._turtleRasterBkMode=mode;refresh(d);return true;}
++    if(emf&&type===13){need(data,8);const x=i32(data,0),y=i32(data,4);if(Math.abs(x)>1000000||Math.abs(y)>1000000)fail('classic brush origin exceeds limit');d._turtleRasterBrushOrigin=[x,y];refresh(d);return true;}
++    if(type===(emf?39:0x2fc)){
++      need(data,emf?16:8);const style=emf?u32(data,4):word(data,0),c=color(u32(data,emf?8:2)),h=emf?u32(data,12):word(data,6);
++      register(d,f,emf?u32(data,0):null,solid(style,c,h));return true;
++    }
++    if(!emf&&type===0x1f9)fail('device-dependent WMF pattern brush is unsupported');
++    if(!emf&&type===0xf8)fail('obsolete WMF CREATEBRUSH is unsupported');
++    if((emf&&type===94)||(!emf&&type===0x142)){
++      let decoded;
++      if(emf){
++        need(data,24);const bmi=u32(data,8),bits=u32(data,16);
++        if(bmi<32||bits<32)fail('invalid EMF pattern bitmap offsets');
++        decoded=decodeDib(data,bmi-8,u32(data,12),bits-8,u32(data,20),u32(data,4),d);
++      }
++      else{
++        need(data,4);const style=word(data,0),usage=word(data,2);
++        if(style!==3&&style!==5&&style!==6)fail('unsupported WMF DIB pattern brush style');
++        if(typeof decodeDib.packed!=='function')fail('packed WMF DIB decoder unavailable');
++        decoded=decodeDib.packed(data,4,style===3?0:usage,d);
++      }
++      register(d,f,emf?u32(data,0):null,bitmap(d,decoded));return true;
++    }
++    if(emf&&type===93)fail('monochrome device-dependent brush is unsupported');
++    if(type===(emf?37:0x12d)){
++      need(data,emf?4:2);const h=emf?u32(data,0):word(data,0),stockFlag=emf?0x80000000:0x8000;
++      if((h&stockFlag)!==0)return stock(d,h&~stockFlag);
++      const obj=d.gdiObjectManager.objectTable.get(h);
++      if(!obj)fail('missing classic selected object');
++      if(obj.type==='brush'){select(d,obj);return true;}
++    }
++    return false;
++  }
++  return {handle,refresh,pattern};
++};
+diff --git a/src/utils/nestedMetafilePlayer.js b/src/utils/nestedMetafilePlayer.js
+--- a/src/utils/nestedMetafilePlayer.js
++++ b/src/utils/nestedMetafilePlayer.js
+@@ -114,6 +114,7 @@
+         }
+         return { nodes: subCtx.nodes, defs: subCtx.defs, width: W || 1, height: H || 1 };
+     } catch (e) {
++        throw e;
+         // Callers are EMF+ DrawImage handlers; wording kept for log continuity.
+         console.log('EMF+ nested EMF render failed:', /** @type {Error} */ (e).message);
+         return null;

@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "1051790d26f05a73a86ac7967b8a9b3c17ab041e32b54a641850e1ff4f9fd781",
+    "Contents/Info.plist": "ddfbf0404f56e49769e2fa4c983248a260acd501837b2a969ec6247a50821f94",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "01d9789d13afd9ece8aac7c7a97615b55f0e9e37f5211445b613f67b4d166d39",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "940fa5e112b44a1c585a13339c8d07f16d36149a2ab0a9295b31c44728f0287d",
@@ -18,7 +18,7 @@
     "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "cc62f622edf5577af5c763dd875b4343e37a57f2e284e1f265fb77af2dbe59f1",
     "Contents/Resources/en.lproj/GIT-NOTES.html": "a9f1d2e685d3e7aefe716d86369330f700aa38b2dfc6a3e704532d2f4ff8505d",
     "Contents/Resources/en.lproj/GIT-PROPERTIES.html": "4e71c861dc0f1c93cd123f477e231545fca537150a8e050fbdedfdef204d46a8",
-    "Contents/Resources/en.lproj/IMAGE-COMPARISON.html": "63ccec3bf1d164180b956d9c2f5b74d5708ee7a253320b6373506a920cc8a1a9",
+    "Contents/Resources/en.lproj/IMAGE-COMPARISON.html": "1a3a15751311157e6f01bd65d893034cbafd6e6563efeafa111441122a739e40",
     "Contents/Resources/en.lproj/InfoPlist.strings": "436e0d7f17990db122633ab657a3a406a252ad892449860b7157494614595b02",
     "Contents/Resources/en.lproj/LANGUAGES.html": "3352490c128dfe47372f3c7f238b476138fd9b14641f61f9954fd1e67af517a4",
     "Contents/Resources/en.lproj/LFS.html": "0fce6bd22bff5a9eacdc281918aba1ae37941f892c13100e5f17625d83dc6178",
@@ -28,6 +28,7 @@
     "Contents/Resources/en.lproj/LOG-FIND.html": "6f557107c2666c5117ca34d1486449389f82e74eade846a50d75a3a676d7b739",
     "Contents/Resources/en.lproj/MERGE-FILTERS.html": "fd3810301986f74435fb161b42c4abff1bb1f53347e5e2cd9eae51f4c8b2a8af",
     "Contents/Resources/en.lproj/MERGE-TOOL.html": "916a2d4f7bd280cbcb96e22bba49ade7ce5e945288dc0c0c2c1f1188ca553f3a",
+    "Contents/Resources/en.lproj/METAFILE-RASTER-PARITY.html": "2097bc9520fffaf1e1c514949d47cb275f3078d67af0849f44556f7bcfa24259",
     "Contents/Resources/en.lproj/MISSING-STAGED-FILES.html": "94bbe1572af86ef4b96a93fe81a9cd33ffdfae9ec2799d0d755ef4c13398dc65",
     "Contents/Resources/en.lproj/MOVING-AND-COPYING.html": "76ab47d08eaad445c4ae0fa893f2a3bcf1a93432d4089daa2e1519d8daccc424",
     "Contents/Resources/en.lproj/POWERPOINT-COMPARISON.html": "a12d501fe975912495bd1decc1d898c7ccc3052b8d19e3a74810a6fa77886112",
@@ -64,8 +65,8 @@
     "Contents/Resources/en.lproj/images/ed3713977296-image-conflict-undecodable-light.png": "138d20aa5da3ab6b283e6d2d69e78639534af3cbef1a2bbbb686ab48aa3b1446",
     "Contents/Resources/en.lproj/images/f49a195c8c35-cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
     "Contents/Resources/en.lproj/images/f7856202ab6a-commit-file-groups-language-de-dark.png": "e7f075b32f6ff02494ead9db85a9da57039ad1a108cda57cadbe40c895f988ed",
-    "Contents/Resources/en.lproj/index.html": "2a9ce6cb2b5c3c93fb461254cd05810d8e45357f84c3093a7c91e122e31e37c6",
-    "Contents/Resources/en.lproj/topics.json": "b89751c9880d56610250f507ec891e8854f9fa65de24ab0d40afc39ee46b362f"
+    "Contents/Resources/en.lproj/index.html": "eb93632e620b2b1f6c835076579318de2456d0a0319d3c60fe3343be38e7f842",
+    "Contents/Resources/en.lproj/topics.json": "e755d7d374299f9fbb260773d733d70ba300b45d3ca2d4a5051836fbc6e57157"
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
@@ -85,7 +86,7 @@
     "docs/GIT-AUTHENTICATION.md": "dd6d943d89e823349419471ce62e60259e1425516409cb0c7d033c93f0f00120",
     "docs/GIT-NOTES.md": "7603da2c711629626105abafc52d18412d0e075fae3c9fb35ebff33447e7eb3b",
     "docs/GIT-PROPERTIES.md": "612ac979b47e69e263e308337f2ee7529d9620e73175167a72a1ff043f4d4605",
-    "docs/IMAGE-COMPARISON.md": "61a6c2ca92b23c117023d9fd292d278a253fd288976c37c4aa00532fe014509b",
+    "docs/IMAGE-COMPARISON.md": "142d76ceeb517876f1228ac75cdbc92ab5462268e4bdc194e4aaf6dc95ebb6d1",
     "docs/LANGUAGES.md": "ed51f9133b61e064168e2b44843d47a7378d4fc054c86507b742b4a855257611",
     "docs/LFS.md": "e8b3f0ed2af880058d2c59e82e32942fa8c7a3ca957626fb55c55d74afcc6ffa",
     "docs/LIBGIT2-TRANSPORT.md": "2c7c1caa9a96eff7b5c93fa3deae28662e298f97a3318efc75b96d0b8b15a498",
@@ -94,6 +95,7 @@
     "docs/LOG-FIND.md": "76d55d6d65a79e6bb066468bddd465e81c3a038b4289e2db84a3ded13c5d7e9e",
     "docs/MERGE-FILTERS.md": "c32dbedd77e3f6903bb05bac9d9edc9efbdfad6942bdaad57752a27c7107f028",
     "docs/MERGE-TOOL.md": "f16911856a5878dc4bb783f86bfb073c3ca4e7ca21f0b28c969604ed7d413a28",
+    "docs/METAFILE-RASTER-PARITY.md": "ba57eebde23d7922a622e8831e3c6839090fd9b65bbd8eb7804c875195317907",
     "docs/MISSING-STAGED-FILES.md": "8ae05b45701695eb63e173aa9c5f4292fc4036f1512acee4cfd829294cc64663",
     "docs/MOVING-AND-COPYING.md": "763a485e2dd89d0f912db242637f12f821368310a070d784bd122986f38bfe99",
     "docs/POWERPOINT-COMPARISON.md": "045ec11fe5c0ba81d37f538df754739de569ffbedc4b95338d3a3baa3c9d470d",
@@ -115,7 +117,7 @@
     "docs/WORD-COMPARISON.md": "922b2e8a5f12bc40b8475bbf73cb558e87a0e692625139b3cc34502f4923663d",
     "docs/WORD-MERGE.md": "dc11fee38f848ddda8201163da223235c9adeaecfe74beaad1ff75d91ff702d7",
     "docs/ZIP-COMPARISON.md": "1fa7085d96970e6cc85ef8edb5e94f12277617d5c91614f1fd05c92362576241",
-    "docs/help-topics.json": "b89751c9880d56610250f507ec891e8854f9fa65de24ab0d40afc39ee46b362f",
+    "docs/help-topics.json": "e755d7d374299f9fbb260773d733d70ba300b45d3ca2d4a5051836fbc6e57157",
     "docs/site/assets/binary-comparison-dark.png": "13944fd1b3128d1a46cadfabc89f4245a0008a379a7b1ad18e8b77365e618c8d",
     "docs/site/assets/binary-comparison-light.png": "0dda7bddf5a03dbf5bad64e6481f89121752721f2d4bb16995f29a406f2bb04b",
     "docs/site/assets/cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",

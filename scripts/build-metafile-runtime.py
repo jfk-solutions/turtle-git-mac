@@ -89,7 +89,7 @@ def main():
     sdk = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
     sdk_version = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-version'], text=True).strip()
     hashes = {name: digest(ROOT / name) for name in FILES}
-    flags = ['-O', '-whole-module-optimization', '-framework', 'JavaScriptCore', '-framework', 'CoreText', '-framework', 'ImageIO']
+    flags = ['-O', '-whole-module-optimization', '-framework', 'JavaScriptCore', '-framework', 'CoreText', '-framework', 'ImageIO', '-framework', 'AppKit']
     key = hashlib.sha256(json.dumps([pin, hashes, compiler, sdk_version, flags], sort_keys=True).encode()).hexdigest()
     work = cache / key
     work.mkdir(exist_ok=True)

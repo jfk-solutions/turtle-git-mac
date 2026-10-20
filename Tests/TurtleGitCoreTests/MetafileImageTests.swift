@@ -585,7 +585,7 @@ final class MetafileImageTests: XCTestCase {
         }
     }
     func testMalformedAndUnsupportedPaintingFailInsteadOfSuccessfulBlank() throws {
-        for name in ["unsupported-region.emf", "unsupported-rop.emf", "unsupported-image-effect.emf", "unsupported-image-attributes.emf", "unsupported-image-wrap.emf", "unsupported-image-attribute-type.emf", "unsupported-gradient-stops.emf", "unsupported-image-tile-budget.emf", "unsupported-gradient-precision.emf"] {
+        for name in ["unsupported-region.emf", "unsupported-image-effect.emf", "unsupported-image-attributes.emf", "unsupported-image-wrap.emf", "unsupported-image-attribute-type.emf", "unsupported-gradient-stops.emf", "unsupported-image-tile-budget.emf", "unsupported-gradient-precision.emf"] {
             XCTAssertThrowsError(try MetafileImageDecoder.convert(data(name)))
             XCTAssertNil(ComparisonImage(bytes: try data(name)))
         }
@@ -1560,4 +1560,164 @@ extension MetafileImageTests {
         }
     }
 
+}
+
+extension MetafileImageTests {
+    private func booleanPixels(_ name:String)throws->PenPixels {
+        try booleanPixels(image(name),name:name)
+    }
+    private func booleanPixels(_ value:ComparisonImage,name:String)throws->PenPixels {
+        let width=value.pixels.width,height=value.pixels.height
+        XCTAssertEqual(width,64,name);XCTAssertEqual(height,64,name)
+        var bytes=[UInt8](repeating:0,count:width*height*4)
+        try bytes.withUnsafeMutableBytes {storage in
+            let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+            context.interpolationQuality = .none;context.draw(value.pixels,in:CGRect(x:0,y:0,width:width,height:height))
+        }
+        return .init(width:width,height:height,bytes:bytes)
+    }
+    private func booleanGray(_ pixels:PenPixels,_ x:Int,_ y:Int,_ expected:Int,_ message:String,file:StaticString = #filePath,line:UInt = #line) {
+        let actual=pixels.pixel(x,y)
+        for channel in 0..<3 {XCTAssertEqual(Double(actual[channel]),Double(expected),accuracy:1,"\(message) sample(\(x),\(y))=\(actual)",file:file,line:line)}
+        XCTAssertEqual(actual[3],255,"\(message): Boolean DC/covered interior must remain opaque",file:file,line:line)
+    }
+    func testClassicBooleanROP2AllSixteenBrushAndPenTruthTables()throws {
+        // P=11001100,D=10101010 enumerates all four P/D input combinations
+        // twice. Hence each operation's specified truth nibble repeats twice;
+        // no implementation Boolean-expression table is copied into this oracle.
+        for name in ["classic-rop2-matrix.emf","wmf-rop2-matrix.wmf"] {
+            let value=try booleanPixels(name)
+            for operation in 1...16 {
+                let expected=(operation-1)*17,x=(operation-1)*4+2
+                booleanGray(value,x,10,expected,"\(name) brush ROP2=\(operation)")
+                booleanGray(value,x,32,expected,"\(name) pen ROP2=\(operation)")
+            }
+            booleanGray(value,2,50,170,name+" untouched destination")
+        }
+    }
+    func testClassicBooleanROP3All256TruthTablesForEachEMFBitmapRecord()throws {
+        for kind in ["bitblt","stretchblt","stretchdibits"] {
+            let name="classic-rop3-matrix-"+kind+".emf",value=try booleanPixels(name)
+            // The source data itself encodes all eight independent truth rows:
+            // P=11110000,S=11001100,D=10101010. The byte is its own oracle.
+            for truth in 0..<256 {booleanGray(value,(truth%16)*4+2,(truth/16)*4+2,truth,"\(kind) ROP3=\(truth)")}
+        }
+    }
+    func testClassicBooleanROP3All256TruthTablesForEachWMFDIBRecord()throws {
+        for kind in ["dibbitblt","dibstretchblt","stretchdib"] {
+            let name="wmf-rop3-matrix-"+kind+".wmf",value=try booleanPixels(name)
+            for truth in 0..<256 {booleanGray(value,(truth%16)*4+2,(truth/16)*4+2,truth,"\(kind) ROP3=\(truth)")}
+        }
+    }
+    func testClassicBooleanSourceIndependentOmittedBitmapsAndIrrelevantNullPatterns()throws {
+        let independent=[0x00,0x05,0x0a,0x0f,0x50,0x55,0x5a,0x5f,0xa0,0xa5,0xaa,0xaf,0xf0,0xf5,0xfa,0xff]
+        for name in ["wmf-rop3-patblt.wmf"]+["bitblt","stretchblt","stretchdibits"].map({"classic-rop3-no-source-"+$0+".emf"}) {
+            let value=try booleanPixels(name)
+            for(index,expected)in independent.enumerated(){booleanGray(value,(index%4)*16+8,(index/4)*16+8,expected,name)}
+        }
+        for kind in ["bitblt","stretchblt"] {
+            let value=try booleanPixels("classic-rop3-no-source-transform-"+kind+".emf")
+            booleanGray(value,24,16,240,kind+" PATCOPY ignores unused zero XformSrc")
+            booleanGray(value,24,44,85,kind+" DSTINVERT ignores unused skew XformSrc")
+            booleanGray(value,60,60,170,kind+" unused source metadata preserves outside D")
+        }
+        for kind in ["bitblt","stretchblt","stretchdibits"] {
+            let value=try booleanPixels("classic-rop3-null-pattern-"+kind+".emf")
+            booleanGray(value,24,24,204,kind+" source copy must ignore absent P")
+            booleanGray(value,48,48,170,kind+" source copy must retain outside D")
+        }
+    }
+    func testClassicBooleanWMFWithoutBitmapReservedWordFormsHaveAll16PatternDestinationFunctions()throws {
+        let independent=[0x00,0x05,0x0a,0x0f,0x50,0x55,0x5a,0x5f,0xa0,0xa5,0xaa,0xaf,0xf0,0xf5,0xfa,0xff]
+        for kind in ["bitblt","stretchblt","dibbitblt","dibstretchblt"] {
+            let value=try booleanPixels("wmf-rop3-without-bitmap-"+kind+".wmf")
+            for(index,expected)in independent.enumerated(){booleanGray(value,(index%4)*16+8,(index/4)*16+8,expected,"Without Bitmap \(kind), ignored nonzero ReservedWORD")}
+        }
+    }
+    func testClassicBooleanOpaqueWhiteBackdropAndProgressiveClippedDestination()throws {
+        for name in ["classic-rop3-white-backdrop.emf","wmf-rop3-white-backdrop.wmf"] {
+            let value=try booleanPixels(name)
+            booleanGray(value,24,24,0,name+" inverts white DC to black")
+            booleanGray(value,60,60,255,name+" outside retained opaque white")
+        }
+        for(name,once)in[("classic-rop3-successive.emf",240),("wmf-rop3-successive.wmf",0)] {
+            let value=try booleanPixels(name)
+            booleanGray(value,12,12,once,name+" one operation")
+            booleanGray(value,20,20,once,name+" clipped second operation must not paint here")
+            booleanGray(value,30,30,255,name+" second XOR/invert restores previous destination")
+            booleanGray(value,52,12,255,name+" RestoreDC removes captured middle clip")
+            booleanGray(value,60,60,255,name+" untouched white DC")
+        }
+    }
+    func testClassicBooleanROP2ClipTransformAndSavedStateRemainDeviceCorrect()throws {
+        for name in ["classic-rop2-state.emf","wmf-rop2-state.wmf"] {
+            let value=try booleanPixels(name)
+            booleanGray(value,16,16,102,name+" XOR within captured device clip")
+            booleanGray(value,4,4,170,name+" outside captured clip")
+            booleanGray(value,40,16,204,name+" restored CopyPen and mapping")
+            booleanGray(value,52,40,170,name+" final NOP preserves destination")
+        }
+    }
+    func testClassicBooleanPatternBrushOriginRestoreAndWorldScaleUseDevicePhase()throws {
+        let value=try booleanPixels("classic-rop3-pattern-state.emf")
+        for y in 2..<14 {for x in 2..<22 {
+            let expected=(x+y)%2==0 ? 0:255
+            booleanGray(value,x,y,expected,"pattern original phase")
+            booleanGray(value,x,y+24,expected,"RestoreDC restores pattern phase")
+            booleanGray(value,x+32,y+24,expected,"world scale must not stretch device pattern")
+        }}
+        // Origin(1,0) shifts the checker, and XOR with the white destination
+        // reverses it again. Combined result equals the original phase here.
+        for y in 2..<14 {for x in 34..<54 {booleanGray(value,x,y,(x+y)%2==0 ? 0:255,"shifted P xor white D under saved clip")}}
+        booleanGray(value,28,8,255,"pattern clipping left")
+        booleanGray(value,60,8,255,"pattern clipping right")
+    }
+    func testClassicBooleanCoverageIsIndependentOfAntialiasedOperandColor()throws {
+        let actual=try booleanPixels("classic-rop2-coverage.emf")
+        let reference=try XCTUnwrap(ComparisonImage(bytes:Data("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\"><rect width=\"64\" height=\"64\" fill=\"white\"/><rect x=\"8.5\" y=\"8.5\" width=\"24\" height=\"24\" fill=\"black\"/></svg>".utf8)))
+        let expected=try booleanPixels(reference,name:"independent native SVG coverage")
+        for(x,y)in[(8,16),(32,16),(16,8),(16,32),(8,8),(32,32),(16,16),(4,4)] {
+            let a=actual.pixel(x,y),b=expected.pixel(x,y)
+            for channel in 0..<4{XCTAssertEqual(Double(a[channel]),Double(b[channel]),accuracy:1,"Boolean coverage differs from independent fractional rectangle at \(x),\(y): \(a) vs \(b)")}
+        }
+    }
+    func testClassicBooleanSourceCropMirrorAndPositiveScaleUseSourceWorldCoordinates()throws {
+        let value=try image("classic-rop3-source-transform.emf")
+        try primary(value,1,20,16);try primary(value,2,44,16)
+        try primary(value,2,20,44);try primary(value,1,44,44)
+        let scaled=try image("classic-rop3-source-scale.emf")
+        try primary(scaled,1,20,16);try primary(scaled,2,44,16)
+        for name in ["classic-rop3-source-bottom-up.emf","wmf-rop3-source-bottom-up.wmf"] {
+            let bottom=try image(name)
+            try primary(bottom,2,32,20)
+            let yellow=try rgb(bottom,32,44)
+            XCTAssertGreaterThan(yellow[0],0.8,name);XCTAssertGreaterThan(yellow[1],0.8,name);XCTAssertLessThan(yellow[2],0.25,name)
+        }
+    }
+    func testPreviouslyUnsupportedROP2XorPaintsAgainstOpaqueWhiteDC()throws {
+        let value=try image("unsupported-rop.emf")
+        let cyan=try rgb(value,12,12),yellow=try rgb(value,58,12)
+        for channel in 0..<3 {
+            XCTAssertEqual(cyan[channel],[CGFloat(0),1,1][channel],accuracy:1.0/255)
+            XCTAssertEqual(yellow[channel],[CGFloat(1),1,0][channel],accuracy:1.0/255)
+        }
+    }
+    func testMalformedClassicBooleanRecordsAndUnrepresentableOperandsRefuseExplicitly()throws {
+        let names=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("unsupported-raster-")}.sorted()
+        XCTAssertEqual(names.count,36,"Enroll every independently framed Boolean refusal")
+        for name in names {
+            let original=try data(name)
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(original),name) {error in
+                if name=="unsupported-raster-device-pixel-budget.emf" {
+                    guard let failure=error as? MetafileImageFailure,case .failed(let diagnostic)=failure else{return XCTFail("Boolean pixel budget must fail explicitly, not by timeout/runtime/output: \(error)")}
+                    let lower=diagnostic.lowercased()
+                    XCTAssertTrue(lower.contains("raster") && (lower.contains("budget") || lower.contains("limit")),"Missing explicit native raster budget diagnostic: \(diagnostic)")
+                }
+            }
+            XCTAssertEqual(try data(name),original)
+        }
+        // Shared image consumers must propagate refusal rather than expose an
+        // approximate successful image. Representative failures cover each input.
+        for name in ["unsupported-raster-required-source-bitblt.emf","unsupported-raster-required-pattern-stretchdibits.emf","unsupported-raster-patblt-source.wmf","unsupported-raster-device-bitblt.wmf","unsupported-raster-source-transform.emf"] {XCTAssertNil(ComparisonImage(bytes:try data(name)),name)}
+    }
 }

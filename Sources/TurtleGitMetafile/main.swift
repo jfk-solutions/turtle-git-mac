@@ -5,6 +5,7 @@ import CoreText
 import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
+import AppKit
 
 private let inputLimit = 64 * 1024 * 1024
 private let outputLimit = 128 * 1024 * 1024
@@ -41,14 +42,40 @@ private func rendererURL() -> URL? {
 }
 private final class SVGGuard: NSObject, XMLParserDelegate {
     var valid = true
+    private let rasterSize:CGSize?
+    private var depth=0,elementsSeen=0,embeddedPixels=0
+    init(rasterSize:CGSize?=nil){self.rasterSize=rasterSize;super.init()}
     private let elements: Set<String> = ["svg", "g", "defs", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon", "text", "tspan", "clipPath", "image", "pattern", "linearGradient", "radialGradient", "stop", "mask", "title", "desc"]
     func parser(_ parser: XMLParser, didStartElement element: String, namespaceURI: String?, qualifiedName: String?, attributes: [String: String]) {
+        if let rasterSize {
+            elementsSeen += 1
+            if depth>=128 || elementsSeen>262144 {valid=false}
+            if depth==0 {
+                func extent(_ key:String)->Double? {
+                    guard var value=attributes[key] else{return nil}
+                    if value.hasSuffix("px"){value=String(value.dropLast(2))}
+                    return Double(value)
+                }
+                if element != "svg" || extent("width") != Double(rasterSize.width) || extent("height") != Double(rasterSize.height){valid=false}
+            }
+        }
+        depth += 1
         if !elements.contains(element) || namespaceURI != "http://www.w3.org/2000/svg" { valid = false }
         for (name, value) in attributes {
             let key = name.lowercased(), lowered = value.lowercased()
             if key.hasPrefix("on") || lowered.contains("@import") { valid = false }
+            if rasterSize != nil,(key=="base" || key.hasSuffix(":base")){valid=false}
             if key == "href" || key.hasSuffix(":href") {
                 if !value.hasPrefix("#") && !value.hasPrefix("data:image/png;base64,") { valid = false }
+                if rasterSize != nil,value.hasPrefix("data:image/png;base64,") {
+                    guard let bytes=Data(base64Encoded:String(value.dropFirst(22))),bytes.count<=16*1024*1024,bytes.starts(with:[137,80,78,71,13,10,26,10]),
+                          let source=CGImageSourceCreateWithData(bytes as CFData,[kCGImageSourceShouldCache:false] as CFDictionary),CGImageSourceGetCount(source)==1,
+                          let properties=CGImageSourceCopyPropertiesAtIndex(source,0,nil) as? [CFString:Any],
+                          let width=properties[kCGImagePropertyPixelWidth] as? Int,let height=properties[kCGImagePropertyPixelHeight] as? Int,
+                          width>0,height>0,width<=32768,height<=32768,width<=16777216/height,
+                          width*height<=16777216-embeddedPixels else{valid=false;parser.abortParsing();return}
+                    embeddedPixels += width*height
+                }
             }
             if lowered.contains("url(") {
                 let pattern = #"url\(\s*["']?#[a-zA-Z0-9_.:-]+["']?\s*\)"#
@@ -58,8 +85,104 @@ private final class SVGGuard: NSObject, XMLParserDelegate {
         }
         if !valid { parser.abortParsing() }
     }
+    func parser(_ parser:XMLParser,didEndElement element:String,namespaceURI:String?,qualifiedName:String?){depth -= 1}
+    func parser(_ parser:XMLParser,foundProcessingInstructionWithTarget target:String,data:String?){if rasterSize != nil{valid=false;parser.abortParsing()}}
     func parser(_ parser: XMLParser, foundInternalEntityDeclarationWithName: String, value: String?) { valid = false; parser.abortParsing() }
     func parser(_ parser: XMLParser, foundExternalEntityDeclarationWithName: String, publicID: String?, systemID: String?) { valid = false; parser.abortParsing() }
+}
+
+/// GDI's bytewise Boolean operations cannot be represented by SVG blend modes.
+/// Only renderer-generated, independently guarded SVG operands enter AppKit.
+private final class NativeRasterComposite {
+    private var renderedPixels=0,compositePixels=0,markupBytes=0,calls=0
+    private func invalid(_ message:String)->ConversionError{.invalid("Metafile raster operation: "+message)}
+    private func svg(_ value:JSValue,size:CGSize,required:Bool)throws->Data? {
+        if value.isNull || value.isUndefined || (value.isString && value.toString()=="") {
+            if required{throw invalid("missing required SVG operand")};return nil
+        }
+        guard value.isString,let text=value.toString(),text.utf8.count<=16*1024*1024,
+              text.range(of:"<!DOCTYPE",options:.caseInsensitive)==nil,text.range(of:"<!ENTITY",options:.caseInsensitive)==nil else{throw invalid("invalid or oversized SVG operand")}
+        let bytes=Data(text.utf8)
+        guard bytes.count<=64*1024*1024-markupBytes else{throw invalid("aggregate SVG operand budget exceeded")}
+        markupBytes += bytes.count
+        let safety=SVGGuard(rasterSize:size),parser=XMLParser(data:bytes)
+        parser.shouldProcessNamespaces=true;parser.shouldResolveExternalEntities=false;parser.delegate=safety
+        guard parser.parse(),safety.valid else{throw invalid("SVG operand contains invalid geometry or external resources")}
+        return bytes
+    }
+    private func render(_ svg:Data,width:Int,height:Int)throws->Data {
+        return try autoreleasepool {
+        guard let image=NSImage(data:svg) else{throw invalid("native SVG decoding failed")}
+        var bytes=Data(count:width*height*4)
+        try bytes.withUnsafeMutableBytes { (buffer:UnsafeMutableRawBufferPointer) in
+            guard let space=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:buffer.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else{throw invalid("cannot allocate native RGBA canvas")}
+            context.interpolationQuality = .none;context.setShouldAntialias(true)
+            NSGraphicsContext.saveGraphicsState();defer{NSGraphicsContext.restoreGraphicsState()}
+            let graphics=NSGraphicsContext(cgContext:context,flipped:false);graphics.imageInterpolation = .none;NSGraphicsContext.current=graphics
+            image.draw(in:NSRect(x:0,y:0,width:width,height:height),from:.zero,operation:.copy,fraction:1,respectFlipped:false,hints:[.interpolation:NSImageInterpolation.none])
+            context.flush()
+        }
+        return bytes
+        }
+    }
+    private func depends(_ rop:Int,_ shift:Int,_ mask:Int)->Bool{((rop ^ (rop >> shift)) & mask) != 0}
+    @inline(__always) private func cofactor(_ code:Int,_ d:UInt8)->UInt8 {
+        switch code {case 0:return 0;case 1:return ~d;case 2:return d;default:return 255}
+    }
+    @inline(__always) private func apply(_ rop:Int,_ p:UInt8,_ s:UInt8,_ d:UInt8)->UInt8 {
+        let a=cofactor(rop & 3,d),b=cofactor((rop >> 2) & 3,d),c=cofactor((rop >> 4) & 3,d),e=cofactor((rop >> 6) & 3,d)
+        return (~p & ((~s & a) | (s & b))) | (p & ((~s & c) | (s & e)))
+    }
+    func composite(_ destination:JSValue,_ source:JSValue,_ pattern:JSValue,_ coverage:JSValue,_ widthValue:Double,_ heightValue:Double,_ ropValue:Double)throws->String {
+        guard widthValue.isFinite,heightValue.isFinite,ropValue.isFinite,widthValue.rounded()==widthValue,heightValue.rounded()==heightValue,ropValue.rounded()==ropValue,
+              widthValue>=1,heightValue>=1,widthValue<=32768,heightValue<=32768,widthValue*heightValue<=16777216,ropValue>=0,ropValue<=255 else{throw invalid("invalid dimensions or ROP3 truth byte")}
+        let width=Int(widthValue),height=Int(heightValue),pixels=width*height,rop=Int(ropValue),size=CGSize(width:width,height:height)
+        let needsSource=depends(rop,2,0x33),needsPattern=depends(rop,4,0x0f)
+        let renders=2+(needsSource ? 1:0)+(needsPattern ? 1:0)
+        guard calls<4096,pixels<=33554432-compositePixels,pixels*renders<=67108864-renderedPixels,
+              pixels*4*(renders+2)<=256*1024*1024 else{throw invalid("pixel, work or memory budget exceeded")}
+        calls += 1;compositePixels += pixels;renderedPixels += pixels*renders
+        guard let destinationSVG=try svg(destination,size:size,required:true),let coverageSVG=try svg(coverage,size:size,required:true) else{throw invalid("missing canvas or coverage")}
+        let sourceSVG=try svg(source,size:size,required:needsSource),patternSVG=try svg(pattern,size:size,required:needsPattern)
+        var output=try render(destinationSVG,width:width,height:height)
+        let mask=try render(coverageSVG,width:width,height:height)
+        let sourcePixels=needsSource ? try render(sourceSVG!,width:width,height:height):nil
+        let patternPixels=needsPattern ? try render(patternSVG!,width:width,height:height):nil
+        try output.withUnsafeMutableBytes { (destinationBytes:UnsafeMutableRawBufferPointer) in
+            try mask.withUnsafeBytes { (coverageBytes:UnsafeRawBufferPointer) in
+                func evaluate(_ sourceBytes:UnsafeRawBufferPointer?,_ patternBytes:UnsafeRawBufferPointer?)throws {
+                    for pixel in 0..<pixels {
+                        let offset=pixel*4,c=Int(coverageBytes[offset+3]);if c==0{continue}
+                        // Coverage is alpha only. ROP2 supplies the actual paint
+                        // SVG so transparent hatch holes remain unaffected;
+                        // operand RGB never changes the geometric coverage.
+                        if let sourceBytes {let alpha=Int(sourceBytes[offset+3]);guard alpha>0,alpha+2>=c else{throw invalid("transparent required source is unsupported")}}
+                        if let patternBytes {let alpha=Int(patternBytes[offset+3]);guard alpha>0,alpha+2>=c else{throw invalid("transparent required pattern is unsupported")}}
+                        let destinationAlpha=Int(destinationBytes[offset+3])
+                        func straight(_ bytes:UnsafeRawBufferPointer?,_ channel:Int)->UInt8 {
+                            guard let bytes else{return 0};let alpha=Int(bytes[offset+3])
+                            return UInt8(min(255,(Int(bytes[offset+channel])*255+alpha/2)/alpha))
+                        }
+                        for channel in 0..<3 {
+                            let old=Int(destinationBytes[offset+channel]),d=UInt8(min(255,old+255-destinationAlpha))
+                            let result=Int(apply(rop,straight(patternBytes,channel),straight(sourceBytes,channel),d))
+                            destinationBytes[offset+channel]=UInt8((result*c+old*(255-c)+127)/255)
+                        }
+                        destinationBytes[offset+3]=UInt8(c+(destinationAlpha*(255-c)+127)/255)
+                    }
+                }
+                if let sourcePixels {try sourcePixels.withUnsafeBytes { sourceBytes in
+                    if let patternPixels {try patternPixels.withUnsafeBytes {try evaluate(sourceBytes,$0)}}else{try evaluate(sourceBytes,nil)}
+                }}else if let patternPixels {try patternPixels.withUnsafeBytes {try evaluate(nil,$0)}}else{try evaluate(nil,nil)}
+            }
+        }
+        guard let space=CGColorSpace(name:CGColorSpace.sRGB),let provider=CGDataProvider(data:output as CFData),let image=CGImage(width:width,height:height,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:width*4,space:space,bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),provider:provider,decode:nil,shouldInterpolate:false,intent:.defaultIntent) else{throw invalid("cannot prepare composite image")}
+        let encoded=NSMutableData()
+        guard let encoder=CGImageDestinationCreateWithData(encoded,UTType.png.identifier as CFString,1,nil) else{throw invalid("cannot encode composite image")}
+        CGImageDestinationAddImage(encoder,image,nil)
+        guard CGImageDestinationFinalize(encoder),encoded.length<=outputLimit/2 else{throw invalid("composite PNG output exceeds limit")}
+        return "data:image/png;base64,"+(encoded as Data).base64EncodedString()
+    }
 }
 
 /// Bounded geometric EMF+ pen playback. Input paths are generated by the private
@@ -1112,6 +1235,12 @@ private func run() throws {
         catch ConversionError.invalid(let message) { nativeError(message); return [:] }
         catch { nativeError("Metafile pen geometry failed: " + String(describing: error)); return [:] }
     }
+    let rasterCompositor=NativeRasterComposite()
+    let rasterComposite:@convention(block)(JSValue,JSValue,JSValue,JSValue,Double,Double,Double)->String = {destination,source,pattern,coverage,width,height,rop in
+        do{return try autoreleasepool{try rasterCompositor.composite(destination,source,pattern,coverage,width,height,rop)}}
+        catch ConversionError.invalid(let message){nativeError(message);return ""}
+        catch{nativeError("Metafile raster operation failed: "+String(describing:error));return ""}
+    }
     var decodedBitmapPixels=0
     // The optional sixth argument contains EmfPlusPalette ARGB values. Existing
     // gradient/hatch callers have no palette and continue to pass five arguments.
@@ -1204,6 +1333,7 @@ private func run() throws {
     context.setObject(layoutText, forKeyedSubscript: "__turtleLayoutText" as NSString)
     context.setObject(positionedText,forKeyedSubscript:"__turtlePositionedText" as NSString)
     context.setObject(strokePath, forKeyedSubscript: "__turtleStrokePath" as NSString)
+    context.setObject(rasterComposite,forKeyedSubscript:"__turtleRasterComposite" as NSString)
     context.setObject(bitmap, forKeyedSubscript: "__turtleBitmapNative" as NSString)
     context.evaluateScript("""
     globalThis.__turtleBitmap = function(bytes,width,height,stride,format,palette){return __turtleBitmapNative(bytes,width,height,stride,format,palette === undefined ? [] : palette);};

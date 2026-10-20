@@ -32,5 +32,17 @@
     "license_file": "Licenses/BaseHmiTypes-MIT.txt",
     "license_sha256": "7f5f070c81949a0a2a38394c98219b1f060575c528911ebde1f973959750828b",
     "scope": "Classic EMF region combination, meta region and offset mask lifecycle adaptation"
+  },
+  "boolean_raster": {
+    "implementation": "Original TurtleGit Boolean raster adaptation (GPL-2.0-or-later)",
+    "scope": "Classic GDI ROP2 (16 functions) and ROP3 (256 truth tables); WMF DIBBITBLT/DIBSTRETCHBLT/STRETCHDIB/PATBLT and EMF BITBLT/STRETCHBLT/STRETCHDIBITS, bounded native destination/source/pattern/coverage composition",
+    "semantics": [
+      "https://learn.microsoft.com/en-us/windows/win32/gdi/binary-raster-operations",
+      "https://learn.microsoft.com/en-us/windows/win32/gdi/ternary-raster-operations",
+      "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-bitblt",
+      "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-patblt"
+    ],
+    "documentation": "docs/METAFILE-RASTER-PARITY.md",
+    "third_party_code_copied": false
   }
 }

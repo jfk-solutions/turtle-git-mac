@@ -98,3 +98,9 @@ than showing an incomplete successful drawing. See the
 [metafile renderer comparison](IMAGE-METAFILE-PARITY.md) and
 [native consumer comparison](METAFILE-CONSUMER-PARITY.md) for the supported record
 families, actual checks and remaining limits.
+
+Classic WMF/EMF drawings can include Boolean pen/brush and bitmap raster operations.
+TurtleGit displays those operations in drawing order using the existing image panes;
+the original files remain the comparison and Save inputs. Unsupported bitmap or
+operation variants produce an input error. See [metafile raster support](METAFILE-RASTER-PARITY.md)
+for supported records and current limits.

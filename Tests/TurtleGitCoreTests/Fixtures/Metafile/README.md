@@ -26,8 +26,9 @@ Successful inputs:
 - `clip-vector.wmf`: placeable WMF, red brush and intersection clip, 96×64/96 dpi.
 - `clip-144dpi.wmf`: same logical raster extent with 144 dpi physical metadata.
 
-`unsupported-region.emf` and `unsupported-rop.emf` intentionally request unsupported
-painting. They must fail explicitly, not produce a successful empty/approximate image.
+`unsupported-region.emf` intentionally requests unsupported painting and must fail
+explicitly. The historical filename `unsupported-rop.emf` contains valid R2_XORPEN;
+the Boolean raster batch now verifies its actual cyan/yellow pixels on a white DC.
 
 Painting and image placement corpus (original deterministic data):
 
@@ -359,3 +360,47 @@ large glyph outlines. This is an explicit refusal, not a partial rendering.
 
 These controls establish native outline placement and ownership, not Windows
 ClearType/subpixel raster certification or availability of every installed font.
+
+## Classic Boolean raster operations
+
+`generate-raster.py` writes only the original Boolean-family fixtures. It does
+not execute or read output from a renderer. The six `*-rop3-matrix-*` metafiles
+cover every truth byte for EMF BitBlt/StretchBlt/StretchDIBits and WMF
+DIBBitBlt/DIBStretchBlt/StretchDIB. Solid pattern F0, bitmap source CC and existing
+destination AA enumerate all eight P/S/D input combinations in the bits of one
+byte. Thus the independently specified expected gray byte equals the operation
+index. The two ROP2 matrices use CC/AA and independently expect the four-bit truth
+nibble repeated twice for each of the sixteen brush and pen operations.
+
+Additional originals cover source-independent PATBLT and missing DIBs, irrelevant
+null patterns, white opaque destination, successive clipped operations, saved
+mixing/mapping/clip state, device-fixed 2×2 pattern phase under world transforms,
+source crop/reflection/scale and separate fractional geometric coverage. Native
+color assertions use the actual named-sRGB pixel buffer; fractional coverage has
+an independent literal-SVG reference without metafile parsing or Boolean code.
+
+The `unsupported-raster-*` records retain explicit refusal for missing required
+operands, unsupported high flags, palette/device-dependent layouts, malformed
+offsets and records, nonfinite/rotated/sheared source transforms, invalid ROP2
+values and a canvas exceeding the native raster pixel budget. P-dependent null
+brush handling remains a deliberate refusal; this corpus does not claim its
+behavior as a no-op. The old unrelated refusal families retain their assertions.
+
+Four `wmf-rop3-without-bitmap-*` matrices independently frame the ReservedWORD
+layouts for BITBLT/STRETCHBLT and DIBBITBLT/DIBSTRETCHBLT. Each covers all sixteen
+source-independent P/D functions with nonzero ignored ReservedWORD and zero unused
+source extents. Required-source versions still refuse. The device-dependent source
+refusals contain complete Bitmap16 payloads rather than relying on short records.
+
+`classic-rop3-source-bottom-up.emf` and `wmf-rop3-source-bottom-up.wmf`
+store a positive-height four-row red/green/blue/yellow DIB. Their partial crop
+selects ySrc0/cySrc2 from the bottom-origin StretchDIBits/STRETCHDIB source,
+independently expecting blue/yellow instead of red/green.
+
+The no-source BitBlt/StretchBlt fixtures additionally use zero and skewed unused
+`XformSrc` metadata: PATCOPY must still use P, and DSTINVERT must still invert D.
+Source-dependent singular/nonfinite/rotated/sheared transforms remain refusals.
+The three missing-logical-palette refusals use actual indexed eight-bit
+`DIB_PAL_COLORS` WORD table entries, rather than truecolor data with no palette.
+The EMF ROP2 pen matrix intentionally declares a two-logical-unit solid
+`EMR_CREATEPEN` pen; interior truth samples require its full stroke coverage.
