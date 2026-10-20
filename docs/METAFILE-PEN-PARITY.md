@@ -125,8 +125,10 @@ Left, Outset and Right alignments are explicitly unsupported; the public GDI+
 Pen API exposes Center and Inset. Unknown enums and malformed optional arrays
 are refused. Inset with compound bands or triangular dash caps is refused as an
 invalid API combination. This extension does not
-finish classic EMF/WMF extended pen variants, unsupported raster operations,
-driver/glyph text, alternate record formats or Windows font substitution. The
+finish every classic EMF/WMF variant. The connected [classic extended-pen family](METAFILE-CLASSIC-PEN-PARITY.md)
+adds EMR_EXTCREATEPEN arrays, stroke brushes and bounded InsideFrame/state consumers;
+its checkpoint is recorded separately. Other painting records, alternate record
+formats and Windows font substitution remain separate compatibility work. The
 existing anti-alias, pixel-offset and compositing-quality records do not select
 GDI+ rasterization quality or its pixel grid. Standard anchor dimensions are
 compared with the [Wine GDI+ implementation](https://github.com/wine-mirror/wine/blob/master/dlls/gdiplus/graphics.c) policy; a Windows capture oracle is still

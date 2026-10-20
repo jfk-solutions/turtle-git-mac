@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-21",
+  "implementation_baseline": "ab161034",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Classic EMF EMR_EXTCREATEPEN object and DIB/style validation; geometric/cosmetic/zero-width/custom/alternate pens, caps/joins/InsideFrame, hatch/DIB brushes, affine mapping, clipping/SaveRestore/ROP2, dual UINT/FLOAT miter state, malformed whole-image refusal and actual native comparison/conflict consumers.",
+  "implementation": "Sources/TurtleGitMetafile/main.swift and pinned reconstructed patches/metafile-renderer.patch; no new external runtime or deadline change.",
+  "fixture_corpus": {
+    "valid": 45,
+    "malformed": 21,
+    "generator": "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate-extcreatepen.py"
+  },
+  "validation": {
+    "initial_runtime_build": {
+      "log": "build/qa/classic-extpen-runtime-build-2026-10-21.log",
+      "exit_code": 0,
+      "scope": "Universal macOS13 helper and structure validation; no painting claim."
+    },
+    "initial_app_build": {
+      "log": "build/qa/classic-extpen-app-build-2026-10-21.log",
+      "exit_code": 0,
+      "scope": "Process exit0, but SwiftCompile diagnostic and stale SynchronizationCommitList object make it insufficient app/receiver evidence."
+    },
+    "initial_core": {
+      "log": "build/qa/classic-extpen-core-2026-10-21.log",
+      "methods": 6,
+      "failed_methods": 2,
+      "assertion_failures": 3,
+      "elapsed_seconds": 6.857
+    },
+    "failures_and_repairs": [
+      "Round custom-dash corner expected completely white although its pixel intersects the round cap. Replaced with independently encoded native SVG edge-coverage oracle (one-byte tolerance), retaining full square-corner ink discrimination.",
+      "ALTERNATE one-unit dash plus half-pixel tangent shift merged alternating coverage into a uniformly tinted line. Repaired classic-only bounded device-pixel walk, preserving joined-path phase, clip/brush/ROP2 and existing work budgets; added independent vertical/diagonal/joined/scaled/clipped pixel assertions.",
+      "Added accepted NULL-brush no-ink and known cosmetic cap/join compatibility cases from the source review; affected Hatch method included in the focused follow-up.",
+      "The initial SVG AA follow-up differed by three bytes (179 vs182) because of bounded native outline flattening. Enlarged only the three dash-cap fixtures: now full square-only, full gap, and analytically partial circular-edge pixel cells independently distinguish geometry without equating curve rasterizers. No production change or app rebuild for this fixture correction.",
+      "The first native receiver assumed the legacy96x64 corpus size. New pen images are64x64. Corrected only classicPens expected sizes for the viewer and three conflict panes, retaining title/pane/stage/byte assertions and adding sample/actual-size diagnostics. No production edit or rebuild."
+    ],
+    "checkpoint_status": "Passed relevant Core and both native case/engine pairs after recorded focused repairs. App process exit0, current objects and embedded runtime verified; contradictory compiler diagnostic retained.",
+    "runtime_repair": {
+      "log": "build/qa/classic-extpen-runtime-repair-2026-10-21.log",
+      "exit_code": 0
+    },
+    "focused_core": {
+      "log": "build/qa/classic-extpen-core-repair-2026-10-21.log",
+      "methods": 3,
+      "failed_methods": 1,
+      "assertion_failures": 2,
+      "elapsed_seconds": 3.224,
+      "passed_methods": [
+        "CustomOddCosmeticAndBuiltInDashPixels",
+        "HatchDIBBrushesStateClipAndROP2"
+      ],
+      "remaining": "Independent SVG round cap sampled 182 vs native flattened outline179; one-byte oracle tolerance does not account for bounded curve flattening. Geometry oracle review pending; no production repair currently."
+    },
+    "caps_oracle_followup": {
+      "log": "build/qa/classic-extpen-caps-oracle-2026-10-21.log",
+      "methods": 1,
+      "failures": 0,
+      "elapsed_seconds": 0.566
+    },
+    "distinct_core_methods": 6,
+    "core_status": "All six relevant methods pass across initial group and affected follow-ups; full Core not repeated.",
+    "app_repair": {
+      "log": "build/qa/classic-extpen-app-repair-2026-10-21.log",
+      "exit_code": 0,
+      "scope": "Embedded repaired renderer, but native receiver rejected stale SynchronizationCommitList object from prior formatting-only edit."
+    },
+    "native_preflight": {
+      "log": "build/qa/classic-extpen-native-2026-10-21.log",
+      "receiver_started": false,
+      "failure": "Source-newer-than-object guard refused SynchronizationCommitList. Removed only its generated .o/.swiftdeps to force actual recompilation; application rebuild in progress."
+    },
+    "app_object_repair": {
+      "log": "build/qa/classic-extpen-app-object-repair-2026-10-21.log",
+      "exit_code": 0,
+      "freshness": "SynchronizationCommitList object regenerated; native receiver full source/object freshness guard and app-object link passed.",
+      "diagnostic": "Xcode still reports SwiftCompile failed with exit code0 alongside existing Blame actor-isolation warnings. This is retained as a build-tool diagnostic, not represented as a clean warning-free build.",
+      "runtime_provenance": {
+        "renderer_and_source_hashes_equal": true,
+        "embedded_signed_from_built_unsigned_binary": true,
+        "embedded_binary_hash_matches": true,
+        "scope": "Embedded helper is ad-hoc signed/relocated; its signed binary hash differs legitimately from unsigned reconstruction. No distribution signing claim."
+      }
+    },
+    "native_first_receiver": {
+      "log": "build/qa/classic-extpen-native-final-2026-10-21.log",
+      "pid": 51991,
+      "reaped": true,
+      "failure": "Fixture expected legacy96x64 dimensions for new64x64 extended-pen corpus; dimension enrollment repair pending. No case/engine pair passed."
+    },
+    "native": {
+      "log": "build/qa/classic-extpen-native-dimensions-2026-10-21.log",
+      "exit_code": 0,
+      "case": "classic-pens",
+      "distinct_case_engine_pairs": 2,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "sample_count": 5,
+      "malformed_count": 21,
+      "scope": "Actual offscreen native default/explicit IDiff, malformed whole-image refusal, dropped previews/reload, private three-stage custom/hatch/DIB conflict, held-read owner retirement, scope/Quit cancellation and unchanged original bytes/HEAD/index. Not all45 positive fixtures enrolled in native group; focused Core paints their related geometry."
+    },
+    "owned_receiver_pids": [
+      51991,
+      52112,
+      52273
+    ],
+    "independently_absent": true,
+    "no_ui_labels_changed": true,
+    "help_regeneration": "Not needed: no included help-topics guide changed.",
+    "peer_review": "Production source contract and focused device-pixel repair statically reviewed; no remaining definite blockers reported.",
+    "unrelated_work_preserved": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    },
+    "dialog_coverage_reconcile": "Passed;130dialogs,120partialreviews,10pending; no dialog certified complete."
+  },
+  "remaining": [
+    "Windows-exact cosmetic device stepping and antialiasing",
+    "Framed regions and flood fills",
+    "Unrepresented DDB patterns/dither aliases and legacy palettes",
+    "Fonts and pathological/numeric extremes beyond explicit native budgets",
+    "Physical image/Finder acceptance, signed distribution and minimum-OS/physical Intel acceptance",
+    "Complete current hosted CI and complete WMF/EMF/EMF+ parity"
+  ]
+}

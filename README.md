@@ -439,5 +439,8 @@ parallelogram copies, color-key transparency and alpha blending.
 Boolean combinations, clip offsets and independent metaregions.
 [EMF+ pen strokes](docs/METAFILE-PEN-PARITY.md) include linear nib transforms,
 compound bands, independent caps, joins, dashes and Center/Inset positioning.
+[Classic extended pens](docs/METAFILE-CLASSIC-PEN-PARITY.md) add geometric and
+cosmetic strokes, custom dash cycles, hatch/image brushes and InsideFrame shapes,
+with explicit device-pixel and legacy-brush limits.
 [Supported drawing behavior and remaining limits](docs/IMAGE-METAFILE-PARITY.md)
 remain explicit; rendering does not rewrite the original files.

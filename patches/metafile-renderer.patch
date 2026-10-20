@@ -1759,7 +1759,7 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 --- /dev/null
 +++ b/src/turtleGitRaster.js
-@@ -0,0 +1,290 @@
+@@ -0,0 +1,301 @@
 +// Original TurtleGit Boolean GDI playback. GPL-2.0-or-later, see NOTICE.
 +// SVG snapshots contain only the private renderer's escaped drawing stream.
 +module.exports=function installRaster({EmfDrawer,WmfDrawer,SvgContext,fail,u32,i32,f32,escape,normalizePaintColors}) {
@@ -1830,6 +1830,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    return decodeDib(bytes,offset,size,offset+size,bytes.length-offset-size,usage,d);
 +  };
 +  const brushes=require('./turtleGitRasterBrush')({fail,u32,i32,escape,decodeDib});
++  const classicPen=require('./turtleGitClassicPen')({fail,u32,i32,escape,decodeDib,brushes,clipped,composite});
 +  function svg(ctx,nodes){
 +    const saved=ctx._nodes;ctx._nodes=nodes;let result;try{result=ctx.getSvg();}finally{ctx._nodes=saved;}
 +    const x=ctx._turtleGdiOffsetX||0,y=ctx._turtleGdiOffsetY||0,domain='x="'+(-x)+'" y="'+(-y)+'" width="'+(ctx.canvas.width+2*x)+'" height="'+(ctx.canvas.height+2*y)+'"';
@@ -1851,6 +1852,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +      const d=this._turtleRasterDrawer,mode=d&&d._turtleRasterMode||13;
 +      if(!d||!d._turtleRasterVector)return paint.apply(this,args);
 +      const fill=name==='fill'||name==='fillRect',brush=d._turtleRasterBrush,patterned=fill&&brush&&brush.style!==0&&brush.style!==1;
++      if(!fill&&classicPen.stroke(d,name,args))return;
 +      const pen=d.gdiObjectManager._currentPen;
 +      if(!fill&&(pen?((pen.style&15)===5||pen.color==='transparent'):d._penNull))return;
 +      if(fill&&brush&&brush.style===1)return;
@@ -1977,8 +1979,8 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    if(!masked&&rect.some((v,i)=>i>1&&v<=0))fail('mirrored transparent/alpha source is unsupported');
 +    advancedTransfer(d,m,dib,rect,mask,maskRect,options);
 +  }
-+  function snapshot(d){return{mode:d._turtleRasterMode||13,brush:d._turtleRasterBrush,bk:d._turtleRasterBkColor,bkMode:d._turtleRasterBkMode,origin:d._turtleRasterBrushOrigin&&d._turtleRasterBrushOrigin.slice(),pen:d.gdiObjectManager._currentPen,penNull:d._penNull,penStock:d._penStockBlack,pos:d.currentPos&&{...d.currentPos},posX:d.currentPosX,posY:d.currentPosY,hasPos:d.hasValidPosition,ct:{...d.coordinateTransformer}};}
-+  function restore(d,s){d._turtleRasterMode=s.mode;d._turtleRasterBrush=s.brush;d._turtleRasterBkColor=s.bk;d._turtleRasterBkMode=s.bkMode;d._turtleRasterBrushOrigin=s.origin;d.gdiObjectManager._currentBrush=s.brush;d.gdiObjectManager._currentPen=s.pen;d._penNull=s.penNull;d._penStockBlack=s.penStock;d.currentPos=s.pos;d.currentPosX=s.posX;d.currentPosY=s.posY;d.hasValidPosition=s.hasPos;brushes.refresh(d);}
++  function snapshot(d){return{miterLimit:d.ctx.miterLimit,mode:d._turtleRasterMode||13,brush:d._turtleRasterBrush,bk:d._turtleRasterBkColor,bkMode:d._turtleRasterBkMode,origin:d._turtleRasterBrushOrigin&&d._turtleRasterBrushOrigin.slice(),pen:d.gdiObjectManager._currentPen,penNull:d._penNull,penStock:d._penStockBlack,pos:d.currentPos&&{...d.currentPos},posX:d.currentPosX,posY:d.currentPosY,hasPos:d.hasValidPosition,ct:{...d.coordinateTransformer}};}
++  function restore(d,s){d.ctx.miterLimit=s.miterLimit;d._turtleRasterMode=s.mode;d._turtleRasterBrush=s.brush;d._turtleRasterBkColor=s.bk;d._turtleRasterBkMode=s.bkMode;d._turtleRasterBrushOrigin=s.origin;d.gdiObjectManager._currentBrush=s.brush;d.gdiObjectManager._currentPen=s.pen;d._penNull=s.penNull;d._penStockBlack=s.penStock;d.currentPos=s.pos;d.currentPosX=s.posX;d.currentPosY=s.posY;d.hasValidPosition=s.hasPos;brushes.refresh(d);}
 +  const wp=WmfDrawer.prototype,ep=EmfDrawer.prototype;
 +  // Preserve ROP/selected brushes alongside existing EMF clip/mapping snapshots.
 +  const capture=ep._captureDcState,release=ep._restoreDcState;
@@ -2007,6 +2009,15 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  const emf=ep.processEmfRecordType;
 +  ep.processEmfRecordType=function(type,data){
 +    if(this._turtlePlusSeen&&!this._turtleGetDC&&type!==70&&type!==14&&type!==1)return;
++    if(type===95){classicPen.create(this,data);return;}
++    if(type===58){
++      // Normative MS-EMF specifies UINT32; Appendix A note 90 documents
++      // Windows FLOAT playback. Valid domains do not overlap at this bound.
++      if(data.length!==4)fail('invalid classic miter limit extent');
++      const raw=u32(data,0),limit=raw>=1&&raw<=1000000?raw:f32(data,0);
++      if(!Number.isFinite(limit)||limit<1||limit>1000000)fail('invalid or oversized classic miter limit');
++      this.ctx.miterLimit=limit;return;
++    }
 +    if(type===20){if(data.length!==4)fail('invalid EMF ROP2');const mode=u32(data,0);if(mode<1||mode>16)fail('invalid EMF binary raster mode');this._turtleRasterMode=mode;return;}
 +    if(brushes.handle(this,'emf',type,data))return;
 +    if([78,79,114,116].includes(type)){advancedRecord(this,type,data);return;}
@@ -2024,7 +2035,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +      transfer(this,op,i32(data,16),i32(data,20),i32(data,stretchDib?64:24),i32(data,stretchDib?68:28),dib,sx,sy,sw,sh);return;
 +    }
 +    const ctx=this.ctx,oldDrawer=ctx._turtleRasterDrawer,oldVector=this._turtleRasterVector,regionBrush=type===71?{brush:this._turtleRasterBrush,selected:this.gdiObjectManager._currentBrush,fill:ctx.fillStyle}:null;ctx._turtleRasterDrawer=this;this._turtleRasterVector=emfVector.has(type)&&this.pathState!=='active';
-+    try{return emf.call(this,type,data);}finally{ctx._turtleRasterDrawer=oldDrawer;this._turtleRasterVector=oldVector;if(regionBrush){this._turtleRasterBrush=regionBrush.brush;this.gdiObjectManager._currentBrush=regionBrush.selected;ctx.fillStyle=regionBrush.fill;}}
++    try{if(classicPen.shape(this,type,data))return;return emf.call(this,type,data);}finally{ctx._turtleRasterDrawer=oldDrawer;this._turtleRasterVector=oldVector;if(regionBrush){this._turtleRasterBrush=regionBrush.brush;this.gdiObjectManager._currentBrush=regionBrush.selected;ctx.fillStyle=regionBrush.fill;}}
 +  };
 +  const wmf=wp.processRecord;
 +  wp.processRecord=function(record){const type=record.functionId,data=record.data;
@@ -2050,11 +2061,10 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    try{return wmf.call(this,record);}finally{ctx._turtleRasterDrawer=oldDrawer;this._turtleRasterVector=oldVector;}
 +  };
 +};
-
 diff --git a/src/turtleGitRasterBrush.js b/src/turtleGitRasterBrush.js
 --- /dev/null
 +++ b/src/turtleGitRasterBrush.js
-@@ -0,0 +1,153 @@
+@@ -0,0 +1,164 @@
 +// Copyright (C) TurtleGit contributors. GPL-2.0-or-later.
 +// Original classic GDI brush playback; no imported brush implementation.
 +module.exports=function createRasterBrush({fail,u32,i32,escape,decodeDib}) {
@@ -2206,7 +2216,18 @@ diff --git a/src/turtleGitRasterBrush.js b/src/turtleGitRasterBrush.js
 +    }
 +    return false;
 +  }
-+  return {handle,refresh,pattern};
++  function penBrush(d,style,c,h,decoded){
++    if([3,5,6,7,8].includes(style))return bitmap(d,decoded);
++    if(style===2&&(h===8||h===10))return {type:'brush',style:0,color:c,dynamic:h===8?'text':'background'};
++    return solid(style,c,h);
++  }
++  function penPattern(d,brush){
++    const saved=d._turtleRasterBrush;
++    if(brush.dynamic)brush={...brush,color:brush.dynamic==='text'?d.textColor:d._turtleRasterBkColor};
++    d._turtleRasterBrush=brush;
++    try{return pattern(d);}finally{d._turtleRasterBrush=saved;}
++  }
++  return {handle,refresh,pattern,penBrush,penPattern};
 +};
 diff --git a/src/utils/nestedMetafilePlayer.js b/src/utils/nestedMetafilePlayer.js
 --- a/src/utils/nestedMetafilePlayer.js
@@ -2219,3 +2240,133 @@ diff --git a/src/utils/nestedMetafilePlayer.js b/src/utils/nestedMetafilePlayer.
          // Callers are EMF+ DrawImage handlers; wording kept for log continuity.
          console.log('EMF+ nested EMF render failed:', /** @type {Error} */ (e).message);
          return null;
+diff --git a/src/turtleGitClassicPen.js b/src/turtleGitClassicPen.js
+--- /dev/null
++++ b/src/turtleGitClassicPen.js
+@@ -0,0 +1,126 @@
++// Original TurtleGit classic extended-pen playback. GPL-2.0-or-later.
++// EMR_EXTCREATEPEN offsets include the record's eight-byte header; data does not.
++module.exports=function({fail,u32,i32,escape,decodeDib,brushes,clipped,composite}) {
++  const identity=[1,0,0,1,0,0];
++  function need(b,n){if(b.length<n)fail('truncated classic extended pen');}
++  function color(n){return '#'+[n&255,n>>>8&255,n>>>16&255].map(v=>v.toString(16).padStart(2,'0')).join('');}
++  function create(d,data){
++    need(data,44);
++    const handle=u32(data,0),style=u32(data,20),width=u32(data,24),brushStyle=u32(data,28),c=u32(data,32),hatch=u32(data,36),count=u32(data,40);
++    const line=style&15,geometric=!!(style&0x10000),cap=style&0xf00,join=style&0xf000;
++    if(!handle||handle>=0x80000000||d.gdiObjectManager.objectTable.has(handle))fail('invalid or duplicate extended pen handle');
++    if(style&~0x1330f||line>8||![0,0x100,0x200].includes(cap)||![0,0x1000,0x2000].includes(join))fail('unsupported extended pen style bits');
++    if(width>65536||(!geometric&&width!==1))fail('invalid extended pen width');
++    if((line===8&&geometric)||(line===6&&!geometric))fail('invalid extended pen type/style combination');
++    if(count>16||44+count*4>data.length||(line===7?count===0:count!==0))fail('invalid extended pen style array extent');
++    const entries=Array.from({length:count},(_,i)=>u32(data,44+i*4));
++    if(entries.some(v=>v>1048576)||(count&&entries.every(v=>v===0)))fail('invalid or oversized extended pen dash entry');
++    d.ctx._turtleClassicPenEntries=(d.ctx._turtleClassicPenEntries||0)+count;
++    if(d.ctx._turtleClassicPenEntries>1048576)fail('aggregate extended pen dash budget exceeded');
++    const bmi=u32(data,4),cbBmi=u32(data,8),bits=u32(data,12),cbBits=u32(data,16),start=52+count*4;
++    let bitmap=null;
++    if(bmi||cbBmi||bits||cbBits){
++      if(!bmi||!cbBmi||!bits||!cbBits||bmi<start||bits<start)fail('invalid extended pen DIB offsets');
++      bitmap=decodeDib(data,bmi-8,cbBmi,bits-8,cbBits,c&65535,d);
++    }
++    const patterned=[3,5,6,7,8].includes(brushStyle);
++    if(patterned&&!bitmap)fail('missing extended pen pattern bitmap');
++    if(!patterned&&bitmap)fail('unexpected extended pen bitmap operand');
++    if(![0,1,2,3,5,6,7,8].includes(brushStyle))fail('unsupported extended pen brush style');
++    if(!geometric&&!(brushStyle===0||brushStyle===1&&line===5||brushStyle===2&&(hatch===8||hatch===10)))fail('cosmetic pen requires a solid brush');
++    const brush=brushes.penBrush(d,brushStyle,color(c),hatch,bitmap);
++    const pen={type:'pen',style,width,color:line===5?'transparent':color(c),brush,entries,geometric,_turtleExtendedPen:true};
++    d.gdiObjectManager.createObjectAt(handle,pen);
++  }
++  function selected(d){const p=d.gdiObjectManager._currentPen;return p&&p._turtleExtendedPen?p:null;}
++  function mapping(d){
++    const t=d.coordinateTransformer,o=t.transform(0,0),x=t.transform(1,0),y=t.transform(0,1);
++    const m=[x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,0,0];
++    if(m.some(v=>!Number.isFinite(v)||Math.abs(v)>1e9)||Math.abs(m[0]*m[3]-m[1]*m[2])<1e-14)fail('invalid extended pen affine mapping');
++    return m;
++  }
++  function outline(d,pen,path){
++    if(!path)return null;
++    if(path.length>8*1024*1024||typeof globalThis.__turtleStrokePath!=='function')fail('extended pen outline adapter unavailable or path budget exceeded');
++    const line=pen.style&15,width=pen.width,unit=width||1;
++    let dash=[];
++    if(line===7)dash=pen.entries.map(v=>v/unit);
++    else if(line===8)dash=[1,1];
++    else if(line>=1&&line<=4){const u=pen.geometric?unit:1;dash=([[],[5,5],[1,1],[5,5,1,5],[5,5,1,1,1,5]][line]).map(v=>v*u/unit);}
++    const cap=pen.geometric?({0:2,256:1,512:0}[pen.style&0xf00]):0;
++    const join=pen.geometric?({0:2,4096:1,8192:3}[pen.style&0xf000]):0;
++    const result=__turtleStrokePath(path,{width,transform:pen.geometric?mapping(d):identity,world:identity,startCap:cap,endCap:cap,join,miterLimit:d.ctx.miterLimit===undefined?10:d.ctx.miterLimit,dash,dashCap:cap,classicDashZeros:true,classicAlternate:line===8,dashOffset:0,alignment:0,fillRule:'nonzero'});
++    if(!result||typeof result.path!=='string'||result.path.length>32*1024*1024)fail('invalid extended pen outline');
++    return result.path;
++  }
++  function stroke(d,name,args){
++    const pen=selected(d);if(!pen)return false;
++    if((pen.style&15)===5||pen.brush.style===1)return true;
++    const ctx=d.ctx,saved=ctx._segments,subpath=ctx._hasSubpath;
++    let path;
++    try {if(name==='strokeRect'){ctx.beginPath();ctx.rect(...args);}path=outline(d,pen,ctx._d());}
++    finally{if(name==='strokeRect'){ctx._segments=saved;ctx._hasSubpath=subpath;}}
++    if(!path)return true;
++    // Device-pixel cosmetic pens use pixel centers; the geometric outline
++    // engine otherwise centers an integer path on two antialiased half rows.
++    const shape='<path d="'+escape(path)+'" fill="white" fill-rule="nonzero" '+((!pen.geometric||!pen.width)&&(pen.style&15)!==8?'transform="translate(.5 .5)" ':'')+ctx._attr()+'/>';
++    const ink=brushes.penPattern(d,pen.brush);if(ink===null)return true;
++    const id='turtle-extended-pen-'+ctx._defs.length;
++    ctx._defs.push('<mask id="'+id+'" maskUnits="userSpaceOnUse" x="0" y="0" width="'+ctx.canvas.width+'" height="'+ctx.canvas.height+'">'+shape+'</mask>');
++    let source=['<g mask="url(#'+id+')">'+ink+'</g>'];
++    if(d._turtleClassicInsideBounds)source=['<g clip-path="url(#'+d._turtleClassicInsideBounds+')">'+source.join('')+'</g>'];
++    source=clipped(d,source);
++    const mode=d._turtleRasterMode||13;
++    if(mode===11)return true;
++    if(mode===13){ctx._nodes.push(...source);return true;}
++    // Pattern holes are transparent coverage, just as ordinary hatch fills;
++    // apply ROP2 once per actual painted pixel, never to an invented solid pen.
++    composite(d,ctx._nodes.slice(),source,null,source,(mode-1)*17);
++    return true;
++  }
++  function shape(d,type,data){
++    const pen=selected(d);if(!pen||![42,43,44,45,46,47,55].includes(type)||d.pathState==='active')return false;
++    need(data,type===44?24:type>=45?32:16);
++    const ctx=d.ctx,t=d.coordinateTransformer;
++    let l=i32(data,0),top=i32(data,4),r=i32(data,8),b=i32(data,12);
++    if(l>r)[l,r]=[r,l];if(top>b)[top,b]=[b,top];if(l===r||top===b)return true;
++    let nextPosition=null;
++    const original=[l,top,r,b],inside=pen.geometric&&(pen.style&15)===6;
++    if(inside){const ix=Math.min(pen.width/2,(r-l)/2-1e-6),iy=Math.min(pen.width/2,(b-top)/2-1e-6);l+=ix;r-=ix;top+=iy;b-=iy;}
++    function point(x,y){const p=t.transform(x,y);if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||Math.max(Math.abs(p.x),Math.abs(p.y))>1e9)fail('extended pen shape coordinate exceeds limit');return p;}
++    function move(x,y){const p=point(x,y);ctx.moveTo(p.x,p.y);}
++    function line(x,y){const p=point(x,y);ctx.lineTo(p.x,p.y);}
++    function curve(a,c,e){a=point(...a);c=point(...c);e=point(...e);ctx.bezierCurveTo(a.x,a.y,c.x,c.y,e.x,e.y);}
++    function arc(cx,cy,rx,ry,start,sweep,begin){
++      const pieces=Math.max(1,Math.ceil(Math.abs(sweep)/(Math.PI/2))),step=sweep/pieces;
++      if(begin)move(cx+rx*Math.cos(start),cy+ry*Math.sin(start));
++      for(let i=0;i<pieces;i++){const a=start+i*step,z=a+step,k=4/3*Math.tan(step/4),x=Math.cos(a),y=Math.sin(a),xx=Math.cos(z),yy=Math.sin(z);curve([cx+rx*(x-k*y),cy+ry*(y+k*x)],[cx+rx*(xx+k*yy),cy+ry*(yy-k*xx)],[cx+rx*xx,cy+ry*yy]);}
++    }
++    ctx.beginPath();
++    if(type===43){move(l,top);line(r,top);line(r,b);line(l,b);ctx.closePath();}
++    else if(type===44){
++      const rx=Math.min(Math.abs(i32(data,16))/2,(r-l)/2),ry=Math.min(Math.abs(i32(data,20))/2,(b-top)/2);
++      if(!rx||!ry){move(l,top);line(r,top);line(r,b);line(l,b);ctx.closePath();}
++      else {move(l+rx,top);line(r-rx,top);arc(r-rx,top+ry,rx,ry,-Math.PI/2,Math.PI/2,false);line(r,b-ry);arc(r-rx,b-ry,rx,ry,0,Math.PI/2,false);line(l+rx,b);arc(l+rx,b-ry,rx,ry,Math.PI/2,Math.PI/2,false);line(l,top+ry);arc(l+rx,top+ry,rx,ry,Math.PI,Math.PI/2,false);ctx.closePath();}
++    } else {
++      const cx=(l+r)/2,cy=(top+b)/2,rx=(r-l)/2,ry=(b-top)/2;
++      if(type===42){arc(cx,cy,rx,ry,0,2*Math.PI,true);ctx.closePath();}
++      else {
++        const a=Math.atan2((i32(data,20)-cy)/ry,(i32(data,16)-cx)/rx),z=Math.atan2((i32(data,28)-cy)/ry,(i32(data,24)-cx)/rx),clockwise=d.arcDirection===2;
++        let sweep=z-a;if(clockwise){while(sweep<=0)sweep+=2*Math.PI;}else{while(sweep>=0)sweep-=2*Math.PI;}
++        if(type===47){move(cx,cy);line(cx+rx*Math.cos(a),cy+ry*Math.sin(a));arc(cx,cy,rx,ry,a,sweep,false);ctx.closePath();}
++        else {
++          if(type===55){move(d.currentPos.x,d.currentPos.y);line(cx+rx*Math.cos(a),cy+ry*Math.sin(a));arc(cx,cy,rx,ry,a,sweep,false);nextPosition={x:cx+rx*Math.cos(a+sweep),y:cy+ry*Math.sin(a+sweep)};}
++          else {arc(cx,cy,rx,ry,a,sweep,true);if(type===46)ctx.closePath();}
++        }
++      }
++    }
++    const old=d._turtleClassicInsideBounds;
++    try {
++      if(inside&&type!==55){const p=original.map((v,i)=>v),points=[[p[0],p[1]],[p[2],p[1]],[p[2],p[3]],[p[0],p[3]]].map(v=>point(...v));const id='turtle-extended-inside-'+ctx._defs.length;ctx._defs.push('<clipPath id="'+id+'"><polygon points="'+points.map(p=>p.x+','+p.y).join(' ')+'"/></clipPath>');d._turtleClassicInsideBounds=id;}
++      if(type!==45&&type!==55)ctx.fill();ctx.stroke();if(nextPosition)d.currentPos=nextPosition;
++    }finally{d._turtleClassicInsideBounds=old;}
++    return true;
++  }
++  return {create,stroke,shape};
++};

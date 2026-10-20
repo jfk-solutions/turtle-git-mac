@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The [classic EMF extended-pen family](METAFILE-CLASSIC-PEN-PARITY.md) connects
+custom/alternate device and geometric strokes, cap/join/InsideFrame geometry,
+hatch/DIB brushes, transforms, clip/ROP2 and saved miter state. Six relevant Core
+methods pass across the grouped checkpoint and focused repairs. Both offscreen native
+case/engine pairs also pass. The checkpoint and retained build diagnostics are recorded in
+[dated evidence](qa/classic-extpen-2026-10-21.json); this remains a partial image
+rendering family, with region/flood painting and full format acceptance open.
+
 The [Synchronization commit-list family](SYNC-COMMIT-LIST-PARITY.md) adds captured
 In/Out menus, source SVN metadata, scoped layouts and confirmed content-fit reset,
 font-sized native rows, owned root feedback and event-specific Shift comparisons.

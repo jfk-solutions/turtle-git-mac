@@ -300,7 +300,7 @@ private final class NativeRasterComposite {
 /// the nib's coordinate space with a conservative device-space error bound.
 private final class NativeStrokeGeometry {
     private struct Figure { var points:[CGPoint]; var closed:Bool }
-    private struct Piece { var points:[CGPoint]; var closed:Bool; var start:Bool; var end:Bool }
+    private struct Piece { var points:[CGPoint]; var closed:Bool; var start:Bool; var end:Bool; var dotDirection:CGPoint?=nil }
     private struct Scanner {
         let bytes:[UInt8]; var offset=0
         mutating func skip() { while offset < bytes.count && [9,10,13,32,44].contains(bytes[offset]) { offset += 1 } }
@@ -460,14 +460,27 @@ private final class NativeStrokeGeometry {
         let values=pattern.count%2==0 ? pattern:pattern+pattern,total=values.reduce(0,+)*width
         guard total.isFinite,total>1e-10 else {throw Self.invalid("dash cycle is too small")}
         var phase=(offset*width).truncatingRemainder(dividingBy:total);if phase<0 {phase += total}
-        var index=0;while phase>=values[index]*width {phase -= values[index]*width;index=(index+1)%values.count}
+        var index=0
+        while phase>0 {
+            let span=values[index]*width
+            if span>phase {break}
+            phase -= span;index=(index+1)%values.count
+        }
         var remaining=values[index]*width-phase,result:[Piece]=[],active:[CGPoint]=[],activeStart=false,steps=0
         let points=figure.closed ? figure.points+[figure.points[0]]:figure.points
         for segment in 0..<max(0,points.count-1) {
             let a=points[segment],b=points[segment+1],distance=length(sub(b,a));if distance<1e-10 {continue};let direction=unit(sub(b,a));var travelled:CGFloat=0
             while travelled<distance-1e-10 {
                 steps += 1;guard steps<=131072 else {throw Self.invalid("dash subdivision budget exceeded")}
-                let step=min(remaining,distance-travelled),begin=add(a,mul(direction,travelled)),end=add(a,mul(direction,travelled+step))
+                let begin=add(a,mul(direction,travelled))
+                if remaining==0 {
+                    // Classic USERSTYLE permits true zero lengths. Preserve a
+                    // zero on-segment as its cap, not a fabricated epsilon dash.
+                    if index%2==0 {result.append(.init(points:[begin,begin],closed:false,start:false,end:false,dotDirection:direction))}
+                    index=(index+1)%values.count;remaining=values[index]*width
+                    continue
+                }
+                let step=min(remaining,distance-travelled),end=add(a,mul(direction,travelled+step))
                 guard step>1e-12 else {throw Self.invalid("dash length is below geometry precision")}
                 if index%2==0 {if active.isEmpty {active=[begin];activeStart=segment==0 && travelled<1e-10};active.append(end)}
                 travelled += step;remaining -= step
@@ -483,6 +496,35 @@ private final class NativeStrokeGeometry {
         } else if figure.closed,result.count==1,result[0].start,result[0].end {result[0].closed=true}
         if figure.closed {for i in result.indices {result[i].start=false;result[i].end=false}}
         return result
+    }
+    /// PS_ALTERNATE is a cosmetic device-pixel pattern, not an antialiased
+    /// one-unit SVG dash shifted half a pixel along its tangent. Walk the
+    /// bounded flattened device path and emit alternate complete pixel cells.
+    private func alternatePixels(_ figure:Figure,to path:CGMutablePath) throws {
+        guard figure.points.count>1 else{return}
+        let points=figure.closed ? figure.points+[figure.points[0]]:figure.points
+        var phase=0,steps=0
+        for i in 0..<(points.count-1) {
+            var x=Int(points[i].x.rounded()),y=Int(points[i].y.rounded())
+            let endX=Int(points[i+1].x.rounded()),endY=Int(points[i+1].y.rounded())
+            let dx=abs(endX-x),dy = -abs(endY-y),sx=x<endX ? 1:-1,sy=y<endY ? 1:-1
+            guard max(dx,-dy)<=131072-steps else {throw Self.invalid("alternate device-pixel budget exceeded")}
+            var error=dx+dy
+            // Exclude the terminal cell: the next segment owns its vertex,
+            // and an open GDI line does not draw the final endpoint twice.
+            while x != endX || y != endY {
+                steps += 1
+                if phase%2==0 {
+                    guard primitives<32768,outlinePoints<=131068 else {throw Self.invalid("alternate outline budget exceeded")}
+                    let a=CGPoint(x:CGFloat(x),y:CGFloat(y))
+                    try polygon([a,CGPoint(x:CGFloat(x+1),y:CGFloat(y)),CGPoint(x:CGFloat(x+1),y:CGFloat(y+1)),CGPoint(x:CGFloat(x),y:CGFloat(y+1))],to:path)
+                }
+                phase += 1
+                let twice=2*error
+                if twice>=dy {error += dy;x += sx}
+                if twice<=dx {error += dx;y += sy}
+            }
+        }
     }
     private func sideJoin(_ p:CGPoint,_ t0:CGPoint,_ t1:CGPoint,_ offset:CGFloat,width:CGFloat,join:Int,limit:CGFloat,tolerance:CGFloat) throws ->[CGPoint] {
         let u=add(p,mul(normal(t0),offset)),v=add(p,mul(normal(t1),offset)),turn=cross(t0,t1),cosine=max(-1,min(1,dot(t0,t1)))
@@ -648,6 +690,14 @@ private final class NativeStrokeGeometry {
         for piece in pieces {
             guard piece.points.count>1 else {continue}
             var points=piece.points
+            if let direction=piece.dotDirection {
+                for band in stride(from:0,to:bands.count,by:2) {
+                    let low=(bands[band]-0.5)*width,high=(bands[band+1]-0.5)*width
+                    try cap(points[0],direction:direction,low:low,high:high,kind:dashCap,to:path,tolerance:tolerance)
+                    try cap(points[0],direction:mul(direction,-1),low:-high,high:-low,kind:dashCap,to:path,tolerance:tolerance)
+                }
+                continue
+            }
             if piece.closed,points.last==points.first {points.removeLast()}
             let count=points.count,segments=piece.closed ? count:count-1
             guard segments*max(1,bands.count/2)<=32768-primitives else {throw Self.invalid("stroke primitive budget exceeded")}
@@ -696,10 +746,12 @@ private final class NativeStrokeGeometry {
         let rawWidth=number(options,"width",1),rawLimit=number(options,"miterLimit",10),rawOffset=number(options,"dashOffset",0)
         guard rawWidth.isFinite,rawWidth>=0,rawWidth<=1e6,rawLimit.isFinite,rawLimit>=1,rawLimit<=1e6,rawOffset.isFinite,abs(rawOffset)<=1e9 else {throw Self.invalid("invalid pen dimensions")}
         func enumeration(_ name:String,_ allowed:[Int],_ fallback:Int) throws ->Int {let n=number(options,name,Double(fallback));guard n.isFinite,n>=0,n<=255,n.rounded()==n,allowed.contains(Int(n)) else {throw Self.invalid("unsupported "+name)};return Int(n)}
-        let startCap=try enumeration("startCap",[0,1,2,3,16,17,18,19,20,255],0),endCap=try enumeration("endCap",[0,1,2,3,16,17,18,19,20,255],0),dashCap=try enumeration("dashCap",[0,2,3],0),join=try enumeration("join",[0,1,2,3],0),alignment=try enumeration("alignment",[0,1],0)
+        let startCap=try enumeration("startCap",[0,1,2,3,16,17,18,19,20,255],0),endCap=try enumeration("endCap",[0,1,2,3,16,17,18,19,20,255],0),dashCap=try enumeration("dashCap",[0,1,2,3],0),join=try enumeration("join",[0,1,2,3],0),alignment=try enumeration("alignment",[0,1],0)
         var bands=try array(options,"compound",[]);if bands.isEmpty {bands=[0,1]}
         guard bands.count>=2,bands.count%2==0,bands[0]>=0,bands[bands.count-1]<=1,zip(bands,bands.dropFirst()).allSatisfy({$0<$1}) else {throw Self.invalid("invalid compound bands")}
-        let dash=try array(options,"dash",[]);guard dash.allSatisfy({$0>0}) else {throw Self.invalid("invalid dash pattern")}
+        let dash=try array(options,"dash",[])
+        let classicZeros=options.forProperty("classicDashZeros")?.toBool()==true
+        guard dash.allSatisfy({classicZeros ? $0>=0:$0>0}),dash.isEmpty || dash.contains(where:{$0>0}) else {throw Self.invalid("invalid dash pattern")}
         guard alignment==0 || (bands==[0,1] && dashCap != 3) else {throw Self.invalid("inset alignment cannot combine with compound or triangle dash caps")}
         let matrix=try array(options,"transform",[1,0,0,1,0,0]),worldValues=try array(options,"world",[1,0,0,1,0,0])
         guard matrix.count==6,worldValues.count==6 else {throw Self.invalid("invalid affine matrix")}
@@ -717,8 +769,11 @@ private final class NativeStrokeGeometry {
         let dashOffset = CGFloat(rawOffset)
         let miterLimit = CGFloat(rawLimit)
         let ordinary=CGMutablePath(),inset=CGMutablePath(),closedFill=CGMutablePath()
+        let alternate=options.forProperty("classicAlternate")?.toBool()==true
+        guard !alternate || (rawWidth==1 && matrix==[1,0,0,1,0,0] && worldValues==[1,0,0,1,0,0]) else {throw Self.invalid("invalid cosmetic alternate mapping")}
         var caps:CGPath=CGMutablePath()
         for figure in figures {
+            if alternate {try alternatePixels(figure,to:ordinary);continue}
             if !figure.closed,figure.points.count>1 {
                 if let customStart {
                     let shape=try customInk(customStart,at:figure.points[0],direction:unit(sub(figure.points[0],figure.points[1])),width:width,tolerance:tolerance)

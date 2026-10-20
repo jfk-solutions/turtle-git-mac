@@ -92,6 +92,11 @@ tracked by the image-comparison parity documentation.
 
 ## Painting compatibility inputs
 
+The [classic extended-pen family](METAFILE-CLASSIC-PEN-PARITY.md) connects custom
+and alternate dashes, device/logical-width strokes, cap/join and miter state,
+hatch/DIB pen brushes, InsideFrame shapes, saved context and clipped ROP2 paint.
+Its native and format acceptance is separate from broader WMF/EMF completion.
+
 The [painting extension](METAFILE-PAINTING-PARITY.md) adds bounded parsers and
 painting within the same captured-byte helper contract. Native CoreSVG does not
 reliably implement the required gradient spread/colors or bitmap patterns, so

@@ -1825,3 +1825,133 @@ extension MetafileImageTests {
         }
     }
 }
+
+extension MetafileImageTests {
+    func testClassicExtendedPenCustomOddCosmeticAndBuiltInDashPixels() throws {
+        let custom=try booleanPixels("classic-extpen-custom.emf")
+        for x in [10,22,34,46] {transferRGB(custom,x,16,[255,0,0],"Geometric logical custom dash")}
+        for x in [18,30,42,54] {booleanGray(custom,x,16,255,"Custom dash gap")}
+        let mixedZero=try booleanPixels("classic-extpen-mixed-zero.emf")
+        for x in 10..<54 {transferRGB(mixedZero,x,16,[255,0,0],"A mixed-zero user dash retains its nonzero on lengths and zero gaps")}
+        let zeroRound=try booleanPixels("classic-extpen-zero-on-round.emf"),zeroFlat=try booleanPixels("classic-extpen-zero-on-flat.emf")
+        // Nonzero gap advances a zero-length on segment. Round caps paint real
+        // dots at those positions; flat caps have no area and paint nothing.
+        for x in [8,12,16,20,24,28,32,36,40,44,48,52] {transferRGB(zeroRound,x,32,[255,0,0],"Round cap retains zero-length user dash dot")}
+        XCTAssertGreaterThan(zeroRound.pixel(10,30)[1],100,"Zero-length round dots must retain curved inter-dot gaps rather than a solid wide line")
+        for y in 28..<36 {for x in 10..<54 {booleanGray(zeroFlat,x,y,255,"Flat zero-length on segments have no painted area")}}
+        let odd=try booleanPixels("classic-extpen-odd.emf")
+        for x in [10,20,31,38,48] {transferRGB(odd,x,16,[255,0,0],"Odd dash sequence alternates across wrap")}
+        for x in [18,25,35,44,53] {booleanGray(odd,x,16,255,"Odd dash inverted gap")}
+        let cosmetic=try booleanPixels("classic-extpen-cosmetic-scale.emf")
+        let deviceReference=try XCTUnwrap(ComparisonImage(bytes:Data("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\"><rect width=\"64\" height=\"64\" fill=\"white\"/><path d=\"M8.5 32.5H56.5\" stroke=\"red\" stroke-width=\"1\" stroke-dasharray=\"8 4\"/></svg>".utf8)))
+        let expected=try booleanPixels(deviceReference,name:"independent device-pen reference")
+        for y in 30...34 {for x in 8..<56 {for c in 0..<4 {XCTAssertEqual(Double(cosmetic.pixel(x,y)[c]),Double(expected.pixel(x,y)[c]),accuracy:1,"Cosmetic width/dashes must remain device-sized under world scale at \(x),\(y)")}}}
+        for x in [18,30,42,54] {booleanGray(cosmetic,x,32,255,"Cosmetic device gap")}
+        booleanGray(cosmetic,12,35,255,"Cosmetic width does not scale")
+        let hairline=try booleanPixels("classic-extpen-width-zero-scale.emf")
+        for x in 10..<54 {transferRGB(hairline,x,32,[255,0,0],"Zero-width geometric pen is a device hairline under world scale");booleanGray(hairline,x,31,255,"Device hairline upper neighbor");booleanGray(hairline,x,33,255,"Device hairline lower neighbor")}
+        XCTAssertEqual(try booleanPixels("classic-extpen-cosmetic-known-cap-join.emf").bytes,try booleanPixels("classic-extpen-cosmetic.emf").bytes,"Known cap/join encodings are ignored for cosmetic pens")
+        let alternate=try booleanPixels("classic-extpen-alternate.emf")
+        let row=(10..<54).map{alternate.pixel($0,16)[1]<200}
+        XCTAssertGreaterThan(zip(row,row.dropFirst()).filter{$0.0 != $0.1}.count,30,"ALTERNATE must paint alternating device pixels")
+        // Literal source coordinates at axis-aligned and 45-degree device
+        // paths give an independent pixel oracle without duplicating a general
+        // line rasterizer or assuming Windows-exact arbitrary-angle stepping.
+        let vertical=try booleanPixels("classic-extpen-alternate-vertical.emf"),diagonal=try booleanPixels("classic-extpen-alternate-diagonal.emf")
+        for n in 10..<54 {
+            if n%2==0 {transferRGB(vertical,16,n,[255,0,0],"Vertical alternating device pixel");transferRGB(diagonal,n,n,[255,0,0],"Diagonal alternating device pixel")}
+            else {booleanGray(vertical,16,n,255,"Vertical alternate gap");booleanGray(diagonal,n,n,255,"Diagonal alternate gap")}
+            booleanGray(vertical,15,n,255,"Vertical device pen remains one pixel wide")
+            booleanGray(diagonal,n,n+1,255,"Diagonal device pen does not antialias into adjacent cells")
+        }
+        let joined=try booleanPixels("classic-extpen-alternate-polyline.emf")
+        transferRGB(joined,12,16,[255,0,0],"Joined polyline initial leg phase")
+        booleanGray(joined,13,16,255,"Joined corner consumes one shared device position")
+        for y in 17..<39 {if y%2==1 {transferRGB(joined,13,y,[255,0,0],"ALTERNATE phase continues through polyline corner")}else{booleanGray(joined,13,y,255,"Joined polyline alternate gap")}}
+        let clipped=try booleanPixels("classic-extpen-alternate-transform-clip.emf")
+        for x in 10..<54 {
+            if (16..<40).contains(x) && x%2==0 {transferRGB(clipped,x,32,[255,0,0],"Transformed alternate remains device-spaced inside DC clip")}else{booleanGray(clipped,x,32,255,"Clip does not restart phase or paint outside coverage")}
+            booleanGray(clipped,x,33,255,"Transformed alternate device width stays one pixel")
+        }
+        for name in ["dash","dot","dashdot","dashdotdot"] {
+            let pixels=try booleanPixels("classic-extpen-"+name+".emf")
+            let ink=(8..<56).filter{pixels.pixel($0,16)[1]<128}.count
+            XCTAssertGreaterThan(ink,4,name);XCTAssertLessThan(ink,46,name+" must retain real gaps")
+        }
+    }
+    func testClassicExtendedPenCapsJoinsAndInsideFramePaintActualBounds() throws {
+        let flat=try booleanPixels("classic-extpen-cap-flat.emf"),round=try booleanPixels("classic-extpen-cap-round.emf"),square=try booleanPixels("classic-extpen-cap-square.emf")
+        booleanGray(flat,13,32,255,"Flat cap has no endpoint extension")
+        transferRGB(round,13,32,[255,0,0],"Round cap extends endpoint")
+        transferRGB(square,13,32,[255,0,0],"Square cap extends endpoint")
+        booleanGray(round,12,28,255,"Round cap excludes square corner")
+        transferRGB(square,12,28,[255,0,0],"Square cap includes corner")
+        let dashSquare=try booleanPixels("classic-extpen-dashcap-square.emf"),dashFlat=try booleanPixels("classic-extpen-dashcap-flat.emf"),dashRound=try booleanPixels("classic-extpen-dashcap-round.emf")
+        // Width8 gives a radius4 cap at (24,32). The entire pixel (27,28)
+        // lies outside that disk (nearest corner distance sqrt(18)>4), while
+        // its whole area remains inside the square cap. These are stable
+        // geometric interiors/exteriors rather than antialias edge guesses.
+        transferRGB(dashSquare,27,28,[255,0,0],"Square cap applies to each custom dash corner")
+        booleanGray(dashFlat,25,32,255,"Flat custom dash does not extend into gap")
+        booleanGray(dashRound,27,28,255,"Round custom dash excludes complete square corner pixel")
+        booleanGray(dashSquare,32,32,255,"Square custom dash retains remaining gap")
+        // Pixel(27,29) crosses the circle: one corner has distance sqrt(13)<4,
+        // another distance5>4. Require actual partial coverage, with exact
+        // opaque red/white compositing channels. Different native curve
+        // flatteners need not assign the same 8-bit area to this edge cell.
+        let edge=dashRound.pixel(27,29)
+        XCTAssertEqual(edge[0],255);XCTAssertEqual(edge[3],255)
+        XCTAssertEqual(edge[1],edge[2]);XCTAssertGreaterThan(edge[1],0);XCTAssertLessThan(edge[1],255)
+        let miter=try booleanPixels("classic-extpen-join-miter.emf"),bevel=try booleanPixels("classic-extpen-join-bevel.emf"),rounded=try booleanPixels("classic-extpen-join-round.emf")
+        func tipInk(_ p:PenPixels)->Int {(7..<16).reduce(0){sum,y in sum+(27..<37).filter{p.pixel($0,y)[1]<128}.count}}
+        let floatHigh=try booleanPixels("classic-extpen-miter-float-high.emf"),uintHigh=try booleanPixels("classic-extpen-miter-uint-high.emf"),floatLow=try booleanPixels("classic-extpen-miter-float-low.emf")
+        XCTAssertEqual(floatHigh.bytes,uintHigh.bytes,"Windows FLOAT and normative UINT miter records must paint equivalent high-limit joins")
+        XCTAssertEqual(try booleanPixels("classic-extpen-miter-restored.emf").bytes,uintHigh.bytes,"RestoreDC must restore actual miter limit before the extended pen outline")
+        XCTAssertGreaterThan(tipInk(floatHigh),tipInk(floatLow),"Actual SETMITERLIMIT low FLOAT cuts the miter tip to a bevel")
+        XCTAssertGreaterThan(tipInk(miter),tipInk(rounded),"Miter join retains extended tip")
+        XCTAssertGreaterThan(tipInk(rounded),tipInk(bevel),"Round and bevel joins paint distinct actual outlines")
+        for kind in ["rectangle","ellipse","roundrect"] {
+            let pixels=try booleanPixels("classic-extpen-inside-"+kind+".emf")
+            transferRGB(pixels,14,32,[255,0,0],"InsideFrame stroke remains inside "+kind)
+            booleanGray(pixels,9,32,255,"InsideFrame must not escape original bounds "+kind)
+            booleanGray(pixels,32,32,255,"InsideFrame hollow center "+kind)
+        }
+        let open=try booleanPixels("classic-extpen-inside-open.emf")
+        transferRGB(open,32,29,[255,0,0],"InsideFrame open line remains centered")
+        transferRGB(open,32,34,[255,0,0],"InsideFrame open line lower half")
+    }
+    func testClassicExtendedPenHatchDIBBrushesStateClipAndROP2() throws {
+        var patterns=Set<Data>()
+        for hatch in 0..<6 {
+            let p=try booleanPixels("classic-extpen-hatch-\(hatch).emf")
+            var red=0,white=0,signature=[UInt8]()
+            for y in 27..<37 {for x in 12..<52 {let pixel=p.pixel(x,y);signature.append(pixel[1]);if pixel[0]>240 && pixel[1]<15 {red+=1};if pixel[1]>240 {white+=1}}}
+            XCTAssertGreaterThan(red,8,"Hatch \(hatch) actual stroke ink");XCTAssertGreaterThan(white,8,"Hatch \(hatch) actual gaps")
+            patterns.insert(Data(signature))
+        }
+        XCTAssertEqual(patterns.count,6,"Six classic hatch stroke styles must remain distinct")
+        let nullBrush=try booleanPixels("classic-extpen-null-brush.emf")
+        for y in 26..<38 {for x in 8..<56 {booleanGray(nullBrush,x,y,255,"Valid geometric solid pen with NULL brush paints no ink")}}
+        let dib=try booleanPixels("classic-extpen-dib.emf")
+        var red=0,blue=0
+        for y in 28..<36 {for x in 12..<52 {let p=dib.pixel(x,y);if p[0]>240 && p[2]<15 {red+=1};if p[2]>240 && p[0]<15 {blue+=1}}}
+        XCTAssertGreaterThan(red,80);XCTAssertGreaterThan(blue,80,"DIB pen brush must retain both source colors and ignored offset gap")
+        let state=try booleanPixels("classic-extpen-state.emf")
+        transferRGB(state,20,16,[255,0,0],"Transformed pen inside saved clip")
+        booleanGray(state,40,16,255,"Saved clip bounds remain active")
+        transferRGB(state,40,48,[255,0,0],"RestoreDC restores selected extended pen and clip/world state")
+        let rop=try booleanPixels("classic-extpen-rop2.emf")
+        booleanGray(rop,32,32,0,"Extended pen participates in R2_XORPEN white XOR white")
+        booleanGray(rop,32,40,255,"ROP2 does not paint outside stroke coverage")
+    }
+    func testClassicExtendedPenMalformedArraysDIBOffsetsAndStylesRefuseWholeImage() throws {
+        let names=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("unsupported-extpen-")}.sorted()
+        XCTAssertEqual(names.count,21,"Each independently framed extended pen refusal remains enrolled")
+        for name in names {
+            let before=try data(name)
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(before),name)
+            XCTAssertNil(ComparisonImage(bytes:before),name+" must refuse the complete image including earlier valid paint")
+            XCTAssertEqual(try data(name),before,"Extended pen conversion must never modify source bytes")
+        }
+    }
+}
