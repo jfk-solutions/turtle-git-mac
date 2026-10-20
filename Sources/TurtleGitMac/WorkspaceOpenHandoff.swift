@@ -36,7 +36,7 @@ import TurtleGitCore
         if url.isFileURL {
             return !url.path.contains("\0") && ["patch", "diff"].contains(url.pathExtension.lowercased())
         }
-        return FinderRequest(url: url) != nil
+        return FinderRequest(url: url) != nil || (try? FinderServiceCommand.request(serviceURL:url)) != nil
     }
     func submit(_ urls: [URL]) {
         guard !retired else { return }

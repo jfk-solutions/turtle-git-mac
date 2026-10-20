@@ -1,0 +1,103 @@
+{
+  "status": "scoped-validation-passed",
+  "date": "2026-10-20",
+  "upstream_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Six native selected-file Services; captured selections, typed workspace handoff, owned permission/discovery and cancellation",
+  "core": {
+    "distinct_methods": 23,
+    "initial_log": "build/qa/finder-services-core-2026-10-20.log",
+    "initial_result": "22 methods passed; one method failed four command assertions for Foundation encoded-NUL path truncation",
+    "repair": "Validate decoded percentEncodedPath before using URL.path.",
+    "focused_repair_log": "build/qa/finder-services-core-repair-2026-10-20.log",
+    "focused_repair_result": "Affected method passed; 23 distinct methods passed across checkpoint and repair"
+  },
+  "build": {
+    "initial_log": "build/qa/finder-services-build-2026-10-20.log",
+    "initial_result": "Failed: explicit self captures required in owned folder callback",
+    "repair_log": "build/qa/finder-services-build-repair-2026-10-20.log",
+    "repair_result": "Passed; Core encoded-NUL change made during this build requires updated framework in final build",
+    "final_log": "build/qa/finder-services-build-final-2026-10-20.log",
+    "final_result": "passed: current Core framework and Debug app"
+  },
+  "static_review_repairs": [
+    "Reject administrative .git path components before request normalization in service envelope decoder",
+    "Keep directory-symlink selections in containing Git repository and authorize the literal parent for repository commands"
+  ],
+  "native": {
+    "runner": "scripts/test-finder-services.py",
+    "result": "passed across grouped checkpoint and fixture repairs: provider once, routing with system and bundled Git",
+    "expected_cases": [
+      "provider once",
+      "routing system Git",
+      "routing bundled Git"
+    ],
+    "initial_log": "build/qa/finder-services-native-2026-10-20.log",
+    "initial_failure": "Provider fixture compared complete directory URLs; FinderRequest deliberately normalizes directory hints. Corrected assertion to exact paths without weakening selection/action checks.",
+    "first_repair_log": "build/qa/finder-services-native-repair-2026-10-20.log",
+    "first_repair_result": "Provider case passed; routing initial-workspace wait timed out, under investigation. Both owned receivers reaped.",
+    "routing_repair_log": "build/qa/finder-services-native-routing-repair-2026-10-20.log",
+    "routing_repair": "Compare exact repository paths rather than directory-hint-bearing URL equality; timeout diagnostics expose actual repository/busy/error/sheet state.",
+    "coverage": [
+      "Six registered plist actions and actual Objective-C selector",
+      "Private modern/legacy pasteboard capture with literal order, malformed/mixed rejection, no general pasteboard use",
+      "Cold queue, later busy rejection, warm routing, Quit/retirement, provider restore, standalone workspace launch receipt",
+      "Actual Log for repoA selection while workspace repoB; exact selected paths/order",
+      "Tracked directory symlink A to B retains containing repoA and literal Git path",
+      "Actual offscreen primary folder sheet cancel/late reply/retry and accepted grant",
+      "Linked-worktree metadata grant held through Quit fence, owner close and late response",
+      "HEAD/index byte preservation for repositories A and B"
+    ],
+    "owned_receivers": [
+      42461,
+      42504,
+      42505,
+      42616,
+      42899
+    ],
+    "cleanup": "All five owned receivers reaped by runner and independently absent from process table; fixtures close owned windows/pasteboards and remove private preferences; runner removes temporary directories.",
+    "limitations": "Unsigned receiver emitted sandbox_extension_consume warnings on private pasteboard URL reads; no signed sandbox acceptance inferred. Provider was not repeated after passing; only routing repeated for fixture repair."
+  },
+  "documentation": {
+    "localization_check": "passed",
+    "help_check": "passed: 47 documents, 51 topics",
+    "site": "389 documents, no unresolved fragments",
+    "dialog_ledger": "reconciled; partial audits only, no whole-port completion claim"
+  },
+  "hosted_ci_observation": {
+    "head": "567d360c8c7183029c9a54f5c7a9bc512c066b81",
+    "pages": {
+      "run": 39454865421,
+      "status": "success"
+    },
+    "macos": {
+      "run": 39454865322,
+      "status": "pending"
+    },
+    "current_batch": "not pushed at observation"
+  },
+  "remaining": [
+    "Physical Services registration and Finder/other-app gestures",
+    "Localized Services declarations",
+    "Signed sandbox selected-file and creation pregrant access",
+    "App Store acceptance",
+    "Full Explorer and whole-port behavior/layout parity"
+  ],
+  "protected_unrelated_work": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  },
+  "git_versions": {
+    "system": "git version 2.54.0 (Apple Git-157)",
+    "bundled": "git version 2.55.0"
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderRequest.swift": "47f7720e4508c383512ee85f4223180218f74f693d6210160a428ebde7d6322c",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "a3f43300cfe716ecdfe7e0458e05a670f490174c9c645afd776e47de1f3c77ad",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "d24fd2759cb089f89678f14b630eda7741e90ebeb441d682d755d06909f77ece",
+    "Sources/TurtleGitMac/WorkspaceOpenHandoff.swift": "90ad9031dd1bf6a1d75eac08889b03bf22526ef6c0185595a656ecca5ddb0a86",
+    "Configuration/App-Info.plist": "48e824b01013c79deb7876d4556ee0f8d7cf1d2177b20b0a16959d587f694fbd",
+    "Tests/TurtleGitCoreTests/FinderServiceCommandTests.swift": "bd5aaff89bf78f64208f3249d4f57bc4766aa1cffa62fa9a6e1c24659ec4d175",
+    "docs/qa/finder-services-native-2026-10-20.swift": "462a596b738ef81d5db65d40d5c9699ad7c269d6c97c150ad0072ffec58d618f",
+    "scripts/test-finder-services.py": "506a818f2cfa9f1b59fdd8b6e4ffc2d6a17cdac5dc27dbfd098b6e8ef0b9e075"
+  }
+}

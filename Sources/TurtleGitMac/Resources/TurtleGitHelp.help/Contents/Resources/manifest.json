@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "2ee34e93c33618f4ab5ef6117d65af69fbffc8f7264137f23cc2b87304e76054",
+    "Contents/Info.plist": "9766f16df9b4ace470b9364fe96753e61e6ffa6916e1331f28a42ff83f37e4be",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "01d9789d13afd9ece8aac7c7a97615b55f0e9e37f5211445b613f67b4d166d39",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "940fa5e112b44a1c585a13339c8d07f16d36149a2ab0a9295b31c44728f0287d",
@@ -12,6 +12,7 @@
     "Contents/Resources/en.lproj/CREDENTIAL-SETTINGS.html": "84b759133ad2aaac15b4f566e6712ccae2ecee2daca7fcc74974bb5d9aefa033",
     "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "315a4d1f561f60e3c0138cd4a60c33a0a673c2842d211a6443758afc7318ad1e",
     "Contents/Resources/en.lproj/EXCEL-COMPARISON.html": "4e4dbf998996c02d74a4499f237017f8a14d522ba08ef3a05779f8fade1440d8",
+    "Contents/Resources/en.lproj/FINDER-SERVICES.html": "821d4ebe3490211bafd71010a29e2be3bd9c8ef134d8c2e27cd822b1faa6c63e",
     "Contents/Resources/en.lproj/FINDER-STATUS-POLICY.html": "9c0652e62ee7ffd86d13bdb0d1c1fb8716fe320454a3020abb48b24a12474398",
     "Contents/Resources/en.lproj/GETTING-STARTED.html": "62ea6aa01057762cf2411b54ad0b19809b3186124aec7e4c123eb66a4242e1a1",
     "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "cc62f622edf5577af5c763dd875b4343e37a57f2e284e1f265fb77af2dbe59f1",
@@ -63,8 +64,8 @@
     "Contents/Resources/en.lproj/images/ed3713977296-image-conflict-undecodable-light.png": "138d20aa5da3ab6b283e6d2d69e78639534af3cbef1a2bbbb686ab48aa3b1446",
     "Contents/Resources/en.lproj/images/f49a195c8c35-cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
     "Contents/Resources/en.lproj/images/f7856202ab6a-commit-file-groups-language-de-dark.png": "e7f075b32f6ff02494ead9db85a9da57039ad1a108cda57cadbe40c895f988ed",
-    "Contents/Resources/en.lproj/index.html": "740fe4a094c666f55fee01d2f33503b53139e211a0257e13cf2654aa23996a62",
-    "Contents/Resources/en.lproj/topics.json": "946a675a424a87bd13f16d61e397cc49e1d8a417c7b82a83f8a842d59c62ca7b"
+    "Contents/Resources/en.lproj/index.html": "2a9ce6cb2b5c3c93fb461254cd05810d8e45357f84c3093a7c91e122e31e37c6",
+    "Contents/Resources/en.lproj/topics.json": "b89751c9880d56610250f507ec891e8854f9fa65de24ab0d40afc39ee46b362f"
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
@@ -78,6 +79,7 @@
     "docs/CREDENTIAL-SETTINGS.md": "984067cf289fa0a3e9e642037a061c5f7ec0da46dea47132d06bad3200f3c171",
     "docs/DIALOG-GUIDE.md": "782312a0e7982be12c532d2b4a409379049b824a835cbf056782283f8fb3bade",
     "docs/EXCEL-COMPARISON.md": "7e3f3a627b2dc6bb807bee992ae0d76830107dea9592c3a02668fc570227ab36",
+    "docs/FINDER-SERVICES.md": "4638e6f6c72602bac7aa870cce2b8a9a368eedf368da3d13e98f030c7e216410",
     "docs/FINDER-STATUS-POLICY.md": "d1df94f55a4e747392e38f89be986a63a643c2931022ce72a69d1cd761d1d6be",
     "docs/GETTING-STARTED.md": "27ee5b00814ad2e15aa582ec2c2f1d357a0fdf992d8fb074ad6e131cc4a8c74a",
     "docs/GIT-AUTHENTICATION.md": "dd6d943d89e823349419471ce62e60259e1425516409cb0c7d033c93f0f00120",
@@ -113,7 +115,7 @@
     "docs/WORD-COMPARISON.md": "922b2e8a5f12bc40b8475bbf73cb558e87a0e692625139b3cc34502f4923663d",
     "docs/WORD-MERGE.md": "dc11fee38f848ddda8201163da223235c9adeaecfe74beaad1ff75d91ff702d7",
     "docs/ZIP-COMPARISON.md": "1fa7085d96970e6cc85ef8edb5e94f12277617d5c91614f1fd05c92362576241",
-    "docs/help-topics.json": "946a675a424a87bd13f16d61e397cc49e1d8a417c7b82a83f8a842d59c62ca7b",
+    "docs/help-topics.json": "b89751c9880d56610250f507ec891e8854f9fa65de24ab0d40afc39ee46b362f",
     "docs/site/assets/binary-comparison-dark.png": "13944fd1b3128d1a46cadfabc89f4245a0008a379a7b1ad18e8b77365e618c8d",
     "docs/site/assets/binary-comparison-light.png": "0dda7bddf5a03dbf5bad64e6481f89121752721f2d4bb16995f29a406f2bb04b",
     "docs/site/assets/cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",

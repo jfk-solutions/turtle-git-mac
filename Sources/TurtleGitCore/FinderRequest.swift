@@ -1,6 +1,67 @@
 import Foundation
 import Darwin
 
+/// Native Services is an explicit first-use route, independent of Finder cache.
+/// Its wire envelope conveys selection and tool choice, never repository access.
+public enum FinderServiceCommand:String,CaseIterable,Sendable {
+    case log,commit,status,diff,clone,initialize
+    public static let maximumPaths=10000
+    public static let maximumRequestBytes=1048576
+    public struct Failure:LocalizedError,Sendable {
+        public let message:String
+        public var errorDescription:String? {message}
+        public init(_ message:String){self.message=message}
+    }
+    public func request(paths:[URL],alternateTool:Bool?=nil)throws->FinderRequest {
+        guard !paths.isEmpty,paths.count<=Self.maximumPaths else{throw Failure("Select between 1 and 10,000 files or folders for TurtleGit.")}
+        guard self == .diff || alternateTool == nil else{throw Failure("The tool choice is valid only for Diff.")}
+        for path in paths {
+            guard path.isFileURL,let parts=URLComponents(url:path,resolvingAgainstBaseURL:false),
+                  parts.user==nil,parts.password==nil,parts.port==nil,parts.query==nil,parts.fragment==nil,
+                  parts.host==nil || parts.host=="" || parts.host?.lowercased()=="localhost",
+                  let decodedPath=parts.percentEncodedPath.removingPercentEncoding,!decodedPath.contains("\0"),
+                  path.path.hasPrefix("/"),!path.path.contains("\0"),
+                  !path.pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame}) else {
+                throw Failure("Choose local files or folders outside Git's administrative directory.")
+            }
+        }
+        let normalized=FinderRequest.normalizedSelection(paths)
+        guard normalized.allSatisfy({!$0.pathComponents.contains(where:{$0.caseInsensitiveCompare(".git") == .orderedSame})}) else{throw Failure("Git's administrative directory cannot be selected.")}
+        if self == .clone || self == .initialize {
+            guard normalized.count==1,normalized[0].path != "/",
+                  let attributes=try? FileManager.default.attributesOfItem(atPath:normalized[0].path),attributes[.type] as? FileAttributeType == .typeDirectory else {
+                throw Failure("Select one existing directory for Clone or Create repository.")
+            }
+        }
+        guard let action=RepositoryAction(rawValue:rawValue) else{throw Failure("Unknown TurtleGit service.")}
+        let request=FinderRequest(action:action,paths:normalized,alternateTool:alternateTool)
+        _=try Self.envelope(request)
+        return request
+    }
+    private static func envelope(_ request:FinderRequest)throws->URL {
+        guard let url=request.url,var parts=URLComponents(url:url,resolvingAgainstBaseURL:false) else{throw Failure("The TurtleGit selection cannot be encoded.")}
+        parts.host="service"
+        guard let result=parts.url,result.absoluteString.utf8.count<=maximumRequestBytes else{throw Failure("The selected paths are too large. Select fewer items and try again.")}
+        return result
+    }
+    public func serviceURL(paths:[URL],alternateTool:Bool?=nil)throws->URL {try Self.envelope(request(paths:paths,alternateTool:alternateTool))}
+    public static func request(serviceURL:URL)throws->FinderRequest {
+        guard serviceURL.absoluteString.utf8.count<=maximumRequestBytes,
+              let parts=URLComponents(url:serviceURL,resolvingAgainstBaseURL:false),parts.scheme=="turtlegit",parts.host=="service",
+              parts.user==nil,parts.password==nil,parts.port==nil,parts.fragment==nil,parts.path.isEmpty,
+              let fields=parts.queryItems,fields.allSatisfy({["command","path","alternate"].contains($0.name)}),
+              fields.filter({$0.name=="command"}).count==1,
+              let value=fields.first(where:{$0.name=="command"})?.value,let command=Self(rawValue:value),
+              fields.filter({$0.name=="path"}).count<=maximumPaths else{throw Failure("Invalid TurtleGit Services request.")}
+        // Validate the raw selection before FinderRequest normalizes it. An
+        // administrative component such as .git/../file must not disappear first.
+        let pathFields=fields.filter{$0.name=="path"},toolFields=fields.filter{$0.name=="alternate"}
+        guard pathFields.allSatisfy({$0.value != nil && $0.value?.hasPrefix("/")==true && $0.value?.contains("\0")==false}),
+              toolFields.count<=1,toolFields.allSatisfy({$0.value=="0" || $0.value=="1"}) else{throw Failure("Invalid TurtleGit Services selection.")}
+        return try command.request(paths:pathFields.compactMap(\.value).map{FileTransferPaths.fileURL($0)},alternateTool:toolFields.first.map{$0.value=="1"})
+    }
+}
+
 /// A Finder request carries selection, never permission. Repeated path fields keep
 /// spaces, Unicode, newlines and URL punctuation intact without delimiter guessing.
 public struct FinderRequest: Sendable {

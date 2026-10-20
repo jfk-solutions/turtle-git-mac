@@ -1,4 +1,5 @@
 import AppKit
+import TurtleGitCore
 
 @MainActor final class TurtleGitApplicationDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -8,9 +9,67 @@ import AppKit
         TurtleGitHelp.install()
         startupDidFinishLaunching()
         if startupLaunchMode == .workspace { SupportReportService.shared.checkForPreviousCrash() }
+        installFinderServices()
     }
     @objc func showHelp(_ sender: Any?) { TurtleGitHelp.showContext() }
-    weak var repositoryModel: RepositoryModel? { didSet { deliverStartupCommand(); deliverPendingOpenURLs() } }
+    lazy var finderServicesProvider = TurtleGitFinderServicesProvider { [weak self] request in
+        guard let self else { throw TurtleGitFinderServicesProvider.Failure.unavailable }
+        try self.submitServiceRequest(request)
+    }
+    private var previousFinderServicesProvider: Any?
+    private var finderServicesInstalled = false
+    var workspaceServiceHandler: (RepositoryModel, FinderRequest) -> Bool = { $0.handleFinderService($1) }
+    private(set) var pendingFinderServiceRequest: FinderRequest?
+    private var pendingFinderServiceError: String?
+    func installFinderServices() {
+        guard !finderServicesInstalled, acceptingOpenURLs else { return }
+        previousFinderServicesProvider = NSApp.servicesProvider
+        finderServicesInstalled = true
+        NSApp.servicesProvider = finderServicesProvider
+    }
+    func retireFinderServices() {
+        finderServicesProvider.retire()
+        pendingFinderServiceRequest = nil; pendingFinderServiceError = nil
+        guard finderServicesInstalled else { return }
+        finderServicesInstalled = false
+        if (NSApp.servicesProvider as AnyObject?) === finderServicesProvider {
+            NSApp.servicesProvider = previousFinderServicesProvider
+        }
+        previousFinderServicesProvider = nil
+    }
+    func submitServiceRequest(_ request: FinderRequest) throws {
+        guard acceptingOpenURLs, !finderServicesProvider.retired, !confirmingQuit,
+              repositoryModel?.confirmingQuit != true else { throw TurtleGitFinderServicesProvider.Failure.unavailable }
+        guard let command = FinderServiceCommand(rawValue: request.action.rawValue) else { throw TurtleGitFinderServicesProvider.Failure.command }
+        let captured = try command.request(paths: request.paths, alternateTool: request.alternateTool)
+        if startupLaunchMode == .mergeTool {
+            // Keep the service origin across the separate workspace launch; its
+            // typed decoder must choose the owned Services permission workflow.
+            let url = try command.serviceURL(paths: captured.paths, alternateTool: captured.alternateTool)
+            workspaceOpenHandoff.submit([url]); return
+        }
+        if let repositoryModel, repositoryModel.busy || repositoryModel.hasPendingRepositoryWork {
+            throw TurtleGitFinderServicesProvider.Failure.busy
+        }
+        guard pendingFinderServiceRequest == nil else { throw TurtleGitFinderServicesProvider.Failure.busy }
+        if startupReady, startupDelivered, let repositoryModel {
+            guard workspaceServiceHandler(repositoryModel, captured) else { throw TurtleGitFinderServicesProvider.Failure.busy }
+        } else {
+            pendingFinderServiceRequest = captured
+        }
+    }
+    private func deliverPendingFinderService() {
+        guard acceptingOpenURLs, startupReady, startupDelivered, startupLaunchMode == .workspace,
+              let repositoryModel else { return }
+        if let request = pendingFinderServiceRequest {
+            pendingFinderServiceRequest = nil
+            if confirmingQuit || repositoryModel.confirmingQuit || repositoryModel.busy || repositoryModel.hasPendingRepositoryWork || !workspaceServiceHandler(repositoryModel, request) {
+                pendingFinderServiceError = "TurtleGit could not begin the queued service. Finish or cancel the current operation, then invoke the service again."
+            }
+        }
+        if let message = pendingFinderServiceError { pendingFinderServiceError = nil; repositoryModel.error = message }
+    }
+    weak var repositoryModel: RepositoryModel? { didSet { deliverStartupCommand(); deliverPendingOpenURLs(); deliverPendingFinderService() } }
     var startupArguments = Array(CommandLine.arguments.dropFirst())
     var startupDirectory = FileManager.default.currentDirectoryPath
     var startupCommandHandler: ((RepositoryModel, [String], String) -> Void)?
@@ -30,7 +89,15 @@ import AppKit
     func application(_ application: NSApplication, open urls: [URL]) {
         guard acceptingOpenURLs else { return }
         if startupLaunchMode == .mergeTool { workspaceOpenHandoff.submit(urls) }
-        else { pendingOpenURLs += urls; deliverPendingOpenURLs() }
+        else {
+            for url in urls {
+                if url.scheme == "turtlegit", url.host == "service" {
+                    do { try submitServiceRequest(FinderServiceCommand.request(serviceURL: url)) }
+                    catch { pendingFinderServiceError = error.localizedDescription }
+                } else { pendingOpenURLs.append(url) }
+            }
+            deliverPendingOpenURLs(); deliverPendingFinderService()
+        }
     }
     private func deliverPendingOpenURLs() {
         guard acceptingOpenURLs, !deliveringOpenURLs, startupReady, startupDelivered, startupLaunchMode == .workspace, let repositoryModel else { return }
@@ -97,7 +164,7 @@ import AppKit
         if standaloneWorkspace != nil, !standaloneActivationRequested {
             standaloneActivationRequested = true; activateStandaloneApplication()
         }
-        deliverStartupCommand()
+        deliverStartupCommand(); deliverPendingFinderService()
     }
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { startupLaunchMode == .workspace }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { startupLaunchMode == .workspace }
@@ -113,11 +180,11 @@ import AppKit
           startupMergeToolActive = mergeTool
           if !mergeTool { repositoryModel.handleCommandLine(arguments: startupArguments, currentDirectory: startupDirectory) }
         }
-        deliverPendingOpenURLs()
+        deliverPendingOpenURLs(); deliverPendingFinderService()
     }
     private var confirmingQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
-    func applicationWillTerminate(_ notification: Notification) { acceptingOpenURLs = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
+    func applicationWillTerminate(_ notification: Notification) { retireFinderServices(); acceptingOpenURLs = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     private func setTransferQuitConfirmation(_ sender: NSApplication, _ value: Bool) {
         for window in sender.windows {
             (window.delegate as? FileDropTransferWindowController)?.model.confirmingQuit = value
@@ -130,6 +197,7 @@ import AppKit
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if pendingFinderServiceRequest != nil { return .terminateCancel }
         if MergeExternalReloadCoordinator.activeRequests > 0 { return .terminateCancel }
         if SettingsSheetController.activeSheets > 0 || workspaceOpenHandoff.hasPendingWork || RepositoryModel.activeCommandFileOperations > 0 || repositoryModel?.hasPendingRepositoryWork == true { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? RepositoryAccessWindowController }).contains(where:{ $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
@@ -615,4 +683,69 @@ import AppKit
         return .terminateLater
     }
 
+}
+
+/// Services supplies a private selection pasteboard. Capture it before returning
+/// to the caller, then use the same owned permission/discovery route as Finder.
+@MainActor final class TurtleGitFinderServicesProvider: NSObject {
+    enum Failure: LocalizedError {
+        case unavailable, busy, command, selection, selectionChanged, tooLarge
+        var errorDescription: String? {
+            switch self {
+            case .unavailable: return "TurtleGit cannot accept a Services request while it is closing."
+            case .busy: return "TurtleGit is preparing another repository operation. Finish or cancel it, then invoke the service again."
+            case .command: return "The requested TurtleGit service is not supported."
+            case .selection: return "Select file or folder URLs to use this TurtleGit service."
+            case .selectionChanged: return "The selected files changed while TurtleGit was receiving them. Invoke the service again."
+            case .tooLarge: return "Select at most 10,000 items with no more than 1 MiB of file URL data."
+            }
+        }
+    }
+    private static let maximumItems = FinderServiceCommand.maximumPaths, maximumBytes = FinderServiceCommand.maximumRequestBytes
+    private(set) var retired = false
+    private var submit: (FinderRequest) throws -> Void
+    init(submit: @escaping (FinderRequest) throws -> Void) { self.submit = submit; super.init() }
+    func retire() { retired = true; submit = { _ in throw Failure.unavailable } }
+    @objc(performFinderAction:userData:error:)
+    func performFinderAction(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        do {
+            guard !retired else { throw Failure.unavailable }
+            guard let userData, let command = FinderServiceCommand(rawValue: userData) else { throw Failure.command }
+            let paths = try Self.selection(from: pasteboard)
+            let alternate = command == .diff ? ComparisonToolInvocation.capture : nil
+            let request = try command.request(paths: paths, alternateTool: alternate)
+            try submit(request)
+        } catch let failure { error.pointee = failure.localizedDescription as NSString }
+    }
+    static func selection(from pasteboard: NSPasteboard) throws -> [URL] {
+        let generation = pasteboard.changeCount, items = pasteboard.pasteboardItems ?? []
+        var result: [URL] = [], bytes = 0
+        func count(_ raw: String) throws {
+            guard raw.utf8.count <= maximumBytes - bytes else { throw Failure.tooLarge }
+            bytes += raw.utf8.count
+        }
+        guard items.count <= maximumItems else { throw Failure.tooLarge }
+        if items.contains(where: { $0.types.contains(.fileURL) }) {
+            // Never silently narrow a heterogeneous selection to the URLs that
+            // readObjects(fileURLsOnly:) happens to understand.
+            for item in items {
+                guard item.types.contains(.fileURL), let raw = item.string(forType: .fileURL) else { throw Failure.selection }
+                try count(raw)
+                guard let url = URL(string: raw), url.isFileURL else { throw Failure.selection }
+                result.append(url)
+            }
+        } else {
+            let filenames = NSPasteboard.PasteboardType("NSFilenamesPboardType")
+            guard items.count <= 1 else { throw Failure.selection }
+            guard let paths = pasteboard.propertyList(forType: filenames) as? [String], !paths.isEmpty else { throw Failure.selection }
+            guard paths.count <= maximumItems else { throw Failure.tooLarge }
+            for path in paths {
+                guard path.hasPrefix("/"), !path.contains("\0") else { throw Failure.selection }
+                try count(path); result.append(FileTransferPaths.fileURL(path))
+            }
+        }
+        guard !result.isEmpty else { throw Failure.selection }
+        guard generation == pasteboard.changeCount else { throw Failure.selectionChanged }
+        return result
+    }
 }

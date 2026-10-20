@@ -3947,3 +3947,16 @@ its commit-level Skip/Abort loop, message aggregation and Commit review, includi
 the pinned library's zero-result conflict state. The [source contract](RESET-REVERT-BACKEND-PARITY.md)
 and [dated checkpoint](qa/reset-revert-backend-2026-10-20.json) distinguish actual
 validation from physical, signed and remaining source acceptance.
+
+### Selected-file macOS Services — October 20, 2026
+
+The six Log/Commit/status/Diff/Clone/Create Services capture literal selected URLs
+outside Finder Sync's watched roots and route through owned repository permission
+and discovery. Cold-start, standalone-tool forwarding, busy/Quit rejection and
+chooser cancellation retain the request's original owner and paths. The
+[implementation scope and remaining acceptance](FINDER-SERVICES.md) distinguish
+macOS Services placement from Explorer menus. The Debug app, 23 distinct focused
+Core methods across the checkpoint and repair, provider check and both Git-engine
+native routing cases passed. [Evidence](qa/finder-services-family-2026-10-20.json)
+records the encoded-NUL and fixture URL repairs and owned cleanup. Physical
+registration, signed sandbox and App Store delivery remain open.

@@ -377,6 +377,13 @@ private enum HistoricalMaterializationContext {
     private var cloneWindows: [UUID: CloneWindowController] = [:]
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     var createWindowFactory: ((URL, RepositoryAccessLease) -> CreateRepositoryWindowController)?
+    var presentFinderServiceFolderPanel:((NSOpenPanel,NSWindow?,@escaping(NSApplication.ModalResponse)->Void)->Void)?
+    var selectedFinderServiceFolderURL:(NSOpenPanel)->URL? = {$0.url}
+    private var finderServiceOwner:RepositoryWindowOwner?
+    private var finderServiceFolderChoice:RepositoryCreationFolderChoice?
+    private var finderServiceWorkers=0
+    var hasPendingFinderServiceWork:Bool {finderServiceOwner != nil || finderServiceFolderChoice != nil || finderServiceWorkers>0}
+    private func cancelFinderServicePreparation(){finderServiceOwner?.cancellation.cancel();finderServiceFolderChoice?.cancel()}
     var presentCreationFolderPanel: ((NSOpenPanel, NSWindow?, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
     var selectedCreationFolderURL: (NSOpenPanel) -> URL? = { $0.url }
     private var creationFolderChoice: RepositoryCreationFolderChoice?
@@ -424,7 +431,7 @@ private enum HistoricalMaterializationContext {
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { hasPendingFinderServiceWork || mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
     private var resolutionCommandPreparation: RepositoryWindowOwner?
     private var resolutionCommandFolderChoice: RepositoryCreationFolderChoice?
     private var silentResolveSessions = GitPathMap<FileListComparisonSession>()
@@ -501,7 +508,7 @@ private enum HistoricalMaterializationContext {
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true; for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true;cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); commandRepositoryBatchCancellation?.cancel(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -776,7 +783,8 @@ private enum HistoricalMaterializationContext {
                 // never a repository discovery directory or an access target.
                 let blameSelection = action == .blame || invocation?.request.action == .blame
                 var directory: ObjCBool = false
-                if blameSelection || !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue {
+                let literalSymlink = (try? FileManager.default.attributesOfItem(atPath:location.path))?[.type] as? FileAttributeType == .typeSymbolicLink
+                if blameSelection || literalSymlink || !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue {
                     location.deleteLastPathComponent()
                 }
                 let historicalSelection = blameSelection || (invocation.map { [.cat, .showCompare].contains($0.request.action) } ?? false)
@@ -809,14 +817,15 @@ private enum HistoricalMaterializationContext {
                 }
                 if let selected {
                     for item in selected.paths {
-                        let permissionTarget = blameSelection ? item.standardizedFileURL.deletingLastPathComponent() : item
+                        let literalSymlink = (try? FileManager.default.attributesOfItem(atPath:item.path))?[.type] as? FileAttributeType == .typeSymbolicLink
+                        let permissionTarget = blameSelection || literalSymlink ? item.standardizedFileURL.deletingLastPathComponent() : item
                         guard lease.contains(permissionTarget), item.path == resolved.path || item.path.hasPrefix(resolved.path + "/") else {
                             throw FinderSelectionFailure.multipleRepositories
                         }
                         if submoduleLocation != nil || historicalSelection { continue }
                         var location = item
                         var directory: ObjCBool = false
-                        if !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue { location.deleteLastPathComponent() }
+                        if (try? FileManager.default.attributesOfItem(atPath:location.path))?[.type] as? FileAttributeType == .typeSymbolicLink || !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue { location.deleteLastPathComponent() }
                         let itemRoot = try await makeRepository(location).discoverSelectionRoot(for: action ?? .status, selected: item,cancellation:cancellation)
                         guard itemRoot.standardizedFileURL == resolved.standardizedFileURL else { throw FinderSelectionFailure.multipleRepositories }
                     }
@@ -1165,9 +1174,9 @@ private enum HistoricalMaterializationContext {
     }
     var cloneWindowFactory: ((URL?, RepositoryAccessLease?) -> CloneWindowController)?
     var creationClipboardText:()->String? = {NSPasteboard.general.string(forType:.string)}
-    private func showClone(directory: URL? = nil, source: String? = nil, exactPath: Bool = false) {
+    private func showClone(directory: URL? = nil, source: String? = nil, exactPath: Bool = false, directoryAccess:RepositoryAccessLease? = nil) {
         guard !retired, !confirmingQuit else { return }
-        let id = UUID(), controller = cloneWindowFactory?(directory ?? root, activeAccess) ?? CloneWindowController(directory: directory ?? root, access: activeAccess,preferences:fileComparisonPreferences,clipboardText:source == nil ? creationClipboardText():nil)
+        let id = UUID(), controller = cloneWindowFactory?(directory ?? root, directoryAccess ?? activeAccess) ?? CloneWindowController(directory: directory ?? root, access: directoryAccess ?? activeAccess,preferences:fileComparisonPreferences,clipboardText:source == nil ? creationClipboardText():nil)
         controller.onClosed = { [weak self, weak controller] in if self?.cloneWindows[id] === controller { self?.cloneWindows.removeValue(forKey: id) } }
         configureCloneInteractions(controller)
         cloneWindows[id] = controller
@@ -3930,11 +3939,13 @@ private enum HistoricalMaterializationContext {
             }
         } catch { self.error = error.localizedDescription }
     }
-    private func handleFilePair(paths: [URL], line: Int? = nil, preferences: UserDefaults? = nil) {
+    private func handleFilePair(paths: [URL], line: Int? = nil, preferences: UserDefaults? = nil, serviceAccess:RepositoryAccessLease? = nil) {
         let alternateTool = ComparisonToolInvocation.capture
         do {
             guard let prepared = try WorkingFilePairAccess.prepare(paths: paths, requireSecurityScope: GitRuntime.isAppStoreBuild,
-                acquire: { try comparisonPermission(for: $0) }) else { return }
+                acquire: { target in
+                    if let serviceAccess {guard serviceAccess.contains(target) else{throw RepositoryAccessFailure.securityScopeUnavailable};return serviceAccess}
+                    return try comparisonPermission(for:target) }) else { return }
             let key = "working-pair:" + UUID().uuidString
             let controller = FileComparisonWindowController(comparison: prepared.comparison, permissions: prepared.permissions,preferences:preferences ?? fileComparisonPreferences, line: line)
             controller.model.captureToolChoice(alternateTool)
@@ -3942,6 +3953,64 @@ private enum HistoricalMaterializationContext {
             fileComparisonWindows[key] = controller
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         } catch { self.error = error.localizedDescription }
+    }
+    /// Services carries only a captured selection. Obtain and retain folder
+    /// authority before discovery, without blocking an unowned modal event loop.
+    @discardableResult func handleFinderService(_ submitted:FinderRequest)->Bool {
+        guard !retired,!busy,!confirmingQuit,!hasPendingRepositoryWork,workspaceWindow?.attachedSheet==nil,
+              let command=FinderServiceCommand(rawValue:submitted.action.rawValue) else{return false}
+        let request:FinderRequest
+        do{request=try command.request(paths:submitted.paths,alternateTool:submitted.alternateTool)}catch{self.error=error.localizedDescription;return false}
+        let owner=RepositoryWindowOwner(window:workspaceWindow),generation=adoptionGeneration
+        finderServiceOwner=owner;error=nil
+        let creation=request.action == .clone || request.action == .initialize
+        // Repository commands name Git paths; a selected symlink leaf belongs
+        // to its parent, while a two-file Diff reads the actual target bytes.
+        let filePair=request.action == .diff && request.paths.count==2
+        var targets=request.paths.map { item in
+            let symlink=(try? FileManager.default.attributesOfItem(atPath:item.path))?[.type] as? FileAttributeType == .typeSymbolicLink
+            return !creation && !filePair && symlink ? item.deletingLastPathComponent():item
+        }
+        if creation,let folder=request.paths.first,let parent=try? CloneOptions.workingDirectory(for:folder),!targets.contains(parent){targets.append(parent)}
+        let permissionTargets=targets
+        let tool=request.alternateTool ?? ComparisonToolInvocation.capture
+        func finish(){if finderServiceOwner === owner{finderServiceOwner=nil}}
+        func dispatch(_ lease:RepositoryAccessLease){
+            guard !retired,!confirmingQuit,!owner.cancellation.isCancelled,generation==adoptionGeneration else{finish();return}
+            guard permissionTargets.allSatisfy({lease.contains($0)}),!requiresRepositoryScope || lease.hasSecurityScope else{error=RepositoryAccessFailure.securityScopeUnavailable.localizedDescription;finish();return}
+            ComparisonToolInvocation.$alternate.withValue(tool){
+                if request.action == .clone {showClone(directory:request.paths[0],directoryAccess:lease);finish()}
+                else if request.action == .initialize {presentCreateRepository(folder:request.paths[0],lease:lease,owner:owner);finish()}
+                else if request.action == .diff,request.paths.count==2 {handleFilePair(paths:request.paths,serviceAccess:lease);finish()}
+                else {openSession(lease,selected:request,action:request.action,onFinished:{_ in finish()},handoffOwner:owner)}
+            }
+        }
+        if let activeAccess,permissionTargets.allSatisfy({activeAccess.contains($0)}),!requiresRepositoryScope || activeAccess.hasSecurityScope{dispatch(activeAccess);return true}
+        if let store=accessStore {
+            for saved in store.repositories {
+                if let lease=try? store.acquire(saved.id,requireSecurityScope:requiresRepositoryScope),permissionTargets.allSatisfy({lease.contains($0)}){dispatch(lease);return true}
+            }
+        }
+        let choice=RepositoryCreationFolderChoice(window:workspaceWindow,owner:owner),panel=choice.panel
+        panel.title="Allow repository folder access";panel.prompt="Allow Access"
+        panel.message="Choose a folder containing every selected item. TurtleGit needs repository access to perform this Services command."
+        panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.showsHiddenFiles=true
+        panel.directoryURL=permissionTargets.first?.deletingLastPathComponent();panel.alphaValue=workspaceWindow?.alphaValue ?? 1;panel.appearance=workspaceWindow?.appearance
+        finderServiceFolderChoice=choice;finderServiceWorkers += 1;busy=true
+        choice.onFinished={ [weak self,weak choice] selected in
+            guard let self,let choice else{return}
+            Task{@MainActor [self,choice] in
+                defer{self.finderServiceWorkers -= 1;if self.finderServiceFolderChoice === choice{self.finderServiceFolderChoice=nil}}
+                while choice.panel.sheetParent != nil || choice.panel.attachedSheet != nil{try? await Task.sleep(nanoseconds:5_000_000)}
+                if self.finderServiceOwner === owner{self.busy=false}
+                guard !self.retired,!self.confirmingQuit,!owner.cancellation.isCancelled,generation==self.adoptionGeneration,let selected else{finish();return}
+                let lease=RepositoryAccessLease(url:selected,provider:self.repositoryBookmarkProvider)
+                guard permissionTargets.allSatisfy({lease.contains($0)}),!self.requiresRepositoryScope || lease.hasSecurityScope else{self.error="The selected folder does not authorize every requested item.";finish();return}
+                dispatch(lease)
+            }
+        }
+        choice.begin(present:presentFinderServiceFolderPanel,selected:selectedFinderServiceFolderURL)
+        return true
     }
     func handle(_ url: URL) {
         if url.isFileURL { openPatchDocument(url); return }

@@ -166,6 +166,7 @@ for baseline and update rules.
 
 ## Finder integration
 
+- [Selected-file macOS Services outside watched repositories](FINDER-SERVICES.md)
 - [Finder creation workflows](FINDER-CREATION-PARITY.md)
 - [Finder command order and separators](FINDER-MENU-LAYOUT-PARITY.md)
 - [Finder path and selection conditions](FINDER-PATH-CONDITIONS-PARITY.md)
