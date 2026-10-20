@@ -1721,3 +1721,94 @@ extension MetafileImageTests {
         for name in ["unsupported-raster-required-source-bitblt.emf","unsupported-raster-required-pattern-stretchdibits.emf","unsupported-raster-patblt-source.wmf","unsupported-raster-device-bitblt.wmf","unsupported-raster-source-transform.emf"] {XCTAssertNil(ComparisonImage(bytes:try data(name)),name)}
     }
 }
+
+extension MetafileImageTests {
+    private func transferRGB(_ pixels:PenPixels,_ x:Int,_ y:Int,_ expected:[Int],_ message:String,file:StaticString = #filePath,line:UInt = #line) {
+        let actual=pixels.pixel(x,y)
+        for channel in 0..<3 {XCTAssertEqual(Double(actual[channel]),Double(expected[channel]),accuracy:1,"\(message) pixel(\(x),\(y))=\(actual)",file:file,line:line)}
+        XCTAssertEqual(actual[3],255,message,file:file,line:line)
+    }
+    func testClassicMaskBltAllForegroundAndBackgroundTruthBytes()throws {
+        // Literal P=F0,S=CC,D=AA enumerate the three-input truth table in
+        // their eight bit positions. A masked foreground n must return n;
+        // the opposite selector independently returns its complemented table.
+        let name="classic-maskblt-matrix.emf",before=try data(name),pixels=try booleanPixels(name)
+        for n in 0..<256 {
+            booleanGray(pixels,(n%16)*4+1,(n/16)*4+2,n,"ROP4 foreground \(n)")
+            booleanGray(pixels,(n%16)*4+3,(n/16)*4+2,255-n,"ROP4 background \(255-n)")
+        }
+        XCTAssertEqual(try data(name),before)
+    }
+    func testClassicMaskSelectorsOffsetsAndUnusedOperands()throws {
+        for name in ["classic-maskblt-copy.emf","classic-maskblt-swapped-palette.emf","classic-maskblt-unused-mask-palette.emf"] {
+            let pixels=try booleanPixels(name)
+            transferRGB(pixels,16,16,[255,0,0],name+" mask bit 1")
+            transferRGB(pixels,32,16,[0,0,255],name+" mask bit 0")
+            transferRGB(pixels,4,4,[0,0,255],name+" outside")
+        }
+        // renderToSvg initializes the GDI canvas to opaque white before any
+        // record. Absence of a painted base does not make this route transparent.
+        let defaultDC=try booleanPixels("classic-maskblt-default-destination.emf")
+        transferRGB(defaultDC,16,16,[255,0,0],"Mask foreground paints the initial white DC")
+        XCTAssertEqual(defaultDC.pixel(32,16),[255,255,255,255],"DSTCOPY preserves exact initial white DC RGBA")
+        XCTAssertEqual(defaultDC.pixel(4,4),[255,255,255,255],"Outside coverage preserves initial white DC RGBA")
+        let nilMask=try booleanPixels("classic-maskblt-no-mask.emf")
+        booleanGray(nilMask,16,16,85,"No mask ignores source-dependent background and unused NaN source transform")
+        booleanGray(nilMask,4,4,170,"No mask outside destination")
+        let noSource=try booleanPixels("classic-maskblt-no-source.emf")
+        booleanGray(noSource,16,16,240,"Foreground uses selected pattern without a source")
+        booleanGray(noSource,32,16,85,"Background inverts destination without a source")
+        let cropEdge=try booleanPixels("classic-maskblt-crop-edge.emf")
+        transferRGB(cropEdge,12,12,[255,0,0],"Selected crop interior is red")
+        let boundary=cropEdge.pixel(16,12)
+        XCTAssertEqual(boundary[1],0,"Antialiased destination edge must not sample green one past the selected source crop")
+        XCTAssertGreaterThan(boundary[0],0,"Fractional destination edge must contain selected red source coverage")
+        XCTAssertGreaterThan(boundary[2],0,"Fractional destination edge retains uncovered blue destination")
+        let offset=try booleanPixels("classic-maskblt-offset.emf")
+        transferRGB(offset,12,16,[255,0,0],"Mask offset retains selected bits")
+        transferRGB(offset,20,16,[0,0,255],"Mask offset moves the bit transition")
+    }
+    func testClassicPlgBltRepeatingMaskParallelogramClipAndMirroring()throws {
+        let shear=try booleanPixels("classic-plgblt-mask-shear.emf")
+        transferRGB(shear,14,24,[255,0,0],"Skewed repeating mask foreground")
+        transferRGB(shear,18,25,[0,0,255],"Skewed repeating mask destination preservation")
+        transferRGB(shear,34,28,[0,0,255],"Destination clip excludes source ink")
+        transferRGB(shear,52,12,[0,255,0],"RestoreDC releases the clip for the next masked transfer")
+        let mirrored=try booleanPixels("classic-plgblt-mask-mirror.emf")
+        transferRGB(mirrored,40,16,[255,0,0],"Mirrored parallelogram maps source-left to destination-right")
+        transferRGB(mirrored,24,16,[0,0,255],"Mirrored mask preserves the opposite side")
+        let noMask=try booleanPixels("classic-plgblt-no-mask.emf")
+        transferRGB(noMask,16,16,[255,0,0],"Optional mask absent copies source")
+        transferRGB(noMask,4,4,[0,0,255],"Optional mask absent still bounds destination")
+    }
+    func testClassicTransparentBltRGBIndexedAndBottomUpCroppedSources()throws {
+        for name in ["classic-transparentblt-key.emf","classic-transparentblt-indexed.emf","classic-transparentblt-crop-bottom-up.emf"] {
+            let before=try data(name),pixels=try booleanPixels(name)
+            transferRGB(pixels,16,16,[0,0,255],name+" exact red color key preserves blue destination")
+            transferRGB(pixels,32,16,[0,255,0],name+" non-key green is copied")
+            transferRGB(pixels,4,4,[0,0,255],name+" source crop/world translation remain bounded")
+            XCTAssertEqual(try data(name),before)
+        }
+        let bottom=try booleanPixels("classic-transparentblt-crop-bottom-up.emf")
+        transferRGB(bottom,32,32,[255,255,0],"Bottom-up crop retains the distinct lower source row")
+    }
+    func testClassicAlphaBlendPixelConstantCombinedZeroAndIgnoredFlags()throws {
+        let cases:[(String,[Int])]=[("classic-alphablend-pixel.emf",[128,0,127]),("classic-alphablend-constant.emf",[128,0,127]),("classic-alphablend-both.emf",[64,0,191]),("classic-alphablend-zero.emf",[0,0,255]),("classic-alphablend-ignored-flags.emf",[255,0,0])]
+        for(name,expected)in cases {
+            let before=try data(name),pixels=try booleanPixels(name)
+            transferRGB(pixels,16,16,expected,name+" specified alpha equation")
+            transferRGB(pixels,4,4,[0,0,255],name+" outside remains unchanged")
+            XCTAssertEqual(try data(name),before)
+        }
+    }
+    func testClassicTransferMalformedDIBMasksBlendAndGeometryRefuseWholeImage()throws {
+        let names=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("unsupported-transfer-")}.sorted()
+        XCTAssertEqual(names.count,18,"Enroll each independently framed transfer refusal")
+        for name in names {
+            let before=try data(name)
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(before),name)
+            XCTAssertNil(ComparisonImage(bytes:before),name+" must not expose earlier/later painted partial success")
+            XCTAssertEqual(try data(name),before)
+        }
+    }
+}

@@ -104,3 +104,11 @@ TurtleGit displays those operations in drawing order using the existing image pa
 the original files remain the comparison and Save inputs. Unsupported bitmap or
 operation variants produce an input error. See [metafile raster support](METAFILE-RASTER-PARITY.md)
 for supported records and current limits.
+
+
+Classic EMF bitmap transfers also include monochrome masks with foreground and
+background Boolean operations, parallelogram copies, RGB color-key transparency
+and constant/per-pixel alpha blending. They display through the same image and
+conflict panes; the original files remain unchanged. See the
+[record contracts and limits](METAFILE-RASTER-PARITY.md#classic-emf-masked-and-transparent-transfer-family)
+for the accepted family and verification scope.

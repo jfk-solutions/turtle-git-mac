@@ -176,12 +176,110 @@ private final class NativeRasterComposite {
                 }}else if let patternPixels {try patternPixels.withUnsafeBytes {try evaluate(nil,$0)}}else{try evaluate(nil,nil)}
             }
         }
+        return try encode(output,width:width,height:height)
+    }
+    private func encode(_ output:Data,width:Int,height:Int)throws->String {
         guard let space=CGColorSpace(name:CGColorSpace.sRGB),let provider=CGDataProvider(data:output as CFData),let image=CGImage(width:width,height:height,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:width*4,space:space,bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),provider:provider,decode:nil,shouldInterpolate:false,intent:.defaultIntent) else{throw invalid("cannot prepare composite image")}
         let encoded=NSMutableData()
         guard let encoder=CGImageDestinationCreateWithData(encoded,UTType.png.identifier as CFString,1,nil) else{throw invalid("cannot encode composite image")}
         CGImageDestinationAddImage(encoder,image,nil)
         guard CGImageDestinationFinalize(encoder),encoded.length<=outputLimit/2 else{throw invalid("composite PNG output exceeds limit")}
         return "data:image/png;base64,"+(encoded as Data).base64EncodedString()
+    }
+    /// Mask selection, RGB color-key copies and premultiplied source-over share
+    /// the same guarded SVG raster boundary and cumulative work limits as ROP3.
+    func transfer(_ destination:JSValue,_ source:JSValue,_ pattern:JSValue,_ coverage:JSValue,_ selection:JSValue,_ widthValue:Double,_ heightValue:Double,_ options:JSValue)throws->String {
+        guard widthValue.isFinite,heightValue.isFinite,widthValue.rounded()==widthValue,heightValue.rounded()==heightValue,
+              widthValue>=1,heightValue>=1,widthValue<=32768,heightValue<=32768,widthValue*heightValue<=16777216,
+              options.isObject,!options.isArray,let modeValue=options.forProperty("mode"),modeValue.isString,
+              let mode=modeValue.toString(),["mask","transparent","alpha"].contains(mode) else{throw invalid("invalid transfer dimensions or mode")}
+        func integer(_ name:String,_ maximum:Double)throws->Int {
+            guard let value=options.forProperty(name),value.isNumber else{throw invalid("missing transfer "+name)}
+            let number=value.toDouble()
+            guard number.isFinite,number.rounded()==number,number>=0,number<=maximum else{throw invalid("invalid transfer "+name)}
+            return Int(number)
+        }
+        let foreground=mode == "mask" ? try integer("foreground",255):0xcc
+        let background=mode == "mask" ? try integer("background",255):0xaa
+        let key=mode == "transparent" ? try integer("colorKey",16777215):0
+        let constant=mode == "alpha" ? try integer("constantAlpha",255):255
+        var perPixel=false
+        if mode == "alpha" {
+            guard let value=options.forProperty("perPixelAlpha"),value.isBoolean else{throw invalid("invalid per-pixel alpha selection")}
+            perPixel=value.toBool()
+        }
+        let needsSource=mode != "mask" || depends(foreground,2,0x33) || depends(background,2,0x33)
+        let needsPattern=mode == "mask" && (depends(foreground,4,0x0f) || depends(background,4,0x0f))
+        let width=Int(widthValue),height=Int(heightValue),pixels=width*height,size=CGSize(width:width,height:height)
+        let renders=2+(mode == "mask" ? 1:0)+(needsSource ? 1:0)+(needsPattern ? 1:0)
+        guard calls<4096,pixels<=33554432-compositePixels,pixels*renders<=67108864-renderedPixels,
+              pixels*4*(renders+2)<=256*1024*1024 else{throw invalid("pixel, work or memory budget exceeded")}
+        calls += 1;compositePixels += pixels;renderedPixels += pixels*renders
+        guard let destinationSVG=try svg(destination,size:size,required:true),let coverageSVG=try svg(coverage,size:size,required:true) else{throw invalid("missing canvas or coverage")}
+        let sourceSVG=try svg(source,size:size,required:needsSource),patternSVG=try svg(pattern,size:size,required:needsPattern)
+        let selectionSVG=try svg(selection,size:size,required:mode == "mask")
+        var output=try render(destinationSVG,width:width,height:height)
+        let coveragePixels=try render(coverageSVG,width:width,height:height)
+        let sourcePixels=needsSource ? try render(sourceSVG!,width:width,height:height):Data()
+        let patternPixels=needsPattern ? try render(patternSVG!,width:width,height:height):Data()
+        let selectionPixels=mode == "mask" ? try render(selectionSVG!,width:width,height:height):Data()
+        try output.withUnsafeMutableBytes { (dst:UnsafeMutableRawBufferPointer) in
+            try coveragePixels.withUnsafeBytes { (area:UnsafeRawBufferPointer) in
+                try sourcePixels.withUnsafeBytes { (src:UnsafeRawBufferPointer) in
+                    try patternPixels.withUnsafeBytes { (pat:UnsafeRawBufferPointer) in
+                        try selectionPixels.withUnsafeBytes { (mono:UnsafeRawBufferPointer) in
+                            for pixel in 0..<pixels {
+                                let offset=pixel*4,c=Int(area[offset+3]);if c==0{continue}
+                                func straight(_ bytes:UnsafeRawBufferPointer,_ channel:Int)throws->UInt8 {
+                                    let a=Int(bytes[offset+3]);guard a>0,a+2>=c else{throw invalid("transparent required transfer operand")}
+                                    return UInt8(min(255,(Int(bytes[offset+channel])*255+a/2)/a))
+                                }
+                                if mode == "alpha" {
+                                    let a=Int(src[offset+3])
+                                    // Source is an inverse-mapped full-device
+                                    // plane. Only independent geometry supplies
+                                    // edge/clip coverage; apply it exactly once.
+                                    guard perPixel || a==255 else{throw invalid("constant-alpha source plane is not opaque")}
+                                    let denominator=255*255
+                                    let effective=(a*constant*c+denominator/2)/denominator
+                                    for channel in 0..<3 {
+                                        let value=(Int(src[offset+channel])*constant*c+denominator/2)/denominator+(Int(dst[offset+channel])*(255-effective)+127)/255
+                                        dst[offset+channel]=UInt8(min(255,value))
+                                    }
+                                    dst[offset+3]=UInt8(min(255,effective+(Int(dst[offset+3])*(255-effective)+127)/255))
+                                    continue
+                                }
+                                var rop=foreground
+                                if mode == "mask" {
+                                    let r=try straight(mono,0),g=try straight(mono,1),b=try straight(mono,2)
+                                    // The parser admits only 1-bit mask data, but
+                                    // native SVG mapping can antialias cell edges.
+                                    // Requantize that achromatic sample once; do
+                                    // not blend foreground/background truth tables.
+                                    guard Int(max(r,max(g,b)))-Int(min(r,min(g,b)))<=2 else{throw invalid("mask is not monochrome at device pixels")}
+                                    rop=r>=128 ? foreground:background
+                                    if rop==0xaa {continue} // Preserve destination RGBA exactly.
+                                }
+                                if mode == "transparent" {
+                                    let r=try straight(src,0),g=try straight(src,1),b=try straight(src,2)
+                                    if (Int(r)<<16 | Int(g)<<8 | Int(b))==key {continue}
+                                }
+                                let usesSource=depends(rop,2,0x33),usesPattern=depends(rop,4,0x0f),oldAlpha=Int(dst[offset+3])
+                                for channel in 0..<3 {
+                                    let old=Int(dst[offset+channel]),d=UInt8(min(255,old+255-oldAlpha))
+                                    let sourceByte=usesSource ? try straight(src,channel):0
+                                    let patternByte=usesPattern ? try straight(pat,channel):0
+                                    let result=Int(apply(rop,patternByte,sourceByte,d))
+                                    dst[offset+channel]=UInt8((result*c+old*(255-c)+127)/255)
+                                }
+                                dst[offset+3]=UInt8(c+(oldAlpha*(255-c)+127)/255)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return try encode(output,width:width,height:height)
     }
 }
 
@@ -1241,6 +1339,11 @@ private func run() throws {
         catch ConversionError.invalid(let message){nativeError(message);return ""}
         catch{nativeError("Metafile raster operation failed: "+String(describing:error));return ""}
     }
+    let rasterTransfer:@convention(block)(JSValue,JSValue,JSValue,JSValue,JSValue,Double,Double,JSValue)->String = {destination,source,pattern,coverage,selection,width,height,options in
+        do{return try autoreleasepool{try rasterCompositor.transfer(destination,source,pattern,coverage,selection,width,height,options)}}
+        catch ConversionError.invalid(let message){nativeError(message);return ""}
+        catch{nativeError("Metafile raster transfer failed: "+String(describing:error));return ""}
+    }
     var decodedBitmapPixels=0
     // The optional sixth argument contains EmfPlusPalette ARGB values. Existing
     // gradient/hatch callers have no palette and continue to pass five arguments.
@@ -1334,6 +1437,7 @@ private func run() throws {
     context.setObject(positionedText,forKeyedSubscript:"__turtlePositionedText" as NSString)
     context.setObject(strokePath, forKeyedSubscript: "__turtleStrokePath" as NSString)
     context.setObject(rasterComposite,forKeyedSubscript:"__turtleRasterComposite" as NSString)
+    context.setObject(rasterTransfer,forKeyedSubscript:"__turtleRasterTransfer" as NSString)
     context.setObject(bitmap, forKeyedSubscript: "__turtleBitmapNative" as NSString)
     context.evaluateScript("""
     globalThis.__turtleBitmap = function(bytes,width,height,stride,format,palette){return __turtleBitmapNative(bytes,width,height,stride,format,palette === undefined ? [] : palette);};

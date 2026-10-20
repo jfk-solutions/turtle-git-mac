@@ -433,6 +433,8 @@ uses native glyph outlines for wrapping, direction, tabs, spacing and trimming.
 [Positioned metafile text](docs/METAFILE-POSITIONED-TEXT-PARITY.md) adds driver
 strings, glyph-index output and classic text advances, with explicit font and
 record limits and a separate implementation checkpoint.
+[Classic bitmap transfers](docs/METAFILE-RASTER-PARITY.md) include masks,
+parallelogram copies, color-key transparency and alpha blending.
 [Classic EMF clipping](docs/METAFILE-CLASSIC-CLIP-PARITY.md) includes region
 Boolean combinations, clip offsets and independent metaregions.
 [EMF+ pen strokes](docs/METAFILE-PEN-PARITY.md) include linear nib transforms,

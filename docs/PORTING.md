@@ -1034,11 +1034,15 @@ sandbox execution, passing hosted CI on the latest source or App Store readiness
 
 ## Behavioral parity backlog
 
+This table began as a first-pass snapshot. Later dated family sections supersede
+its older findings; an entry here alone is not evidence that a feature is still
+missing. The Commit row was checked against current code on October 20, 2026.
+
 | Workflow | First-pass implementation | Remaining upstream behavior |
 | --- | --- | --- |
 | Check for modifications | Native standalone Working Tree dialog; columns, scope/filters, statistics, dates, sorting, diff export and basic menus | Full menus, remote checks, progress/cancellation and persistent preferences; see STATUS-PARITY.md |
 | Add | Native scoped checked list, ignored defaults, direct-file progress route, original icons/watermark, tracked history/Blame/base, unified diff, two-file comparison and temporary restoration/Revert menus, cancellable private-index add and index-only executable/symlink post-actions | Full menus, native visual/gesture/signed acceptance; see ADD-PARITY.md |
-| Commit | Native checked-file dialog; optional three-state staging; amend, author, sign-off, statistics | Unsupported partial-stage file types, full history/completion, hooks UI, issue trackers, remaining action menu |
+| Commit | Native checked-file dialog and optional staging; amend and identity controls; source action menus, message history and completions, client hooks, detached/new-branch handling and ReCommit | External issue-provider adapters/callbacks beyond the embedded catalog; remaining file-type and source-layout/physical/signed acceptance; see ISSUE-PROVIDERS.md and later Commit family sections |
 | Log | Native three-pane window; graph, refs, search/date filters, lazy action icons and metadata columns, working-tree row, per-parent file groups, comparisons and revision actions; scoped Add/Commit/Revert, index flags, Ignore/Delete and submodule history routes with actual receiver checks | Full reference chooser/search/walk/view/statistics controls, remaining context commands, group styling and selection-mark gestures, displayed light/dark/keyboard/VoiceOver acceptance and signed handoffs; see LOG-PARITY.md |
 | Diff | Index/worktree/commit textual patches | Side-by-side, syntax highlighting, binary/image handling, external tools |
 | Clone | Native Git/SSH/SVN option groups, captured progress/retry/cancellation, private-agent key loading and remote-key storage, URL/destination history, real Git tests and Log handoff | Full upstream progress, physical picker/Cancel/sheet QA, actual SSH authentication, real SVN/LFS, signed scopes and bare adoption; see CLONE-PARITY.md |
@@ -4099,3 +4103,36 @@ repair. The older network fixture also needed its optional reader-hook fallback.
 All fourteen recorded receiver PIDs are independently absent. No complete Core
 rerun followed native-only repairs, and no complete hosted, installed signed or
 whole-port claim follows from this scoped checkpoint.
+
+### Classic EMF masked and transparent transfer family — October 20, 2026
+
+The image comparison decoder now implements MASKBLT foreground/background ROP4
+truth tables, PLGBLT parallelograms and repeating monochrome masks,
+TRANSPARENTBLT exact RGB color keys, and ALPHABLEND constant and premultiplied
+per-pixel alpha. Mask selection follows bitmap bits independently of palette
+colors. Destination clipping, saved state, source crops and original repository
+bytes remain part of the contract. Unsupported or malformed required operands
+refuse the whole conversion rather than expose a partially painted image.
+
+The same native compositor and bounded helper serve comparison panes and binary
+conflict review; accepted conflict choices must write the original metafile
+bytes. The connected painting review also identified a hosted regression:
+raster background-state interception bypassed positioned text state, while
+opaque text rectangles used the selected brush instead of the background color.
+That shared state repair belongs to this painting batch.
+
+[Source semantics and limits](METAFILE-RASTER-PARITY.md) distinguish these classic
+EMF records from device-dependent WMF payloads, separate EMF+ compositing,
+remaining Windows font/edge compatibility and signed distribution acceptance.
+The checkpoint passed twelve distinct focused Core methods cumulatively, the
+universal helper and app builds, and four native comparison/conflict case/engine
+combinations with system and bundled Git. Initial checks found duplicate
+antialias coverage on skewed image operands and an invalid transparent-canvas
+fixture expectation. Bounded inverse-mapped operand planes, half-open crop
+clamping and exact white-DC assertions repaired those cases; only the six affected
+transfer methods repeated. The previously failing hosted positioned-text method
+passed locally. Native fixture entry discovery and Swift expression complexity
+needed preparation repairs before launching; their assertions remain intact.
+All four native receivers are independently absent. [Batch evidence](qa/metafile-masked-transfers-family-2026-10-20.json)
+records failures and scope; this is not a complete hosted, visual or signed
+distribution pass.

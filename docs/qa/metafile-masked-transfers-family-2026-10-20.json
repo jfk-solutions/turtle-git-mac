@@ -1,0 +1,121 @@
+{
+  "status": "focused-local-validation-passed",
+  "scope": "Classic EMF masked, parallelogram, color-key and alpha transfers through native image comparison and conflict resolution",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "MASKBLT generic foreground/background ROP4 truth tables and bit-based monochrome selectors independent of palettes",
+    "Optional masks, ignored unused source transforms, exact destination preservation for DSTCOPY and half-open source crop edge clamping",
+    "PLGBLT destination parallelograms, repeating masks, source mirror, clipping and saved state",
+    "TRANSPARENTBLT exact RGB keys with indexed, cropped and bottom-up sources",
+    "ALPHABLEND constant and premultiplied per-pixel source-over; ignored record BlendFlags",
+    "Twenty valid fixtures and eighteen independent whole-image refusal fixtures",
+    "Shared background-mode dispatch and explicit background-color text rectangle repair"
+  ],
+  "hosted_failure_repaired_in_source": {
+    "run": 39465414507,
+    "job": 118778296054,
+    "method": "MetafileImageTests.testClassicPositionedPdyAlignmentUpdateCPAndOpaqueRects",
+    "cause": "Raster brush interception skipped positioned text SETBKMODE; opaque text rectangles used selected brush color",
+    "boundary": "Affected method passed locally; latest pushed d3066e8c hosted run39477725641 still in progress when observed, no current hosted green claim"
+  },
+  "checks": [
+    {
+      "name": "Initial universal helper build",
+      "result": "passed",
+      "log": "build/qa/metafile-masked-runtime-2026-10-20.log"
+    },
+    {
+      "name": "Initial focused Core group",
+      "methods": 12,
+      "passed_methods": 10,
+      "failed_assertions": 3,
+      "result": "two methods need repair",
+      "log": "build/qa/metafile-masked-core-2026-10-20.log",
+      "repairs": [
+        "Default canvas is opaque white; correct invalid transparent-destination fixture expectation while retaining exact DSTCOPY/outside RGBA checks",
+        "Replace multiply-antialiased transformed image operands with bounded inverse-mapped device planes; apply alpha coverage once"
+      ]
+    },
+    {
+      "name": "Hosted positioned text regression focused recheck",
+      "result": "passed in initial Core group"
+    },
+    {
+      "name": "Initial native app build",
+      "result": "passed",
+      "log": "build/qa/metafile-masked-app-2026-10-20.log"
+    },
+    {
+      "name": "Affected transfer Core recheck",
+      "methods": 6,
+      "result": "passed, zero failures",
+      "log": "build/qa/metafile-masked-core-repair-2026-10-20.log",
+      "boundary": "New transfer sampling affects all six methods; prior ROP2/ROP3 and hosted text checks unchanged and not repeated"
+    },
+    {
+      "name": "Repaired universal helper and native app builds",
+      "result": "passed",
+      "logs": [
+        "build/qa/metafile-masked-runtime-repair-2026-10-20.log",
+        "build/qa/metafile-masked-app-repair-2026-10-20.log"
+      ]
+    },
+    {
+      "name": "Native comparison consumers and actual binary Git conflicts",
+      "result": "four case/engine combinations passed",
+      "cases": [
+        "consumers",
+        "conflict"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/metafile-masked-native-final-2026-10-20.log",
+      "receiver_pids": [
+        83570,
+        83600,
+        83623,
+        83732
+      ],
+      "cleanup": "All four reaped and independently confirmed absent; helper cleanup restricted to exact approved executables with private request ownership",
+      "assertions": [
+        "Actual helper pixel oracles including 512 ROP4 foreground/background values, swapped mask palette, skewed masks and alpha",
+        "Malformed premultiplication explicit image failure retains original bytes",
+        "Preview/Cancel leaves HEAD, index and working tree unchanged",
+        "Accepted Theirs writes and stages original EMF bytes without implicitly committing",
+        "Late actual decoded receipt holds operation/Quit ownership until drainage"
+      ]
+    },
+    {
+      "name": "Native fixture preparation repairs",
+      "result": "two pre-launch failures repaired; all behavioral assertions retained",
+      "logs": [
+        "build/qa/metafile-masked-native-2026-10-20.log",
+        "build/qa/metafile-masked-native-repair-2026-10-20.log"
+      ],
+      "repairs": [
+        "Put @main immediately before enum for existing receiver entry discovery",
+        "Split independent ROP4 sample expression into explicit typed steps to avoid Swift type-check timeout",
+        "Correct approved packaged helper path to actual TurtleGitMac.app product"
+      ]
+    },
+    {
+      "name": "Generated Help/localization and dialog coverage",
+      "result": "checks passed; coverage regenerated; counts are not feature completion"
+    }
+  ],
+  "remaining": [
+    "Device-dependent WMF bitmap payloads and unsupported brush/bitmap encodings",
+    "Source rotation/shear outside supported GDI transfer contract",
+    "Separate EMF+ compositing, flood fill, framed regions and dynamic DC brush/pen colors",
+    "Windows font, device and antialiased-edge identity",
+    "Complete hosted integration, physical visual acceptance and installed signed/App Store distribution"
+  ],
+  "core_boundary": "Twelve distinct focused methods passed cumulatively after repair; six transfer methods repeated after source sampling changed. No complete Core suite rerun.",
+  "hashes": {
+    "patches/metafile-renderer.patch": "9646af71839911fbd46fce290023ebddf2268036192ba67d6c98aa7f40277ad5",
+    "Sources/TurtleGitMetafile/main.swift": "b3fd5caaa5325ab48b7ce22d1932f38e4dda6d98c57d680afcd719131b932be0",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate-transfers.py": "38348c4c9b361d7c1769d46e558fa7452151585f853e196abfc5b11ed52c26e1"
+  }
+}

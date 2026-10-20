@@ -74,16 +74,18 @@ adapter adds no independent app, persistent worker or document mutation.
 
 ## Explicit limits
 
-Masks/ROP4, parallelogram or unsupported skewed source transfers, device-dependent
-WMF bitmap variants, unsupported bitmap encodings and unsupported pattern-brush
-variants remain errors. The classic DIB path accepts bounded RGB, RLE4/RLE8,
+Source rotation/shear for bitmap transfers, device-dependent WMF bitmap variants,
+unsupported bitmap encodings and unsupported pattern-brush variants remain errors.
+The connected classic EMF masked/transparent extension below covers its own
+record and operand requirements. The classic DIB path accepts bounded RGB, RLE4/RLE8,
 indexed palettes, bitfields and core headers; JPEG/PNG-compressed DIB layouts,
 embedded/external bitmap profiles and device-dependent bitmap layouts remain
 unsupported. Dynamic DC_BRUSH/DC_PEN color state, monochrome
 creation variants and obsolete device-dependent brush records remain unsupported.
-Any nonzero high byte in a transfer operation code is refused, including
+In the ROP3 record family, any nonzero high byte in an operation code is refused, including
 flags that request operating-system screen capture or alter mirroring. Such flags
-are not interchangeable with a Boolean truth byte.
+are not interchangeable with a Boolean truth byte. MASKBLT's separate ROP4
+layout uses that byte as its background truth table, as described below.
 Flood fill, framed regions and other separately refused visible record families
 remain outside this extension. EMF+ compositing, including SourceCopy, is a
 separate graphics model and is not enabled by classic GDI ROP support. Hardware
@@ -127,3 +129,50 @@ this new adapter.
 The [batch evidence](qa/metafile-raster-family-2026-10-20.json) records actual
 execution and repairs; the operation-space counts above are not a port-completion
 percentage or evidence of full Windows visual parity.
+
+
+## Classic EMF masked and transparent transfer family
+
+The extension adds EMR_MASKBLT, EMR_PLGBLT, EMR_TRANSPARENTBLT and EMR_ALPHABLEND
+to the existing ordered destination canvas. These are classic EMF records;
+ordinary WMF DIB/ROP operations retain their existing contract. Original EMF bytes
+remain comparison, conflict and Save inputs.
+
+| Record | Operation |
+| --- | --- |
+| MASKBLT | A monochrome mask selects the foreground or background ROP3 truth byte; each supports all 256 functions |
+| PLGBLT | Source pixels map to the destination parallelogram, with optional monochrome masking |
+| TRANSPARENTBLT | Exact RGB color-key pixels retain the previous destination; other pixels copy through the captured geometry |
+| ALPHABLEND | Constant and per-pixel premultiplied source-over blending use the captured source and destination |
+
+Mask selection uses source bits rather than palette colors. Coverage and mask
+selection remain separate: the selector chooses a Boolean operation, while the
+captured geometry/clip determines where it applies. An absent MASKBLT mask uses
+its foreground operation. Alpha blending uses its constant factor and per-pixel
+alpha without applying geometric edge coverage twice. Transparent color-key
+copies and alpha blends have distinct semantics.
+
+For these four records, source and mask operands use bounded device-canvas
+planes sampled at pixel centers through the inverse destination mapping. The
+source rectangle is validated before nearest sampling; edge samples clamp to
+that rectangle. Geometry and the captured DC clip apply through the separate
+coverage operand once. This avoids multiplying native SVG image-edge and
+rectangle-edge antialiasing, while retaining explicit errors for missing or
+unsupported required operands.
+
+The same bounded SVG/native raster boundary, cumulative work and memory limits,
+private helper lifetime and original-byte preservation cover these records.
+This remains intrinsic-resolution rendering with separately documented Windows
+edge/font/device limits. Complete EMF+/GDI compatibility, physical signed
+acceptance and every Windows graphics record are not established by this family.
+
+Primary record references are Microsoft's
+[MASKBLT](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/e6f715c0-d034-4eb3-952e-f8ee66adb9ed),
+[PLGBLT](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/b6c8b39d-42c7-4221-ab70-93f1e09b644e),
+[TRANSPARENTBLT](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/aa216051-2dc0-4317-b343-525431cfa103)
+and [ALPHABLEND](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/34e07d4f-aee6-4b63-a4bb-96996ad47669).
+The AlphaBlend record's BlendFlags field is ignored as specified by MS-EMF;
+the blending operation and alpha format retain their defined constraints.
+[Batch evidence](qa/metafile-masked-transfers-family-2026-10-20.json) records actual
+executed checks and failures. The grouped native entry point is
+`scripts/test-metafile-masked-transfers.py`.
