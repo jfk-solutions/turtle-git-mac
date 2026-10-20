@@ -748,7 +748,8 @@ Diff Viewer associations. Binary results are read-only; notebook comparison open
 a generated Compare Notebooks button in the associated notebook application.
 
 [Microsoft Word comparison](WORD-COMPARISON.md) creates a new result with tracked
-formatting changes. It needs Word and your macOS Automation permission. Shift
+formatting changes. With Word installed it needs your macOS Automation
+permission; when Word is unavailable it tries the separate LibreOffice adapter. Shift
 keeps the ordinary internal comparison; the originals remain unchanged.
 
 [Word merge](WORD-MERGE.md) prepares a private three-way document. Review it in

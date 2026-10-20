@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-20",
+  "base": "593153c89302c354b9eda29cbe45d0631691a675",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Word unavailable-only LibreOffice comparison fallback with exact captured bytes; no fallback on permission/uncertain/merge failures.",
+    "Pinned Word view normalization, captured input cleanup, conservative generated-result identification and verified macro-security restoration.",
+    "Owner/task/app-cleanup cancellation, serialized bridge draining, strict typed receipts and retained uncertain inputs."
+  ],
+  "review_repairs_before_checkpoint": [
+    "Partial open helper now recovers only unique private-path input after absence preflight.",
+    "Early merge cancellation maps to WordMergeFailure so confirmed unopened previews can be removed.",
+    "Malformed or contradictory successful/security/identity receipts retain uncertain files."
+  ],
+  "core": {
+    "run": false,
+    "reason": "Core sources unchanged; shipping Core consumers exercised by native private-repository workflows. No redundant Core suite."
+  },
+  "build": {
+    "log": "build/qa/word-office-app-2026-10-20.log",
+    "result": "passed",
+    "first_attempt_pass": true,
+    "known_exit_zero_diagnostics": 2
+  },
+  "native": {
+    "log": "build/qa/word-office-native-2026-10-20.log",
+    "result": "passed",
+    "first_attempt_pass": true,
+    "cases": 4,
+    "engine_pairs": 8,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "receivers_reaped_and_independently_absent": [
+      98094,
+      98096,
+      98180,
+      98432,
+      98696,
+      98911,
+      99129,
+      99181
+    ],
+    "command": "python3 scripts/test-word-office-family.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\" --check-word-terminology",
+    "office_commands_executed": false,
+    "word_fixed_handlers_terminology_compiled": true,
+    "presentation": "Private prefs/repositories/config/home/temp; global NSWindow order interception hides/offscreen all receiver windows. Injected Office executors; no physical output/screenshots claimed."
+  },
+  "resources": {
+    "localizations": "38 languages / 1305 keys write and check passed; generated catalog unchanged.",
+    "help": "46 guides / 51 topics / 66 files write/check passed using build/site-venv/bin/python. System Python first failed for missing markdown_it; no dependency installed.",
+    "site": "385 documents / zero unresolved fragments; build/qa/word-office-site-2026-10-20.log",
+    "dialog_coverage": "130 resources:120 partial family audits,10 pending,0 certified;1574 mapped controls,85 pending. Review coverage only."
+  },
+  "limits": [
+    "No live Word/LibreOffice output, track direction, file format converter or macro runtime verification.",
+    "Word compare returns no result in installed dictionary: new-window/preexisting-document exclusion is conservative and cannot prove provenance during concurrent user window activity.",
+    "No real TCC/file grant/Save As prompt interaction; no physical Finder, minimum OS, signed deployment or App Store acceptance.",
+    "PowerPoint shape decisions and editable merged output remain missing; this does not complete all document tools or the port.",
+    "Latest previous-push macOS CI was in progress; scoped native passes are not hosted full-suite certification."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/WordComparisonAutomation.swift": "fce00ae2e61224d34d682fc14a6498cc345a38484a2f3988f7a6b92802b43f74",
+    "Sources/TurtleGitMac/DiffToolSettings.swift": "c8f2714bff55bbceab703df630ee30b35cd942d775d8a03c4058a7429b925293",
+    "docs/qa/word-automation-contract-native-2026-10-20.swift": "a30a915b79ef2474ca4cfa077dcac8cee5872a353ef052e3e5fd17e86c711446",
+    "docs/qa/word-comparison-native-2026-10-16.swift": "aa0d3b67cab07d50fcaef2503c94dbe98ae1dda5d5af4290893b7f67b17324ea",
+    "docs/qa/word-merge-native-2026-10-16.swift": "369b4038461802af04ac27511b059ba61f22f271b91a86ffd2d5d9ff1da7b1e9",
+    "scripts/test-word-office-family.py": "838a982ef4364790180d40a773ee12027c674c063facee5cc39998afc9c2767b"
+  }
+}

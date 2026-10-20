@@ -3,9 +3,14 @@
 <p>The bundled Word adapter opens a new Microsoft Word comparison result with
 tracked text and formatting changes. It ports the modern Word branch of
 TortoiseGit's <code>diff-doc.js</code>; it does not flatten a document to plain text.
-Word must be installed separately. The adapter is offered for <code>.doc</code>, <code>.docx</code>,
+Install Word separately, or install LibreOffice with its bundled Python runtime.
+When Word is unavailable, this comparison association automatically tries the
+<a href="LIBREOFFICE-COMPARISON.html">LibreOffice adapter</a>, following the source fallback.
+Permission denial, an ambiguous Word result or a timeout does not dispatch a
+second comparison. The adapter is offered for <code>.doc</code>, <code>.docx</code>,
 <code>.docm</code>, <code>.dot</code>, <code>.dotx</code> and <code>.odt</code>. Actual format conversion is performed by Word.
-PowerPoint remains separate port work; <a href="LIBREOFFICE-COMPARISON.html">LibreOffice</a> now has a UNO comparison/merge adapter.
+<a href="POWERPOINT-COMPARISON.html">PowerPoint comparison</a> has a separate native slide
+review; shape-level revision decisions and editable merged output remain open.
 <a href="EXCEL-COMPARISON.html">Excel comparison</a> has its own native adapter.
 <a href="WORD-MERGE.html">Word merge</a> now has its own three-way workflow.</p>
 <p>New unsaved Diff Viewer defaults include the five DOC/DOCX/DOCM/DOT/DOTX associations. ODT now defaults to LibreOffice; Word remains explicitly selectable for it. Existing saved
@@ -18,26 +23,35 @@ Word association and retain the regular internal byte/text view.</p>
 read-only files retaining their filenames. Like upstream's modern Word branch,
 Word opens the base and compares it against the new document, using a new result,
 author <code>Comparison</code>, formatting detection and ignored comparison warnings. The
-result is marked saved to avoid the source's unwanted Save As prompt. Only the
-private input document opened by that call is closed. Existing user documents,
-the original repository files are not modified. Automatic macros are suppressed
-during input opening, as in the source; restoration of the prior Word automation
-security value is attempted on success and failure. Other Word preferences are
+result is marked saved to avoid the source's unwanted Save As prompt only after
+the handler identifies a new result window/document. Ambiguous identity reports
+an error and retains possible results. It never marks the active document saved
+merely because it is active. Outline view is normalized to normal view before
+comparison; master/reading view is normalized only without subdocuments, matching
+the source condition. Only the private input document opened by that call is closed. The original repository files are not modified. Existing document names and
+window IDs are excluded from result selection; see the concurrent-window
+acceptance limitation below. Automatic macros are suppressed
+during input opening, as in the source. The handler reads back the disabled
+setting before opening inputs and verifies restoration of the prior Word
+automation-security setting on success and failure. An unconfirmed restoration
+is an error, and captured files are retained for an uncertain handoff. Other Word preferences are
 not changed.
 TurtleGit does not accept/reject tracked changes, save over the originals, stage
 files or mark a conflict resolved through this diff adapter.</p>
 <p>Paths are passed as Apple-event descriptors to a fixed handler. Quotes, Unicode,
 spaces and source-like text inside a filename cannot become script syntax; no
 shell interprets them. Preparation runs off the UI thread. Cancellation before
-Word dispatch suppresses it; an already dispatched Apple event cannot be rolled
-back. The owning operation and Quit guard last until its worker settles, including
+Word dispatch suppresses it. During automation, a private cancellation marker
+allows the handler to stop between Word commands, close proven private inputs
+and restore security; an in-flight Word command cannot be rolled back. The owning operation and Quit guard last until its worker settles, including
 a reply after the original dialog closes. Retired owners do not show stale errors
 or open replacement windows. Word itself is never terminated by cancellation.</p>
 <h2 id="permission-and-failures">Permission and failures</h2>
 <p>macOS can ask to allow TurtleGit to control Word. If denied, enable it in System
-Settings → Privacy &amp; Security → Automation and retry the comparison. A missing
-Word installation, compile failure or confirmed denied/unopened request removes
-its unused private copies. Success or a failure that might have opened documents
+Settings → Privacy &amp; Security → Automation and retry the comparison. A missing Word installation removes its unused private copies before trying
+LibreOffice. A compile failure or confirmed denied/unopened request also removes
+unused Word copies. If LibreOffice is unavailable, its own installation/runtime
+error is shown; Word merging does not use this fallback. Success or a failure that might have opened documents
 retains them so a receiving Word document cannot lose its input files. Settings
 → Saved Data → Temp files or OS temporary cleanup can later remove those copies.
 If a comparison error remains visible, dismiss it before retrying normally.</p>
@@ -58,6 +72,9 @@ shipping comparison dispatcher and literal Apple-event arguments, with an
 intercepted Word executor to avoid operating on user documents or accepting
 Automation prompts. The optional local terminology check compiles the fixed
 handler against the installed Word dictionary without executing a comparison.</p>
+<p>New-window identification is conservative, but it is not a provenance receipt
+from Word: concurrent user-created/closed windows can still make result attribution
+uncertain. Physical acceptance of that case remains open.</p>
 <p>Live Word output, track-change direction, all formats/converters, protected/macro
 documents, TCC and Word file-access dialogs, full error/timeout variants, physical
 interaction and signed Finder/App Store acceptance remain unverified. No complete

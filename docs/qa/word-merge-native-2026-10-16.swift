@@ -20,8 +20,10 @@ import TurtleGitCore
         let input=try await repo.externalMergeInputs(path:path),index=root.appendingPathComponent(".git/index"),before=try Data(contentsOf:index),working=try Data(contentsOf:file),head=try await repo.run(["rev-parse","HEAD"]).stdout
         let owner=NSWindow(contentRect:.init(x:0,y:0,width:500,height:250),styleMask:[.titled,.closable],backing:.buffered,defer:false);owner.isReleasedWhenClosed=false;owner.alphaValue=0;owner.orderFront(nil)
         defer { owner.close() }
-        let oldExecutor=MergeToolApplication.mergeWord,oldConfigure=MergeToolApplication.configureWordSession
-        defer { MergeToolApplication.mergeWord=oldExecutor;MergeToolApplication.configureWordSession=oldConfigure }
+        let oldExecutor=MergeToolApplication.mergeWord,oldConfigure=MergeToolApplication.configureWordSession,oldLibreOffice=MergeToolApplication.mergeLibreOffice
+        defer { MergeToolApplication.mergeWord=oldExecutor;MergeToolApplication.configureWordSession=oldConfigure;MergeToolApplication.mergeLibreOffice=oldLibreOffice }
+        var fallbackCalls=0
+        MergeToolApplication.mergeLibreOffice={ _,_ in fallbackCalls += 1;throw Failure(message:"Word merge unexpectedly fell back") }
         var copies:[URL]=[];defer { for folder in copies { try? FileManager.default.removeItem(at:folder) } }
         let suite="TurtleGit.WordMergeNative."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!;defer{prefs.removePersistentDomain(forName:suite)}
         var custom=DiffToolAssociation();custom.pattern=".txt";custom.program.enabled=false
@@ -38,7 +40,7 @@ import TurtleGitCore
             calls += 1;copies.append(preview.directory)
             try require((try Data(contentsOf:preview.base))==input.base && (try Data(contentsOf:preview.mine))==input.mine && (try Data(contentsOf:preview.theirs))==input.theirs,"Word merge lost exact stage bytes/orientation")
             let args=WordComparisonAutomation.mergeEvent(preview).paramDescriptor(forKeyword:0x2d2d2d2d)
-            try require(args?.numberOfItems==4 && args?.atIndex(1)?.stringValue==preview.base.path && args?.atIndex(2)?.stringValue==preview.theirs.path && args?.atIndex(3)?.stringValue==preview.mine.path && args?.atIndex(4)?.stringValue==file.path,"Word merge paths were interpolated/retargeted")
+            try require(args?.numberOfItems==5 && args?.atIndex(1)?.stringValue==preview.base.path && args?.atIndex(2)?.stringValue==preview.theirs.path && args?.atIndex(3)?.stringValue==preview.mine.path && args?.atIndex(4)?.stringValue==file.path && args?.atIndex(5)?.stringValue==preview.directory.appendingPathComponent("automation.cancel").path,"Word merge paths were interpolated/retargeted")
             try Data("private reviewed mine".utf8).write(to:preview.mine)
         }
         MergeToolApplication.configureWordSession={ session in session.presentConfirmation={ _,alert,reply in
@@ -54,6 +56,11 @@ import TurtleGitCore
         do { _=try await MergeToolApplication.open(repository:repo,access:nil,path:path,alternate:false,owner:owner,preferences:settings);throw Failure(message:"Denied Word merge succeeded") }
         catch let failure as WordMergeFailure { try require(!failure.possiblyOpened,"Denied merge considered opened") }
         try require(denied != nil && !FileManager.default.fileExists(atPath:denied!.path) && (try Data(contentsOf:index))==before,"Denied Word merge leaked files or staged")
+        var unavailable:URL?
+        MergeToolApplication.mergeWord={preview,_ in unavailable=preview.directory;copies.append(preview.directory);throw WordMergeFailure.application}
+        do {_=try await MergeToolApplication.open(repository:repo,access:nil,path:path,alternate:false,owner:owner,preferences:settings);throw Failure(message:"Unavailable Word merge succeeded")}
+        catch let failure as WordMergeFailure {try require(!failure.possiblyOpened,"Unavailable Word merge considered dispatched")}
+        try require(fallbackCalls==0 && unavailable != nil && !FileManager.default.fileExists(atPath:unavailable!.path),"Word merge fell back or leaked unused private inputs")
         var pendingReply:((NSApplication.ModalResponse)->Void)?
         MergeToolApplication.configureWordSession={ session in session.presentConfirmation={ _,_,reply in pendingReply=reply } }
         let retiring=NSWindow(contentRect:.init(x:0,y:0,width:500,height:250),styleMask:[.titled,.closable],backing:.buffered,defer:false);retiring.isReleasedWhenClosed=false;retiring.alphaValue=0;retiring.orderFront(nil)
@@ -78,7 +85,7 @@ import TurtleGitCore
         try require(staged==reviewed && remaining.isEmpty,"Explicit Mark Resolved did not stage the saved original result")
         if ProcessInfo.processInfo.environment["TURTLEGIT_CHECK_WORD_TERMINOLOGY"]=="1" {
             _=try WordComparisonAutomation.compile(merging:true)
-            try require(WordComparisonAutomation.source.contains("set automation security to 3") && WordComparisonAutomation.mergeSource.contains("set automation security to previousSecurity"),"Word macro suppression/restoration absent")
+            try require(WordComparisonAutomation.source.contains("set automation security to msoAutomationSecurityForceDisable") && WordComparisonAutomation.source.contains("automation security is not msoAutomationSecurityForceDisable") && WordComparisonAutomation.mergeSource.contains("set automation security to previousSecurity") && WordComparisonAutomation.mergeSource.contains("automation security is previousSecurity"),"Word macro suppression/restoration absent")
             print("PASS: Word merge fixed handler compiled against installed terminology; no Word operation executed")
         }
         try require(try await repo.run(["rev-parse","HEAD"]).stdout==head,"Word merge changed HEAD")

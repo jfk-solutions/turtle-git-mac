@@ -41,13 +41,19 @@ blobs and real result remain independent. Arguments arrive as Apple-event string
 descriptors. A filename never becomes AppleScript or shell syntax.
 
 Word's automatic macro execution is suppressed while documents open, as in both
-upstream Word scripts. Both comparison and merge handlers attempt to restore the
-prior automation-security setting on success/failure; their worker is serialized.
-Only owned private input references are closed. Word and unrelated user documents
+upstream Word scripts. Both comparison and merge handlers verify the disabled
+macro setting before opening inputs and read back the prior automation-security
+setting after restoration on success/failure; their worker is serialized. An
+unconfirmed restoration fails the handoff and retains uncertain files.
+Only exact owned private input references are closed, including captured
+base/theirs inputs on errors. Once revision editing starts, the possible edited
+mine result is retained for review, even when a later step fails. Word and unrelated user documents
 are not terminated by TurtleGit cancellation.
 
 Closing/cancelling before dispatch rejects late instruction answers and prevents
-another Word operation. An already dispatched Apple event cannot be rolled back;
+another Word operation. A private cancellation marker stops the handler between
+Word commands and still allows owned cleanup/security restoration. An already
+dispatched Word command cannot be rolled back;
 Quit remains blocked until its worker settles. Retired owners do not present a
 resolution question or stage anything. Successful or uncertain Word receipts keep
 private files through normal app cleanup, while confirmed unopened/denied failure
@@ -71,5 +77,8 @@ against the installed Word dictionary without executing Word operations.
 Live Word output and exact tracked-change direction, macro suppression/restoration,
 Save As interaction, all document formats, actual TCC/file grants, physical native
 questions, signed Finder/AppStore and full source parity remain unverified.
-LibreOffice/OpenDocument merge and PowerPoint workflows remain open. See
+Word merge requires Word and has no automatic LibreOffice fallback, matching
+`merge-doc.js`. [LibreOffice/OpenDocument merge](LIBREOFFICE-COMPARISON.md) is a
+separate adapter. PowerPoint shape-level revision decisions and editable merged
+output remain open. See
 [Excel comparison](EXCEL-COMPARISON.md) for its separate adapter/acceptance scope.

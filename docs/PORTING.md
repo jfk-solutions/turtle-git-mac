@@ -1,5 +1,18 @@
 # TurtleGit for Mac — full port tracking
 
+The connected [Word/LibreOffice handoff family](WORD-AUTOMATION-PARITY.md) adds
+unavailable-Word comparison fallback, pinned outline/master/reading view gates,
+result-window/document exclusion checks, verified macro-security restoration,
+exact private-input cleanup and cooperative cancellation with worker draining.
+Merge remains Word-only unless LibreOffice is explicitly selected. New-window
+identification is conservative; concurrent user window activity and live Office,
+TCC, format and signed distribution acceptance remain open. PowerPoint shape-level
+revision decisions and editable merged output remain a separate implementation gap.
+The Debug build and all eight focused native case/engine combinations pass;
+[batch evidence](qa/word-office-family-2026-10-20.json) records the injected Office
+boundary and owned-process cleanup. Core was unchanged and was not rerun.
+
+
 The connected history/editor presentation batch adds the source-available
 [three-way line-diff inspection pane](MERGE-CONFLICT-INSPECTION-PARITY.md),
 [Blame incremental style/highlight/layout updates and attribution date preferences](BLAME-RENDERING-PARITY.md),

@@ -357,10 +357,9 @@ struct DiffToolAssociationEditor: View {
     }
 }
 
-/// A captured presentation export belongs to the exact launching window until
-/// its independent review window has been accepted. Closing the caller cancels
-/// preparation without changing another document or application instance.
-@MainActor private final class PresentationDiffRequestOwner {
+/// Captured Office preparation belongs to its exact launching window. Closing
+/// the caller cancels preparation without touching another document or app.
+@MainActor private final class OfficeDiffRequestOwner {
     let cancellation:OperationCancellation
     private var observer:NSObjectProtocol?
     init(window:NSWindow?,cancellation:OperationCancellation) {
@@ -394,8 +393,48 @@ struct DiffToolAssociationEditor: View {
     static var presentInventory: (FileComparisonWindowController) -> Bool = { controller in controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return true }
     static var compareLibreOffice: (LibreOfficeComparisonPreview, OperationCancellation) async throws -> Void = { try await LibreOfficeComparisonAutomation.compare($0, cancellation: $1) }
     static var compareWord: (WordComparisonPreview, OperationCancellation) async throws -> Void = { try await WordComparisonAutomation.compare($0,cancellation:$1) }
+    private static var documentRequests:[UUID:OperationCancellation]=[:]
     private(set) static var activeRequests = 0
-    static func discardAll() {let presentations=Array(presentationWindows.values);presentationWindows=[:];for presentation in presentations{presentation.close()}; let windows = Array(inventoryWindows.values); inventoryWindows = [:]; for window in windows { window.close() }; let reports = Array(binaryWindows.values); binaryWindows = [:]; for report in reports { report.close() };let warnings=Array(excelWarnings.values);excelWarnings=[:];for warning in warnings{warning.close()}; for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
+    static func discardAll() {for token in documentRequests.values{token.cancel()};let presentations=Array(presentationWindows.values);presentationWindows=[:];for presentation in presentations{presentation.close()}; let windows = Array(inventoryWindows.values); inventoryWindows = [:]; for window in windows { window.close() }; let reports = Array(binaryWindows.values); binaryWindows = [:]; for report in reports { report.close() };let warnings=Array(excelWarnings.values);excelWarnings=[:];for warning in warnings{warning.close()}; for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
+    /// The worker remains counted until its actual automation receipt arrives.
+    /// Cancellation never proves that Office did not open the captured inputs.
+    private static func openDocumentComparison(_ document:FileComparisonDocument,word:Bool,permissions:[RepositoryAccessLease],cancellation:OperationCancellation?,owner:NSWindow?)async throws->Bool {
+        let token=cancellation ?? OperationCancellation(),requestOwner=OfficeDiffRequestOwner(window:owner,cancellation:token),identity=UUID()
+        documentRequests[identity]=token;activeRequests += 1
+        defer {documentRequests.removeValue(forKey:identity);activeRequests -= 1;withExtendedLifetime(requestOwner){};withExtendedLifetime(permissions){}}
+        return try await withTaskCancellationHandler {
+            try token.check();try Task.checkCancellation()
+            let privateRoot=try TurtleGitTemporaryStorage.root
+            if word {
+                let preview=try await Task.detached {try WordComparisonPreview.prepare(document,in:privateRoot,cancellation:token)}.value
+                var dispatched=false
+                do {
+                    try token.check();try Task.checkCancellation();dispatched=true
+                    try await compareWord(preview,token)
+                    // Successful Word results may retain references to both inputs.
+                    return true
+                } catch {
+                    let receipt=error as? WordComparisonFailure
+                    if !dispatched || receipt?.possiblyOpened == false {preview.discard()}
+                    // Upstream tries OpenOffice only when Word is unavailable.
+                    // Permission failures, cancellation and uncertain events never
+                    // dispatch a second application against the same request.
+                    guard case .application? = receipt else{throw error}
+                    try token.check();try Task.checkCancellation()
+                }
+            }
+            let preview=try await Task.detached {try LibreOfficeComparisonPreview.prepare(document,in:privateRoot,cancellation:token)}.value
+            var dispatched=false
+            do {
+                try token.check();try Task.checkCancellation();dispatched=true
+                try await compareLibreOffice(preview,token)
+                return true
+            } catch {
+                if !dispatched || (error as? LibreOfficeComparisonFailure)?.possiblyOpened == false {preview.discard()}
+                throw error
+            }
+        } onCancel: {token.cancel()}
+    }
     static func open(_ document: FileComparisonDocument, root: URL, permissions: [RepositoryAccessLease], alternate: Bool, preferences: UserDefaults = .standard, cancellation: OperationCancellation? = nil, owner: NSWindow? = nil, selection: DiffToolSelection? = nil, line: Int? = nil, launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> Void)? = nil) async throws -> Bool {
         try cancellation?.check()
         let chosen = try selection ?? DiffToolPreferences.load(from: preferences).selection(base: document.base.path, destination: document.destination.path, alternate: alternate)
@@ -433,23 +472,11 @@ struct DiffToolAssociationEditor: View {
                 return true
             } catch { preview.discard(); throw error }
         }
-        if program.builtIn == .libreOfficeDocument {
-            let token = cancellation ?? OperationCancellation()
-            activeRequests += 1; defer { activeRequests -= 1; withExtendedLifetime(permissions) {} }
-            let root = try TurtleGitTemporaryStorage.root
-            let preview = try await Task.detached { try LibreOfficeComparisonPreview.prepare(document, in: root, cancellation: token) }.value
-            var dispatched = false
-            do {
-                try token.check(); dispatched = true
-                try await compareLibreOffice(preview, token)
-                return true
-            } catch {
-                if !dispatched || (error as? LibreOfficeComparisonFailure)?.possiblyOpened == false { preview.discard() }
-                throw error
-            }
+        if program.builtIn == .libreOfficeDocument || program.builtIn == .wordDocument {
+            return try await openDocumentComparison(document,word:program.builtIn == .wordDocument,permissions:permissions,cancellation:cancellation,owner:owner)
         }
         if program.builtIn == .powerPointPresentation {
-            let token=cancellation ?? OperationCancellation(),requestOwner=PresentationDiffRequestOwner(window:owner,cancellation:token)
+            let token=cancellation ?? OperationCancellation(),requestOwner=OfficeDiffRequestOwner(window:owner,cancellation:token)
             activeRequests += 1
             defer {activeRequests -= 1;withExtendedLifetime(permissions){};withExtendedLifetime(requestOwner){}}
             let privateRoot=try TurtleGitTemporaryStorage.root
@@ -472,24 +499,6 @@ struct DiffToolAssociationEditor: View {
                 // An uncertain Apple-event completion may still own its captured
                 // inputs. Do not remove them until the exporter proves retirement.
                 if !transferred,(!dispatched || exportCompleted || (error as? PowerPointComparisonAutomation.Failure)?.possiblyOpened==false){preview.discard()}
-                throw error
-            }
-        }
-        if program.builtIn == .wordDocument {
-            let token = cancellation ?? OperationCancellation()
-            activeRequests += 1
-            defer { activeRequests -= 1; withExtendedLifetime(permissions) {} }
-            let root = try TurtleGitTemporaryStorage.root
-            let preview = try await Task.detached { try WordComparisonPreview.prepare(document,in:root,cancellation:token) }.value
-            var dispatched = false
-            do {
-                try token.check(); dispatched = true
-                try await compareWord(preview,token)
-                // Word may keep result/source references beyond this callback.
-                // Successful or uncertain handoffs survive normal app cleanup.
-                return true
-            } catch {
-                if !dispatched || (error as? WordComparisonFailure)?.possiblyOpened == false { preview.discard() }
                 throw error
             }
         }

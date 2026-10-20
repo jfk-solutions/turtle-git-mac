@@ -12,6 +12,11 @@ in effect. Advanced → Restore Defaults installs the LibreOffice associations,
 retains unrelated records and existing row identities, and saves only after
 accepting Advanced and applying Settings. Shift bypasses an enabled association.
 LibreOffice is also available explicitly in the diff/merge program editors.
+A Word comparison association automatically tries this adapter when Word is
+unavailable, using fresh editable private copies of the same captured bytes.
+Word permission denials, timeouts or uncertain handoffs do not start a second
+comparison. Word merge remains Word-only; choose LibreOffice explicitly to use
+its separate mine/theirs merge workflow.
 
 ## Requirements and handoff
 
@@ -76,5 +81,6 @@ LibreOffice is not installed in the current development environment. Live Writer
 Calc rendering, nested-runtime launch compatibility, actual document formats,
 macro/reference loading, Save As, minimum OS and signed sandbox/App Store access
 remain unverified. The app's preparation profile and Launch Services code do not
-prove App Store acceptance. PowerPoint's presentation comparison remains a
-separate gap: its inspected Mac scripting dictionary lacks the Windows Merge API.
+prove App Store acceptance. PowerPoint has native slide comparison, while shape-level revision decisions
+and editable merged output remain a separate gap; its inspected Mac scripting
+dictionary lacks the Windows presentation Merge API.
