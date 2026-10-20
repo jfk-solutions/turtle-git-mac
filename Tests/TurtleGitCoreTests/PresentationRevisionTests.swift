@@ -270,7 +270,12 @@ final class PresentationRevisionTests:XCTestCase {
         let all=try xml.nodes(forXPath:"//*[local-name()='cNvPr']").compactMap{($0 as? XMLElement)?.attribute(forName:"id")?.stringValue}
         XCTAssertEqual(Set(all).count,all.count)
         let targets=try xml.nodes(forXPath:"//*[local-name()='stCxn' or local-name()='endCxn']").compactMap{($0 as? XMLElement)?.attribute(forName:"id")?.stringValue}
-        XCTAssertTrue(targets.allSatisfy{all.contains($0)});XCTAssertEqual(targets,["3","7"])
+        XCTAssertTrue(targets.allSatisfy{all.contains($0)})
+        let childA=try xml.nodes(forXPath:"//*[local-name()='cNvPr' and @name='Child A']").compactMap{($0 as? XMLElement)?.attribute(forName:"id")?.stringValue}
+        let childB=try xml.nodes(forXPath:"//*[local-name()='cNvPr' and @name='Child B']").compactMap{($0 as? XMLElement)?.attribute(forName:"id")?.stringValue}
+        XCTAssertEqual(childA.count,1);XCTAssertEqual(childB.count,1)
+        let aID=try XCTUnwrap(childA.first),bID=try XCTUnwrap(childB.first)
+        XCTAssertNotEqual(aID,bID);XCTAssertEqual(targets,[aID,bID])
         XCTAssertTrue(try manifest(result).slides[0].text.contains("last old value"))
     }
     func testMixedClassicCommentsMergeCollidingAuthorIDsAndReserveDefaultTypedIndices()throws {

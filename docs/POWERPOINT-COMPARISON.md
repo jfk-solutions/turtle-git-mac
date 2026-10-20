@@ -54,8 +54,16 @@ an entry to read its scope and the corresponding Base/New text and notes.
 Command-Z and Shift-Command-Z use the same review history.
 
 Pictures, charts, embedded content, layouts and themes are package dependencies,
-not just visible text. The review compares linked content as well as XML. Groups
-are reviewed as a unit. Changes whose references must stay together, such as a
+not just visible text. The review compares linked content as well as XML. Objects inside supported, unchanged group containers can be reviewed independently, including
+nested groups and stacking order within each group. The revision list shows the
+containing group path below each object; the full path is available in its tooltip
+and details. Accepting one child's change does not accept its siblings' changes.
+If the group's own transform or properties change, its entry explicitly covers
+the whole group. Added and deleted groups are also complete-group decisions. Opaque or unknown
+group content stays together as a group or slide decision.
+Moving an object between groups appears as a deletion and an addition. Selected
+connectors must retain an unambiguous selected target; an unsafe combination
+reports an error rather than silently detaching the connector. Changes whose references must stay together, such as a
 slide environment with notes/timing/layout changes, are labeled as a complete
 slide decision. The selected dependency graph is carried into the output.
 

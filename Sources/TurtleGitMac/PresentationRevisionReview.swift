@@ -254,24 +254,22 @@ struct PresentationRevisionReviewPanel:View {
             if model.review != nil {
                 HSplitView {
                     List(selection:$model.selection){ForEach(model.changes,id:\.id){change in
-                        HStack {
-                            Image(systemName:model.review?.decisions[change.id].map{$0 ? "checkmark.circle.fill":"xmark.circle.fill"} ?? "circle").foregroundStyle(model.review?.decisions[change.id].map{$0 ? Color.green:Color.red} ?? .secondary)
-                            Text(change.title).lineLimit(2)
-                        }.tag(change.id).contextMenu {
-                            Button{model.decide(changeID:change.id,accept:true)}label:{CommandLabel(title:"Accept selected",icon:.add)}.disabled(!model.canAct)
-                            Button{model.decide(changeID:change.id,accept:false)}label:{CommandLabel(title:"Reject selected",icon:.revert)}.disabled(!model.canAct)
-                        }
-                    }}.frame(minWidth:220,idealWidth:340).disabled(!model.canAct)
+                        changeRow(change)
+                    }}.frame(minWidth:280,idealWidth:390).disabled(!model.canAct)
                     ScrollView {VStack(alignment:.leading,spacing:8){
                         if let change=model.selected {
-                            Text(change.title).font(.headline);Text(change.detail).textSelection(.enabled)
+                            Text(verbatim:change.title).font(.headline)
+                            if !change.groupPath.isEmpty {
+                                Text(verbatim:PresentationRevisionChangePresentation.breadcrumb(change)).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                            }
+                            Text(verbatim:change.detail).textSelection(.enabled)
                             if model.baseSlide != nil || model.destinationSlide != nil {
                                 HStack(alignment:.top){slideDetail(model.baseSlide,title:"Base slide text and notes");Divider();slideDetail(model.destinationSlide,title:"New slide text and notes")}
                             }
                         }
                         else {Text(model.changes.isEmpty ? "No editable package differences.":"Select a revision to inspect its details.")}
                     }.frame(maxWidth:.infinity,alignment:.leading).padding(6)}.frame(minWidth:260)
-                }.frame(height:135)
+                }.frame(minHeight:135,idealHeight:220,maxHeight:220)
                 HStack {
                     Button{model.decide(accept:true)}label:{CommandLabel(title:"Accept selected",icon:.add)}.disabled(!model.canAct || model.selected==nil)
                     Button{model.decide(accept:false)}label:{CommandLabel(title:"Reject selected",icon:.revert)}.disabled(!model.canAct || model.selected==nil)
@@ -287,10 +285,55 @@ struct PresentationRevisionReviewPanel:View {
             }
         }.padding(10)
     }
+    private func changeRow(_ change:PresentationRevisionChange)->some View {
+        HStack(alignment:.top,spacing:6) {
+            Image(systemName:model.review?.decisions[change.id].map{$0 ? "checkmark.circle.fill":"xmark.circle.fill"} ?? "circle").foregroundStyle(model.review?.decisions[change.id].map{$0 ? Color.green:Color.red} ?? .secondary)
+            if let image=PresentationRevisionChangePresentation.icon(change).image() {
+                Image(nsImage:image).renderingMode(image.isTemplate ? .template:.original).resizable().frame(width:16,height:16)
+            }
+            VStack(alignment:.leading,spacing:2) {
+                Text(verbatim:change.title).lineLimit(2)
+                if !change.groupPath.isEmpty {
+                    Text(verbatim:PresentationRevisionChangePresentation.breadcrumb(change)).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                }
+            }
+        }.padding(.leading,CGFloat(min(change.groupPath.count,6))*8)
+        .help(PresentationRevisionChangePresentation.location(change))
+        .accessibilityElement(children:.ignore)
+        .accessibilityLabel(Text(verbatim:PresentationRevisionChangePresentation.location(change)))
+        .accessibilityValue(Text(LocalizedStringKey(PresentationRevisionChangePresentation.decision(model.review?.decisions[change.id]))))
+        .accessibilityIdentifier("presentation-revision-"+change.id)
+        .accessibilityAction(named:Text("Accept selected")){if model.canAct{model.decide(changeID:change.id,accept:true)}}
+        .accessibilityAction(named:Text("Reject selected")){if model.canAct{model.decide(changeID:change.id,accept:false)}}
+        .tag(change.id).contextMenu {
+            Button{model.decide(changeID:change.id,accept:true)}label:{CommandLabel(title:"Accept selected",icon:.add)}.disabled(!model.canAct)
+            Button{model.decide(changeID:change.id,accept:false)}label:{CommandLabel(title:"Reject selected",icon:.revert)}.disabled(!model.canAct)
+        }
+    }
     private func slideDetail(_ slide:PresentationSlide?,title:String)->some View {
         VStack(alignment:.leading,spacing:4){Text(title).font(.caption).bold();Text(slide?.text ?? "—").textSelection(.enabled);if let notes=slide?.notes,!notes.isEmpty {Text(notes).font(.caption).textSelection(.enabled)}}.frame(maxWidth:.infinity,alignment:.leading)
     }
 
+}
+
+enum PresentationRevisionChangePresentation {
+    static func breadcrumb(_ change:PresentationRevisionChange)->String {change.groupPath.joined(separator:" › ")}
+    static func location(_ change:PresentationRevisionChange)->String {
+        let path=breadcrumb(change)
+        return path.isEmpty ? change.title:change.title+"\n"+path
+    }
+    static func decision(_ value:Bool?)->String {
+        guard let value else{return "Unresolved"};return value ? "Accepted New":"Rejected Base"
+    }
+    static func icon(_ change:PresentationRevisionChange)->MenuIcon {
+        switch change.kind {
+        case .slideAdded,.shapeAdded:return .actionAdded
+        case .slideDeleted,.shapeDeleted:return .actionDeleted
+        case .slideMoved,.shapeOrder:return .mergeMoved
+        case .slideEnvironment,.presentation:return .settings
+        case .shapeChanged:return .actionModified
+        }
+    }
 }
 
 struct PresentationResultCanvas:View {

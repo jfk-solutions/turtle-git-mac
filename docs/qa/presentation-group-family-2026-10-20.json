@@ -1,0 +1,174 @@
+{
+  "date": "2026-10-20",
+  "base": "6c50ddce393fecd77124dfe06625e0caf998867a",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "previous_goal_turn": "progress: connected Edit Notes batch committed and pushed as 6c50ddce.",
+  "scope": [
+    "Recursive sibling-scoped matching and per-child changes/order inside equivalent nested group shells.",
+    "Explicit atomic changed/opaque/new/deleted groups, retained whole-slide reference guards and exact whole-revision package paths.",
+    "Resolve selected tree before global ID allocation, both-source connector aliases and selected dependency/namespace import.",
+    "Native hierarchy paths/icons/accessibility, report ancestry, minimum-size layout, Undo/Redo, editable Save As and owned cancellation."
+  ],
+  "core": {
+    "result": "passed",
+    "distinct_methods": 28,
+    "new_methods": 9,
+    "existing_methods": 19,
+    "initial_log": "build/qa/presentation-groups-core-2026-10-20.log",
+    "initial_result": "27 executed, 26 passed, 1 failed allocator-specific numeric assertion.",
+    "focused_logs": [
+      "build/qa/presentation-groups-core-endpoints-2026-10-20.log",
+      "build/qa/presentation-groups-core-opaque-2026-10-20.log"
+    ],
+    "repairs": [
+      {
+        "kind": "fixture",
+        "cause": "Existing endpoint assertion assumed specific allocated numbers [3,7].",
+        "repair": "Assert exact ordered endpoints against unique named Child A/B IDs; retain uniqueness and targets-exist assertions."
+      },
+      {
+        "kind": "production",
+        "cause": "Read-only review found recursive group parsing would reject opaque compatibility children before existing whole-slide guards.",
+        "repair": "Keep unsupported direct child sets atomic, remove eager opaque-child rejection, and add one combined opaque-preservation/whole-slide regression."
+      }
+    ],
+    "setup": {
+      "scope": "Checkpoint launcher setup; no test methods ran in either rejected attempt.",
+      "shell_launcher": {
+        "result": "automatic command review rejected cleanup trap before process launch",
+        "reason": "rm -f style commands are not permitted. Use a safer approach",
+        "replacement": "Python tempfile.TemporaryDirectory scoped cleanup"
+      },
+      "swift_argument_attempt": {
+        "arguments": [
+          "swift",
+          "test",
+          "-j4",
+          "--filter",
+          "Presentation(Group)?RevisionTests"
+        ],
+        "exit_code": 64,
+        "diagnostic": "Unknown option '-j4'. Did you mean '--vv'? or: Missing value for '-j <jobs>' in '-j4'",
+        "replacement": [
+          "swift",
+          "test",
+          "-j",
+          "4",
+          "--filter",
+          "Presentation(Group)?RevisionTests"
+        ]
+      },
+      "actual_test_log": "build/qa/presentation-groups-core-2026-10-20.log",
+      "actual_result": "27 executed, 1 existing allocator-ID assertion failure; 8 new methods and 18 existing methods passed"
+    },
+    "scope": "Focused presentation revision families only; system unzip/XML independently inspects saved packages. No duplicate Git engine run because this engine does not run Git."
+  },
+  "build": {
+    "result": "passed",
+    "logs": [
+      "build/qa/presentation-groups-build-2026-10-20.log",
+      "build/qa/presentation-groups-build-opaque-repair-2026-10-20.log",
+      "build/qa/presentation-groups-build-report-path-2026-10-20.log",
+      "build/qa/presentation-groups-build-layout-repair-2026-10-20.log"
+    ],
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "scope": "Initial grouped app build plus affected opaque-content, report-path and minimum-window layout repairs; no repeated Core suite."
+  },
+  "native": {
+    "result": "passed",
+    "functional_cases": [
+      "review",
+      "lifecycle"
+    ],
+    "functional_passes": 2,
+    "logs": [
+      "build/qa/presentation-groups-native-2026-10-20.log",
+      "build/qa/presentation-groups-native-capture-2026-10-20.log",
+      "build/qa/presentation-groups-native-capture-layout-2026-10-20.log",
+      "build/qa/presentation-groups-native-lifecycle-2026-10-20.log",
+      "build/qa/presentation-groups-native-review-diagnostic-2026-10-20.log",
+      "build/qa/presentation-groups-native-review-parser-2026-10-20.log"
+    ],
+    "failures_and_repairs": [
+      {
+        "logs": [
+          "build/qa/presentation-groups-native-2026-10-20.log",
+          "build/qa/presentation-groups-native-review-diagnostic-2026-10-20.log"
+        ],
+        "cause": "Fixture XPath namespace-uri() query returned zero for valid namespaced group nodes.",
+        "repair": "Use parsed XMLElement localName/uri traversal; retain exact two-group count and independent Python nesting/ID/dependency checks."
+      },
+      {
+        "kind": "capture",
+        "cause": "NSView bitmap caching omitted SwiftUI text/background.",
+        "repair": "Replace only capture path with exact current-process ScreenCaptureKit offscreen window capture; capture-only run."
+      },
+      {
+        "kind": "production layout",
+        "cause": "Fixed 220-point review pane clipped the bottom caption at minimum window size.",
+        "repair": "Allow 135\u2013220-point review height; affected app build and capture-only check, retaining functional passes."
+      }
+    ],
+    "scope": "Private package inputs, actual model decisions/Undo/Redo and editable export through the native Save As workflow with injected destination. Cancellation/discard and held writes use injected boundaries. Independent Python ZIP CRC/XML checks verify selected leaves, group topology/order, unique IDs and complete dependency targets.",
+    "office_launched": false,
+    "functional_groups_repeated_after_pass": false
+  },
+  "ownership": {
+    "owned_receiver_pids": [
+      38327,
+      38371,
+      38433,
+      38481,
+      38521,
+      38741
+    ],
+    "all_reaped": true,
+    "independently_absent": true,
+    "private_preferences_and_inputs": true,
+    "windows": "Invisible/offscreen; capture-only windows remain offscreen and restore alpha/order before closing.",
+    "protected_work_unchanged": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    }
+  },
+  "captures": {
+    "docs/site/assets/presentation-group-review-light.png": {
+      "width": 1900,
+      "height": 1520,
+      "sha256": "ad4eb5e95704d977cc712250bae0a0490650c9e4dcdd3fec1f48256a35f987ef",
+      "method": "Current-process ScreenCaptureKit desktop-independent owned offscreen window; no image postprocessing."
+    },
+    "docs/site/assets/presentation-group-review-dark.png": {
+      "width": 1900,
+      "height": 1520,
+      "sha256": "6a71b66e7107f8ea43aafca3a7b4c7826b8c5df7cd7fa7bd89351c51a0f7f06e",
+      "method": "Current-process ScreenCaptureKit desktop-independent owned offscreen window; no image postprocessing."
+    }
+  },
+  "output": {
+    "path": "build/qa/presentation-group-outputs/group-mixed.pptx",
+    "sha256": "4eae0c918650f6ed0bebf980f0cad18715ceb13c673302c52781490609cd507b",
+    "bytes": 9472
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/PresentationRevision.swift": "3376fc22885c9e545136baf0712fcaf12a19235bdb2b79e4434b7a42c0b7aa50",
+    "Sources/TurtleGitMac/PresentationRevisionReview.swift": "7ea572eb64ef45de6ee7fcc4132b0990eefb88d33d551f8324593c372bdb64c9",
+    "Sources/TurtleGitMac/PresentationComparisonWindow.swift": "c185eeeb74b4d9998fdf5cd9a8f8bc1ac40301914d45a2449961d7117158db9a",
+    "Tests/TurtleGitCoreTests/PresentationGroupRevisionTests.swift": "34029e845d76cc29cf2ae1f04a679a121c6f25e0cf8818b5260be363c31c8906",
+    "Tests/TurtleGitCoreTests/PresentationRevisionTests.swift": "5f5f89b64d308d3b80541c32bdffbfdf20386f9dd93abeb052d90bc05244e1fd",
+    "docs/qa/presentation-group-review-native-2026-10-20.swift": "e3c27c519b87fd59a5931966d55ae911c4eaad81a26d8e0fb9cf4c4c2b384a44",
+    "scripts/test-presentation-group-review.py": "d7aa6b7dd98971832403cf2306d97e9a03dcf350982f542a067d6123108ceb7e"
+  },
+  "remaining": [
+    "Native review adapts the Windows script calling PowerPoint Merge; exact Microsoft revision granularity is not proven.",
+    "Changed or opaque group shells remain atomic; cross-group moves remain deletion/addition until coordinate-aware move support.",
+    "Modern threaded comments/person registries, incompatible shared masters, namespace conflicts and unsafe references still restrict mixed decisions.",
+    "No live PowerPoint reopen/rendering, physical input/powerbox, minimum-OS or signed sandbox/App Store acceptance is proven.",
+    "Full application parity and full hosted macOS CI remain unproven; previous 6c50ddce Pages run was successful and its macOS run was pending when inspected."
+  ]
+}

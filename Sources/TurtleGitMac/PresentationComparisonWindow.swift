@@ -138,7 +138,7 @@ private enum PresentationReviewText {
             result+="Editable revision decisions\n"
             for change in review.changes {
                 let decision=review.decisions[change.id].map{$0 ? "Accepted New":"Rejected Base"} ?? "Unresolved"
-                result+="\(decision): \(change.title)\n\(change.detail)\n"
+                result+="\(decision): \(PresentationRevisionChangePresentation.location(change))\n\(change.detail)\n"
             }
         }
         return result

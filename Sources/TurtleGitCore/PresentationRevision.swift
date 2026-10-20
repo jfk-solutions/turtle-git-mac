@@ -19,12 +19,18 @@ public enum PresentationRevisionFailure: LocalizedError, Sendable {
 public struct PresentationRevisionChange: Identifiable, Sendable, Equatable {
     public enum Kind:String, Sendable {case slideAdded,slideDeleted,slideMoved,shapeAdded,shapeDeleted,shapeChanged,shapeOrder,slideEnvironment,presentation}
     public let id:String,title:String,detail:String,baseSlideIndex:Int?,destinationSlideIndex:Int?,kind:Kind
+    public let groupPath:[String]
+    public var depth:Int {groupPath.count}
     public var slideIndex:Int? {destinationSlideIndex ?? baseSlideIndex}
+    public init(id:String,title:String,detail:String,baseSlideIndex:Int?,destinationSlideIndex:Int?,kind:Kind,groupPath:[String]=[]) {
+        self.id=id;self.title=title;self.detail=detail;self.baseSlideIndex=baseSlideIndex;self.destinationSlideIndex=destinationSlideIndex;self.kind=kind;self.groupPath=groupPath
+    }
 }
 
 /// A two-way revision review. Accept selects New; reject selects Base. Groups
-/// are atomic shapes. Slide environments with interdependent content are atomic
-/// slides, rather than pretending that animation/notes/layout changes are text.
+/// retain their shells while children are reviewed within each matched parent.
+/// Changed group shells select a whole group. Slide environments with
+/// interdependent content select a whole slide to preserve their references.
 public struct PresentationRevisionReview: Sendable {
     public let changes:[PresentationRevisionChange]
     public let baseManifest:PresentationSlideManifest,destinationManifest:PresentationSlideManifest
@@ -77,44 +83,25 @@ public struct PresentationRevisionReview: Sendable {
             if priorSlide == nil || newSlide == nil {
                 let added=priorSlide == nil,index=(newSlide ?? priorSlide)!.index
                 let key=change(prefix, "Slide \(index+1): " + (added ? "added":"deleted"), added ? "Accept to include the complete New slide and its dependencies.":"Accept to remove this slide; reject to restore the complete Base slide.",added ? .slideAdded:.slideDeleted,priorSlide?.index,newSlide?.index)
-                plans.append(.init(id:id,base:priorSlide?.path,destination:newSlide?.path,baseID:identity.base,destinationID:identity.destination,whole:key,identities:[],shapes:[],order:nil));continue
+                plans.append(.init(id:id,base:priorSlide?.path,destination:newSlide?.path,baseID:identity.base,destinationID:identity.destination,whole:key,container:nil));continue
             }
             let a=priorSlide!,b=newSlide!
             let oldShapes=try old.shapes(a),newShapes=try new.shapes(b)
-            shapeCount += oldShapes.count+newShapes.count;guard shapeCount<=40000 else{throw PresentationRevisionFailure.unsupported("More than 20,000 shapes per compared deck")}
-            let oldMap=Dictionary(uniqueKeysWithValues:oldShapes.map{($0.id,$0)}),newMap=Dictionary(uniqueKeysWithValues:newShapes.map{($0.id,$0)})
-            let shapeIdentities=try revisionMatch(oldShapes.map(\.id),newShapes.map(\.id),fingerprint:{isNew,id in
-                let deck=isNew ? new:old,slide=isNew ? b:a,shape=(isNew ? newMap[id]:oldMap[id])!
-                return try deck.shapeIdentityFingerprint(shape,slide:slide,cancellation:cancellation)
-            },similarity:{a,b in revisionShapeSimilarity(oldMap[a]!,newMap[b]!)},cancellation:cancellation)
-            var oldShapeKeys=Dictionary(uniqueKeysWithValues:shapeIdentities.compactMap{pair in pair.base.map{($0,pair.id)}}),newShapeKeys=Dictionary(uniqueKeysWithValues:shapeIdentities.compactMap{pair in pair.destination.map{($0,pair.id)}})
-            for pair in shapeIdentities {
-                if let oldID=pair.base,let newID=pair.destination {
-                    let nested=try revisionNestedMatches(base:old,destination:new,old:oldMap[oldID]!,new:newMap[newID]!,oldSlide:a,newSlide:b,cancellation:cancellation)
-                    for match in nested {if let id=match.base{oldShapeKeys[id]=pair.id+"-"+match.id};if let id=match.destination{newShapeKeys[id]=pair.id+"-"+match.id}}
-                }
-            }
-            var shapeChanges:[RevisionShapePlan]=[]
-            for pair in shapeIdentities {
-                let shapeID=pair.id,x=pair.base.flatMap{oldMap[$0]},y=pair.destination.flatMap{newMap[$0]}
-                if try old.shapeFingerprint(x,slide:a,identities:oldShapeKeys,cancellation:cancellation) != new.shapeFingerprint(y,slide:b,identities:newShapeKeys,cancellation:cancellation) {
-                    let kind:PresentationRevisionChange.Kind=x == nil ? .shapeAdded:y == nil ? .shapeDeleted:.shapeChanged
-                    shapeChanges.append(.init(id:shapeID,change:prefix+"-shape-"+shapeID,kind:kind,name:y?.name ?? x?.name ?? "Shape "+shapeID))
-                }
-            }
-            let paired=Set(shapeIdentities.filter{$0.base != nil && $0.destination != nil}.map(\.id))
-            let shapeOrderChanged=oldShapes.map{oldShapeKeys[$0.id]!}.filter{paired.contains($0)} != newShapes.map{newShapeKeys[$0.id]!}.filter{paired.contains($0)}
+            let matched=try revisionMatchContainer(oldShapes,newShapes,base:old,destination:new,oldSlide:a,newSlide:b,prefix:prefix,cancellation:cancellation)
+            var oldKeys:[String:String]=[:],newKeys:[String:String]=[:]
+            revisionIdentityMaps(matched,old:&oldKeys,new:&newKeys)
+            shapeCount += oldKeys.count+newKeys.count
+            guard shapeCount<=40000 else{throw PresentationRevisionFailure.unsupported("More than 20,000 shapes per compared deck")}
+            var slideChanges:[PresentationRevisionChange]=[]
+            let container=try revisionReviewContainer(matched,oldShapes,newShapes,base:old,destination:new,oldSlide:a,newSlide:b,oldKeys:oldKeys,newKeys:newKeys,path:[],changes:&slideChanges,cancellation:cancellation)
             let envChanged=try old.slideEnvironmentFingerprint(a,cancellation:cancellation) != new.slideEnvironmentFingerprint(b,cancellation:cancellation)
             let inseparable=try old.requiresAtomicSlide(a) || new.requiresAtomicSlide(b)
-            if envChanged || (inseparable && (!shapeChanges.isEmpty || shapeOrderChanged)) {
+            if envChanged || (inseparable && !slideChanges.isEmpty) {
                 let key=change(prefix+"-environment","Slide \(b.index+1): slide content and environment","Choose the complete slide, including shapes, notes, layout, timing, transitions and dependent content. These changes are reviewed together to preserve their references.",.slideEnvironment,a.index,b.index)
-                plans.append(.init(id:id,base:a.path,destination:b.path,baseID:identity.base,destinationID:identity.destination,whole:key,identities:[],shapes:[],order:nil))
+                plans.append(.init(id:id,base:a.path,destination:b.path,baseID:identity.base,destinationID:identity.destination,whole:key,container:nil))
             } else {
-                for shape in shapeChanges {
-                    _=change(shape.change,"Slide \(b.index+1): "+shape.name,shape.kind == .shapeAdded ? "Added shape or group, including its linked content.":shape.kind == .shapeDeleted ? "Deleted shape or group.":"Changed shape or group, including its formatting and linked content.",shape.kind,a.index,b.index)
-                }
-                let order=shapeOrderChanged ? change(prefix+"-shape-order","Slide \(b.index+1): shape order","Choose New or Base stacking order for the retained shapes.",.shapeOrder,a.index,b.index):nil
-                plans.append(.init(id:id,base:a.path,destination:b.path,baseID:identity.base,destinationID:identity.destination,whole:nil,identities:shapeIdentities,shapes:shapeChanges,order:order))
+                changes += slideChanges
+                plans.append(.init(id:id,base:a.path,destination:b.path,baseID:identity.base,destinationID:identity.destination,whole:nil,container:container))
             }
         }
         self.changes=changes;self.plans=plans
@@ -232,11 +219,25 @@ private func revisionCanonical(_ node:XMLNode,ids:[String:String]=[:],relationsh
     return name+"["+attributes+"]("+children+")"
 }
 
-private func revisionNestedShapes(_ shape:RevisionShape)->[RevisionShape] {
-    revisionDescendants(shape.element).dropFirst().filter {node in node.uri==revisionPresentationNS && ["sp","pic","graphicFrame","cxnSp","grpSp","contentPart"].contains(revisionLocal(node))}.compactMap {node in
-        guard let identity=revisionDescendants(node).first(where:{revisionIs($0,"cNvPr",revisionPresentationNS)}),let id=revisionAttribute(identity,"id") else{return nil}
+private let revisionShapeNames:Set<String>=["sp","pic","graphicFrame","cxnSp","grpSp","contentPart"]
+/// Opaque extension/compatibility children keep their enclosing group atomic.
+/// Only understood direct children may be split into independent decisions.
+private func revisionSupportsGroupChildren(_ container:XMLElement)->Bool {
+    revisionChildren(container).allSatisfy {node in
+        node.uri==revisionPresentationNS && (revisionShapeNames.contains(revisionLocal(node)) || ["nvGrpSpPr","grpSpPr","extLst"].contains(revisionLocal(node)))
+    }
+}
+private func revisionContainerShapes(_ container:XMLElement)throws->[RevisionShape] {
+    try revisionChildren(container).compactMap {node in
+        if node.uri==revisionPresentationNS,["nvGrpSpPr","grpSpPr","extLst"].contains(revisionLocal(node)){return nil}
+        guard node.uri==revisionPresentationNS,revisionShapeNames.contains(revisionLocal(node)),let identity=revisionDescendants(node).first(where:{revisionIs($0,"cNvPr",revisionPresentationNS)}),let id=revisionAttribute(identity,"id") else{throw PresentationRevisionFailure.unsupported("Unknown or malformed group child")}
         return .init(id:id,name:revisionAttribute(identity,"name") ?? "Shape "+id,element:node)
     }
+}
+private func revisionGroupShell(_ element:XMLElement)->XMLElement {
+    let copy=element.copy() as! XMLElement
+    for child in revisionChildren(copy) where child.uri==revisionPresentationNS && revisionShapeNames.contains(revisionLocal(child)){child.detach()}
+    return copy
 }
 private func revisionShapeText(_ shape:RevisionShape)->String {revisionDescendants(shape.element).filter{revisionIs($0,"t",revisionDrawingNS)}.compactMap(\.stringValue).joined(separator:" ")}
 private func revisionShapeGeometry(_ shape:RevisionShape)->String {revisionLocal(shape.element)+"|"+revisionDescendants(shape.element).filter{revisionIs($0,"xfrm",revisionDrawingNS)}.map{revisionCanonical($0)}.joined(separator:"|")}
@@ -244,17 +245,120 @@ private func revisionShapeSimilarity(_ a:RevisionShape,_ b:RevisionShape)->Doubl
     guard revisionLocal(a.element)==revisionLocal(b.element) else{return 0}
     let old=revisionShapeText(a),new=revisionShapeText(b),sameGeometry=revisionShapeGeometry(a)==revisionShapeGeometry(b)
     let sameName = !a.name.isEmpty && a.name==b.name && a.name.range(of:"^(Shape|Picture|TextBox|Rectangle|Oval|Connector|Group) [0-9]+$",options:.regularExpression)==nil
+    if revisionIs(a.element,"grpSp",revisionPresentationNS),sameName {
+        let shellA=revisionGroupShell(a.element),shellB=revisionGroupShell(b.element)
+        let geometryA=revisionDescendants(shellA).filter{revisionIs($0,"xfrm",revisionDrawingNS)}.map{revisionCanonical($0)}
+        let geometryB=revisionDescendants(shellB).filter{revisionIs($0,"xfrm",revisionDrawingNS)}.map{revisionCanonical($0)}
+        if geometryA==geometryB{return 0.96}
+    }
     if !old.isEmpty,old==new {return sameGeometry ? 0.98:sameName ? 0.90:0}
-    if sameName,sameGeometry,revisionOverlap(revisionWords(old),revisionWords(new))>=0.50{return 0.92}
+    // A unique custom object name plus identical geometry remains useful when
+    // a regenerated-ID child has entirely new text. Mutual uniqueness and the
+    // runner-up margin in revisionMatch still reject duplicate named siblings.
+    if sameName,sameGeometry{return 0.92}
     return 0
 }
-private func revisionNestedMatches(base:RevisionDeck,destination:RevisionDeck,old:RevisionShape,new:RevisionShape,oldSlide:RevisionSlide,newSlide:RevisionSlide,cancellation:OperationCancellation?)throws->[RevisionIdentity] {
-    let a=revisionNestedShapes(old),b=revisionNestedShapes(new),oldMap=Dictionary(uniqueKeysWithValues:a.map{($0.id,$0)}),newMap=Dictionary(uniqueKeysWithValues:b.map{($0.id,$0)})
-    return try revisionMatch(a.map(\.id),b.map(\.id),fingerprint:{isNew,id in try (isNew ? destination:base).shapeIdentityFingerprint((isNew ? newMap:oldMap)[id]!,slide:isNew ? newSlide:oldSlide,cancellation:cancellation)},similarity:{a,b in revisionShapeSimilarity(oldMap[a]!,newMap[b]!)},cancellation:cancellation)
-}
 private struct RevisionDecisionDelta:Sendable {let id:String,old:Bool?,new:Bool}
-private struct RevisionSlidePlan:Sendable {let id:String,base:String?,destination:String?,baseID:String?,destinationID:String?,whole:String?,identities:[RevisionIdentity],shapes:[RevisionShapePlan],order:String?}
-private struct RevisionShapePlan:Sendable {let id:String,change:String,kind:PresentationRevisionChange.Kind,name:String}
+private struct RevisionSlidePlan:Sendable {let id:String,base:String?,destination:String?,baseID:String?,destinationID:String?,whole:String?,container:RevisionContainerPlan?}
+private struct RevisionContainerPlan:Sendable {
+    var shapes:[RevisionShapePlan]
+    let baseOrder:[String],destinationOrder:[String],prefix:String
+    var order:String?=nil
+}
+private struct RevisionShapePlan:Sendable {
+    let id:String,base:String?,destination:String?
+    var children:RevisionContainerPlan?
+    var change:String?=nil
+    var granular:Bool=false
+}
+private func revisionMatchContainer(_ a:[RevisionShape],_ b:[RevisionShape],base:RevisionDeck,destination:RevisionDeck,oldSlide:RevisionSlide,newSlide:RevisionSlide,prefix:String,cancellation:OperationCancellation?)throws->RevisionContainerPlan {
+    let oldMap=Dictionary(uniqueKeysWithValues:a.map{($0.id,$0)}),newMap=Dictionary(uniqueKeysWithValues:b.map{($0.id,$0)})
+    let pairs=try revisionMatch(a.map(\.id),b.map(\.id),fingerprint:{isNew,id in try (isNew ? destination:base).shapeIdentityFingerprint((isNew ? newMap:oldMap)[id]!,slide:isNew ? newSlide:oldSlide,cancellation:cancellation)},similarity:{a,b in revisionShapeSimilarity(oldMap[a]!,newMap[b]!)},cancellation:cancellation)
+    var nodes:[RevisionShapePlan]=[]
+    for pair in pairs {
+        try cancellation?.check();let id=prefix+"-shape-"+pair.id
+        var children:RevisionContainerPlan?
+        if let x=pair.base.flatMap({oldMap[$0]}),let y=pair.destination.flatMap({newMap[$0]}),revisionIs(x.element,"grpSp",revisionPresentationNS),revisionIs(y.element,"grpSp",revisionPresentationNS),revisionSupportsGroupChildren(x.element),revisionSupportsGroupChildren(y.element) {
+            children=try revisionMatchContainer(revisionContainerShapes(x.element),revisionContainerShapes(y.element),base:base,destination:destination,oldSlide:oldSlide,newSlide:newSlide,prefix:id,cancellation:cancellation)
+        }
+        nodes.append(.init(id:id,base:pair.base,destination:pair.destination,children:children))
+    }
+    let oldKeys=Dictionary(uniqueKeysWithValues:nodes.compactMap{node in node.base.map{($0,node.id)}}),newKeys=Dictionary(uniqueKeysWithValues:nodes.compactMap{node in node.destination.map{($0,node.id)}})
+    return .init(shapes:nodes,baseOrder:a.map{oldKeys[$0.id]!},destinationOrder:b.map{newKeys[$0.id]!},prefix:prefix)
+}
+private func revisionIdentityMaps(_ container:RevisionContainerPlan,old:inout[String:String],new:inout[String:String]) {
+    for node in container.shapes {if let id=node.base{old[id]=node.id};if let id=node.destination{new[id]=node.id};if let children=node.children{revisionIdentityMaps(children,old:&old,new:&new)}}
+}
+private func revisionReviewContainer(_ matched:RevisionContainerPlan,_ a:[RevisionShape],_ b:[RevisionShape],base:RevisionDeck,destination:RevisionDeck,oldSlide:RevisionSlide,newSlide:RevisionSlide,oldKeys:[String:String],newKeys:[String:String],path:[String],changes:inout[PresentationRevisionChange],cancellation:OperationCancellation?)throws->RevisionContainerPlan {
+    let oldMap=Dictionary(uniqueKeysWithValues:a.map{($0.id,$0)}),newMap=Dictionary(uniqueKeysWithValues:b.map{($0.id,$0)})
+    var result=matched
+    for index in result.shapes.indices {
+        try cancellation?.check();var node=result.shapes[index]
+        let x=node.base.flatMap{oldMap[$0]},y=node.destination.flatMap{newMap[$0]},name=y?.name ?? x?.name ?? "Shape"
+        if let children=node.children,let x,let y {
+            let shellA=revisionCanonical(revisionGroupShell(x.element),ids:oldKeys,relationships:try base.semanticRelationships(oldSlide,cancellation:cancellation))
+            let shellB=revisionCanonical(revisionGroupShell(y.element),ids:newKeys,relationships:try destination.semanticRelationships(newSlide,cancellation:cancellation))
+            if shellA==shellB {
+                node.granular=true
+                node.children=try revisionReviewContainer(children,revisionContainerShapes(x.element),revisionContainerShapes(y.element),base:base,destination:destination,oldSlide:oldSlide,newSlide:newSlide,oldKeys:oldKeys,newKeys:newKeys,path:path+[name],changes:&changes,cancellation:cancellation)
+            }
+        }
+        if !node.granular,try base.shapeFingerprint(x,slide:oldSlide,identities:oldKeys,cancellation:cancellation) != destination.shapeFingerprint(y,slide:newSlide,identities:newKeys,cancellation:cancellation) {
+            node.change=node.id
+            let kind:PresentationRevisionChange.Kind=x == nil ? .shapeAdded:y == nil ? .shapeDeleted:.shapeChanged
+            let group=(x.map{revisionIs($0.element,"grpSp",revisionPresentationNS)} ?? false) || (y.map{revisionIs($0.element,"grpSp",revisionPresentationNS)} ?? false)
+            let detail:String
+            if group {detail=kind == .shapeAdded ? "Added whole group, including every nested shape and its linked content.":kind == .shapeDeleted ? "Deleted whole group, including every nested shape.":"Changed group properties. Choose the whole group, including its nested shapes, transforms, formatting and linked content."}
+            else {detail=kind == .shapeAdded ? "Added shape, including its linked content.":kind == .shapeDeleted ? "Deleted shape.":"Changed shape, including its formatting and linked content."}
+            changes.append(.init(id:node.id,title:"Slide \(newSlide.index+1): "+name+(group ? " (whole group)":""),detail:detail,baseSlideIndex:oldSlide.index,destinationSlideIndex:newSlide.index,kind:kind,groupPath:path))
+        }
+        result.shapes[index]=node
+    }
+    let common=Set(matched.shapes.filter{$0.base != nil && $0.destination != nil}.map(\.id))
+    if matched.baseOrder.filter({common.contains($0)}) != matched.destinationOrder.filter({common.contains($0)}) {
+        let id=matched.prefix+"-shape-order";result.order=id
+        changes.append(.init(id:id,title:"Slide \(newSlide.index+1): shape order",detail:"Choose New or Base stacking order for the retained shapes in this container.",baseSlideIndex:oldSlide.index,destinationSlideIndex:newSlide.index,kind:.shapeOrder,groupPath:path))
+    }
+    return result
+}
+private struct RevisionSelectedShape {
+    let plan:RevisionShapePlan,shape:RevisionShape,useNew:Bool,children:[RevisionSelectedShape]?
+}
+private struct RevisionSelectedIdentity {let base:String?,destination:String?,selected:String,useNew:Bool}
+private func revisionSelectContainer(_ plan:RevisionContainerPlan,_ a:[RevisionShape],_ b:[RevisionShape],anchorNew:Bool,decisions:[String:Bool],cancellation:OperationCancellation?)throws->[RevisionSelectedShape] {
+    let oldMap=Dictionary(uniqueKeysWithValues:a.map{($0.id,$0)}),newMap=Dictionary(uniqueKeysWithValues:b.map{($0.id,$0)})
+    var selected:[String:RevisionSelectedShape]=[:]
+    for node in plan.shapes {
+        try cancellation?.check()
+        let useNew=node.change.map{decisions[$0] == true} ?? anchorNew
+        guard let raw=useNew ? node.destination:node.base,let shape=(useNew ? newMap:oldMap)[raw] else{continue}
+        var children:[RevisionSelectedShape]?
+        if node.granular,let container=node.children,let x=node.base.flatMap({oldMap[$0]}),let y=node.destination.flatMap({newMap[$0]}) {
+            children=try revisionSelectContainer(container,revisionContainerShapes(x.element),revisionContainerShapes(y.element),anchorNew:anchorNew,decisions:decisions,cancellation:cancellation)
+        }
+        selected[node.id] = .init(plan:node,shape:shape,useNew:useNew,children:children)
+    }
+    let newOrder=plan.order.map{decisions[$0] == true} ?? anchorNew
+    return revisionMergedOrder(primary:newOrder ? plan.destinationOrder:plan.baseOrder,secondary:newOrder ? plan.baseOrder:plan.destinationOrder,included:Set(selected.keys)).compactMap{selected[$0]}
+}
+private func revisionSelectedIdentities(_ node:RevisionSelectedShape,records:inout[RevisionSelectedIdentity],cancellation:OperationCancellation?)throws {
+    try cancellation?.check()
+    records.append(.init(base:node.plan.base,destination:node.plan.destination,selected:node.shape.id,useNew:node.useNew))
+    if let children=node.children {for child in children {try revisionSelectedIdentities(child,records:&records,cancellation:cancellation)};return}
+    // For an atomic subtree only descendants actually retained from the chosen
+    // source get output IDs. Pair aliases come from recursive sibling matches.
+    var old:[String:String]=[:],new:[String:String]=[:]
+    if let children=node.plan.children{revisionIdentityMaps(children,old:&old,new:&new)}
+    let oldByKey=Dictionary(uniqueKeysWithValues:old.map{($0.value,$0.key)}),newByKey=Dictionary(uniqueKeysWithValues:new.map{($0.value,$0.key)})
+    for child in revisionDescendants(node.shape.element).filter({revisionIs($0,"cNvPr",revisionPresentationNS)}).dropFirst() {
+        try cancellation?.check();guard let raw=revisionAttribute(child,"id") else{throw PresentationRevisionFailure.invalid("Missing nested shape identity")}
+        let key=(node.useNew ? new:old)[raw]
+        records.append(.init(base:node.useNew ? key.flatMap{oldByKey[$0]}:raw,destination:node.useNew ? raw:key.flatMap{newByKey[$0]},selected:raw,useNew:node.useNew))
+    }
+}
+private func revisionAppendShape(_ node:XMLElement,to container:XMLElement) {
+    if let ext=revisionChildren(container).first(where:{revisionIs($0,"extLst",revisionPresentationNS)}),let index=container.children?.firstIndex(of:ext){container.insertChild(node,at:index)}else{container.addChild(node)}
+}
 private struct RevisionSlide {let id:String,path:String,index:Int}
 private struct RevisionShape {let id:String,name:String,element:XMLElement}
 private let revisionRelationshipNS="http://schemas.openxmlformats.org/package/2006/relationships"
@@ -383,7 +487,7 @@ private struct RevisionDeck {
         guard slides.count<=512 else{throw PresentationRevisionFailure.unsupported("More than 512 slides")}
         self.slides=slides
         var shapeCount=0
-        for slide in slides {try cancellation?.check();shapeCount += try shapes(slide).count;guard shapeCount<=20000 else{throw PresentationRevisionFailure.unsupported("More than 20,000 shapes in a deck")}}
+        for slide in slides {try cancellation?.check();shapeCount += try shapes(slide).reduce(0){$0+revisionDescendants($1.element).filter{revisionIs($0,"cNvPr",revisionPresentationNS)}.count};guard shapeCount<=20000 else{throw PresentationRevisionFailure.unsupported("More than 20,000 shapes in a deck")}}
         // Validate every declared internal edge, including opaque content which
         // the review preserves without interpreting or executing it.
         for path in entries.keys where path.hasSuffix(".rels") {
@@ -725,18 +829,8 @@ private struct RevisionOutput {
     }
     mutating func mergeSlide(plan:RevisionSlidePlan,base:RevisionDeck,destination:RevisionDeck,target:String,anchorNew:Bool,decisions:[String:Bool],cancellation:OperationCancellation?)throws {
         let old=RevisionSlide(id:plan.baseID!,path:plan.base!,index:0),new=RevisionSlide(id:plan.destinationID!,path:plan.destination!,index:0)
-        let oldShapes=try base.shapes(old),newShapes=try destination.shapes(new)
-        let oldMap=Dictionary(uniqueKeysWithValues:oldShapes.map{($0.id,$0)}),newMap=Dictionary(uniqueKeysWithValues:newShapes.map{($0.id,$0)})
-        let oldKeys=Dictionary(uniqueKeysWithValues:plan.identities.compactMap{pair in pair.base.map{($0,pair.id)}}),newKeys=Dictionary(uniqueKeysWithValues:plan.identities.compactMap{pair in pair.destination.map{($0,pair.id)}})
-        let changeMap=Dictionary(uniqueKeysWithValues:plan.shapes.map{($0.id,$0)})
-        var chosen:[String:Bool]=[:],selectedShapes:[String:RevisionShape]=[:]
-        for pair in plan.identities {
-            let useNew=changeMap[pair.id].map{decisions[$0.change] == true} ?? anchorNew
-            if let raw=useNew ? pair.destination:pair.base,let shape=(useNew ? newMap:oldMap)[raw] {chosen[pair.id]=useNew;selectedShapes[pair.id]=shape}
-        }
-        let orderNew=plan.order.map{decisions[$0] == true} ?? anchorNew
-        let oldOrder=oldShapes.map{oldKeys[$0.id]!},newOrder=newShapes.map{newKeys[$0.id]!}
-        let order=revisionMergedOrder(primary:orderNew ? newOrder:oldOrder,secondary:orderNew ? oldOrder:newOrder,included:Set(chosen.keys))
+        guard let container=plan.container else{throw PresentationRevisionFailure.invalid("Missing recursive shape plan")}
+        let selected=try revisionSelectContainer(container,try base.shapes(old),try destination.shapes(new),anchorNew:anchorNew,decisions:decisions,cancellation:cancellation)
         let doc=try anchor.document(anchorNew ? new.path:old.path),root=doc.rootElement()!
         guard let cs=revisionChild(root,"cSld"),let tree=revisionChild(cs,"spTree") else{throw PresentationRevisionFailure.invalid("Missing output shape tree")}
         for node in revisionChildren(tree) where !["nvGrpSpPr","grpSpPr","extLst"].contains(revisionLocal(node)){node.detach()}
@@ -744,53 +838,57 @@ private struct RevisionOutput {
         if let bytes=entries[relPath] {relDoc=try revisionXML(bytes,relPath)}
         else {relDoc=try revisionXML(Data(("<Relationships xmlns=\""+revisionRelationshipNS+"\"/>").utf8),relPath)}
         var used=Set(revisionChildren(relDoc.rootElement()!).compactMap{revisionAttribute($0,"Id")})
-        // Allocate output IDs once for both source views. Keep chosen anchor
-        // IDs where possible, then remap imported top-level and nested group IDs.
+        // Resolve the complete selected tree before allocating IDs. Every source
+        // counterpart is mapped within its matched parent, including targets of
+        // connectors outside an otherwise atomic group.
         var oldIDs:[String:String]=[:],newIDs:[String:String]=[:]
+        var records:[RevisionSelectedIdentity]=[]
+        for node in selected {try revisionSelectedIdentities(node,records:&records,cancellation:cancellation)}
         var usedIDs=Set(revisionDescendants(tree).filter{revisionIs($0,"cNvPr",revisionPresentationNS)}.compactMap{revisionAttribute($0,"id")}.compactMap(UInt32.init))
-        for pair in plan.identities where chosen[pair.id] == anchorNew {
-            for node in revisionDescendants(selectedShapes[pair.id]!.element) where revisionIs(node,"cNvPr",revisionPresentationNS) {if let id=revisionAttribute(node,"id"),let number=UInt32(id){usedIDs.insert(number)}}
-        }
-        func allocated(_ desired:String,preserve:Bool)throws->String {
-            if preserve{return desired}
-            var number=UInt32(desired) ?? 2
-            if usedIDs.contains(number){number=2;while usedIDs.contains(number){guard number<UInt32.max else{throw PresentationRevisionFailure.unsupported("Shape identity space exhausted")};number += 1}}
-            usedIDs.insert(number);return String(number)
-        }
-        for pair in plan.identities where chosen[pair.id] != nil {
-            let useNew=chosen[pair.id]!,shape=selectedShapes[pair.id]!,fromAnchor=useNew==anchorNew
-            let topID=try allocated((anchorNew ? pair.destination:pair.base) ?? shape.id,preserve:fromAnchor)
-            if let id=pair.base{oldIDs[id]=topID};if let id=pair.destination{newIDs[id]=topID}
-            let selectedNested=revisionDescendants(shape.element).filter{revisionIs($0,"cNvPr",revisionPresentationNS)}.dropFirst()
-            var chosenNested:[String:String]=[:]
-            for node in selectedNested {if let id=revisionAttribute(node,"id"){chosenNested[id]=try allocated(id,preserve:fromAnchor)}}
-            if useNew {newIDs.merge(chosenNested){_,new in new}}else{oldIDs.merge(chosenNested){_,new in new}}
-            if let oldID=pair.base,let newID=pair.destination,let a=oldMap[oldID],let b=newMap[newID] {
-                let matches=try revisionNestedMatches(base:base,destination:destination,old:a,new:b,oldSlide:old,newSlide:new,cancellation:cancellation)
-                for match in matches {if let a=match.base,let b=match.destination,let mapped=chosenNested[useNew ? b:a] {oldIDs[a]=mapped;newIDs[b]=mapped}}
-            }
-        }
-        for id in order {
+        for record in records where record.useNew==anchorNew {if let id=UInt32(record.selected){usedIDs.insert(id)}}
+        for record in records {
             try cancellation?.check()
-            let useNew=chosen[id]!,source=useNew ? destination:base,sourceSlide=useNew ? new:old
-            let original=selectedShapes[id]!.element
+            var number=UInt32(record.selected) ?? 2
+            if record.useNew != anchorNew {
+                let preferred=(anchorNew ? record.destination:record.base).flatMap(UInt32.init)
+                if let preferred,!usedIDs.contains(preferred){number=preferred}
+                else if usedIDs.contains(number){number=2;while usedIDs.contains(number){guard number<UInt32.max else{throw PresentationRevisionFailure.unsupported("Shape identity space exhausted")};number += 1}}
+                usedIDs.insert(number)
+            }
+            let mapped=String(number)
+            if let id=record.base{oldIDs[id]=mapped};if let id=record.destination{newIDs[id]=mapped}
+        }
+        // Each piece is either a leaf/atomic subtree or the shell of a granular
+        // group. Its source determines both identity and relationship remapping.
+        var pieces:[RevisionSelectedShape]=[]
+        func collect(_ nodes:[RevisionSelectedShape]) {for node in nodes {pieces.append(node);if let children=node.children{collect(children)}}}
+        collect(selected)
+        var copies:[String:XMLElement]=[:]
+        for piece in pieces {
+            try cancellation?.check()
+            let source=piece.useNew ? destination:base,sourceSlide=piece.useNew ? new:old
+            let original=piece.children == nil ? piece.shape.element:revisionGroupShell(piece.shape.element)
             let node=original.copy() as! XMLElement
-            let identityMap=useNew ? newIDs:oldIDs
+            let identityMap=piece.useNew ? newIDs:oldIDs
             for descendant in revisionDescendants(node) {
-                if revisionIs(descendant,"cNvPr",revisionPresentationNS),let sourceID=revisionAttribute(descendant,"id"),let mapped=identityMap[sourceID]{revisionSet(descendant,"id",mapped)}
+                if revisionIs(descendant,"cNvPr",revisionPresentationNS),let sourceID=revisionAttribute(descendant,"id") {
+                    guard let mapped=identityMap[sourceID] else{throw PresentationRevisionFailure.invalid("Missing selected shape identity")};revisionSet(descendant,"id",mapped)
+                }
                 if descendant.uri==revisionDrawingNS,["stCxn","endCxn"].contains(revisionLocal(descendant)),let sourceID=revisionAttribute(descendant,"id") {
                     guard let mapped=identityMap[sourceID] else{throw PresentationRevisionFailure.unsupported("A selected connector references a rejected or ambiguously matched shape. Review its target and connector together.")};revisionSet(descendant,"id",mapped)
                 }
             }
-            if useNew != anchorNew {
-                // Preserve foreign prefixes used anywhere in the imported shape.
-                let foreignRoot=try source.document(sourceSlide.path).rootElement()!
-                for ns in foreignRoot.namespaces ?? [] {
+            if piece.useNew != anchorNew {
+                // A selected child can inherit prefixes from a group rather
+                // than the slide root. Retain its complete in-scope bindings;
+                // refuse conflicting bindings instead of silently retargeting.
+                var namespaceScopes:[XMLElement]=[],ancestor:XMLElement?=piece.shape.element
+                while let scope=ancestor {namespaceScopes.append(scope);ancestor=scope.parent as? XMLElement}
+                for scope in namespaceScopes.reversed() {for ns in scope.namespaces ?? [] {
                     let prefix=ns.name ?? "",value=ns.stringValue ?? ""
-                    if let current=root.namespace(forPrefix:prefix) {
-                        guard current.stringValue==value else{throw PresentationRevisionFailure.unsupported("Conflicting XML namespace prefixes between selected shapes")}
-                    } else {root.addNamespace(ns.copy() as! XMLNode)}
-                }
+                    if let current=root.namespace(forPrefix:prefix) {guard current.stringValue==value else{throw PresentationRevisionFailure.unsupported("Conflicting XML namespace prefixes between selected shapes")}}
+                    else {root.addNamespace(ns.copy() as! XMLNode)}
+                }}
                 let relationships=try revisionRelationships(source.entries,part:sourceSlide.path),map=Dictionary(uniqueKeysWithValues:relationships.map{($0.id,$0)})
                 for oldID in revisionRelationshipIDs(original).sorted() {
                     guard let rel=map[oldID] else{throw PresentationRevisionFailure.invalid("Missing selected shape dependency")}
@@ -798,14 +896,17 @@ private struct RevisionOutput {
                     let copied=rel.element.copy() as! XMLElement;revisionSet(copied,"Id",newID)
                     if !rel.external {let mapped=try importPart(revisionTarget(rel.target,from:sourceSlide.path),cancellation:cancellation);revisionSet(copied,"Target",revisionRelative(mapped,from:target))}
                     relDoc.rootElement()!.addChild(copied)
-                    for descendant in revisionDescendants(node) {
-                        for attr in descendant.attributes ?? [] where attr.stringValue==oldID && attr.uri==revisionOfficeRelationshipNS {attr.stringValue=newID}
-                    }
+                    for descendant in revisionDescendants(node) {for attr in descendant.attributes ?? [] where attr.stringValue==oldID && attr.uri==revisionOfficeRelationshipNS {attr.stringValue=newID}}
                 }
             }
-            // extLst is the shape-tree's final child under the OOXML schema.
-            if let ext=revisionChildren(tree).first(where:{revisionLocal($0)=="extLst"}),let index=tree.children?.firstIndex(of:ext){tree.insertChild(node,at:index)}else{tree.addChild(node)}
+            copies[piece.plan.id]=node
         }
+        func assemble(_ piece:RevisionSelectedShape)->XMLElement {
+            let node=copies[piece.plan.id]!
+            if let children=piece.children {for child in children {revisionAppendShape(assemble(child),to:node)}}
+            return node
+        }
+        for piece in selected {revisionAppendShape(assemble(piece),to:tree)}
         let ids=revisionDescendants(tree).filter{revisionIs($0,"cNvPr",revisionPresentationNS)}.compactMap{revisionAttribute($0,"id")}
         guard Set(ids).count==ids.count else{throw PresentationRevisionFailure.unsupported("Selected groups contain colliding child-shape identities. Choose the complete slide instead.")}
         let available=Set(ids)

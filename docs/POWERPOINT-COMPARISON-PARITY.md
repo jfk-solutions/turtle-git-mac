@@ -110,7 +110,8 @@ stacking order are reviewable. Inseparable slide environment/reference changes
 are a complete-slide decision. A shared presentation decision chooses the anchor
 metadata/settings; dependency import allocates identities before traversing
 cycles and rewrites part relationships/content types for the selected graph.
-Groups are atomic shapes. Unsafe mixed decisions fail with a reason.
+Changed group shells remain atomic. The recursive continuation below adds child
+decisions inside equivalent shells. Unsafe mixed decisions fail with a reason.
 
 The native window connects selected/all accept/reject, undo/redo, unresolved and
 unsaved state, a native Save Editable Copy panel, original/alias protection,
@@ -122,8 +123,9 @@ execution and require macro-enabled output. Invalidated package signatures are
 removed and disclosed.
 
 This advances the source revision workflow without claiming full Windows engine
-parity. Independent group-child decisions, complete comment/animation/presentation-wide
-reference combinations and physical Office reopening remain explicit gaps. Signed sandbox,
+parity. The recursive continuation below provides independent group-child
+decisions. Complete comment/animation/presentation-wide reference combinations
+and physical Office reopening remain explicit gaps. Signed sandbox,
 TCC/file grants, minimum-OS acceptance and App Store review remain unverified.
 
 The package structure and separate slide/layout/master/theme/notes relationships
@@ -174,8 +176,9 @@ remains separate additions/deletions. Output slide/shape IDs and connector/group
 references are remapped for selected mixed sources. Classic comment authors and
 comment indexes are merged consistently; equivalent notes-master graphs can be
 reused. Modern threaded-comment/person combinations remain explicitly unsupported
-for independent mixed choices. Groups remain atomic and animation/reference
-changes can still require a whole-slide decision. Exact whole-revision choices
+for independent mixed choices. The recursive continuation below replaces the
+earlier atomic-group restriction; animation/reference changes can still require
+a whole-slide decision. Exact whole-revision choices
 preserve the selected source package entries when no security/format rewrite is
 required.
 
@@ -207,3 +210,63 @@ bytes. Independent ZIP/XML checks validate the mixed Open XML output in addition
 to the existing complete-New PPTX/PPTM cases. Apple-event execution and result
 PDFs were injected; the installed PowerPoint terminology compiled. These checks
 do not establish live Office fidelity, a complete CI pass or App Store acceptance.
+
+
+## Recursive group decisions — October 20, 2026
+
+The connected continuation replaces flat, atomic group review with recursive
+sibling-scoped matching and decisions. Children are matched only inside the same
+matched parent; a move across group boundaries remains a deletion/addition.
+A matched group's shell is compared without its direct shape children. Equivalent
+shells permit independent child changes and local stacking-order decisions;
+changed transforms, nonvisual properties, effects or other shell content require
+one explicit whole-group choice. Opaque group children also remain atomic;
+recognized markup-compatibility/extension guards can require the whole slide.
+Added/deleted groups remain atomic. Existing
+animation and unknown-reference whole-slide guards remain in force.
+
+Export must first resolve the complete selected tree, then allocate slide-wide
+unique shape IDs before remapping any connector. Both source identity maps must
+resolve matched counterparts to the selected output object. Only selected
+subtrees and group shells contribute imported dependencies. Missing or ambiguous
+connector targets are refused. Complete-revision choices retain the existing
+opaque package preservation path.
+
+The native list shows ancestor breadcrumbs, bounded indentation, original action
+artwork and complete tooltip/accessibility paths. Copy/Export Review carries the
+same ancestor path to distinguish repeated object names. Titles and group names retain
+the source text; they are not interpreted as decision identities or translated
+application captions. Existing session Undo/Redo, Save As, cancellation and
+captured-input ownership remain connected to the recursive decisions.
+
+This is a native replacement for the Windows script's call to PowerPoint's opaque
+Merge engine. The pinned script does not expose that engine's individual group
+matching rules, so passing package/native checks cannot establish identical
+Microsoft revision granularity or live Office rendering fidelity.
+
+The grouped checkpoint passed 28 distinct focused Core methods (nine new and
+nineteen existing) across the initial group and focused endpoint/opaque-content
+checks. The Debug app built, and both native review/save and lifecycle cases
+passed. Python independently verified the saved ZIP CRCs, nested group structure,
+chosen child text/order, unique IDs and every internal relationship target.
+[The dated record](qa/presentation-group-family-2026-10-20.json) retains the actual
+failures, semantic assertion repair, opaque-content repair, affected builds and
+capture-only checks. Functional cases were not repeated after passing.
+
+Minimum-size captures caught a clipped footer. The revision pane now shrinks
+while retaining a scrollable change list, and the complete caption/buttons were
+inspected in both appearances. The following are exact offscreen owned-window
+compositor captures, with no image postprocessing. No Office app was launched;
+these show the metadata fallback and mixed nested decisions, not live PowerPoint
+rendering or physical input acceptance.
+
+![Nested presentation review, light](site/assets/presentation-group-review-light.png)
+![Nested presentation review, dark](site/assets/presentation-group-review-dark.png)
+
+All six launched native receivers, including failed fixture and capture attempts,
+were reaped and independently absent afterward. Modern threaded-comment/person
+combinations, incompatible presentation-wide masters, namespace conflicts,
+unsafe references, live Office fidelity and physical/signed/App Store acceptance
+remain open. Changed/opaque groups stay atomic and cross-group moves remain
+separate deletion/addition choices. This completes the scoped continuation, not
+the full application port.

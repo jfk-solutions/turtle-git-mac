@@ -44,13 +44,27 @@ connects unresolved/dirty state, original/alias protection, Save As, cancellatio
 and Discard/Cancel closure. An unavailable PowerPoint installation permits
 package metadata review for PPTX/PPTM. The [legacy/result continuation](POWERPOINT-COMPARISON-PARITY.md#legacy-inputs-combined-result-rendering-and-identity-matching)
 adds private binary PPT normalization/Save As, explicit combined-result previews,
-regenerated-ID matching and classic comment remapping. Independent group-child
-decisions, complete mixed-reference combinations and physical/signed acceptance
+regenerated-ID matching and classic comment remapping. The recursive group continuation described below adds independent child
+decisions. Complete mixed-reference combinations and physical/signed acceptance
 remain open.
 The Debug build, 28 distinct focused Core methods across the checkpoint and
 affected repair, native workflow checks and independent saved-output ZIP/XML
 checks pass. [Evidence](qa/presentation-revision-family-2026-10-20.json) records
 the actual failures/repairs, captures and ownership scope.
+
+
+The recursive [presentation group review continuation](POWERPOINT-COMPARISON-PARITY.md)
+adds sibling-scoped nested matching, independent child changes and local stacking
+order, with whole-group fallback for changed group shells. Editable export
+resolves the complete selected tree before assigning globally unique IDs and
+mapping connector endpoints; the native list retains full group paths and source
+icons and report ancestry. Twenty-eight distinct focused Core methods, the Debug
+app and both native review/save/lifecycle cases passed across the grouped
+checkpoint and affected repairs. [Evidence](qa/presentation-group-family-2026-10-20.json)
+retains the opaque-content, assertion and minimum-window layout repairs,
+independent saved-output verification, captures and owned cleanup. Modern
+threaded comments, whole-slide reference restrictions, live Office and
+physical/signed acceptance remain explicit gaps.
 
 
 The connected [Word/LibreOffice handoff family](WORD-AUTOMATION-PARITY.md) adds
