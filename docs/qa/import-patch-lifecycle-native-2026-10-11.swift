@@ -23,7 +23,7 @@ struct ImportPatchLifecycleVerification {
             precondition(owner.model.finished && owner.model.error == nil)
             if accepted { owner.model.apply() } else { owner.model.requestClose() }
             print("CLOSE: busy=\(owner.model.busy) closing=\(owner.model.closing) editable=\(owner.model.editable) sheet=\(String(describing: owner.window!.attachedSheet))"); fflush(stdout)
-            try await wait { owner.model.closed }
+            try await wait { owner.model.closed && owner.presentationClosed }
             precondition(owner.model.accepted == accepted && !owner.model.closing && !owner.model.busy && closed == 1)
             owner.model.apply(); owner.model.requestClose(); precondition(closed == 1)
         }

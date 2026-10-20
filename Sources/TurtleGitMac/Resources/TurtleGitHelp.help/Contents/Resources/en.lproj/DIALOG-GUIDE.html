@@ -524,8 +524,19 @@ and fingerprints before choosing <strong>Accept certificate</strong>. <strong>Ca
 <strong>Open certificate</strong> offers a read-only inspector and certificate export. See
 <a href="SMTP-CERTIFICATE-REVIEW.html">SMTP certificate review</a> for temporary acceptance and
 cancellation behavior.</p>
-<p>Apply Patch Serial applies a patch series through Git's corresponding operation.
-Review/apply single patch uses the comparison/review workflow. Its source-file chooser offers Use Clipboard Patch, capturing the copied diff before target selection. Finder’s existing eligible Review action also uses registered patch clipboard data when the selected file is not a patch. Opening a review does not apply it. Resolve a failed
+<p>Apply Patch Serial imports mail patches as commits through <code>git am</code>. Apply and
+the completed OK action check the effective author and committer identity. If a
+field is missing, Yes opens Settings on the Git page; closing Settings rechecks
+all four fields and repeats the question if needed. No returns without starting
+another import or accepting completed OK.</p>
+<p>An active import offers Abort, Skip, Resolved and Cancel. Resolve conflicts and
+stage the result before choosing Resolved. Failed recovery retains the session
+and diagnostic and asks again; later patches wait. Cancel preserves remaining
+Git state. Running Abort stops the batch after the current command; it is not a
+promise to undo completed commits. Idle close offers Abort, Keep session or Cancel;
+a failed abort keeps the native window open for retry. See
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/IMPORT-PATCH-PARITY.html">Apply Patch Serial identity and recovery</a>.</p>
+<p>Review/apply single patch uses the comparison/review workflow. Its source-file chooser offers Use Clipboard Patch, capturing the copied diff before target selection. Finder’s existing eligible Review action also uses registered patch clipboard data when the selected file is not a patch. Opening a review does not apply it. Resolve a failed
 or conflicted application in its owning dialog before continuing. A Unified Diff
 document can be edited and saved without staging those edits automatically.</p>
 <p>In a Unified Diff window or attached partial-patch view, Command-F opens the

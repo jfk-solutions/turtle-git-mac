@@ -1,0 +1,120 @@
+{
+  "status": "scoped-validation-passed",
+  "date": "2026-10-20",
+  "upstream_revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Apply Patch Serial source identity ordering/full Settings repair loop, reviewed am-session recovery retry, forced owner/child/worker draining and finish-current-command Abort",
+  "build": {
+    "log": "build/qa/import-patch-safety-build-2026-10-20.log",
+    "result": "passed",
+    "cache_repair_log": "build/qa/import-patch-safety-build-cache-repair-2026-10-20.log",
+    "cache_repair_result": "passed; rebuilt only missing derived InputWindow.o after native runner rejected its old timestamp for a comment-only source edit; no production behavior change or cache purge",
+    "close_repair_log": "build/qa/import-patch-safety-close-repair-build-2026-10-20.log",
+    "close_repair_result": "passed: repair the native keep-state close branch for unreadable/corrupt reviewed bookkeeping"
+  },
+  "core": {
+    "distinct_methods": 12,
+    "new_methods": 7,
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "executions": 24,
+    "result": "passed first grouped checkpoint",
+    "logs": [
+      "build/qa/import-patch-safety-core-system-2026-10-20.log",
+      "build/qa/import-patch-safety-core-bundled-2026-10-20.log"
+    ],
+    "coverage": [
+      "Patch author/date/message/signoff and existing am flags",
+      "Actual reviewed Abort/Skip/Resolved with manual conflict resolution and staging",
+      "Identical replaced session refusal for all recovery choices",
+      "Externally advanced mailbox, external HEAD and changed bookkeeping refusal",
+      "Failed Resolved keeps valid review for explicit retry",
+      "Cancelled/removed session and cross-linked-worktree capture refusal"
+    ]
+  },
+  "native": {
+    "cases": [
+      "identity",
+      "recovery",
+      "lifetime"
+    ],
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "case_engine_combinations": 6,
+    "result": "six distinct case/engine combinations passed at initial checkpoint; only the two lifetime/engine cases repeated and passed after the close-path repair",
+    "preflight_log": "build/qa/import-patch-safety-native-2026-10-20.log",
+    "preflight_result": "No native case executed: receiver build rejected stale object timestamp from comment-only InputWindow edit",
+    "log": "build/qa/import-patch-safety-native-cache-repair-2026-10-20.log",
+    "coverage": [
+      "Actual fourth-field missing committer-email identity question and No preserving HEAD/index",
+      "Abort preparation dismisses owned identity question promptly",
+      "Actual full Git Settings Cancel causes recheck; configuration repair followed by Cancel reread imports actual patches with original author/configured committer",
+      "Completed OK repeats identity gate; No keeps editor and valid identity closes accepted once",
+      "Actual failed Resolved logs and repeats recovery; Skip updates associated failed row before next patch import",
+      "Choice captured before replaced am session cannot mutate replacement HEAD/index/state",
+      "Held identity/session/recovery/close-read producers retain onClosed/Quit ownership until drain even when cancellation is ignored temporarily",
+      "Forced owner retirement suppresses all late output/change/accepted state",
+      "Actual held pre-applypatch hook verifies Abort finishes current Git command, reaps hook and leaves next patch pending",
+      "Actual corrupt am bookkeeping owned keep-state warning: Cancel retains owner, retry/accept closes once without changing any metadata file, HEAD/index or active session"
+    ],
+    "owned_receivers": [
+      46321,
+      46414,
+      46505,
+      46690,
+      46877,
+      47123,
+      47778,
+      48069
+    ],
+    "cleanup": "All eight owned receivers reaped and independently absent. Private repositories/preferences/configuration/temp roots and invisible/offscreen windows; cleanup drains workers/Settings/owners on success and failure; no unrelated apps terminated.",
+    "legacy_fixture_adjustment": "Existing 2026-10-11 completed-close check now waits presentationClosed before asserting onClosed. Legacy combined suite not rerun; new grouped cases directly check the changed close contract.",
+    "successful_executions": 8,
+    "close_repair_log": "build/qa/import-patch-safety-native-close-repair-2026-10-20.log",
+    "close_repair": "Final review found snapshot errors before Close choices trapped a corrupt-session window. Native now offers existing explicit Close-and-keep warning without authorizing Abort. Added actual corrupt next metadata fixture: decline/retry/accept preserves every am metadata file, HEAD/index and active session; accepted=false."
+  },
+  "documentation": {
+    "localization_check": "passed: 38 locales, 1305 keys; no complete-translation claim",
+    "help_check": "passed: 47 guides, 51 topics",
+    "site": "389 documents; no unresolved fragments",
+    "dialog_ledger": "reconciled after source/parity guide updates; no certified complete dialogs inferred"
+  },
+  "hosted_ci_observation": {
+    "head": "4d1c435a17340050c178360f4d0b13a8ec47eff1",
+    "pages": {
+      "id": 39458857347,
+      "result": "success"
+    },
+    "macos": {
+      "id": 39458857377,
+      "status": "pending"
+    },
+    "current_batch": "not pushed at observation; no current hosted CI pass claimed"
+  },
+  "limits": [
+    "Reviewed-session validation is a guard immediately before Git, not a cross-process Git lock",
+    "Unreadable/corrupt/incomplete am bookkeeping produces a diagnostic and explicit keep-state close, not unreviewed destructive recovery",
+    "Failed idle-close Abort retains native dialog for retry, unlike pinned source fallthrough close",
+    "Physical keyboard/VoiceOver and complete Windows visual/color parity",
+    "Large mailbox performance and broader outcome recovery after uncertain interruption",
+    "Signed repository/patch grants, Finder and App Store acceptance",
+    "Full TortoiseGit port remains incomplete"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/MailPatch.swift": "6f3671feb4dd676db76e485254c5d36f62819dee80a446cf67321f35d8873f41",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "e510646c153c02377fcfaeddbbb74c8c1a4a411f317e55f095102f21da6aebdd",
+    "Sources/TurtleGitMac/InputWindow.swift": "453ec25ad6facac19da0d1dd8cf48c39d770427d80282900fe5df9b730c2cf5c",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "10c47d2c3c7da3e9b9557ade7f01e008bde5dc2e4de205ba23df1b53f45fc1c0",
+    "Tests/TurtleGitCoreTests/MailPatchRecoverySessionTests.swift": "c6ff24586f75f2a95f7f0f6f1f2903035ceda0663c6e048522fd2107f3ba298e",
+    "docs/qa/import-patch-lifecycle-2026-10-20.swift": "3f95a8be03bbe1c8d53fa85412fc31bf0864807f43e3c54a3c9b12f5c67e237b",
+    "scripts/test-import-patch-lifecycle.py": "305253d10721364f5a7aa7688cb02e2b8bb75a91e44e3557b52764ae2397595c",
+    "docs/qa/import-patch-lifecycle-native-2026-10-11.swift": "dc29cba27601746333dfbf315a96d714dd95f64663b5cdac9100acc1c139689f"
+  },
+  "protected_unrelated_work": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  }
+}

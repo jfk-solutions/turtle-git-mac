@@ -263,7 +263,7 @@ import TurtleGitCore
         if SVNWindowModel.activeOperations > 0 { return .terminateCancel }
         if SendPatchWindowModel.activeLoads > 0 || SendPatchWindowController.activeTargetReads > 0 {return .terminateCancel}
         if SendPatchProgressModel.activeSubmissions > 0 || SendPatchProgressWindowController.activeReleases > 0 {return .terminateCancel}
-        if ImportPatchWindowModel.activeWorkers > 0 {return .terminateCancel}
+        if ImportPatchWindowModel.activeWorkers > 0 || ImportPatchWindowController.activeReleases > 0 {return .terminateCancel}
         if ReviewPatchWorkflow.activeLoads > 0 { return .terminateCancel }
         if ImageConflictWindowModel.activeOperations > 0 { return .terminateCancel }
         if FileListComparisonSession.activeOperations > 0 { return .terminateCancel }

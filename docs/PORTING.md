@@ -3960,3 +3960,18 @@ Core methods across the checkpoint and repair, provider check and both Git-engin
 native routing cases passed. [Evidence](qa/finder-services-family-2026-10-20.json)
 records the encoded-NUL and fixture URL repairs and owned cleanup. Physical
 registration, signed sandbox and App Store delivery remain open.
+
+### Apply Patch Serial identity and recovery ownership — October 20, 2026
+
+The connected mail-import family checks all four effective identity fields before
+Apply and completed OK, uses the full owned Git Settings loop, and retains failed
+recovery sessions for retry with captured-session validation. Forced close holds
+workers, grants and child replies through actual drain. The
+[source contract](IMPORT-PATCH-PARITY.md)
+separates `git am` from recorded-base patch review and records the deliberate
+failed-abort close adaptation. The Debug app, twelve distinct focused Core methods
+with system and bundled Git, and six native case/engine checks passed.
+[Evidence](qa/import-patch-safety-family-2026-10-20.json) records the one derived
+object timestamp repair, corrupt-state keep-close correction with only the two
+affected native cases repeated, actual scope and owned cleanup. Physical, signed and
+complete upstream dialog acceptance remain open.

@@ -1,5 +1,9 @@
 # Recorded-base patch recovery
 
+This guide covers raw-patch review and three-way recorded-base merging.
+Mail-patch import uses `git am` and a separate identity/recovery/close workflow;
+see [Apply Patch Serial](IMPORT-PATCH-PARITY.md).
+
 Source pin: `7338078f8ddd924b8cddee35f512f2286072136d`,
 `Git/GitPatch.cpp::PatchFile`, `GitPatch.h::GetFailedHunks/GetHasConflict`,
 `TortoiseMerge/MainFrm.cpp::PatchFile` and `FilePatchesDlg.cpp` initial row states.

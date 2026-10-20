@@ -631,7 +631,20 @@ and fingerprints before choosing **Accept certificate**. **Cancel** is the defau
 [SMTP certificate review](SMTP-CERTIFICATE-REVIEW.md) for temporary acceptance and
 cancellation behavior.
 
-Apply Patch Serial applies a patch series through Git's corresponding operation.
+Apply Patch Serial imports mail patches as commits through `git am`. Apply and
+the completed OK action check the effective author and committer identity. If a
+field is missing, Yes opens Settings on the Git page; closing Settings rechecks
+all four fields and repeats the question if needed. No returns without starting
+another import or accepting completed OK.
+
+An active import offers Abort, Skip, Resolved and Cancel. Resolve conflicts and
+stage the result before choosing Resolved. Failed recovery retains the session
+and diagnostic and asks again; later patches wait. Cancel preserves remaining
+Git state. Running Abort stops the batch after the current command; it is not a
+promise to undo completed commits. Idle close offers Abort, Keep session or Cancel;
+a failed abort keeps the native window open for retry. See
+[Apply Patch Serial identity and recovery](IMPORT-PATCH-PARITY.md).
+
 Review/apply single patch uses the comparison/review workflow. Its source-file chooser offers Use Clipboard Patch, capturing the copied diff before target selection. Finder’s existing eligible Review action also uses registered patch clipboard data when the selected file is not a patch. Opening a review does not apply it. Resolve a failed
 or conflicted application in its owning dialog before continuing. A Unified Diff
 document can be edited and saved without staging those edits automatically.

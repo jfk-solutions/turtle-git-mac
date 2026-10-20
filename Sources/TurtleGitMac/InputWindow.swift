@@ -148,8 +148,8 @@ final class InputMessageTextView: ProjectMessageTextView {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
-/// AppUtils::EditNote calls CheckUserData before reading a note. Keep the
-/// captured repository and all modal children alive until their real release.
+/// Shared CheckUserData loop for Edit Notes and Apply Patch. Keep the captured
+/// repository and all modal children alive until their real release.
 @MainActor final class NoteIdentitySession {
     private final class Question {
         let alert:NSAlert,token:OperationCancellation

@@ -48,19 +48,25 @@ the recovery prompt offers **Abort / Skip / Resolved / Cancel**. Abort restores
 the failed row for retry; Skip/Resolved mark it only when Git finishes that
 session. Additional failures retain recovery state. For a pre-existing external
 session, recovery does not incorrectly mark the first newly added patch done.
-An active rebase is refused. Before importing, author and committer name/email
-are checked using environment overrides, role-specific configuration and user
-configuration in that order. Git validates both identities. Missing fields offer
-Configure or Cancel; Configure opens a native name/email sheet with repository
-and global scopes. Saving retries the check; Cancel applies no patch. Existing
-author/committer overrides remain in effect. This identity sheet complements the native configuration pages described in
-[GIT-CONFIGURATION-PARITY](GIT-CONFIGURATION-PARITY.md); full source acceptance
-remains pending.
+An active rebase is refused. Apply and the completed **OK** action both check
+identity before accepting the dialog, matching `OnBnClickedOk` calling
+`CheckUserData` before `IsFinish`. All four effective author/committer name/email
+values are required. Environment overrides, role-specific configuration and user
+configuration retain their existing precedence; Git validates both resulting
+identities. Missing values offer the source **Yes / No** question. Yes opens the
+full native Settings dialog on its **Git** page for the captured repository and
+preferences. Closing Settings with either OK or Cancel causes an authoritative
+re-read; it does not certify that identity is now complete. Remaining missing
+values repeat the question. No returns to the import without applying another
+patch or accepting completed OK. Configuration writes occur through the normal
+[Git Settings transaction](GIT-CONFIGURATION-PARITY.md), preserving role-specific
+overrides and the user's chosen configuration scope.
 
-[Identity QA](qa/import-patch-identity-2026-10-08.json) checks cancellation and a
-name-only configuration followed by email configuration, then two real imports
-retaining the patch author and the configured committer. Configuration callbacks
-are injected: physical sheets, global writes and signed access remain unverified.
+The historical [identity QA](qa/import-patch-identity-2026-10-08.json) checks
+cancellation and sequential configuration followed by two real imports retaining
+the patch author and configured committer. Those injected callbacks predate the
+full Git Settings ownership described above; they do not validate the new native
+identity loop. Physical global writes and signed access remain unverified.
 
 **Abort** while a batch runs stops after the current Git command; it does not
 kill that command or close the window. Idle Cancel/window-close checks the Git
@@ -677,3 +683,58 @@ the Import window and its viewer/mail consumers. See
 [command guide](COMMAND-LINE.md#patch-series-archive-and-mailbox-entry) and
 [batch evidence](qa/patch-commands-2026-10-18.json) for actual Git effects, grants,
 chooser ownership and remaining signed/physical limits.
+
+## Identity, recovery retry and close ownership — October 20, 2026
+
+This batch connects the source identity gate, active-session recovery and owned
+window lifetime. `ImportPatchDlg.cpp::OnBnClickedOk` checks user data even when
+all rows are complete. `AppUtils.cpp::CheckUserData` opens the Git Settings page
+and loops over all four effective fields. `ImportPatchDlg.cpp::PatchThread`
+logs failed recovery output and remains inside its active-session loop. The
+native implementation follows these relationships rather than treating a closed
+Settings dialog or an attempted recovery as success.
+
+Abort, Skip and Resolved retain the captured mail-import session while a recovery
+choice is outstanding. The Core operation checks that session again before
+mutation; replacement sessions and rebases cannot inherit an old answer. A
+failed recovery appends its diagnostic, keeps the failed row/session association
+and asks again while that same import remains active. Later patches do not run
+until recovery settles. Only successful session completion updates the associated
+row to Pending, Skipped or Success. A pre-existing external import never marks an
+unrelated newly added row done. Cancel stops the continuation and preserves Git's
+remaining state; it does not imply rollback of an already completed Git command.
+
+Identity reads, Settings, recovery/close questions and worker replies belong to
+the original import owner. Reentry, changed catalog/options, retirement and
+cancelled operations cannot consume late approvals. Forced closure settles owned
+questions, retires Settings and file/viewer children, and cancels outstanding
+work. The controller's close callback and retained repository/patch grants wait
+for actual workers and sheet release. Global Quit remains fenced until that work
+drains, including a producer that does not immediately honor cancellation.
+
+For ordinary idle close, a failed `git am --abort` retains the native window and
+its diagnostic so recovery can be retried. This is a deliberate safety adaptation:
+the pinned `OnBnClickedCancel` displays an abort failure, then falls through to
+close. Keep session still explicitly preserves the active import. Unknown session
+state requires the separate Close and keep state choice rather than guessing.
+
+This is mail-patch (`git am`) recovery. Recorded-base merging in Review/apply
+single patch remains the separate [raw-patch recovery workflow](PATCH-RECOVERY-PARITY.md).
+It does not run mail-import Abort/Skip/Resolved or create commits implicitly.
+
+The new grouped native runner is `scripts/test-import-patch-lifecycle.py`, with
+system and bundled Git configured in CI. Its intended scope includes actual
+Settings repair/re-read, incomplete completed-OK identity, failed recovery retry,
+captured-session refusal and forced-close drain. The
+[batch evidence](qa/import-patch-safety-family-2026-10-20.json) records actual
+execution, failures and repairs; historical passes above do not certify these
+changes. The Debug app, twelve distinct focused Core methods with both Git engines
+and all six distinct native case/engine combinations passed across the checkpoint
+and affected close-path repair. The repair verifies an actual corrupt am session
+can be kept through Cancel/retry/accept without changing metadata or Git state.
+Only the two lifetime cases were repeated. A stale object
+timestamp stopped the native preflight; rebuilding that one derived object
+allowed the first actual native run to pass. Physical
+keyboard/VoiceOver transitions, full Windows layout/color parity, large mailbox
+performance, signed repository/patch-file grants and Finder/App Store acceptance
+remain open. No whole-dialog or whole-application completion is claimed.

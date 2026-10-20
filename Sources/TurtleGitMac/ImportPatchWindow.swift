@@ -9,6 +9,12 @@ import TurtleGitCore
     let model: ImportPatchWindowModel
     var onClosed: () -> Void = {}
     private var approvedClose = false
+    private var retired = false
+    private var releaseTask:Task<Void,Never>?
+    private(set) static var activeReleases=0
+    private(set) var presentationClosed=false
+    private(set) var identitySession:NoteIdentitySession!
+    private var mailCompletion:((String?)->Void)?
     private(set) var filePanel:NSOpenPanel?
     private var filePanelID=UUID()
     private var question:(UUID,NSAlert,(NSApplication.ModalResponse)->Void)?
@@ -18,7 +24,7 @@ import TurtleGitCore
     private var patch: PatchWindowController?
     private var review: WorkingTreePatchWindowController?
     private var sendPatch: SendMailWorkflow?
-    var activeOperation: Bool { model.pickingFiles || model.confirmingQuit || model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil || review?.activeOperation == true }
+    var activeOperation: Bool { model.hasPendingWork || identitySession?.hasPendingWork == true || releaseTask != nil || model.pickingFiles || model.confirmingQuit || model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil || review?.activeOperation == true }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
         model = ImportPatchWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -27,6 +33,10 @@ import TurtleGitCore
         let host=NSHostingController(rootView: ImportPatchDialog(model:model).defaultAppStorage(preferences));host.sizingOptions=[]
         window.contentViewController=host
         super.init(window: window); window.delegate = self
+        identitySession=NoteIdentitySession(repository:repository,access:access,preferences:preferences,parent:window)
+        identitySession.available={ [weak model] in model?.closed==false && model?.confirmingQuit==false }
+        model.requireIdentity={ [weak self] token in guard let self else{return false};return try await self.identitySession.require(token) }
+        model.cancelIdentity={ [weak self] in self?.identitySession.cancel() }
         window.setContentSize(.init(width: 800, height: 620))
         window.contentMinSize = .init(width: 660, height: 460); window.center()
         model.childActive = { [weak self] in self?.review?.activeOperation == true || self?.review?.model.dirty == true || self?.review?.model.editingEnabled == true || self?.patch?.model.busy == true || self?.patch?.window?.attachedSheet != nil }
@@ -47,27 +57,24 @@ import TurtleGitCore
         }
         model.chooseFiles = { [weak self] in self?.chooseFiles() }
         model.showPatch = { [weak self] bytes, title, alternate in
-            guard let self else { return }
+            guard let self,!self.retired,!self.model.closed else{return}
             if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: title, permissions: access.map { [$0] } ?? []) { return }
+            guard !self.retired,!self.model.closed else{return}
             self.patch = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: self.patch, title: title, onClosed: { [weak self] in self?.patch = nil })
         }
         model.composeMail = { [weak self] files, completion in
             guard let self else { completion("The patch window was closed."); return }
             do {
                 let leases = self.model.items.filter { files.contains($0.file) }.map(\.access) + [access].compactMap { $0 }
+                self.mailCompletion=completion
                 let workflow = SendMailWorkflow(files: files, repository: repository, access: access,
                     fileAccess: leases, preferences: preferences, presentation: mailPresentation) { [weak self] _ in
-                    self?.sendPatch = nil; completion(nil)
+                    guard let self else{return};self.sendPatch=nil
+                    let done=self.mailCompletion;self.mailCompletion=nil;done?(nil)
                 }
                 self.sendPatch = workflow; workflow.start(); return
             }
 
-        }
-        model.configureIdentity = { [weak self] in
-            guard let self else { return false }
-            guard await self.prompt("Git identity is incomplete", "A user name and email are required before importing commits. Configure them now?", buttons: ["Configure…", "Cancel"]) == 0 else { return false }
-            guard !self.model.closed else { return false }
-            return try await self.configureIdentity()
         }
         model.chooseRecovery = { [weak self] in
             guard let self else { return nil }
@@ -96,6 +103,7 @@ import TurtleGitCore
     private func prompt(_ title: String, _ message: String, buttons: [String]) async -> Int {
         guard let window, window.attachedSheet == nil else { return -1 }
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
+        alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.effectiveAppearance
         for title in buttons { alert.addButton(withTitle: title) }
         // Cancel is the safe keyboard default; recovery remains an explicit choice.
         alert.buttons.first?.keyEquivalent = ""; alert.buttons.last?.keyEquivalent = "\r"
@@ -114,29 +122,11 @@ import TurtleGitCore
     private func settleQuestion(_ id:UUID,_ response:NSApplication.ModalResponse) {
         guard let pending=question,pending.0==id else{return};question=nil
         if let parent=pending.1.window.sheetParent {parent.endSheet(pending.1.window,returnCode:.abort)}
-        pending.1.window.orderOut(nil);pending.2(response)
-    }
-    private func configureIdentity() async throws -> Bool {
-        guard !model.closed, let window, window.attachedSheet == nil else { return false }
-        let request = model.activeCancellation
-        let name = NSTextField(string: try await model.repository.run(["config", "--get", "user.name"], successfulExitCodes: 0...1, cancellation: request).text.trimmingCharacters(in: .newlines))
-        let email = NSTextField(string: try await model.repository.run(["config", "--get", "user.email"], successfulExitCodes: 0...1, cancellation: request).text.trimmingCharacters(in: .newlines))
-        guard !model.closed, request?.isCancelled != true else { return false }
-        let scope = NSPopUpButton(); scope.addItems(withTitles: ["This repository", "Global"])
-        let form = NSGridView(views: [[NSTextField(labelWithString: "Name:"), name], [NSTextField(labelWithString: "Email:"), email], [NSTextField(labelWithString: "Save in:"), scope]])
-        form.frame = NSRect(x: 0, y: 0, width: 360, height: 92); form.column(at: 1).width = 270
-        name.setAccessibilityLabel("Git user name"); email.setAccessibilityLabel("Git user email"); scope.setAccessibilityLabel("Git configuration scope")
-        let alert = NSAlert(); alert.messageText = "Git identity"; alert.informativeText = "Set user.name and user.email. Existing author/committer overrides remain in effect."
-        alert.accessoryView = form; alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Cancel")
-        alert.buttons[0].keyEquivalent = ""; alert.buttons[1].keyEquivalent = "\r"; alert.window.defaultButtonCell = alert.buttons[1].cell as? NSButtonCell
-        let response = await ask(alert)
-        guard !model.closed, request?.isCancelled != true, response == .alertFirstButtonReturn else { return false }
-        let userName = name.stringValue.trimmingCharacters(in: .whitespacesAndNewlines), userEmail = email.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !userName.isEmpty, !userEmail.isEmpty, !userName.contains("\0"), !userEmail.contains("\0"), !userName.contains("\n"), !userEmail.contains("\n") else { throw NSError(domain: "TurtleGit.GitIdentity", code: 1, userInfo: [NSLocalizedDescriptionKey: "Enter a nonempty Git name and email without line breaks."]) }
-        let option = scope.indexOfSelectedItem == 0 ? "--local" : "--global"
-        _ = try await model.repository.run(["config", option, "user.name", userName], cancellation: request)
-        _ = try await model.repository.run(["config", option, "user.email", userEmail], cancellation: request)
-        return true
+        pending.1.window.orderOut(nil)
+        Task{@MainActor [self] in
+            while pending.1.window.sheetParent != nil || window?.attachedSheet === pending.1.window {try? await Task.sleep(nanoseconds:5_000_000)}
+            pending.1.window.close();pending.2(retired ? .abort:response)
+        }
     }
     private func chooseFiles() {
         guard !activeOperation,model.editable,let window else{return}
@@ -159,13 +149,36 @@ import TurtleGitCore
         } else { model.requestClose() }
         return false
     }
+    override func close(){super.close();if !retired,window?.isVisible != true{retireOwner()}}
     func windowWillClose(_ notification: Notification) {
-        model.invalidate();filePanelID=UUID()
+        guard notification.object as? NSWindow === window else{return};retireOwner()
+    }
+    private func retireOwner() {
+        guard !retired else{return};retired=true
+        model.invalidate();identitySession.retire();filePanelID=UUID()
         if let pending=question {settleQuestion(pending.0,.abort)}
-        if let panel=filePanel {filePanel=nil;panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil);panel.cancel(nil)}
-        if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
-        if let window { window.sheetParent?.endSheet(window) }
-        patch?.close(); review?.close(); onClosed()
+        let panel=filePanel;filePanel=nil
+        if let panel {panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil);panel.cancel(nil);panel.close()}
+        let retiredPatch=patch,retiredReview=review,mailOptions=sendPatch?.options,mailProgress=sendPatch?.progress
+        let retiringMail=sendPatch != nil
+        sendPatch?.invalidate();sendPatch=nil
+        patch?.model.confirmingQuit=false;review?.setQuitConfirmation(false)
+        patch?.close();review?.close()
+        let owner=window,parent=window?.sheetParent
+        if let sheet=owner?.attachedSheet {owner?.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)}
+        if let owner {parent?.endSheet(owner)}
+        Self.activeReleases += 1
+        releaseTask=Task{@MainActor [self] in
+            // Forced closure retires UI immediately; ownership ends only when
+            // actual reads, Git children, Settings and attached sheets drain.
+            while identitySession.hasPendingWork || panel?.sheetParent != nil || owner?.attachedSheet != nil || owner?.sheetParent != nil || (owner != nil && parent?.attachedSheet === owner) || retiredPatch?.model.busy==true || retiredPatch?.window?.attachedSheet != nil || retiredReview?.activeOperation==true || (mailOptions?.model.pendingLoads ?? 0)>0 || mailProgress?.model.hasPendingWork==true || mailOptions?.window?.attachedSheet != nil || mailProgress?.window?.attachedSheet != nil {
+                try? await Task.sleep(nanoseconds:5_000_000)
+            }
+            if retiringMail {let done=mailCompletion;mailCompletion=nil;done?(nil)}
+            while model.hasPendingWork {try? await Task.sleep(nanoseconds:5_000_000)}
+            patch=nil;review=nil;presentationClosed=true;Self.activeReleases -= 1;releaseTask=nil
+            let done=onClosed;onClosed={};done()
+        }
     }
     func setQuitConfirmation(_ value: Bool) {
         model.confirmingQuit = value; review?.setQuitConfirmation(value)
@@ -188,6 +201,10 @@ import TurtleGitCore
     let access: RepositoryAccessLease?
     let previewDocument: PatchWindowModel
     private(set) static var activeWorkers=0
+    private(set) var pendingOperations=0
+    var hasPendingWork:Bool {pendingOperations>0}
+    private func beginWork(){pendingOperations += 1;Self.activeWorkers += 1}
+    private func endWork(){pendingOperations -= 1;Self.activeWorkers -= 1}
     private(set) var catalogRevision=UUID()
     private var formRevision=UUID()
     struct FormContext:Equatable {let owner:ObjectIdentifier;let revision:UUID;let catalog:UUID}
@@ -231,6 +248,8 @@ import TurtleGitCore
     @Published private(set) var composingMail = false {didSet {if oldValue != composingMail {formRevision=UUID()}}}
     @Published var error: String?
     private var failedRow: UUID?
+    private var failedRowSession:MailPatchRecoverySession?
+    private var preparingIdentity=false
     private var invalidated = false
     private var operation: OperationCancellation?
     private var dropProgress:[Progress]=[]
@@ -245,6 +264,11 @@ import TurtleGitCore
     var showPatch: (Data, String, Bool) async throws -> Void = { _, _, _ in }
     var composeMail: ([URL], @escaping (String?) -> Void) -> Void = { _, done in done("No mail composition service is available.") }
     var configureIdentity: () async throws -> Bool = { false }
+    var requireIdentity:((OperationCancellation)async throws->Bool)?
+    var cancelIdentity:()->Void={}
+    var readSession:((OperationCancellation)async throws->MailPatchSession)?
+    var readRecoverySession:((OperationCancellation)async throws->MailPatchRecoverySession?)?
+    var recoverReviewedSession:((MailPatchRecovery,MailPatchRecoverySession,OperationCancellation)async throws->String)?
     var chooseRecovery: () async -> MailPatchRecovery? = { nil }
     var chooseClose: () async -> CloseChoice = { .cancel }
     var chooseUnavailableClose: (String) async -> Bool = { _ in false }
@@ -260,10 +284,10 @@ import TurtleGitCore
     }
     func invalidate() {
         guard !invalidated else { return }
-        invalidated = true; operation?.cancel(); operation = nil;dropProgress.forEach {$0.cancel()}
-        close = {}; onChanged = { _ in }; onStateChanged = {}
+        invalidated = true; operation?.cancel();cancelIdentity();dropProgress.forEach {$0.cancel()}
+        close = {}; onChanged = { _ in }; onMutationStopped = {}; onStateChanged = {};previewDocument.retire()
         previewGeneration = UUID(); items = []; selection = []
-        busy = false; closing = false; pickingFiles=false;receivingDrop = false; openingViewer = false; composingMail = false
+        pickingFiles=false
     }
     private func live(_ request: OperationCancellation) -> Bool { !invalidated && operation === request && !request.isCancelled }
     func contextActions(_ ids: Set<UUID>) -> [ContextAction] {
@@ -273,9 +297,9 @@ import TurtleGitCore
     }
     func viewPatch(_ ids: Set<UUID>, alternate: Bool) {
         guard editable, contextActions(ids).contains(.viewPatch), let item = items.first(where: { ids.contains($0.id) }) else { return }
-        openingViewer = true;Self.activeWorkers+=1
+        openingViewer = true;beginWork()
         Task {
-            defer { Self.activeWorkers-=1;openingViewer = false }
+            defer { endWork();openingViewer = false }
             do {
                 // Retain the selected item and its lease through the viewer handoff.
                 // The external viewer receives an exact app-owned byte snapshot.
@@ -287,9 +311,9 @@ import TurtleGitCore
     }
     func reviewPatch(_ ids: Set<UUID>) {
         guard editable, contextActions(ids).contains(.reviewPatch), let item = items.first(where: { ids.contains($0.id) }) else { return }
-        openingViewer = true;Self.activeWorkers+=1
+        openingViewer = true;beginWork()
         Task {
-            defer { Self.activeWorkers-=1;openingViewer = false }
+            defer { endWork();openingViewer = false }
             do {
                 let bytes = try await Task.detached { try Data(contentsOf: item.file) }.value
                 guard !invalidated else { return }
@@ -300,14 +324,12 @@ import TurtleGitCore
     func sendMail(_ ids: Set<UUID>) {
         guard editable, contextActions(ids).contains(.sendMail) else { return }
         let selected = items.filter { ids.contains($0.id) }
-        composingMail = true;Self.activeWorkers+=1
+        composingMail = true;beginWork()
         var completed=false
-        composeMail(selected.map(\.file)) { [weak self] error in
-            guard !completed else{return};completed=true;Self.activeWorkers-=1
-            // Capture the leases until macOS finishes composing or reports failure.
-            _ = selected
-            guard let self, !self.invalidated else { return }
-            self.composingMail = false
+        composeMail(selected.map(\.file)) { [self] error in
+            guard !completed else{return};completed=true
+            defer{self.composingMail=false;self.endWork();withExtendedLifetime(selected){}}
+            guard !self.invalidated else { return }
             if let error { self.error = error }
         }
     }
@@ -325,9 +347,9 @@ import TurtleGitCore
         guard editable else { return false }
         let files = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
         guard !files.isEmpty else { return false }
-        receivingDrop = true;Self.activeWorkers+=1
+        receivingDrop = true;beginWork()
         Task {
-            defer {Self.activeWorkers-=1;dropProgress=[]}
+            defer {endWork();dropProgress=[];receivingDrop=false}
             var urls: [URL] = []
             var failure: String?
             for provider in files {
@@ -385,9 +407,9 @@ import TurtleGitCore
         let legacy=ComparisonTextEncoding.legacyEncoding(from:previewDocument.appearancePreferences)
         let generation = UUID(); previewGeneration = generation; preview = ""; previewNotice = nil; previewDocument.setReadOnlyDiff(Data(),displayLegacyEncoding:legacy)
         guard !invalidated, selection.count == 1, let item = items.first(where: { selection.contains($0.id) }) else { return }
-        Self.activeWorkers+=1
+        beginWork()
         Task {
-            defer {Self.activeWorkers-=1}
+            defer {endWork()}
             let result = await Task.detached { () -> (Data?, String?) in
                 let size = (try? item.file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
                 guard size < 250 * 1024 * 1024 else { return (nil, "This patch is too large to preview. It can still be imported.") }
@@ -400,99 +422,127 @@ import TurtleGitCore
         }
     }
     func apply() {
-        guard editable else { return }
-        if finished { requestClose(accepted: true); return }
-        guard !items.isEmpty else { return }
-        let batch = items, flags = options
-        let request = OperationCancellation(); operation = request
-        busy = true; stopRequested = false; error = nil; tab = 1
-        Self.activeWorkers+=1
+        guard editable,!items.isEmpty else{return}
+        let batch=items,flags=options,finishing=finished
+        let request=OperationCancellation();operation=request
+        busy=true;stopRequested=false;error=nil
+        beginWork()
         Task {
-            defer { Self.activeWorkers-=1;if operation === request { operation = nil; busy = false; if !invalidated { onChanged(output) } } }
+            defer {
+                preparingIdentity=false
+                if operation === request {operation=nil;busy=false;if !invalidated {onChanged(output)}}
+                endWork();withExtendedLifetime(batch){}
+            }
             do {
                 try checkAccess()
-                guard try await ensureIdentity(request) else { guard !invalidated else { return }; output += "\nImport cancelled before applying patches.\n"; return }
-                guard live(request) else { return }
+                preparingIdentity=true
+                let allowed=try await ensureIdentity(request)
+                preparingIdentity=false
+                guard live(request),allowed,!stopRequested else{return}
+                // CheckUserData precedes IsFinish/OnOK and the Output tab in
+                // upstream. A completed list must not bypass the same gate.
+                if finishing {
+                    if await confirmCloseState(request),live(request){accepted=finished;close()}
+                    return
+                }
+                tab=1
                 try await recoverSession(request)
                 for item in batch {
-                    guard live(request) else { return }
-                    guard !stopRequested else { output += "\nBatch stopped after the current Git command.\n"; break }
-                    guard let current = items.first(where: { $0.id == item.id }), current.state != .success, current.state != .skipped else { continue }
-                    guard current.checked else { state(item.id, .skipped); output += "\nSkipped: \(item.file.path)\n"; continue }
-                    state(item.id, .applying); output += "\nApplying: \(item.file.path)\n"
+                    guard live(request) else{return}
+                    guard !stopRequested else{output += "\nBatch stopped after the current Git command.\n";break}
+                    guard let current=items.first(where:{$0.id==item.id}),current.state != .success,current.state != .skipped else{continue}
+                    guard current.checked else{state(item.id,.skipped);output += "\nSkipped: \(item.file.path)\n";continue}
+                    state(item.id,.applying);output += "\nApplying: \(item.file.path)\n"
                     do {
-                        let result = try await repository.importMailPatch(item.file, options: flags, cancellation: request)
-                        guard live(request) else { return }
-                        output += result + "\nSuccess\n"; state(item.id, .success)
+                        let result=try await repository.importMailPatch(item.file,options:flags,cancellation:request)
+                        guard live(request) else{return}
+                        output += result+"\nSuccess\n";state(item.id,.success)
                     } catch {
-                        guard live(request) else { return }
-                        state(item.id, .failed); failedRow = item.id; throw error
+                        guard live(request) else{return}
+                        state(item.id,.failed);failedRow=item.id
+                        failedRowSession=try? await recoverySnapshot(request)
+                        throw error
                     }
                     onChanged(output)
                 }
             } catch {
-                guard live(request) else { return }
-                output += "\n" + error.localizedDescription + "\n"; self.error = error.localizedDescription
+                guard live(request) else{return}
+                output += "\n"+error.localizedDescription+"\n";self.error=error.localizedDescription
             }
         }
     }
-    private func ensureIdentity(_ request: OperationCancellation) async throws -> Bool {
-        while true {
-            guard live(request) else { throw OperationCancellationFailure.cancelled }
-            let environment = ProcessInfo.processInfo.environment
-            func configured(_ key: String) async throws -> String {
-                try await repository.run(["config", "--get", key], successfulExitCodes: 0...1, cancellation: request).text.trimmingCharacters(in: .newlines)
-            }
-            let name = try await configured("user.name"), email = try await configured("user.email")
-            let authorName = try await configured("author.name"), authorEmail = try await configured("author.email")
-            let committerName = try await configured("committer.name"), committerEmail = try await configured("committer.email")
-            func value(_ environmentKey: String, _ override: String, _ fallback: String) -> String {
-                let env = environment[environmentKey] ?? ""
-                return !env.isEmpty ? env : !override.isEmpty ? override : fallback
-            }
-            let fields = [value("GIT_AUTHOR_NAME", authorName, name), value("GIT_AUTHOR_EMAIL", authorEmail, email), value("GIT_COMMITTER_NAME", committerName, name), value("GIT_COMMITTER_EMAIL", committerEmail, email)]
-            if fields.allSatisfy({ !$0.isEmpty }) {
-                _ = try await repository.run(["var", "GIT_AUTHOR_IDENT"], cancellation: request)
-                _ = try await repository.run(["var", "GIT_COMMITTER_IDENT"], cancellation: request)
-                return live(request) && !stopRequested
-            }
-            guard live(request), !stopRequested, try await configureIdentity() else { return false }
+    private func ensureIdentity(_ request:OperationCancellation)async throws->Bool {
+        if let requireIdentity {return try await requireIdentity(request)}
+        // Model-only callers retain a configurable repair seam. Production
+        // controllers install the owned native Settings session above.
+        while live(request),!stopRequested {
+            if try await repository.replayUserIdentity(cancellation:request).complete{return live(request) && !stopRequested}
+            guard live(request),!stopRequested,try await configureIdentity() else{return false}
         }
+        return false
     }
-    private func recoverSession(_ request: OperationCancellation) async throws {
-        var session = try await repository.mailPatchSession(cancellation: request)
-        while session == .applying {
-            guard live(request), !stopRequested, let action = await chooseRecovery() else { if !invalidated { stopRequested = true }; return }
-            guard live(request) else { return }
+    private func sessionState(_ request:OperationCancellation)async throws->MailPatchSession {
+        if let readSession{return try await readSession(request)}
+        return try await repository.mailPatchSession(cancellation:request)
+    }
+    private func recoverySnapshot(_ request:OperationCancellation)async throws->MailPatchRecoverySession? {
+        if let readRecoverySession{return try await readRecoverySession(request)}
+        return try await repository.mailPatchRecoverySession(cancellation:request)
+    }
+    private func recover(_ action:MailPatchRecovery,_ reviewed:MailPatchRecoverySession,_ request:OperationCancellation)async throws->String {
+        if let recoverReviewedSession{return try await recoverReviewedSession(action,reviewed,request)}
+        return try await repository.recoverMailPatch(action,reviewed:reviewed,cancellation:request)
+    }
+    private func recoverSession(_ request:OperationCancellation)async throws {
+        var reviewed=try await recoverySnapshot(request)
+        while let captured=reviewed {
+            guard live(request),!stopRequested else{return}
+            // A row is ours only while its failed am incarnation is still the
+            // one being reviewed. Never mark another session's row successful.
+            if failedRowSession != captured {failedRow=nil;failedRowSession=nil}
+            guard let action=await chooseRecovery() else{if !invalidated {stopRequested=true};return}
+            guard live(request),!stopRequested else{return}
             output += "\ngit am --\(action.rawValue)\n"
-            let result = try await repository.recoverMailPatch(action, cancellation: request)
-            guard live(request) else { return }
-            output += result
-            session = try await repository.mailPatchSession(cancellation: request)
-            if session == .none {
-                if let failedRow {
-                    switch action {
-                    case .abort: state(failedRow, .pending)
-                    case .skip: state(failedRow, .skipped)
-                    case .resolved: state(failedRow, .success)
-                    }
-                }
-                failedRow = nil
+            do {
+                let result=try await recover(action,captured,request)
+                guard live(request) else{return}
+                output += result+"\nDone\n"
+            } catch {
+                guard live(request) else{return}
+                if error is OperationCancellationFailure || error is CancellationError {throw error}
+                output += "\n"+error.localizedDescription+"\nFailed\n";onChanged(output)
+                if case MailPatchFailure.changedSession=error {failedRow=nil;failedRowSession=nil;throw error}
+                let next=try await recoverySnapshot(request)
+                // An ordinary failure leaves recovery available. If its target
+                // changed, a fresh Apply is required before any further action.
+                guard next==captured else{failedRow=nil;failedRowSession=nil;throw MailPatchFailure.changedSession}
+                reviewed=next;continue
             }
+            reviewed=try await recoverySnapshot(request)
+            if reviewed==nil {
+                if let failedRow {
+                    switch action {case .abort:state(failedRow,.pending);case .skip:state(failedRow,.skipped);case .resolved:state(failedRow,.success)}
+                }
+                failedRow=nil;failedRowSession=nil
+            } else if failedRow != nil {failedRowSession=reviewed}
             onChanged(output)
         }
-        if session == .rebase { throw MailPatchFailure.rebase }
-        // An externally aborted session permits retry of the retained failed row.
-        if session == .none { failedRow = nil }
+        // An externally ended session permits an explicit retry of its file.
+        failedRow=nil;failedRowSession=nil
     }
-    func requestStop() { if busy { stopRequested = true } }
+    func requestStop() {
+        guard busy else{return};stopRequested=true
+        // Abort preparation promptly; once git am starts, preserve the source
+        // behavior of stopping the batch after that current command completes.
+        if preparingIdentity {operation?.cancel();cancelIdentity()}
+    }
     func requestClose(accepted: Bool = false) {
         if busy { requestStop(); return }
         guard editable else { return }
         let request = OperationCancellation(); operation = request; closing = true
-        Self.activeWorkers+=1
+        beginWork()
         Task {
-            defer { Self.activeWorkers-=1;if operation === request { operation = nil; closing = false } }
+            defer { endWork();if operation === request { operation = nil; closing = false } }
             if await confirmCloseState(request), live(request) { self.accepted = accepted && finished; close() }
         }
     }
@@ -501,15 +551,15 @@ import TurtleGitCore
     func confirmQuit() async -> Bool {
         guard !pickingFiles, !busy, !closing, !receivingDrop, !openingViewer, !composingMail, !invalidated else { return false }
         let request = OperationCancellation(); operation = request; closing = true
-        Self.activeWorkers+=1
-        defer { Self.activeWorkers-=1;if operation === request { operation = nil; closing = false } }
+        beginWork()
+        defer { endWork();if operation === request { operation = nil; closing = false } }
         return await confirmCloseState(request) && live(request)
     }
     private func confirmCloseState(_ request: OperationCancellation) async -> Bool {
         let session: MailPatchSession
         do {
             try checkAccess()
-            session = try await repository.mailPatchSession(cancellation: request)
+            session = try await sessionState(request)
             guard live(request) else { return false }
         } catch {
             guard live(request) else { return false }
@@ -519,12 +569,23 @@ import TurtleGitCore
         }
         do {
             if session == .applying {
+                let reviewed:MailPatchRecoverySession
+                do {
+                    guard let captured=try await recoverySnapshot(request) else{throw MailPatchFailure.changedSession}
+                    reviewed=captured
+                } catch {
+                    guard live(request) else{return false}
+                    // Broken bookkeeping must not trap the window. Explicit
+                    // keep-state closure is available without authorizing Abort.
+                    let keep=await chooseUnavailableClose(error.localizedDescription)
+                    return live(request) && keep
+                }
                 let answer = await chooseClose(); guard live(request) else { return false }
                 switch answer {
                 case .cancel: return false
                 case .keep: break
                 case .abort:
-                    let result = try await repository.recoverMailPatch(.abort, cancellation: request)
+                    let result = try await recover(.abort,reviewed,request)
                     guard live(request) else { return false }
                     output += result; onChanged(output)
                 }
