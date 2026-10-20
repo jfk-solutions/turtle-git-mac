@@ -39,11 +39,11 @@ public struct LogStatisticsColor: Equatable, Sendable {
 
 public extension LogStatisticsSummary {
     /// StatGraphDlg::LoadListOfAuthors ranks before optional alphabetical display.
-    func rankedAuthors(for metric: LogStatisticsMetric) -> [String] {
+    func rankedAuthors(for metric: LogStatisticsMetric) -> [LogStatisticsAuthor] {
         guard metric == .authorship else { return authorsByActivity }
         return authorshipPercent.keys.filter { (authorshipPercent[$0] ?? 0).rounded(.toNearestOrAwayFromZero) != 0 }.sorted {
             authorshipPercent[$0] == authorshipPercent[$1]
-                ? $0.utf16.lexicographicallyPrecedes($1.utf16)
+                ? $0 < $1
                 : (authorshipPercent[$0] ?? 0) > (authorshipPercent[$1] ?? 0)
         }
     }
@@ -105,8 +105,8 @@ public struct LogStatisticsGraph: Sendable {
     public let categoryLabels: [String]
     public let seriesLabels: [String]
     public let points: [Point]
-    public let includedAuthors: [String]
-    public let skippedAuthors: [String]
+    public let includedAuthors: [LogStatisticsAuthor]
+    public let skippedAuthors: [LogStatisticsAuthor]
     /// MyGraph truncates each original series average before averaging them.
     /// Original date series hold one interval's authors; author graphs have one
     /// series containing every author. This differs from averaging all points.
@@ -208,10 +208,13 @@ public struct LogStatisticsGraph: Sendable {
         var count = min(max(1, authorsShown), min(250, ranked.count))
         if count + 1 == ranked.count { count += 1 } // Source names the last lone author.
         var included = Array(ranked.prefix(count)); let skipped = Array(ranked.dropFirst(count))
-        if alphabetical { included.sort { $0.utf16.lexicographicallyPrecedes($1.utf16) } }
-        let labels = included + (skipped.isEmpty ? [] : ["Others (\(skipped.count))"])
+        if alphabetical { included.sort() }
+        // Labels remain presentation strings. Their position, not String
+        // equality, identifies a graph category/series: a real author can even
+        // have the same caption as the synthetic Others aggregate.
+        let labels = included.map(\.name) + (skipped.isEmpty ? [] : ["Others (\(skipped.count))"])
         if metric.byAuthor {
-            let value: (String) -> Int = { metric == .authorship ? round(summary.authorshipPercent[$0] ?? 0) : summary.commitsByAuthor[$0] ?? 0 }
+            let value: (LogStatisticsAuthor) -> Int = { metric == .authorship ? round(summary.authorshipPercent[$0] ?? 0) : summary.commitsByAuthor[$0] ?? 0 }
             let values = included.map(value) + (skipped.isEmpty ? [] : [skipped.map(value).reduce(0, +)])
             return Self(metric: metric, unit: summary.unit, categoryLabels: labels, seriesLabels: [metric.title], points: values.enumerated().map { Point(category: $0.offset, series: 0, value: $0.element) }, includedAuthors: included, skippedAuthors: skipped)
         }
@@ -226,7 +229,7 @@ public struct LogStatisticsGraph: Sendable {
         let intervals = Array(summary.intervals.reversed())
         var points: [Point] = []
         for (category, interval) in intervals.enumerated() {
-            let values: [String: Int]
+            let values: [LogStatisticsAuthor: Int]
             switch metric {
             case .linesIncluding: values = interval.linesIncludingNewDeletedFiles
             case .linesExcluding: values = interval.linesWithoutNewDeletedFiles

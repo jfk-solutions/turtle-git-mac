@@ -322,9 +322,9 @@ private struct StatisticsSummary: View {
     private func value(_ label: String, _ count: Int) -> some View {
         HStack { Text(label); Spacer(); Text("\(count)").monospacedDigit().textSelection(.enabled) }
     }
-    private func activity(_ label: String, _ author: String?) -> some View {
+    private func activity(_ label: String, _ author: LogStatisticsAuthor?) -> some View {
         let values = author.map { summary.activity(for: $0) } ?? (average: 0, minimum: 0, maximum: 0)
-        return GridRow { Text(label).frame(maxWidth: .infinity, alignment: .leading).gridColumnAlignment(.leading); Text(author ?? "").lineLimit(1).truncationMode(.middle).frame(width: 160, alignment: .leading).help(author ?? ""); Text("\(values.average)"); Text("\(values.minimum)"); Text("\(values.maximum)") }
+        return GridRow { Text(label).frame(maxWidth: .infinity, alignment: .leading).gridColumnAlignment(.leading); Text(author?.name ?? "").lineLimit(1).truncationMode(.middle).frame(width: 160, alignment: .leading).help(author?.name ?? ""); Text("\(values.average)"); Text("\(values.minimum)"); Text("\(values.maximum)") }
     }
 }
 
@@ -341,7 +341,12 @@ struct StatisticsChart: View {
     static func backgroundColor(dark: Bool) -> Color { dark ? Color(.sRGB, red: 32.0 / 255, green: 32.0 / 255, blue: 32.0 / 255, opacity: 1) : .white }
     private var bars: Bool { style == .bar || style == .stackedBar }
     private var labels: [String] { bars ? graph.barLabels : (byAuthor ? [""] : graph.categoryLabels) }
-    private func name(_ point: LogStatisticsGraph.Point) -> String { byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series] }
+    // Display names are not chart identities: Swift String equality merges
+    // canonically equivalent spellings, and a real author can be named Others.
+    // Core provides stable graph positions; use those positions end to end in
+    // both the displayed chart and the shared export renderer.
+    func groupKey(for point: LogStatisticsGraph.Point) -> String { "group-\(byAuthor ? point.category : point.series)" }
+    var groupKeys: [String] { (byAuthor ? graph.categoryLabels.indices : graph.seriesLabels.indices).map { "group-\($0)" } }
     private func center(_ point: LogStatisticsGraph.Point) -> Double { byAuthor ? 0.5 : Double(point.category) + 0.5 }
     var body: some View {
         VStack(spacing: 8) {
@@ -368,16 +373,18 @@ struct StatisticsChart: View {
                 if bars {
                     ForEach(Array(rectangles.enumerated()), id: \.offset) { _, bar in
                         RectangleMark(xStart: .value("Start", bar.left), xEnd: .value("End", bar.right), yStart: .value("Base", bar.bottom), yEnd: .value("Value", bar.top))
-                            .foregroundStyle(by: .value("Author", name(bar.point)))
+                            .foregroundStyle(by: .value("Author", groupKey(for: bar.point)))
+                            .accessibilityLabel(Text(graph.tooltip(for: bar.point))).accessibilityValue(Text("\(bar.point.value)"))
                     }
                 } else {
                     ForEach(Array(graph.points.enumerated()), id: \.offset) { _, point in
                         if style == .line {
                             LineMark(x: .value("Interval", center(point)), y: .value("Value", Double(point.value)))
-                                .foregroundStyle(by: .value("Author", name(point))).symbol(.circle).symbolSize(36).lineStyle(StrokeStyle(lineWidth: 1))
+                                .foregroundStyle(by: .value("Author", groupKey(for: point))).accessibilityLabel(Text(graph.tooltip(for: point))).accessibilityValue(Text("\(point.value)")).symbol(.circle).symbolSize(36).lineStyle(StrokeStyle(lineWidth: 1))
                         } else {
                             AreaMark(x: .value("Interval", center(point)), y: .value("Value", Double(point.value)))
-                                .foregroundStyle(by: .value("Author", name(point)))
+                                .foregroundStyle(by: .value("Author", groupKey(for: point)))
+                                .accessibilityLabel(Text(graph.tooltip(for: point))).accessibilityValue(Text("\(point.value)"))
                         }
                     }
                 }
@@ -385,7 +392,7 @@ struct StatisticsChart: View {
                     RuleMark(y: .value("Average", Double(graph.averageGuide))).foregroundStyle(Color.primary).lineStyle(StrokeStyle(lineWidth: 1))
                         .accessibilityLabel(Text(graph.averageTooltip(style: style)))
                 }
-            }.chartForegroundStyleScale(domain: byAuthor ? graph.categoryLabels : graph.seriesLabels, range: graph.colors.map(\.chartColor))
+            }.chartForegroundStyleScale(domain: groupKeys, range: graph.colors.map(\.chartColor))
             .chartLegend(.hidden)
             .chartXAxisLabel(graph.xAxisLabel, position: .bottom, alignment: .center).chartYAxisLabel(graph.yAxisLabel, position: .leading)
             .chartXScale(domain: 0.0...Double(max(1, xLabels.count))).chartYScale(domain: 0.0...Double(graph.yAxisMaximum(style: style)))

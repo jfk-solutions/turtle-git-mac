@@ -22,7 +22,10 @@ selected. Progress appears at the bottom; <strong>Cancel</strong> stops the calc
 or pressing Escape while it is running requests cancellation first.</p>
 <p>The four checkboxes control case-sensitive author grouping, author versus
 committer names, commit versus author dates, and sorting by commit count versus
-alphabetically. The author slider limits individual series; remaining authors
+alphabetically. Names keep their original Unicode spelling. With case-sensitive grouping,
+composed and decomposed spellings remain distinct even when they look the same.
+Disabling case sensitivity folds case without normalizing those spellings.
+The author slider limits individual series; remaining authors
 are grouped as <strong>Others</strong>. If only one author would remain, that author keeps their
 name. These settings and the last graph page are remembered when the window closes.</p>
 <p>The five original graph icons select pie, stacked line, line, stacked bar and bar.
@@ -59,4 +62,9 @@ TortoiseGit. The graph style buttons identify the selected style.</p>
 the file panel. While its accepted file is being written, controls wait for that
 write to finish. Closing the window normally waits for completion; a forced owner
 close does not abandon an already accepted atomic save.</p>
+<p>Author identity is retained through totals, activity ranking, interval graphs,
+slider selection, legends and graph export. A real author whose name matches the
+<strong>Others</strong> caption remains separate from that combined group. Identical-looking
+labels can therefore have separate entries and colors; the original names remain
+in tooltips and exported text.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

@@ -24,7 +24,10 @@ or pressing Escape while it is running requests cancellation first.
 
 The four checkboxes control case-sensitive author grouping, author versus
 committer names, commit versus author dates, and sorting by commit count versus
-alphabetically. The author slider limits individual series; remaining authors
+alphabetically. Names keep their original Unicode spelling. With case-sensitive grouping,
+composed and decomposed spellings remain distinct even when they look the same.
+Disabling case sensitivity folds case without normalizing those spellings.
+The author slider limits individual series; remaining authors
 are grouped as **Others**. If only one author would remain, that author keeps their
 name. These settings and the last graph page are remembered when the window closes.
 
@@ -69,3 +72,10 @@ Save Graph As captures the graph and its current size and appearance when you op
 the file panel. While its accepted file is being written, controls wait for that
 write to finish. Closing the window normally waits for completion; a forced owner
 close does not abandon an already accepted atomic save.
+
+
+Author identity is retained through totals, activity ranking, interval graphs,
+slider selection, legends and graph export. A real author whose name matches the
+**Others** caption remains separate from that combined group. Identical-looking
+labels can therefore have separate entries and colors; the original names remain
+in tooltips and exported text.

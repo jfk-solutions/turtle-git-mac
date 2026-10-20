@@ -1,5 +1,19 @@
 import Foundation
 
+/// StatGraphDlg uses std::wstring author keys. Swift String equality instead
+/// merges canonical Unicode spellings, even when Authors case sensitive is on.
+/// Keep the original valid UTF-8 namespace while ordering by UTF-16 as upstream.
+public struct LogStatisticsAuthor: Hashable, Comparable, Sendable, Identifiable, ExpressibleByStringLiteral, CustomStringConvertible {
+    public let name:String
+    public init(_ name:String){self.name=name}
+    public init(stringLiteral value:String){name=value}
+    public var id:String{"log-author:"+Data(name.utf8).base64EncodedString()}
+    public var description:String{name}
+    public static func ==(_ lhs:Self,_ rhs:Self)->Bool{GitReferenceName.equal(lhs.name,rhs.name)}
+    public static func <(_ lhs:Self,_ rhs:Self)->Bool{lhs.name.utf16.lexicographicallyPrecedes(rhs.name.utf16)}
+    public func hash(into hasher:inout Hasher){hasher.combine(GitReferenceName(name))}
+}
+
 /// StatGraphDlg defaults. The displayed Log snapshot supplies the revisions;
 /// statistics must not silently walk a different range or include a working row.
 public struct LogStatisticsOptions: Equatable, Sendable {
@@ -31,10 +45,10 @@ public struct LogStatisticsChanges: Equatable, Sendable {
 public struct LogStatisticsInterval: Sendable {
     /// Last (oldest) revision in this occupied interval, as in StatGraphDlg.
     public var date: Date
-    public var commits: [String: Int] = [:]
-    public var fileChanges: [String: Int] = [:]
-    public var linesIncludingNewDeletedFiles: [String: Int] = [:]
-    public var linesWithoutNewDeletedFiles: [String: Int] = [:]
+    public var commits: [LogStatisticsAuthor: Int] = [:]
+    public var fileChanges: [LogStatisticsAuthor: Int] = [:]
+    public var linesIncludingNewDeletedFiles: [LogStatisticsAuthor: Int] = [:]
+    public var linesWithoutNewDeletedFiles: [LogStatisticsAuthor: Int] = [:]
 }
 public struct LogStatisticsSummary: Sendable {
     public let unit: LogStatisticsUnit
@@ -43,10 +57,10 @@ public struct LogStatisticsSummary: Sendable {
     public let totalCommits: Int
     public let changesCalculated: Bool
     public let totalChanges: LogStatisticsChanges
-    public let commitsByAuthor: [String: Int]
-    public let authorshipPercent: [String: Double]
-    public let authorsByActivity: [String]
-    public let displayedAuthors: [String]
+    public let commitsByAuthor: [LogStatisticsAuthor: Int]
+    public let authorshipPercent: [LogStatisticsAuthor: Double]
+    public let authorsByActivity: [LogStatisticsAuthor]
+    public let displayedAuthors: [LogStatisticsAuthor]
     public let intervals: [LogStatisticsInterval]
     /// Preserve the source's occupied-interval denominator (last - first,
     /// minimum one), including its integer averages; do not fill calendar gaps.
@@ -54,10 +68,12 @@ public struct LogStatisticsSummary: Sendable {
     public var averageCommits: Int { displayedIntervalCount == 0 ? 0 : totalCommits / displayedIntervalCount }
     public var minimumCommits: Int { intervals.map { $0.commits.values.reduce(0, +) }.min() ?? 0 }
     public var maximumCommits: Int { intervals.map { $0.commits.values.reduce(0, +) }.max() ?? 0 }
-    public func activity(for author: String) -> (average: Int, minimum: Int, maximum: Int) {
+    public func activity(for author: LogStatisticsAuthor) -> (average: Int, minimum: Int, maximum: Int) {
         let values = intervals.map { $0.commits[author] ?? 0 }
         return (displayedIntervalCount == 0 ? 0 : (commitsByAuthor[author] ?? 0) / displayedIntervalCount, values.min() ?? 0, values.max() ?? 0)
     }
+    /// String callers still perform an exact lookup, never a String-keyed map.
+    public func activity(for author:String)->(average:Int,minimum:Int,maximum:Int){activity(for:LogStatisticsAuthor(author))}
 }
 public enum LogStatisticsFailure: LocalizedError {
     case date(String), revision, incompleteChanges
@@ -96,14 +112,17 @@ public enum LogStatistics {
             case .year: return calendar.component(.year, from: date)
             }
         }
-        var totals = LogStatisticsChanges(), authors: [String: Int] = [:], contribution: [String: Double] = [:], intervals: [LogStatisticsInterval] = []
+        var totals = LogStatisticsChanges(), authors: [LogStatisticsAuthor: Int] = [:], contribution: [LogStatisticsAuthor: Double] = [:], intervals: [LogStatisticsInterval] = []
         var previousKey: Int?
         for (position, value) in dated.enumerated() {
             try cancellation?.check()
             let entry = value.1, date = value.2
-            var author = options.useCommitterNames ? entry.committer : entry.author
-            if author.isEmpty { author = "(unknown)" }
-            if !options.caseSensitive { author = author.lowercased() }
+            var authorName = options.useCommitterNames ? entry.committer : entry.author
+            if authorName.isEmpty { authorName = "(unknown)" }
+            // Match the source's explicit lowercasing option, not canonical
+            // equivalence or case-insensitive/diacritic-insensitive comparison.
+            if !options.caseSensitive { authorName = authorName.lowercased() }
+            let author=LogStatisticsAuthor(authorName)
             // Upstream Calculate deliberately skips merge diffs.
             let delta = entry.parents.count > 1 ? LogStatisticsChanges() : changes?[entry.hash] ?? LogStatisticsChanges()
             let dateKey = key(date)
@@ -124,7 +143,7 @@ public enum LogStatistics {
         }
         let totalContribution = contribution.values.reduce(0, +)
         let percentages = contribution.mapValues { totalContribution == 0 ? 0 : $0 * 100 / totalContribution }
-        func alphabetical(_ left: String, _ right: String) -> Bool { left.utf16.lexicographicallyPrecedes(right.utf16) }
+        func alphabetical(_ left: LogStatisticsAuthor, _ right: LogStatisticsAuthor) -> Bool { left < right }
         let ranking = authors.keys.sorted { authors[$0] == authors[$1] ? alphabetical($0, $1) : authors[$0]! > authors[$1]! }
         try cancellation?.check()
         return LogStatisticsSummary(unit: unit, elapsedDays: days, elapsedWeeks: weeks, totalCommits: entries.count, changesCalculated: changes != nil, totalChanges: totals, commitsByAuthor: authors, authorshipPercent: percentages, authorsByActivity: ranking, displayedAuthors: options.sortByCommitCount ? ranking : authors.keys.sorted(by: alphabetical), intervals: intervals)

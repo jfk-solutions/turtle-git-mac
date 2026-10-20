@@ -98,3 +98,73 @@ final class LogStatisticsTests: XCTestCase {
         let after = try metadata.map { try Data(contentsOf: root.appendingPathComponent($0)) }; XCTAssertEqual(before, after)
     }
 }
+
+extension LogStatisticsTests {
+    func testExactAuthorSpellingSurvivesCaseOptionsIntervalsAndContribution() throws {
+        let names = ["\u{00C9}va", "E\u{0301}va", "\u{00E9}va", "e\u{0301}va"]
+        XCTAssertEqual(names[0], names[1], "Fixture must exercise Swift canonical equivalence")
+        var changes: [String: LogStatisticsChanges] = [:]
+        let entries = names.enumerated().map { index, name in
+            var delta = LogStatisticsChanges(); delta.files = index + 1; delta.added = 10 + index; delta.removed = index; delta.newFileLines = 20 + index
+            changes["exact-\(index)"] = delta
+            return entry("exact-\(index)", name, "2024-01-0\(index + 1)T12:00:00Z", committer: names[3-index])
+        }
+        let summary = try LogStatistics.analyze(entries, changes: changes, calendar: calendar)
+        XCTAssertEqual(summary.commitsByAuthor.count, 4)
+        XCTAssertEqual(Set(summary.displayedAuthors.map(\.id)).count, 4)
+        for (index, name) in names.enumerated() {
+            let author = LogStatisticsAuthor(name)
+            XCTAssertEqual(summary.commitsByAuthor[author], 1)
+            let interval = try XCTUnwrap(summary.intervals.first { $0.commits[author] != nil })
+            XCTAssertEqual(interval.fileChanges[author], index + 1)
+            XCTAssertEqual(interval.linesWithoutNewDeletedFiles[author], 10 + 2 * index)
+            XCTAssertEqual(interval.linesIncludingNewDeletedFiles[author], 30 + 3 * index)
+            XCTAssertEqual(summary.activity(for: name).maximum, 1)
+            XCTAssertEqual(summary.activity(for: name).minimum, 0)
+        }
+        XCTAssertEqual(summary.authorshipPercent.values.reduce(0,+), 100, accuracy: 0.00001)
+        for (index, weight) in [1.0,1.0,3.0,6.0].enumerated() { XCTAssertEqual(try XCTUnwrap(summary.authorshipPercent[LogStatisticsAuthor(names[index])]), weight * 100 / 11, accuracy: 0.00001) }
+        let expectedOrder = names.sorted { $0.utf16.lexicographicallyPrecedes($1.utf16) }.map { Data($0.utf8) }
+        XCTAssertEqual(summary.authorsByActivity.map { Data($0.name.utf8) }, expectedOrder)
+        var options = LogStatisticsOptions(); options.caseSensitive = false
+        let folded = try LogStatistics.analyze(entries, options: options, changes: changes, calendar: calendar)
+        XCTAssertEqual(folded.commitsByAuthor.count, 2)
+        XCTAssertEqual(folded.commitsByAuthor[LogStatisticsAuthor(names[2])], 2)
+        XCTAssertEqual(folded.commitsByAuthor[LogStatisticsAuthor(names[3])], 2)
+        XCTAssertEqual(folded.intervals.reduce(0) { $0 + ($1.fileChanges[LogStatisticsAuthor(names[2])] ?? 0) }, 4)
+        XCTAssertEqual(folded.intervals.reduce(0) { $0 + ($1.fileChanges[LogStatisticsAuthor(names[3])] ?? 0) }, 6)
+        options.useCommitterNames = true
+        let committers = try LogStatistics.analyze(entries, options: options, changes: changes, calendar: calendar)
+        XCTAssertEqual(committers.commitsByAuthor.count, 2)
+        XCTAssertEqual(committers.intervals.reduce(0) { $0 + ($1.fileChanges[LogStatisticsAuthor(names[2])] ?? 0) }, 6)
+        XCTAssertEqual(committers.intervals.reduce(0) { $0 + ($1.fileChanges[LogStatisticsAuthor(names[3])] ?? 0) }, 4)
+        XCTAssertEqual(Set(names.map { LogStatisticsAuthor($0) }).count, 4)
+    }
+
+    func testActualGitAuthorAndCommitterSpellingsRemainDistinctInStatistics() async throws {
+        let (root, fixture, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let executable = ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixture.executable
+        let repo = GitRepository(root: root, executable: executable)
+        let names = ["\u{00C9}va", "E\u{0301}va", "\u{00E9}va", "e\u{0301}va"]
+        for (index, name) in names.enumerated() {
+            _ = try await repo.run(["-c", "core.hooksPath=/dev/null", "commit", "--allow-empty", "--no-gpg-sign", "-m", "exact-statistics-\(index)"], environmentOverrides: ["GIT_AUTHOR_NAME":name,"GIT_AUTHOR_EMAIL":"author@example.invalid","GIT_COMMITTER_NAME":names[3-index],"GIT_COMMITTER_EMAIL":"committer@example.invalid"])
+        }
+        let metadata = [".git/HEAD", ".git/index", ".git/config"]
+        let before = try metadata.map { try Data(contentsOf: root.appendingPathComponent($0)) }
+        let entries = try await repo.history().filter { $0.subject.hasPrefix("exact-statistics-") }
+        XCTAssertEqual(entries.count, 4)
+        XCTAssertEqual(Set(entries.map { Data($0.author.utf8) }), Set(names.map { Data($0.utf8) }))
+        let changes = try await repo.logStatisticsChanges(entries)
+        for committers in [false, true] {
+            var options = LogStatisticsOptions(); options.useCommitterNames = committers
+            let summary = try LogStatistics.analyze(entries, options: options, changes: changes, calendar: calendar)
+            XCTAssertEqual(summary.commitsByAuthor.count, 4)
+            XCTAssertEqual(Set(summary.displayedAuthors.map { Data($0.name.utf8) }), Set(names.map { Data($0.utf8) }))
+            options.caseSensitive = false
+            let folded = try LogStatistics.analyze(entries, options: options, changes: changes, calendar: calendar)
+            XCTAssertEqual(folded.commitsByAuthor.count, 2)
+            XCTAssertEqual(folded.commitsByAuthor.values.sorted(), [2,2])
+        }
+        XCTAssertEqual(try metadata.map { try Data(contentsOf: root.appendingPathComponent($0)) }, before)
+    }
+}

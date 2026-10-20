@@ -3991,3 +3991,18 @@ records 13 distinct focused Core methods, the initial failures and three-method
 repair pass, and four passing native case/engine combinations with owned receivers
 reaped. Local scoped passes do not establish full hosted, Windows visual, Intel
 execution or signed distribution acceptance.
+
+
+### Log Statistics author identity — October 20, 2026
+
+The connected author family carries exact decoded-name identity through summary
+counts, interval measurements, activity/authorship ranking, slider omission and
+graph projection. Native chart grouping and color scales use graph positions so
+canonically equivalent display strings and a real author named like synthetic
+Others retain independent groups. The summary, tooltips, legend and captured
+export preserve original display names. [Source scope and remaining acceptance](LOG-STATISTICS-PARITY.md)
+record this behavior and its decoded-input/locale limits. The [grouped evidence](qa/statistics-author-family-2026-10-20.json)
+records 19 passing focused Core methods plus the new actual-Git bundled check,
+and passing native groups with both Git engines. Two pixel-fixture assumptions
+were corrected from retained output; no extra app/Core rebuild was needed.
+Physical, full hosted, signed and complete dialog acceptance remain open.

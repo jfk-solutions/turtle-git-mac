@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "ddfbf0404f56e49769e2fa4c983248a260acd501837b2a969ec6247a50821f94",
+    "Contents/Info.plist": "ec09c6285d72148e1e42a4bf1b584f2cf1d3cf22c0b2fe541db24f91eb61adfd",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "01d9789d13afd9ece8aac7c7a97615b55f0e9e37f5211445b613f67b4d166d39",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "940fa5e112b44a1c585a13339c8d07f16d36149a2ab0a9295b31c44728f0287d",
@@ -45,7 +45,7 @@
     "Contents/Resources/en.lproj/SAVED-DATA.html": "a12e071bb8898ae7d5bd3cf962545279e31332d274a5e9e6fa0356478b256601",
     "Contents/Resources/en.lproj/SMTP-CERTIFICATE-REVIEW.html": "b3cd59529a53a29bbf7894ba4ed5ae03d718acf0dd1b7245c45fe31ccd7033b9",
     "Contents/Resources/en.lproj/SSH-AUTHENTICATION.html": "97b2afc89a58711b9c1e8a1124b289a36356e2658aa86edae3290d93ae40e51c",
-    "Contents/Resources/en.lproj/STATISTICS.html": "a5dfee7da8595041c68daedff757d727b38242f4a22d66fa089fe17c048607ef",
+    "Contents/Resources/en.lproj/STATISTICS.html": "bb28439acd23c59f55dec652e56333d79e9aa8ee57d436fd4ce3d4d2a72b986c",
     "Contents/Resources/en.lproj/SVN-AUTHENTICATION.html": "a85280bfb4fdb0793092ad90646321abed37aa760ac91a5a86b456bffb355a98",
     "Contents/Resources/en.lproj/WORD-COMPARISON.html": "c4a9e6fe83f450b5de6428e45ab19d2459671883699d5cbb4d7de567d4e660ee",
     "Contents/Resources/en.lproj/WORD-MERGE.html": "0006044eeb92a4972ef39f273931182e327cc3dc0f1d4c613a505bfd7484c805",
@@ -112,7 +112,7 @@
     "docs/SAVED-DATA.md": "54f11a8a0ec8a5dda818158f36dbaabe43dbbd7ba83cf141aa5f742007be0caf",
     "docs/SMTP-CERTIFICATE-REVIEW.md": "58c9d73f8f5f7b319cd50bd5d2206d463a744456c110229e814c7c3ef8cc04ef",
     "docs/SSH-AUTHENTICATION.md": "33c00c2bde5c80f561e2b31f124a436127bc78d17466109828ab4742c34b7a8a",
-    "docs/STATISTICS.md": "a350dc541f0f50e5e1141d896010ba98b18a61899c091dbfe97a18df0d9dcff6",
+    "docs/STATISTICS.md": "fbaf74526305f48f888b65e25a2df9e34a31a27bf65a380824ee36cd21c36bcf",
     "docs/SVN-AUTHENTICATION.md": "f5cdd353c17d55ff2d7f5cc37e93d96205c0b6a53737cc4226049769ad830b16",
     "docs/WORD-COMPARISON.md": "922b2e8a5f12bc40b8475bbf73cb558e87a0e692625139b3cc34502f4923663d",
     "docs/WORD-MERGE.md": "dc11fee38f848ddda8201163da223235c9adeaecfe74beaad1ff75d91ff702d7",

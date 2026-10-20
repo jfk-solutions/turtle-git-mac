@@ -21,7 +21,7 @@ final class LogStatisticsGraphTests: XCTestCase {
     func testAuthorshipSliderUsesContributionRankingButCommitThreshold() throws {
         let summary = try summary(["A": 1, "B": 4, "C": 2, "D": 3])
         let ranked = summary.rankedAuthors(for: .authorship)
-        XCTAssertEqual(Set(ranked), Set(["A", "B", "C", "D"]))
+        XCTAssertEqual(Set(ranked), Set(["A", "B", "C", "D"].map { LogStatisticsAuthor($0) }))
         let commits = try XCTUnwrap(summary.commitsByAuthor[ranked[1]])
         XCTAssertEqual(summary.authorSliderHint(limit: 2, metric: .authorship), "2 most active author(s) with at least \(commits) commits each (\(commits * 10) %)")
         let graph = try LogStatisticsGraph.make(summary, metric: .authorship, authorsShown: 2)
@@ -137,4 +137,50 @@ final class LogStatisticsGraphTests: XCTestCase {
         XCTAssertEqual(graph.pieCategories, [0])
     }
 
+}
+
+extension LogStatisticsGraphTests {
+    func testExactAuthorIdentityProjectsEveryMetricAndPreservesSyntheticOthers() throws {
+        let names = ["Others (2)", "\u{00E9}va", "e\u{0301}va", "Z"]
+        var entries: [LogEntry] = [], changes: [String: LogStatisticsChanges] = [:]
+        for (index, count) in [5,4,3,2].enumerated() {
+            for occurrence in 0..<count {
+                let hash = "identity-\(index)-\(occurrence)", date = occurrence % 2 == 0 ? "2024-01-02T12:00:00Z" : "2024-01-01T12:00:00Z"
+                entries.append(LogEntry(hash:hash,author:names[index],date:date,subject:"",committerDate:date))
+                var delta = LogStatisticsChanges(); delta.files = index + 1; delta.added = 10 * (index + 1); delta.removed = index; delta.newFileLines = 3
+                changes[hash] = delta
+            }
+        }
+        let value = try LogStatistics.analyze(entries, changes: changes)
+        XCTAssertEqual(value.commitsByAuthor.count, 4)
+        for metric in LogStatisticsMetric.allCases where metric != .statistics {
+            let full = try LogStatisticsGraph.make(value, metric:metric, authorsShown:4, alphabetical:true)
+            XCTAssertEqual(Set(full.includedAuthors.map(\.id)).count, 4)
+            XCTAssertEqual(full.includedAuthors.map { Data($0.name.utf8) }, names.sorted { $0.utf16.lexicographicallyPrecedes($1.utf16) }.map { Data($0.utf8) })
+            for point in full.points {
+                let author = full.includedAuthors[metric.byAuthor ? point.category : point.series]
+                let expected: Int
+                if metric == .commitsByAuthor { expected = value.commitsByAuthor[author]! }
+                else if metric == .authorship { expected = Int(value.authorshipPercent[author]!.rounded(.toNearestOrAwayFromZero)) }
+                else {
+                    let interval = Array(value.intervals.reversed())[point.category]
+                    switch metric {
+                    case .linesIncluding: expected = interval.linesIncludingNewDeletedFiles[author] ?? 0
+                    case .linesExcluding: expected = interval.linesWithoutNewDeletedFiles[author] ?? 0
+                    default: expected = interval.commits[author] ?? 0
+                    }
+                }
+                XCTAssertEqual(point.value, expected)
+                XCTAssertTrue(Data(full.tooltip(for:point).utf8).starts(with:Data((author.name+":").utf8)))
+            }
+            let limited = try LogStatisticsGraph.make(value, metric:metric, authorsShown:2)
+            XCTAssertEqual(limited.includedAuthors.count, 2); XCTAssertEqual(limited.skippedAuthors.count, 2)
+            XCTAssertEqual(Set((limited.includedAuthors+limited.skippedAuthors).map(\.id)).count, 4)
+            XCTAssertEqual(limited.points.reduce(0) { $0+$1.value }, full.points.reduce(0) { $0+$1.value })
+        }
+        let collisions = try LogStatisticsGraph.make(value, metric:.commitsByAuthor, authorsShown:2)
+        XCTAssertEqual(collisions.categoryLabels, ["Others (2)",names[1],"Others (2)"])
+        XCTAssertEqual(collisions.points.map(\.value), [5,4,5])
+        XCTAssertEqual(collisions.includedAuthors.map { Data($0.name.utf8) }, names.prefix(2).map { Data($0.utf8) })
+    }
 }

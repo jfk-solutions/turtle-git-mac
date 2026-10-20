@@ -310,3 +310,36 @@ the whole Statistics dialog or the complete application.
 ![Native Statistics summary, dark](site/assets/statistics-summary-source-dark.png)
 ![Native Statistics bar graph, light](site/assets/statistics-bar-source-light.png)
 ![Native Statistics bar graph, dark](site/assets/statistics-bar-source-dark.png)
+
+
+## Exact author identity throughout Statistics — October 20, 2026
+
+The pinned source converts CString author names to std::wstring keys in GatherData,
+LoadListOfAuthors and graph construction. Swift String equality previously merged
+canonically equivalent spellings in author dictionaries, even with Authors case
+sensitive enabled. Changing only the calculation keys would still leave another
+merge in Swift Charts: its foreground grouping and color domain used the displayed
+name, also collapsing a real author whose caption matched synthetic Others.
+
+`LogStatisticsAuthor` retains each decoded name's exact UTF-8 spelling as its
+identity, with UTF-16 ordering for source-style ordinal name comparisons. Author
+and committer grouping, per-interval counts and measured changes, activity and
+authorship rankings, slider cutoffs and omitted-author membership use that typed
+identity. Explicit Foundation lowercasing remains optional and does not request canonical
+normalization. This does not add recovery of malformed original Git identity
+bytes after they have already been decoded into the Log model. Cross-platform
+locale lowercasing acceptance remains open.
+
+The native summary uses typed author identities for activity lookup and projects
+only `.name` for display. Cartesian marks group by stable graph category/series
+positions, with the same explicit index-to-color scale. Pies, hover hit regions
+and the shared legend already use positions. Chart accessibility and tooltips
+retain the original names rather than internal grouping keys. Save Graph As uses
+the same chart over its captured graph snapshot, so export cannot regroup authors
+by their visible caption. Original display spelling, source palette, author
+limits, existing capture/cancellation and owned-save behavior remain in effect.
+
+The [author-identity evidence](qa/statistics-author-family-2026-10-20.json) records
+the actual grouped validation and repairs for these distinct-name and
+synthetic-caption cases. Earlier Statistics evidence does not certify them. Physical pointer/VoiceOver, exact Windows typography, regional
+casing, signed export and full dialog acceptance remain separate open work.

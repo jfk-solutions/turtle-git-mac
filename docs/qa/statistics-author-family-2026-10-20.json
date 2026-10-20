@@ -1,0 +1,96 @@
+{
+  "status": "focused-local-validation-passed",
+  "scope": "Log Statistics exact author identity through aggregation, interval measurements, ranking, graph grouping/colors and captured exports",
+  "source": {
+    "revision": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "src/TortoiseProc/StatGraphDlg.cpp::GatherData",
+      "src/TortoiseProc/StatGraphDlg.cpp::LoadListOfAuthors",
+      "src/TortoiseProc/StatGraphDlg.cpp graph projection"
+    ],
+    "contract": "std::wstring identity and ordinal ordering; optional explicit lowercasing before aggregation"
+  },
+  "implementation": [
+    "Typed exact UTF-8 identity for decoded author/committer names; UTF-16 ordinal ranking",
+    "Distinct commit counts, interval file/line totals, contribution percentages, activity and top-author membership",
+    "Numeric graph positions remain the mark/color identities even when captions compare equal",
+    "Original display spelling remains in summary, tooltips, accessibility labels, legend and captured exports"
+  ],
+  "checks": [
+    {
+      "name": "Focused Core Statistics group",
+      "result": "19 methods passed with system Git; new actual-Git identity method also passed with bundled Git",
+      "logs": [
+        "build/qa/statistics-author-core-system-2026-10-20.log",
+        "build/qa/statistics-author-core-bundled-2026-10-20.log"
+      ],
+      "scope": [
+        "Composed/decomposed exact identities, lowercase grouping, author/committer switching",
+        "Per-interval changes, source weighting, UTF-16 ranking and repository preservation",
+        "Every graph metric, Others membership, exact tooltip bytes and activity limits",
+        "Existing Statistics aggregation/projection regression group"
+      ]
+    },
+    {
+      "name": "Debug native app build",
+      "result": "passed once",
+      "log": "build/qa/statistics-author-app-2026-10-20.log"
+    },
+    {
+      "name": "New native author family",
+      "result": "passed with system and bundled Git",
+      "log": "build/qa/statistics-author-native-final-2026-10-20.log",
+      "scope": [
+        "Actual 12-commit Git history Calculate across all six metrics and author/committer/case options",
+        "Separate composed/decomposed and real/synthetic Others captions with stable Chart keys",
+        "PNG/PDF source colors in plot area across five supported styles in light appearance",
+        "Captured export remains unchanged during close; Git/index/config/ref/worktree and accepted Log snapshot unchanged",
+        "Private repositories/preferences, hidden offscreen owners and managed receiver cleanup"
+      ],
+      "artifacts": "build/qa/statistics-author-artifacts-final-2026-10-20"
+    },
+    {
+      "name": "Generated help/localization checks and dialog reconciliation",
+      "result": "passed"
+    }
+  ],
+  "validation_repairs": [
+    {
+      "failure": "Native line PNG contained no fully opaque palette interior pixels",
+      "evidence": "Retained image showed all four lines and hollow symbols separately; nearest red pixel225/47/47 agrees with specified223/32/32 source-over-white coverage",
+      "repair": "Thin-line check now independently projects pixels onto disjoint specified-palette coverage rays with alpha>=0.25 and per-channel residual<=3. Filled styles retain exact palette checks; no production change."
+    },
+    {
+      "failure": "Author bar fourth color was outside fixture sampling crop",
+      "evidence": "Retained PNG showed fourth bar at x645...843 and legend beyond x862; two-thirds crop ended at640",
+      "repair": "Fixed960x500 fixture now samples throughx839, retaining fourth bar and excluding entire legend; no production change."
+    }
+  ],
+  "cleanup": {
+    "recorded_pids": [
+      55221,
+      55514,
+      55910,
+      56025
+    ],
+    "recorded_pids_absent": true,
+    "all_cached_statistics_author_receivers_absent": true,
+    "intermediate_failure": "Managed runner reported reaping; final process inventory also confirms no matching receiver. Its log was replaced by final run."
+  },
+  "warnings": [
+    "Apple Charts emitted unsupported custom AxisValueLabel anchor warning; rendered plot checks passed, exact axis geometry remains unverified"
+  ],
+  "hashes": {
+    "Sources/TurtleGitCore/LogStatistics.swift": "aee323d80ffa18dbe071d027778799d363519e2d63f1b47cde8643035b172bd9",
+    "Sources/TurtleGitCore/LogStatisticsGraph.swift": "565df60e625e471e1aae1cc1ae56f72a240c11809dbfb5f0d3df33e847f0d723",
+    "Sources/TurtleGitMac/StatisticsWindow.swift": "e3f6d02d4d1b29b6433afa764d8d06eb6620c0261a95440a90f29cd1ebd30825"
+  },
+  "remaining": [
+    "Malformed original Git identity bytes already replaced by Log decoding cannot be recovered here",
+    "Cross-platform locale lowercasing and Calendar/DST acceptance",
+    "Physical pointer/keyboard/VoiceOver and exact Windows typography/geometry",
+    "Dark appearance distinct-name renders not rerun by this focused group",
+    "Full hosted CI, signed export/sandbox and App Store acceptance",
+    "Full Statistics dialog and complete application parity remain unproven"
+  ]
+}
