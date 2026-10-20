@@ -98,14 +98,19 @@ Center/Inset positioning across the nine EMF+ stroke record families.
 The [indexed/16-bit bitmap extension](METAFILE-BITMAP-FORMATS-PARITY.md) covers
 1/4/8-bit indexed palettes and RGB555/RGB565/ARGB1555 for images and texture
 brushes. Extended grayscale and 48/64-bit formats, nested WMF images and uncommon
-embedded compressed formats remain open. EMF invert/mask/parallelogram/SetDIBitsToDevice
-records, framed regions and triangle gradients are refused. The
+embedded compressed formats remain open. SetDIBitsToDevice and triangle-gradient
+records remain outside the accepted painting families. The
 [classic clipping extension](METAFILE-CLASSIC-CLIP-PARITY.md) covers all five
-GDI region combinations, path clips, rectangle clips, offsets and metaregions. WMF region/flood fill remains open. The connected
+GDI region combinations, path clips, rectangle clips, offsets and metaregions.
+The connected [classic region/flood family](METAFILE-CLASSIC-REGION-FLOOD-PARITY.md)
+addresses region fill/frame/invert and destination-dependent border/surface fill,
+with its own implementation and checkpoint boundary. The
 [classic Boolean raster extension](METAFILE-RASTER-PARITY.md) covers ROP2 and
-ROP3 evaluation with bounded destination/source/pattern playback; unsupported
-transfer records, masks and geometry remain explicit refusals. Its grouped
-validation is pending independently of earlier metafile checkpoints.
+ROP3 evaluation with bounded destination/source/pattern playback, including its
+later masked/parallelogram/transparent/alpha transfer family. Its dated evidence
+records actual local checks; unsupported transfer records and geometry retain
+explicit refusals. [Classic extended pens](METAFILE-CLASSIC-PEN-PARITY.md) have a
+separate stroke/brush/state checkpoint.
 Windows-only fonts can substitute through CoreText. Exact GDI glyph metrics,
 text shaping, pen dash/cap combinations, every classic record variant and pixel
 identity across all Windows metafiles have not been certified.

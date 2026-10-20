@@ -442,5 +442,8 @@ compound bands, independent caps, joins, dashes and Center/Inset positioning.
 [Classic extended pens](docs/METAFILE-CLASSIC-PEN-PARITY.md) add geometric and
 cosmetic strokes, custom dash cycles, hatch/image brushes and InsideFrame shapes,
 with explicit device-pixel and legacy-brush limits.
+[Classic regions and flood fills](docs/METAFILE-CLASSIC-REGION-FLOOD-PARITY.md)
+retain union borders, brush selection, destination-color connectivity and captured
+WMF region clips, with a separate rendering checkpoint.
 [Supported drawing behavior and remaining limits](docs/IMAGE-METAFILE-PARITY.md)
 remain explicit; rendering does not rewrite the original files.

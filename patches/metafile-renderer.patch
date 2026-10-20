@@ -1759,7 +1759,7 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 --- /dev/null
 +++ b/src/turtleGitRaster.js
-@@ -0,0 +1,301 @@
+@@ -0,0 +1,304 @@
 +// Original TurtleGit Boolean GDI playback. GPL-2.0-or-later, see NOTICE.
 +// SVG snapshots contain only the private renderer's escaped drawing stream.
 +module.exports=function installRaster({EmfDrawer,WmfDrawer,SvgContext,fail,u32,i32,f32,escape,normalizePaintColors}) {
@@ -1831,6 +1831,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  };
 +  const brushes=require('./turtleGitRasterBrush')({fail,u32,i32,escape,decodeDib});
 +  const classicPen=require('./turtleGitClassicPen')({fail,u32,i32,escape,decodeDib,brushes,clipped,composite});
++  const regions=require('./turtleGitClassicRegion')({fail,u32,i32,word,short,escape,brushes,clipped,composite,svg,dimension});
 +  function svg(ctx,nodes){
 +    const saved=ctx._nodes;ctx._nodes=nodes;let result;try{result=ctx.getSvg();}finally{ctx._nodes=saved;}
 +    const x=ctx._turtleGdiOffsetX||0,y=ctx._turtleGdiOffsetY||0,domain='x="'+(-x)+'" y="'+(-y)+'" width="'+(ctx.canvas.width+2*x)+'" height="'+(ctx.canvas.height+2*y)+'"';
@@ -1877,7 +1878,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  }
 +
 +  function mapping(d,x,y,w,h){const a=d.coordinateTransformer.transform(x,y),b=d.coordinateTransformer.transform(x+w,y),c=d.coordinateTransformer.transform(x,y+h);const values=[b.x-a.x,b.y-a.y,c.x-a.x,c.y-a.y,a.x,a.y];if(values.some(v=>!Number.isFinite(v)||Math.abs(v)>1e9))fail('invalid raster destination transform');return values;}
-+  function group(d,m,body){const attr=d.ctx._attr();return '<g transform="matrix('+m.join(' ')+')" '+attr+'>'+body+'</g>';}
++  function group(d,m,body){const attr=d.ctx._attr();return '<g '+attr+'><g transform="matrix('+m.join(' ')+')">'+body+'</g></g>';}
 +  function transfer(d,op,x,y,w,h,dib,sx,sy,sw,sh){
 +    const ctx=d.ctx;if(!w||!h)return;const m=mapping(d,x,y,w,h);
 +    if(Math.abs(m[0]*m[3]-m[1]*m[2])<1e-15)fail('singular raster destination transform');
@@ -1979,8 +1980,8 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    if(!masked&&rect.some((v,i)=>i>1&&v<=0))fail('mirrored transparent/alpha source is unsupported');
 +    advancedTransfer(d,m,dib,rect,mask,maskRect,options);
 +  }
-+  function snapshot(d){return{miterLimit:d.ctx.miterLimit,mode:d._turtleRasterMode||13,brush:d._turtleRasterBrush,bk:d._turtleRasterBkColor,bkMode:d._turtleRasterBkMode,origin:d._turtleRasterBrushOrigin&&d._turtleRasterBrushOrigin.slice(),pen:d.gdiObjectManager._currentPen,penNull:d._penNull,penStock:d._penStockBlack,pos:d.currentPos&&{...d.currentPos},posX:d.currentPosX,posY:d.currentPosY,hasPos:d.hasValidPosition,ct:{...d.coordinateTransformer}};}
-+  function restore(d,s){d.ctx.miterLimit=s.miterLimit;d._turtleRasterMode=s.mode;d._turtleRasterBrush=s.brush;d._turtleRasterBkColor=s.bk;d._turtleRasterBkMode=s.bkMode;d._turtleRasterBrushOrigin=s.origin;d.gdiObjectManager._currentBrush=s.brush;d.gdiObjectManager._currentPen=s.pen;d._penNull=s.penNull;d._penStockBlack=s.penStock;d.currentPos=s.pos;d.currentPosX=s.posX;d.currentPosY=s.posY;d.hasValidPosition=s.hasPos;brushes.refresh(d);}
++  function snapshot(d){return{wmfClip:d._turtleWmfClipRectangles,miterLimit:d.ctx.miterLimit,mode:d._turtleRasterMode||13,brush:d._turtleRasterBrush,bk:d._turtleRasterBkColor,bkMode:d._turtleRasterBkMode,origin:d._turtleRasterBrushOrigin&&d._turtleRasterBrushOrigin.slice(),pen:d.gdiObjectManager._currentPen,penNull:d._penNull,penStock:d._penStockBlack,pos:d.currentPos&&{...d.currentPos},posX:d.currentPosX,posY:d.currentPosY,hasPos:d.hasValidPosition,ct:{...d.coordinateTransformer}};}
++  function restore(d,s){d._turtleWmfClipRectangles=s.wmfClip;d.ctx.miterLimit=s.miterLimit;d._turtleRasterMode=s.mode;d._turtleRasterBrush=s.brush;d._turtleRasterBkColor=s.bk;d._turtleRasterBkMode=s.bkMode;d._turtleRasterBrushOrigin=s.origin;d.gdiObjectManager._currentBrush=s.brush;d.gdiObjectManager._currentPen=s.pen;d._penNull=s.penNull;d._penStockBlack=s.penStock;d.currentPos=s.pos;d.currentPosX=s.posX;d.currentPosY=s.posY;d.hasValidPosition=s.hasPos;brushes.refresh(d);}
 +  const wp=WmfDrawer.prototype,ep=EmfDrawer.prototype;
 +  // Preserve ROP/selected brushes alongside existing EMF clip/mapping snapshots.
 +  const capture=ep._captureDcState,release=ep._restoreDcState;
@@ -2009,6 +2010,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  const emf=ep.processEmfRecordType;
 +  ep.processEmfRecordType=function(type,data){
 +    if(this._turtlePlusSeen&&!this._turtleGetDC&&type!==70&&type!==14&&type!==1)return;
++    if(regions.emf(this,type,data))return;
 +    if(type===95){classicPen.create(this,data);return;}
 +    if(type===58){
 +      // Normative MS-EMF specifies UINT32; Appendix A note 90 documents
@@ -2039,6 +2041,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  };
 +  const wmf=wp.processRecord;
 +  wp.processRecord=function(record){const type=record.functionId,data=record.data;
++    if(regions.wmf(this,type,data))return;
 +    if(type===0x104){if(data.length!==2)fail('invalid WMF ROP2');const mode=word(data,0);if(mode<1||mode>16)fail('invalid WMF binary raster mode');this._turtleRasterMode=mode;return;}
 +    if(type===0x1e){if(data.length||this.ctx._stack.length>=4096)fail('invalid WMF save DC');const s=snapshot(this);this._turtleRasterSaves=this._turtleRasterSaves||[];this._turtleRasterSaves.push(s);this.ctx.save();return;}
 +    if(type===0x127){if(data.length!==2)fail('invalid WMF restore DC');const saved=this._turtleRasterSaves||[],value=short(data,0),target=value<0?saved.length+value:value-1;if(!value||target<0||target>=saved.length)fail('invalid WMF restore depth');const s=saved[target];while(saved.length>target){saved.pop();this.ctx.restore();}Object.assign(this.coordinateTransformer,s.ct);restore(this,s);return;}
@@ -2064,7 +2067,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 diff --git a/src/turtleGitRasterBrush.js b/src/turtleGitRasterBrush.js
 --- /dev/null
 +++ b/src/turtleGitRasterBrush.js
-@@ -0,0 +1,164 @@
+@@ -0,0 +1,171 @@
 +// Copyright (C) TurtleGit contributors. GPL-2.0-or-later.
 +// Original classic GDI brush playback; no imported brush implementation.
 +module.exports=function createRasterBrush({fail,u32,i32,escape,decodeDib}) {
@@ -2227,7 +2230,14 @@ diff --git a/src/turtleGitRasterBrush.js b/src/turtleGitRasterBrush.js
 +    d._turtleRasterBrush=brush;
 +    try{return pattern(d);}finally{d._turtleRasterBrush=saved;}
 +  }
-+  return {handle,refresh,pattern,penBrush,penPattern};
++  function resolve(d,h,emf){
++    const flag=emf?0x80000000:0x8000;
++    if((h&flag)!==0){const index=h&~flag;if(index<=5)return index===5?solid(1,'none'):solid(0,['#ffffff','#c0c0c0','#808080','#404040','#000000'][index]);fail('invalid or unsupported region stock brush');}
++    const brush=d.gdiObjectManager.objectTable.get(h);
++    if(!brush||brush.type!=='brush')fail('missing region brush');
++    return brush;
++  }
++  return {handle,refresh,pattern,penBrush,penPattern,resolve};
 +};
 diff --git a/src/utils/nestedMetafilePlayer.js b/src/utils/nestedMetafilePlayer.js
 --- a/src/utils/nestedMetafilePlayer.js
@@ -2369,4 +2379,171 @@ diff --git a/src/turtleGitClassicPen.js b/src/turtleGitClassicPen.js
 +    return true;
 +  }
 +  return {create,stroke,shape};
++};
+
+diff --git a/src/turtleGitClassicRegion.js b/src/turtleGitClassicRegion.js
+--- /dev/null
++++ b/src/turtleGitClassicRegion.js
+@@ -0,0 +1,162 @@
++// Original TurtleGit classic region painting and destination flood coverage.
++// GPL-2.0-or-later. No platform painting implementation is copied here.
++module.exports=function({fail,u32,i32,word,short,escape,brushes,clipped,composite,svg,dimension}) {
++  function need(b,n){if(b.length<n)fail('truncated classic region/flood record');}
++  function exact(b,n){if(b.length!==n)fail('invalid classic region/flood record extent');}
++  function definition(ctx,text){ctx._turtleRegionMaskBytes=(ctx._turtleRegionMaskBytes||0)+text.length;if(ctx._defs.length>=65536||ctx._turtleRegionMaskBytes>64*1024*1024)fail('classic region mask budget exceeded');ctx._defs.push(text);}
++  function charge(d,n){d.ctx._turtleRegionRectangles=(d.ctx._turtleRegionRectangles||0)+n;if(d.ctx._turtleRegionRectangles>1048576)fail('aggregate classic region rectangle budget exceeded');}
++  function emfRegion(d,data,start,bytes){
++    need(data,start+32);
++    if(bytes!==data.length-start||u32(data,start)!==32||u32(data,start+4)!==1)fail('invalid painting RGNDATA header');
++    const count=u32(data,start+8),size=u32(data,start+12);
++    if(count>65536||bytes!==32+count*16||(size!==0&&size!==count*16))fail('invalid painting RGNDATA rectangle extent');
++    const bounds=Array.from({length:4},(_,i)=>i32(data,start+16+i*4));
++    if(bounds[0]>bounds[2]||bounds[1]>bounds[3])fail('invalid painting region bounds');
++    charge(d,count);const result=[];
++    for(let i=0;i<count;i++){
++      const r=Array.from({length:4},(_,j)=>i32(data,start+32+i*16+j*4));
++      if(r[0]>r[2]||r[1]>r[3]||r[0]<bounds[0]||r[1]<bounds[1]||r[2]>bounds[2]||r[3]>bounds[3])fail('invalid painting region rectangle');
++      result.push(r);
++    }
++    return result;
++  }
++  function createWmf(d,data){
++    need(data,22);
++    if(word(data,2)!==6)fail('invalid WMF region object type');
++    // Windows recording includes the function WORD in RegionSize; normative
++    // descriptions count the object alone. The actual record bounds dominate.
++    const size=word(data,8),scans=word(data,10),maximum=word(data,12);
++    if(size!==(data.length&65535)&&size!==((data.length+2)&65535))fail('invalid WMF region size');
++    const bounds=Array.from({length:4},(_,i)=>short(data,14+i*2)),rectangles=[];
++    if(bounds[0]>bounds[2]||bounds[1]>bounds[3])fail('invalid WMF region bounds');
++    let offset=22,max=0,previousBottom=-32768;
++    for(let i=0;i<scans;i++){
++      need(data,offset+8);const count=word(data,offset),top=short(data,offset+2),bottom=short(data,offset+4);
++      if(count%2||top>bottom||top<previousBottom||offset+8+count*2>data.length)fail('invalid WMF region scan');
++      if(word(data,offset+6+count*2)!==count)fail('mismatched WMF region scan trailer');
++      let previousRight=-32768;
++      for(let j=0;j<count;j+=2){
++        const left=short(data,offset+6+j*2),right=short(data,offset+8+j*2);
++        if(left>right||left<previousRight||left<bounds[0]||right>bounds[2]||top<bounds[1]||bottom>bounds[3])fail('invalid WMF region scan coordinates');
++        rectangles.push([left,top,right,bottom]);previousRight=right;
++      }
++      previousBottom=bottom;max=Math.max(max,count);offset+=8+count*2;
++    }
++    if(offset!==data.length||max!==maximum)fail('invalid WMF region scan count or maximum');
++    charge(d,rectangles.length);
++    d.gdiObjectManager.createObject({type:'region',rectangles});
++  }
++  function getRegion(d,handle){const r=d.gdiObjectManager.objectTable.get(handle);if(!r||r.type!=='region')fail('missing or wrong WMF region object');return r.rectangles;}
++  function geometry(d,rectangles,frame,width=0,height=0,matrix=null){
++    if(typeof globalThis.__turtleRegionPath!=='function')fail('native region geometry unavailable');
++    const result=__turtleRegionPath(rectangles,Math.abs(width),Math.abs(height),frame);
++    if(!result||typeof result.path!=='string'||result.path.length>16*1024*1024)fail('invalid native region geometry');
++    if(!result.path)return [];
++    const t=d.coordinateTransformer,o=t.transform(0,0),x=t.transform(1,0),y=t.transform(0,1),m=matrix||[x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y];
++    if(m.some(v=>!Number.isFinite(v)||Math.abs(v)>1e9))fail('invalid classic region mapping');
++    if(matrix){
++      // CoreSVG does not reliably accept grouped clipPath children. Bake the
++      // captured initial mapping into this direct path, matching GDI clips.
++      const tokens=result.path.trim().split(/\s+/),mapped=[];let offset=0;
++      while(offset<tokens.length){
++        const command=tokens[offset++];mapped.push(command);
++        if(command==='Z')continue;
++        if(command!=='M'&&command!=='L'||offset+2>tokens.length)fail('invalid native clip path command');
++        const x=Number(tokens[offset++]),y=Number(tokens[offset++]),px=m[0]*x+m[2]*y+m[4],py=m[1]*x+m[3]*y+m[5];
++        if(!Number.isFinite(px)||!Number.isFinite(py)||Math.max(Math.abs(px),Math.abs(py))>1e9)fail('mapped region clip coordinate exceeds limit');
++        mapped.push(String(px),String(py));
++      }
++      return ['<path d="'+escape(mapped.join(' '))+'" fill="white" fill-rule="nonzero"/>'];
++    }
++    return clipped(d,['<g '+d.ctx._attr()+'><path d="'+escape(result.path)+'" transform="matrix('+m.join(' ')+')" fill="white" fill-rule="nonzero"/></g>']);
++  }
++  function paint(d,coverage,brush,invert=false){
++    if(!coverage.length)return;
++    const ctx=d.ctx;
++    if(invert){composite(d,ctx._nodes.slice(),null,null,coverage,0x55);return;}
++    if(!brush)brush=d._turtleRasterBrush||{type:'brush',style:0,color:'#ffffff'};
++    const pattern=brushes.penPattern(d,brush);if(pattern===null)return;
++    const mode=d._turtleRasterMode||13;if(mode===11)return;
++    const id='turtle-region-paint-'+ctx._defs.length;
++    definition(ctx,'<mask id="'+id+'" maskUnits="userSpaceOnUse" x="0" y="0" width="'+ctx.canvas.width+'" height="'+ctx.canvas.height+'">'+coverage.join('')+'</mask>');
++    const source=['<g mask="url(#'+id+')">'+pattern+'</g>'];
++    if(mode===13){ctx._nodes.push(...source);return;}
++    composite(d,ctx._nodes.slice(),source,null,source,(mode-1)*17);
++  }
++  function flood(d,x,y,color,mode){
++    if(mode!==0&&mode!==1)fail('invalid classic flood mode');
++    // CLR_INVALID cannot identify a boundary/surface, and GDI reports no fill.
++    if(color===0xffffffff)return;
++    const tag=color>>>24;
++    if(tag===1){const palette=d.currentPalette&&d.currentPalette.entries,entry=palette&&palette[color&65535];if(!entry)return;color=entry.r|(entry.g<<8)|(entry.b<<16);}
++    else if(tag!==0&&tag!==2)return;
++    // PALETTERGB is ordinary RGB on this true-color native device.
++    const rgb=(color&255)<<16 | color&0xff00 | color>>>16&255;
++    const ctx=d.ctx,width=Math.round(ctx.canvas.width/(ctx._scaleX||1)),height=Math.round(ctx.canvas.height/(ctx._scaleY||1));dimension(width,height);
++    const seed=d.coordinateTransformer.transform(x,y);
++    if(!Number.isFinite(seed.x)||!Number.isFinite(seed.y)||Math.abs(seed.x)>1e9||Math.abs(seed.y)>1e9)fail('invalid classic flood seed');
++    const clip=clipped(d,['<rect width="'+width+'" height="'+height+'" fill="white" '+ctx._attr()+'/>']);
++    if(typeof globalThis.__turtleFloodCoverage!=='function')fail('native flood coverage unavailable');
++    const href=__turtleFloodCoverage(svg(ctx,ctx._nodes.slice()),svg(ctx,clip),width,height,Math.floor(seed.x),Math.floor(seed.y),rgb,mode);
++    if(href==='')return;
++    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,'))fail('invalid native flood coverage');
++    paint(d,['<image width="'+width+'" height="'+height+'" preserveAspectRatio="none" href="'+href+'"/>']);
++  }
++  function emf(d,type,data){
++    if(type===53){exact(data,16);flood(d,i32(data,0),i32(data,4),u32(data,8),u32(data,12));return true;}
++    if(![71,72,73,74].includes(type))return false;
++    const start=type===71?24:type===72?32:20;need(data,start);
++    const region=emfRegion(d,data,start,u32(data,16)),frame=type===72;
++    const brush=type===71||frame?brushes.resolve(d,u32(data,20),true):null;
++    paint(d,geometry(d,region,frame,frame?i32(data,24):0,frame?i32(data,28):0),brush,type===73);return true;
++  }
++  function deviceRect(rect,m){
++    if(m[1]||m[2])fail('unsupported cross-axis WMF device clip mapping');
++    const x=m[0]*rect[0]+m[4],y=m[3]*rect[1]+m[5],r=m[0]*rect[2]+m[4],b=m[3]*rect[3]+m[5];
++    if([x,y,r,b].some(v=>!Number.isFinite(v)||Math.abs(v)>1e9))fail('WMF device clip coordinate exceeds limit');
++    return [Math.min(x,r),Math.min(y,b),Math.max(x,r),Math.max(y,b)];
++  }
++  function setDeviceClip(d,rectangles){
++    const ctx=d.ctx,coverage=geometry(d,rectangles,false,0,0,[1,0,0,1,0,0]);
++    const id='turtle-wmf-region-clip-'+ctx._defs.length;
++    // A direct nonempty shape outside the fixed device canvas represents an
++    // empty clip without CoreSVG treating an empty clipPath as absent.
++    const body=coverage.length?coverage.join(''):'<path d="M -2 -2 L -1 -2 L -1 -1 L -2 -1 Z"/>';
++    definition(ctx,'<clipPath id="'+id+'">'+body+'</clipPath>');
++    ctx._state.clip='url(#'+id+')';d._turtleWmfClipRectangles=rectangles;
++  }
++  function wmf(d,type,data){
++    if(!d._turtleWmfRegionInitial){const t=d.coordinateTransformer,o=t.transform(0,0),x=t.transform(1,0),y=t.transform(0,1);d._turtleWmfRegionInitial=[x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y];d._turtleWmfClipRectangles=null;}
++    if(type===0x12c){
++      exact(data,2);const handle=word(data,0),ctx=d.ctx;
++      // Windows uses zero as NULL for this record, even though zero is an
++      // ordinary object index for other WMF region operations. Copy device
++      // geometry now; subsequent mapping changes/deletion cannot retarget it.
++      if(!handle){ctx._state.clip=null;d._turtleWmfClipRectangles=null;return true;}
++      setDeviceClip(d,getRegion(d,handle).map(r=>deviceRect(r,d._turtleWmfRegionInitial)));return true;
++    }
++    if(type===0x415||type===0x416){
++      exact(data,8);const t=d.coordinateTransformer,o=t.transform(0,0),x=t.transform(1,0),y=t.transform(0,1),m=[x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y];
++      const r=deviceRect([short(data,6),short(data,4),short(data,2),short(data,0)],m),ctx=d.ctx;
++      const current=d._turtleWmfClipRectangles||[[0,0,ctx.canvas.width/(ctx._scaleX||1),ctx.canvas.height/(ctx._scaleY||1)]],next=[];
++      for(const a of current){
++        const i=[Math.max(a[0],r[0]),Math.max(a[1],r[1]),Math.min(a[2],r[2]),Math.min(a[3],r[3])];
++        const intersects=i[0]<i[2]&&i[1]<i[3];
++        if(type===0x416){if(intersects)next.push(i);continue;}
++        if(!intersects){next.push(a);continue;}
++        for(const piece of [[a[0],a[1],a[2],i[1]],[a[0],i[3],a[2],a[3]],[a[0],i[1],i[0],i[3]],[i[2],i[1],a[2],i[3]]])if(piece[0]<piece[2]&&piece[1]<piece[3])next.push(piece);
++      }
++      setDeviceClip(d,next);return true;
++    }
++    if(type===0x6ff){createWmf(d,data);return true;}
++    if(type===0x1ff)fail('unsupported noncanonical WMF region creation opcode');
++    if(type===0x419){exact(data,8);flood(d,short(data,6),short(data,4),u32(data,0),0);return true;}
++    if(type===0x548){exact(data,10);flood(d,short(data,8),short(data,6),u32(data,2),word(data,0));return true;}
++    if(![0x228,0x429,0x12a,0x12b].includes(type))return false;
++    const frame=type===0x429,fill=type===0x228;exact(data,frame?8:fill?4:2);
++    // WMF parameters are serialized in reverse API argument order.
++    const region=getRegion(d,word(data,frame?6:fill?2:0)),brush=frame||fill?brushes.resolve(d,word(data,frame?4:0),false):null;
++    paint(d,geometry(d,region,frame,frame?short(data,2):0,frame?short(data,0):0),brush,type===0x12a);return true;
++  }
++  return {emf,wmf};
 +};

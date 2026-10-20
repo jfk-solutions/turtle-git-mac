@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-21",
+  "implementation_baseline": "ba0bb84b",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Classic EMF/WMF region Fill/Frame/Paint/Invert, WMF region object allocation/Delete/reuse and copied device-coordinate selection/reset/SaveRestore, logical union-aware anisotropic frames, destination-dependent border/surface/legacy flood, selected brush and ROP2, malformed whole-image refusal and native image consumers.",
+  "source_contracts": [
+    "EMF RGNDATA framing and WMF canonical CreateRegion0x06FF/RegionObject scan payload; ignored fields retained and bounded RegionSize object/+function-WORD conventions.",
+    "Explicit brush operations preserve selected brush; Invert uses destination inversion independent of brush; region painting uses current logical mapping.",
+    "Selected WMF region is copied under initial metafile device mapping, zero selection resets; deletion/reuse/current mapping cannot retarget captured clip.",
+    "Flood uses current brush and actual prior destination, four-neighbor connectivity and clipped domain; unfillable seed is no paint."
+  ],
+  "validation": {
+    "status": "Relevant grouped checkpoint passed after recorded focused production/fixture repair. No full Core/integration rerun.",
+    "tests_during_implementation": false,
+    "static_review": "Found and repaired outer device-clip/inner mapped geometry grouping before first build. Final focused source review reported no remaining definite blockers.",
+    "help_generation": {
+      "command": "build/site-venv/bin/python scripts/build-help.py",
+      "exit_code": 0,
+      "documents": 48,
+      "topics": 51,
+      "files": 68,
+      "bytes": 3694228
+    },
+    "universal_runtime": {
+      "log": "build/qa/classic-region-flood-runtime-2026-10-21.log",
+      "exit_code": 0,
+      "scope": "Pinned source reconstruction, universal macOS13 helper and structure validation; painting checked separately."
+    },
+    "initial_core": {
+      "log": "build/qa/classic-region-flood-core-2026-10-21.log",
+      "methods": 6,
+      "failed_methods": 2,
+      "assertion_failures": 22,
+      "elapsed_seconds": 7.12
+    },
+    "initial_app": {
+      "log": "build/qa/classic-region-flood-app-2026-10-21.log",
+      "exit_code": 0,
+      "scope": "Initial family app before focused selected-clip repair; final embedded helper and native acceptance still pending.",
+      "diagnostic": "Xcode emitted a contradictory SwiftCompile failed-with-exit0 diagnostic alongside existing Blame isolation warnings. No claim of a warning-free build; native object/source freshness and final artifacts remain separate evidence."
+    },
+    "failures_and_repairs": [
+      "Selected WMF region clip serialized a grouped child inside clipPath, a known CoreSVG limitation: it ignored the clip. Correct selected geometry to direct mapped path; retain exact bounds and transformed region/bitmap assertions. Empty selected regions and subsequent rectangle intersections/exclusions are included in the focused same-family repair.",
+      "Three flood fixtures left blue selected although their intended pixel oracle required red. Explicitly select red in classic-flood-clip.emf, classic-flood-transform-restore.emf and wmf-classic-flood-clip.wmf; preserve pixel/clip/restoration assertions."
+    ],
+    "focused_repair": "Patch-only after initial helper: direct baked device path for selected/empty WMF regions; immutable device rectangle union/intersection/subtraction captured by Save/Restore. Native Swift flood and frame implementation unchanged. Added two accepted clip cases; three flood fixture brush selections corrected.",
+    "runtime_repair": {
+      "log": "build/qa/classic-region-flood-runtime-repair-2026-10-21.log",
+      "exit_code": 0
+    },
+    "focused_core": {
+      "log": "build/qa/classic-region-flood-core-repair-2026-10-21.log",
+      "methods": 3,
+      "failures": 0,
+      "elapsed_seconds": 2.274,
+      "scope": "Only two failed methods plus the existing WMF vector/intersection consumer affected by the rectangle-clip repair. Four passing initial methods not repeated."
+    },
+    "distinct_core_methods_passed": 7,
+    "final_app": {
+      "log": "build/qa/classic-region-flood-app-repair-2026-10-21.log",
+      "exit_code": 0,
+      "current_source_hashes": true,
+      "built_embedded_source_renderer_equal": true,
+      "embedded_signed_binary_hash_matches": true,
+      "built_unsigned_binary_matches_embedded_unsigned_receipt": true,
+      "scope": "Universal helper built and ad-hoc embedded/relocated into current Debug app; actual native consumers follow. No distribution signature or physical Intel execution claim.",
+      "diagnostic": "Final incremental app build exited0 with no error-prefixed compiler diagnostic; earlier contradictory diagnostic remains in initial log. This is not a clean hosted SDK build claim."
+    },
+    "native": {
+      "log": "build/qa/classic-region-flood-native-2026-10-21.log",
+      "exit_code": 0,
+      "case": "classic-regions",
+      "distinct_case_engine_pairs": 2,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "representative_inputs": 6,
+      "malformed_cases": 23,
+      "scope": "Actual offscreen default and explicit IDiff, all23 enrolled malformed whole-image refusals, preview/reload, real private three-stage WMF fill/EMF frame/flood conflict, held owner/scope/Quit retirement and unchanged original bytes/HEAD/index. Not all48 positive fixtures are native inputs.",
+      "helper_scope": "Unbundled receiver links current app objects and uses the Core DEBUG development helper fallback at build/metafile-runtime/Metafile; actual embedded runtime source/renderer/signed-binary identity is verified separately. No new signed-parent or installed app execution claim."
+    },
+    "owned_receiver_pids": [
+      57161,
+      57323
+    ],
+    "independently_absent": true,
+    "help_check": {
+      "command": "build/site-venv/bin/python scripts/build-help.py --check",
+      "exit_code": 0
+    },
+    "localizations": "No literal native UI labels changed; no catalog regeneration needed.",
+    "unrelated_work_preserved": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    },
+    "dialog_coverage_reconcile": "Passed;130dialogs/120partialfamilyreviews/10pending/0certified. No completion percentage claimed."
+  },
+  "adaptations_and_limits": [
+    "Native rectangular-erosion region border and bounded normalized union geometry; no Windows corner-pixel certification.",
+    "Floored mapped flood seed; clip alpha>=128; destination RGB composited on white; four-neighbor traversal.",
+    "Palette lookup/PALETTERGB/invalid color handling follows selected native truecolor adapter; unresolved colors paint no flood.",
+    "Explicit record/geometry/raster/markup/input/output/helper deadline budgets; no silent truncation or guessed bounding-box flood."
+  ],
+  "remaining": [
+    "Windows-exact AA/device stepping, corner geometry and font/palette combinations",
+    "SetDIBitsToDevice, triangle gradients and remaining format variants",
+    "Physical image/Finder, minimum-OS and physical Intel acceptance",
+    "Current signed distribution/App Store acceptance and complete current hosted CI",
+    "Complete TortoiseGit dialog/functionality parity"
+  ],
+  "fixture_corpus": {
+    "valid": 48,
+    "malformed": 23,
+    "generator": "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate-classic-regions.py",
+    "native_representative_inputs": 6
+  }
+}

@@ -238,6 +238,58 @@ private final class NativeRasterComposite {
         }
         return try encode(output,width:width,height:height)
     }
+    /// Capture destination and clip before painting. Four-neighbor traversal
+    /// owns a bounded queue and never crosses an excluded device pixel.
+    func flood(_ destination:JSValue,_ coverage:JSValue,_ widthValue:Double,_ heightValue:Double,_ xValue:Double,_ yValue:Double,_ colorValue:Double,_ modeValue:Double)throws->String {
+        let numbers=[widthValue,heightValue,xValue,yValue,colorValue,modeValue]
+        guard numbers.allSatisfy({$0.isFinite && $0.rounded()==$0}),widthValue>=1,heightValue>=1,widthValue<=32768,heightValue<=32768,widthValue*heightValue<=16777216,colorValue>=0,colorValue<=16777215,[0.0,1.0].contains(modeValue) else{throw invalid("invalid flood dimensions, color or mode")}
+        let width=Int(widthValue),height=Int(heightValue),pixels=width*height
+        guard calls<4096,pixels<=33554432-compositePixels,pixels*2<=67108864-renderedPixels,pixels*24<=256*1024*1024 else{throw invalid("flood pixel, work or memory budget exceeded")}
+        calls += 1;compositePixels += pixels;renderedPixels += pixels*2
+        let size=CGSize(width:width,height:height)
+        guard let dest=try svg(destination,size:size,required:true),let clip=try svg(coverage,size:size,required:true) else{throw invalid("missing flood destination or clip")}
+        if xValue<0 || yValue<0 || xValue>=widthValue || yValue>=heightValue{return ""}
+        let destinationPixels=try render(dest,width:width,height:height),clipPixels=try render(clip,width:width,height:height)
+        var output=Data(count:pixels*4),queue=Data(count:pixels*4)
+        var painted=false
+        try output.withUnsafeMutableBytes {(out:UnsafeMutableRawBufferPointer) in
+            try queue.withUnsafeMutableBytes {(storage:UnsafeMutableRawBufferPointer) in
+                try destinationPixels.withUnsafeBytes {(dst:UnsafeRawBufferPointer) in
+                    try clipPixels.withUnsafeBytes {(area:UnsafeRawBufferPointer) in
+                        painted=try self.floodPixels(dst:dst,area:area,out:out,queue:storage.bindMemory(to:UInt32.self),width:width,height:height,x:Int(xValue),y:Int(yValue),color:Int(colorValue),surface:modeValue==1)
+                    }
+                }
+            }
+        }
+        return painted ? try encode(output,width:width,height:height):""
+    }
+    private func floodPixels(dst:UnsafeRawBufferPointer,area:UnsafeRawBufferPointer,out:UnsafeMutableRawBufferPointer,queue:UnsafeMutableBufferPointer<UInt32>,width:Int,height:Int,x:Int,y:Int,color:Int,surface:Bool)throws->Bool {
+        let pixels=width*height
+        func eligible(_ p:Int)->Bool {
+            let o=p*4
+            if area[o+3]<128{return false}
+            let alpha=Int(dst[o+3]),r=min(255,Int(dst[o])+255-alpha),g=min(255,Int(dst[o+1])+255-alpha),b=min(255,Int(dst[o+2])+255-alpha)
+            let equal=(r<<16 | g<<8 | b)==color
+            return surface ? equal:!equal
+        }
+        let seed=y*width+x
+        guard eligible(seed) else{return false}
+        var head=0,tail=1;queue[0]=UInt32(seed);out[seed*4+3]=1
+        func enqueue(_ p:Int)throws {
+            if out[p*4+3]==0 && eligible(p) {
+                guard tail<pixels else{throw invalid("flood queue budget exceeded")}
+                queue[tail]=UInt32(p);tail += 1;out[p*4+3]=1
+            }
+        }
+        while head<tail {
+            let p=Int(queue[head]),o=p*4;head += 1
+            let alpha=area[o+3];out[o]=alpha;out[o+1]=alpha;out[o+2]=alpha;out[o+3]=alpha
+            let column=p%width
+            if column>0{try enqueue(p-1)};if column+1<width{try enqueue(p+1)}
+            if p>=width{try enqueue(p-width)};if p+width<pixels{try enqueue(p+width)}
+        }
+        return true
+    }
     // Keep pointer borrowing separate from pixel evaluation. Older distribution
     // compilers otherwise time out inferring the five nested Data closures.
     private func evaluateTransfer(dst:UnsafeMutableRawBufferPointer,area:UnsafeRawBufferPointer,
@@ -293,6 +345,66 @@ private final class NativeRasterComposite {
         }
     }
 
+}
+
+/// Region frames are inside the union, never separate strokes around each
+/// constituent rectangle. Work in region coordinates before the JS affine map.
+private final class NativeRegionGeometry {
+    private var rectangles=0,edges=0
+    private func invalid(_ text:String)->ConversionError{.invalid("Metafile region: "+text)}
+    func path(_ value:JSValue,_ widthValue:Double,_ heightValue:Double,_ frame:Bool)throws->[String:Any] {
+        guard value.isArray,let length=value.forProperty("length"),length.isNumber else{throw invalid("missing rectangles")}
+        let raw=length.toDouble()
+        guard raw.isFinite,raw.rounded()==raw,raw>=0,raw<=4096,widthValue.isFinite,heightValue.isFinite,widthValue>=0,heightValue>=0,widthValue<=1e6,heightValue<=1e6 else{throw invalid("invalid dimensions or rectangle budget exceeded")}
+        let count=Int(raw)
+        guard count<=65536-rectangles else{throw invalid("aggregate rectangle budget exceeded")};rectangles += count
+        let input=CGMutablePath()
+        for i in 0..<count {
+            guard let row=value.atIndex(i),row.isArray,row.forProperty("length")?.toInt32()==4 else{throw invalid("invalid rectangle")}
+            var numbers:[Double]=[]
+            for j in 0..<4 {guard let v=row.atIndex(j),v.isNumber else{throw invalid("invalid coordinate")};let n=v.toDouble();guard n.isFinite,abs(n)<=1e9 else{throw invalid("coordinate exceeds limit")};numbers.append(n)}
+            guard numbers[0]<=numbers[2],numbers[1]<=numbers[3] else{throw invalid("reversed rectangle")}
+            if numbers[0]<numbers[2],numbers[1]<numbers[3] {input.addRect(CGRect(x:numbers[0],y:numbers[1],width:numbers[2]-numbers[0],height:numbers[3]-numbers[1]))}
+        }
+        var result=input.normalized(using:.winding)
+        if frame {
+            if widthValue==0 && heightValue==0 {return ["path":"","bounds":[0,0,0,0]]}
+            let boundary=CGMutablePath();var current=CGPoint.zero,start=CGPoint.zero,failed=false
+            func edge(_ next:CGPoint){
+                self.edges += 1
+                guard self.edges<=131072,current.x==next.x || current.y==next.y else{failed=true;return}
+                let l=min(current.x,next.x)-widthValue,r=max(current.x,next.x)+widthValue
+                let t=min(current.y,next.y)-heightValue,b=max(current.y,next.y)+heightValue
+                boundary.addRect(CGRect(x:l,y:t,width:r-l,height:b-t));current=next
+            }
+            result.applyWithBlock {pointer in
+                let e=pointer.pointee
+                switch e.type {
+                case .moveToPoint:current=e.points[0];start=current
+                case .addLineToPoint:edge(e.points[0])
+                case .closeSubpath:edge(start)
+                default:failed=true
+                }
+            }
+            guard !failed else{throw invalid("boundary geometry or edge budget exceeded")}
+            result=boundary.normalized(using:.winding).intersection(result,using:.winding)
+        }
+        var commands:[String]=[],points=0,failed=false
+        result.applyWithBlock {pointer in
+            let e=pointer.pointee
+            switch e.type {
+            case .moveToPoint,.addLineToPoint:
+                points += 1;guard points<=131072 else{failed=true;return}
+                let p=e.points[0];guard p.x.isFinite,p.y.isFinite,abs(p.x)<=1e9,abs(p.y)<=1e9 else{failed=true;return}
+                commands.append((e.type == .moveToPoint ? "M ":"L ")+String(Double(p.x))+" "+String(Double(p.y)))
+            case .closeSubpath:commands.append("Z")
+            default:failed=true
+            }
+        }
+        guard !failed else{throw invalid("normalized geometry exceeds limit")}
+        let bounds=result.boundingBoxOfPath
+        return ["path":commands.joined(separator:" "),"bounds":result.isEmpty ? [0.0,0,0,0]:[Double(bounds.minX),Double(bounds.minY),Double(bounds.maxX),Double(bounds.maxY)]]
+    }
 }
 
 /// Bounded geometric EMF+ pen playback. Input paths are generated by the private
@@ -1400,11 +1512,22 @@ private func run() throws {
         catch ConversionError.invalid(let message) { nativeError(message); return [:] }
         catch { nativeError("Metafile pen geometry failed: " + String(describing: error)); return [:] }
     }
+    let regionGeometry=NativeRegionGeometry()
+    let regionPath:@convention(block)(JSValue,Double,Double,Bool)->NSDictionary = {rectangles,width,height,frame in
+        do{return try regionGeometry.path(rectangles,width,height,frame) as NSDictionary}
+        catch ConversionError.invalid(let message){nativeError(message);return [:]}
+        catch{nativeError("Metafile region geometry failed: "+String(describing:error));return [:]}
+    }
     let rasterCompositor=NativeRasterComposite()
     let rasterComposite:@convention(block)(JSValue,JSValue,JSValue,JSValue,Double,Double,Double)->String = {destination,source,pattern,coverage,width,height,rop in
         do{return try autoreleasepool{try rasterCompositor.composite(destination,source,pattern,coverage,width,height,rop)}}
         catch ConversionError.invalid(let message){nativeError(message);return ""}
         catch{nativeError("Metafile raster operation failed: "+String(describing:error));return ""}
+    }
+    let floodCoverage:@convention(block)(JSValue,JSValue,Double,Double,Double,Double,Double,Double)->String = {destination,clip,width,height,x,y,color,mode in
+        do{return try autoreleasepool{try rasterCompositor.flood(destination,clip,width,height,x,y,color,mode)}}
+        catch ConversionError.invalid(let message){nativeError(message);return ""}
+        catch{nativeError("Metafile flood operation failed: "+String(describing:error));return ""}
     }
     let rasterTransfer:@convention(block)(JSValue,JSValue,JSValue,JSValue,JSValue,Double,Double,JSValue)->String = {destination,source,pattern,coverage,selection,width,height,options in
         do{return try autoreleasepool{try rasterCompositor.transfer(destination,source,pattern,coverage,selection,width,height,options)}}
@@ -1503,6 +1626,8 @@ private func run() throws {
     context.setObject(layoutText, forKeyedSubscript: "__turtleLayoutText" as NSString)
     context.setObject(positionedText,forKeyedSubscript:"__turtlePositionedText" as NSString)
     context.setObject(strokePath, forKeyedSubscript: "__turtleStrokePath" as NSString)
+    context.setObject(regionPath,forKeyedSubscript:"__turtleRegionPath" as NSString)
+    context.setObject(floodCoverage,forKeyedSubscript:"__turtleFloodCoverage" as NSString)
     context.setObject(rasterComposite,forKeyedSubscript:"__turtleRasterComposite" as NSString)
     context.setObject(rasterTransfer,forKeyedSubscript:"__turtleRasterTransfer" as NSString)
     context.setObject(bitmap, forKeyedSubscript: "__turtleBitmapNative" as NSString)

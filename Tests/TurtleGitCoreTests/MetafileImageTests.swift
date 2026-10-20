@@ -1955,3 +1955,152 @@ extension MetafileImageTests {
         }
     }
 }
+
+extension MetafileImageTests {
+    func testClassicRegionFillPaintInvertExplicitBrushAndWMFObjectLifetime() throws {
+        for prefix in ["classic-region-","wmf-classic-region-"] {
+            let fill=try booleanPixels(prefix+"fill-preserve."+(prefix.hasPrefix("wmf") ? "wmf":"emf"))
+            transferRGB(fill,20,16,[255,0,0],"FillRgn uses explicit brush")
+            transferRGB(fill,50,2,[0,0,255],"FillRgn must preserve selected current brush")
+            booleanGray(fill,40,16,255,"L-region excludes notch")
+            let paint=try booleanPixels(prefix+"paint-current."+(prefix.hasPrefix("wmf") ? "wmf":"emf"))
+            transferRGB(paint,20,16,[0,0,255],"PaintRgn uses selected brush")
+            let inverse=try booleanPixels(prefix+"invert."+(prefix.hasPrefix("wmf") ? "wmf":"emf"))
+            transferRGB(inverse,20,16,[0,255,255],"InvertRgn complements actual red destination")
+            transferRGB(inverse,40,16,[255,0,0],"InvertRgn excludes points outside region")
+        }
+        let empty=try booleanPixels("classic-region-empty.emf")
+        for y in stride(from:4,to:64,by:8) {for x in stride(from:4,to:64,by:8) {booleanGray(empty,x,y,255,"Empty classic regions paint no pixels")}}
+        let reused=try booleanPixels("wmf-classic-region-slot-reuse.wmf")
+        transferRGB(reused,20,16,[255,0,0],"WMF first-free region object participates in fill")
+        transferRGB(reused,44,2,[0,255,0],"DeleteObject releases region slot for next brush")
+        let copiedClip=try booleanPixels("wmf-classic-region-select-clip-copy-device.wmf")
+        transferRGB(copiedClip,16,16,[0,255,0],"Selected region clip copies geometry before object deletion/reuse")
+        booleanGray(copiedClip,32,16,255,"Selected region clip uses initial device mapping, not current scaled DC")
+        booleanGray(copiedClip,4,4,255,"Copied clip remains bounded after region object reuse")
+        let mappedRegion=try booleanPixels("wmf-classic-region-select-clip-transformed-region.wmf")
+        transferRGB(mappedRegion,16,16,[255,0,0],"Transformed FillRegion paints inside fixed selected device clip")
+        transferRGB(mappedRegion,9,16,[0,0,255],"Transformed FrameRegion retains fixed selected clip and X inner border")
+        transferRGB(mappedRegion,16,9,[0,0,255],"Transformed FrameRegion logical Y border scales independently")
+        booleanGray(mappedRegion,32,32,255,"Region transform must not transform selected device clip a second time")
+        booleanGray(mappedRegion,4,4,255,"Mapped region cannot escape selected device clip")
+        let mappedBitmap=try booleanPixels("wmf-classic-region-select-clip-transformed-bitmap.wmf")
+        transferRGB(mappedBitmap,12,12,[255,0,0],"Transformed bitmap coverage paints within initial selected device clip")
+        booleanGray(mappedBitmap,32,32,255,"Raster transfer must not transform selected device clip a second time")
+        booleanGray(mappedBitmap,4,4,255,"Transformed bitmap cannot escape device clip")
+        let emptyClip=try booleanPixels("wmf-classic-region-select-empty.wmf")
+        XCTAssertEqual(emptyClip.bytes,try booleanPixels("classic-region-empty.emf").bytes,"A valid empty selected region clips all attempted painting")
+        let combinedClip=try booleanPixels("wmf-classic-region-select-combined-restore.wmf")
+        transferRGB(combinedClip,12,12,[255,0,0],"Selected initial-device clip survives current logical mapping and intersection")
+        transferRGB(combinedClip,36,36,[255,0,0],"Restored clip retains intersected region interior")
+        transferRGB(combinedClip,20,20,[0,0,255],"Restored selected clip retains current-mapped excluded hole")
+        transferRGB(combinedClip,44,12,[0,0,255],"Restored clip retains current-mapped intersection limit")
+        transferRGB(combinedClip,4,4,[0,0,255],"Save/Restore restores selected boundary after NULL reset")
+        let resetClip=try booleanPixels("wmf-classic-region-select-clip-null.wmf")
+        transferRGB(resetClip,4,4,[255,0,0],"WMF SelectClipRegion zero restores default clip")
+        transferRGB(resetClip,40,40,[255,0,0],"NULL reset removes selected region restriction")
+        let restoredClip=try booleanPixels("wmf-classic-region-select-clip-restored.wmf")
+        transferRGB(restoredClip,16,16,[255,0,0],"RestoreDC restores copied selected clip after original region deletion")
+        transferRGB(restoredClip,32,16,[0,0,255],"Restored clip preserves destination outside copied geometry")
+        transferRGB(restoredClip,4,4,[0,0,255],"Saved clip survives intervening NULL reset")
+        let zeroIndex=try booleanPixels("wmf-classic-region-zero-index.wmf")
+        transferRGB(zeroIndex,20,16,[255,0,0],"Region object slot zero remains valid for FillRegion")
+        booleanGray(zeroIndex,40,16,255,"Region zero is not NULL for FillRegion")
+        let negative=try booleanPixels("wmf-classic-region-negative.wmf")
+        transferRGB(negative,4,4,[255,0,0],"WMF region scan coordinates preserve signed playback semantics")
+        booleanGray(negative,20,4,255,"Signed region does not wrap into a large unsigned rectangle")
+    }
+    func testClassicRegionFrameUsesAnisotropicUnionInteriorWithoutBandSeams() throws {
+        for ext in ["emf","wmf"] {
+            let prefix=ext=="emf" ? "classic-region-frame-":"wmf-classic-region-frame-"
+            let union=try booleanPixels(prefix+"union."+ext)
+            transferRGB(union,9,32,[255,0,0],"Frame logical X thickness")
+            booleanGray(union,12,32,255,"Frame is not stroke-centered or width doubled")
+            transferRGB(union,20,10,[255,0,0],"Frame logical Y thickness differs from X")
+            booleanGray(union,20,14,255,"Frame Y inner boundary")
+            booleanGray(union,20,24,255,"Adjacent region bands must not leave a per-rectangle seam")
+            // Explicit macOS rectangular union-boundary strip policy. Exact
+            // Windows corner rasterization is not specified by FrameRgn.
+            transferRGB(union,30,28,[255,0,0],"Concave anisotropic boundary-strip corner remains inside union")
+            booleanGray(union,27,30,255,"Concave frame stops beyond both strip extents")
+            transferRGB(union,30,20,[255,0,0],"Frame follows concave union edge")
+            booleanGray(union,35,20,255,"Frame stays inside union")
+            let hole=try booleanPixels(prefix+"hole."+ext)
+            transferRGB(hole,14,32,[255,0,0],"Frame includes inside hole boundary")
+            booleanGray(hole,11,32,255,"Hole frame retains interior strip")
+            booleanGray(hole,32,32,255,"Frame never fills hole")
+            let islands=try booleanPixels(prefix+"islands."+ext)
+            transferRGB(islands,9,16,[255,0,0],"First disconnected frame island")
+            transferRGB(islands,41,48,[255,0,0],"Second disconnected frame island")
+            booleanGray(islands,32,32,255,"Frame never bridges disconnected regions")
+        }
+        XCTAssertEqual(try booleanPixels("classic-region-frame-negative.emf").bytes,try booleanPixels("classic-region-frame-union.emf").bytes,"Frame negative widths use absolute logical extents")
+        let zero=try booleanPixels("classic-region-frame-zero.emf"),zeroX=try booleanPixels("classic-region-frame-zero-x.emf"),zeroY=try booleanPixels("classic-region-frame-zero-y.emf")
+        XCTAssertEqual(zero.bytes,try booleanPixels("classic-region-empty.emf").bytes,"Both-zero frame has no area")
+        transferRGB(zeroX,32,10,[255,0,0],"Zero-X frame retains horizontal inner borders")
+        booleanGray(zeroX,9,32,255,"Zero-X frame has no vertical inner borders")
+        transferRGB(zeroY,9,32,[255,0,0],"Zero-Y frame retains vertical inner borders")
+        booleanGray(zeroY,32,10,255,"Zero-Y frame has no horizontal inner borders")
+        let state=try booleanPixels("classic-region-transform-restore.emf")
+        transferRGB(state,20,16,[255,0,0],"Region applies world transform inside saved clip")
+        booleanGray(state,40,16,255,"Region retains effective DC clip")
+        transferRGB(state,48,48,[0,0,255],"RestoreDC restores clip/world/current brush")
+        let rop=try booleanPixels("classic-region-frame-rop2.emf")
+        transferRGB(rop,9,20,[0,255,255],"FrameRgn uses actual R2_XORPEN destination")
+        booleanGray(rop,20,20,255,"ROP2 frame leaves eroded union interior unchanged")
+    }
+    func testClassicFloodUsesDestinationConnectivityModesClipPatternsAndSavedState() throws {
+        for name in ["classic-flood-surface.emf","classic-flood-border.emf","wmf-classic-flood-surface.wmf","wmf-classic-flood-border.wmf","wmf-classic-flood-legacy-border.wmf"] {
+            let pixels=try booleanPixels(name)
+            transferRGB(pixels,16,16,[255,0,0],"Flood paints connected seed component")
+            booleanGray(pixels,40,16,255,"Flood cannot cross actual black dividing wall")
+            booleanGray(pixels,4,4,255,"Enclosing boundary prevents escape")
+            transferRGB(pixels,8,16,[0,0,0],"Flood preserves border destination")
+            transferRGB(pixels,22,22,name.contains("surface") ? [0,0,255]:[255,0,0],"Surface matches seed color; border traverses non-border colors")
+        }
+        for suffix in ["surface-mismatch","border-seed","outside","invalid-color","clipped","hollow"] {
+            let p=try booleanPixels("classic-flood-noop-"+suffix+".emf")
+            booleanGray(p,16,16,255,"Unfillable seed is successful no-op")
+            transferRGB(p,22,22,[0,0,255],"No-op preserves destination island")
+        }
+        for name in ["classic-flood-clip.emf","wmf-classic-flood-clip.wmf"] {
+            let p=try booleanPixels(name)
+            transferRGB(p,16,16,[255,0,0],"Flood uses effective clip as connectivity boundary")
+            booleanGray(p,7,16,255,"Flood does not escape left clip")
+            booleanGray(p,24,16,255,"Flood does not escape right clip")
+        }
+        for name in ["classic-flood-hatch.emf","wmf-classic-flood-hatch.wmf"] {
+            let p=try booleanPixels(name);var red=0,white=0
+            for y in 12..<50 {for x in 12..<28 {let c=p.pixel(x,y);if c[0]>240 && c[1]<15 {red+=1};if c[0]>240 && c[1]>240 && c[2]>240 {white+=1}}}
+            XCTAssertGreaterThan(red,30,"Flood applies selected hatch over complete captured component")
+            XCTAssertGreaterThan(white,30,"Pattern gaps remain actual holes")
+            transferRGB(p,22,22,[0,0,255],"Surface flood preserves nonmatching island beneath pattern")
+            booleanGray(p,40,16,255,"Patterned flood does not cross wall")
+        }
+        let blended=try booleanPixels("classic-flood-alpha-destination.emf")
+        transferRGB(blended,16,16,[0,0,255],"Flood compares actual alpha-composited destination RGB over white DC")
+        booleanGray(blended,7,16,255,"Alpha-derived flood component cannot escape into unpainted white backdrop")
+        booleanGray(blended,26,16,255,"Alpha-derived destination component remains bounded")
+        let diagonal=try booleanPixels("classic-flood-four-connected.emf")
+        transferRGB(diagonal,10,10,[255,0,0],"Seed component contains its single pixel")
+        booleanGray(diagonal,11,11,255,"Flood uses four-neighbor connectivity, not diagonal adjacency")
+        transferRGB(diagonal,9,10,[0,0,0],"Flood preserves surrounding nonmatching pixels")
+        let xor=try booleanPixels("classic-flood-rop2.emf")
+        booleanGray(xor,16,16,0,"Flood participates in R2_XORPEN")
+        booleanGray(xor,32,16,255,"Flood ROP2 leaves pixels outside clip unchanged")
+        let state=try booleanPixels("classic-flood-transform-restore.emf")
+        transferRGB(state,16,16,[255,0,0],"Flood seed uses current transform")
+        booleanGray(state,30,16,255,"Transformed flood remains clipped")
+        transferRGB(state,48,48,[0,0,255],"Flood preserves current brush and restores saved DC state")
+    }
+    func testClassicRegionFloodMalformedRecordsRefuseCompleteImageWithoutSourceChanges() throws {
+        let names=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("unsupported-classic-region-") || $0.hasPrefix("unsupported-wmf-classic-region-")}.sorted()
+        XCTAssertEqual(names.count,23,"Each region/scan/object/flood refusal remains independently enrolled")
+        for name in names {
+            let bytes=try data(name)
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(bytes),name)
+            XCTAssertNil(ComparisonImage(bytes:bytes),name+" cannot return earlier valid paint")
+            XCTAssertEqual(try data(name),bytes,"Region/flood playback must preserve original input")
+        }
+    }
+}

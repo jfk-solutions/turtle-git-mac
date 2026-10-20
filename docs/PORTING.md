@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+The [classic region/flood family](METAFILE-CLASSIC-REGION-FLOOD-PARITY.md) replaces
+silent flood omissions and per-rectangle frame approximations with destination
+connectivity and union-aware logical borders. It connects WMF region object
+lifetime, copied device clips, transforms, brush/ROP2 state and native image
+consumers. Seven distinct relevant Core methods and both offscreen native
+case/engine pairs pass across the grouped checkpoint and focused repairs.
+[Dated evidence](qa/classic-region-flood-2026-10-21.json) records actual scope,
+the initial clip/fixture failures, explicit native-grid/geometry policies and
+remaining physical, format and signed acceptance.
+
 The [classic EMF extended-pen family](METAFILE-CLASSIC-PEN-PARITY.md) connects
 custom/alternate device and geometric strokes, cap/join/InsideFrame geometry,
 hatch/DIB brushes, transforms, clip/ROP2 and saved miter state. Six relevant Core

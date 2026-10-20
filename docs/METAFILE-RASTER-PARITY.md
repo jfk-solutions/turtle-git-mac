@@ -86,8 +86,11 @@ In the ROP3 record family, any nonzero high byte in an operation code is refused
 flags that request operating-system screen capture or alter mirroring. Such flags
 are not interchangeable with a Boolean truth byte. MASKBLT's separate ROP4
 layout uses that byte as its background truth table, as described below.
-Flood fill, framed regions and other separately refused visible record families
-remain outside this extension. EMF+ compositing, including SourceCopy, is a
+The connected [classic region/flood family](METAFILE-CLASSIC-REGION-FLOOD-PARITY.md)
+uses this raster boundary for region fills/frames/inversion and destination-aware
+border/surface flood coverage; its guide records the separate acceptance scope.
+Other separately refused visible record families remain outside this extension.
+EMF+ compositing, including SourceCopy, is a
 separate graphics model and is not enabled by classic GDI ROP support. Hardware
 palette realization and exact Windows edge/font/device behavior remain open.
 

@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "95e33d3994c730e0147ab716b55da9824c56fbc4ba2c426f3d14e2ebea87f0b2",
+    "Contents/Info.plist": "6243d8292dd2736c63594ef2f49684507cbaeb526863a966702ffebb1ad75850",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "01d9789d13afd9ece8aac7c7a97615b55f0e9e37f5211445b613f67b4d166d39",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "940fa5e112b44a1c585a13339c8d07f16d36149a2ab0a9295b31c44728f0287d",
@@ -28,7 +28,7 @@
     "Contents/Resources/en.lproj/LOG-FIND.html": "6f557107c2666c5117ca34d1486449389f82e74eade846a50d75a3a676d7b739",
     "Contents/Resources/en.lproj/MERGE-FILTERS.html": "fd3810301986f74435fb161b42c4abff1bb1f53347e5e2cd9eae51f4c8b2a8af",
     "Contents/Resources/en.lproj/MERGE-TOOL.html": "916a2d4f7bd280cbcb96e22bba49ade7ce5e945288dc0c0c2c1f1188ca553f3a",
-    "Contents/Resources/en.lproj/METAFILE-RASTER-PARITY.html": "e1c90e5a5512ba4c266b864f0d215095b14c6b004ffcb0072c61dd4201020c91",
+    "Contents/Resources/en.lproj/METAFILE-RASTER-PARITY.html": "bafc4ca022ace7b83716ee69d9f848dc31300d6b33268a18fed78027a7264096",
     "Contents/Resources/en.lproj/MISSING-STAGED-FILES.html": "94bbe1572af86ef4b96a93fe81a9cd33ffdfae9ec2799d0d755ef4c13398dc65",
     "Contents/Resources/en.lproj/MOVING-AND-COPYING.html": "76ab47d08eaad445c4ae0fa893f2a3bcf1a93432d4089daa2e1519d8daccc424",
     "Contents/Resources/en.lproj/POWERPOINT-COMPARISON.html": "a12d501fe975912495bd1decc1d898c7ccc3052b8d19e3a74810a6fa77886112",
@@ -95,7 +95,7 @@
     "docs/LOG-FIND.md": "76d55d6d65a79e6bb066468bddd465e81c3a038b4289e2db84a3ded13c5d7e9e",
     "docs/MERGE-FILTERS.md": "c32dbedd77e3f6903bb05bac9d9edc9efbdfad6942bdaad57752a27c7107f028",
     "docs/MERGE-TOOL.md": "f16911856a5878dc4bb783f86bfb073c3ca4e7ca21f0b28c969604ed7d413a28",
-    "docs/METAFILE-RASTER-PARITY.md": "7f04d131ae9f18db0baab00468fc3dc86eaa523bc4d3d299e1883ffd4ccf2e30",
+    "docs/METAFILE-RASTER-PARITY.md": "bd5abf1791e736a9927cc64b61bcb9d21ee7e6617ec4030ac45e823af220f00a",
     "docs/MISSING-STAGED-FILES.md": "8ae05b45701695eb63e173aa9c5f4292fc4036f1512acee4cfd829294cc64663",
     "docs/MOVING-AND-COPYING.md": "763a485e2dd89d0f912db242637f12f821368310a070d784bd122986f38bfe99",
     "docs/POWERPOINT-COMPARISON.md": "045ec11fe5c0ba81d37f538df754739de569ffbedc4b95338d3a3baa3c9d470d",
