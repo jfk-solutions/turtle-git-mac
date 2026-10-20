@@ -766,4 +766,3 @@ private final class SynchronizationReferenceHeader: NSTableHeaderView {
     var makeMenu: () -> NSMenu? = { nil }
     override func menu(for event: NSEvent) -> NSMenu? { makeMenu() }
 }
-

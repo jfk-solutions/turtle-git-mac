@@ -76,7 +76,8 @@
       },
       "check": "passed"
     },
-    "dialog_coverage_reconcile": "passed; partial family audit retained"
+    "dialog_coverage_reconcile": "passed; partial family audit retained",
+    "formatting": "Final staged whitespace check found an extra blank line at EOF in the new helper. Removed in a formatting-only follow-up; no UI labels or behavior changed, so native checks/build were not repeated."
   },
   "remaining": [
     "Physical pointer/key/menu tracking and VoiceOver",
