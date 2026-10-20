@@ -1794,3 +1794,10 @@ including the branch picker's source-specific HEAD choice, captured native
 preferences and post-delete refill. Ordinary Push stays on its CLI source path.
 Actual grouped evidence and remaining certificate-cache, public/signed/physical
 and complete source acceptance are recorded with that family.
+
+
+## Native source form control continuation
+
+[The connected form family](SOURCE-FORM-CONTROLS-PARITY.md) records reference
+keyboard/focus and bounded captions, Push F5 refresh and Synchronization native
+split controls, with owned state and remaining acceptance kept explicit.

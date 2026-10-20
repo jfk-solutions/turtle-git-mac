@@ -130,3 +130,12 @@ was reused. The current custom source and exact generation record are described
 above. See [service command evidence](qa/service-commands-2026-10-18.json) for
 local checks and outstanding physical Help/Finder, rendered/keyboard and signed
 acceptance.
+
+
+## Attribution command artwork
+
+The [native form continuation](SOURCE-FORM-CONTROLS-PARITY.md#blame-branding-continuation)
+replaces the remaining Blame command mascot with a deterministic variant of the
+custom TurtleGit source, retaining Git lettering and a magnifier cue. App and
+Finder resource aliases share `TurtleGitBlame.png`; original upstream resources
+remain separately attributed.

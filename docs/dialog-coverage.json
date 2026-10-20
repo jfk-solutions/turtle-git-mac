@@ -2483,6 +2483,7 @@
       "parity_documents": [
         "docs/HELP-PARITY.md",
         "docs/PUSH-PARITY.md",
+        "docs/SOURCE-FORM-CONTROLS-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
@@ -2501,6 +2502,7 @@
         "docs/qa/push-source-validation-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/source-form-controls-2026-10-20.json",
         "docs/qa/temporary-files-2026-10-08.json",
         "docs/qa/transport-pickers-2026-10-15.json",
         "docs/qa/transport-preparation-2026-10-14.json",
@@ -2592,6 +2594,7 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/HELP-PARITY.md",
+        "docs/SOURCE-FORM-CONTROLS-PARITY.md",
         "docs/SWITCH-OPERATION-PARITY.md",
         "docs/SWITCH-PARITY.md",
         "docs/UI-PARITY.md"
@@ -2605,6 +2608,7 @@
         "docs/qa/reference-switch-cleanup-2026-10-09.json",
         "docs/qa/reference-switch-transaction-2026-10-09.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/source-form-controls-2026-10-20.json",
         "docs/qa/switch-pickers-2026-10-09.json",
         "docs/qa/switch-progress-2026-10-08.json",
         "docs/qa/switch-reset-bisect-workflows-2026-10-18.json",
@@ -2629,6 +2633,7 @@
       "parity_documents": [
         "docs/BRANCH-TAG-PARITY.md",
         "docs/HELP-PARITY.md",
+        "docs/SOURCE-FORM-CONTROLS-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
@@ -2643,6 +2648,7 @@
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/source-form-controls-2026-10-20.json",
         "docs/qa/temporary-files-2026-10-08.json",
         "docs/qa/unified-byte-buffer-2026-10-17.json"
       ]
@@ -2763,6 +2769,7 @@
         "docs/MERGE-OPERATION-PARITY.md",
         "docs/MERGE-PARITY.md",
         "docs/MESSAGE-LINK-INTERACTION-PARITY.md",
+        "docs/SOURCE-FORM-CONTROLS-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
@@ -2787,6 +2794,7 @@
         "docs/qa/message-font-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/source-form-controls-2026-10-20.json",
         "docs/qa/source-message-links-2026-10-15.json",
         "docs/qa/switch-reset-progress-family-2026-10-19.json",
         "docs/qa/temporary-files-2026-10-08.json"
@@ -2934,6 +2942,7 @@
         "docs/RESET-OPERATION-PARITY.md",
         "docs/RESET-PARITY.md",
         "docs/RESET-REVERT-BACKEND-PARITY.md",
+        "docs/SOURCE-FORM-CONTROLS-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
@@ -2947,6 +2956,7 @@
         "docs/qa/reset-progress-2026-10-08.json",
         "docs/qa/reset-revert-backend-2026-10-20.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/source-form-controls-2026-10-20.json",
         "docs/qa/switch-reset-bisect-workflows-2026-10-18.json",
         "docs/qa/switch-reset-progress-family-2026-10-19.json",
         "docs/qa/temporary-files-2026-10-08.json"
@@ -3301,6 +3311,7 @@
       "parity_documents": [
         "docs/PRIMARY-COMMAND-BANDS.md",
         "docs/REMOTE-REFERENCE-ENGINE-PARITY.md",
+        "docs/SOURCE-FORM-CONTROLS-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
@@ -3311,6 +3322,7 @@
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/remote-reference-engine-2026-10-19.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/source-form-controls-2026-10-20.json",
         "docs/qa/temporary-files-2026-10-08.json"
       ]
     },

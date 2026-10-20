@@ -336,6 +336,7 @@ import TurtleGitCore
         if AlternativeEditor.activeRequests > 0 || ExternalDocumentApplication.activeRequests > 0 || ExternalToolProcesses.activeRequests > 0 || UnifiedDiffApplication.activeRequests > 0 || DiffToolApplication.activeRequests > 0 || MergeToolApplication.activeRequests > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? CloneWindowController }).contains(where: { $0.model.activeOperation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? CloneProgressWindowController }).contains(where: { $0.model.busy || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        if sender.windows.compactMap({ $0.delegate as? PushWindowController }).contains(where: { $0.model.busy || $0.model.preparing || $0.model.choosingReference || $0.model.managingRemotes || $0.model.confirmation != nil || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? FetchWindowController }).contains(where: { $0.model.operationActive || $0.model.browsing || $0.model.managing || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? PullProgressWindowController }).contains(where: { $0.model.busy || $0.model.confirmingCancellation || $0.model.confirmingConflictHint || $0.model.dispatchingAction || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? FetchProgressWindowController }).contains(where: { $0.model.busy || $0.model.confirmingCancellation || $0.model.confirmingRebaseDecision || $0.model.dispatchingAction || $0.window?.attachedSheet != nil }) { return .terminateCancel }
@@ -385,6 +386,7 @@ import TurtleGitCore
         let referenceBrowsers = sender.windows.compactMap { $0.delegate as? ReferenceBrowserWindowController }
         let blames = sender.windows.compactMap { $0.delegate as? BlameWindowController }
         let logs = sender.windows.compactMap { $0.delegate as? LogWindowController }
+        let pushes = sender.windows.compactMap { $0.delegate as? PushWindowController }
         let fetches = sender.windows.compactMap { $0.delegate as? FetchWindowController }
         let pullsInProgress = sender.windows.compactMap { $0.delegate as? PullProgressWindowController }
         let fetchesInProgress = sender.windows.compactMap { $0.delegate as? FetchProgressWindowController }
@@ -435,6 +437,7 @@ import TurtleGitCore
         for controller in referenceBrowsers { controller.model.confirmingQuit = true }
         for controller in blames { controller.model.confirmingQuit = true }
         for controller in logs { controller.model.confirmingQuit = true }
+        for controller in pushes { controller.model.confirmingQuit = true }
         for controller in fetches { controller.model.confirmingQuit = true }
         for controller in pullsInProgress { controller.model.confirmingQuit = true }
         for controller in fetchesInProgress { controller.model.confirmingQuit = true }
@@ -555,6 +558,7 @@ import TurtleGitCore
             for controller in referenceBrowsers { controller.model.confirmingQuit = false }
             for controller in blames { controller.model.confirmingQuit = false }
             for controller in logs { controller.model.confirmingQuit = false }
+            for controller in pushes { controller.model.confirmingQuit = false }
             for controller in fetches { controller.model.confirmingQuit = false }
             for controller in pullsInProgress { controller.model.confirmingQuit = false }
             for controller in fetchesInProgress { controller.model.confirmingQuit = false }
@@ -598,6 +602,7 @@ import TurtleGitCore
         let referenceBrowsers = sender.windows.compactMap { $0.delegate as? ReferenceBrowserWindowController }
         let blames = sender.windows.compactMap { $0.delegate as? BlameWindowController }
         let logs = sender.windows.compactMap { $0.delegate as? LogWindowController }
+        let pushes = sender.windows.compactMap { $0.delegate as? PushWindowController }
         let fetches = sender.windows.compactMap { $0.delegate as? FetchWindowController }
         let pullsInProgress = sender.windows.compactMap { $0.delegate as? PullProgressWindowController }
         let fetchesInProgress = sender.windows.compactMap { $0.delegate as? FetchProgressWindowController }
@@ -624,6 +629,7 @@ import TurtleGitCore
         for controller in referenceBrowsers { controller.model.confirmingQuit = true }
         for controller in blames { controller.model.confirmingQuit = true }
         for controller in logs { controller.model.confirmingQuit = true }
+        for controller in pushes { controller.model.confirmingQuit = true }
         for controller in fetches { controller.model.confirmingQuit = true }
         for controller in pullsInProgress { controller.model.confirmingQuit = true }
         for controller in fetchesInProgress { controller.model.confirmingQuit = true }
@@ -665,6 +671,7 @@ import TurtleGitCore
             for controller in referenceBrowsers { controller.model.confirmingQuit = false }
             for controller in blames { controller.model.confirmingQuit = false }
             for controller in logs { controller.model.confirmingQuit = false }
+            for controller in pushes { controller.model.confirmingQuit = false }
             for controller in fetches { controller.model.confirmingQuit = false }
             for controller in pullsInProgress { controller.model.confirmingQuit = false }
             for controller in fetchesInProgress { controller.model.confirmingQuit = false }

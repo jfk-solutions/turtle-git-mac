@@ -1,5 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+The [native reference and transport controls](SOURCE-FORM-CONTROLS-PARITY.md)
+connect source form menus and focus across Branch, Tag, Switch, Merge and Reset,
+owned Push F5 refresh, four Synchronization split controls and one-second typing
+coalescing. Long names retain their full menu/tooltips while fitting the native
+window, whose minimum survives hosting updates. TurtleGit Blame uses the fork's
+mascot and Git lettering. One relevant Core method, the Debug app, branding and
+identity checks, and both native groups with both Git engines pass. Fourteen
+light/dark captures were reviewed; all fifteen owned receivers are absent.
+[Evidence](qa/source-form-controls-2026-10-20.json) retains failures and repairs.
+Physical, complete source and signed distribution acceptance remain open.
+
 The connected [Edit Notes lifecycle family](EDIT-NOTES-PARITY.md)
 adds the source author/committer Settings repair loop across Log, RefLog, Rebase
 and Synchronization, captured commit/ref saves, owned cancellation and bounded

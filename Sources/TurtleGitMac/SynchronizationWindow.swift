@@ -343,7 +343,7 @@ enum SynchronizationHistoryOperation: Equatable {
 final class SynchronizationNativeWindow: NSWindow {
     var refreshAction: () -> Void = {}
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.keyCode == 96, event.modifierFlags.intersection([.command,.control,.option,.shift]).isEmpty { refreshAction(); return true }
+        if event.keyCode == 96, event.modifierFlags.intersection([.command,.control,.option,.shift]).isEmpty, event.window === self, isKeyWindow, attachedSheet==nil, NSApp.modalWindow==nil { refreshAction(); return true }
         return super.performKeyEquivalent(with:event)
     }
 }
@@ -1098,6 +1098,79 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     @Published private(set) var remotes: [String] = []
     @Published private(set) var branchHistory: [String] = []
     @Published private(set) var urlHistory: [String] = []
+    // A receipt belongs to one rendered form and one read generation. Native
+    // controls may still deliver callbacks after SwiftUI disables/replaces them.
+    struct FormContext:Equatable {
+        let owner:ObjectIdentifier,revision:UUID
+        let values:[GitReferenceName]
+        let force:Bool
+        let textRevisions:[UUID]
+    }
+    private var formRevision=UUID() {didSet {cancelDeferredTextReload()}}
+    private var remoteTextRevision=UUID(),branchTextRevision=UUID()
+    private var deferredTextTask:Task<Void,Never>?
+    private var deferredTextID:UUID?
+    private var formReadToken:OperationCancellation?
+    private var formCatalogLoaded=false
+    @Published private(set) var waitingForInput=false
+    var formContext:FormContext {.init(owner:ObjectIdentifier(self),revision:formRevision,values:[localBranch,remoteBranch,remote].map {GitReferenceName($0)},force:force,textRevisions:[remoteTextRevision,branchTextRevision])}
+    private var formOwnerAvailable:Bool {!closed && !confirmingQuit && !confirmingCancellation && !transportRunning && !hasBlockingChild && window?.attachedSheet==nil && NSApp.modalWindow==nil}
+    var canEditForm:Bool {formOwnerAvailable && !busy}
+    var canEditText:Bool {formOwnerAvailable && (!busy || formCatalogLoaded && formReadToken != nil && token === formReadToken)}
+    var canUseActionControl:Bool {canEditForm && window != nil}
+    func acceptsForm(_ context:FormContext)->Bool {canEditForm && context==formContext}
+    // Continuous callbacks from the same field editor keep their receipt. A
+    // different field, option, picker, command, Quit or read generation retires it.
+    private func acceptsText(_ context:FormContext,key:ReferenceWritableKeyPath<SynchronizationWindowModel,String>)->Bool {
+        guard canEditText,context.owner==ObjectIdentifier(self),context.revision==formRevision,context.force==force else{return false}
+        let index:Int
+        if key == \.remote {index=2} else if key == \.remoteBranch {index=1} else{return false}
+        guard context.textRevisions[index==2 ? 0:1] == (index==2 ? remoteTextRevision:branchTextRevision) else{return false}
+        return context.values.enumerated().allSatisfy {$0.offset==index || $0.element==formContext.values[$0.offset]}
+    }
+    func formString(_ key:ReferenceWritableKeyPath<SynchronizationWindowModel,String>,context:FormContext,tracking:Bool=false)->Binding<String> {
+        Binding(get:{self[keyPath:key]},set:{[weak self] value in
+            guard let self else{return}
+            if key == \.localBranch {
+                guard self.acceptsForm(context) else{return};self[keyPath:key]=value;self.reload(selectTracking:tracking);return
+            }
+            guard self.acceptsText(context,key:key) else{return}
+            if let read=self.formReadToken,self.token === read {read.cancel();self.token=nil;self.formReadToken=nil;self.busy=false}
+            if key == \.remote {self.branchTextRevision=UUID()} else {self.remoteTextRevision=UUID()}
+            self[keyPath:key]=value
+            self.outgoing=nil;self.graph=[];self.fileSelection=[];self.comparison.snapshot=nil
+            self.scheduleTextReload()
+        })
+    }
+    private func cancelDeferredTextReload() {
+        deferredTextID=nil;deferredTextTask?.cancel();deferredTextTask=nil
+        if waitingForInput {waitingForInput=false}
+    }
+    private func scheduleTextReload() {
+        cancelDeferredTextReload()
+        let identity=UUID(),captured=formContext,request=OperationCancellation()
+        deferredTextID=identity;waitingForInput=true
+        let attempt=beginInlineAttempt(request,command:false,preserveFormFocus:true)
+        deferredTextTask=Task { [self] in
+            defer {releaseInlineAttempt(attempt)}
+            do {try await Task.sleep(nanoseconds:1_000_000_000)} catch{return}
+            guard deferredTextID==identity,formOwnerAvailable,formContext==captured,!request.isCancelled else {
+                if deferredTextID==identity {deferredTextID=nil;deferredTextTask=nil;waitingForInput=false};return
+            }
+            deferredTextID=nil;deferredTextTask=nil;waitingForInput=false
+            reload()
+        }
+    }
+    func formForce(context:FormContext)->Binding<Bool> {
+        Binding(get:{self.force},set:{[weak self] value in guard let self,self.acceptsForm(context) else{return};self.force=value;self.reload()})
+    }
+    func setRemoteSelection(_ selected:Bool,context:FormContext) {
+        guard acceptsText(context,key:\.remote) else{return};remoteWasSelected=selected
+    }
+    func deleteFormHistory(_ index:Int,remoteURL:Bool,context:FormContext,entries:[String]) {
+        guard acceptsForm(context),entries.map({GitReferenceName($0)})==(remoteURL ? remoteChoices:branchHistory).map({GitReferenceName($0)}) else{return}
+        if remoteURL {deleteURLHistory(at:index)} else {deleteBranchHistory(at:index)}
+    }
     @Published var localBranch = ""
     @Published var remoteBranch = ""
     @Published var remote = ""
@@ -1105,6 +1178,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     @Published var force = false
     @Published var confirmingQuit = false {
         didSet {
+            if confirmingQuit != oldValue { formRevision=UUID() }
             conflictFileActionsStorage?.confirmingQuit = confirmingQuit
             comparison.confirmingQuit = confirmingQuit
             incomingComparison.confirmingQuit = confirmingQuit
@@ -1411,9 +1485,10 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
             DockProgressRegistry.shared.update(attempt.dockOwner, value)
         }
     }
-    private func beginInlineAttempt(_ request: OperationCancellation, command: Bool) -> SynchronizationInlineAttempt {
+    private func beginInlineAttempt(_ request: OperationCancellation, command: Bool, preserveFormFocus:Bool=false) -> SynchronizationInlineAttempt {
         let attempt = SynchronizationInlineAttempt(cancellation: request, displaysCommand: command)
-        window?.makeFirstResponder(nil)
+        if !preserveFormFocus {window?.makeFirstResponder(nil)}
+        if command {formRevision=UUID()}
         inlineAttempts[attempt.identity] = attempt; Self.activeInlineOperations += 1
         if command {
             completionRange = nil; commandCancelled = false; inlineCommandFinished = false; inlineCompletionSucceeded = false
@@ -1498,9 +1573,9 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     var onEmailMessage: (String, String) -> Void = { _, _ in }
     @Published var emailingPatches = false
     var onBrowseBranch: (SynchronizationBranchTarget) -> Void = { _ in }
-    @Published var choosingBranch = false
+    @Published var choosingBranch = false {didSet {if choosingBranch != oldValue {formRevision=UUID()}}}
     var onManageRemotes: () -> Void = {}
-    @Published var managingRemotes = false
+    @Published var managingRemotes = false {didSet {if managingRemotes != oldValue {formRevision=UUID()}}}
     var onStashOptions: () -> Void = {}
     var onSubmoduleOptions: (SynchronizationSubmoduleAction) -> Void = { _ in }
     var onTagLog: ((String) -> Void)?
@@ -1664,6 +1739,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     }
     var status: String {
         if transportRunning { return cancelling ? "Cancelling…" : (currentWork.isEmpty ? "Running Git…" : currentWork) }
+        if waitingForInput {return "Waiting for input"}
         if busy { return "Loading…" }
         if let historyNoteWarning { return historyNoteWarning + (error.map { "\n\n" + $0 } ?? "") }
         if let error { return error }
@@ -1677,22 +1753,23 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         case nil: return ""
         }
     }
-    func invalidate() { inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll();closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { formRevision=UUID(); inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll();closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
-        guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild else { return }
+        guard !closed, !confirmingQuit, !confirmingCancellation, !transportRunning, !hasBlockingChild, window?.attachedSheet==nil else { return }
+        formRevision=UUID()
         historyNoteWarning = nil
         token?.cancel()
         comparingTags = false; tagSnapshot = nil; if tab == 7 { tab = 0 }
         let retainedError = preserveError ? error : nil
-        let request = OperationCancellation(); token = request; busy = true; error = retainedError
+        let request = OperationCancellation(); token = request; formReadToken=request; busy = true; error = retainedError
         outgoing = nil; graph = []; fileSelection = []; comparison.snapshot = nil
         let local = localBranch, selectedRemote = remote, selectedBranch = remoteBranch, forced = force
         let selectedChoice = remoteWasSelected
         if refreshRemoteSelection { urlHistory = FetchDialogHistory.load(preferences, key: historyKey + ".urls", caseSensitive: true, maxItems: Int(Int32.max)) }
-        let attempt = beginInlineAttempt(request, command: false)
+        let attempt = beginInlineAttempt(request, command: false,preserveFormFocus:true)
         Task {
             defer { releaseInlineAttempt(attempt) }
-            defer { if token === request { token = nil; busy = false } }
+            defer { if formReadToken === request {formReadToken=nil};if token === request { token = nil; busy = false } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let catalog = try await repository.synchronizationBranches(localBranch: initial ? nil : local, cancellation: request)
@@ -1700,6 +1777,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
                 let branch = initial ? catalog.currentBranch : local
                 let destination = selectTracking || initial ? catalog.trackedBranch : selectedBranch
                 var url = selectTracking || initial ? (catalog.trackedRemote.isEmpty ? (initial ? (urlHistory.first ?? catalog.remotes.first ?? "") : selectedRemote) : catalog.trackedRemote) : selectedRemote
+                formCatalogLoaded=true
                 localBranches = catalog.localBranches; remotes = catalog.remotes
                 if initial || refreshRemoteSelection {
                     for name in remotes { urlHistory = FetchDialogHistory.inserting(name, into: urlHistory, atFront: false, caseSensitive: true, maxItems: Int(Int32.max)) }
@@ -1852,7 +1930,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         guard !closed, !confirmingQuit, !busy, !hasBlockingChild, window?.attachedSheet == nil else { return }
         onManageRemotes()
     }
-    func refresh() { historyNoteWarning = nil; if tab == 6 { refreshConflictFiles() } else if comparingTags { compareTags() } else { reload(refreshRemoteSelection: true) } }
+    func refresh() { guard !closed,!confirmingQuit,!confirmingCancellation,!transportRunning,!hasBlockingChild,window?.attachedSheet==nil else{return}; historyNoteWarning = nil; if tab == 6 { refreshConflictFiles() } else if comparingTags { compareTags() } else { reload(refreshRemoteSelection: true) } }
     func finishNoteEditing(warning: String?) {
         guard !closed else { return }
         refresh()
@@ -2349,10 +2427,9 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
 
 private struct SynchronizationDialog: View {
     @ObservedObject var model: SynchronizationWindowModel
-    private func edit(_ key: ReferenceWritableKeyPath<SynchronizationWindowModel, String>, tracking: Bool = false) -> Binding<String> {
-        Binding(get: { model[keyPath: key] }, set: { model[keyPath: key] = $0; model.reload(selectTracking: tracking) })
-    }
     var body: some View {
+        let context=model.formContext
+        let branches=model.branchHistory,urls=model.remoteChoices
         VStack(spacing: 10) {
             if model.showsInlineProgress {
                 VStack(alignment: .leading, spacing: 8) {
@@ -2372,30 +2449,30 @@ private struct SynchronizationDialog: View {
                     DialogCommandRows {
                         HStack {
                         Text("Local Branch:")
-                        Picker("Local Branch", selection: Binding(get: { GitReferenceName(model.localBranch) }, set: { model.localBranch = $0.rawValue; model.reload(selectTracking: true) })) {
+                        Picker("Local Branch", selection: Binding(get: { GitReferenceName(model.localBranch) }, set: { model.formString(\.localBranch,context:context,tracking:true).wrappedValue=$0.rawValue })) {
                             ForEach(model.localBranches.map { GitReferenceName($0) }, id: \.self) { Text($0.rawValue).tag($0) }
-                        }.labelsHidden()
-                        Button("…") { model.browseBranch(.local) }.accessibilityLabel("Browse local branches")
+                        }.labelsHidden().disabled(!model.canEditForm)
+                        Button("…") { model.browseBranch(.local) }.accessibilityLabel("Browse local branches").disabled(!model.canEditForm)
                         }.frame(minWidth:280,idealWidth:320,maxWidth:.infinity,alignment:.leading).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
                         HStack {
                         Text("Remote Branch:")
-                        FetchHistoryCombo(value: edit(\.remoteBranch), choices: model.branchHistory, label: "Remote Branch", onDelete: model.deleteBranchHistory)
-                        Button("…") { model.browseBranch(.remote) }.accessibilityLabel("Browse remote branches")
+                        FetchHistoryCombo(value: model.formString(\.remoteBranch,context:context), choices: branches, label: "Remote Branch", onDelete: {model.deleteFormHistory($0,remoteURL:false,context:context,entries:branches)})
+                        Button("…") { model.browseBranch(.remote) }.accessibilityLabel("Browse remote branches").disabled(!model.canEditForm)
                         }.frame(minWidth:300,idealWidth:400,maxWidth:.infinity,alignment:.leading).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
                     }
                     DialogCommandRows {
                         Text("Remote URL:").fixedSize()
-                        FetchHistoryCombo(value: edit(\.remote), choices: model.remoteChoices, label: "Remote URL", onDelete: model.deleteURLHistory, onSelectionState: { model.remoteWasSelected = $0 })
+                        FetchHistoryCombo(value: model.formString(\.remote,context:context), choices: urls, label: "Remote URL", onDelete: {model.deleteFormHistory($0,remoteURL:true,context:context,entries:urls)}, onSelectionState: {model.setRemoteSelection($0,context:context)})
                             .frame(minWidth:280,idealWidth:460).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
                         Button { model.manageRemotes() } label: { CommandLabel(title: "Manage", icon: .settings) }
                             .disabled(model.busy || model.confirmingQuit)
                     }
                     DialogCommandRows(spacing:24) {
                         SSHAutoloadToggle(settings: model.sshSettings)
-                        Toggle("Force", isOn: Binding(get: { model.force }, set: { model.force = $0; model.reload() }))
+                        Toggle("Force", isOn: model.formForce(context:context)).disabled(!model.canEditForm)
                     }.padding(.leading, 100)
                 }.padding(6)
-            }.disabled(model.transportRunning || model.hasBlockingChild || model.confirmingCancellation)
+            }.disabled(!model.canEditText)
             }
             if model.tab == 7 {
                 SynchronizationTagTable(model: model)
@@ -2435,48 +2512,16 @@ private struct SynchronizationDialog: View {
                 }
             }.labelsHidden().pickerStyle(.segmented)
             DialogCommandRows {
-                HStack(spacing: 0) {
-                    Button { model.performPullAction() } label: { CommandLabel(title: model.pullActionTitle, icon: model.compareTagsSelected ? .tag : model.pullAction == .pull ? .pull : .fetch) }
-                    Menu {
-                        Button { model.performPullAction(.pull) } label: { CommandLabel(title: "Pull", icon: .pull) }
-                        Button { model.performPullAction(.fetch) } label: { CommandLabel(title: "Fetch", icon: .fetch) }
-                        Button { model.performPullAction(.fetchAndRebase) } label: { CommandLabel(title: "Fetch & Rebase", icon: .rebase) }
-                        Button { model.performPullAction(.fetchAllBranches) } label: { CommandLabel(title: "Fetch All", icon: .fetch) }
-                        Button { model.performPullAction(.remoteUpdate) } label: { CommandLabel(title: "Remote Update", icon: .fetch) }
-                        Button { model.performPullAction(.prune) } label: { CommandLabel(title: "Cleanup stale remote branches", icon: .clean) }
-                        Button { model.compareTags(shift: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Compare Tags", icon: .tag) }
-                    } label: { Text("").accessibilityLabel("Pull actions") }.menuStyle(.borderlessButton).fixedSize()
-                }.disabled(model.busy || model.hasBlockingChild)
-                HStack(spacing: 0) {
-                    Button { model.push() } label: { CommandLabel(title: model.pushActionTitle, icon: .push) }
-                    Menu {
-                        Button { model.push(.push) } label: { CommandLabel(title: "Push", icon: .push) }
-                        Button { model.push(.pushTags) } label: { CommandLabel(title: "Push tags", icon: .tag) }
-                        Button { model.push(.pushNotes) } label: { CommandLabel(title: "Push notes", icon: .push) }
-                    } label: { Text("").accessibilityLabel("Push actions") }.menuStyle(.borderlessButton).fixedSize()
-                }.disabled(model.busy || model.hasBlockingChild)
-                HStack(spacing: 0) {
-                    Button { model.submodule() } label: { CommandLabel(title: model.submoduleAction.title, icon: model.submoduleAction.icon) }
-                    Menu {
-                        ForEach(SynchronizationSubmoduleAction.allCases, id: \.rawValue) { action in
-                            Button { model.submodule(action) } label: { CommandLabel(title: action.title, icon: action.icon) }
-                        }
-                    } label: { Text("").accessibilityLabel("Submodule actions") }.menuStyle(.borderlessButton).fixedSize()
-                }.disabled(model.busy || model.hasBlockingChild)
+                SynchronizationActionControl(model:model,group:.pull)
+                SynchronizationActionControl(model:model,group:.push)
+                SynchronizationActionControl(model:model,group:.submodule)
                 Button { model.applyPatch() } label: { CommandLabel(title: "Apply Patch", icon: .patch) }.disabled(model.busy || model.hasBlockingChild)
                 Button { model.emailPatch() } label: { CommandLabel(title: "Email Patch", icon: .sendMail) }.disabled(!model.canEmailPatch)
             }
             DialogCommandRows {
                 Button { model.onLog(model.localBranch) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.localBranch.isEmpty)
                 Button { model.onCommit() } label: { CommandLabel(title: "Commit", icon: .commit) }.disabled(model.busy)
-                HStack(spacing: 0) {
-                    Button { model.stash() } label: { CommandLabel(title: model.stashAction.title, icon: model.stashAction.icon) }
-                    Menu {
-                        ForEach(SynchronizationStashAction.allCases, id: \.rawValue) { action in
-                            Button { model.stash(action) } label: { CommandLabel(title: action.title, icon: action.icon) }
-                        }
-                    } label: { Text("").accessibilityLabel("Stash actions") }.menuStyle(.borderlessButton).fixedSize()
-                }.disabled(model.busy || model.hasBlockingChild)
+                SynchronizationActionControl(model:model,group:.stash)
                 Button("Refresh") { model.refresh() }.disabled(model.transportRunning || model.hasBlockingChild)
             }
             HStack {

@@ -38,6 +38,9 @@ import TurtleGitCore
         var proposed=NSRect(x:0,y:0,width:512,height:512)
         let cg=expected.cgImage(forProposedRect:&proposed,context:nil,hints:nil)
         try require(cg?.width==512 && cg?.height==512,"Shared brandasset no longer512pixels")
+        let blameResource=app.appendingPathComponent("Contents/Frameworks/TurtleGitCore.framework/Resources/Icons/TurtleGitBlame.png")
+        guard let blameArtwork=NSImage(contentsOf:blameResource) else{throw Failure(description:"Bundled custom attribution artwork missing")}
+        try require(try Data(contentsOf:blameResource)==Data(contentsOf:URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("Sources/TurtleGitCore/Resources/Icons/TurtleGitBlame.png")),"Built attribution asset is stale")
         var owners:[NSWindowController]=[]
         let clipboard=NSPasteboard.withUniqueName()
         defer{owners.forEach{$0.close()};clipboard.releaseGlobally()}
@@ -47,6 +50,14 @@ import TurtleGitCore
             let menu=FinderMenuBuilder.make(paths:[root],snapshot:snapshot,settings:settings,comparisonMark:nil,target:target,actionSelector:#selector(BrandingMenuTarget.invoke(_:)))
             guard let finder=menu.items.first(where:{$0.title=="TurtleGit" && $0.submenu != nil}) else{throw Failure(description:"Actual Finder builder has no root menu")}
             try same(finder.image,expected,size:16,message:"Finder root branding")
+            let attributedFile=root.appendingPathComponent("owned-attribution.txt")
+            try Data("private attribution menu fixture\n".utf8).write(to:attributedFile)
+            let attributedSnapshot=FinderSnapshot(roots:[root.path],states:[root.path:.normal,attributedFile.path:.modified])
+            let attributedMenu=FinderMenuBuilder.make(paths:[attributedFile],snapshot:attributedSnapshot,settings:settings,comparisonMark:nil,target:target,actionSelector:#selector(BrandingMenuTarget.invoke(_:)))
+            func flatten(_ menu:NSMenu)->[NSMenuItem]{menu.items.flatMap{[$0]+($0.submenu.map(flatten) ?? [])}}
+            let blameItem=flatten(attributedMenu).first{($0.representedObject as? FinderMenuCommand)?.request.action == .blame}
+            try require(blameItem != nil,"Actual Finder file menu has no Blame action")
+            try same(blameItem?.image,blameArtwork,size:16,message:"Finder Blame custom attribution artwork")
             settings.showIcons=false
             let hidden=FinderMenuBuilder.make(paths:[root],snapshot:snapshot,settings:settings,comparisonMark:nil,target:target,actionSelector:#selector(BrandingMenuTarget.invoke(_:)))
             try require(hidden.items.first(where:{$0.title=="TurtleGit" && $0.submenu != nil})?.image==nil,"Finder icon preference ignored")
@@ -58,6 +69,10 @@ import TurtleGitCore
                     do {
                         for size in [16,32,40,48,64,128,512] {
                             try same(MenuIcon.turtle.image(size:CGFloat(size)),expected,size:size,message:"MenuIcon.turtle \(name)/\(size)")
+                            try same(MenuIcon.blame.image(size:CGFloat(size)),blameArtwork,size:size,message:"MenuIcon.blame \(name)/\(size)")
+                            try same(MenuIcon.originalImage(resource:"TortoiseGitBlame",size:CGFloat(size)),blameArtwork,size:size,message:"Source Blame alias \(name)/\(size)")
+                            try same(MenuIcon.originalImage(resource:"TurtleGitBlame",size:CGFloat(size)),blameArtwork,size:size,message:"Custom Blame alias \(name)/\(size)")
+
                             try same(MenuIcon.originalImage(resource:"TortoiseSmall",size:CGFloat(size)),expected,size:size,message:"TortoiseSmall alias \(name)/\(size)")
                         }
                     }catch{failure=error}

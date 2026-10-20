@@ -4,6 +4,19 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+/// PushDlg's F5 refresh belongs to this owner, never a sheet or another window.
+@MainActor final class PushNativeWindow:NSWindow {
+    var refreshAction:()->Void = {}
+    var keyOwnerQuery:(NSWindow)->Bool = {$0.isKeyWindow}
+    override func performKeyEquivalent(with event:NSEvent)->Bool {
+        if event.keyCode==96,event.modifierFlags.intersection([.command,.control,.option,.shift]).isEmpty,
+           event.window === self,keyOwnerQuery(self),attachedSheet==nil,NSApp.modalWindow==nil {
+            refreshAction();return true
+        }
+        return super.performKeyEquivalent(with:event)
+    }
+}
+
 @MainActor final class PushWindowController: NSWindowController, NSWindowDelegate {
     let model: PushWindowModel
     var onClosed: () -> Void = {}
@@ -30,10 +43,11 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, historyRegexExecutable: URL? = nil) {
         self.historyRegexExecutable = historyRegexExecutable
         model = PushWindowModel(repository: repository, access: access, preferences: preferences)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 750, height: 590), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = PushNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 750, height: 590), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Push", preferences: preferences); window.contentMinSize = NSSize(width: 720, height: 620); window.isReleasedWhenClosed = false
         let host = NSHostingController(rootView: PushDialog(model: model).defaultAppStorage(preferences)); host.sizingOptions = []; window.contentViewController = host
-        super.init(window: window); model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.setContentSize(NSSize(width: 750, height: 620)); window.center()
+        super.init(window: window); model.window=window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.setContentSize(NSSize(width: 750, height: 620)); window.center()
+        window.refreshAction = { [weak self] in self?.model.refreshFromSourceCommand() }
         model.becameIdle = { [weak self] in if self?.closingPreparation == true { self?.window?.performClose(nil) } }
         model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onProgress = { [weak self] result in
@@ -134,6 +148,7 @@ import TurtleGitCore
     }
     func windowWillClose(_ notification: Notification) {
         serviceRetiredSheet=window?.attachedSheet
+        (window as? PushNativeWindow)?.refreshAction = {}
         NotificationCenter.default.removeObserver(self); pickerRequest = nil; pendingPicker = nil; pickerFocus = nil
         model.invalidate(); referencePicker?.abandonPresentation(); referencePicker = nil; progressController?.close(); progressController = nil
         let logPicker = sourceLogPicker, refLogPicker = sourceRefLogPicker
@@ -142,9 +157,15 @@ import TurtleGitCore
             child.sheetParent?.endSheet(child)
             child.close()
         }
-        onClosed()
+        if serviceWorkPending {
+            Task { [self] in
+                while serviceWorkPending {try? await Task.sleep(nanoseconds:20_000_000)}
+                onClosed()
+            }
+        } else {onClosed()}
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !model.confirmingQuit else { return false }
         if model.preparing { closingPreparation = true; model.cancelPreparation(); return false }
         if model.progress != nil { if model.transportRunning { model.cancel() }; return false }
         guard model.transportRunning else { return !model.busy && sender.attachedSheet == nil }
@@ -166,6 +187,7 @@ import TurtleGitCore
         progress?.invalidate(); progress = nil; busy = false; preparingSource = false; confirmation = nil
         becameIdle = {}; close = {}
     }
+    weak var window:NSWindow?
     var closed: Bool { invalidated }
     private var metadataToken: OperationCancellation?
     private var sourceToken: OperationCancellation?
@@ -178,7 +200,7 @@ import TurtleGitCore
     private var loadPresetPreserveAll = false
     private var retryRemoteCatalog = false
     func retryPreparation() {
-        guard !closed, !busy, !preparing else { return }
+        guard !closed, !confirmingQuit, !busy, !preparing else { return }
         if retryRemoteCatalog { refreshRemoteCatalog() } else if !metadataLoaded { load(source: loadPresetSource, preserveAllBranches: loadPresetPreserveAll) } else { sourceChanged() }
     }
     private func validateRepositoryAccess() throws {
@@ -192,6 +214,12 @@ import TurtleGitCore
     lazy var clientHooks = ClientHookSession(preferences: preferences)
     private var postHookFailure: String?
     @Published private(set) var formRevision = UUID()
+    @Published var confirmingQuit=false { didSet { if confirmingQuit != oldValue { formRevision=UUID() } } }
+    var canRefresh:Bool { !closed && !confirmingQuit && !busy && !preparing && !choosingReference && !managingRemotes && confirmation==nil && progress==nil && window?.attachedSheet==nil && NSApp.modalWindow==nil }
+    func refreshFromSourceCommand() {
+        guard canRefresh else{return}
+        if metadataLoaded {refreshRemoteCatalog()} else {load(source:loadPresetSource,preserveAllBranches:loadPresetPreserveAll)}
+    }
     private var confirmationRequest: UUID?
     @Published var options = PushOptions()
     @Published var remotes: [String] = []
@@ -209,7 +237,7 @@ import TurtleGitCore
     @Published private(set) var confirmingCancellation = false
     private var cancellation: OperationCancellation?
     var transportRunning: Bool { cancellation != nil }
-    var canCancel: Bool { !invalidated && !choosingReference && (preparing || !busy || transportRunning && !cancelling && !confirmingCancellation) }
+    var canCancel: Bool { !invalidated && !confirmingQuit && !choosingReference && (preparing || !busy || transportRunning && !cancelling && !confirmingCancellation) }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     @Published var url = ""
     @Published var urls: [String] = []
@@ -220,7 +248,7 @@ import TurtleGitCore
     @Published var confirmation: String?
     var confirmPush: (String, Bool, Bool, @escaping (Bool, Bool) -> Void) -> Void = { _, _, _, _ in }
     @Published var choosingReference = false { didSet { if choosingReference != oldValue { formRevision = UUID() } } }
-    var canChooseReference: Bool { !invalidated && !busy && !preparing && !choosingReference && !preparationNeedsRetry && !options.allBranches && confirmation == nil && progress == nil }
+    var canChooseReference: Bool { !invalidated && !confirmingQuit && !busy && !preparing && !choosingReference && !preparationNeedsRetry && !options.allBranches && confirmation == nil && progress == nil }
     var pickReferences: (Bool) -> Void = { _ in }
     func browseReferences(destination: Bool) { guard canChooseReference else { return }; pickReferences(destination) }
     var clipboardText: () -> String? = { NSPasteboard.general.string(forType: .string) ?? NSPasteboard.general.string(forType: .fileURL) }
@@ -239,7 +267,7 @@ import TurtleGitCore
     var canTrack: Bool { !options.arbitraryURL && (options.allBranches || localBranch != nil) }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences; sshSettings = SSHTransportSettings(repository: repository) }
     func load(source: String? = nil, preserveAllBranches: Bool = false) {
-        guard !invalidated, !busy, progress == nil else { return }
+        guard !invalidated, !confirmingQuit, !busy, progress == nil else { return }
         retryRemoteCatalog = false
         formRevision = UUID(); loadPresetSource = source; loadPresetPreserveAll = preserveAllBranches
         sourceToken?.cancel(); generation += 1
@@ -277,7 +305,7 @@ import TurtleGitCore
     }
     /// Refresh after the remote manager without resetting the user's operation draft.
     func refreshRemoteCatalog() {
-        guard !invalidated, !busy, progress == nil else { return }
+        guard !invalidated, !confirmingQuit, !busy, progress == nil else { return }
         formRevision = UUID(); sourceToken?.cancel(); generation += 1
         let snapshot = options, token = OperationCancellation()
         metadataToken = token; busy = true; error = nil; preparationNeedsRetry = false; retryRemoteCatalog = true
@@ -307,7 +335,7 @@ import TurtleGitCore
         let owner: ObjectIdentifier; let revision: UUID; let base: [GitReferenceName]
     }
     var formContext: FormContext { .init(owner:ObjectIdentifier(self),revision:formRevision,base:[options.source,options.remote,String(options.arbitraryURL),String(options.allRemotes),String(options.allBranches)].map { GitReferenceName($0) }) }
-    var canEditSource: Bool { !closed && !busy && metadataToken == nil && metadataLoaded && !choosingReference && !managingRemotes && confirmation == nil && progress == nil }
+    var canEditSource: Bool { !closed && !confirmingQuit && !busy && metadataToken == nil && metadataLoaded && !choosingReference && !managingRemotes && confirmation == nil && progress == nil && window?.attachedSheet==nil && NSApp.modalWindow==nil }
     var canEditForm: Bool { canEditSource && !preparingSource && !preparationNeedsRetry }
     func accepts(_ context: FormContext, source: Bool = false) -> Bool {
         context.owner == ObjectIdentifier(self) && context.revision == formRevision && (source ? canEditSource : canEditForm && context == formContext)
@@ -431,7 +459,7 @@ import TurtleGitCore
         pushOptionHistory = FetchDialogHistory.save(snapshot.pushOption, entries: pushOptionHistory, preferences: preferences, key: pushOptionHistoryKey, caseSensitive: true)
     }
     func cancel() {
-        guard !invalidated else { return }
+        guard !invalidated, !confirmingQuit else { return }
         if preparing { cancelPreparation(); return }
         if let progress, !progress.busy { progress.close(); return }
         guard busy else { close(); return }
@@ -459,7 +487,7 @@ import TurtleGitCore
     }
     func push(confirmed: Bool = false) {
         guard !choosingReference else { return }
-        guard !invalidated, !busy, !preparing, !preparationNeedsRetry, progress == nil, confirmed || confirmation == nil else { return }
+        guard !invalidated, !confirmingQuit, !busy, !preparing, !preparationNeedsRetry, progress == nil, confirmed || confirmation == nil else { return }
         if !confirmed {
             let source = FetchDialogHistory.trim(options.source), destination = FetchDialogHistory.trim(options.destination)
             if options.allBranches && !preferences.bool(forKey: "PushAllBranches") {
@@ -612,7 +640,7 @@ private struct PushDialog: View {
                 Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel)
                 Button("Help") { TurtleGitHelp.show(.push) }
             }
-        }.padding(16)
+        }.padding(16).disabled(model.confirmingQuit)
         .alert("Push failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
         .sheet(isPresented: $model.managingRemotes) { PushRemoteSettings(model: model) }
     }

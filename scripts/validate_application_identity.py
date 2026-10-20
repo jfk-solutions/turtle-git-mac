@@ -137,6 +137,11 @@ def validate(app):
     assert shared.read_bytes() == (root/'Sources/TurtleGitCore/Resources/Icons/TurtleGitApplication.png').read_bytes()
     assert shared.read_bytes() == (assets/'icon_512x512.png').read_bytes(), 'Native branding differs from 512px custom artwork'
     transparent_png(shared, (512, 512))
+    blame = app/'Contents/Frameworks/TurtleGitCore.framework/Resources/Icons/TurtleGitBlame.png'
+    assert blame.read_bytes() == (root/'Sources/TurtleGitCore/Resources/Icons/TurtleGitBlame.png').read_bytes()
+    transparent_png(blame, (512, 512))
+    assert blame.read_bytes() != shared.read_bytes(), 'Attribution command lost its magnifier cue'
+
     print(f'Application/document identity: custom source/prompt provenance, transparent 1024/512px branding, ten macOS icon slots, compiled catalog/ICNS and alternate patch/diff handler verified: {app}')
 
 if __name__ == '__main__': validate(Path(sys.argv[1]))

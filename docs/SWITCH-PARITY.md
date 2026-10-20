@@ -265,3 +265,10 @@ preference domains independent, and identity-checked close callbacks cannot eras
 a newer cached owner. An already active Bisect operation in the same repository
 continues to exclude a competing operation across those domains; the cache change
 does not permit concurrent bisect mutations.
+
+
+## Native source form control continuation
+
+[The connected form family](SOURCE-FORM-CONTROLS-PARITY.md) records reference
+keyboard/focus and bounded captions, Push F5 refresh and Synchronization native
+split controls, with owned state and remaining acceptance kept explicit.

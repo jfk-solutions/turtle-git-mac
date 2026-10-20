@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 import TurtleGitCore
 
 struct ResetChooserDraft: Equatable {
@@ -61,9 +62,9 @@ struct ResetChooserDraft: Equatable {
         self.preferences = preferences
         model = ResetWindowModel(repository: repository, access: access, revision: revision, preferences: preferences)
         let size = NSSize(width: 690, height: 405)
-        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = ReferenceFormNativeWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Reset", preferences: preferences)
-        window.contentMinSize = size; window.contentMaxSize = NSSize(width: 4000, height: size.height); window.isReleasedWhenClosed = false
+        window.referenceMinimumContentSize = size; window.contentMaxSize = NSSize(width: 4000, height: size.height); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ResetDialog(model: model, chooser: model.chooser).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
         window.setContentSize(size); window.center()
@@ -246,6 +247,7 @@ struct ResetChooserDraft: Equatable {
     }
     let access: RepositoryAccessLease?
     private let initialRevision: String?
+    var formPreferences:UserDefaults {preferences}
     private let preferences: UserDefaults
     @Published var currentBranch = ""
     @Published var mode = ResetMode.mixed
@@ -433,10 +435,21 @@ struct ResetChooserDraft: Equatable {
 private struct ResetDialog: View {
     @ObservedObject var model: ResetWindowModel
     @ObservedObject var chooser: SwitchWindowModel
+    private func commands(_ context:ResetWindowModel.FormContext)->[ReferenceFormCommand] {[
+        .init(id:"branch",title:"Branch",key:"b",sourceKey:"b",icon:.branch,focus:"Reset branch revision",action:{model.targetBinding(context:context).wrappedValue = .branch}),
+        .init(id:"tag",title:"Tag",key:"t",sourceKey:"t",icon:.tag,focus:"Reset tag revision",action:{model.targetBinding(context:context).wrappedValue = .tag}),
+        .init(id:"commit",title:"Commit",key:"c",sourceKey:"c",icon:.log,focus:"Reset commit revision",action:{model.targetBinding(context:context).wrappedValue = .commit}),
+        .init(id:"browseReferences",title:"Browse references",key:"r",icon:.repositoryBrowser,enabled:model.canShowReferencePicker,action:{model.showReferencePicker()}),
+        .init(id:"chooseCommit",title:"Choose commit",key:"g",icon:.log,enabled:model.canShowCommitPicker,action:{model.showCommitPicker()}),
+        .init(id:"soft",title:"Soft: Leave working tree and index untouched",key:"s",sourceKey:"s",icon:.reset,focus:"ReferenceForm.soft",action:{model.modeBinding(context:context).wrappedValue = .soft}),
+        .init(id:"mixed",title:"Mixed: Leave working tree untouched, reset index",key:"m",sourceKey:"m",icon:.reset,enabled:!model.bare,focus:"ReferenceForm.mixed",action:{model.modeBinding(context:context).wrappedValue = .mixed}),
+        .init(id:"hard",title:"Hard: Reset working tree and index (discard all local changes)",key:"h",sourceKey:"h",icon:.reset,enabled:!model.bare,focus:"ReferenceForm.hard",action:{model.modeBinding(context:context).wrappedValue = .hard}),
+        .init(id:"modifiedFiles",title:"Show modified files in working tree",key:"w",sourceKey:"w",icon:.compare,enabled:model.canShowModifiedFiles,action:{model.showModifiedFiles()})]
+    }
     var body: some View {
         let context=model.formContext
         VStack(alignment: .leading, spacing: 12) {
-            HStack { Text("Current branch:").frame(width: 110, alignment: .leading); Text(model.currentBranch.isEmpty ? "detached HEAD" : model.currentBranch).textSelection(.enabled); Spacer() }
+            HStack { Text("Current branch:").frame(width: 110, alignment: .leading); ReferenceFormCaption(value:model.currentBranch.isEmpty ? "detached HEAD":model.currentBranch,label:"Current branch").frame(maxWidth:.infinity).frame(height:22) }
             GroupBox("Reset active branch") {
                 VStack(spacing: 6) {
                     HStack { SwitchRadio(title: "Branch", target: .branch, selection: model.targetBinding(context:context)).frame(width: 100)
@@ -466,6 +479,7 @@ private struct ResetDialog: View {
                 Button { TurtleGitHelp.show(.reset) } label: { CommandLabel(title: "Help", icon: .help) }
             }
         }.padding(12).disabled(!model.canEditForm).onAppear { model.load() }
+        .background(ReferenceFormCommands(entries:commands(context),preferences:model.formPreferences,available:{model.canEditForm},changes:model.objectWillChange.merge(with:chooser.objectWillChange).eraseToAnyPublisher()).frame(width:0,height:0))
         .overlay(alignment: .bottomLeading) { if model.busy && model.progress == nil || chooser.initialReadActive { Button("Cancel") { model.cancelReads() }.padding(12) } }
         .sheet(item: $chooser.browser) { target in SwitchReferenceChooser(model: chooser, target: target) }
         .alert("Reset failed", isPresented: Binding(get: { model.error != nil || chooser.error != nil }, set: { if !$0 { model.error = nil; chooser.error = nil } })) { Button("OK") { model.error = nil; chooser.error = nil } } message: { Text(model.error ?? chooser.error ?? "") }
@@ -484,7 +498,7 @@ private struct ResetRadio: NSViewRepresentable {
         return button
     }
     func updateNSView(_ button: Button, context: Context) {
-        button.title = title; button.state = selection == value ? .on : .off; button.isEnabled = enabled
+        button.title = title;button.toolTip=title;button.identifier = .init("ReferenceForm."+value.rawValue); button.state = selection == value ? .on : .off; button.isEnabled = enabled && !button.lifetime.retired
         context.coordinator.select = { selection = value }
         button.focus = { [weak button, weak model] in
             guard let button, let model, model.mode == value, model.canFocusInitialMode,
@@ -493,17 +507,18 @@ private struct ResetRadio: NSViewRepresentable {
         }
         button.scheduleFocus()
     }
-    static func dismantleNSView(_ button: Button, coordinator: Coordinator) { button.focus = nil; coordinator.select = {} }
-    final class Coordinator: NSObject { var select: () -> Void = {}; @objc func clicked(_ sender: NSButton) { select() } }
+    static func dismantleNSView(_ button: Button, coordinator: Coordinator) { button.focus = nil; button.lifetime.retire();coordinator.live=false;coordinator.select = {} }
+    final class Coordinator: NSObject { var select: () -> Void = {};var live=true; @objc func clicked(_ sender: NSButton) {guard live,sender.isEnabled,sender.window != nil else{return}; select() } }
     final class Button: NSButton {
+        let lifetime=TransportControlLifetime()
         var focus: (() -> Void)?
         private var focusQueued = false
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); scheduleFocus() }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); lifetime.observe(self);scheduleFocus() }
         func scheduleFocus() {
-            guard let owner = window, !focusQueued else { return }; focusQueued = true
+            guard !lifetime.retired,let owner = window, !focusQueued else { return }; focusQueued = true
             DispatchQueue.main.async { [weak self, weak owner] in
                 guard let self else { return }; self.focusQueued = false
-                guard let owner, self.window === owner else { return }; self.focus?()
+                guard !self.lifetime.retired,let owner, self.window === owner else { return }; self.focus?()
             }
         }
     }

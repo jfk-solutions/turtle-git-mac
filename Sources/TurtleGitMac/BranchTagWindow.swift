@@ -32,10 +32,10 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
 
     init(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, preferences: UserDefaults = .standard) {
         model = BranchTagWindowModel(repository: repository, access: access, isTag: isTag, preferences: preferences)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 560),
+        let window = ReferenceFormNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 560),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Create \(isTag ? "Tag" : "Branch")", preferences: preferences)
-        window.contentMinSize = NSSize(width: 650, height: 530); window.isReleasedWhenClosed = false
+        window.referenceMinimumContentSize = NSSize(width: 650, height: 530); window.isReleasedWhenClosed = false
         let host = NSHostingController(rootView: BranchTagDialog(model: model, chooser: model.chooser).defaultAppStorage(preferences)); host.sizingOptions = []; window.contentViewController = host
         super.init(window: window); window.delegate = self
         pickers = VersionPickerCoordinator(window: window, model: model.chooser, access: access, preferences: preferences, allowed: { [weak model] in model?.canPickBase == true })
@@ -238,6 +238,7 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
     let chooser: SwitchWindowModel
     let isTag: Bool
     private let access: RepositoryAccessLease?
+    var formPreferences:UserDefaults {preferences}
     private let preferences: UserDefaults
     private var loadToken: OperationCancellation?
     private var creationToken: OperationCancellation?
@@ -500,6 +501,24 @@ struct BranchTagDialog: View {
         let context = model.formContext
         return BaseRadio(title: title, selected: !model.useHead && chooser.options.target == target) { model.selectBase(target,context:context) }
     }
+    private func commands(_ context:BranchTagWindowModel.FormContext)->[ReferenceFormCommand] {
+        var commands:[ReferenceFormCommand]=[
+            .init(id:"name",title:"Name",key:"n",sourceKey:"n",icon:model.isTag ? .tag:.branch,focus:model.isTag ? "Tag name":"Branch name",action:{}),
+            .init(id:"head",title:"HEAD",key:"h",sourceKey:"h",icon:.log,focus:"ReferenceForm.HEAD",action:{model.selectBase(nil,context:context)}),
+            .init(id:"branch",title:"Branch",key:"b",sourceKey:"b",icon:.branch,focus:"Base branch revision",action:{model.selectBase(.branch,context:context)}),
+            .init(id:"tag",title:"Tag",key:"t",sourceKey:"t",icon:.tag,focus:"Base tag revision",action:{model.selectBase(.tag,context:context)}),
+            .init(id:"commit",title:"Commit",key:"c",sourceKey:"c",icon:.log,focus:"Base commit revision",action:{model.selectBase(.commit,context:context)}),
+            .init(id:"browseReferences",title:"Browse references",key:"r",icon:.repositoryBrowser,enabled:model.canPickBase && chooser.options.target == .branch,action:{model.browseBase(.branch,context:context)}),
+            .init(id:"chooseCommit",title:"Choose commit",key:"g",icon:.log,enabled:model.canPickBase && chooser.options.target == .commit,action:{model.browseBase(.commit,context:context)}),
+            .init(id:"track",title:"Track",key:"k",sourceKey:"k",icon:.branch,enabled:model.remote,action:{model.option(\.tracking,context:context).wrappedValue = model.options.tracking == .automatic ? .noTrack:model.options.tracking == .noTrack ? .track:.automatic}),
+            .init(id:"force",title:"Force",key:"f",sourceKey:"f",action:{model.option(\.force,context:context).wrappedValue = !model.options.force})]
+        if model.isTag {
+            commands.append(.init(id:"sign",title:"Sign",key:"s",sourceKey:"g",icon:.certificate,enabled:model.canSign,action:{model.option(\.sign,context:context).wrappedValue = !model.options.sign}))
+            commands.append(.init(id:"push",title:"Push",key:"p",sourceKey:"p",icon:.push,action:{model.boolean(\.pushAfterCreation,context:context).wrappedValue = !model.pushAfterCreation}))
+        } else if model.canSwitch {commands.append(.init(id:"switch",title:"Switch to new branch",key:"s",sourceKey:"s",icon:.checkout,action:{model.boolean(\.switchAfterCreation,context:context).wrappedValue = !model.switchAfterCreation}))}
+        commands.append(.init(id:"message",title:model.isTag ? "Message":"Description",key:"m",sourceKey:"m",icon:.rebaseEdit,focus:"ReferenceForm.message",action:{}))
+        return commands
+    }
     var body: some View {
         let context = model.formContext
         VStack(spacing: 14) {
@@ -523,22 +542,22 @@ struct BranchTagDialog: View {
                     }.frame(height: 26)
                 }.padding(8)
             }.disabled(model.createdBranch != nil || model.busy || chooser.busy || chooser.pickerTarget != nil || model.confirmingCancellation)
-            GroupBox("Options") { HStack {
+            GroupBox("Options") { DialogCommandRows(spacing:14) {
                 TrackingCheckbox(value: model.option(\.tracking,context:context), enabled: model.remote).frame(width: 115).help("Checked passes --track, unchecked passes --no-track; mixed passes neither (see Help).")
                 Toggle("Force", isOn: model.option(\.force,context:context)).help("Force creation of branch/tag, even if one with the same name already exists.")
                 if model.isTag {
                     Toggle("Sign", isOn: model.option(\.sign,context:context)).disabled(!model.canSign).help("GPG signs the tag; see the manual for details.")
                     Toggle("Push", isOn: model.boolean(\.pushAfterCreation,context:context))
                 } else if model.canSwitch { Toggle("Switch to new branch", isOn: model.boolean(\.switchAfterCreation,context:context)) }
-                Spacer()
             }.padding(8) }.disabled(model.createdBranch != nil || model.busy || chooser.busy || chooser.pickerTarget != nil || model.confirmingCancellation)
-            GroupBox(model.isTag ? "Message" : "Description") { TextEditor(text: model.option(\.message,context:context)).font(.system(.body, design: .monospaced)).frame(minHeight: 75) }.disabled(model.createdBranch != nil || model.busy || chooser.busy || chooser.pickerTarget != nil || model.confirmingCancellation)
+            GroupBox(model.isTag ? "Message" : "Description") { TextEditor(text: model.option(\.message,context:context)).accessibilityLabel(model.isTag ? "Tag message":"Branch description").accessibilityIdentifier("ReferenceForm.message").font(.system(.body, design: .monospaced)).frame(minHeight: 75) }.disabled(model.createdBranch != nil || model.busy || chooser.busy || chooser.pickerTarget != nil || model.confirmingCancellation)
             HStack { if model.busy || chooser.busy || chooser.pickerTarget != nil { ProgressView().controlSize(.small) }; Spacer()
                 Button(model.retryDescription ? "Retry description" : model.createdBranch == nil ? "OK" : "Retry checkout") { model.create() }.keyboardShortcut(.defaultAction).disabled(model.busy || chooser.busy || chooser.pickerTarget != nil || model.confirmingCancellation || model.options.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel)
                 Button("Help") { TurtleGitHelp.show(.branchTag) }
             }
         }.padding(16)
+        .background(ReferenceFormCommands(entries:commands(context),preferences:model.formPreferences,available:{model.canEditForm},changes:model.objectWillChange.merge(with:chooser.objectWillChange).eraseToAnyPublisher()).frame(width:0,height:0))
         .onChange(of: Data(chooser.branchRevision.utf8)) { _ in model.changedBase() }
         .onAppear { if model.canEditForm { nameFocused = true } }
         .onChange(of: model.busy) { busy in if busy { nameFocused = false } else if model.canEditForm { nameFocused = true } }
@@ -557,8 +576,9 @@ struct BaseRadio: NSViewRepresentable {
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSButton { ReferenceChoiceButton(radioButtonWithTitle: title, target: context.coordinator, action: #selector(Coordinator.clicked(_:))) }
+    func sizeThatFits(_ proposal:ProposedViewSize,nsView:NSButton,context:Context)->CGSize? {referenceFormControlSize(proposal,height:22)}
     func updateNSView(_ button: NSButton, context: Context) {
-        button.title = title; button.state = selected ? .on : .off; button.isEnabled = enabled && (button as? ReferenceChoiceButton)?.retired != true; context.coordinator.select = select
+        button.title = title;button.toolTip=title;button.cell?.lineBreakMode = .byTruncatingMiddle;button.setContentCompressionResistancePriority(.defaultLow,for:.horizontal);button.identifier = .init(title.hasPrefix("HEAD (") ? "ReferenceForm.HEAD":"ReferenceForm."+title); button.state = selected ? .on : .off; button.isEnabled = enabled && (button as? ReferenceChoiceButton)?.retired != true; context.coordinator.select = select
     }
     static func dismantleNSView(_ button: NSButton, coordinator: Coordinator) { coordinator.live = false; button.isEnabled = false; button.target = nil; button.action = nil }
     final class Coordinator: NSObject {

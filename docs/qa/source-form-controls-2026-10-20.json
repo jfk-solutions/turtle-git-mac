@@ -1,0 +1,211 @@
+{
+  "date": "2026-10-20",
+  "implementation_baseline": "1cfadcc3",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "dialogs": [
+    "IDD_NEW_BRANCH_TAG",
+    "IDD_GITSWITCH",
+    "IDD_MERGE",
+    "IDD_RESET",
+    "IDD_PUSH",
+    "IDD_SYNC"
+  ],
+  "scope": "Seven native reference/transport forms; source menu and keyboard ownership, long-reference layout and stable minimum sizes, Push F5, four Sync split controls and 1000ms coalesced native text input; custom TurtleGit Blame artwork.",
+  "validation": {
+    "core": {
+      "log": "build/qa/source-form-controls-core-2026-10-20.log",
+      "passed": 1,
+      "failures": 0,
+      "scope": "MenuIconTests/testAllBundledUpstreamIconsDecodeAtMenuAndRetinaSizes; only Core resource consumer changed."
+    },
+    "app_builds": [
+      {
+        "log": "build/qa/source-form-controls-build-2026-10-20.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/source-form-controls-sizing-build-2026-10-20.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/source-form-controls-minimum-build-2026-10-20.log",
+        "exit_code": 0
+      },
+      {
+        "log": "build/qa/source-form-controls-merge-fit-build-2026-10-20.log",
+        "exit_code": 0
+      }
+    ],
+    "native": {
+      "distinct_case_engine_pairs": 4,
+      "scope": "Each references case covers Branch, Tag, Switch, Merge and Reset; each transport case covers Push and Sync. Private homes/config/repositories/preferences/pasteboards, hidden offscreen native owners and exact process cleanup.",
+      "passing_logs": {
+        "references_system": "build/qa/source-form-controls-fit-native-2026-10-20.log",
+        "references_bundled": "build/qa/source-form-controls-references-bundled-fit-2026-10-20.log",
+        "transport_both_engines": "build/qa/source-form-controls-transport-autocomplete-2026-10-20.log"
+      },
+      "branding_log": "build/qa/source-form-branding-native-2026-10-20.log",
+      "identity_log": "build/qa/source-form-identity-2026-10-20.log",
+      "failures_and_repairs": [
+        "Fixture compiler APIs corrected: makeKey and explicit beginSheet completion handler.",
+        "Focus movement publishes form state; fixture now yields and reacquires current command receipt rather than invoking a retired one.",
+        "Hidden nonactivating Push cannot own native key status; injected query defaults to actual isKeyWindow in production. All other event/window/sheet/model guards remain exercised.",
+        "Long native reference popup intrinsic widths displaced source controls; shared sizeThatFits honors offered width, keeping full menu title/tooltip.",
+        "Hosting cleared live minimum sizes. Production now retains each declared native floor; fixture verifies publications, sheets and simulated zero resets.",
+        "Initial fixture resized below declared source floors; it now requests each actual source floor and checks native control bounds.",
+        "Visual review found Merge frame660x540 clipped header/footer. Minimum now uses660x570 content; fresh light/dark captures show complete caption/groups/footer.",
+        "Merge excludes current branch by design. Added noncurrent long branch fixture and exact full menu title/tooltip assertions.",
+        "First Sync typing fixture asserted raw m despite native autocomplete expanding to main. Detailed diagnostic proved accepted callback. Unmatched intermediate edits then main retain autocomplete while verifying same editor, exact distinct updates and one1000ms read."
+      ],
+      "attempt_logs": [
+        "build/qa/source-form-artwork-generation-2026-10-20.log",
+        "build/qa/source-form-branding-native-2026-10-20.log",
+        "build/qa/source-form-controls-build-2026-10-20.log",
+        "build/qa/source-form-controls-bundled-2026-10-20.log",
+        "build/qa/source-form-controls-core-2026-10-20.log",
+        "build/qa/source-form-controls-fit-native-2026-10-20.log",
+        "build/qa/source-form-controls-merge-fit-build-2026-10-20.log",
+        "build/qa/source-form-controls-minimum-build-2026-10-20.log",
+        "build/qa/source-form-controls-minimum-native-2026-10-20.log",
+        "build/qa/source-form-controls-native-2026-10-20.log",
+        "build/qa/source-form-controls-native-final-2026-10-20.log",
+        "build/qa/source-form-controls-reference-bounds-2026-10-20.log",
+        "build/qa/source-form-controls-references-bundled-fit-2026-10-20.log",
+        "build/qa/source-form-controls-references-final-2026-10-20.log",
+        "build/qa/source-form-controls-references-focus-2026-10-20.log",
+        "build/qa/source-form-controls-repaired-native-2026-10-20.log",
+        "build/qa/source-form-controls-sizing-build-2026-10-20.log",
+        "build/qa/source-form-controls-transport-autocomplete-2026-10-20.log",
+        "build/qa/source-form-controls-transport-final-2026-10-20.log",
+        "build/qa/source-form-controls-transport-system-2026-10-20.log",
+        "build/qa/source-form-identity-2026-10-20.log"
+      ]
+    },
+    "owned_receiver_pids": [
+      30555,
+      30651,
+      30879,
+      30979,
+      31023,
+      31602,
+      31721,
+      32252,
+      32414,
+      32641,
+      32730,
+      33102,
+      33425,
+      33426,
+      33711
+    ],
+    "independently_absent": true,
+    "captures": [
+      {
+        "path": "docs/site/assets/branch-source-controls-light.png",
+        "sha256": "2deb3aa11f5389cc3b7a0dfabf47799719f4d7d7a256983c9b17bb01a2acbdbe",
+        "width": 1300,
+        "height": 1124,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/branch-source-controls-dark.png",
+        "sha256": "c5e28f4328cc8bd21fc68e0ddfde225f4a92cf7b38fbad6fe552363feecdabfc",
+        "width": 1300,
+        "height": 1124,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/tag-source-controls-light.png",
+        "sha256": "5757cf799be27086ececdc65cf574ed9435c16852622ef4f9e238e6c32f5eaa6",
+        "width": 1300,
+        "height": 1124,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/tag-source-controls-dark.png",
+        "sha256": "107598a9388de44cf42a4f8f4e108c8b3f248196dec83c51d01ec7f87389574d",
+        "width": 1300,
+        "height": 1124,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/switch-source-controls-light.png",
+        "sha256": "37f8e0ad6a07c035c40196b81611484b5f6d829593111e02724f6c9ed9e08650",
+        "width": 1200,
+        "height": 844,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/switch-source-controls-dark.png",
+        "sha256": "80916a097bd83961fb31dfdd139a62fdd6eea3c46bb75456c728048fdec755f9",
+        "width": 1200,
+        "height": 844,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/merge-source-controls-light.png",
+        "sha256": "e596419012992a277c9f846aa2fac898a1ed7388ab7115d8e5aaaf8b35929842",
+        "width": 1320,
+        "height": 1204,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/merge-source-controls-dark.png",
+        "sha256": "28d97bb609a591d4317f8a49e0aed425b083e719a74616b6fb6dabc1322fe1ca",
+        "width": 1320,
+        "height": 1204,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/reset-source-controls-light.png",
+        "sha256": "455411084b7c8ed5193b56fb2c74d381d974427fca6d7059e8dec6a69d1c8785",
+        "width": 1380,
+        "height": 874,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/reset-source-controls-dark.png",
+        "sha256": "a5dd0fe78e31ca048dda2dd774640be201c3f8152e2c83f1defb3a610ee2a4ef",
+        "width": 1380,
+        "height": 874,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/push-source-controls-light.png",
+        "sha256": "25bffb005a549a25359835fbdd42c70c13b155a9609cd5bee6a3e895952d4ae0",
+        "width": 1500,
+        "height": 1304,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/push-source-controls-dark.png",
+        "sha256": "25be5f1d52b51552844ce2b87565501f31563cfcd89779399f0e296bb472f302",
+        "width": 1500,
+        "height": 1304,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/sync-source-controls-light.png",
+        "sha256": "822119763ab875b6e210eae1c98a9c3e5031ac778035be1dae9783d2b49629cd",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/sync-source-controls-dark.png",
+        "sha256": "c301595a41be95898e9fe27ba6e7170a9e0dfcf37ce14a7c143b3edb0283ff29",
+        "width": 1720,
+        "height": 1064,
+        "reviewed": true
+      }
+    ]
+  },
+  "remaining": [
+    "Full source parity outside this scoped family",
+    "Physical key/menu/pointer and VoiceOver acceptance",
+    "All locale and long-reference combinations",
+    "Current installed signed Finder and sandbox/grant workflows",
+    "Current complete hosted CI pass",
+    "Distribution signing/export and App Store acceptance"
+  ]
+}

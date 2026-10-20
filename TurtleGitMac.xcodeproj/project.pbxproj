@@ -123,6 +123,7 @@
 		3D0C04463435436A275FC33A /* RepositoryBrowserWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */; };
 		3E19A6945479711E0CDE3542 /* Icons in Resources */ = {isa = PBXBuildFile; fileRef = 5E600ADAA231E0E7D95C9827 /* Icons */; };
 		3ECB98AE97E907C10D655116 /* ImageLoadWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B42920DE9933183EF4D9AD8 /* ImageLoadWindow.swift */; };
+		3F86914217C0BA99DCA54E80 /* ReferenceFormControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A48AB398ECFD8FB04FA6048 /* ReferenceFormControls.swift */; };
 		3FFB03A3066A6430145A490B /* PowerPointComparisonAutomation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39BD0E5EF4DC8DCE92785121 /* PowerPointComparisonAutomation.swift */; };
 		407EFF50D7678E3D7BB3F032 /* TurtleGitCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; };
 		408F4C4B2799D45011844A32 /* GitAskpassPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0D58AA19D852666927E54D /* GitAskpassPrompt.swift */; };
@@ -139,6 +140,7 @@
 		47C90FA5782CF28164E939B7 /* NativeListSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = B533A6FFAFFC30F53C371E5B /* NativeListSelection.swift */; };
 		48DD87A5E7EFF4B3B5A65756 /* HistoryContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 785EA4A8140D3A35CD9D32F5 /* HistoryContextMenu.swift */; };
 		48FAEDE446D237548B7AFA7B /* MergeOpenWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5ECE8E964DD38B678A58BE /* MergeOpenWindow.swift */; };
+		4AB236EFE2FFE917DB9EAD6D /* SynchronizationActionControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6EF0B95838332AF2D08641C /* SynchronizationActionControl.swift */; };
 		4B0B5DB397498EF493E58BE1 /* FinderCacheTray.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BA2413C2104D89DB7CAE240 /* FinderCacheTray.swift */; };
 		4B31805576EE431C8008D7B1 /* ConflictTitles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ED921FDE7185F2A22FD7896 /* ConflictTitles.swift */; };
 		4B422236E62309BF7D58A1B6 /* Branding in Resources */ = {isa = PBXBuildFile; fileRef = 5EA3D2C0BDB5C223290C1E16 /* Branding */; };
@@ -591,6 +593,7 @@
 		08CE434E7454FBA5529A7F36 /* CommitContainingReferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitContainingReferences.swift; sourceTree = "<group>"; };
 		0939C1284CC5B9339D0C0356 /* SubmoduleSyncWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleSyncWindow.swift; sourceTree = "<group>"; };
 		09F56DAEE49CAC83A3AF38D5 /* SettingsSheetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheetController.swift; sourceTree = "<group>"; };
+		0A48AB398ECFD8FB04FA6048 /* ReferenceFormControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceFormControls.swift; sourceTree = "<group>"; };
 		0A69110F6ADECB5F997434B4 /* RebaseReplayTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseReplayTable.swift; sourceTree = "<group>"; };
 		0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rebase.swift; sourceTree = "<group>"; };
 		0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandLabel.swift; sourceTree = "<group>"; };
@@ -1009,6 +1012,7 @@
 		F5B1B4492D159F92D3F03BBA /* Bisect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bisect.swift; sourceTree = "<group>"; };
 		F6B702D69C1F3D1B61D2EC83 /* CacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheService.swift; sourceTree = "<group>"; };
 		F6EA08B98AB3B225EE0A8279 /* Synchronization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Synchronization.swift; sourceTree = "<group>"; };
+		F6EF0B95838332AF2D08641C /* SynchronizationActionControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizationActionControl.swift; sourceTree = "<group>"; };
 		F7809458AF943456197C0AC7 /* MergeWhitespace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeWhitespace.swift; sourceTree = "<group>"; };
 		F925723BED85497207863D60 /* SubmoduleConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleConflict.swift; sourceTree = "<group>"; };
 		F92C83C2562E61AC44E27CB5 /* RepositoryFileEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryFileEvents.swift; sourceTree = "<group>"; };
@@ -1224,6 +1228,7 @@
 				0A69110F6ADECB5F997434B4 /* RebaseReplayTable.swift */,
 				A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */,
 				6F95A32F6B4ECD8AA7745857 /* ReferenceBrowserWindow.swift */,
+				0A48AB398ECFD8FB04FA6048 /* ReferenceFormControls.swift */,
 				F47F25E9F85B9274F63464E0 /* ReferenceLogNativeTable.swift */,
 				2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */,
 				71E4D9CD12160681F11F6E2E /* ReleaseUpdateWindow.swift */,
@@ -1281,6 +1286,7 @@
 				D9A6D2F04D1237B7F601A4AE /* SupportReportWindow.swift */,
 				AE9909E60E6379183F237D7B /* SVNWindow.swift */,
 				977DAB97DBBB903654C73A78 /* SwitchWindow.swift */,
+				F6EF0B95838332AF2D08641C /* SynchronizationActionControl.swift */,
 				C191EB3114FCD115254AAA17 /* SynchronizationWindow.swift */,
 				396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */,
 				792C774F2364FC09D00A6FCE /* TurtleGitHelp.swift */,
@@ -2379,6 +2385,7 @@
 				2F7C9D3158F3B1EA926CE15F /* RebaseReplayTable.swift in Sources */,
 				9244E6470414E23A05AC9C78 /* RebaseWindow.swift in Sources */,
 				10DEF02C4073108A457F85DC /* ReferenceBrowserWindow.swift in Sources */,
+				3F86914217C0BA99DCA54E80 /* ReferenceFormControls.swift in Sources */,
 				772E1B38BD68B85CBFB13110 /* ReferenceLogNativeTable.swift in Sources */,
 				8F4345E3454F4ABF3E75D4C9 /* ReferenceLogWindow.swift in Sources */,
 				AF6A88493DDC9F359C9034CA /* ReleaseUpdateWindow.swift in Sources */,
@@ -2436,6 +2443,7 @@
 				6B9238091F271707632595BC /* SubmoduleUpdateWindow.swift in Sources */,
 				598373332ED12F83F595391D /* SupportReportWindow.swift in Sources */,
 				A74A3FE8744154EDF768C63C /* SwitchWindow.swift in Sources */,
+				4AB236EFE2FFE917DB9EAD6D /* SynchronizationActionControl.swift in Sources */,
 				F6B3C505BC2E9980A04CD4E1 /* SynchronizationWindow.swift in Sources */,
 				98048D0E5A3F46AB730E8DB2 /* TextConflictWindow.swift in Sources */,
 				827581DA51F1B9C0932E2982 /* TurtleGitHelp.swift in Sources */,

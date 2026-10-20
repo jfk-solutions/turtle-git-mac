@@ -277,3 +277,10 @@ validation after the implementation freeze. Physical balloons/keyboard/VoiceOver
 all visual/source variants, signed GPG/key/transport prompts, signed sandbox/Finder
 and App Store acceptance remain open. No generic command-progress window or new
 post-action is added to this source direct-Git creation workflow.
+
+
+## Native source form control continuation
+
+[The connected form family](SOURCE-FORM-CONTROLS-PARITY.md) records reference
+keyboard/focus and bounded captions, Push F5 refresh and Synchronization native
+split controls, with owned state and remaining acceptance kept explicit.

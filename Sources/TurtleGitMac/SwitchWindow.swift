@@ -2,6 +2,7 @@
 // Native Switch form adapted from GitSwitchDlg, TortoiseGit 2008-2024.
 import AppKit
 import SwiftUI
+import Combine
 import TurtleGitCore
 
 extension UserDefaults {
@@ -149,10 +150,10 @@ extension UserDefaults {
     var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults, String?) -> LogWindowController { get { pickers.makeCommitPicker } set { pickers.makeCommitPicker = newValue } }
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) {
         model = SwitchWindowModel(repository: repository, access: access, revision: revision, preferences: preferences)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 370),
+        let window = ReferenceFormNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 370),
             styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Switch/Checkout", preferences: preferences)
-        window.contentMinSize = NSSize(width: 600, height: 390); window.isReleasedWhenClosed = false
+        window.referenceMinimumContentSize = NSSize(width: 600, height: 390); window.isReleasedWhenClosed = false
         let host = NSHostingController(rootView: SwitchDialog(model: model).defaultAppStorage(preferences)); host.sizingOptions = []; window.contentViewController = host
         super.init(window: window); window.delegate = self
         pickers = VersionPickerCoordinator(window: window, model: model, access: access, preferences: preferences,allowed:{ [weak model] in model?.presentationAvailable == true })
@@ -239,6 +240,7 @@ extension UserDefaults {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     private let initialRevision: String?
+    var formPreferences:UserDefaults {preferences}
     private let preferences: UserDefaults
     @Published private(set) var formRevision = UUID()
     @Published private(set) var initialFocusRequest = 0
@@ -470,6 +472,18 @@ extension UserDefaults {
 struct SwitchDialog: View {
     @ObservedObject var model: SwitchWindowModel
     @FocusState private var createBranchFocused: Bool
+    private func commands(_ context:SwitchWindowModel.FormContext)->[ReferenceFormCommand] {[
+        .init(id:"branch",title:"Branch",key:"b",sourceKey:"b",icon:.branch,focus:"Switch branch revision",action:{model.selectTarget(.branch,context:context)}),
+        .init(id:"tag",title:"Tag",key:"t",sourceKey:"t",icon:.tag,focus:"Switch tag revision",action:{model.selectTarget(.tag,context:context)}),
+        .init(id:"commit",title:"Commit",key:"c",sourceKey:"c",icon:.log,focus:"Switch commit revision",action:{model.selectTarget(.commit,context:context)}),
+        .init(id:"browseReferences",title:"Browse references",key:"r",icon:.repositoryBrowser,enabled:model.canBrowse(.branch),action:{model.browse(.branch,context:context)}),
+        .init(id:"chooseCommit",title:"Choose commit",key:"g",icon:.log,enabled:model.canBrowse(.commit),action:{model.browse(.commit,context:context)}),
+        .init(id:"newBranch",title:"Create New Branch",key:"n",sourceKey:"n",icon:.branch,focus:model.options.createBranch ? nil:"New branch name",action:{model.option(\.createBranch,context:context).wrappedValue = !model.options.createBranch}),
+        .init(id:"force",title:"Overwrite working tree changes (force)",key:"f",sourceKey:"f",action:{model.option(\.overwriteChanges,context:context).wrappedValue = !model.options.overwriteChanges}),
+        .init(id:"merge",title:"Merge",key:"m",sourceKey:"m",icon:.merge,action:{model.option(\.merge,context:context).wrappedValue = !model.options.merge}),
+        .init(id:"track",title:"Track",key:"k",sourceKey:"r",icon:.branch,enabled:model.remote && model.options.createBranch,action:{model.option(\.tracking,context:context).wrappedValue = model.options.tracking == .automatic ? .noTrack:model.options.tracking == .noTrack ? .track:.automatic}),
+        .init(id:"override",title:"Override branch if exists",key:"o",sourceKey:"o",icon:.branch,enabled:model.options.createBranch,action:{model.option(\.overrideBranch,context:context).wrappedValue = !model.options.overrideBranch})]
+    }
     var body: some View {
         let context = model.formContext
         VStack(spacing: 16) {
@@ -487,20 +501,20 @@ struct SwitchDialog: View {
                     }.frame(height: 26)
                     HStack {
                         SwitchRadio(title: "Commit", target: .commit, selection: Binding(get: { model.options.target }, set: { model.selectTarget($0,context:context) })).frame(width: 100)
-                        VersionRevisionField(text: model.revisionBinding(.commit,context:context), choices: model.commitChoices, focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit, context:context) }).disabled(model.options.target != .commit)
+                        VersionRevisionField(text: model.revisionBinding(.commit,context:context), choices: model.commitChoices, accessibilityLabel:"Switch commit revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit, context:context) }).disabled(model.options.target != .commit)
                         Button("…") { model.browse(.commit,context:context) }.accessibilityLabel("Choose commit").disabled(model.options.target != .commit)
                     }.frame(height: 26)
                 }.padding(8)
             }
             GroupBox("Option") {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Toggle("Create New Branch", isOn: model.option(\.createBranch,context:context)).focused($createBranchFocused).frame(width: 180, alignment: .leading)
-                        TextField("New branch name", text: model.option(\.branchName,context:context)).disabled(!model.options.createBranch)
+                    DialogCommandRows {
+                        Toggle("Create New Branch", isOn: model.option(\.createBranch,context:context)).focused($createBranchFocused).fixedSize()
+                        TextField("New branch name", text: model.option(\.branchName,context:context)).frame(minWidth:180).layoutValue(key:DialogCommandRows.Flexible.self,value:true).disabled(!model.options.createBranch)
                     }
-                    HStack {
+                    DialogCommandRows(spacing:16) {
                         Toggle("Overwrite working tree changes (force)", isOn: model.option(\.overwriteChanges,context:context))
-                        Spacer(); Toggle("Merge", isOn: model.option(\.merge,context:context))
+                        Toggle("Merge", isOn: model.option(\.merge,context:context))
                     }
                     TrackingCheckbox(value: model.option(\.tracking,context:context), enabled: model.remote && model.options.createBranch)
                         .frame(height: 18).help("Mixed: use Git's automatic tracking configuration. Checked: track this remote branch. Unchecked: no tracking.")
@@ -516,6 +530,7 @@ struct SwitchDialog: View {
                 Button("Help") { TurtleGitHelp.show(.checkout) }
             }
         }.padding(16).disabled(model.confirmingQuit || model.busy || model.pickerTarget != nil || model.progress != nil || model.hasPendingTagConflict)
+        .background(ReferenceFormCommands(entries:commands(context),preferences:model.formPreferences,available:{model.canEditForm},changes:model.objectWillChange.eraseToAnyPublisher()).frame(width:0,height:0))
         .onAppear { if model.canEditForm { createBranchFocused = true } }
         .onChange(of: model.busy) { busy in if busy { createBranchFocused = false } }
         .onChange(of: model.initialFocusRequest) { _ in if model.canEditForm { createBranchFocused = true } }
@@ -629,11 +644,14 @@ struct ReferencePopup: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSPopUpButton {
         let button = NSPopUpButton(frame: .zero, pullsDown: false)
-        if let accessibilityLabel { button.setAccessibilityLabel(accessibilityLabel) }
+        if let accessibilityLabel { button.setAccessibilityLabel(accessibilityLabel);button.identifier = .init(accessibilityLabel) }
         button.target = context.coordinator; button.action = #selector(Coordinator.changed(_:))
         button.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        button.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        button.cell?.lineBreakMode = .byTruncatingMiddle
         return button
     }
+    func sizeThatFits(_ proposal:ProposedViewSize,nsView:NSPopUpButton,context:Context)->CGSize? {referenceFormControlSize(proposal,height:26)}
     func updateNSView(_ button: NSPopUpButton, context: Context) {
         let names = references.map(\.name)
         if context.coordinator.names.map({ GitReferenceName($0) }) != names.map({ GitReferenceName($0) }) || button.numberOfItems == 0 {
@@ -650,7 +668,7 @@ struct ReferencePopup: NSViewRepresentable {
         context.coordinator.names = names
         context.coordinator.live = true
         if let index = names.firstIndex(where: { GitReferenceName.equal($0, selection) }) { button.selectItem(at: index) }
-        if let tooltip {button.toolTip=tooltip}
+        button.toolTip=tooltip ?? selection
         button.isEnabled = enabled && !references.isEmpty
         context.coordinator.change = { selection = $0 }
         if focusRequest > 0, let onFocus { DispatchQueue.main.async { [weak button, weak coordinator = context.coordinator] in if let button, coordinator?.live == true, button.isEnabled { onFocus(button) } } }
@@ -1044,9 +1062,11 @@ struct VersionRevisionField: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSComboBox {
         let field = NSComboBox(); field.isEditable = true; field.completes = false
-        field.font = .systemFont(ofSize: NSFont.systemFontSize); field.placeholderString = "Commit"; field.setAccessibilityLabel(accessibilityLabel)
+        field.font = .systemFont(ofSize: NSFont.systemFontSize); field.placeholderString = "Commit"; field.setAccessibilityLabel(accessibilityLabel);field.identifier = .init(accessibilityLabel)
+        field.setContentCompressionResistancePriority(.defaultLow,for:.horizontal);field.setContentHuggingPriority(.defaultLow,for:.horizontal);field.cell?.lineBreakMode = .byTruncatingMiddle
         field.delegate = context.coordinator; return field
     }
+    func sizeThatFits(_ proposal:ProposedViewSize,nsView:NSComboBox,context:Context)->CGSize? {referenceFormControlSize(proposal,height:26)}
     func updateNSView(_ field: NSComboBox, context: Context) {
         context.coordinator.wordCommands.policy=GitInputWordBreak(mode:UInt32(truncatingIfNeeded:wordBreakMode))
         context.coordinator.configure(field, text: text, choices: choices, enabled: enabled) { text = $0 }
@@ -1076,7 +1096,7 @@ struct VersionRevisionField: NSViewRepresentable {
                 let length = field.stringValue.utf16.count, start = min(selection.location, length)
                 editor.setSelectedRange(NSRange(location: start, length: min(selection.length, length - start)))
             }
-            field.isEnabled = enabled
+            field.toolTip=text;field.isEnabled = enabled
         }
         func retire(_ field: NSComboBox) { retired = true; field.delegate = nil; change = { _ in } }
         func controlTextDidChange(_ notification: Notification) {

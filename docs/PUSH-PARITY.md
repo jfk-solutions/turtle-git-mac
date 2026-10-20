@@ -514,3 +514,10 @@ unchanged and was not repeated. See [batch evidence](qa/transport-source-family-
 for exact attempts, raw capture provenance and scope. Complete physical dropdown/key/focus/VoiceOver/IME,
 source sorting at every locale, signed nested sheets and network credentials,
 Finder activation, sandbox/App Store and full application acceptance remain open.
+
+
+## Native source form control continuation
+
+[The connected form family](SOURCE-FORM-CONTROLS-PARITY.md) records reference
+keyboard/focus and bounded captions, Push F5 refresh and Synchronization native
+split controls, with owned state and remaining acceptance kept explicit.

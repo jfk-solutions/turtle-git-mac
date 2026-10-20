@@ -623,3 +623,10 @@ The earlier [Merge checkpoint](qa/merge-progress-family-2026-10-19.json) retains
 its historical missing-preamble boundary. New continuation evidence belongs to
 [Switch/Reset progress](qa/switch-reset-progress-family-2026-10-19.json), without
 adding a new passing-check claim here before validation.
+
+
+## Native source form control continuation
+
+[The connected form family](SOURCE-FORM-CONTROLS-PARITY.md) records reference
+keyboard/focus and bounded captions, Push F5 refresh and Synchronization native
+split controls, with owned state and remaining acceptance kept explicit.

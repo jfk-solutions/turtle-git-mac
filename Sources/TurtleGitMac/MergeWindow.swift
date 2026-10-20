@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 import TurtleGitCore
 
 @MainActor struct MergeWindowPresentation {
@@ -34,9 +35,9 @@ import TurtleGitCore
     var presentProgress: (NSWindow, NSWindow) -> Void = { owner, child in child.alphaValue=owner.alphaValue;child.appearance=owner.appearance;owner.beginSheet(child) }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = MergeWindowModel(repository: repository, access: access, preferences: preferences)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 570), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = ReferenceFormNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 570), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Merge", preferences: preferences)
-        window.minSize = NSSize(width: 660, height: 540); window.isReleasedWhenClosed = false
+        window.referenceMinimumContentSize = NSSize(width: 660, height: 570); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: MergeDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
         pickers = VersionPickerCoordinator(window: window, model: model, access: access, preferences: preferences)
@@ -200,6 +201,7 @@ import TurtleGitCore
     var messageEditorPreferences: UserDefaults { preferences }
     var presentationPreferences: UserDefaults { preferences }
     var handoffPresentation: MergeWindowPresentation?
+    var formPreferences:UserDefaults {preferences}
     private let preferences: UserDefaults
     private var loadToken: OperationCancellation?
     private var invalidated = false
@@ -335,10 +337,24 @@ import TurtleGitCore
 
 private struct MergeDialog: View {
     @ObservedObject var model: MergeWindowModel
+    private func commands(_ context:MergeWindowModel.FormContext)->[ReferenceFormCommand] {[
+        .init(id:"branch",title:"Branch",key:"b",sourceKey:"b",icon:.branch,focus:"Merge branch revision",action:{model.field(\.target,context:context).wrappedValue = .branch}),
+        .init(id:"tag",title:"Tag",key:"t",sourceKey:"t",icon:.tag,focus:"Merge tag revision",action:{model.field(\.target,context:context).wrappedValue = .tag}),
+        .init(id:"commit",title:"Commit",key:"c",sourceKey:"c",icon:.log,focus:"Merge commit revision",action:{model.field(\.target,context:context).wrappedValue = .commit}),
+        .init(id:"browseReferences",title:"Browse references",key:"r",icon:.repositoryBrowser,enabled:model.canBrowse(.branch),action:{model.browse(.branch)}),
+        .init(id:"chooseCommit",title:"Choose commit",key:"g",icon:.log,enabled:model.canBrowse(.commit),action:{model.browse(.commit)}),
+        .init(id:"squash",title:"Squash",key:"s",sourceKey:"s",icon:.rebaseSquash,enabled:!model.options.noFastForward,action:{model.option(\.squash,context:context).wrappedValue = !model.options.squash}),
+        .init(id:"messages",title:"Messages",key:"l",icon:.log,focus:model.messages ? nil:"Number of commit messages",action:{model.field(\.messages,context:context).wrappedValue = !model.messages}),
+        .init(id:"noFastForward",title:"No Fast Forward",key:"f",sourceKey:"f",icon:.merge,enabled:!model.options.squash && !model.options.fastForwardOnly,action:{model.option(\.noFastForward,context:context).wrappedValue = !model.options.noFastForward}),
+        .init(id:"fastForwardOnly",title:"Fast Forward Only",key:"n",sourceKey:"n",icon:.merge,enabled:!model.options.noFastForward,action:{model.option(\.fastForwardOnly,context:context).wrappedValue = !model.options.fastForwardOnly}),
+        .init(id:"noCommit",title:"No Commit",key:"m",sourceKey:"m",icon:.commit,action:{model.option(\.noCommit,context:context).wrappedValue = !model.options.noCommit}),
+        .init(id:"strategy",title:"Strategy",key:"y",icon:.merge,focus:"Merge strategy",action:{}),
+        .init(id:"message",title:"Merge Message",key:"e",icon:.rebaseEdit,enabled:model.canEditMessage,focus:"Merge message",action:{})]
+    }
     var body: some View {
         let context=model.formContext
         VStack(alignment: .leading, spacing: 12) {
-            HStack { Text("Current branch:").frame(width: 115, alignment: .leading); Text(model.currentBranch.isEmpty ? "Detached HEAD" : model.currentBranch).foregroundStyle(.blue) }
+            HStack { Text("Current branch:").frame(width: 115, alignment: .leading); ReferenceFormCaption(value:model.currentBranch.isEmpty ? "Detached HEAD":model.currentBranch,label:"Current branch").frame(maxWidth:.infinity).frame(height:22) }
             GroupBox("From") {
                 VStack(spacing: 8) {
                     HStack {
@@ -360,17 +376,17 @@ private struct MergeDialog: View {
             }.disabled(!model.canEditForm)
             GroupBox("Option") {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Toggle("Squash", isOn: model.option(\.squash,context:context)).frame(width: 260, alignment: .leading).disabled(model.options.noFastForward)
+                    DialogCommandRows(spacing:14) {
+                        Toggle("Squash", isOn: model.option(\.squash,context:context)).fixedSize().disabled(model.options.noFastForward)
                         Toggle("Messages", isOn: model.field(\.messages,context:context))
                         TextField("Count", text: model.field(\.messageCount,context:context)).frame(width: 55).disabled(!model.messages).accessibilityLabel("Number of commit messages")
                     }
-                    HStack {
-                        Toggle("No Fast Forward", isOn: model.option(\.noFastForward,context:context)).frame(width: 260, alignment: .leading).disabled(model.options.squash || model.options.fastForwardOnly)
+                    DialogCommandRows(spacing:14) {
+                        Toggle("No Fast Forward", isOn: model.option(\.noFastForward,context:context)).fixedSize().disabled(model.options.squash || model.options.fastForwardOnly)
                         Toggle("Fast Forward Only", isOn: model.option(\.fastForwardOnly,context:context)).disabled(model.options.noFastForward)
                     }
                     Toggle("No Commit", isOn: model.option(\.noCommit,context:context))
-                    HStack {
+                    DialogCommandRows(spacing:10) {
                         Text("Strategy")
                         Picker("Merge strategy", selection: model.option(\.strategy,context:context)) { Text("").tag(""); ForEach(MergeOptions.strategies, id: \.self) { Text($0).tag($0) } }.labelsHidden().frame(width: 125)
                         Picker("Strategy option", selection: model.option(\.strategyOption,context:context)) { Text("").tag(""); ForEach(MergeOptions.strategyOptions, id: \.self) { Text($0).tag($0) } }.labelsHidden().disabled(model.options.strategy != "recursive")
@@ -390,6 +406,7 @@ private struct MergeDialog: View {
                 Button("Help") { TurtleGitHelp.show(.merge) }
             }
         }.padding(16)
+        .background(ReferenceFormCommands(entries:commands(context),preferences:model.formPreferences,available:{model.canEditForm},changes:model.objectWillChange.eraseToAnyPublisher()).frame(width:0,height:0))
         .alert("Merge failed", isPresented: Binding(get: { !model.closed && model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }
 }

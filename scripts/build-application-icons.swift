@@ -54,6 +54,31 @@ try JSONSerialization.data(withJSONObject: contents, options: [.prettyPrinted, .
 // mascot, including its Git lettering. Original upstream resource icons stay intact.
 let sharedIcon = root.appendingPathComponent("Sources/TurtleGitCore/Resources/Icons/TurtleGitApplication.png")
 try Data(contentsOf: assets.appendingPathComponent("AppIcon.appiconset/icon_512x512.png")).write(to: sharedIcon, options: .atomic)
+// Blame retains the user's TurtleGit mascot and Git lettering. A source-native
+// magnifying glass distinguishes attribution commands without the old mascot.
+let blameIcon = root.appendingPathComponent("Sources/TurtleGitCore/Resources/Icons/TurtleGitBlame.png")
+let blameContext = raster(original, pixels: 512)
+blameContext.saveGState()
+blameContext.setLineCap(.round)
+blameContext.setStrokeColor(CGColor(srgbRed: 0.04, green: 0.13, blue: 0.22, alpha: 1))
+blameContext.setLineWidth(34)
+blameContext.move(to: CGPoint(x: 433, y: 104)); blameContext.addLine(to: CGPoint(x: 475, y: 54)); blameContext.strokePath()
+blameContext.setStrokeColor(CGColor(srgbRed: 0.29, green: 0.64, blue: 0.86, alpha: 1))
+blameContext.setLineWidth(18)
+blameContext.move(to: CGPoint(x: 433, y: 104)); blameContext.addLine(to: CGPoint(x: 475, y: 54)); blameContext.strokePath()
+let lens = CGRect(x: 322, y: 104, width: 132, height: 132)
+blameContext.setFillColor(CGColor(srgbRed: 0.78, green: 0.94, blue: 1, alpha: 0.93))
+blameContext.fillEllipse(in: lens)
+blameContext.setStrokeColor(CGColor(srgbRed: 0.04, green: 0.13, blue: 0.22, alpha: 1))
+blameContext.setLineWidth(14); blameContext.strokeEllipse(in: lens)
+blameContext.setStrokeColor(CGColor(srgbRed: 0.16, green: 0.58, blue: 0.84, alpha: 1))
+blameContext.setLineWidth(6); blameContext.strokeEllipse(in: lens.insetBy(dx: 10, dy: 10))
+blameContext.setStrokeColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.95))
+blameContext.setLineWidth(9)
+blameContext.move(to: CGPoint(x: 350, y: 184)); blameContext.addLine(to: CGPoint(x: 369, y: 208)); blameContext.strokePath()
+blameContext.restoreGState()
+try NSBitmapImageRep(cgImage: blameContext.makeImage()!).representation(using: .png, properties: [:])!.write(to: blameIcon, options: .atomic)
+
 let scratch = fm.temporaryDirectory.appendingPathComponent("TurtleGitPatch-" + UUID().uuidString + ".iconset", isDirectory: true)
 try fm.createDirectory(at: scratch, withIntermediateDirectories: true)
 defer { try? fm.removeItem(at: scratch) }
@@ -85,13 +110,14 @@ for folder in [branding, assets] {
     }
 }
 outputs["Sources/TurtleGitCore/Resources/Icons/TurtleGitApplication.png"] = try hash(sharedIcon)
+outputs["Sources/TurtleGitCore/Resources/Icons/TurtleGitBlame.png"] = try hash(blameIcon)
 outputs["docs/site/assets/application-icon.png"] = try hash(webIcon)
 outputs["docs/site/assets/application-favicon.png"] = try hash(webFavicon)
 let manifest: [String: Any] = [
     "schema": 2, "artwork": artwork,
     "sources": [["asset": source.lastPathComponent, "sha256": try hash(source), "kind": "custom_generated_artwork"]],
     "vendored_upstream": ["repository": "https://github.com/TortoiseGit/TortoiseGit", "commit": "7338078f8ddd924b8cddee35f512f2286072136d", "license_choice": "GNU GPL alternative in upstream src/Resources/license.txt", "sources": upstream],
-    "conversion": "scripts/build-application-icons.swift; preserved custom source resampled to 1024px ApplicationIcon, ten AppIcon slots, 512px shared native artwork, 256px web icon, 32px favicon and matching custom patch-document ICNS; no upstream artwork used for active branding", "outputs": outputs
+    "conversion": "scripts/build-application-icons.swift; preserved custom source resampled to 1024px ApplicationIcon, ten AppIcon slots, 512px shared native artwork and an attribution variant with a native magnifying-glass cue, 256px web icon, 32px favicon and matching custom patch-document ICNS; no upstream artwork used for active branding", "outputs": outputs
 ]
 try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]).write(to: branding.appendingPathComponent("provenance.json"), options: .atomic)
 print("Derived custom TurtleGit application, native, website and patch-document artwork with source/prompt provenance; vendored upstream originals retained unchanged.")

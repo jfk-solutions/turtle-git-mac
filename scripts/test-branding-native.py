@@ -22,7 +22,8 @@ app=root/'build/Build/Products/Debug/TurtleGitMac.app'
 captures=(args.captures or root/'build/qa/branding-native-captures').absolute()
 with tempfile.TemporaryDirectory(prefix='turtlegit-branding-native-') as temporary:
     folder=Path(temporary);config=folder/'global.config';config.write_text('')
-    env=dict(os.environ,DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=str(config),GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0',XDG_CONFIG_HOME=str(folder/'xdg'))
+    home=folder/'home';home.mkdir()
+    env=dict(os.environ,HOME=str(home),CFFIXED_USER_HOME=str(home),DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=str(config),GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0',XDG_CONFIG_HOME=str(folder/'xdg'))
     for key in ['GIT_CONFIG_PARAMETERS','GIT_AUTHOR_NAME','GIT_AUTHOR_EMAIL','GIT_COMMITTER_NAME','GIT_COMMITTER_EMAIL']:env.pop(key,None)
     result=run_receiver([str(receiver),str(folder),str(app),str(captures)],cwd=root,env=env,capture_output=True,text=True,timeout_sample=folder/'timeout.sample.txt')
     print(result.stdout,end='',flush=True);print(result.stderr,end='',flush=True);result.check_returncode()

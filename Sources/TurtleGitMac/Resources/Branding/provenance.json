@@ -11,11 +11,12 @@
     "transparent_background" : true,
     "width" : 1254
   },
-  "conversion" : "scripts/build-application-icons.swift; preserved custom source resampled to 1024px ApplicationIcon, ten AppIcon slots, 512px shared native artwork, 256px web icon, 32px favicon and matching custom patch-document ICNS; no upstream artwork used for active branding",
+  "conversion" : "scripts/build-application-icons.swift; preserved custom source resampled to 1024px ApplicationIcon, ten AppIcon slots, 512px shared native artwork and an attribution variant with a native magnifying-glass cue, 256px web icon, 32px favicon and matching custom patch-document ICNS; no upstream artwork used for active branding",
   "outputs" : {
     "docs/site/assets/application-favicon.png" : "563206b6d67cb70fd70869324499f2a214d6cac79fa85937966d56a66b978488",
     "docs/site/assets/application-icon.png" : "7fb4a2d6a49ead46d63bb391164a40cc4397cac7b4c89e47d51e802ac60155b3",
     "Sources/TurtleGitCore/Resources/Icons/TurtleGitApplication.png" : "b774fb42d64f58889fc71820010557ce07e797ae0c114962c169b5199eddb79c",
+    "Sources/TurtleGitCore/Resources/Icons/TurtleGitBlame.png" : "94d34caa79ff1df7a9d417be177be9893ea11d89ce37e749b0b2e21f1099461d",
     "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/Contents.json" : "60ee77b42345bc6095e2202ffec67ded6e1757150d2b7d87df00b9e3267c5dd4",
     "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/icon_16x16.png" : "4fdc3489fd5fe12ff7f6f530deae256e17be71357ff98495de1ce7b251add9ba",
     "Sources/TurtleGitMac/Resources/ApplicationAssets.xcassets/AppIcon.appiconset/icon_16x16@2x.png" : "563206b6d67cb70fd70869324499f2a214d6cac79fa85937966d56a66b978488",

@@ -269,3 +269,10 @@ domains. Clean and Submodule Update carry the captured appearance/opacity into
 their owned progress windows as well as the initial options window. These routing
 details preserve the Reset-origin presentation through the actual child workflow,
 without claiming physical or signed acceptance.
+
+
+## Native source form control continuation
+
+[The connected form family](SOURCE-FORM-CONTROLS-PARITY.md) records reference
+keyboard/focus and bounded captions, Push F5 refresh and Synchronization native
+split controls, with owned state and remaining acceptance kept explicit.
