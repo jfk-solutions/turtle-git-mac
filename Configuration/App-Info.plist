@@ -785,6 +785,134 @@
 			<key>NSRestricted</key>
 			<true/>
 		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Mark for comparison</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>diffLater</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Clear comparison mark</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>clearComparisonMark</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Export…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>export</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.folder</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Create Patch Serial…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>formatPatch</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.folder</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Apply Patch Serial…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>importPatch</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Review/apply single patch…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>reviewPatch</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Send Mail…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>sendMail</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.item</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict><key>default</key><string>TurtleGit: Create pull request…</string></dict>
+			<key>NSMessage</key>
+			<string>performFinderAction</string>
+			<key>NSPortName</key>
+			<string>TurtleGit</string>
+			<key>NSUserData</key>
+			<string>requestPull</string>
+			<key>NSSendFileTypes</key>
+			<array><string>public.folder</string></array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<true/>
+		</dict>
 	</array>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.developer-tools</string>

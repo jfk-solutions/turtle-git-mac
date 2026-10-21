@@ -161,6 +161,7 @@ enum ExportArchiveChoice:Int,CaseIterable {
     }
     var activeOperation: Bool { hasPendingWork || model.busy || model.progress != nil || model.pickerTarget != nil }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.confirmingQuit && !activeOperation }
+    override func close(){super.close();if !retired,window?.isVisible != true{retireClosedWindow()}}
     func windowWillClose(_ notification: Notification) {guard notification.object as? NSWindow === window else{return};retireClosedWindow()}
     private func retireClosedWindow(){
         guard !retired else{return};retired=true

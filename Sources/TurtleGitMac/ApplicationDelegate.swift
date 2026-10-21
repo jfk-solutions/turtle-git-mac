@@ -286,6 +286,7 @@ import TurtleGitCore
         if SendPatchProgressModel.activeSubmissions > 0 || SendPatchProgressWindowController.activeReleases > 0 {return .terminateCancel}
         if ImportPatchWindowModel.activeWorkers > 0 || ImportPatchWindowController.activeReleases > 0 {return .terminateCancel}
         if ReviewPatchWorkflow.activeLoads > 0 { return .terminateCancel }
+        if SendPatchWindowController.activeReleases > 0 || ReviewPatchWorkflow.activeReleases > 0 || WorkingTreePatchWindowController.activeReleases > 0 { return .terminateCancel }
         if ImageConflictWindowModel.activeOperations > 0 { return .terminateCancel }
         if FileListComparisonSession.activeOperations > 0 { return .terminateCancel }
         if RevisionComparisonWindowModel.activeFileOperations > 0 { return .terminateCancel }

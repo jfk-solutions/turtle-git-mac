@@ -6,6 +6,13 @@ import TurtleGitCore
 
 @MainActor final class ReviewPatchWorkflow: NSWindowController, NSWindowDelegate, ObservableObject {
     static private(set) var activeLoads = 0
+    static private(set) var activeReleases = 0
+    private var pendingPreparations=0
+    private var releaseTask:Task<Void,Never>?
+    private var targetQuestion:NSAlert?
+    var canReuse:Bool {!retired}
+    var hasPendingWork:Bool {pendingPreparations>0 || choice != nil || targetQuestion != nil || releaseTask != nil || pendingReview?.hasPendingWork == true || window?.attachedSheet != nil || window?.sheetParent != nil}
+    var presentationPreferences:UserDefaults {preferences}
     @Published private(set) var loading = false
     @Published private(set) var status = "Choose a patch and a target folder to review its changes."
     @Published private(set) var error: String?
@@ -56,11 +63,12 @@ import TurtleGitCore
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 560, height: 190), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Review/apply single patch – TurtleGitMerge"; window.isReleasedWhenClosed = false
         super.init(window: window); window.delegate = self; window.center()
-        window.contentViewController = NSHostingController(rootView: ReviewPatchPreparation(workflow: self))
+        window.contentViewController = NSHostingController(rootView: ReviewPatchPreparation(workflow: self).defaultAppStorage(preferences))
     }
     func start() {
         guard !started, !retired else { return }; started = true
-        Task { await prepare() }
+        pendingPreparations += 1
+        Task { defer {pendingPreparations -= 1};await prepare() }
     }
     private func covered(_ url: URL) -> Bool { !GitRuntime.isAppStoreBuild || grants.contains { $0.hasSecurityScope && $0.contains(url) } }
     private func pick(file: Bool) async -> URL? {
@@ -183,7 +191,9 @@ import TurtleGitCore
             let fileAccess = file.flatMap { file in grants.first { $0.contains(file) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) } }
             let controller = WorkingTreePatchWindowController(repository: repository, access: access, fileAccess: fileAccess,
                 bytes: bytes, title: clipboardBytes == nil ? (file?.lastPathComponent ?? sourceTitle) : sourceTitle, preferences: preferences, directoryMode: true, isGitWorkingTree: isGit, initialStripCount: strip, automaticallyRefresh: preparedPresentation == nil)
+            pendingReview=controller
             configureReview(controller.model)
+            guard !retired,generation == current,!token.isCancelled,controller.canReuse else{controller.close();return}
             if let preparedPresentation {
                 pendingReview = controller
                 await withCheckedContinuation { continuation in controller.model.refresh { continuation.resume() } }
@@ -196,10 +206,11 @@ import TurtleGitCore
                 do { try preparedPresentation(controller); pendingReview = nil }
                 catch { controller.close(); pendingReview = nil; throw error }
             } else {
+                pendingReview=nil
                 ReviewPatchWindows.retain(controller, grants: grants)
                 if let presentation { presentation(controller) } else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
             }
-            window?.close()
+            close()
         } catch { if !retired, generation == current { fail(error) } }
     }
     private func betterTarget(original: URL, suggested: URL) async -> TargetChoice {
@@ -208,7 +219,11 @@ import TurtleGitCore
         let alert = NSAlert(); alert.messageText = "A better patch target folder was found."
         alert.informativeText = "Suggested: " + suggested.path + "\n\nSelected: " + original.path
         alert.addButton(withTitle: "Use Suggested Folder"); alert.addButton(withTitle: "Keep Selected Folder"); alert.addButton(withTitle: "Cancel")
+        targetQuestion=alert;MergeWindowPresentation(window).apply(to:alert.window)
         let response = await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0) } }
+        while alert.window.sheetParent != nil || window.attachedSheet === alert.window {try? await Task.sleep(nanoseconds:5_000_000)}
+        if targetQuestion === alert {targetQuestion=nil}
+        guard !retired,!token.isCancelled else{return .cancel}
         return response == .alertFirstButtonReturn ? .suggested : response == .alertSecondButtonReturn ? .original : .cancel
     }
     private struct PreparedReviewFailure: LocalizedError { let message: String; var errorDescription: String? { message.isEmpty ? "Could not prepare the patch review." : message } }
@@ -217,15 +232,28 @@ import TurtleGitCore
         guard !retired else { return }
         generation += 1; token.cancel()
         cancelPicker()
-        window?.close()
+        close()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if picker != nil { cancel(); return false }; return true }
+    override func close(){super.close();if !retired,window?.isVisible != true{retireOwner()}}
     func windowWillClose(_ notification: Notification) {
-        guard !retired else { return }; retired = true; generation += 1; token.cancel(); pendingReview?.close(); pendingReview = nil
+        guard notification.object as? NSWindow === window else{return};retireOwner()
+    }
+    private func retireOwner() {
+        guard !retired else{return};retired=true;generation += 1;token.cancel()
+        let review=pendingReview;review?.close();pendingReview=nil
         cancelPicker()
-        if let sheet = window?.attachedSheet, sheet !== picker { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
-        if let window, let parent = window.sheetParent { parent.endSheet(window) }
-        onFinished()
+        let owner=window,parent=window?.sheetParent
+        if let sheet=owner?.attachedSheet,sheet !== picker {owner?.endSheet(sheet,returnCode:.abort);sheet.close()}
+        if let owner {parent?.endSheet(owner)}
+        Self.activeReleases += 1
+        releaseTask=Task{@MainActor [self,review] in
+            while pendingPreparations>0 || choice != nil || targetQuestion != nil || review?.hasPendingWork == true || owner?.attachedSheet != nil || owner?.sheetParent != nil || (owner != nil && parent?.attachedSheet === owner) {
+                try? await Task.sleep(nanoseconds:5_000_000)
+            }
+            Self.activeReleases -= 1;releaseTask=nil
+            let done=onFinished;onFinished={};done()
+        }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }

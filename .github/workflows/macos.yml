@@ -420,6 +420,8 @@ jobs:
         run: python3 scripts/test-finder-linked-services.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: First-use Finder history and reference Services
         run: python3 scripts/test-finder-history-services.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Finder comparison, patch and export delivery Services
+        run: python3 scripts/test-finder-delivery-services.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Finder selected-source transfer workflow
         run: python3 scripts/test-finder-source-transfers.py --only source --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Project dialog source forms and owned icon chooser

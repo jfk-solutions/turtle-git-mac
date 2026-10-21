@@ -71,6 +71,7 @@ final class ApplicationMailContext: @unchecked Sendable {
     private let deliveryOverride: Delivery?
     var delivery: Delivery { capturedDelivery().delivery == .mailClient ? .mailClient : .smtp }
     var presentationPreferences: UserDefaults { preferences }
+    var isRetired:Bool {invalidated}
     private let preferences: UserDefaults
     private var access: [RepositoryAccessLease]
     private var invalidated = false, submitted = false
@@ -306,7 +307,13 @@ final class ApplicationMailContext: @unchecked Sendable {
     private var targetCancellation:OperationCancellation?
     private(set) static var activeTargetReads=0
     private(set) var pendingTargetReads=0
-    var transportBatchWorkPending:Bool {pendingTargetReads>0 || model.pendingLoads>0 || window?.attachedSheet != nil || window?.sheetParent != nil}
+    static private(set) var activeReleases=0
+    private var releaseTask:Task<Void,Never>?
+    private var retiringReview:ReviewPatchWorkflow?
+    private var retiringPatch:PatchWindowController?
+    var canReuse:Bool {!retired && !model.isRetired}
+    var hasPendingWork:Bool {transportBatchWorkPending}
+    var transportBatchWorkPending:Bool {releaseTask != nil || pendingTargetReads>0 || model.pendingLoads>0 || reviewPreparation?.hasPendingWork == true || retiringReview?.hasPendingWork == true || patch?.model.busy == true || retiringPatch?.model.busy == true || patch?.window?.attachedSheet != nil || retiringPatch?.window?.attachedSheet != nil || retiringPatch?.window?.sheetParent != nil || targetPicker != nil || window?.attachedSheet != nil || window?.sheetParent != nil}
     var presentTargetPanel:(NSOpenPanel,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void = {panel,owner,reply in panel.beginSheetModal(for:owner,completionHandler:reply)}
     var selectedTarget:(NSOpenPanel)->URL? = {$0.url}
     private var targetGeneration = 0
@@ -320,7 +327,7 @@ final class ApplicationMailContext: @unchecked Sendable {
         let host=NSHostingController(rootView:SendPatchDialog(model:model).defaultAppStorage(preferences));host.sizingOptions=[]
         window.contentViewController=host;window.setContentSize(NSSize(width:760,height:480));window.contentMinSize=NSSize(width:620,height:380);constrainSendContent(window,minimum:NSSize(width:620,height:380))
         super.init(window: window); window.delegate = self; window.center()
-        model.close = { [weak window] in window?.close() }; model.endEditing = { [weak window] in window?.makeFirstResponder(nil) }; model.refreshPreview()
+        model.close = { [weak self] in self?.close() }; model.endEditing = { [weak window] in window?.makeFirstResponder(nil) }; model.refreshPreview()
         model.showSettings = { [weak model] in
             guard model?.canInteract == true else { return }
             model?.endEditing()
@@ -418,12 +425,27 @@ final class ApplicationMailContext: @unchecked Sendable {
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.childActive() && PatchDocumentSession.permitOwnerClose(patch.map { [$0] } ?? []) }
+    override func close(){super.close();if !retired,window?.isVisible != true{retireOwner()}}
     func windowWillClose(_ notification: Notification) {
-        retired = true; targetGeneration += 1;targetCancellation?.cancel()
-        if let panel = targetPicker { window?.endSheet(panel, returnCode: .cancel); panel.close() }
-        targetPicker = nil; choosingTarget = false
-        reviewPreparation?.cancel(); reviewPreparation = nil
-        model.invalidate(); patch?.close(); patch = nil; onClosed()
+        guard notification.object as? NSWindow === window else{return};retireOwner()
+    }
+    private func retireOwner() {
+        guard !retired else{return};retired=true;targetGeneration += 1;targetCancellation?.cancel()
+        let panel=targetPicker;targetPicker=nil;choosingTarget=false
+        if let panel {panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.cancel(nil);panel.close()}
+        retiringReview=reviewPreparation;reviewPreparation?.cancel();reviewPreparation=nil
+        model.invalidate();retiringPatch=patch;patch?.close();patch=nil
+        let owner=window,parent=window?.sheetParent
+        if let sheet=owner?.attachedSheet {owner?.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)}
+        if let owner {parent?.endSheet(owner)}
+        Self.activeReleases += 1
+        releaseTask=Task{@MainActor [self,panel] in
+            while pendingTargetReads>0 || model.pendingLoads>0 || retiringReview?.hasPendingWork == true || retiringPatch?.model.busy == true || retiringPatch?.window?.attachedSheet != nil || retiringPatch?.window?.sheetParent != nil || panel?.sheetParent != nil || owner?.attachedSheet != nil || owner?.sheetParent != nil || (owner != nil && parent?.attachedSheet === owner) {
+                try? await Task.sleep(nanoseconds:5_000_000)
+            }
+            retiringReview=nil;retiringPatch=nil;Self.activeReleases -= 1;releaseTask=nil
+            let done=onClosed;onClosed={};done()
+        }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -1011,6 +1033,8 @@ private struct SendPatchProgressDialog: View {
     let preferences: UserDefaults
     private(set) var options: SendPatchWindowController?, progress: SendPatchProgressWindowController?
     private var finished = false, finishing = false
+    var canReuse:Bool {!finished && !finishing}
+    var hasPendingWork:Bool {completionDrain != nil || transportBatchWorkPending}
     private var completionDrain:Task<Void,Never>?
     private var retiredChildren:[NSWindowController]=[]
     var transportBatchWorkPending:Bool {

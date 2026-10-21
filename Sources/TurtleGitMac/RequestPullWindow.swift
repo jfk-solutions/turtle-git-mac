@@ -41,6 +41,7 @@ import TurtleGitCore
         guard parent.attachedSheet == nil else { return false }; parent.beginSheet(child); return true
     }
     var openDocument: ((URL) -> Bool)?
+    var hasPendingWork:Bool {release != nil || activeOperation || transportBatchWorkPending}
     var activeOperation: Bool { model.busy || model.hasPendingWork || model.waitingForHandoff || model.openingEditor || model.confirmingError || model.composingMail || model.choosingStart || !drainingPickers.isEmpty || window?.attachedSheet != nil }
 
     private var sendPatch: SendMailWorkflow?

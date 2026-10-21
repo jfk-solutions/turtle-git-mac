@@ -43,6 +43,10 @@ extension ReferenceBrowserWindowController:FinderFilesystemWorkflowWindow {var f
 extension RepositoryBrowserWindowController:FinderFilesystemWorkflowWindow {var finderServiceCanPresent:Bool {canReuse}}
 extension RevisionGraphWindowController:FinderFilesystemWorkflowWindow {var finderServiceCanPresent:Bool {canReuse}}
 extension GitDaemonWindowController:FinderFilesystemWorkflowWindow {var finderServiceCanPresent:Bool {canReuse}}
+extension ExportWindowController:FinderFilesystemWorkflowWindow {var finderServiceCanPresent:Bool {canReuse}}
+extension FormatPatchWindowController:FinderFilesystemWorkflowWindow {var finderServiceCanPresent:Bool {canReuse}}
+extension ImportPatchWindowController:FinderFilesystemWorkflowWindow {var finderServiceCanPresent:Bool {canReuse}}
+extension RequestPullWindowController:FinderFilesystemWorkflowWindow {var finderServiceCanPresent:Bool {canReuse}}
 
 
 /// Delayed repository work belongs to the window that launched it, even when
@@ -176,7 +180,7 @@ private enum TransportBatchPresentationContext {
     }
     func begin(present: ((NSOpenPanel, NSWindow?, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?, selected: @escaping (NSOpenPanel) -> URL?) {
         let reply: (NSApplication.ModalResponse) -> Void = { [weak self] response in
-            guard let self else { return }
+            guard let self,!self.completed else { return }
             self.finish(response == .OK && !self.owner.cancellation.isCancelled ? selected(self.panel) : nil)
         }
         if let present { present(panel, window, reply) }
@@ -413,6 +417,8 @@ private enum TransportBatchPresentationContext {
             for controller in formatPatchWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in requestPullWindows.values {controller.model.confirmingQuit=confirmingQuit}
             if confirmingQuit {
+                cancelFinderServicePreparation()
+                commandImportOwner?.cancellation.cancel();commandImportFolderChoice?.cancel()
                 for handoff in commandGraphHandoffs.values { handoff.owner.cancellation.cancel(); handoff.owner.onCancelled() }
             }
             for controller in worktreeListWindows.values {controller.createWindow?.model.confirmingQuit=confirmingQuit}
@@ -517,6 +523,13 @@ private enum TransportBatchPresentationContext {
     var createWindowFactory: ((URL, RepositoryAccessLease) -> CreateRepositoryWindowController)?
     var presentFinderServiceFolderPanel:((NSOpenPanel,NSWindow?,@escaping(NSApplication.ModalResponse)->Void)->Void)?
     var selectedFinderServiceFolderURL:(NSOpenPanel)->URL? = {$0.url}
+    var presentFinderServiceFilePanel:((NSOpenPanel,NSWindow?,@escaping(NSApplication.ModalResponse)->Void)->Void)?
+    var selectedFinderServiceFileURL:(NSOpenPanel)->URL? = {$0.url}
+    /// File-only Services carry independent grants and have no invented Git root.
+    var finderServiceFileWorkflowPresentation:((RepositoryAction,NSWindowController,[RepositoryAccessLease])->Void)?
+    var finderServiceFileInspection:(([URL],OperationCancellation) async throws -> Void)?
+    var finderServiceFilePermission:((URL,OperationCancellation) async throws -> RepositoryAccessLease?)?
+    var finderServiceComparisonRead:((WorkingFileComparison,OperationCancellation) async throws -> FileComparisonDocument)?
     /// Receives the actual captured Services child before native presentation.
     /// Production uses ordinary windows; native verification can keep owned
     /// children offscreen without replacing their models or Git operations.
@@ -553,10 +566,11 @@ private enum TransportBatchPresentationContext {
     }
     private var finderServiceTransportStep:RepositoryTransportBatchChain?
     private var finderServiceOwner:RepositoryWindowOwner?
+    private var finderServiceImportOwner:RepositoryWindowOwner?
     private var finderServiceFolderChoice:RepositoryCreationFolderChoice?
     private var finderServiceWorkers=0
-    var hasPendingFinderServiceWork:Bool {finderServiceOwner != nil || finderServiceFolderChoice != nil || finderServiceWorkers>0}
-    private func cancelFinderServicePreparation(){finderServiceOwner?.cancellation.cancel();finderServiceFolderChoice?.cancel();finderServiceTransportStep?.cancel()}
+    var hasPendingFinderServiceWork:Bool {finderServiceOwner != nil || finderServiceImportOwner != nil || finderServiceFolderChoice != nil || finderServiceWorkers>0}
+    private func cancelFinderServicePreparation(){finderServiceOwner?.cancellation.cancel();finderServiceImportOwner?.cancellation.cancel();finderServiceFolderChoice?.cancel();if finderServiceImportOwner != nil{commandImportFolderChoice?.cancel()};finderServiceTransportStep?.cancel()}
     var presentCreationFolderPanel: ((NSOpenPanel, NSWindow?, @escaping (NSApplication.ModalResponse) -> Void) -> Void)?
     var selectedCreationFolderURL: (NSOpenPanel) -> URL? = { $0.url }
     private var creationFolderChoice: RepositoryCreationFolderChoice?
@@ -2225,7 +2239,8 @@ private enum TransportBatchPresentationContext {
             presentReview(workflow)
         } catch { self.error = error.localizedDescription }
     }
-    private func presentReview(_ workflow: ReviewPatchWorkflow) {
+    private func presentReview(_ workflow: ReviewPatchWorkflow,allowed:(()->Bool)?=nil) {
+        guard !retired,!confirmingQuit,workflow.canReuse,allowed?() != false else{workflow.close();return}
         let id = UUID(); reviewPatchWorkflows[id] = workflow
         workflow.presentation = { [weak self] controller in
             let root = controller.model.repository.root
@@ -2241,7 +2256,7 @@ private enum TransportBatchPresentationContext {
         workflow.onFinished = { [weak self] in self?.reviewPatchWorkflows.removeValue(forKey: id) }
         if let reviewPatchPreparation { reviewPatchPreparation(workflow) }
         else { workflow.showWindow(nil); workflow.window?.makeKeyAndOrderFront(nil) }
-        workflow.start()
+        if workflow.canReuse,!retired,!confirmingQuit,allowed?() != false {workflow.start()}else{workflow.close()}
     }
     func showReviewPatch(files: [URL]) {
         guard !busy, !confirmingQuit else { return }
@@ -2291,17 +2306,31 @@ private enum TransportBatchPresentationContext {
             else { panel.begin(completionHandler: reply) }
         }
     }
-    private func showFinderSendMail(files: [URL], commandCancellation: OperationCancellation? = nil) {
-        guard !retired, !busy, !confirmingQuit, !files.isEmpty, workspaceWindow?.attachedSheet == nil else { return }
-        let first = files[0], window = workspaceWindow, id = UUID(), owner = RepositoryWindowOwner(window: workspaceWindow)
-        let requireScope = requiresRepositoryScope, preferences = fileComparisonPreferences, presentation = finderMailPresentation
+    private func showFinderSendMail(files: [URL], commandCancellation: OperationCancellation? = nil,preparedGrants:[RepositoryAccessLease]?=nil,capturedPreferences:UserDefaults?=nil,capturedWindow:NSWindow?=nil,capturedSenderRoot:URL?=nil) {
+        let window=preparedGrants == nil ? workspaceWindow:capturedWindow
+        guard !retired, !busy, !confirmingQuit, !files.isEmpty, window?.attachedSheet == nil else { return }
+        let first = files[0], id = UUID(), owner = RepositoryWindowOwner(window: window)
+        let requireScope = requiresRepositoryScope, preferences = capturedPreferences ?? fileComparisonPreferences
+        let presentation:((NSWindowController)->Void)? = preparedGrants.map { accepted in
+            { [weak self] (controller:NSWindowController) in
+                controller.window?.alphaValue=window?.alphaValue ?? 1;controller.window?.appearance=window?.effectiveAppearance
+                self?.finderServiceFileWorkflowPresentation?(.sendMail,controller,accepted)
+                let reusable=(controller as? SendPatchWindowController)?.canReuse ?? (controller as? SendPatchProgressWindowController)?.canReuse ?? false
+                guard reusable,self?.retired==false,self?.confirmingQuit==false,!owner.cancellation.isCancelled,commandCancellation?.isCancelled != true else{controller.close();return}
+                if let present=self?.finderMailPresentation {present(controller)}else{controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
+                let stillReusable=(controller as? SendPatchWindowController)?.canReuse ?? (controller as? SendPatchProgressWindowController)?.canReuse ?? false
+                guard stillReusable,self?.retired==false,self?.confirmingQuit==false,!owner.cancellation.isCancelled,commandCancellation?.isCancelled != true else{controller.close();return}
+            }
+        } ?? finderMailPresentation
         let token = owner.cancellation
         let inspect = mailFileInspection, permission = mailFilePermission
-        let knownRoot = FinderSnapshot.readLive()?.roots.sorted { $0.count > $1.count }.first { first.path == $0 || first.path.hasPrefix($0 + "/") }
-            ?? root.flatMap { first.path == $0.path || first.path.hasPrefix($0.path + "/") ? $0.path : nil }
-        let rootURL = knownRoot.map { URL(fileURLWithPath: $0, isDirectory: true) }
+        let knownRoot = preparedGrants == nil ? (FinderSnapshot.readLive()?.roots.sorted { $0.count > $1.count }.first { first.path == $0 || first.path.hasPrefix($0 + "/") }
+            ?? root.flatMap { first.path == $0.path || first.path.hasPrefix($0.path + "/") ? $0.path : nil }):capturedSenderRoot?.path
+        let rootURL = knownRoot.map { URL(fileURLWithPath: $0, isDirectory: true) }.flatMap { root in
+            preparedGrants == nil || preparedGrants!.contains(where:{$0.contains(root) && (!requireScope || $0.hasSecurityScope)}) ? root:nil
+        }
         let targets = files + (rootURL.map { [$0] } ?? [])
-        var grants = activeAccess.map { [$0] } ?? []
+        var grants = (preparedGrants ?? []) + (activeAccess.map { [$0] } ?? [])
         if requireScope, let store = accessStore {
             for saved in store.repositories {
                 if let lease = try? store.acquire(saved.id, requireSecurityScope: true, recordingOpen: false), targets.contains(where: { lease.contains($0) }) {
@@ -3263,11 +3292,12 @@ private enum TransportBatchPresentationContext {
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         return controller
     }
-    private func showRequestPull(repository: GitRepository, access: RepositoryAccessLease?, end: String? = nil, repositoryURL: String? = nil, commandLaunch: Bool = false) {
+    private func showRequestPull(repository: GitRepository, access: RepositoryAccessLease?, end: String? = nil, repositoryURL: String? = nil, commandLaunch: Bool = false,preferences:UserDefaults?=nil) {
         guard !retired, !confirmingQuit else { return }
         let key = repository.root.path + ":requestPull:" + (commandLaunch ? "command" : UUID().uuidString)
         if let existing = requestPullWindows[key] { if existing.canReuse { existing.window?.makeKeyAndOrderFront(nil) }; return }
-        let controller = makeRequestPull?(repository, access, end, repositoryURL) ?? RequestPullWindowController(repository: repository, access: access, end: end, repositoryURL: repositoryURL, preferences: fileComparisonPreferences)
+        let defaults=preferences ?? finderWorkflowPreferences
+        let controller = makeRequestPull?(repository, access, end, repositoryURL) ?? RequestPullWindowController(repository: repository, access: access, end: end, repositoryURL: repositoryURL, preferences: defaults)
         controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.onClosed = { [weak self, weak controller] in
             guard let self, let controller, self.requestPullWindows[key] === controller else { return }
@@ -3282,26 +3312,31 @@ private enum TransportBatchPresentationContext {
         let files = paths.map { repository.root.appendingPathComponent($0) }.filter { ["patch", "diff"].contains($0.pathExtension.lowercased()) }
         showImportPatchFiles(repository: repository, access: access, files: files)
     }
-    private func showImportPatchFiles(repository: GitRepository, access: RepositoryAccessLease?, files: [URL], grants: [RepositoryAccessLease] = [], commandLaunch: Bool = false) {
-        let key = repository.root.path
+    private func showImportPatchFiles(repository: GitRepository, access: RepositoryAccessLease?, files: [URL], grants: [RepositoryAccessLease] = [], commandLaunch: Bool = false,preferences:UserDefaults?=nil) {
+        guard !retired,!confirmingQuit else{return}
+        let defaults=preferences ?? finderWorkflowPreferences,rootKey=repository.root.path
+        let baseKey=rootKey+"\0"+repository.executable.path+"\0preferences:"+String(describing:ObjectIdentifier(defaults))
+        let reusable=importPatchWindows.first{($0.key==baseKey || $0.key.hasPrefix(baseKey+"\0")) && $0.value.canReuse}
+        let key=reusable?.key ?? (importPatchWindows[baseKey] == nil ? baseKey:baseKey+"\0"+UUID().uuidString)
         if commandLaunch, let existing = importPatchWindows[key], existing.activeOperation {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             error = "Wait for the current patch operation to finish."; return
         }
-        let controller = importPatchWindows[key] ?? ImportPatchWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
+        let controller = importPatchWindows[key] ?? ImportPatchWindowController(repository: repository, access: access, preferences: defaults)
         controller.model.onMutationStopped = { [weak self] in
-            self?.refreshStatusWindows(repository.root); self?.commitWindows[key]?.model.reload()
-            if self?.root?.path == key { Task { await self?.refresh() } }
+            self?.refreshStatusWindows(repository.root); self?.commitWindows[rootKey]?.model.reload()
+            if self?.root?.path == rootKey { Task { await self?.refresh() } }
         }
-        controller.onClosed = { [weak self] in self?.importPatchWindows.removeValue(forKey: key) }
+        controller.onClosed = { [weak self,weak controller] in guard let self,let controller,self.importPatchWindows[key] === controller else{return};self.importPatchWindows.removeValue(forKey:key) }
         controller.model.onChanged = { [weak self] output in
             self?.refreshStatusWindows(repository.root)
-            if self?.root?.path == key { self?.output = output; Task { await self?.refresh() } }
+            if self?.root?.path == rootKey { self?.output = output; Task { await self?.refresh() } }
         }
         var existingPaths = GitPathSet(controller.model.items.map { FileTransferPaths.lexicalPath($0.file.path) })
         let accepted = commandLaunch ? files.filter { existingPaths.insert(FileTransferPaths.lexicalPath($0.path)).inserted } : files
-        controller.model.add(accepted, retaining: grants)
         importPatchWindows[key] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
+        controller.model.add(accepted, retaining: grants)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showFormatPatch(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false, commandLaunch: Bool = false, preferences: UserDefaults? = nil) {
@@ -3314,13 +3349,12 @@ private enum TransportBatchPresentationContext {
         case .number(let count): suffix = "\0number\0" + String(count)
         case nil: suffix = ""
         }
-        let key = rootKey + (commandLaunch ? "\0command-format-patch" : suffix)
+        let defaults=preferences ?? finderWorkflowPreferences
+        let baseKey = rootKey + (commandLaunch ? "\0command-format-patch" : suffix)+"\0"+repository.executable.path+"\0preferences:"+String(describing:ObjectIdentifier(defaults))
+        let reusable=formatPatchWindows.first{($0.key==baseKey || $0.key.hasPrefix(baseKey+"\0")) && $0.value.canReuse}
+        let key=reusable?.key ?? (formatPatchWindows[baseKey] == nil ? baseKey:baseKey+"\0"+UUID().uuidString)
         let existing = formatPatchWindows[key]
-        if let existing,!existing.canReuse {
-            guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}
-            existing.showWindow(nil);existing.window?.makeKeyAndOrderFront(nil);return
-        }
-        let controller = existing ?? FormatPatchWindowController(repository: repository, access: access, preset: preset, sendMail: sendMail, preferences: preferences ?? fileComparisonPreferences)
+        let controller = existing ?? FormatPatchWindowController(repository: repository, access: access, preset: preset, sendMail: sendMail, preferences: defaults)
         if sendMail && controller.model.optionsAvailable { controller.model.sendMail = true }
         controller.configureReferencePicker = { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         controller.configureLogPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
@@ -3682,13 +3716,13 @@ private enum TransportBatchPresentationContext {
     }
     private func showExport(repository: GitRepository, access: RepositoryAccessLease?, revision: String, paths: [String] = [], commandLaunch: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
-        let defaults = preferences ?? fileComparisonPreferences
+        let defaults = preferences ?? finderWorkflowPreferences
         let commandKey = repository.root.path + "\0command-export"
         if commandLaunch, let existing = exportWindows[commandKey] {
             guard existing.canReuse else {
                 error = "The previous Export window is still closing. Wait for it to finish.";return
             }
-            presentExportWindow(existing);return
+            guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{return};presentExportWindow(existing);return
         }
         let root = repository.root
         let directory = ExportWindowModel.directoryScope(root: root, paths: paths)
@@ -3703,7 +3737,9 @@ private enum TransportBatchPresentationContext {
         configureExportInteractions(controller, repository: repository, access: access)
         controller.onClosed = { [weak self, weak controller] in if self?.exportWindows[key] === controller { self?.exportWindows.removeValue(forKey: key) } }
         presentation?.apply(to: controller.window)
-        exportWindows[key] = controller; presentExportWindow(controller)
+        exportWindows[key] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
+        presentExportWindow(controller)
     }
     private func presentExportWindow(_ controller:ExportWindowController) {
         if let exportWindowPresentation {exportWindowPresentation(controller)}
@@ -4282,7 +4318,7 @@ private enum TransportBatchPresentationContext {
         }
     }
     private func clearComparisonMark() {
-        guard !busy, !confirmingQuit else { return }
+        guard !retired,!busy, !confirmingQuit else { return }
         do { try comparisonMarkStore.clear(); try publishComparisonMark() }
         catch { self.error = error.localizedDescription }
     }
@@ -4304,28 +4340,8 @@ private enum TransportBatchPresentationContext {
         return lease
     }
     private func handleComparisonMark(file: URL, permission: RepositoryAccessLease? = nil) {
-        guard !busy, !confirmingQuit else { return }
-        let alternateTool = ComparisonToolInvocation.capture
-        do {
-            guard let permission = try permission ?? comparisonPermission(for: file) else { return }
-            if try comparisonMarkStore.snapshot() == nil {
-                _ = try comparisonMarkStore.remember(file: file, permission: permission, requireSecurityScope: GitRuntime.isAppStoreBuild)
-                try publishComparisonMark(); output = "Marked for comparison: " + file.path
-            } else {
-                let marked = try comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild)
-                let comparison = try WorkingFileComparison(base: marked.file, destination: file)
-                guard !GitRuntime.isAppStoreBuild || permission.hasSecurityScope && permission.contains(file) else { throw RepositoryAccessFailure.securityScopeUnavailable }
-                _ = try comparison.read()
-                let key = "working-mark:" + UUID().uuidString
-                let controller = FileComparisonWindowController(comparison: comparison, permissions: [marked.permission, permission],preferences:fileComparisonPreferences)
-                controller.model.captureToolChoice(alternateTool)
-                controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
-                fileComparisonWindows[key] = controller
-                controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
-                _ = try comparisonMarkStore.consume(marked.mark.id)
-                try publishComparisonMark()
-            }
-        } catch { self.error = error.localizedDescription }
+        guard !retired,!busy,!confirmingQuit else{return}
+        launchFinderFileWorkflow(FinderRequest(action:.diffLater,paths:[file]),permissions:permission.map{[$0]} ?? [])
     }
     private func handleFilePair(paths: [URL], line: Int? = nil, preferences: UserDefaults? = nil, serviceAccess:RepositoryAccessLease? = nil) {
         let alternateTool = ComparisonToolInvocation.capture
@@ -4429,12 +4445,148 @@ private enum TransportBatchPresentationContext {
         guard lease.contains(root),!requiresRepositoryScope || lease.hasSecurityScope else{throw RepositoryAccessFailure.repositoryRootOutsidePermission(root.path)}
         return lease
     }
+    private func finderFileAccess(_ file:URL,owner:RepositoryWindowOwner,window:NSWindow?,leases:[RepositoryAccessLease]) async throws -> RepositoryAccessLease? {
+        try owner.cancellation.check()
+        if let lease=leases.first(where:{$0.contains(file) && (!requiresRepositoryScope || $0.hasSecurityScope)}) {return lease}
+        if let activeAccess,activeAccess.contains(file),!requiresRepositoryScope || activeAccess.hasSecurityScope {return activeAccess}
+        if let store=accessStore {
+            for saved in store.repositories {
+                if let lease=try? store.acquire(saved.id,requireSecurityScope:requiresRepositoryScope,recordingOpen:false),lease.contains(file) {return lease}
+            }
+        }
+        if let permission=finderServiceFilePermission {
+            let lease=try await permission(file,owner.cancellation)
+            try owner.cancellation.check()
+            guard let lease else{return nil}
+            guard lease.contains(file),!requiresRepositoryScope || lease.hasSecurityScope else{throw RepositoryAccessFailure.securityScopeUnavailable}
+            return lease
+        }
+        let choice=RepositoryCreationFolderChoice(window:window,owner:owner),panel=choice.panel
+        panel.title="Allow file access";panel.prompt="Allow Access"
+        panel.message="Choose the requested file or its containing folder to allow TurtleGit to read it.\n"+file.path
+        panel.canChooseDirectories=true;panel.canChooseFiles=true;panel.allowsMultipleSelection=false;panel.showsHiddenFiles=true
+        panel.directoryURL=file.deletingLastPathComponent();panel.alphaValue=window?.alphaValue ?? 1;panel.appearance=window?.appearance
+        finderServiceFolderChoice=choice
+        defer{if finderServiceFolderChoice === choice {finderServiceFolderChoice=nil}}
+        let selected:URL?=await withCheckedContinuation { continuation in
+            choice.onFinished={continuation.resume(returning:$0)}
+            choice.begin(present:presentFinderServiceFilePanel,selected:selectedFinderServiceFileURL)
+        }
+        while panel.sheetParent != nil || panel.attachedSheet != nil || window?.attachedSheet === panel {try? await Task.sleep(nanoseconds:5_000_000)}
+        try owner.cancellation.check()
+        guard !retired,!confirmingQuit,let selected else{return nil}
+        let lease=RepositoryAccessLease(url:selected,provider:repositoryBookmarkProvider)
+        guard lease.contains(file),!requiresRepositoryScope || lease.hasSecurityScope else{throw RepositoryAccessFailure.securityScopeUnavailable}
+        return lease
+    }
+    /// The mark decision, selected paths, preferences and originating owner are
+    /// fixed before authorization. None of these routes adopts a repository.
+    private func launchFinderFileWorkflow(_ request:FinderRequest,line:Int?=nil,permissions:[RepositoryAccessLease]=[]) {
+        let window=workspaceWindow,owner=RepositoryWindowOwner(window:workspaceWindow)
+        let preferences=request.action == .reviewPatch ? reviewPatchPreferences:fileComparisonPreferences
+        let tool=request.alternateTool ?? ComparisonToolInvocation.capture
+        let senderRoot=request.paths.first.flatMap { first in
+            (FinderSnapshot.readLive()?.roots.sorted{$0.count>$1.count}.first{first.path==$0 || first.path.hasPrefix($0+"/")}).map{URL(fileURLWithPath:$0,isDirectory:true)}
+                ?? root.flatMap{first.path==$0.path || first.path.hasPrefix($0.path+"/") ? $0:nil}
+        }
+        let initialMark:WorkingComparisonMarkSnapshot?
+        do {initialMark=request.action == .diffLater ? try comparisonMarkStore.snapshot():nil}catch{self.error=error.localizedDescription;return}
+        if request.action == .clearComparisonMark {clearComparisonMark();return}
+        var grants:[RepositoryAccessLease]=permissions
+        if let activeAccess {grants.append(activeAccess)}
+        if let store=accessStore {
+            for saved in store.repositories {
+                if let lease=try? store.acquire(saved.id,requireSecurityScope:requiresRepositoryScope,recordingOpen:false) {grants.append(lease)}
+            }
+        }
+        let inspection=finderServiceFileInspection
+        let readComparison=finderServiceComparisonRead
+        finderServiceOwner=owner;finderServiceWorkers += 1;busy=true;error=nil
+        Task { [self,owner,window] in
+            defer{finderServiceWorkers -= 1;if finderServiceOwner === owner {finderServiceOwner=nil;busy=false};withExtendedLifetime(grants){}}
+            @MainActor func check()throws {try owner.cancellation.check();guard !retired,!confirmingQuit else{throw OperationCancellationFailure.cancelled}}
+            do {
+                try check()
+                var selectedGrants:[RepositoryAccessLease]=[]
+                for file in request.paths {
+                    guard let lease=try await finderFileAccess(file,owner:owner,window:window,leases:grants) else{return}
+                    try check();selectedGrants.append(lease);grants.append(lease)
+                }
+                if let inspection {try await inspection(request.paths,owner.cancellation);try check()}
+                if let command=FinderServiceCommand(rawValue:request.action.rawValue) {
+                    guard command.isEligible(paths:request.paths,snapshot:FinderSnapshot(roots:[],states:[:])) else{throw FinderServiceCommand.Failure("This Services command is not available for the selected files.")}
+                }
+                if request.action == .diffLater,initialMark == nil {
+                    guard try comparisonMarkStore.snapshot()==nil else{throw FinderServiceCommand.Failure("The comparison mark changed while access was being authorized. Invoke the service again.")}
+                    _=try comparisonMarkStore.remember(file:request.paths[0],permission:selectedGrants[0],requireSecurityScope:requiresRepositoryScope)
+                    try publishComparisonMark();output="Marked for comparison: "+request.paths[0].path;return
+                }
+                if request.action == .diffLater || request.action == .diff {
+                    let comparison:WorkingFileComparison
+                    var permissions=selectedGrants
+                    if request.action == .diffLater {
+                        guard let initialMark,try comparisonMarkStore.snapshot()?.id==initialMark.id else{throw FinderServiceCommand.Failure("The comparison mark changed. Invoke the service again.")}
+                        let marked=try comparisonMarkStore.acquire(requireSecurityScope:requiresRepositoryScope)
+                        guard marked.mark.id==initialMark.id else{throw OperationCancellationFailure.cancelled}
+                        comparison=try WorkingFileComparison(base:marked.file,destination:request.paths[0]);permissions.insert(marked.permission,at:0)
+                    } else {
+                        guard request.paths.count==2,request.paths[0] != request.paths[1] else{throw RevisionComparisonFailure.selection}
+                        comparison=try WorkingFileComparison(base:request.paths[0],destination:request.paths[1])
+                    }
+                    let token=owner.cancellation
+                    let document:FileComparisonDocument
+                    if let readComparison {document=try await readComparison(comparison,token)}
+                    else {document=try await Task.detached {try token.check();let value=try comparison.read();try token.check();return value}.value}
+                    try check()
+                    if request.action == .diffLater {guard try comparisonMarkStore.snapshot()?.id==initialMark?.id else{throw OperationCancellationFailure.cancelled}}
+                    let key="working-service:"+UUID().uuidString
+                    let controller=FileComparisonWindowController(comparison:comparison,permissions:permissions,preferences:preferences,deferInitialLoad:true,line:line)
+                    try controller.model.prepareWorkingDocument(document)
+                    controller.model.captureToolChoice(tool)
+                    controller.window?.alphaValue=window?.alphaValue ?? 1;controller.window?.appearance=window?.effectiveAppearance
+                    controller.onClosed={ [weak self,weak controller] in guard let self,let controller,self.fileComparisonWindows[key] === controller else{return};self.fileComparisonWindows.removeValue(forKey:key)}
+                    fileComparisonWindows[key]=controller
+                    finderServiceFileWorkflowPresentation?(request.action,controller,permissions)
+                    do{try check()}catch{controller.close();throw error}
+                    guard !controller.model.inputEncodingOwnerRetired else{controller.close();return}
+                    if let fileComparisonWindowPresentation {fileComparisonWindowPresentation(controller)}else{controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
+                    do{try check()}catch{controller.close();throw error}
+                    guard !controller.model.inputEncodingOwnerRetired else{return}
+                    controller.model.initialLoadDeferred=false;controller.model.load()
+                    if request.action == .diffLater,let initialMark {_=try comparisonMarkStore.consume(initialMark.id);try publishComparisonMark()}
+                    return
+                }
+                if request.action == .reviewPatch {
+                    let workflow=ReviewPatchWorkflow(file:request.paths[0],target:senderRoot == nil ? nil:request.paths[0].deletingLastPathComponent(),preferred:request.paths[0].deletingLastPathComponent(),grants:selectedGrants,executable:try GitRuntime.executable(),preferences:preferences)
+                    workflow.window?.alphaValue=window?.alphaValue ?? 1;workflow.window?.appearance=window?.effectiveAppearance
+                    finderServiceFileWorkflowPresentation?(.reviewPatch,workflow,selectedGrants)
+                    do{try check()}catch{workflow.close();throw error}
+                    presentReview(workflow,allowed:{[weak self] in self?.retired==false && self?.confirmingQuit==false && !owner.cancellation.isCancelled});return
+                }
+                if request.action == .sendMail {
+                    // Mail keeps unavailable paths in its checkbox list. The
+                    // existing preparation validates lexical paths, not bytes.
+                    if finderServiceOwner === owner {finderServiceOwner=nil;busy=false}
+                    showFinderSendMail(files:request.paths,commandCancellation:owner.cancellation,preparedGrants:selectedGrants,capturedPreferences:preferences,capturedWindow:window,capturedSenderRoot:senderRoot)
+                }
+            }catch{if !retired,!owner.cancellation.isCancelled,!confirmingQuit {self.error=error.localizedDescription}}
+        }
+    }
     @discardableResult func handleFinderService(_ submitted:FinderRequest)->Bool {
         guard !retired,!busy,!confirmingQuit,!hasPendingRepositoryWork,workspaceWindow?.attachedSheet==nil,
               let command=FinderServiceCommand(rawValue:submitted.action.rawValue) else{return false}
         let request:FinderRequest
         do{request=try command.request(paths:submitted.paths,alternateTool:submitted.alternateTool)}catch{self.error=error.localizedDescription;return false}
-        let capturedPreferences:[RepositoryAction]=[.reflog,.referenceBrowser,.repositoryBrowser,.revisionGraph,.daemon]
+        if command.selectionRoute == .patchImport {
+            let folders=request.paths.filter{(try? FileManager.default.attributesOfItem(atPath:$0.path)[.type]) as? FileAttributeType == .typeDirectory}
+            guard command.isEligible(paths:request.paths,snapshot:FinderSnapshot(roots:[],states:[:])) || request.paths.count==1 && !folders.isEmpty else{error="Select patch files or one repository folder to apply patches.";return false}
+            preparePatchImport(request:request,serviceCommand:command,preferences:fileComparisonPreferences);return true
+        }
+        if [.diffLater,.clearComparisonMark,.reviewPatch,.sendMail].contains(request.action) || request.action == .diff && request.paths.count==2 {
+            guard command.isEligible(paths:request.paths,snapshot:FinderSnapshot(roots:[],states:[:])) else{error="This Services command is not available for the selected files.";return false}
+            launchFinderFileWorkflow(request);return true
+        }
+        let capturedPreferences:[RepositoryAction]=[.reflog,.referenceBrowser,.repositoryBrowser,.revisionGraph,.daemon,.export,.formatPatch,.importPatch,.requestPull]
         let preferences=capturedPreferences.contains(request.action) ? fileComparisonPreferences:nil
         let owner=RepositoryWindowOwner(window:workspaceWindow),generation=adoptionGeneration
         finderServiceOwner=owner;error=nil
@@ -5076,26 +5228,35 @@ private enum TransportBatchPresentationContext {
             commandImportFolderChoice = choice
             choice.onFinished = { [weak self, weak choice] selected in
                 guard let self, let choice, self.commandImportFolderChoice === choice else { continuation.resume(returning: nil); return }
-                self.commandImportFolderChoice = nil
-                guard self.commandImportIsLive(owner, cancellation: nil), let selected else { continuation.resume(returning: nil); return }
-                continuation.resume(returning: RepositoryAccessLease(url: selected, provider: self.repositoryBookmarkProvider))
+                Task { @MainActor [self,choice] in
+                    while choice.panel.sheetParent != nil || choice.panel.attachedSheet != nil || window?.attachedSheet === choice.panel {try? await Task.sleep(nanoseconds:5_000_000)}
+                    if self.commandImportFolderChoice === choice {self.commandImportFolderChoice=nil}
+                    guard self.commandImportIsLive(owner,cancellation:nil),let selected else{continuation.resume(returning:nil);return}
+                    continuation.resume(returning:RepositoryAccessLease(url:selected,provider:self.repositoryBookmarkProvider))
+                }
             }
             choice.begin(present: presentCommandImportFolderPanel, selected: selectedCommandImportFolderURL)
         }
     }
     private func prepareCommandPatchImport(_ invocation: PrimaryCommandInvocation, cancellation: OperationCancellation?) {
+        preparePatchImport(request:invocation.request,initialTarget:invocation.importTarget,cancellation:cancellation)
+    }
+    private func preparePatchImport(request:FinderRequest,initialTarget:URL?=nil,cancellation:OperationCancellation?=nil,serviceCommand:FinderServiceCommand?=nil,preferences:UserDefaults?=nil) {
         guard commandImportOwner == nil, !retired, !confirmingQuit else { return }
         let owner = RepositoryWindowOwner(window: workspaceWindow), window = workspaceWindow
+        let defaults=preferences ?? fileComparisonPreferences
         commandImportOwner = owner; busy = true
+        if serviceCommand != nil {finderServiceImportOwner=owner}
         Task {
             var transferred = false
-            defer { if !transferred, commandImportOwner === owner { commandImportOwner = nil; busy = false } }
+            defer { if !transferred, commandImportOwner === owner { commandImportOwner = nil; busy = false };if !transferred,finderServiceImportOwner === owner{finderServiceImportOwner=nil} }
             do {
                 var grants: [RepositoryAccessLease] = [], files: [URL] = []
-                for file in invocation.request.paths {
+                for file in request.paths {
                     guard commandImportIsLive(owner, cancellation: cancellation) else { return }
                     let lease: RepositoryAccessLease?
-                    if let retained = grants.first(where: { $0.contains(file) }) { lease = retained }
+                    if serviceCommand != nil {lease=try await finderFileAccess(file,owner:owner,window:window,leases:grants)}
+                    else if let retained = grants.first(where: { $0.contains(file) }) { lease = retained }
                     else if let activeAccess, activeAccess.contains(file), !requiresRepositoryScope || activeAccess.hasSecurityScope { lease = activeAccess }
                     else if let commandLinePatchPermission { lease = try commandLinePatchPermission(file) }
                     else if !requiresRepositoryScope { lease = RepositoryAccessLease(url: file, provider: repositoryBookmarkProvider) }
@@ -5107,8 +5268,14 @@ private enum TransportBatchPresentationContext {
                     if !isDirectory { files.append(file) }
                 }
                 guard commandImportIsLive(owner, cancellation: cancellation) else { return }
-                var target = invocation.importTarget
-                if target == nil, let first = invocation.request.paths.first {
+                if let serviceCommand,!files.isEmpty {
+                    guard serviceCommand.isEligible(paths:request.paths,snapshot:FinderSnapshot(roots:[],states:[:])) else{throw FinderServiceCommand.Failure("Select patch files or one repository folder to apply patches.")}
+                }
+                var target = initialTarget
+                // ImportPatchCommand skips directories in a selected patch
+                // batch. They must not silently become the destination repo.
+                let source=serviceCommand != nil && !files.isEmpty ? files.first:request.paths.first
+                if target == nil, let first = source {
                     var location = first
                     if (try? first.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) != true { location.deleteLastPathComponent() }
                     // A file-only grant cannot authorize probing its parent Git
@@ -5122,7 +5289,8 @@ private enum TransportBatchPresentationContext {
                     throw PrimaryCommandInvocation.Failure("Choose a working folder outside Git metadata.")
                 }
                 let repositoryGrant: RepositoryAccessLease?
-                if let target, let activeAccess, activeAccess.contains(target), !requiresRepositoryScope || activeAccess.hasSecurityScope { repositoryGrant = activeAccess }
+                if let target,let retained=grants.first(where:{$0.contains(target) && (!requiresRepositoryScope || $0.hasSecurityScope)}) {repositoryGrant=retained}
+                else if let target, let activeAccess, activeAccess.contains(target), !requiresRepositoryScope || activeAccess.hasSecurityScope { repositoryGrant = activeAccess }
                 else if let target, let commandLineRepositoryPermission { repositoryGrant = try commandLineRepositoryPermission([target]) }
                 else if let target, !requiresRepositoryScope { repositoryGrant = RepositoryAccessLease(url: target, provider: repositoryBookmarkProvider) }
                 else { repositoryGrant = await chooseCommandImportGrant(file: nil, owner: owner, window: window) }
@@ -5133,10 +5301,14 @@ private enum TransportBatchPresentationContext {
                 transferred = true; busy = false
                 openSession(repositoryGrant, selected: selected, onFinished: { [weak self] _ in
                     if self?.commandImportOwner === owner { self?.commandImportOwner = nil }
-                }, handoffOwner: owner, onOpened: { [weak self] in
+                    if self?.finderServiceImportOwner === owner {self?.finderServiceImportOwner=nil}
+                }, handoffOwner: owner,serviceCommand:serviceCommand,servicePreferences:defaults,onOpened: { [weak self] in
                     guard let self, !self.retired, !owner.cancellation.isCancelled, !self.confirmingQuit, cancellation?.isCancelled != true, let repository = self.repository, let access = self.activeAccess else { return }
                     if self.bare { self.activate(.importPatch); return }
-                    self.showImportPatchFiles(repository: repository, access: access, files: files, grants: grants, commandLaunch: true)
+                    let context=serviceCommand.map{_ in FinderServiceDispatchIdentity(action:.importPatch,root:repository.root,preferences:defaults)}
+                    FinderServicePresentationContext.$current.withValue(context) {
+                        self.showImportPatchFiles(repository: repository, access: access, files: files, grants: grants, commandLaunch: serviceCommand == nil,preferences:defaults)
+                    }
                 })
             } catch { if commandImportIsLive(owner, cancellation: cancellation) { self.error = error.localizedDescription } }
         }
@@ -5393,11 +5565,11 @@ private enum TransportBatchPresentationContext {
         if action == .clearComparisonMark { clearComparisonMark(); return }
         if action == .diffLater {
             guard request.paths.count == 1 else { error = "Select one file to mark or compare."; return }
-            handleComparisonMark(file: request.paths[0]); return
+            launchFinderFileWorkflow(request); return
         }
         if action == .clone { showClone(directory: request.paths.first); return }
         if action == .initialize { showCreateRepository(folder: request.paths.first); return }
-        if action == .diff && request.paths.count == 2 { handleFilePair(paths: request.paths, line: invocation?.line); return }
+        if action == .diff && request.paths.count == 2 { launchFinderFileWorkflow(request,line:invocation?.line); return }
         let candidate = request.paths[0]
         // The link's parent contains the Git entry; its target is not read by
         // Blame. Keep the original request URLs for relative path dispatch.

@@ -12,7 +12,7 @@ final class FinderServiceCommandTests: XCTestCase {
         let expected: [(String, RepositoryAction)] = [("log", .log), ("commit", .commit), ("status", .status), ("diff", .diff), ("clone", .clone), ("initialize", .initialize),
             ("pull",.pull),("fetch",.fetch),("push",.push),("synchronize",.synchronize),("rebase",.rebase),("stash",.stash),("stashApply",.stashApply),("stashPop",.stashPop),("stashList",.stashList),("switchBranch",.switchBranch),("merge",.merge),("branch",.branch),("tag",.tag),
             ("add",.add),("revert",.revert),("resolve",.resolve),("resolveCurrent",.resolveCurrent),("resolveMine",.resolveMine),("resolveTheirs",.resolveTheirs),("blame",.blame),("previousDiff",.previousDiff),("editConflict",.editConflict),("ignore",.ignore),("ignoreMask",.ignoreMask),("ignoreDelete",.ignoreDelete),("ignoreDeleteMask",.ignoreDeleteMask),("rename",.rename),("remove",.remove),("removeKeep",.removeKeep),("clean",.clean),("worktreeList",.worktreeList),("worktreeCreate",.worktreeCreate),("submoduleAdd",.submoduleAdd),("submoduleUpdate",.submoduleUpdate),("submoduleSync",.submoduleSync),("logSubmodule",.logSubmodule),
-            ("reflog",.reflog),("referenceBrowser",.referenceBrowser),("repositoryBrowser",.repositoryBrowser),("revisionGraph",.revisionGraph),("daemon",.daemon)]
+            ("reflog",.reflog),("referenceBrowser",.referenceBrowser),("repositoryBrowser",.repositoryBrowser),("revisionGraph",.revisionGraph),("daemon",.daemon),("diffLater",.diffLater),("clearComparisonMark",.clearComparisonMark),("export",.export),("formatPatch",.formatPatch),("importPatch",.importPatch),("reviewPatch",.reviewPatch),("sendMail",.sendMail),("requestPull",.requestPull)]
         XCTAssertEqual(Set(FinderServiceCommand.allCases.map(\.rawValue)), Set(expected.map(\.0)))
         for (name, action) in expected {
             let command = try XCTUnwrap(FinderServiceCommand(rawValue: name))
@@ -416,7 +416,7 @@ final class FinderServiceCommandTests: XCTestCase {
         let data=try Data(contentsOf:root.appendingPathComponent("Configuration/App-Info.plist"))
         let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:data,format:nil) as? [String:Any])
         let services=try XCTUnwrap(plist["NSServices"] as? [[String:Any]])
-        XCTAssertEqual(services.count,47)
+        XCTAssertEqual(services.count,55)
         let names=services.compactMap{$0["NSUserData"] as? String}
         XCTAssertEqual(Array(names[32..<36]),["rename","remove","removeKeep","clean"])
         XCTAssertEqual(Set(names),Set(FinderServiceCommand.allCases.map(\.rawValue)))
@@ -513,7 +513,7 @@ final class FinderServiceCommandTests: XCTestCase {
         let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:data,format:nil) as? [String:Any])
         let services=try XCTUnwrap(plist["NSServices"] as? [[String:Any]])
         let names=services.compactMap{$0["NSUserData"] as? String}
-        XCTAssertEqual(services.count,47);XCTAssertEqual(Set(names).count,47)
+        XCTAssertEqual(services.count,55);XCTAssertEqual(Set(names).count,55)
         XCTAssertEqual(Array(names[36..<42]),["worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule"])
         XCTAssertEqual(Array(names[32..<36]),["rename","remove","removeKeep","clean"])
         for entry in services[36..<42] {
@@ -628,9 +628,9 @@ final class FinderServiceCommandTests: XCTestCase {
         let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:data,format:nil) as? [String:Any])
         let services=try XCTUnwrap(plist["NSServices"] as? [[String:Any]]),names=services.compactMap{$0["NSUserData"] as? String}
         let expected=["reflog","referenceBrowser","repositoryBrowser","revisionGraph","daemon"]
-        XCTAssertEqual(services.count,47);XCTAssertEqual(Set(names).count,47);XCTAssertEqual(Array(names.suffix(5)),expected)
+        XCTAssertEqual(services.count,55);XCTAssertEqual(Set(names).count,55);XCTAssertEqual(Array(names[42..<47]),expected)
         XCTAssertEqual(Array(names[32..<42]),["rename","remove","removeKeep","clean","worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule"])
-        for entry in services.suffix(5) {
+        for entry in services[42..<47] {
             let command=try XCTUnwrap(entry["NSUserData"] as? String)
             XCTAssertEqual(entry["NSMessage"] as? String,"performFinderAction");XCTAssertEqual(entry["NSPortName"] as? String,"TurtleGit")
             XCTAssertEqual(entry["NSSendFileTypes"] as? [String],[expected.prefix(3).contains(command) ? "public.folder":"public.item"])

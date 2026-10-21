@@ -1,0 +1,137 @@
+{
+  "status": "focused-local-validation-passed",
+  "scope": "First-use Finder file comparison/mark, patch review/import/mail and repository export/request delivery with captured authority and drained native ownership",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Eight appended typed Services; original 47 declarations preserved, 55 total with 15 folder and 40 item registrations",
+    "File-first source admission before and after access without unrelated repository discovery",
+    "Independent file grants and accepted comparison document, initial mark ID/settings/tool capture, ID-checked consumption and newer-mark refusal",
+    "Two-file Diff and legacy marked-file URL entry share the asynchronous authorized preparation path; explicit Reload remains fresh",
+    "Outside-repository patch inputs authorized separately from an explicit repository destination; mixed directories skipped in original source file order",
+    "Captured repository executable/access/preferences, live cache context and identity-guarded replacement callbacks",
+    "Actual Send/Review/working-tree patch readers, pickers, alerts, editor children and draft decisions retain closure/Quit ownership",
+    "Existing native dialog controls, source icon mappings and reviewed Git/output/send actions retained"
+  ],
+  "source_adaptations": [
+    "Static macOS Services caption uses Mark for comparison for both mark and subsequent compare; Clear is an explicit entry",
+    "Explicit Review/Send invocation uses source extended-menu admission",
+    "Request Pull has no Shell MenuInfo entry; Services uses Export's singleton repository-folder/bare scopes",
+    "macOS owns Services placement/order and does not expose Explorer's per-entry shell icons through registration"
+  ],
+  "checks": [
+    {
+      "name": "Focused Core family",
+      "methods": 57,
+      "result": "passed, zero failures",
+      "log": "build/qa/finder-delivery-services-core-2026-10-21.log"
+    },
+    {
+      "name": "Services registration source preservation",
+      "result": "passed",
+      "log": "build/qa/finder-delivery-services-registration-2026-10-21.log",
+      "boundary": "Original47 decoded dictionaries exactly match pinned prior local commit f4f2f1fb;55 final declarations,15folder/40item"
+    },
+    {
+      "name": "Generated labels, Help and source coverage",
+      "result": "passed",
+      "localizations": {
+        "languages": 38,
+        "keys": 1314
+      },
+      "help": {
+        "documents": 51,
+        "topics": 51,
+        "files": 71
+      },
+      "dialog_coverage": {
+        "resource_pairs": 130,
+        "partial_families": 120,
+        "pending_families": 10,
+        "pending_controls": 85,
+        "certified_complete": 0
+      },
+      "boundary": "Resource counts are not feature completion percentages"
+    },
+    {
+      "name": "Initial Debug app build and packaged resources",
+      "result": "exit0;55Services and Helpbytes match",
+      "log": "build/qa/finder-delivery-services-app-2026-10-21.log",
+      "diagnostic_boundary": "Build log also contains generic contradictory command-failed-with-exit-code0 messages; native current-object freshness/execution remains independently checked"
+    },
+    {
+      "name": "Initial grouped native checkpoint",
+      "result": "provider passed; files failed before remaining cases",
+      "log": "build/qa/finder-delivery-services-native-2026-10-21.log",
+      "passed_scenarios": [
+        "provider"
+      ],
+      "repair": "Bind the file fixture delegate to its actual workspace for the Quit assertion; production ownership/cancellation assertion retained",
+      "boundary": "Private sandbox-extension warnings are present in provider logs; this does not certify signed grants"
+    },
+    {
+      "name": "Native file-first fixture recheck",
+      "result": "comparison/mark/clear and directory patch review reached; mail fixture denied private global-identity context",
+      "log": "build/qa/finder-delivery-services-native-repair-2026-10-21.log",
+      "repair": "Permit only the exclusive application-owned TurtleGit-mail-context directory under the private temporary root; continue rejecting all unrelated checkout discovery and assert original bytes/order/unavailable mail rows",
+      "boundary": "Fixture-only repair; Core and app checks not repeated"
+    },
+    {
+      "name": "Failed and unrun native scenarios after fixture-only repairs",
+      "result": "six case/engine pairs passed",
+      "log": "build/qa/finder-delivery-services-native-fixture-2026-10-21.log",
+      "cases": [
+        "files",
+        "routes",
+        "owners"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "boundary": "Seven distinct scenarios cumulatively pass including the initial provider case; no Core/app repetition for fixture-only corrections",
+      "receiver_pids_all_attempts": [
+        32084,
+        32098,
+        32173,
+        32378,
+        32435,
+        32488,
+        33366,
+        34243,
+        34316
+      ],
+      "cleanup": "All nine receivers reaped and independently absent. Exact approved Git images with open private-context ownership checked on every exit; successful cases required no recovery cleanup. Every automated window/picker invisible/offscreen.",
+      "assertions": [
+        "Marked and direct comparisons retain independently authorized first-read bytes, original path order, captured settings/tool; explicit Reload reads current bytes",
+        "Replacing mark during delayed authorization refuses old request; closing workspace cancels actual held read and retains Quit until drain",
+        "Directory patch review without a checkout; ordered Mail rows retain unavailable entries and use only private global-identity context",
+        "Reentrant Mail presentation hook cannot re-present retired options",
+        "Four actual repository forms retain rootA/preferences despite workspaceB and delayed grant; cache identity, retired replacement and late close receipts",
+        "Original source selection gates, ordinary added/untracked file refusal, bare Export/RequestPull vs Format/Import refusal",
+        "Mixed patch/directory Import retains original patch file and skips folder, with independent input/destination authority",
+        "Actual Review reads and target-picker detach, Send read consumers, patch-editor export and dirty draft decisions retain callback/Quit ownership",
+        "HEAD/index/config/working and patch bytes unchanged by previews/options/cancel"
+      ]
+    },
+    {
+      "name": "Final Help documentation resource build",
+      "result": "exit0; updated Help and55Services match Debug product",
+      "log": "build/qa/finder-delivery-services-help-final-2026-10-21.log",
+      "boundary": "Documentation/resource-only update after native checks; no functional source change, Core/native cases not repeated"
+    },
+    {
+      "name": "Site render and documentation regression checks",
+      "result": "413 documents, zero unresolved fragments; two tests passed",
+      "logs": [
+        "build/qa/finder-delivery-services-site-2026-10-21.log",
+        "build/qa/finder-delivery-services-site-tests-2026-10-21.log"
+      ]
+    }
+  ],
+  "remaining": [
+    "Complete current hosted CI pass",
+    "Physical Services activation and signed file/repository grants",
+    "Complete dialog/source parity and Windows/menu platform limits",
+    "macOS13/physical Intel and App Store distribution acceptance"
+  ]
+}

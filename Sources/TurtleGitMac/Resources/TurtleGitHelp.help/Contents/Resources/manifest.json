@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "9d8635f776fd6918093b822f7ecc2aa1bc168c2e853ed91635a7c75938faae48",
+    "Contents/Info.plist": "5afc94eb2716e412d69b625cc57f331bcb10f25251938e11d9b48098d07645ad",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BISECT.html": "c94bc39b7cf56afa6cd774a6758bb3994864256ec1ba6a85a3d47d820963b1ec",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "3c99fc083b21ae3fd2ced9b73430abe7383732d4b8b7e40eb960c1ffc5c1357d",
@@ -13,7 +13,8 @@
     "Contents/Resources/en.lproj/CREDENTIAL-SETTINGS.html": "84b759133ad2aaac15b4f566e6712ccae2ecee2daca7fcc74974bb5d9aefa033",
     "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "a388caaada071bea142db3ac456791a7ffd5c52bec3203a2c25847cd1926a20b",
     "Contents/Resources/en.lproj/EXCEL-COMPARISON.html": "4e4dbf998996c02d74a4499f237017f8a14d522ba08ef3a05779f8fade1440d8",
-    "Contents/Resources/en.lproj/FINDER-SERVICES.html": "6a5df36c6eedd33d83513dbc422531e7f7107859c5414cc97534308952514d4e",
+    "Contents/Resources/en.lproj/FINDER-DELIVERY-SERVICES-PARITY.html": "e7e4da2b76700260d215e10acb25f4a9c3812c7085c991c66fd4f05d851b1fa6",
+    "Contents/Resources/en.lproj/FINDER-SERVICES.html": "2b42eca1c34d9be9d1860114fcd0341c47f314e8f166cf20a6f2d9b91fb0a714",
     "Contents/Resources/en.lproj/FINDER-STATUS-POLICY.html": "9c0652e62ee7ffd86d13bdb0d1c1fb8716fe320454a3020abb48b24a12474398",
     "Contents/Resources/en.lproj/GETTING-STARTED.html": "2e6c806915136d5c647880af61745a4ecd98b42ba9c29b733b1b7644c446be64",
     "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "cc62f622edf5577af5c763dd875b4343e37a57f2e284e1f265fb77af2dbe59f1",
@@ -67,8 +68,8 @@
     "Contents/Resources/en.lproj/images/ed3713977296-image-conflict-undecodable-light.png": "138d20aa5da3ab6b283e6d2d69e78639534af3cbef1a2bbbb686ab48aa3b1446",
     "Contents/Resources/en.lproj/images/f49a195c8c35-cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
     "Contents/Resources/en.lproj/images/f7856202ab6a-commit-file-groups-language-de-dark.png": "e7f075b32f6ff02494ead9db85a9da57039ad1a108cda57cadbe40c895f988ed",
-    "Contents/Resources/en.lproj/index.html": "ea52573d60fbd7730b333bda89586ff48d8478e7e5ac5d2b64a11995b24962de",
-    "Contents/Resources/en.lproj/topics.json": "85415f9134f36789a8a3c0a972519c702f8ae3d35b70202ad5a5a002e8b2d67d"
+    "Contents/Resources/en.lproj/index.html": "b747b09f1efe58d7ca675da9708b1a3f3bb6e81a76c75bbb4b7502197c080bf1",
+    "Contents/Resources/en.lproj/topics.json": "db822e5d4815835fb1041e56b817887207d3e3fe916adc8c130a399954b72b0e"
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
@@ -83,7 +84,8 @@
     "docs/CREDENTIAL-SETTINGS.md": "984067cf289fa0a3e9e642037a061c5f7ec0da46dea47132d06bad3200f3c171",
     "docs/DIALOG-GUIDE.md": "7845a491d19ca333f2ca2e93b9f1b079ce3ccaa11c2a5677b065619c25b5763a",
     "docs/EXCEL-COMPARISON.md": "7e3f3a627b2dc6bb807bee992ae0d76830107dea9592c3a02668fc570227ab36",
-    "docs/FINDER-SERVICES.md": "3146ab61df39f83f80614b88097651f5432d4a826e7871c692eb9ba6cb9c5b2c",
+    "docs/FINDER-DELIVERY-SERVICES-PARITY.md": "e6b4af67a87570cb955afa8c6c48355ee6ac1a26561b04e038afc334858d2924",
+    "docs/FINDER-SERVICES.md": "cd43b2edd11b2e68ae4f95a3a44e99b0338aee437b17e4cf1b003f2ddca5ff45",
     "docs/FINDER-STATUS-POLICY.md": "d1df94f55a4e747392e38f89be986a63a643c2931022ce72a69d1cd761d1d6be",
     "docs/GETTING-STARTED.md": "8740fcfab8adec4cc26ec76afbd8de210250595cbeea1eeb55b9a09baf37364e",
     "docs/GIT-AUTHENTICATION.md": "dd6d943d89e823349419471ce62e60259e1425516409cb0c7d033c93f0f00120",
@@ -121,7 +123,7 @@
     "docs/WORD-COMPARISON.md": "922b2e8a5f12bc40b8475bbf73cb558e87a0e692625139b3cc34502f4923663d",
     "docs/WORD-MERGE.md": "dc11fee38f848ddda8201163da223235c9adeaecfe74beaad1ff75d91ff702d7",
     "docs/ZIP-COMPARISON.md": "1fa7085d96970e6cc85ef8edb5e94f12277617d5c91614f1fd05c92362576241",
-    "docs/help-topics.json": "85415f9134f36789a8a3c0a972519c702f8ae3d35b70202ad5a5a002e8b2d67d",
+    "docs/help-topics.json": "db822e5d4815835fb1041e56b817887207d3e3fe916adc8c130a399954b72b0e",
     "docs/site/assets/binary-comparison-dark.png": "13944fd1b3128d1a46cadfabc89f4245a0008a379a7b1ad18e8b77365e618c8d",
     "docs/site/assets/binary-comparison-light.png": "0dda7bddf5a03dbf5bad64e6481f89121752721f2d4bb16995f29a406f2bb04b",
     "docs/site/assets/cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",

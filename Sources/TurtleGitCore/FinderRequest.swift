@@ -3,6 +3,9 @@ import Darwin
 
 /// Native Services is an explicit first-use route, independent of Finder cache.
 /// Its wire envelope conveys selection and tool choice, never repository access.
+public enum FinderServiceSelectionRoute:Hashable,Sendable {
+    case repository,comparisonFile,comparisonMarkClear,patchReview,mailFiles,patchImport
+}
 public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     case log,commit,status,diff,clone,initialize
     case pull,fetch,push,synchronize,rebase,stash,stashApply,stashPop,stashList,switchBranch,merge,branch,tag
@@ -10,6 +13,7 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     case rename,remove,removeKeep,clean
     case worktreeList,worktreeCreate,submoduleAdd,submoduleUpdate,submoduleSync,logSubmodule
     case reflog,referenceBrowser,repositoryBrowser,revisionGraph,daemon
+    case diffLater,clearComparisonMark,export,formatPatch,importPatch,reviewPatch,sendMail,requestPull
     public static let maximumPaths=10000
     public static let maximumRequestBytes=1048576
     public struct Failure:LocalizedError,Sendable {
@@ -18,6 +22,18 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
         public init(_ message:String){self.message=message}
     }
     public var action:RepositoryAction {RepositoryAction(rawValue:rawValue)!}
+    /// File-first workflows must not discover a repository from an unrelated
+    /// active workspace. Patch import separately chooses its destination repo.
+    public var selectionRoute:FinderServiceSelectionRoute {
+        switch self {
+        case .diffLater:return .comparisonFile
+        case .clearComparisonMark:return .comparisonMarkClear
+        case .reviewPatch:return .patchReview
+        case .sendMail:return .mailFiles
+        case .importPatch:return .patchImport
+        default:return .repository
+        }
+    }
     /// The original six Services retain their established explicit-selection
     /// behavior. New repository Services apply MenuInfo's actual state clauses
     /// after the app obtains access and reads fresh repository/status metadata.
@@ -31,7 +47,7 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     /// they cannot borrow Explorer's separate bare-repository folder context.
     public var requiresSingleSelection:Bool {
         switch self {
-        case .clone,.initialize,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag,.blame,.previousDiff,.rename,.worktreeList,.worktreeCreate,.submoduleAdd,.logSubmodule,.reflog,.referenceBrowser,.repositoryBrowser,.revisionGraph,.daemon:return true
+        case .clone,.initialize,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag,.blame,.previousDiff,.rename,.worktreeList,.worktreeCreate,.submoduleAdd,.logSubmodule,.reflog,.referenceBrowser,.repositoryBrowser,.revisionGraph,.daemon,.diffLater,.clearComparisonMark,.export,.formatPatch,.reviewPatch,.requestPull:return true
         default:return false
         }
     }
@@ -41,12 +57,18 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
         case .resolveCurrent,.resolveMine,.resolveTheirs:return .resolve
         case .ignoreMask:return .ignore
         case .ignoreDeleteMask:return .ignoreDelete
+        case .clearComparisonMark:return .diffLater
         default:return action
         }
     }
-    public var capturesAlternateTool:Bool {self == .diff || self == .previousDiff || self == .editConflict}
+    public var capturesAlternateTool:Bool {self == .diff || self == .previousDiff || self == .editConflict || self == .diffLater}
     public func isEligible(flags:FinderShellFlags)->Bool {
-        !requiresSourceEligibility || FinderShellRules.allows(sourceAction,flags:flags)
+        // Services is an explicit action, so arbitrary-file Review/Send uses
+        // the source extended-menu clause without requiring a Git namespace.
+        let flags=(self == .reviewPatch || self == .sendMail) ? flags.union(.extended):flags
+        // RequestPull is a source command/post-action, not a Shell MenuInfo
+        // entry. Its Services adaptation accepts Export's repo-folder scopes.
+        return !requiresSourceEligibility || FinderShellRules.allows(self == .requestPull ? .export:sourceAction,flags:flags)
     }
     /// Called only after access and a fresh status read. Parent menu clauses
     /// alone do not establish usable conflict or ignore targets for children.
@@ -70,7 +92,7 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     }
     public func request(paths:[URL],alternateTool:Bool?=nil)throws->FinderRequest {
         guard !paths.isEmpty,paths.count<=Self.maximumPaths else{throw Failure("Select between 1 and 10,000 files or folders for TurtleGit.")}
-        guard capturesAlternateTool || alternateTool == nil else{throw Failure("The tool choice is valid only for Diff, Diff with previous version, or Edit conflicts.")}
+        guard capturesAlternateTool || alternateTool == nil else{throw Failure("The tool choice is valid only for Diff, Diff with previous version, Edit conflicts, or Mark for comparison.")}
         for path in paths {
             guard path.isFileURL,let parts=URLComponents(url:path,resolvingAgainstBaseURL:false),
                   parts.user==nil,parts.password==nil,parts.port==nil,parts.query==nil,parts.fragment==nil,

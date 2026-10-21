@@ -1522,6 +1522,18 @@ private extension FileComparisonDocument {
         conflictBaseEntry = conflict.entry
     }
     private var changeSetDocument: FileComparisonDocument?
+    private var initialWorkingDocument: FileComparisonDocument?
+    /// File Services already performed an owned, authorized read. Consume that
+    /// exact first receipt through the normal load/tool/decoder session; Reload
+    /// continues to read the current files and all editing permissions remain.
+    func prepareWorkingDocument(_ document:FileComparisonDocument) throws {
+        guard !retired,!busy,!attemptedAppearanceLoad,let comparison=workingComparison,
+              GitReferenceName.equal(document.base.path,comparison.base.path),
+              GitReferenceName.equal(document.destination.path,comparison.destination.path),
+              document.base.revision == .workingTree,document.destination.revision == .workingTree else {throw RevisionComparisonFailure.selection}
+        try validateWorkingAccess(comparison)
+        initialWorkingDocument=document
+    }
     init(readOnly document: FileComparisonDocument, root: URL) {
         repository = nil; access = nil
         snapshot = RevisionComparisonSnapshot(root: root, from: document.base.revision, to: document.destination.revision, fromDetails: nil, toDetails: nil, files: [], options: .init())
@@ -1590,6 +1602,7 @@ private extension FileComparisonDocument {
         loadSession = session; busy = true; error = nil
         let acceptedInputEpoch=paneTabEpoch
         let capturedPermissions=workingPermissions,decodeImages=decodeImages
+        let preparedWorkingDocument=initialWorkingDocument;initialWorkingDocument=nil
         Task {
             var externalOpened = false
             defer {
@@ -1628,7 +1641,8 @@ private extension FileComparisonDocument {
                             loadedMergeInputs = [true:try MergeToolOutputTarget(capturing:workingComparison.base),false:try MergeToolOutputTarget(capturing:workingComparison.destination)]
                             value = try workingComparison.readForMergeTool(replacements:storageReplacements)
                             for input in loadedMergeInputs.values { try input.validate() }
-                        } else { value = try workingComparison.read(replacements: storageReplacements) }
+                        } else if let preparedWorkingDocument,storageReplacements.isEmpty { value=preparedWorkingDocument }
+                        else { value = try workingComparison.read(replacements: storageReplacements) }
                     } else if let repository {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                         value = try await repository.comparisonFile(snapshot, path: path, replacements: storageReplacements, cancellation: token)

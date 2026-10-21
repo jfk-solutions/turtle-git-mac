@@ -139,13 +139,17 @@ remaining acceptance work.
 
 ## Finder integration
 
-The app also advertises forty-seven selected-file **Services**, including Log, Commit,
+The app also advertises fifty-five selected-file **Services**, including Log, Commit,
 Diff, Clone/Create, transport, branch/switch, merge/rebase, stash, Add/Revert/Resolve, Blame, conflict editing, Ignore, Rename, both Delete modes, Cleanup, Worktree/Submodule, RefLog, reference and repository browsers,
 Revision Graph and Daemon workflows.
 These use captured paths
 and owned permission workflows outside monitored roots; their system Services
 placement differs from Finder Sync context menus. Physical registration and signed
 acceptance are still pending. See [selected-file Services](docs/FINDER-SERVICES.md).
+
+The [Finder delivery Services](docs/FINDER-DELIVERY-SERVICES-PARITY.md) also connect
+arbitrary-file marked comparison, patch review/import, mail preparation and
+repository export/request workflows to their existing native dialogs.
 
 Watched Repositories includes a separate Background status column, publication
 times, failure details and a retry action for the embedded cache service.

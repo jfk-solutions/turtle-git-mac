@@ -10,6 +10,8 @@ import TurtleGitCore
     var onClosed: () -> Void = {}
     private var approvedClose = false
     private var retired = false
+    var canReuse:Bool {!retired && !model.closed}
+    var hasPendingWork:Bool {activeOperation || window?.sheetParent != nil}
     private var releaseTask:Task<Void,Never>?
     private(set) static var activeReleases=0
     private(set) var presentationClosed=false
@@ -60,7 +62,7 @@ import TurtleGitCore
             guard let self,!self.retired,!self.model.closed else{return}
             if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: title, permissions: access.map { [$0] } ?? []) { return }
             guard !self.retired,!self.model.closed else{return}
-            self.patch = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: self.patch, title: title, onClosed: { [weak self] in self?.patch = nil })
+            self.patch = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: self.patch, title: title, preferences: preferences, onClosed: { [weak self] in self?.patch = nil })
         }
         model.composeMail = { [weak self] files, completion in
             guard let self else { completion("The patch window was closed."); return }
@@ -171,7 +173,7 @@ import TurtleGitCore
         releaseTask=Task{@MainActor [self] in
             // Forced closure retires UI immediately; ownership ends only when
             // actual reads, Git children, Settings and attached sheets drain.
-            while identitySession.hasPendingWork || panel?.sheetParent != nil || owner?.attachedSheet != nil || owner?.sheetParent != nil || (owner != nil && parent?.attachedSheet === owner) || retiredPatch?.model.busy==true || retiredPatch?.window?.attachedSheet != nil || retiredReview?.activeOperation==true || (mailOptions?.model.pendingLoads ?? 0)>0 || mailProgress?.model.hasPendingWork==true || mailOptions?.window?.attachedSheet != nil || mailProgress?.window?.attachedSheet != nil {
+            while identitySession.hasPendingWork || panel?.sheetParent != nil || owner?.attachedSheet != nil || owner?.sheetParent != nil || (owner != nil && parent?.attachedSheet === owner) || retiredPatch?.model.busy==true || retiredPatch?.window?.attachedSheet != nil || retiredReview?.hasPendingWork==true || mailOptions?.hasPendingWork==true || mailProgress?.model.hasPendingWork==true || mailOptions?.window?.attachedSheet != nil || mailProgress?.window?.attachedSheet != nil {
                 try? await Task.sleep(nanoseconds:5_000_000)
             }
             if retiringMail {let done=mailCompletion;mailCompletion=nil;done?(nil)}
@@ -903,12 +905,16 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var onClosed: () -> Void = {}
     private var approvedClose = false
     private var retired = false
+    private var releaseTask:Task<Void,Never>?
+    static private(set) var activeReleases=0
+    var canReuse:Bool {!retired && !model.retired}
+    var hasPendingWork:Bool {releaseTask != nil || activeOperation || window?.sheetParent != nil}
     var activeOperation: Bool { editorOpenWorkflow != nil || model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || model.editor?.hasPendingEditorChoice == true || model.editor?.busy == true || model.conflictOperationActive || window?.attachedSheet != nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1, automaticallyRefresh: Bool = true) {
         model = WorkingTreePatchWindowModel(repository: repository, access: access, fileAccess: fileAccess, bytes: bytes, preferences: preferences, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, initialStripCount: initialStripCount)
         let window = TextConflictNSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(title) – Review Patch – TurtleGitMerge"; window.isReleasedWhenClosed = false
-        let host = NSHostingController(rootView: WorkingTreePatchDialog(model: model)); host.sizingOptions = []
+        let host = NSHostingController(rootView: WorkingTreePatchDialog(model: model).defaultAppStorage(preferences)); host.sizingOptions = []
         window.contentViewController = host
         super.init(window: window); window.delegate = self; window.patchModel = model; window.openMergeDocument = { [weak self] in self?.openMergeDocument(nil) }; model.window = window
         window.setContentSize(.init(width: 1100, height: 720)); window.contentMinSize = .init(width: 800, height: 460); window.center()
@@ -942,10 +948,28 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         if model.dirty { model.requestClose(); return false }
         return true
     }
+    override func close(){super.close();if !retired,window?.isVisible != true{retireOwner()}}
     func windowWillClose(_ notification: Notification) {
-        guard !retired else { return }; retired = true; editorToolbar?.retire();editorCommandMenu?.retire();editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire()
-        if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.orderOut(nil) }
-        onClosed()
+        guard notification.object as? NSWindow === window else{return};retireOwner()
+    }
+    private func retireOwner() {
+        guard !retired else{return};retired=true
+        editorToolbar?.retire();editorCommandMenu?.retire();editorFileMenu.remove()
+        let opening=editorOpenWorkflow;opening?.retire();editorOpenWorkflow=nil
+        let editor=model.editor,conflict=model.conflictEditor
+        model.retire()
+        let owner=window,parent=window?.sheetParent
+        if let sheet=owner?.attachedSheet {owner?.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)}
+        if let owner {parent?.endSheet(owner)}
+        Self.activeReleases += 1
+        releaseTask=Task{@MainActor [self,opening,editor,conflict] in
+            while model.busy || model.draftDecisionPending || model.previewDocument.busy || editor?.busy == true || editor?.hasPendingEditorChoice == true || conflict?.busy == true || conflict?.preparing == true || conflict?.formatPending == true || conflict?.exportingSource == true || owner?.attachedSheet != nil || owner?.sheetParent != nil || (owner != nil && parent?.attachedSheet === owner) {
+                try? await Task.sleep(nanoseconds:5_000_000)
+            }
+            withExtendedLifetime(opening){}
+            Self.activeReleases -= 1;releaseTask=nil
+            let done=onClosed;onClosed={};done()
+        }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }

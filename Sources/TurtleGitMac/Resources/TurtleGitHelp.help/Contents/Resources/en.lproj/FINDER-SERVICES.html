@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>TurtleGit selected-file Services</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="turtlegit-selected-file-services">TurtleGit selected-file Services</h1>
-<p>TurtleGit advertises forty-seven macOS Services for selected files and folders. They give
+<p>TurtleGit advertises fifty-five macOS Services for selected files and folders. They give
 users an entry point outside Finder Sync's monitored repositories, through the
 system's <strong>Services</strong> menu. They also work with file selections supplied by other
 apps that support macOS Services. Availability and ordering are controlled by
@@ -129,6 +129,22 @@ macOS; these entries do not extend Finder Sync's ordinary context-menu coverage.
 <td>TurtleGit: Revision graph / Daemon</td>
 <td>Existing native graph or reviewed Git daemon window for one eligible Git item or repository folder</td>
 </tr>
+<tr>
+<td>TurtleGit: Mark for comparison / Clear comparison mark</td>
+<td>Mark one arbitrary file, compare a second file with it, or clear the saved mark</td>
+</tr>
+<tr>
+<td>TurtleGit: Export / Create Patch Serial / Apply Patch Serial</td>
+<td>Existing repository export and reviewed patch creation/import forms</td>
+</tr>
+<tr>
+<td>TurtleGit: Review/apply single patch / Send Mail</td>
+<td>Review a patch against a chosen folder or prepare selected files for mail, including outside Git</td>
+</tr>
+<tr>
+<td>TurtleGit: Create pull request…</td>
+<td>Existing repository request form with its reviewed editor/mail handoff</td>
+</tr>
 </tbody>
 </table>
 <p>Clone, Create and Clean up advertise folder selections only. Clone and Create require one existing,
@@ -173,9 +189,11 @@ characters. Duplicate normalized paths are removed while retaining first-seen
 order. Empty, non-file, administrative, mixed malformed and oversized selections
 are rejected with a Services error. The limits are 10,000 incoming items and a
 1 MiB encoded request; this is a transport bound, not a repository-size limit.</p>
-<p>A selected URL is not authorization. The app uses its existing repository access
-leases or an owned <strong>Allow repository folder access</strong> chooser. All requested items
-must be covered before Git discovery or action dispatch. Linked metadata and
+<p>A selected URL is not authorization. Repository commands use existing access
+leases or an owned <strong>Allow repository folder access</strong> chooser. File comparison,
+patch review and mail separately authorize their selected files; comparison does
+not require a common repository folder. All requested items must be covered
+before their corresponding discovery, read or action dispatch. Linked metadata and
 additional repository access continue through the existing discovery workflow.
 For repository operations, a selected symlink stays a Git path in its containing
 repository; discovery does not switch to the repository it points to. Direct
@@ -195,7 +213,7 @@ handoff receipt until Launch Services replies. Its private
 <code>turtlegit://service</code> envelope selects the owned Services route and conveys no
 permission.</p>
 <h2 id="registration-and-source-scope">Registration and source scope</h2>
-<p><code>Configuration/App-Info.plist</code> supplies the forty-seven <code>NSServices</code> declarations.
+<p><code>Configuration/App-Info.plist</code> supplies the fifty-five <code>NSServices</code> declarations.
 <code>ApplicationDelegate.swift</code> installs one provider after startup preparation,
 restores a previous provider only if TurtleGit still owns the registration, and
 retires pending service input during termination. Opening a menu does not execute
@@ -221,8 +239,8 @@ icons. Native operation windows retain their existing controls and source artwor
 for file UTIs, required context, message/user-data mapping and restricted actions,
 and its <a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/providing.html">service-provider lifecycle</a>.
 Clone, Create, Clean up, the six Worktree/Submodule entries and
-RefLog/Browse references/Repo-browser advertise <code>public.folder</code>; the other
-thirty-five advertise
+RefLog/Browse references/Repo-browser and Export/Create Patch Serial/Request Pull
+advertise <code>public.folder</code>; the other forty advertise
 <code>public.item</code>, with operation eligibility checked after access and discovery.
 The bundle uses file services rather than treating a plain text path as a file.</p>
 <h2 id="validation-and-remaining-acceptance">Validation and remaining acceptance</h2>
@@ -358,4 +376,16 @@ remain accounted for until they drain, including during Quit.</p>
 <p>The <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/FINDER-HISTORY-SERVICES-PARITY.html">source and implementation record</a> separates
 this first-use route from complete dialog parity, physical macOS Services menu
 registration, signed grants and App Store acceptance. Those remain separate gates.</p>
+<h2 id="file-comparison-and-patchexport-delivery">File comparison and patch/export delivery</h2>
+<p>The <a href="FINDER-DELIVERY-SERVICES-PARITY.html">delivery family</a> adds independent file
+authorization and captured comparison reads without repository discovery. Mark
+for comparison retains one file; invoke it on another file to compare them.
+Clear comparison mark removes the saved mark without requesting file access.
+Shift chooses the alternate comparison tool. Two-file Diff uses the same owned
+file route. Cancelled authorization or preparation preserves the mark.</p>
+<p>Review/apply single patch can target an ordinary folder. Apply Patch Serial on
+selected patch files separately chooses the target repository. Send Mail keeps
+selected order and unavailable checkbox rows; opening its options does not send.
+Export, Create Patch Serial and Request Pull capture the selected repository and
+settings before discovery and retain them through their existing native dialogs.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

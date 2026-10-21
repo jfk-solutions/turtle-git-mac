@@ -22,6 +22,8 @@ import TurtleGitCore
     private var directoryAnswer:((NSApplication.ModalResponse)->Void)?
     private var retiredReferencePicker:ReferenceBrowserWindowController?
     private var retiredLogPicker:LogWindowController?
+    private var retiredPatch:PatchWindowController?
+    var hasPendingWork:Bool {ownerRelease != nil || activeOperation || model.hasPendingWork || transportBatchWorkPending || directoryPanel != nil || cancellationAlert != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil || retiredPatch?.model.busy == true || retiredPatch?.window?.attachedSheet != nil}
     private var interactionEpoch=0
     private var presentationEpoch=0
     private struct Options: Equatable {
@@ -118,10 +120,10 @@ import TurtleGitCore
         let progress=progressController;progress?.close()
         directoryAnswer?(.cancel)
         retiredReferencePicker=referencePicker;retiredLogPicker=picker
-        referencePicker?.abandonPresentation();referencePicker=nil;picker?.close();picker=nil;patch?.close();patch=nil
+        referencePicker?.abandonPresentation();referencePicker=nil;picker?.close();picker=nil;retiredPatch=patch;patch?.close();patch=nil
         if let window,let sheet=window.attachedSheet,sheet !== progress?.window{window.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)}
-        let release=FormatPatchRelease(window:window,parent:window?.sheetParent,ready:{ [self] in transportRetiredMail?.transportBatchWorkPending != true && !model.hasPendingWork && cancellationAlert == nil && progressController == nil && directoryPanel == nil && retiredReferencePicker?.window?.sheetParent == nil && retiredLogPicker?.window?.sheetParent == nil && (retiredReferencePicker?.model.pendingReferenceReads ?? 0) == 0 && (retiredLogPicker?.model.pendingHistoryLoads ?? 0) == 0 }){ [self] in
-            self.ownerRelease=nil;retiredReferencePicker=nil;retiredLogPicker=nil;observations.removeAll();model.saveDrainedActionLog();let done=onClosed;onClosed={};done()
+        let release=FormatPatchRelease(window:window,parent:window?.sheetParent,ready:{ [self] in transportRetiredMail?.transportBatchWorkPending != true && retiredPatch?.model.busy != true && retiredPatch?.window?.attachedSheet == nil && retiredPatch?.window?.sheetParent == nil && !model.hasPendingWork && cancellationAlert == nil && progressController == nil && directoryPanel == nil && retiredReferencePicker?.window?.sheetParent == nil && retiredLogPicker?.window?.sheetParent == nil && (retiredReferencePicker?.model.pendingReferenceReads ?? 0) == 0 && (retiredLogPicker?.model.pendingHistoryLoads ?? 0) == 0 }){ [self] in
+            self.ownerRelease=nil;retiredReferencePicker=nil;retiredLogPicker=nil;retiredPatch=nil;observations.removeAll();model.saveDrainedActionLog();let done=onClosed;onClosed={};done()
         };ownerRelease=release;release.start()
     }
     private func showProgress(){
@@ -256,7 +258,7 @@ import TurtleGitCore
                 return
             }
         } catch { model.error = error.localizedDescription; return }
-        let controller = patch ?? PatchWindowController(repository: model.repository, access: model.access)
+        let controller = patch ?? PatchWindowController(repository: model.repository, access: model.access, preferences: mailPreferences)
         controller.presentDocument(bytes, title: "Unified Diff – TurtleGit", comparison: "HEAD → Working tree",
             information: "Unified diff since HEAD. Right-click to save the patch.", refreshAvailable: true, refresh: { [weak model = model, weak controller] in
                 guard let controller else { return }; let identity = controller.documentSession.documentIdentity

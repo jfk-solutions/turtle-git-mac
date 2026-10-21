@@ -77,12 +77,12 @@ import TurtleGitCore
     private var retiredPatches: [ReviewPatchWorkflow] = []
     private var retiredDrain: Task<Void,Never>?
     var hasPendingRetiredWork: Bool {
-        pendingPatch != nil || retiredEditors.contains { Self.hasPendingWork($0) } || retiredPatches.contains { $0.loading }
+        pendingPatch != nil || retiredEditors.contains { Self.hasPendingWork($0) } || retiredPatches.contains { $0.hasPendingWork }
     }
     private static func hasPendingWork(_ editor: NSWindowController) -> Bool {
         if let pair = editor as? FileComparisonWindowController { return pair.model.mergeToolHasPendingWork }
         if let merge = editor as? TextConflictWindowController { return merge.model.mergeToolHasPendingWork }
-        return (editor as? WorkingTreePatchWindowController)?.activeOperation == true
+        return (editor as? WorkingTreePatchWindowController)?.hasPendingWork == true
     }
     private func retainRetired(_ editor: NSWindowController) {
         guard Self.hasPendingWork(editor) else { return }
@@ -93,7 +93,7 @@ import TurtleGitCore
         retiredDrain = Task { [self] in
             while hasPendingRetiredWork {
                 retiredEditors.removeAll { !Self.hasPendingWork($0) }
-                retiredPatches.removeAll { !$0.loading }
+                retiredPatches.removeAll { !$0.hasPendingWork }
                 try? await Task.sleep(nanoseconds:10_000_000)
             }
             retiredEditors.removeAll(); retiredPatches.removeAll(); retiredDrain = nil
@@ -180,7 +180,7 @@ import TurtleGitCore
         }
         workflow.onFinished = { [weak self, weak workflow] in
             guard let self else { return }
-            if let workflow, workflow.loading { self.retiredPatches.append(workflow) }
+            if let workflow, workflow.hasPendingWork { self.retiredPatches.append(workflow) }
             self.pendingPatch = nil; self.beginRetiredDrain()
             if let observer = self.parentCloseObserver { NotificationCenter.default.removeObserver(observer); self.parentCloseObserver = nil }
             if self.current == nil { Self.live.removeValue(forKey: self.id) }

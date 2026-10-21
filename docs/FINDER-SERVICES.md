@@ -1,6 +1,6 @@
 # TurtleGit selected-file Services
 
-TurtleGit advertises forty-seven macOS Services for selected files and folders. They give
+TurtleGit advertises fifty-five macOS Services for selected files and folders. They give
 users an entry point outside Finder Sync's monitored repositories, through the
 system's **Services** menu. They also work with file selections supplied by other
 apps that support macOS Services. Availability and ordering are controlled by
@@ -37,6 +37,10 @@ macOS; these entries do not extend Finder Sync's ordinary context-menu coverage.
 | TurtleGit: Show log of this folder | Parent repository history limited to the selected registered submodule root |
 | TurtleGit: RefLog / Browse references / Repo-browser | Existing native history and reference browsers for one selected repository folder |
 | TurtleGit: Revision graph / Daemon | Existing native graph or reviewed Git daemon window for one eligible Git item or repository folder |
+| TurtleGit: Mark for comparison / Clear comparison mark | Mark one arbitrary file, compare a second file with it, or clear the saved mark |
+| TurtleGit: Export / Create Patch Serial / Apply Patch Serial | Existing repository export and reviewed patch creation/import forms |
+| TurtleGit: Review/apply single patch / Send Mail | Review a patch against a chosen folder or prepare selected files for mail, including outside Git |
+| TurtleGit: Create pull request… | Existing repository request form with its reviewed editor/mail handoff |
 
 Clone, Create and Clean up advertise folder selections only. Clone and Create require one existing,
 ordinary directory; filesystem roots, symlink leaves and Git administrative paths
@@ -86,9 +90,11 @@ order. Empty, non-file, administrative, mixed malformed and oversized selections
 are rejected with a Services error. The limits are 10,000 incoming items and a
 1 MiB encoded request; this is a transport bound, not a repository-size limit.
 
-A selected URL is not authorization. The app uses its existing repository access
-leases or an owned **Allow repository folder access** chooser. All requested items
-must be covered before Git discovery or action dispatch. Linked metadata and
+A selected URL is not authorization. Repository commands use existing access
+leases or an owned **Allow repository folder access** chooser. File comparison,
+patch review and mail separately authorize their selected files; comparison does
+not require a common repository folder. All requested items must be covered
+before their corresponding discovery, read or action dispatch. Linked metadata and
 additional repository access continue through the existing discovery workflow.
 For repository operations, a selected symlink stays a Git path in its containing
 repository; discovery does not switch to the repository it points to. Direct
@@ -111,7 +117,7 @@ permission.
 
 ## Registration and source scope
 
-`Configuration/App-Info.plist` supplies the forty-seven `NSServices` declarations.
+`Configuration/App-Info.plist` supplies the fifty-five `NSServices` declarations.
 `ApplicationDelegate.swift` installs one provider after startup preparation,
 restores a previous provider only if TurtleGit still owns the registration, and
 retires pending service input during termination. Opening a menu does not execute
@@ -139,8 +145,8 @@ The implementation follows Apple's
 for file UTIs, required context, message/user-data mapping and restricted actions,
 and its [service-provider lifecycle](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/providing.html).
 Clone, Create, Clean up, the six Worktree/Submodule entries and
-RefLog/Browse references/Repo-browser advertise `public.folder`; the other
-thirty-five advertise
+RefLog/Browse references/Repo-browser and Export/Create Patch Serial/Request Pull
+advertise `public.folder`; the other forty advertise
 `public.item`, with operation eligibility checked after access and discovery.
 The bundle uses file services rather than treating a plain text path as a file.
 
@@ -303,3 +309,19 @@ remain accounted for until they drain, including during Quit.
 The [source and implementation record](FINDER-HISTORY-SERVICES-PARITY.md) separates
 this first-use route from complete dialog parity, physical macOS Services menu
 registration, signed grants and App Store acceptance. Those remain separate gates.
+
+
+## File comparison and patch/export delivery
+
+The [delivery family](FINDER-DELIVERY-SERVICES-PARITY.md) adds independent file
+authorization and captured comparison reads without repository discovery. Mark
+for comparison retains one file; invoke it on another file to compare them.
+Clear comparison mark removes the saved mark without requesting file access.
+Shift chooses the alternate comparison tool. Two-file Diff uses the same owned
+file route. Cancelled authorization or preparation preserves the mark.
+
+Review/apply single patch can target an ordinary folder. Apply Patch Serial on
+selected patch files separately chooses the target repository. Send Mail keeps
+selected order and unavailable checkbox rows; opening its options does not send.
+Export, Create Patch Serial and Request Pull capture the selected repository and
+settings before discovery and retain them through their existing native dialogs.

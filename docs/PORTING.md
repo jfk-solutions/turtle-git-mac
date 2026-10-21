@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+The [Finder comparison and delivery family](FINDER-DELIVERY-SERVICES-PARITY.md)
+adds eight selected-file Services to existing native comparison, patch/mail and
+repository export/request workflows. Captured document bytes/settings, independent
+file grants, mark ID races, fresh source admission, live cache context and actual
+child/worker retirement are implemented. Its [grouped checkpoint](qa/finder-delivery-services-2026-10-21.json)
+passes 57 Core methods and seven distinct native scenarios across recorded
+fixture-only repairs. All nine receivers are independently absent. Original
+47 declarations remain unchanged;55 total registrations do not imply whole-port
+completion. Physical/signed/full-hosted and source-dialog acceptance remain open.
+
 The [bounded metafile raster continuation](METAFILE-RASTER-ROI-PARITY.md)
 implements four-corner device regions, global operand sampling, a single verified
 native destination checkpoint and reachable SVG snapshots without deleting live
