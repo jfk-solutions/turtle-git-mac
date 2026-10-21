@@ -28,6 +28,11 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
     enum Phase { case warning, running, stopping, finished }
     static private(set) var activeOperations = 0
     static private(set) var activeQuestions = 0
+    private(set) var pendingOperations=0
+    var active:Bool {!retired}
+    var hasPendingWork:Bool {pendingOperations>0 || confirmingCancellation}
+    @Published var confirmingQuit=false
+
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let configuration: GitDaemonConfiguration
@@ -59,7 +64,7 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
     private let workerDock = UUID()
     var dockRegistry: DockProgressRegistry = .shared
     var busy: Bool { phase == .running || phase == .stopping }
-    var canCancel: Bool { !retired && !confirmingCancellation && phase != .stopping }
+    var canCancel: Bool { !confirmingQuit && !retired && !confirmingCancellation && phase != .stopping }
     var dockState: DockProgressState? {
         guard started, !retired else { return nil }
         if confirmingCancellation { return .init(.paused) }
@@ -77,11 +82,11 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
         parser = GitCliOutputParser(limit: outputState.limit)
     }
     func begin() {
-        guard !started, !retired, phase == .warning else { return }
+        guard !confirmingQuit, !started, !retired, phase == .warning else { return }
         if preferences.bool(forKey: "DaemonNoSecurityWarning") { proceed() }
     }
     func proceed() {
-        guard !started, !retired, phase == .warning else { return }
+        guard !confirmingQuit, !started, !retired, phase == .warning else { return }
         do {
             guard !GitRuntime.isAppStoreBuild || (access?.hasSecurityScope == true && access?.contains(repository.root) == true) else { throw RepositoryAccessFailure.securityScopeUnavailable }
             _ = try configuration.arguments(root: repository.root)
@@ -95,7 +100,7 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
         // them in the scrollable/copyable log even on hosts with many interfaces.
         parser.appendChunk(Data((urls.joined(separator:"\n") + "\n\ngit " + command + "\n\n").utf8))
         outputState.consume(parser.processPending(), parser:parser); output = outputState.output
-        Self.activeOperations += 1
+        Self.activeOperations += 1;pendingOperations += 1
         dockRegistry.update(workerDock, .init(.running))
         let repository = repository, configuration = configuration, token = token, mailbox = mailbox, runner = run
         // Own the repository scope, Dock and Quit lease until the real process drains,
@@ -111,7 +116,7 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
             let result = await Task.detached {
                 withExtendedLifetime(access) { Result { try runner(repository, configuration, token, { mailbox.append($0) }) } }
             }.value
-            defer { Self.activeOperations -= 1; dockRegistry.remove(workerDock) }
+            defer { Self.activeOperations -= 1;pendingOperations -= 1;dockRegistry.remove(workerDock) }
             pump?.cancel(); pump = nil
             consumeMailbox(); outputState.consume(parser.finish(), parser:parser)
             let wasCancelled = token.isCancelled
@@ -197,6 +202,12 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
 @MainActor final class GitDaemonWindowController: NSWindowController, NSWindowDelegate {
     let model: GitDaemonWindowModel
     var onClosed: () -> Void = {}
+    private var retired=false,releasing=false
+    private var question:NSAlert?
+    private var answer:((Bool)->Void)?
+    var canReuse:Bool {!retired && model.active && !model.confirmingQuit}
+    var hasPendingWork:Bool {releasing || model.hasPendingWork || question?.window.sheetParent != nil || window?.attachedSheet != nil}
+
     init(repository: GitRepository, access: RepositoryAccessLease?, configuration: GitDaemonConfiguration = .init(), preferences: UserDefaults = .standard) {
         model = GitDaemonWindowModel(repository: repository, access: access, configuration: configuration, preferences: preferences)
         let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -206,26 +217,38 @@ private final class DaemonOutputMailbox: @unchecked Sendable {
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in guard let self, !self.model.busy, !self.model.confirmingCancellation, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         window.escapeAction = { [weak model] in model?.cancel() }
-        model.confirmCancellation = { [weak window] choose in
-            guard let window, window.attachedSheet == nil else { choose(false); return }
-            let alert = NSAlert(); alert.alertStyle = .informational
-            alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
-            let yes = alert.addButton(withTitle:"Yes"); alert.addButton(withTitle:"No")
-            yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
-            alert.beginSheetModal(for:window) { choose($0 == .alertFirstButtonReturn) }
+        model.confirmCancellation = { [weak self,weak window] choose in
+            guard let self,self.canReuse,let window,window.attachedSheet==nil else{choose(false);return}
+            let alert=NSAlert();alert.alertStyle = .informational
+            alert.messageText="The process is still running.";alert.informativeText="Are you sure to abort?"
+            let yes=alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No")
+            yes.keyEquivalent="\r";alert.window.defaultButtonCell=yes.cell as? NSButtonCell
+            alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
+            var answered=false
+            let reply:(Bool)->Void={ [weak self] accepted in
+                guard !answered else{return};answered=true
+                if self?.question === alert {self?.question=nil;self?.answer=nil}
+                choose(self?.canReuse == true && accepted)
+            }
+            self.question=alert;self.answer=reply
+            alert.beginSheetModal(for:window){reply($0 == .alertFirstButtonReturn)}
         }
         DialogGeometry.attach(window, identifier: "DaemonProgressDialog", legacyName: "DaemonProgressDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard canReuse else{return false}
         if model.busy { model.cancel(closeWhenStopped: true); return false }
         guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }
         if model.phase == .warning { model.preferences.removeObject(forKey: "DaemonNoSecurityWarning") }
         return true
     }
-    func windowWillClose(_ notification: Notification) {
-        model.retire()
-        if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode:.abort); sheet.orderOut(nil) }
-        onClosed()
+    func windowWillClose(_ notification:Notification) {
+        guard !retired else{return};retired=true;model.retire()
+        let sheet=question?.window ?? window?.attachedSheet,reply=answer
+        question=nil;answer=nil
+        if let sheet {sheet.sheetParent?.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)}
+        reply?(false);releasing=true
+        let release=FinderFilesystemWorkflowRelease(ready:{ [self,sheet] in !model.hasPendingWork && sheet?.sheetParent==nil },completion:{ [self] in releasing=false;let finish=onClosed;onClosed={};finish() });release.start()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }

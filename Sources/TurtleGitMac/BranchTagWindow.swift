@@ -11,6 +11,7 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
     let model: BranchTagWindowModel
     var onClosed: () -> Void = {}
     static var activeReleases: Int { BranchTagRelease.activeCount }
+    var hasPendingWork:Bool {model.hasPendingWork || release != nil || question != nil || !pickerRetirements.isEmpty || referencePicker != nil || commitPicker != nil || window?.attachedSheet != nil || window?.sheetParent != nil}
     private var pickers: VersionPickerCoordinator!
     private var observations: Set<AnyCancellable> = []
     private var question: BranchTagQuestionSession?

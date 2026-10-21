@@ -1,6 +1,6 @@
 # TurtleGit selected-file Services
 
-TurtleGit advertises forty-two macOS Services for selected files and folders. They give
+TurtleGit advertises forty-seven macOS Services for selected files and folders. They give
 users an entry point outside Finder Sync's monitored repositories, through the
 system's **Services** menu. They also work with file selections supplied by other
 apps that support macOS Services. Availability and ordering are controlled by
@@ -35,6 +35,8 @@ macOS; these entries do not extend Finder Sync's ordinary context-menu coverage.
 | TurtleGit: Submodule Add… | Existing source/path/branch/key review and owned clone progress |
 | TurtleGit: Submodule Update… / Submodule Sync | Existing selected-scope update review/progress or immediate URL synchronization |
 | TurtleGit: Show log of this folder | Parent repository history limited to the selected registered submodule root |
+| TurtleGit: RefLog / Browse references / Repo-browser | Existing native history and reference browsers for one selected repository folder |
+| TurtleGit: Revision graph / Daemon | Existing native graph or reviewed Git daemon window for one eligible Git item or repository folder |
 
 Clone, Create and Clean up advertise folder selections only. Clone and Create require one existing,
 ordinary directory; filesystem roots, symlink leaves and Git administrative paths
@@ -109,7 +111,7 @@ permission.
 
 ## Registration and source scope
 
-`Configuration/App-Info.plist` supplies the forty-two `NSServices` declarations.
+`Configuration/App-Info.plist` supplies the forty-seven `NSServices` declarations.
 `ApplicationDelegate.swift` installs one provider after startup preparation,
 restores a previous provider only if TurtleGit still owns the registration, and
 retires pending service input during termination. Opening a menu does not execute
@@ -122,7 +124,8 @@ The pinned source comparison is TortoiseGit revision
 `TortoiseShell/MenuInfo.cpp` Log, Commit, ShowChanged, Diff, Clone, CreateRepo,
 Pull/Fetch/Push/Sync, Switch/Merge/Branch/Tag/Rebase, all four stash entries,
 Add/Revert/Resolve, Blame, PreviousDiff, ConflictEditor, the four
-Ignore/IgnoreDelete variants, and Rename/Remove/RemoveKeep/Cleanup.
+Ignore/IgnoreDelete variants, Rename/Remove/RemoveKeep/Cleanup, and
+RefLog/RefBrowser/RepoBrowse/RevisionGraph/Daemon.
 Those Explorer commands are not restricted to a previously watched-root list.
 macOS Services supplies the missing selected-item entry point; its system menu
 placement differs from Explorer and from TurtleGit's existing Finder Sync menus.
@@ -135,8 +138,9 @@ The implementation follows Apple's
 [Services properties](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/properties.html)
 for file UTIs, required context, message/user-data mapping and restricted actions,
 and its [service-provider lifecycle](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/providing.html).
-Clone, Create, Clean up and the six Worktree/Submodule entries advertise
-`public.folder`; the other thirty-three advertise
+Clone, Create, Clean up, the six Worktree/Submodule entries and
+RefLog/Browse references/Repo-browser advertise `public.folder`; the other
+thirty-five advertise
 `public.item`, with operation eligibility checked after access and discovery.
 The bundle uses file services rather than treating a plain text path as a file.
 
@@ -268,3 +272,34 @@ executed scope and any failures. Installed physical Finder Services activation,
 signed sandbox permissions, minimum-OS and complete upstream/App Store acceptance
 remain separate gates. Services keeps macOS's system-managed placement and lacks
 Explorer's per-entry icons and right-drag interception.
+
+
+## History and reference expansion — October 21, 2026
+
+Five additional Services open RefLog, Browse references, Repo-browser, Revision
+Graph and Daemon for selections outside Finder Sync's previously watched roots.
+RefLog, Browse references and Repo-browser advertise folders; Revision Graph and
+Daemon also accept source-eligible tracked file selections. These are explicit
+single-item Services: macOS supplies selected items rather than Explorer's separate
+background-folder context. Multiple selections are refused instead of silently
+choosing a root. A folder can be a working-tree folder or a bare repository.
+
+Git eligibility is checked against the selected repository's fresh state after
+permission and discovery. Revision Graph and Daemon retain the source tracked-file
+and added-file rules. RefLog and reference browsers retain their folder/bare
+clauses. An ineligible selection reports an error; it never substitutes the active
+workspace repository or another command. The selected URL remains input, not a
+permission grant. Metadata grants and repository grants retain separate boundaries.
+
+The Services route presents the existing native windows, source icons, menus,
+settings and Git operations. Daemon opens its existing warning/progress workflow,
+including Proceed/Abort and its remembered-warning choice. A previously accepted
+remembered choice retains the existing automatic start behavior.
+An opened workflow keeps its captured repository, access and preferences if the
+workspace later changes. Closing or cancelling an initiating owner cannot revive
+late authorization, child windows or cache entries. Real workers and owned sheets
+remain accounted for until they drain, including during Quit.
+
+The [source and implementation record](FINDER-HISTORY-SERVICES-PARITY.md) separates
+this first-use route from complete dialog parity, physical macOS Services menu
+registration, signed grants and App Store acceptance. Those remain separate gates.

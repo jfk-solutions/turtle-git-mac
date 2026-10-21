@@ -1,0 +1,163 @@
+{
+  "date": "2026-10-21",
+  "batch": "First-use Finder history/reference Services and native ownership",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "base_commit": "9c267e46",
+  "commands": [
+    "reflog",
+    "referenceBrowser",
+    "repositoryBrowser",
+    "revisionGraph",
+    "daemon"
+  ],
+  "implementation": [
+    "Five appended typed Services connect existing native workflows beyond monitored Finder roots",
+    "Source singleton/folder/bare/tracked/added predicates applied to fresh authorized state",
+    "Accepted preferences captured before permission/discovery and retained with repository/access through later history successors",
+    "Executable/root/preference-aware controller reuse excludes retired windows; identity-guarded close callbacks preserve replacements",
+    "RefLog, RefBrowser, Repo-browser, Graph and Daemon ownership retains actual workers/native sheets/children until release",
+    "Folder aggregation converts added/deleted children to modified parents matching GitStatus::AdjustFolderStatus; exact leaf/overlay states remain unchanged"
+  ],
+  "declarations": {
+    "total": 47,
+    "old_prefix_unchanged": 42,
+    "folder": 12,
+    "item": 35,
+    "built_app_matches": true
+  },
+  "core": {
+    "passing": true,
+    "distinct_methods": 67,
+    "initial_group": {
+      "methods": 43,
+      "log": "build/qa/finder-history-services-core-2026-10-21.log"
+    },
+    "affected_folder_repair": {
+      "methods": 24,
+      "scope": "New folder-state method plus collection/query/status-policy groups",
+      "log": "build/qa/finder-history-services-folder-core-repair-2026-10-21.log"
+    },
+    "passed_unaffected_groups_repeated": false
+  },
+  "app": {
+    "initial_exit": 65,
+    "repair_exit": 0,
+    "folder_repair_exit": 0,
+    "failure": "ReferenceBrowser requested a nonexistent BranchTag transport-lifetime member; a narrow BranchTag hasPendingWork accessor now exposes its actual existing worker/child release state",
+    "contradictory_diagnostics": "The first repaired exit-zero build retained generic SwiftCompile failed-with-exit-zero messages. The final affected folder build exits zero without those messages; simulator availability warnings are separate from the macOS target.",
+    "logs": [
+      "build/qa/finder-history-services-app-2026-10-21.log",
+      "build/qa/finder-history-services-app-repair-2026-10-21.log",
+      "build/qa/finder-history-services-folder-app-repair-2026-10-21.log"
+    ]
+  },
+  "native": {
+    "passing": true,
+    "distinct_scenarios": 8,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "groups": {
+      "new_provider": 1,
+      "new_routes": 2,
+      "new_ownership": 2,
+      "original_provider": 1,
+      "older_graph_save_ownership": 2
+    },
+    "logs": [
+      "build/qa/finder-history-services-folder-routing-failure-2026-10-21.log",
+      "build/qa/finder-history-services-helper-fixture-failure-2026-10-21.log",
+      "build/qa/finder-history-services-helper-native-repair-2026-10-21.log",
+      "build/qa/finder-history-services-provider-2026-10-21.log",
+      "build/qa/finder-history-services-graph-ownership-2026-10-21.log"
+    ],
+    "scope": [
+      "All47 declarations and preserved42-prefix, Objective-C selector, private pasteboard modern/legacy input, cold/active/retired provider and standalone handoff",
+      "All5 actual native windows for ordinary/bare roots; tracked file vs added/untracked clauses; same repository/index/config/HEAD invariants",
+      "Captured primary grants and prefs across workspace changes; actual Graph/Repo-browser Log successors",
+      "Permission Cancel/late reply fences, actual branch-description child detachment, held Git read cancellation, retired cache replacement",
+      "Actual Graph Save sheet/late acceptance and Filter held-subprocess+own-sheet detachment",
+      "Actual historical Repo-browser Save reaches held writer; token cancellation, actual completion and Quit accounting",
+      "Injected socket-free Daemon runner, live reuse, actual worker cancellation/close/Quit drainage"
+    ],
+    "failures_and_repairs": [
+      "Fixture compilation initially used a private gate type in wider access and private Log labelDefaults; corrected fixture visibility and asserted the same publicly exposed colorPreferences owner. No application behavior removed.",
+      "First routes run exposed real folder added-state aggregation; repaired to pinned AdjustFolderStatus semantics, keeping the source gate and exact added-file refusal.",
+      "Next Graph load failed in the unbundled receiver because Bundle.main lacks its app helper. Existing factory seam now supplies the actual built Debug app GraphLayout executable; geometry/readiness assertions retained.",
+      "Only failed/unrun native groups repeated; new provider success was retained."
+    ]
+  },
+  "ownership": {
+    "receiver_attempts": 10,
+    "receiver_pids": [
+      18445,
+      18447,
+      19834,
+      20229,
+      20778,
+      21304,
+      21587,
+      21927,
+      21936,
+      21986
+    ],
+    "all_independently_absent": true,
+    "ps_exit": 1,
+    "private_helpers": "PID-journal plus exact private wrapper or actual Git/private -C identity; revalidated before signals; a successful case fails if helper cleanup is needed",
+    "windows": "All automated windows/sheets hidden or offscreen; no physical capture in this batch",
+    "daemon": "Injected runner only; no public listener"
+  },
+  "generated": {
+    "localization": {
+      "languages": 38,
+      "keys": 1314,
+      "write_and_check": "passed"
+    },
+    "help": {
+      "documents": 49,
+      "topics": 51,
+      "files": 69,
+      "write_and_check": "passed",
+      "built_bytes_match": true
+    },
+    "dialog_ledger": {
+      "dialogs": 130,
+      "partial_family": 120,
+      "pending_family": 10,
+      "pending_controls": 85,
+      "certified": 0,
+      "meaning": "Audit coverage, not feature completion"
+    },
+    "site": {
+      "documents": 411,
+      "unresolved_fragments": [],
+      "tests": 2,
+      "passing": true,
+      "log": "build/qa/finder-history-services-site-tests-2026-10-21.log"
+    }
+  },
+  "hosted": {
+    "run": 39533313374,
+    "commit": "8f00ea46",
+    "conclusion": "failure",
+    "build_seconds": 463.46,
+    "tests": 2523,
+    "skipped": 2,
+    "affected_methods": 3,
+    "details": "All Commit tests passed. MaskBlt explicitly timed out at unchanged15s decoder deadline; EMF BitBlt/WMF DIBBitBlt nil images have no exposed underlying cause in the failable reader. Current family enrollment is in macos.yml; no full current CI pass claimed.",
+    "failures": 5,
+    "unexpected_failures": 2
+  },
+  "remaining": [
+    "Physical macOS Services activation/menu gestures/localization",
+    "Signed sandbox grants, minimum OS/Intel/keyboard/VoiceOver acceptance",
+    "Complete source dialog/layout parity and other first-use comparison/patch/export Services",
+    "Metafile matrix renderer performance and current complete hosted CI",
+    "Signed distribution and App Store acceptance"
+  ],
+  "protected_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ]
+}

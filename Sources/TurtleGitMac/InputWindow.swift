@@ -23,6 +23,7 @@ final class InputMessageTextView: ProjectMessageTextView {
     private(set) var saved = false
     private var closed = false
     private var pendingSave=false
+    var hasPendingWork:Bool {pendingSave || pendingOwnedWork() || window?.sheetParent != nil || window?.attachedSheet != nil}
     private(set) var cancelling=false
     var allowsSaveCancellation=false
     var closesAfterSavedNoteFailure=false

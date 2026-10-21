@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "6ceff219b2e74a542a359ed9c7bf73ea5f5f6b85721988c665e2120b71b1fdef",
+    "Contents/Info.plist": "2e8abd615195334c30d18154a474bde3ae2e3560e3db20a9a332fbdc8d217334",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BISECT.html": "c94bc39b7cf56afa6cd774a6758bb3994864256ec1ba6a85a3d47d820963b1ec",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "3c99fc083b21ae3fd2ced9b73430abe7383732d4b8b7e40eb960c1ffc5c1357d",
@@ -13,7 +13,7 @@
     "Contents/Resources/en.lproj/CREDENTIAL-SETTINGS.html": "84b759133ad2aaac15b4f566e6712ccae2ecee2daca7fcc74974bb5d9aefa033",
     "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "a388caaada071bea142db3ac456791a7ffd5c52bec3203a2c25847cd1926a20b",
     "Contents/Resources/en.lproj/EXCEL-COMPARISON.html": "4e4dbf998996c02d74a4499f237017f8a14d522ba08ef3a05779f8fade1440d8",
-    "Contents/Resources/en.lproj/FINDER-SERVICES.html": "15e2431b1e13b95085e1a0c3f47a1b647a51bb9ab260c36c610de75b58358230",
+    "Contents/Resources/en.lproj/FINDER-SERVICES.html": "6a5df36c6eedd33d83513dbc422531e7f7107859c5414cc97534308952514d4e",
     "Contents/Resources/en.lproj/FINDER-STATUS-POLICY.html": "9c0652e62ee7ffd86d13bdb0d1c1fb8716fe320454a3020abb48b24a12474398",
     "Contents/Resources/en.lproj/GETTING-STARTED.html": "2e6c806915136d5c647880af61745a4ecd98b42ba9c29b733b1b7644c446be64",
     "Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "cc62f622edf5577af5c763dd875b4343e37a57f2e284e1f265fb77af2dbe59f1",
@@ -82,7 +82,7 @@
     "docs/CREDENTIAL-SETTINGS.md": "984067cf289fa0a3e9e642037a061c5f7ec0da46dea47132d06bad3200f3c171",
     "docs/DIALOG-GUIDE.md": "7845a491d19ca333f2ca2e93b9f1b079ce3ccaa11c2a5677b065619c25b5763a",
     "docs/EXCEL-COMPARISON.md": "7e3f3a627b2dc6bb807bee992ae0d76830107dea9592c3a02668fc570227ab36",
-    "docs/FINDER-SERVICES.md": "7824d50deaa4db2f855c50a7adb7a3d52ca95b06129c59340b8ce023327ab106",
+    "docs/FINDER-SERVICES.md": "3146ab61df39f83f80614b88097651f5432d4a826e7871c692eb9ba6cb9c5b2c",
     "docs/FINDER-STATUS-POLICY.md": "d1df94f55a4e747392e38f89be986a63a643c2931022ce72a69d1cd761d1d6be",
     "docs/GETTING-STARTED.md": "8740fcfab8adec4cc26ec76afbd8de210250595cbeea1eeb55b9a09baf37364e",
     "docs/GIT-AUTHENTICATION.md": "dd6d943d89e823349419471ce62e60259e1425516409cb0c7d033c93f0f00120",

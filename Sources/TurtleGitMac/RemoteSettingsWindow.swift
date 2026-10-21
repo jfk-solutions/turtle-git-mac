@@ -32,6 +32,8 @@ import TurtleGitCore
     @Published private(set) var changed: RemoteSettingsFields = []
     @Published private(set) var hasChild = false
     @Published private(set) var busy = false
+    private(set) var pendingOperations=0
+    var hasPendingWork:Bool {pendingOperations>0}
     private(set) var closed = false
     private var lifecycle = UUID()
     private var attachment: UUID?
@@ -122,9 +124,9 @@ import TurtleGitCore
     }
     private func checkCollision() {
         collisionToken?.cancel(); let request = OperationCancellation(); collisionToken = request; let name = draft.name
-        Self.activeOperations += 1
+        Self.activeOperations += 1;pendingOperations += 1
         Task { [self, access] in
-            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
+            defer { Self.activeOperations -= 1;pendingOperations -= 1; withExtendedLifetime(access) {} }
             defer { if collisionToken === request { collisionToken = nil } }
             do { try checkAccess(); let value = try await repository.remoteNameCollidesWithRefspec(name, cancellation: request); guard !closed, collisionToken === request, !request.isCancelled else { return }; collision = value; updated() }
             catch { if !closed, collisionToken === request, !request.isCancelled { self.error = error.localizedDescription; updated() } }
@@ -132,9 +134,9 @@ import TurtleGitCore
     }
     private func perform(_ body: @escaping (OperationCancellation) async throws -> Void) {
         guard !closed, !activating, !busy, !hasChild else { return }; collisionToken?.cancel(); collisionToken = nil
-        let request = OperationCancellation(); token = request; busy = true; error = nil; updated(); Self.activeOperations += 1
+        let request = OperationCancellation(); token = request; busy = true; error = nil; updated(); Self.activeOperations += 1;pendingOperations += 1
         Task {
-            defer { Self.activeOperations -= 1 }
+            defer { Self.activeOperations -= 1;pendingOperations -= 1 }
             defer {
                 let completion = token === request ? settingsCompletion : nil
                 if token === request { settingsCompletion = nil }

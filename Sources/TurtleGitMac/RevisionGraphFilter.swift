@@ -15,6 +15,11 @@ import TurtleGitCore
 
 @MainActor final class RevisionGraphFilterController: NSWindowController, NSWindowDelegate, NSTextFieldDelegate {
     static var activeOperations = 0
+    private(set) var pendingOperations=0
+    private var releasing=false
+    private var delivery:(()->Void)?
+    var hasPendingWork:Bool {releasing || pendingOperations>0 || picker?.hasPendingWork == true || window?.attachedSheet != nil || window?.sheetParent != nil}
+
     private(set) var completionNames: [String] = ["HEAD"]
     private(set) var completionError: String?
     private let completionEditor = RevisionGraphCompletionEditor()
@@ -70,9 +75,9 @@ import TurtleGitCore
     deinit { completionCancellation?.cancel(); completionWorker?.cancel() }
     private func loadCompletions() {
         let token=OperationCancellation(); completionCancellation=token
-        Self.activeOperations += 1
+        Self.activeOperations += 1;pendingOperations += 1
         completionWorker=Task { [self] in
-            defer { Self.activeOperations -= 1; completionWorker=nil; completionCancellation=nil; withExtendedLifetime(model.access) {} }
+            defer { Self.activeOperations -= 1;pendingOperations -= 1; completionWorker=nil; completionCancellation=nil; withExtendedLifetime(model.access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (model.access?.hasSecurityScope != true || model.access?.contains(model.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let references:[String]
@@ -156,8 +161,8 @@ import TurtleGitCore
     private func finish(_ result: RevisionGraphOptions?) {
         guard !finished else { return }; finished = true
         completionCancellation?.cancel(); completionWorker?.cancel()
-        let callback = completion; completion = nil
-        if let window { window.sheetParent?.endSheet(window); window.close() }; callback?(result)
+        let callback=completion;completion=nil;delivery={callback?(result)}
+        if let window {window.sheetParent?.endSheet(window);window.close()}
     }
     @objc private func browseFrom() { browse(fromField) }
     @objc private func browseTo() { guard toField.isEnabled else { return }; browse(toField) }
@@ -181,11 +186,15 @@ import TurtleGitCore
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool { guard picker == nil, sender.attachedSheet == nil else { return false }; finish(nil); return false }
-    func windowWillClose(_ notification: Notification) {
+    func windowWillClose(_ notification:Notification) {
+        guard !releasing else{return};releasing=true
+        if let window {window.sheetParent?.endSheet(window,returnCode:.abort)}
         NotificationCenter.default.removeObserver(self)
-        completionCancellation?.cancel(); completionWorker?.cancel()
-        if let alert=completionAlert, let sheet=alert.window.sheetParent { sheet.endSheet(alert.window); alert.window.orderOut(nil) }; completionAlert=nil
-        pickerRequest = nil; pendingFocus = nil; picker?.abandonPresentation(); picker = nil
-        if !finished { finished = true; let callback = completion; completion = nil; callback?(nil) }
+        completionCancellation?.cancel();completionWorker?.cancel()
+        let sheet=completionAlert?.window ?? window?.attachedSheet,child=picker
+        if let sheet {sheet.sheetParent?.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)}
+        completionAlert=nil;pickerRequest=nil;pendingFocus=nil;child?.abandonPresentation();picker=nil
+        if !finished {finished=true;let callback=completion;completion=nil;delivery={callback?(nil)}}
+        let release=FinderFilesystemWorkflowRelease(ready:{ [self,child,sheet] in pendingOperations==0 && window?.sheetParent==nil && child?.hasPendingWork != true && child?.window?.sheetParent==nil && sheet?.sheetParent==nil },completion:{ [self,child] in releasing=false;let done=delivery;delivery=nil;done?();withExtendedLifetime(child){} });release.start()
     }
 }

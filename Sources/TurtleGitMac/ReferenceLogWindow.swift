@@ -6,6 +6,12 @@ import TurtleGitCore
 @MainActor final class ReferenceLogWindowController: NSWindowController, NSWindowDelegate {
     let model: ReferenceLogWindowModel
     var onClosed: () -> Void = {}
+    private var retired=false
+    private var releasing=false
+    private var selectionDelivery:(()->Void)?
+    var canReuse:Bool {!retired && !model.isInvalidated && !model.confirmingQuit}
+    var hasPendingWork:Bool {releasing || model.hasPendingWork || ownedAlert != nil || window?.attachedSheet != nil}
+
     private var selectionCompletion: ((ReferenceLogEntry?) -> Void)?
     private var notePresenter: CommitNotePresenter?
     var noteEditor: InputWindowController? { notePresenter?.editor }
@@ -115,24 +121,29 @@ import TurtleGitCore
         if visible { finder.showWindow(nil); finder.window?.makeKeyAndOrderFront(nil) }
     }
     private func finishSelection(_ entry: ReferenceLogEntry?) {
-        guard !model.unifiedViewerBusy else { return }
-        guard let completion = selectionCompletion else { return }; selectionCompletion = nil
-        if let window { window.sheetParent?.endSheet(window); window.close() }
-        completion(entry)
+        guard canReuse,!model.unifiedViewerBusy,let completion=selectionCompletion else{return}
+        selectionCompletion=nil;selectionDelivery={completion(entry)}
+        if let window {window.sheetParent?.endSheet(window);window.close()}
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard model.canClose,!model.unifiedViewerBusy,sender.attachedSheet==nil else {return false}
-        if model.selecting { finishSelection(nil); return false }; return true
+    func windowShouldClose(_ sender:NSWindow)->Bool {
+        guard canReuse,model.canClose,!model.confirmingQuit,!model.unifiedViewerBusy,sender.attachedSheet==nil else{return false}
+        if model.selecting {finishSelection(nil);return false};return true
     }
-    func windowWillClose(_ notification: Notification) {
-        findController?.close(); findController = nil
+    func windowWillClose(_ notification:Notification) {
+        guard !retired else{return};retired=true
+        let child=model.unifiedWindow,sheet=window?.attachedSheet
+        findController?.close();findController=nil
         model.invalidate();retireAlert();notePresenter?.close()
-        if let child=window?.attachedSheet {window?.endSheet(child,returnCode:.abort);child.close()}
-        model.unifiedWindow?.close(); model.unifiedWindow = nil
-        let completion=selectionCompletion;selectionCompletion=nil;completion?(nil)
-        if model.noteLog.noteWorkPending {
-            Task{@MainActor [self] in while model.noteLog.noteWorkPending{try? await Task.sleep(nanoseconds:5_000_000)};onClosed()}
-        }else{onClosed()}
+        if let sheet {sheet.sheetParent?.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)}
+        child?.close();model.unifiedWindow=nil
+        if let completion=selectionCompletion {selectionCompletion=nil;selectionDelivery={completion(nil)}}
+        releasing=true
+        let release=FinderFilesystemWorkflowRelease(ready:{ [self,child,sheet] in
+            !model.hasPendingWork && child?.model.busy != true && sheet?.sheetParent==nil
+        },completion:{ [self,child] in
+            releasing=false;let delivery=selectionDelivery;selectionDelivery=nil;delivery?()
+            let finish=onClosed;onClosed={};finish();withExtendedLifetime(child){}
+        });release.start()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -142,7 +153,7 @@ import TurtleGitCore
     let preferences: UserDefaults
     let noteLog: LogWindowModel
     private var noteChanges: AnyCancellable?
-    var commandSurfaceAvailable: Bool { !invalidated && !busy && !confirmingDelete && !confirmingColumns && !noteLog.loadingNote && !noteLog.savingNote && noteLog.noteRequest == nil }
+    var commandSurfaceAvailable: Bool { !confirmingQuit && !invalidated && !busy && !confirmingDelete && !confirmingColumns && !noteLog.loadingNote && !noteLog.savingNote && noteLog.noteRequest == nil }
     private let access: RepositoryAccessLease?
     @Published var reference: String
     @Published var names: [String]
@@ -158,6 +169,10 @@ import TurtleGitCore
     private(set) var diffParentsBackendIdentity:String?
     private var invalidated = false
     var isInvalidated:Bool {invalidated}
+    @Published var confirmingQuit=false {didSet {if oldValue != confirmingQuit {generation += 1;noteLog.confirmingQuit=confirmingQuit}}}
+    private(set) var pendingRevisionReads=0
+    var hasPendingWork:Bool {!ownedTokens.isEmpty || pendingRevisionReads>0 || noteLog.noteWorkPending || noteLog.pendingHistoryLoads>0}
+
     @Published private(set) var mutating=false
     @Published private(set) var confirmingColumns=false
     var confirmColumnReset: () async -> Bool = {false}
@@ -184,7 +199,7 @@ import TurtleGitCore
         if ownedTokens.removeValue(forKey:id) != nil {Self.activeOwnedOperations -= 1}
     }
     private func cancelOwned() {ownedTokens.values.forEach{$0.cancel()}}
-    var canRefresh:Bool {!invalidated && !mutating && !confirmingDelete && !confirmingColumns && !noteLog.savingNote && noteLog.noteRequest==nil}
+    var canRefresh:Bool {!confirmingQuit && !invalidated && !mutating && !confirmingDelete && !confirmingColumns && !noteLog.savingNote && noteLog.noteRequest==nil}
     var canClose:Bool {!mutating && !confirmingColumns && !noteLog.savingNote}
     var askDelete:((String,Bool) async -> Bool)?
 
@@ -499,9 +514,9 @@ import TurtleGitCore
               let entry = entries.first(where: { ids.contains($0.id) }) else { return }
         let token = OperationCancellation(), request = generation, reference = self.reference
         let repository = self.repository.capturingDiffBackend(preferences: preferences), factory = noteLog.sshSettings.capture()
-        revisionReadToken=token;busy=true;mutating=true;error=nil;Self.activeRevisionReads += 1
+        revisionReadToken=token;busy=true;mutating=true;error=nil;Self.activeRevisionReads += 1;pendingRevisionReads += 1
         Task { [weak self, access] in
-            defer { Self.activeRevisionReads -= 1; withExtendedLifetime(access) {} }
+            defer { Self.activeRevisionReads -= 1;self?.pendingRevisionReads -= 1; withExtendedLifetime(access) {} }
             let coordinator = factory?(); defer { coordinator?.close() }
             var changed = false, outputs: [String] = []
             defer {
@@ -551,10 +566,10 @@ import TurtleGitCore
               let entry = entries.first(where: { ids.contains($0.id) }) else { return }
         let token = OperationCancellation(), request = generation, reference = self.reference
         let repository = self.repository, names = referenceNamesByHash[entry.hash] ?? []
-        revisionReadToken = token; busy = true; error = nil; Self.activeRevisionReads += 1
+        revisionReadToken = token; busy = true; error = nil; Self.activeRevisionReads += 1;pendingRevisionReads += 1
         Task { [weak self, access] in
             defer {
-                Self.activeRevisionReads -= 1; withExtendedLifetime(access) {}
+                Self.activeRevisionReads -= 1;self?.pendingRevisionReads -= 1; withExtendedLifetime(access) {}
                 if let self, !self.invalidated, self.generation == request, self.revisionReadToken === token {
                     self.revisionReadToken = nil; self.busy = false
                 }
@@ -604,11 +619,11 @@ import TurtleGitCore
             onRebaseRevision?(target); return
         }
         let token = OperationCancellation(), request = generation, reference = self.reference
-        revisionReadToken = token; busy = true; error = nil; Self.activeRevisionReads += 1
+        revisionReadToken = token; busy = true; error = nil; Self.activeRevisionReads += 1;pendingRevisionReads += 1
         let read = readOperationEntries, root = repository.root
         Task { [weak self, access] in
             defer {
-                Self.activeRevisionReads -= 1; withExtendedLifetime(access) {}
+                Self.activeRevisionReads -= 1;self?.pendingRevisionReads -= 1; withExtendedLifetime(access) {}
                 if let self, !self.invalidated, self.generation == request, self.revisionReadToken === token {
                     self.revisionReadToken = nil; self.busy = false
                 }
@@ -636,10 +651,10 @@ import TurtleGitCore
         let snapshot = entries, ids = selection, request = generation, reference = self.reference
         let repository=self.repository.capturingDiffBackend(preferences:preferences)
         let token = OperationCancellation(), read = readCombineCandidate, root = repository.root
-        combineToken = token; Self.activeRevisionReads += 1
+        combineToken = token; Self.activeRevisionReads += 1;pendingRevisionReads += 1
         Task { [weak self, access] in
             defer {
-                Self.activeRevisionReads -= 1; withExtendedLifetime(access) {}
+                Self.activeRevisionReads -= 1;self?.pendingRevisionReads -= 1; withExtendedLifetime(access) {}
                 if let self, self.combineToken === token { self.combineToken = nil }
             }
             do {
@@ -671,10 +686,10 @@ import TurtleGitCore
         guard bisectAvailable(command, ids: ids) else { return }
         let snapshot = entries.filter { ids.contains($0.id) }, refs = referenceNamesByHash, request = generation, reference = self.reference
         let token = OperationCancellation(), repository = self.repository, root = repository.root
-        revisionReadToken = token; busy = true; error = nil; Self.activeRevisionReads += 1
+        revisionReadToken = token; busy = true; error = nil; Self.activeRevisionReads += 1;pendingRevisionReads += 1
         Task { [weak self, access] in
             defer {
-                Self.activeRevisionReads -= 1; withExtendedLifetime(access) {}
+                Self.activeRevisionReads -= 1;self?.pendingRevisionReads -= 1; withExtendedLifetime(access) {}
                 if let self, !self.invalidated, self.generation == request, self.revisionReadToken === token { self.revisionReadToken = nil; self.busy = false }
             }
             do {

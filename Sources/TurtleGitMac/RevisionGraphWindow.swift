@@ -332,9 +332,14 @@ final class RevisionGraphToolbarButton: NSButton {
     }
     private(set) var pendingExportOperations=0
     private(set) static var activeExportOperations=0
+    private(set) static var activeRetirements=0
     private var closeRelease:Task<Void,Never>?
     private var hasClosed=false
-    var hasPendingWork:Bool {model.hasPendingWork || pendingExportOperations>0 || closeRelease != nil || graphSavePanel?.panel.sheetParent != nil || exportError?.window.sheetParent != nil}
+    var canReuse:Bool {!hasClosed && !closing && !model.closed && !model.confirmingQuit}
+    private var retiringFilter:RevisionGraphFilterController?
+    private var retiringFind:RevisionGraphFindController?
+    private var retiringUnified:PatchWindowController?
+    var hasPendingWork:Bool {model.hasPendingWork || pendingExportOperations>0 || closeRelease != nil || find?.hasPendingWork == true || retiringFilter?.hasPendingWork == true || retiringFind?.hasPendingWork == true || retiringUnified?.model.busy == true || graphSavePanel?.panel.sheetParent != nil || exportError?.window.sheetParent != nil}
     var selectedSaveURL:(NSSavePanel)->URL?={$0.url}
     var presentExportError:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Void={window,alert,reply in alert.beginSheetModal(for:window,completionHandler:reply)}
     var presentSavePanel: (NSSavePanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, window, completion in panel.beginSheetModal(for: window, completionHandler: completion) }
@@ -810,18 +815,22 @@ final class RevisionGraphToolbarButton: NSButton {
         exportCancellation?.cancel()
         let save=graphSavePanel?.panel,errorSheet=exportError?.window
         if let alert=unifiedError {window?.endSheet(alert.window,returnCode:.cancel);alert.window.orderOut(nil);unifiedError=nil}
-        NotificationCenter.default.removeObserver(self);model.invalidate();unifiedViewer?.close();unifiedViewer=nil
+        NotificationCenter.default.removeObserver(self);model.invalidate()
+        retiringUnified=unifiedViewer;unifiedViewer?.close();unifiedViewer=nil
+        retiringFind=find;retiringFilter=filter
         if let save {save.sheetParent?.endSheet(save,returnCode:.cancel);save.orderOut(nil)}
         saveReply?(.cancel)
         if let errorSheet {errorSheet.sheetParent?.endSheet(errorSheet,returnCode:.cancel);errorSheet.orderOut(nil)}
         exportErrorReply?(.cancel)
         filter?.close();filter=nil;find?.close();find=nil
         (window as? RevisionGraphNativeWindow)?.command={_ in};canvas.contextMenu={NSMenu()};canvas.interactionAllowed={false};overview.interactionAllowed={false}
-        if model.hasPendingWork || pendingExportOperations>0 || save?.sheetParent != nil || errorSheet?.sheetParent != nil {
+        if model.hasPendingWork || pendingExportOperations>0 || retiringFilter?.hasPendingWork == true || retiringFind?.hasPendingWork == true || retiringUnified?.model.busy == true || save?.sheetParent != nil || errorSheet?.sheetParent != nil {
+            Self.activeRetirements += 1
             closeRelease=Task { [self] in
+                defer {Self.activeRetirements -= 1}
                 await model.waitForCompletion()
-                while model.hasPendingWork || pendingExportOperations>0 || save?.sheetParent != nil || errorSheet?.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
-                closeRelease=nil;let finish=onClosed;onClosed={};finish()
+                while model.hasPendingWork || pendingExportOperations>0 || retiringFilter?.hasPendingWork == true || retiringFind?.hasPendingWork == true || retiringUnified?.model.busy == true || save?.sheetParent != nil || errorSheet?.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
+                retiringFilter=nil;retiringFind=nil;retiringUnified=nil;closeRelease=nil;let finish=onClosed;onClosed={};finish()
             }
         } else {let finish=onClosed;onClosed={};finish()}
     }
@@ -1096,6 +1105,10 @@ final class RevisionGraphFindWindow: NSWindow {
 /// Modeless owned replacement of CFindDlg / TortoiseLoglistCommon IDD_FIND.
 @MainActor final class RevisionGraphFindController: NSWindowController, NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate, NSComboBoxDelegate, NSTextFieldDelegate {
     private(set) static var activeOperations = 0
+    private(set) var pendingOperations=0
+    private var releasing=false
+    var hasPendingWork:Bool {releasing || pendingOperations>0 || window?.attachedSheet != nil}
+
     let searchBox = NSComboBox()
     let matchCase = NSButton(checkboxWithTitle: "Match case", target: nil, action: nil)
     let regex = NSButton(checkboxWithTitle: "Regular Expression", target: nil, action: nil)
@@ -1218,10 +1231,10 @@ final class RevisionGraphFindWindow: NSWindow {
         references = []; visibleReferences = []; table.deselectAll(nil); table.reloadData()
         loadingReferences = true; status.stringValue = "Loading references…"; updateAvailability()
         let repo = repository, cancellation = refToken
-        Self.activeOperations += 1
+        Self.activeOperations += 1;pendingOperations += 1
         let read = readReferences
         refWorker = Task { [weak self, access] in
-            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
+            defer { Self.activeOperations -= 1;self?.pendingOperations -= 1; withExtendedLifetime(access) {} }
             let result = await Task.detached { () -> Result<[String], Error> in
                 do {
                     if let read { return .success(Self.orderedReferences(try await read(cancellation))) }
@@ -1249,7 +1262,8 @@ final class RevisionGraphFindWindow: NSWindow {
     }
     func controlTextDidChange(_ notification: Notification) {
         if notification.object as? NSTextField === referenceFilter {
-            filterWorker?.cancel(); filterWorker = Task { [weak self] in
+            filterWorker?.cancel();pendingOperations += 1;filterWorker = Task { [weak self] in
+                defer {self?.pendingOperations -= 1}
                 do { try await Task.sleep(nanoseconds: 1_000_000_000) } catch { return }
                 self?.applyReferenceFilter()
             }
@@ -1295,9 +1309,9 @@ final class RevisionGraphFindWindow: NSWindow {
         let previous: Int? = hashes.indices.contains(index) ? index : nil
         let repo = repository.capturingDiffBackend(preferences:preferences), helper = regexExecutable
         let cancellation = OperationCancellation(), generation = UUID(); token = cancellation; request = generation; busy = true; status.stringValue = "Searching…"; updateAvailability()
-        Self.activeOperations += 1
+        Self.activeOperations += 1;pendingOperations += 1
         worker = Task { [weak self, access] in
-            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
+            defer { Self.activeOperations -= 1;self?.pendingOperations -= 1; withExtendedLifetime(access) {} }
             let result = await Task.detached { () -> Result<(Int, Bool)?, Error> in
                 do {
                     if let reference {
@@ -1357,6 +1371,8 @@ final class RevisionGraphFindWindow: NSWindow {
         NativeListSelection.remove(from:table)
         NotificationCenter.default.removeObserver(self); failures.removeAll(); acknowledgingFailure = false; loadingReferences = false; pendingReferenceRefresh = false
         if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
-        errorAlert = nil; token?.cancel(); worker?.cancel(); refToken.cancel(); refWorker?.cancel(); filterWorker?.cancel(); updateAvailability(); onClosed()
+        let sheet=errorAlert?.window
+        errorAlert=nil;token?.cancel();worker?.cancel();refToken.cancel();refWorker?.cancel();filterWorker?.cancel();updateAvailability();releasing=true
+        let release=FinderFilesystemWorkflowRelease(ready:{ [self,sheet] in pendingOperations==0 && sheet?.sheetParent==nil },completion:{ [self] in releasing=false;let finish=onClosed;onClosed={};finish() });release.start()
     }
 }

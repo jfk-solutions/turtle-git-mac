@@ -196,6 +196,8 @@ import TurtleGitCore
             (window.delegate as? PresentationComparisonWindowController)?.model.confirmingQuit = value
             (window.delegate as? RevisionGraphWindowController)?.model.confirmingQuit = value
             (window.delegate as? StatisticsWindowController)?.model.confirmingQuit = value
+            (window.delegate as? GitDaemonWindowController)?.model.confirmingQuit = value
+            (window.delegate as? ReferenceLogWindowController)?.model.confirmingQuit = value
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -296,6 +298,13 @@ import TurtleGitCore
         if StatusWindowModel.activeOperations > 0 { return .terminateCancel }
         if MissingStagedFileRecoverySession.activeRequests > 0 { return .terminateCancel }
         if WorkingTreePatchWindowModel.activeOperations > 0 || FileComparisonWindowModel.activePaneExports > 0 || FileComparisonWindowModel.activeProjectionChoices > 0 { return .terminateCancel }
+        if RevisionGraphWindowController.activeRetirements>0 || sender.windows.contains(where:{ window in
+            if let controller=window.delegate as? GitDaemonWindowController {return controller.hasPendingWork}
+            if let controller=window.delegate as? ReferenceLogWindowController {return controller.hasPendingWork}
+            if let controller=window.delegate as? ReferenceBrowserWindowController {return controller.hasPendingWork}
+            if let controller=window.delegate as? RepositoryBrowserWindowController {return controller.hasPendingWork}
+            return false
+        }) {return .terminateCancel}
         if GitDaemonWindowModel.activeOperations > 0 || GitDaemonWindowModel.activeQuestions > 0 { return .terminateCancel }
         if FirstStartWizardModel.activeWrites > 0 || GeneralGitSettingsModel.activeOperations > 0 || GeneralGitSettingsModel.activeDialogs > 0 { return .terminateCancel }
         if GitConfigurationSettingsModel.activeFolderChoosers > 0 {return .terminateCancel}

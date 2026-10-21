@@ -11,7 +11,8 @@ final class FinderServiceCommandTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         let expected: [(String, RepositoryAction)] = [("log", .log), ("commit", .commit), ("status", .status), ("diff", .diff), ("clone", .clone), ("initialize", .initialize),
             ("pull",.pull),("fetch",.fetch),("push",.push),("synchronize",.synchronize),("rebase",.rebase),("stash",.stash),("stashApply",.stashApply),("stashPop",.stashPop),("stashList",.stashList),("switchBranch",.switchBranch),("merge",.merge),("branch",.branch),("tag",.tag),
-            ("add",.add),("revert",.revert),("resolve",.resolve),("resolveCurrent",.resolveCurrent),("resolveMine",.resolveMine),("resolveTheirs",.resolveTheirs),("blame",.blame),("previousDiff",.previousDiff),("editConflict",.editConflict),("ignore",.ignore),("ignoreMask",.ignoreMask),("ignoreDelete",.ignoreDelete),("ignoreDeleteMask",.ignoreDeleteMask),("rename",.rename),("remove",.remove),("removeKeep",.removeKeep),("clean",.clean),("worktreeList",.worktreeList),("worktreeCreate",.worktreeCreate),("submoduleAdd",.submoduleAdd),("submoduleUpdate",.submoduleUpdate),("submoduleSync",.submoduleSync),("logSubmodule",.logSubmodule)]
+            ("add",.add),("revert",.revert),("resolve",.resolve),("resolveCurrent",.resolveCurrent),("resolveMine",.resolveMine),("resolveTheirs",.resolveTheirs),("blame",.blame),("previousDiff",.previousDiff),("editConflict",.editConflict),("ignore",.ignore),("ignoreMask",.ignoreMask),("ignoreDelete",.ignoreDelete),("ignoreDeleteMask",.ignoreDeleteMask),("rename",.rename),("remove",.remove),("removeKeep",.removeKeep),("clean",.clean),("worktreeList",.worktreeList),("worktreeCreate",.worktreeCreate),("submoduleAdd",.submoduleAdd),("submoduleUpdate",.submoduleUpdate),("submoduleSync",.submoduleSync),("logSubmodule",.logSubmodule),
+            ("reflog",.reflog),("referenceBrowser",.referenceBrowser),("repositoryBrowser",.repositoryBrowser),("revisionGraph",.revisionGraph),("daemon",.daemon)]
         XCTAssertEqual(Set(FinderServiceCommand.allCases.map(\.rawValue)), Set(expected.map(\.0)))
         for (name, action) in expected {
             let command = try XCTUnwrap(FinderServiceCommand(rawValue: name))
@@ -415,7 +416,7 @@ final class FinderServiceCommandTests: XCTestCase {
         let data=try Data(contentsOf:root.appendingPathComponent("Configuration/App-Info.plist"))
         let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:data,format:nil) as? [String:Any])
         let services=try XCTUnwrap(plist["NSServices"] as? [[String:Any]])
-        XCTAssertEqual(services.count,42)
+        XCTAssertEqual(services.count,47)
         let names=services.compactMap{$0["NSUserData"] as? String}
         XCTAssertEqual(Array(names[32..<36]),["rename","remove","removeKeep","clean"])
         XCTAssertEqual(Set(names),Set(FinderServiceCommand.allCases.map(\.rawValue)))
@@ -512,15 +513,128 @@ final class FinderServiceCommandTests: XCTestCase {
         let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:data,format:nil) as? [String:Any])
         let services=try XCTUnwrap(plist["NSServices"] as? [[String:Any]])
         let names=services.compactMap{$0["NSUserData"] as? String}
-        XCTAssertEqual(services.count,42);XCTAssertEqual(Set(names).count,42)
-        XCTAssertEqual(Array(names.suffix(6)),["worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule"])
+        XCTAssertEqual(services.count,47);XCTAssertEqual(Set(names).count,47)
+        XCTAssertEqual(Array(names[36..<42]),["worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule"])
         XCTAssertEqual(Array(names[32..<36]),["rename","remove","removeKeep","clean"])
-        for entry in services.suffix(6) {
+        for entry in services[36..<42] {
             XCTAssertEqual(entry["NSMessage"] as? String,"performFinderAction")
             XCTAssertEqual(entry["NSPortName"] as? String,"TurtleGit")
             XCTAssertEqual(entry["NSSendFileTypes"] as? [String],["public.folder"])
             XCTAssertEqual(entry["NSRestricted"] as? Bool,true)
             XCTAssertEqual((entry["NSRequiredContext"] as? [String:Any])?.count,0)
+            XCTAssertTrue(((entry["NSMenuItem"] as? [String:String])?["default"] ?? "").hasPrefix("TurtleGit: "))
+        }
+    }
+
+    func testHistoryServicesCaptureExactlyOneLiteralSelectionWithoutExtraAuthority() throws {
+        let commands:[FinderServiceCommand]=[.reflog,.referenceBrowser,.repositoryBrowser,.revisionGraph,.daemon]
+        let selected=literal("/unmonitored history 雪/space &?%#\n[scope]"),other=literal("/unmonitored history 雪/other")
+        for command in commands {
+            XCTAssertTrue(command.requiresSourceEligibility);XCTAssertTrue(command.requiresSingleSelection)
+            XCTAssertEqual(command.sourceAction,command.action);XCTAssertFalse(command.capturesAlternateTool)
+            let request=try command.request(paths:[selected,selected])
+            XCTAssertEqual(request.paths.map{Data($0.path.utf8)},[Data(selected.path.utf8)])
+            let decoded=try FinderServiceCommand.request(serviceURL:command.serviceURL(paths:[selected]))
+            XCTAssertEqual(decoded.action,command.action);XCTAssertEqual(decoded.paths.map{Data($0.path.utf8)},request.paths.map{Data($0.path.utf8)})
+            XCTAssertTrue(decoded.sources.isEmpty);XCTAssertNil(decoded.alternateTool)
+            XCTAssertNil(decoded.requestPullEnd);XCTAssertNil(decoded.requestPullURL);XCTAssertNil(decoded.clipboardPatch)
+            XCTAssertThrowsError(try command.request(paths:[selected,other]))
+            XCTAssertThrowsError(try command.request(paths:[literal("/history/café"),literal("/history/cafe\u{301}")]),"Canonical-equivalent literal selections must not silently collapse")
+            for suffix in ["&path=/other","&ref=main","&endrev=HEAD","&source=/other","&listen=0.0.0.0","&port=9418","&alternate=0"] {
+                let wire=try command.serviceURL(paths:[selected])
+                XCTAssertThrowsError(try FinderServiceCommand.request(serviceURL:XCTUnwrap(URL(string:wire.absoluteString+suffix))))
+            }
+        }
+    }
+
+    func testHistoryServicesUseIndependentPinnedFolderTrackedAddedAndBareClauses() {
+        let commands:[FinderServiceCommand]=[.reflog,.referenceBrowser,.repositoryBrowser,.revisionGraph,.daemon]
+        let all=Set(commands),folders:Set<FinderServiceCommand>=[.reflog,.referenceBrowser,.repositoryBrowser]
+        // MenuInfo.cpp:78–90, pinned7338078: no HEAD/merge/bisect exclusions.
+        // Bare context alternatives without ONLYONE remain source-level rules;
+        // the explicit Services cardinality check is tested separately.
+        let cases:[(FinderShellFlags,Set<FinderServiceCommand>)]=[
+            ([.folder,.folderInGit,.onlyOne],all),
+            ([.folderInGit,.onlyOne,.added],folders),
+            ([.inGit,.onlyOne],[.revisionGraph,.daemon]),
+            ([.inGit,.onlyOne,.added],[]),
+            ([.folderInGit,.onlyOne,.merge,.bisect],all),
+            ([.bare,.onlyOne],all),
+            ([.bare,.two],[.reflog,.referenceBrowser,.revisionGraph,.daemon]),
+            ([.folderInGit,.two],[]),
+            ([.inVersionedFolder,.onlyOne],[]),([.folder,.onlyOne],[]),([],[])
+        ]
+        for(flags,expected)in cases {XCTAssertEqual(Set(commands.filter{$0.isEligible(flags:flags)}),expected,"Pinned history Services differ for \(flags)")}
+    }
+
+    func testHistoryServicesApplyLiveSingleScopeEligibilityAndPreserveSymlinkLeaves() throws {
+        let base=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString,isDirectory:true)
+        let root=base.appendingPathComponent("repository",isDirectory:true),folder=root.appendingPathComponent("folder",isDirectory:true),outside=base.appendingPathComponent("outside",isDirectory:true)
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        try FileManager.default.createDirectory(at:outside,withIntermediateDirectories:true)
+        defer {try? FileManager.default.removeItem(at:base)}
+        let tracked=root.appendingPathComponent("tracked &雪\n.txt"),added=root.appendingPathComponent("added"),new=root.appendingPathComponent("new"),link=root.appendingPathComponent("tracked-link")
+        for file in [tracked,added,new] {try Data("unchanged".utf8).write(to:file)}
+        try FileManager.default.createSymbolicLink(at:link,withDestinationURL:outside)
+        let snapshot=FinderSnapshot(roots:[root.path],states:[root.path:.normal,folder.path:.normal,tracked.path:.normal,added.path:.added,new.path:.untracked,link.path:.normal],repositories:[root.path:FinderRepositoryMetadata(bisectActive:true,mergeActive:true)])
+        let commands:[FinderServiceCommand]=[.reflog,.referenceBrowser,.repositoryBrowser,.revisionGraph,.daemon]
+        for command in commands {
+            XCTAssertTrue(command.isEligible(paths:[root],snapshot:snapshot));XCTAssertTrue(command.isEligible(paths:[folder],snapshot:snapshot))
+            XCTAssertFalse(command.isEligible(paths:[root,folder],snapshot:snapshot));XCTAssertFalse(command.isEligible(paths:[outside],snapshot:snapshot))
+            XCTAssertFalse(command.isEligible(paths:[added],snapshot:snapshot));XCTAssertFalse(command.isEligible(paths:[new],snapshot:snapshot))
+            let fileAction=command == .revisionGraph || command == .daemon
+            XCTAssertEqual(command.isEligible(paths:[tracked],snapshot:snapshot),fileAction)
+            XCTAssertEqual(command.isEligible(paths:[link],snapshot:snapshot),fileAction,"A tracked symlink remains a file in its containing Git namespace")
+            let bare=FinderSnapshot(roots:[root.path],states:[:],repositories:[root.path:FinderRepositoryMetadata(bare:true)])
+            XCTAssertTrue(command.isEligible(paths:[root],snapshot:bare));XCTAssertFalse(command.isEligible(paths:[root,folder],snapshot:bare))
+        }
+        XCTAssertEqual(try Data(contentsOf:tracked),Data("unchanged".utf8));XCTAssertFalse(FileManager.default.fileExists(atPath:root.appendingPathComponent(".git").path))
+    }
+
+    func testHistoryServicesAggregateAddedAndDeletedChildrenAsModifiedFolders() throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString,isDirectory:true)
+        let nested=root.appendingPathComponent("nested",isDirectory:true)
+        try FileManager.default.createDirectory(at:nested,withIntermediateDirectories:true)
+        defer {try? FileManager.default.removeItem(at:root)}
+        let leaf=nested.appendingPathComponent("literal [雪]\n.txt"),untracked=nested.appendingPathComponent("untracked")
+        try Data().write(to:untracked)
+        for code:Character in ["A","D"] {
+            if code == "A" {try Data().write(to:leaf)} else {try? FileManager.default.removeItem(at:leaf)}
+            let snapshot=FinderSnapshot.build(root:root,tracked:code == "D" ? ["nested/"+leaf.lastPathComponent] : [],changes:[
+                StatusEntry(path:"nested/"+leaf.lastPathComponent,originalPath:nil,index:code,worktree:" "),
+                StatusEntry(path:"nested/untracked",originalPath:nil,index:"?",worktree:"?")
+            ])
+            let leafState:FileState=code == "A" ? .added : .deleted
+            XCTAssertEqual(snapshot.states[root.path],.modified)
+            XCTAssertEqual(snapshot.states[nested.path],.modified)
+            XCTAssertEqual(snapshot.states[leaf.path],leafState)
+            XCTAssertEqual(snapshot.overlayEntries?[leaf.path],leafState,"Folder aggregation must not rewrite exact overlay entries")
+            for command in [FinderServiceCommand.revisionGraph,.daemon] {
+                XCTAssertTrue(command.isEligible(paths:[root],snapshot:snapshot))
+                XCTAssertTrue(command.isEligible(paths:[nested],snapshot:snapshot))
+                XCTAssertFalse(command.isEligible(paths:[untracked],snapshot:snapshot))
+                if code == "A" {XCTAssertFalse(command.isEligible(paths:[leaf],snapshot:snapshot),"The added file itself remains source-ineligible")}
+            }
+            for command in [FinderServiceCommand.reflog,.referenceBrowser,.repositoryBrowser] {
+                XCTAssertTrue(command.isEligible(paths:[nested],snapshot:snapshot))
+                XCTAssertFalse(command.isEligible(paths:[leaf],snapshot:snapshot),"Folder-only source gates must remain intact")
+            }
+        }
+    }
+
+    func testHistoryServiceRegistrationAppendsFiveActionsAndPreservesAllPriorDeclarations() throws {
+        let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let data=try Data(contentsOf:root.appendingPathComponent("Configuration/App-Info.plist"))
+        let plist=try XCTUnwrap(PropertyListSerialization.propertyList(from:data,format:nil) as? [String:Any])
+        let services=try XCTUnwrap(plist["NSServices"] as? [[String:Any]]),names=services.compactMap{$0["NSUserData"] as? String}
+        let expected=["reflog","referenceBrowser","repositoryBrowser","revisionGraph","daemon"]
+        XCTAssertEqual(services.count,47);XCTAssertEqual(Set(names).count,47);XCTAssertEqual(Array(names.suffix(5)),expected)
+        XCTAssertEqual(Array(names[32..<42]),["rename","remove","removeKeep","clean","worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule"])
+        for entry in services.suffix(5) {
+            let command=try XCTUnwrap(entry["NSUserData"] as? String)
+            XCTAssertEqual(entry["NSMessage"] as? String,"performFinderAction");XCTAssertEqual(entry["NSPortName"] as? String,"TurtleGit")
+            XCTAssertEqual(entry["NSSendFileTypes"] as? [String],[expected.prefix(3).contains(command) ? "public.folder":"public.item"])
+            XCTAssertEqual(entry["NSRestricted"] as? Bool,true);XCTAssertEqual((entry["NSRequiredContext"] as? [String:Any])?.count,0)
             XCTAssertTrue(((entry["NSMenuItem"] as? [String:String])?["default"] ?? "").hasPrefix("TurtleGit: "))
         }
     }

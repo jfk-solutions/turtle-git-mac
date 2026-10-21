@@ -342,9 +342,12 @@ public struct FinderSnapshot: Codable, Sendable {
         for change in changes { states[root.path + "/" + change.path] = change.state }
         let files = states
         for (path, state) in files {
+            // GitStatus::AdjustFolderStatus treats added/deleted children as
+            // modifications of their containing folders, preserving leaf state.
+            let folderState: FileState = state == .added || state == .deleted ? .modified : state
             var parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(path))
             while Self.contains(parent.path,root:root.path) {
-                if priority[state, default: 0] >= priority[states[parent.path] ?? .normal, default: 0] { states[parent.path] = state }
+                if priority[folderState, default: 0] >= priority[states[parent.path] ?? .normal, default: 0] { states[parent.path] = folderState }
                 if GitReferenceName.equal(parent.path,root.path) { break }
                 parent = FileTransferPaths.fileURL(FinderSnapshot.parentPath(parent.path))
             }

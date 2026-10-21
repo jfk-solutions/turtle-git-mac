@@ -9,6 +9,7 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     case add,revert,resolve,resolveCurrent,resolveMine,resolveTheirs,blame,previousDiff,editConflict,ignore,ignoreMask,ignoreDelete,ignoreDeleteMask
     case rename,remove,removeKeep,clean
     case worktreeList,worktreeCreate,submoduleAdd,submoduleUpdate,submoduleSync,logSubmodule
+    case reflog,referenceBrowser,repositoryBrowser,revisionGraph,daemon
     public static let maximumPaths=10000
     public static let maximumRequestBytes=1048576
     public struct Failure:LocalizedError,Sendable {
@@ -26,9 +27,11 @@ public enum FinderServiceCommand:String,CaseIterable,Hashable,Sendable {
     /// Services has no separate Explorer folder context. Worktree List therefore
     /// requires one explicit folder even though MenuInfo permits a bare context
     /// without ONLYONE. New Worktree is the direct macOS source-root adaptation.
+    /// History/reference Services likewise require one explicit selected item;
+    /// they cannot borrow Explorer's separate bare-repository folder context.
     public var requiresSingleSelection:Bool {
         switch self {
-        case .clone,.initialize,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag,.blame,.previousDiff,.rename,.worktreeList,.worktreeCreate,.submoduleAdd,.logSubmodule:return true
+        case .clone,.initialize,.synchronize,.rebase,.stash,.stashApply,.stashPop,.stashList,.switchBranch,.merge,.branch,.tag,.blame,.previousDiff,.rename,.worktreeList,.worktreeCreate,.submoduleAdd,.logSubmodule,.reflog,.referenceBrowser,.repositoryBrowser,.revisionGraph,.daemon:return true
         default:return false
         }
     }

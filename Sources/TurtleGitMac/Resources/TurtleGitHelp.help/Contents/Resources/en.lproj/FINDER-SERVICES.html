@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>TurtleGit selected-file Services</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="turtlegit-selected-file-services">TurtleGit selected-file Services</h1>
-<p>TurtleGit advertises forty-two macOS Services for selected files and folders. They give
+<p>TurtleGit advertises forty-seven macOS Services for selected files and folders. They give
 users an entry point outside Finder Sync's monitored repositories, through the
 system's <strong>Services</strong> menu. They also work with file selections supplied by other
 apps that support macOS Services. Availability and ordering are controlled by
@@ -121,6 +121,14 @@ macOS; these entries do not extend Finder Sync's ordinary context-menu coverage.
 <td>TurtleGit: Show log of this folder</td>
 <td>Parent repository history limited to the selected registered submodule root</td>
 </tr>
+<tr>
+<td>TurtleGit: RefLog / Browse references / Repo-browser</td>
+<td>Existing native history and reference browsers for one selected repository folder</td>
+</tr>
+<tr>
+<td>TurtleGit: Revision graph / Daemon</td>
+<td>Existing native graph or reviewed Git daemon window for one eligible Git item or repository folder</td>
+</tr>
 </tbody>
 </table>
 <p>Clone, Create and Clean up advertise folder selections only. Clone and Create require one existing,
@@ -187,7 +195,7 @@ handoff receipt until Launch Services replies. Its private
 <code>turtlegit://service</code> envelope selects the owned Services route and conveys no
 permission.</p>
 <h2 id="registration-and-source-scope">Registration and source scope</h2>
-<p><code>Configuration/App-Info.plist</code> supplies the forty-two <code>NSServices</code> declarations.
+<p><code>Configuration/App-Info.plist</code> supplies the forty-seven <code>NSServices</code> declarations.
 <code>ApplicationDelegate.swift</code> installs one provider after startup preparation,
 restores a previous provider only if TurtleGit still owns the registration, and
 retires pending service input during termination. Opening a menu does not execute
@@ -199,7 +207,8 @@ its existing Git workflow; these entries are not merely navigation shortcuts.</p
 <code>TortoiseShell/MenuInfo.cpp</code> Log, Commit, ShowChanged, Diff, Clone, CreateRepo,
 Pull/Fetch/Push/Sync, Switch/Merge/Branch/Tag/Rebase, all four stash entries,
 Add/Revert/Resolve, Blame, PreviousDiff, ConflictEditor, the four
-Ignore/IgnoreDelete variants, and Rename/Remove/RemoveKeep/Cleanup.
+Ignore/IgnoreDelete variants, Rename/Remove/RemoveKeep/Cleanup, and
+RefLog/RefBrowser/RepoBrowse/RevisionGraph/Daemon.
 Those Explorer commands are not restricted to a previously watched-root list.
 macOS Services supplies the missing selected-item entry point; its system menu
 placement differs from Explorer and from TurtleGit's existing Finder Sync menus.
@@ -211,8 +220,9 @@ icons. Native operation windows retain their existing controls and source artwor
 <a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/properties.html">Services properties</a>
 for file UTIs, required context, message/user-data mapping and restricted actions,
 and its <a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/providing.html">service-provider lifecycle</a>.
-Clone, Create, Clean up and the six Worktree/Submodule entries advertise
-<code>public.folder</code>; the other thirty-three advertise
+Clone, Create, Clean up, the six Worktree/Submodule entries and
+RefLog/Browse references/Repo-browser advertise <code>public.folder</code>; the other
+thirty-five advertise
 <code>public.item</code>, with operation eligibility checked after access and discovery.
 The bundle uses file services rather than treating a plain text path as a file.</p>
 <h2 id="validation-and-remaining-acceptance">Validation and remaining acceptance</h2>
@@ -323,4 +333,29 @@ executed scope and any failures. Installed physical Finder Services activation,
 signed sandbox permissions, minimum-OS and complete upstream/App Store acceptance
 remain separate gates. Services keeps macOS's system-managed placement and lacks
 Explorer's per-entry icons and right-drag interception.</p>
+<h2 id="history-and-reference-expansion--october-21-2026">History and reference expansion — October 21, 2026</h2>
+<p>Five additional Services open RefLog, Browse references, Repo-browser, Revision
+Graph and Daemon for selections outside Finder Sync's previously watched roots.
+RefLog, Browse references and Repo-browser advertise folders; Revision Graph and
+Daemon also accept source-eligible tracked file selections. These are explicit
+single-item Services: macOS supplies selected items rather than Explorer's separate
+background-folder context. Multiple selections are refused instead of silently
+choosing a root. A folder can be a working-tree folder or a bare repository.</p>
+<p>Git eligibility is checked against the selected repository's fresh state after
+permission and discovery. Revision Graph and Daemon retain the source tracked-file
+and added-file rules. RefLog and reference browsers retain their folder/bare
+clauses. An ineligible selection reports an error; it never substitutes the active
+workspace repository or another command. The selected URL remains input, not a
+permission grant. Metadata grants and repository grants retain separate boundaries.</p>
+<p>The Services route presents the existing native windows, source icons, menus,
+settings and Git operations. Daemon opens its existing warning/progress workflow,
+including Proceed/Abort and its remembered-warning choice. A previously accepted
+remembered choice retains the existing automatic start behavior.
+An opened workflow keeps its captured repository, access and preferences if the
+workspace later changes. Closing or cancelling an initiating owner cannot revive
+late authorization, child windows or cache entries. Real workers and owned sheets
+remain accounted for until they drain, including during Quit.</p>
+<p>The <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/FINDER-HISTORY-SERVICES-PARITY.html">source and implementation record</a> separates
+this first-use route from complete dialog parity, physical macOS Services menu
+registration, signed grants and App Store acceptance. Those remain separate gates.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

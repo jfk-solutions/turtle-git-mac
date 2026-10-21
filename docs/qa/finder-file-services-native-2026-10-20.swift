@@ -50,13 +50,13 @@ private actor FileServiceReadGate {
         try require(selected.changeCount == count && received.count == 13, "provider changed pasteboard or duplicated dispatch")
         let plist = try PropertyListSerialization.propertyList(from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[3])), format: nil) as! [String: Any]
         let services = plist["NSServices"] as? [[String: Any]] ?? []
-        try require(services.count == 42 && Set(services.compactMap { $0["NSUserData"] as? String }) == Set(FinderServiceCommand.allCases.map(\.rawValue)), "42 service declarations differ from Core")
+        try require(services.count == 47 && Set(services.compactMap { $0["NSUserData"] as? String }) == Set(FinderServiceCommand.allCases.map(\.rawValue)), "47 service declarations differ from Core")
         for command in commands {
             let matches = services.filter { $0["NSUserData"] as? String == command }
             try require(matches.count == 1 && matches[0]["NSMessage"] as? String == "performFinderAction" && matches[0]["NSSendFileTypes"] as? [String] == ["public.item"], "selected-file declaration invalid: \(command)")
         }
         provider.retire(); try require(invoke(provider, selected, "add") != nil && received.count == 13, "retired provider accepted file mutation")
-        print("PASS: all13 selected-file private-pasteboard commands and42 native Services declarations preserve literal selection")
+        print("PASS: all13 selected-file private-pasteboard commands and47 native Services declarations preserve literal selection")
     }
     @MainActor static func busy(_ controller: NSWindowController) -> Bool {
         switch controller {

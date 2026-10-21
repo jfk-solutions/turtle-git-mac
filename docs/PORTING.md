@@ -4436,3 +4436,32 @@ chart captures were reviewed and updated; all 25 receiver attempts are absent.
 Complete Windows geometry/font identity, physical/signed and minimum-version
 acceptance, current full hosted CI, whole-port parity and App Store distribution
 remain open.
+
+
+### First-use Finder history and reference Services — October 21, 2026
+
+Five Services connect RefLog, Browse References, Repo-browser, Revision Graph and
+Daemon to previously unmonitored selections. The original forty-two declarations
+remain unchanged and the five append in order, forty-seven total. Fresh source
+folder/bare/tracked/added predicates apply after actual access and discovery.
+A confirmed folder aggregation defect now follows GitStatus::AdjustFolderStatus:
+added/deleted children mark containing folders modified while literal leaf and
+exact overlay states remain separate. Added-file exclusion is retained.
+
+Accepted preferences are captured before permission/discovery and travel with the
+repository and primary access through native windows and later history actions.
+Closing controllers cannot be reused, late callbacks cannot clear replacements,
+and actual reads, mutations, Save writers and owned child sheets remain accounted
+for until completion. Graph Filter/Find, reference pickers/remote settings,
+historical browser Save and Daemon questions/worker retirement share those fences.
+The native dialogs, icons, histories and operation choices remain the existing
+source-backed workflows; Services keeps macOS's system placement and icon limits.
+
+[Source contract and limits](FINDER-HISTORY-SERVICES-PARITY.md) and
+[dated evidence](qa/finder-history-services-family-2026-10-21.json) record 67 distinct
+Core methods and eight native scenarios passing across focused repairs. The
+initial app accessor, confirmed folder classification and fixture compile/helper
+repairs are recorded. Passed unrelated groups were not repeated. All ten receiver
+attempts are independently absent. No new capture or installed activation was
+performed. Physical Services, signed grants, minimum-OS/Intel, keyboard/VoiceOver,
+complete source/layout parity, hosted CI and App Store distribution remain open.

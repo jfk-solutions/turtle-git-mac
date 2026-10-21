@@ -35,6 +35,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     let cancellation=OperationCancellation()
     var working=false
     private var finished=false
+    var hasPendingWork:Bool {!finished}
     init() {Self.activeRequests += 1}
     func finish() {guard !finished else {return};finished=true;Self.activeRequests -= 1}
     func retire() {cancellation.cancel();if !working {finish()}}
@@ -44,8 +45,15 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     let model: RepositoryBrowserWindowModel
     var commandKeyWindow: () -> NSWindow? = {NSApp.keyWindow}
     var onClosed: () -> Void = {}
+    private var retired=false,releasing=false
+    private var retiredChecks:[()->Bool]=[]
+    var canReuse:Bool {!retired && model.active && !model.confirmingQuit}
+    var hasPendingWork:Bool {releasing || model.hasPendingWork || fileOperation?.hasPendingWork == true || retiredChecks.contains{$0()} || picker != nil || pickerRelease || ownedSheet?.sheetParent != nil}
+
     private(set) var picker: LogWindowController?
     private var pickerIdentity:UUID?
+    private var pickerChoice:LogEntry?
+    private var pickerRelease=false
     var configureLogPicker:(LogWindowModel)->Void = { _ in }
     private(set) weak var contentsTable:NSTableView?
     private var initialContentsFocusPending=true
@@ -144,21 +152,31 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         DialogGeometry.attach(window, identifier: "TurtleGit.RepositoryBrowser", legacyName: "TurtleGit.RepositoryBrowser")
     }
     private func chooseRevision() {
-        guard model.canUseMenu,picker == nil,let window,window.attachedSheet == nil else { return }
+        guard canReuse,model.canUseMenu,picker==nil,!pickerRelease,let window,window.attachedSheet==nil else{return}
         let identity=UUID(),generation=model.generation
-        pickerIdentity=identity;model.choosingRevision=true
+        pickerIdentity=identity;pickerChoice=nil;model.choosingRevision=true
         let controller=LogWindowController(repository:model.repository,access:model.access,onChoose:{ [weak self] entry in
-            guard let self,self.pickerIdentity==identity else { return }
-            self.pickerIdentity=nil;self.picker=nil;self.model.choosingRevision=false
-            guard self.model.active,self.model.generation==generation else { return }
-            if let entry { self.model.revision=entry.hash;self.model.refresh() }
+            guard let self,self.pickerIdentity==identity else{return};self.pickerChoice=entry
         },labelDefaults:model.preferences,initialRevision:model.snapshot?.objectID)
-        configureLogPicker(controller.model)
         picker=controller
-        if let child=controller.window {
-            child.appearance=window.appearance;child.alphaValue=window.alphaValue
-            window.beginSheet(child)
-        } else {pickerIdentity=nil;picker=nil;model.choosingRevision=false}
+        controller.onClosed={ [weak self,weak controller] in
+            guard let self,let controller,self.pickerIdentity==identity,self.picker === controller else{return}
+            self.pickerRelease=true
+            let child=controller.window
+            if let child {child.sheetParent?.endSheet(child);child.orderOut(nil)}
+            let release=FinderFilesystemWorkflowRelease(ready:{
+                controller.model.pendingHistoryLoads==0 && !controller.model.noteWorkPending && child?.sheetParent==nil
+            },completion:{ [self,controller] in
+                self.pickerRelease=false
+                guard self.pickerIdentity==identity,self.picker === controller else{return}
+                let entry=self.pickerChoice;self.pickerChoice=nil;self.pickerIdentity=nil;self.picker=nil;self.model.choosingRevision=false
+                guard self.canReuse,self.model.generation==generation else{return}
+                if let entry {self.model.revision=entry.hash;self.model.refresh()}
+            });release.start()
+        }
+        configureLogPicker(controller.model)
+        guard canReuse,pickerIdentity==identity,picker === controller,let child=controller.window else{controller.close();return}
+        child.appearance=window.appearance;child.alphaValue=window.alphaValue;window.beginSheet(child)
     }
     private func presentFile(_ content:ComparisonFileContent,action:RepositoryBrowserWindowModel.FileAction) {
         guard model.active,fileOperation == nil,let window,window.attachedSheet == nil else {return}
@@ -239,18 +257,19 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.mutating && !model.confirmingQuit }
-    func windowWillClose(_ notification: Notification) {
-        model.invalidate()
+    func windowWillClose(_ notification:Notification) {
+        guard !retired else{return};retired=true;model.invalidate()
         submoduleUpdateReply?(.cancel)
-        let operation=fileOperation;fileOperation=nil;model.handlingFile=false;operation?.retire()
-        pickerIdentity=nil;model.choosingRevision=false
-        if let sheet=ownedSheet, window?.attachedSheet === sheet { window?.endSheet(sheet,returnCode:.cancel); sheet.orderOut(nil) }
-        ownedSheet = nil
-        if let picker {
-            if let child=picker.window, window?.attachedSheet === child { window?.endSheet(child,returnCode:.cancel) }
-            picker.close(); self.picker = nil
-        }
-        onClosed()
+        let operation=fileOperation,child=picker,sheet=ownedSheet
+        fileOperation=nil;model.handlingFile=false;operation?.retire()
+        pickerIdentity=nil;pickerChoice=nil;model.choosingRevision=false
+        if let sheet {sheet.sheetParent?.endSheet(sheet,returnCode:.cancel);sheet.orderOut(nil)}
+        ownedSheet=nil;child?.close();picker=nil
+        retiredChecks=[{operation?.hasPendingWork == true || (child?.model.pendingHistoryLoads ?? 0)>0 || child?.model.noteWorkPending == true || child?.window?.sheetParent != nil || sheet?.sheetParent != nil}]
+        releasing=true
+        let release=FinderFilesystemWorkflowRelease(ready:{ [self,child,operation] in !model.hasPendingWork && !retiredChecks.contains{$0()} },completion:{ [self,child,operation] in
+            retiredChecks=[];releasing=false;let finish=onClosed;onClosed={};finish();withExtendedLifetime((child,operation)){}
+        });release.start()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func windowDidBecomeKey(_ notification:Notification){focusInitialContentsIfNeeded()}
@@ -294,6 +313,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     private(set) var active = true
     private(set) static var activeOperations = 0
     private var requests: [UUID: OperationCancellation] = [:]
+    var hasPendingWork:Bool {!requests.isEmpty}
     private var openRequest: UUID?
     private func startRequest() -> (UUID, OperationCancellation) {
         let id = UUID(), cancellation = OperationCancellation()
