@@ -345,7 +345,10 @@ The native [Revision Graph](docs/REVISION-GRAPH.md) now has a separate colored
 reference-box canvas and source-style Filter sheet. It follows the shared Log
 commit ordering and font family, with graph zoom sizing and matching export fonts. See the
 [light/dark graph and filter captures](docs/site/index.html) and
-[remaining parity work](docs/REVISION-GRAPH-PARITY.md).
+[remaining parity work](docs/REVISION-GRAPH-PARITY.md). Statistics and Revision
+Graph share native drawing scenes with their exports, including genuine enhanced
+EMF under the source `.wmf` suffix and explicit `.emf` alias. See the
+[graph export contract and limits](docs/GRAPH-METAFILE-EXPORT-PARITY.md).
 
 The [working-copy revision utility](docs/WORKING-COPY-REVISION.md) generates version
 files from TortoiseGit-style templates and exposes repository status as JSON for

@@ -9,7 +9,7 @@ final class RevisionGraphExportDestinationTests: XCTestCase {
             let value=try RevisionGraphExportDestination(url:root.appendingPathComponent("graph 雪"),filter:filter)
             XCTAssertEqual(value.url.path,root.appendingPathComponent("graph 雪."+suffix).path);XCTAssertEqual(value.format,format)
         }
-        let formats:[(String,RevisionGraphFormat)]=[("SVG",.svg),("gv",.graphviz),("DOT",.graphviz),("png",.png),("jpg",.jpeg),("JPEG",.jpeg),("bmp",.bmp),("gif",.gif),("PDF",.pdf)]
+        let formats:[(String,RevisionGraphFormat)]=[("SVG",.svg),("gv",.graphviz),("DOT",.graphviz),("png",.png),("jpg",.jpeg),("JPEG",.jpeg),("bmp",.bmp),("gif",.gif),("PDF",.pdf),("WMF",.wmf),("emf",.emf)]
         for filter in RevisionGraphExportFilter.allCases {for (suffix,format) in formats {
             let url=root.appendingPathComponent("graph."+suffix),value=try RevisionGraphExportDestination(url:url,filter:filter)
             XCTAssertEqual(value.url,url,"Existing filename overrides selected filter");XCTAssertEqual(value.format,format)
@@ -28,10 +28,10 @@ final class RevisionGraphExportDestinationTests: XCTestCase {
         XCTAssertNotEqual(Data(try RevisionGraphExportDestination.normalizedFilename(nfc).utf8),Data(try RevisionGraphExportDestination.normalizedFilename(nfd).utf8))
     }
 
-    func testUnsupportedMetafilesAndInvalidDestinationsRefuseBeforeFilesystemWork() throws {
+    func testMetafilesKeepFinalNamesAndInvalidDestinationsRefuseBeforeFilesystemWork() throws {
         for filter in RevisionGraphExportFilter.allCases {for suffix in ["wmf","WMF","emf","EMF"] {
-            do {_ = try RevisionGraphExportDestination(url:URL(fileURLWithPath:"/tmp/graph."+suffix),filter:filter);XCTFail("Metafile must not silently become JPEG")}
-            catch RevisionGraphExportFailure.metafile {XCTAssertTrue(RevisionGraphExportFailure.metafile.localizedDescription.contains("PDF"))}
+            let url=URL(fileURLWithPath:"/tmp/graph."+suffix),value=try RevisionGraphExportDestination(url:url,filter:filter)
+            XCTAssertEqual(value.url,url);XCTAssertEqual(value.format,RevisionGraphFormat(fileExtension:suffix))
         }}
         for filename in ["",".","..","folder/name","bad\0name"] {XCTAssertThrowsError(try RevisionGraphExportDestination.normalizedFilename(filename))}
         XCTAssertThrowsError(try RevisionGraphExportDestination(url:URL(string:"https://example.invalid/graph.svg")!))
@@ -43,12 +43,11 @@ final class RevisionGraphExportDestinationTests: XCTestCase {
             let invocation = try PrimaryCommandInvocation.parse(arguments:["--command=revisiongraph","--path=repository","--output="+filename],currentDirectory:"/private/working")
             return try XCTUnwrap(invocation)
         }
-        for (filename,normalized,format) in [("graph","graph.jpg",RevisionGraphFormat.jpeg),("unknown.type","unknown.type.jpg",.jpeg),("picture.SVG","picture.SVG",.svg),("native.dot","native.dot",.graphviz),("vector.pdf","vector.pdf",.pdf),(".hidden",".hidden.jpg",.jpeg)] {
+        for (filename,normalized,format) in [("graph","graph.jpg",RevisionGraphFormat.jpeg),("unknown.type","unknown.type.jpg",.jpeg),("picture.SVG","picture.SVG",.svg),("native.dot","native.dot",.graphviz),("vector.pdf","vector.pdf",.pdf),("graph.WMF","graph.WMF",.wmf),("graph.emf","graph.emf",.emf),(".hidden",".hidden.jpg",.jpeg)] {
             let invocation=try parse(filename)
             XCTAssertEqual(invocation.outputFile?.path,"/private/working/"+normalized);XCTAssertEqual(invocation.graphOutputFormat,format)
             XCTAssertEqual(invocation.selecting([URL(fileURLWithPath:"/other/repository")]).outputFile,invocation.outputFile)
         }
-        XCTAssertThrowsError(try parse("graph.emf"));XCTAssertThrowsError(try parse("graph.wmf"))
         let cat=try XCTUnwrap(PrimaryCommandInvocation.parse(arguments:["--command=cat","--revision=HEAD","--savepath=raw.unknown"],currentDirectory:"/private/working"))
         XCTAssertEqual(cat.outputFile?.path,"/private/working/raw.unknown");XCTAssertNil(cat.graphOutputFormat)
         let noOutput=try XCTUnwrap(PrimaryCommandInvocation.parse(arguments:["--command=revisiongraph","--output="],currentDirectory:"/private/working"))

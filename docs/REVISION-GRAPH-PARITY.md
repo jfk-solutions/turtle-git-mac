@@ -750,3 +750,29 @@ The connected [Graph presentation family](GRAPH-PRESENTATION-PARITY.md) adds sou
 menu groups, current icon preferences, accelerator metadata, applied-filter feedback
 and bounded author/date/message tooltips. Its scoped batch evidence remains
 separate from complete Graph or application acceptance.
+
+
+## Shared vector scene and enhanced-metafile continuation — October 21, 2026
+
+The current exporter supersedes the older PDF-only metafile adaptation and SVG
+text-element implementation described in dated checkpoints above. Native drawing,
+SVG, PDF, raster and enhanced EMF now consume one graph scene. The scene retains
+node row colors/clips, arrows, source text thresholds, both selection markers and
+the Base label. Vector exports use unit zoom; raster exports use current zoom.
+Graphviz remains a separate topology serialization with its captured font.
+
+Both `.wmf` and `.emf` write enhanced EMF, matching upstream's CreateEnhanced
+branch. Native shaped text becomes portable glyph paths in SVG/EMF; color or
+bitmap-only font labels use bounded label-local images. SVG labels are therefore
+not editable text, although descriptive metadata preserves their spelling. PDF
+keeps native text. This is an explicit SVG difference, not complete source parity.
+
+Interactive Save captures immutable scenes before showing its panel. Accepted
+URL/format/writer are frozen once, actual panel detachment precedes work, and the
+cancellation-aware staged writer remains owned through real completion. Details
+and limits are in [the vector export contract](GRAPH-METAFILE-EXPORT-PARITY.md).
+The [new grouped checkpoint](qa/graph-metafile-family-2026-10-21.json) records
+31 distinct Core methods and 24 native case/engine combinations passing across
+focused repairs, with all 25 receivers independently absent. Older checkpoints
+do not independently validate this continuation. Physical, signed, complete
+Windows layout and hosted acceptance remain open.

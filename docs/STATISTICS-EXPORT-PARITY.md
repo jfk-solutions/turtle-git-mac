@@ -17,18 +17,57 @@ graph viewport and chooses PNG/JPEG/BMP/GIF by the filename, appending `.jpg` fo
 unknown extensions. `src/Resources/TortoiseProcENG.rc`, `IDS_STATPICFILEFILTER`,
 defines the two source filter groups.
 
-The native sheet now uses Pictures and All Files. Supported typed suffixes select
-PDF/PNG/JPEG/BMP/GIF regardless of the filter. Changing filters preserves the
-filename. Pictures supplies `.pdf` when there is no extension, an explicit macOS
-adaptation for Windows vector output; All Files supplies `.jpg`. Unknown suffixes
-get `.jpg` appended. `.wmf` and `.emf` are explicitly refused with PDF guidance.
-No Windows metafile graph writer is claimed. This is independent of the WMF/EMF
-image comparison decoder.
+The native sheet uses Pictures and All Files. Supported typed suffixes select
+WMF/EMF/PDF/PNG/JPEG/BMP/GIF regardless of the filter. Changing filters preserves
+the filename. Pictures supplies `.wmf` when there is no extension; All Files
+supplies `.jpg`. Unknown suffixes get `.jpg` appended.
+
+The source `.wmf` branch actually calls `CreateEnhanced`, rather than writing a
+classic Windows metafile. TurtleGit now follows that convention: both `.wmf` and
+the explicit `.emf` alias contain enhanced EMF bytes. PDF remains an additional
+native vector choice. A separate classic-WMF graph writer is not implemented.
+The original bounded enhanced-metafile writer is independent of the comparison
+decoder; placing a graph screenshot inside a metafile is not its export route.
 
 The panel normalizes the filename before platform overwrite confirmation and file
 access authorization. Acceptance validates the exact final URL and refuses an
 unnormalized URL rather than exporting to a different sibling. Core destination
 resolution preserves literal spelling, including composed/decomposed names.
+
+## Shared Statistics drawing scene
+
+`StatisticsVectorScene.swift` now builds one immutable `GraphVectorScene` for
+`StatisticsVectorNativeView` and `StatisticsGraphExport`. Native presentation,
+PDF, raster encoders and enhanced-metafile writing all consume that scene at the
+same captured viewport and appearance. This replaces the earlier Swift Charts
+and separate Canvas rendering; exports do not reconstruct an approximate chart.
+
+The scene includes the metric title, source palette, integer axes and ticks,
+grouped/stacked bars, ordinary lines with positive-value symbols, stacked-area
+polygons and pies. Ordinary bars and lines retain the source average guide.
+Zero-to-zero line segments are skipped, and a single-interval stacked area is a
+narrow filled bar. Author and synthetic Others identities remain numeric group
+positions, including canonically equivalent names and duplicate captions.
+
+Pies occupy one centered horizontal row in the visible viewport. Zero-total
+series are omitted without reserving slots. The source legend fitting/elision
+and final-group policy remain; narrow views hide the legend. Legend width is
+bounded to preserve a usable plot, with complete raw labels available through
+hover and accessibility. Display-only control characters are made single-line;
+the original label bytes remain in point descriptions.
+
+Bar, pie and smaller-line hit regions are derived from the same geometry.
+Average tooltips take priority at their guide. Stacked areas retain their source
+absence of individual hover regions, while every point, including zero values
+and dense lines, has a native accessibility label. Physical VoiceOver acceptance
+is still pending.
+
+`GraphVectorRenderer.swift` draws the scene through Core Graphics. PDF retains
+native text. EMF resolves shaped CoreText runs, including fallback fonts, into
+vector glyph outlines; text is therefore not generally editable/searchable in
+that format. A font glyph which cannot supply a path uses a bounded label-local
+RGBA image. This fallback never replaces the whole graph with a bitmap. Path,
+clip, color and drawing order remain shared across native and exported views.
 
 ## Captured workflow and lifetime
 
@@ -58,7 +97,7 @@ retained; retry is available after the worker finishes. Form actions carry the
 current revision, including Cancel and Close. Quit confirmation invalidates those
 receipts and cancels outstanding work.
 
-## Validation and remaining work
+## Earlier save-lifetime validation
 
 The [dated grouped checkpoint](qa/statistics-export-family-2026-10-21.json)
 records 23 focused Core methods, the Debug app build and ten native case/engine
@@ -76,8 +115,27 @@ site rendered with its two documentation/link checks passing. Earlier Statistics
 checkpoints cover their recorded sources and do not prove these new filter,
 atomic writer and ownership rules.
 
-Still open: physical save/overwrite and modifier behavior, VoiceOver, exact Windows
-font/geometry/shading identity, large-repository performance, WMF/EMF graph writing,
-installed signed sandbox replacement on deployment volumes, current complete
-hosted integration and whole-dialog acceptance. This family does not certify the
-complete Statistics dialog or application.
+## Current shared-scene checkpoint and limits
+
+The [shared-scene/metafile checkpoint](qa/graph-metafile-family-2026-10-21.json)
+records 31 distinct Core methods and 24 native case/engine combinations across
+both graph families passing after focused repairs. Statistics covers all five
+styles in light/dark, seven actual encodings, PDF labels, decoded source palettes,
+pie placement, dense/narrow legends, exact author identities, captured viewport
+and save ownership. Header/vector records and real metafile decoding are checked.
+Two full-window chart captures were reviewed and updated on the website. All 25
+receiver attempts, including the failed Revision attempt, are independently absent.
+Historical checks above do not independently certify the new renderer.
+
+Statistics currently bounds every export canvas to 16,384 pixels per dimension
+and 32 million pixels of area. The metafile writer also enforces bounded records,
+path/glyph work and a 64 MiB output limit. These limits can explicitly refuse an
+oversized graph; there is no silent whole-page raster substitute. Native font
+metrics, glyph rasterization and pixel rounding remain macOS adaptations, not a
+claim of Windows pixel identity.
+
+Still open: physical save/overwrite and modifier
+behavior, VoiceOver, exact Windows font/geometry/shading identity, large-repository
+performance, installed signed sandbox replacement on deployment volumes, current
+complete hosted integration and whole-dialog acceptance. This family does not
+certify the complete Statistics dialog or application.

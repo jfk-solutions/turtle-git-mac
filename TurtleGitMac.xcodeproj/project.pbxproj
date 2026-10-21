@@ -61,6 +61,7 @@
 		1979E37CB9AAE2C56AB7BEE7 /* CommitMessageHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */; };
 		199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0144901E0020C531A5D86FB /* RepositoryAccess.swift */; };
 		1A69AA4536DD6B5565199815 /* LibreOfficeComparisonAutomation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C736B7D87B43E2E36549A6B /* LibreOfficeComparisonAutomation.swift */; };
+		1B0ED51605FC056BF3C7A5FE /* RevisionGraphVectorScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B9D315EB0CEBA9F35268A81 /* RevisionGraphVectorScene.swift */; };
 		1B349E13BC3AB3C4D24E4F8D /* FinderFilesystemWorkflowLifetime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BE47E78B73920C120053078 /* FinderFilesystemWorkflowLifetime.swift */; };
 		1BA28775A9F962B4A6F1D19B /* SSHKeyImportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72865D9AC73996DD71D1991A /* SSHKeyImportWindow.swift */; };
 		1C3518D6A25C8AF5ED0B0B29 /* SubmoduleSyncWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0939C1284CC5B9339D0C0356 /* SubmoduleSyncWindow.swift */; };
@@ -94,6 +95,7 @@
 		2A787175D6DBD51DD78EA332 /* FileCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA1264F794E412CF0DFD5C59 /* FileCopy.swift */; };
 		2B851665B4C4A9C890BF3324 /* WorktreeListTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B6A308CF3E486ADD7497BD1 /* WorktreeListTable.swift */; };
 		2B9BAC06239B4C648FEBE0E6 /* CredentialSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8E9D379D35AF0431C2A8495 /* CredentialSettings.swift */; };
+		2B9FF973AA1CE1918A89588A /* GraphVectorRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA32EDF0EAC64DA0CE93518 /* GraphVectorRenderer.swift */; };
 		2BD5160A7FB19B41D7AAC268 /* SavedSSHAuthenticationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7704AE3070C3BAECF693B26B /* SavedSSHAuthenticationWindow.swift */; };
 		2BE2A50FE49349D97E029CD3 /* UnifiedDiffPrintMargins.swift in Sources */ = {isa = PBXBuildFile; fileRef = 548BA53E454CA6C5917EABE9 /* UnifiedDiffPrintMargins.swift */; };
 		2C55E0EBFCD53E3B244197A8 /* RemoteSettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837C5F7103FADCDAC3F99EC1 /* RemoteSettingsWindow.swift */; };
@@ -107,6 +109,7 @@
 		2F842C4B176E6A403C4ED5E6 /* RevisionGraphFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E0C98B5B48FC7BE56202765 /* RevisionGraphFormat.swift */; };
 		2F880914CC17252579DC49AD /* StatusWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */; };
 		3094584FBFF93568DEBA8626 /* MergeInlineComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB40C59EBABEDD9F1D57C74C /* MergeInlineComparison.swift */; };
+		309EF50D037055AC6FAF62A2 /* EnhancedMetafileWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9DF5DEFC08DA3720B374B9 /* EnhancedMetafileWriter.swift */; };
 		30E029F3769B8ECF4E2BE561 /* AddFileTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AB2F5FDA0673FDECA2C7F25 /* AddFileTable.swift */; };
 		31EF8A4E8017B7CAE75B4113 /* FinderOverlaySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA280FD82A687572025B806 /* FinderOverlaySettings.swift */; };
 		32999DFDD4058AD782D22857 /* BlameSyntax.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CA20BDAC0D5AFDEA1273F05 /* BlameSyntax.swift */; };
@@ -202,6 +205,7 @@
 		662196E53839BE65FDD9777B /* RevisionGraphExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48954A9E7997F1172496470B /* RevisionGraphExport.swift */; };
 		66CF44BB23FCD175E3AAAF17 /* GitSVNAuthenticationPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C4600CE92C92F579616719 /* GitSVNAuthenticationPrompt.swift */; };
 		6744229F9015EB71878F57B5 /* GeneralSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2FB1E06EB9099598ACE6E4 /* GeneralSettings.swift */; };
+		678F61FE226855299DD616DB /* StatisticsChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F652716395D1C6B7B2071D5A /* StatisticsChartView.swift */; };
 		68355E42E5C9D1D014516AF4 /* ComparisonFileList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */; };
 		685C871A83BE7D21AD6E50B0 /* LogStatistics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */; };
 		686B1F35B40207267BA9CCF3 /* SVNPromptWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83CB356DE47836D1BE2F694D /* SVNPromptWindow.swift */; };
@@ -375,6 +379,7 @@
 		C7F46AA23DC99E2E4AAFAD5D /* SubmoduleAddWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8547B7FA28A893C7D185689 /* SubmoduleAddWindow.swift */; };
 		C7FBD2873BDC70C3FFECB70D /* CommitIssueProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9360FE4E1923D5B727AC05FD /* CommitIssueProvider.swift */; };
 		C87E59D9408A3FA164DE4D92 /* MergeSourceExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686D88F916A3D20A7C2982D9 /* MergeSourceExport.swift */; };
+		C8DDA931715F746963699243 /* StatisticsVectorScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71673A4CE952DC3E21B5A06D /* StatisticsVectorScene.swift */; };
 		C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B86A4879EF89058692598F /* ExportWindow.swift */; };
 		C90C42AC6C78C7122C11B302 /* SerialPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B448BFA0806C28AEC8AE9126 /* SerialPatch.swift */; };
 		CA42C872966F166A14FB76F2 /* DiffToolSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A061EE120C020CB545734E4A /* DiffToolSettings.swift */; };
@@ -438,6 +443,7 @@
 		ED662E435F530B7A19153FBC /* InputWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C6BF6E19AAE3084DA015CF /* InputWindow.swift */; };
 		EE6537ABD84AF2FDE5BF7916 /* StatisticsGraphExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AD98D1D708DD20E49D436E /* StatisticsGraphExport.swift */; };
 		EEE69E62649D079B5EC10C98 /* GitReplayInspection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32C763DEBF565EDBBEDECC38 /* GitReplayInspection.swift */; };
+		EEF26076B054473011EF7A55 /* GraphVectorScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11701990270B34CB8F67C3B3 /* GraphVectorScene.swift */; };
 		EF0A14E185D835D3BAB7033E /* MessageCaretPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ABC9104B3F3E555FB47EC46 /* MessageCaretPosition.swift */; };
 		EF9005F8A36E739565A165F7 /* SendPatchList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A34FF11AFBC8CA0823CFB5 /* SendPatchList.swift */; };
 		EFF9A599551FEE689010B300 /* GitBlamePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE14912ACD87B35508C186F /* GitBlamePresentation.swift */; };
@@ -614,6 +620,7 @@
 		1018E4684A7F74369EE313B3 /* SSHAuthenticationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHAuthenticationStore.swift; sourceTree = "<group>"; };
 		102D31C868ED7CEE8FB72699 /* ConflictResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolution.swift; sourceTree = "<group>"; };
 		1142010920E5275663D4EB6C /* CreateChangelistSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateChangelistSheet.swift; sourceTree = "<group>"; };
+		11701990270B34CB8F67C3B3 /* GraphVectorScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphVectorScene.swift; sourceTree = "<group>"; };
 		1171B2BA353FE1424EB5B04F /* RevertProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertProgressWindow.swift; sourceTree = "<group>"; };
 		11C14DF0DFBA0B8AC513278E /* NOTICE */ = {isa = PBXFileReference; path = NOTICE; sourceTree = "<group>"; };
 		136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BranchTagWindow.swift; sourceTree = "<group>"; };
@@ -706,6 +713,7 @@
 		4A40F17F43A03D5EC6A0AA92 /* MergeEditorToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeEditorToolbar.swift; sourceTree = "<group>"; };
 		4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessageEditor.swift; sourceTree = "<group>"; };
 		4B9BF1860CDA9AD27A0DCE2E /* GitBlame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlame.swift; sourceTree = "<group>"; };
+		4B9D315EB0CEBA9F35268A81 /* RevisionGraphVectorScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionGraphVectorScene.swift; sourceTree = "<group>"; };
 		4C9968DC28764DEFABDB7D67 /* MergeBlameComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeBlameComparison.swift; sourceTree = "<group>"; };
 		4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertDialogSelection.swift; sourceTree = "<group>"; };
 		4D63D5938D6276B5A071748C /* TurtleGitSMTP.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TurtleGitSMTP.h; sourceTree = "<group>"; };
@@ -774,6 +782,7 @@
 		7069121A4AD302014A7F7AF6 /* CommandHistoricalOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandHistoricalOutput.swift; sourceTree = "<group>"; };
 		70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusWindow.swift; sourceTree = "<group>"; };
 		7147E00D8870E2CB238BAEDD /* ProjectDialogSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDialogSettings.swift; sourceTree = "<group>"; };
+		71673A4CE952DC3E21B5A06D /* StatisticsVectorScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsVectorScene.swift; sourceTree = "<group>"; };
 		71E4D9CD12160681F11F6E2E /* ReleaseUpdateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseUpdateWindow.swift; sourceTree = "<group>"; };
 		72211FE8450E694C1BC89AB3 /* FormatPatchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatPatchWindow.swift; sourceTree = "<group>"; };
 		72865D9AC73996DD71D1991A /* SSHKeyImportWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyImportWindow.swift; sourceTree = "<group>"; };
@@ -886,6 +895,7 @@
 		A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseWindow.swift; sourceTree = "<group>"; };
 		AA554BDD79BBAD3E89EF3CD2 /* SupportReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportReport.swift; sourceTree = "<group>"; };
 		AA5AD057FE8CA1C91988DA6E /* Removal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Removal.swift; sourceTree = "<group>"; };
+		AAA32EDF0EAC64DA0CE93518 /* GraphVectorRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphVectorRenderer.swift; sourceTree = "<group>"; };
 		AB86EFEBCB6909C206458540 /* LogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogWindow.swift; sourceTree = "<group>"; };
 		AB93559771ED0B23D12480BE /* ImageFileComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageFileComparison.swift; sourceTree = "<group>"; };
 		AC01522DAA88EDA69EC39985 /* Network.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Network.framework; path = System/Library/Frameworks/Network.framework; sourceTree = SDKROOT; };
@@ -927,6 +937,7 @@
 		BB112F7F921AE5646F703B59 /* LibreOfficeComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibreOfficeComparison.swift; sourceTree = "<group>"; };
 		BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderRequest.swift; sourceTree = "<group>"; };
 		BE0E07642065156B7B7D1788 /* PrimaryCommandInvocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryCommandInvocation.swift; sourceTree = "<group>"; };
+		BE9DF5DEFC08DA3720B374B9 /* EnhancedMetafileWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnhancedMetafileWriter.swift; sourceTree = "<group>"; };
 		BEA9844D056250E1264A3B15 /* AdvancedSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettings.swift; sourceTree = "<group>"; };
 		C04625726FBB2128C5DAD515 /* ApplicationIntroduction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationIntroduction.swift; sourceTree = "<group>"; };
 		C0C826BF8D2B76F52F29C6CD /* HistoryLanes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryLanes.swift; sourceTree = "<group>"; };
@@ -1026,6 +1037,7 @@
 		F47F25E9F85B9274F63464E0 /* ReferenceLogNativeTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogNativeTable.swift; sourceTree = "<group>"; };
 		F551EF3478A65B697AC427F7 /* GitLibGit2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitLibGit2.swift; sourceTree = "<group>"; };
 		F5B1B4492D159F92D3F03BBA /* Bisect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bisect.swift; sourceTree = "<group>"; };
+		F652716395D1C6B7B2071D5A /* StatisticsChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsChartView.swift; sourceTree = "<group>"; };
 		F6B702D69C1F3D1B61D2EC83 /* CacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheService.swift; sourceTree = "<group>"; };
 		F6EA08B98AB3B225EE0A8279 /* Synchronization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Synchronization.swift; sourceTree = "<group>"; };
 		F6EF0B95838332AF2D08641C /* SynchronizationActionControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizationActionControl.swift; sourceTree = "<group>"; };
@@ -1182,6 +1194,7 @@
 				9058AE332FC66665066DAE81 /* GitDaemonWindow.swift */,
 				E6D400F85AE92690112D0E35 /* GitProgressOutputState.swift */,
 				CB189665E36607BD18B45679 /* GitPropertiesWindow.swift */,
+				AAA32EDF0EAC64DA0CE93518 /* GraphVectorRenderer.swift */,
 				8CEE54BA90E5B4FFFCC88149 /* HistoryWorkflowWindow.swift */,
 				2B6C7223527745421AF60617 /* HookSettings.swift */,
 				B42ABD92C8384F1E8D882437 /* IgnoreWindow.swift */,
@@ -1274,6 +1287,7 @@
 				D1C08CE65957F3F0D4164400 /* RevisionComparisonWindow.swift */,
 				48954A9E7997F1172496470B /* RevisionGraphExport.swift */,
 				AED856C37545053179A74184 /* RevisionGraphFilter.swift */,
+				4B9D315EB0CEBA9F35268A81 /* RevisionGraphVectorScene.swift */,
 				E36D548C3CA5F137ED0667D9 /* RevisionGraphWindow.swift */,
 				5CC68DDC9F827CA4F3DA9A05 /* SavedDataSettings.swift */,
 				7704AE3070C3BAECF693B26B /* SavedSSHAuthenticationWindow.swift */,
@@ -1292,8 +1306,10 @@
 				EF2BD443F2E22C1D673BB60C /* SSHTransportCoordinator.swift */,
 				A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */,
 				CC73279697B4174BE7ED4D66 /* StashWindow.swift */,
+				F652716395D1C6B7B2071D5A /* StatisticsChartView.swift */,
 				F1AD98D1D708DD20E49D436E /* StatisticsGraphExport.swift */,
 				F014467B16BE2AE672DF757F /* StatisticsMenuCommands.swift */,
+				71673A4CE952DC3E21B5A06D /* StatisticsVectorScene.swift */,
 				FBE98FBF5981527BD422EDFB /* StatisticsWindow.swift */,
 				70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */,
 				64A97F9362AFC142FEFE5A1A /* SubmoduleAddProgressWindow.swift */,
@@ -1442,6 +1458,7 @@
 				6ED921FDE7185F2A22FD7896 /* ConflictTitles.swift */,
 				966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */,
 				36D340EDBB3CC101A00E5910 /* DiffToolPreferences.swift */,
+				BE9DF5DEFC08DA3720B374B9 /* EnhancedMetafileWriter.swift */,
 				AED9FE69138727679FA59D50 /* ExcelComparison.swift */,
 				181B9FE19CD19EA7DAB1E824 /* Fetch.swift */,
 				7428B46131B5378475891E94 /* FileComparison.swift */,
@@ -1491,6 +1508,7 @@
 				EE4D210C98ACAE51849E16C4 /* GitSVN.swift */,
 				D5C4600CE92C92F579616719 /* GitSVNAuthenticationPrompt.swift */,
 				50B9BC6078F637B8F0A3E3E2 /* GitWorktrees.swift */,
+				11701990270B34CB8F67C3B3 /* GraphVectorScene.swift */,
 				586E7A3F3C0CC083AF092FFE /* HistoricalMaterialization.swift */,
 				785EA4A8140D3A35CD9D32F5 /* HistoryContextMenu.swift */,
 				94119EBF871C901C8A360D50 /* HistoryFileCache.swift */,
@@ -2081,6 +2099,7 @@
 				4B31805576EE431C8008D7B1 /* ConflictTitles.swift in Sources */,
 				10817BEE6C73733AEFE13A86 /* DeleteConflict.swift in Sources */,
 				1C8614FEC2CFD890B47268BD /* DiffToolPreferences.swift in Sources */,
+				309EF50D037055AC6FAF62A2 /* EnhancedMetafileWriter.swift in Sources */,
 				04F02D3B66F1FA243BD53565 /* ExcelComparison.swift in Sources */,
 				96858E5400FE448CEE799A09 /* Fetch.swift in Sources */,
 				4CCA62C8CECAD2B41E2E888A /* FileComparison.swift in Sources */,
@@ -2130,6 +2149,7 @@
 				FCFF2D4AD581CB49571B0E4F /* GitSVNAuthenticationPrompt.swift in Sources */,
 				001B1EBF54B372A9FFDE31DB /* GitSingleCommitDetails.swift in Sources */,
 				135F13D3322EDDAFD3C718DA /* GitWorktrees.swift in Sources */,
+				EEF26076B054473011EF7A55 /* GraphVectorScene.swift in Sources */,
 				AEC88C50F8FBB93AC096E86C /* HistoricalMaterialization.swift in Sources */,
 				48DD87A5E7EFF4B3B5A65756 /* HistoryContextMenu.swift in Sources */,
 				98A8FFA226505DFD1B6F2B69 /* HistoryFileCache.swift in Sources */,
@@ -2349,6 +2369,7 @@
 				5E4F774D88C8BB0C81D39836 /* GitDaemonWindow.swift in Sources */,
 				CE62DD0C90CCBA058B0F7C1C /* GitProgressOutputState.swift in Sources */,
 				633A18B585C732FECBC7BD28 /* GitPropertiesWindow.swift in Sources */,
+				2B9FF973AA1CE1918A89588A /* GraphVectorRenderer.swift in Sources */,
 				8E55EAEDBB020857324EE7D3 /* HistoryWorkflowWindow.swift in Sources */,
 				9E622C7C59E4097D00A01885 /* HookSettings.swift in Sources */,
 				174E45FA66A5BAED1EAEF918 /* IgnoreWindow.swift in Sources */,
@@ -2441,6 +2462,7 @@
 				7CBA6AA078D63A8935313B51 /* RevisionComparisonWindow.swift in Sources */,
 				662196E53839BE65FDD9777B /* RevisionGraphExport.swift in Sources */,
 				7987241DFAF00D07FFA1D8DE /* RevisionGraphFilter.swift in Sources */,
+				1B0ED51605FC056BF3C7A5FE /* RevisionGraphVectorScene.swift in Sources */,
 				DB7AFE73DFDDD57C00B36DA3 /* RevisionGraphWindow.swift in Sources */,
 				F338A5A635E1EA0F64ADF694 /* SMTPCertificateReviewWindow.swift in Sources */,
 				03FB132957093BAC375BD5BB /* SSHAuthenticationStore.swift in Sources */,
@@ -2460,8 +2482,10 @@
 				F73FDB1A22740561A9DF58DA /* SourceMessageLinks.swift in Sources */,
 				20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */,
 				7C3A58D7BEF989C5FE0D1C4D /* StashWindow.swift in Sources */,
+				678F61FE226855299DD616DB /* StatisticsChartView.swift in Sources */,
 				EE6537ABD84AF2FDE5BF7916 /* StatisticsGraphExport.swift in Sources */,
 				3A784328FF03E7DD69994DA7 /* StatisticsMenuCommands.swift in Sources */,
+				C8DDA931715F746963699243 /* StatisticsVectorScene.swift in Sources */,
 				BA385183E9E7CF4B38B22FDD /* StatisticsWindow.swift in Sources */,
 				2F880914CC17252579DC49AD /* StatusWindow.swift in Sources */,
 				DA6E9DE53700E8DB77468D31 /* SubmoduleAddProgressWindow.swift in Sources */,

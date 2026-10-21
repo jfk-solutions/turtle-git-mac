@@ -61,6 +61,24 @@ import PDFKit
         }
         precondition(abs(verticalCenters[0] - verticalCenters[1]) <= 1, "Date pies lost their common vertical center")
     }
+    static func verifyMetafile(_ data:Data,size:CGSize)throws->CGImage {
+        func word(_ offset:Int)->UInt32 {
+            precondition(offset>=0 && offset+4<=data.count,"Truncated EMF field")
+            return (0..<4).reduce(UInt32(0)){$0 | UInt32(data[offset+$1]) << ($1*8)}
+        }
+        precondition(data.count>=88 && word(0)==1 && word(40)==0x464d4520 && Int(word(48))==data.count,"Not a complete enhanced-metafile graph")
+        var offset=0,records=0,fills=0,strokes=0,rasters=0,last:UInt32=0
+        while offset<data.count {
+            let type=word(offset),length=Int(word(offset+4))
+            precondition(length>=8 && length%4==0 && length<=data.count-offset,"Invalid EMF record extent")
+            if type==62 {fills+=1};if type==64 {strokes+=1};if [UInt32(81),114].contains(type) {rasters+=1}
+            records+=1;last=type;offset+=length
+        }
+        precondition(last==14 && records==Int(word(52)) && fills>1 && strokes>0 && rasters==0,"Graph is not vector paths and outlined labels")
+        guard let svg=try MetafileImageDecoder.convert(data),let image=ComparisonImage(bytes:svg)?.pixels else {preconditionFailure("Actual bundled EMF decoder refused exported graph")}
+        precondition(image.width==Int(size.width) && image.height==Int(size.height),"Metafile lost viewport")
+        return image
+    }
     @MainActor static func verifyExport(_ controller: StatisticsWindowController, root: URL) throws {
         let model = controller.model
         let choice = StatisticsGraphSavePanel()
@@ -80,7 +98,7 @@ import PDFKit
             let custom=try choice.normalizedFilename("custom.extension")
             precondition(custom=="custom.extension.jpg","Unknown suffix lost original filename")
             let extensionless=try choice.normalizedFilename("graph")
-            precondition(extensionless=="graph."+(filter == .pictures ? "pdf":"jpg"))
+            precondition(extensionless=="graph."+(filter == .pictures ? "wmf":"jpg"))
         }
         choice.retire()
         model.selectMetric(.statistics); precondition(!model.canExportGraph)
@@ -107,8 +125,13 @@ import PDFKit
                         }
                         precondition(document.string?.contains("Statistics QA") == true, "PDF lost graph labels in style \(style.rawValue): \(document.string ?? "")")
                     } else {
-                        guard let source = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { preconditionFailure("Invalid raster") }
-                        precondition(CGImageSourceGetType(source) as String? == format.contentType.identifier && image.width == 640 && image.height >= 360)
+                        let image:CGImage
+                        if format == .wmf || format == .emf {image=try verifyMetafile(data,size:CGSize(width:640,height:360))}
+                        else {
+                            guard let source=CGImageSourceCreateWithData(data as CFData,nil),let decoded=CGImageSourceCreateImageAtIndex(source,0,nil) else {preconditionFailure("Invalid raster")}
+                            precondition(CGImageSourceGetType(source) as String? == format.contentType.identifier && decoded.width==640 && decoded.height==360)
+                            image=decoded
+                        }
                         var bytes = [UInt8](repeating: 0, count: image.width * image.height * 4)
                         let colorful = bytes.withUnsafeMutableBytes { buffer -> Int in
                             let context = CGContext(data: buffer.baseAddress, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: image.width * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue)!
@@ -117,7 +140,7 @@ import PDFKit
                             return stride(from: 0, to: pixels.count, by: 4).filter { max(pixels[$0], pixels[$0+1], pixels[$0+2]) - min(pixels[$0], pixels[$0+1], pixels[$0+2]) > 30 }.count
                         }
                         precondition(colorful > 50, "Raster lost graph colors")
-                        if format == .png {
+                        if format == .png || format == .wmf || format == .emf {
                             let expected = model.graph!.colors[0]
                             let matching = matchingColorCount(bytes, color: expected)
                             precondition(matching > 10, "PNG lost the original source palette")
@@ -201,7 +224,7 @@ import PDFKit
         let unwritable = root.appendingPathComponent("missing/graph.png")
         do { try controller.exportGraph(to: unwritable, format: .png); preconditionFailure("Write failure swallowed") } catch { }
         model.busy = true; precondition(!model.canExportGraph); model.busy = false
-        print("Statistics export: five actual encodings × five styles × light/dark decoded; PDF labels, raster colors, multi-author/date-group/empty content, all metric titles/axis labels, source palette/background pixels, summary/busy refusal and write failure passed")
+        print("Statistics export: seven actual encodings × five styles × light/dark decoded; PDF labels, raster colors, multi-author/date-group/empty content, all metric titles/axis labels, source palette/background pixels, summary/busy refusal and write failure passed")
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)

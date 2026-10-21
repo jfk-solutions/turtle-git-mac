@@ -3,27 +3,27 @@ import XCTest
 @testable import TurtleGitCore
 
 final class StatisticsGraphExportTests:XCTestCase {
-    func testPicturesPDFDefaultAndAllFilesJPEGDefaultFollowSourceFilterContract() throws {
+    func testPicturesEnhancedMetafileDefaultAndAllFilesJPEGDefaultFollowSourceFilterContract() throws {
         let parent=URL(fileURLWithPath:"/private/parent.with.dots",isDirectory:true)
         let pictures=try StatisticsGraphExportDestination(url:parent.appendingPathComponent("statistics 雪"),filter:.pictures)
-        XCTAssertEqual(pictures.url.path,"/private/parent.with.dots/statistics 雪.pdf");XCTAssertEqual(pictures.format,.pdf)
+        XCTAssertEqual(pictures.url.path,"/private/parent.with.dots/statistics 雪.wmf");XCTAssertEqual(pictures.format,.wmf)
         let all=try StatisticsGraphExportDestination(url:parent.appendingPathComponent("statistics 雪"),filter:.allFiles)
         XCTAssertEqual(all.url.path,"/private/parent.with.dots/statistics 雪.jpg");XCTAssertEqual(all.format,.jpeg)
-        XCTAssertEqual(StatisticsGraphFormat.allCases,[.pdf,.png,.jpeg,.bmp,.gif])
+        XCTAssertEqual(StatisticsGraphFormat.allCases,[.pdf,.png,.jpeg,.bmp,.gif,.wmf,.emf])
     }
 
     func testTypedSupportedSuffixDeterminesEncoderRegardlessOfFilter() throws {
-        for filter in StatisticsGraphExportFilter.allCases {for (suffix,format) in [("PDF",StatisticsGraphFormat.pdf),("pNg",.png),("jpg",.jpeg),("JPEG",.jpeg),("BMP",.bmp),("gif",.gif)] {
+        for filter in StatisticsGraphExportFilter.allCases {for (suffix,format) in [("PDF",StatisticsGraphFormat.pdf),("pNg",.png),("jpg",.jpeg),("JPEG",.jpeg),("BMP",.bmp),("gif",.gif),("WMF",.wmf),("emf",.emf)] {
             let url=URL(fileURLWithPath:"/private/export").appendingPathComponent("name."+suffix)
             let result=try StatisticsGraphExportDestination(url:url,filter:filter)
             XCTAssertEqual(result.url,url);XCTAssertEqual(result.format,format)
             XCTAssertEqual(try StatisticsGraphExportDestination.normalizedFilename(result.url.lastPathComponent,filter:filter),url.lastPathComponent)
         }}
         XCTAssertEqual(StatisticsGraphFormat.jpeg.fileExtension,"jpg")
-        XCTAssertNil(StatisticsGraphFormat(fileExtension:"wmf"));XCTAssertNil(StatisticsGraphFormat(fileExtension:"svg"))
+        XCTAssertEqual(StatisticsGraphFormat(fileExtension:"wmf"),.wmf);XCTAssertNil(StatisticsGraphFormat(fileExtension:"svg"))
     }
 
-    func testUnknownLiteralNamesFallbackAndMetafileRefusalPreserveExactFilenameIntent() throws {
+    func testUnknownLiteralNamesFallbackAndMetafileAcceptancePreserveExactFilenameIntent() throws {
         for filter in StatisticsGraphExportFilter.allCases {for name in ["graph.unknown","graph.",".hidden","graph.tar.gz","literal\n\t雪[*].type","graph.\u{301}"] {
             let actual=try StatisticsGraphExportDestination.normalizedFilename(name,filter:filter)
             XCTAssertEqual(Data(actual.utf8),Data((name+".jpg").utf8))
@@ -33,8 +33,8 @@ final class StatisticsGraphExportTests:XCTestCase {
         let nfc=try StatisticsGraphExportDestination.normalizedFilename("caf\u{e9}.unknown"),nfd=try StatisticsGraphExportDestination.normalizedFilename("cafe\u{301}.unknown")
         XCTAssertNotEqual(Data(nfc.utf8),Data(nfd.utf8))
         for filter in StatisticsGraphExportFilter.allCases {for suffix in ["wmf","WMF","emf","EMF"] {
-            do{_ = try StatisticsGraphExportDestination(url:URL(fileURLWithPath:"/private/graph."+suffix),filter:filter);XCTFail("Metafile output must not be disguised as JPEG")}
-            catch StatisticsGraphDestinationFailure.metafile {XCTAssertTrue(StatisticsGraphDestinationFailure.metafile.localizedDescription.contains("PDF"))}
+            let url=URL(fileURLWithPath:"/private/graph."+suffix),value=try StatisticsGraphExportDestination(url:url,filter:filter)
+            XCTAssertEqual(value.url,url);XCTAssertEqual(value.format,StatisticsGraphFormat(fileExtension:suffix))
         }}
         for invalid in ["",".","..","nested/name","name\0tail"] {XCTAssertThrowsError(try StatisticsGraphExportDestination.normalizedFilename(invalid))}
         XCTAssertThrowsError(try StatisticsGraphExportDestination(url:URL(string:"https://example.invalid/graph.png")!))

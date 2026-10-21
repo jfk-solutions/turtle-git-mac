@@ -2,7 +2,7 @@
 import Foundation
 
 public enum RevisionGraphFormat: String, CaseIterable, Sendable {
-    case svg, graphviz, png, jpeg, bmp, gif, pdf
+    case svg, graphviz, png, jpeg, bmp, gif, pdf, wmf, emf
     public var fileExtension: String { self == .graphviz ? "gv" : self == .jpeg ? "jpg" : rawValue }
     public init?(fileExtension: String) {
         switch fileExtension.lowercased() {
@@ -20,11 +20,10 @@ public enum RevisionGraphExportFilter: String, CaseIterable, Sendable {
 }
 
 public enum RevisionGraphExportFailure: LocalizedError, Sendable {
-    case destination, metafile
+    case destination
     public var errorDescription: String? {
         switch self {
         case .destination: return "Choose a file for the exported revision graph."
-        case .metafile: return "WMF and EMF graph export are unavailable on macOS. Choose PDF for a vector image, or SVG for an editable graph."
         }
     }
 }
@@ -56,8 +55,6 @@ public struct RevisionGraphExportDestination: Sendable {
             case .allFiles: break
             }
         }
-        let suffix = Self.filenameSuffix(value)?.lowercased()
-        if suffix == "wmf" || suffix == "emf" { throw RevisionGraphExportFailure.metafile }
         if Self.filenameFormat(value) == nil { value += ".jpg" }
         return value
     }

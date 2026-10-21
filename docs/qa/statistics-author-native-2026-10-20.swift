@@ -28,7 +28,7 @@ private actor StatisticsAuthorWriteGate {
         throw NSError(domain: "Statistics author native timeout", code: line)
     }
     static func bytes(_ strings: [String]) -> [Data] { strings.map { Data($0.utf8) } }
-    @MainActor static func verifyColors(_ image: CGImage, graph: LogStatisticsGraph, context: String, thinLines: Bool) throws {
+    @MainActor static func verifyColors(_ image: CGImage, graph: LogStatisticsGraph, context: String, thinLines: Bool,plotBounds:CGRect) throws {
         var data = [UInt8](repeating: 0, count: image.width * image.height * 4)
         let space = CGColorSpace(name: CGColorSpace.sRGB)!
         data.withUnsafeMutableBytes { storage in
@@ -37,6 +37,10 @@ private actor StatisticsAuthorWriteGate {
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue)!
             canvas.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
         }
+        // The shared native/export scene owns the plot geometry. Exclude the
+        // complete legend by that boundary rather than old Charts coordinates.
+        let minimumX=max(0,Int(ceil(plotBounds.minX))),maximumX=min(image.width,Int(floor(plotBounds.maxX)))
+        try require(maximumX>minimumX,"Empty actual plot sampling area")
         if thinLines {
             // A one-point stroke may have no opaque interior at its fractional
             // device row. Independently invert source-over-white: pixel =
@@ -47,7 +51,7 @@ private actor StatisticsAuthorWriteGate {
                 [Double(color.red) - 255, Double(color.green) - 255, Double(color.blue) - 255]
             }
             var counts = [Int](repeating: 0, count: rays.count)
-            for y in 0..<image.height { for x in 0..<(image.width * 7 / 8) {
+            for y in 0..<image.height { for x in minimumX..<maximumX {
                 let offset = (y * image.width + x) * 4
                 let pixel = (0..<3).map { Double(data[offset + $0]) - 255 }
                 var matches: [Int] = []
@@ -69,10 +73,7 @@ private actor StatisticsAuthorWriteGate {
         for (index, color) in graph.colors.enumerated() {
             var count = 0, closestDistance = Int.max, nearCount = 0
             var closestPixel: [UInt8] = []
-            // This fixed 960x500 fixture places its legend beyond x=862.
-            // Keep the plot through x=839, including the fourth author bar
-            // at x=645...843, while excluding the entire legend and swatches.
-            for y in 0..<image.height { for x in 0..<(image.width * 7 / 8) {
+            for y in 0..<image.height { for x in minimumX..<maximumX {
                 let offset = (y * image.width + x) * 4
                 let dr = abs(Int(data[offset]) - Int(color.red)), dg = abs(Int(data[offset + 1]) - Int(color.green)), db = abs(Int(data[offset + 2]) - Int(color.blue))
                 if dr <= 3 && dg <= 3 && db <= 3 { count += 1 }
@@ -94,12 +95,15 @@ private actor StatisticsAuthorWriteGate {
         }
         for style in LogStatisticsStyle.allCases where !graph.metric.byAuthor || ![.line, .stackedLine].contains(style) {
             let chart = StatisticsChart(graph: graph, style: style, byAuthor: graph.metric.byAuthor)
-            try require(Set(chart.groupKeys).count == 4, "Charts scale merged raw author identities")
+            try require(Set(chart.groupKeys).count == 4, "Shared scene merged raw author identities")
             for point in graph.points {
                 let index = graph.metric.byAuthor ? point.category : point.series
-                try require(chart.groupKey(for: point) == chart.groupKeys[index], "mark and scale identities differ")
+                try require(chart.groupKey(for: point) == chart.groupKeys[index], "point and scene group identities differ")
             }
-            for format in [StatisticsGraphFormat.png, .pdf] {
+            let drawing=StatisticsVectorScene.make(graph:graph,style:style,size:CGSize(width:960,height:500),dark:false)
+            try require(drawing.accessibilityLabels.count==graph.points.count,"Native accessibility lost raw point occurrences")
+            for (point,label) in zip(graph.points,drawing.accessibilityLabels) {try require(Data(label.utf8)==Data(graph.tooltip(for:point).utf8),"Shared scene tooltip changed author spelling")}
+            for format in [StatisticsGraphFormat.png, .pdf, .wmf, .emf] {
                 let data = try StatisticsGraphExport.data(graph: graph, metric: graph.metric, style: style, size: CGSize(width: 960, height: 500), dark: false, format: format)
                 let file = root.appendingPathComponent("authors-\(graph.metric.rawValue)-\(style.rawValue).\(format.fileExtension)")
                 try data.write(to: file)
@@ -113,11 +117,30 @@ private actor StatisticsAuthorWriteGate {
                 if format == .png {
                     guard let source = CGImageSourceCreateWithData(data as CFData, nil), let decoded = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw StatisticsGraphExportFailure.encoding }
                     image = decoded
+                } else if format == .wmf || format == .emf {
+                    func word(_ offset:Int)->UInt32 {
+                        precondition(offset+4<=data.count,"Truncated EMF record")
+                        return (0..<4).reduce(UInt32(0)){$0 | UInt32(data[offset+$1]) << ($1*8)}
+                    }
+                    try require(data.count>=88 && word(0)==1 && word(40)==0x464d4520 && Int(word(48))==data.count,"Author graph is not enhanced EMF")
+                    var offset=0,fills=0,rasters=0,last:UInt32=0
+                    while offset<data.count {
+                        let type=word(offset),length=Int(word(offset+4))
+                        try require(length>=8 && length%4==0 && length<=data.count-offset,"Invalid graph record framing")
+                        if type==62 {fills+=1};if type==81 || type==114 {rasters+=1};last=type;offset+=length
+                    }
+                    try require(last==14 && fills>1 && rasters==0,"Author graph lost vector shapes/outlined labels")
+                    guard let svg=try MetafileImageDecoder.convert(data),let decoded=ComparisonImage(bytes:svg)?.pixels else {throw StatisticsGraphExportFailure.encoding}
+                    try require(decoded.width==960 && decoded.height==500,"Author EMF viewport changed")
+                    image=decoded
                 } else {
                     guard let document = PDFDocument(data: data), document.pageCount == 1, let page = document.page(at: 0), let decoded = page.thumbnail(of: CGSize(width: 960, height: 500), for: .mediaBox).cgImage(forProposedRect: nil, context: nil, hints: nil) else { throw StatisticsGraphExportFailure.rendering }
                     image = decoded
                 }
-                try verifyColors(image, graph: graph, context: "\(graph.metric) \(style) \(format)", thinLines: style == .line)
+                let pixelScale=CGFloat(image.width)/960
+                try require(abs(CGFloat(image.height)-500*pixelScale)<=1,"Decoded author graph changed viewport aspect")
+                let pixelPlot=CGRect(x:drawing.plotBounds.minX*pixelScale,y:drawing.plotBounds.minY*pixelScale,width:drawing.plotBounds.width*pixelScale,height:drawing.plotBounds.height*pixelScale)
+                try verifyColors(image, graph: graph, context: "\(graph.metric) \(style) \(format)", thinLines: style == .line,plotBounds:pixelPlot)
                 try require(bytes(graph.metric.byAuthor ? graph.categoryLabels : graph.seriesLabels) == original, "export mutated graph labels")
             }
         }
@@ -239,6 +262,6 @@ private actor StatisticsAuthorWriteGate {
         owner.close()
         try await wait { StatisticsWindowModel.activeOperations == 0 && StatisticsWindowController.activeExports == 0 }
         try require(model.retired && saving.model.retired, "owned statistics windows did not retire")
-        print("PASS: Statistics exact author identities, actual Git Calculate/options/all metrics, duplicate Others captions, distinct plot colors in PNG/PDF all supported styles, captured export bytes and owned cleanup")
+        print("PASS: Statistics exact author identities, actual Git Calculate/options/all metrics, duplicate Others captions, distinct plot colors in PNG/PDF/WMF/EMF all supported styles, captured export bytes and owned cleanup")
     }
 }

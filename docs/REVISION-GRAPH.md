@@ -101,14 +101,17 @@ selection and revision filters start fresh when a new graph window opens.
 **Graphs** and **All Files** filters. Pictures adds `.svg` when the name has no
 extension; Graphs adds `.gv`. An existing extension remains unchanged when
 switching filters. The filename chooses the format: SVG, Graphviz (`.gv` or
-`.dot`), PNG, JPEG, BMP, GIF or PDF. With All Files, an extensionless name becomes
+`.dot`), WMF, EMF, PNG, JPEG, BMP, GIF or PDF. With All Files, an extensionless name becomes
 JPEG; an unknown extension also appends `.jpg` (for example, `history.custom.jpg`).
 The panel confirms the final filename before granting access or replacing a file.
-Cancel leaves the destination unchanged. SVG and PDF export
+Cancel leaves the destination unchanged. SVG, WMF, EMF and PDF export
 at 100% and include at least the graph and viewport extent; raster images export
 the full graph at the current zoom. Graphviz stores topology and colored
-reference rows for an external Graphviz renderer. PDF is the native replacement
-for Windows metafiles. Very large raster exports report an error; reduce the
+reference rows for an external Graphviz renderer. As in TortoiseGit, `.wmf`
+contains an enhanced metafile; `.emf` is an explicit alias. SVG and metafile labels
+use native shaped glyph outlines, with a small bitmap only for labels requiring
+color or bitmap fonts. These labels retain their appearance rather than editable
+text. PDF retains text. Very large raster exports report an error; reduce the
 zoom or select a vector format. This is a partial port, not a full parity claim.
 
 The [parity record](REVISION-GRAPH-PARITY.md) documents source mappings,

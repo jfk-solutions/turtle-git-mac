@@ -10,6 +10,21 @@ private extension NSWindow {
         alphaValue=0;setFrameOrigin(.init(x:-20000,y:-20000));graphSaveHiddenOrder(place,relativeTo:number)
     }
 }
+private actor RevisionGraphSaveWriteGate {
+    private(set) var entered=false
+    private(set) var enteredAfterDetach=false
+    private var released=false
+    func hold(afterDetach:Bool,cancellation:OperationCancellation)async throws {
+        enteredAfterDetach=afterDetach;entered=true
+        while !released {try cancellation.check();try await Task.sleep(nanoseconds:10_000_000)}
+        try cancellation.check()
+    }
+    func waitUntilEntered()async throws {
+        for _ in 0..<3000 {if entered{return};try await Task.sleep(nanoseconds:10_000_000)}
+        throw NSError(domain:"Held graph writer did not start",code:1)
+    }
+    func release(){released=true}
+}
 @MainActor @main enum RevisionGraphSaveVerification {
     struct Failure:Error,CustomStringConvertible {let description:String}
     static func require(_ condition:Bool,_ message:String,line:Int = #line)throws {if !condition{throw Failure(description:"\(line): "+message)}}
@@ -53,6 +68,11 @@ private extension NSWindow {
         case .svg:try require(XMLParser(data:data).parse() && String(decoding:data,as:UTF8.self).contains("<svg"),"Invalid SVG")
         case .graphviz:try require(String(decoding:data,as:UTF8.self).contains("digraph"),"Invalid Graphviz")
         case .pdf:try require(data.starts(with:Data("%PDF".utf8)),"Invalid PDF")
+        case .wmf,.emf:
+            func word(_ offset:Int)->UInt32 {(0..<4).reduce(UInt32(0)){$0|UInt32(data[offset+$1])<<($1*8)}}
+            try require(data.count>=88,"Truncated enhanced metafile "+format.rawValue)
+            try require(word(0)==1 && word(4)==88 && word(40)==0x464d4520 && Int(word(48))==data.count,"Wrong enhanced-metafile header "+format.rawValue)
+            try require(MetafileImageDecoder.convert(data) != nil,"Actual metafile decoder refused graph "+format.rawValue)
         default:
             guard let source=CGImageSourceCreateWithData(data as CFData,nil),let image=CGImageSourceCreateImageAtIndex(source,0,nil) else {throw Failure(description:"Invalid graph image "+format.rawValue)}
             try require(CGImageSourceGetType(source) as String? == format.contentType.identifier && image.width>0 && image.height>0,"Wrong raster encoding "+format.rawValue)
@@ -80,6 +100,17 @@ private extension NSWindow {
     }
     static func ownership(_ c:Context)async throws {
         let owner=try await c.owner(),target=c.base.appendingPathComponent("accepted.PNG")
+        let gate=RevisionGraphSaveWriteGate(),originalWriter=owner.writeGraph
+        let panelDetached:@MainActor @Sendable ()->Bool={ [weak owner] in
+            guard let owner,let panel=owner.graphSavePanel?.panel else{return false}
+            return panel.sheetParent==nil
+        }
+        owner.writeGraph={data,url,token in
+            let detached=await panelDetached()
+            try await gate.hold(afterDetach:detached,cancellation:token)
+            try await originalWriter(data,url,token)
+        }
+        defer {owner.close();Task{await gate.release()}}
         var reply:((NSApplication.ModalResponse)->Void)?,attachedSave:NSSavePanel?
         owner.selectedSaveURL={_ in target};owner.presentSavePanel={panel,parent,completion in
             attachedSave=panel;reply=completion;parent.beginSheet(panel,completionHandler:completion)
@@ -88,10 +119,11 @@ private extension NSWindow {
         try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Quit accepted pending save")
         let zoom=owner.model.zoom;owner.perform("zoomIn");try require(owner.model.zoom==zoom,"Save allowed graph mutation")
         reply?(.OK);reply?(.OK)
-        try await Task.sleep(nanoseconds:20_000_000)
+        try await gate.waitUntilEntered()
         guard let save=attachedSave else {throw Failure(description:"Actual save sheet missing")}
-        try require(save.sheetParent === owner.window && owner.hasPendingWork && RevisionGraphWindowController.activeExportOperations>0 && !FileManager.default.fileExists(atPath:target.path),"Save published or released ownership before actual sheet detached")
-        owner.window!.endSheet(save,returnCode:.OK);save.orderOut(nil)
+        let enteredAfterDetach=await gate.enteredAfterDetach
+        try require(enteredAfterDetach && save.sheetParent==nil && owner.hasPendingWork && RevisionGraphWindowController.activeExportOperations>0 && !FileManager.default.fileExists(atPath:target.path),"Writer started before native sheet detach or lost pending/no-publication ownership")
+        await gate.release()
         try await wait{!owner.hasPendingWork && !owner.hasExportSheet}
         try require(save.sheetParent==nil,"Completed save left native sheet attached")
         try verifyBytes(Data(contentsOf:target),.png)
@@ -139,7 +171,7 @@ private extension NSWindow {
             capturedPreferences.append(preferences !== c.prefs && preferences.string(forKey:"LogFontName")=="Menlo")
             let owner=RevisionGraphWindowController(repository:repository,access:access,preferences:preferences,layoutExecutable:c.helper,automaticallyLoad:load);c.owners.append(owner);return owner
         }
-        for(name,actual,format)in[("output","output.jpg",RevisionGraphFormat.jpeg),("custom.odd","custom.odd.jpg",.jpeg),("typed.PNG","typed.PNG",.png),("topology.gv","topology.gv",.graphviz),("native.pdf","native.pdf",.pdf)] {
+        for(name,actual,format)in[("output","output.jpg",RevisionGraphFormat.jpeg),("custom.odd","custom.odd.jpg",.jpeg),("typed.PNG","typed.PNG",.png),("topology.gv","topology.gv",.graphviz),("native.pdf","native.pdf",.pdf),("legacy.wmf","legacy.wmf",.wmf)] {
             let expected=c.base.appendingPathComponent(actual),original=c.base.appendingPathComponent(name)
             c.prefs.set("Menlo",forKey:"LogFontName")
             workspace.error=nil;workspace.handleCommandLine(arguments:["--command=revisiongraph","--path",c.repo.root.path,"--output",original.path],currentDirectory:c.repo.root.path)
@@ -151,10 +183,6 @@ private extension NSWindow {
             try require(c.owners.allSatisfy{$0.model.closed && $0.window?.isVisible != true},"Hidden graph controller survived")
             if name != actual {try require(!FileManager.default.fileExists(atPath:original.path),"Fallback wrote unnormalized path")}
         }
-        let grantsBefore=grants.count
-        workspace.handleCommandLine(arguments:["--command=revisiongraph","--path",c.repo.root.path,"--output",c.base.appendingPathComponent("legacy.wmf").path],currentDirectory:c.repo.root.path)
-        try await wait{!workspace.busy && !workspace.hasPendingRepositoryWork}
-        try require(workspace.error != nil && grants.count==grantsBefore,"Legacy graph output was silently substituted")
         let countBeforeDenial=c.owners.count,denied=c.base.appendingPathComponent("denied.jpg")
         workspace.error=nil;workspace.commandLineOutputPermission={_ in nil}
         workspace.handleCommandLine(arguments:["--command=revisiongraph","--path",c.repo.root.path,"--output",denied.path],currentDirectory:c.repo.root.path)

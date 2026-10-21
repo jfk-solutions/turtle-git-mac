@@ -6,7 +6,7 @@ import Darwin
 
 @main struct RevisionGraphVerification {
     struct Failure: Error { let line: UInt }
-    static func require(_ value: @autoclosure () -> Bool, line: UInt = #line) throws { if !value() { throw Failure(line: line) } }
+    static func require(_ value: @autoclosure () throws -> Bool, line: UInt = #line) throws { if try !value() { throw Failure(line: line) } }
     @MainActor static func wait(_ ready: () -> Bool, line: UInt = #line) async throws {
         for _ in 0..<1000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw Failure(line: line)
     }
@@ -59,6 +59,7 @@ import Darwin
             try require(abs(Double(model.drawingFont(zoom:zoom)!.pointSize)-points) < 0.001)
         }
         try require(model.drawingFont(zoom:0.01)==nil && model.drawingFont(zoom:0)==nil && model.drawingFont(zoom:.infinity)==nil)
+        let originalSVG=try RevisionGraphExport.data(canvas:controller.canvas,viewport:CGSize(width:800,height:500),format:.svg,appearance:NSAppearance(named:.aqua)!)
         prefs.set("Courier", forKey:"LogFontName"); prefs.set(88, forKey:"LogFontSize")
         HistoryOrdering.authorDate.save(defaults:prefs)
         try require(model.font.fontName==originalFont.fontName)
@@ -66,7 +67,10 @@ import Darwin
         try require(model.error==nil && model.font.familyName=="Courier" && model.font.pointSize==12 && model.options.ordering == .authorDate)
         let customSVG=try RevisionGraphExport.data(canvas:controller.canvas,viewport:CGSize(width:800,height:500),format:.svg,appearance:NSAppearance(named:.aqua)!)
         let customDOT=try RevisionGraphExport.data(canvas:controller.canvas,viewport:CGSize(width:800,height:500),format:.graphviz,appearance:NSAppearance(named:.aqua)!)
-        try require(XMLParser(data:customSVG).parse() && String(decoding:customSVG,as:UTF8.self).contains("font-family=\"Courier\""))
+        let customScene=try RevisionGraphExport.snapshot(canvas:controller.canvas,viewport:CGSize(width:800,height:500),appearance:NSAppearance(named:.aqua)!).vector
+        let capturedFonts=customScene.commands.compactMap{command->String? in if case .text(let text)=command{return text.fontName};return nil}
+        try require(!capturedFonts.isEmpty && capturedFonts.allSatisfy{$0==model.drawingFont(zoom:1)!.fontName})
+        try require(XMLParser(data:customSVG).parse() && String(decoding:customSVG,as:UTF8.self).contains("<path") && customSVG != originalSVG)
         try require(String(decoding:customDOT,as:UTF8.self).contains("fontname=\"Courier\", fontsize=12.000"))
         let publishedFont=model.font,publishedGeometry=model.geometry!.nodes.map(\.rect)
         prefs.set("Helvetica",forKey:"LogFontName");model.options.to="missing-graph-font-revision";model.load();try await wait { !model.busy }
@@ -542,7 +546,7 @@ import Darwin
             if format == .svg {
                 try require(XMLParser(data: data).parse())
                 let text = String(decoding: data, as: UTF8.self)
-                try require(text.contains("font-family=\"" + RevisionGraphExport.fontName(model.font) + "\"") && text.contains("&lt;&amp;&quot;&apos;&gt;") && text.contains("<polyline") && !text.contains("<image"))
+                try require(text.contains("&lt;&amp;&quot;&apos;&gt;") && text.contains("<desc>") && text.contains("<path") && !text.contains("<image"))
             } else if format == .graphviz {
                 let text = String(decoding: data, as: UTF8.self)
                 try require(text.contains("rankdir=BT") && text.contains("&lt;&amp;&quot;&apos;&gt;"))
@@ -550,6 +554,12 @@ import Darwin
             } else if format == .pdf {
                 let pdf = PDFDocument(data: data)!
                 try require(pdf.pageCount == 1 && abs(pdf.page(at: 0)!.bounds(for: .mediaBox).width - expected.width) < 0.1)
+            } else if format == .wmf || format == .emf {
+                try require(data.count>=88)
+                func word(_ offset:Int)->UInt32 {(0..<4).reduce(UInt32(0)){$0|UInt32(data[offset+$1])<<($1*8)}}
+                try require(word(0)==1 && word(40)==0x464d4520 && Int(word(48))==data.count)
+                let decodedSVG=try MetafileImageDecoder.convert(data)
+                try require(decodedSVG.flatMap{ComparisonImage(bytes:$0)} != nil)
             } else {
                 guard let source = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw Failure(line: #line) }
                 try require(CGImageSourceGetType(source) as String? == format.contentType.identifier)
@@ -559,7 +569,7 @@ import Darwin
             if CommandLine.arguments.count > 4 { try data.write(to: URL(fileURLWithPath: CommandLine.arguments[4]).appendingPathComponent("graph-export." + format.fileExtension)) }
         }
         try require(RevisionGraphExport.xml("雪<&\"'>") == "雪&lt;&amp;&quot;&apos;&gt;")
-        print("PASS: Revision Graph SVG/Graphviz/PDF/PNG/JPEG/BMP/GIF encodings, escaped refs, native format control, extents and unchanged view state")
+        print("PASS: Revision Graph outlined SVG/enhanced WMF/EMF/Graphviz/PDF/PNG/JPEG/BMP/GIF encodings, escaped refs, native format control, extents and unchanged view state")
         // Owned export uses the same displayed graph without changing the repository.
         let ownedExport = root.appendingPathComponent("owned-export.svg")
         try controller.exportGraph(to: ownedExport, format: .svg)
@@ -570,7 +580,7 @@ import Darwin
         controller.saveGraph(); try require(controller.graphSavePanel != nil && controller.hasExportSheet)
         try require(!controller.windowShouldClose(window) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
         do { try controller.exportGraph(to: root.appendingPathComponent("blocked.svg"), format: .svg); throw Failure(line: #line) }
-        catch RevisionGraphExportFailure.unavailable { }
+        catch let error as TurtleGitMac.RevisionGraphExportFailure {guard case .unavailable=error else{throw error}}
         saveReply?(.cancel); try await wait {!controller.hasPendingWork};try require(controller.graphSavePanel == nil && !controller.hasExportSheet)
         let retiredExport = RevisionGraphWindowController(repository: repo, access: nil, preferences: prefs, layoutExecutable: helper)
         try await wait { !retiredExport.model.busy }; try require(retiredExport.model.geometry != nil)

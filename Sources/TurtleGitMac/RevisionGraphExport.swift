@@ -8,9 +8,9 @@ import TurtleGitCore
 extension RevisionGraphFormat {
     var title: String { self == .graphviz ? "Graphviz" : rawValue.uppercased() }
     var contentType: UTType {
-        switch self { case .svg: return .svg; case .graphviz: return UTType(filenameExtension: "gv", conformingTo: .plainText)!; case .png: return .png; case .jpeg: return .jpeg; case .bmp: return .bmp; case .gif: return .gif; case .pdf: return .pdf }
+        switch self { case .svg: return .svg; case .graphviz: return UTType(filenameExtension: "gv", conformingTo: .plainText)!; case .png: return .png; case .jpeg: return .jpeg; case .bmp: return .bmp; case .gif: return .gif; case .pdf: return .pdf; case .wmf, .emf: return UTType(filenameExtension: rawValue, conformingTo: .image) ?? .data }
     }
-    var vector: Bool { self == .svg || self == .graphviz || self == .pdf }
+    var vector: Bool { self == .svg || self == .graphviz || self == .pdf || self == .wmf || self == .emf }
 }
 
 enum RevisionGraphExportFailure: LocalizedError {
@@ -21,6 +21,24 @@ enum RevisionGraphExportFailure: LocalizedError {
 }
 
 @MainActor enum RevisionGraphExport {
+    struct Snapshot {
+        let vector: GraphVectorScene
+        let raster: GraphVectorScene
+        let graphviz: Data
+        @MainActor func data(format: RevisionGraphFormat, cancellation: OperationCancellation? = nil) throws -> Data {
+            try cancellation?.check()
+            switch format {
+            case .graphviz: return graphviz
+            case .svg: return try MacGraphVectorRenderer.svg(vector)
+            case .wmf, .emf: return try MacGraphVectorRenderer.emf(vector, cancellation: cancellation)
+            case .pdf: return try MacGraphVectorRenderer.pdf(vector, title: "Revision Graph")
+            default:
+                let dimensions = raster.size
+                guard dimensions.width <= 16384, dimensions.height <= 16384, dimensions.width * dimensions.height <= 32_000_000 else { throw RevisionGraphExportFailure.size }
+                return try MacGraphVectorRenderer.raster(raster, type: format.contentType)
+            }
+        }
+    }
     static func xml(_ value: String) -> String {
         value.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;").replacingOccurrences(of: "'", with: "&apos;")
     }
@@ -41,80 +59,19 @@ enum RevisionGraphExportFailure: LocalizedError {
         return format.vector ? CGSize(width: max(result.width, viewport.width), height: max(result.height, viewport.height)) : result
     }
     static func data(canvas: RevisionGraphCanvas, viewport: CGSize, format: RevisionGraphFormat, appearance: NSAppearance) throws -> Data {
-        let dimensions = try size(canvas: canvas, viewport: viewport, format: format)
-        guard dimensions.width.isFinite, dimensions.height.isFinite, dimensions.width >= 1, dimensions.height >= 1 else { throw RevisionGraphExportFailure.size }
-        var result: Data?
-        var failure: Error?
-        appearance.performAsCurrentDrawingAppearance {
-            do {
-            switch format {
-            case .svg: result = Data(svg(canvas: canvas, size: dimensions).utf8)
-            case .graphviz: result = Data(graphviz(canvas: canvas).utf8)
-            default:
-                let output = NSMutableData(), zoom = format.vector ? CGFloat(1) : canvas.model.zoom
-                let context: CGContext
-                if format == .pdf {
-                    var box = CGRect(origin: .zero, size: dimensions)
-                    guard let consumer = CGDataConsumer(data: output), let pdf = CGContext(consumer: consumer, mediaBox: &box, [kCGPDFContextTitle: "Revision Graph", kCGPDFContextCreator: "TurtleGit for Mac"] as CFDictionary) else { throw RevisionGraphExportFailure.rendering }
-                    context = pdf; context.beginPDFPage(nil)
-                } else {
-                    guard dimensions.width <= 16384, dimensions.height <= 16384, dimensions.width * dimensions.height <= 32_000_000 else { throw RevisionGraphExportFailure.size }
-                    guard let bitmap = CGContext(data: nil, width: Int(dimensions.width), height: Int(dimensions.height), bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { throw RevisionGraphExportFailure.rendering }
-                    context = bitmap
-                }
-                context.translateBy(x: 0, y: dimensions.height); context.scaleBy(x: 1, y: -1)
-                NSGraphicsContext.saveGraphicsState()
-                NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
-                NSColor.textBackgroundColor.setFill(); CGRect(origin: .zero, size: dimensions).fill()
-                context.translateBy(x: 10, y: 10); context.scaleBy(x: zoom, y: zoom)
-                canvas.drawGraph(text: true, renderingZoom: zoom)
-                NSGraphicsContext.restoreGraphicsState()
-                if format == .pdf { context.endPDFPage(); context.closePDF() }
-                else {
-                    guard let image = context.makeImage(), let destination = CGImageDestinationCreateWithData(output, format.contentType.identifier as CFString, 1, nil) else { throw RevisionGraphExportFailure.encoding }
-                    CGImageDestinationAddImage(destination, image, format == .jpeg ? [kCGImageDestinationLossyCompressionQuality: 0.9] as CFDictionary : nil)
-                    guard CGImageDestinationFinalize(destination) else { throw RevisionGraphExportFailure.encoding }
-                }
-                result = output as Data
-            }
-            } catch { failure = error }
-        }
-        if let failure { throw failure }
-        guard let result else { throw RevisionGraphExportFailure.rendering }; return result
+        try snapshot(canvas: canvas, viewport: viewport, appearance: appearance).data(format: format)
     }
-    private static func svg(canvas: RevisionGraphCanvas, size: CGSize) -> String {
-        let model = canvas.model, graph = model.geometry!
-        let font = model.font, fontName = fontName(model.font)
-        var parts = ["<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"\(number(size.width))\" height=\"\(number(size.height))\" viewBox=\"0 0 \(number(size.width)) \(number(size.height))\">", "<rect width=\"100%\" height=\"100%\" fill=\"\(color(.textBackgroundColor))\"/>", "<g transform=\"translate(10 10)\">"]
-        for edge in graph.edges {
-            let points = model.arrowsTowardMerges ? Array(edge.points.reversed()) : edge.points
-            let coordinates = points.map { "\(number($0.x)),\(number($0.y))" }.joined(separator: " ")
-            parts.append("<polyline points=\"\(coordinates)\" fill=\"none\" stroke=\"\(color(.labelColor))\" stroke-width=\"2\"/>")
-            if points.count >= 2, let end = points.last {
-                let before = points[points.count - 2], angle = atan2(end.y - before.y, end.x - before.x)
-                let a = CGPoint(x: end.x - 8 * cos(angle - .pi/8), y: end.y - 8 * sin(angle - .pi/8)), b = CGPoint(x: end.x - 8 * cos(angle + .pi/8), y: end.y - 8 * sin(angle + .pi/8))
-                parts.append("<polyline points=\"\(number(a.x)),\(number(a.y)) \(number(end.x)),\(number(end.y)) \(number(b.x)),\(number(b.y))\" fill=\"none\" stroke=\"\(color(.labelColor))\" stroke-width=\"2\"/>")
-            }
+    static func snapshot(canvas: RevisionGraphCanvas, viewport: CGSize, appearance: NSAppearance) throws -> Snapshot {
+        let vectorSize = try size(canvas: canvas, viewport: viewport, format: .svg)
+        let rasterSize = try size(canvas: canvas, viewport: viewport, format: .png)
+        guard [vectorSize, rasterSize].allSatisfy({$0.width.isFinite && $0.height.isFinite && $0.width >= 1 && $0.height >= 1}) else { throw RevisionGraphExportFailure.size }
+        var result: Snapshot?
+        appearance.performAsCurrentDrawingAppearance {
+            result = Snapshot(vector: RevisionGraphVectorScene.make(model: canvas.model, size: vectorSize, zoom: 1),
+                raster: RevisionGraphVectorScene.make(model: canvas.model, size: rasterSize, zoom: canvas.model.zoom),
+                graphviz: Data(graphviz(canvas: canvas).utf8))
         }
-        let nodes = Dictionary(uniqueKeysWithValues: model.nodes.map { ($0.hash, $0) })
-        for (index, geometry) in graph.nodes.enumerated() {
-            guard let node = nodes[geometry.hash] else { continue }
-            let rect = geometry.rect, labels = model.lines(node), height = rect.height / CGFloat(labels.count)
-            let shape = "x=\"\(number(rect.minX))\" y=\"\(number(rect.minY))\" width=\"\(number(rect.width))\" height=\"\(number(rect.height))\" rx=\"6\""
-            parts.append("<defs><clipPath id=\"node\(index)\"><rect \(shape)/></clipPath></defs><g clip-path=\"url(#node\(index))\">")
-            for (line, label) in labels.enumerated() {
-                let background = RevisionGraphPalette.background(label.1, pointer: label.2, preferences: model.preferences)
-                let y = rect.minY + CGFloat(line) * height
-                parts.append("<rect x=\"\(number(rect.minX))\" y=\"\(number(y))\" width=\"\(number(rect.width))\" height=\"\(number(height))\" fill=\"\(color(background))\"/>")
-                parts.append("<text x=\"\(number(rect.minX + 20))\" y=\"\(number(y + (height - (font.ascender - font.descender)) / 2 + font.ascender))\" font-family=\"\(xml(fontName))\" font-size=\"\(number(font.pointSize))\" fill=\"\(color(RevisionGraphPalette.foreground(background)))\">\(xml(label.0))</text>")
-            }
-            parts.append("</g>")
-            if let selection = model.selection.firstIndex(of: node.hash) {
-                let stroke = selection == 0 ? color(.selectedControlColor) : "#880015"
-                parts.append("<rect \(shape) fill=\"none\" stroke=\"\(stroke)\" stroke-width=\"4\"/>")
-            }
-        }
-        parts.append("</g></svg>"); return parts.joined(separator: "\n")
+        guard let result else { throw RevisionGraphExportFailure.rendering }; return result
     }
     private static func graphviz(canvas: RevisionGraphCanvas) -> String {
         let model = canvas.model
@@ -154,7 +111,7 @@ enum RevisionGraphExportFailure: LocalizedError {
     }
     @objc func changeFormat() {
         switch filter {
-        case .pictures:panel.allowedContentTypes=[.svg,.jpeg,.png,.bmp,.gif,.pdf]
+        case .pictures:panel.allowedContentTypes=[.svg,RevisionGraphFormat.wmf.contentType,RevisionGraphFormat.emf.contentType,.jpeg,.png,.bmp,.gif,.pdf]
         case .graphs:panel.allowedContentTypes=[RevisionGraphFormat.graphviz.contentType,UTType(filenameExtension:"dot",conformingTo:.plainText)!]
         case .allFiles:panel.allowedContentTypes=[]
         }

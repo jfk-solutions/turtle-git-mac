@@ -4412,3 +4412,27 @@ Skip/reopen/future-edit/Continue regression, without rerunning passed suites.
 All seven native receivers, including the failed runtime attempt, are
 independently absent. Generated localization/Help checks passed. These local
 results do not certify complete hosted, physical, signed or whole-port parity.
+
+
+### Shared native graph scenes and enhanced-metafile output — October 21, 2026
+
+Statistics and Revision Graph now export genuine enhanced EMF using the source
+`.wmf` suffix or explicit `.emf` alias. Native drawing and graphical exports share
+ordered geometry, source palettes and captured fonts. Statistics restores its
+source Pictures default and retains five native chart styles with hover and
+accessibility geometry; Revision Graph retains arrows, selection markers and Base
+captions. SVG/EMF shape native text into glyph paths, with bounded label-local
+color-font images; SVG editable text remains an explicit source difference.
+PDF keeps native text. Interactive Revision Save now captures immutable scenes
+before its panel and retains a cancellable staged writer until actual completion.
+
+The [contract and limits](GRAPH-METAFILE-EXPORT-PARITY.md) and
+[dated evidence](qa/graph-metafile-family-2026-10-21.json) record 31 distinct Core
+methods and 24 native case/engine combinations passing across focused repairs.
+The initial test compile literals, app actor/accessibility calls, thin-stroke
+pixel oracle, dynamic edge alpha and older fixture compile ambiguities are
+recorded. Only affected failed/unrun groups repeated. Two new complete Statistics
+chart captures were reviewed and updated; all 25 receiver attempts are absent.
+Complete Windows geometry/font identity, physical/signed and minimum-version
+acceptance, current full hosted CI, whole-port parity and App Store distribution
+remain open.

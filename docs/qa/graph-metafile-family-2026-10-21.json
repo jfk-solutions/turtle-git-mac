@@ -1,0 +1,171 @@
+{
+  "date": "2026-10-21",
+  "batch": "Shared native graph scenes and genuine enhanced-metafile export",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Shared drawing scene for Statistics and Revision Graph native/PDF/raster/SVG/EMF outputs; Graphviz remains topology serialization",
+    "Real enhanced EMF for both .wmf and .emf; Statistics source Pictures.wmf default restored",
+    "Native CoreText shaping, portable glyph outlines and bounded label-local color-font fallback; SVG raw label metadata, PDF searchable text",
+    "Revision Graph immutable pre-panel snapshots, once-only final destination capture, actual sheet detachment and cancellation-aware staged atomic writer",
+    "Statistics native chart styles, source palette, hover/AX and legend/viewport rules share export geometry"
+  ],
+  "core": {
+    "distinct_methods": 31,
+    "passing": true,
+    "initial": "Numeric literal ambiguity prevented initial test compilation; CGFloat.infinity/nan annotations repaired fixture",
+    "grouped_log": "build/qa/graph-metafile-core-repair-2026-10-21.log",
+    "focused_repair_log": "build/qa/graph-metafile-writer-interior-repair-2026-10-21.log",
+    "repair": "Two assertions in one dash painting method sampled a 2px antialiased fringe. A 4px stroke retains exact interior run/gap checks and independent encoded width/dash assertions. Four writer methods passed focused recheck; other 27 methods not repeated."
+  },
+  "native": {
+    "distinct_case_engine_pairs": 24,
+    "passing": true,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "groups": {
+      "new_graph_metafile_statistics_revision_ownership": 6,
+      "existing_statistics_family": 2,
+      "statistics_authors": 2,
+      "statistics_export_formats_selection_ownership": 6,
+      "revision_graph_save_formats_ownership_command": 6,
+      "revision_graph_window_family": 2
+    },
+    "logs": [
+      "build/qa/graph-metafile-native-2026-10-21.log",
+      "build/qa/graph-metafile-native-edge-repair-2026-10-21.log",
+      "build/qa/graph-statistics-existing-2026-10-21.log",
+      "build/qa/graph-statistics-authors-2026-10-21.log",
+      "build/qa/graph-statistics-export-2026-10-21.log",
+      "build/qa/graph-revision-save-2026-10-21.log",
+      "build/qa/graph-revision-window-2026-10-21.log"
+    ]
+  },
+  "failures_and_repairs": [
+    "App initial build: Snapshot.data required @MainActor; next build exposed NSAccessibilityElement setter calls, repaired. Explicit self captures added in new nested save Task. Affected builds passed.",
+    "Revision native first attempt refused translucent macOS system label paint. Edge/arrow color now resolves over the actual captured canvas background in the shared scene; affected Revision and ownership cases passed. Passed Statistics cases not repeated.",
+    "Statistics export runner initially stopped before launching a receiver because the Revision repair made cached objects stale. It ran successfully after the affected app rebuild.",
+    "Older Revision Graph window fixture needed throwing autoclosures, an actual decoder result and module-qualified native failure type because Core has a same-named failure enum. Only this previously unrun native family repeated."
+  ],
+  "ownership": {
+    "receiver_pids": [
+      10886,
+      11079,
+      11342,
+      11627,
+      11698,
+      11775,
+      11930,
+      12185,
+      12371,
+      12544,
+      12729,
+      12932,
+      12971,
+      13008,
+      13047,
+      13092,
+      13129,
+      13178,
+      13214,
+      13266,
+      13465,
+      13502,
+      13554,
+      13841,
+      14248
+    ],
+    "all_independently_absent": true,
+    "ps_exit": 1,
+    "receiver_attempts": 25,
+    "new_runner_helper_cleanup": "Only approved metafile/graph-layout executables holding private request descriptors are eligible for cleanup; cleanup after a successful receiver is itself a failure.",
+    "windows": "Automated native windows/sheets hidden/offscreen. Deliberate Statistics full-window capture windows closed after capture."
+  },
+  "captures": {
+    "reviewed": [
+      "docs/site/assets/statistics-bar-source-light.png",
+      "docs/site/assets/statistics-bar-source-dark.png"
+    ],
+    "size": [
+      1560,
+      1164
+    ],
+    "source_directory": "build/qa/graph-vector-statistics-captures",
+    "scope": "Full native chart window in light/dark; single-author two-commit fixture. Summary captures also produced, not substituted for existing public summary captures.",
+    "sha256": {
+      "docs/site/assets/statistics-bar-source-light.png": "626ffb2363435f064c4432d346c627cd988b526647d85d606d58e4cdc13af7bd",
+      "docs/site/assets/statistics-bar-source-dark.png": "c6e93a2bb38de153c180a6c3e5aeb5a2ee5b0105c54cba4ef90bb1b2055162f6"
+    }
+  },
+  "hosted_observation": {
+    "at": "2026-10-21 04:55 UTC",
+    "running_run": 39533313374,
+    "job": 119008850134,
+    "active_step": "Git integration tests",
+    "step_started_at": "2026-10-21T03:19:25Z",
+    "latest_pushed_macos_run": 39543988933,
+    "latest_pushed_status": "pending",
+    "latest_pages_run": 39543988932,
+    "latest_pages_conclusion": "success",
+    "limitation": "No complete current hosted CI pass established; no restart inferred from observation duration."
+  },
+  "remaining": [
+    "Whole-dialog/source-state/layout parity",
+    "SVG editable text differs: labels use glyph paths or local bitmap fallback; raw spelling in descriptive metadata",
+    "Windows GDI/font/pixel identity and very large repository performance",
+    "Physical keyboard/VoiceOver/minimum OS/Intel acceptance",
+    "Signed sandbox destination grants and replacement on deployment volumes",
+    "Current complete hosted CI and App Store distribution acceptance"
+  ],
+  "protected_unrelated_work": [
+    "scripts/test-native-reference-batch.py",
+    "docs/qa/reflog-capture-native-2026-10-13.swift"
+  ],
+  "app": {
+    "initial_exit": 65,
+    "actor_repair_exit": 65,
+    "accessibility_repair_exit": 0,
+    "edge_repair_exit": 0,
+    "help_refresh_exit": 0,
+    "contradictory_diagnostic": "Edge repair exits0 but log reports a SwiftCompile command failed with exit code0/no further output. Kept as contradictory compiler evidence; native consumers linked fresh objects and passed. No complete hosted pass claimed.",
+    "logs": [
+      "build/qa/graph-metafile-app-2026-10-21.log",
+      "build/qa/graph-metafile-app-repair-2026-10-21.log",
+      "build/qa/graph-metafile-app-repair2-2026-10-21.log",
+      "build/qa/graph-metafile-app-edge-repair-2026-10-21.log",
+      "build/qa/graph-metafile-help-refresh-2026-10-21.log"
+    ]
+  },
+  "generated": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1314,
+      "check": "passed"
+    },
+    "help": {
+      "documents": 49,
+      "topics": 51,
+      "files": 69,
+      "check": "passed",
+      "built_bytes_match": true
+    },
+    "dialog_ledger": {
+      "dialogs": 130,
+      "partial": 120,
+      "pending_family": 10,
+      "pending_controls": 85,
+      "certified": 0,
+      "meaning": "Audit accounting, not feature completion"
+    },
+    "site": {
+      "documents": 410,
+      "unresolved_fragments": [],
+      "tests": {
+        "count": 2,
+        "passing": true,
+        "log": "build/qa/graph-metafile-site-tests-2026-10-21.log"
+      }
+    }
+  }
+}

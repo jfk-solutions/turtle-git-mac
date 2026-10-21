@@ -81,6 +81,23 @@ actor StatisticsExportWriteGate {
             let pdf=try unwrap(PDFDocument(data:data),"Invalid PDF statistics output")
             try require(pdf.pageCount==1,"PDF did not contain the captured viewport")
             if let size {try require(pdf.page(at:0)?.bounds(for:.mediaBox).size==size,"PDF viewport changed")}
+        } else if format == .wmf || format == .emf {
+            func word(_ offset:Int)->UInt32 {
+                precondition(offset+4<=data.count,"Truncated EMF field")
+                return (0..<4).reduce(UInt32(0)){$0 | UInt32(data[offset+$1]) << ($1*8)}
+            }
+            try require(data.count>=88 && word(0)==1 && word(40)==0x464d4520 && Int(word(48))==data.count,"Not actual enhanced-metafile bytes")
+            var offset=0,fills=0,strokes=0,rasters=0,count=0,last:UInt32=0
+            while offset<data.count {
+                let type=word(offset),length=Int(word(offset+4))
+                try require(length>=8 && length%4==0 && length<=data.count-offset,"Invalid EMF record")
+                if type==62 {fills+=1};if type==64 {strokes+=1};if type==81 || type==114 {rasters+=1}
+                count+=1;last=type;offset+=length
+            }
+            try require(last==14 && count==Int(word(52)) && fills>1 && strokes>0 && rasters==0,"Export substituted a whole-graph bitmap for vector shapes/text")
+            let decoded=try unwrap(MetafileImageDecoder.convert(data),"Actual helper did not decode graph")
+            let image=try unwrap(ComparisonImage(bytes:decoded)?.pixels,"Actual helper SVG did not render EMF pixels")
+            if let size {try require(image.width==Int(size.width) && image.height==Int(size.height),"Metafile viewport changed")}
         } else {
             let source=try unwrap(CGImageSourceCreateWithData(data as CFData,nil),"Invalid raster graph")
             let image=try unwrap(CGImageSourceCreateImageAtIndex(source,0,nil),"Missing raster pixels")
@@ -91,7 +108,7 @@ actor StatisticsExportWriteGate {
     static func formats(_ c:Context)async throws {
         let picker=StatisticsGraphSavePanel()
         try require(picker.formats.itemTitles==["Pictures","All Files"] && picker.filter == .pictures,"Source filter order/default changed")
-        let cases:[(Int,String,String,StatisticsGraphFormat)]=[(0,"statistics","statistics.pdf",.pdf),(1,"statistics","statistics.jpg",.jpeg),(0,"typed.PNG","typed.PNG",.png),(1,"typed.JPEG","typed.JPEG",.jpeg),(0,"custom.suffix","custom.suffix.jpg",.jpeg),(1,".private",".private.jpg",.jpeg),(1,"trailing.","trailing..jpg",.jpeg)]
+        let cases:[(Int,String,String,StatisticsGraphFormat)]=[(0,"statistics","statistics.wmf",.wmf),(1,"statistics","statistics.jpg",.jpeg),(0,"typed.PNG","typed.PNG",.png),(1,"typed.JPEG","typed.JPEG",.jpeg),(0,"typed.WMF","typed.WMF",.wmf),(1,"typed.emf","typed.emf",.emf),(0,"custom.suffix","custom.suffix.jpg",.jpeg),(1,".private",".private.jpg",.jpeg),(1,"trailing.","trailing..jpg",.jpeg)]
         for(index,input,expected,format)in cases {
             picker.panel.nameFieldStringValue=input;picker.formats.selectItem(at:index);picker.changeFormat()
             try require(picker.panel.nameFieldStringValue==input,"Filter selection rewrote typed suffix")
@@ -101,9 +118,9 @@ actor StatisticsExportWriteGate {
             try require(target.url==accepted && target.format==format,"Final URL or filename encoder drifted")
         }
         picker.formats.selectItem(at:1);picker.changeFormat();try require(picker.panel.allowedContentTypes.isEmpty && picker.panel.allowsOtherFileTypes,"All Files is not unrestricted")
-        for name in ["ungranted.custom","no-extension","blocked.wmf","blocked.EMF"] {
-            do {_=try picker.destination(for:c.base.appendingPathComponent(name));throw Failure(description:"Unapproved sibling/metafile accepted")}
-            catch is Failure {throw Failure(description:"Unapproved sibling/metafile accepted")}
+        for name in ["ungranted.custom","no-extension"] {
+            do {_=try picker.destination(for:c.base.appendingPathComponent(name));throw Failure(description:"Unapproved final filename accepted")}
+            catch is Failure {throw Failure(description:"Unapproved final filename accepted")}
             catch {}
         }
         let owner=try await c.owner(),graph=try unwrap(owner.model.graph,"No actual statistics graph")

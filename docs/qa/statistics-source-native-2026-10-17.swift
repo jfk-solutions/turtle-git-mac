@@ -21,6 +21,9 @@ extension StatisticsNativeVerification {
         for _ in 0..<2500 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
         throw NSError(domain: "Statistics source wait", code: line)
     }
+    @MainActor static func sourceViews(_ root:NSView?)->[NSView] {
+        guard let root else{return []};return [root]+root.subviews.flatMap{sourceViews($0)}
+    }
     @MainActor static func sourceCapture(_ owner: StatisticsWindowController, page: String) async throws {
         guard let output = ProcessInfo.processInfo.environment["TURTLEGIT_STATISTICS_SOURCE_CAPTURE"], let window = owner.window else { return }
         if #available(macOS 14.4, *) {
@@ -28,7 +31,20 @@ extension StatisticsNativeVerification {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             for (appearance, suffix) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
                 window.appearance = NSAppearance(named: appearance); window.alphaValue = 1; window.orderFront(nil)
-                window.contentView?.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 250_000_000)
+                window.contentView?.layoutSubtreeIfNeeded()
+                if page == "bar" {
+                    try await sourceWait {
+                        window.contentView?.layoutSubtreeIfNeeded()
+                        guard let native=sourceViews(window.contentView).compactMap({$0 as? StatisticsVectorNativeView}).first,
+                              let drawing=native.drawing,native.bounds.width>100,native.bounds.height>100,
+                              abs(drawing.scene.size.width-native.bounds.width)<1,abs(drawing.scene.size.height-native.bounds.height)<1,
+                              drawing.plotBounds.width>0,!drawing.accessibilityLabels.isEmpty,
+                              let first=drawing.scene.commands.first else{return false}
+                        if case .fill(_,let color,_)=first {return abs(color.red-(suffix == "dark" ? 32.0/255:1))<0.001}
+                        return false
+                    }
+                }
+                window.displayIfNeeded();try await Task.sleep(nanoseconds:250_000_000)
                 let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
                 guard let own = content.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else { throw NSError(domain: "Statistics owned capture", code: 1) }
                 let config = SCStreamConfiguration(); config.width = Int(window.frame.width * 2); config.height = Int(window.frame.height * 2)

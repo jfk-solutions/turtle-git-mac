@@ -40,14 +40,15 @@ counts. Graph titles and axis units follow the chosen metric and time interval;
 the original TortoiseGit palette is shared by all graph styles in light and dark
 appearance. Very high author counts retain the source palette's repeated colors.</p>
 <p>With a graph selected, choose <strong>File → Save Graph As…</strong>. The save sheet has
-<strong>Pictures</strong> and <strong>All Files</strong> filters. The filename selects the encoder: <code>.pdf</code>,
-<code>.png</code>, <code>.jpg</code>/<code>.jpeg</code>, <code>.bmp</code> or <code>.gif</code>. Changing the filter preserves your typed
-suffix. Pictures adds <code>.pdf</code> to an extensionless name; All Files adds <code>.jpg</code>.
+<strong>Pictures</strong> and <strong>All Files</strong> filters. The filename selects the encoder: <code>.wmf</code>,
+<code>.emf</code>, <code>.pdf</code>, <code>.png</code>, <code>.jpg</code>/<code>.jpeg</code>, <code>.bmp</code> or <code>.gif</code>. Changing the filter preserves
+your typed suffix. Pictures adds <code>.wmf</code> to an extensionless name; All Files adds <code>.jpg</code>.
 An unknown suffix also gets <code>.jpg</code> appended. The panel confirms the final filename
 before overwriting or granting access to it.</p>
-<p>PDF is the native replacement for TortoiseGit's Windows metafile export. WMF/EMF
-output is unavailable; use PDF for vector output. Pie exports
-use the current graph area size, just like the other styles. Date pies share one
+<p>WMF and EMF both write enhanced metafiles, matching TortoiseGit's <code>.wmf</code> output;
+they are two filename choices for that format, not a classic-WMF encoder. PDF is
+also available for vector output. Native display and all exports use the same
+graph scene and current graph area size. Date pies share one
 horizontal row and shrink to fit; zero-valued intervals leave no empty slot.
 All graph styles have a boxed legend on the right. Crowded legends keep the last
 group and show dots for omitted middle rows; narrow graphs hide the legend. The text summary cannot be exported
@@ -78,5 +79,11 @@ and export actions, including callbacks retained from an older presentation.</p>
 slider selection, legends and graph export. A real author whose name matches the
 <strong>Others</strong> caption remains separate from that combined group. Identical-looking
 labels can therefore have separate entries and colors; the original names remain
-in tooltips and exported text.</p>
+in tooltips, accessibility descriptions and PDF text. Metafile labels use shaped
+font outlines to preserve their appearance, so they are not generally searchable
+or editable as text. Color-font labels may use a small label image; the graph
+itself remains vector geometry.</p>
+<p>Export sizes and drawing complexity are bounded; oversized output fails
+explicitly. See the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/STATISTICS-EXPORT-PARITY.html">Statistics export parity record</a>
+for the supported formats, adaptations and remaining acceptance work.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

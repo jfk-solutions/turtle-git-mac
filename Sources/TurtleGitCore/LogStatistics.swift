@@ -1,7 +1,7 @@
 import Foundation
 
 public enum StatisticsGraphFormat:String,CaseIterable,Sendable {
-    case pdf,png,jpeg,bmp,gif
+    case pdf,png,jpeg,bmp,gif,wmf,emf
     public var fileExtension:String {self == .jpeg ? "jpg":rawValue}
     public init?(fileExtension:String) {
         switch fileExtension.lowercased() {case "jpg","jpeg":self = .jpeg;default:guard let value=Self(rawValue:fileExtension.lowercased()) else{return nil};self=value}
@@ -9,16 +9,15 @@ public enum StatisticsGraphFormat:String,CaseIterable,Sendable {
 }
 public enum StatisticsGraphExportFilter:String,CaseIterable,Sendable {case pictures,allFiles}
 public enum StatisticsGraphDestinationFailure:LocalizedError,Sendable {
-    case destination,metafile
+    case destination
     public var errorDescription:String? {
         switch self {
         case .destination:return "Choose a file for the statistics graph."
-        case .metafile:return "WMF and EMF statistics export are unavailable on macOS. Choose PDF for a vector graph."
         }
     }
 }
-/// StatGraphDlg's filename chooses the encoder. Pictures defaults to PDF as the
-/// native replacement for its Windows enhanced-metafile default.
+/// StatGraphDlg's filename chooses the encoder. Its .wmf output is enhanced EMF,
+/// matching the upstream CreateEnhanced call; .emf is an explicit native alias.
 public struct StatisticsGraphExportDestination:Sendable {
     public let url:URL
     public let format:StatisticsGraphFormat
@@ -32,9 +31,8 @@ public struct StatisticsGraphExportDestination:Sendable {
     public static func normalizedFilename(_ filename:String,filter:StatisticsGraphExportFilter = .allFiles)throws->String {
         guard !filename.isEmpty,filename != ".",filename != "..",!filename.contains("/"),!filename.contains("\0") else{throw StatisticsGraphDestinationFailure.destination}
         var value=filename
-        if !value.utf8.contains(46),filter == .pictures {value += ".pdf"}
+        if !value.utf8.contains(46),filter == .pictures {value += ".wmf"}
         let extensionName=suffix(value)?.lowercased()
-        if extensionName == "wmf" || extensionName == "emf" {throw StatisticsGraphDestinationFailure.metafile}
         if extensionName.flatMap({StatisticsGraphFormat(fileExtension:$0)}) == nil {value += ".jpg"}
         return value
     }

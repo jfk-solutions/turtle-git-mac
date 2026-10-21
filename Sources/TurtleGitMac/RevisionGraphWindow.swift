@@ -326,6 +326,10 @@ final class RevisionGraphToolbarButton: NSButton {
     private(set) var graphSavePanel: RevisionGraphSavePanel?
     private(set) var exportError: NSAlert?
     private var saveReply:((NSApplication.ModalResponse)->Void)?,exportErrorReply:((NSApplication.ModalResponse)->Void)?
+    private var exportCancellation: OperationCancellation?
+    var writeGraph: @Sendable (Data, URL, OperationCancellation) async throws -> Void = { data, url, token in
+        try await StatisticsGraphExport.write(data: data, to: url, cancellation: token)
+    }
     private(set) var pendingExportOperations=0
     private(set) static var activeExportOperations=0
     private var closeRelease:Task<Void,Never>?
@@ -686,6 +690,7 @@ final class RevisionGraphToolbarButton: NSButton {
         update()
     }
     func update() {
+        if model.confirmingQuit { exportCancellation?.cancel() }
         synchronizeZoom()
         find?.updateAvailability()
         zoomBox.isEnabled = graphInteractionAllowed
@@ -715,26 +720,32 @@ final class RevisionGraphToolbarButton: NSButton {
         update()
     }
     func saveGraph() {
-        guard graphInteractionAllowed,let window,model.geometry != nil else{return}
+        guard graphInteractionAllowed,let window,model.geometry != nil,
+              let captured = try? RevisionGraphExport.snapshot(canvas:canvas,viewport:scroll.contentSize,appearance:window.effectiveAppearance) else{return}
         let picker=RevisionGraphSavePanel(),generation=model.generation,epoch=model.commandEpoch,selection=model.selectionGeneration,zoom=model.zoom,arrows=model.arrowsTowardMerges
+        let token=OperationCancellation();exportCancellation=token
         picker.panel.alphaValue=window.alphaValue;picker.panel.appearance=window.appearance
         graphSavePanel=picker;exporting=true;pendingExportOperations += 1;Self.activeExportOperations += 1;update()
         var answered=false
         let reply:(NSApplication.ModalResponse)->Void={ [self,weak window] response in
             guard !answered else{return};answered=true;saveReply=nil
+            let writer=writeGraph
             let acceptedURL=response == .OK ? selectedSaveURL(picker.panel):nil
             // Capture the filter/destination receipt before suspending for
             // actual native sheet detachment; late edits cannot retarget it.
             let destination=Result {try acceptedURL.map {try picker.destination(for:$0)}}
+            picker.panel.sheetParent?.endSheet(picker.panel,returnCode:response);picker.panel.orderOut(nil)
             Task { @MainActor [self] in
-                defer {picker.retire();if graphSavePanel === picker {graphSavePanel=nil};exporting=false;pendingExportOperations -= 1;Self.activeExportOperations -= 1;if !hasClosed {update()}}
+                defer {picker.retire();if self.graphSavePanel === picker {self.graphSavePanel=nil};if self.exportCancellation === token {self.exportCancellation=nil};self.exporting=false;self.pendingExportOperations -= 1;Self.activeExportOperations -= 1;if !self.hasClosed {self.update()}}
                 while picker.panel.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
-                guard response == .OK,let window,graphSavePanel === picker,model.canAct,!hasClosed,!closing,generation==model.generation,epoch==model.commandEpoch,selection==model.selectionGeneration,zoom==model.zoom,arrows==model.arrowsTowardMerges else{return}
-                exporting=false
+                guard response == .OK,let window,self.graphSavePanel === picker,self.model.canAct,!self.hasClosed,!self.closing,!token.isCancelled,generation==self.model.generation,epoch==self.model.commandEpoch,selection==self.model.selectionGeneration,zoom==self.model.zoom,arrows==self.model.arrowsTowardMerges else{return}
                 do {
                     guard let plan=try destination.get() else{return}
-                    try exportGraph(to:plan.url,format:plan.format)
-                } catch {await showExportFailure(error,window:window)}
+                    let data=try captured.data(format:plan.format,cancellation:token)
+                    try token.check()
+                    guard self.model.canAct,!self.hasClosed,!self.closing else{return}
+                    try await writer(data,plan.url,token)
+                } catch {if !token.isCancelled {await self.showExportFailure(error,window:window)}}
             }
         }
         saveReply=reply;presentSavePanel(picker.panel,window,reply)
@@ -796,6 +807,7 @@ final class RevisionGraphToolbarButton: NSButton {
     }
     func windowWillClose(_ notification: Notification) {
         guard !hasClosed else{return};hasClosed=true;closing=true;colorUpdates=nil;currentNodeMenuSession=nil
+        exportCancellation?.cancel()
         let save=graphSavePanel?.panel,errorSheet=exportError?.window
         if let alert=unifiedError {window?.endSheet(alert.window,returnCode:.cancel);alert.window.orderOut(nil);unifiedError=nil}
         NotificationCenter.default.removeObserver(self);model.invalidate();unifiedViewer?.close();unifiedViewer=nil
@@ -911,48 +923,15 @@ enum RevisionGraphTooltip {
     }
     func drawGraph(text: Bool, renderingZoom: CGFloat? = nil) {
         let zoom = renderingZoom ?? model.zoom
-        guard let geometry = model.geometry else { return }
-        NSColor.labelColor.setStroke()
-        for edge in geometry.edges {
-            let points = model.arrowsTowardMerges ? Array(edge.points.reversed()) : edge.points
-            guard let start = points.first, let end = points.last else { continue }
-            let path = NSBezierPath(); path.move(to: start); for point in points.dropFirst() { path.line(to: point) }; path.lineWidth = 2; path.stroke()
-            let previous = points[points.count - 2], angle = atan2(end.y - previous.y, end.x - previous.x), length: CGFloat = 8
-            let arrow = NSBezierPath(); arrow.move(to: CGPoint(x: end.x - length * cos(angle - .pi / 8), y: end.y - length * sin(angle - .pi / 8))); arrow.line(to: end); arrow.line(to: CGPoint(x: end.x - length * cos(angle + .pi / 8), y: end.y - length * sin(angle + .pi / 8))); arrow.lineWidth = 2; arrow.stroke()
-        }
-        let font = model.drawingFont(zoom: zoom)
-        let nodes = Dictionary(uniqueKeysWithValues: model.nodes.map { ($0.hash, $0) })
-        for geometry in geometry.nodes {
-            guard let node = nodes[geometry.hash] else { continue }
-            let rect = geometry.rect, path = NSBezierPath(roundedRect: rect, xRadius: 6, yRadius: 6)
-            NSGraphicsContext.saveGraphicsState(); path.addClip()
-            let labels = model.lines(node), height = rect.height / CGFloat(labels.count)
-            for (index, label) in labels.enumerated() {
-                let row = CGRect(x: rect.minX, y: rect.minY + CGFloat(index) * height, width: rect.width, height: height)
-                let background = RevisionGraphPalette.background(label.1, pointer: label.2, preferences: model.preferences)
-                background.setFill(); row.fill()
-                if text, let font {
-                    let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: RevisionGraphPalette.foreground(background)]
-                    let size = (label.0 as NSString).size(withAttributes: attributes)
-                    (label.0 as NSString).draw(at: CGPoint(x: rect.minX + 20, y: row.midY - size.height / 2), withAttributes: attributes)
-                }
-            }
-            NSGraphicsContext.restoreGraphicsState()
-            if let index = model.selection.firstIndex(of: node.hash) {
-                let color = index == 0 ? NSColor.selectedControlColor : NSColor(srgbRed: 136.0/255, green: 0, blue: 21.0/255, alpha: 1)
-                color.setStroke(); path.lineWidth = max(4, 1 / zoom); path.stroke()
-                if text {
-                    let marker = NSBezierPath(); marker.lineWidth = path.lineWidth
-                    for x in (index == 0 ? [CGFloat(10)] : [CGFloat(5), CGFloat(15)]) {
-                        marker.move(to: CGPoint(x: rect.minX + x, y: rect.minY - 25)); marker.line(to: CGPoint(x: rect.minX + x, y: rect.minY - 5))
-                    }
-                    marker.stroke()
-                    if index == 0, model.selection.count == 2, let font {
-                        ("(Base)" as NSString).draw(at: CGPoint(x: rect.minX + 14, y: rect.minY - 25), withAttributes: [.font: font, .foregroundColor: color])
-                    }
-                }
-            }
-        }
+        guard zoom.isFinite, zoom > 0, let geometry = model.geometry else { return }
+        // The caller already installed graph-local translation and scaling.
+        // Build the same flattened scene used by export, then cancel only its
+        // coordinate scale here; font and minimum stroke metrics retain zoom.
+        let scene = RevisionGraphVectorScene.make(model: model, size: CGSize(width: geometry.size.width * zoom, height: geometry.size.height * zoom), zoom: zoom, margin: 0, text: text, background: false)
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        NSGraphicsContext.current?.cgContext.scaleBy(x: 1 / zoom, y: 1 / zoom)
+        try? MacGraphVectorRenderer.draw(scene)
     }
     func hit(_ point: CGPoint) -> String? {
         let p = CGPoint(x: (point.x - 10) / model.zoom, y: (point.y - 10) / model.zoom)

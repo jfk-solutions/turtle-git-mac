@@ -44,15 +44,16 @@ the original TortoiseGit palette is shared by all graph styles in light and dark
 appearance. Very high author counts retain the source palette's repeated colors.
 
 With a graph selected, choose **File → Save Graph As…**. The save sheet has
-**Pictures** and **All Files** filters. The filename selects the encoder: `.pdf`,
-`.png`, `.jpg`/`.jpeg`, `.bmp` or `.gif`. Changing the filter preserves your typed
-suffix. Pictures adds `.pdf` to an extensionless name; All Files adds `.jpg`.
+**Pictures** and **All Files** filters. The filename selects the encoder: `.wmf`,
+`.emf`, `.pdf`, `.png`, `.jpg`/`.jpeg`, `.bmp` or `.gif`. Changing the filter preserves
+your typed suffix. Pictures adds `.wmf` to an extensionless name; All Files adds `.jpg`.
 An unknown suffix also gets `.jpg` appended. The panel confirms the final filename
 before overwriting or granting access to it.
 
-PDF is the native replacement for TortoiseGit's Windows metafile export. WMF/EMF
-output is unavailable; use PDF for vector output. Pie exports
-use the current graph area size, just like the other styles. Date pies share one
+WMF and EMF both write enhanced metafiles, matching TortoiseGit's `.wmf` output;
+they are two filename choices for that format, not a classic-WMF encoder. PDF is
+also available for vector output. Native display and all exports use the same
+graph scene and current graph area size. Date pies share one
 horizontal row and shrink to fit; zero-valued intervals leave no empty slot.
 All graph styles have a boxed legend on the right. Crowded legends keep the last
 group and show dots for omitted middle rows; narrow graphs hide the legend. The text summary cannot be exported
@@ -92,4 +93,12 @@ Author identity is retained through totals, activity ranking, interval graphs,
 slider selection, legends and graph export. A real author whose name matches the
 **Others** caption remains separate from that combined group. Identical-looking
 labels can therefore have separate entries and colors; the original names remain
-in tooltips and exported text.
+in tooltips, accessibility descriptions and PDF text. Metafile labels use shaped
+font outlines to preserve their appearance, so they are not generally searchable
+or editable as text. Color-font labels may use a small label image; the graph
+itself remains vector geometry.
+
+
+Export sizes and drawing complexity are bounded; oversized output fails
+explicitly. See the [Statistics export parity record](STATISTICS-EXPORT-PARITY.md)
+for the supported formats, adaptations and remaining acceptance work.

@@ -1511,6 +1511,7 @@
         "docs/STATISTICS-EXPORT-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/graph-metafile-family-2026-10-21.json",
         "docs/qa/graph-workflows-2026-10-14.json",
         "docs/qa/log-statistics-2026-10-07.json",
         "docs/qa/statistics-author-family-2026-10-20.json",

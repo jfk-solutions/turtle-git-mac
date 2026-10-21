@@ -5,12 +5,12 @@ import UniformTypeIdentifiers
 import TurtleGitCore
 import Darwin
 
-/// PDF replaces the upstream Windows enhanced-metafile export. Raster formats
-/// retain their original encodings; extensions never disguise another format.
+/// WMF follows the source enhanced-metafile convention. EMF is its explicit
+/// modern extension; both contain genuine enhanced-metafile vector records.
 extension StatisticsGraphFormat {
     var title: String { self == .jpeg ? "JPEG" : rawValue.uppercased() }
     var contentType: UTType {
-        switch self { case .pdf: return .pdf; case .png: return .png; case .jpeg: return .jpeg; case .bmp: return .bmp; case .gif: return .gif }
+        switch self { case .pdf: return .pdf; case .png: return .png; case .jpeg: return .jpeg; case .bmp: return .bmp; case .gif: return .gif; case .wmf: return UTType(filenameExtension:"wmf") ?? .data; case .emf: return UTType(filenameExtension:"emf") ?? .data }
     }
 }
 
@@ -31,34 +31,12 @@ enum StatisticsGraphExportFailure: LocalizedError {
     static func data(graph: LogStatisticsGraph, metric: LogStatisticsMetric, style: LogStatisticsStyle, size: CGSize, dark: Bool, format: StatisticsGraphFormat) throws -> Data {
         guard metric != .statistics else { throw StatisticsGraphExportFailure.unavailable }
         guard validSize(size) else { throw StatisticsGraphExportFailure.invalidSize }
-        let chart = StatisticsChart(graph: graph, style: style, byAuthor: metric.byAuthor, exporting: true)
-        // All styles share the current viewport, including the horizontal pies
-        // and one right-hand legend. No offscreen scroll content is synthesized.
-        let renderer = ImageRenderer(content: chart.frame(width: size.width, height: size.height)
-            .background(StatisticsChart.backgroundColor(dark: dark))
-            .environment(\.colorScheme, dark ? .dark : .light))
-        renderer.proposedSize = ProposedViewSize(width: size.width, height: size.height)
-        renderer.scale = 1; renderer.isOpaque = true
-        var canvasSize = CGSize.zero
-        renderer.render { measured, _ in canvasSize = measured }
-        guard validSize(canvasSize) else { throw StatisticsGraphExportFailure.invalidSize }
-        let output = NSMutableData()
-        if format == .pdf {
-            var box = CGRect(origin: .zero, size: canvasSize)
-            guard let consumer = CGDataConsumer(data: output), let context = CGContext(consumer: consumer, mediaBox: &box, [kCGPDFContextTitle: metric.title, kCGPDFContextCreator: "TurtleGit for Mac"] as CFDictionary) else { throw StatisticsGraphExportFailure.rendering }
-            var rendered = false
-            renderer.render { _, draw in
-                context.beginPDFPage(nil); draw(context); context.endPDFPage(); rendered = true
-            }
-            context.closePDF()
-            guard rendered else { throw StatisticsGraphExportFailure.rendering }
-        } else {
-            guard let image = renderer.cgImage else { throw StatisticsGraphExportFailure.rendering }
-            guard let destination = CGImageDestinationCreateWithData(output, format.contentType.identifier as CFString, 1, nil) else { throw StatisticsGraphExportFailure.encoding }
-            CGImageDestinationAddImage(destination, image, format == .jpeg ? [kCGImageDestinationLossyCompressionQuality: 0.9] as CFDictionary : nil)
-            guard CGImageDestinationFinalize(destination) else { throw StatisticsGraphExportFailure.encoding }
+        let drawing=StatisticsVectorScene.make(graph:graph,style:style,size:size,dark:dark)
+        switch format {
+        case .pdf:return try MacGraphVectorRenderer.pdf(drawing.scene,title:metric.title)
+        case .wmf,.emf:return try MacGraphVectorRenderer.emf(drawing.scene)
+        case .png,.jpeg,.bmp,.gif:return try MacGraphVectorRenderer.raster(drawing.scene,type:format.contentType,jpegQuality:0.9)
         }
-        return output as Data
     }
     private static func validSize(_ size: CGSize) -> Bool {
         size.width.isFinite && size.height.isFinite && size.width >= 1 && size.height >= 1 && size.width <= 16384 && size.height <= 16384 && size.width * size.height <= 32_000_000
@@ -130,10 +108,10 @@ enum StatisticsGraphExportFailure: LocalizedError {
     let formats = NSPopUpButton(frame: NSRect(x: 72, y: 0, width: 160, height: 26))
     private var retired=false
     var filter:StatisticsGraphExportFilter {formats.indexOfSelectedItem==1 ? .allFiles:.pictures}
-    var format: StatisticsGraphFormat {(try? StatisticsGraphExportDestination(url:URL(fileURLWithPath:"/"+panel.nameFieldStringValue),filter:filter).format) ?? .pdf}
+    var format: StatisticsGraphFormat {(try? StatisticsGraphExportDestination(url:URL(fileURLWithPath:"/"+panel.nameFieldStringValue),filter:filter).format) ?? .wmf}
     override init() {
         super.init()
-        panel.title = "Save Graph As"; panel.nameFieldStringValue = "statistics.pdf"; panel.canCreateDirectories = true
+        panel.title = "Save Graph As"; panel.nameFieldStringValue = "statistics.wmf"; panel.canCreateDirectories = true
         panel.delegate=self;panel.allowsOtherFileTypes = true
         let accessory = NSView(frame: NSRect(x: 0, y: 0, width: 232, height: 26))
         let label = NSTextField(labelWithString: "Format:"); label.frame = NSRect(x: 0, y: 4, width: 66, height: 18)
