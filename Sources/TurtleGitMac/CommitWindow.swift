@@ -3,9 +3,17 @@ import SwiftUI
 import Combine
 import UniformTypeIdentifiers
 import TurtleGitCore
-import UniformTypeIdentifiers
-
 @MainActor private final class CommitNativeWindow: NSWindow {
+    // SwiftUI hosting updates must not discard the form's usability floor.
+    var minimumCommitContentSize=NSSize(width:900,height:680)
+    override var contentMinSize:NSSize {
+        get{NSSize(width:max(super.contentMinSize.width,minimumCommitContentSize.width),height:max(super.contentMinSize.height,minimumCommitContentSize.height))}
+        set{super.contentMinSize=NSSize(width:max(newValue.width,minimumCommitContentSize.width),height:max(newValue.height,minimumCommitContentSize.height))}
+    }
+    override var minSize:NSSize {
+        get{let floor=frameRect(forContentRect:NSRect(origin:.zero,size:minimumCommitContentSize)).size;return NSSize(width:max(super.minSize.width,floor.width),height:max(super.minSize.height,floor.height))}
+        set{let floor=frameRect(forContentRect:NSRect(origin:.zero,size:minimumCommitContentSize)).size;super.minSize=NSSize(width:max(newValue.width,floor.width),height:max(newValue.height,floor.height))}
+    }
     weak var model: CommitWindowModel?
     weak var commandMenu:CommitCommandMenu?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -54,6 +62,18 @@ import UniformTypeIdentifiers
     @discardableResult func focusFileList()->Bool {
         guard commandsAvailable,model.fileListAvailable,let window,let table=fileTable() else{return false}
         return window.makeFirstResponder(table)
+    }
+    @discardableResult func focusFormField(_ identifier:String)->Bool {
+        guard commandsAvailable,let window else{return false}
+        func find(_ view:NSView)->NSView? {
+            if view.identifier?.rawValue==identifier{return view}
+            return view.subviews.compactMap{find($0)}.first
+        }
+        guard let content=window.contentView,let field=find(content),!field.isHiddenOrHasHiddenAncestor,
+              (field as? NSControl)?.isEnabled != false else{return false}
+        guard window.makeFirstResponder(field) else{return false}
+        if let text=field as? NSTextField,let editor=text.currentEditor(){editor.selectedRange=NSRange(location:0,length:text.stringValue.utf16.count)}
+        return true
     }
     var onClosed: () -> Void = {}
     private(set) var partial: PatchWindowController?
@@ -105,8 +125,9 @@ import UniformTypeIdentifiers
         let window = CommitNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Commit", preferences: defaults)
-        window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: CommitDialog(model: model).defaultAppStorage(defaults))
+        window.contentMinSize=NSSize(width:900,height:680); window.isReleasedWhenClosed = false
+        let host=NSHostingController(rootView: CommitDialog(model: model).defaultAppStorage(defaults));host.sizingOptions=[]
+        window.contentViewController=host
         super.init(window: window); model.comparisonWindow = window; model.missingStagedRecovery.ownerWindow = window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
         model.confirmDetachedHead={ [weak self] token in await self?.askDetachedHead(token) ?? .cancel }
         model.createDetachedBranch={ [weak self] token in await self?.showDetachedBranch(token) ?? false }
@@ -714,7 +735,7 @@ import UniformTypeIdentifiers
     @Published var comparisonBase: String?
     @Published var stagedStatistics: GitPathMap<CommitFile> = [:]
     @Published var unstagedStatistics: GitPathMap<CommitFile> = [:]
-    @Published var stagingEnabled = false { didSet { if stagingEnabled != oldValue { fileMenuGeneration = UUID() } } }
+    @Published var stagingEnabled = false { didSet { if stagingEnabled != oldValue { fileMenuGeneration = UUID();retireFormReceipts() } } }
     @Published var viewingPatch = false
     var readCommitIdentity:((OperationCancellation)async throws->ReplayUserIdentity)?
     var repairCommitIdentity:(OperationCancellation)async->Bool={_ in false}
@@ -756,6 +777,39 @@ import UniformTypeIdentifiers
         }
     }
     private var loadedPreferences = false
+    struct FormReceipt:Equatable {fileprivate let revision:UUID}
+    enum FormOption {case newBranch,amend,amendComparison,author,authorDate,resetDate,wholeProject,messageOnly,noAutoSubmodules,staging,unversioned}
+    private var formRevision=UUID(),metadataEpoch=UUID()
+    var formReceipt:FormReceipt {FormReceipt(revision:formRevision)}
+    private func retireFormReceipts(){formRevision=UUID()}
+    func acceptsFormReceipt(_ receipt:FormReceipt)->Bool {receipt==formReceipt && messageFocusAvailable && !inputsBlocked && comparisonWindow?.attachedSheet==nil && NSApp.modalWindow==nil}
+    func canChangeFormOption(_ option:FormOption)->Bool {
+        guard messageFocusAvailable,!inputsBlocked,comparisonWindow?.attachedSheet==nil,NSApp.modalWindow==nil else{return false}
+        switch option {
+        case .newBranch:return operation==nil && replaySplit==nil && historyCombine==nil
+        case .amend:return hasHead && operation==nil && replaySplit==nil && historyCombine==nil
+        case .amendComparison:return amend && hasParent && replaySplit==nil && historyCombine==nil
+        case .resetDate:return amend && setAuthorDate && !loadingAuthorDate
+        case .wholeProject:return !scopePaths.isEmpty
+        default:return true
+        }
+    }
+    func setFormOption(_ option:FormOption,value:Bool,receipt:FormReceipt) {
+        guard acceptsFormReceipt(receipt),canChangeFormOption(option) else{return}
+        switch option {
+        case .newBranch:createBranch=value
+        case .amend:amend=value
+        case .amendComparison:amendDiffToLastCommit=value
+        case .author:setAuthor=value
+        case .authorDate:setAuthorDate=value
+        case .resetDate:resetAuthorDate=value
+        case .wholeProject:showWholeProject=value
+        case .messageOnly:messageOnly=value
+        case .noAutoSubmodules:setDoNotAutoselectSubmodules(value)
+        case .staging:setStagingEnabled(value)
+        case .unversioned:setShowUnversioned(value)
+        }
+    }
     private var persistedStaging: Bool?
     @Published var partialMode: Bool?
     @Published var stagedDiff = true { didSet { if stagedDiff != oldValue { fileMenuGeneration = UUID() } } }
@@ -816,7 +870,7 @@ import UniformTypeIdentifiers
     private var changelistPaths: [String] = []
     private var changelistMenu: StatusFileMenuSnapshot?
     @Published var branch = ""
-    @Published var createBranch = false
+    @Published var createBranch = false {didSet{if createBranch != oldValue{retireFormReceipts()}}}
     @Published var newBranch = ""
     @Published var message = "" { didSet { if !GitReferenceName.equal(message,oldValue) { cancelHistoryIssueUpdate(); scheduleIssueStyling() } } }
     @Published var projectSettings = ProjectDialogSettings()
@@ -1081,27 +1135,28 @@ import UniformTypeIdentifiers
     @Published var hasParent = false
     var replaySplit: RebaseSplitState?
     private(set) var historyCombine: HistoryCombinePlan?
-    @Published var amend = false
-    @Published var amendDiffToLastCommit = false
+    @Published var amend = false {didSet{if amend != oldValue{retireFormReceipts()}}}
+    @Published var amendDiffToLastCommit = false {didSet{if amendDiffToLastCommit != oldValue{retireFormReceipts()}}}
     private var nonAmendMessage = ""
     private var amendMessage = ""
     var amendToParent: Bool { amend && !amendDiffToLastCommit }
-    @Published var setAuthorDate = false
+    @Published var setAuthorDate = false {didSet{if setAuthorDate != oldValue{retireFormReceipts()}}}
     @Published var messageCaretPosition = MessageCaretPosition.at("", utf16Offset: 0)
     @Published var authorDate = Date()
-    @Published var resetAuthorDate = false
+    @Published var resetAuthorDate = false {didSet{if resetAuthorDate != oldValue{retireFormReceipts()}}}
     @Published var messageOnly = false {
-        didSet { if messageOnly != oldValue { fileMenuGeneration = UUID() } }
+        didSet { if messageOnly != oldValue { fileMenuGeneration = UUID();retireFormReceipts() } }
     }
-    @Published var doNotAutoselectSubmodules = false
+    @Published var doNotAutoselectSubmodules = false {didSet{if doNotAutoselectSubmodules != oldValue{retireFormReceipts()}}}
     @Published var submodules = GitPathSet() { didSet { if submodules != oldValue { fileMenuGeneration = UUID() } } }
-    @Published var setAuthor = false
+    @Published var setAuthor = false {didSet{if setAuthor != oldValue{retireFormReceipts()}}}
     @Published var author = ""
     @Published private(set) var loadingAuthorIdentity = false
     @Published private(set) var loadingAuthorDate = false
     @Published private(set) var loadingAmendMessage = false
     @Published private(set) var amendMessageReadFailed = false
     @Published private(set) var messageFocusRequest = 0
+    @Published private(set) var issueFocusRequest=0
     private(set) var appliedMessageFocusRequest = 0
     private(set) var messageFocusAvailable = true
     private var authorGeneration = 0
@@ -1115,11 +1170,12 @@ import UniformTypeIdentifiers
     /// Includes cancelled author/date/amend readers after their native owner closes.
     static private(set) var activeMetadataOperations = 0
     var nativeAuthorInputAvailable: Bool { messageFocusAvailable && !inputsBlocked && setAuthor && !loadingAuthorIdentity }
+    var nativeNewBranchInputAvailable:Bool {createBranch && canChangeFormOption(.newBranch)}
     var nativeAuthorDateInputAvailable: Bool { messageFocusAvailable && !inputsBlocked && setAuthorDate && !loadingAuthorDate && !(amend && resetAuthorDate) }
     var queryCommitAuthor: ((Bool, OperationCancellation) async throws -> String?)?
     var queryCommitAuthorDate: ((OperationCancellation) async throws -> Date?)?
     var queryAmendMessage: ((OperationCancellation) async throws -> String?)?
-    @Published var showUnversioned = true { didSet { if showUnversioned != oldValue { fileMenuGeneration = UUID() } } }
+    @Published var showUnversioned = true { didSet { if showUnversioned != oldValue { fileMenuGeneration = UUID();retireFormReceipts() } } }
     private let unversionedDefaults: UserDefaults
     var messageEditorPreferences: UserDefaults { dialogDefaults }
     private let dialogDefaults: UserDefaults
@@ -1127,11 +1183,18 @@ import UniformTypeIdentifiers
     private let doNotAutoselectMissing: Bool
     @Published var showWholeProject = true {
         willSet {if newValue != showWholeProject,messageFocusAvailable,!busy {filterPosition = fileListRefresh.begin(preferences:dialogDefaults,selectedIDs:selection)}}
-        didSet {updateScopeTitle();if let position = filterPosition {filterPosition = nil;restoreVisibleFilePosition(position)}}
+        didSet {if showWholeProject != oldValue{retireFormReceipts()};updateScopeTitle();if let position = filterPosition {filterPosition = nil;restoreVisibleFilePosition(position)}}
     }
     @Published var scopePaths: [String] = [] { didSet { updateScopeTitle() } }
-    @Published var busy = false
-    @Published var confirmingQuit = false
+    @Published var busy = false {didSet{if busy != oldValue{retireFormReceipts()}}}
+    @Published var confirmingQuit = false {didSet{
+        guard confirmingQuit != oldValue else{return}
+        retireFormReceipts();metadataEpoch=UUID()
+        if confirmingQuit {
+            if loadingAmendMessage {amendMessageReadFailed=true}
+            authorCancellation?.cancel();dateCancellation?.cancel();amendCancellation?.cancel();importedMessageCancellation?.cancel()
+        }
+    }}
     @Published var error: String?
     private var diffSession: FileListComparisonSession?
     var onUnifiedDiff: ((Data, Bool) async throws -> Void)?
@@ -1743,7 +1806,10 @@ import UniformTypeIdentifiers
         reloadTask = Task {
             defer {
                 Self.activeReloads -= 1; fileListRefresh.finish(position); withExtendedLifetime(access) {}
-                if reloadCancellation === token {reloadCancellation=nil;reloadTask=nil;busy=false;offerMergeHint();offerStagingHint();offerUnversionedFiles()}
+                if reloadCancellation === token {
+                    reloadCancellation=nil;reloadTask=nil;busy=false;offerMergeHint();offerStagingHint();offerUnversionedFiles()
+                    if amend,amendMessageReadFailed,!loadingAmendMessage,!confirmingQuit,fileListReadError==nil,!fileListReadCancelled {amendChanged()}
+                }
             }
             do {
                 try validateRestoreAccess()
@@ -2094,17 +2160,18 @@ import UniformTypeIdentifiers
     }
     func amendChanged() {
         if consumesResetTransition("amend",value:amend){return}
-        guard messageFocusAvailable,commitIdentityPrepared,!preparingCommitIdentity else { return }
+        guard messageFocusAvailable,!confirmingQuit,commitIdentityPrepared,!preparingCommitIdentity else { return }
+        retireFormReceipts()
         if replaySplit != nil || historyCombine != nil { comparisonChanged(); return }
         let repository=self.repository.capturingDiffBackend(preferences:dialogDefaults)
         let wasLoading = loadingAmendMessage, failedRead = amendMessageReadFailed
         amendMessageReadFailed = false
         invalidateMetadataLoads()
         if amend {
-            nonAmendMessage = message
+            if !failedRead {nonAmendMessage = message}
             if !amendMessage.isEmpty { finishAmendMessage(amendMessage,repository:repository); return }
             loadingAmendMessage = true
-            let generation = amendGeneration, draft = message, token = OperationCancellation()
+            let generation = amendGeneration, draft = message, token = OperationCancellation(),epoch=metadataEpoch
             amendCancellation = token
             Self.activeMetadataOperations += 1
             Task {
@@ -2115,11 +2182,11 @@ import UniformTypeIdentifiers
                     let previous:String?
                     if let queryAmendMessage {previous=try await queryAmendMessage(token)} else {try validateRestoreAccess();guard case .commit(let commit)=try await repository.singleCommitDetails(revision:"HEAD",cancellation:token) else {throw GitSingleCommitFailure.notCommit};previous=commit.subject+"\n"+commit.body}
                     if token.isCancelled { throw OperationCancellationFailure.cancelled }
-                    guard generation == amendGeneration, amend else { return }
+                    guard generation == amendGeneration,epoch==metadataEpoch,messageFocusAvailable,!confirmingQuit,amend else { return }
                     guard let previous else { throw StatusFileActionFailure(message: "Could not read the last commit message.") }
                     amendDetailsBackendIdentity=identity
                     finishAmendMessage(message.utf8.elementsEqual(draft.utf8) ? previous : message,repository:repository)
-                } catch { if generation == amendGeneration, amend, messageFocusAvailable, !token.isCancelled { amendMessageReadFailed = true; self.error = error.localizedDescription; requestMessageFocus() } }
+                } catch { if generation == amendGeneration,epoch==metadataEpoch,!confirmingQuit,amend,messageFocusAvailable,!token.isCancelled { amendMessageReadFailed = true; self.error = error.localizedDescription; requestMessageFocus() } }
             }
         } else {
             if !wasLoading && !failedRead { amendMessage = message }
@@ -2141,12 +2208,14 @@ import UniformTypeIdentifiers
         dateChanged(repository:repository); authorChanged(repository:repository); requestMessageFocus(); comparisonChanged()
     }
     func focusMessage() {guard !inputsBlocked else {return};requestMessageFocus()}
+    func focusIssueField(){guard messageFocusAvailable,!inputsBlocked,issueProperties.showsIssueField else{return};issueFocusRequest += 1}
     private func requestMessageFocus() {
         guard messageFocusAvailable else { return }
         messageFocusRequest += 1
     }
     func invalidateMessageFocus() {
         cancelHistoryIssueUpdate()
+        retireFormReceipts();metadataEpoch=UUID()
         messageFocusAvailable = false; messageFocusRequest = 0; appliedMessageFocusRequest = 0
     }
     func invalidateForClose() {
@@ -2182,7 +2251,8 @@ import UniformTypeIdentifiers
     }
     func authorChanged(repository captured:GitRepository?=nil) {
         if consumesResetTransition("author",value:setAuthor){return}
-        guard messageFocusAvailable,commitIdentityPrepared,!preparingCommitIdentity else { return }
+        guard messageFocusAvailable,!confirmingQuit,commitIdentityPrepared,!preparingCommitIdentity else { return }
+        retireFormReceipts()
         authorCancellation?.cancel(); authorCancellation = nil
         authorGeneration += 1
         loadingAuthorIdentity = false
@@ -2191,7 +2261,7 @@ import UniformTypeIdentifiers
             if setAuthor == preset.enabled, author.utf8.elementsEqual(preset.value.utf8) { return }
         }
         let repository=captured ?? self.repository.capturingDiffBackend(preferences:dialogDefaults)
-        let generation = authorGeneration, wasAmend = amend, wasSetAuthor = setAuthor, draft = author
+        let generation = authorGeneration, wasAmend = amend, wasSetAuthor = setAuthor, draft = author,epoch=metadataEpoch
         let token = OperationCancellation(); authorCancellation = token
         loadingAuthorIdentity = true
         Self.activeMetadataOperations += 1
@@ -2201,15 +2271,16 @@ import UniformTypeIdentifiers
                 if token.isCancelled { throw OperationCancellationFailure.cancelled }
                 let value = try await readAuthor(amend:wasAmend,repository:repository,cancellation:token)
                 if token.isCancelled { throw OperationCancellationFailure.cancelled }
-                guard generation == authorGeneration, amend == wasAmend, setAuthor == wasSetAuthor,
+                guard generation == authorGeneration,epoch==metadataEpoch,messageFocusAvailable,!confirmingQuit,amend == wasAmend,setAuthor == wasSetAuthor,
                       author.utf8.elementsEqual(draft.utf8), let value else { return }
                 author = value
-            } catch { if generation == authorGeneration, amend == wasAmend, setAuthor == wasSetAuthor { self.error = error.localizedDescription } }
+            } catch { if generation == authorGeneration,epoch==metadataEpoch,messageFocusAvailable,!confirmingQuit,!token.isCancelled,amend == wasAmend,setAuthor == wasSetAuthor { self.error = error.localizedDescription } }
         }
     }
     func dateChanged(repository captured:GitRepository?=nil) {
         if consumesResetTransition("date",value:setAuthorDate){return}
-        guard messageFocusAvailable,commitIdentityPrepared,!preparingCommitIdentity else { return }
+        guard messageFocusAvailable,!confirmingQuit,commitIdentityPrepared,!preparingCommitIdentity else { return }
+        retireFormReceipts()
         dateCancellation?.cancel(); dateCancellation = nil
         dateGeneration += 1
         loadingAuthorDate = false
@@ -2221,7 +2292,7 @@ import UniformTypeIdentifiers
         guard setAuthorDate else { return }
         if !amend { authorDate = Date(); return }
         let repository=captured ?? self.repository.capturingDiffBackend(preferences:dialogDefaults)
-        let generation = dateGeneration, draft = authorDate
+        let generation = dateGeneration, draft = authorDate,epoch=metadataEpoch
         let token = OperationCancellation(); dateCancellation = token
         loadingAuthorDate = true
         Self.activeMetadataOperations += 1
@@ -2231,9 +2302,9 @@ import UniformTypeIdentifiers
                 if token.isCancelled { throw OperationCancellationFailure.cancelled }
                 let value = try await readAuthorDate(repository:repository,cancellation:token)
                 if token.isCancelled { throw OperationCancellationFailure.cancelled }
-                guard generation == dateGeneration, amend, setAuthorDate, authorDate == draft, let value else { return }
+                guard generation == dateGeneration,epoch==metadataEpoch,messageFocusAvailable,!confirmingQuit,amend,setAuthorDate,authorDate == draft,let value else { return }
                 authorDate = CommitAuthorDateControl.loaded(value,retainingDay:draft)
-            } catch { if generation == dateGeneration, amend, setAuthorDate { self.error = error.localizedDescription } }
+            } catch { if generation == dateGeneration,epoch==metadataEpoch,messageFocusAvailable,!confirmingQuit,!token.isCancelled,amend,setAuthorDate { self.error = error.localizedDescription } }
         }
     }
     var querySignOff:((OperationCancellation) async throws -> String)?
@@ -2708,8 +2779,21 @@ struct CommitFileSort: SortComparator {
 
 /// The upstream new-branch toggle focuses the newly shown edit control and
 /// selects its entire draft. Request this once per insertion, after attachment.
+@MainActor class CommitOwnedTextField:NSTextField {
+    private weak var originalOwner:NSWindow?
+    private var ownerBound=false
+    private(set) var retired=false
+    var acceptsChanges:()->Bool={true}
+    var hasOriginalOwner:Bool {!retired && window != nil && window === originalOwner && window?.attachedSheet==nil && NSApp.modalWindow==nil}
+    override func viewDidMoveToWindow(){
+        super.viewDidMoveToWindow()
+        if let window {if !ownerBound {ownerBound=true;originalOwner=window}else if originalOwner !== window {retire()}}
+    }
+    func retire(){retired=true;acceptsChanges={false};isEditable=false}
+}
 struct CommitNewBranchField: NSViewRepresentable {
     @Binding var name: String
+    var acceptsChanges:()->Bool={true}
     @AppStorage("UseCustomWordBreak") private var wordBreakMode=2
     func makeCoordinator() -> Coordinator { Coordinator(name: $name) }
     func makeNSView(context: Context) -> Field {
@@ -2720,40 +2804,51 @@ struct CommitNewBranchField: NSViewRepresentable {
         field.font = .systemFont(ofSize: NSFont.systemFontSize)
         field.placeholderString = "New branch name"
         field.setAccessibilityLabel("New branch name")
+        field.identifier = .init("Commit new branch")
+        field.usesSingleLineMode=true;field.lineBreakMode = .byTruncatingMiddle
+        field.cell?.isScrollable=true;field.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        field.setContentHuggingPriority(.defaultLow,for:.horizontal)
         field.delegate = context.coordinator
         field.stringValue = name
         return field
     }
     func updateNSView(_ field: Field, context: Context) {
+        guard !field.retired else{field.isEnabled=false;return}
         context.coordinator.wordCommands.policy=GitInputWordBreak(mode:UInt32(truncatingIfNeeded:wordBreakMode))
         context.coordinator.name = $name
+        field.acceptsChanges=acceptsChanges
         if !field.stringValue.utf8.elementsEqual(name.utf8) { field.stringValue = name }
         field.isEnabled = context.environment.isEnabled
+        field.isEditable=field.isEnabled && acceptsChanges();field.toolTip=name
     }
+    func sizeThatFits(_ proposal:ProposedViewSize,nsView:Field,context:Context)->CGSize? {CGSize(width:proposal.width ?? 250,height:max(22,nsView.intrinsicContentSize.height))}
     static func dismantleNSView(_ field: Field, coordinator: Coordinator) {
         field.focusPending = false
         field.delegate = nil
+        field.retire();coordinator.retired=true
     }
     @MainActor final class Coordinator: NSObject, NSTextFieldDelegate {
         let wordCommands=GitInputWordCommands()
+        var retired=false
         func control(_ control:NSControl,textView:NSTextView,doCommandBy commandSelector:Selector)->Bool {
-            wordCommands.handle(control,text:textView,selector:commandSelector,combo:false,owner:self)
+            guard !retired,let field=control as? Field,field.hasOriginalOwner,field.acceptsChanges() else{return false}
+            return wordCommands.handle(control,text:textView,selector:commandSelector,combo:false,owner:self)
         }
         var name: Binding<String>
         init(name: Binding<String>) { self.name = name }
         func controlTextDidChange(_ notification: Notification) {
-            guard let field = notification.object as? NSTextField else { return }
+            guard !retired,let field=notification.object as? Field,field.hasOriginalOwner,field.acceptsChanges(),field.isEnabled,field.isEditable else{return}
             name.wrappedValue = field.stringValue
         }
     }
-    final class Field: NSTextField {
+    final class Field: CommitOwnedTextField {
         var focusPending = true
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             guard let owner = window, focusPending else { return }
             DispatchQueue.main.async { [weak self, weak owner] in
                 guard let self, let owner, self.window === owner,
-                      self.focusPending, self.isEnabled, owner.attachedSheet == nil else { return }
+                      self.focusPending,self.hasOriginalOwner,self.acceptsChanges(),self.isEditable,self.isEnabled,owner.attachedSheet == nil else { return }
                 self.focusPending = false
                 if owner.makeFirstResponder(self), let editor = self.currentEditor() {
                     editor.selectedRange = NSRange(location: 0, length: self.stringValue.utf16.count)
@@ -2770,43 +2865,51 @@ struct CommitAuthorField: NSViewRepresentable {
     var acceptsChanges: () -> Bool = { true }
     func makeCoordinator() -> Coordinator { Coordinator(author: $author, acceptsChanges: acceptsChanges) }
     func makeNSView(context: Context) -> NSTextField {
-        let field = NSTextField()
+        let field = CommitOwnedTextField()
         field.isBezeled = true; field.bezelStyle = .roundedBezel
         field.drawsBackground = true; field.font = .systemFont(ofSize: NSFont.systemFontSize)
         field.placeholderString = "Name <email>"
         field.setAccessibilityLabel("Author identity")
+        field.identifier = .init("Commit author")
+        field.usesSingleLineMode=true;field.lineBreakMode = .byTruncatingMiddle;field.cell?.isScrollable=true
+        field.setContentCompressionResistancePriority(.defaultLow,for:.horizontal);field.setContentHuggingPriority(.defaultLow,for:.horizontal)
         field.delegate = context.coordinator
         return field
     }
     func updateNSView(_ field: NSTextField, context: Context) {
+        guard (field as? CommitOwnedTextField)?.retired != true else{field.isEnabled=false;return}
         context.coordinator.wordCommands.policy=GitInputWordBreak(mode:UInt32(truncatingIfNeeded:wordBreakMode))
         context.coordinator.author = $author
         context.coordinator.acceptsChanges = acceptsChanges
+        (field as? CommitOwnedTextField)?.acceptsChanges=acceptsChanges
         if !field.stringValue.utf8.elementsEqual(author.utf8) { field.stringValue = author }
         field.isEnabled = context.environment.isEnabled
         field.isEditable = editable && field.isEnabled
         // EM_SETREADONLY in CommitDlg preserves selection and copy access.
         field.isSelectable = true
+        field.toolTip=author
         if let editor = field.currentEditor() as? NSTextView {
             editor.isEditable = field.isEditable
         }
     }
+    func sizeThatFits(_ proposal:ProposedViewSize,nsView:NSTextField,context:Context)->CGSize? {CGSize(width:proposal.width ?? 280,height:max(22,nsView.intrinsicContentSize.height))}
     static func dismantleNSView(_ field: NSTextField, coordinator: Coordinator) {
         field.delegate = nil; field.isEditable = false
         coordinator.retired = true; coordinator.acceptsChanges = { false }
+        (field as? CommitOwnedTextField)?.retire()
     }
     @MainActor final class Coordinator: NSObject, NSTextFieldDelegate {
         let wordCommands=GitInputWordCommands()
         var retired = false
         var acceptsChanges: () -> Bool
         func control(_ control:NSControl,textView:NSTextView,doCommandBy commandSelector:Selector)->Bool {
-            guard !retired else { return false }
+            guard !retired,let field=control as? CommitOwnedTextField,field.hasOriginalOwner,acceptsChanges() else { return false }
             return wordCommands.handle(control,text:textView,selector:commandSelector,combo:false,owner:self)
         }
         var author: Binding<String>
         init(author: Binding<String>, acceptsChanges: @escaping () -> Bool) { self.author = author; self.acceptsChanges = acceptsChanges }
         func controlTextDidChange(_ notification: Notification) {
-            guard !retired, acceptsChanges(), let field = notification.object as? NSTextField, field.isEnabled, field.isEditable else { return }
+            guard !retired,acceptsChanges(),let field=notification.object as? CommitOwnedTextField,field.hasOriginalOwner,field.isEnabled,field.isEditable else { return }
             author.wrappedValue = field.stringValue
         }
     }
@@ -2822,14 +2925,15 @@ struct CommitDialog: View {
     @FocusState private var issueFieldFocused: Bool
     @State private var initialIssueFocusApplied = false
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let receipt=model.formReceipt
+        return VStack(alignment: .leading, spacing: 10) {
             Group {
                 CommitDestinationLayout {
                     HStack(spacing:8) {
                         Text("Commit to:").fixedSize()
-                        if model.createBranch { CommitNewBranchField(name:$model.newBranch).frame(width:250) }
+                        if model.createBranch { CommitNewBranchField(name:$model.newBranch,acceptsChanges:{model.acceptsFormReceipt(receipt) && model.nativeNewBranchInputAvailable}).frame(width:250) }
                         else { CommitDestinationLabel(branch:model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).frame(minWidth:30,idealWidth:100,maxWidth:250) }
-                        Toggle("new branch",isOn:$model.createBranch).toggleStyle(.checkbox).fixedSize().disabled(model.operation != nil || model.replaySplit != nil || model.historyCombine != nil)
+                        Toggle("new branch",isOn:formBinding(.newBranch,\.createBranch)).toggleStyle(.checkbox).fixedSize().disabled(!model.canChangeFormOption(.newBranch))
                     }
                     HStack(spacing:8) {
                         if let provider = model.nativeIssueProvider {
@@ -2838,7 +2942,7 @@ struct CommitDialog: View {
                         }
                         if model.issueProperties.showsIssueField {
                             Text(model.issueProperties.label).lineLimit(1).truncationMode(.tail).frame(maxWidth:180).help(model.issueProperties.label)
-                            TextField("",text:$model.issueID).textFieldStyle(.roundedBorder).frame(width:140).accessibilityLabel(model.issueProperties.label).focused($issueFieldFocused).onSubmit {issueFieldFocused=false;model.focusMessage()}
+                            TextField("",text:Binding(get:{model.issueID},set:{if model.acceptsFormReceipt(receipt){model.issueID=$0}})).textFieldStyle(.roundedBorder).frame(width:140).accessibilityLabel(model.issueProperties.label).focused($issueFieldFocused).onSubmit {issueFieldFocused=false;model.focusMessage()}
                         }
                         if model.busy { ProgressView().controlSize(.small) }
                     }
@@ -2874,8 +2978,8 @@ struct CommitDialog: View {
             }.disabled(model.inputsBlocked)
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
-                    Toggle("Show Whole Project", isOn: $model.showWholeProject).disabled(model.scopePaths.isEmpty)
-                    Toggle("Message only", isOn: $model.messageOnly)
+                    Toggle("Show Whole Project", isOn:formBinding(.wholeProject,\.showWholeProject)).disabled(!model.canChangeFormOption(.wholeProject))
+                    Toggle("Message only", isOn:formBinding(.messageOnly,\.messageOnly))
                 }.toggleStyle(.checkbox).disabled(model.inputsBlocked)
                 if let operation=model.operation {
                     CommandLabel(title:operation.title,icon:operation == .merge ? .merge:operation == .cherryPick ? .cherryPick:.revert)
@@ -2896,36 +3000,42 @@ struct CommitDialog: View {
                 initialIssueFocusApplied = true; issueFieldFocused = true
             }
         }
+        .onChange(of:model.issueFocusRequest){_ in if model.messageFocusAvailable,!model.inputsBlocked,model.issueProperties.showsIssueField{issueFieldFocused=true}}
         .onChange(of: model.amendDiffToLastCommit) { _ in model.comparisonChanged() }
         .onChange(of: model.setAuthor) { _ in model.authorChanged() }
         .onChange(of: model.setAuthorDate) { _ in model.dateChanged() }
         .onChange(of: model.selection) { _ in model.refreshPartial() }
-        .alert("TurtleGit", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
-            Button("OK") { model.error = nil }
+        .alert("TurtleGit", isPresented: Binding(get: { model.error != nil }, set: { if !$0,model.messageFocusAvailable,!model.confirmingQuit { model.error = nil } })) {
+            Button("OK") {if model.messageFocusAvailable,!model.confirmingQuit{model.error = nil}}
         } message: { Text(model.error ?? "") }
         .sheet(isPresented: $model.creatingChangelist) { CreateChangelistSheet(model: model) }
 
     }
+    private func formBinding(_ option:CommitWindowModel.FormOption,_ keyPath:ReferenceWritableKeyPath<CommitWindowModel,Bool>)->Binding<Bool> {
+        let receipt=model.formReceipt
+        return Binding(get:{model[keyPath:keyPath]},set:{model.setFormOption(option,value:$0,receipt:receipt)})
+    }
     private var messageSection: some View {
-GroupBox("Message:") {
+        let receipt=model.formReceipt
+        return GroupBox("Message:") {
                 VStack(alignment: .leading, spacing: 8) {
                     CommitMessageEditor(model: model).frame(minHeight: 100, maxHeight: .infinity).border(Color.secondary.opacity(0.3))
                     HStack { Spacer(); CommitMessagePositionIndicator(model: model) }
                     DialogCommandRows {
-                        Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).disabled(!model.hasHead || model.operation != nil || model.replaySplit != nil || model.historyCombine != nil).onChange(of: model.amend) { _ in model.amendChanged() }
-                        if model.amend { Toggle("Show diff to last commit", isOn: $model.amendDiffToLastCommit).toggleStyle(.checkbox).disabled(!model.hasParent || model.replaySplit != nil || model.historyCombine != nil) }
+                        Toggle("Amend Last Commit", isOn:formBinding(.amend,\.amend)).toggleStyle(.checkbox).disabled(!model.canChangeFormOption(.amend)).onChange(of: model.amend) { _ in model.amendChanged() }
+                        if model.amend { Toggle("Show diff to last commit", isOn:formBinding(.amendComparison,\.amendDiffToLastCommit)).toggleStyle(.checkbox).disabled(!model.canChangeFormOption(.amendComparison)) }
                     }
                     DialogCommandRows {
-                        Toggle("Set author date", isOn: $model.setAuthorDate).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
+                        Toggle("Set author date", isOn:formBinding(.authorDate,\.setAuthorDate)).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
                         if model.setAuthorDate {
-                            CommitDatePicker(selection: $model.authorDate, time: false, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate), acceptsChanges: { model.nativeAuthorDateInputAvailable }).frame(width: 130, height: 24)
-                            CommitDatePicker(selection: $model.authorDate, time: true, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate), acceptsChanges: { model.nativeAuthorDateInputAvailable }).frame(width: 115, height: 24)
-                            if model.amend { Toggle("Reset", isOn: $model.resetAuthorDate).toggleStyle(.checkbox) }
+                            CommitDatePicker(selection: $model.authorDate, time: false, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate), acceptsChanges: {model.acceptsFormReceipt(receipt) && model.nativeAuthorDateInputAvailable}).frame(width: 130, height: 24)
+                            CommitDatePicker(selection: $model.authorDate, time: true, enabled: !model.loadingAuthorDate && !(model.amend && model.resetAuthorDate), acceptsChanges: {model.acceptsFormReceipt(receipt) && model.nativeAuthorDateInputAvailable}).frame(width: 115, height: 24)
+                            if model.amend { Toggle("Reset", isOn:formBinding(.resetDate,\.resetAuthorDate)).toggleStyle(.checkbox).disabled(!model.canChangeFormOption(.resetDate)) }
                         }
                     }
                     DialogCommandRows {
-                        Toggle("Set author", isOn: $model.setAuthor).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
-                        CommitAuthorField(author: $model.author, editable: model.setAuthor && !model.loadingAuthorIdentity, acceptsChanges: { model.nativeAuthorInputAvailable })
+                        Toggle("Set author", isOn:formBinding(.author,\.setAuthor)).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
+                        CommitAuthorField(author: $model.author, editable: model.setAuthor && !model.loadingAuthorIdentity, acceptsChanges: {model.acceptsFormReceipt(receipt) && model.nativeAuthorInputAvailable})
                             .frame(minWidth:220,idealWidth:280).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
                         Button("Add Signed-off-by") { model.addSignOff() }
                     }
@@ -2952,9 +3062,9 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                             .frame(minHeight: 120).disabled(model.messageOnly)
                         HStack {
                             VStack(alignment: .leading, spacing: 6) {
-                                Toggle("Staging support (EXPERIMENTAL)",isOn:Binding(get:{model.stagingEnabled},set:{model.setStagingEnabled($0)}))
-                                Toggle("Show Unversioned Files", isOn: Binding(get: { model.showUnversioned }, set: { model.setShowUnversioned($0) }))
-                                Toggle("Do not autoselect submodules", isOn: Binding(get: { model.doNotAutoselectSubmodules }, set: model.setDoNotAutoselectSubmodules))
+                                Toggle("Staging support (EXPERIMENTAL)",isOn:formBinding(.staging,\.stagingEnabled))
+                                Toggle("Show Unversioned Files", isOn:formBinding(.unversioned,\.showUnversioned))
+                                Toggle("Do not autoselect submodules", isOn:formBinding(.noAutoSubmodules,\.doNotAutoselectSubmodules))
                             }.toggleStyle(.checkbox)
                             Spacer()
                             VStack(alignment: .trailing, spacing: 6) {
@@ -3265,7 +3375,7 @@ private struct CommitDatePicker: NSViewRepresentable {
     let acceptsChanges: () -> Bool
     func makeCoordinator() -> Coordinator { Coordinator(selection: $selection,time:time, acceptsChanges: acceptsChanges) }
     func makeNSView(context: Context) -> NSDatePicker {
-        let picker = NSDatePicker()
+        let picker = CommitOwnedDatePicker()
         picker.datePickerStyle = .textFieldAndStepper
         picker.datePickerMode = .single
         picker.datePickerElements = time ? .hourMinuteSecond : .yearMonthDay
@@ -3274,9 +3384,11 @@ private struct CommitDatePicker: NSViewRepresentable {
         picker.target = context.coordinator
         picker.action = #selector(Coordinator.changed(_:))
         picker.setAccessibilityLabel(time ? "Author time" : "Author date")
+        picker.identifier = .init(time ? "Commit author time":"Commit author date")
         return picker
     }
     func updateNSView(_ picker: NSDatePicker, context: Context) {
+        guard (picker as? CommitOwnedDatePicker)?.isRetired != true else{picker.isEnabled=false;return}
         context.coordinator.selection = $selection
         context.coordinator.acceptsChanges = acceptsChanges
         let value=time ? selection:CommitAuthorDateControl.calendar.startOfDay(for:selection)
@@ -3286,6 +3398,7 @@ private struct CommitDatePicker: NSViewRepresentable {
     static func dismantleNSView(_ picker: NSDatePicker, coordinator: Coordinator) {
         picker.target = nil; picker.action = nil; picker.isEnabled = false
         coordinator.retired = true; coordinator.acceptsChanges = { false }
+        (picker as? CommitOwnedDatePicker)?.retire()
     }
     @MainActor final class Coordinator: NSObject {
         var selection: Binding<Date>
@@ -3294,11 +3407,20 @@ private struct CommitDatePicker: NSViewRepresentable {
         var acceptsChanges: () -> Bool
         init(selection: Binding<Date>,time:Bool, acceptsChanges: @escaping () -> Bool) {self.selection=selection;self.time=time;self.acceptsChanges=acceptsChanges}
         @objc func changed(_ sender: NSDatePicker) {
-            guard !retired, sender.isEnabled, acceptsChanges() else { return }
+            guard !retired,sender.isEnabled,acceptsChanges(),(sender as? CommitOwnedDatePicker)?.hasOriginalOwner==true else { return }
             let previous=selection.wrappedValue
             selection.wrappedValue=CommitAuthorDateControl.merging(day:time ? previous:sender.dateValue,time:time ? sender.dateValue:previous)
         }
     }
+}
+
+@MainActor private final class CommitOwnedDatePicker:NSDatePicker {
+    private weak var originalOwner:NSWindow?
+    private var ownerBound=false,retired=false
+    var isRetired:Bool{retired}
+    var hasOriginalOwner:Bool {!retired && window != nil && window === originalOwner && window?.attachedSheet==nil && NSApp.modalWindow==nil}
+    override func viewDidMoveToWindow(){super.viewDidMoveToWindow();if let window{if !ownerBound{ownerBound=true;originalOwner=window}else if originalOwner !== window{retire()}}}
+    func retire(){retired=true;isEnabled=false;target=nil;action=nil}
 }
 
 /// Preserve TortoiseGit's three-state staging checkbox in the same file list.
@@ -3498,12 +3620,14 @@ private struct CommitProgressDialog: View {
         case refresh="Refresh",focus="Focus commit message",focusFiles="Focus file list",history="Recent messages…",hash="Pick commit hash…",message="Pick commit message…",pasteFiles="Paste file list",signOff="Add Signed-off-by"
         case all="All",none="None",unversioned="Unversioned",versioned="Versioned",added="Added",deleted="Deleted",modified="Modified",files="Files",submodules="Submodules"
         case staging="Staging support (EXPERIMENTAL)",showUnversioned="Show Unversioned Files",whole="Show Whole Project",messageOnly="Message only",amend="Amend Last Commit"
+        case newBranch="new branch",amendComparison="Show diff to last commit",author="Set author",authorDate="Set author date",resetDate="Reset",noAutoSubmodules="Do not autoselect submodules"
+        case focusBranch="Focus new branch name",focusAuthor="Focus author identity",focusDate="Focus author date",focusTime="Focus author time",focusIssue="Focus issue number",issues="Choose issues…"
         case patch="View Patch",partialStage="Partial Staging",partialUnstage="Partial Unstaging",help="Commit Help"
     }
     private final class Invocation {let command:Command,epoch:UUID;init(_ command:Command,_ epoch:UUID){self.command=command;self.epoch=epoch}}
     private weak var owner:CommitWindowController?
     private weak var installedMenu:NSMenu?
-    private var root:NSMenuItem?,items=[NSMenuItem](),epoch=UUID(),retired=false,queued=false
+    private var root:NSMenuItem?,items=[NSMenuItem](),epoch=UUID(),retired=false,queued=false,rebuildNeeded=true
     private var trackedMenus=Set<ObjectIdentifier>()
     private var observations=[AnyCancellable]()
     var applicationMenu:()->NSMenu? = {NSApp.mainMenu}
@@ -3511,18 +3635,21 @@ private struct CommitProgressDialog: View {
     init(owner:CommitWindowController) {
         self.owner=owner;super.init()
         observations.append(owner.model.objectWillChange.sink { [weak self] _ in self?.schedule() })
-        observations.append(NotificationCenter.default.publisher(for:NSApplication.didUpdateNotification).sink { [weak self] _ in self?.schedule() })
+        observations.append(NotificationCenter.default.publisher(for:NSApplication.didUpdateNotification).sink { [weak self] _ in self?.schedule(retiring:false) })
     }
     private var active:Bool {!retired && owner?.model.messageFocusAvailable==true && keyWindow() === owner?.window}
     private var ready:Bool {active && owner?.commandsAvailable==true}
-    private func schedule() {
-        guard !retired,!queued else {return};queued=true
+    private func schedule(retiring:Bool=true) {
+        guard !retired else{return}
+        if retiring{epoch=UUID();rebuildNeeded=true}
+        guard !queued else{return};queued=true
         DispatchQueue.main.async { [weak self] in guard let self else {return};self.queued=false;if self.active {self.install();self.refresh()} }
     }
     func install() {
         guard active,trackedMenus.isEmpty,let main=applicationMenu() else {return}
-        if installedMenu === main,root?.menu === main {refresh();return}
+        if !rebuildNeeded,installedMenu === main,root?.menu === main {refresh();return}
         remove();installedMenu=main
+        rebuildNeeded=false
         for item in main.items where item.identifier?.rawValue=="TurtleGit.Commit.Commands" {main.removeItem(item)}
         let root=NSMenuItem(title:NSLocalizedString("Commit",comment:""),action:nil,keyEquivalent:"");root.identifier = .init("TurtleGit.Commit.Commands")
         let menu=NSMenu(title:NSLocalizedString("Commit",comment:""));menu.delegate=self;root.submenu=menu;self.root=root
@@ -3530,6 +3657,7 @@ private struct CommitProgressDialog: View {
             for command in commands {
                 let binding=shortcut(command),item=NSMenuItem(title:NSLocalizedString(command.rawValue,comment:""),action:#selector(invoke(_:)),keyEquivalent:binding?.0 ?? "")
                 item.keyEquivalentModifierMask=binding?.1 ?? [];item.target=self;item.representedObject=Invocation(command,epoch)
+                item.identifier = .init("TurtleGit.Commit.Form."+String(describing:command))
                 item.image=icon(command).contextImage(defaults:owner?.presentationPreferences ?? .standard)
                 menu.addItem(item);items.append(item)
             }
@@ -3537,18 +3665,22 @@ private struct CommitProgressDialog: View {
         func group(_ title:String,_ commands:[Command]) {let caption=NSLocalizedString(title,comment:"");let item=NSMenuItem(title:caption,action:nil,keyEquivalent:"");let child=NSMenu(title:caption);child.delegate=self;item.submenu=child;menu.addItem(item);append(commands,to:child)}
         append([.current],to:menu);group("Commit actions",[.commit,.recommit,.push]);menu.addItem(.separator())
         group("Check files",[.all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules])
-        group("Message",[.focus,.history,.hash,.message,.pasteFiles,.signOff]);append([.focusFiles],to:menu)
-        group("Options",[.staging,.showUnversioned,.whole,.messageOnly,.amend])
+        group("Message",[.focus,.history,.hash,.message,.pasteFiles,.signOff,.focusIssue,.issues]);append([.focusFiles],to:menu)
+        group("Options",[.newBranch,.amend,.amendComparison,.authorDate,.resetDate,.author,.staging,.showUnversioned,.noAutoSubmodules,.whole,.messageOnly])
+        group("Focus",[.focusBranch,.focusAuthor,.focusDate,.focusTime])
         append([.patch,.partialStage,.partialUnstage,.refresh,.help],to:menu)
         let index=main.items.firstIndex(where:{item in
             item.submenu.map {$0 === NSApp.windowsMenu || $0 === NSApp.helpMenu} == true || ["Window","Help",NSLocalizedString("Window",comment:""),NSLocalizedString("Help",comment:"")].contains(item.title)
         }) ?? main.numberOfItems
         main.insertItem(root,at:index);refresh()
     }
-    func remove() {epoch=UUID();if let root,let menu=root.menu {menu.removeItem(root)};root=nil;installedMenu=nil;items=[]}
+    func remove() {epoch=UUID();rebuildNeeded=true;if let root,let menu=root.menu {menu.removeItem(root)};root=nil;installedMenu=nil;items=[]}
     func retire() {remove();retired=true;observations=[];owner=nil}
     func menuWillOpen(_ menu:NSMenu) {trackedMenus.insert(ObjectIdentifier(menu));refresh()}
-    func menuDidClose(_ menu:NSMenu) {trackedMenus.remove(ObjectIdentifier(menu));schedule()}
+    func menuDidClose(_ menu:NSMenu) {
+        trackedMenus.remove(ObjectIdentifier(menu));let captured=epoch
+        DispatchQueue.main.async{[weak self] in guard let self,self.epoch==captured else{return};self.schedule()}
+    }
     func menuNeedsUpdate(_ menu:NSMenu) {refresh()}
     private func attached(_ item:NSMenuItem)->Bool {
         guard let main=installedMenu,main === applicationMenu(),root?.menu === main else {return false}
@@ -3582,6 +3714,17 @@ private struct CommitProgressDialog: View {
         case .hash,.message,.pasteFiles:return owner.messageEditor() != nil
         case .whole:return !model.scopePaths.isEmpty
         case .amend:return model.hasHead && model.operation==nil && model.replaySplit==nil && model.historyCombine==nil
+        case .newBranch:return model.canChangeFormOption(.newBranch)
+        case .amendComparison:return model.canChangeFormOption(.amendComparison)
+        case .author:return model.canChangeFormOption(.author)
+        case .authorDate:return model.canChangeFormOption(.authorDate)
+        case .resetDate:return model.canChangeFormOption(.resetDate)
+        case .noAutoSubmodules:return model.canChangeFormOption(.noAutoSubmodules)
+        case .focusBranch:return model.nativeNewBranchInputAvailable
+        case .focusAuthor:return !model.loadingAuthorIdentity
+        case .focusDate,.focusTime:return model.nativeAuthorDateInputAvailable
+        case .focusIssue:return model.issueProperties.showsIssueField
+        case .issues:return model.nativeIssueProvider != nil
         case .patch:return !model.stagingEnabled
         case .partialStage,.partialUnstage:return model.stagingEnabled && !model.selection.isEmpty
         default:return true
@@ -3598,6 +3741,12 @@ private struct CommitProgressDialog: View {
         case .whole:return model.showWholeProject
         case .messageOnly:return model.messageOnly
         case .amend:return model.amend
+        case .newBranch:return model.createBranch
+        case .amendComparison:return model.amendDiffToLastCommit
+        case .author:return model.setAuthor
+        case .authorDate:return model.setAuthorDate
+        case .resetDate:return model.resetAuthorDate
+        case .noAutoSubmodules:return model.doNotAutoselectSubmodules
         case .patch:return model.viewingPatch
         case .partialStage:return model.partialMode==false
         case .partialUnstage:return model.partialMode==true
@@ -3605,12 +3754,13 @@ private struct CommitProgressDialog: View {
         }
     }
     private func refresh() {
-        for item in items {guard let invocation=item.representedObject as? Invocation else {continue};let command=invocation.command;item.isEnabled=attached(item) && enabled(command);item.state=checked(command) ? .on:.off;if command == .current {item.title=NSLocalizedString(owner?.model.currentCompletionAction.rawValue ?? command.rawValue,comment:"")}}
+        for item in items {guard let invocation=item.representedObject as? Invocation else {continue};let command=invocation.command;item.isEnabled=invocation.epoch==epoch && attached(item) && enabled(command);item.state=checked(command) ? .on:.off;if command == .current {item.title=NSLocalizedString(owner?.model.currentCompletionAction.rawValue ?? command.rawValue,comment:"")}}
     }
     func validateMenuItem(_ item:NSMenuItem)->Bool {guard let invocation=item.representedObject as? Invocation else {return false};return invocation.epoch==epoch && attached(item) && enabled(invocation.command)}
     @objc private func invoke(_ item:NSMenuItem) {
         guard validateMenuItem(item),let invocation=item.representedObject as? Invocation else {return}
-        perform(invocation.command);refresh()
+        epoch=UUID();rebuildNeeded=true
+        perform(invocation.command);refresh();schedule(retiring:false)
     }
     private func perform(_ command:Command) {
         guard enabled(command),let owner else {return};let model=owner.model
@@ -3622,6 +3772,12 @@ private struct CommitProgressDialog: View {
         case .refresh:model.reload()
         case .focus:model.focusMessage()
         case .focusFiles:owner.focusFileList()
+        case .focusBranch:owner.focusFormField("Commit new branch")
+        case .focusAuthor:owner.focusFormField("Commit author")
+        case .focusDate:owner.focusFormField("Commit author date")
+        case .focusTime:owner.focusFormField("Commit author time")
+        case .focusIssue:model.focusIssueField()
+        case .issues:model.selectProviderIssues()
         case .history,.hash,.message,.pasteFiles:owner.messageEditor()?.performCommitMenuCommand(command)
         case .signOff:model.addSignOff()
         case .all,.none,.unversioned,.versioned,.added,.deleted,.modified,.files,.submodules:
@@ -3632,6 +3788,12 @@ private struct CommitProgressDialog: View {
         case .whole:model.showWholeProject.toggle()
         case .messageOnly:model.messageOnly.toggle()
         case .amend:model.amend.toggle()
+        case .newBranch:model.setFormOption(.newBranch,value:!model.createBranch,receipt:model.formReceipt)
+        case .amendComparison:model.setFormOption(.amendComparison,value:!model.amendDiffToLastCommit,receipt:model.formReceipt)
+        case .author:model.setFormOption(.author,value:!model.setAuthor,receipt:model.formReceipt)
+        case .authorDate:model.setFormOption(.authorDate,value:!model.setAuthorDate,receipt:model.formReceipt)
+        case .resetDate:model.setFormOption(.resetDate,value:!model.resetAuthorDate,receipt:model.formReceipt)
+        case .noAutoSubmodules:model.setFormOption(.noAutoSubmodules,value:!model.doNotAutoselectSubmodules,receipt:model.formReceipt)
         case .patch:model.showViewPatch()
         case .partialStage:model.showPartial(false)
         case .partialUnstage:model.showPartial(true)
@@ -3644,8 +3806,8 @@ private struct CommitProgressDialog: View {
         if event.keyCode==96,flags.isEmpty {if enabled(.refresh) {perform(.refresh)};return true}
         if [36,76].contains(event.keyCode),flags == .control {if enabled(.current) {perform(.current)};return true}
         guard let text=event.charactersIgnoringModifiers?.lowercased() else {return false}
-        if flags == .option,["m","f"].contains(text),!((owner?.window?.firstResponder as? NSTextView)?.isEditable ?? false) {
-            let command:Command=text == "m" ? .focus:.focusFiles
+        if flags == .option,["m","f","d","t"].contains(text),!((owner?.window?.firstResponder as? NSTextView)?.isEditable ?? false) {
+            let command:Command=text == "m" ? .focus:text == "f" ? .focusFiles:text == "d" ? .authorDate:.author
             if enabled(command) {perform(command)};return true
         }
         for item in items {guard let invocation=item.representedObject as? Invocation,let binding=shortcut(invocation.command),binding.0.lowercased()==text,binding.1==flags,attached(item) else {continue};if enabled(invocation.command) {invoke(item)};return true}
@@ -3659,6 +3821,11 @@ private struct CommitProgressDialog: View {
         case .refresh:return (String(UnicodeScalar(NSF5FunctionKey)!),[])
         case .focus:return ("m",[.command,.option])
         case .focusFiles:return ("f",[.command,.option])
+        case .newBranch:return ("n",[.command,.option])
+        case .author:return ("t",[.command,.option])
+        case .authorDate:return ("d",[.command,.option])
+        case .resetDate:return ("r",[.command,.option])
+        case .focusIssue:return ("i",[.command,.option])
         default:return nil
         }
     }
@@ -3674,6 +3841,12 @@ private struct CommitProgressDialog: View {
         case .help:return .help
         case .patch,.partialStage,.partialUnstage:return .patch
         case .whole:return .repositoryBrowser
+        case .newBranch,.focusBranch:return .branch
+        case .amendComparison:return .compare
+        case .author,.focusAuthor:return .settingsGit
+        case .authorDate,.resetDate,.focusDate,.focusTime:return .log
+        case .noAutoSubmodules:return .fetch
+        case .focusIssue,.issues:return .settingsIssueTracker
         case .none:return .revert
         default:return .add
         }

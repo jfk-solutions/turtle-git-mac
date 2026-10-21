@@ -265,6 +265,7 @@ import TurtleGitCore
         if CommitWindowModel.activeReloads > 0 || CommitWindowModel.activeFileOperations > 0 || CommitWindowModel.activePreferenceOperations > 0 || CommitWindowModel.activeMetadataOperations > 0 { return .terminateCancel }
         if CommitWindowModel.activeFileDrops > 0 { return .terminateCancel }
         if LogWindowModel.activeNoteReads > 0 || LogWindowModel.activeNoteSaves > 0 || CommitNotePresenter.activeWarnings > 0 { return .terminateCancel }
+        if LogRevisionColumnQuestion.activeCount > 0 { return .terminateCancel }
         if MessageEditorStylingSession.activeOperations > 0 { return .terminateCancel }
         if InputWindowController.activeSaves > 0 { return .terminateCancel }
         if AddRemoteWindowModel.activeOperations > 0 || RemoteReferenceWindowModel.activeOperations > 0 || RemoteTagWindowModel.activeOperations > 0 { return .terminateCancel }

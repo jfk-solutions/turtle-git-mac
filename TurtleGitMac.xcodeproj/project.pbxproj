@@ -190,6 +190,7 @@
 		5E1F0466AB4AB402921ADF5F /* CloneWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4B370EB64932B2909A8228 /* CloneWindow.swift */; };
 		5E46495B60B7DE0F35ABFDAE /* LocalizationCredits.txt in Resources */ = {isa = PBXBuildFile; fileRef = 298FF940D519CCF039A8223B /* LocalizationCredits.txt */; };
 		5E4F774D88C8BB0C81D39836 /* GitDaemonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9058AE332FC66665066DAE81 /* GitDaemonWindow.swift */; };
+		5F1E4F6C734B656EB3B7AA2E /* SettingsSourceControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = C600C63A341B132B35FD9A69 /* SettingsSourceControls.swift */; };
 		5F4478C2B26B372096688B52 /* Pull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD299C13A57D2632BB2467B /* Pull.swift */; };
 		5F90E01DF71FDA1D43ADF883 /* ImageEditorToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DDEA3975817E5FBF96643C7 /* ImageEditorToolbar.swift */; };
 		5FC25E652DEC9F024AEA858C /* UnifiedDiffCaseFold.swift in Sources */ = {isa = PBXBuildFile; fileRef = 985A594AD651C7899145A75C /* UnifiedDiffCaseFold.swift */; };
@@ -388,6 +389,7 @@
 		CB6FE8AF17B58EAAA58EBD32 /* LocalizationManifest.json in Resources */ = {isa = PBXBuildFile; fileRef = FD45183DEC1DC8D873F67BD7 /* LocalizationManifest.json */; };
 		CC207D06117A1AC9782352E4 /* PatchMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */; };
 		CC6D27AC08555115BD75EB87 /* Clean.swift in Sources */ = {isa = PBXBuildFile; fileRef = 340673250460ADE4B0D7C99C /* Clean.swift */; };
+		CC83A733E382FC6DCCBAF5AD /* LogRevisionColumnControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE2583A07793BC760D4AEBDA /* LogRevisionColumnControls.swift */; };
 		CDA5CA2296FD4B376D9C26E6 /* FinderBackgroundService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 915E15D41336AA69D1B13F32 /* FinderBackgroundService.swift */; };
 		CE3B74D0F08777C48EEB452B /* MergeComparisonControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22E9699468EE4C1CA9139EB /* MergeComparisonControls.swift */; };
 		CE62DD0C90CCBA058B0F7C1C /* GitProgressOutputState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6D400F85AE92690112D0E35 /* GitProgressOutputState.swift */; };
@@ -904,6 +906,7 @@
 		AD7EE26AD9248EACF4682692 /* TurtleGitGitAskpass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitGitAskpass.swift; sourceTree = "<group>"; };
 		AD915C3966A70BBEC96420EC /* SMTPCertificateReviewWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMTPCertificateReviewWindow.swift; sourceTree = "<group>"; };
 		ADFF9F8C8624249F4AB965DF /* CommitFileInteraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitFileInteraction.swift; sourceTree = "<group>"; };
+		AE2583A07793BC760D4AEBDA /* LogRevisionColumnControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogRevisionColumnControls.swift; sourceTree = "<group>"; };
 		AE81F1D25A56C6A243F01F23 /* UnifiedDiffViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffViewer.swift; sourceTree = "<group>"; };
 		AE84FD354494653334022AA8 /* SSHKeyPassphraseWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyPassphraseWindow.swift; sourceTree = "<group>"; };
 		AE9909E60E6379183F237D7B /* SVNWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVNWindow.swift; sourceTree = "<group>"; };
@@ -948,6 +951,7 @@
 		C28CD85DDEAAD71040E87D32 /* ExportCompletionControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportCompletionControl.swift; sourceTree = "<group>"; };
 		C3343365A5D1715F6611CABA /* RemoteSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSettings.swift; sourceTree = "<group>"; };
 		C3EACE61A664AC152D093BC5 /* ApplicationAssets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = ApplicationAssets.xcassets; sourceTree = "<group>"; };
+		C600C63A341B132B35FD9A69 /* SettingsSourceControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSourceControls.swift; sourceTree = "<group>"; };
 		C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileAdd.swift; sourceTree = "<group>"; };
 		C658A270E621D0024D95E49E /* GitBlameEncodingMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlameEncodingMenu.swift; sourceTree = "<group>"; };
 		C67F27BFB40588DC92B4F276 /* SMTPCertificateTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMTPCertificateTransport.swift; sourceTree = "<group>"; };
@@ -1221,6 +1225,7 @@
 				8B3F105164F5F8C346A6E179 /* LogMessageView.swift */,
 				C692AF42221DDE4FA4070CF1 /* LogOrderingWindow.swift */,
 				F283527B86A5347FD06D7472 /* LogReferenceDrawing.swift */,
+				AE2583A07793BC760D4AEBDA /* LogRevisionColumnControls.swift */,
 				92C50E53F34624CECCEC69FA /* LogSearchHighlights.swift */,
 				AB86EFEBCB6909C206458540 /* LogWindow.swift */,
 				A22E9699468EE4C1CA9139EB /* MergeComparisonControls.swift */,
@@ -1296,6 +1301,7 @@
 				6823801F16A03836426285A5 /* SendPatchWindow.swift */,
 				8F4B173754C0AE48CB0FAAF8 /* SettingsNavigation.swift */,
 				09F56DAEE49CAC83A3AF38D5 /* SettingsSheetController.swift */,
+				C600C63A341B132B35FD9A69 /* SettingsSourceControls.swift */,
 				B07F1FB47DC4A875FEE5ECD4 /* SettingsTransaction.swift */,
 				AD915C3966A70BBEC96420EC /* SMTPCertificateReviewWindow.swift */,
 				BAC8E604A6E8BFCD8E8E76D8 /* SourceMessageLinks.swift */,
@@ -2396,6 +2402,7 @@
 				16ECE17B5B45121E84D16B85 /* LogMessageView.swift in Sources */,
 				EA60B23A7ACD493A17E38216 /* LogOrderingWindow.swift in Sources */,
 				8F8264C39C1DC2802012A483 /* LogReferenceDrawing.swift in Sources */,
+				CC83A733E382FC6DCCBAF5AD /* LogRevisionColumnControls.swift in Sources */,
 				AAF6FA2415511B9D5A4357A7 /* LogSearchHighlights.swift in Sources */,
 				8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */,
 				CE3B74D0F08777C48EEB452B /* MergeComparisonControls.swift in Sources */,
@@ -2478,6 +2485,7 @@
 				EC51E4CE03738676EE135A62 /* SendPatchWindow.swift in Sources */,
 				7A77EBE205DF3100F7F1D1ED /* SettingsNavigation.swift in Sources */,
 				2A37DD0DA19E670E8C6E574D /* SettingsSheetController.swift in Sources */,
+				5F1E4F6C734B656EB3B7AA2E /* SettingsSourceControls.swift in Sources */,
 				2F166DC70EEE317B9A6F3FF2 /* SettingsTransaction.swift in Sources */,
 				F73FDB1A22740561A9DF58DA /* SourceMessageLinks.swift in Sources */,
 				20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */,

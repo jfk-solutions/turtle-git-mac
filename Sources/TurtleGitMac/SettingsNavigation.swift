@@ -77,6 +77,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var delegateProxy: SettingsWindowDelegate?
     private var updating = false
     private var retired = false
+    private var appearanceUpdates:AnyCancellable?
     init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false, preferences: UserDefaults = .standard, initialPage: SettingsPageID = .general, remoteNoFetch: Bool = false, smtpCredentials: any SMTPCredentialStore = SMTPKeychainStore()) {
         overlayDraft = FinderOverlaySettingsModel(preferences:preferences)
         emailDraft = EmailSettingsModel(preferences:preferences,credentials:smtpCredentials)
@@ -116,6 +117,12 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         heading.setContentHuggingPriority(.required,for:.vertical); footer.setContentHuggingPriority(.required,for:.vertical)
         heading.widthAnchor.constraint(lessThanOrEqualTo:right.widthAnchor,constant:-24).isActive = true
         footer.widthAnchor.constraint(equalTo: right.widthAnchor,constant:-24).isActive = true
+        // Colors 1 can be the first command-selected page. Appearance must
+        // participate even when General has never been constructed.
+        transaction.register("general",participant:.init(page:.general,modified:{[appearanceDraft] in appearanceDraft.changed},validate:{nil},apply:{[appearanceDraft] in appearanceDraft.apply();return true},cancel:{[appearanceDraft] in appearanceDraft.cancel()}))
+        appearanceUpdates=appearanceDraft.objectWillChange.sink{[weak self] _ in
+            DispatchQueue.main.async{[weak self] in self?.transaction.notify()}
+        }
         transaction.changed = { [weak self] in self?.renderFooter() }
         transaction.failed = { [weak self] page in
             guard let self, !self.retired else { return }; self.show(page)
@@ -144,6 +151,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         guard !retired, let window = view.window, delegateProxy == nil else { return }
         let proxy = SettingsWindowDelegate(owner: self, original: window.delegate); delegateProxy = proxy; window.delegate = proxy
         transaction.window = window
+        appearanceDraft.beginPreview()
         TurtleGitHelp.attach(window, topic: TurtleGitHelp.settingsTopic(selected))
         window.title = globalOnly ? "Global Settings – TurtleGit for Mac" : "Settings – TurtleGit for Mac"
     }
@@ -243,7 +251,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         if let existing = cache[page] { controller = existing }
         else {
             switch page {
-            case .general: controller = host(GeneralSettings(appearance: appearanceDraft, preferences: preferences))
+            case .general: controller = host(GeneralSettings(appearance: appearanceDraft, preferences: preferences,appearanceManagedByOwner:true))
             case .colors1, .colors2, .colors3: controller = host(SourceColorSettings(page: page, appearance: appearanceDraft, preferences: preferences))
             case .dialogs: controller = host(LogDialogSettings(defaults: preferences))
             case .hooks:
@@ -313,6 +321,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     }
     func invalidate() {
         guard !retired else { return }; retired = true
+        appearanceDraft.endPreview();appearanceUpdates=nil
         transaction.invalidate(); emailDraft.invalidate(); hooks?.invalidate(); hooks = nil
         retireRemotePage()
         if let window = view.window, let delegateProxy, window.delegate === delegateProxy { window.delegate = delegateProxy.original }

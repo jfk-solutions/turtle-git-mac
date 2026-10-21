@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "5afc94eb2716e412d69b625cc57f331bcb10f25251938e11d9b48098d07645ad",
+    "Contents/Info.plist": "d9b3e29a7fe236aa9bfc8bcc3bc907664169f117a931b08133fa33d153e30976",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BISECT.html": "c94bc39b7cf56afa6cd774a6758bb3994864256ec1ba6a85a3d47d820963b1ec",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "3c99fc083b21ae3fd2ced9b73430abe7383732d4b8b7e40eb960c1ffc5c1357d",
@@ -35,6 +35,7 @@
     "Contents/Resources/en.lproj/MISSING-STAGED-FILES.html": "94bbe1572af86ef4b96a93fe81a9cd33ffdfae9ec2799d0d755ef4c13398dc65",
     "Contents/Resources/en.lproj/MOVING-AND-COPYING.html": "76ab47d08eaad445c4ae0fa893f2a3bcf1a93432d4089daa2e1519d8daccc424",
     "Contents/Resources/en.lproj/POWERPOINT-COMPARISON.html": "a12d501fe975912495bd1decc1d898c7ccc3052b8d19e3a74810a6fa77886112",
+    "Contents/Resources/en.lproj/PRIMARY-DIALOG-CONTROLS-PARITY.html": "e3753b118aa1f2032b6c497d6e4b5f8c8147c3a2743d1a71851e804320235288",
     "Contents/Resources/en.lproj/PRIVACY.html": "b1aabc24162f2a3f582222df864194a80b412284d01cd4ceecadb67848055c59",
     "Contents/Resources/en.lproj/REBASE-CONFLICT-FILES.html": "8ea8e7ea5e9e8ad328bc7215381cfc8c690fc29cba224dfdf5a887b7fe855c83",
     "Contents/Resources/en.lproj/REBASE-REFERENCE-RECOVERY.html": "f3d41955f43c7911809039d2ae70a2625d51be94c00916ed8e4d39230f797db5",
@@ -68,8 +69,8 @@
     "Contents/Resources/en.lproj/images/ed3713977296-image-conflict-undecodable-light.png": "138d20aa5da3ab6b283e6d2d69e78639534af3cbef1a2bbbb686ab48aa3b1446",
     "Contents/Resources/en.lproj/images/f49a195c8c35-cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
     "Contents/Resources/en.lproj/images/f7856202ab6a-commit-file-groups-language-de-dark.png": "e7f075b32f6ff02494ead9db85a9da57039ad1a108cda57cadbe40c895f988ed",
-    "Contents/Resources/en.lproj/index.html": "b747b09f1efe58d7ca675da9708b1a3f3bb6e81a76c75bbb4b7502197c080bf1",
-    "Contents/Resources/en.lproj/topics.json": "db822e5d4815835fb1041e56b817887207d3e3fe916adc8c130a399954b72b0e"
+    "Contents/Resources/en.lproj/index.html": "a9ef7ea13a9e32aae41a1421ec4f120d27444081bff2f2860b43f4a5d9c7c2c0",
+    "Contents/Resources/en.lproj/topics.json": "94ca40a468bb25267c8284eb2a8db78d68f96611d249db9e7f7e50c4270a9bbb"
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
@@ -105,6 +106,7 @@
     "docs/MISSING-STAGED-FILES.md": "8ae05b45701695eb63e173aa9c5f4292fc4036f1512acee4cfd829294cc64663",
     "docs/MOVING-AND-COPYING.md": "763a485e2dd89d0f912db242637f12f821368310a070d784bd122986f38bfe99",
     "docs/POWERPOINT-COMPARISON.md": "045ec11fe5c0ba81d37f538df754739de569ffbedc4b95338d3a3baa3c9d470d",
+    "docs/PRIMARY-DIALOG-CONTROLS-PARITY.md": "3b322850266d7287dac9e6ef8ea1c491ea84670cb89a1bf4fbecdb864ca8a41b",
     "docs/PRIVACY.md": "da1b227f57e905e882a1b5a0e990a6bc9410015f3d10bfe0562f030726302a2c",
     "docs/REBASE-CONFLICT-FILES.md": "5def68fc819548e2f7316cd25029c0ee47fc1506c590b2107280de1bac2120c0",
     "docs/REBASE-REFERENCE-RECOVERY.md": "a2449e9c3daf72665f7bf001a92da2adab69b53439230e4c0575161ed7863a2b",
@@ -123,7 +125,7 @@
     "docs/WORD-COMPARISON.md": "922b2e8a5f12bc40b8475bbf73cb558e87a0e692625139b3cc34502f4923663d",
     "docs/WORD-MERGE.md": "dc11fee38f848ddda8201163da223235c9adeaecfe74beaad1ff75d91ff702d7",
     "docs/ZIP-COMPARISON.md": "1fa7085d96970e6cc85ef8edb5e94f12277617d5c91614f1fd05c92362576241",
-    "docs/help-topics.json": "db822e5d4815835fb1041e56b817887207d3e3fe916adc8c130a399954b72b0e",
+    "docs/help-topics.json": "94ca40a468bb25267c8284eb2a8db78d68f96611d249db9e7f7e50c4270a9bbb",
     "docs/site/assets/binary-comparison-dark.png": "13944fd1b3128d1a46cadfabc89f4245a0008a379a7b1ad18e8b77365e618c8d",
     "docs/site/assets/binary-comparison-light.png": "0dda7bddf5a03dbf5bad64e6481f89121752721f2d4bb16995f29a406f2bb04b",
     "docs/site/assets/cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",

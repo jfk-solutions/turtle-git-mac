@@ -332,11 +332,9 @@ struct ProjectDialogSettingsPage: View {
         ScrollView { VStack(alignment: .leading, spacing: 16) {
             GroupBox("Config source") {
                 VStack(alignment: .leading, spacing: 8) {
-                Picker("Config source", selection: model.sourceSelection(context: context)) {
-                    ForEach(ProjectDialogSettingsSource.allCases, id: \.self) { source in
-                        Text(source.rawValue).tag(source).disabled(!model.sourceAvailable(source))
-                    }
-                }.pickerStyle(.radioGroup).horizontalRadioGroupLayout().labelsHidden().disabled(!model.canSelectSource)
+                SettingsSourceChoices(values:ProjectDialogSettingsSource.allCases,selected:model.source,title:{$0.rawValue},available:model.sourceAvailable) {source in
+                    model.sourceSelection(context:context).wrappedValue=source
+                }.disabled(!model.canSelectSource)
                 Text("Local overrides Project; Project overrides Global; Global overrides System. Effective shows the combined result.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }.padding(8)
@@ -363,11 +361,11 @@ struct ProjectDialogSettingsPage: View {
             GroupBox("Dialogs") {
                 VStack(alignment: .leading) {
                     HStack {
-                        Text("Overlay Icon:")
+                        Text("Overlay Icon:").frame(width:95,alignment:.leading)
                         TextField("Overlay Icon", text: model.text(.icon, context: context)).disabled(!model.editable || model.draft.icon.inherit)
                         Button("Browse…") { model.browseIcon(context: context) }.disabled(!model.editable || model.draft.icon.inherit)
+                        Toggle("inherit", isOn: model.inherit(.icon, context: context)).disabled(!model.editable)
                     }
-                    Toggle("inherit", isOn: model.inherit(.icon, context: context)).disabled(!model.editable)
                 }.padding(8)
             }
             HStack {
@@ -380,7 +378,7 @@ struct ProjectDialogSettingsPage: View {
             }
             if let error = model.error ?? model.validationError { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             if model.busy { ProgressView().controlSize(.small) }
-        }.padding(20).frame(maxWidth: .infinity, alignment: .leading) }.background(ProjectDialogWindowProbe(model: model).frame(width: 0, height: 0))
+        }.padding(16).frame(maxWidth: .infinity, alignment: .leading) }.groupBoxStyle(SourceSettingsGroupBoxStyle()).background(ProjectDialogWindowProbe(model: model).frame(width: 0, height: 0))
         .settingsParticipant("dialogs3", page: .dialogs3, value: model.state, modified: { model.modified }, validate: { model.validationError },
             apply: { await model.apply(owner: transaction?.window) }, cancel: model.cancel)
         .onChange(of: model.destination) { _ in transaction?.notify() }

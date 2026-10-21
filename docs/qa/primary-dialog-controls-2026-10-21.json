@@ -1,0 +1,132 @@
+{
+  "date": "2026-10-21",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "scoped-checkpoint-passed-after-recorded-repairs",
+  "scope": [
+    "Commit source option/focus commands, original-owner fields, stable minimum and metadata Quit epochs",
+    "Log native column fitting, automatic/manual persistence, fixed Graph visibility and owned Reset/Ordering actions",
+    "Settings direct Colors appearance transactions, bounded live preview, compact source configuration groups and draft palette samples"
+  ],
+  "implementation_batches": "Three parallel related families; grouped validation follows production freeze.",
+  "validation": {
+    "app_build": {
+      "final_exit_code": 0,
+      "log": "build/qa/primary-dialog-controls-settings-app-repair-2026-10-21.log",
+      "diagnostic_limit": "Xcode printed a generic command-failed-with-exit-code-0 diagnostic despite final exit0; actual native receiver linked current Debug objects and passed."
+    },
+    "core": "No Core production changes; no broad Core rerun planned.",
+    "native": {
+      "distinct_case_engine_pairs": 6,
+      "cases": [
+        "commit",
+        "log",
+        "settings"
+      ],
+      "git_engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "result": "All six passed cumulatively; passing Commit/Log pairs were not repeated after Settings-only repairs. One Settings/system-Git case repeated for corrected capture geometry."
+    },
+    "captures": {
+      "count": 12,
+      "review": "All twelve final light/dark complete compositor window captures visually inspected. Long-subject Log deliberately extends horizontally after source content-fit; screenshots do not prove physical input or every dialog state. Git/Dialogs3 are standalone page fixture windows, Colors1/3 are full Settings navigation windows.",
+      "prefixes": [
+        "commit-source-options",
+        "log-columns",
+        "settings-colors1-dark-draft",
+        "settings-colors3-draft",
+        "settings-git-source-inherit",
+        "settings-dialogs3-scoped"
+      ]
+    },
+    "cleanup": {
+      "receiver_pids": [
+        37224,
+        37633,
+        38009,
+        38102,
+        38185,
+        38293,
+        38447,
+        38558,
+        38698
+      ],
+      "all_independently_absent": true,
+      "helpers": "Runner verifies exact Git image plus open private fixture before cleanup; no helper-survival failure reported."
+    },
+    "localizations": {
+      "languages": 38,
+      "keys": 1314,
+      "check": "passed"
+    },
+    "help": {
+      "documents": 52,
+      "topics": 51,
+      "files": 72,
+      "check": "passed"
+    },
+    "dialog_coverage": {
+      "dialogs": 130,
+      "partial_family_reviews": 120,
+      "pending_families": 10,
+      "pending_controls": 85,
+      "certified_complete": 0,
+      "note": "Not a feature completion percentage."
+    },
+    "logs": [
+      "build/qa/primary-dialog-controls-native-2026-10-21.log",
+      "build/qa/primary-dialog-controls-settings-diagnostic-2026-10-21.log",
+      "build/qa/primary-dialog-controls-settings-native-2026-10-21.log",
+      "build/qa/primary-dialog-controls-settings-captures-2026-10-21.log"
+    ],
+    "site": {
+      "documents": 415,
+      "unresolved_fragments": 0,
+      "tests": 2,
+      "result": "passed"
+    },
+    "hosted": {
+      "run_id": 39552120564,
+      "commit": "f4f2f1fb",
+      "last_observed_status": "in_progress",
+      "current_batch_hosted_pass_claimed": false
+    }
+  },
+  "remaining": [
+    "Complete upstream dialog state/layout and workflow parity",
+    "Physical keyboard and accessibility acceptance",
+    "Current installed signed Finder and Services workflow acceptance",
+    "Minimum-version and physical Intel acceptance",
+    "Complete current hosted CI pass",
+    "Distribution signing and App Store acceptance"
+  ],
+  "recorded_repairs": [
+    {
+      "attempt": "Initial app build",
+      "result": "exit65: invalid SwiftUI accessibilityContrast environment key",
+      "repair": "Use colorSchemeContrast."
+    },
+    {
+      "attempt": "Initial native group",
+      "result": "Commit and Log both engines passed; Settings failed looking for an NSPopUpButton for automatic SwiftUI Picker."
+    },
+    {
+      "attempt": "Settings diagnostic only",
+      "result": "Confirmed actual popup menus empty; no assertion removed."
+    },
+    {
+      "attempt": "Native graph-size combo adaptation app build",
+      "result": "exit65: coordinator needed main actor isolation",
+      "repair": "Explicit @MainActor coordinator; guarded original-owner native numeric combo boxes preserve ranges and draft semantics."
+    },
+    {
+      "attempt": "Settings both engines",
+      "result": "passed; visual review found collapsed standalone Dialogs3 fixture capture."
+    },
+    {
+      "attempt": "Settings/system Git capture repair",
+      "result": "passed; fixture hosting sizing disabled and declared content sizes restored. All twelve final captures inspected."
+    }
+  ]
+}

@@ -11,6 +11,7 @@ enum AppearanceChoice: String, CaseIterable, Identifiable {
 
 @MainActor final class AppAppearance: ObservableObject {
     private let preferences: UserDefaults
+    private var previews:[(UUID,AppearanceChoice)]=[]
     @Published var choice: AppearanceChoice {
         didSet { preferences.set(choice.rawValue, forKey: "appearance"); apply() }
     }
@@ -24,17 +25,44 @@ enum AppearanceChoice: String, CaseIterable, Identifiable {
         #endif
     }
     func apply() {
-        NSApp.appearance = choice == .system ? nil : NSAppearance(named: choice == .dark ? .darkAqua : .aqua)
+        let effective=previews.last?.1 ?? choice
+        NSApp.appearance = effective == .system ? nil : NSAppearance(named: effective == .dark ? .darkAqua : .aqua)
     }
+    func preview(_ value:AppearanceChoice,owner:UUID) {
+        if let index=previews.firstIndex(where:{$0.0==owner}) {previews[index].1=value}
+        else {previews.append((owner,value))}
+        apply()
+    }
+    func endPreview(owner:UUID) {previews.removeAll{$0.0==owner};apply()}
+
 }
 
 @MainActor final class SettingsAppearanceDraft: ObservableObject {
-    @Published var choice: AppearanceChoice
+    @Published var choice: AppearanceChoice {didSet {if previewing {appearance.preview(choice,owner:previewID)}}}
+    private let previewID=UUID()
+    private var previewing=false
     private let appearance: AppAppearance
     init(appearance: AppAppearance) { self.appearance = appearance; choice = appearance.choice }
     var changed: Bool { choice != appearance.choice }
     func apply() { appearance.choice = choice }
     func cancel() { choice = appearance.choice }
+    func beginPreview() {guard !previewing else{return};previewing=true;appearance.preview(choice,owner:previewID)}
+    func endPreview() {guard previewing else{return};previewing=false;appearance.endPreview(owner:previewID)}
+}
+
+/// Standalone General pages retain their registration; the property sheet owns
+/// this participant once, independently of which cached pages were visited.
+struct SettingsAppearanceParticipant:ViewModifier {
+    @Environment(\.settingsTransaction) private var transaction
+    @State private var registration=UUID()
+    @ObservedObject var draft:SettingsAppearanceDraft
+    let managedByOwner:Bool
+    func body(content:Content)->some View {
+        content.onAppear {
+            guard !managedByOwner else{return}
+            transaction?.register("general",participant:.init(page:.general,modified:{draft.changed},validate:{nil},apply:{draft.apply();return true},cancel:draft.cancel),registration:registration)
+        }.onChange(of:draft.choice){_ in if !managedByOwner {transaction?.notify()}}
+    }
 }
 
 struct AppearanceSettings: View {
@@ -94,10 +122,10 @@ struct SourceColorSettings: View {
                     VStack(alignment: .leading, spacing: 10) {
                         logRow(.noteNode, "Note node")
                         logRow(.otherRef, "Unknown ref-types")
-                        Toggle("Use local branch color for current branch", isOn: $useLocal)
+                        SettingsDraftCheckbox(title:"Use local branch color for current branch",identifier:"Settings.Colors1.UseLocal",value:$useLocal).frame(height:24)
                     }.padding(10)
                 }
-                Toggle("Dark theme", isOn: Binding(get: { appearance.choice == .dark }, set: { appearance.choice = $0 ? .dark : .light }))
+                SettingsDraftCheckbox(title:"Dark theme",identifier:"Settings.Colors1.DarkTheme",value:Binding(get:{appearance.choice == .dark},set:{appearance.choice=$0 ? .dark:.light})).frame(height:24)
                 Text("Follow System is available on General. Saved colors use TortoiseGit’s conversion; dark status text is lightened when needed for macOS table backgrounds.").font(.caption).foregroundStyle(.secondary)
             } else if page == .colors2 {
                 GroupBox("Log Graphic") {
@@ -113,18 +141,16 @@ struct SourceColorSettings: View {
                 GroupBox("Log Branch Line") {
                     VStack(spacing: 10) {
                         ForEach(Array(LogColorRole.lanes.enumerated()), id: \.element) { index, role in logRow(role, "LINE" + String(index + 1)) }
-                        Picker("Line width", selection: Binding(get: { log.draft.lineWidth }, set: log.setLineWidth)) {
-                            ForEach(1...10, id: \.self) { Text(String($0)).tag($0) }
-                        }
-                        Picker("Node size", selection: Binding(get: { log.draft.nodeSize }, set: log.setNodeSize)) {
-                            ForEach(1...30, id: \.self) { Text(String($0)).tag($0) }
-                        }
+                        HStack {Text("Line width");SettingsDraftIntegerChoice(title:"Line width",range:1...10,value:Binding(get:{log.draft.lineWidth},set:log.setLineWidth)).frame(width:80,height:26)}
+                        HStack {Text("Node size");SettingsDraftIntegerChoice(title:"Node size",range:1...30,value:Binding(get:{log.draft.nodeSize},set:log.setNodeSize)).frame(width:80,height:26)}
+                        SettingsGraphPreview(palette:log.draft).frame(height:64).accessibilityIdentifier("Settings.Colors3.Preview")
                     }.padding(10)
                 }
             }
             Spacer()
             HStack { Spacer(); StatusColorButton("Restore Default", action: restore) }
-        }.padding(20)
+        }.padding(16)
+        .groupBoxStyle(SourceSettingsGroupBoxStyle())
         .settingsParticipant(page.rawValue, page: page, value: log.draft, modified: { modified }, apply: { apply(); return true }, cancel: cancel)
         .onChange(of: status.draft) { _ in transaction?.notify() }
         .onChange(of: useLocal) { _ in transaction?.notify() }
@@ -133,12 +159,14 @@ struct SourceColorSettings: View {
     private func statusRow(_ role: StatusTextRole, _ title: String) -> some View {
         HStack {
             Text(title).frame(maxWidth:.infinity,alignment:.leading)
+            SettingsPaletteSample(rgb:status.draft.rgb(role),title:"file.txt",background:false,statusText:true).frame(width:80)
             NativeSettingsColorChoice(namespace:"StatusColors",value:SettingsColorValue.packed(status.draft.rgb(role)),automatic:SettingsColorValue.packed(role.rgb),label:title,identifier:role.rawValue,changed:{ status.set(role,rgb:SettingsColorValue.channels($0)) }).frame(width:152,height:26)
         }
     }
     private func logRow(_ role: LogColorRole, _ title: String) -> some View {
         HStack {
             Text(title).frame(maxWidth:.infinity,alignment:.leading)
+            if page != .colors3 {SettingsPaletteSample(rgb:log.draft.rgb(role),title:role == .filterMatch ? "match":"ref",background:role != .filterMatch).frame(width:80)}
             NativeSettingsColorChoice(namespace:"LogColors",value:SettingsColorValue.packed(log.draft.rgb(role)),automatic:SettingsColorValue.packed(role.rgb),label:title,identifier:role.rawValue,changed:{ log.set(role,rgb:SettingsColorValue.channels($0)) }).frame(width:152,height:26)
         }
     }
@@ -234,7 +262,9 @@ enum StatusTextPalette {
     }
     /// Keep source RGB persistence/conversion independent of native text contrast.
     static func text(_ role: StatusTextRole, preferences: UserDefaults = .standard) -> NSColor {
-        let base = StatusColorPreferences.load(preferences).rgb(role)
+        text(rgb:StatusColorPreferences.load(preferences).rgb(role))
+    }
+    static func text(rgb base:[Int])->NSColor {
         return NSColor(name: nil) { appearance in
             let mode = appearanceTraits(appearance)
             var channels = transform(base, dark: mode.dark, highContrast: mode.highContrast)

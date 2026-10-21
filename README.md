@@ -251,6 +251,9 @@ tracks resource dialogs. An inventoried file or dialog is not necessarily ported
 [Port tracking](docs/PORTING.md) explains replacements and inventory maintenance.
 The [complete dialog audit](docs/DIALOG-COVERAGE.md) separates partial family
 reviews from unmapped controls and links recorded parity evidence.
+[The main dialog controls continuation](docs/PRIMARY-DIALOG-CONTROLS-PARITY.md)
+tracks Commit options, Log column fitting and Settings appearance transactions,
+including their remaining acceptance work.
 [UI parity](docs/UI-PARITY.md) records required source, layout and behavior
 comparisons. These documents and individual workflow audits track the full-port
 work that remains.

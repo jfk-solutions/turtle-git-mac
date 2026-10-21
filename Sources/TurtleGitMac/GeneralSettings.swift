@@ -253,19 +253,22 @@ struct AppLanguageLabel: View {
 }
 
 struct GeneralSettings: View {
+    let appearanceManagedByOwner:Bool
     @ObservedObject var appearance: SettingsAppearanceDraft
     @StateObject private var model: GeneralGitSettingsModel
     private let preferences: UserDefaults
     @State private var environment: String?
     @State private var updates: Bool
     @State private var savedUpdates: Bool
-    init(appearance: SettingsAppearanceDraft, preferences: UserDefaults = .standard) {
+    init(appearance: SettingsAppearanceDraft, preferences: UserDefaults = .standard, appearanceManagedByOwner:Bool=false) {
+        self.appearanceManagedByOwner=appearanceManagedByOwner
         self.appearance = appearance; self.preferences = preferences
         _model = StateObject(wrappedValue:GeneralGitSettingsModel(preferences:preferences))
         let enabled = (preferences.object(forKey:"VersionCheck") as? NSNumber)?.boolValue ?? true
         _updates = State(initialValue:enabled); _savedUpdates = State(initialValue:enabled)
     }
-    init(appearance:SettingsAppearanceDraft,model:GeneralGitSettingsModel,preferences:UserDefaults) {
+    init(appearance:SettingsAppearanceDraft,model:GeneralGitSettingsModel,preferences:UserDefaults,appearanceManagedByOwner:Bool=false) {
+        self.appearanceManagedByOwner=appearanceManagedByOwner
         self.appearance=appearance;self.preferences=preferences;_model=StateObject(wrappedValue:model)
         let enabled=(preferences.object(forKey:"VersionCheck") as? NSNumber)?.boolValue ?? true
         _updates=State(initialValue:enabled);_savedUpdates=State(initialValue:enabled)
@@ -314,7 +317,7 @@ struct GeneralSettings: View {
             Spacer()
         }.padding(20).background(GeneralSettingsProbe(model: model).frame(width: 0, height: 0))
         .onAppear { model.activate() }
-        .settingsParticipant("general", page: .general, value: appearance.choice, modified: { appearance.changed }, apply: { appearance.apply(); return true }, cancel: appearance.cancel)
+        .modifier(SettingsAppearanceParticipant(draft:appearance,managedByOwner:appearanceManagedByOwner))
         .settingsParticipant("general.updates", page: .general, value: updates, modified: { updates != savedUpdates }, apply: { preferences.set(updates, forKey: "VersionCheck"); savedUpdates = updates; return true }, cancel: { updates = savedUpdates })
         .settingsParticipant("general.language", page: .general, value: model.language, modified: { model.languageModified }, apply: { model.applyLanguage() }, cancel: model.cancelLanguage)
         .settingsParticipant("general.git", page: .general, value: model.draft, modified: { model.modified }, validate: {model.validationError}, apply: { await model.apply() }, cancel: model.cancel)

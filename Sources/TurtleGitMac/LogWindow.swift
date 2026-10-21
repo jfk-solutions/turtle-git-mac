@@ -81,6 +81,22 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
 
 /// Route the source Ctrl-F gesture as native Command-F, including table focus.
 final class LogHistoryWindow: NSWindow {
+    var logMinimumContentSize=NSSize.zero {
+        didSet {super.contentMinSize=minimum(super.contentMinSize,logMinimumContentSize);super.minSize=minimum(super.minSize,logMinimumFrameSize)}
+    }
+    var logMinimumFrameSize:NSSize {
+        get {frameRect(forContentRect:NSRect(origin:.zero,size:logMinimumContentSize)).size}
+        set {logMinimumContentSize=contentRect(forFrameRect:NSRect(origin:.zero,size:newValue)).size}
+    }
+    private func minimum(_ value:NSSize,_ floor:NSSize)->NSSize {.init(width:max(value.width,floor.width),height:max(value.height,floor.height))}
+    override var contentMinSize:NSSize {
+        get {minimum(super.contentMinSize,logMinimumContentSize)}
+        set {super.contentMinSize=minimum(newValue,logMinimumContentSize)}
+    }
+    override var minSize:NSSize {
+        get {minimum(super.minSize,logMinimumFrameSize)}
+        set {super.minSize=minimum(newValue,logMinimumFrameSize)}
+    }
     var find: () -> Void = {}
     var blocksInteraction: () -> Bool = { false }
     var commandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
@@ -226,9 +242,10 @@ final class LogHistoryWindow: NSWindow {
         let window = LogHistoryWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Log Messages", preferences: labelDefaults)
-        window.minSize = NSSize(width: 1080, height: 700)
+        window.logMinimumFrameSize = NSSize(width: 1080, height: 700)
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: LogDialog(model: model, savesColumnLayout: savesColumnLayout).disabled(model.findBlocked || model.orderingBlocked || model.referencePickerBlocked || model.confirmingQuit).defaultAppStorage(labelDefaults))
+        let host=NSHostingController(rootView: LogDialog(model: model, savesColumnLayout: savesColumnLayout).disabled(model.findBlocked || model.orderingBlocked || model.referencePickerBlocked || model.confirmingQuit || model.resettingRevisionColumns).defaultAppStorage(labelDefaults))
+        host.sizingOptions=[];window.contentViewController=host
         super.init(window: window)
         model.window = window
         window.find = { [weak self] in self?.showFind() }
@@ -565,7 +582,7 @@ final class LogHistoryWindow: NSWindow {
         if model.cancelWorkingCommandRead(closeAfter:true) { return false }
         if model.cancelStartReferenceRead() { return false }
         if model.cancelIntegrationRead(closeAfter:true) { return false }
-        guard !model.referencePickerBlocked, (!model.busy || model.loadingHistory || documentOpen != nil), !model.unifiedViewerBusy, !model.findBlocked, !model.orderingBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
+        guard !model.confirmingQuit,!model.resettingRevisionColumns,!model.referencePickerBlocked, (!model.busy || model.loadingHistory || documentOpen != nil), !model.unifiedViewerBusy, !model.findBlocked, !model.orderingBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
@@ -585,9 +602,10 @@ final class LogHistoryWindow: NSWindow {
         // Retire its hosting tree now so it cannot retain repository permissions.
         window?.contentViewController = nil
         completion?(nil);multiple?(nil)
-        if model.noteWorkPending {
-            Task{@MainActor [self] in while model.noteWorkPending{try? await Task.sleep(nanoseconds:5_000_000)};onClosed()}
-        }else{onClosed()}
+        let closed=onClosed;onClosed={}
+        if model.noteWorkPending || model.revisionColumnWorkPending {
+            Task{@MainActor [self] in while model.noteWorkPending || model.revisionColumnWorkPending{try? await Task.sleep(nanoseconds:5_000_000)};closed()}
+        }else{closed()}
     }
     private func setPatchPreviewVisible(_ visible: Bool) {
         if !visible {
@@ -757,7 +775,13 @@ struct LogCommandRequest: Identifiable {
     // Upstream CGitLogListBase retains the index across Find close/reopen and reload.
     var findSearchIndex = 0
     var onFindReferenceRefresh: (() -> Void)?
-    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { fileMenuGeneration=UUID();retireLogControlMenus() } } }
+    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { fileMenuGeneration=UUID();retireLogControlMenus(); if confirmingQuit { retireRevisionColumns?() } } } }
+    @Published private(set) var resettingRevisionColumns=false
+    private(set) var revisionColumnWorkPending=false
+    var retireRevisionColumns:(()->Void)?
+    var presentRevisionColumnQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Void = {window,alert,reply in alert.beginSheetModal(for:window,completionHandler:reply)}
+    func revisionColumnQuestionStarted(){revisionColumnWorkPending=true;resettingRevisionColumns=true}
+    func revisionColumnQuestionFinished(){revisionColumnWorkPending=false;resettingRevisionColumns=false}
     @Published var findBlocked = false { didSet { if findBlocked != oldValue { retireLogControlMenus() } } }
     @Published var orderingBlocked = false { didSet { if orderingBlocked != oldValue { retireLogControlMenus() } } }
     private(set) var historyProjectionEpoch = UUID()
@@ -2201,6 +2225,7 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        retireRevisionColumns?()
         noteSaveCancellation?.cancel();noteIdentitySession?.retire()
         bisectRead?.cancel(); bisectRead = nil
         cancelReferenceDescriptionRead()
@@ -3488,6 +3513,7 @@ struct LogDialog: View {
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
             }
         }.padding(12).frame(minWidth: 1040, minHeight: 650)
+        .disabled(model.resettingRevisionColumns)
         .alert("Git operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
@@ -4127,11 +4153,11 @@ struct RevisionTable: NSViewRepresentable {
         let table = HistoryTableView()
         table.rowHeight = 24; table.intercellSpacing = NSSize(width: 4, height: 0)
         table.usesAlternatingRowBackgroundColors = false
-        table.allowsMultipleSelection = !model.selecting || model.selectingMultiple; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+        table.allowsMultipleSelection = !model.selecting || model.selectingMultiple; table.columnAutoresizingStyle = .noColumnAutoresizing
         for definition in LogRevisionColumns.definitions {
             let id = definition.id
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = NSLocalizedString(definition.title,comment:""); column.width = definition.width
-            column.isHidden = !LogRevisionColumns.visible(id, defaults: model.colorPreferences) || id == "graph" && model.historyWalk.followRenames || id == "bugs" && !model.issueProperties.showsBugIDColumn || id == "svn" && !model.hasGitSVN
+            column.isHidden = (id != "graph" && !LogRevisionColumns.visible(id, defaults: model.colorPreferences)) || id == "graph" && model.historyWalk.followRenames || id == "bugs" && !model.issueProperties.showsBugIDColumn || id == "svn" && !model.hasGitSVN
             column.minWidth = id == "graph" ? 38 : 70; column.maxWidth = 10000; table.addTableColumn(column)
         }
         table.allowsColumnReordering = true; table.allowsColumnResizing = true
@@ -4143,7 +4169,11 @@ struct RevisionTable: NSViewRepresentable {
         }
         table.autosaveTableColumns = false
         let headerMenu = NSMenu(); headerMenu.delegate = context.coordinator
-        table.headerView?.menu = headerMenu; context.coordinator.headerMenu = headerMenu
+        let header=LogRevisionColumnHeader(frame:NSRect(x:0,y:0,width:table.bounds.width,height:max(23,table.headerView?.frame.height ?? 23)))
+        header.makeMenu={ [weak coordinator=context.coordinator] in coordinator?.headerMenu }
+        header.fitColumn={ [weak coordinator=context.coordinator] index,automatic in coordinator?.fitColumn(index,automatic:automatic) }
+        table.headerView=header;header.menu=headerMenu;context.coordinator.headerMenu=headerMenu
+        model.retireRevisionColumns={ [weak coordinator=context.coordinator] in coordinator?.retireColumnActions() }
         table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.doubleAction = #selector(Coordinator.doubleClickRevision); table.target = context.coordinator
         table.menu = NSMenu(); table.menu?.delegate = context.coordinator
@@ -4177,7 +4207,7 @@ struct RevisionTable: NSViewRepresentable {
         table.rowHeight = font.map { max(24, ceil($0.ascender - $0.descender + $0.leading) + 4) } ?? 24
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("svn"))?.isHidden = !model.hasGitSVN || !LogRevisionColumns.visible("svn", defaults: model.colorPreferences)
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs", defaults: model.colorPreferences)
-        table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph"))?.isHidden = !LogRevisionColumns.visible("graph", defaults: model.colorPreferences) || model.historyWalk.followRenames
+        table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph"))?.isHidden = model.historyWalk.followRenames
         let graphChanged = coordinator.graph != model.graph; coordinator.graph = model.graph
         let signature: [Data] = model.entries.map { entry in
             var value = entry.hash
@@ -4203,12 +4233,14 @@ struct RevisionTable: NSViewRepresentable {
         coordinator.searchHighlights = model.searchHighlights
         let highlightChanged = coordinator.highlightedRevision != model.highlightedRevision
         coordinator.highlightedRevision = model.highlightedRevision
-        if signature != coordinator.signature || graphChanged || datesChanged || highlightChanged || searchHighlightsChanged || labelsChanged || fontChanged || colorsChanged {
+        let sizingChanged=coordinator.sizingProjection != model.historyProjectionEpoch || graphChanged || datesChanged || labelsChanged || fontChanged || highlightChanged || coordinator.sizingFullMessage != model.fullCommitMessageOnLogLine || coordinator.sizingTagsRight != model.drawTagsBranchesOnRightSide
+        coordinator.sizingProjection=model.historyProjectionEpoch;coordinator.sizingFullMessage=model.fullCommitMessageOnLogLine;coordinator.sizingTagsRight=model.drawTagsBranchesOnRightSide
+        if sizingChanged || signature != coordinator.signature || graphChanged || datesChanged || highlightChanged || searchHighlightsChanged || labelsChanged || fontChanged || colorsChanged {
             coordinator.signature = signature
             table.reloadData()
-            if let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph")) {
-                column.width = max(column.width, CGFloat(max(65, min(240, Int(CGFloat(model.graph.map(\.width).max() ?? 1) * floor(table.rowHeight * 3 / 4)) + 24))))
-            }
+            // Lazy per-revision action icons do not trigger an all-row width
+            // scan. Only a changed text/font/reference/graph projection does.
+            if sizingChanged{coordinator.fitAutomaticColumns()}
         }
         let indices = IndexSet(model.entries.enumerated().compactMap { model.selected.contains($0.element.hash) ? $0.offset : nil })
         if table.selectedRowIndexes != indices { table.selectRowIndexes(indices, byExtendingSelection: false) }
@@ -4230,12 +4262,41 @@ struct RevisionTable: NSViewRepresentable {
         if let table=scroll.documentView as? HistoryTableView {
             table.onReturn=nil;table.onFind=nil;table.presentContextMenu=nil;table.contextMenuAvailable={false};table.onWindowChanged=nil
         }
-        coordinator.retireDateRefresh()
+        coordinator.retireDateRefresh();coordinator.retireColumnActions();coordinator.retired=true
+        (coordinator.table?.headerView as? LogRevisionColumnHeader)?.retire()
+        coordinator.table?.delegate=nil;coordinator.table?.dataSource=nil;coordinator.table?.target=nil
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         var model: LogWindowModel
         weak var table: NSTableView?
         var headerMenu: NSMenu?
+        private var columnReceipt:ColumnReceipt?
+        private var columnQuestion:LogRevisionColumnQuestion?
+        private var orderingTask:Task<Void,Never>?
+        private var columnLayoutEpoch=UUID()
+        var adjustedColumns=Set<String>()
+        var retired=false
+        private final class ColumnReceipt:NSObject {
+            let valid:()->Bool
+            var consumed=false
+            init(valid:@escaping()->Bool){self.valid=valid}
+            func take()->Bool {guard !consumed,valid() else{return false};consumed=true;return true}
+        }
+        private final class ColumnCommand:NSObject {
+            let receipt:ColumnReceipt,id:String?
+            init(_ receipt:ColumnReceipt,_ id:String?){self.receipt=receipt;self.id=id}
+        }
+        private func captureColumns()->ColumnReceipt? {
+            guard columnCommandsAvailable,let table,let window=table.window else{return nil}
+            let owner=model,projection=model.historyProjectionEpoch,controls=model.logControlsEpoch,layout=columnLayoutEpoch
+            let generation=model.contextMenuGeneration,preferences=model.colorPreferences
+            let svn=model.hasGitSVN,bugs=model.issueProperties.showsBugIDColumn,follow=model.historyWalk.followRenames
+            return ColumnReceipt{[weak self,weak table,weak window] in
+                guard let self,let table,let window else{return false}
+                return self.model === owner && self.table === table && table.window === window && self.model.window === window && self.columnCommandsAvailable && owner.colorPreferences === preferences && owner.historyProjectionEpoch==projection && owner.logControlsEpoch==controls && owner.contextMenuGeneration==generation && self.columnLayoutEpoch==layout && owner.hasGitSVN==svn && owner.issueProperties.showsBugIDColumn==bugs && owner.historyWalk.followRenames==follow
+            }
+        }
+        func retireColumnActions(){columnReceipt?.consumed=true;columnReceipt=nil;orderingTask?.cancel();orderingTask=nil;columnQuestion?.retire()}
         private var combineMenuTask: Task<Void, Never>?
         private var combineMenuCancellation: OperationCancellation?
         private var menuActionTarget:HistoryMenuActionTarget?
@@ -4258,6 +4319,8 @@ struct RevisionTable: NSViewRepresentable {
         }
         var updating = false
         var signature: [Data] = []
+        var sizingProjection:UUID?
+        var sizingFullMessage=false,sizingTagsRight=false
         var logFont: NSFont?
         var graph: [CommitGraphRow] = []
         var dateSettings = HistoryDateSettings.load()
@@ -4311,17 +4374,20 @@ struct RevisionTable: NSViewRepresentable {
             dateCloseObserver = nil; dateWindow = nil
         }
         deinit { dateRefreshTimer?.invalidate(); if let dateCloseObserver { NotificationCenter.default.removeObserver(dateCloseObserver) } }
-        func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) {
-            guard !model.busy, !model.isInvalidated, !model.findBlocked, !model.orderingBlocked else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(10)) { [weak self] in
-                guard let self, !self.model.busy, !self.model.isInvalidated else { return }
-                self.model.onShowOrdering?()
+        func tableView(_ tableView:NSTableView,didClick tableColumn:NSTableColumn) {
+            orderingTask?.cancel()
+            guard let receipt=captureColumns() else{return}
+            orderingTask=Task{@MainActor [weak self] in
+                do{try await Task.sleep(nanoseconds:10_000_000)}catch{return}
+                guard let self,receipt.take() else{return};self.orderingTask=nil;self.model.onShowOrdering?()
             }
         }
         func numberOfRows(in tableView: NSTableView) -> Int { model.entries.count }
         func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
+            guard model.entries.indices.contains(row) else{return nil}
             let entry = model.entries[row]
             if column?.identifier.rawValue == "graph" {
+                guard model.graph.indices.contains(row) else{return nil}
                 let view = GraphCell(); view.parentCount = entry.parents.count; view.workingTree = entry.hash.isEmpty; view.graph = model.graph[row]; view.preferences = model.colorPreferences
                 return view
             }
@@ -4354,7 +4420,7 @@ struct RevisionTable: NSViewRepresentable {
                 painter.isEditable = false; painter.isSelectable = false; painter.isBordered = false; painter.drawsBackground = false
                 text.cell = painter
             }
-            text.lineBreakMode = .byTruncatingTail; text.maximumNumberOfLines = 1
+            text.lineBreakMode = .byTruncatingTail; text.maximumNumberOfLines = 1;text.cell?.usesSingleLineMode=true
             if let logFont { text.font = entry.isHead ? NSFontManager.shared.convert(logFont, toHaveTrait: .boldFontMask) : logFont }
             else { text.font = .systemFont(ofSize: 12, weight: entry.isHead ? .bold : .regular) }
             if model.highlightedRevision == entry.hash, let font = text.font {
@@ -4454,15 +4520,17 @@ struct RevisionTable: NSViewRepresentable {
             menu.removeAllItems()
             if menu === headerMenu {
                 menu.autoenablesItems = false
-                let reset = NSMenuItem(title: "Reset columns", action: #selector(requestResetColumns), keyEquivalent: ""); reset.target = self; reset.isEnabled = columnCommandsAvailable; menu.addItem(reset)
-                menu.addItem(.separator())
-                for definition in LogRevisionColumns.definitions {
-                    if definition.id == "bugs" && !model.issueProperties.showsBugIDColumn || definition.id == "svn" && !model.hasGitSVN { continue }
-                    let item = NSMenuItem(title: definition.title, action: #selector(toggleColumn), keyEquivalent: "")
-                    item.representedObject = definition.id; item.target = self
-                    item.isEnabled = columnCommandsAvailable && (definition.id != "graph" || !model.historyWalk.followRenames)
-                    item.state = table?.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(definition.id))?.isHidden == false ? .on : .off
-                    menu.addItem(item)
+                columnReceipt?.consumed=true;columnReceipt=captureColumns()
+                let reset=NSMenuItem(title:"Reset columns",action:#selector(columnCommand(_:)),keyEquivalent:"")
+                reset.target=self;reset.identifier = .init("Log.Columns.Reset");reset.isEnabled=columnReceipt != nil
+                if let columnReceipt{reset.representedObject=ColumnCommand(columnReceipt,nil)}
+                menu.addItem(reset);menu.addItem(.separator())
+                for definition in LogRevisionColumns.definitions where definition.id != "graph" {
+                    if definition.id=="bugs" && !model.issueProperties.showsBugIDColumn || definition.id=="svn" && !model.hasGitSVN {continue}
+                    let item=NSMenuItem(title:definition.title,action:#selector(columnCommand(_:)),keyEquivalent:"")
+                    item.target=self;item.identifier = .init("Log.Columns."+definition.id);item.isEnabled=columnReceipt != nil
+                    if let columnReceipt{item.representedObject=ColumnCommand(columnReceipt,definition.id)}
+                    item.state=table?.tableColumn(withIdentifier:.init(definition.id))?.isHidden==false ? .on:.off;menu.addItem(item)
                 }
                 return
             }
@@ -4806,7 +4874,7 @@ struct RevisionTable: NSViewRepresentable {
                 if item.action != nil,item.target === self { item.target=target }
             }
         }
-        func menuDidClose(_ menu: NSMenu) { combineMenuTask?.cancel(); combineMenuTask = nil; combineMenuCancellation?.cancel(); combineMenuCancellation = nil; if menu !== headerMenu { (table as? HistoryTableView)?.contextReference = nil;(table as? HistoryTableView)?.contextRow=nil } }
+        func menuDidClose(_ menu: NSMenu) { if menu === headerMenu {let old=columnReceipt;DispatchQueue.main.async{[weak self] in if self?.columnReceipt === old{self?.columnReceipt=nil;old?.consumed=true}}}; combineMenuTask?.cancel(); combineMenuTask = nil; combineMenuCancellation?.cancel(); combineMenuCancellation = nil; if menu !== headerMenu { (table as? HistoryTableView)?.contextReference = nil;(table as? HistoryTableView)?.contextRow=nil } }
         private final class PushTarget: NSObject {
             let entry: LogEntry, pointedName: String?
             init(_ entry: LogEntry, pointedName: String?) { self.entry = entry; self.pointedName = pointedName }
@@ -4831,57 +4899,88 @@ struct RevisionTable: NSViewRepresentable {
         @objc func checkoutReference(_ sender: NSMenuItem) { model.requestReference(.checkout, target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func copyReferenceNames(_ sender: NSMenuItem) { model.copyReferenceNames(target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func toggleRollup() { model.toggleRollup() }
-        var columnCommandsAvailable: Bool { !model.isInvalidated && !model.busy && !model.findBlocked && !model.orderingBlocked && model.window?.attachedSheet == nil }
-        @objc func toggleColumn(_ sender: NSMenuItem) {
-            guard let id = sender.representedObject as? String,
-                let column = table?.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(id)) else { return }
-            guard columnCommandsAvailable else { return }
-            if id == "bugs" && !model.issueProperties.showsBugIDColumn || id == "graph" && model.historyWalk.followRenames || id == "svn" && !model.hasGitSVN || model.isInvalidated || model.busy || model.window?.attachedSheet != nil { return }
-            column.isHidden.toggle()
-            model.colorPreferences.set(!column.isHidden, forKey: "Log.Column.Visible." + id)
+        var columnCommandsAvailable:Bool {
+            !retired && !model.isInvalidated && !model.confirmingQuit && !model.busy && !model.findBlocked && !model.orderingBlocked && !model.referencePickerBlocked && !model.revisionColumnWorkPending && table?.window != nil && table?.window === model.window && model.window?.attachedSheet==nil && NSApp.modalWindow==nil
+        }
+        @objc private func columnCommand(_ sender:NSMenuItem) {
+            guard let command=sender.representedObject as? ColumnCommand,command.receipt.take() else{return}
+            if let id=command.id{toggleColumnID(id)}else{requestResetColumns()}
+        }
+        @objc func toggleColumn(_ sender:NSMenuItem){guard columnCommandsAvailable,let id=sender.representedObject as? String else{return};toggleColumnID(id)}
+        private func toggleColumnID(_ id:String) {
+            guard columnCommandsAvailable,id != "graph",let column=table?.tableColumn(withIdentifier:.init(id)) else{return}
+            if id=="bugs" && !model.issueProperties.showsBugIDColumn || id=="svn" && !model.hasGitSVN{return}
+            column.isHidden.toggle();columnLayoutEpoch=UUID()
+            model.colorPreferences.set(!column.isHidden,forKey:"Log.Column.Visible."+id)
+            if !column.isHidden,!adjustedColumns.contains(id){fitColumn(table!.column(withIdentifier:column.identifier),automatic:true)}
         }
         @objc func requestResetColumns() {
-            guard columnCommandsAvailable, let window = table?.window, window.attachedSheet == nil else { return }
-            let alert = NSAlert(); alert.messageText = "Are you sure to reset columns?"
-            alert.addButton(withTitle: "Yes").keyEquivalent = "\r"
-            alert.addButton(withTitle: "No").keyEquivalent = "\u{1b}"
-            alert.beginSheetModal(for: window) { response in
-                if response == .alertFirstButtonReturn { self.resetColumns() }
+            guard let receipt=captureColumns(),let window=table?.window else{return}
+            let alert=NSAlert();alert.messageText="Are you sure to reset columns?"
+            alert.addButton(withTitle:"Yes").keyEquivalent="\r";alert.addButton(withTitle:"No").keyEquivalent="\u{1b}"
+            alert.window.alphaValue=window.alphaValue
+            // The separate receipt is checked after the actual reply and detach.
+            let owner=model
+            let question=LogRevisionColumnQuestion(owner:window,alert:alert){[weak self,owner] accepted in
+                guard let self else{owner.revisionColumnQuestionFinished();return}
+                self.columnQuestion=nil;owner.revisionColumnQuestionFinished()
+                if accepted,receipt.take(){self.resetColumns()}
             }
+            columnQuestion=question;owner.revisionColumnQuestionStarted();question.begin(present:owner.presentRevisionColumnQuestion)
         }
         @objc func resetColumns() {
-            guard columnCommandsAvailable, let table else { return }
-            updating = true; defer { updating = false; saveColumns() }
-            for (index, definition) in LogRevisionColumns.definitions.enumerated() {
-                model.colorPreferences.removeObject(forKey: "Log.Column.Visible." + definition.id)
-                let id = NSUserInterfaceItemIdentifier(definition.id)
-                guard let column = table.tableColumn(withIdentifier: id) else { continue }
-                column.isHidden = !definition.visible || definition.id == "graph" && model.historyWalk.followRenames || definition.id == "bugs" && !model.issueProperties.showsBugIDColumn || definition.id == "svn" && !model.hasGitSVN
-                column.width = definition.width
-                let current = table.column(withIdentifier: id)
-                if current != index { table.moveColumn(current, toColumn: index) }
+            guard columnCommandsAvailable,let table else{return}
+            updating=true
+            for(index,definition)in LogRevisionColumns.definitions.enumerated(){
+                model.colorPreferences.removeObject(forKey:"Log.Column.Visible."+definition.id)
+                guard let column=table.tableColumn(withIdentifier:.init(definition.id)) else{continue}
+                column.isHidden = !definition.visible || definition.id=="graph" && model.historyWalk.followRenames || definition.id=="bugs" && !model.issueProperties.showsBugIDColumn || definition.id=="svn" && !model.hasGitSVN
+                let current=table.column(withIdentifier:column.identifier);if current != index{table.moveColumn(current,toColumn:index)}
             }
+            adjustedColumns=[];columnLayoutEpoch=UUID();fitAutomaticColumns();updating=false;saveColumns()
         }
-        func tableViewColumnDidResize(_ notification: Notification) { saveColumns() }
-        func tableViewColumnDidMove(_ notification: Notification) { saveColumns() }
-        var savesColumnLayout = true
-        func saveColumns() {
-            guard savesColumnLayout, !updating, !model.isInvalidated, let table else { return }
-            model.colorPreferences.set(table.tableColumns.map { $0.identifier.rawValue }, forKey: "Log.Columns.Order")
-            model.colorPreferences.set(Dictionary(uniqueKeysWithValues: table.tableColumns.map { ($0.identifier.rawValue, Double($0.width)) }), forKey: "Log.Columns.Widths")
+        func fitColumn(_ index:Int,automatic:Bool) {
+            guard columnCommandsAvailable,let table,table.tableColumns.indices.contains(index) else{return}
+            let column=table.tableColumns[index],id=column.identifier.rawValue
+            updating=true;column.width=measuredWidth(column,includeHeader:automatic);updating=false
+            if automatic{adjustedColumns.remove(id)}else{adjustedColumns.insert(id)}
+            columnLayoutEpoch=UUID();saveColumns()
         }
-        func restoreColumns() {
-            guard savesColumnLayout, let table else { return }
-            updating = true; defer { updating = false }
-            let order = model.colorPreferences.stringArray(forKey: "Log.Columns.Order") ?? []
-            var used = Set<String>(), destination = 0
-            for name in order where used.insert(name).inserted {
-                if let current = table.tableColumns.firstIndex(where: { $0.identifier.rawValue == name }) { table.moveColumn(current, toColumn: destination); destination += 1 }
+        private func measuredWidth(_ column:NSTableColumn,includeHeader:Bool=true)->CGFloat {
+            guard let table else{return column.width}
+            let id=column.identifier.rawValue
+            if id=="graph"{return max(65,CGFloat(model.graph.map(\.width).max() ?? 1)*floor(table.rowHeight*3/4)+24)}
+            var width=includeHeader ? (column.title as NSString).size(withAttributes:[.font:NSFont.systemFont(ofSize:NSFont.systemFontSize)]).width+20 : column.minWidth
+            if id=="actions"{return max(width,5*16+14)}
+            for row in model.entries.indices {
+                guard let cell=tableView(table,viewFor:column,row:row) as? NSTableCellView,let field=cell.textField else{continue}
+                let content=id=="message" ? field.attributedStringValue.size().width : (field.stringValue as NSString).size(withAttributes:[.font:field.font ?? NSFont.systemFont(ofSize:12)]).width
+                width=max(width,content+14)
             }
-            let widths = model.colorPreferences.dictionary(forKey: "Log.Columns.Widths") ?? [:]
-            for column in table.tableColumns {
-                if let width = widths[column.identifier.rawValue] as? NSNumber, width.doubleValue.isFinite, (Double(column.minWidth)...10000).contains(width.doubleValue) { column.width = CGFloat(width.doubleValue) }
-            }
+            return min(column.maxWidth,max(column.minWidth,ceil(width)))
+        }
+        func fitAutomaticColumns(){guard let table else{return};for column in table.tableColumns where !adjustedColumns.contains(column.identifier.rawValue){column.width=measuredWidth(column)}}
+        func tableViewColumnDidResize(_ notification:Notification){
+            guard !updating,let column=notification.userInfo?["NSTableColumn"] as? NSTableColumn else{return}
+            adjustedColumns.insert(column.identifier.rawValue);columnLayoutEpoch=UUID();saveColumns()
+        }
+        func tableViewColumnDidMove(_ notification:Notification){guard !updating else{return};columnLayoutEpoch=UUID();saveColumns()}
+        var savesColumnLayout=true
+        func saveColumns(){
+            guard savesColumnLayout,!updating,!retired,!model.isInvalidated,let table else{return}
+            let prefs=model.colorPreferences
+            prefs.set(table.tableColumns.map{$0.identifier.rawValue},forKey:"Log.Columns.Order")
+            prefs.set(Array(adjustedColumns).sorted(),forKey:"Log.Columns.Adjusted")
+            prefs.set(Dictionary(uniqueKeysWithValues:table.tableColumns.filter{adjustedColumns.contains($0.identifier.rawValue)}.map{($0.identifier.rawValue,Double($0.width))}),forKey:"Log.Columns.Widths")
+        }
+        func restoreColumns(){
+            guard savesColumnLayout,let table else{return};updating=true;defer{updating=false}
+            let prefs=model.colorPreferences,order=prefs.stringArray(forKey:"Log.Columns.Order") ?? []
+            var used=Set<String>(),destination=0
+            for name in order where used.insert(name).inserted {if let current=table.tableColumns.firstIndex(where:{$0.identifier.rawValue==name}){table.moveColumn(current,toColumn:destination);destination += 1}}
+            let widths=prefs.dictionary(forKey:"Log.Columns.Widths") ?? [:]
+            adjustedColumns=Set(prefs.stringArray(forKey:"Log.Columns.Adjusted") ?? Array(widths.keys))
+            for column in table.tableColumns{if adjustedColumns.contains(column.identifier.rawValue),let width=widths[column.identifier.rawValue] as? NSNumber,width.doubleValue.isFinite,(Double(column.minWidth)...10000).contains(width.doubleValue){column.width=CGFloat(width.doubleValue)}}
         }
         @objc func showContainingReferences() { if !model.busy, model.selected.count == 1, let revision = model.revision { model.onShowContainingReferences?(revision.hash) } }
         @objc func browseRepository() { if let revision = model.revision { model.onBrowseRepository?(revision.hash) } }

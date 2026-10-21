@@ -4486,3 +4486,13 @@ repairs are recorded. Passed unrelated groups were not repeated. All ten receive
 attempts are independently absent. No new capture or installed activation was
 performed. Physical Services, signed grants, minimum-OS/Intel, keyboard/VoiceOver,
 complete source/layout parity, hosted CI and App Store distribution remain open.
+
+## Main dialog controls continuation
+
+The connected Commit, Log and Settings continuation addresses source form
+commands and metadata ownership, revision-list column fitting and owned header
+questions, and direct Colors appearance transactions with compact native groups.
+[Scope and remaining work](PRIMARY-DIALOG-CONTROLS-PARITY.md) distinguish these
+changes from complete dialog parity. The
+[grouped checkpoint record](qa/primary-dialog-controls-2026-10-21.json) reports
+actual validation scope and failures after implementation freezes.

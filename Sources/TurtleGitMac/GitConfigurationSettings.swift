@@ -382,15 +382,10 @@ struct GitConfigurationSettingsPage: View {
     }
     var body: some View {
         let identity=model.editorIdentity
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             GroupBox("Config source") {
-                HStack {
-                    ForEach(Array(GitConfigurationSource.allCases.enumerated()),id:\.offset) {index,source in
-                        if index>0 {Text(index==1 ? "|":"<<").foregroundStyle(.secondary)}
-                        BaseRadio(title:source.rawValue,selected:model.source==source) {
-                            guard model.acceptsSourceSelection(identity) else {return};model.load(source)
-                        }.frame(height:24).disabled(source == .local && !model.localAvailable)
-                    }
+                SettingsSourceChoices(values:GitConfigurationSource.allCases,selected:model.source,title:{$0.rawValue},available:{$0 != .local || model.localAvailable}) {source in
+                    guard model.acceptsSourceSelection(identity) else{return};model.load(source)
                 }.padding(8).disabled(model.busy || !model.isActive)
             }
             if let source=model.loadingSource {Text("Loading "+source.rawValue+" configuration…").font(.caption).foregroundStyle(.secondary)}
@@ -448,7 +443,8 @@ struct GitConfigurationSettingsPage: View {
                     Button("Apply", action: model.apply).disabled(!model.editable || !model.changed)
                 }
             }
-        }.padding(20)
+        }.padding(16)
+        .groupBoxStyle(SourceSettingsGroupBoxStyle())
         .background(GitConfigurationWindowProbe(model: model,owner:presentation).frame(width: 0, height: 0))
         .settingsParticipant("git", page: .git, value: model.draft, modified: { model.changed },
             validate: { model.repository == nil ? "Choose a repository or global configuration." : nil },
