@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-21",
+  "repository": "jfk-solutions/turtle-git-mac",
+  "run": 39518002141,
+  "job": 118957465736,
+  "commit": "62330c51",
+  "source": "Authoritative GitHub workflow job log",
+  "conclusion": "failure",
+  "core": {
+    "tests": 2504,
+    "skipped": 2,
+    "failed_assertions": 3,
+    "failed_methods": [
+      "CommitPatchTests.testStagingStatesIgnoreAmbiguousRenamePairing",
+      "CommitPatchTests.testWholeFileStagingRetainsBothRenameSidesAndUnrelatedIndex"
+    ],
+    "elapsed_seconds": 2881.759
+  },
+  "svn_runtime": "success",
+  "diagnosis": "Fresh status lookup overwrites retained rename sides during whole-file stage/unstage. Preserve captured rename paths while maintaining fresh conflict classification. Relevant source is unchanged at db7740f7.",
+  "repair_status": "Open; no passing current hosted claim.",
+  "bounded_local_log": "build/qa/ci-62330c51-job118957465736-failures.log",
+  "latest_observed": {
+    "commit": "db7740f7",
+    "macos_run": 39524368550,
+    "status": "in_progress",
+    "pages_run": 39524368521,
+    "pages_conclusion": "success"
+  }
+}

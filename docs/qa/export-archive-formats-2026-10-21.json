@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-21",
+  "implementation_baseline": "db7740f7",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected Export archive formats and filename inference, native save filter/default suffix/exact output grant, captured revision/scope and overwrite, worker/picker/question/progress ownership, native completion controls and retired command cache.",
+  "source": [
+    "ENG.rc3954 IDS_ARCHIVEFILEFILTER ZIP/TAR/TAR GZIP/All Files",
+    "ExportDlg.cpp FileOpenSave default zip extension and existing-file confirmation",
+    "AppUtils.cpp1074 archive --output with no forced format"
+  ],
+  "validation": {
+    "tests_during_implementation": false,
+    "core": {
+      "initial_log": "build/qa/export-formats-core-2026-10-21.log",
+      "initial_methods": 10,
+      "initial_passed": 9,
+      "initial_failure": "macOS unzip Unicode member extraction Illegal byte sequence; independent oracle repaired to BSD libarchive tar under explicit UTF-8 locale, retaining all magic/content/scope/attribute/mode/symlink assertions.",
+      "focused_log": "build/qa/export-formats-core-unicode-repair-2026-10-21.log",
+      "focused_methods": 1,
+      "focused_exit": 0,
+      "distinct_methods_passed": 10,
+      "engine": "/usr/bin/git"
+    },
+    "app": {
+      "initial_log": "build/qa/export-formats-build-2026-10-21.log",
+      "initial_exit": 0,
+      "repair_log": "build/qa/export-formats-build-ownership-repair-2026-10-21.log",
+      "repair_exit": 0,
+      "repair": "Peer review found reentrant picker and progress presentation after owner retirement; added narrow owner/Quit guards and invalidated abandoned results.",
+      "diagnostics": "Existing actor warnings, simulator mismatch and contradictory failed-command-with-exit-zero diagnostics retained; actual current objects passed receiver freshness/linking."
+    },
+    "native": {
+      "initial_log": "build/qa/export-formats-native-2026-10-21.log",
+      "initial_exit": 0,
+      "cases": [
+        "formats",
+        "chooser",
+        "ownership"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "distinct_case_engine_pairs_passed": 6,
+      "scope": "Actual archives with Python zipfile/tarfile independent exact-member/byte oracles; custom/default suffixes, source save popup and delegate, one-use late chooser/overwrite/Quit, captured scope/revision, actual native split menu/Space and one-use reveal, real cancellation process/workspace cleanup, metadata and child drain, cached owner retirement.",
+      "focused_log": "build/qa/export-formats-native-ownership-repair-2026-10-21.log",
+      "focused_exit": 0,
+      "focused_pairs": 2,
+      "focused_scope": "Same ownership cases plus actual synchronous parent retirement inside Branch/Commit picker configuration and original onProgress callback, asserting no late sheets/commands or source mutation.",
+      "diagnostics": "AppKit logs zero-size split-view layout during immediately retired hidden Log construction; no physical layout certification."
+    },
+    "localizations": {
+      "languages": 38,
+      "keys": 1308,
+      "check": "passed"
+    },
+    "help": {
+      "documents": 49,
+      "topics": 51,
+      "files": 69,
+      "check": "passed"
+    },
+    "receivers": {
+      "pids": [
+        77251,
+        77376,
+        77462,
+        77521,
+        77586,
+        77682,
+        78224,
+        78364
+      ],
+      "independently_confirmed_absent": true
+    },
+    "privacy": "Private repositories/preferences/pasteboards/injected responses and invisible/offscreen windows; owned process groups reaped by runner.",
+    "captures": [
+      "docs/site/assets/export-archive-options-light.png",
+      "docs/site/assets/export-archive-options-dark.png",
+      "docs/site/assets/export-archive-result-light.png",
+      "docs/site/assets/export-archive-result-dark.png"
+    ],
+    "captures_reviewed": true,
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "pending_control_reviews": 85,
+      "mapped_controls": 1574
+    },
+    "website": {
+      "documents": 402,
+      "unresolved_fragments": 0,
+      "initial_test_invocation": "System Python lacks markdown_it; re-invoked using existing site-venv.",
+      "link_tests": 2,
+      "check": "passed"
+    }
+  },
+  "ci": {
+    "failed_run": 39518002141,
+    "failed_commit": "62330c51",
+    "failures": "Three assertions in two CommitPatch rename staging methods; source repair remains open.",
+    "latest_observed_run": 39524368550,
+    "latest_commit": "db7740f7",
+    "status": "in_progress",
+    "pages_run": 39524368521,
+    "pages_status": "success"
+  },
+  "remaining": [
+    "Signed exact save grants/replacement workspace and atomic replacement on deployment volumes",
+    "Physical Save/Finder, keyboard and VoiceOver acceptance",
+    "Complete upstream dialog state/layout and full port parity",
+    "Minimum-version/Intel installed workflows and current full hosted CI"
+  ]
+}

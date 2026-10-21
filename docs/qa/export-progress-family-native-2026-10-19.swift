@@ -3,8 +3,10 @@ import AppKit
 import TurtleGitCore
 
 private final class ArchiveFinalizationGate:@unchecked Sendable {
-    private let condition=NSCondition();private var entered=false,released=false
+    private let condition=NSCondition();private var entered=false,released=false,archive:URL?
     var waiting:Bool{condition.lock();defer{condition.unlock()};return entered && !released}
+    var output:URL?{condition.lock();defer{condition.unlock()};return archive}
+    func command(_ invocation:GitCommandInvocation){condition.lock();defer{condition.unlock()};if let argument=invocation.arguments.first(where:{$0.hasPrefix("--output=")}){archive=URL(fileURLWithPath:String(argument.dropFirst(9)))}}
     func hold(){condition.lock();entered=true;condition.broadcast();while !released{condition.wait()};condition.unlock()}
     func release(){condition.lock();released=true;condition.broadcast();condition.unlock()}
 }
@@ -20,7 +22,7 @@ struct ExportProgressFamilyVerification {
             try original.write(to:destination)
             let gate=ArchiveFinalizationGate();defer{gate.release()}
             let model=ExportProgressWindowModel(repository:repo,access:nil,outputAccess:nil,revision:"HEAD",directory:"",destination:destination,preferences:prefs)
-            model.outputClipboard=clipboard;model.beforeFinalization={gate.hold()}
+            model.outputClipboard=clipboard;model.runArchive={token,emit,command,finished in try await repo.archiveRevision("HEAD",to:destination,cancellation:token,onOutput:emit,onCommand:{invocation in gate.command(invocation);command(invocation)},onCommandFinished:finished,beforeFinalization:{gate.hold()})}
             let parent=F.parent(),owner=ExportProgressWindowController(model:model)
             F.attach(owner.window,to:parent);defer{owner.close();parent.close()}
             var closed=0,explored=0,abandoned=0
@@ -29,7 +31,7 @@ struct ExportProgressFamilyVerification {
             model.start();try F.require(model.hasPendingWork,"Export start did not synchronously reserve work")
             try await F.wait("Archive receipt did not precede held finalization"){gate.waiting && model.commandFinished}
             try F.require(model.commandSucceeded && model.busy && model.hasPendingWork && !model.success && (try Data(contentsOf:destination))==original,"Export finalized destination or workflow before actual finalization")
-            try F.require(model.output.hasPrefix(repo.executable.path+" --literal-pathspecs -C '"+repo.root.path+"' archive --format=zip "),"Archive preamble omitted actual scoped command: \(model.output.debugDescription)")
+            try F.require(model.output.hasPrefix(repo.executable.path+" --literal-pathspecs -C '"+repo.root.path+"' archive "),"Archive preamble omitted actual scoped command: \(model.output.debugDescription)")
             try await F.output(owner.window,text:model.output,range:model.completionRange,percentage:model.percentage,success:true,preferences:prefs,clipboard:clipboard)
             try F.require(!(model.output as NSString).substring(with:model.completionRange!).contains(" ms @ "),"Export ignored private hidden timings")
             model.explore();try F.require(explored==0,"Explore escaped actual pending finalization")
@@ -49,7 +51,8 @@ struct ExportProgressFamilyVerification {
                 try await F.wait("Explore did not wait for actual close/detach once"){closed==1 && explored==1 && parent.attachedSheet==nil && ExportProgressWindowController.activeReleases==0}
                 try F.require(abandoned==0,"Successful Export was reported abandoned")
             }
-            try F.require(try !FileManager.default.contentsOfDirectory(atPath:repo.root.path).contains{$0.hasPrefix(".TurtleGitArchive-")},"Export left temporary archive after finalization")
+            guard let temporary=gate.output else{throw NSError(domain:"ExportQA",code:1,userInfo:[NSLocalizedDescriptionKey:"Actual archive staging filename missing"])}
+            try F.require(temporary.lastPathComponent==destination.lastPathComponent && !FileManager.default.fileExists(atPath:temporary.path) && !FileManager.default.fileExists(atPath:temporary.deletingLastPathComponent().path),"Export left actual owned staging archive/workspace after finalization")
         }
         try await verifyCancellation(repo:repo,preferences:prefs,clipboard:clipboard)
         try await verifyOptionsExplore(repo:repo,preferences:prefs,clipboard:clipboard)

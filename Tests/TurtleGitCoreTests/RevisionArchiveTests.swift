@@ -4,8 +4,14 @@ import XCTest
 private final class ArchiveOutputCapture: @unchecked Sendable {
     private let lock = NSLock()
     private var bytes = Data()
+    private var temporaryFiles:[URL]=[]
     func append(_ chunk: GitOutputChunk) { lock.lock(); defer { lock.unlock() }; bytes.append(chunk.data) }
     var text: String { lock.lock(); defer { lock.unlock() }; return String(decoding: bytes, as: UTF8.self) }
+    func command(_ command:GitCommandInvocation) {
+        lock.lock();defer{lock.unlock()}
+        if let argument=command.arguments.first(where:{$0.hasPrefix("--output=")}) {temporaryFiles.append(URL(fileURLWithPath:String(argument.dropFirst("--output=".count))))}
+    }
+    var files:[URL] {lock.lock();defer{lock.unlock()};return temporaryFiles}
 }
 
 final class RevisionArchiveTests: XCTestCase {
@@ -34,7 +40,8 @@ final class RevisionArchiveTests: XCTestCase {
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         try Data("dirty".utf8).write(to: root.appendingPathComponent(folder + "/binary"))
         let scoped = root.appendingPathComponent("scoped.zip")
-        _ = try await repo.archiveRevision("archive-tag", directory: folder, to: scoped)
+        let staging=ArchiveOutputCapture()
+        _ = try await repo.archiveRevision("archive-tag", directory: folder, to: scoped,onCommand:{staging.command($0)})
         let names = String(decoding: try unzip(scoped, ["-Z1"]), as: UTF8.self)
         XCTAssertTrue(names.contains("binary\n")); XCTAssertFalse(names.contains(folder)); XCTAssertFalse(names.contains("private"))
         let extract = root.appendingPathComponent("extracted")
@@ -48,7 +55,7 @@ final class RevisionArchiveTests: XCTestCase {
         XCTAssertEqual((try FileManager.default.attributesOfItem(atPath: extract.appendingPathComponent("run.sh").path)[.posixPermissions] as? NSNumber)?.intValue, 0o755)
         let whole = root.appendingPathComponent("whole.zip")
         let capture = ArchiveOutputCapture()
-        let verbose = try await repo.archiveRevision(to: whole, onOutput: { capture.append($0) })
+        let verbose = try await repo.archiveRevision(to: whole, onOutput: { capture.append($0) },onCommand:{staging.command($0)})
         XCTAssertEqual(capture.text, verbose)
         XCTAssertTrue(capture.text.contains("/binary"))
         XCTAssertFalse(capture.text.contains(head), "Internal revision/metadata commands do not enter the progress output")
@@ -59,6 +66,8 @@ final class RevisionArchiveTests: XCTestCase {
         let after = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
         XCTAssertEqual(after, head)
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(folder + "/binary"), encoding: .utf8), "dirty")
+        XCTAssertEqual(staging.files.count,2)
+        for file in staging.files {XCTAssertFalse(FileManager.default.fileExists(atPath:file.path));XCTAssertFalse(FileManager.default.fileExists(atPath:file.deletingLastPathComponent().path))}
     }
     func testFailuresCancellationAndBareArchivePreserveDestination() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture()
@@ -82,9 +91,11 @@ final class RevisionArchiveTests: XCTestCase {
         _ = try await repo.run(["clone", "--bare", "--", root.path, bareRoot.path])
         let bare = GitRepository(root: bareRoot)
         do { _ = try await bare.archiveRevision(to: bareRoot.appendingPathComponent("output.zip")); XCTFail("Bare metadata accepted") } catch {}
-        _ = try await bare.archiveRevision(to: output)
+        let staging=ArchiveOutputCapture()
+        _ = try await bare.archiveRevision(to: output,onCommand:{staging.command($0)})
         XCTAssertNotEqual(try Data(contentsOf: output), original)
         XCTAssertFalse(try unzip(output, ["-Z1"]).isEmpty)
-        XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: root.path).contains { $0.hasPrefix(".TurtleGitArchive-") })
+        XCTAssertEqual(staging.files.count,1)
+        for file in staging.files {XCTAssertFalse(FileManager.default.fileExists(atPath:file.path));XCTAssertFalse(FileManager.default.fileExists(atPath:file.deletingLastPathComponent().path))}
     }
 }

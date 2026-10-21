@@ -171,3 +171,32 @@ actual validation attempts. The atomic sibling/rename behavior remains a macOS
 adaptation. Physical Finder reveal, rendered dialog geometry/themes, keyboard/
 VoiceOver, signed repository/destination grants, hosted CI and complete port
 acceptance require separate evidence.
+
+## Archive formats, source chooser and ownership — October 21, 2026
+
+Pinned `IDD_EXPORT`, `ExportDlg.cpp` and `CAppUtils::Export` remain the source.
+`IDS_ARCHIVEFILEFILTER` (ENG.rc3954) offers ZIP, TAR, TAR GZIP and All Files.
+Browse passes that filter and the default `zip` extension to FileOpenSave.
+AppUtils1074 executes archive with the selected output filename and no forced
+format. The previous native ZIP-only chooser and Core `--format=zip` therefore
+missed source behavior and could write ZIP bytes under a TAR filename.
+
+This connected batch preserves the complete chosen basename inside an owned,
+same-volume Foundation replacement workspace and delegates format inference to
+Git. It covers ordinary formats, configured archive suffixes and Git's unknown
+suffix/default TAR behavior, retaining whole-project/scoped archives, attributes,
+executable modes, symlinks and existing destination preservation. The native form
+owns its default extension, save filter choices, exact output grant and captured
+revision/scope; Core's direct API follows its supplied filename without adding
+an extension. See [Git archive format selection](https://git-scm.com/docs/git-archive).
+
+Save-panel and overwrite callbacks must be one-use captured form decisions.
+Metadata and revision-picker reads, actual panel/question detach and Git/archive
+work must retain the owner and its grants through cancellation, Quit and forced
+closure. Native completion actions preserve the producing destination and wait
+for actual child release before Show in Finder. Retired cached owners cannot be
+reopened as new submissions.
+
+The [dated grouped checkpoint](qa/export-archive-formats-2026-10-21.json) records ten distinct Core methods passing across the initial run and one repaired Unicode extraction oracle, plus six native case/engine pairs. Peer review found two reentrant late-presentation gaps; after the narrow production repair, only the affected ownership case was repeated with both Git engines and passed. All eight receivers are absent. Four complete light/dark options/result captures were reviewed. The Debug build passes with recorded toolchain diagnostics; this is not a clean hosted SDK claim.
+
+Signed save grants/replacement-directory behavior on deployment volumes, physical picker/keyboard/VoiceOver, complete source state/layout and hosted integration acceptance remain open.

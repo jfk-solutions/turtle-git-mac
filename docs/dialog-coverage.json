@@ -2067,6 +2067,7 @@
       ],
       "qa_records": [
         "docs/qa/dialog-geometry-2026-10-08.json",
+        "docs/qa/export-archive-formats-2026-10-21.json",
         "docs/qa/export-progress-2026-10-08.json",
         "docs/qa/export-progress-2026-10-10.json",
         "docs/qa/export-version-pickers-2026-10-11.json",

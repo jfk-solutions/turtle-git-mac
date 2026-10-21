@@ -5,8 +5,8 @@ Log menu, with TortoiseGit's original Export icon. It is available in bare
 repositories too; stash entries do not offer it. A selected tag is preferred
 as the initial revision, otherwise the selected commit hash is used.
 
-The native Export window follows upstream `IDD_EXPORT`: **Export Zip File**
-with a destination field and file picker, **Revision** with HEAD, Branch, Tag
+The native Export window follows upstream `IDD_EXPORT`: an archive destination
+field and file picker, **Revision** with HEAD, Branch, Tag
 and Commit choices, reference browsing and a Log commit picker, then **Whole
 Project**, OK, Cancel and Help. HEAD includes the current branch name. The
 Whole Project control is checked and disabled for a repository-root export.
@@ -18,7 +18,20 @@ The shell position follows upstream, after Create Tag.
 A file-scoped Log exports the whole repository, matching upstream's directory
 check. Native branch/tag popup controls share the other revision dialogs.
 
-OK exports a ZIP using `git archive`. It reads the chosen revision, rather
+The save chooser offers ZIP, TAR, TAR GZIP and All Files, matching the source
+archive filter. Choose a filename appropriate to the archive you want. Explicit
+suffixes are preserved, including configured Git archive formats; All Files does
+not restrict you to a three-format whitelist. ZIP remains the ordinary default
+for a filename without a supplied extension.
+
+OK asks Git to export the format selected by that filename. ZIP, `.tar` and
+`.tar.gz` produce their respective formats. Other suffixes follow the installed
+Git configuration; an unrecognized suffix uses Git's default TAR format. Renaming
+a resulting archive afterward does not convert its contents. A configured archive
+writer can fail if its required command is unavailable; read the result before
+continuing.
+
+Export reads the chosen revision, rather
 than dirty working files or staged contents. Git handles `export-ignore`,
 `export-subst`, executable modes and symlinks. Directory exports run from the
 selected directory so Git removes the directory prefix and keeps the commit
@@ -26,7 +39,9 @@ metadata used for substitution. Submodule contents follow Git archive behavior;
 this command does not recursively archive checked-out submodule repositories.
 
 An existing file requires Replace confirmation. The archive is produced in a
-unique temporary file and only replaces the destination after Git succeeds.
+private replacement workspace on the destination volume, retaining the chosen
+basename so Git can infer its format. It only replaces the destination after Git
+succeeds.
 Failures and cancellation preserve an existing archive; temporary files are
 removed. Export owns a separate native progress sheet with live verbose output,
 source completion colors and **Close** / **Abort** controls. Abort cancels the
@@ -39,10 +54,14 @@ late overwrite answer cannot start an archive after the options owner closes.
 See [Export parity](EXPORT-PARITY.md) for progress and cancellation evidence.
 
 The destination picker retains its security-scoped lease for the operation.
+Save and overwrite responses belong to the captured form and are consumed once.
+Changing the form, Quit or closing its owner rejects a late response. Closing
+retains actual metadata, picker, question and archive work until it has drained.
 The AppStore configuration requires a grant for the exact chosen output file
 and a retained repository grant. A typed alternate path requires a new picker
-grant. Signed sandbox execution, including creation of the adjacent temporary
-archive under a save-panel grant, remains **unverified**. No App Store readiness
+grant. Signed sandbox execution, including creation of the replacement workspace and
+atomic replacement under a save-panel grant on deployment volumes, remains
+**unverified**. No App Store readiness
 is claimed by the unsigned build.
 
 ## Evidence and limits
@@ -79,10 +98,10 @@ active Export operation or attached sheet so a pending archive is not abandoned.
 ## Selected historical files
 
 Saving or exporting selected historical files from Log, Compare or Repository
-Browser is a different workflow from ZIP Export. It pins the selected objects
+Browser is a different workflow from revision archive Export. It pins the selected objects
 and uses the GetOneFile backend captured when the action starts. The source
 default applies libgit2 checkout filters and configured smudge commands; disabling
 that backend reads raw blob bytes. Failed required filters preserve an existing
 output. Browser drag and file promises keep their captured choice through later
 receiver delivery. See [historical-file materialization](LIBGIT2-TRANSPORT.md#opening-and-exporting-historical-files)
-for filter settings and remaining engine limits. ZIP behavior above is unchanged.
+for filter settings and remaining engine limits. Archive behavior above is unchanged.

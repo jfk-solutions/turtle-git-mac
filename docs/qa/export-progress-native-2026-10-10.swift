@@ -69,7 +69,7 @@ import TurtleGitCore
             #!/bin/sh
             if [ "${4-}" = archive ]; then
               for task_arg in "$@"; do
-                case "$task_arg" in --output=*) printf 'partial zip' > "${task_arg#--output=}";; esac
+                case "$task_arg" in --output=*) printf 'partial zip' > "${task_arg#--output=}"; printf '%s\\n' "${task_arg#--output=}" > "$0.archive-output";; esac
               done
               /bin/sleep 30 &
               task_child=$!
@@ -110,7 +110,8 @@ import TurtleGitCore
                 try require(owner.progress == nil && result.cancelled && !result.success && result.output == frozen && !result.confirmingCancellation, "Forced close reaps before unlocking, fences late output and confirmation")
                 try await wait { pids.allSatisfy { kill($0, 0) != 0 } }
                 try require(try Data(contentsOf: target) == original, "Forced close preserves prior ZIP")
-                try require(try FileManager.default.contentsOfDirectory(atPath: root.path).allSatisfy { !$0.hasPrefix(".TurtleGitArchive-") }, "No partial ZIP remains")
+                let temporary=URL(fileURLWithPath:try String(contentsOf:URL(fileURLWithPath:helper.path+".archive-output")).trimmingCharacters(in:.newlines))
+                try require(temporary.lastPathComponent==target.lastPathComponent && !FileManager.default.fileExists(atPath:temporary.path) && !FileManager.default.fileExists(atPath:temporary.deletingLastPathComponent().path),"No actual partial archive/staging workspace remains")
                 try FileManager.default.removeItem(at: marker)
             }
             let pendingOwner = ExportWindowModel(repository: repository, access: nil, preferences: prefs)

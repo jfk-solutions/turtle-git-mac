@@ -244,7 +244,8 @@ import TurtleGitCore
         if PushWindowModel.activePreparationReads > 0 || PushWindowModel.activePushWorkflows > 0 || FetchWindowModel.activePreparationReads > 0 { return .terminateCancel }
         if sender.windows.compactMap({$0.delegate as? CloneProgressWindowController}).contains(where:{$0.model.fileActionBusy}) || sender.windows.compactMap({$0.delegate as? FetchProgressWindowController}).contains(where:{$0.model.fileActionBusy}) {return .terminateCancel}
         if FetchWindowModel.activeProgressOperations > 0 || FetchWindowController.activeProgressReleases > 0 { return .terminateCancel }
-        if StashSaveProgressWindowModel.activeOperations > 0 || ExportProgressWindowModel.activeOperations > 0 || ExportProgressWindowController.activeReleases > 0 { return .terminateCancel }
+        if sender.windows.compactMap({ $0.delegate as? ExportWindowController }).contains(where: { $0.activeOperation }) { return .terminateCancel }
+        if StashSaveProgressWindowModel.activeOperations > 0 || ExportWindowModel.activeOperations > 0 || ExportWindowController.activeReleases > 0 || ExportProgressWindowModel.activeOperations > 0 || ExportProgressWindowController.activeReleases > 0 { return .terminateCancel }
         if MergeProgressWindowModel.activeOperations > 0 || MergeWindowController.activeChildReleases > 0 { return .terminateCancel }
         if SwitchProgressWindowModel.activeOperations > 0 || SwitchWindowController.activeChildReleases > 0 || ResetProgressWindowModel.activeOperations > 0 || ResetWindowController.activeChildReleases > 0 || BisectWindowController.activeChildReleases > 0 { return .terminateCancel }
         if StatisticsWindowModel.activeOperations > 0 || StatisticsWindowController.activeExports > 0 || sender.windows.compactMap({ $0.delegate as? StatisticsWindowController }).contains(where: { $0.model.hasSheet }) { return .terminateCancel }

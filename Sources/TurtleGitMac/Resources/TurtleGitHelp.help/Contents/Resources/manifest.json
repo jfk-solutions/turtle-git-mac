@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "f89bd432f23252851614c2ad77995875f71f0f77d892136e8b8a871a478bbc37",
+    "Contents/Info.plist": "bf5e51d9ba6ed585a08dd38bc2f39ec493918b2396ca646f309091b7b4af7c92",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BISECT.html": "c94bc39b7cf56afa6cd774a6758bb3994864256ec1ba6a85a3d47d820963b1ec",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "01d9789d13afd9ece8aac7c7a97615b55f0e9e37f5211445b613f67b4d166d39",
@@ -40,7 +40,7 @@
     "Contents/Resources/en.lproj/REPOSITORY-FOLDER-ACCESS.html": "59829c1115b39d308b85deee00e46b4efc63c1a969cc46f9bf9a45fe32b99ff0",
     "Contents/Resources/en.lproj/REVERT-COMMIT.html": "59e8b803cb9eb0a879538520d982c941edb9a84a273ea134cb374cdf0f7dae65",
     "Contents/Resources/en.lproj/REVERTING-FILES.html": "cf14ad5e3a5ab5406edc82b07487a2fb3019801f4c5a1a00a61fb5455e558207",
-    "Contents/Resources/en.lproj/REVISION-EXPORT.html": "36968f08ee55fe4565413d1211d4c13b89d3f8b31b30d2cc863ef20ea8c14e2e",
+    "Contents/Resources/en.lproj/REVISION-EXPORT.html": "ab362f73e49117e170240d0a06681c4d48334bb183e3576f04e07eab9033d906",
     "Contents/Resources/en.lproj/REVISION-GRAPH.html": "5bfb79b40abc4c42c9c1717c08783e30cc311d6c7f6a39b9f79ac3f81ed26c8d",
     "Contents/Resources/en.lproj/SAVE-AS-TARGETS.html": "6741aa854a92d8ab43b9694238f2b70073e03fa84dc262cda148511791677a00",
     "Contents/Resources/en.lproj/SAVED-DATA.html": "a12e071bb8898ae7d5bd3cf962545279e31332d274a5e9e6fa0356478b256601",
@@ -108,7 +108,7 @@
     "docs/REPOSITORY-FOLDER-ACCESS.md": "7b1c9d356076ac1403878f835d4017dcfd0fefeb364dd7317db22129347d4b7c",
     "docs/REVERT-COMMIT.md": "f3876bf700da4933a754e2f6b40b6c1bb2d144634182717cbc99ef29bd84b879",
     "docs/REVERTING-FILES.md": "d2965b300220e6cd6c946bd38b4af97ef56f07c097311d84c2782e57023e6e4a",
-    "docs/REVISION-EXPORT.md": "027e65dd806db596857bcb3644fc72245f03273e486cbf13198a46a08cc372af",
+    "docs/REVISION-EXPORT.md": "6eea546879c99ee71acb0af9389d4001c09b5dfeb42706f32963a543dd205c50",
     "docs/REVISION-GRAPH.md": "4ed3823f3fb4901f8a3427fe1becb2594ee65ce9f83ddf572100a0b96a7b5fa1",
     "docs/SAVE-AS-TARGETS.md": "f459f2e8eecf636479352dbcc36f220d4f6efec6f9f8f75c0c95e1cc3d3e19c8",
     "docs/SAVED-DATA.md": "54f11a8a0ec8a5dda818158f36dbaabe43dbbd7ba83cf141aa5f742007be0caf",

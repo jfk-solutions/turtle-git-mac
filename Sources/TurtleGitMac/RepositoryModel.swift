@@ -2694,6 +2694,7 @@ private enum TransportBatchPresentationContext {
     var revisionComparisonWindowPresentation: ((RevisionComparisonWindowController) -> Void)?
     var submoduleUpdateWindowPresentation: ((SubmoduleUpdateWindowController) -> Void)?
     var bisectWindowPresentation: ((BisectWindowController) -> Void)?
+    var exportWindowPresentation: ((ExportWindowController) -> Void)?
     var captureCommandMaterializationBackend:(()->GitLibGit2Configuration)?
     var fileComparisonPreferences: UserDefaults = .standard
     var fileComparisonQuestion: ((Int) async -> Bool)?
@@ -3608,12 +3609,17 @@ private enum TransportBatchPresentationContext {
         guard !retired, !confirmingQuit else { return }
         let defaults = preferences ?? fileComparisonPreferences
         let commandKey = repository.root.path + "\0command-export"
-        if commandLaunch, let existing = exportWindows[commandKey] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        if commandLaunch, let existing = exportWindows[commandKey] {
+            guard existing.canReuse else {
+                error = "The previous Export window is still closing. Wait for it to finish.";return
+            }
+            presentExportWindow(existing);return
+        }
         let root = repository.root
         let directory = ExportWindowModel.directoryScope(root: root, paths: paths)
         let baseKey = root.path + "\0" + revision + "\0" + directory
         let reusable = exportWindows.first { key, controller in
-            !commandLaunch && key != commandKey &&
+            !commandLaunch && key != commandKey && controller.canReuse &&
             controller.model.repository.root == repository.root && controller.model.repository.executable == repository.executable &&
             controller.model.presentationPreferences === defaults && controller.window?.attachedSheet == nil && controller.model.canReuseForRevision(revision, directory: directory)
         }
@@ -3622,7 +3628,11 @@ private enum TransportBatchPresentationContext {
         configureExportInteractions(controller, repository: repository, access: access)
         controller.onClosed = { [weak self, weak controller] in if self?.exportWindows[key] === controller { self?.exportWindows.removeValue(forKey: key) } }
         presentation?.apply(to: controller.window)
-        exportWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        exportWindows[key] = controller; presentExportWindow(controller)
+    }
+    private func presentExportWindow(_ controller:ExportWindowController) {
+        if let exportWindowPresentation {exportWindowPresentation(controller)}
+        else {controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
     }
     private func showMergeAbort(repository: GitRepository, access: RepositoryAccessLease?, commandLaunch: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }

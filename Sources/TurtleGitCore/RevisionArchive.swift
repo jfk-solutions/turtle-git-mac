@@ -9,7 +9,7 @@ public enum RevisionArchiveFailure: LocalizedError {
         switch self {
         case .revision: return "Choose a revision containing a commit or tree."
         case .directory: return "Choose an existing repository directory, or export the whole project."
-        case .destination: return "Choose a ZIP file outside Git metadata in an existing folder."
+        case .destination: return "Choose an archive file outside Git metadata in an existing folder."
         }
     }
 }
@@ -27,7 +27,7 @@ public struct RevisionArchiveCommandCompletion:Sendable {
 }
 
 extension GitRepository {
-    /// Export committed contents using Git's ZIP writer, including its archive
+    /// Export committed contents using Git's filename-selected writer, including its archive
     /// attributes, executable modes and symlink handling. The native caller owns
     /// destination access and overwrite confirmation. Failure or cancellation
     /// leaves an existing destination intact; no index or working files change.
@@ -72,9 +72,21 @@ extension GitRepository {
         if let type = try? manager.attributesOfItem(atPath: target.path)[.type] as? FileAttributeType {
             guard type == .typeRegular else { throw RevisionArchiveFailure.destination }
         }
-        let temporary = parent.appendingPathComponent(".TurtleGitArchive-" + UUID().uuidString + ".zip")
-        defer { try? manager.removeItem(at: temporary) }
-        let command=arguments+["archive","--format=zip","--output="+temporary.path,"--verbose","--end-of-options",object]
+        // Ask Foundation for a private workspace on the target's volume rather
+        // than assuming a file-scoped Save grant authorizes arbitrary siblings.
+        // Execution with a signed sandbox grant remains a deployment check.
+        let replacement = try manager.url(for:.itemReplacementDirectory,in:.userDomainMask,appropriateFor:target,create:true)
+        defer { try? manager.removeItem(at:replacement) }
+        var parentInfo=stat(),replacementInfo=stat()
+        guard stat(parent.path,&parentInfo)==0,lstat(replacement.path,&replacementInfo)==0,
+              replacementInfo.st_mode & S_IFMT == S_IFDIR,parentInfo.st_dev==replacementInfo.st_dev else {
+            throw RevisionArchiveFailure.destination
+        }
+        // Preserve the complete basename: Git recognizes configured multi-part
+        // suffixes as well as zip/tar/tar.gz. Unknown or absent suffixes retain
+        // Git's default TAR behavior; defaulting to .zip belongs to the form.
+        let temporary=replacement.appendingPathComponent(target.lastPathComponent,isDirectory:false)
+        let command=arguments+["archive","--output="+temporary.path,"--verbose","--end-of-options",object]
         try cancellation?.check()
         onCommand?(commandInvocation(command))
         let started=ProcessInfo.processInfo.systemUptime,result:GitResult

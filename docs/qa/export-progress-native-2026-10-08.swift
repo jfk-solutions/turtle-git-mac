@@ -42,7 +42,7 @@ import TurtleGitCore
         let directoryZIP = root.appendingPathComponent("directory.zip"); try FileManager.default.createDirectory(at:directoryZIP,withIntermediateDirectories:true)
         let invalidDestination = ExportWindowModel(repository:repo,access:nil,preferences:prefs); invalidDestination.load(revision:"HEAD"); try await wait { !invalidDestination.busy }; invalidDestination.destination = directoryZIP.path
         invalidDestination.onProgress = { _ in preconditionFailure("Directory started progress") }; invalidDestination.confirmOverwrite = { _ in preconditionFailure("Directory asked overwrite") }; invalidDestination.export(); try await wait { !invalidDestination.busy }
-        precondition(invalidDestination.error == "You selected a folder.\nExports are only possible to a (zip) file." && invalidDestination.progress == nil)
+        precondition(invalidDestination.error == "You selected a folder.\nChoose an archive file instead." && invalidDestination.progress == nil)
         // Existing destination No and cancellation during confirmation preserve
         // bytes and do not start a new result with a fresh cancellation token.
         let existing = root.appendingPathComponent("existing.zip"); try Data("existing bytes".utf8).write(to:existing)
@@ -55,7 +55,7 @@ import TurtleGitCore
         let failed = ExportWindowModel(repository:repo,access:nil,preferences:prefs); failed.load(revision:"no-such-revision"); try await wait { !failed.busy }; failed.destination = root.appendingPathComponent("failed.zip").path
         var failedResult:ExportProgressWindowModel?; failed.onProgress = { failedResult = $0 }; failed.export(); try await wait { failedResult?.busy == false }; precondition(!failedResult!.success && failed.busy); failedResult!.showInFinder = { _ in preconditionFailure("Failed Explore") }; failedResult!.explore(); failedResult!.close(); precondition(!failed.busy && failed.progress == nil && failed.error == nil)
         failed.target = .head; failedResult = nil; failed.export(); try await wait { failedResult?.busy == false }; precondition(failedResult!.success); failedResult!.close()
-        // Slow archive writes to Core's temporary sibling. Cancellation preserves
+        // Slow archive writes to Core's owned replacement workspace. Cancellation preserves
         // a previous destination and removes the partial temporary archive.
         let helper = root.appendingPathComponent("slow-git"), marker = URL(fileURLWithPath:helper.path+".started"), release = URL(fileURLWithPath:helper.path+".release")
         let quoted = "'" + git.path.replacingOccurrences(of:"'",with:"'\\''") + "'"
@@ -63,7 +63,7 @@ import TurtleGitCore
         #!/bin/sh
         if [ "${4-}" = archive ] && [ ! -f "$0.release" ]; then
           for task_arg in "$@"; do
-            case "$task_arg" in --output=*) printf 'partial zip' > "${task_arg#--output=}";; esac
+            case "$task_arg" in --output=*) printf 'partial zip' > "${task_arg#--output=}"; printf '%s\\n' "${task_arg#--output=}" > "$0.archive-output";; esac
           done
           /bin/sleep 30 &
           task_child=$!
@@ -79,7 +79,8 @@ import TurtleGitCore
         let pids = try String(contentsOf:marker).split(separator:" ").compactMap { Int32($0.trimmingCharacters(in:.whitespacesAndNewlines)) }; precondition(pids.count == 2)
         slow.confirmCancellation = { $0(false) }; slow.cancel(); precondition(slow.busy && !slow.cancelling)
         slow.confirmCancellation = { $0(true) }; slow.cancel(); try await wait { !slow.busy }; precondition(slow.cancelled && !slow.success && cancelledCloses == 0); try await wait { kill(pids[0],0) != 0 && kill(pids[1],0) != 0 }
-        let previous = try Data(contentsOf:existing), leftovers = try FileManager.default.contentsOfDirectory(atPath:root.path).filter { $0.hasPrefix(".TurtleGitArchive-") }; precondition(previous == unchanged && leftovers.isEmpty)
+        let previous=try Data(contentsOf:existing),temporary=URL(fileURLWithPath:try String(contentsOf:URL(fileURLWithPath:helper.path+".archive-output")).trimmingCharacters(in:.newlines))
+        precondition(previous==unchanged && temporary.lastPathComponent==existing.lastPathComponent && !FileManager.default.fileExists(atPath:temporary.path) && !FileManager.default.fileExists(atPath:temporary.deletingLastPathComponent().path))
         try FileManager.default.removeItem(at:marker); try Data().write(to:release)
         let retry = ExportProgressWindowModel(repository:slowRepo,access:nil,outputAccess:nil,revision:"HEAD",directory:"",destination:existing,preferences:prefs); await retry.run(); precondition(retry.success); let replacement = try unzip(existing,"file"); precondition(replacement == Data("root bytes\n".utf8))
         // Successful completion waits for a pending confirmation before auto-close.

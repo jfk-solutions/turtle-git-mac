@@ -3,6 +3,11 @@ import XCTest
 @testable import TurtleGitCore
 
 final class StashArchiveCommandCompletionTests:XCTestCase {
+    private final class ArchivePaths:@unchecked Sendable {
+        private let lock=NSLock();private var paths:[URL]=[]
+        func record(_ command:GitCommandInvocation) {lock.lock();defer{lock.unlock()};if let value=command.arguments.first(where:{$0.hasPrefix("--output=")}) {paths.append(URL(fileURLWithPath:String(value.dropFirst("--output=".count))))}}
+        var values:[URL] {lock.lock();defer{lock.unlock()};return paths}
+    }
     private final class Events:@unchecked Sendable {
         let lock=NSLock();private var events:[String]=[]
         func add(_ value:String){lock.lock();events.append(value);lock.unlock()}
@@ -53,12 +58,14 @@ final class StashArchiveCommandCompletionTests:XCTestCase {
         let repo=try await fixture();defer{try? FileManager.default.removeItem(at:repo.root)}
         let destination=repo.root.appendingPathComponent("export.zip"),original=Data("existing ZIP".utf8)
         for cancel in [false,true] {
-            try original.write(to:destination);let events=Events(),token=OperationCancellation()
+            try original.write(to:destination);let events=Events(),token=OperationCancellation(),paths=ArchivePaths()
             do {
                 _ = try await repo.archiveRevision(to:destination,cancellation:token,onCommand:{invocation in
+                    paths.record(invocation)
                     let arguments=invocation.arguments
-                    XCTAssertEqual(Array(arguments.prefix(5)),["--literal-pathspecs","-C",repo.root.path,"archive","--format=zip"])
-                    XCTAssertTrue(arguments[5].hasPrefix("--output="));XCTAssertEqual(Array(arguments[6...7]),["--verbose","--end-of-options"])
+                    XCTAssertEqual(Array(arguments.prefix(4)),["--literal-pathspecs","-C",repo.root.path,"archive"])
+                    XCTAssertTrue(arguments[4].hasPrefix("--output="));XCTAssertEqual(Array(arguments[5...6]),["--verbose","--end-of-options"])
+                    XCTAssertEqual(URL(fileURLWithPath:String(arguments[4].dropFirst("--output=".count))).lastPathComponent,destination.lastPathComponent)
                     events.add("command")
                 },onCommandFinished:{receipt in
                     XCTAssertTrue(receipt.success);XCTAssertFalse(receipt.cancelled);XCTAssertEqual(receipt.exitCode,0);events.add("receipt")
@@ -69,7 +76,8 @@ final class StashArchiveCommandCompletionTests:XCTestCase {
                 XCTAssertFalse(cancel);XCTAssertEqual(Array(try Data(contentsOf:destination).prefix(2)),[0x50,0x4b])
             }catch{XCTAssertTrue(cancel);XCTAssertEqual(try Data(contentsOf:destination),original)}
             XCTAssertEqual(events.values,["command","receipt","finalize"])
-            XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath:repo.root.path).contains{$0.hasPrefix(".TurtleGitArchive-")})
+            XCTAssertEqual(paths.values.count,1)
+            for file in paths.values {XCTAssertFalse(FileManager.default.fileExists(atPath:file.path));XCTAssertFalse(FileManager.default.fileExists(atPath:file.deletingLastPathComponent().path))}
         }
     }
     func testValidationDoesNotEmitRequestedCommandOrReceipt()async throws {
@@ -102,12 +110,12 @@ final class StashArchiveCommandCompletionTests:XCTestCase {
             for cancel in [false,true] {
                 try? FileManager.default.removeItem(at:ready)
                 if cancel{try Data().write(to:control)}else{try? FileManager.default.removeItem(at:control)}
-                let events=Events(),token=OperationCancellation()
+                let events=Events(),token=OperationCancellation(),paths=ArchivePaths()
                 let task=Task {
                     if family=="stash" {_ = try await wrapped.saveStash(StashSaveOptions(),cancellation:token,onCommandFinished:{receipt in
                         XCTAssertFalse(receipt.success);XCTAssertEqual(receipt.cancelled,cancel);if !cancel{XCTAssertEqual(receipt.exitCode,17)};events.add("receipt")
                     })}
-                    else {_ = try await wrapped.archiveRevision(to:repo.root.appendingPathComponent("failed.zip"),cancellation:token,onCommandFinished:{receipt in
+                    else {_ = try await wrapped.archiveRevision(to:repo.root.appendingPathComponent("failed.zip"),cancellation:token,onCommand:{paths.record($0)},onCommandFinished:{receipt in
                         XCTAssertFalse(receipt.success);XCTAssertEqual(receipt.cancelled,cancel);if !cancel{XCTAssertEqual(receipt.exitCode,17)};events.add("receipt")
                     })}
                 }
@@ -117,6 +125,10 @@ final class StashArchiveCommandCompletionTests:XCTestCase {
                 }
                 do{try await task.value;XCTFail("Controlled failed/cancelled command succeeded")}catch{}
                 XCTAssertEqual(events.values,["receipt"])
+                if family=="archive" {
+                    XCTAssertEqual(paths.values.count,1)
+                    for file in paths.values {XCTAssertFalse(FileManager.default.fileExists(atPath:file.path));XCTAssertFalse(FileManager.default.fileExists(atPath:file.deletingLastPathComponent().path))}
+                }
             }
         }
     }

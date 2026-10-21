@@ -117,6 +117,7 @@
 		36CE920A634EEDFBC16B0A9D /* IssueMessageStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0FF5AF64F32A5BA89A067E /* IssueMessageStyle.swift */; };
 		37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */; };
 		37FF0ADA08C102C423B8A3C0 /* WorktreeCreateWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D08A34234EAA3FC6585226F /* WorktreeCreateWindow.swift */; };
+		397DB4628CAFB3A7F06B6362 /* ExportCompletionControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = C28CD85DDEAAD71040E87D32 /* ExportCompletionControl.swift */; };
 		399947645BD361DF78ED305C /* CommitFileDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6550FBB1F596C99DAC65C4C3 /* CommitFileDrop.swift */; };
 		39DF8589F3A2226D095F7C2E /* GitBlame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B9BF1860CDA9AD27A0DCE2E /* GitBlame.swift */; };
 		3A74A3FA2DEEA1B3A877C24E /* UnifiedDiffAppearanceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */; };
@@ -928,6 +929,7 @@
 		C12C65B53D4E28A9F6C52DF1 /* ImageConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageConflictWindow.swift; sourceTree = "<group>"; };
 		C191EB3114FCD115254AAA17 /* SynchronizationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizationWindow.swift; sourceTree = "<group>"; };
 		C27AB4988402DE898554EF19 /* MessageCodeText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCodeText.swift; sourceTree = "<group>"; };
+		C28CD85DDEAAD71040E87D32 /* ExportCompletionControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportCompletionControl.swift; sourceTree = "<group>"; };
 		C3343365A5D1715F6611CABA /* RemoteSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSettings.swift; sourceTree = "<group>"; };
 		C3EACE61A664AC152D093BC5 /* ApplicationAssets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = ApplicationAssets.xcassets; sourceTree = "<group>"; };
 		C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileAdd.swift; sourceTree = "<group>"; };
@@ -1149,6 +1151,7 @@
 				798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */,
 				809D37BDD2634840B77F0A85 /* EmailSettings.swift */,
 				87C0F2C1B2FDC15A608AB33D /* ExcelComparisonAutomation.swift */,
+				C28CD85DDEAAD71040E87D32 /* ExportCompletionControl.swift */,
 				26B86A4879EF89058692598F /* ExportWindow.swift */,
 				C9FAB71F322A08779AD3A0E2 /* ExternalDocumentApplication.swift */,
 				BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */,
@@ -2311,6 +2314,7 @@
 				B49B1BCC7E2F02AEC5A83B12 /* DocumentationCapture.swift in Sources */,
 				B63213996B268EE2EAC9B0A6 /* EmailSettings.swift in Sources */,
 				0B1AE6815C5A43DF27BAA37A /* ExcelComparisonAutomation.swift in Sources */,
+				397DB4628CAFB3A7F06B6362 /* ExportCompletionControl.swift in Sources */,
 				C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */,
 				74428B03930CDDC53BB3AA2E /* ExternalDocumentApplication.swift in Sources */,
 				D4DC9BE706E4DFFB73154A96 /* FetchWindow.swift in Sources */,
