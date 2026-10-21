@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+The [Bisect source form and completion family](BISECT-PARITY.md#source-form-revision-picker-and-completion-ownership--october-21-2026)
+connects sorted Good/Bad choices and native focus, exact child Log end/selection
+and preferences, native source-ordered completion actions, real child/question/
+worker drainage, retired cache refusal and captured Submodule Update presentation.
+Six distinct native pairs pass across the grouped checkpoint and focused fixture
+repairs. All eight receivers are absent; four complete light/dark captures were
+reviewed. The [user guide](BISECT.md) is bundled in Help. The
+[dated checkpoint](qa/bisect-source-controls-2026-10-21.json) records actual checks
+and remaining physical, source, signed and hosted acceptance. Core was unchanged.
+
 The [Clone/Create navigation and result family](REPOSITORY-CREATION-SETUP-PARITY.md)
 connects source sticky Browse/Open, captured local/remote navigation, native form
 commands/tooltips and bounded fields, plus optional verified-bare folder artwork

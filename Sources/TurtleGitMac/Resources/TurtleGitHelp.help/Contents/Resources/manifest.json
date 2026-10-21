@@ -1,7 +1,8 @@
 {
   "files": {
-    "Contents/Info.plist": "7660c3336b38411a0739e1a815a286a64203f733f68ba1d0d615e412ba350f3b",
+    "Contents/Info.plist": "f89bd432f23252851614c2ad77995875f71f0f77d892136e8b8a871a478bbc37",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
+    "Contents/Resources/en.lproj/BISECT.html": "c94bc39b7cf56afa6cd774a6758bb3994864256ec1ba6a85a3d47d820963b1ec",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "01d9789d13afd9ece8aac7c7a97615b55f0e9e37f5211445b613f67b4d166d39",
     "Contents/Resources/en.lproj/BLAME-MENUS.html": "940fa5e112b44a1c585a13339c8d07f16d36149a2ab0a9295b31c44728f0287d",
     "Contents/Resources/en.lproj/BUNDLED-COMPARISONS.html": "ca44634f35d7a4655304e97466c657b748f9f859fb32211be67bdddcc44e92c1",
@@ -10,7 +11,7 @@
     "Contents/Resources/en.lproj/COMMIT-CHECKBOX-INDEX.html": "f4f47806604c1349e0e17a59cfe9e0c9d5eb9d6f0199b382cacb164c97780de4",
     "Contents/Resources/en.lproj/CONFLICT-IDENTITIES.html": "fceecf83506092258f348b48a3a36d150fe8fe34ee26f36e5cf84d4d96b405c7",
     "Contents/Resources/en.lproj/CREDENTIAL-SETTINGS.html": "84b759133ad2aaac15b4f566e6712ccae2ecee2daca7fcc74974bb5d9aefa033",
-    "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "88b012f20371aa1336608503d3bddff5b7e0c946cfbd311cf72d637348b3de7c",
+    "Contents/Resources/en.lproj/DIALOG-GUIDE.html": "fe36890a94a2c1115006e97f45fac25e5d06f2762303fc065020019ba2096eb3",
     "Contents/Resources/en.lproj/EXCEL-COMPARISON.html": "4e4dbf998996c02d74a4499f237017f8a14d522ba08ef3a05779f8fade1440d8",
     "Contents/Resources/en.lproj/FINDER-SERVICES.html": "15e2431b1e13b95085e1a0c3f47a1b647a51bb9ab260c36c610de75b58358230",
     "Contents/Resources/en.lproj/FINDER-STATUS-POLICY.html": "9c0652e62ee7ffd86d13bdb0d1c1fb8716fe320454a3020abb48b24a12474398",
@@ -65,11 +66,12 @@
     "Contents/Resources/en.lproj/images/ed3713977296-image-conflict-undecodable-light.png": "138d20aa5da3ab6b283e6d2d69e78639534af3cbef1a2bbbb686ab48aa3b1446",
     "Contents/Resources/en.lproj/images/f49a195c8c35-cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
     "Contents/Resources/en.lproj/images/f7856202ab6a-commit-file-groups-language-de-dark.png": "e7f075b32f6ff02494ead9db85a9da57039ad1a108cda57cadbe40c895f988ed",
-    "Contents/Resources/en.lproj/index.html": "eb93632e620b2b1f6c835076579318de2456d0a0319d3c60fe3343be38e7f842",
-    "Contents/Resources/en.lproj/topics.json": "e755d7d374299f9fbb260773d733d70ba300b45d3ca2d4a5051836fbc6e57157"
+    "Contents/Resources/en.lproj/index.html": "f1f2772a73834d0200d657bb057cce1a3b37c3fdfe20b5b6a5fb3eea52e2ed2d",
+    "Contents/Resources/en.lproj/topics.json": "c3ea03b54818d75636988467e4e7aa189356f8fb6025d018075a2445340ce9a8"
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
+    "docs/BISECT.md": "65d3e5b3a0cf096ecaea4f9c0ac6a4c87894f68049faa1d7080b70175f05d4ab",
     "docs/BLAME-FILE-OPEN.md": "fc530274644d387493d355c26fc2e40eeb6fab9dbb11fc1cf793a8ed0532ebe9",
     "docs/BLAME-MENUS.md": "e55eace28c1e75aa4d7154e0dc8807b7e2acf4dda786f90761a5d94c467ff637",
     "docs/BUNDLED-COMPARISONS.md": "d3848ab5b58eb5d23b60575e9e397aa1660c411a4e173d3181732cb36df71064",
@@ -117,7 +119,7 @@
     "docs/WORD-COMPARISON.md": "922b2e8a5f12bc40b8475bbf73cb558e87a0e692625139b3cc34502f4923663d",
     "docs/WORD-MERGE.md": "dc11fee38f848ddda8201163da223235c9adeaecfe74beaad1ff75d91ff702d7",
     "docs/ZIP-COMPARISON.md": "1fa7085d96970e6cc85ef8edb5e94f12277617d5c91614f1fd05c92362576241",
-    "docs/help-topics.json": "e755d7d374299f9fbb260773d733d70ba300b45d3ca2d4a5051836fbc6e57157",
+    "docs/help-topics.json": "c3ea03b54818d75636988467e4e7aa189356f8fb6025d018075a2445340ce9a8",
     "docs/site/assets/binary-comparison-dark.png": "13944fd1b3128d1a46cadfabc89f4245a0008a379a7b1ad18e8b77365e618c8d",
     "docs/site/assets/binary-comparison-light.png": "0dda7bddf5a03dbf5bad64e6481f89121752721f2d4bb16995f29a406f2bb04b",
     "docs/site/assets/cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",

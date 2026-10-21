@@ -139,8 +139,7 @@
     },
     {
       "id": "bisect",
-      "document": "DIALOG-GUIDE.md",
-      "fragment": "bisect"
+      "document": "BISECT.md"
     },
     {
       "id": "settings",

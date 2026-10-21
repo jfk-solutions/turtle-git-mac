@@ -455,3 +455,41 @@ A fresh Start command after a completed/Reset progress view restores empty Good
 and branch/HEAD Bad defaults; a still-open Start review keeps its edited values.
 This distinction prevents a previous search's revisions becoming defaults for a
 new source command while preserving user drafts.
+
+## Source form, revision picker and completion ownership — October 21, 2026
+
+The current batch returns to pinned `IDD_BISECTSTART` (ENG.rc1796–1810),
+`BisectStartDlg.cpp145–190` and `AppUtils.cpp3647–3698` as one connected family.
+The source ComboBoxEx resources specify `CBS_SORT`: the older branch-first/tag-second
+native ordering above was incomplete. Good and Bad retain exact reference values
+while their displayed choices use sorted ordering. Their native Form commands
+preserve the source G/B mnemonics outside text composition, with Command-Option
+shortcuts for macOS. The two-row start form remains distinct from the expanded
+output state within one owning native window.
+
+Each field's Log picker receives the captured revision as both its ending and
+selected revision, matching both SetParams arguments. It keeps the originating
+preferences and single selection, omits the working-tree row and rejects stale
+or duplicate replies. Picker dismissal and forced owner closure must wait for
+actual history reads and sheet release rather than releasing only the visible
+sheet. This complements the existing model operation accounting above.
+
+The completion control uses native split-button behavior and original source
+artwork. Its ordered choices are optional Submodule Update followed by Good,
+Bad, Skip and Reset for successful active results. Failed active results retain
+Reset. Captured completion receipts must be consumed once and refuse changed
+state, busy work, Quit and retired owners. A deferred Submodule Update must wait
+until its originating Bisect work, revision picker and questions have drained.
+Repeated classifications and cancellation recovery retain Git's real session;
+closing the UI never performs an implicit Reset or reapplies a saved stash.
+
+Six distinct native case/engine pairs pass across the grouped checkpoint and
+focused ownership fixture repairs. [Dated evidence](qa/bisect-source-controls-2026-10-21.json)
+records the initial compile error, privacy/acknowledgment fixture corrections,
+actual Git results, eight reaped receivers and four complete light/dark captures.
+Core was unchanged and not rerun. Repository entry refuses a retired same-repository
+owner while its work drains, then permits a fresh owner after release. Deferred
+Submodule Update also inherits the originating window presentation and preferences.
+The [user guide](BISECT.md) explains the native workflow.
+Physical keyboard/pickers/VoiceOver, signed Finder and minimum-version acceptance,
+complete source state/layout parity and full hosted integration remain open.

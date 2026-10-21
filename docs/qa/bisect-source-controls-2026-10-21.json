@@ -1,0 +1,135 @@
+{
+  "date": "2026-10-21",
+  "implementation_baseline": "ad405c69",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Connected Bisect source two-row sorted Good/Bad form and native focus/long-value bounds, end+selected revision Log picker/preferences, native ordered completion actions with one-use receipts/window identity, repeated real operations and owned picker/question/worker release, retired cache refusal and deferred Submodule Update presentation.",
+  "source": [
+    "IDD_BISECTSTART ENG.rc1796-1810: editable CBS_SORT Good/Bad controls, G/B mnemonics, individual Log pickers and OK/Cancel/Help.",
+    "BisectStartDlg.cpp145-190: both revision arguments passed to single-select Log, working-tree changes hidden.",
+    "AppUtils.cpp3647-3698: failed active Reset only; successful optional Submodule Update then Good/Bad/Skip/Reset."
+  ],
+  "validation": {
+    "status": "Scoped grouped native checkpoint passed after recorded compile and focused ownership fixture repairs.",
+    "tests_during_implementation": false,
+    "initial_app": {
+      "log": "build/qa/bisect-source-controls-build.log",
+      "exit": 65,
+      "failure": "New picker used nonexistent LogWindowModel.load; corrected to actual reload API."
+    },
+    "app_repair": {
+      "log": "build/qa/bisect-source-controls-build-repair.log",
+      "exit": 0,
+      "diagnostic": "Retains contradictory failed-command-with-exit-zero diagnostics, existing native warnings and CoreSimulator version mismatch. Actual app objects passed receiver source freshness and native linking; no clean hosted SDK claim."
+    },
+    "core": "Not rerun: production Core Git APIs/algorithms unchanged. Grouped native cases execute actual private Start/Good/Bad/Skip/Reset through built framework.",
+    "native": {
+      "cases": [
+        "controls",
+        "picker",
+        "ownership"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": "Actual native combo/form focus/completion menu+Space actions and ordered icons, long refs, stale Quit/context/menu; actual default Log end/selected preferences and selection, held child history read; real cancellation with worker PID reaping/session recovery/Reset, held Stash late reply, actual command-entry cache refusal/replacement after drain.",
+      "initial_log": "build/qa/bisect-source-controls-native.log",
+      "initial_case_engine_pairs_passed": 4,
+      "initial_failure": "Ownership/system reached cache routing and required BOTH alpha0 and offscreen; AppKit geometry can reposition invisible windows. Fixture changed to required invisible OR offscreen with exact privacy diagnostics. Receiver74051 reaped.",
+      "first_focused_log": "build/qa/bisect-source-controls-native-ownership-repair.log",
+      "first_focused_failure": "Cancellation had real active recovery but actual error acknowledgment sheet could already be mounted; canPerform Reset correctly refuses attached sheet. Fixture now checks real state independently, clicks actual native OK and waits detach before Reset. Receiver74351 reaped.",
+      "cleanup": "Private repository/preferences/grants and marks, injected questions/window presentation plus process-local hidden ordering, offscreen/invisible sheets and children, owned work/release counters drained; runner reaps process groups on every exit.",
+      "distinct_case_engine_pairs_passed": 6,
+      "focused_log": "build/qa/bisect-source-controls-native-ownership-final.log",
+      "focused_exit": 0
+    },
+    "localizations": {
+      "languages": 38,
+      "keys": 1310,
+      "check": "passed"
+    },
+    "help": {
+      "documents": 49,
+      "topics": 51,
+      "files": 69,
+      "check": "passed"
+    },
+    "unrelated_work_preserved": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    },
+    "receivers": {
+      "pids": [
+        73140,
+        73406,
+        73671,
+        73856,
+        74051,
+        74351,
+        74597,
+        74884
+      ],
+      "independently_confirmed_absent": true,
+      "includes_failed_attempts": true
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "not_feature_completion_percentage": true
+    },
+    "site": {
+      "build_log": "build/qa/bisect-source-controls-site.log",
+      "exit": 0,
+      "documents": 402,
+      "unresolved_fragments": [],
+      "link_log": "build/qa/bisect-source-controls-site-check.log",
+      "checks_passed": 2
+    }
+  },
+  "captures": [
+    {
+      "path": "docs/site/assets/bisect-source-options-light.png",
+      "width": 1240,
+      "height": 424,
+      "capture": "Complete actual native private-fixture window, both appearances visually reviewed."
+    },
+    {
+      "path": "docs/site/assets/bisect-source-options-dark.png",
+      "width": 1240,
+      "height": 424,
+      "capture": "Complete actual native private-fixture window, both appearances visually reviewed."
+    },
+    {
+      "path": "docs/site/assets/bisect-source-completion-light.png",
+      "width": 1320,
+      "height": 944,
+      "capture": "Complete actual native private-fixture window, both appearances visually reviewed."
+    },
+    {
+      "path": "docs/site/assets/bisect-source-completion-dark.png",
+      "width": 1320,
+      "height": 944,
+      "capture": "Complete actual native private-fixture window, both appearances visually reviewed."
+    }
+  ],
+  "remaining": [
+    "Physical keyboard/mouse/VoiceOver and complete source state/layout acceptance",
+    "Real installed Finder routes, signed security-scope renewal and minimum-version/Intel acceptance",
+    "Complete hosted integration and signed distribution/App Store acceptance"
+  ],
+  "hosted_at_checkpoint": {
+    "62330c51": {
+      "macos_run": 39518002141,
+      "status": "in_progress"
+    },
+    "ad405c69": {
+      "macos_run": 39522614248,
+      "status": "pending",
+      "pages_run": 39522614235,
+      "pages_conclusion": "success"
+    },
+    "current_complete_hosted_pass_claimed": false
+  }
+}

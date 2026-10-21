@@ -106,6 +106,7 @@ for baseline and update rules.
 - [Edit Notes parity](EDIT-NOTES-PARITY.md)
 - [Repository Browser parity audit](REPOSITORY-BROWSER-PARITY.md)
 - [Revision Export](REVISION-EXPORT.md)
+- [Finding a problem with Bisect](BISECT.md)
 - [Bisect parity](BISECT-PARITY.md)
 
 ## Repositories, branches and remote operations

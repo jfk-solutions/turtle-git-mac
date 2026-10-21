@@ -42,6 +42,7 @@
 		0E60EC4DFD35AD719021FCB2 /* FinderCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01FB406B12CA9FED59A3121 /* FinderCache.swift */; };
 		0F5692E27DE7CC5C20F31062 /* MissingStagedFileRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5223DFD2A4DD4A2D03A544FA /* MissingStagedFileRecovery.swift */; };
 		0FBFEB0FC27D3E17BE0D1C35 /* ReferenceBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338C73A7EDBB0AF3F14DD64D /* ReferenceBrowser.swift */; };
+		0FC017356C2D15AF8E170EDD /* BisectCompletionControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04CFEE59F190397D16F4D414 /* BisectCompletionControl.swift */; };
 		10817BEE6C73733AEFE13A86 /* DeleteConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = 966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */; };
 		10DEF02C4073108A457F85DC /* ReferenceBrowserWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F95A32F6B4ECD8AA7745857 /* ReferenceBrowserWindow.swift */; };
 		10EF906D8E37E89B852F673F /* MergeToolInvocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2414E7EA280472578E361D36 /* MergeToolInvocation.swift */; };
@@ -584,6 +585,7 @@
 		0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleConflictWindow.swift; sourceTree = "<group>"; };
 		03B0C481296918B051C77841 /* LogStatisticsGraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatisticsGraph.swift; sourceTree = "<group>"; };
 		0492C8BA1A8FA506ECB53A3A /* AddProgressTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProgressTable.swift; sourceTree = "<group>"; };
+		04CFEE59F190397D16F4D414 /* BisectCompletionControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BisectCompletionControl.swift; sourceTree = "<group>"; };
 		04D263E75220EBA0522F605A /* SubversionMergeDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubversionMergeDiff.swift; sourceTree = "<group>"; };
 		04D3808CD4999B158EA66D0B /* Add.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Add.swift; sourceTree = "<group>"; };
 		0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserWindow.swift; sourceTree = "<group>"; };
@@ -1118,6 +1120,7 @@
 				D16465B7DCE5BB303F553610 /* AutotextTester.swift */,
 				FBF8CAAEDB347125AFE8C0A9 /* BareRepositoryResultSetup.swift */,
 				95BD991FB21CB7C18C0CA1DE /* BinaryComparisonWindow.swift */,
+				04CFEE59F190397D16F4D414 /* BisectCompletionControl.swift */,
 				2889759BB2F79152E342606E /* BisectWindow.swift */,
 				7C3A0368920E97DF4AFA1318 /* BlameMenuCommands.swift */,
 				90FF7E1758DBA2D17D00C67C /* BlameOpenDocument.swift */,
@@ -2279,6 +2282,7 @@
 				B6DE7C8AE3A9B25FFE8B6982 /* AutotextTester.swift in Sources */,
 				1301BA2C5FE3CE34CB73318E /* BareRepositoryResultSetup.swift in Sources */,
 				B0800F27EB6F7C31065C7970 /* BinaryComparisonWindow.swift in Sources */,
+				0FC017356C2D15AF8E170EDD /* BisectCompletionControl.swift in Sources */,
 				C0DFDDFC2CEFE1853FEDEA84 /* BisectWindow.swift in Sources */,
 				C0CB11DFCDE279F6A54841FD /* BlameMenuCommands.swift in Sources */,
 				0BA99C6714D09E37A7B5E0CE /* BlameOpenDocument.swift in Sources */,

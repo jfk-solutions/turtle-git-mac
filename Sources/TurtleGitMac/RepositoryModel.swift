@@ -2693,6 +2693,7 @@ private enum TransportBatchPresentationContext {
     var synchronizationWindowPresentation: ((SynchronizationWindowController) -> Void)?
     var revisionComparisonWindowPresentation: ((RevisionComparisonWindowController) -> Void)?
     var submoduleUpdateWindowPresentation: ((SubmoduleUpdateWindowController) -> Void)?
+    var bisectWindowPresentation: ((BisectWindowController) -> Void)?
     var captureCommandMaterializationBackend:(()->GitLibGit2Configuration)?
     var fileComparisonPreferences: UserDefaults = .standard
     var fileComparisonQuestion: ((Int) async -> Bool)?
@@ -3557,17 +3558,20 @@ private enum TransportBatchPresentationContext {
     private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, sourceLog: LogWindowModel? = nil, onChanged: (() -> Void)? = nil, command: BisectCommandRequest? = nil, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
         let root = repository.root, defaults = preferences ?? fileComparisonPreferences
-        if let active = bisectWindows.values.first(where: { GitReferenceName.equal($0.model.repository.root.path, root.path) && $0.activeOperation }) {
-            active.showWindow(nil); active.window?.makeKeyAndOrderFront(nil)
+        if bisectWindows.values.contains(where: { GitReferenceName.equal($0.model.repository.root.path,root.path) && !$0.canReuse && $0.hasPendingWork }) {
+            error = "Wait for the current bisect operation to finish.";return
+        }
+        if let active = bisectWindows.values.first(where: { GitReferenceName.equal($0.model.repository.root.path, root.path) && $0.canReuse && $0.activeOperation }) {
+            presentBisectWindow(active)
             if operation != nil || command != nil { error = "Wait for the current bisect operation to finish." }
             return
         }
-        let reusable = bisectWindows.first { _, value in GitReferenceName.equal(value.model.repository.root.path, root.path) && value.model.preferences === defaults && value.window?.attachedSheet == nil }
+        let reusable = bisectWindows.first { _, value in value.canReuse && GitReferenceName.equal(value.model.repository.root.path, root.path) && value.model.preferences === defaults && value.window?.attachedSheet == nil }
         let key = reusable?.key ?? (bisectWindows[root.path] == nil ? root.path : root.path + "\0" + UUID().uuidString)
         let controller: BisectWindowController
         if let existing = reusable?.value {
             if command != nil && existing.activeOperation {
-                existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
+                presentBisectWindow(existing)
                 error = "Wait for the current bisect operation to finish."; return
             }
             controller = existing
@@ -3585,9 +3589,16 @@ private enum TransportBatchPresentationContext {
             if self.root == root { self.output = output; Task { await self.refresh() } }
         }
         let inherited = controller.model.preferences
-        controller.model.onSubmoduleUpdate = { [weak self] in self?.showSubmoduleUpdate(repository: repository, access: access, scope: [], preferences: inherited) }
+        controller.model.onSubmoduleUpdate = { [weak self,weak controller] in
+            let presentation=controller?.window.map(MergeWindowPresentation.init)
+            self?.showSubmoduleUpdate(repository:repository,access:access,scope:[],preferences:inherited,presentation:presentation)
+        }
         presentation?.apply(to: controller.window)
-        bisectWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        bisectWindows[key] = controller; presentBisectWindow(controller)
+    }
+    private func presentBisectWindow(_ controller:BisectWindowController) {
+        if let bisectWindowPresentation {bisectWindowPresentation(controller)}
+        else {controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
     }
     func configureExportInteractions(_ controller: ExportWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
         controller.configureCommitPicker = { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Find the commit that introduced a problem</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-bisect"></a><h1 id="find-the-commit-that-introduced-a-problem">Find the commit that introduced a problem</h1>
+<p>Bisect checks out revisions between a known good commit and a known bad commit.
+At each step, test the checked-out version and tell Git whether the problem is
+present. Continue until Git identifies the first bad commit, then Reset to return
+to the branch or revision where you started.</p>
+<h2 id="start-a-search">Start a search</h2>
+<p>Open <strong>Bisect start…</strong> from the repository commands. Enter <strong>Last known good</strong>
+and <strong>First known bad</strong> as commit hashes or references. Bad initially uses the
+current branch or HEAD; Good starts empty. Each field offers branch, remote branch
+and tag choices. The adjacent Log button lets you choose one commit.</p>
+<p>The Log picker opens at the field's captured revision and selects that commit.
+Choosing a commit changes only that field. Cancel preserves your draft. You can
+also start from two selected commits in Log: the first displayed selection is Bad,
+and the last is Good.</p>
+<p>Use the Form menu to focus Good or Bad with Command-Option-G or
+Command-Option-B. Source Option mnemonics remain available outside text editing.
+Press OK when both values are filled in.</p>
+<p>Bisect checks out other revisions. Commit or otherwise preserve your work first.
+If tracked changes are present, the dialog offers Abort or Stash. An accepted stash
+is kept for later; it is not automatically reapplied when the search ends.
+Untracked files are not included in that stash and can still prevent a checkout.</p>
+<h2 id="test-each-revision">Test each revision</h2>
+<p>The progress view shows command output and the revision currently being tested.
+Run the build or test that reproduces the problem, then choose the appropriate
+completion action from the split button:</p>
+<ul>
+<li><strong>Bisect good</strong> means this revision does not have the problem.</li>
+<li><strong>Bisect bad</strong> means this revision has the problem.</li>
+<li><strong>Bisect skip</strong> means you cannot test this revision reliably.</li>
+<li><strong>Bisect reset</strong> ends the search and asks Git to restore its recorded starting
+branch or revision.</li>
+</ul>
+<p>The primary button runs its displayed action; the arrow opens the available
+actions with their icons. If the checked-out revision has submodules, <strong>Submodule
+Update…</strong> is also offered. Update those submodules before testing when necessary.
+Existing searches can use custom terms; their actual terms appear in captions.</p>
+<p>Repeat after each checkout. A reported first bad commit remains part of an active
+Git bisect session until you Reset. Keep the commit hash if you want to inspect it
+in Log later.</p>
+<h2 id="failure-cancellation-and-recovery">Failure, cancellation and recovery</h2>
+<p>Read the output when a command fails. Git may already have started a session or
+checked out another revision. The dialog refreshes its state and retains Reset
+when an active session remains. A failed result does not offer another Good/Bad
+classification until recovery; do not assume failure restored the original branch.</p>
+<p>Cancel requests cancellation of the current command and may ask for confirmation.
+The window retains its active work until it has stopped. Closing a window does not
+perform a hidden Reset or discard a saved stash. Reopen Bisect to inspect an
+existing search, or choose Reset explicitly when you want to end it.</p>
+<p>Finder commands act on the current revision of the selected repository. Log
+classification commands act on the selected commit. These can be different, so
+check the selection before marking a result.</p>
+<p><a href="https://jfk-solutions.github.io/turtle-git-mac/manual/BISECT-PARITY.html">Source parity and validation</a> record the implemented behavior
+and remaining physical, accessibility, signed Finder and distribution acceptance.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>
