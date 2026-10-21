@@ -20,6 +20,7 @@ for baseline and update rules.
 
 ## Guides and project status
 
+- [Blame embedded Log presentation and interactions](BLAME-HISTORY-PRESENTATION-PARITY.md)
 - [Dragging files from revision lists](FILE-LIST-DRAG-PARITY.md)
 - [Blame rendering and attribution dates](BLAME-RENDERING-PARITY.md)
 - [Revision Graph command and hover presentation](GRAPH-PRESENTATION-PARITY.md)

@@ -13,7 +13,11 @@ import TurtleGitCore
     private(set) var findWindow: BlameFindWindowController?
     private(set) var findAlert:NSAlert?
     private var feedbackGeneration=0
-    private var columnAlert:NSAlert?
+    private(set) var columnAlert:NSAlert?
+    private var columnResetReply:((NSApplication.ModalResponse)->Void)?
+    private var columnResetRelease:Task<Void,Never>?
+    private var closing=false
+    var presentHistoryColumnReset:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Void={window,alert,reply in alert.beginSheetModal(for:window,completionHandler:reply)}
     private(set) var historyUnifiedWindows:[UUID:PatchWindowController]=[:]
     private var historyUnifiedObservations:[UUID:AnyCancellable]=[:]
     private(set) var containingReferences:[UUID:CommitContainingReferencesWindowController]=[:]
@@ -153,14 +157,23 @@ import TurtleGitCore
             }
         }
 
-        model.confirmHistoryReset={ [weak self] in
-            guard let self,let window=self.window,window.attachedSheet==nil,!self.model.retired else { return false }
-            let alert=NSAlert();alert.messageText="Reset Blame Log columns?";alert.informativeText="Restore the default columns, order and widths?";alert.addButton(withTitle:"No");alert.addButton(withTitle:"Yes");self.columnAlert=alert
-            return await withCheckedContinuation { continuation in
-                alert.beginSheetModal(for:window) { [weak self] response in
-                    if self?.columnAlert === alert { self?.columnAlert=nil }
-                    continuation.resume(returning:self?.model.retired==false && response == .alertSecondButtonReturn)
+        model.confirmHistoryReset={ [weak self,weak current] in
+            guard let self,let current,self.model === current,!self.closing,let window=self.window,window.attachedSheet==nil,!current.retired else{return false}
+            let alert=NSAlert();alert.messageText="Reset Blame Log columns?";alert.informativeText="Restore the default columns, order and widths?";alert.addButton(withTitle:"No");alert.addButton(withTitle:"Yes")
+            alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance;self.columnAlert=alert
+            return await withCheckedContinuation {continuation in
+                var answered=false
+                let reply:(NSApplication.ModalResponse)->Void={ [weak self,weak current] response in
+                    guard !answered else{return};answered=true
+                    self?.columnResetReply=nil
+                    Task { @MainActor in
+                        while alert.window.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
+                        let accepted=self?.closing==false && self?.model === current && current?.retired==false && current?.confirmingQuit==false && response == .alertSecondButtonReturn
+                        if self?.columnAlert === alert {self?.columnAlert=nil}
+                        continuation.resume(returning:accepted)
+                    }
                 }
+                self.columnResetReply=reply;self.presentHistoryColumnReset(window,alert,reply)
             }
         }
         model.onContainingReferences={ [weak self] hash in
@@ -256,10 +269,12 @@ import TurtleGitCore
     }
     func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy && !model.openingDocument && !model.resettingHistoryColumns && !hasBlockingHistoryChild }
     func windowWillClose(_ notification:Notification) {
+        guard !closing else{return};closing=true
+        let pendingColumnAlert=columnAlert
         cancelGoToLine();focusGeneration += 1
         model.onPaneLayoutChanged={};model.onPaneFloatRequested={_,_ in};retireFloatingPanes()
         feedbackGeneration += 1;openingGeneration += 1;documentOpener.cancel()
-        if let alert=columnAlert { alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.close();columnAlert=nil }
+        if let alert=columnAlert { alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.close() };columnResetReply?(.cancel)
         Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:];historyUnifiedObservations=[:]
         Array(containingReferences.values).forEach { $0.close() };containingReferences=[:]
         if let panel=openPanel { panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.close();openPanel=nil };model.openingDocument=false
@@ -268,7 +283,13 @@ import TurtleGitCore
         }
         model.searchFeedbackBusy=false
         findWindow?.close();findWindow=nil
-        model.retireSourceView?();model.retireSourceView=nil;model.onFind=nil;model.onFindFeedback=nil;model.retire();onClosed()
+        model.retireSourceView?();model.retireSourceView=nil;model.onFind=nil;model.onFindFeedback=nil;model.retire()
+        if model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil {
+            columnResetRelease=Task { [self] in
+                while model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
+                columnResetRelease=nil;onClosed()
+            }
+        } else {onClosed()}
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -278,7 +299,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
 @MainActor final class BlameWindowModel: ObservableObject {
     private(set) static var activeSyntaxRequests = 0
     let repository: GitRepository, path: String
-    let fullCommitMessageOnLogLine: Bool
+    var fullCommitMessageOnLogLine:Bool {labelDefaults.bool(forKey:"FullCommitMessageOnLogLine")}
     private let access: RepositoryAccessLease?
     var repositoryAccess:RepositoryAccessLease? { access }
     let labelDefaults: UserDefaults
@@ -301,7 +322,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     func refreshAuthorPreferences() {
         let enabled=labelDefaults.bool(forKey: "EnableGravatar");if showGravatar != enabled {showGravatar=enabled}
-        refreshAuthorImage()
+        refreshAuthorImage();objectWillChange.send()
     }
     private var attributionDates: [Date: String] = [:]
     private var attributionDateSettings: HistoryDateSettings?
@@ -378,7 +399,11 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     private var historyMenuGeneration = UUID()
     private(set) var historyHasWorkingTree = false
     private(set) var historyHead:String?
-    @Published private(set) var historyColumns:BlameHistoryColumns
+    private(set) var historyReferencesByHash:[String:[RevisionReference]]=[:]
+    private(set) var historyCurrentBranch:String?
+    private(set) var historyReferenceContext=HistoryReferenceContext()
+    private(set) var historyControlEpoch=UUID()
+    @Published private(set) var historyColumns:BlameHistoryColumns {didSet {historyControlEpoch=UUID()}}
     @Published private(set) var resettingHistoryColumns=false
     var confirmHistoryReset:() async -> Bool = { false }
     var onHistoryExport:((String)->Void)?
@@ -455,12 +480,12 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
 
     func saveHistoryColumns(_ value:BlameHistoryColumns) { guard canFind else { return };historyColumns=value;value.save(labelDefaults) }
-    func resetHistoryColumns() {
-        guard canFind else { return };let request=generation;resettingHistoryColumns=true;Self.activeHistoryOperations += 1
+    func resetHistoryColumns(layout:BlameHistoryColumns?=nil,available:@escaping()->Bool={true}) {
+        guard canFind,available() else { return };let request=generation,epoch=historyControlEpoch;resettingHistoryColumns=true;Self.activeHistoryOperations += 1
         Task { [self] in
             defer { resettingHistoryColumns=false;Self.activeHistoryOperations -= 1 }
             let accepted=await confirmHistoryReset()
-            guard !retired,request==generation,accepted else { return };historyColumns=BlameHistoryColumns();historyColumns.save(labelDefaults)
+            guard !retired,!busy,!confirmingQuit,!openingDocument,!navigationSheetPresented,!searchFeedbackBusy,!historyChildBlocked,request==generation,epoch==historyControlEpoch,available(),accepted else { return };historyColumns=layout ?? BlameHistoryColumns();historyColumns.save(labelDefaults)
         }
     }
     struct SourceTarget {
@@ -491,14 +516,14 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
 
     @Published var copyingLog = false
     @Published var snapshot: GitBlameSnapshot?
-    @Published var busy = false { didSet { refreshAuthorImage() } }
+    @Published var busy = false { didSet { if busy != oldValue {historyControlEpoch=UUID();historyMenuGeneration=UUID()};refreshAuthorImage() } }
     @Published var error: String?
     @Published var ignoreWhitespace = false
     @Published var onlyFirstParent = false
     @Published var showCompleteLog = true
     @Published var followRenames = false
     @Published var historyEntries: [LogEntry] = [] { didSet {
-        historyVersion += 1
+        historyVersion += 1;historyControlEpoch=UUID()
         tooltipEntries = Dictionary(historyEntries.map { ($0.hash, $0) }, uniquingKeysWith: { first, _ in first });refreshRevisionDetails()
     } }
     private var tooltipEntries: [String: LogEntry] = [:]
@@ -642,18 +667,18 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     @Published var matchCase = false
     @Published var navigationMessage = ""
     @Published var recentHistoryError:String?
-    @Published var openingDocument=false
+    @Published var openingDocument=false {didSet {if openingDocument != oldValue {historyControlEpoch=UUID();historyMenuGeneration=UUID()}}}
     @Published var cancellingDocument=false
     var onCancelDocumentOpen:(()->Void)?
     var onLoaded:(()->Void)?
     var onOpenDocument:(()->Void)?
     var onOpenRecent:((BlameRecentDocument)->Void)?
     var recentDocuments:BlameRecentDocuments?
-    @Published var searchFeedbackBusy=false
+    @Published var searchFeedbackBusy=false {didSet {if searchFeedbackBusy != oldValue {historyControlEpoch=UUID();historyMenuGeneration=UUID()}}}
     private(set) var retired=false
-    @Published var navigationSheetPresented = false
-    @Published var historyChildBlocked=false
-    @Published var confirmingQuit=false
+    @Published var navigationSheetPresented=false {didSet {if navigationSheetPresented != oldValue {historyControlEpoch=UUID();historyMenuGeneration=UUID()}}}
+    @Published var historyChildBlocked=false {didSet {if historyChildBlocked != oldValue {historyControlEpoch=UUID();historyMenuGeneration=UUID()}}}
+    @Published var confirmingQuit=false {didSet {if confirmingQuit != oldValue {historyControlEpoch=UUID();historyMenuGeneration=UUID()}}}
     var canFindIgnoringHistoryChild:Bool { !retired && !busy && !confirmingQuit && !navigationSheetPresented && !searchFeedbackBusy && !openingDocument && !resettingHistoryColumns }
     var canFind:Bool { !historyChildBlocked && canFindIgnoringHistoryChild }
     var onFindFeedback:((BlameFindFeedback)->Void)?
@@ -719,7 +744,6 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         marginFields = Set(BlameMarginField.allCases.filter { labelDefaults.object(forKey:"Blame." + $0.rawValue) as? Bool ?? ($0 == .author) })
         syntaxEnabled = labelDefaults.object(forKey:"Blame.EnableLexer") as? Bool ?? !NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         wrapLongLines = labelDefaults.bool(forKey:"Blame.WrapLongLines")
-        self.fullCommitMessageOnLogLine = labelDefaults.bool(forKey: "FullCommitMessageOnLogLine")
         presentation = .load(from:labelDefaults)
         let search = GitBlameFindPreferences.load(from:labelDefaults); find = search.text; matchCase = search.matchCase
         setControls(options); appliedOptions = options
@@ -784,7 +808,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     func retire() {
         retired=true;gravatar.clear();avatarIdentity=nil;avatarHash=nil;revisionDetails.update(nil,history:[]);hoveredLine=nil;tooltipEntries=[:];presentationCommandsAvailable={false};presentSourceMenu=nil;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
     }
-    func invalidate() { loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
+    func invalidate() { historyControlEpoch=UUID();loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
         guard canFind,lines.contains(where:{$0.number==number}) else {return}
         selection=number;loadParents(completion:completion)
@@ -847,15 +871,17 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
                 guard request==generation,!retired,!token.isCancelled else { return }
                 snapshot=nil;selection=nil;highlightedHash=nil;hoveredLine=nil;origins=[:];ranks=[:]
                 historyCount=0;navigationMessage="";historyEntries=[];selectedLogHashes=[]
-                issueProperties=IssueTrackerProperties();hasGitSVN=false;svnRevisions=[:];historyHasWorkingTree=false;historyHead=nil;self.error=error.localizedDescription
+                issueProperties=IssueTrackerProperties();hasGitSVN=false;svnRevisions=[:];historyHasWorkingTree=false;historyHead=nil;historyReferencesByHash=[:];historyCurrentBranch=nil;historyReferenceContext=HistoryReferenceContext();self.error=error.localizedDescription
             }
         }
     }
     func install(_ result:GitBlameSnapshot,history entries:[LogEntry],options:GitBlameOptions,details:GitBlameHistoryDetails? = nil) {
+        let decorated=Dictionary((details?.entries ?? []).map {($0.hash,$0)},uniquingKeysWith:{first,_ in first})
+        let entries=entries.map {decorated[$0.hash] ?? $0}
         let result=result.applyingDisplayIdentities(entries + (details?.tooltipEntries ?? []))
         hoveredLine=nil;tooltipOtherFilenames=result.lines.contains { $0.filename != result.path }
         issueProperties=details?.issueProperties ?? IssueTrackerProperties();hasGitSVN=details?.hasGitSVN ?? false;svnRevisions=details?.svnRevisions ?? [:]
-        historyHasWorkingTree=details?.hasWorkingTree ?? false;historyHead=details?.head;historyMenuGeneration=UUID()
+        historyHasWorkingTree=details?.hasWorkingTree ?? false;historyHead=details?.head;historyReferencesByHash=details?.referencesByHash ?? [:];historyCurrentBranch=details?.currentBranch;historyReferenceContext=details?.referenceContext ?? HistoryReferenceContext();historyMenuGeneration=UUID();historyControlEpoch=UUID()
         let hashes=entries.map(\.hash)
         ranks=Dictionary(hashes.enumerated().map { ($0.element,$0.offset) },uniquingKeysWith:min)
         origins=Dictionary(result.lines.map { ($0.hash,$0) },uniquingKeysWith:{ first,_ in first })
@@ -1387,13 +1413,13 @@ struct BlameHistoryColumns:Equatable {
     static let names=definitions.map { $0.0 }
     var visible:Set<String>,order:[String],widths:[String:Double]
     init(visible:Set<String> = Set(definitions.filter { $0.3 }.map { $0.0 }),order:[String] = names,widths:[String:Double] = [:]) {
-        self.visible=visible.intersection(Self.names).union(["message"])
-        var seen=Set<String>();self.order=(order+Self.names).filter { Self.names.contains($0) && seen.insert($0).inserted }
+        self.visible=visible.intersection(Self.names).union(["graph"])
+        var seen=Set<String>();self.order=(["graph"]+order+Self.names).filter { Self.names.contains($0) && seen.insert($0).inserted }
         self.widths=widths.filter { Self.names.contains($0.key) && $0.value.isFinite && $0.value>=24 }.mapValues { min(10000,$0) }
     }
     static func load(_ preferences:UserDefaults)->Self {
         let key="Blame.LogColumns"
-        guard preferences.integer(forKey:key+".Version")==6 else { return Self() }
+        guard [6,7].contains(preferences.integer(forKey:key+".Version")) else { return Self() }
         let widths=(preferences.dictionary(forKey:key+".Widths") ?? [:]).compactMapValues { ($0 as? NSNumber)?.doubleValue }
         let saved=Set(preferences.stringArray(forKey:key) ?? names)
         let prior=preferences.stringArray(forKey:key+".Order") ?? names
@@ -1401,7 +1427,7 @@ struct BlameHistoryColumns:Equatable {
         return Self(visible:saved.union(introduced),order:preferences.stringArray(forKey:key+".Order") ?? names,widths:widths)
     }
     func save(_ preferences:UserDefaults) {
-        let key="Blame.LogColumns";preferences.set(6,forKey:key+".Version");preferences.set(Self.names.filter { visible.contains($0) },forKey:key)
+        let key="Blame.LogColumns";preferences.set(7,forKey:key+".Version");preferences.set(Self.names.filter { visible.contains($0) },forKey:key)
         preferences.set(order,forKey:key+".Order");preferences.set(widths,forKey:key+".Widths")
     }
 }
@@ -1410,8 +1436,8 @@ struct BlameHistoryTable:NSViewRepresentable {
     @ObservedObject var model:BlameWindowModel
     func makeCoordinator()->Coordinator { Coordinator(model) }
     func makeNSView(context:Context)->NSScrollView { context.coordinator.makeView() }
-    func updateNSView(_ view:NSScrollView,context:Context) { context.coordinator.model=model;context.coordinator.update() }
-    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator) { coordinator.retired=true }
+    func updateNSView(_ view:NSScrollView,context:Context) { context.coordinator.bind(model);context.coordinator.update() }
+    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator) { coordinator.retire() }
     @MainActor final class Coordinator:NSObject,NSTableViewDataSource,NSTableViewDelegate,NSMenuDelegate {
         var model:BlameWindowModel
         weak var table:NSTableView?
@@ -1420,7 +1446,27 @@ struct BlameHistoryTable:NSViewRepresentable {
         private var historyVersion = -1
         private var layout:BlameHistoryColumns?
         private var showGraph=false
-        var available:Bool { !retired && model.canFind && table?.window?.attachedSheet==nil }
+        private var lifetime=UUID(),headerEpoch=UUID()
+        private var sheetObservers:[NSObjectProtocol]=[]
+        private var lastFont:NSFont?,lastContext=HistoryReferenceContext(),lastStyle=""
+        private var lastColors:LogColorPreferences?,lastDates:HistoryDateSettings?
+        private var styleKey:String {
+            ["FullCommitMessageOnLogLine","SymbolizeRefNames","DrawTagsBranchesOnRightSide","LogDateFormat","RelativeTimes","UseSystemLocaleForDates","DateFormat","LogFontForLogCtrl","LogFontName","LogFontSize"].map {String(describing:model.labelDefaults.object(forKey:$0))}.joined(separator:"\0")
+        }
+        var available:Bool { !retired && model.canFind && NSApp.modalWindow==nil && table?.window?.attachedSheet==nil }
+        func bind(_ next:BlameWindowModel) {
+            guard model !== next else{return}
+            table?.menu?.cancelTracking();contextRequest=UUID();contextTarget=nil;headerEpoch=UUID();lifetime=UUID()
+            model=next;entries=[];graph=[];historyVersion = -1;layout=nil;lastFont=nil
+        }
+        func retire() {
+            guard !retired else{return};retired=true;headerEpoch=UUID();lifetime=UUID();contextRequest=UUID();contextTarget=nil
+            sheetObservers.forEach {NotificationCenter.default.removeObserver($0)};sheetObservers=[]
+            table?.menu?.cancelTracking();table?.menu?.delegate=nil;table?.menu=nil
+            (table?.headerView as? BlameHistoryColumnHeader)?.buildMenu={nil}
+            if let table=table as? BlameHistoryNativeTable {table.copySelection={};table.copyAvailable={false};table.openSelection={false};table.showContext={_ in}}
+            table?.isEnabled=false;table?.target=nil;table?.doubleAction=nil;table?.action=nil;table?.delegate=nil;table?.dataSource=nil;table=nil
+        }
         init(_ model:BlameWindowModel) { self.model=model }
         func makeView()->NSScrollView {
             let table=BlameHistoryNativeTable();table.style = .plain;table.setAccessibilityLabel("Blame Log")
@@ -1431,14 +1477,27 @@ struct BlameHistoryTable:NSViewRepresentable {
             table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(openHistory)
             table.menu=NSMenu();table.menu?.delegate=self
             let header=BlameHistoryColumnHeader(frame:NSRect(x:0,y:0,width:1000,height:24));header.buildMenu={ [weak self] in self?.columnMenu() };table.headerView=header
-            table.copySelection={ [weak self] in self?.copyHistory() };table.copyAvailable={ [weak self] in guard let self else { return false };return self.available && self.model.copyWindowAvailable(self.table?.window) };table.openSelection={ [weak self] in self?.openHistory() };table.showContext={ [weak self] event in self?.showContext(event) }
+            table.copySelection={ [weak self] in self?.copyHistory() };table.copyAvailable={ [weak self] in guard let self else { return false };return self.available && self.model.copyWindowAvailable(self.table?.window) };table.openSelection={ [weak self] in self?.activateHistory() ?? false };table.showContext={ [weak self] event in self?.showContext(event) }
             self.table=table
+            for name in [NSWindow.willBeginSheetNotification,NSWindow.didEndSheetNotification] {
+                sheetObservers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] notification in
+                    MainActor.assumeIsolated {guard let self,let owner=notification.object as? NSWindow,owner === self.table?.window else{return};self.headerEpoch=UUID()}
+                })
+            }
             let scroll=NSScrollView();scroll.borderType = .bezelBorder;scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.documentView=table
             update();return scroll
         }
         func update() {
             guard !retired,let table else { return };updating=true;defer { updating=false }
-            if historyVersion != model.historyVersion || showGraph != model.showHistoryGraph {
+            let font=BlameHistoryPresentation.font(preferences:model.labelDefaults)
+            let colors=LogColorPreferences.load(model.labelDefaults),dates=HistoryDateSettings.load(defaults:model.labelDefaults)
+            let appearanceChanged=lastFont != font || lastContext != model.historyReferenceContext || lastStyle != styleKey || lastColors != colors || lastDates != dates
+            if appearanceChanged {headerEpoch=UUID()}
+            let preserveViewport=historyVersion==model.historyVersion && appearanceChanged
+            let oldOrigin=table.enclosingScrollView?.contentView.bounds.origin
+            lastFont=font;lastContext=model.historyReferenceContext;lastStyle=styleKey;lastColors=colors;lastDates=dates
+            table.rowHeight=BlameHistoryPresentation.rowHeight(preferences:model.labelDefaults)
+            if historyVersion != model.historyVersion || showGraph != model.showHistoryGraph || appearanceChanged {
                 historyVersion=model.historyVersion;entries=model.historyEntries;showGraph=model.showHistoryGraph;graph=model.historyGraph;layout=nil;table.reloadData()
             }
             if layout != model.historyColumns || table.tableColumns.first(where:{ $0.identifier.rawValue=="graph" })?.isHidden == showGraph {
@@ -1458,6 +1517,7 @@ struct BlameHistoryTable:NSViewRepresentable {
                 if let scroll=table.enclosingScrollView { var origin=scroll.contentView.bounds.origin;origin.x=horizontal;scroll.contentView.scroll(to:origin);scroll.reflectScrolledClipView(scroll.contentView) }
             }
             table.isEnabled = !retired && model.canFind;table.allowsColumnReordering=available;table.allowsColumnResizing=available
+            if preserveViewport,let oldOrigin,let scroll=table.enclosingScrollView {scroll.contentView.scroll(to:oldOrigin);scroll.reflectScrolledClipView(scroll.contentView)}
         }
         func numberOfRows(in tableView:NSTableView)->Int { entries.count }
         func text(_ id:String,_ row:Int)->String {
@@ -1480,42 +1540,74 @@ struct BlameHistoryTable:NSViewRepresentable {
         func tableView(_ tableView:NSTableView,viewFor column:NSTableColumn?,row:Int)->NSView? {
             guard entries.indices.contains(row),let column else { return nil };let entry=entries[row],id=column.identifier.rawValue
             if id=="graph",graph.indices.contains(row) { let cell=GraphCell();cell.graph=graph[row];cell.setAccessibilityLabel("\(entry.parents.count) parents, graph lane \(graph[row].column+1)");return cell }
-            let label=NSTextField(labelWithString:text(id,row));label.font=id=="hash" ? .monospacedSystemFont(ofSize:11,weight:.regular) : .systemFont(ofSize:12)
-            label.lineBreakMode = .byTruncatingTail;label.maximumNumberOfLines=1;label.toolTip=entry.message+"\n"+entry.hash;if id=="id" { label.alignment = .right }
-            let cell=NSTableCellView();cell.textField=label;cell.addSubview(label);label.translatesAutoresizingMaskIntoConstraints=false
-            NSLayoutConstraint.activate([label.leadingAnchor.constraint(equalTo:cell.leadingAnchor,constant:3),label.trailingAnchor.constraint(equalTo:cell.trailingAnchor,constant:-3),label.centerYAnchor.constraint(equalTo:cell.centerYAnchor)]);return cell
+            let font=BlameHistoryPresentation.font(preferences:model.labelDefaults,head:entry.isHead)
+            let value=attributedText(id,row)
+            let tooltip=id=="message" ? ([entry.message,entry.hash]+entry.references.map(\.name)).joined(separator:"\n") : text(id,row)
+            return BlameHistoryPresentation.cell(value:value,tooltip:tooltip,font:font,message:id=="message",alignment:id=="id" ? .right:.left)
         }
+        private func attributedText(_ id:String,_ row:Int)->NSAttributedString {
+            guard entries.indices.contains(row) else{return NSAttributedString(string:"")}
+            if id=="message" {return BlameHistoryPresentation.attributedMessage(entry:entries[row],context:model.historyReferenceContext,preferences:model.labelDefaults)}
+            return BlameHistoryPresentation.attributedCaption(text(id,row),preferences:model.labelDefaults,head:entries[row].isHead)
+        }
+
         func tableViewSelectionDidChange(_ notification:Notification) {
             guard !updating,available,let table else { return }
             let hashes=Set(table.selectedRowIndexes.compactMap { entries.indices.contains($0) ? entries[$0].hash : nil }),row=table.selectedRow
             model.focusHistory(hashes,focus:entries.indices.contains(row) ? entries[row].hash : nil)
         }
+        func tableView(_ tableView:NSTableView,shouldReorderColumn column:Int,toColumn newColumn:Int)->Bool {available && column != 0 && newColumn != 0}
         func tableViewColumnDidMove(_ notification:Notification) { saveLayout() }
         func tableViewColumnDidResize(_ notification:Notification) { saveLayout() }
         func saveLayout() {
             guard !updating,available,let table else { return }
             model.saveHistoryColumns(BlameHistoryColumns(visible:model.historyColumns.visible,order:table.tableColumns.map { $0.identifier.rawValue },widths:Dictionary(uniqueKeysWithValues:table.tableColumns.map { ($0.identifier.rawValue,Double($0.width)) })))
         }
+        private func width(_ column:NSTableColumn,includeHeader:Bool)->CGFloat {
+            let id=column.identifier.rawValue
+            let graphWidth:CGFloat=id=="graph" ? CGFloat(max(65,(graph.map(\.width).max() ?? 1)*14+24)):0
+            return BlameHistoryPresentation.fittingWidth(values:entries.indices.map {attributedText(id,$0)},header:column.title,includeHeader:includeHeader,graphWidth:graphWidth,headerFont:column.headerCell.font)
+        }
         func tableView(_ tableView:NSTableView,sizeToFitWidthOfColumn column:Int)->CGFloat {
-            guard tableView.tableColumns.indices.contains(column) else { return 24 };let value=tableView.tableColumns[column],id=value.identifier.rawValue
-            let content=entries.indices.map { (text(id,$0) as NSString).size(withAttributes:[.font:NSFont.systemFont(ofSize:12)]).width+14 }.max() ?? 24
-            let heading=NSEvent.modifierFlags.contains(.shift) ? (value.title as NSString).size(withAttributes:[.font:NSFont.systemFont(ofSize:12)]).width+20 : 0
-            return min(10000,max(24,content,heading))
+            guard tableView.tableColumns.indices.contains(column) else{return 24}
+            return width(tableView.tableColumns[column],includeHeader:NSEvent.modifierFlags.contains(.shift))
+        }
+        @MainActor private final class HeaderInvocation:NSObject {
+            let owner:ObjectIdentifier,epoch:UUID,header:UUID,lifetime:UUID,version:Int,id:String,style:String
+            var used=false
+            init(_ model:BlameWindowModel,header:UUID,lifetime:UUID,id:String,style:String) {owner=ObjectIdentifier(model);epoch=model.historyControlEpoch;version=model.historyVersion;self.header=header;self.lifetime=lifetime;self.id=id;self.style=style}
         }
         func columnMenu()->NSMenu {
+            headerEpoch=UUID()
             let menu=NSMenu();menu.autoenablesItems=false
-            let resetItem=NSMenuItem(title:"Reset columns",action:#selector(reset),keyEquivalent:"");resetItem.target=self;resetItem.isEnabled=available;menu.addItem(resetItem);menu.addItem(.separator())
-            for (id,title,_,_) in BlameHistoryColumns.definitions {
-                if id=="bugs" && !model.issueProperties.showsBugIDColumn || id=="svn" && !model.hasGitSVN { continue }
-                let item=NSMenuItem(title:title,action:#selector(toggle(_:)),keyEquivalent:"");item.target=self;item.representedObject=id;item.state=model.historyColumns.visible.contains(id) ? .on : .off
-                item.isEnabled=available && id != "message" && (id != "graph" || model.showHistoryGraph);menu.addItem(item)
+            func item(_ id:String,_ title:String,_ selector:Selector)->NSMenuItem {
+                let item=NSMenuItem(title:title,action:selector,keyEquivalent:"");item.target=self
+                item.representedObject=HeaderInvocation(model,header:headerEpoch,lifetime:lifetime,id:id,style:styleKey);item.isEnabled=available;return item
+            }
+            menu.addItem(item("reset","Reset columns",#selector(resetHeader(_:))));menu.addItem(.separator())
+            for (id,title,_,_) in BlameHistoryColumns.definitions where id != "graph" {
+                if id=="bugs" && !model.issueProperties.showsBugIDColumn || id=="svn" && !model.hasGitSVN {continue}
+                let entry=item(id,title,#selector(toggle(_:)));entry.state=model.historyColumns.visible.contains(id) ? .on:.off;menu.addItem(entry)
             };return menu
         }
-        @objc func toggle(_ sender:NSMenuItem) {
-            guard available,let id=sender.representedObject as? String,id != "message",!(id=="bugs" && !model.issueProperties.showsBugIDColumn),!(id=="svn" && !model.hasGitSVN) else { return };var value=model.historyColumns
-            if value.visible.contains(id) { value.visible.remove(id) } else { value.visible.insert(id) };model.saveHistoryColumns(value)
+        private func claimHeader(_ sender:NSMenuItem)->HeaderInvocation? {
+            guard available,let value=sender.representedObject as? HeaderInvocation,!value.used,value.owner==ObjectIdentifier(model),value.epoch==model.historyControlEpoch,value.version==model.historyVersion,value.header==headerEpoch,value.lifetime==lifetime,value.style==styleKey else{return nil}
+            value.used=true;return value
         }
-        @objc func reset() { guard available else { return };model.resetHistoryColumns() }
+        @objc func toggle(_ sender:NSMenuItem) {
+            guard let value=claimHeader(sender),value.id != "graph",BlameHistoryColumns.names.contains(value.id),!(value.id=="bugs" && !model.issueProperties.showsBugIDColumn),!(value.id=="svn" && !model.hasGitSVN) else{return}
+            var columns=model.historyColumns
+            if columns.visible.contains(value.id) {columns.visible.remove(value.id)} else {columns.visible.insert(value.id)}
+            model.saveHistoryColumns(columns)
+        }
+        @objc func resetHeader(_ sender:NSMenuItem) {guard claimHeader(sender) != nil else{return};reset()}
+        @objc func reset() {
+            guard available,let table else{return}
+            let owner=model,life=lifetime,style=styleKey
+            var value=BlameHistoryColumns()
+            value.widths=Dictionary(uniqueKeysWithValues:table.tableColumns.map {($0.identifier.rawValue,Double(width($0,includeHeader:true)))})
+            model.resetHistoryColumns(layout:value,available:{[weak self,weak owner] in guard let self,let owner else{return false};return !self.retired && self.model === owner && self.lifetime==life && self.styleKey==style})
+        }
         private var contextTarget:BlameWindowModel.HistoryTarget?
         private var contextRequest=UUID()
         func showContext(_ event:NSEvent) {
@@ -1612,13 +1704,16 @@ struct BlameHistoryTable:NSViewRepresentable {
                 }
             }
         }
-        @objc func openHistory() {
-            guard available,model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog"),let target=model.historyTarget(selected),target.entries.count==1,model.historyContextMenuPolicy.contains(.comparePrevious) else { return }
-            let alternate=ComparisonToolInvocation.capture
+        @objc func openHistory() {_ = activateHistory()}
+        @discardableResult func activateHistory()->Bool {
+            let selectedHashes=selected.map(\.hash)
+            guard available,model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog"),let first=selected.first,let target=model.historyTarget([first]),model.historyContextMenuPolicy.contains(.comparePrevious) else{return false}
+            let alternate=ComparisonToolInvocation.capture,life=lifetime
             model.prepareHistoryParents(target) { [weak self] choices in
-                guard let self,self.available,self.model.acceptsHistory(target),Set(self.selected.map(\.hash))==Set(target.entries.map(\.hash)),let first=choices.map(\.parentNumber).min() else { return }
-                self.model.performHistoryParent(target,choices:choices.filter { $0.parentNumber==first },action:.compare,alternate:alternate)
+                guard let self,self.available,self.lifetime==life,self.model.acceptsHistory(target),self.selected.map(\.hash)==selectedHashes,let first=choices.map(\.parentNumber).min() else{return}
+                self.model.performHistoryParent(target,choices:choices.filter {$0.parentNumber==first},action:.compare,alternate:alternate)
             }
+            return true
         }
         @objc func showLog() { guard available,selected.count==1,let entry=selected.first else { return };model.onLog?(model.path,entry.hash) }
         @objc func copyHistory() {
@@ -1632,7 +1727,8 @@ struct BlameHistoryTable:NSViewRepresentable {
     }
 }
 @MainActor final class BlameHistoryNativeTable:NSTableView,NSMenuItemValidation {
-    var copySelection:()->Void = {},openSelection:()->Void = {}
+    var copySelection:()->Void = {}
+    var openSelection:()->Bool = {false}
     var copyAvailable:()->Bool = {false}
     var ownsCopyFocus:Bool {isEnabled && copyAvailable() && window?.firstResponder === self}
     private var canCopy:Bool {ownsCopyFocus && !selectedRowIndexes.isEmpty}
@@ -1643,7 +1739,7 @@ struct BlameHistoryTable:NSViewRepresentable {
         guard isEnabled else { return nil };let row=row(at:convert(event.locationInWindow,from:nil));guard row>=0 else { return nil }
         if !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false) };menu?.update();return menu
     }
-    override func keyDown(with event:NSEvent) { if BlameWindowController.routeCommandKey(event,from:window) {return};if isEnabled,event.keyCode==109,event.modifierFlags.contains(.shift) { showContext(event);return };if isEnabled,event.keyCode==36 || event.keyCode==76 { openSelection();return };super.keyDown(with:event) }
+    override func keyDown(with event:NSEvent) { if BlameWindowController.routeCommandKey(event,from:window) {return};if isEnabled,event.keyCode==109,event.modifierFlags.contains(.shift) { showContext(event);return };if isEnabled,(event.keyCode==36 || event.keyCode==76),!event.modifierFlags.contains(.control),ComparisonToolInvocation.$alternate.withValue(event.modifierFlags.contains(.shift),operation:{openSelection()}) {return};super.keyDown(with:event) }
     override func performKeyEquivalent(with event:NSEvent)->Bool {
         if ownsCopyFocus,event.modifierFlags.intersection([.command,.control,.option]) == .command,event.charactersIgnoringModifiers?.lowercased()=="c" { if canCopy{copySelection()};return true };return super.performKeyEquivalent(with:event)
     }

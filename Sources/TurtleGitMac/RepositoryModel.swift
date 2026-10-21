@@ -3335,7 +3335,8 @@ private enum TransportBatchPresentationContext {
         let key=baseKey+(commandLaunch || (blameWindows[baseKey].map { $0.model.labelDefaults !== defaults } ?? false) ? UUID().uuidString:"")
         var recentFailure:String?
         if blameRecentDocuments==nil { do { blameRecentDocuments=try BlameRecentDocuments.production() } catch { recentFailure="Recent files could not be loaded: "+error.localizedDescription } }
-        let controller=blameWindows[key] ?? BlameWindowController(repository:repository,access:access,path:path,revision:revision,options:options ?? GitBlamePreferences.load(from:defaults),preferences:defaults,recentDocuments:blameRecentDocuments)
+        let reusable=blameWindows[key].flatMap {$0.model.retired ? nil:$0}
+        let controller=reusable ?? BlameWindowController(repository:repository,access:access,path:path,revision:revision,options:options ?? GitBlamePreferences.load(from:defaults),preferences:defaults,recentDocuments:blameRecentDocuments)
         controller.model.recentHistoryError=recentFailure
         configureBlameRoutes(controller)
         controller.onClosed={ [weak self,weak controller] in guard let self,let controller else { return };self.blameWindows=self.blameWindows.filter { $0.value !== controller } }

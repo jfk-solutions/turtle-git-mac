@@ -94,3 +94,38 @@ link blob even when its working file is a regular surrogate.
 
 See [source comparison and scoped evidence](SYMLINK-BLAME-PARITY.md) for the
 actual grouped checkpoint and remaining physical/signed acceptance.
+
+## Reading the embedded Log
+
+The Log pane shows the file's revision history. Colored labels identify local
+branches, remotes, tags and other references, using the same colors as the main
+Log. The current branch has its own color, annotated tags have a pointed label,
+and the repository's HEAD revision is bold. These values belong to the loaded
+history snapshot; Reload refreshes them after references change. Labels do not
+add unrelated commits to the file's history.
+
+The Log font preference applies to this pane when **LogFontForLogCtrl**
+is enabled in Advanced settings. The font comes from the message-editor font
+settings. Rows grow with that font. This is
+independent of the source/annotation font and the source's temporary zoom.
+Multiline control characters use visible one-line substitutes in list captions;
+tooltips and Copy retain the original text.
+
+Use the column header menu to show or hide metadata columns. Graph visibility
+follows the complete-log/follow-renames mode and cannot be changed independently
+in that menu. Message can be hidden. Column order, visibility and widths are
+saved for Blame separately from the main Log. **Reset columns** asks before
+restoring source defaults and fitting the current contents and headers. Fitting
+the Message column includes its reference labels.
+
+When **Diff by double-click in log** is enabled, Return or a double-click compares
+the first selected revision with its first available parent. Multiple selection
+keeps the other selected revisions highlighted. Shift chooses the alternate
+comparison tool. Control-Return keeps its normal native handling. Parent menus
+retain their explicit parent choices and historical filenames.
+
+Header actions and delayed comparisons retain their originating document and
+selection. Replacing or closing that document retires those actions rather than
+applying them to the newly opened file. See the [embedded Log source comparison](BLAME-HISTORY-PRESENTATION-PARITY.md)
+for the implemented scope, grouped checkpoint and remaining physical/signed
+acceptance.

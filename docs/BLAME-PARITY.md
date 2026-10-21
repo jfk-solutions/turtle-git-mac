@@ -1467,3 +1467,8 @@ source selection and viewport; actual content/font/wrap/width changes reflow.
 Attribution dates now share configured Log date policy and matching column
 measurement. The family record distinguishes implementation from its grouped
 validation and remaining physical/signed/full-port acceptance.
+
+
+## Embedded Log reference presentation and controls — October 21, 2026
+
+The [connected embedded Log family](BLAME-HISTORY-PRESENTATION-PARITY.md) adds captured all-reference/tracking and HEAD state, shared colored/pointed labels, configured fonts and adaptive rows, single-line captions with raw tooltips, source Graph/Message visibility and migrated layouts, decorated content-fit Reset, guarded header callbacks and first-selected activation. It also drains actual Reset ownership across document replacement and closure. The family records its grouped checkpoint and remaining physical/signed/full-port acceptance separately. Earlier missing-label/font/column descriptions are superseded by this continuation.

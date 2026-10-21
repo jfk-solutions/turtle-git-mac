@@ -78,4 +78,33 @@ Git path. A checkout with <code>core.symlinks=false</code> can still display the
 link blob even when its working file is a regular surrogate.</p>
 <p>See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SYMLINK-BLAME-PARITY.html">source comparison and scoped evidence</a> for the
 actual grouped checkpoint and remaining physical/signed acceptance.</p>
+<h2 id="reading-the-embedded-log">Reading the embedded Log</h2>
+<p>The Log pane shows the file's revision history. Colored labels identify local
+branches, remotes, tags and other references, using the same colors as the main
+Log. The current branch has its own color, annotated tags have a pointed label,
+and the repository's HEAD revision is bold. These values belong to the loaded
+history snapshot; Reload refreshes them after references change. Labels do not
+add unrelated commits to the file's history.</p>
+<p>The Log font preference applies to this pane when <strong>LogFontForLogCtrl</strong>
+is enabled in Advanced settings. The font comes from the message-editor font
+settings. Rows grow with that font. This is
+independent of the source/annotation font and the source's temporary zoom.
+Multiline control characters use visible one-line substitutes in list captions;
+tooltips and Copy retain the original text.</p>
+<p>Use the column header menu to show or hide metadata columns. Graph visibility
+follows the complete-log/follow-renames mode and cannot be changed independently
+in that menu. Message can be hidden. Column order, visibility and widths are
+saved for Blame separately from the main Log. <strong>Reset columns</strong> asks before
+restoring source defaults and fitting the current contents and headers. Fitting
+the Message column includes its reference labels.</p>
+<p>When <strong>Diff by double-click in log</strong> is enabled, Return or a double-click compares
+the first selected revision with its first available parent. Multiple selection
+keeps the other selected revisions highlighted. Shift chooses the alternate
+comparison tool. Control-Return keeps its normal native handling. Parent menus
+retain their explicit parent choices and historical filenames.</p>
+<p>Header actions and delayed comparisons retain their originating document and
+selection. Replacing or closing that document retires those actions rather than
+applying them to the newly opened file. See the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/BLAME-HISTORY-PRESENTATION-PARITY.html">embedded Log source comparison</a>
+for the implemented scope, grouped checkpoint and remaining physical/signed
+acceptance.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

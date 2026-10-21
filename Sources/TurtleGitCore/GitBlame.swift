@@ -284,6 +284,11 @@ public struct GitBlameHistoryDetails:Sendable {
     public let svnRevisions:[String:String]
     public var hasWorkingTree:Bool = false
     public var head:String? = nil
+    /// ReloadHashMap captures every ref, independently of the path-filtered
+    /// visible rows. Full names remain distinct from shortened label captions.
+    public var referencesByHash:[String:[RevisionReference]] = [:]
+    public var currentBranch:String? = nil
+    public var referenceContext:HistoryReferenceContext = .init()
     public static func prepare(entries:[LogEntry],issueProperties:IssueTrackerProperties,hasGitSVN:Bool,regexExecutable:URL? = nil,cancellation:OperationCancellation? = nil) throws -> Self {
         var decorated=entries,svn:[String:String]=[:]
         for start in stride(from:0,to:entries.count,by:128) {
@@ -307,7 +312,7 @@ public struct GitBlameHistoryDetails:Sendable {
 
 extension GitRepository {
     public func blameHistoryDetails(_ snapshot:GitBlameSnapshot,options:GitBlameOptions,cancellation:OperationCancellation? = nil,regexExecutable:URL? = nil) throws -> GitBlameHistoryDetails {
-        let entries=try blameHistory(snapshot,options:options,cancellation:cancellation)
+        var entries=try blameHistory(snapshot,options:options,cancellation:cancellation)
         let visibleHashes=Set(entries.map(\.hash))
         let missingLines=snapshot.lines.filter { !visibleHashes.contains($0.hash) }
         var tooltipEntries:[LogEntry]=[]
@@ -326,10 +331,37 @@ extension GitRepository {
         if bytes.last==10 { bytes.removeLast() }
         guard let path=String(data:bytes,encoding:.utf8),path.hasPrefix("/"),!path.contains("\0") else { throw GitBlameFailure.format }
         let svn = !bare && FileManager.default.fileExists(atPath:URL(fileURLWithPath:path).appendingPathComponent("svn/.metadata").path)
+        // FillGitLog -> ReloadHashMap uses the same complete ref metadata as
+        // ordinary Log, including recursively peeled annotated tags.
+        let objects = try historyReferenceObjects(cancellation:cancellation)
+        let terms = objects.contains { $0.name.hasPrefix("refs/bisect/") }
+            ? try historyBisectTerms(cancellation:cancellation) : HistoryBisectTerms()
+        let headResult = try run(["rev-parse","--verify","--quiet","HEAD^{commit}"],successfulExitCodes:0...1,cancellation:cancellation)
+        let head = headResult.exitCode == 0 ? headResult.text.trimmingCharacters(in:.newlines) : nil
+        let branchResult = try run(["symbolic-ref","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:cancellation)
+        let symbolic = branchResult.exitCode == 0 ? branchResult.text.trimmingCharacters(in:.newlines) : nil
+        let branch = symbolic.flatMap { $0.utf8.starts(with:"refs/heads/".utf8) ? $0 : nil }
+        var references:[String:[RevisionReference]] = [:]
+        for object in objects {
+            try cancellation?.check()
+            let short = HistoryReferenceLabel.shortName(object.name,terms:terms)
+            let annotated = object.peeled != nil && object.name.utf8.starts(with:"refs/tags/".utf8)
+            references[object.target,default:[]].append(RevisionReference(name:object.name,
+                isCurrent:branch.map { GitReferenceName.equal($0,object.name) } ?? false,
+                kind:annotated ? .annotatedTag : short.kind,displayName:short.text))
+        }
+        func decorate(_ input:LogEntry)->LogEntry {
+            var entry=input;entry.references=references[entry.hash] ?? [];entry.isHead=entry.hash==head;return entry
+        }
+        entries=entries.map(decorate);tooltipEntries=tooltipEntries.map(decorate)
         var details = try GitBlameHistoryDetails.prepare(entries:entries,issueProperties:properties,hasGitSVN:svn,regexExecutable:regexExecutable,cancellation:cancellation)
         details.tooltipEntries = tooltipEntries
         details.hasWorkingTree = !bare
-        details.head = try run(["rev-parse","--verify","HEAD"],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+        details.head = head
+        details.currentBranch = branch
+        details.referencesByHash = references
+        details.referenceContext = try historyReferenceContext(cancellation:cancellation)
+        try cancellation?.check()
         return details
     }
 }

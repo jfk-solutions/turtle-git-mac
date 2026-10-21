@@ -1,0 +1,219 @@
+{
+  "date": "2026-10-21",
+  "family": "Blame embedded Log presentation and interactions",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Shared all-ref peeling/classification, current branch, HEAD and remote/tracking metadata in loaded Blame details",
+    "Visible and tooltip-origin decoration without adding unrelated rows",
+    "Shared source-colored/pointed/tracking Log badge painter; HEAD font emphasis",
+    "Captured private Log font and live style/date/color preference refresh, adaptive rows and viewport/selection retention",
+    "Safe single-line captions with raw metadata tooltips/copy semantics",
+    "Source Graph constraints and optional Message, saved v6 layout normalization and v7 persistence",
+    "Actual decorated-content/header fitting through owned Reset No/Yes",
+    "Captured one-use header owner/document/style/layout receipts; explicit coordinator rebinding and full callback retirement",
+    "First-selected Return/double-click with event Shift capture; Control-Return follows native handling",
+    "Same-window File Open ownership, retired-cache avoidance and drained reset confirmation closure"
+  ],
+  "source_hashes": {
+    "Sources/TurtleGitCore/GitBlame.swift": "21ab611c5549dba036d13ae43926623f3dfb37bb488c603682bbdaef1a7cbaf3",
+    "Sources/TurtleGitMac/BlameHistoryPresentation.swift": "a3fa2ffea8a1f313eb74cd95fd3e91e63d5ea955b45dddb66131cf0945af2f51",
+    "Sources/TurtleGitMac/BlameWindow.swift": "5a376075ea199e5a5a72796b0fb959f255b372369be92db43e0089e6864ac122",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "f575537e1b43e9392e6279e16172793fab4d7ae543ef2ddfde5c3bdede18d646",
+    "Tests/TurtleGitCoreTests/GitBlameReferenceMetadataTests.swift": "62e83a7e9f167dedde137b420e61efa88bb3c7f8af9e575978b3874aab1d3f4c",
+    "docs/qa/blame-history-presentation-native-2026-10-21.swift": "5edbb650c9a9764094dfcd1b0b2b6cde52bfd3de4c67f8256cda6d9e87b3272d",
+    "scripts/test-blame-history-presentation.py": "294003354080b388bf3ce73771affa2235a177c862b6c94b98030971495473e3"
+  },
+  "core": {
+    "command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 TURTLEGIT_CORE_ONLY=1 swift test --jobs 4 --filter 'GitBlameReferenceMetadataTests|GitBlameTests|BlameReadCancellationTests'",
+    "exit_code": 0,
+    "passed_methods": 25,
+    "new_reference_metadata_methods": 4,
+    "existing_blame_methods": 20,
+    "existing_read_cancellation_methods": 1,
+    "skipped": 0,
+    "git": "/usr/bin/git",
+    "elapsed_tests_seconds": 23.259,
+    "log": "build/qa/blame-history-presentation-core-2026-10-21.log",
+    "full_core_suite_run": false
+  },
+  "debug": {
+    "exit_code": 0,
+    "signing_allowed": false,
+    "log": "build/qa/blame-history-presentation-build-2026-10-21.log",
+    "diagnostics": [
+      "Existing simulator SDK mismatch and command-exited-zero/no-output diagnostics retained; actual build session exited zero"
+    ],
+    "native_receiver_cache": "Current app objects/modules/frameworks/compiler/settings linked with freshness guards; native fixtures compiled separately"
+  },
+  "native": {
+    "passed_distinct_case_engine_pairs": 5,
+    "functional_pairs": 4,
+    "cases": [
+      {
+        "case": "presentation",
+        "git": "/usr/bin/git",
+        "passed": true
+      },
+      {
+        "case": "ownership",
+        "git": "/usr/bin/git",
+        "passed": true
+      },
+      {
+        "case": "presentation",
+        "git": "build/git-runtime/Git/bin/git",
+        "passed": true
+      },
+      {
+        "case": "ownership",
+        "git": "build/git-runtime/Git/bin/git",
+        "passed": true
+      },
+      {
+        "case": "captures",
+        "git": "/usr/bin/git",
+        "passed": true
+      }
+    ],
+    "logs": [
+      "build/qa/blame-history-presentation-native-migration-2026-10-21.log",
+      "build/qa/blame-history-presentation-native-owned-layout-2026-10-21.log",
+      "build/qa/blame-history-presentation-native-bundled-2026-10-21.log",
+      "build/qa/blame-history-presentation-native-captures-final-2026-10-21.log"
+    ],
+    "assertions": [
+      "Actual native message cells retain independent current/local/tag/tracking colors and pointed annotated tags",
+      "Actual HEAD and ordinary fonts, source-independent log font changes and row-height updates",
+      "Raw U2028 message tooltip and escaped single-line caption",
+      "Private saved v6 widths/order/visibility and v7 Message hide/re-show; Graph absent from visibility menu",
+      "Actual native Reset No preserves and Yes fits decorated contents",
+      "Actual Shift-Return compares first selected revision while retaining multi-selection; Control-Return does not activate",
+      "Actual same-window File Open retires old owner/header/table callbacks",
+      "Force-close with actual injected held sheet delays onClosed until Reset/sheet drain, ignores duplicate late Yes",
+      "HEAD/index/source preserved"
+    ],
+    "receiver_pids": [
+      92001,
+      92089,
+      92141,
+      92255,
+      92351,
+      92409,
+      92505,
+      92617
+    ],
+    "independently_present_after_cleanup": [],
+    "ownership": "Private repositories/preferences/pasteboards where needed; hidden/offscreen functional windows; deliberate single-window capture; actual owned close/drain paths on success/failure"
+  },
+  "failed_or_excluded_attempts": [
+    {
+      "log": "build/qa/blame-history-presentation-native-2026-10-21.log",
+      "case": "System presentation",
+      "cause": "Fixture saved order omitted Bug/SVN IDs, invoking established introduced-column migration",
+      "repair": "Seed a complete realistic v6 saved column order; retain exact visibility/order/width assertions",
+      "production_changed": false
+    },
+    {
+      "log": "build/qa/blame-history-presentation-native-migration-2026-10-21.log",
+      "case": "System ownership after presentation passed",
+      "result": "SIGTRAP/EXC_BREAKPOINT in AppKit layout; owned crash report PID92141 inspected",
+      "cause": "Fixture directly mutated order with duplicate IDs, bypassing normal BlameHistoryColumns normalization",
+      "repair": "Construct canonical layout through normal initializer; unchanged production passed",
+      "production_changed": false
+    },
+    {
+      "log": "build/qa/blame-history-presentation-native-captures-2026-10-21.log",
+      "case": "First capture case",
+      "result": "Receiver passed but visual review excluded both images because third row was partly clipped",
+      "repair": "Use real roomier split dividers, populate selected Properties and require full final-row containment; repeat only capture case",
+      "production_changed": false
+    }
+  ],
+  "captures": [
+    {
+      "path": "docs/site/assets/blame-history-presentation-light.png",
+      "width": 2560,
+      "height": 1764,
+      "bytes": 860959,
+      "sha256": "e39ad9f5bead2f985d60323748d8b4e281307579e35bb1cfbb48e107384c5e27",
+      "reviewed": true,
+      "source": "SCShareableContent.currentProcess + SCScreenshotManager desktopIndependentWindow",
+      "appearance": "light"
+    },
+    {
+      "path": "docs/site/assets/blame-history-presentation-dark.png",
+      "width": 2560,
+      "height": 1764,
+      "bytes": 969988,
+      "sha256": "038a704005dd51a4a2825be6af2a6660cd28d3722f6e6e0076c5c00e241aba00",
+      "reviewed": true,
+      "source": "SCShareableContent.currentProcess + SCScreenshotManager desktopIndependentWindow",
+      "appearance": "dark"
+    }
+  ],
+  "capture_layout": {
+    "log_font": "Menlo 16",
+    "columns": [
+      "Graph",
+      "ID",
+      "Message",
+      "Author",
+      "Date"
+    ],
+    "saved_message_first_metadata_layout": true,
+    "real_pane_dividers_enlarged": true,
+    "all_three_rows_visible": true,
+    "properties_populated": true,
+    "inactive_chrome_and_native_metadata_truncation": true,
+    "default_layout_or_full_physical_certification": false
+  },
+  "resources": {
+    "localizations": {
+      "check_exit_code": 0,
+      "languages": 38,
+      "keys": 1308,
+      "new_literal_labels": false
+    },
+    "help": {
+      "write_exit_code": 0,
+      "check_exit_code": 0,
+      "documents": 49,
+      "topics": 51,
+      "files": 69
+    },
+    "source_ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1574,
+      "pending_control_reviews": 85,
+      "feature_percentage": null
+    },
+    "website": {
+      "documents": 405,
+      "unresolved_fragments": [],
+      "build_exit_code": 0,
+      "link_tests_passed": 2,
+      "render_completed_before_tests": true,
+      "new_gallery_captures": 2,
+      "logs": [
+        "build/qa/blame-history-presentation-site-2026-10-21.log",
+        "build/qa/blame-history-presentation-site-tests-2026-10-21.log"
+      ]
+    }
+  },
+  "remaining": [
+    "Physical pointer/header tracking and modifier behavior, VoiceOver and all font/locale combinations",
+    "Physical minimum-version/Intel and complete Blame window/menu/source acceptance",
+    "Signed Finder/App Store repository grants, real external handoffs and distribution acceptance",
+    "Complete current hosted macOS integration pass",
+    "Full TortoiseGit/companion application parity"
+  ],
+  "not_claimed": [
+    "Full Core suite or hosted CI pass",
+    "Physical signed Finder/App Store acceptance",
+    "All source windows or whole port complete",
+    "No regression claim for the cached-receiver registry beyond static source review and actual reset-retirement checks"
+  ]
+}
