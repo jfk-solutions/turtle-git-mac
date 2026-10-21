@@ -123,3 +123,8 @@ The retained launch fixture's delayed tree read and protected checkout wrappers
 now match the `-c core.precomposeunicode=false` prefix before `ls-tree`/`checkout`.
 The waits still require the actual helper to start, and the read cancellation and
 protected-write close/drain assertions are retained.
+
+
+## Captured file drag delivery — October 21, 2026
+
+The [revision-list drag family](FILE-LIST-DRAG-PARITY.md) adds target-revision delivery through native row item providers while retaining the existing columns, selection and menus. Captured paths, backend preferences and access leases survive source-window replacement or closure. The family records actual grouped validation and remaining physical/signed acceptance.

@@ -263,7 +263,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     private(set) static var activeFileOperations = 0
     let preferences: UserDefaults
     var captureMaterializationBackend:(()->GitLibGit2Configuration)?
-    private func materializationBackend()->GitLibGit2Configuration {captureMaterializationBackend?() ?? .load(from:preferences)}
+    func materializationBackend()->GitLibGit2Configuration {captureMaterializationBackend?() ?? .load(from:preferences)}
     var confirmManyDiffs: ((Int) async -> Bool)?
     var openComparedFile: ((RevisionComparisonSnapshot, CommitFile) -> Void)?
     private var comparisonSessions: [UUID: FileListComparisonSession] = [:]
@@ -625,11 +625,21 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         guard !closed,!busy,!files.isEmpty,snapshot != nil else{return nil}
         return FileMenuContext(generation:actionGeneration,epoch:fileMenuEpoch,owner:menuOwner,from:from,to:to,options:options,files:files)
     }
-    func claimFileMenu(_ context:FileMenuContext?)->Bool {
+    func claimFileMenu(_ context:FileMenuContext?, consume:Bool=true)->Bool {
         guard let context,!context.consumed,!closed,!busy,!confirmingQuit,window?.attachedSheet==nil,
               context.owner==menuOwner,context.epoch==fileMenuEpoch,!resettingColumns,context.generation==actionGeneration,context.from.utf8.elementsEqual(from.utf8),context.to.utf8.elementsEqual(to.utf8),context.options==options,
               visibleFiles.filter({file in context.files.contains{GitReferenceName.equal($0.path,file.path)}})==context.files else{return false}
-        context.consumed=true;return true
+        if consume {context.consumed=true};return true
+    }
+    /// FileDiffDlg exports its second (destination) revision. Capture the
+    /// rendered row receipt before the gesture; delivery owns its own lease.
+    var canStartFileDrag:()->Bool = {true}
+    func fileDragProvider(_ context:FileMenuContext?)->NSItemProvider? {
+        guard canStartFileDrag(),NSApp.modalWindow==nil,!hasOwnedPreparation,
+              claimFileMenu(context,consume:false),let context,let snapshot,
+              let plan=try? FileListDragPlan(root:repository.root,revision:snapshot.to,files:context.files,backend:materializationBackend()),
+              !plan.items.isEmpty else{return nil}
+        return FileListDrag.provider(repository:repository,access:access,plan:plan,itemAt:0)
     }
     var fileActionActive:Bool { fileActionToken != nil }
     @discardableResult func cancelFileAction(closeAfter:Bool=false)->Bool {
@@ -878,12 +888,17 @@ struct RevisionComparisonFileList:View {
     }
     private func color(_ file: CommitFile) -> Color { model.selection.contains(file.path) ? .primary:state(file).textColor(preferences:model.preferences) }
     var body:some View {
-            Table(model.visibleFiles.map(RevisionComparisonFileRow.init), selection: $model.nativeSelection, sortOrder: Binding(get:{model.sortOrder.map(RevisionComparisonFileSort.init)},set:{model.sortOrder=$0.map(\.comparator)})) {
+            Table(of:RevisionComparisonFileRow.self, selection: $model.nativeSelection, sortOrder: Binding(get:{model.sortOrder.map(RevisionComparisonFileSort.init)},set:{model.sortOrder=$0.map(\.comparator)})) {
                 TableColumn(LocalizedStringKey(pathTitle), sortUsing: RevisionComparisonFileSort(column: .path)) { row in let file = row.file; HStack { Image(nsImage: state(file).icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(model.fileText(file, column: .path)).foregroundStyle(color(file)) }.repositoryFileHelp(repository: model.repository.root, path: file.path, detail: file.oldPath.map { "Renamed from " + $0 } ?? "", preferences: model.preferences) }.width(min: 260, ideal: 500)
                 TableColumn("Extension", sortUsing: RevisionComparisonFileSort(column: .fileExtension)) { row in let file = row.file; Text(model.fileText(file, column: .fileExtension)).foregroundStyle(color(file)) }.width(min: 45, ideal: 75, max: 320)
                 TableColumn(LocalizedStringKey(statusTitle), sortUsing: RevisionComparisonFileSort(column: .status)) { row in let file = row.file; Text(FileListLabels.caption(file.status)).foregroundStyle(color(file)) }.width(min: 65, ideal: 100, max: 320)
                 TableColumn("Lines added", sortUsing: RevisionComparisonFileSort(column: .added)) { row in let file = row.file; Text(file.addedText).foregroundStyle(color(file)) }.width(min: 65, ideal: 85, max: 320)
                 TableColumn("Lines removed", sortUsing: RevisionComparisonFileSort(column: .removed)) { row in let file = row.file; Text(file.removedText).foregroundStyle(color(file)) }.width(min: 65, ideal: 95, max: 320)
+            } rows: {
+                ForEach(model.visibleFiles.map(RevisionComparisonFileRow.init)) {row in
+                    let receipt=model.captureFileMenu([row.file.path])
+                    TableRow(row).itemProvider {model.fileDragProvider(receipt)}
+                }
             }.fileListFont()
             .background(CommitFileInteraction(rows: model.visibleFiles.compactMap { StatusEntry.parse(Data((" M " + $0.path + "\0").utf8)).first.map(StatusListRow.file) },
                 leadingColumnCount: 0, keyboardDeleteEnabled: false, nativeColumns: StatusListColumn.defaultColumns,

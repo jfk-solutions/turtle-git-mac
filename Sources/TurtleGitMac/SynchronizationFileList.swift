@@ -99,6 +99,14 @@ import TurtleGitCore
         guard available,let owner,receipt.epoch==epoch,receipt.generation==owner.fileListGeneration,receipt.tab==owner.tab,let child=comparison else{return false}
         return child.claimFileMenu(receipt.child)
     }
+    /// Sync's status list sets Rev1=new and Rev2=old; drag-out uses Rev2.
+    func dragWriter(_ file:CommitFile,epoch captured:UUID)->NSPasteboardWriting? {
+        guard available,epoch==captured,let child=comparison,!child.hasOwnedPreparation,
+              let snapshot=child.snapshot,rows.contains(file),
+              let plan=try? FileListDragPlan(root:child.repository.root,revision:snapshot.from,files:[file],backend:child.materializationBackend()),
+              !plan.items.isEmpty else{return nil}
+        return FileListDrag.itemWriter(repository:child.repository,access:child.access,plan:plan,itemAt:0)
+    }
     func compare(_ receipt:Receipt,unified:Bool,alternate:Bool) {
         guard claim(receipt),let child=comparison else{return}
         child.error=nil
@@ -212,6 +220,7 @@ struct SynchronizationFiles:NSViewRepresentable {
         let state:SynchronizationFileListState
         weak var table:SynchronizationFileNativeTable?
         private var currentRows:[CommitFile]=[],updating=false,retired=false
+        private var renderedEpoch=UUID()
         private weak var emptyLabel:NSTextField?
         private var fittedGeneration:UUID?,fittedRows=0,fittedWidths:[StatusListColumn:CGFloat]=[:]
         private var stateChanges:AnyCancellable?,childChanges:AnyCancellable?,closeObserver:NSObjectProtocol?
@@ -223,6 +232,7 @@ struct SynchronizationFiles:NSViewRepresentable {
         func make()->NSScrollView {
             let table=SynchronizationFileNativeTable();self.table=table
             table.identifier = .init("TurtleGit.Sync.Files."+(state.incoming ? "In":"Out"));table.setAccessibilityLabel(state.incoming ? "In Changelist":"Out Changelist")
+            table.setDraggingSourceOperationMask(.copy,forLocal:false);table.setDraggingSourceOperationMask(.copy,forLocal:true)
             table.allowsMultipleSelection=true;table.allowsColumnReordering=true;table.columnAutoresizingStyle = .noColumnAutoresizing
             for column in SynchronizationFileListState.availableColumns {
                 let value=NSTableColumn(identifier:.init(column.rawValue));value.title=NSLocalizedString(column.rawValue,comment:"");value.width=column == .path ? 450:90;value.minWidth=40
@@ -267,11 +277,16 @@ struct SynchronizationFiles:NSViewRepresentable {
                 let desired=state.columns.widths[column].map {CGFloat($0)} ?? fittedWidths[column] ?? (column == .path ? 450:90)
                 if abs(actual.width-desired)>0.5 {actual.width=desired}
             }
+            renderedEpoch=state.menuEpoch
             table.rowHeight=max(24,ceil(font.ascender-font.descender+font.leading)+5);table.reloadData()
             table.selectRowIndexes(IndexSet(currentRows.indices.filter {state.selection.contains(currentRows[$0].path)}),byExtendingSelection:false)
             NativeListSelection.install(on:table,preferences:model.preferences,primaryColumn:table.tableColumn(withIdentifier:.init(StatusListColumn.path.rawValue)),labelText:{[weak self] row in guard let self,self.currentRows.indices.contains(row) else{return nil};return self.state.text(self.currentRows[row],column:.path)},font:font,leadingInset:23)
         }
         func retire(){guard !retired else{return};retired=true;stateChanges=nil;childChanges=nil;if let closeObserver {NotificationCenter.default.removeObserver(closeObserver)};closeObserver=nil;if let table {NativeListSelection.remove(from:table);table.retire();table.delegate=nil;table.dataSource=nil}}
+        func tableView(_ tableView:NSTableView,pasteboardWriterForRow row:Int)->NSPasteboardWriting? {
+            guard !retired,table === tableView,currentRows.indices.contains(row) else{return nil}
+            return state.dragWriter(currentRows[row],epoch:renderedEpoch)
+        }
         func numberOfRows(in tableView:NSTableView)->Int {currentRows.count}
         func tableView(_ tableView:NSTableView,viewFor tableColumn:NSTableColumn?,row:Int)->NSView? {
             guard currentRows.indices.contains(row),let raw=tableColumn?.identifier.rawValue,let column=StatusListColumn(rawValue:raw) else{return nil}

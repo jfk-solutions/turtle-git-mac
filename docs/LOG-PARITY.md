@@ -2823,3 +2823,8 @@ physical, accessibility, signed and complete-window acceptance limits.
 [Primary command bands](PRIMARY-COMMAND-BANDS.md) continue the native layout
 with retained control identity and wrapping at constrained widths. The source
 command order and existing behavior remain; full dialog acceptance stays open.
+
+
+## Captured file drag delivery — October 21, 2026
+
+The [revision-list drag family](FILE-LIST-DRAG-PARITY.md) connects changed-file rows to captured historical or live working-file delivery. Merge-parent occurrence identities remain separate; group headers and combined selections without a single revision cannot offer historical contents. Source-window changes cannot retarget an accepted provider. Its grouped checkpoint and physical/signed acceptance limits are recorded with the family.

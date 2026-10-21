@@ -156,6 +156,13 @@ message and changed files. Use filters to narrow the displayed history. Select a
 revision to inspect it; file and revision menus offer the relevant comparisons
 and history operations. [Finding revisions](LOG-FIND.md) explains Log's Find flow.
 
+Drag a file from the changed-file list to another application to copy the
+selected revision's contents. Working-tree rows offer the actual working file.
+Deleted/missing files, submodules and group headings cannot deliver file
+contents. Historical files use their leaf filenames; the receiving application
+chooses destination names when several files have the same name. Delivery keeps
+the revision captured at drag start even if you change selection or close Log.
+
 RefLog shows recorded movements of a reference. Choose the reference, refresh,
 and select an entry for its context actions. Reflog entries are local recovery
 information. A selected commit can still require a separate confirmation before
@@ -295,6 +302,11 @@ footer with the actual Git command's elapsed time and finish date. A later
 reference or conflict lookup can report its own error without changing the
 completed command's result. Cancellation waits for owned Git activity and its
 confirmation sheet to settle before releasing the workflow.
+
+Files dragged from the incoming or outgoing change list use the comparison's
+base revision, matching TortoiseGit. A new or renamed path absent at that base
+cannot be delivered; dragging does not substitute another revision. Changed
+Files provides an explicit Export action for the comparison target instead.
 
 ## Push
 
@@ -519,6 +531,13 @@ file; **Abort** stops and retains earlier completed changes. The result reports
 how many files were reverted. Root comparisons offer **Revert to empty tree**,
 which removes selected entries from the index without moving HEAD. Export saves
 the destination revision; it does not need the Base file's contents.
+
+Dragging from Changed Files or Rebase's Revision Files also copies the target
+revision's contents. Historical executable files retain their executable mode;
+historical symbolic links are regular files containing the link target text.
+Working-tree drags offer the actual file URL. These operations leave the
+repository and index unchanged. See the [file-list drag comparison](FILE-LIST-DRAG-PARITY.md)
+for the source rules and remaining physical and signed acceptance.
 
 If a staged file disappears from the working tree, Commit and Working Tree offer
 **Restore from index**, **Remove from index** and **Ignore**, with

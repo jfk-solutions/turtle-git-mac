@@ -7,38 +7,18 @@ import Darwin
 
 /// Count a request before dispatching it to the main actor. Quit must also see
 /// work queued by an arbitrary NSItemProvider/NSFilePromise callback thread.
-private final class RepositoryBrowserTransferActivity: @unchecked Sendable {
-    static let shared = RepositoryBrowserTransferActivity()
-    private let lock = NSLock()
-    private var count = 0
-    var active: Int { lock.lock(); defer { lock.unlock() }; return count }
-    func begin() { lock.lock(); count += 1; lock.unlock() }
-    func end() { lock.lock(); count -= 1; lock.unlock() }
-}
-private final class RepositoryBrowserTransferReceipt: @unchecked Sendable {
-    init() { RepositoryBrowserTransferActivity.shared.begin() }
-    deinit { RepositoryBrowserTransferActivity.shared.end() }
-}
+private typealias RepositoryBrowserTransferReceipt=NativeFileTransferActivity.Receipt
 
 /// A provider owns its prepared exports. Releasing it cleans up those copies;
 /// the global registry only permits explicit app-termination cleanup.
-fileprivate final class RepositoryBrowserExportRetention: @unchecked Sendable {
-    private let lock = NSLock()
-    private var exports: [RepositoryBrowserExport] = []
-    func retain(_ export: RepositoryBrowserExport) { lock.lock(); exports.append(export); lock.unlock() }
-    func discardAll() {
-        lock.lock(); let items = exports; exports = []; lock.unlock()
-        for item in items { item.discard() }
-    }
-    deinit { discardAll() }
-}
+fileprivate typealias RepositoryBrowserExportRetention=NativeFileExportRetention
 private final class RepositoryBrowserWeakRetention {
     weak var value: RepositoryBrowserExportRetention?
     init(_ value: RepositoryBrowserExportRetention) { self.value = value }
 }
 
 @MainActor enum RepositoryBrowserExportFiles {
-    static var activeLoads: Int { RepositoryBrowserTransferActivity.shared.active }
+    static var activeLoads: Int { NativeFileTransferActivity.browser.active }
     private static var owners: [RepositoryBrowserWeakRetention] = []
     fileprivate static func owner() -> RepositoryBrowserExportRetention {
         owners.removeAll { $0.value == nil }
@@ -54,7 +34,7 @@ private final class RepositoryBrowserWeakRetention {
         let payload = RepositoryBrowserDragPayload(repository: repository, access: access, snapshot: snapshot, entry: entry, directory: directory,backend:backend)
         provider.registerFileRepresentation(forTypeIdentifier: type.identifier, fileOptions: [], visibility: .all) { completion in
             let cancellation = OperationCancellation(), progress = Progress(totalUnitCount: 1)
-            let receipt = RepositoryBrowserTransferReceipt()
+            let receipt = RepositoryBrowserTransferReceipt(.browser)
             progress.cancellationHandler = { cancellation.cancel() }
             Task { await payload.load(completion: completion, progress: progress, cancellation: cancellation); withExtendedLifetime(receipt) {} }
             return progress
@@ -113,7 +93,7 @@ private final class RepositoryBrowserWeakRetention {
     func filePromiseProvider(_ filePromiseProvider:NSFilePromiseProvider,fileNameForType fileType:String) -> String { name }
     func operationQueue(for filePromiseProvider:NSFilePromiseProvider) -> OperationQueue { .main }
     nonisolated func filePromiseProvider(_ filePromiseProvider:NSFilePromiseProvider,writePromiseTo url:URL,completionHandler:@escaping (Error?)->Void) {
-        let receipt = RepositoryBrowserTransferReceipt()
+        let receipt = RepositoryBrowserTransferReceipt(.browser)
         Task { @MainActor [self] in
             defer { withExtendedLifetime(receipt) {}; withExtendedLifetime(access) {} }
             do {
@@ -138,22 +118,6 @@ private final class RepositoryBrowserWeakRetention {
         }.value
     }
     nonisolated private static func writeMaterialized(_ source: URL, to url: URL, cancellation: OperationCancellation?) throws {
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        var coordinationError: NSError?, writeError: Error?
-        NSFileCoordinator().coordinate(writingItemAt: url, options: [], error: &coordinationError) { destination in
-            let staging = destination.deletingLastPathComponent().appendingPathComponent(".turtlegit-promise-" + UUID().uuidString)
-            defer { try? FileManager.default.removeItem(at: staging) }
-            do {
-                if cancellation?.isCancelled == true { throw OperationCancellationFailure.cancelled }
-                try FileManager.default.copyItem(at: source, to: staging)
-                if cancellation?.isCancelled == true { throw OperationCancellationFailure.cancelled }
-                guard Darwin.renamex_np(staging.path, destination.path, UInt32(RENAME_EXCL)) == 0 else {
-                    throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: [NSFilePathErrorKey: destination.path])
-                }
-            } catch { writeError = error }
-        }
-        if let writeError { throw writeError }
-        if let coordinationError { throw coordinationError }
+        try NativeFileTransferFiles.writeExclusive(source,to:url,cancellation:cancellation)
     }
 }

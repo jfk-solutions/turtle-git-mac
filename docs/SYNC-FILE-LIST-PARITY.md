@@ -74,3 +74,8 @@ fully visible tabs and footer.
 Physical pointer/menu tracking, VoiceOver, installed signed grants and complete
 source acceptance remain independent requirements. This family does not certify
 the entire Synchronization dialog or full port.
+
+
+## Captured file drag delivery — October 21, 2026
+
+The [revision-list drag family](FILE-LIST-DRAG-PARITY.md) adds native datasource file writers to both lists. It deliberately reads snapshot.from, matching SyncDlg's Rev2=old/base convention. Missing base paths fail instead of substituting target or rename-source bytes. Render-epoch and live owner guards reject stale/new requests, while accepted file promises retain their own authority. See the family checkpoint for actual delegate delivery and remaining physical/signed acceptance.

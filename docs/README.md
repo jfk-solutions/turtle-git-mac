@@ -20,6 +20,7 @@ for baseline and update rules.
 
 ## Guides and project status
 
+- [Dragging files from revision lists](FILE-LIST-DRAG-PARITY.md)
 - [Blame rendering and attribution dates](BLAME-RENDERING-PARITY.md)
 - [Revision Graph command and hover presentation](GRAPH-PRESENTATION-PARITY.md)
 - [Three-pane conflict line inspection](MERGE-CONFLICT-INSPECTION-PARITY.md)

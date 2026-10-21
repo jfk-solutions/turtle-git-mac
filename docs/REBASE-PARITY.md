@@ -658,3 +658,8 @@ source checkbox behavior, refresh memory, marked context targets, clipboard and
 checked-file recovery Commit. Stage and stopped-session comparisons cannot merge
 canonical Unicode neighbors. Other replay-row identities and existing operation
 ownership retain their roles; full physical/signed parity remains open.
+
+
+## Captured file drag delivery — October 21, 2026
+
+The [revision-list drag family](FILE-LIST-DRAG-PARITY.md) adds target-revision file delivery to the embedded Revision Files table. A live weak-parent availability guard rejects new drags while the parent is busy, during selection/picker work, questions and retirement; accepted providers retain their own revision, backend and access lease. The grouped checkpoint includes the real parent/child models, with physical window gestures and signed delivery still open.

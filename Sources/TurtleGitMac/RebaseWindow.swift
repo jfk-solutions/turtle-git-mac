@@ -1391,6 +1391,11 @@ struct RebaseReferenceRequest {
         prepareReplayMessage={try await repository.prepareCommitMessageFile($0,stripComments:$1,sanitize:$2,cancellation:$3).contents}
         validateOnto = { try await repository.rebaseOntoSelection($0, branch: $1, upstream: $2, cancellation: $3) }
         self.fullCommitMessageOnLogLine = messageDefaults.bool(forKey: "FullCommitMessageOnLogLine")
+        revisionFiles.canStartFileDrag = { [weak self] in
+            guard let self else{return false}
+            return self.revisionFilesAvailable && !self.containingReferenceBlocked && !self.revisionFindBlocked &&
+                self.pendingConfirmation == nil && self.confirmation == nil && !self.hasReplayQuestion && !self.confirmingReplayCancellation
+        }
         revisionFilesObservation=revisionFiles.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         revisionMenuObservation = revisionMenuLog.objectWillChange.sink { [weak self] _ in
             guard let self else { return }; self.controlMenuGeneration = UUID(); self.objectWillChange.send()

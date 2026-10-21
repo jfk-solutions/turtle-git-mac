@@ -1,0 +1,191 @@
+{
+  "date": "2026-10-21",
+  "family": "Captured native file-list drag delivery",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Immutable exact path/occurrence, resolved hash and backend plan",
+    "Historical GetOneFile materialization, private leaf exports, executable/link-text modes",
+    "Actual working-tree URLs with parent containment and leaf checks",
+    "Changed Files/Rebase target revision; Log selected commit/working tree; Sync base revision",
+    "Source receipt and parent-state guards; accepted delivery survives source replacement/closure",
+    "Native item providers and AppKit file promises, queued Quit ownership and cancellation",
+    "Retained originating access leases; Foundation same-volume exclusive coordinated destination publication",
+    "Shared Browser delivery counter/retention/writer with separate active counts"
+  ],
+  "source_hashes": {
+    "Sources/TurtleGitCore/FileListDrag.swift": "2c5fc5ff6a3dde386ddf9eaa07b996fcdc8ad54594fde2bacaf4c2cc5d5d4877",
+    "Sources/TurtleGitMac/FileListDrag.swift": "d70e501f78c84fa80a79edcc8f51c02dca6ef4a18a3e77a8784667b026face1b",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "687f327b0740aa300b9b99f91c556fc9421f98cf274fd1a0d23b1d15f690db34",
+    "Sources/TurtleGitMac/RepositoryBrowserDrag.swift": "6fbb52c5bcfa909cf2843d82146a2de04ab3349cbc90b6b6c6a8dedda8083b4c",
+    "Sources/TurtleGitMac/LogWindow.swift": "d790094ee8f5275b6ac6a5ed4e58d52625f2cb27d64ed08ac452e186136a3a9d",
+    "Sources/TurtleGitMac/RevisionComparisonWindow.swift": "fe8449b257030252e1832c0f86199fbbda20152ba05ede0b36f1722d67b461c9",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "7ebad50b86af61894e928cb703c4375f9101216c2840fee9099efefffa3e5aa3",
+    "Sources/TurtleGitMac/SynchronizationFileList.swift": "0b178234857fd0fee5330b70f5b20995a66dbcfa3bf11451375c85d7e088406e",
+    "Tests/TurtleGitCoreTests/FileListDragTests.swift": "de9513fd476457c1d5bf2f0f1ca9ed3120a86d06e28fc8e42007e6790de0266b",
+    "docs/qa/file-list-drag-native-2026-10-21.swift": "a2048485dfd6222b1b4003d21dfab31ff506a7c7541a2bacb3a28b8efff56b9c",
+    "scripts/test-file-list-drag.py": "1704ea84b25f200dddb28f038aa61fede421e2ee8f53080f579511529fa825ec"
+  },
+  "core": {
+    "command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 TURTLEGIT_CORE_ONLY=1 swift test --jobs 4 --filter FileListDragTests",
+    "git": "/usr/bin/git",
+    "exit_code": 0,
+    "passed_methods": 6,
+    "skipped": 0,
+    "elapsed_tests_seconds": 2.663,
+    "log": "build/qa/file-list-drag-core-2026-10-21.log",
+    "full_suite_run": false
+  },
+  "debug_build": {
+    "exit_code": 0,
+    "configuration": "Debug",
+    "signing_allowed": false,
+    "log": "build/qa/file-list-drag-build-2026-10-21.log",
+    "notes": [
+      "Existing simulator version diagnostic and contradictory command-exited-zero diagnostics retained in log; actual xcodebuild session exited zero",
+      "Native receiver linked current Debug object/module/framework fingerprint and freshness checks"
+    ]
+  },
+  "native": {
+    "command": "python3 scripts/test-file-list-drag.py",
+    "passed_case_engine_pairs": 6,
+    "results": [
+      {
+        "git": "/usr/bin/git",
+        "case": "lists",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "delivery",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "ownership",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "lists",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "delivery",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "ownership",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "final_log": "build/qa/file-list-drag-native-snapshot-repaired-2026-10-21.log",
+    "receiver_pids": [
+      87479,
+      87745,
+      87990,
+      88203,
+      88517,
+      88614,
+      88721,
+      89039,
+      89136
+    ],
+    "independently_present_after_cleanup": [],
+    "windows": "Private preferences/pasteboard/repositories; prohibited activation, globally zero-alpha order adapter, offscreen owned windows; close/drain on success/failure",
+    "assertions": [
+      "Comparison/Log captured historical bytes after selection/filter changes",
+      "Working Log/provider and native pasteboard actual working-file identity",
+      "Rebase real parent/child models with installed snapshot: busy/retired new-drag refusal and accepted transfer survival",
+      "Actual incoming/outgoing Sync table datasource file-promise writers read base revision",
+      "Absent base new-file delivery fails without target fallback",
+      "Stale render epochs, busy refresh and Quit/closed owners refuse new providers",
+      "Separate same-leaf contents, repeated provider requests, binary/literal filenames and executable mode",
+      "Actual file-promise callbacks counted before main-actor dispatch and protected by application Quit guard",
+      "Existing receiver destination bytes preserved, two receiver-chosen unique names delivered",
+      "Provider-owned private exports released/explicit cleanup",
+      "Captured filtered backend retained after preferences and owner closure; access lease survives and releases",
+      "Actual held smudge filter and child PIDs cancel/reap; canceled promise publishes no destination",
+      "Shared exclusive Browser historical delivery remains correct",
+      "HEAD/index/working bytes preserved"
+    ],
+    "diagnostics": [
+      "AppKit reentrant NSTableView delegate warning during Log selection",
+      "sandbox_extension_consume failed for private unbundled working URL pasteboard; signed grants remain unverified"
+    ]
+  },
+  "failed_attempts": [
+    {
+      "log": "build/qa/file-list-drag-native-2026-10-21.log",
+      "scope": "Receiver compilation only",
+      "cause": "Nested fixture Context needed explicit MainActor; Sync busy setter is private",
+      "repair": "Annotate Context and exercise real Sync Refresh instead of assigning busy",
+      "production_changed": false
+    },
+    {
+      "logs": [
+        "build/qa/file-list-drag-native-repaired-2026-10-21.log",
+        "build/qa/file-list-drag-native-phases-2026-10-21.log",
+        "build/qa/file-list-drag-native-sync-phases-2026-10-21.log"
+      ],
+      "scope": "System Git lists case before Sync delegates",
+      "cause": "Fixture selected-file comparison API rejects empty selection",
+      "repair": "Use whole-comparison revisionComparison API for installed Sync snapshots; added phase diagnostics",
+      "production_changed": false
+    }
+  ],
+  "resources": {
+    "new_literal_native_labels": false,
+    "localization_check": {
+      "languages": 38,
+      "keys": 1308,
+      "exit_code": 0
+    },
+    "help": {
+      "documents": 49,
+      "topics": 51,
+      "files": 69,
+      "write_exit_code": 0,
+      "check_exit_code": 0
+    },
+    "source_ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1574,
+      "pending_control_reviews": 85,
+      "feature_percentage": null
+    },
+    "website": {
+      "documents": 404,
+      "unresolved_fragments": [],
+      "build_exit_code": 0,
+      "link_tests_passed": 2,
+      "render_completed_before_tests": true,
+      "logs": [
+        "build/qa/file-list-drag-site-2026-10-21.log",
+        "build/qa/file-list-drag-site-tests-2026-10-21.log"
+      ]
+    }
+  },
+  "remaining": [
+    "Physical SwiftUI multi-row and cross-application/Finder drag gestures and receiver naming",
+    "Modifier/move semantics, VoiceOver and all source selection variants",
+    "Actual installed sandbox repository/destination security grants and signed distribution",
+    "Full current hosted macOS integration pass",
+    "Complete source/dialog/companion application parity and App Store acceptance"
+  ],
+  "not_claimed": [
+    "No physical Finder drop or complete window screenshots in this unchanged-layout batch",
+    "No full Core rerun or hosted CI certification",
+    "No complete-port or distribution-ready claim"
+  ]
+}

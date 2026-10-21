@@ -757,7 +757,7 @@ struct LogCommandRequest: Identifiable {
     // Upstream CGitLogListBase retains the index across Find close/reopen and reload.
     var findSearchIndex = 0
     var onFindReferenceRefresh: (() -> Void)?
-    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { retireLogControlMenus() } } }
+    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { fileMenuGeneration=UUID();retireLogControlMenus() } } }
     @Published var findBlocked = false { didSet { if findBlocked != oldValue { retireLogControlMenus() } } }
     @Published var orderingBlocked = false { didSet { if orderingBlocked != oldValue { retireLogControlMenus() } } }
     private(set) var historyProjectionEpoch = UUID()
@@ -1059,15 +1059,32 @@ struct LogCommandRequest: Identifiable {
     func fileMenuSnapshot(_ ids: GitPathSet) -> LogFileMenuSnapshot {
         LogFileMenuSnapshot(owner: self, menuGeneration: fileMenuGeneration, selectionGeneration: fileSelectionGeneration, ids: ids, visible: visibleFiles)
     }
-    func withFileMenu(_ snapshot: LogFileMenuSnapshot, action: () -> Void) {
+    func withFileMenu(_ snapshot: LogFileMenuSnapshot, consume:Bool=true, action: () -> Void) {
         guard snapshot.owner === self, !snapshot.consumed, !isInvalidated, !busy, !jumping, !loadingNote, !savingNote,
               !findBlocked, !orderingBlocked, !referencePickerBlocked, !copyingDetails, !unifiedViewerBusy,
               noteRequest == nil, window?.attachedSheet == nil, !resettingChangedFileColumns,
               snapshot.menuGeneration == fileMenuGeneration, snapshot.selectionGeneration == fileSelectionGeneration,
               snapshot.visible == visibleFiles, !snapshot.ids.isEmpty,
               snapshot.ids.isSubset(of: GitPathSet(visibleFiles.map(\.id))) else { return }
-        snapshot.consumed = true
+        if consume {snapshot.consumed = true}
         action()
+    }
+    /// Parent groups describe a selected commit's changes, so their files
+    /// still export the selected child hash. A combined multi-commit list has
+    /// no single source revision and is deliberately not a drag source.
+    func fileDragProvider(_ snapshot:LogFileMenuSnapshot)->NSItemProvider? {
+        guard !confirmingQuit,NSApp.modalWindow==nil,pendingHistoryLoads==0,fileOpenRead==nil,combineSelectionReads.isEmpty else{return nil}
+        var provider:NSItemProvider?
+        withFileMenu(snapshot,consume:false) {
+            let source:ComparisonRevision
+            if selectedWorkingTree {source = .workingTree}
+            else if let revision {source = .revision(revision.hash)}
+            else {return}
+            let files=fileTableRows.compactMap(\.file).filter {snapshot.ids.contains($0.id)}
+            guard let plan=try? FileListDragPlan(root:repository.root,revision:source,files:files,backend:materializationBackend()),!plan.items.isEmpty else{return}
+            provider=FileListDrag.provider(repository:repository,access:access,plan:plan,itemAt:0)
+        }
+        return provider
     }
     private var lastImportedWorkingMark: UUID?
     @Published var comparisonMark: PreparedFileComparisonMark? { didSet { fileMenuGeneration = UUID() } }
@@ -3391,7 +3408,7 @@ struct LogDialog: View {
                     .onChange(of: shortDate) { _ in model.objectWillChange.send() }
                     .onChange(of: relativeTimes) { _ in model.objectWillChange.send() }
                     .onChange(of: useSystemLocale) { _ in model.objectWillChange.send() }
-                Table(model.fileTableRows,selection:$model.nativeFileSelection,sortOrder:Binding(get:{model.changedFileSort},set:model.setChangedFileSort)) {
+                Table(of:LogFileTableRow.self,selection:$model.nativeFileSelection,sortOrder:Binding(get:{model.changedFileSort},set:model.setChangedFileSort)) {
                     TableColumn("Path",sortUsing:LogChangedFileSort(column:.path)) { row in
                         if let header = row.header {
                             Text(header).fontWeight(.semibold).foregroundStyle(Color.accentColor).accessibilityAddTraits(.isHeader)
@@ -3403,6 +3420,11 @@ struct LogDialog: View {
                     TableColumn("Status",sortUsing:LogChangedFileSort(column:.status)) { row in Text(FileListLabels.caption(row.file.map(model.fileStatus) ?? "")).foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(95)
                     TableColumn("Lines added",sortUsing:LogChangedFileSort(column:.added)) { row in Text(row.file?.addedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(90)
                     TableColumn("Lines removed",sortUsing:LogChangedFileSort(column:.removed)) { row in Text(row.file?.removedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(105)
+                } rows: {
+                    ForEach(model.fileTableRows) {row in
+                        let receipt=model.fileMenuSnapshot(GitPathSet([row.rawID]))
+                        TableRow(row).itemProvider {row.file == nil ? nil:model.fileDragProvider(receipt)}
+                    }
                 }.fileListFont().frame(minHeight: 130, idealHeight: 180)
                 .background(CommitFileInteraction(rows:model.fileTableRows.map {row in
                     if let title=row.header {return .group(.changelist(title))}
