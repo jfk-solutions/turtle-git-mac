@@ -24,6 +24,7 @@ for baseline and update rules.
 - [Dragging files from revision lists](FILE-LIST-DRAG-PARITY.md)
 - [Blame rendering and attribution dates](BLAME-RENDERING-PARITY.md)
 - [Revision Graph command and hover presentation](GRAPH-PRESENTATION-PARITY.md)
+- [Revision Graph save filters, filename formats and output ownership](GRAPH-SAVE-PARITY.md)
 - [Three-pane conflict line inspection](MERGE-CONFLICT-INSPECTION-PARITY.md)
 - [Choosing list selection highlighting](LIST-SELECTION.md)
 - [List selection source comparison](LIST-SELECTION-PARITY.md)

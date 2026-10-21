@@ -194,6 +194,7 @@ import TurtleGitCore
             (window.delegate as? AddProgressWindowController)?.model.confirmingQuit = value
             (window.delegate as? RevertProgressWindowController)?.model.confirmingQuit = value
             (window.delegate as? PresentationComparisonWindowController)?.model.confirmingQuit = value
+            (window.delegate as? RevisionGraphWindowController)?.model.confirmingQuit = value
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -321,7 +322,7 @@ import TurtleGitCore
         if ProjectDialogSettingsModel.activeSaves > 0 || ProjectDialogSettingsModel.activeReads > 0 || GitConfigurationSettingsModel.activeReads > 0 || IssueTrackerSettingsModel.activeReads > 0 { return .terminateCancel }
         if IssueTrackerSettingsModel.activeSaves > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? SynchronizationWindowController }).contains(where: { $0.model.busy || $0.model.hasBlockingChild || $0.window?.attachedSheet != nil }) { return .terminateCancel }
-        if sender.windows.compactMap({ $0.delegate as? RevisionGraphWindowController }).contains(where: { $0.model.busy || $0.hasExportSheet || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        if RevisionGraphWindowController.activeExportOperations > 0 || sender.windows.compactMap({ $0.delegate as? RevisionGraphWindowController }).contains(where: { $0.hasPendingWork || $0.hasExportSheet || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? MergeAbortWindowController }).contains(where: { $0.model.busy || $0.model.hasChild || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? MergeAbortProgressWindowController }).contains(where: { $0.model.busy || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if confirmingQuit { return .terminateLater }

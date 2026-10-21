@@ -668,8 +668,12 @@ serialized by this local ownership mechanism.
 
 Graph output selects SVG, GV/DOT, PNG, JPEG, BMP, GIF or native PDF from the file
 extension, with the same graph model, fonts, colors and export renderer as Save
-Graph As. Unsupported extensions, including Windows WMF/EMF, are refused before
-output permission or writing; those Windows formats remain unported. Hidden
+Graph As. An extensionless output or an unknown suffix appends `.jpg` and uses
+JPEG, matching the source fallback. For example, `--output history.custom`
+writes `history.custom.jpg`. Output authorization names that final path before
+rendering or writing. Windows WMF/EMF are refused before output permission or
+writing; PDF provides the native vector alternative, and metafile graph writing
+remains unported. Hidden
 output owns a separate graph and does not retarget an existing interactive graph.
 A normal Graph command reuses its existing view and preserves its filters.
 

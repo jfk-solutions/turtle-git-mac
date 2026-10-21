@@ -315,11 +315,14 @@ public struct PrimaryCommandInvocation: Sendable {
             guard let value = values["revision"], !value.isEmpty, !value.hasPrefix("-"), values["savepath"]?.isEmpty == false else { throw Failure("Cat requires a revision and savepath.") }
             catRevision = value
         } else { catRevision = nil }
-        let commandOutput = try (values["outfile"] ?? values["savepath"] ?? values["output"].flatMap { $0.isEmpty ? nil : $0 }).map(file)
+        var commandOutput = try (values["outfile"] ?? values["savepath"] ?? values["output"].flatMap { $0.isEmpty ? nil : $0 }).map(file)
         let graphOutputFormat: RevisionGraphFormat?
-        if action == .revisionGraph, let commandOutput {
-            guard let format = RevisionGraphFormat(fileExtension: commandOutput.pathExtension) else { throw Failure("Choose SVG, GV, PNG, JPEG, BMP, GIF or PDF for graph output.") }
-            graphOutputFormat = format
+        if action == .revisionGraph, let output = commandOutput {
+            let destination = try RevisionGraphExportDestination(url: output)
+            graphOutputFormat = destination.format
+            // Capture the final leaf before any native destination grant or
+            // overwrite approval. The writer must never change it afterward.
+            commandOutput = destination.url
         } else { graphOutputFormat = nil }
         let selected = try values["rev"].flatMap { $0.isEmpty ? nil : try revision($0) }
         let reflog = try values["ref"].flatMap { $0.isEmpty ? nil : try revision($0) }

@@ -349,6 +349,13 @@ Existing source windows, icons and native renderers remain the consumers.
 [Batch evidence](qa/history-commands-2026-10-18.json) records actual checks and
 remaining source/platform acceptance; no complete-port claim follows.
 
+The [Revision Graph save continuation](GRAPH-SAVE-PARITY.md) connects Pictures,
+Graphs and All Files to filename-driven encoders, source extension defaults and
+JPEG fallback. Native acceptance and CLI output authorization use the final
+destination; graph preferences, cancellation, Quit and retired save replies
+remain owned across the handoff. Windows metafile graph writing, physical/signed
+save grants and complete graph parity remain open.
+
 The connected [Synchronization/SVN command batch](COMMAND-LINE.md#synchronization-and-svn-entry)
 adds Sync, SVN Fetch/Rebase/DCommit/Ignore entry paths, source sequence placement,
 owning settings and preserved SVN options/questions through competing commands.

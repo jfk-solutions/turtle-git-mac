@@ -56,6 +56,48 @@ extension SubmoduleSyncWindowController:FinderFilesystemWorkflowWindow {}
     deinit { if let observer { NotificationCenter.default.removeObserver(observer) } }
 }
 
+/// UserDefaults' typed getters call object(forKey:). Keep that primitive and
+/// writes in an instance-local dictionary: a custom volatile domain is not in
+/// the search list, while NSArgumentDomain is shared across defaults instances.
+private final class CommandGraphPreferences: UserDefaults, @unchecked Sendable {
+    private let valuesLock = NSLock()
+    private var values: [String: Any]
+    init(capturing preferences: UserDefaults) {
+        values = preferences.dictionaryRepresentation()
+        super.init(suiteName: nil)!
+    }
+    override func object(forKey key: String) -> Any? {
+        valuesLock.lock(); defer { valuesLock.unlock() }; return values[key]
+    }
+    override func dictionaryRepresentation() -> [String: Any] {
+        valuesLock.lock(); defer { valuesLock.unlock() }; return values
+    }
+    override func set(_ value: Any?, forKey key: String) {
+        valuesLock.lock(); defer { valuesLock.unlock() }; values[key] = value
+    }
+    override func removeObject(forKey key: String) {
+        valuesLock.lock(); defer { valuesLock.unlock() }; values.removeValue(forKey: key)
+    }
+}
+
+/// A command's graph rendering choices are captured across permission panels
+/// and repository discovery. Hidden-model preference writes stay memory-only.
+@MainActor private final class CommandGraphOutputHandoff: @unchecked Sendable {
+    let id: UUID, owner: RepositoryWindowOwner, preferences: UserDefaults
+    let backend: GitLibGit2Configuration
+    let appearance: NSAppearance?
+    var handedOff = false, started = false
+    init(id: UUID, owner: RepositoryWindowOwner, preferences: UserDefaults, window: NSWindow?) {
+        self.id = id; self.owner = owner
+        let snapshot = CommandGraphPreferences(capturing: preferences)
+        self.preferences = snapshot; self.backend = .load(from: snapshot)
+        self.appearance = window?.effectiveAppearance ?? NSApp.effectiveAppearance
+    }
+}
+private enum CommandGraphOutputContext {
+    @TaskLocal static var current: CommandGraphOutputHandoff?
+}
+
 /// Source-modal successors belong to the same captured root. Independent Log,
 /// Commit and similar commands deliberately run outside this chain.
 @MainActor private protocol TransportBatchWindow:AnyObject {
@@ -363,6 +405,9 @@ private enum TransportBatchPresentationContext {
             for controller in synchronizationWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in formatPatchWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in requestPullWindows.values {controller.model.confirmingQuit=confirmingQuit}
+            if confirmingQuit {
+                for handoff in commandGraphHandoffs.values { handoff.owner.cancellation.cancel(); handoff.owner.onCancelled() }
+            }
             for controller in worktreeListWindows.values {controller.createWindow?.model.confirmingQuit=confirmingQuit}
             if confirmingQuit {cancelFinderWorktreeCreation()}
         }
@@ -576,6 +621,7 @@ private enum TransportBatchPresentationContext {
     private var addPreparations: [UUID: RepositoryWindowOwner] = [:]
     private var commandOutputOwners: [UUID: RepositoryWindowOwner] = [:]
     private var commandGraphWindows: [UUID: RevisionGraphWindowController] = [:]
+    private var commandGraphHandoffs: [UUID: CommandGraphOutputHandoff] = [:]
     private var commandReferenceWindows: [UUID: CommitContainingReferencesWindowController] = [:]
     var revisionGraphWindowFactory: ((GitRepository, RepositoryAccessLease?, UserDefaults, Bool) -> RevisionGraphWindowController)?
     private var commandImportOwner: RepositoryWindowOwner?
@@ -867,7 +913,8 @@ private enum TransportBatchPresentationContext {
         }
         throw RepositoryMetadataAccessFailure.tooManyDependencies
     }
-    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandRootOnly: Bool = false, onFinished: ((Bool) -> Void)? = nil, handoffOwner: RepositoryWindowOwner? = nil, serviceCommand: FinderServiceCommand? = nil, onOpened: (() -> Void)? = nil) {
+    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, invocation: PrimaryCommandInvocation? = nil, messageAccess: RepositoryAccessLease? = nil, outputAccess: RepositoryAccessLease? = nil, commandRootOnly: Bool = false, onFinished: ((Bool) -> Void)? = nil, handoffOwner suppliedHandoffOwner: RepositoryWindowOwner? = nil, serviceCommand: FinderServiceCommand? = nil, onOpened: (() -> Void)? = nil) {
+        let handoffOwner = suppliedHandoffOwner ?? (invocation?.request.action == .revisionGraph && invocation?.outputFile != nil ? CommandGraphOutputContext.current?.owner : nil)
         guard !busy, !confirmingQuit, !retired, handoffOwner?.cancellation.isCancelled != true else { onFinished?(false); return }
         let restoreState:()->Void = { [repository,activeAccess,root,entries,selection,branch,bare,hasGitSVN,mergeActive,conflictRebase,submodules,section,output] in
             self.repository=repository;self.activeAccess=activeAccess;self.root=root;self.entries=entries;self.selection=selection
@@ -4499,7 +4546,8 @@ private enum TransportBatchPresentationContext {
         return (id, owner)
     }
     private func finishCommandOutput(_ id: UUID) {
-        commandOutputOwners.removeValue(forKey: id); commandLineOutputOperations.removeValue(forKey: id); commandGraphWindows.removeValue(forKey: id)
+        guard commandOutputOwners.removeValue(forKey: id) != nil else { return }
+        commandLineOutputOperations.removeValue(forKey: id); commandGraphWindows.removeValue(forKey: id); commandGraphHandoffs.removeValue(forKey: id)
         Self.activeCommandFileOperations -= 1
     }
     private func publishCommandOutput(_ bytes: Data, file: URL, permission: RepositoryAccessLease, owner: RepositoryWindowOwner) async throws {
@@ -4526,14 +4574,21 @@ private enum TransportBatchPresentationContext {
         }
     }
     private func writeCommandGraph(repository: GitRepository, access: RepositoryAccessLease, file: URL, permission: RepositoryAccessLease, format: RevisionGraphFormat) {
-        let (id, owner) = beginCommandOutput()
-        let controller = revisionGraphWindowFactory?(repository, access, fileComparisonPreferences, false) ?? RevisionGraphWindowController(repository: repository, access: access, preferences: fileComparisonPreferences, automaticallyLoad: false)
+        let handoff = CommandGraphOutputContext.current
+        let (id, owner) = handoff.map { ($0.id, $0.owner) } ?? beginCommandOutput()
+        handoff?.started = true
+        guard !retired, !confirmingQuit, !owner.cancellation.isCancelled else { finishCommandOutput(id); return }
+        let preferences = handoff?.preferences ?? fileComparisonPreferences
+        let repository = GitRepository(root: repository.root, executable: repository.executable, askpass: repository.askpass,
+            diffDetection: repository.diffDetection, libgit2Configuration: handoff?.backend ?? .load(from: preferences))
+        let controller = revisionGraphWindowFactory?(repository, access, preferences, false) ?? RevisionGraphWindowController(repository: repository, access: access, preferences: preferences, automaticallyLoad: false)
+        if let appearance = handoff?.appearance { controller.window?.appearance = appearance }
         commandGraphWindows[id] = controller
-        owner.onCancelled = { [weak controller] in controller?.model.cancel() }
+        owner.onCancelled = { [weak controller] in controller?.model.cancel(); controller?.close() }
         controller.onClosed = { owner.cancellation.cancel() }
-        controller.model.load()
+        if !retired, !confirmingQuit, !owner.cancellation.isCancelled, !controller.model.closed { controller.model.load() }
+        else { owner.cancellation.cancel(); controller.close() }
         Task {
-            defer { controller.close(); finishCommandOutput(id); withExtendedLifetime((access, permission)) {} }
             await controller.model.waitForCompletion()
             do {
                 try owner.cancellation.check()
@@ -4541,8 +4596,14 @@ private enum TransportBatchPresentationContext {
                 if let failure = controller.model.error { throw PrimaryCommandInvocation.Failure(failure) }
                 let bytes = try controller.graphExportData(format: format)
                 try await publishCommandOutput(bytes, file: file, permission: permission, owner: owner)
-                if root?.path == repository.root.path { output = "Saved revision graph: " + file.path }
-            } catch { if !retired, !owner.cancellation.isCancelled { self.error = "Could not save " + file.path + ": " + error.localizedDescription } }
+                if !retired, !confirmingQuit, root?.path == repository.root.path { output = "Saved revision graph: " + file.path }
+            } catch { if !retired, !confirmingQuit, !owner.cancellation.isCancelled { self.error = "Could not save " + file.path + ": " + error.localizedDescription } }
+            controller.close()
+            // Real worker/sheet retirement, rather than visual closure, releases
+            // the originating permissions and the global Quit accounting.
+            while controller.hasPendingWork { try? await Task.sleep(nanoseconds: 10_000_000) }
+            finishCommandOutput(id)
+            withExtendedLifetime((access, permission, controller)) {}
         }
     }
     private func showCommandContainingReferences(repository: GitRepository, access: RepositoryAccessLease?, revision: String) {
@@ -4581,15 +4642,26 @@ private enum TransportBatchPresentationContext {
             guard let invocation = try PrimaryCommandInvocation.parse(arguments: arguments, currentDirectory: currentDirectory) else { return }
             guard !busy, commandRepositoryBatchCancellation == nil else { error = "Wait for the current repository operation before opening a command."; return }
             let backend:GitLibGit2Configuration?=invocation.request.action == .cat ? (captureCommandMaterializationBackend?() ?? .load(from:fileComparisonPreferences)):nil
-            try HistoricalMaterializationContext.$backend.withValue(backend) {
-                if invocation.pathFile != nil { try prepareCommandPathList(invocation) }
-                else { try launchCommandLine(invocation) }
+            try CommandGraphOutputContext.$current.withValue(nil) {
+                try HistoricalMaterializationContext.$backend.withValue(backend) {
+                    if invocation.pathFile != nil { try prepareCommandPathList(invocation) }
+                    else { try launchCommandLine(invocation) }
+                }
             }
-        } catch { self.error = error.localizedDescription }
+        } catch { if !retired, !confirmingQuit, !(error is OperationCancellationFailure) { self.error = error.localizedDescription } }
     }
     private func launchCommandLine(_ invocation: PrimaryCommandInvocation, cancellation: OperationCancellation? = nil) throws {
         try cancellation?.check()
-        guard !confirmingQuit else { return }
+        guard !retired, !confirmingQuit else { return }
+        if invocation.request.action == .revisionGraph, invocation.outputFile != nil, CommandGraphOutputContext.current == nil {
+            let (id, owner) = beginCommandOutput()
+            let handoff = CommandGraphOutputHandoff(id: id, owner: owner, preferences: fileComparisonPreferences, window: workspaceWindow)
+            commandGraphHandoffs[id] = handoff
+            defer { if !handoff.handedOff { finishCommandOutput(id) } }
+            try CommandGraphOutputContext.$current.withValue(handoff) { try launchCommandLine(invocation, cancellation: cancellation) }
+            return
+        }
+        try CommandGraphOutputContext.current?.owner.cancellation.check()
         let permission: RepositoryAccessLease?
         if let file = invocation.messageFile {
             if let commandLineMessagePermission { permission = try commandLineMessagePermission(file) }
@@ -4605,6 +4677,8 @@ private enum TransportBatchPresentationContext {
             guard outputAccess.contains(output), outputAccess.contains(output.deletingLastPathComponent()), !GitRuntime.isAppStoreBuild || outputAccess.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
         } else { outputAccess = nil }
         try cancellation?.check()
+        try CommandGraphOutputContext.current?.owner.cancellation.check()
+        guard !retired, !confirmingQuit else { return }
         if [.editConflict, .resolve].contains(invocation.request.action) { prepareResolutionCommand(invocation, cancellation: cancellation); return }
         if invocation.request.action == .diff, invocation.diffSubmodule || invocation.hasHistoricalDiffPair || invocation.hasDiffRevisionPair && invocation.request.paths.count == 1 {
             prepareCommandComparison(invocation, cancellation: cancellation); return
@@ -4635,7 +4709,10 @@ private enum TransportBatchPresentationContext {
         let backend:GitLibGit2Configuration?=invocation.request.action == .cat ? (HistoricalMaterializationContext.backend ?? captureCommandMaterializationBackend?() ?? .load(from:fileComparisonPreferences)):nil
         HistoricalMaterializationContext.$backend.withValue(backend) {
             ComparisonToolInvocation.$alternate.withValue(invocation.request.alternateTool ?? false) {
-                handleFinderRequest(invocation.request, invocation: invocation, messageAccess: permission, outputAccess: outputAccess, commandCancellation: cancellation)
+                let graphHandoff = CommandGraphOutputContext.current
+                graphHandoff?.handedOff = true
+                handleFinderRequest(invocation.request, invocation: invocation, messageAccess: permission, outputAccess: outputAccess, commandCancellation: graphHandoff?.owner.cancellation ?? cancellation,
+                    completion: graphHandoff.map { handoff in { [weak self] _ in if !handoff.started { self?.finishCommandOutput(handoff.id) } } })
             }
         }
     }

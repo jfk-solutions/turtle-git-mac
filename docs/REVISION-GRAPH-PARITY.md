@@ -7,6 +7,11 @@ Existing native layouts, original icons and renderer/comparison consumers remain
 [Batch evidence](qa/history-commands-2026-10-18.json) retains focused checks and
 explicit Windows-format/process, physical, signed and complete parity gaps.
 
+The [Save Graph As continuation](GRAPH-SAVE-PARITY.md) connects source filter
+groups, filename-driven encoders/defaults, JPEG fallback and exact final output
+authorization across native and hidden command output. Metafile graph writing,
+physical/signed acceptance and full graph parity remain open.
+
 The repository data, graph reduction and pinned OGDF layout adapter are ported.
 A native AppKit Revision Graph window and Filter sheet are now implemented locally;
 focused native interaction checks passed with system and bundled Git. Neither dialog has complete upstream parity. The complete TortoiseGit port and App Store acceptance remain open.
@@ -101,7 +106,9 @@ closed models reject further loads and stale publications.
 Remaining requirements include:
 
 - Verify the native window and owned reference-browser handoffs against upstream.
-- Verify full save-panel interactions, arbitrary-extension fallback and signed file grants. Windows enhanced-metafile encoding is replaced by native PDF.
+- Complete physical save-panel/overwrite interactions and signed file grants.
+  Filename fallback is implemented; Windows enhanced-metafile writing remains
+  unported, with native PDF available as an alternative.
 - Verify rendering, zoom, overview dragging, pointer labels and hover date formatting.
 - Physical and signed node-menu/File/View/Git/Help acceptance, alternative-tool
   modifier routing, and complete external handoffs.

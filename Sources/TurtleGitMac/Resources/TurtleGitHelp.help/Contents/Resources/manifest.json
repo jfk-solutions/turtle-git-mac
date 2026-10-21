@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "8572c23b5113952f79e291600c3c2851a2b5d0fcc9adc009e52687610fd59758",
+    "Contents/Info.plist": "d6c73ee60d3afced60124f66c2322ea3cf71f4829699dfb75d1d0c12b69f9c2b",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BISECT.html": "c94bc39b7cf56afa6cd774a6758bb3994864256ec1ba6a85a3d47d820963b1ec",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "3c99fc083b21ae3fd2ced9b73430abe7383732d4b8b7e40eb960c1ffc5c1357d",
@@ -41,7 +41,7 @@
     "Contents/Resources/en.lproj/REVERT-COMMIT.html": "59e8b803cb9eb0a879538520d982c941edb9a84a273ea134cb374cdf0f7dae65",
     "Contents/Resources/en.lproj/REVERTING-FILES.html": "cf14ad5e3a5ab5406edc82b07487a2fb3019801f4c5a1a00a61fb5455e558207",
     "Contents/Resources/en.lproj/REVISION-EXPORT.html": "ab362f73e49117e170240d0a06681c4d48334bb183e3576f04e07eab9033d906",
-    "Contents/Resources/en.lproj/REVISION-GRAPH.html": "5bfb79b40abc4c42c9c1717c08783e30cc311d6c7f6a39b9f79ac3f81ed26c8d",
+    "Contents/Resources/en.lproj/REVISION-GRAPH.html": "52dab709cfcfcc5c9eac5cdadea02036220969259a6a74930d88de31558b581c",
     "Contents/Resources/en.lproj/SAVE-AS-TARGETS.html": "6741aa854a92d8ab43b9694238f2b70073e03fa84dc262cda148511791677a00",
     "Contents/Resources/en.lproj/SAVED-DATA.html": "a12e071bb8898ae7d5bd3cf962545279e31332d274a5e9e6fa0356478b256601",
     "Contents/Resources/en.lproj/SMTP-CERTIFICATE-REVIEW.html": "b3cd59529a53a29bbf7894ba4ed5ae03d718acf0dd1b7245c45fe31ccd7033b9",
@@ -109,7 +109,7 @@
     "docs/REVERT-COMMIT.md": "f3876bf700da4933a754e2f6b40b6c1bb2d144634182717cbc99ef29bd84b879",
     "docs/REVERTING-FILES.md": "d2965b300220e6cd6c946bd38b4af97ef56f07c097311d84c2782e57023e6e4a",
     "docs/REVISION-EXPORT.md": "6eea546879c99ee71acb0af9389d4001c09b5dfeb42706f32963a543dd205c50",
-    "docs/REVISION-GRAPH.md": "4ed3823f3fb4901f8a3427fe1becb2594ee65ce9f83ddf572100a0b96a7b5fa1",
+    "docs/REVISION-GRAPH.md": "6549228069d69bcd9dafd630012ee13eb6118c58728e2401daa670e3fb8d994c",
     "docs/SAVE-AS-TARGETS.md": "f459f2e8eecf636479352dbcc36f220d4f6efec6f9f8f75c0c95e1cc3d3e19c8",
     "docs/SAVED-DATA.md": "54f11a8a0ec8a5dda818158f36dbaabe43dbbd7ba83cf141aa5f742007be0caf",
     "docs/SMTP-CERTIFICATE-REVIEW.md": "58c9d73f8f5f7b319cd50bd5d2206d463a744456c110229e814c7c3ef8cc04ef",

@@ -527,10 +527,16 @@ import Darwin
         try require(picker.format == .svg && picker.panel.nameFieldStringValue.hasSuffix(".svg"))
         model.zoom = 0.5; controller.update()
         let selection = model.selection, frame = controller.canvas.frame
-        for (index, format) in RevisionGraphFormat.allCases.enumerated() {
-            picker.formats.selectItem(at: index)
-            try require(NSApp.sendAction(picker.formats.action!, to: picker.formats.target, from: picker.formats))
-            try require(picker.format == format && picker.panel.nameFieldStringValue.hasSuffix("." + format.fileExtension))
+        try require(picker.formats.numberOfItems==3)
+        for (index,filter) in RevisionGraphExportFilter.allCases.enumerated() {
+            picker.panel.nameFieldStringValue="custom.unknown";picker.formats.selectItem(at:index)
+            try require(NSApp.sendAction(picker.formats.action!,to:picker.formats.target,from:picker.formats))
+            try require(picker.filter==filter && picker.panel.nameFieldStringValue=="custom.unknown")
+            try require(try picker.normalizedFilename("extensionless")==["extensionless.svg","extensionless.gv","extensionless.jpg"][index])
+        }
+        for format in RevisionGraphFormat.allCases {
+            picker.panel.nameFieldStringValue="Revision Graph."+format.fileExtension
+            try require(picker.format==format)
             let data = try RevisionGraphExport.data(canvas: controller.canvas, viewport: controller.scroll.contentSize, format: format, appearance: NSAppearance(named: .aqua)!)
             let expected = try RevisionGraphExport.size(canvas: controller.canvas, viewport: controller.scroll.contentSize, format: format)
             if format == .svg {
@@ -565,13 +571,14 @@ import Darwin
         try require(!controller.windowShouldClose(window) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
         do { try controller.exportGraph(to: root.appendingPathComponent("blocked.svg"), format: .svg); throw Failure(line: #line) }
         catch RevisionGraphExportFailure.unavailable { }
-        saveReply?(.cancel); try require(controller.graphSavePanel == nil && !controller.hasExportSheet)
+        saveReply?(.cancel); try await wait {!controller.hasPendingWork};try require(controller.graphSavePanel == nil && !controller.hasExportSheet)
         let retiredExport = RevisionGraphWindowController(repository: repo, access: nil, preferences: prefs, layoutExecutable: helper)
         try await wait { !retiredExport.model.busy }; try require(retiredExport.model.geometry != nil)
         var retiredReply: ((NSApplication.ModalResponse) -> Void)?
         retiredExport.presentSavePanel = { _, _, completion in retiredReply = completion }
         retiredExport.saveGraph(); try require(retiredExport.graphSavePanel != nil)
         retiredExport.close(); retiredReply?(.OK)
+        try await wait {!retiredExport.hasPendingWork}
         try require(retiredExport.model.closed && retiredExport.graphSavePanel == nil && !retiredExport.hasExportSheet)
         print("PASS: Revision Graph owned export, sheet lock/cancel/reopen and forced-owner stale reply refusal")
         // Destructive checks touch only this disposable repository, after the read-only invariants above.

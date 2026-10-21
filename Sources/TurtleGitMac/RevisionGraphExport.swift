@@ -14,9 +14,9 @@ extension RevisionGraphFormat {
 }
 
 enum RevisionGraphExportFailure: LocalizedError {
-    case unavailable, size, rendering, encoding
+    case unavailable, size, rendering, encoding, finalDestination
     var errorDescription: String? {
-        switch self { case .unavailable: return "Load a revision graph before saving it."; case .size: return "The graph is too large to export at this zoom. Choose a smaller zoom or a vector format."; case .rendering: return "The revision graph could not be rendered."; case .encoding: return "The revision graph could not be encoded in the selected format." }
+        switch self { case .finalDestination: return "Confirm the final export filename in the Save panel before saving."; case .unavailable: return "Load a revision graph before saving it."; case .size: return "The graph is too large to export at this zoom. Choose a smaller zoom or a vector format."; case .rendering: return "The revision graph could not be rendered."; case .encoding: return "The revision graph could not be encoded in the selected format." }
     }
 }
 
@@ -35,7 +35,7 @@ enum RevisionGraphExportFailure: LocalizedError {
         return String(format: "#%02x%02x%02x", Int((rgb.redComponent * 255).rounded()), Int((rgb.greenComponent * 255).rounded()), Int((rgb.blueComponent * 255).rounded()))
     }
     static func size(canvas: RevisionGraphCanvas, viewport: CGSize, format: RevisionGraphFormat) throws -> CGSize {
-        guard !canvas.model.busy, !canvas.model.closed, let graph = canvas.model.geometry, !canvas.model.nodes.isEmpty else { throw RevisionGraphExportFailure.unavailable }
+        guard !canvas.model.busy, !canvas.model.closed, !canvas.model.confirmingQuit, NSApp.modalWindow==nil, let graph = canvas.model.geometry, !canvas.model.nodes.isEmpty else { throw RevisionGraphExportFailure.unavailable }
         let zoom = format.vector ? CGFloat(1) : canvas.model.zoom
         let result = CGSize(width: ceil(graph.size.width * zoom + 20), height: ceil(graph.size.height * zoom + 20))
         return format.vector ? CGSize(width: max(result.width, viewport.width), height: max(result.height, viewport.height)) : result
@@ -135,21 +135,44 @@ enum RevisionGraphExportFailure: LocalizedError {
     }
 }
 
-@MainActor final class RevisionGraphSavePanel: NSObject {
-    let panel = NSSavePanel()
-    let formats = NSPopUpButton(frame: CGRect(x: 72, y: 0, width: 160, height: 26))
-    var format: RevisionGraphFormat { RevisionGraphFormat.allCases[formats.indexOfSelectedItem] }
+@MainActor final class RevisionGraphSavePanel: NSObject, NSOpenSavePanelDelegate {
+    let panel=NSSavePanel()
+    /// Keep the established native popup seam; these are source file filters,
+    /// not encoder overrides. The final filename always chooses the encoder.
+    let formats=NSPopUpButton(frame:CGRect(x:72,y:0,width:200,height:26))
+    var filter:RevisionGraphExportFilter {RevisionGraphExportFilter.allCases[max(0,formats.indexOfSelectedItem)]}
+    var format:RevisionGraphFormat {
+        (try? RevisionGraphExportDestination(url:URL(fileURLWithPath:"/"+panel.nameFieldStringValue),filter:filter).format) ?? .svg
+    }
     override init() {
-        super.init(); panel.title = "Save Graph As"; panel.nameFieldStringValue = "Revision Graph.svg"
-        panel.allowedContentTypes = [.svg]; panel.allowsOtherFileTypes = false; panel.canCreateDirectories = true
-        let accessory = NSView(frame: CGRect(x: 0, y: 0, width: 232, height: 26)), label = NSTextField(labelWithString: "Format:")
-        label.frame = CGRect(x: 0, y: 4, width: 66, height: 18)
-        formats.addItems(withTitles: RevisionGraphFormat.allCases.map(\.title)); formats.target = self; formats.action = #selector(changeFormat)
-        accessory.addSubview(label); accessory.addSubview(formats); panel.accessoryView = accessory
+        super.init();panel.title="Save Graph As";panel.nameFieldStringValue="Revision Graph.svg"
+        panel.delegate=self;panel.allowsOtherFileTypes=true;panel.canCreateDirectories=true
+        let accessory=NSView(frame:CGRect(x:0,y:0,width:272,height:26)),label=NSTextField(labelWithString:"Format:")
+        label.frame=CGRect(x:0,y:4,width:66,height:18)
+        formats.addItems(withTitles:["Pictures","Graphs","All Files"]);formats.target=self;formats.action=#selector(changeFormat)
+        accessory.addSubview(label);accessory.addSubview(formats);panel.accessoryView=accessory;changeFormat()
     }
     @objc func changeFormat() {
-        panel.allowedContentTypes = [format.contentType]
-        let base = (panel.nameFieldStringValue as NSString).deletingPathExtension
-        panel.nameFieldStringValue = (base.isEmpty ? "Revision Graph" : base) + "." + format.fileExtension
+        switch filter {
+        case .pictures:panel.allowedContentTypes=[.svg,.jpeg,.png,.bmp,.gif,.pdf]
+        case .graphs:panel.allowedContentTypes=[RevisionGraphFormat.graphviz.contentType,UTType(filenameExtension:"dot",conformingTo:.plainText)!]
+        case .allFiles:panel.allowedContentTypes=[]
+        }
+        // Source adds defaults only when accepting an extensionless filename.
+        // Selecting another filter must not destroy a custom or known suffix.
     }
+    func normalizedFilename(_ filename:String)throws->String {try RevisionGraphExportDestination.normalizedFilename(filename,filter:filter)}
+    func panel(_ sender:Any,userEnteredFilename filename:String,confirmed okFlag:Bool)->String? {
+        guard okFlag else{return filename}
+        // Returning the final leaf here precedes AppKit's overwrite question
+        // and security-scoped acceptance. Validation presents unsupported errors.
+        return (try? normalizedFilename(filename)) ?? filename
+    }
+    func panel(_ sender:Any,validate url:URL)throws { _ = try destination(for:url) }
+    func destination(for acceptedURL:URL)throws->RevisionGraphExportDestination {
+        let result=try RevisionGraphExportDestination(url:acceptedURL,filter:filter)
+        guard result.url.path.utf8.elementsEqual(acceptedURL.path.utf8) else{throw RevisionGraphExportFailure.finalDestination}
+        return result
+    }
+    func retire() {panel.delegate=nil;formats.target=nil;formats.action=nil}
 }

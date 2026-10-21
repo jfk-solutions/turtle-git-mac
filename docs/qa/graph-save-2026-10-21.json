@@ -1,0 +1,172 @@
+{
+  "date": "2026-10-21",
+  "family": "Revision Graph Save Graph As and hidden command output",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Pictures/Graphs/All Files native save filters",
+    "Filename-selected encoders; source SVG/GV defaults and JPEG fallback",
+    "Final filename before save acceptance/output permission; no sibling write from an unnormalized accepted URL",
+    "Owned one-use save/error replies, actual sheet drainage, forced closure and stale/duplicate refusal",
+    "Global Quit/modal interaction gates and captured command epochs",
+    "Hidden command settings/backend/appearance captured before permission and discovery",
+    "Original owner cancellation, real helper/controller drainage and existing atomic output publication"
+  ],
+  "source_hashes": {
+    "Sources/TurtleGitCore/RevisionGraphFormat.swift": "ec8ab455dad3ec4e7b3cfd91b516e45409b30977eb6f2f8445db6760c786d393",
+    "Sources/TurtleGitCore/PrimaryCommandInvocation.swift": "7079f180113ac630a14aa8ff07f880d96a5e90cdca8adc343cbd38f802d696cc",
+    "Sources/TurtleGitMac/RevisionGraphExport.swift": "9b175c636479e175048bd211c9c435ac3fd216c52d8837e678da8d71d9ffc8bc",
+    "Sources/TurtleGitMac/RevisionGraphWindow.swift": "05f7ad720e64d891feaa08514de34921c5551b616e1f3f06233137dab78dd981",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "4573600060057df89c4dc0b60f104ad76034b1562b571a622b5db08a8c226ce7",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "e8d9b56aac15fa5269a30f97c1e2a9d99f30a802ce80f6b2a52c7b7ad8f9f2bc",
+    "Tests/TurtleGitCoreTests/RevisionGraphExportDestinationTests.swift": "ac0ed9e1a3ead3951d1fbdd2af9107f722e74118d320b6476c4d2e68d1712722",
+    "docs/qa/revision-graph-save-native-2026-10-21.swift": "fb8bc43e3f212c97f18808e14753acd60a3aa4e7cae6a528b17ae3a865bf7be8",
+    "scripts/test-revision-graph-save-family.py": "780ed6622aeca6951cb9e44af6f6cb392aa3bb8e004d9882c0f002a5a82770ca"
+  },
+  "core": {
+    "distinct_methods": 61,
+    "existing_command_methods": 57,
+    "new_destination_methods": 4,
+    "full_core_suite_run": false,
+    "initial_log": "build/qa/graph-save-core-2026-10-21.log",
+    "repair_log": "build/qa/graph-save-core-repair-2026-10-21.log",
+    "final_new_methods_exit_code": 0,
+    "failures": [
+      "Initial 61-method group: 57 existing methods passed; two expected metafile errors were incorrectly recorded by the new XCTest unwrap helper. Evaluate throwing parse before XCTUnwrap; all four new methods then passed. No Core production repair required."
+    ]
+  },
+  "debug": {
+    "status": "passed",
+    "logs": [
+      "build/qa/graph-save-build-2026-10-21.log",
+      "build/qa/graph-save-build-repair-2026-10-21.log",
+      "build/qa/graph-save-build-preferences-2026-10-21.log"
+    ],
+    "signing_allowed": false,
+    "failures": [
+      "Initial build exited65: NSSavePanelDelegate is not the AppKit protocol; corrected to NSOpenSavePanelDelegate. Next build exited0.",
+      "Retained pre-existing simulator SDK mismatch and exit-zero/no-output diagnostics; actual session exit is authoritative."
+    ],
+    "final_exit_code": 0
+  },
+  "native": {
+    "status": "passed across focused repairs",
+    "initial_log": "build/qa/graph-save-native-2026-10-21.log",
+    "initial_passes": [
+      {
+        "case": "formats",
+        "git": "/usr/bin/git"
+      },
+      {
+        "case": "ownership",
+        "git": "/usr/bin/git"
+      }
+    ],
+    "initial_failure": "Hidden command capture assertion exposed custom volatile defaults domain absent from search order. Private instance-local UserDefaults snapshot replaces it; actual typed-getter/isolation probe passes. Assertions preserved.",
+    "preferences_probe": "build/qa/graph-command-preferences-probe-2026-10-21.log",
+    "receiver_pids": [
+      94855,
+      94889,
+      94939,
+      95308,
+      95497,
+      95532,
+      95582
+    ],
+    "receivers_absent_verified": true,
+    "automated_windows": "Invisible/offscreen; private repositories/preferences, injected final URL/responses and actual native sheet detachment. No user-owned app terminated.",
+    "distinct_passed_case_engine_pairs": 6,
+    "passed_cases": [
+      {
+        "case": "formats",
+        "git": "/usr/bin/git",
+        "passed": true
+      },
+      {
+        "case": "ownership",
+        "git": "/usr/bin/git",
+        "passed": true
+      },
+      {
+        "case": "command",
+        "git": "/usr/bin/git",
+        "passed": true
+      },
+      {
+        "case": "formats",
+        "git": "build/git-runtime/Git/bin/git",
+        "passed": true
+      },
+      {
+        "case": "ownership",
+        "git": "build/git-runtime/Git/bin/git",
+        "passed": true
+      },
+      {
+        "case": "command",
+        "git": "build/git-runtime/Git/bin/git",
+        "passed": true
+      }
+    ],
+    "final_logs": [
+      "build/qa/graph-save-native-command-repair-2026-10-21.log",
+      "build/qa/graph-save-native-bundled-2026-10-21.log"
+    ],
+    "final_exit_codes": [
+      0,
+      0
+    ],
+    "checks": [
+      "Three actual native filter choices and filename delegate defaults/preservation",
+      "Real seven-format encoder outputs and raster identifiers",
+      "Unnormalized accepted URL refusal rather than unauthorized sibling publication",
+      "Actual save and error sheets retain ownership until detachment",
+      "Duplicate/cancelled/retired replies preserve targets; global Quit freeze",
+      "Hidden command final-URL grant, denied grant and captured Menlo font despite original preference changes",
+      "Actual held layout helper cancellation: no late output, native controller retirement and both helper PIDs settled",
+      "Index/config/HEAD unchanged by export family"
+    ],
+    "validation_scope_note": "System formats/ownership passed before isolated RepositoryModel snapshot repair; only affected system command and previously unrun bundled cases then ran. Full old graph suite was not repeated."
+  },
+  "resources": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1308,
+      "write_and_check_exit_code": 0
+    },
+    "help": {
+      "documents": 49,
+      "topics": 51,
+      "files": 69,
+      "write_and_check_exit_code": 0
+    },
+    "dialog_ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "certified_complete": 0,
+      "not_feature_percentage": true
+    }
+  },
+  "hosted_observation": {
+    "pages_b30a72a2": {
+      "run": 39535703101,
+      "status": "success"
+    },
+    "macos_8f00ea46": {
+      "run": 39533313374,
+      "status": "in_progress"
+    },
+    "macos_b30a72a2": {
+      "run": 39535703114,
+      "status": "pending"
+    },
+    "full_current_hosted_pass_confirmed": false
+  },
+  "remaining": [
+    "Windows metafile graph writing; PDF remains native alternative",
+    "Physical overwrite/keyboard/VoiceOver and signed save-panel grants on supported systems/volumes",
+    "Complete graph/source-state/layout acceptance",
+    "Full current hosted integration, installed Finder and signed distribution/App Store acceptance"
+  ],
+  "new_screenshots": false,
+  "whole_port_complete": false
+}

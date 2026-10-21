@@ -39,6 +39,11 @@ final class RevisionGraphSurface: NSView {
 
 @MainActor final class RevisionGraphWindowModel: ObservableObject {
     static var activeOperations = 0
+    private(set) var pendingOperations=0
+    var hasPendingWork:Bool {pendingOperations>0}
+    private(set) var commandEpoch=UUID()
+    @Published var confirmingQuit=false {didSet {if confirmingQuit != oldValue {commandEpoch=UUID();selectionGeneration=UUID();changed()}}}
+    var canAct:Bool {!closed && !confirmingQuit && NSApp.modalWindow==nil}
     let repository: GitRepository
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
@@ -109,26 +114,27 @@ final class RevisionGraphSurface: NSView {
         return result
     }
     func load() {
-        guard !closed, !busy else { return }
+        guard canAct, !busy else { return }
         busy = true; error = nil; changed()
-        let token = OperationCancellation(), request = UUID()
+        let token = OperationCancellation(), request = UUID(),epoch=commandEpoch
         var options = self.options
         options.useMailmap = GitIdentityDisplay(defaults: preferences).useMailmap
         options.ordering = HistoryOrdering.load(defaults: preferences)
         let font = Self.configuredFont(preferences)
         cancellation = token; generation = request
-        Self.activeOperations += 1
+        Self.activeOperations += 1;pendingOperations += 1
         worker = Task { [self] in
             defer {
-                Self.activeOperations -= 1
+                Self.activeOperations -= 1;pendingOperations -= 1
                 if generation == request { busy = false; cancellation = nil; worker = nil; changed(); becameIdle() }
+                else if closed,cancellation === token {busy=false;cancellation=nil;worker=nil}
                 withExtendedLifetime(access) {}
             }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let isBare = try await repository.isBare(cancellation: token)
                 let graph = try await repository.revisionGraph(options: options, cancellation: token)
-                guard !closed, !token.isCancelled, request == generation else { return }
+                guard canAct,epoch==commandEpoch, !token.isCancelled, request == generation else { return }
                 let sizes = graph.nodes.map { node -> CGSize in
                     let labels = self.lines(node, pointers: graph.superprojectLabels)
                     let widths = labels.map { ($0.0 as NSString).size(withAttributes: [.font: font]).width }
@@ -138,17 +144,17 @@ final class RevisionGraphSurface: NSView {
                 let layout = try await Task.detached {
                     try RevisionGraphLayoutRuntime.layout(nodes: graph.nodes, sizes: sizes, executable: executable, cancellation: token)
                 }.value
-                guard !closed, !token.isCancelled, request == generation else { return }
+                guard canAct,epoch==commandEpoch, !token.isCancelled, request == generation else { return }
                 bare = isBare; nodes = graph.nodes; pointers = graph.superprojectLabels; geometry = layout; self.font = font; self.options.ordering = options.ordering
                 selection = selection.filter { hash in self.nodes.contains { $0.hash == hash } }
-            } catch { if !closed, !token.isCancelled, request == generation { self.error = error.localizedDescription } }
+            } catch { if canAct,epoch==commandEpoch, !token.isCancelled, request == generation { self.error = error.localizedDescription } }
         }
     }
     func cancel() { cancellation?.cancel(); worker?.cancel() }
     func waitForCompletion() async { await worker?.value }
     func invalidate() { closed = true; generation = UUID(); cancel(); changed = {}; becameIdle = {} }
     func select(_ hash: String?, extending: Bool) {
-        guard !busy, !closed else { return }
+        guard canAct, !busy else { return }
         guard let hash else { selection = []; changed(); return }
         if extending {
             if let index = selection.firstIndex(of: hash) { selection.remove(at: index) }
@@ -159,7 +165,7 @@ final class RevisionGraphSurface: NSView {
     // Mouse selection toggles the first node; programmatic routing keeps select
     // idempotent so opening a menu or restoring a selection cannot clear it.
     func clickSelection(_ hash: String?, extending: Bool) {
-        guard !busy, !closed else { return }
+        guard canAct, !busy else { return }
         if extending, hash == nil { return }
         if !extending, hash == selection.first { select(nil, extending: false) }
         else { select(hash, extending: extending) }
@@ -167,7 +173,7 @@ final class RevisionGraphSurface: NSView {
     static func fullReferenceName(_ ref: RevisionReference) -> String { ref.kind == .annotatedTag ? ref.name + "^{}" : ref.name }
     func friendName(_ hash: String) -> String { nodes.first { $0.hash == hash }?.references.first.map(Self.fullReferenceName) ?? hash }
     func compare(head: Bool = false, working: Bool = false, alternate:Bool? = nil) {
-        guard !busy, !closed, let first = selection.first, (head || working) ? selection.count == 1 : selection.count == 2, !working || !bare else { return }
+        guard canAct, !busy, let first = selection.first, (head || working) ? selection.count == 1 : selection.count == 2, !working || !bare else { return }
         ComparisonToolInvocation.$alternate.withValue(alternate ?? ComparisonToolInvocation.capture) {
             onCompare(.revision(friendName(first)), working ? .workingTree : .revision(head ? "HEAD" : friendName(selection[1])))
         }
@@ -188,34 +194,35 @@ final class RevisionGraphSurface: NSView {
             ?? refs.first { $0.name.utf8.starts(with: "refs/tags/".utf8) }
     }
     func showLog() {
-        guard !busy, !closed, let first = selection.first else { return }
+        guard canAct, !busy, let first = selection.first else { return }
         if selection.count == 2 { onLogRange(HistoryRevisionRange(from: first, to: selection[1])) }
         else { onLog(first) }
     }
     func copyRefNames() {
-        guard !busy, !closed, let node = selectedNode else { return }
+        guard canAct, !busy, let node = selectedNode else { return }
         copyReferences(node.references.isEmpty ? node.hash : node.references.map(Self.fullReferenceName).joined(separator: "\n"))
     }
     func deleteReferences(_ names: [String], hash: String) {
-        guard !busy, !closed, selectedNode?.hash == hash, !names.isEmpty,
+        guard canAct, !busy, selectedNode?.hash == hash, !names.isEmpty,
               names.allSatisfy({ name in deletableReferences.contains { GitReferenceName.equal($0.name, name) } }) else { return }
         let repository = self.repository.capturingDiffBackend(preferences: preferences)
-        let token = OperationCancellation(), request = UUID(), factory = sshSettings.capture()
+        let token = OperationCancellation(), request = UUID(),epoch=commandEpoch, factory = sshSettings.capture()
         busy = true; error = nil; cancellation = token; generation = request; changed()
-        Self.activeOperations += 1
+        Self.activeOperations += 1;pendingOperations += 1
         worker = Task { [self] in
             let coordinator = factory?(); var refresh = false
             defer {
-                Self.activeOperations -= 1
+                Self.activeOperations -= 1;pendingOperations -= 1
                 coordinator?.close()
+                if closed,cancellation === token {busy=false;cancellation=nil;worker=nil}
                 if generation == request {
                     busy = false; cancellation = nil; worker = nil; changed(); becameIdle()
-                    if refresh, !closed { load() }
+                    if refresh,canAct,epoch==commandEpoch {load()}
                 }
                 withExtendedLifetime(access) {}
             }
             for name in names {
-                guard !closed, generation == request, !token.isCancelled, selectedNode?.hash == hash else { break }
+                guard canAct,epoch==commandEpoch, generation == request, !token.isCancelled, selectedNode?.hash == hash else { break }
                 var choice = HistoryReferenceDeleteChoice.abort
                 do {
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -223,11 +230,11 @@ final class RevisionGraphSurface: NSView {
                     let resolved = try await repository.run(["rev-parse", "--verify", "--end-of-options", snapshot.name + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)
                     guard resolved == hash else { throw HistoryReferenceDeletionFailure.changed }
                     choice = await confirmReferenceDeletion(snapshot)
-                    guard choice != .abort, !closed, !token.isCancelled, generation == request else { break }
+                    guard choice != .abort, canAct,epoch==commandEpoch, !token.isCancelled, generation == request else { break }
                     _ = try await repository.deleteHistoryReference(snapshot, choice: choice, cancellation: token, prepareTransport: coordinator?.preparation)
                     refresh = true
                 } catch {
-                    guard !closed, !token.isCancelled else { break }
+                    guard canAct,epoch==commandEpoch, !token.isCancelled else { break }
                     self.error = error.localizedDescription
                     await acknowledgeReferenceDeletionFailure(error.localizedDescription)
                     if [.remoteAndLocal, .stashAll, .stashOne].contains(choice) { refresh = true } else { break }
@@ -237,23 +244,23 @@ final class RevisionGraphSurface: NSView {
     }
     func unified(head: Bool, alternate:Bool? = nil) {
         let repository=self.repository.capturingDiffBackend(preferences:preferences)
-        guard !busy, !closed, let first = selection.first, head ? selection.count == 1 : selection.count == 2 else { return }
+        guard canAct, !busy, let first = selection.first, head ? selection.count == 1 : selection.count == 2 else { return }
         let from = friendName(first), to = head ? "HEAD" : friendName(selection[1])
         let alternate=alternate ?? ComparisonToolInvocation.capture,selectionRequest=selectionGeneration
-        let token = OperationCancellation(), request = UUID()
+        let token = OperationCancellation(), request = UUID(),epoch=commandEpoch
         busy = true; cancellation = token; generation = request; changed()
-        Self.activeOperations += 1
+        Self.activeOperations += 1;pendingOperations += 1
         worker = Task { [self] in
-            defer { Self.activeOperations -= 1; if request == generation { busy = false; cancellation = nil; worker = nil; changed(); becameIdle() }; withExtendedLifetime(access) {} }
+            defer { Self.activeOperations -= 1;pendingOperations -= 1; if request == generation { busy = false; cancellation = nil; worker = nil; changed(); becameIdle() } else if closed,cancellation === token {busy=false;cancellation=nil;worker=nil}; withExtendedLifetime(access) {} }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let a = try await repository.run(["rev-parse", "--verify", "--end-of-options", from + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)
                 let b = try await repository.run(["rev-parse", "--verify", "--end-of-options", to + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)
                 let bytes = try await repository.unifiedDiffData(arguments:["diff", "--no-ext-diff", "--no-color", a, b, "--"],cancellation:token)
-                guard !closed, request == generation,selectionRequest==selectionGeneration, !token.isCancelled else { return }
+                guard canAct,epoch==commandEpoch, request == generation,selectionRequest==selectionGeneration, !token.isCancelled else { return }
                 try await onUnified(bytes,alternate)
             } catch {
-                if !closed, request == generation,selectionRequest==selectionGeneration, !token.isCancelled {
+                if canAct,epoch==commandEpoch, request == generation,selectionRequest==selectionGeneration, !token.isCancelled {
                     self.error = error.localizedDescription;changed();await acknowledgeUnifiedFailure(error.localizedDescription)
                 }
             }
@@ -317,13 +324,21 @@ final class RevisionGraphToolbarButton: NSButton {
     private var closing = false
     private var exporting = false
     private(set) var graphSavePanel: RevisionGraphSavePanel?
-    private var exportError: NSAlert?
+    private(set) var exportError: NSAlert?
+    private var saveReply:((NSApplication.ModalResponse)->Void)?,exportErrorReply:((NSApplication.ModalResponse)->Void)?
+    private(set) var pendingExportOperations=0
+    private(set) static var activeExportOperations=0
+    private var closeRelease:Task<Void,Never>?
+    private var hasClosed=false
+    var hasPendingWork:Bool {model.hasPendingWork || pendingExportOperations>0 || closeRelease != nil || graphSavePanel?.panel.sheetParent != nil || exportError?.window.sheetParent != nil}
+    var selectedSaveURL:(NSSavePanel)->URL?={$0.url}
+    var presentExportError:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Void={window,alert,reply in alert.beginSheetModal(for:window,completionHandler:reply)}
     var presentSavePanel: (NSSavePanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, window, completion in panel.beginSheetModal(for: window, completionHandler: completion) }
     private var pendingRepositoryRefresh = false
     private(set) var unifiedViewer: PatchWindowController?
     private var unifiedError:NSAlert?
     var openUnifiedExternal:((Data,Bool) async throws -> Bool)
-    var hasExportSheet: Bool { exporting || exportError != nil }
+    var hasExportSheet: Bool { exporting || pendingExportOperations>0 || exportError != nil }
     var onClosed: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, layoutExecutable: URL? = nil, automaticallyLoad: Bool = true) {
         openUnifiedExternal={ bytes,alternate in try await UnifiedDiffApplication.openExternal(bytes,alternate:alternate,preferences:preferences,title:"Revision Graph changes",permissions:access.map { [$0] } ?? []) }
@@ -445,7 +460,7 @@ final class RevisionGraphToolbarButton: NSButton {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     private var graphInteractionAllowed:Bool {
-        !model.closed && !model.busy && filter==nil && !exporting && window?.attachedSheet==nil && !hasFindError
+        model.canAct && !hasClosed && !closing && !model.busy && filter==nil && !exporting && window?.attachedSheet==nil && !hasFindError
     }
     private func presentUnifiedFailure(_ message:String) async {
         guard let window,!model.closed,window.attachedSheet==nil,unifiedError==nil else { return }
@@ -569,7 +584,7 @@ final class RevisionGraphToolbarButton: NSButton {
         }
     }
     private func acceptsNodeTarget(_ target: NodeMenuTarget) -> Bool {
-        !target.session.consumed && currentNodeMenuSession === target.session && !model.closed && !model.busy && target.generation == model.generation && target.selectionGeneration == model.selectionGeneration
+        !target.session.consumed && currentNodeMenuSession === target.session && model.canAct && !hasClosed && !closing && !model.busy && target.generation == model.generation && target.selectionGeneration == model.selectionGeneration
     }
     @objc private func nodeMenuCommand(_ sender: NSMenuItem) {
         guard let target=sender.representedObject as? NodeMenuTarget, acceptsNodeTarget(target),validateMenuItem(sender) else { return }
@@ -588,7 +603,7 @@ final class RevisionGraphToolbarButton: NSButton {
     }
     @objc private func clicked(_ sender: NSButton) { if let command = sender.identifier?.rawValue { perform(command) } }
     @objc private func commitZoom(_ sender: Any?) {
-        guard !model.busy, !model.closed, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError else { synchronizeZoom(force: true); return }
+        guard model.canAct, !hasClosed, !closing, !model.busy, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError else { synchronizeZoom(force: true); return }
         let scanner = Scanner(string: zoomBox.stringValue); scanner.locale = Locale(identifier: "en_US_POSIX")
         guard let percent = scanner.scanDouble() else { synchronizeZoom(force: true); return }
         _ = scanner.scanString("%")
@@ -624,7 +639,7 @@ final class RevisionGraphToolbarButton: NSButton {
             return validateMenuItem(command)
         }
         if let target = item.representedObject as? RevisionGraphReferenceCommand {
-            guard !model.busy, !model.closed, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError, let node = model.selectedNode else { return false }
+            guard model.canAct, !hasClosed, !closing, !model.busy, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError, let node = model.selectedNode else { return false }
             switch target {
             case .switchBranch(let name, let hash): return !model.bare && node.hash == hash && model.switchBranches.contains { GitReferenceName.equal($0.name, name) }
             case .checkout(let name, let hash): return !model.bare && node.hash == hash && model.checkoutReference.map { GitReferenceName.equal($0.name, name) } == true
@@ -633,14 +648,14 @@ final class RevisionGraphToolbarButton: NSButton {
         }
         guard let command = item.representedObject as? String else { return true }
         item.state = isChecked(command) ? .on : .off
-        if model.busy || model.closed || filter != nil || exporting || window?.attachedSheet != nil || hasFindError { return command == "close" }
+        if !model.canAct || hasClosed || closing || model.busy || filter != nil || exporting || window?.attachedSheet != nil || hasFindError { return command == "close" }
         if ["compare", "unified"].contains(command) { return model.selection.count == 2 }
         if ["compareHead", "compareWorking", "unifiedHead", "log", "browse", "copyRefs"].contains(command) { return command == "log" ? !model.selection.isEmpty : model.selection.count == 1 && (command != "compareWorking" || !model.bare) }
         return true
     }
     func perform(_ command: String) {
         if command == "close" { window?.performClose(nil); return }
-        guard !model.busy, !model.closed, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError else { return }
+        guard model.canAct, !hasClosed, !closing, !model.busy, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError else { return }
         switch command {
         case "refresh": model.load()
         case "zoomIn": model.zoom = min(2, model.zoom / 0.9)
@@ -673,7 +688,8 @@ final class RevisionGraphToolbarButton: NSButton {
     func update() {
         synchronizeZoom()
         find?.updateAvailability()
-        zoomBox.isEnabled = !model.busy && !model.closed && filter == nil && !exporting && window?.attachedSheet == nil && !hasFindError
+        zoomBox.isEnabled = graphInteractionAllowed
+        if !graphInteractionAllowed {canvas.cancelPointerGesture()}
         for button in toolbarButtons {
             button.isEnabled = zoomBox.isEnabled
             button.state = isChecked(button.identifier?.rawValue ?? "") ? .on : .off
@@ -682,14 +698,16 @@ final class RevisionGraphToolbarButton: NSButton {
         overview.isHidden = !model.showOverview || model.busy || model.nodes.isEmpty || model.nodes.count > 10_000
         status.stringValue = model.error ?? (model.busy ? "Loading…" : "\(model.nodes.count) revisions • \(Int((model.zoom * 100).rounded()))%")
         cancelButton.isEnabled = model.busy
-        if pendingRepositoryRefresh, !model.closed, !model.busy, !closing, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError {
+        if pendingRepositoryRefresh, model.canAct, !hasClosed, !closing, !model.busy, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError {
             pendingRepositoryRefresh = false; model.load()
         }
     }
     func showFilter() {
-        guard !model.closed, !model.busy, filter == nil, !exporting, let window, window.attachedSheet == nil, !hasFindError else { return }
+        guard model.canAct, !hasClosed, !closing, !model.busy, filter == nil, !exporting, let window, window.attachedSheet == nil, !hasFindError else { return }
+        let epoch=model.commandEpoch,generation=model.generation
         let filter = RevisionGraphFilterController(model: model) { [weak self] options in
-            guard let self else { return }; self.filter = nil
+            guard let self else { return };self.filter=nil
+            guard self.model.canAct,!self.hasClosed,!self.closing,epoch==self.model.commandEpoch,generation==self.model.generation else {self.update();return}
             if let options { self.pendingRepositoryRefresh = false; self.model.options = options; self.model.load() }
             self.update()
         }
@@ -697,48 +715,67 @@ final class RevisionGraphToolbarButton: NSButton {
         update()
     }
     func saveGraph() {
-        guard !model.closed, !model.busy, filter == nil, !exporting, !hasFindError,
-              let window, window.attachedSheet == nil, model.geometry != nil else { return }
-        let picker = RevisionGraphSavePanel(), generation = model.generation
-        graphSavePanel = picker; exporting = true; update()
-        presentSavePanel(picker.panel, window) { [weak self, weak window] response in
-            guard let self, !self.model.closed, self.graphSavePanel === picker, let window else { return }
-            self.graphSavePanel = nil; self.exporting = false
-            defer { self.update() }
-            guard response == .OK, let url = picker.panel.url, generation == self.model.generation else { return }
-            do { try self.exportGraph(to: url, format: picker.format) }
-            catch {
-                let alert = NSAlert(error: error); self.exportError = alert
-                alert.beginSheetModal(for: window) { [weak self, weak alert] _ in
-                    guard let self, !self.model.closed, self.exportError === alert else { return }
-                    self.exportError = nil; self.update()
-                }
+        guard graphInteractionAllowed,let window,model.geometry != nil else{return}
+        let picker=RevisionGraphSavePanel(),generation=model.generation,epoch=model.commandEpoch,selection=model.selectionGeneration,zoom=model.zoom,arrows=model.arrowsTowardMerges
+        picker.panel.alphaValue=window.alphaValue;picker.panel.appearance=window.appearance
+        graphSavePanel=picker;exporting=true;pendingExportOperations += 1;Self.activeExportOperations += 1;update()
+        var answered=false
+        let reply:(NSApplication.ModalResponse)->Void={ [self,weak window] response in
+            guard !answered else{return};answered=true;saveReply=nil
+            let acceptedURL=response == .OK ? selectedSaveURL(picker.panel):nil
+            // Capture the filter/destination receipt before suspending for
+            // actual native sheet detachment; late edits cannot retarget it.
+            let destination=Result {try acceptedURL.map {try picker.destination(for:$0)}}
+            Task { @MainActor [self] in
+                defer {picker.retire();if graphSavePanel === picker {graphSavePanel=nil};exporting=false;pendingExportOperations -= 1;Self.activeExportOperations -= 1;if !hasClosed {update()}}
+                while picker.panel.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
+                guard response == .OK,let window,graphSavePanel === picker,model.canAct,!hasClosed,!closing,generation==model.generation,epoch==model.commandEpoch,selection==model.selectionGeneration,zoom==model.zoom,arrows==model.arrowsTowardMerges else{return}
+                exporting=false
+                do {
+                    guard let plan=try destination.get() else{return}
+                    try exportGraph(to:plan.url,format:plan.format)
+                } catch {await showExportFailure(error,window:window)}
             }
         }
+        saveReply=reply;presentSavePanel(picker.panel,window,reply)
+    }
+    private func showExportFailure(_ error:Error,window:NSWindow) async {
+        guard model.canAct,!hasClosed,!closing,window.attachedSheet==nil else{return}
+        let alert=NSAlert(error:error);alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance;exportError=alert
+        await withCheckedContinuation { (continuation:CheckedContinuation<Void,Never>) in
+            var answered=false
+            let reply:(NSApplication.ModalResponse)->Void={ [weak self] _ in
+                guard !answered else{return};answered=true;self?.exportErrorReply=nil;continuation.resume()
+            }
+            exportErrorReply=reply;presentExportError(window,alert,reply)
+        }
+        while alert.window.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
+        if exportError === alert {exportError=nil}
     }
     func exportGraph(to url: URL, format: RevisionGraphFormat) throws {
         let data = try graphExportData(format: format)
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        if GitRuntime.isAppStoreBuild && !scoped {throw RepositoryAccessFailure.securityScopeUnavailable}
         try data.write(to: url, options: .atomic)
     }
     func graphExportData(format: RevisionGraphFormat) throws -> Data {
-        guard !model.closed, !model.busy, !exporting, filter == nil, !hasFindError,
+        guard model.canAct, !hasClosed, !closing, !model.busy, !exporting, filter == nil, !hasFindError,
               window?.attachedSheet == nil, let window else { throw RevisionGraphExportFailure.unavailable }
         return try RevisionGraphExport.data(canvas: canvas, viewport: scroll.contentSize, format: format, appearance: window.effectiveAppearance)
     }
 
     func showFind(regexExecutable: URL? = nil) {
-        guard !model.closed, !model.busy, filter == nil, !exporting, let parent = window, parent.attachedSheet == nil, !hasFindError else { return }
+        guard model.canAct, !hasClosed, !closing, !model.busy, filter == nil, !exporting, let parent = window, parent.attachedSheet == nil, !hasFindError else { return }
         if let find { find.window?.makeKey(); return }
         let child = RevisionGraphFindController(repository: model.repository, access: model.access, preferences: model.preferences, regexExecutable: regexExecutable)
         find = child
         child.snapshot = { [weak model] in model?.nodes ?? [] }
         child.searchIndex = { [weak model] in model?.findSearchIndex ?? 0 }
         child.didFindIndex = { [weak model] in model?.findSearchIndex = $0 }
-        child.canSearch = { [weak self] in guard let self else { return false }; return !self.model.closed && !self.model.busy && self.filter == nil && !self.exporting && self.window?.attachedSheet == nil && !self.hasFindError }
+        child.canSearch = { [weak self] in guard let self else { return false }; return self.model.canAct && !self.hasClosed && !self.closing && !self.model.busy && self.filter == nil && !self.exporting && self.window?.attachedSheet == nil && !self.hasFindError }
         child.navigate = { [weak self] hash, select in
-            guard let self, let rect = self.model.geometry?.nodes.first(where: { $0.hash == hash })?.rect else { return }
+            guard let self,self.model.canAct,!self.hasClosed,!self.closing, let rect = self.model.geometry?.nodes.first(where: { $0.hash == hash })?.rect else { return }
             if select { self.model.select(hash, extending: false) }
             let point = NSPoint(x: rect.minX * self.model.zoom + 10, y: max(0, rect.minY * self.model.zoom + 10 - max(1, 25 * self.model.zoom)))
             self.scroll.contentView.scroll(to: self.scroll.contentView.constrainBoundsRect(NSRect(origin: point, size: self.scroll.contentView.bounds.size)).origin)
@@ -753,18 +790,28 @@ final class RevisionGraphToolbarButton: NSButton {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard sender.attachedSheet == nil, !hasFindError, filter == nil, !exporting, unifiedViewer?.model.busy != true, unifiedViewer?.window?.attachedSheet == nil else { return false }
+        guard !model.confirmingQuit,NSApp.modalWindow==nil,sender.attachedSheet == nil, !hasFindError, filter == nil, !exporting, unifiedViewer?.model.busy != true, unifiedViewer?.window?.attachedSheet == nil else { return false }
         guard PatchDocumentSession.permitOwnerClose(unifiedViewer.map { [$0] } ?? []) else { return false }
         if model.busy { closing = true; model.cancel(); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
-        colorUpdates = nil;currentNodeMenuSession=nil
-        if let alert=unifiedError { window?.endSheet(alert.window,returnCode:.cancel);alert.window.orderOut(nil);unifiedError=nil }
-        NotificationCenter.default.removeObserver(self); model.invalidate(); unifiedViewer?.close(); unifiedViewer = nil
-        if let sheet = graphSavePanel?.panel { window?.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
-        if let alert = exportError { window?.endSheet(alert.window, returnCode: .cancel); alert.window.orderOut(nil) }
-        graphSavePanel = nil; exportError = nil; exporting = false
-        filter?.close(); filter = nil; find?.close(); find = nil; onClosed(); onClosed = {}
+        guard !hasClosed else{return};hasClosed=true;closing=true;colorUpdates=nil;currentNodeMenuSession=nil
+        let save=graphSavePanel?.panel,errorSheet=exportError?.window
+        if let alert=unifiedError {window?.endSheet(alert.window,returnCode:.cancel);alert.window.orderOut(nil);unifiedError=nil}
+        NotificationCenter.default.removeObserver(self);model.invalidate();unifiedViewer?.close();unifiedViewer=nil
+        if let save {save.sheetParent?.endSheet(save,returnCode:.cancel);save.orderOut(nil)}
+        saveReply?(.cancel)
+        if let errorSheet {errorSheet.sheetParent?.endSheet(errorSheet,returnCode:.cancel);errorSheet.orderOut(nil)}
+        exportErrorReply?(.cancel)
+        filter?.close();filter=nil;find?.close();find=nil
+        (window as? RevisionGraphNativeWindow)?.command={_ in};canvas.contextMenu={NSMenu()};canvas.interactionAllowed={false};overview.interactionAllowed={false}
+        if model.hasPendingWork || pendingExportOperations>0 || save?.sheetParent != nil || errorSheet?.sheetParent != nil {
+            closeRelease=Task { [self] in
+                await model.waitForCompletion()
+                while model.hasPendingWork || pendingExportOperations>0 || save?.sheetParent != nil || errorSheet?.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
+                closeRelease=nil;let finish=onClosed;onClosed={};finish()
+            }
+        } else {let finish=onClosed;onClosed={};finish()}
     }
 }
 
@@ -927,6 +974,7 @@ enum RevisionGraphTooltip {
         self.scroll(to: NSPoint(x: clip.bounds.minX - (after.x - before.x), y: clip.bounds.minY - (after.y - before.y)))
         panPoint = event.locationInWindow
     }
+    func cancelPointerGesture() {panPoint=nil}
     override func mouseUp(with event: NSEvent) { panPoint = nil }
     private func scroll(to origin: NSPoint) {
         guard let scroll = enclosingScrollView else { return }

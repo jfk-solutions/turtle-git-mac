@@ -97,8 +97,14 @@ visibility are remembered across graph windows and app launches. Defaults match
 TortoiseGit: all tags on, overview/branchings/merge-directed arrows off. Zoom,
 selection and revision filters start fresh when a new graph window opens.
 
-**File → Save graph as…** opens a native format chooser, defaulting to SVG.
-Choose SVG, Graphviz (`.gv`), PNG, JPEG, BMP, GIF or PDF. SVG and PDF export
+**File → Save graph as…** opens the native save panel with **Pictures**,
+**Graphs** and **All Files** filters. Pictures adds `.svg` when the name has no
+extension; Graphs adds `.gv`. An existing extension remains unchanged when
+switching filters. The filename chooses the format: SVG, Graphviz (`.gv` or
+`.dot`), PNG, JPEG, BMP, GIF or PDF. With All Files, an extensionless name becomes
+JPEG; an unknown extension also appends `.jpg` (for example, `history.custom.jpg`).
+The panel confirms the final filename before granting access or replacing a file.
+Cancel leaves the destination unchanged. SVG and PDF export
 at 100% and include at least the graph and viewport extent; raster images export
 the full graph at the current zoom. Graphviz stores topology and colored
 reference rows for an external Graphviz renderer. PDF is the native replacement
