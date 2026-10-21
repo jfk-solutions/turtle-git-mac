@@ -167,5 +167,17 @@
         "log": "build/qa/graph-metafile-site-tests-2026-10-21.log"
       }
     }
+  },
+  "hosted_enrollment": {
+    "workflow": ".github/workflows/macos.yml",
+    "receivers": [
+      "scripts/test-graph-metafile-family.py",
+      "scripts/test-revision-graph-save-family.py"
+    ],
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "status": "Enrolled after local grouped pass; hosted execution pending."
   }
 }
