@@ -404,3 +404,14 @@ The three missing-logical-palette refusals use actual indexed eight-bit
 `DIB_PAL_COLORS` WORD table entries, rather than truecolor data with no palette.
 The EMF ROP2 pen matrix intentionally declares a two-logical-unit solid
 `EMR_CREATEPEN` pen; interior truth samples require its full stroke coverage.
+
+`generate-raster-roi.py` authors the original `classic-roi-*` EMF scenes and
+`unsupported-roi-offcanvas-payload.emf` (MIT). They use small offset Boolean
+patches on a 64×64 canvas: four-corner affine destination plus mirrored middle
+source crop; asymmetric upper/lower device Y; checkpoint/vector/full-viewport
+interleaving; saved pattern/clip/brush-origin reuse; an offcanvas paint followed
+by a partly clipped paint; destination-preserving 0xaa; and a ROP2 pen fallback.
+The malformed offcanvas record still declares an invalid source bitmap offset.
+Independent Core and native consumer expectations use literal device samples,
+not serialized implementation ROI fields or timing thresholds. The exhaustive
+ROP2/ROP3 truth matrices remain unchanged and retain the decoder's 15s deadline.

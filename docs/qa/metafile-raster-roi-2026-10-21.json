@@ -1,0 +1,184 @@
+{
+  "status": "focused-local-validation-passed",
+  "scope": "Bounded WMF/EMF raster operands, ordered native checkpoint reuse, reachable SVG snapshots and original-byte image comparison/conflict consumers",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Conservative all-four-corner device ROI with antialiasing halo and global source/mask sampling",
+    "Single per-conversion native RGBA checkpoint with exact identity, dimensions and unchanged-node admission",
+    "Reachable snapshot definitions/images without deleting live saved GDI state",
+    "Unknown vector bounds and flood connectivity retain full-canvas handling",
+    "Offcanvas transfers validate required operands before skipping paint",
+    "Existing full-canvas work charges, memory/input/output limits, complete truth matrices and 15-second decoder deadline retained"
+  ],
+  "hosted_evidence": [
+    {
+      "run": 39533313374,
+      "job": 119008850134,
+      "commit": "8f00ea4674d800a7bade5788c9b6f71174cf90ca",
+      "result": "Compilation passed; 2523 Core tests, two skipped, five failures across three metafile truth-matrix methods",
+      "boundary": "MASKBLT explicitly timed out; EMF BITBLT and WMF DIBBITBLT failable readers returned no image without exposing their underlying cause"
+    },
+    {
+      "run": 39546913107,
+      "job": 119048479767,
+      "commit": "9c267e46",
+      "result": "Application build failed at EnhancedMetafileWriter.swift:136; two integer expressions rejected as Float array elements",
+      "repair": "Use explicit Float(1) operands for the 1/64 world transform; no encoder behavior change intended",
+      "boundary": "A current hosted pass remains required"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Initial universal runtime and source reconstruction",
+      "result": "passed",
+      "log": "build/qa/metafile-raster-roi-runtime-2026-10-21.log"
+    },
+    {
+      "name": "Initial universal architecture conversion/refusal",
+      "result": "passed",
+      "log": "build/qa/metafile-raster-roi-universal-2026-10-21.log"
+    },
+    {
+      "name": "Initial grouped Core checkpoint",
+      "result": "failed",
+      "methods": 39,
+      "passed_methods": 19,
+      "failed_methods": 20,
+      "failed_assertions": 7286,
+      "unexpected_failures": 2,
+      "log": "build/qa/metafile-raster-roi-core-2026-10-21.log",
+      "repairs": [
+        "Native ROI draw uses the crop's bottom edge in AppKit coordinates, preserving original top-indexed device rows",
+        "Authored saved-pattern vector/XOR pair moved inside its active clip; retain outside-clip destination assertion",
+        "New mask RGB samples use existing one-byte tolerance and exact alpha; no Boolean truth assertions changed"
+      ]
+    },
+    {
+      "name": "Initial Debug app build",
+      "result": "passed",
+      "log": "build/qa/metafile-raster-roi-app-2026-10-21.log",
+      "boundary": "Embeds initial runtime; repaired runtime requires final embedding build"
+    },
+    {
+      "name": "Affected native-coordinate Core recheck",
+      "result": "19 methods passed; new affine scene still refused",
+      "methods": 20,
+      "passed_methods": 19,
+      "failed_methods": 1,
+      "failed_assertions": 2,
+      "unexpected_failures": 2,
+      "log": "build/qa/metafile-raster-roi-core-repair-2026-10-21.log",
+      "repair": "Use shared inverse-mapped source plane for retained-RGBA simple transfers; preserve href-only compressed direct-scanline fallback and every coverage/refusal assertion"
+    },
+    {
+      "name": "Affected affine source-plane Core recheck",
+      "result": "passed",
+      "methods": 19,
+      "failed_assertions": 0,
+      "log": "build/qa/metafile-raster-roi-core-affine-2026-10-21.log",
+      "boundary": "39 distinct Core methods cumulatively passed across the checkpoint and repairs; unaffected passing methods were not repeated"
+    },
+    {
+      "name": "Repaired universal helper builds and source reconstruction",
+      "result": "passed",
+      "logs": [
+        "build/qa/metafile-raster-roi-runtime-repair-2026-10-21.log",
+        "build/qa/metafile-raster-roi-runtime-affine-2026-10-21.log"
+      ]
+    },
+    {
+      "name": "Actual interpreter-only full-matrix conversion under unchanged deadline",
+      "result": "passed",
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "logs": [
+        "build/qa/metafile-raster-roi-matrices-universal-2026-10-21.log",
+        "build/qa/metafile-raster-roi-matrices-final-2026-10-21.log"
+      ],
+      "boundary": "Seven unique complete matrices per architecture (six ROP3, one MASKBLT). ROP3 repeated after its actual source-sampling change; unchanged MASKBLT was not repeated. Core independently checks all output truth values. Rosetta execution does not certify a physical Intel Mac or hosted CI."
+    },
+    {
+      "name": "Final Debug app embedding build",
+      "result": "passed",
+      "log": "build/qa/metafile-raster-roi-app-final-2026-10-21.log"
+    },
+    {
+      "name": "Actual native image comparison and conflict consumers",
+      "result": "four case/engine pairs passed",
+      "cases": [
+        "consumers",
+        "conflict"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/metafile-raster-roi-native-2026-10-21.log",
+      "receiver_pids": [
+        27829,
+        27843,
+        27859,
+        27950
+      ],
+      "cleanup": "All four receivers reaped and independently absent; exact approved helpers checked by open private request ownership on every case exit; no recovery cleanup required",
+      "assertions": [
+        "Actual IDiff panes and independent ROI/interleaving/saved-state pixel samples",
+        "Original input/stage bytes retained and invalid offcanvas payload explicitly refused",
+        "Real binary Git conflict preview leaves HEAD, index and worktree unchanged",
+        "Held actual decoder receipt retains cancellation, retirement and global Quit ownership until drainage"
+      ]
+    },
+    {
+      "name": "Embedded helper and Help identity",
+      "result": "passed after correcting verification assumption",
+      "log": "build/qa/metafile-raster-roi-embedding-2026-10-21.log",
+      "initial_verifier_failure": "Raw binary equality ignored intentional embed-time signing. Corrected verifier checks signed binary digest, unsigned_binary_sha256 link, equal source receipts/renderer, actual code signature and all tracked Help file bytes; no app change required"
+    },
+    {
+      "name": "Generated resources and source mapping",
+      "result": "passed",
+      "localizations": {
+        "languages": 38,
+        "keys": 1314
+      },
+      "help": {
+        "documents": 50,
+        "topics": 51,
+        "files": 70
+      },
+      "dialog_coverage": {
+        "resource_pairs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "pending_controls": 85,
+        "certified_complete": 0
+      },
+      "boundary": "Resource/control counts are not feature completion percentages"
+    },
+    {
+      "name": "Site render and links",
+      "result": "passed",
+      "documents": 412,
+      "unresolved_fragments": 0,
+      "log": "build/qa/metafile-raster-roi-site-final-2026-10-21.log"
+    },
+    {
+      "name": "Site documentation regression checks",
+      "result": "two passed",
+      "log": "build/qa/metafile-raster-roi-site-tests-final-2026-10-21.log"
+    }
+  ],
+  "remaining": [
+    "Current hosted CI pass including older Swift compiler repair",
+    "Physical Intel/macOS13 and signed image/Finder acceptance",
+    "Complete Windows edge/font/device/graphics compatibility",
+    "Full dialog and Finder feature parity; distribution and App Store acceptance"
+  ],
+  "runtime": {
+    "binary_sha256": "cc28da62e239cd8a2c790220276c992f9a5ec719a605be0aa16ebe50ef4f2967",
+    "renderer_sha256": "8a6045c84b563a7385aa0dabbb9a5d4ebfd24ea3a163946cce639b54fd6bede7"
+  },
+  "core_distinct_passed": 39
+}

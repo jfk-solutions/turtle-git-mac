@@ -179,3 +179,8 @@ the blending operation and alpha format retain their defined constraints.
 [Batch evidence](qa/metafile-masked-transfers-family-2026-10-20.json) records actual
 executed checks and failures. The grouped native entry point is
 `scripts/test-metafile-masked-transfers.py`.
+
+The [bounded-region continuation](METAFILE-RASTER-ROI-PARITY.md) reduces repeated
+operand work and reuses a verified native destination checkpoint while preserving
+the operation contract, original-byte consumers, full truth matrices and decoder
+deadline. Its guide separates implementation from executed acceptance evidence.

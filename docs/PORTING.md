@@ -1,5 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+The [bounded metafile raster continuation](METAFILE-RASTER-ROI-PARITY.md)
+implements four-corner device regions, global operand sampling, a single verified
+native destination checkpoint and reachable SVG snapshots without deleting live
+GDI objects. Existing truth matrices, cumulative limits and the 15-second decoder
+deadline are retained. Its [grouped checkpoint](qa/metafile-raster-roi-2026-10-21.json)
+records 39 distinct passing Core methods across focused repairs, the final Debug
+build and four native comparison/conflict case/engine pairs. All four receivers
+are independently absent. Both universal helper slices convert the full truth
+matrices locally under the unchanged deadline; complete Windows rendering
+identity and a current hosted pass remain open.
+
 The [classic direct bitmap and gradient family](METAFILE-SCANLINE-GRADIENT-PARITY.md)
 connects EMF/WMF scanline bands and full compressed direct input with classic
 rectangle/triangle meshes through existing native comparison and conflict panes.

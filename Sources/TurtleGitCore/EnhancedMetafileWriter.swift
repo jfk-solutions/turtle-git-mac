@@ -133,7 +133,7 @@ public enum EnhancedMetafileWriter {
             // every command succeeds, so cancellation never returns partial bytes.
             output = Data(repeating: 0, count: 88); records = 1
             try record(17, words([1])) // MM_TEXT
-            try record(35, floats([1 / 64, 0, 0, 1 / 64, 0, 0]))
+            try record(35, floats([Float(1) / 64, 0, 0, Float(1) / 64, 0, 0]))
             try record(18, words([1])) // transparent stroke gaps
             for command in commands {
                 try cancellation?.check()

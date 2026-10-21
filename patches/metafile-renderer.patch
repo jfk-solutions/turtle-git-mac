@@ -1759,7 +1759,7 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 --- /dev/null
 +++ b/src/turtleGitRaster.js
-@@ -0,0 +1,321 @@
+@@ -0,0 +1,364 @@
 +// Original TurtleGit Boolean GDI playback. GPL-2.0-or-later, see NOTICE.
 +// SVG snapshots contain only the private renderer's escaped drawing stream.
 +module.exports=function installRaster({EmfDrawer,WmfDrawer,SvgContext,fail,u32,i32,f32,escape,normalizePaintColors}) {
@@ -1843,18 +1843,56 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  const regions=require('./turtleGitClassicRegion')({fail,u32,i32,word,short,escape,brushes,clipped,composite,svg,dimension});
 +  const directScanlines=require('./turtleGitDirectScanlines')({fail,u32,i32,decodeDib,declaredDib,transfer,mapping,group,clipped,composite,bitmapBudget,dimension});
 +  const classicGradient=require('./turtleGitClassicGradient')({fail,u32,i32,clipped,group,dimension,bitmapBudget});
++  const originalGetSvg=SvgContext.prototype.getSvg;
 +  function svg(ctx,nodes){
-+    const saved=ctx._nodes;ctx._nodes=nodes;let result;try{result=ctx.getSvg();}finally{ctx._nodes=saved;}
++    // Serialization is a snapshot, not retirement of live GDI objects. Saved
++    // DCs and later selections may still refer to any definition or image.
++    const savedNodes=ctx._nodes,savedDefs=ctx._defs,savedImages=ctx._images;
++    const definitions=new Map();
++    for(let i=0;i<savedDefs.length;i++)for(const match of savedDefs[i].matchAll(/\bid="([^"]+)"/g))definitions.set(match[1],i);
++    const needed=new Set(),pending=[];
++    function references(text){for(const match of text.matchAll(/url\(#([^\s)]+)\)|(?:href|xlink:href)="#([^"]+)"/g)){const index=definitions.get(match[1]||match[2]);if(index!==undefined&&!needed.has(index)){needed.add(index);pending.push(index);}}}
++    const images=[],imageMap=new Map();
++    const snapshotNodes=nodes.map(node=>{
++      const match=/^\u0000IMG(\d+)\u0000$/.exec(node);if(!match)return node;
++      const old=Number(match[1]),image=savedImages[old];if(!image)fail('missing snapshot bitmap');
++      if(!imageMap.has(old)){imageMap.set(old,images.length);images.push(image);}
++      if(image.clip)references(image.clip);
++      return '\u0000IMG'+imageMap.get(old)+'\u0000';
++    });
++    for(const node of snapshotNodes)references(node);
++    while(pending.length)references(savedDefs[pending.pop()]);
++    ctx._nodes=snapshotNodes;ctx._defs=savedDefs.filter((_,i)=>needed.has(i));ctx._images=images;
++    let result;try{result=originalGetSvg.call(ctx);}finally{ctx._nodes=savedNodes;ctx._defs=savedDefs;ctx._images=savedImages;}
 +    const x=ctx._turtleGdiOffsetX||0,y=ctx._turtleGdiOffsetY||0,domain='x="'+(-x)+'" y="'+(-y)+'" width="'+(ctx.canvas.width+2*x)+'" height="'+(ctx.canvas.height+2*y)+'"';
 +    return normalizePaintColors(result.split('__TURTLEGIT_GDI_CLIP_DOMAIN__').join(domain));
 +  }
++  SvgContext.prototype.getSvg=function(){return svg(this,this._nodes);};
 +  function clipped(d,nodes){let body=nodes.join(''),s=d._turtleGdiClip;if(s){if(s.selected!==null)body='<g mask="url(#'+s.selected+')">'+body+'</g>';if(s.meta!==null)body='<g mask="url(#'+s.meta+')">'+body+'</g>';}return[body];}
-+  function composite(d,destination,source,pattern,coverage,op){
++  function deviceROI(d,m){
++    const ctx=d.ctx,width=Math.round(ctx.canvas.width/(ctx._scaleX||1)),height=Math.round(ctx.canvas.height/(ctx._scaleY||1));dimension(width,height);
++    // Four corners include mirrored/sheared destinations. One device pixel is
++    // a conservative halo for the existing SVG antialiased coverage boundary.
++    const xs=[m[4],m[4]+m[0],m[4]+m[2],m[4]+m[0]+m[2]],ys=[m[5],m[5]+m[1],m[5]+m[3],m[5]+m[1]+m[3]];
++    const x=Math.max(0,Math.min(width,Math.floor(Math.min(...xs))-1)),y=Math.max(0,Math.min(height,Math.floor(Math.min(...ys))-1));
++    const right=Math.max(0,Math.min(width,Math.ceil(Math.max(...xs))+1)),bottom=Math.max(0,Math.min(height,Math.ceil(Math.max(...ys))+1));
++    return{x,y,width:Math.max(0,right-x),height:Math.max(0,bottom-y)};
++  }
++  function request(ctx,destination,width,height,roi){
++    const receipt=ctx._turtleRasterReceipt;
++    return{...(roi||{x:0,y:0,width,height}),checkpoint:receipt&&receipt.width===width&&receipt.height===height&&destination.length===1&&destination[0]===receipt.node?receipt.token:null};
++  }
++  function checkpoint(ctx,result,width,height){
++    if(!result||typeof result.href!=='string'||!result.href.startsWith('data:image/png;base64,')||typeof result.checkpoint!=='string'||!result.checkpoint)fail('native raster checkpoint failed');
++    const node='<image x="0" y="0" width="'+width+'" height="'+height+'" preserveAspectRatio="none" href="'+result.href+'"/>';
++    ctx._nodes=[node];ctx._turtleRasterReceipt={node,token:result.checkpoint,width,height};ctx._turtleRasterCheckpoint=(ctx._turtleRasterCheckpoint||0)+1;
++  }
++  function composite(d,destination,source,pattern,coverage,op,roi){
 +    const ctx=d.ctx,width=Math.round(ctx.canvas.width/(ctx._scaleX||1)),height=Math.round(ctx.canvas.height/(ctx._scaleY||1));dimension(width,height);
 +    if(typeof __turtleRasterComposite!=='function')fail('native raster compositor unavailable');
-+    const href=__turtleRasterComposite(svg(ctx,destination),source?svg(ctx,source):null,pattern?svg(ctx,pattern):null,svg(ctx,coverage),width,height,op);
-+    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,'))fail('native raster checkpoint failed');
-+    ctx._nodes=['<image x="0" y="0" width="'+width+'" height="'+height+'" preserveAspectRatio="none" href="'+href+'"/>'];ctx._turtleRasterCheckpoint=(ctx._turtleRasterCheckpoint||0)+1;
++    if(roi&&(!roi.width||!roi.height))return;
++    const result=__turtleRasterComposite(svg(ctx,destination),source?svg(ctx,source):null,pattern?svg(ctx,pattern):null,svg(ctx,coverage),width,height,op,request(ctx,destination,width,height,roi));
++    checkpoint(ctx,result,width,height);
 +  }
 +  // Intercept individual fill and stroke paints, not combined record output:
 +  // XOR of an overlapping fill and stroke must happen twice in drawing order.
@@ -1893,17 +1931,23 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  function transfer(d,op,x,y,w,h,dib,sx,sy,sw,sh){
 +    const ctx=d.ctx;if(!w||!h)return;const m=mapping(d,x,y,w,h);
 +    if(Math.abs(m[0]*m[3]-m[1]*m[2])<1e-15)fail('singular raster destination transform');
++    const roi=deviceROI(d,m);
 +    const coverage=clipped(d,[group(d,m,'<rect x="0" y="0" width="1" height="1" fill="white"/>')]);
 +    let source=null,pattern=null;
 +    if(depends(op,2)){
 +      if(!dib||!sw||!sh)fail('missing required raster source');
 +      if(![sx,sy,sw,sh].every(Number.isFinite)||Math.min(sx,sx+sw)<0||Math.max(sx,sx+sw)>dib.width||Math.min(sy,sy+sh)<0||Math.max(sy,sy+sh)>dib.height)fail('raster source rectangle outside bitmap');
-+      const id='turtle-raster-crop-'+ctx._defs.length;ctx._defs.push('<clipPath id="'+id+'"><rect width="1" height="1"/></clipPath>');
-+      const image='<g clip-path="url(#'+id+')"><image x="0" y="0" width="'+dib.width+'" height="'+dib.height+'" transform="matrix('+(1/sw)+' 0 0 '+(1/sh)+' '+(-sx/sw)+' '+(-sy/sh)+')" preserveAspectRatio="none" image-rendering="pixelated" href="'+dib.href+'"/></g>';
-+      source=clipped(d,[group(d,m,image)]);
++      if(dib.data)source=sourceImage(d,m,roi,dib,sx,sy,sw,sh);
++      else {
++        // Native compressed direct-scanline receipts retain PNG pixels rather
++        // than JS RGBA. That route has device-aligned, nonstretched placement.
++        const id='turtle-raster-crop-'+ctx._defs.length;ctx._defs.push('<clipPath id="'+id+'"><rect width="1" height="1"/></clipPath>');
++        const image='<g clip-path="url(#'+id+')"><image x="0" y="0" width="'+dib.width+'" height="'+dib.height+'" transform="matrix('+(1/sw)+' 0 0 '+(1/sh)+' '+(-sx/sw)+' '+(-sy/sh)+')" preserveAspectRatio="none" image-rendering="pixelated" href="'+dib.href+'"/></g>';
++        source=clipped(d,[group(d,m,image)]);
++      }
 +    }
 +    if(depends(op,4)){const p=brushes.pattern(d);if(p===null)fail('missing required raster pattern');pattern=clipped(d,[p]);}
-+    if(op===0xaa)return;composite(d,ctx._nodes.slice(),source,pattern,coverage,op);
++    if(op===0xaa)return;composite(d,ctx._nodes.slice(),source,pattern,coverage,op,roi);
 +  }
 +  // MS-EMF bitmap transfer records share DIB framing but not ROP3's flag
 +  // field: ROP4's high byte is the background truth table, not a modifier.
@@ -1921,48 +1965,47 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  // Sample operands at final device pixel centers. SVG is used only for
 +  // geometric/DC coverage: overlapping image-edge/crop antialiasing must not
 +  // make a valid opaque GDI operand appear missing under that coverage.
-+  function devicePlane(d,m,sample){
-+    const ctx=d.ctx,width=Math.round(ctx.canvas.width/(ctx._scaleX||1)),height=Math.round(ctx.canvas.height/(ctx._scaleY||1));dimension(width,height);
++  function devicePlane(d,m,roi,sample){
++    const ctx=d.ctx,{x:left,y:top,width,height}=roi;if(!width||!height)return[];dimension(width,height);
 +    bitmapBudget(d,width*height);const out=new Uint8ClampedArray(width*height*4),det=m[0]*m[3]-m[1]*m[2];
 +    for(let y=0;y<height;y++)for(let x=0;x<width;x++){
-+      const dx=x+.5-m[4],dy=y+.5-m[5],u=Math.max(0,Math.min(1,(m[3]*dx-m[2]*dy)/det)),v=Math.max(0,Math.min(1,(-m[1]*dx+m[0]*dy)/det));
++      const dx=left+x+.5-m[4],dy=top+y+.5-m[5],u=Math.max(0,Math.min(1,(m[3]*dx-m[2]*dy)/det)),v=Math.max(0,Math.min(1,(-m[1]*dx+m[0]*dy)/det));
 +      sample(out,(y*width+x)*4,u,v);
 +    }
 +    const href=ctx._pngBase64({width,height,data:out});
 +    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,'))fail('transfer device-plane encoding failed');
-+    return ['<image x="0" y="0" width="'+width+'" height="'+height+'" preserveAspectRatio="none" image-rendering="pixelated" href="'+href+'"/>'];
++    return ['<image x="'+left+'" y="'+top+'" width="'+width+'" height="'+height+'" preserveAspectRatio="none" image-rendering="pixelated" href="'+href+'"/>'];
 +  }
-+  function sourceImage(d,m,dib,sx,sy,sw,sh){
++  function sourceImage(d,m,roi,dib,sx,sy,sw,sh){
 +    if(!dib||!sw||!sh)fail('missing required transfer source');
 +    if(![sx,sy,sw,sh].every(Number.isFinite)||Math.min(sx,sx+sw)<0||Math.max(sx,sx+sw)>dib.width||Math.min(sy,sy+sh)<0||Math.max(sy,sy+sh)>dib.height)fail('transfer source rectangle outside bitmap');
 +    const left=Math.floor(Math.min(sx,sx+sw)),right=Math.ceil(Math.max(sx,sx+sw))-1,top=Math.floor(Math.min(sy,sy+sh)),bottom=Math.ceil(Math.max(sy,sy+sh))-1;
-+    return devicePlane(d,m,(out,o,u,v)=>{
++    return devicePlane(d,m,roi,(out,o,u,v)=>{
 +      const x=Math.max(left,Math.min(right,Math.floor(sx+u*sw))),y=Math.max(top,Math.min(bottom,Math.floor(sy+v*sh))),p=(y*dib.width+x)*4;
 +      out[o]=dib.data[p];out[o+1]=dib.data[p+1];out[o+2]=dib.data[p+2];out[o+3]=dib.data[p+3];
 +    });
 +  }
-+  function selector(d,m,dib,x,y,w,h,repeat){
++  function selector(d,m,roi,dib,x,y,w,h,repeat){
 +    w=Math.abs(w);h=Math.abs(h);dimension(w,h);
 +    if(!repeat&&(x<0||y<0||x+w>dib.width||y+h>dib.height))fail('MaskBlt mask rectangle outside bitmap');
-+    return devicePlane(d,m,(out,o,u,v)=>{
++    return devicePlane(d,m,roi,(out,o,u,v)=>{
 +      const i=Math.min(w-1,Math.floor(u*w)),j=Math.min(h-1,Math.floor(v*h)),sx=((x+i)%dib.width+dib.width)%dib.width,sy=((y+j)%dib.height+dib.height)%dib.height;
 +      const value=dib.data[(sy*dib.width+sx)*4];out[o]=out[o+1]=out[o+2]=value;out[o+3]=255;
 +    });
 +  }
 +  function advancedTransfer(d,m,dib,rect,mask,maskRect,options){
 +    if(m.some(v=>!Number.isFinite(v)||Math.abs(v)>1e9)||Math.abs(m[0]*m[3]-m[1]*m[2])<1e-15)fail('invalid transfer destination transform');
-+    const ctx=d.ctx,coverage=clipped(d,[group(d,m,'<rect width="1" height="1" fill="white"/>')]);
++    const ctx=d.ctx,roi=deviceROI(d,m),coverage=clipped(d,[group(d,m,'<rect width="1" height="1" fill="white"/>')]);
 +    const required=options.mode!=='mask'||depends(options.foreground,2)||depends(options.background,2);
-+    const source=required?sourceImage(d,m,dib,...rect):null;
++    const source=required?sourceImage(d,m,roi,dib,...rect):null;
 +    let pattern=null;
 +    if(options.mode==='mask'&&(depends(options.foreground,4)||depends(options.background,4))){const p=brushes.pattern(d);if(p===null)fail('missing required transfer pattern');pattern=clipped(d,[p]);}
-+    const selected=mask?selector(d,m,mask,...maskRect):options.mode==='mask'?coverage:null;
++    const selected=mask?selector(d,m,roi,mask,...maskRect):options.mode==='mask'?coverage:null;
 +    const width=Math.round(ctx.canvas.width/(ctx._scaleX||1)),height=Math.round(ctx.canvas.height/(ctx._scaleY||1));dimension(width,height);
 +    if(typeof __turtleRasterTransfer!=='function')fail('native bitmap transfer compositor unavailable');
-+    const href=__turtleRasterTransfer(svg(ctx,ctx._nodes.slice()),source?svg(ctx,source):null,pattern?svg(ctx,pattern):null,svg(ctx,coverage),selected?svg(ctx,selected):null,width,height,options);
-+    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,'))fail('native bitmap transfer checkpoint failed');
-+    ctx._nodes=['<image x="0" y="0" width="'+width+'" height="'+height+'" preserveAspectRatio="none" href="'+href+'"/>'];
-+    ctx._turtleRasterCheckpoint=(ctx._turtleRasterCheckpoint||0)+1;
++    if(!roi.width||!roi.height)return;
++    const destination=ctx._nodes.slice(),result=__turtleRasterTransfer(svg(ctx,destination),source?svg(ctx,source):null,pattern?svg(ctx,pattern):null,svg(ctx,coverage),selected?svg(ctx,selected):null,width,height,options,request(ctx,destination,width,height,roi));
++    checkpoint(ctx,result,width,height);
 +  }
 +  function advancedRecord(d,type,data){
 +    const plg=type===79,masked=type===78||plg,minimum=plg?140:masked?128:108;

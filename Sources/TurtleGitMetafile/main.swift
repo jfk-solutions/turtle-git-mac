@@ -140,6 +140,58 @@ private final class SVGGuard: NSObject, XMLParserDelegate {
 /// Only renderer-generated, independently guarded SVG operands enter AppKit.
 private final class NativeRasterComposite {
     private var renderedPixels=0,compositePixels=0,markupBytes=0,calls=0
+    private struct Region { let x:Int,y:Int,width:Int,height:Int;var pixels:Int{width*height} }
+    private struct Checkpoint {let token:String,width:Int,height:Int,pixels:Data}
+    // One native-produced canvas per conversion, never an SVG/state cache.
+    private var checkpoint:Checkpoint?
+    private func region(_ request:JSValue,width:Int,height:Int)throws->Region {
+        if request.isUndefined || request.isNull{return Region(x:0,y:0,width:width,height:height)}
+        guard request.isObject,!request.isArray else{throw invalid("invalid raster ROI request")}
+        func integer(_ name:String,_ maximum:Int)throws->Int {
+            guard let value=request.forProperty(name),value.isNumber else{throw invalid("missing raster ROI "+name)}
+            let n=value.toDouble()
+            guard n.isFinite,n.rounded()==n,n>=0,n<=Double(maximum) else{throw invalid("invalid raster ROI "+name)}
+            return Int(n)
+        }
+        let x=try integer("x",width),y=try integer("y",height)
+        let w=try integer("width",width-x),h=try integer("height",height-y)
+        guard let receipt=request.forProperty("checkpoint"),receipt.isNull || receipt.isString else{throw invalid("invalid raster checkpoint receipt")}
+        return Region(x:x,y:y,width:w,height:h)
+    }
+    private func destinationPixels(_ svg:Data,request:JSValue,width:Int,height:Int)throws->Data {
+        if !request.isUndefined && !request.isNull,let receipt=request.forProperty("checkpoint"),!receipt.isNull {
+            guard receipt.isString,let current=checkpoint,current.token==receipt.toString(),current.width==width,current.height==height else{throw invalid("stale raster checkpoint receipt")}
+            return current.pixels
+        }
+        return try render(svg,width:width,height:height)
+    }
+    private func finish(_ output:Data,request:JSValue,width:Int,height:Int)throws->NSObject {
+        let href=try encode(output,width:width,height:height)
+        let token=UUID().uuidString
+        checkpoint=Checkpoint(token:token,width:width,height:height,pixels:output)
+        if request.isUndefined || request.isNull{return href as NSString}
+        return ["href":href,"checkpoint":token] as NSDictionary
+    }
+    private func cropped(_ bytes:Data,region:Region,width:Int)->Data {
+        var result=Data(count:region.pixels*4)
+        result.withUnsafeMutableBytes {(dst:UnsafeMutableRawBufferPointer) in
+            bytes.withUnsafeBytes {(src:UnsafeRawBufferPointer) in
+                for row in 0..<region.height where region.width>0 {
+                    dst.baseAddress!.advanced(by:row*region.width*4).copyMemory(from:src.baseAddress!.advanced(by:((region.y+row)*width+region.x)*4),byteCount:region.width*4)
+                }
+            }
+        }
+        return result
+    }
+    private func install(_ tile:Data,in output:inout Data,region:Region,width:Int) {
+        output.withUnsafeMutableBytes {(dst:UnsafeMutableRawBufferPointer) in
+            tile.withUnsafeBytes {(src:UnsafeRawBufferPointer) in
+                for row in 0..<region.height where region.width>0 {
+                    dst.baseAddress!.advanced(by:((region.y+row)*width+region.x)*4).copyMemory(from:src.baseAddress!.advanced(by:row*region.width*4),byteCount:region.width*4)
+                }
+            }
+        }
+    }
     private func invalid(_ message:String)->ConversionError{.invalid("Metafile raster operation: "+message)}
     private func svg(_ value:JSValue,size:CGSize,required:Bool)throws->Data? {
         if value.isNull || value.isUndefined || (value.isString && value.toString()=="") {
@@ -155,16 +207,22 @@ private final class NativeRasterComposite {
         guard parser.parse(),safety.valid else{throw invalid("SVG operand contains invalid geometry or external resources")}
         return bytes
     }
-    private func render(_ svg:Data,width:Int,height:Int)throws->Data {
+    private func render(_ svg:Data,width:Int,height:Int,region:Region?=nil)throws->Data {
         return try autoreleasepool {
+        let area=region ?? Region(x:0,y:0,width:width,height:height)
+        if area.pixels==0{return Data()}
         guard let image=NSImage(data:svg) else{throw invalid("native SVG decoding failed")}
-        var bytes=Data(count:width*height*4)
+        var bytes=Data(count:area.pixels*4)
         try bytes.withUnsafeMutableBytes { (buffer:UnsafeMutableRawBufferPointer) in
-            guard let space=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:buffer.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else{throw invalid("cannot allocate native RGBA canvas")}
+            guard let space=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:buffer.baseAddress,width:area.width,height:area.height,bitsPerComponent:8,bytesPerRow:area.width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else{throw invalid("cannot allocate native RGBA canvas")}
             context.interpolationQuality = .none;context.setShouldAntialias(true)
             NSGraphicsContext.saveGraphicsState();defer{NSGraphicsContext.restoreGraphicsState()}
             let graphics=NSGraphicsContext(cgContext:context,flipped:false);graphics.imageInterpolation = .none;NSGraphicsContext.current=graphics
-            image.draw(in:NSRect(x:0,y:0,width:width,height:height),from:.zero,operation:.copy,fraction:1,respectFlipped:false,hints:[.interpolation:NSImageInterpolation.none])
+            // SVG/global and RGBA rows run downward; this unflipped AppKit
+            // destination runs upward. Position the original full-size draw
+            // relative to the crop's bottom edge, not its top edge. No scaling
+            // or reset of SVG coordinates, brush phase or pixel centers occurs.
+            image.draw(in:NSRect(x:-area.x,y:area.y+area.height-height,width:width,height:height),from:.zero,operation:.copy,fraction:1,respectFlipped:false,hints:[.interpolation:NSImageInterpolation.none])
             context.flush()
         }
         return bytes
@@ -178,10 +236,11 @@ private final class NativeRasterComposite {
         let a=cofactor(rop & 3,d),b=cofactor((rop >> 2) & 3,d),c=cofactor((rop >> 4) & 3,d),e=cofactor((rop >> 6) & 3,d)
         return (~p & ((~s & a) | (s & b))) | (p & ((~s & c) | (s & e)))
     }
-    func composite(_ destination:JSValue,_ source:JSValue,_ pattern:JSValue,_ coverage:JSValue,_ widthValue:Double,_ heightValue:Double,_ ropValue:Double)throws->String {
+    func composite(_ destination:JSValue,_ source:JSValue,_ pattern:JSValue,_ coverage:JSValue,_ widthValue:Double,_ heightValue:Double,_ ropValue:Double,_ request:JSValue)throws->NSObject {
         guard widthValue.isFinite,heightValue.isFinite,ropValue.isFinite,widthValue.rounded()==widthValue,heightValue.rounded()==heightValue,ropValue.rounded()==ropValue,
               widthValue>=1,heightValue>=1,widthValue<=32768,heightValue<=32768,widthValue*heightValue<=16777216,ropValue>=0,ropValue<=255 else{throw invalid("invalid dimensions or ROP3 truth byte")}
         let width=Int(widthValue),height=Int(heightValue),pixels=width*height,rop=Int(ropValue),size=CGSize(width:width,height:height)
+        let area=try region(request,width:width,height:height)
         let needsSource=depends(rop,2,0x33),needsPattern=depends(rop,4,0x0f)
         let renders=2+(needsSource ? 1:0)+(needsPattern ? 1:0)
         guard calls<4096,pixels<=33554432-compositePixels,pixels*renders<=67108864-renderedPixels,
@@ -189,14 +248,15 @@ private final class NativeRasterComposite {
         calls += 1;compositePixels += pixels;renderedPixels += pixels*renders
         guard let destinationSVG=try svg(destination,size:size,required:true),let coverageSVG=try svg(coverage,size:size,required:true) else{throw invalid("missing canvas or coverage")}
         let sourceSVG=try svg(source,size:size,required:needsSource),patternSVG=try svg(pattern,size:size,required:needsPattern)
-        var output=try render(destinationSVG,width:width,height:height)
-        let mask=try render(coverageSVG,width:width,height:height)
-        let sourcePixels=needsSource ? try render(sourceSVG!,width:width,height:height):nil
-        let patternPixels=needsPattern ? try render(patternSVG!,width:width,height:height):nil
-        try output.withUnsafeMutableBytes { (destinationBytes:UnsafeMutableRawBufferPointer) in
+        var output=try destinationPixels(destinationSVG,request:request,width:width,height:height)
+        var tile=cropped(output,region:area,width:width)
+        let mask=try render(coverageSVG,width:width,height:height,region:area)
+        let sourcePixels=needsSource ? try render(sourceSVG!,width:width,height:height,region:area):nil
+        let patternPixels=needsPattern ? try render(patternSVG!,width:width,height:height,region:area):nil
+        try tile.withUnsafeMutableBytes { (destinationBytes:UnsafeMutableRawBufferPointer) in
             try mask.withUnsafeBytes { (coverageBytes:UnsafeRawBufferPointer) in
                 func evaluate(_ sourceBytes:UnsafeRawBufferPointer?,_ patternBytes:UnsafeRawBufferPointer?)throws {
-                    for pixel in 0..<pixels {
+                    for pixel in 0..<area.pixels {
                         let offset=pixel*4,c=Int(coverageBytes[offset+3]);if c==0{continue}
                         // Coverage is alpha only. ROP2 supplies the actual paint
                         // SVG so transparent hatch holes remain unaffected;
@@ -221,7 +281,8 @@ private final class NativeRasterComposite {
                 }}else if let patternPixels {try patternPixels.withUnsafeBytes {try evaluate(nil,$0)}}else{try evaluate(nil,nil)}
             }
         }
-        return try encode(output,width:width,height:height)
+        install(tile,in:&output,region:area,width:width)
+        return try finish(output,request:request,width:width,height:height)
     }
     private func encode(_ output:Data,width:Int,height:Int)throws->String {
         guard let space=CGColorSpace(name:CGColorSpace.sRGB),let provider=CGDataProvider(data:output as CFData),let image=CGImage(width:width,height:height,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:width*4,space:space,bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),provider:provider,decode:nil,shouldInterpolate:false,intent:.defaultIntent) else{throw invalid("cannot prepare composite image")}
@@ -233,7 +294,7 @@ private final class NativeRasterComposite {
     }
     /// Mask selection, RGB color-key copies and premultiplied source-over share
     /// the same guarded SVG raster boundary and cumulative work limits as ROP3.
-    func transfer(_ destination:JSValue,_ source:JSValue,_ pattern:JSValue,_ coverage:JSValue,_ selection:JSValue,_ widthValue:Double,_ heightValue:Double,_ options:JSValue)throws->String {
+    func transfer(_ destination:JSValue,_ source:JSValue,_ pattern:JSValue,_ coverage:JSValue,_ selection:JSValue,_ widthValue:Double,_ heightValue:Double,_ options:JSValue,_ request:JSValue)throws->NSObject {
         guard widthValue.isFinite,heightValue.isFinite,widthValue.rounded()==widthValue,heightValue.rounded()==heightValue,
               widthValue>=1,heightValue>=1,widthValue<=32768,heightValue<=32768,widthValue*heightValue<=16777216,
               options.isObject,!options.isArray,let modeValue=options.forProperty("mode"),modeValue.isString,
@@ -256,6 +317,7 @@ private final class NativeRasterComposite {
         let needsSource=mode != "mask" || depends(foreground,2,0x33) || depends(background,2,0x33)
         let needsPattern=mode == "mask" && (depends(foreground,4,0x0f) || depends(background,4,0x0f))
         let width=Int(widthValue),height=Int(heightValue),pixels=width*height,size=CGSize(width:width,height:height)
+        let area=try region(request,width:width,height:height)
         let renders=2+(mode == "mask" ? 1:0)+(needsSource ? 1:0)+(needsPattern ? 1:0)
         guard calls<4096,pixels<=33554432-compositePixels,pixels*renders<=67108864-renderedPixels,
               pixels*4*(renders+2)<=256*1024*1024 else{throw invalid("pixel, work or memory budget exceeded")}
@@ -263,17 +325,18 @@ private final class NativeRasterComposite {
         guard let destinationSVG=try svg(destination,size:size,required:true),let coverageSVG=try svg(coverage,size:size,required:true) else{throw invalid("missing canvas or coverage")}
         let sourceSVG=try svg(source,size:size,required:needsSource),patternSVG=try svg(pattern,size:size,required:needsPattern)
         let selectionSVG=try svg(selection,size:size,required:mode == "mask")
-        var output=try render(destinationSVG,width:width,height:height)
-        let coveragePixels=try render(coverageSVG,width:width,height:height)
-        let sourcePixels=needsSource ? try render(sourceSVG!,width:width,height:height):Data()
-        let patternPixels=needsPattern ? try render(patternSVG!,width:width,height:height):Data()
-        let selectionPixels=mode == "mask" ? try render(selectionSVG!,width:width,height:height):Data()
-        try output.withUnsafeMutableBytes { (dst:UnsafeMutableRawBufferPointer) in
-            try coveragePixels.withUnsafeBytes { (area:UnsafeRawBufferPointer) in
+        var output=try destinationPixels(destinationSVG,request:request,width:width,height:height)
+        var tile=cropped(output,region:area,width:width)
+        let coveragePixels=try render(coverageSVG,width:width,height:height,region:area)
+        let sourcePixels=needsSource ? try render(sourceSVG!,width:width,height:height,region:area):Data()
+        let patternPixels=needsPattern ? try render(patternSVG!,width:width,height:height,region:area):Data()
+        let selectionPixels=mode == "mask" ? try render(selectionSVG!,width:width,height:height,region:area):Data()
+        try tile.withUnsafeMutableBytes { (dst:UnsafeMutableRawBufferPointer) in
+            try coveragePixels.withUnsafeBytes { (coverageBytes:UnsafeRawBufferPointer) in
                 try sourcePixels.withUnsafeBytes { (src:UnsafeRawBufferPointer) in
                     try patternPixels.withUnsafeBytes { (pat:UnsafeRawBufferPointer) in
                         try selectionPixels.withUnsafeBytes { (mono:UnsafeRawBufferPointer) in
-                            try evaluateTransfer(dst:dst,area:area,src:src,pat:pat,mono:mono,pixels:pixels,
+                            try evaluateTransfer(dst:dst,area:coverageBytes,src:src,pat:pat,mono:mono,pixels:area.pixels,
                                                  mode:mode,foreground:foreground,background:background,
                                                  key:key,constant:constant,perPixel:perPixel)
                         }
@@ -281,7 +344,8 @@ private final class NativeRasterComposite {
                 }
             }
         }
-        return try encode(output,width:width,height:height)
+        install(tile,in:&output,region:area,width:width)
+        return try finish(output,request:request,width:width,height:height)
     }
     /// Capture destination and clip before painting. Four-neighbor traversal
     /// owns a bounded queue and never crosses an excluded device pixel.
@@ -1564,20 +1628,20 @@ private func run() throws {
         catch{nativeError("Metafile region geometry failed: "+String(describing:error));return [:]}
     }
     let rasterCompositor=NativeRasterComposite()
-    let rasterComposite:@convention(block)(JSValue,JSValue,JSValue,JSValue,Double,Double,Double)->String = {destination,source,pattern,coverage,width,height,rop in
-        do{return try autoreleasepool{try rasterCompositor.composite(destination,source,pattern,coverage,width,height,rop)}}
-        catch ConversionError.invalid(let message){nativeError(message);return ""}
-        catch{nativeError("Metafile raster operation failed: "+String(describing:error));return ""}
+    let rasterComposite:@convention(block)(JSValue,JSValue,JSValue,JSValue,Double,Double,Double,JSValue)->NSObject = {destination,source,pattern,coverage,width,height,rop,request in
+        do{return try autoreleasepool{try rasterCompositor.composite(destination,source,pattern,coverage,width,height,rop,request)}}
+        catch ConversionError.invalid(let message){nativeError(message);return "" as NSString}
+        catch{nativeError("Metafile raster operation failed: "+String(describing:error));return "" as NSString}
     }
     let floodCoverage:@convention(block)(JSValue,JSValue,Double,Double,Double,Double,Double,Double)->String = {destination,clip,width,height,x,y,color,mode in
         do{return try autoreleasepool{try rasterCompositor.flood(destination,clip,width,height,x,y,color,mode)}}
         catch ConversionError.invalid(let message){nativeError(message);return ""}
         catch{nativeError("Metafile flood operation failed: "+String(describing:error));return ""}
     }
-    let rasterTransfer:@convention(block)(JSValue,JSValue,JSValue,JSValue,JSValue,Double,Double,JSValue)->String = {destination,source,pattern,coverage,selection,width,height,options in
-        do{return try autoreleasepool{try rasterCompositor.transfer(destination,source,pattern,coverage,selection,width,height,options)}}
-        catch ConversionError.invalid(let message){nativeError(message);return ""}
-        catch{nativeError("Metafile raster transfer failed: "+String(describing:error));return ""}
+    let rasterTransfer:@convention(block)(JSValue,JSValue,JSValue,JSValue,JSValue,Double,Double,JSValue,JSValue)->NSObject = {destination,source,pattern,coverage,selection,width,height,options,request in
+        do{return try autoreleasepool{try rasterCompositor.transfer(destination,source,pattern,coverage,selection,width,height,options,request)}}
+        catch ConversionError.invalid(let message){nativeError(message);return "" as NSString}
+        catch{nativeError("Metafile raster transfer failed: "+String(describing:error));return "" as NSString}
     }
     var decodedBitmapPixels=0
     // The optional sixth argument contains EmfPlusPalette ARGB values. Existing
