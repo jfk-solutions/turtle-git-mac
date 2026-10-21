@@ -7,6 +7,7 @@ import tempfile
 from native_receiver import build_receiver, run_receiver
 
 CASES = {
+    'classic-patternbrushes': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'classic-regions': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'classic-pens': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'positioned-text': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
@@ -35,7 +36,7 @@ for filename in dict.fromkeys(filename for filename, _ in CASES.values()):
     if not path.is_file() or path.read_text() != contents:
         path.write_text(contents)
     fixtures.append(path)
-dispatch = '\n'.join('case "'+case+'": try await '+name+'.verify('+('classicRegions:true' if case == 'classic-regions' else 'classicPens:true' if case == 'classic-pens' else 'positionedText:true' if case == 'positioned-text' else 'compressedPaths:true' if case == 'compressed-paths' else '')+')' for case, (_, name) in CASES.items())
+dispatch = '\n'.join('case "'+case+'": try await '+name+'.verify('+('classicPatternBrushes:true' if case == 'classic-patternbrushes' else 'classicRegions:true' if case == 'classic-regions' else 'classicPens:true' if case == 'classic-pens' else 'positionedText:true' if case == 'positioned-text' else 'compressedPaths:true' if case == 'compressed-paths' else '')+')' for case, (_, name) in CASES.items())
 main = generated/'MetafileWorkflowMain.swift'
 main_contents = '''import AppKit
 import ObjectiveC
@@ -78,7 +79,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temp
             private_home=directory/'home';private_home.mkdir(mode=0o700)
             environment.update(CFFIXED_USER_HOME=str(private_home), GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'), TMPDIR=str(private_temporary)+'/', TURTLEGIT_METAFILE_CASE=case)
             command = [str(receiver), str(directory), str(git.absolute())]
-            if case in ['consumers','compressed-paths','positioned-text','classic-pens','classic-regions']: command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
+            if case in ['consumers','compressed-paths','positioned-text','classic-pens','classic-regions','classic-patternbrushes']: command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
             print('Checking metafile '+case+' with '+str(git), flush=True)
             result = run_receiver(command, cwd=root, env=environment, capture_output=True, text=True,
                                   timeout_sample=directory/'timeout.sample.txt')

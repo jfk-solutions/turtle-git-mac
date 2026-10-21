@@ -55,6 +55,7 @@ for baseline and update rules.
 - [PowerPoint presentation comparison](POWERPOINT-COMPARISON.md)
 - [PowerPoint comparison source family](POWERPOINT-COMPARISON-PARITY.md)
 - [Image comparison parity](IMAGE-COMPARISON-PARITY.md)
+- [Classic pattern brush parity](METAFILE-CLASSIC-BRUSH-PARITY.md)
 - [Image frame/page and animation parity](IMAGE-FRAMES-PARITY.md)
 - [Image conflict selection parity](IMAGE-CONFLICT-PARITY.md)
 - [Historical implementation notes](IMPLEMENTATION-NOTES.md)

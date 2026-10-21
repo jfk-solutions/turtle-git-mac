@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-21",
+  "implementation_baseline": "4393bbdc",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Classic WMF serialized monochrome pattern brushes and EMF93 mono/DIB brushes; live monochrome text/BK COLORREF state, late93/94/WMF142 palette-indexed brush binding with actual palette wire order/selection/entry editing/resize, SaveRestore/object lifetime, shared geometry/raster consumers and text-background state separation.",
+  "source_contract": "docs/METAFILE-CLASSIC-BRUSH-PARITY.md",
+  "compatibility_policy": "Microsoft primary records/APIs; Wine playback corroborates EMF93 canonical black/white/no-table mono versus arbitrary RGB fixed-color interpretation. No foreign implementation code copied for this family. WMF normative one-WORD and compatible forceBackground/handle two-WORD selection forms are distinguished.",
+  "validation": {
+    "behavioral_tests_during_implementation": false,
+    "source_review": "Primary record/palette contracts and final renderer peer clear, including lazy selected-before-palette paint and text/background scope.",
+    "initial_runtime": {
+      "log": "build/qa/classic-patternbrush-runtime-2026-10-21.log",
+      "exit": 1,
+      "failure": "Source-hash validator rejected patches/metafile-renderer.patch changing while initial reconstruction ran. Late opaque-text state and dynamic-tile work guard finalized after claimed freeze. Previous adopted runtime preserved; no Core/native tests ran on mixed source."
+    },
+    "final_runtime": {
+      "log": "build/qa/classic-patternbrush-runtime-final-2026-10-21.log",
+      "exit": 0,
+      "architectures_built": [
+        "arm64",
+        "x86_64"
+      ],
+      "deployment_target": "13.0",
+      "cache_key": "f39b2bec348d81c9fa3f4b348db28d207f4be39cfb7a7c4ea04e572b7a872c90",
+      "renderer_sha256": "fe94401a5bb173cc389d32dce2736d1714f5643a5699eb605dd5584188a58a9d",
+      "source_hashes_current": true,
+      "structure_reconstruction": "passed; actual painting verified separately"
+    },
+    "core": {
+      "log": "build/qa/classic-patternbrush-core-2026-10-21.log",
+      "exit": 0,
+      "distinct_methods_passed": 11,
+      "new_methods": 4,
+      "existing_related_methods": 7,
+      "valid_fixtures": 24,
+      "refusal_fixtures": 19,
+      "elapsed_seconds": 7.119,
+      "scope": "Independent actual pixel oracles for mono bit order/orientation/WORD stride and ignored fields, fixed RGB versus live DC/late palettes, state/object reuse and palette edits, transform/origin/clip/path/text opacity/stroke/ROP2/PATBLT/region/flood, whole-image refusal; seven existing related brush/text/transfer baselines. No full Core rerun."
+    },
+    "app": {
+      "log": "build/qa/classic-patternbrush-app-2026-10-21.log",
+      "exit": 0,
+      "diagnostic": "CoreSimulator version mismatch and multiple matching destination warning retained. No distribution/minimum-version hosted claim.",
+      "built_embedded_renderer_equal": true,
+      "embedded_binary_matches_receipt": true,
+      "built_binary_matches_embedded_unsigned_receipt": true
+    },
+    "native": {
+      "log": "build/qa/classic-patternbrush-native-2026-10-21.log",
+      "exit": 0,
+      "case": "classic-patternbrushes",
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "distinct_case_engine_pairs_passed": 2,
+      "representative_inputs": 5,
+      "refusal_inputs": 19,
+      "scope": "Default and explicit IDiff actual decoded pixels/live/fixed/palette colors, all19 enrolled whole-image refusals, actual three-stage mono WMF/dynamic EMF/fixed RGB conflict, held owner retirement/drop cancellation and retained grants; original source/HEAD/index preserved. Not all24 positives are native inputs.",
+      "runtime_boundary": "Unbundled receiver uses current app objects and DEBUG development helper fallback; built/embedded payload identity verified independently. No new signed-parent/installed app execution claim."
+    },
+    "receivers": {
+      "pids": [
+        84681,
+        84847
+      ],
+      "independently_confirmed_absent": true
+    },
+    "privacy": "Existing private repos/preferences/pasteboards/invisible or offscreen windows and owned helper/group cleanup retained; no unrelated app terminated.",
+    "help": {
+      "documents": 49,
+      "topics": 51,
+      "files": 69,
+      "check": "passed"
+    },
+    "localizations": "Native UI literals unchanged; catalog unchanged, no regeneration.",
+    "captures": "No UI/layout change; existing image-viewer captures retain their original limits. No additional screenshot run.",
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1574,
+      "pending_control_reviews": 85
+    },
+    "website": {
+      "documents": 403,
+      "unresolved_fragments": 0,
+      "tests": 2,
+      "exit": 0,
+      "build_log": "build/qa/classic-patternbrush-site-2026-10-21.log",
+      "test_log": "build/qa/classic-patternbrush-site-tests-2026-10-21.log"
+    },
+    "unrelated_work_preserved": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    }
+  },
+  "limits": [
+    "WMF positive1bpp canonical WORD-stride Bitmap16 subset; unsupported color/device-dependent/noncanonical layouts are distinct from malformed records",
+    "Default logical palette and device-explicit entries unavailable; undefined expanded entries refuse actual use",
+    "Existing unsupported profiles/compression/record families and stock DC_BRUSH/DC_PEN remain",
+    "Per-image16M/aggregate64Mdecoded pixels,64MiB retained brushes,16MiB pattern defs,64M expansion and64M extra live-recolor pixels; palette65536/object and1048576aggregate",
+    "Windows-exact device/AA/font/palette, physical Finder/image, minimum OS/Intel and current signed distribution acceptance remain open"
+  ],
+  "ci": {
+    "latest_observed_macos": {
+      "commit": "4393bbdc",
+      "run": 39527934591,
+      "status": "pending"
+    },
+    "running_prior_macos": {
+      "commit": "db7740f7",
+      "run": 39524368550,
+      "status": "in_progress"
+    },
+    "pages": {
+      "commit": "4393bbdc",
+      "run": 39527934581,
+      "conclusion": "success"
+    },
+    "complete_current_hosted_pass_claimed": false
+  }
+}

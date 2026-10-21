@@ -2104,3 +2104,97 @@ extension MetafileImageTests {
         }
     }
 }
+
+extension MetafileImageTests {
+    func testClassicPatternBrushMonochromeBitOrderRowsPaddingAndIgnoredFields()throws {
+        for name in ["wmf-classic-patternbrush-mono.wmf","classic-monobrush-dynamic.emf","classic-monobrush-bottom-up.emf","classic-monobrush-black-white.emf"] {
+            let before=try data(name),value=try booleanPixels(name)
+            transferRGB(value,8,8,[0,0,255],name+" bit1 uses current background")
+            transferRGB(value,9,8,[255,0,0],name+" bit0 uses current text even transparent background mode")
+            transferRGB(value,8,9,[255,0,0],name+" top-down display row1")
+            transferRGB(value,9,9,[0,0,255],name+" asymmetric next row proves row orientation")
+            transferRGB(value,16,8,[0,0,255],name+" tile repeats width, excluding padding")
+            XCTAssertEqual(try data(name),before,"Playback never modifies original metafile bytes")
+        }
+        let wide=try booleanPixels("wmf-classic-patternbrush-wide.wmf")
+        transferRGB(wide,16,8,[0,0,255],"17px DDB uses third data byte before WORD padding")
+        transferRGB(wide,17,8,[0,0,255],"17px DDB wraps after last actual bit")
+        transferRGB(wide,18,8,[255,0,0],"DDB padding does not widen the tile")
+        transferRGB(wide,17,9,[255,0,0],"DDB second row is top-down, with its own WORD stride")
+    }
+    func testClassicPatternBrushPalettesLiveColorsSaveRestoreAndObjectReuse()throws {
+        let fixed=try booleanPixels("classic-monobrush-colored.emf")
+        transferRGB(fixed,8,8,[255,0,0],"Arbitrary RGB bitmap palette remains fixed on a color DC")
+        transferRGB(fixed,9,8,[0,255,0],"RGBQUAD entry0 remains supplied green")
+        let dib=try booleanPixels("classic-patternbrush-dib-fixed.emf")
+        booleanGray(dib,8,8,255,"EMR94 black-white DIB retains fixed white entry1")
+        booleanGray(dib,9,8,0,"EMR94 does not adopt EMR93 mono conversion")
+        for name in ["classic-monobrush-state.emf","wmf-classic-patternbrush-state.wmf"] {
+            let value=try booleanPixels(name)
+            for y in [8,40] {transferRGB(value,8,y,[0,0,255],name+" restored original background");transferRGB(value,9,y,[255,0,0],name+" restored original text")}
+            transferRGB(value,8,24,[255,255,0],name+" live background after SaveDC")
+            transferRGB(value,9,24,[0,255,0],name+" live text after SaveDC")
+            transferRGB(value,8,56,[0,255,0],name+" unselected object delete/reuse selects new solid brush")
+        }
+        let palette=try booleanPixels("classic-monobrush-palette-select.emf")
+        for y in [8,40] {transferRGB(palette,8,y,[255,0,0],"Palette entry1 restored");transferRGB(palette,9,y,[0,255,0],"Palette entry0 restored")}
+        transferRGB(palette,8,24,[255,255,0],"WORD palette index1 resolves against later selected paletteB")
+        transferRGB(palette,9,24,[0,255,255],"WORD palette index0 uses PALETTEENTRY RGB byte order")
+        let edited=try booleanPixels("classic-patternbrush-palette-select.emf")
+        transferRGB(edited,8,8,[255,0,0],"EMR94 selected before palette receives later palette entry1")
+        transferRGB(edited,9,8,[0,255,0],"EMR94 receives PALETTEENTRY RGB entry0")
+        transferRGB(edited,8,24,[255,255,0],"EMR50 palette mutation is reflected when brush reselected")
+        transferRGB(edited,9,24,[0,255,255],"EMR50 updated palette entry0 has independent RGB wire bytes")
+        let wmfPalette=try booleanPixels("wmf-classic-patternbrush-palette-select.wmf")
+        for y in [8,40] {transferRGB(wmfPalette,8,y,[255,0,0],"WMF selected palette restored");transferRGB(wmfPalette,9,y,[0,255,0],"WMF palette entry0 restored")}
+        transferRGB(wmfPalette,8,24,[255,255,0],"WMF compatible two-WORD SelectPalette uses later B entry1")
+        transferRGB(wmfPalette,9,24,[0,255,255],"WMF normative single-WORD SelectPalette uses correct RGB entries")
+        transferRGB(wmfPalette,8,56,[255,0,255],"WMF palette resize/set makes newly indexed entry2 available")
+        transferRGB(wmfPalette,9,56,[0,0,255],"WMF set-entry RGB wire order updates selected palette entry0")
+        let flood=try booleanPixels("classic-monobrush-palette-flood.emf")
+        transferRGB(flood,8,8,[255,0,0],"Flood COLORREF palette index and selected brush palette share correct RGB")
+        transferRGB(flood,9,8,[0,255,0],"Flood pattern entry0 remains green")
+        transferRGB(flood,40,8,[0,255,0],"Palette flood preserves destination outside effective clip")
+    }
+    func testClassicPatternBrushTransformsClipFillStrokeBooleanRegionAndFloodConsumers()throws {
+        let transform=try booleanPixels("classic-monobrush-clip-origin.emf")
+        transferRGB(transform,9,9,[0,0,255],"Device brush origin is preserved under scaled logical painting")
+        transferRGB(transform,10,9,[255,0,0],"World scaling does not enlarge device bitmap brush tile")
+        booleanGray(transform,40,16,255,"Effective clip bounds bitmap brush painting")
+        transferRGB(transform,41,41,[0,0,255],"RestoreDC restores logical transform/clip while retaining saved brush origin")
+        let clipped=try booleanPixels("wmf-classic-patternbrush-clip.wmf")
+        booleanGray(clipped,4,8,255,"WMF device clip remains outside paint")
+        transferRGB(clipped,8,8,[0,0,255],"WMF clip preserves native brush tile phase")
+        let text=try booleanPixels("classic-monobrush-opaque-path.emf")
+        transferRGB(text,8,8,[0,0,255],"Empty ETO_OPAQUE uses solid explicit background color")
+        transferRGB(text,9,8,[0,0,255],"Opaque text background is not selected bitmap brush pattern")
+        booleanGray(text,9,24,255,"Opaque rectangle remains bounded")
+        transferRGB(text,8,40,[0,0,255],"Following FillPath restores mono background bit")
+        transferRGB(text,9,40,[255,0,0],"Following FillPath restores selected live mono text bit")
+        let stroke=try booleanPixels("classic-monobrush-fill-stroke.emf")
+        transferRGB(stroke,8,20,[0,255,0],"Selected pen strokes independently of bitmap brush fill")
+        transferRGB(stroke,16,20,[0,0,255],"Bitmap brush still fills closed stroked figure")
+        for name in ["classic-monobrush-rop2.emf","wmf-classic-patternbrush-rop2.wmf","wmf-classic-patternbrush-patblt.wmf"] {
+            let value=try booleanPixels(name)
+            transferRGB(value,8,8,[255,255,0],name+" blue XOR opaque white")
+            transferRGB(value,9,8,[0,255,255],name+" red XOR opaque white")
+            booleanGray(value,4,4,255,name+" Boolean paint retains outside destination")
+        }
+        for name in ["classic-monobrush-region.emf","wmf-classic-patternbrush-region.wmf","classic-monobrush-flood.emf","wmf-classic-patternbrush-flood.wmf"] {
+            let value=try booleanPixels(name)
+            transferRGB(value,8,8,[0,0,255],name+" shared region/flood pattern bit1")
+            transferRGB(value,9,8,[255,0,0],name+" shared region/flood pattern bit0")
+            booleanGray(value,4,4,255,name+" preserves outside region/component")
+        }
+    }
+    func testClassicPatternBrushMalformedOffsetsBitmap16AndResourceBoundsRefuseWholeImage()throws {
+        let names=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("unsupported-classic-patternbrush-")}.sorted()
+        XCTAssertEqual(names.count,19,"Every independently framed bitmap brush refusal remains enrolled")
+        for name in names {
+            let before=try data(name)
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(before),name)
+            XCTAssertNil(ComparisonImage(bytes:before),name+" cannot return earlier valid brush painting")
+            XCTAssertEqual(try data(name),before,"Unsupported conversion retains exact original bytes")
+        }
+    }
+}

@@ -87,6 +87,14 @@ clip offsets and metaregions; see the [classic clipping scope](METAFILE-CLASSIC-
 EMF+ pen strokes include transformed nibs, compound bands, separate end caps,
 joins, dashes and Center/Inset positioning; see the [pen scope](METAFILE-PEN-PARITY.md).
 
+Classic pattern brushes include serialized monochrome WMF brushes and EMF
+monochrome/DIB brush records. Monochrome patterns follow the drawing's current
+text and background colors; colored DIB patterns retain their supplied colors.
+Palette-indexed patterns use the drawing's selected logical palette. The same
+patterns feed fills, strokes and supported raster/region/flood operations, with
+the existing brush origin, transform and clipping behavior. See the
+[pattern brush contract and limits](METAFILE-CLASSIC-BRUSH-PARITY.md).
+
 Decoding runs in the background. Closing or replacing an input cancels the owned
 decoder and prevents a delayed preview from replacing a newer view. Rendering
 never rewrites the original file or conflict stage. Selecting a conflict side

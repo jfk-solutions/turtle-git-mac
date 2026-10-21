@@ -76,6 +76,13 @@ clipping includes union, intersection, XOR and subtraction, path/rectangle clips
 clip offsets and metaregions; see the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/METAFILE-CLASSIC-CLIP-PARITY.html">classic clipping scope</a>.
 EMF+ pen strokes include transformed nibs, compound bands, separate end caps,
 joins, dashes and Center/Inset positioning; see the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/METAFILE-PEN-PARITY.html">pen scope</a>.</p>
+<p>Classic pattern brushes include serialized monochrome WMF brushes and EMF
+monochrome/DIB brush records. Monochrome patterns follow the drawing's current
+text and background colors; colored DIB patterns retain their supplied colors.
+Palette-indexed patterns use the drawing's selected logical palette. The same
+patterns feed fills, strokes and supported raster/region/flood operations, with
+the existing brush origin, transform and clipping behavior. See the
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/METAFILE-CLASSIC-BRUSH-PARITY.html">pattern brush contract and limits</a>.</p>
 <p>Decoding runs in the background. Closing or replacing an input cancels the owned
 decoder and prevents a delayed preview from replacing a newer view. Rendering
 never rewrites the original file or conflict stage. Selecting a conflict side

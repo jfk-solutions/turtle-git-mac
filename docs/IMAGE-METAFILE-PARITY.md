@@ -111,6 +111,11 @@ later masked/parallelogram/transparent/alpha transfer family. Its dated evidence
 records actual local checks; unsupported transfer records and geometry retain
 explicit refusals. [Classic extended pens](METAFILE-CLASSIC-PEN-PARITY.md) have a
 separate stroke/brush/state checkpoint.
+The [classic bitmap-brush family](METAFILE-CLASSIC-BRUSH-PARITY.md) connects
+serialized WMF pattern brushes and EMF monochrome/DIB brushes to those shared
+paint consumers. Its independent source contract separates live monochrome
+colors, supplied RGB tables and late logical-palette binding. The family has its
+own implementation/checkpoint boundary rather than inheriting an older pass.
 Windows-only fonts can substitute through CoreText. Exact GDI glyph metrics,
 text shaping, pen dash/cap combinations, every classic record variant and pixel
 identity across all Windows metafiles have not been certified.
