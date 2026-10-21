@@ -5,6 +5,11 @@ import TurtleGitCore
 
 @MainActor final class StatisticsWindowModel: ObservableObject {
     static var activeOperations = 0
+    private(set) var pendingOperations=0
+    var hasPendingWork:Bool {pendingOperations>0}
+    @Published var confirmingQuit=false {didSet {if oldValue != confirmingQuit {formRevision=UUID();generation=UUID();if confirmingQuit {cancel();retireIntents()}}}}
+    var retireIntents:()->Void={}
+    var presentationAvailable:()->Bool={NSApp.modalWindow==nil}
     let repository: GitRepository
     let entries: [LogEntry]
     private let access: RepositoryAccessLease?
@@ -14,8 +19,8 @@ import TurtleGitCore
     private var worker: Task<Void, Never>?
     private var generation = UUID()
     private(set) var retired = false
-    @Published var hasSheet = false
-    @Published var exporting = false
+    @Published var hasSheet = false {didSet {if oldValue != hasSheet {formRevision=UUID()}}}
+    @Published var exporting = false {didSet {if oldValue != exporting {formRevision=UUID()}}}
     @Published private(set) var formRevision = UUID()
     var becameIdle: () -> Void = {}
     @Published var options = LogStatisticsOptions()
@@ -24,12 +29,15 @@ import TurtleGitCore
     @Published var authorsShown = 1.0
     @Published var summary: LogStatisticsSummary?
     @Published var graph: LogStatisticsGraph?
-    @Published var busy = false
+    @Published var busy = false {didSet {if oldValue != busy {formRevision=UUID()}}}
     @Published var completed = 0
     @Published var error: String?
     var close: () -> Void = {}
     var graphSize = CGSize(width: 860, height: 400)
-    var canInteract: Bool { !retired && !busy && !hasSheet && !exporting }
+    var canInteract: Bool { !retired && !busy && !hasSheet && !exporting && !confirmingQuit && presentationAvailable() }
+    var canCancelCalculation:Bool {!retired && busy && !hasSheet && !exporting && !confirmingQuit && cancellation?.isCancelled==false && presentationAvailable()}
+    func cancel(context:UUID) {guard context==formRevision,canCancelCalculation else{return};cancel();formRevision=UUID()}
+    func close(context:UUID) {guard context==formRevision,!retired,!confirmingQuit,!hasSheet,!exporting,presentationAvailable() else{return};close()}
     var showsGraphControls: Bool { metric != .statistics }
     var canExportGraph: Bool { canInteract && metric != .statistics && graph != nil }
     func supports(_ style: LogStatisticsStyle) -> Bool { !metric.byAuthor || ![.line, .stackedLine].contains(style) }
@@ -78,11 +86,12 @@ import TurtleGitCore
     func calculate(context: UUID? = nil) {
         guard accepts(context), changes == nil else { return }; formRevision = UUID(); busy = true; completed = 0; error = nil
         let token = OperationCancellation(), request = UUID()
-        cancellation = token; generation = request; Self.activeOperations += 1
+        cancellation = token; generation = request; Self.activeOperations += 1;pendingOperations += 1
+        let capturedRepository=repository.capturingDiffBackend(preferences:defaults)
         worker = Task { [self, access] in
             defer {
-                Self.activeOperations -= 1
-                if request == generation || retired {
+                Self.activeOperations -= 1;pendingOperations -= 1
+                if cancellation === token {
                     busy = false; cancellation = nil; worker = nil
                     if !retired { becameIdle() }
                 }
@@ -91,26 +100,26 @@ import TurtleGitCore
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let (stream, continuation) = AsyncStream<Int>.makeStream()
-                let operation = Task { [repository, entries] in
+                let operation = Task { [capturedRepository, entries] in
                     defer { continuation.finish() }
-                    return try await repository.logStatisticsChanges(entries, cancellation: token) { done, _ in continuation.yield(done) }
+                    return try await capturedRepository.logStatisticsChanges(entries, cancellation: token) { done, _ in continuation.yield(done) }
                 }
                 for await done in stream {
-                    if !retired, request == generation, !token.isCancelled { completed = done }
+                    if !retired,!confirmingQuit,request == generation,!token.isCancelled {completed=done}
                 }
                 let result = try await operation.value
                 try token.check()
-                guard !retired, request == generation else { return }
+                guard !retired,!confirmingQuit,request == generation else {return}
                 changes = result; rebuild(resetAuthors: true)
             } catch {
-                if !retired, request == generation { self.error = error.localizedDescription }
+                if !retired,!confirmingQuit,request == generation,!token.isCancelled {self.error=error.localizedDescription}
             }
         }
     }
     func cancel() { cancellation?.cancel() }
     func retire() {
         guard !retired else { return }
-        retired = true; formRevision = UUID(); generation = UUID(); cancel(); becameIdle = {}; close = {}
+        retired = true; formRevision = UUID(); generation = UUID(); cancel(); retireIntents(); becameIdle = {}; close = {};presentationAvailable={false}
     }
     func savePreferences() {
         guard !retired else { return }
@@ -137,16 +146,21 @@ private final class StatisticsNativeWindow: NSWindow {
     private var closing = false
     private var closed = false
     private var exportRequest: UUID?
-    var writeGraph: @Sendable (Data, URL) async throws -> Void = { data, url in
-        try await Task.detached {
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-            try data.write(to: url, options: .atomic)
-        }.value
+    private var pendingExports=0
+    private var pendingSettlements=0
+    private var exportCancellation:OperationCancellation?
+    private var releaseTask:Task<Void,Never>?
+    private var retiredSheets:[NSWindow]=[]
+    private var saveAnswered=false
+    var writeGraph:@Sendable (Data,URL,OperationCancellation) async throws->Void = {data,url,token in
+        try await StatisticsGraphExport.write(data:data,to:url,cancellation:token)
     }
-    var presentSavePanel: (NSSavePanel, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { panel, window, completion in panel.beginSheetModal(for: window, completionHandler: completion) }
-    var selectedSaveURL: (NSSavePanel) -> URL? = { $0.url }
-    var canSaveGraph: Bool { !closed && model.canExportGraph && window?.attachedSheet == nil }
+    var presentSavePanel:(NSSavePanel,NSWindow,@escaping(NSApplication.ModalResponse)->Void)->Void = {panel,owner,reply in panel.beginSheetModal(for:owner,completionHandler:reply)}
+    var presentExportError:(NSAlert,NSWindow,@escaping(NSApplication.ModalResponse)->Void)->Void = {alert,owner,reply in alert.beginSheetModal(for:owner,completionHandler:reply)}
+    var selectedSaveURL:(NSSavePanel)->URL? = {$0.url}
+    var hasPendingWork:Bool {model.hasPendingWork || pendingExports>0 || pendingSettlements>0 || savePanel != nil || exportError != nil || retiredSheets.contains{$0.sheetParent != nil} || window?.attachedSheet != nil}
+    var canReuse:Bool {!closed && !closing && !model.retired}
+    var canSaveGraph:Bool {canReuse && model.canExportGraph && NSApp.modalWindow==nil && window?.attachedSheet==nil}
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], defaults: UserDefaults = .standard) {
         model = StatisticsWindowModel(repository: repository, access: access, entries: entries, defaults: defaults)
         let window = StatisticsNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 620), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -162,7 +176,12 @@ private final class StatisticsNativeWindow: NSWindow {
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.performClose(nil) }
         model.becameIdle = { [weak self] in if self?.closing == true { self?.window?.performClose(nil) } }
-        window.escape = { [weak model] in model?.close() }
+        model.presentationAvailable = {[weak self] in self?.canReuse==true && self?.window?.attachedSheet==nil && NSApp.modalWindow==nil}
+        model.retireIntents = {[weak self] in self?.exportCancellation?.cancel()}
+        window.escape = {[weak self] in
+            guard let self,self.canReuse,!self.model.confirmingQuit,NSApp.modalWindow==nil else{return}
+            self.window?.performClose(nil)
+        }
 
         DialogGeometry.attach(window, identifier: "StatisticsDialog", legacyName: "StatisticsDialog")
     }
@@ -185,58 +204,113 @@ private final class StatisticsNativeWindow: NSWindow {
                               revision: model.formRevision)
     }
     func saveGraphAs() {
-        guard canSaveGraph, savePanel == nil, let window, let captured = try? snapshot() else { return }
-        let request = UUID(), choice = StatisticsGraphSavePanel()
-        exportRequest = request; savePanel = choice; model.hasSheet = true
-        presentSavePanel(choice.panel, window) { [weak self, choice, weak window] response in
-            guard let self, !self.closed, self.exportRequest == request, self.savePanel === choice, let window else { return }
-            self.savePanel = nil; self.model.hasSheet = false; self.exportRequest = nil
-            guard response == .OK, let url = self.selectedSaveURL(choice.panel), self.model.formRevision == captured.revision else { return }
-            self.model.exporting = true; Self.activeExports += 1
-            let writer = self.writeGraph
-            Task { [self] in
-                defer {
-                    Self.activeExports -= 1
-                    self.model.exporting = false
-                    if !self.closed && self.closing { self.window?.performClose(nil) }
-                }
+        guard canSaveGraph,savePanel==nil,let window,let captured=try? snapshot() else{return}
+        let request=UUID(),choice=StatisticsGraphSavePanel(),token=OperationCancellation()
+        choice.panel.alphaValue=window.alphaValue;choice.panel.appearance=window.appearance
+        exportRequest=request;exportCancellation=token;saveAnswered=false;savePanel=choice;model.hasSheet=true
+        let expected=model.formRevision
+        presentSavePanel(choice.panel,window) {[weak self,choice] response in
+            guard let self,!self.closed,self.exportRequest==request,self.savePanel===choice,!self.saveAnswered else{return}
+            self.saveAnswered=true;self.pendingSettlements += 1
+            // Freeze every output choice while the accepted panel still owns its
+            // final URL. Never derive a sibling destination after authorization.
+            let destination:Result<StatisticsGraphExportDestination,Error>?
+            if response == .OK,let url=self.selectedSaveURL(choice.panel) {destination=Result {try choice.destination(for:url)}}
+            else {destination=nil}
+            let live=self.model.formRevision==expected && !self.model.confirmingQuit && !token.isCancelled
+            let writer=self.writeGraph
+            choice.panel.sheetParent?.endSheet(choice.panel,returnCode:response);choice.panel.orderOut(nil)
+            Task { @MainActor [self,choice] in
+                defer {self.pendingSettlements -= 1;self.resumeClosing()}
+                await self.waitForSheet(choice.panel)
+                guard !self.closed,self.exportRequest==request,self.savePanel===choice else{return}
+                self.savePanel=nil;choice.retire();self.model.hasSheet=false
+                guard live,!self.model.confirmingQuit,!token.isCancelled,let destination else {self.finishExport(request);return}
                 do {
-                    let data = try captured.data(format: choice.format)
-                    try await writer(data, url)
+                    let target=try destination.get()
+                    self.model.exporting=true;self.pendingExports += 1;Self.activeExports += 1
+                    let writeEpoch=self.model.formRevision
+                    defer {
+                        Self.activeExports -= 1;self.pendingExports -= 1;self.model.exporting=false;self.finishExport(request)
+                    }
+                    try token.check()
+                    let data=try captured.data(format:target.format)
+                    try token.check()
+                    guard !self.closed,!self.model.confirmingQuit,self.model.formRevision==writeEpoch else{return}
+                    try await writer(data,target.url,token)
                 } catch {
-                    guard !self.closed else { return }
-                    self.showExportError(error, window: window)
+                    guard !self.closed,!self.model.confirmingQuit,!token.isCancelled else {self.finishExport(request);return}
+                    self.finishExport(request);self.showExportError(error,window:window)
                 }
             }
         }
     }
-    private func showExportError(_ error: Error, window: NSWindow) {
-        let alert = NSAlert(error: error); exportError = alert; model.hasSheet = true
-        alert.beginSheetModal(for: window) { [weak self, weak alert] _ in
-            guard let self, !self.closed, self.exportError === alert else { return }
-            self.exportError = nil; self.model.hasSheet = false
-            if self.closing { self.window?.performClose(nil) }
+    private func resumeClosing() {
+        if !closed,closing,!hasPendingWork {window?.performClose(nil)}
+    }
+    private func finishExport(_ request:UUID) {
+        guard exportRequest==request else{return}
+        exportRequest=nil;exportCancellation=nil
+        if !closed,closing,!hasPendingWork {window?.performClose(nil)}
+    }
+    private func waitForSheet(_ sheet:NSWindow) async {
+        while sheet.sheetParent != nil || window?.attachedSheet === sheet {try? await Task.sleep(nanoseconds:10_000_000)}
+    }
+    private func showExportError(_ error:Error,window:NSWindow) {
+        guard !closed,!model.confirmingQuit,exportError==nil else{return}
+        let alert=NSAlert(error:error);exportError=alert;model.hasSheet=true
+        alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
+        var answered=false
+        presentExportError(alert,window) {[weak self,weak alert] _ in
+            guard let self,let alert,!self.closed,self.exportError===alert,!answered else{return}
+            answered=true
+            alert.window.sheetParent?.endSheet(alert.window);alert.window.orderOut(nil)
+            self.pendingSettlements += 1
+            Task { @MainActor [self,alert] in
+                defer {self.pendingSettlements -= 1;self.resumeClosing()}
+                await self.waitForSheet(alert.window)
+                guard self.exportError===alert else{return}
+                self.exportError=nil;self.model.hasSheet=false
+                if !self.closed,self.closing {window.performClose(nil)}
+            }
         }
     }
-    /// Immediate export remains available for callers that already own a URL.
-    func exportGraph(to url: URL, format: StatisticsGraphFormat) throws {
-        let captured = try snapshot()
-        let data = try captured.data(format: format)
-        let scoped = url.startAccessingSecurityScopedResource(); defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        try data.write(to: url, options: .atomic)
+    /// This synchronous compatibility entry point receives an already granted
+    /// exact output URL. Interactive exports use the cancellation-aware writer.
+    func exportGraph(to url:URL,format:StatisticsGraphFormat) throws {
+        let captured=try snapshot(),data=try captured.data(format:format)
+        let scoped=url.startAccessingSecurityScopedResource();defer {if scoped {url.stopAccessingSecurityScopedResource()}}
+        if GitRuntime.isAppStoreBuild && !scoped {throw RepositoryAccessFailure.securityScopeUnavailable}
+        try data.write(to:url,options:.atomic)
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !model.hasSheet, sender.attachedSheet == nil else { return false }
-        if model.busy || model.exporting { closing = true; model.cancel(); return false }; return true
+    func windowShouldClose(_ sender:NSWindow)->Bool {
+        guard !closed,!model.confirmingQuit,NSApp.modalWindow==nil,!model.hasSheet,sender.attachedSheet==nil else{return false}
+        if model.hasPendingWork || pendingExports>0 {closing=true;model.cancel();exportCancellation?.cancel();return false}
+        return true
     }
-    func windowWillClose(_ notification: Notification) {
-        guard !closed else { return }; closed = true; exportRequest = nil
-        model.savePreferences(); model.retire()
-        if let sheet = savePanel?.panel { window?.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
-        if let alert = exportError { window?.endSheet(alert.window, returnCode: .cancel); alert.window.orderOut(nil) }
-        savePanel = nil; exportError = nil; model.hasSheet = false
-        onClosed(); onClosed = {}
+    func windowWillClose(_ notification:Notification) {
+        guard !closed else{return}
+        closed=true;closing=true;exportRequest=nil;exportCancellation?.cancel()
+        model.savePreferences();model.retire()
+        if let choice=savePanel {
+            choice.retire();retiredSheets.append(choice.panel)
+            choice.panel.sheetParent?.endSheet(choice.panel,returnCode:.cancel);choice.panel.orderOut(nil)
+        }
+        if let alert=exportError {
+            retiredSheets.append(alert.window);alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.orderOut(nil)
+        }
+        savePanel=nil;exportError=nil;model.hasSheet=false
+        guard hasPendingWork else{finishClose();return}
+        releaseTask=Task { @MainActor [self] in
+            while hasPendingWork {try? await Task.sleep(nanoseconds:10_000_000)}
+            finishClose()
+        }
     }
+    private func finishClose() {
+        releaseTask=nil;retiredSheets=[];exportCancellation=nil
+        let callback=onClosed;onClosed={};callback()
+    }
+
 }
 
 private struct StatisticsDialog: View {
@@ -264,7 +338,7 @@ private struct StatisticsDialog: View {
                 Spacer()
                 if model.showsGraphControls { HStack {
                     ForEach([LogStatisticsStyle.pie, .stackedLine, .line, .stackedBar, .bar], id: \.rawValue) { style in
-                        Button { model.selectStyle(style, context: context) } label: { Image(nsImage: styleIcon(style).image() ?? NSImage()).frame(width: 18, height: 18) }.accessibilityLabel(styleTitle(style)).disabled(!model.canInteract || !model.supports(style)).help(styleTitle(style)).background(model.style == style ? Color.accentColor.opacity(0.2) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+                        Button { model.selectStyle(style, context: context) } label: { Image(nsImage: styleIcon(style).image() ?? NSImage()).frame(width: 18, height: 18) }.accessibilityLabel(styleTitle(style)).disabled(!model.canInteract || !model.supports(style)).help(styleHelp(style)).background(model.style == style ? Color.accentColor.opacity(0.2) : Color.clear, in: RoundedRectangle(cornerRadius: 4))
                             .accessibilityValue(model.style == style ? "Selected" : "")
                     }
                 } }
@@ -275,8 +349,8 @@ private struct StatisticsDialog: View {
                     .accessibilityLabel("Authors shown individually").accessibilityValue(model.authorSliderHint).help(model.authorSliderHint)
                 Text("\(Int(model.authorsShown))").monospacedDigit() }
                 if model.exporting { ProgressView().controlSize(.small); Text("Saving graph…") }
-                if model.busy { ProgressView(value: Double(model.completed), total: Double(max(1, model.entries.count))).frame(width: 100); Button("Cancel") { model.cancel() } }
-                Spacer(); Button("OK") { model.close() }.keyboardShortcut(.defaultAction)
+                if model.busy { ProgressView(value: Double(model.completed), total: Double(max(1, model.entries.count))).frame(width: 100); Button("Cancel") {model.cancel(context:context)}.disabled(!model.canCancelCalculation) }
+                Spacer(); Button("OK") {model.close(context:context)}.keyboardShortcut(.defaultAction).disabled(model.confirmingQuit || model.hasSheet || model.exporting)
             }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
         }.padding(12)
@@ -286,6 +360,9 @@ private struct StatisticsDialog: View {
     }
     private func styleIcon(_ style: LogStatisticsStyle) -> MenuIcon {
         switch style { case .pie: return .graphPie; case .line: return .graphLine; case .stackedLine: return .graphStackedLine; case .bar: return .graphBar; case .stackedBar: return .graphStackedBar }
+    }
+    private func styleHelp(_ style:LogStatisticsStyle)->String {
+        switch style {case .pie:return "Pie Graph";case .line:return "Line Graph";case .stackedLine:return "Stacked Line Graph";case .bar:return "Bar Graph";case .stackedBar:return "Stacked Bar Graph"}
     }
     private func styleTitle(_ style: LogStatisticsStyle) -> String {
         switch style { case .pie: return "Pie"; case .line: return "Line"; case .stackedLine: return "Stacked line"; case .bar: return "Bar"; case .stackedBar: return "Stacked bar" }

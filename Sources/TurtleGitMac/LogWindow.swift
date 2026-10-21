@@ -2192,9 +2192,12 @@ struct LogCommandRequest: Identifiable {
     var canShowStatistics:Bool {canChangeLogControls && entries.contains{!$0.hash.isEmpty}}
     func showStatistics() {
         guard canShowStatistics else { return }
-        if let statisticsWindow { statisticsWindow.showWindow(nil); statisticsWindow.window?.makeKeyAndOrderFront(nil); return }
+        if let statisticsWindow,statisticsWindow.canReuse { statisticsWindow.showWindow(nil); statisticsWindow.window?.makeKeyAndOrderFront(nil); return }
         let controller = StatisticsWindowController(repository: repository, access: access, entries: entries.filter{!$0.hash.isEmpty}, defaults: labelDefaults)
-        controller.onClosed = { [weak self] in self?.statisticsWindow = nil }
+        controller.onClosed = { [weak self,weak controller] in
+            guard let self,let controller,self.statisticsWindow === controller else{return}
+            self.statisticsWindow=nil
+        }
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {

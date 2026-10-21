@@ -43,9 +43,15 @@ counts. Graph titles and axis units follow the chosen metric and time interval;
 the original TortoiseGit palette is shared by all graph styles in light and dark
 appearance. Very high author counts retain the source palette's repeated colors.
 
-With a graph selected, choose **File → Save Graph As…**. Select PDF, PNG, JPEG,
-BMP or GIF in the save sheet's **Format** field and choose a destination. PDF is
-the native replacement for TortoiseGit's Windows metafile export. Pie exports
+With a graph selected, choose **File → Save Graph As…**. The save sheet has
+**Pictures** and **All Files** filters. The filename selects the encoder: `.pdf`,
+`.png`, `.jpg`/`.jpeg`, `.bmp` or `.gif`. Changing the filter preserves your typed
+suffix. Pictures adds `.pdf` to an extensionless name; All Files adds `.jpg`.
+An unknown suffix also gets `.jpg` appended. The panel confirms the final filename
+before overwriting or granting access to it.
+
+PDF is the native replacement for TortoiseGit's Windows metafile export. WMF/EMF
+output is unavailable; use PDF for vector output. Pie exports
 use the current graph area size, just like the other styles. Date pies share one
 horizontal row and shrink to fit; zero-valued intervals leave no empty slot.
 All graph styles have a boxed legend on the right. Crowded legends keep the last
@@ -69,9 +75,17 @@ When only one author would be omitted, that author keeps a named entry, matching
 TortoiseGit. The graph style buttons identify the selected style.
 
 Save Graph As captures the graph and its current size and appearance when you open
-the file panel. While its accepted file is being written, controls wait for that
-write to finish. Closing the window normally waits for completion; a forced owner
-close does not abandon an already accepted atomic save.
+the file panel. Once accepted, the filename, encoder and graph stay fixed while
+writing. Controls wait for that write to finish. Closing requests cancellation
+and waits for the worker and owned sheets to finish. A forced close retires the
+window immediately and releases its ownership after that work drains. Cancellation
+before atomic publication preserves an existing destination; a file already
+published remains a successful save. Errors stay attached to the Statistics window.
+
+Calculate captures the originating window's Git backend preferences for the whole
+read. Cancelling discards partial results and keeps the last complete summary.
+After it finishes, Calculate can retry. Quit confirmation invalidates pending form
+and export actions, including callbacks retained from an older presentation.
 
 
 Author identity is retained through totals, activity ranking, interval graphs,

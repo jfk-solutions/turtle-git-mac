@@ -195,6 +195,7 @@ import TurtleGitCore
             (window.delegate as? RevertProgressWindowController)?.model.confirmingQuit = value
             (window.delegate as? PresentationComparisonWindowController)?.model.confirmingQuit = value
             (window.delegate as? RevisionGraphWindowController)?.model.confirmingQuit = value
+            (window.delegate as? StatisticsWindowController)?.model.confirmingQuit = value
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -249,7 +250,7 @@ import TurtleGitCore
         if StashSaveProgressWindowModel.activeOperations > 0 || ExportWindowModel.activeOperations > 0 || ExportWindowController.activeReleases > 0 || ExportProgressWindowModel.activeOperations > 0 || ExportProgressWindowController.activeReleases > 0 { return .terminateCancel }
         if MergeProgressWindowModel.activeOperations > 0 || MergeWindowController.activeChildReleases > 0 { return .terminateCancel }
         if SwitchProgressWindowModel.activeOperations > 0 || SwitchWindowController.activeChildReleases > 0 || ResetProgressWindowModel.activeOperations > 0 || ResetWindowController.activeChildReleases > 0 || BisectWindowController.activeChildReleases > 0 { return .terminateCancel }
-        if StatisticsWindowModel.activeOperations > 0 || StatisticsWindowController.activeExports > 0 || sender.windows.compactMap({ $0.delegate as? StatisticsWindowController }).contains(where: { $0.model.hasSheet }) { return .terminateCancel }
+        if StatisticsWindowModel.activeOperations > 0 || StatisticsWindowController.activeExports > 0 || sender.windows.compactMap({ $0.delegate as? StatisticsWindowController }).contains(where: { $0.hasPendingWork || $0.model.hasSheet || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if RevisionGraphFindController.activeOperations > 0 || CommitContainingReferencesWindowController.activeOperations > 0 || RevisionGraphWindowModel.activeOperations > 0 || RevisionGraphFilterController.activeOperations > 0 { return .terminateCancel }
         if FileCopyWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? FileCopyWindowController }).contains(where: { $0.model.question || $0.model.confirmingCancel }) { return .terminateCancel }
         if FileMoveWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? FileMoveWindowController }).contains(where: { $0.model.hasQuestion || $0.model.choosingFolder || $0.model.confirmingCancellation }) { return .terminateCancel }

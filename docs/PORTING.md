@@ -1,5 +1,13 @@
 # TurtleGit for Mac — full port tracking
 
+The [Statistics save/calculation family](STATISTICS-EXPORT-PARITY.md) implements
+source filter groups and filename-selected encoders, captured exports, cancellable
+atomic publication, actual sheet/worker retirement and a consistent captured diff
+backend. The [grouped checkpoint](qa/statistics-export-family-2026-10-21.json)
+passes 23 focused Core methods, Debug and ten native case/engine pairs across
+recorded repairs. All twelve owned receivers are absent. Windows graph metafile
+output and physical/signed/full-hosted acceptance remain open.
+
 The [Blame embedded Log family](BLAME-HISTORY-PRESENTATION-PARITY.md) adds captured reference/tracking/HEAD metadata, shared source-colored labels, configured fonts and adaptive rows, source column migration and fitted Reset, guarded header/activation receipts and drained ownership across File Open/closure. Its [grouped checkpoint](qa/blame-history-presentation-2026-10-21.json) passes 25 focused Core methods, the Debug build, four functional native case/engine pairs and the native capture case after recorded fixture/capture repairs. Two complete light/dark captures were reviewed and all eight owned receivers are absent; physical and signed acceptance remain open.
 
 The [revision-list drag family](FILE-LIST-DRAG-PARITY.md) connects Changed Files, Log, Rebase Revision Files and both Sync file lists to captured native file delivery. Historical hashes, exact paths, backend preferences and access leases belong to the accepted drag; working lists offer actual file URLs. Sync preserves the source base-revision rule. Its [grouped checkpoint](qa/file-list-drag-2026-10-21.json) passes six focused Core methods, the Debug build and six native case/engine pairs after recorded fixture repairs. All nine owned receivers are absent. Physical gestures and signed cross-application grants remain open.

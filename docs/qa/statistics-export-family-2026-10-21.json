@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-21",
+  "family": "Statistics source save filters, captured calculation/output and owned cancellation",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Pictures/All Files source filter groups; filename selects actual encoder; PDF native vector adaptation; unknown-name JPEG fallback; explicit WMF/EMF graph-output gap",
+    "Normalize before platform overwrite/grant, accept exact final URL only",
+    "Freeze graph/style/viewport/appearance and accepted encoder/URL/writer; one-use replies and stale Quit refusal",
+    "Cancellable same-volume coordinated atomic replacement with workspace cleanup and existing-destination preservation before publication",
+    "Actual calculation/accepted-write/save/error-sheet drainage; forced-close onClosed waits; retired/closing Log cache replacement",
+    "One captured originating diff backend for entire calculation; cancellation discards partial results and leaves retry available",
+    "Source style tooltips and native localization/Help continuation"
+  ],
+  "source_hashes": {
+    "Sources/TurtleGitCore/LogStatistics.swift": "f1e60331215e7cf34a59e457c64d96f7e6b39b814841d4a2f317f78c4c77a6be",
+    "Sources/TurtleGitMac/StatisticsWindow.swift": "22cb26c1ae9c46e89a26b603ef1c235167a7e27171a37083e7a462052d564672",
+    "Sources/TurtleGitMac/StatisticsGraphExport.swift": "3840468a7be4464dfd4c7c28d4530f858d26221774704afc7b55e095447345a9",
+    "Sources/TurtleGitMac/LogWindow.swift": "d618181cb1547f259159bd0fbc9f2407098a8f95b52033c2899fc0f3e5d096d4",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "994bd11f5df673e2900601d11cc22a185fe49f4c4dc428472cbb00f73c029644",
+    "Tests/TurtleGitCoreTests/StatisticsGraphExportTests.swift": "26d5074ada76644f5d9353e7dffe7c22b36d8a9a7e962faeca79719b85caa172",
+    "docs/qa/statistics-export-family-native-2026-10-21.swift": "00739c9a5083e83d362e87508b5521e789406661f36dfe954e4eb0a2d966e0a6",
+    "docs/qa/statistics-native-receiver-2026-10-07.swift": "1cb8f608403841f6c6407e8fc9e394a6f0221167d96f601df3783090054da6a4",
+    "docs/qa/statistics-source-native-2026-10-17.swift": "0799e553d744bc325fe47e96c086fb05946b7e453149da3960a2b22bf79adcc5",
+    "docs/qa/statistics-author-native-2026-10-20.swift": "17ac7ab5dcf25ec9b881b10fc89ab2999d4972698032bfca7c8272f5ddc8c303",
+    "scripts/test-statistics-export-family.py": "07c36cfcd2b5d72c08413d7a4e28945d94cc1c98cfc7e748c63bdff770470559",
+    "scripts/test-statistics-dialog.py": "207296c2a790a94ece2286b6a4b35e0b793207854b4904fe3249faf3c62306ca"
+  },
+  "core": {
+    "distinct_methods": 23,
+    "status": "passed",
+    "exit_code": 0,
+    "log": "build/qa/statistics-export-core-2026-10-21.log",
+    "full_suite_run": false
+  },
+  "debug": {
+    "status": "passed after explicit capture repair",
+    "initial_exit_code": 65,
+    "final_exit_code": 0,
+    "logs": [
+      "build/qa/statistics-export-build-2026-10-21.log",
+      "build/qa/statistics-export-build-repair-2026-10-21.log"
+    ],
+    "failure": "Swift requires explicit self inside nested Tasks captured through weak-self callbacks. Added explicit references without changing behavior.",
+    "retained_diagnostics": "Existing simulator-version mismatch, deprecated APIs and contradictory exit-zero/no-output compiler diagnostics remain recorded; final process exit was zero."
+  },
+  "native": {
+    "status": "passed across focused fixture repairs",
+    "new_export_case_engine_pairs": 6,
+    "existing_workflow_case_engine_pairs": 2,
+    "author_identity_case_engine_pairs": 2,
+    "git_engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "logs": [
+      "build/qa/statistics-export-native-2026-10-21.log",
+      "build/qa/statistics-export-native-fixture-2026-10-21.log",
+      "build/qa/statistics-export-native-existing-2026-10-21.log",
+      "build/qa/statistics-export-native-existing-repair-2026-10-21.log",
+      "build/qa/statistics-export-native-workflow-2026-10-21.log"
+    ],
+    "failures": [
+      "New receiver compile rejected internal property with private gate type; corrected fixture visibility; no receiver launched.",
+      "Initial existing-family receiver reached source ownership after broad rendering checks, then failed captured viewport assumption: asynchronous Cancel now allows view geometry to settle. Established second viewport after Cancel drainage before second Save.",
+      "Next existing-family receiver failed old error-readiness assumption: hasSheet also covers settling save panel. Wait for actual attached error sheet and real detachment; adapt remaining immediate Cancel assertion and intentional no-error cancellation behavior. Added workflow-only mode so unaffected chart palette group was not repeated again."
+    ],
+    "assertions_preserved": "Full filename/encoder, viewport, output bytes, sentinel, stale reply, worker/helper drain, repo/index/config/HEAD, author identity and actual owned sheet assertions remain.",
+    "receiver_pids": [
+      4270,
+      4313,
+      4362,
+      4402,
+      4439,
+      4478,
+      4593,
+      4691,
+      4806,
+      4847,
+      4897,
+      5007
+    ],
+    "all_owned_receivers_reaped_and_independently_absent": true,
+    "checked_at_utc": "2026-10-21T04:03:39.686712+00:00",
+    "visible_automated_windows": false,
+    "new_captures": 0
+  },
+  "documentation": {
+    "help_documents": 49,
+    "help_topics": 51,
+    "help_files": 69,
+    "languages": 38,
+    "label_keys": 1313,
+    "site_docs_tests": 2,
+    "site_log": "build/qa/statistics-export-site-2026-10-21.log",
+    "site_tests_log": "build/qa/statistics-export-site-tests-2026-10-21.log",
+    "dialog_ledger": "130 dialogs, 120 partial family audits, zero certified; not a completion percentage"
+  },
+  "remaining": [
+    "Physical save/overwrite/modifier/VoiceOver acceptance",
+    "Full Windows typography/geometry/shading and large-history behavior",
+    "WMF/EMF graph writers",
+    "Signed file-only destination grant and replacement workspace acceptance on deployment volumes",
+    "Complete current hosted integration and current installed distribution acceptance",
+    "Whole Statistics/application parity"
+  ]
+}

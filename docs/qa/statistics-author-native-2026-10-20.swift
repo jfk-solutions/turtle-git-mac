@@ -8,10 +8,11 @@ private actor StatisticsAuthorWriteGate {
     var data: Data?
     private var continuation: CheckedContinuation<Void, Never>?
     private var released = false
-    func write(_ data: Data, to url: URL) async throws {
+    func write(_ data: Data, to url: URL,cancellation:OperationCancellation) async throws {
         self.data = data
         if !released { await withCheckedContinuation { continuation = $0 } }
-        try data.write(to: url, options: .atomic)
+        try cancellation.check()
+        try await StatisticsGraphExport.write(data:data,to:url,cancellation:cancellation)
     }
     func finish() { released = true; continuation?.resume(); continuation = nil }
 }
@@ -204,11 +205,12 @@ private actor StatisticsAuthorWriteGate {
         saving.model.graphSize = CGSize(width: 960, height: 500)
         let snapshot = bytes(saving.model.graph!.seriesLabels)
         let target = root.appendingPathComponent("captured-author-graph.pdf")
+        let sentinel=Data("existing statistics graph".utf8);try sentinel.write(to:target)
         var reply: ((NSApplication.ModalResponse) -> Void)?
         saving.presentSavePanel = { _, _, completion in reply = completion }
         saving.selectedSaveURL = { _ in target }
         let gate = StatisticsAuthorWriteGate()
-        saving.writeGraph = { data, url in try await gate.write(data, to: url) }
+        saving.writeGraph = {data,url,token in try await gate.write(data,to:url,cancellation:token)}
         do {
             saving.saveGraphAs(); reply?(.OK)
             for _ in 0..<3000 { if await gate.data != nil { break }; try await Task.sleep(nanoseconds: 10_000_000) }
@@ -219,8 +221,8 @@ private actor StatisticsAuthorWriteGate {
             try require(bytes(saving.model.graph!.seriesLabels) == snapshot, "pending export accepted new identity controls")
             saving.close(); await gate.finish()
             try await wait { StatisticsWindowController.activeExports == 0 }
-            try require(try Data(contentsOf: target) == frozenData, "snapshot bytes changed during close/drain")
-            try require(PDFDocument(url: target)?.pageCount == 1, "owned snapshot PDF invalid")
+            try require(try Data(contentsOf:target)==sentinel,"Cancelled snapshot export overwrote the previous target")
+            try require(frozenData.flatMap {PDFDocument(data:$0)}?.pageCount==1,"Owned captured snapshot PDF invalid")
         } catch {
             await gate.finish()
             saving.close()

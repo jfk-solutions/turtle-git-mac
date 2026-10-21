@@ -11,7 +11,7 @@ import tempfile
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
 parser.add_argument('--captures', type=Path)
-parser.add_argument('--only', choices=['family', 'summary'], default='family')
+parser.add_argument('--only', choices=['family', 'summary', 'workflow'], default='family')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 products = root / 'build/Build/Products/Debug'

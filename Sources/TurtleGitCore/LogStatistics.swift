@@ -1,5 +1,49 @@
 import Foundation
 
+public enum StatisticsGraphFormat:String,CaseIterable,Sendable {
+    case pdf,png,jpeg,bmp,gif
+    public var fileExtension:String {self == .jpeg ? "jpg":rawValue}
+    public init?(fileExtension:String) {
+        switch fileExtension.lowercased() {case "jpg","jpeg":self = .jpeg;default:guard let value=Self(rawValue:fileExtension.lowercased()) else{return nil};self=value}
+    }
+}
+public enum StatisticsGraphExportFilter:String,CaseIterable,Sendable {case pictures,allFiles}
+public enum StatisticsGraphDestinationFailure:LocalizedError,Sendable {
+    case destination,metafile
+    public var errorDescription:String? {
+        switch self {
+        case .destination:return "Choose a file for the statistics graph."
+        case .metafile:return "WMF and EMF statistics export are unavailable on macOS. Choose PDF for a vector graph."
+        }
+    }
+}
+/// StatGraphDlg's filename chooses the encoder. Pictures defaults to PDF as the
+/// native replacement for its Windows enhanced-metafile default.
+public struct StatisticsGraphExportDestination:Sendable {
+    public let url:URL
+    public let format:StatisticsGraphFormat
+    public init(url:URL,filter:StatisticsGraphExportFilter = .allFiles)throws {
+        guard url.isFileURL,!url.hasDirectoryPath else{throw StatisticsGraphDestinationFailure.destination}
+        let filename=try Self.normalizedFilename(url.lastPathComponent,filter:filter)
+        self.url=filename.utf8.elementsEqual(url.lastPathComponent.utf8) ? url:url.deletingLastPathComponent().appendingPathComponent(filename)
+        guard let format=Self.suffix(filename).flatMap({StatisticsGraphFormat(fileExtension:$0)}) else{throw StatisticsGraphDestinationFailure.destination}
+        self.format=format
+    }
+    public static func normalizedFilename(_ filename:String,filter:StatisticsGraphExportFilter = .allFiles)throws->String {
+        guard !filename.isEmpty,filename != ".",filename != "..",!filename.contains("/"),!filename.contains("\0") else{throw StatisticsGraphDestinationFailure.destination}
+        var value=filename
+        if !value.utf8.contains(46),filter == .pictures {value += ".pdf"}
+        let extensionName=suffix(value)?.lowercased()
+        if extensionName == "wmf" || extensionName == "emf" {throw StatisticsGraphDestinationFailure.metafile}
+        if extensionName.flatMap({StatisticsGraphFormat(fileExtension:$0)}) == nil {value += ".jpg"}
+        return value
+    }
+    private static func suffix(_ filename:String)->String? {
+        guard let dot=filename.utf8.lastIndex(of:46) else{return nil}
+        return String(decoding:filename.utf8[filename.utf8.index(after:dot)...],as:UTF8.self)
+    }
+}
+
 /// StatGraphDlg uses std::wstring author keys. Swift String equality instead
 /// merges canonical Unicode spellings, even when Authors case sensitive is on.
 /// Keep the original valid UTF-8 namespace while ordering by UTF-16 as upstream.
@@ -153,14 +197,15 @@ public enum LogStatistics {
 extension GitRepository {
     /// Calculate against the accepted Log snapshot, with owned cancellation and
     /// no publication of a partial cache after failure/cancellation.
-    public func logStatisticsChanges(_ entries: [LogEntry], cancellation: OperationCancellation? = nil, progress: (@Sendable (Int, Int) -> Void)? = nil) throws -> [String: LogStatisticsChanges] {
+    public func logStatisticsChanges(_ entries: [LogEntry], cancellation: OperationCancellation? = nil, progress: (@Sendable (Int, Int) -> Void)? = nil,backend:GitLibGit2Configuration? = nil) throws -> [String: LogStatisticsChanges] {
         try cancellation?.check()
         func valid(_ hash: String) -> Bool { (hash.count == 40 || hash.count == 64) && hash.allSatisfy { $0.isASCII && $0.isHexDigit } }
         guard entries.allSatisfy({ valid($0.hash) && $0.parents.allSatisfy(valid) }) else { throw LogStatisticsFailure.revision }
+        let backend=backend ?? libgit2Configuration ?? .load()
         var result: [String: LogStatisticsChanges] = [:]
         for (index, entry) in entries.enumerated() {
             try cancellation?.check()
-            if result[entry.hash] == nil { result[entry.hash] = entry.parents.count > 1 ? LogStatisticsChanges() : LogStatisticsChanges(files: try files(in: entry, cancellation: cancellation)) }
+            if result[entry.hash] == nil { result[entry.hash] = entry.parents.count > 1 ? LogStatisticsChanges() : LogStatisticsChanges(files: try files(in: entry, cancellation: cancellation,backend:backend)) }
             progress?(index + 1, entries.count)
             try cancellation?.check()
         }

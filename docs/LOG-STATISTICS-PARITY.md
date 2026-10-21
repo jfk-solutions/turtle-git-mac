@@ -343,3 +343,15 @@ The [author-identity evidence](qa/statistics-author-family-2026-10-20.json) reco
 the actual grouped validation and repairs for these distinct-name and
 synthetic-caption cases. Earlier Statistics evidence does not certify them. Physical pointer/VoiceOver, exact Windows typography, regional
 casing, signed export and full dialog acceptance remain separate open work.
+
+
+## Save filters, calculation capture and retirement — October 21, 2026
+
+The [save and calculation continuation](STATISTICS-EXPORT-PARITY.md) restores the
+source Pictures/All Files filter contract with filename-selected output, explicit
+PDF vector adaptation and final URL confirmation. It adds cancellation-aware
+atomic export, owned sheet/worker drainage, captured calculation backend and
+Log cache replacement. Its dated evidence supersedes the earlier accepted-save
+forced-close rule for current interactive exports; historical outcomes above
+remain evidence for their recorded versions. Remaining physical, signed, full
+source-layout and hosted acceptance stay explicit.

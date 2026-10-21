@@ -6,10 +6,11 @@ import TurtleGitCore
 private actor StatisticsWriteGate {
     var bytes: Data?
     var release: CheckedContinuation<Void, Never>?
-    func write(_ data: Data, to url: URL) async throws {
+    func write(_ data: Data, to url: URL,cancellation:OperationCancellation) async throws {
         bytes = data
         await withCheckedContinuation { release = $0 }
-        try data.write(to: url, options: .atomic)
+        try cancellation.check()
+        try await StatisticsGraphExport.write(data:data,to:url,cancellation:cancellation)
     }
     func finish() { release?.resume(); release = nil }
     var started: Bool { bytes != nil }
@@ -70,6 +71,7 @@ extension StatisticsNativeVerification {
         saving.model.graphSize = CGSize(width: 480, height: 280)
         saving.window?.appearance = NSAppearance(named: .aqua)
         let target = root.appendingPathComponent("captured-statistics.pdf")
+        let sentinel=Data("existing statistics output".utf8);try sentinel.write(to:target)
         saving.selectedSaveURL = { _ in target }
         var reply: ((NSApplication.ModalResponse) -> Void)?
         var panels = 0
@@ -77,12 +79,16 @@ extension StatisticsNativeVerification {
         saving.saveGraphAs(); saving.saveGraphAs(); precondition(panels == 1)
         let stale = reply
         reply?(.cancel)
+        try await sourceWait{!saving.model.hasSheet}
+        // Cancellation now drains asynchronously; establish the second viewport
+        // after that wait, before capturing its new Save intent.
+        saving.model.graphSize=CGSize(width:480,height:280)
         saving.saveGraphAs(); stale?(.OK)
         precondition(saving.savePanel != nil && StatisticsWindowController.activeExports == 0)
         saving.model.graphSize = CGSize(width: 900, height: 500)
         saving.window?.appearance = NSAppearance(named: .darkAqua)
         let gate = StatisticsWriteGate()
-        saving.writeGraph = { data, url in try await gate.write(data, to: url) }
+        saving.writeGraph = {data,url,token in try await gate.write(data,to:url,cancellation:token)}
         let accepted = reply
         accepted?(.OK); accepted?(.OK)
         for _ in 0..<2500 { if await gate.started { break }; try await Task.sleep(nanoseconds: 10_000_000) }
@@ -95,8 +101,11 @@ extension StatisticsNativeVerification {
         precondition(saving.model.retired && StatisticsWindowController.activeExports == 1 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
         await gate.finish()
         try await sourceWait { StatisticsWindowController.activeExports == 0 }
-        let pdf = try XCTlessPDF(target)
-        precondition(pdf.page(at: 0)?.bounds(for: .mediaBox).size == CGSize(width: 480, height: 280), "Save used the changed viewport instead of captured graph")
+        let capturedBytes=await gate.bytes
+        guard let capturedBytes,let pdf=PDFDocument(data:capturedBytes),pdf.pageCount==1 else {throw NSError(domain:"Captured Statistics PDF",code:1)}
+        precondition(pdf.page(at:0)?.bounds(for:.mediaBox).size==CGSize(width:480,height:280),"Save used the changed viewport instead of captured graph")
+        let retainedOutput=try Data(contentsOf:target)
+        precondition(retainedOutput==sentinel,"Cancelled Statistics writer replaced the existing output")
         precondition(!saving.model.exporting && !saving.model.hasSheet)
 
         let failing = StatisticsWindowController(repository: model.repository, access: nil, entries: model.entries, defaults: defaults)
@@ -105,10 +114,10 @@ extension StatisticsNativeVerification {
         failing.presentSavePanel = { _, _, completion in reply = completion }
         failing.selectedSaveURL = { _ in root.appendingPathComponent("missing/graph.pdf") }
         failing.saveGraphAs(); reply?(.OK)
-        try await sourceWait { !failing.model.exporting && failing.model.hasSheet }
+        try await sourceWait { !failing.model.exporting && failing.model.hasSheet && failing.window?.attachedSheet != nil }
         precondition(StatisticsWindowController.activeExports == 0 && failing.window?.attachedSheet != nil && !failing.canSaveGraph)
         failing.close()
-        precondition(failing.window?.attachedSheet == nil && !failing.model.hasSheet)
+        try await sourceWait{!failing.hasPendingWork && failing.window?.attachedSheet==nil && !failing.model.hasSheet}
 
         let staleOwner = StatisticsWindowController(repository: model.repository, access: nil, entries: model.entries, defaults: defaults)
         defer { staleOwner.close() }
@@ -117,6 +126,7 @@ extension StatisticsNativeVerification {
         let staleFile = root.appendingPathComponent("stale-statistics.pdf")
         staleOwner.selectedSaveURL = { _ in staleFile }
         staleOwner.saveGraphAs(); staleOwner.model.rebuild(); reply?(.OK)
+        try await sourceWait{!staleOwner.model.hasSheet}
         precondition(!FileManager.default.fileExists(atPath: staleFile.path) && StatisticsWindowController.activeExports == 0)
         var keyWindow = owner.window
         let menu = StatisticsMenuContext(keyWindow: { keyWindow })
@@ -127,6 +137,7 @@ extension StatisticsNativeVerification {
         capturedCommand()
         precondition(ownerPickers == 1 && owner.model.hasSheet && !staleOwner.model.hasSheet, "File menu followed a different key window")
         reply?(.cancel)
+        try await sourceWait{!owner.model.hasSheet}
         keyWindow = owner.window; menu.refresh()
         let staleCommand = menu.capturedSaveAction()
         owner.model.selectStyle(.pie); staleCommand()
@@ -145,7 +156,7 @@ extension StatisticsNativeVerification {
         automatic!.selectedSaveURL = { _ in root.appendingPathComponent("automatic-close.pdf") }
         automatic!.presentSavePanel = { _, _, completion in reply = completion }
         let normalGate = StatisticsWriteGate()
-        automatic!.writeGraph = { data, url in try await normalGate.write(data, to: url) }
+        automatic!.writeGraph = {data,url,token in try await normalGate.write(data,to:url,cancellation:token)}
         var normalClosed = false; automatic!.onClosed = { normalClosed = true }
         automatic!.saveGraphAs(); reply?(.OK)
         for _ in 0..<2500 { if await normalGate.started { break }; try await Task.sleep(nanoseconds: 10_000_000) }
@@ -155,8 +166,8 @@ extension StatisticsNativeVerification {
         try await sourceWait { normalClosed && StatisticsWindowController.activeExports == 0 }
         automatic = nil
         try await sourceWait { released == nil }
-        precondition(FileManager.default.fileExists(atPath: root.appendingPathComponent("automatic-close.pdf").path))
-        print("Statistics source family: stale form and picker callbacks, style dependencies, bounded slider, activity hint, source summary/bar geometry, captured export, actual owned picker Cancel, duplicate reply, accepted-write force-close/Quit ownership passed")
+        precondition(!FileManager.default.fileExists(atPath:root.appendingPathComponent("automatic-close.pdf").path),"Normal close failed to cancel unpublished output")
+        print("Statistics source family: stale form and picker callbacks, style dependencies, bounded slider, activity hint, source summary/bar geometry, captured export, actual owned picker Cancel, duplicate reply, cancel-before-publication force-close/Quit ownership passed")
     }
     static func XCTlessPDF(_ url: URL) throws -> PDFDocument {
         guard let pdf = PDFDocument(url: url), pdf.pageCount == 1 else { throw NSError(domain: "Statistics PDF", code: 1) }

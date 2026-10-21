@@ -65,11 +65,24 @@ import PDFKit
         let model = controller.model
         let choice = StatisticsGraphSavePanel()
         let popup = choice.panel.accessoryView!.subviews.compactMap { $0 as? NSPopUpButton }.first!
-        for (index, format) in StatisticsGraphFormat.allCases.enumerated() {
-            popup.selectItem(at: index); choice.changeFormat()
-            precondition(choice.format == format && choice.panel.allowedContentTypes == [format.contentType])
-            precondition((choice.panel.nameFieldStringValue as NSString).pathExtension == format.fileExtension)
+        precondition(popup.numberOfItems==2 && popup.itemTitles==["Pictures","All Files"])
+        for (index,filter) in StatisticsGraphExportFilter.allCases.enumerated() {
+            popup.selectItem(at:index);choice.changeFormat()
+            precondition(choice.filter==filter && choice.panel.allowsOtherFileTypes)
+            precondition(choice.panel.allowedContentTypes == (filter == .pictures ? StatisticsGraphFormat.allCases.map(\.contentType):[]))
+            for format in StatisticsGraphFormat.allCases {
+                let filename="typed-graph."+format.fileExtension
+                choice.panel.nameFieldStringValue=filename;choice.changeFormat()
+                precondition(choice.panel.nameFieldStringValue==filename && choice.format==format,"Filter replaced typed graph suffix")
+                let accepted=try choice.destination(for:root.appendingPathComponent(filename))
+                precondition(accepted.url.lastPathComponent==filename && accepted.format==format)
+            }
+            let custom=try choice.normalizedFilename("custom.extension")
+            precondition(custom=="custom.extension.jpg","Unknown suffix lost original filename")
+            let extensionless=try choice.normalizedFilename("graph")
+            precondition(extensionless=="graph."+(filter == .pictures ? "pdf":"jpg"))
         }
+        choice.retire()
         model.selectMetric(.statistics); precondition(!model.canExportGraph)
         let refused = root.appendingPathComponent("summary.png")
         do { try controller.exportGraph(to: refused, format: .png); preconditionFailure("Summary exported") }
@@ -226,7 +239,7 @@ import PDFKit
         }
         model.selectMetric(.commitsByDate)
         for style in LogStatisticsStyle.allCases { model.style = style; controller.window?.contentView?.layoutSubtreeIfNeeded(); await Task.yield() }
-        try verifyExport(controller, root: root)
+        if ProcessInfo.processInfo.environment["TURTLEGIT_STATISTICS_CASE"] != "workflow" {try verifyExport(controller,root:root)}
         try await verifySourceFamily(controller, root: root, defaults: isolated)
         model.selectMetric(.authorship); precondition(model.graph?.points.map(\.value) == [100])
         model.options.useCommitterNames = true; model.options.caseSensitive = false; model.rebuild(resetAuthors: true)
@@ -237,7 +250,7 @@ import PDFKit
         let restored = StatisticsWindowModel(repository: repo, access: nil, entries: entries, defaults: isolated)
         precondition(restored.metric == .authorship && restored.style == .pie && restored.options.useCommitterNames && !restored.options.caseSensitive)
         restored.start(); restored.cancel(); try await wait(restored)
-        precondition(restored.error != nil && restored.summary?.changesCalculated == false)
+        precondition(restored.error == nil && restored.summary?.changesCalculated == false,"Cancelled calculation published partial data or a failure alert")
         // Related calculation/closing and native export ownership, with private response seams.
         precondition(!model.canExportGraph && model.retired)
         let oldMetric = model.metric; model.selectMetric(.commitsByDate); precondition(model.metric == oldMetric)
@@ -255,7 +268,9 @@ import PDFKit
         exportOwner.model.selectMetric(.authorship); exportOwner.model.selectStyle(.pie)
         var changedOptions = lockedOptions; changedOptions.caseSensitive.toggle(); exportOwner.model.setOptions(changedOptions)
         precondition(exportOwner.model.metric == lockedMetric && exportOwner.model.style == lockedStyle && exportOwner.model.options == lockedOptions)
-        reply?(.cancel); precondition(exportOwner.savePanel == nil && !exportOwner.model.hasSheet && exportOwner.canSaveGraph)
+        reply?(.cancel)
+        try await sourceWait{!exportOwner.hasPendingWork}
+        precondition(exportOwner.savePanel == nil && !exportOwner.model.hasSheet && exportOwner.canSaveGraph)
         exportOwner.saveGraphAs(); let lateReply = reply
         exportOwner.close(); lateReply?(.OK)
         precondition(exportOwner.model.retired && exportOwner.savePanel == nil && !exportOwner.canSaveGraph)
