@@ -8,18 +8,31 @@ public struct ComparisonFileContent: Sendable {
     public let permissions: Int?
     public let encoding: ComparisonTextEncoding?
     public let isDeleted: Bool
-    init(path: String, revision: ComparisonRevision, bytes: Data, mode: String?, permissions: Int? = nil, encoding: ComparisonTextEncoding? = nil, isDeleted: Bool = false, detectEncoding:Bool = true) {
+    private let interpretedText:String?
+    init(path: String, revision: ComparisonRevision, bytes: Data, mode: String?, permissions: Int? = nil, encoding: ComparisonTextEncoding? = nil, isDeleted: Bool = false, detectEncoding:Bool = true,interpretedText:String? = nil) {
         self.isDeleted = isDeleted
         self.path = path; self.revision = revision; self.bytes = bytes; self.mode = mode; self.permissions = permissions
         self.encoding = encoding ?? (detectEncoding ? ComparisonTextEncoding.detect(bytes) : nil)
+        self.interpretedText=interpretedText
     }
     public func usingMergeEncoding(preferUTF8: Bool, legacyEncoding:ComparisonTextEncoding = .windows1252) -> Self {
         Self(path: path, revision: revision, bytes: bytes, mode: mode, permissions: permissions,
              encoding: ComparisonTextEncoding.detectMerge(bytes, preferUTF8: preferUTF8, legacyEncoding:legacyEncoding), isDeleted: isDeleted, detectEncoding:false)
     }
-    public var text: String? { isDeleted ? "" : encoding?.decode(bytes) }
+    /// Reload input bytes under a chosen decoder, rather than converting the
+    /// already-decoded text to a new output format.
+    public func reinterpreting(encoding:ComparisonTextEncoding) throws -> Self {
+        guard let text = isDeleted ? "" : encoding.decodeInput(bytes) else {throw FileComparisonEditFailure.encoding}
+        return Self(path:path,revision:revision,bytes:bytes,mode:mode,permissions:permissions,encoding:encoding.inputEncoding,
+                    isDeleted:isDeleted,detectEncoding:false,interpretedText:text)
+    }
+    public var text: String? { isDeleted ? "" : interpretedText ?? encoding?.decode(bytes) }
 }
 public struct FileComparisonDocument: Sendable {
+    public func reinterpreting(base:ComparisonTextEncoding? = nil,destination:ComparisonTextEncoding? = nil) throws -> Self {
+        Self(base:try base.map {try self.base.reinterpreting(encoding:$0)} ?? self.base,
+             destination:try destination.map {try self.destination.reinterpreting(encoding:$0)} ?? self.destination)
+    }
     public func usingMergeEncoding(preferUTF8: Bool, legacyEncoding:ComparisonTextEncoding = .windows1252) -> Self {
         Self(base: base.usingMergeEncoding(preferUTF8: preferUTF8,legacyEncoding:legacyEncoding), destination: destination.usingMergeEncoding(preferUTF8: preferUTF8,legacyEncoding:legacyEncoding))
     }

@@ -356,6 +356,13 @@ destination; graph preferences, cancellation, Quit and retired save replies
 remain owned across the handoff. Windows metafile graph writing, physical/signed
 save grants and complete graph parity remain open.
 
+The [Compare/Merge input-encoding family](MERGE-INPUT-ENCODING-PARITY.md) ports
+per-pane decoder reload independently from output-format conversion. Raw source
+bytes, read-only/historical input choices, regeneration through the current
+comparison/merge engine and owned dirty Save/Discard/Cancel decisions remain
+connected. Source copies and replaced editors retain their own input identity;
+full editor, physical/signed and distribution acceptance remain open.
+
 The connected [Synchronization/SVN command batch](COMMAND-LINE.md#synchronization-and-svn-entry)
 adds Sync, SVN Fetch/Rebase/DCommit/Ignore entry paths, source sequence placement,
 owning settings and preserved SVN options/questions through competing commands.

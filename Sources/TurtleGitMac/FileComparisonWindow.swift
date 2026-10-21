@@ -193,9 +193,9 @@ private extension FileComparisonDocument {
         imageToolbar?.retire(); editorCommandMenu?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu()
         if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.retire(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
         editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retireImageLoader(); model.resetHistory()
-        guard let coordinator = externalReload, coordinator.hasPendingWork else { onClosed(); return }
+        guard model.mergeToolHasPendingWork || externalReload?.hasPendingWork==true else {onClosed();return}
         Task { @MainActor [self] in
-            while coordinator.hasPendingWork { try? await Task.sleep(nanoseconds: 10_000_000) }
+            while model.mergeToolHasPendingWork || externalReload?.hasPendingWork==true {try? await Task.sleep(nanoseconds:10_000_000)}
             onClosed()
         }
     }
@@ -224,6 +224,43 @@ private extension FileComparisonDocument {
     var makeImageLoader: (String, [RepositoryAccessLease]) -> ImageLoadWindowController = { ImageLoadWindowController(leftPath: $0, permissions: $1) }
     private var workingPermissions: [RepositoryAccessLease] = []
     private(set) var paneTargets: [Bool: SavedMergePane] = [:]
+    /// Keys describe original input ownership, not the current visual side.
+    @Published private(set) var inputEncodingOverrides:[Bool:ComparisonTextEncoding]=[:]
+    struct InputEncodingReceipt {
+        let owner:ObjectIdentifier,epoch:UUID,generation:Int,base:Bool,storageBase:Bool
+    }
+    var inputEncodingOwnerRetired:Bool {retired}
+    func inputEncoding(base:Bool)->ComparisonTextEncoding? {inputEncodingOverrides[storageSide(base)]}
+    /// Seed captured source decoders before any bytes are loaded by an owned child.
+    func configureInputEncodings(base:ComparisonTextEncoding?,destination:ComparisonTextEncoding?) {
+        guard !retired,!busy,document==nil,!attemptedAppearanceLoad else{return}
+        inputEncodingOverrides=[:]
+        if let base {inputEncodingOverrides[true]=base}
+        if let destination {inputEncodingOverrides[false]=destination}
+        paneTabEpoch=UUID()
+    }
+    func canReloadInputEncoding(base:Bool)->Bool {
+        guard !retired,!busy,!filtering,!confirmingQuit,!initialLoadDeferred,!hasPendingEditorChoice,NSApp.modalWindow==nil,window?.attachedSheet==nil,
+              imageComparison==nil,viewerSelection != .image,let document,(!base || !singleFileMode && !onePaneActive) else{return false}
+        let content=base ? document.base:document.destination
+        return !content.isDeleted && content.mode != "160000"
+    }
+    func inputEncodingReceipt(base:Bool)->InputEncodingReceipt? {
+        guard canReloadInputEncoding(base:base) else{return nil}
+        return .init(owner:ObjectIdentifier(self),epoch:paneTabEpoch,generation:alignmentGeneration,base:base,storageBase:storageSide(base))
+    }
+    func acceptsInputEncoding(_ receipt:InputEncodingReceipt)->Bool {
+        receipt.owner==ObjectIdentifier(self) && receipt.epoch==paneTabEpoch && receipt.generation==alignmentGeneration && receipt.storageBase==storageSide(receipt.base) && canReloadInputEncoding(base:receipt.base)
+    }
+    func reloadInputEncoding(_ encoding:ComparisonTextEncoding,base:Bool,receipt:InputEncodingReceipt?=nil) {
+        guard let receipt=receipt ?? inputEncodingReceipt(base:base),receipt.base==base,acceptsInputEncoding(receipt) else{return}
+        let physical=receipt.storageBase
+        requestProjectionChange(reason:"reloading with a different input encoding",detail:"Reloading the input encoding rereads the files and clears Undo history after a successful comparison.",preservingProjection:true) { [weak self] in
+            guard let self,!self.retired,!self.busy,!self.confirmingQuit,self.storageSide(base)==physical else{return}
+            var overrides=self.inputEncodingOverrides;overrides[physical]=encoding
+            self.load(discardingDraft:true,inputOverrides:overrides)
+        }
+    }
     private var originalPaneDocument: FileComparisonDocument?
     func savedPaneURL(base: Bool) -> URL? { paneTargets[base]?.url }
     private func mutablePane(_ base: Bool) -> Bool { !mergeToolReadOnly && (sourceSnapshotRoot == nil || paneTargets[base] != nil) }
@@ -689,11 +726,12 @@ private extension FileComparisonDocument {
     private final class ProjectionChange {
         enum Answer { case save([Bool]), discard, cancel }
         let change: () -> Void
+        let preservingProjection:Bool
         var question: NSAlert?
         var answers: [Answer] = []
         var answered = false
         var sheetObserver: NSObjectProtocol?
-        init(_ change: @escaping () -> Void) { self.change = change }
+        init(_ change: @escaping () -> Void,preservingProjection:Bool=false) { self.change = change;self.preservingProjection=preservingProjection }
     }
     private var projectionChange: ProjectionChange?
     private(set) static var activeProjectionChoices = 0
@@ -711,14 +749,15 @@ private extension FileComparisonDocument {
     private func applyProjectionChange(_ request: ProjectionChange) {
         guard !retired, projectionChange === request else { return }
         finishProjectionChange(request); request.change()
+        if request.preservingProjection {return}
         regexCancellation?.cancel(); regexCancellation = nil; filtering = false
         cancelDeferredNavigation(); alignmentGeneration += 1; resetHistory()
         load(discardingDraft:true)
     }
-    private func requestProjectionChange(reason: String = "changing comparison options", detail: String = "Changing comparison options reloads the files and clears Undo history.", _ change: @escaping () -> Void) {
+    private func requestProjectionChange(reason: String = "changing comparison options", detail: String = "Changing comparison options reloads the files and clears Undo history.", preservingProjection:Bool=false, _ change: @escaping () -> Void) {
         guard !retired, !busy, !confirmingQuit, !hasPendingEditorChoice, window?.attachedSheet == nil else { return }
         guard document != nil else { change(); return }
-        let request = ProjectionChange(change)
+        let request = ProjectionChange(change,preservingProjection:preservingProjection)
         projectionChange = request; Self.activeProjectionChoices += 1
         guard dirty else { applyProjectionChange(request); return }
         guard let window else { finishProjectionChange(request); return }
@@ -802,7 +841,7 @@ private extension FileComparisonDocument {
     private var loadSession: FileListComparisonSession?
     private var closeAfterLoad = false
     @Published var busy = false { didSet { if oldValue != busy { paneTabEpoch = UUID(); resumeExternalReload() } } }
-    @Published var confirmingQuit = false { didSet { if oldValue != confirmingQuit { resumeExternalReload() } } }
+    @Published var confirmingQuit = false { didSet { if oldValue != confirmingQuit {paneTabEpoch=UUID();resumeExternalReload()} } }
     @Published var error: String?
     @Published var difference = -1
     @Published var showLineNumbers = MergeEditorPreferences.load().showLineNumbers
@@ -1212,7 +1251,7 @@ private extension FileComparisonDocument {
                     if rebind, acceptsOutput(request) {
                         let target = try SavedMergePane(url: url, writtenBytes: bytes, encoding: selectedEncoding)
                         if originalPaneDocument == nil { originalPaneDocument = document }
-                        paneTargets[base] = target; retainPermissions([permission])
+                        paneTargets[base] = target;inputEncodingOverrides.removeValue(forKey:storageSide(base));retainPermissions([permission])
                         self.document = document.replacingPane(base: base, content: target.content)
                         try drafts?.didSaveAs(target.content, base: base)
                         if base == mergeToolResultSide, mergeToolInvocation != nil {
@@ -1521,28 +1560,35 @@ private extension FileComparisonDocument {
         load()
     }
     func beginTransferredDocument() { initialLoadDeferred = false; load() }
-    func load(discardingDraft: Bool = false) {
+    func load(discardingDraft:Bool=false) {load(discardingDraft:discardingDraft,inputOverrides:nil)}
+    private func load(discardingDraft: Bool,inputOverrides proposedOverrides:[Bool:ComparisonTextEncoding]?) {
         guard !initialLoadDeferred, !retired, !busy, !hasPendingEditorChoice, !confirmingQuit, window?.attachedSheet == nil else { return }
-        cancelEditorConfigReads()
+        let transactional=proposedOverrides != nil
+        let overrides=proposedOverrides ?? inputEncodingOverrides
+        if !transactional {cancelEditorConfigReads()}
         let reloadingMergeOutput = attemptedAppearanceLoad
         attemptedAppearanceLoad = true
-        wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
-        if !singleFileMode { showInlineDiff = MergeInlinePresentation.defaultEnabled(from: comparisonDefaults) }
-        if !loadedPaneMode { onePaneMode = OnePaneFileComparison.defaultEnabled(from: comparisonDefaults); loadedPaneMode = true }
+        if !transactional {
+            wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
+            if !singleFileMode {showInlineDiff=MergeInlinePresentation.defaultEnabled(from:comparisonDefaults)}
+            if !loadedPaneMode {onePaneMode=OnePaneFileComparison.defaultEnabled(from:comparisonDefaults);loadedPaneMode=true}
+        }
         if dirty && !discardingDraft {
             requestProjectionChange(reason: "reloading") {}
             return
         }
+        var refreshedOutput=mergeToolOutput
         if reloadingMergeOutput, let output = mergeToolOutput {
-            do { mergeToolOutput = try MergeToolOutputTarget(capturing:output.url) }
+            do { refreshedOutput = try MergeToolOutputTarget(capturing:output.url);if !transactional {mergeToolOutput=refreshedOutput} }
             catch { self.error = error.localizedDescription; return }
         }
-        externalReload?.reset()
-        reloadCommentProfiles = true
-        generalPreferences = .load(from: comparisonDefaults); pendingLoadNavigation = generalPreferences.firstDifference
-        initialBlockGeneration = nil
+        if !transactional {
+            externalReload?.reset();reloadCommentProfiles=true
+            generalPreferences = .load(from: comparisonDefaults);pendingLoadNavigation=generalPreferences.firstDifference;initialBlockGeneration=nil
+        }
         let session = FileListComparisonSession(window: window, preferences: comparisonDefaults)
         loadSession = session; busy = true; error = nil
+        let acceptedInputEpoch=paneTabEpoch
         let capturedPermissions=workingPermissions,decodeImages=decodeImages
         Task {
             var externalOpened = false
@@ -1594,7 +1640,7 @@ private extension FileComparisonDocument {
                         value = value.replacingPane(base: base, content: replacement)
                     }
                     guard !retired, loadSession === session, !token.isCancelled else { return }
-                    if !externalAttempted {
+                    if !transactional && !externalAttempted {
                         let chosen = try DiffToolPreferences.load(from: comparisonDefaults).selection(base: value.base.path, destination: value.destination.path, alternate: alternateTool)
                         pendingToolSelection = chosen
                         defer { pendingToolSelection = nil }
@@ -1603,14 +1649,24 @@ private extension FileComparisonDocument {
                         viewerSelection = chosen == .image ? .image : .merge
                         guard !externalOpened, !retired, !token.isCancelled else { return }
                 }
-                let adapted = value.usingMergeEncoding(preferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults),legacyEncoding:legacyEncoding)
+                let automatic=value.usingMergeEncoding(preferUTF8:ComparisonTextEncoding.preferUTF8(from:comparisonDefaults),legacyEncoding:legacyEncoding)
+                let adapted=try automatic.reinterpreting(base:overrides[storageSide(true)],destination:overrides[storageSide(false)])
+                let prepared=transactional ? try await prepareInputEncodingPresentation(adapted,cancellation:token):nil
+                var recordedTargets=paneTargets
+                for (base,target) in paneTargets {recordedTargets[base]=try target.recording(base ? adapted.base:adapted.destination)}
                 let decodedImages=viewerSelection == .image ? try await decodeImages(adapted,token):nil
                 try token.check()
-                guard !retired,loadSession === session else{return}
+                guard !retired,!confirmingQuit,loadSession === session,!transactional || acceptedInputEpoch==paneTabEpoch else{return}
                 originalPaneDocument=original
+                mergeToolOutput=refreshedOutput
                 document = adapted
                 if mergeToolInvocation != nil { mergeToolInputs = loadedMergeInputs }
-                for (base, target) in paneTargets { paneTargets[base] = try target.recording(base ? adapted.base : adapted.destination) }
+                paneTargets=recordedTargets
+                inputEncodingOverrides=overrides
+                for physical in overrides.keys {
+                    let content=storageSide(true)==physical ? adapted.base:adapted.destination
+                    if let encoding=content.encoding {inputEncodingOverrides[physical]=encoding}
+                }
                 imagePresentation.openImages = { [weak self] in self?.chooseImageFiles() }
                 // Source dispatch chooses the viewer before decoding. Failed/empty
                 // image sides stay in IDiff; Merge stays Merge even for PNG bytes.
@@ -1618,14 +1674,36 @@ private extension FileComparisonDocument {
                 if let images = imageComparison {retainedImageModel?.configureImages(base:images.base,destination:images.destination,force:true)}
                 window?.title = "\(standaloneImages == nil ? (sidesReversed ? adapted.destination.path : path) : (standaloneImages?.destination?.path ?? standaloneImages?.base?.path ?? "Images")) – " + (imageComparison == nil ? "TurtleGitMerge" : "TurtleGitIDiff")
                 drafts = imageComparison == nil ? FileComparisonDrafts(adapted) : nil
-                activeBase = onePaneActive ? false : drafts?.preferredBase ?? false
+                if !transactional {activeBase = onePaneActive ? false : drafts?.preferredBase ?? false}
                 updateHistoryState()
-                rebuildAlignment(); resetHistory(); selectionRequest = nil
+                if let prepared {
+                    cancelEditorConfigReads();externalReload?.reset();commentProfiles=prepared.profiles;reloadCommentProfiles=false
+                    regexCancellation?.cancel();regexCancellation=nil;filtering=false;cancelDeferredNavigation()
+                    historyCaretRequests=[:];initialBlockGeneration=nil;alignmentSelections=[:];selectedRows=nil;previewRow=nil;selectionRequest=nil
+                    alignmentGeneration += 1;alignment=prepared.presentation.alignment;movedBlockRecords=prepared.presentation.movedBlocks;retainedMoveLinks=nil;inlineCache=[:];inlineNavigationCache=[:]
+                    pendingLoadNavigation=generalPreferences.firstDifference
+                    if pendingLoadNavigation {pendingLoadNavigation=false;initialBlockGeneration=alignmentGeneration}
+                } else {rebuildAlignment()}
+                resetHistory(); selectionRequest = nil
                 difference = -1
                 if imageComparison == nil { reloadEditorConfig() }
                 }
-            } catch { if !retired, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
+            } catch { if !retired,!confirmingQuit,!session.cancellation.isCancelled {self.error=error.localizedDescription} }
         }
+    }
+    private struct PreparedInputEncoding {
+        let presentation:SubversionComparisonPresentation,profiles:MergeCommentProfiles
+    }
+    private func prepareInputEncodingPresentation(_ candidate:FileComparisonDocument,cancellation:OperationCancellation) async throws->PreparedInputEncoding {
+        guard let a=candidate.base.text,let b=candidate.destination.text else{throw FileComparisonEditFailure.encoding}
+        let profiles=try MergeCommentProfileFile.load(at:commentProfileURL)
+        let filter=regexFilters.first {MergeRegexFilters.sameName($0.name,regexFilterName)}
+        var configuration=try engineConfiguration ?? SubversionMergeConfiguration.bundled(filter:filter)
+        configuration.blame=mergeToolBlame;configuration.blameEncodings=[candidate.base.encoding,candidate.destination.encoding]
+        configuration.filter=filter;configuration.options=comparisonOptions;configuration.commentTokens=profiles.tokens(paths:[candidate.base.path,candidate.destination.path]);configuration.regexExecutable=regexExecutable ?? configuration.regexExecutable
+        let captured=configuration,detectMoves=showMovedBlocks
+        let presentation=try await Task.detached {try SubversionComparisonPresentation(plan:captured.plan(base:a,mine:b,cancellation:cancellation),detectMovedBlocks:detectMoves,whitespace:captured.options.whitespace,cancellation:cancellation)}.value
+        try cancellation.check();return .init(presentation:presentation,profiles:profiles)
     }
     func rebuildAlignment() {
         guard let document else { return }
@@ -1755,7 +1833,7 @@ private extension FileComparisonDocument {
         wrote(url)
         let target=try SavedMergePane(url:url,writtenBytes:bytes,encoding:encoding)
         if originalPaneDocument==nil {originalPaneDocument=document}
-        paneTargets[base]=target;retainPermissions([permission])
+        paneTargets[base]=target;inputEncodingOverrides.removeValue(forKey:storageSide(base));retainPermissions([permission])
         self.document=document.replacingPane(base:base,content:target.content)
         try drafts?.didSaveAs(target.content,base:base)
         if mergeToolInvocation != nil, base == mergeToolResultSide {
@@ -1815,6 +1893,7 @@ private extension FileComparisonDocument {
                         }
                         self.document = document.replacingPane(base:base,content:savedContent)
                         try drafts?.didSave(savedContent,base:base)
+                        if inputEncodingOverrides[storageSide(base)] != nil,let codec=savedContent.encoding {inputEncodingOverrides[storageSide(base)]=codec}
                         mergeToolDidSave = true; mergeToolSaveRequired = false
                         continue
                     }
@@ -1861,6 +1940,7 @@ private extension FileComparisonDocument {
                     self.document = combined
                     let savedContent = base ? result.base : result.destination
                     try drafts?.didSave(savedContent, base: base)
+                    if inputEncodingOverrides[storageSide(base)] != nil,let codec=savedContent.encoding {inputEncodingOverrides[storageSide(base)]=codec}
                     if mergeToolInvocation != nil {
                         let savedURL = URL(fileURLWithPath:savedContent.path).resolvingSymlinksInPath().standardizedFileURL
                         for (side,input) in mergeToolInputs where input.url.resolvingSymlinksInPath().standardizedFileURL.path == savedURL.path {
@@ -2072,7 +2152,8 @@ struct FileComparisonPane: View {
                 if !counts.isEmpty {MergeLineStatisticsView(statistics:counts)}
             }
             HStack {
-                MergeFormatControls(label: base ? "Base" : "Mine", encoding: model.encoding(base: base) ?? content?.encoding, text: content?.text == nil ? nil : model.draftText(base: base), editable: model.canTransfer(toBase: base), changeEncoding: { model.changeEncoding($0, base: base) }, changeEnding: { model.changeLineEnding($0, base: base) }, legacyEncoding:model.legacyEncoding, showFormatDialog:{ model.showFormatDialog(base:base) })
+                let inputReceipt=model.inputEncodingReceipt(base:base)
+                MergeFormatControls(label: base ? "Base" : "Mine", encoding: model.encoding(base: base) ?? content?.encoding, text: content?.text == nil ? nil : model.draftText(base: base), editable: model.canTransfer(toBase: base), changeEncoding: { value in if let inputReceipt,model.acceptsInputEncoding(inputReceipt) {model.changeEncoding(value,base:base)} }, changeEnding: { value in if let inputReceipt,model.acceptsInputEncoding(inputReceipt) {model.changeLineEnding(value,base:base)} }, legacyEncoding:model.legacyEncoding, showFormatDialog:{ if let inputReceipt,model.acceptsInputEncoding(inputReceipt) {model.showFormatDialog(base:base)} },reloadEncoding:{ value in if let inputReceipt {model.reloadInputEncoding(value,base:base,receipt:inputReceipt)} },reloadAvailable:inputReceipt != nil,inputEncoding:model.inputEncoding(base:base) ?? content?.encoding)
                 Spacer()
                 let tabCommand = model.captureTabCommand(base:base)
                 MergeTabControls(label: base ? "Base" : "Mine", tabWidth: model.tabWidth(base: base), useSpaces: model.useSpaces(base: base), smartTab: model.smartTab(base: base), changeWidth: { model.applyTabCommand(tabCommand,base:base,action:.width($0)) }, changeSpaces: { model.applyTabCommand(tabCommand,base:base,action:.spaces($0)) }, changeSmart: { model.applyTabCommand(tabCommand,base:base,action:.smart($0)) }, writable: tabCommand.writable, editorConfigEnabled: model.editorConfigEnabled[base] == true, editorConfigLoaded: tabCommand.editorConfigLoaded, changeEditorConfig: { model.applyTabCommand(tabCommand,base:base,action:.editorConfig($0)) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(base))
@@ -2489,6 +2570,21 @@ struct FileComparisonEditor: NSViewRepresentable {
         deinit { NotificationCenter.default.removeObserver(self) }
     }
 }
+@MainActor private final class InputEncodingMenuCommand:NSObject {
+    weak var model:FileComparisonWindowModel?
+    weak var view:FileComparisonTextView?
+    let receipt:FileComparisonWindowModel.InputEncodingReceipt,encoding:ComparisonTextEncoding,reload:Bool
+    private var used=false
+    init(model:FileComparisonWindowModel,view:FileComparisonTextView,receipt:FileComparisonWindowModel.InputEncodingReceipt,encoding:ComparisonTextEncoding,reload:Bool) {self.model=model;self.view=view;self.receipt=receipt;self.encoding=encoding;self.reload=reload}
+    @objc func chooseInputEncoding(_ sender:NSMenuItem) {
+        guard !used,let model,let view,view.model === model,view.baseSide==receipt.base,view.window === model.window,let scroll=view.enclosingScrollView,model.ownsEditor(scroll,base:receipt.base),model.acceptsInputEncoding(receipt) else{return}
+        used=true
+        let reinterpret=reload || (NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags).contains(.control)
+        if reinterpret {model.reloadInputEncoding(encoding,base:receipt.base,receipt:receipt)}
+        else {model.changeEncoding(encoding,base:receipt.base)}
+    }
+}
+
 @MainActor protocol ComparisonContextMenuProviding {
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
@@ -2802,15 +2898,24 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
             }
             let item = NSMenuItem(title: "End of Line Style", action: nil, keyEquivalent: "")
             item.submenu = endings; menu.addItem(item)
-            let encodings = NSMenu(title: "File Encoding"); encodings.autoenablesItems = false
-            for (index, encoding) in MergeFormatSelection.encodingChoices(legacy:model.encoding(base:baseSide)?.legacyCodePage != nil ? model.encoding(base:baseSide)! : model.legacyEncoding).enumerated() {
-                let choice = NSMenuItem(title: encoding.rawValue, action: #selector(changeEncoding(_:)), keyEquivalent: "")
-                choice.target = self; choice.tag = index; choice.representedObject = encoding.rawValue; choice.state = model.encoding(base: baseSide) == encoding ? .on : .off
-                encodings.addItem(choice)
+        }
+        if let receipt=model.inputEncodingReceipt(base:baseSide) {
+            let choices=MergeFormatSelection.encodingChoices(legacy:model.encoding(base:baseSide)?.legacyCodePage != nil ? model.encoding(base:baseSide)!:model.legacyEncoding)
+            for explicitReload in [false,true] {
+                let title=explicitReload ? "Reload with encoding":"File Encoding"
+                let children=NSMenu(title:title);children.autoenablesItems=false
+                for encoding in choices {
+                    let command=InputEncodingMenuCommand(model:model,view:self,receipt:receipt,encoding:encoding,reload:explicitReload)
+                    let item=NSMenuItem(title:encoding.rawValue,action:#selector(InputEncodingMenuCommand.chooseInputEncoding(_:)),keyEquivalent:"")
+                    item.target=command;item.representedObject=command
+                    item.isEnabled=explicitReload || model.canTransfer(toBase:baseSide) || (NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags).contains(.control)
+                    let current=explicitReload ? model.inputEncoding(base:baseSide) ?? (baseSide ? model.document?.base.encoding:model.document?.destination.encoding):model.encoding(base:baseSide)
+                    item.state=current==encoding ? .on:.off;children.addItem(item)
+                }
+                let parent=NSMenuItem(title:title,action:nil,keyEquivalent:"");parent.submenu=children
+                if explicitReload {parent.image=MenuIcon.mergeReload.contextImage(defaults:defaults)}
+                menu.addItem(parent)
             }
-            let encodingItem = NSMenuItem(title: "File Encoding", action: nil, keyEquivalent: "")
-            encodingItem.submenu = encodings; menu.addItem(encodingItem)
-
         }
         menu.addItem(.separator())
         add("Previous difference", #selector(previousDifferenceBlock(_:)), MenuIcon.mergePreviousDifference.image(), model.canNavigateDifference(-1))

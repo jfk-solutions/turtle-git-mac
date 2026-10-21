@@ -40,6 +40,9 @@ struct MergeFormatControls: View {
     let changeEnding: (MergeLineEnding) -> Void
     var legacyEncoding = ComparisonTextEncoding.windows1252
     var showFormatDialog: (() -> Void)? = nil
+    var reloadEncoding: ((ComparisonTextEncoding) -> Void)? = nil
+    var reloadAvailable = false
+    var inputEncoding: ComparisonTextEncoding? = nil
     private var styles: Set<MergeLineEnding> { text.map(MergeLineEndings.styles) ?? [] }
     private var endingTitle: String {
         guard text != nil else { return "—" }
@@ -49,16 +52,13 @@ struct MergeFormatControls: View {
     }
     var body: some View {
         HStack(spacing: 8) {
+            if editable || reloadEncoding != nil {
+                MergeEncodingPopup(label:label,encoding:encoding,legacyEncoding:legacyEncoding,editable:editable,
+                    reloadAvailable:reloadAvailable,changeEncoding:changeEncoding,reloadEncoding:reloadEncoding,inputEncoding:inputEncoding)
+                    .frame(maxWidth:230)
+            } else { Text(encoding?.rawValue ?? "—") }
             if editable {
                 if let showFormatDialog { Button("Encoding…", action:showFormatDialog).accessibilityLabel("\(label) encoding and line endings") }
-                Menu(encoding?.rawValue ?? "—") {
-                    ForEach(MergeFormatSelection.encodingChoices(legacy:encoding?.legacyCodePage != nil ? encoding! : legacyEncoding), id: \.rawValue) { value in
-                        Button { changeEncoding(value) } label: {
-                            if value == encoding { Label(value.rawValue, systemImage: "checkmark") }
-                            else { Text(value.rawValue) }
-                        }
-                    }
-                }.fixedSize().accessibilityLabel("\(label) file encoding: \(encoding?.rawValue ?? "—")")
                 Menu(endingTitle) {
                     ForEach(MergeLineEnding.allCases, id: \.rawValue) { value in
                         Button { changeEnding(value) } label: {
@@ -68,10 +68,91 @@ struct MergeFormatControls: View {
                     }
                 }.fixedSize().accessibilityLabel("\(label) line endings: \(endingTitle)")
             } else {
-                Text(encoding?.rawValue ?? "—")
                 Text(endingTitle)
             }
         }.font(.caption).foregroundStyle(.secondary)
+    }
+}
+
+/// Capture Control when opening the actual menu, before a choice starts any
+/// async save/reload. The explicit submenu is the keyboard/VoiceOver route to
+/// the same source reinterpretation without requiring a held modifier.
+struct MergeEncodingPopup: NSViewRepresentable {
+    let label:String,encoding:ComparisonTextEncoding?,legacyEncoding:ComparisonTextEncoding
+    let editable:Bool,reloadAvailable:Bool
+    let changeEncoding:(ComparisonTextEncoding)->Void
+    let reloadEncoding:((ComparisonTextEncoding)->Void)?
+    var inputEncoding:ComparisonTextEncoding? = nil
+    func makeCoordinator()->Coordinator {Coordinator(self)}
+    func makeNSView(context:Context)->NSPopUpButton {
+        let view=NSPopUpButton(frame:.zero,pullsDown:false);view.controlSize = .small
+        view.font = .systemFont(ofSize:NSFont.smallSystemFontSize);view.cell?.lineBreakMode = .byTruncatingMiddle
+        view.setContentHuggingPriority(.defaultLow,for:.horizontal)
+        view.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        context.coordinator.view=view;context.coordinator.install(self);return view
+    }
+    func updateNSView(_ view:NSPopUpButton,context:Context) {context.coordinator.install(self)}
+    func sizeThatFits(_ proposal:ProposedViewSize,nsView:NSPopUpButton,context:Context)->CGSize? {
+        CGSize(width:min(230,max(60,min(proposal.width ?? 230,nsView.intrinsicContentSize.width))),height:max(20,nsView.intrinsicContentSize.height))
+    }
+    static func dismantleNSView(_ view:NSPopUpButton,coordinator:Coordinator) {coordinator.retired=true;coordinator.epoch=UUID();view.menu?.delegate=nil;view.target=nil;view.action=nil}
+    @MainActor final class Coordinator:NSObject,NSMenuDelegate {
+        weak var view:NSPopUpButton?
+        var configuration:MergeEncodingPopup,epoch=UUID(),retired=false
+        private var control=false
+        private weak var menuWindow:NSWindow?
+        private final class Choice:NSObject {
+            let value:ComparisonTextEncoding,explicitReload:Bool,epoch:UUID
+            var used=false
+            init(_ value:ComparisonTextEncoding,reload:Bool,epoch:UUID) {self.value=value;explicitReload=reload;self.epoch=epoch}
+        }
+        init(_ configuration:MergeEncodingPopup) {self.configuration=configuration}
+        func install(_ next:MergeEncodingPopup) {
+            configuration=next;epoch=UUID()
+            guard let view else{return}
+            let menu=NSMenu();menu.autoenablesItems=false;menu.delegate=self
+            view.menu=menu;populate(menu)
+            view.identifier=NSUserInterfaceItemIdentifier(next.label+" encoding")
+            view.setAccessibilityLabel(next.label+" file encoding")
+            view.toolTip=(next.encoding?.rawValue ?? "—")+" · Hold Control to reload with the selected encoding."
+            view.isEnabled = !retired && (next.editable || next.reloadAvailable)
+        }
+        private func populate(_ menu:NSMenu) {
+            epoch=UUID();menu.removeAllItems();let next=configuration
+            let values=MergeFormatSelection.encodingChoices(legacy:next.encoding?.legacyCodePage != nil ? next.encoding! : next.legacyEncoding)
+            func item(_ value:ComparisonTextEncoding,reload:Bool)->NSMenuItem {
+                let item=NSMenuItem(title:value.rawValue,action:#selector(choose(_:)),keyEquivalent:"")
+                item.target=self;item.representedObject=Choice(value,reload:reload,epoch:epoch)
+                item.state=value==(reload ? next.inputEncoding ?? next.encoding:next.encoding) ? .on:.off;return item
+            }
+            for value in values {menu.addItem(item(value,reload:false))}
+            if next.reloadEncoding != nil {
+                menu.addItem(.separator());let reload=NSMenuItem(title:"Reload with encoding",action:nil,keyEquivalent:"")
+                let children=NSMenu();children.autoenablesItems=false
+                for value in values {let child=item(value,reload:true);child.isEnabled=next.reloadAvailable;children.addItem(child)}
+                reload.submenu=children;reload.isEnabled=next.reloadAvailable;menu.addItem(reload)
+            }
+            if let index=values.firstIndex(where:{$0==next.encoding}) {view?.selectItem(at:index)}
+        }
+        func menuWillOpen(_ menu:NSMenu) {
+            populate(menu)
+            control=(NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags).contains(.control);menuWindow=view?.window
+            for item in menu.items {
+                if item.representedObject is Choice {item.isEnabled = !retired && (control ? configuration.reloadAvailable : configuration.editable)}
+            }
+        }
+        func menuDidClose(_ menu:NSMenu) {
+            let captured=epoch
+            DispatchQueue.main.async { [weak self] in if self?.epoch==captured {self?.epoch=UUID()} }
+        }
+        @objc func choose(_ item:NSMenuItem) {
+            guard !retired,let choice=item.representedObject as? Choice,!choice.used,choice.epoch==epoch,
+                let window=view?.window,window === menuWindow,window.attachedSheet==nil,NSApp.modalWindow==nil else{return}
+            choice.used=true
+            let reload=choice.explicitReload || control
+            if reload {guard configuration.reloadAvailable else{return};configuration.reloadEncoding?(choice.value)}
+            else {guard configuration.editable else{return};configuration.changeEncoding(choice.value)}
+        }
     }
 }
 struct MergeTabControls: View {
@@ -301,7 +382,7 @@ private enum MergeSourceSide {
     private var mergeToolInitialLine: Int?
     private var ownedFormatChoices = 0
     private var ownedEditorConfigReads = 0
-    var mergeToolHasPendingWork: Bool { externalReloadCoordinator?.hasPendingWork==true || preservingSourceCopies || closingDecisionPending || busy || preparing || sourceExporter.hasPendingWork || formatPending || ownedFormatChoices > 0 || ownedEditorConfigReads > 0 }
+    var mergeToolHasPendingWork: Bool { externalReloadCoordinator?.hasPendingWork==true || preservingSourceCopies || closingDecisionPending || busy || preparing || sourceExporter.hasPendingWork || formatPending || ownedFormatChoices > 0 || ownedReloadChoices > 0 || ownedEditorConfigReads > 0 }
     private var explicitMergeToolReadOnly = false
     private var replacementReflectedNames: [String: String] = [:]
     private var hasMergeToolReplacementPolicy = false
@@ -464,7 +545,7 @@ private enum MergeSourceSide {
     }
     weak var externalReloadCoordinator:MergeExternalReloadCoordinator?
     private(set) var externalReloadSources:[MergeExternalSource]=[]
-    var externalReloadBlocksCommands:Bool {externalReloadCoordinator?.blocksCommands==true || closingDecisionPending}
+    var externalReloadBlocksCommands:Bool {externalReloadCoordinator?.blocksCommands==true || closingDecisionPending || reloadQuestion != nil}
     @Published fileprivate var closingDecisionPending=false
     var externalReloadReady:Bool {!retired && !busy && !preparing && !formatPending && !confirmingQuit && !exportingSource && !preservingSourceCopies && editorConfigLoading.isEmpty && !closingDecisionPending && regexList==nil && document != nil && window?.attachedSheet==nil}
     private(set) var keptExternalInputIDs:Set<String>=[]
@@ -483,6 +564,14 @@ private enum MergeSourceSide {
     private func acknowledgeOwnedSourceAliases(_ accepted:TextConflictDocument,at output:URL) throws {
         for (side,target) in sourceTargets where GitReferenceName.equal(target.url.standardizedFileURL.path,output.standardizedFileURL.path) {
             sourceTargets[side]=try target.recordingOwnedResult(accepted,at:output)
+        }
+        rebaseInputEncodings(afterOwnedWrite:output,encoding:accepted.encoding)
+    }
+    private func rebaseInputEncodings(afterOwnedWrite url:URL,encoding:ComparisonTextEncoding) {
+        let sources:[(InputEncodingRole,URL?)]=[(.base,workingMerge?.baseURL),(.mine,sourceTargets[true]?.url ?? workingMerge?.mineURL),(.theirs,sourceTargets[false]?.url ?? workingMerge?.theirsURL)]
+        for (role,source) in sources where source.map({GitReferenceName.equal($0.standardizedFileURL.path,url.standardizedFileURL.path)}) == true {
+            switch role {case .base:inputEncodingOverrides.base=encoding.inputEncoding;case .mine:inputEncodingOverrides.mine=encoding.inputEncoding;case .theirs:inputEncodingOverrides.theirs=encoding.inputEncoding}
+            inputEncodingEpoch=UUID()
         }
     }
     func refreshExternalReloadSources(invalidatingWrittenURLs:[URL]=[]) async {
@@ -608,6 +697,7 @@ private enum MergeSourceSide {
                 guard !self.retired,self.loadGeneration==generation else {return}
                 self.patchComparison=self.patchComparison?.recordingOwnedWrite(target)
                 self.sourceTargets[mine] = target; self.workingMergePermissions.append(lease)
+                self.rebaseInputEncodings(afterOwnedWrite:target.url,encoding:encoding)
                 let output = self.mergedResultTarget?.url ?? (self.workingMerge == nil ? self.repository.root.appendingPathComponent(self.path).standardizedFileURL : self.workingMergeOutput)
                 if let output,GitReferenceName.equal(output.standardizedFileURL.path,target.url.path),let current=self.document {
                     self.document = try current.recordingOwnedWorkingWrite(target.content)
@@ -622,12 +712,18 @@ private enum MergeSourceSide {
             }
         } catch { self.error = error.localizedDescription;let completion=sourceSaveCompletion,sheets=sourceExportOwnedSheets;sourceSaveCompletion=nil;sourceExportOwnedSheets=[];completion?(false,sheets) }
     }
+    var sourceComparisonPresentation:((FileComparisonWindowController)->Void)?
     func compareSourceWithBase(mine: Bool) {
         guard sourceToolsAllowed, let document else { return }
         do {
-            let base = try (document.baseEncoding ?? document.encoding).encode(document.base)
-            let side = try sourceTargets[mine]?.content.bytes ?? ((mine ? document.mineEncoding : document.theirsEncoding) ?? document.encoding).encode(mine ? document.mine : document.theirs)
-            try MergeSourceComparisonWindows.open(base: base, side: side, name: path, sideName: mine ? "Mine" : "Theirs", preferences: comparisonDefaults)
+            let base = try document.rawInputs?.base ?? (document.baseEncoding ?? document.encoding).encode(document.base)
+            let sourceBytes=mine ? document.rawInputs?.mine:document.rawInputs?.theirs
+            let savedSource=sourceTargets[mine]?.content
+            let side = try savedSource?.bytes ?? sourceBytes ?? ((mine ? document.mineEncoding : document.theirsEncoding) ?? document.encoding).encode(mine ? document.mine : document.theirs)
+            let sourceEncoding=mine ? document.mineEncoding:document.theirsEncoding
+            let sideEncoding=savedSource.flatMap {$0.bytes==sourceBytes ? sourceEncoding ?? $0.encoding:$0.encoding} ?? sourceEncoding
+            try MergeSourceComparisonWindows.open(base: base, side: side, name: path, sideName: mine ? "Mine" : "Theirs", preferences: comparisonDefaults,
+                baseEncoding:document.baseEncoding,sideEncoding:sideEncoding,sourceWindow:window,configure:sourceComparisonPresentation)
         } catch { self.error = error.localizedDescription }
     }
     @Published private(set) var regexFilters = MergeRegexFilters.load()
@@ -850,6 +946,7 @@ private enum MergeSourceSide {
         externalReloadCoordinator?.retire()
         let sourceCompletion=sourceSaveCompletion,sheets=sourceExportOwnedSheets;sourceSaveCompletion=nil;sourceExportOwnedSheets=[];sourceCompletion?(false,sheets)
         retireFormatChoice()
+        inputEncodingEpoch=UUID();retireReloadChoice()
         saveChoices.cancel();saveFolderAccess.cancel()
         sourceExporter.retire()
         folding.retire(); resultFolding.retire()
@@ -894,7 +991,10 @@ private enum MergeSourceSide {
     @Published var selectionRequest: NSRange?
     @Published var busy = false { didSet { if oldValue != busy { paneTabEpoch = UUID() };if !busy {externalReloadCoordinator?.resume()} } }
     @Published private(set) var preparing = false {didSet {if !preparing {externalReloadCoordinator?.resume()}}}
-    @Published var confirmingQuit = false {didSet {if !confirmingQuit {externalReloadCoordinator?.resume()}}}
+    @Published var confirmingQuit = false {didSet {
+        if oldValue != confirmingQuit {inputEncodingEpoch=UUID();if confirmingQuit {retireReloadChoice();retireFormatChoice();loadCancellation?.cancel()}}
+        if !confirmingQuit {externalReloadCoordinator?.resume()}
+    }}
     @Published var error: String?
     @Published var nativeToolbarInstalled = false
     @Published private(set) var showToolbar = MergeEditorChrome.visible("Toolbar",defaults:.standard)
@@ -1125,6 +1225,85 @@ private enum MergeSourceSide {
     private var formatToken:UUID?
     private var formatTask:Task<Void,Never>?
     private var formatPrompt:MergeFormatPrompt?
+    enum InputEncodingRole:String,CaseIterable {case base,mine,theirs}
+    final class InputEncodingRequest {
+        fileprivate let role:InputEncodingRole,epoch:UUID,generation:Int,layout:Int
+        fileprivate let interactionEpoch:UUID
+        fileprivate weak var owner:NSWindow?
+        fileprivate var used=false
+        fileprivate init(role:InputEncodingRole,epoch:UUID,generation:Int,layout:Int,interactionEpoch:UUID,owner:NSWindow?) {
+            self.role=role;self.epoch=epoch;self.generation=generation;self.layout=layout;self.owner=owner
+            self.interactionEpoch=interactionEpoch
+        }
+    }
+    private var inputEncodingEpoch=UUID()
+    private(set) var inputEncodingOverrides=MergeInputEncodingOverrides()
+    var inputEncodingReloadAvailable:Bool {
+        sourceToolsAllowed && !formatPending && !confirmingQuit && !preparing && !exportingSource && regexList==nil && document?.rawInputs != nil
+    }
+    func captureInputEncoding(role:InputEncodingRole)->InputEncodingRequest? {
+        guard inputEncodingReloadAvailable else{return nil}
+        return InputEncodingRequest(role:role,epoch:inputEncodingEpoch,generation:loadGeneration,layout:sourceLayoutRevision,interactionEpoch:paneTabEpoch,owner:window)
+    }
+    func reloadInputEncoding(_ encoding:ComparisonTextEncoding,role:InputEncodingRole) {
+        guard let request=captureInputEncoding(role:role) else{return};applyInputEncoding(request,encoding:encoding)
+    }
+    func applyInputEncoding(_ request:InputEncodingRequest,encoding:ComparisonTextEncoding) {
+        guard !request.used,request.epoch==inputEncodingEpoch,request.generation==loadGeneration,request.layout==sourceLayoutRevision,request.interactionEpoch==paneTabEpoch,
+            request.owner === window,inputEncodingReloadAvailable else{return}
+        request.used=true;inputEncodingEpoch=UUID()
+        var overrides=inputEncodingOverrides
+        switch request.role {case .base:overrides.base=encoding;case .mine:overrides.mine=encoding;case .theirs:overrides.theirs=encoding}
+        load(filterName:regexFilterName,inputEncodings:overrides)
+    }
+    @MainActor private final class InputEncodingAction:NSObject {
+        weak var model:TextConflictWindowModel?
+        let request:InputEncodingRequest,value:ComparisonTextEncoding
+        init(model:TextConflictWindowModel,request:InputEncodingRequest,value:ComparisonTextEncoding) {self.model=model;self.request=request;self.value=value}
+        @objc func chooseInputEncoding(_ sender:Any?) {model?.applyInputEncoding(request,encoding:value)}
+    }
+    func inputEncodingMenu(role:InputEncodingRole)->NSMenu {
+        let menu=NSMenu(title:"Reload with encoding");menu.autoenablesItems=false
+        let request=captureInputEncoding(role:role)
+        let current:ComparisonTextEncoding?
+        switch role {case .base:current=document?.baseEncoding;case .mine:current=document?.mineEncoding;case .theirs:current=document?.theirsEncoding}
+        for value in MergeFormatSelection.encodingChoices(legacy:current?.legacyCodePage != nil ? current! : legacyEncoding) {
+            let item=NSMenuItem(title:value.rawValue,action:nil,keyEquivalent:"");item.state=value==current ? .on:.off;item.isEnabled=request != nil
+            if let request {let action=InputEncodingAction(model:self,request:request,value:value);item.target=action;item.representedObject=action;item.action=#selector(InputEncodingAction.chooseInputEncoding(_:))}
+            menu.addItem(item)
+        }
+        return menu
+    }
+    var presentInputReloadQuestion:((NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Void)?
+    private var reloadQuestion:NSAlert?,reloadQuestionReply:((NSApplication.ModalResponse)->Void)?
+    private var ownedReloadChoices=0
+    private func retireReloadChoice() {
+        if let alert=reloadQuestion {alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.orderOut(nil)}
+        reloadQuestionReply?(.cancel)
+    }
+    private func askReload(_ completion:@escaping(ReloadDecision)->Void) {
+        guard let window,!retired,!confirmingQuit,window.attachedSheet==nil else{return}
+        let alert=NSAlert();alert.messageText="Save changes to “\(path)” before reloading?"
+        alert.informativeText="Reload regenerates the merged result from the current conflict stages."+(hasKeptSourceChanges ? "\n\n"+keptSourcesExplanation:"")
+        alert.addButton(withTitle:"Save and Reload");alert.addButton(withTitle:"Reload Without Saving");alert.addButton(withTitle:"Cancel")
+        alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
+        let epoch=inputEncodingEpoch,generation=loadGeneration,original=resultPresentation
+        reloadQuestion=alert;ownedReloadChoices += 1;MergeRegexOperations.activeRequests += 1;objectWillChange.send()
+        var answered=false
+        let reply:(NSApplication.ModalResponse)->Void={ [self,weak window] response in
+            guard !answered else{return};answered=true;reloadQuestionReply=nil
+            Task { @MainActor [self] in
+                defer {ownedReloadChoices -= 1;MergeRegexOperations.activeRequests -= 1;objectWillChange.send();externalReloadCoordinator?.resume()}
+                while alert.window.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
+                guard reloadQuestion === alert else{return};reloadQuestion=nil
+                guard !retired,!confirmingQuit,self.window === window,epoch==inputEncodingEpoch,generation==loadGeneration,original==resultPresentation else{return}
+                completion(response == .alertFirstButtonReturn ? .save:response == .alertSecondButtonReturn ? .discard:.cancel)
+            }
+        }
+        reloadQuestionReply=reply
+        if let presentInputReloadQuestion {presentInputReloadQuestion(window,alert,reply)}
+        else {alert.beginSheetModal(for:window,completionHandler:reply)}
+    }
     private func finishFormatChoice(_ token:UUID) {
         guard formatToken == token else { return }
         formatToken = nil; formatPending = false; formatTask = nil; formatPrompt = nil
@@ -1220,23 +1399,32 @@ private enum MergeSourceSide {
     func beginTransferredDocument() { initialLoadDeferred = false; load() }
     func load() {load(discardingDraft:false)}
     func load(discardingDraft:Bool) { guard !initialLoadDeferred else { return }; load(filterName: regexFilterName,discardingDraft:discardingDraft) }
-    private func load(filterName: String?,discardingDraft:Bool=false) {
+    private func load(filterName: String?,discardingDraft:Bool=false,inputEncodings:MergeInputEncodingOverrides?=nil) {
         guard !externalReloadBlocksCommands,!preservingSourceCopies,!busy, !confirmingQuit, !retired, !formatPending, window?.attachedSheet == nil else { return }
+        let reloadEpoch=inputEncodingEpoch,generationBeforeChoice=loadGeneration,original=resultPresentation,originalEncoding=encoding,originalEnding=resultLineEnding
         if hasUnsavedEditorWork && !discardingDraft {
             let decision: ReloadDecision
             if let chooseReload { decision = chooseReload() }
             else {
-                let alert = NSAlert(); alert.messageText = "Save changes to “\(path)” before reloading?"
-                alert.informativeText = "Reload regenerates the merged result from the current conflict stages." + (hasKeptSourceChanges ? "\n\n"+keptSourcesExplanation:"")
-                alert.addButton(withTitle: "Save and Reload"); alert.addButton(withTitle: "Reload Without Saving"); alert.addButton(withTitle: "Cancel")
-                switch alert.runModal() {
-                case .alertFirstButtonReturn: decision = .save
-                case .alertSecondButtonReturn: decision = .discard
-                default: decision = .cancel
-                }
+                askReload { [weak self] decision in
+                    guard let self else{return}
+                    switch decision {
+                    case .save:self.saveEditorWork { [weak self] saved in
+                        guard let self,!self.retired,!self.confirmingQuit,reloadEpoch==self.inputEncodingEpoch,generationBeforeChoice==self.loadGeneration else{return}
+                        if saved {self.load(filterName:filterName,discardingDraft:true,inputEncodings:inputEncodings)} else {self.pendingComparisonOptions=nil}
+                    }
+                    case .discard:self.load(filterName:filterName,discardingDraft:true,inputEncodings:inputEncodings)
+                    case .cancel:self.pendingComparisonOptions=nil
+                    }
+                };return
             }
+            guard !retired,!confirmingQuit,!busy,!preparing,!formatPending,window?.attachedSheet==nil,
+                reloadEpoch==inputEncodingEpoch,generationBeforeChoice==loadGeneration,resultPresentation==original,encoding==originalEncoding,resultLineEnding==originalEnding else{return}
             switch decision {
-            case .save: saveEditorWork { [weak self] saved in if saved { self?.load(filterName: filterName,discardingDraft:true) } else { self?.pendingComparisonOptions = nil } }; return
+            case .save: saveEditorWork { [weak self] saved in
+                guard let self,!self.retired,!self.confirmingQuit,reloadEpoch==self.inputEncodingEpoch,generationBeforeChoice==self.loadGeneration else{return}
+                if saved {self.load(filterName:filterName,discardingDraft:true,inputEncodings:inputEncodings)} else {self.pendingComparisonOptions=nil}
+            }; return
             case .discard: break
             case .cancel: pendingComparisonOptions = nil; return
             }
@@ -1244,16 +1432,18 @@ private enum MergeSourceSide {
         externalReloadCoordinator?.reset()
         cancelEditorConfigReads()
         busy = true; preparing = true
+        inputEncodingEpoch=UUID()
         loadGeneration += 1; let generation = loadGeneration, token = OperationCancellation()
+        let requestedInputEncodings=inputEncodings ?? inputEncodingOverrides
         loadCancellation = token; MergeRegexOperations.activeRequests += 1
         Task {
             defer { busy = false; preparing = false; loadCancellation = nil; MergeRegexOperations.activeRequests -= 1 }
             do {
-                try await reloadDocument(filterName: filterName, cancellation: token, generation: generation)
-            } catch { if !retired, loadGeneration == generation { pendingComparisonOptions = nil; self.error = error.localizedDescription } }
+                try await reloadDocument(filterName: filterName, cancellation: token, generation: generation,inputEncodings:requestedInputEncodings,regenerateResult:inputEncodings != nil)
+            } catch { if !retired,!confirmingQuit,!token.isCancelled, loadGeneration == generation { pendingComparisonOptions = nil; self.error = error.localizedDescription } }
         }
     }
-    private func reloadDocument(filterName: String?, cancellation: OperationCancellation? = nil, generation: Int? = nil) async throws {
+    private func reloadDocument(filterName: String?, cancellation: OperationCancellation? = nil, generation: Int? = nil,inputEncodings:MergeInputEncodingOverrides = .init(),regenerateResult:Bool=false) async throws {
         let requested = filterName
         let filter = regexFilters.first { MergeRegexFilters.sameName($0.name,requested) }
         var engine = try engineConfiguration ?? SubversionMergeConfiguration.bundled(filter: filter)
@@ -1261,33 +1451,46 @@ private enum MergeSourceSide {
         let options = pendingComparisonOptions ?? MergeComparisonOptions.load(from: comparisonDefaults)
         let profiles = try MergeCommentProfileFile.load(at: commentProfileURL)
         engine.filter = filter; engine.options = options; engine.commentTokens = profiles.tokens(paths: [path]); engine.blame = mergeToolBlame
+        let loadedSources=try sourceTargets.mapValues {try $0.read()}
         var next: TextConflictDocument
         if mergedResultTarget != nil,workingMerge==nil,let current=document {
             // Once Save As owns the result, the captured source panes remain
             // usable even after the original repository conflict is resolved.
-            next=try current.replacingSources(mine:sourceTargets[true]?.read(),theirs:sourceTargets[false]?.read(),engine:engine,cancellation:cancellation)
+            next=try current.replacingSources(mine:loadedSources[true],theirs:loadedSources[false],engine:engine,cancellation:cancellation)
         } else if let patchComparison {
             let prefer = ComparisonTextEncoding.preferUTF8(from:comparisonDefaults),legacy = legacyEncoding
-            next = try await Task.detached {try patchComparison.patchMergeDocument(engine:engine,preferUTF8:prefer,legacyEncoding:legacy,cancellation:cancellation)}.value
+            next = try await Task.detached {try patchComparison.patchMergeDocument(engine:engine,preferUTF8:prefer,legacyEncoding:legacy,inputEncodings:inputEncodings,cancellation:cancellation)}.value
         } else if let workingMerge {
             if saveFolderAccess.requireScope {
                 for url in [workingMerge.baseURL, workingMerge.theirsURL, workingMerge.mineURL] {
                     guard workingMergePermissions.contains(where: { $0.permits(url) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
                 }
             }
-            next = try await workingMerge.read(engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults),mergeLegacyEncoding:legacyEncoding, cancellation: cancellation)
+            next = try await workingMerge.read(engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults),mergeLegacyEncoding:legacyEncoding,inputEncodings:inputEncodings, cancellation: cancellation)
         }
-        else { next = try await repository.textConflictDocument(path: path, engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults),mergeLegacyEncoding:legacyEncoding, identityOptions: ConflictIdentityOptions(defaults: comparisonDefaults), cancellation: cancellation) }
+        else { next = try await repository.textConflictDocument(path: path, engine: engine, mergePreferUTF8: ComparisonTextEncoding.preferUTF8(from: comparisonDefaults),mergeLegacyEncoding:legacyEncoding,inputEncodings:inputEncodings, identityOptions: ConflictIdentityOptions(defaults: comparisonDefaults), cancellation: cancellation) }
         if workingMerge == nil, mergedResultTarget == nil, !sourceTargets.isEmpty {
-            next = try next.replacingSources(mine: sourceTargets[true]?.read(), theirs: sourceTargets[false]?.read(), engine: engine, cancellation: cancellation)
+            next = try next.replacingSources(mine: loadedSources[true], theirs: loadedSources[false], engine: engine, cancellation: cancellation)
         }
-        for (mine, target) in sourceTargets { sourceTargets[mine] = try target.recording(target.read()) }
+        if !inputEncodings.isEmpty,mergedResultTarget != nil && workingMerge==nil || !sourceTargets.isEmpty {
+            next=try next.reinterpretingInputs(inputEncodings,engine:engine,cancellation:cancellation)
+        }
+        var nextSourceTargets=sourceTargets
+        for (mine, target) in sourceTargets {
+            guard let loaded=loadedSources[mine] else{throw TextConflictFailure.changedWorkingFile}
+            let current=try target.read()
+            guard current.bytes==loaded.bytes,current.mode==loaded.mode,current.permissions==loaded.permissions,current.isDeleted==loaded.isDeleted else{throw TextConflictFailure.changedWorkingFile}
+            nextSourceTargets[mine] = try target.recording(loaded)
+        }
+        var nextResultTarget=mergedResultTarget
         if let target=mergedResultTarget {
             let content=try target.read();next=try next.recordingOwnedWorkingWrite(content)
-            mergedResultTarget=try target.recording(content)
+            nextResultTarget=try target.recording(content)
         }
-        guard !retired, generation == nil || generation == loadGeneration else { return }
+        try cancellation?.check()
+        guard !retired,!confirmingQuit,generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
+        sourceTargets=nextSourceTargets;mergedResultTarget=nextResultTarget;inputEncodingOverrides=inputEncodings
         resetHistory(); canUndo = false; canRedo = false;resultCopySavepoint=nil
         if let invocation = mergeToolInvocation {
             standaloneSavedResult = next.workingContents.flatMap { next.encoding.decode($0) } ?? ""
@@ -1298,7 +1501,8 @@ private enum MergeSourceSide {
             }
         }
         lineDiffBarVisible = false
-        document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.generatedResult, comparison: comparison).reconciling(next.initialResult); result = next.initialResult; encoding = next.encoding
+        let initialResult=regenerateResult ? next.generatedResult:next.initialResult
+        document = next; sourceComparison = comparison; resultPresentation = MergeResultPresentation(text: next.generatedResult, comparison: comparison).reconciling(initialResult); result = initialResult; encoding = next.encoding
         savedIgnoredConflicts = resultPresentation.ignoredConflicts
         savedSourceChoiceRevision = resultPresentation.sourceChoiceRevision
         resultLineEnding = MergeLineEndings.predominantStyle(in:next.mine); savedResultLineEnding = resultLineEnding
@@ -1660,6 +1864,7 @@ private enum MergeSourceSide {
                 for (side,target) in self.sourceTargets where GitReferenceName.equal(target.url.path,written.url.path) {
                     self.sourceTargets[side]=try target.recording(written.content)
                 }
+                self.rebaseInputEncodings(afterOwnedWrite:written.url,encoding:outputEncoding)
                 self.savedIgnoredConflicts=ignored;self.savedSourceChoiceRevision=choice;self.savedResultLineEnding=ending
                 await self.refreshExternalReloadSources(invalidatingWrittenURLs:[written.url])
                 self.objectWillChange.send()
@@ -1723,6 +1928,12 @@ private struct TextConflictDialog: View {
         let smartTab = model.smartTabPanes[title] ?? model.editorPreferences.smartTab
         let encoding = editable ? model.encoding : (side == .mine ? model.document?.mineEncoding : side == .theirs ? model.document?.theirsEncoding : model.document?.baseEncoding)
         let tabCommand = model.captureTabCommand(pane:title)
+        let inputRole:TextConflictWindowModel.InputEncodingRole? = editable ? nil:(side == .mine ? .mine:side == .theirs ? .theirs:.base)
+        let inputRequest=inputRole.flatMap {model.captureInputEncoding(role:$0)}
+        let reloadEncoding:((ComparisonTextEncoding)->Void)?=inputRole == nil ? nil:{value in
+            if let inputRequest {model.applyInputEncoding(inputRequest,encoding:value)}
+        }
+        let formatDialog:(()->Void)?=editable ? {model.showFormatDialog()}:nil
         return VStack(spacing: 0) {
             HStack {
                 Text(model.mergeToolPaneTitle(title,mine:side.map { $0 == .mine },result:editable)).font(.headline).textSelection(.enabled).help(model.mergeToolPaneLocation(mine:side.map { $0 == .mine },result:editable) ?? title)
@@ -1734,7 +1945,8 @@ private struct TextConflictDialog: View {
             let counts=MergeLineStatistics(states:cells?.map(\.state) ?? (editable ? model.alignedResultStates : []))
             if !counts.isEmpty {MergeLineStatisticsView(statistics:counts).padding(.horizontal,7).padding(.vertical,2)}
             HStack {
-                MergeFormatControls(label: title, encoding: encoding, text: editable ? model.resultFormatText : text, editable: editable && model.sourceMutationsAllowed && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding, legacyEncoding:model.legacyEncoding, showFormatDialog:model.showFormatDialog)
+                MergeFormatControls(label: title, encoding: encoding, text: editable ? model.resultFormatText : text, editable: editable && model.sourceMutationsAllowed && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding, legacyEncoding:model.legacyEncoding, showFormatDialog:formatDialog,
+                    reloadEncoding:reloadEncoding,reloadAvailable:inputRequest != nil,inputEncoding:encoding)
                 Spacer()
                 MergeTabControls(label: title, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab, changeWidth: { model.applyTabCommand(tabCommand,pane:title,action:.width($0)) }, changeSpaces: { model.applyTabCommand(tabCommand,pane:title,action:.spaces($0)) }, changeSmart: { model.applyTabCommand(tabCommand,pane:title,action:.smart($0)) }, writable: tabCommand.writable, editorConfigEnabled: model.editorConfigEnabled[title] == true, editorConfigLoaded: tabCommand.editorConfigLoaded, changeEditorConfig: { model.applyTabCommand(tabCommand,pane:title,action:.editorConfig($0)) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(title))
             }.padding(.horizontal, 7).padding(.vertical, 3).background(Color(nsColor: .controlBackgroundColor))
@@ -2516,6 +2728,12 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
             editingItem("Compare with Base", #selector(compareSourceWithBase(_:)), MenuIcon.compare.contextImage(defaults: defaults), model?.sourceToolsAllowed == true)
             let wholeCommand = model?.wholeSourceFileCommand(side: sourceSide)
             useFile.target = self; useFile.representedObject = wholeCommand; useFile.isEnabled = wholeCommand != nil; useFile.image = sourceSide.icon.contextImage(defaults: defaults); menu.addItem(useFile)
+        }
+        if !mergeEditable,let model,model.ownsPaneInput(self) || sourceSide == nil && self.model === model {
+            let role:TextConflictWindowModel.InputEncodingRole=sourceSide == .mine ? .mine:sourceSide == .theirs ? .theirs:.base
+            let reload=NSMenuItem(title:"Reload with encoding",action:nil,keyEquivalent:"")
+            reload.submenu=model.inputEncodingMenu(role:role);reload.isEnabled=model.inputEncodingReloadAvailable
+            reload.image=MenuIcon.mergeReload.contextImage(defaults:defaults);menu.addItem(reload)
         }
         guard mergeEditable, let model else { return menu }
         menu.addItem(.separator())

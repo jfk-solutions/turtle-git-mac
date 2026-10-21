@@ -1,5 +1,10 @@
 # Merge Encoding and Go To dialogs
 
+The [input encoding continuation](MERGE-INPUT-ENCODING-PARITY.md) adds per-pane
+decoder reload for read-only and writable source inputs, with regenerated
+comparison/merge data and owned dirty-draft decisions. The ordinary output
+Encoding/EOL dialog described below remains a separate workflow.
+
 Baseline: pinned TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`,
 `EncodingDlg.cpp/.h`, `BaseView.cpp::AskUserForNewLineEndingsAndTextType`,
 `ReplaceLineEndings`, `OnEditGotoline`, `GotoLineDlg.cpp` and both dialog resources.

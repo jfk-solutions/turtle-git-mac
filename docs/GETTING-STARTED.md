@@ -236,6 +236,16 @@ chooser edits the draft; use Save or Save As to write it. A format that cannot
 represent the text without loss is rejected. Go To Line uses the source file's
 numbered lines, excludes alignment gaps and is unavailable for one-line panes.
 
+If a file's text is displayed with the wrong characters, use that pane's
+**Reload with encoding** menu to read its original bytes with another decoder.
+You can also hold Control while selecting an encoding. This works for read-only
+historical and merge inputs. It rebuilds the comparison or merge; unsaved edits
+use the usual Save/Discard/Cancel decision. Cancel retains your draft. Accepted
+choices stay in effect for subsequent reloads of that document. Reinterpreting
+an input does not convert the file on disk. If you save before reloading, that
+save remains written even if the new decoder fails. See
+[input encoding parity](MERGE-INPUT-ENCODING-PARITY.md).
+
 In a two-file text comparison, enable **Line diff bar** to see Base above Mine
 beneath the panes. Move the pointer over a line to inspect its inline changes,
 spaces, tabs and original ending, even with the pane display options hidden.

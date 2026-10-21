@@ -6,6 +6,11 @@ block-choice handlers, BottomView.cpp, and the official
 [three-pane conflict guide](https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html).
 This is a partial port of the editor, not full TortoiseGitMerge parity.
 
+The [per-input encoding family](MERGE-INPUT-ENCODING-PARITY.md) connects raw
+Base/Mine/Theirs decoding, independent reload choices and regeneration through
+the current merge engine. Read-only input reinterpretation is distinct from
+output encoding conversion; full source and deployment acceptance remain open.
+
 Current engine integration (12 October 2026): native three-pane preparation now
 uses pinned Subversion diff3 ranges and original-text result generation, including
 regex filters and dirty reload/Undo/cancellation ownership. The earlier Git/Swift

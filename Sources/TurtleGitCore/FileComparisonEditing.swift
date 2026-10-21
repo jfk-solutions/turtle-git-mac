@@ -181,6 +181,19 @@ public enum ComparisonTextEncoding: String, CaseIterable, Sendable {
         }
     }
     var hasBOM:Bool { !bom.isEmpty }
+    /// AdjustUnicodeTypeForLoad normalizes BOM menu variants. Input decoding
+    /// still consumes a matching header; output conversion remains independent.
+    public var inputEncoding:Self {
+        switch self {case .utf8BOM:return .utf8;case .utf16LEBOM:return .utf16LE;case .utf16BEBOM:return .utf16BE;default:return self}
+    }
+    public func decodeInput(_ bytes:Data)->String? {
+        switch inputEncoding {
+        case .utf8:return Self.utf8BOM.decode(bytes)
+        case .utf16LE:return Self.utf16LEBOM.decode(bytes)
+        case .utf16BE:return Self.utf16BEBOM.decode(bytes)
+        default:return inputEncoding.decode(bytes)
+        }
+    }
     public func encode(_ text: String) throws -> Data {
         guard !text.unicodeScalars.contains(where: { $0.value == 0 }),
               let bytes = text.data(using: codec, allowLossyConversion: false),

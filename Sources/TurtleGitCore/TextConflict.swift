@@ -96,6 +96,17 @@ public enum MergeText {
         return (text as NSString).replacingCharacters(in: conflict.range, with: conflict.replacement(choice))
     }
 }
+public struct MergeInputEncodingOverrides:Equatable,Sendable {
+    public var base:ComparisonTextEncoding?,mine:ComparisonTextEncoding?,theirs:ComparisonTextEncoding?
+    public init(base:ComparisonTextEncoding? = nil,mine:ComparisonTextEncoding? = nil,theirs:ComparisonTextEncoding? = nil) {
+        self.base=base;self.mine=mine;self.theirs=theirs
+    }
+    public var isEmpty:Bool {base==nil && mine==nil && theirs==nil}
+}
+public struct MergeInputBytes:Sendable {
+    public var base:Data,mine:Data,theirs:Data
+    public init(base:Data,mine:Data,theirs:Data) {self.base=base;self.mine=mine;self.theirs=theirs}
+}
 public struct TextConflictDocument: Sendable {
     public let entry: ConflictEntry
     public let base: String
@@ -117,6 +128,8 @@ public struct TextConflictDocument: Sendable {
     public fileprivate(set) var mergeSources: MergeSourceComparison? = nil
     /// Accepted raw local inputs for activation checks; absent for immutable Git stages.
     public var externalSources: [MergeExternalSource] = []
+    /// Actual accepted bytes, never an encoding of the displayed source text.
+    public var rawInputs:MergeInputBytes? = nil
 }
 public struct TextConflictSaveFailure: LocalizedError, Sendable {
     public let savedDocument: TextConflictDocument
@@ -137,7 +150,7 @@ public enum TextConflictFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func textConflictDocument(path: String, engine: SubversionMergeConfiguration? = nil, mergePreferUTF8: Bool? = nil, mergeLegacyEncoding:ComparisonTextEncoding = .windows1252, identityOptions: ConflictIdentityOptions = .init(), cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
+    public func textConflictDocument(path: String, engine: SubversionMergeConfiguration? = nil, mergePreferUTF8: Bool? = nil, mergeLegacyEncoding:ComparisonTextEncoding = .windows1252, inputEncodings:MergeInputEncodingOverrides = .init(), identityOptions: ConflictIdentityOptions = .init(), cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
         try cancellation?.check()
         guard let entry = try conflicts(paths: [path], cancellation: cancellation).first(where: { GitReferenceName.equal($0.path, path) }) else { throw ResolveFailure.stale }
         guard !entry.isSubmodule, [2, 3].allSatisfy({ stage in entry.stages.contains { $0.number == stage && ["100644", "100755"].contains($0.mode) } }),
@@ -152,17 +165,23 @@ extension GitRepository {
             return text
         }
         var sourceEncodings: [Int: ComparisonTextEncoding] = [:]
-        func content(_ stage: Int) throws -> String {
-            guard let object = entry.stages.first(where: { $0.number == stage })?.object else { return "" }
+        var rawStages:[Int:Data]=[:]
+        func content(_ stage: Int,_ override:ComparisonTextEncoding?) throws -> String {
+            guard let object = entry.stages.first(where: { $0.number == stage })?.object else {rawStages[stage]=Data();return ""}
             let data = try run(["cat-file", "blob", object], cancellation: cancellation).stdout
-            sourceEncodings[stage] = detect(data)
+            rawStages[stage]=data
+            if let override {
+                guard let value=override.decodeInput(data) else {throw TextConflictFailure.encoding}
+                sourceEncodings[stage]=override.inputEncoding;return value
+            }
+            sourceEncodings[stage]=detect(data)
             return try text(data)
         }
         let rebase = try conflictIsRebase(cancellation: cancellation), mineStage = rebase ? 3 : 2, theirsStage = rebase ? 2 : 3
-        let base = try content(1), mine = try content(mineStage), theirs = try content(theirsStage)
+        let base = try content(1,inputEncodings.base), mine = try content(mineStage,inputEncodings.mine), theirs = try content(theirsStage,inputEncodings.theirs)
         let location = root.appendingPathComponent(path)
         let (working, workingPermissions) = try conflictWorkingSnapshot(location)
-        if let working { _ = try text(working) }
+        if let working,inputEncodings.isEmpty { _ = try text(working) }
         let permissions = workingPermissions ?? (entry.stages.first { $0.number == mineStage }?.mode == "100755" ? 0o755 : 0o644)
         let result: String
         var sources: MergeSourceComparison?
@@ -176,10 +195,11 @@ extension GitRepository {
             defer { try? FileManager.default.removeItem(at: temporary) }
             for (name, value) in [("mine", mine), ("base", base), ("theirs", theirs)] { try Data(value.utf8).write(to: temporary.appendingPathComponent(name)) }
             let merged = try run(["merge-file", "-p", "--diff3", "--marker-size=7", "-L", "Mine", "-L", "Base", "-L", "Theirs", "--", temporary.appendingPathComponent("mine").path, temporary.appendingPathComponent("base").path, temporary.appendingPathComponent("theirs").path], successfulExitCodes: 0...127, cancellation: cancellation)
-            result = try text(merged.stdout)
+            guard let value=ComparisonTextEncoding.utf8.decode(merged.stdout) else {throw TextConflictFailure.encoding};result=value
         }
-        let encoding = working.flatMap(detect) ?? sourceEncodings[mineStage] ?? .utf8
+        let encoding = working.flatMap(detect) ?? rawStages[mineStage].flatMap(detect) ?? sourceEncodings[mineStage] ?? .utf8
         var document = TextConflictDocument(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage, initialResult: result, generatedResult: result, workingContents: working, permissions: permissions, encoding: encoding, baseEncoding: sourceEncodings[1], mineEncoding: sourceEncodings[mineStage], theirsEncoding: sourceEncodings[theirsStage])
+        document.rawInputs=MergeInputBytes(base:rawStages[1] ?? Data(),mine:rawStages[mineStage] ?? Data(),theirs:rawStages[theirsStage] ?? Data())
         try validateConflicts([entry], using: .current, cancellation: cancellation)
         guard try conflictIsRebase(cancellation: cancellation) == rebase else { throw ResolveFailure.stale }
         try cancellation?.check()
@@ -211,6 +231,7 @@ extension GitRepository {
         }
         var saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs, mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, generatedResult: document.generatedResult, workingContents: deleting ? nil : contents, permissions: document.permissions, encoding: selectedEncoding, baseEncoding: document.baseEncoding, mineEncoding: document.mineEncoding, theirsEncoding: document.theirsEncoding)
         saved.externalSources = document.externalSources
+        saved.rawInputs = document.rawInputs
         saved.mergeSources = document.mergeSources; saved.conflictTitles = document.conflictTitles
         if markResolved {
             do { _ = try run(["add", "-f", "--", document.entry.path]) }
@@ -270,16 +291,17 @@ public actor WorkingTextMerge {
         baseURL = base.standardizedFileURL; theirsURL = theirs.standardizedFileURL; mineURL = mine.standardizedFileURL
         outputURL=(merged ?? mine).standardizedFileURL;explicitOutput=merged != nil;self.allowMissingInputs=allowMissingInputs
     }
-    private func source(_ url: URL, mergePreferUTF8: Bool?, legacyEncoding:ComparisonTextEncoding) throws -> ComparisonFileContent {
+    private func source(_ url: URL, mergePreferUTF8: Bool?, legacyEncoding:ComparisonTextEncoding,override:ComparisonTextEncoding?) throws -> ComparisonFileContent {
         let raw = allowMissingInputs ? try MergeToolFileInput.read(at:url):try WorkingFileComparison.workingContent(at:url)
-        let value = mergePreferUTF8.map { raw.usingMergeEncoding(preferUTF8: $0,legacyEncoding:legacyEncoding) } ?? raw
+        let detected = mergePreferUTF8.map { raw.usingMergeEncoding(preferUTF8: $0,legacyEncoding:legacyEncoding) } ?? raw
+        let value = try override.map {try detected.reinterpreting(encoding:$0)} ?? detected
         guard value.mode != "120000", value.text != nil, value.encoding != nil else { throw TextConflictFailure.encoding }
         return value
     }
-    public func read(engine: SubversionMergeConfiguration, mergePreferUTF8: Bool? = nil, mergeLegacyEncoding:ComparisonTextEncoding = .windows1252, cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
+    public func read(engine: SubversionMergeConfiguration, mergePreferUTF8: Bool? = nil, mergeLegacyEncoding:ComparisonTextEncoding = .windows1252,inputEncodings:MergeInputEncodingOverrides = .init(), cancellation: OperationCancellation? = nil) throws -> TextConflictDocument {
         try cancellation?.check()
         let activeMine = savedSources[true]?.url ?? mineURL, activeTheirs = savedSources[false]?.url ?? theirsURL
-        let base = try source(baseURL, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding), theirs = try source(activeTheirs, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding), mine = try source(activeMine, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding)
+        let base = try source(baseURL, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding,override:inputEncodings.base), theirs = try source(activeTheirs, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding,override:inputEncodings.theirs), mine = try source(activeMine, mergePreferUTF8: mergePreferUTF8,legacyEncoding:mergeLegacyEncoding,override:inputEncodings.mine)
         // The default Mine output needs its own CAS receipt too. Source Save As
         // can later rebind Mine and remove it from inputs without authorizing a
         // newly captured overwrite of the original result location.
@@ -299,10 +321,12 @@ public actor WorkingTextMerge {
         var workingContents:Data?=mine.isDeleted ? nil:mine.bytes,permissions=mine.permissions ?? 0o644
         outputs[outputURL.path] = output
         if explicitOutput {workingContents=output.bytes;permissions=output.permissions}
+        let outputEncoding=mergePreferUTF8.map {ComparisonTextEncoding.detectMerge(mine.bytes,preferUTF8:$0,legacyEncoding:mergeLegacyEncoding)} ?? ComparisonTextEncoding.detect(mine.bytes)
         var document = TextConflictDocument(entry: ConflictEntry(path: outputURL.lastPathComponent, stages: []),
             base: base.text!, mine: mine.text!, theirs: theirs.text!, mineStage: 2, theirsStage: 3,
             initialResult: presentation.result, generatedResult: presentation.result, workingContents: workingContents,
-            permissions: permissions, encoding: mine.encoding!, baseEncoding: base.encoding, mineEncoding: mine.encoding, theirsEncoding: theirs.encoding)
+            permissions: permissions, encoding: outputEncoding ?? mine.encoding!, baseEncoding: base.encoding, mineEncoding: mine.encoding, theirsEncoding: theirs.encoding)
+        document.rawInputs=MergeInputBytes(base:base.bytes,mine:mine.bytes,theirs:theirs.bytes)
         document.externalSources = [("base",baseURL,base),("mine",activeMine,mine),("theirs",activeTheirs,theirs)].map { role, url, content in
             MergeExternalSource(id:role,url:url,expectedBytes:content.bytes,expectedMissing:content.isDeleted,expectedPermissions:content.permissions)
         }
@@ -357,6 +381,7 @@ public actor WorkingTextMerge {
             guard let captured = inputs[source.url.path] else { return source }
             return MergeExternalSource(id:source.id,url:source.url,expectedBytes:captured.bytes ?? Data(),expectedMissing:captured.bytes == nil,expectedPermissions:captured.permissions)
         }
+        saved.rawInputs=document.rawInputs
         saved.mergeSources = document.mergeSources; saved.conflictTitles = document.conflictTitles; return saved
     }
     public func save(_ document: TextConflictDocument, result: String, encoding: ComparisonTextEncoding? = nil, options: MergeFileSaveOptions = .init()) throws -> TextConflictDocument {
@@ -429,6 +454,24 @@ public enum MergeOpenRequest: Sendable {
 }
 
 extension TextConflictDocument {
+    /// Regenerate from actual retained bytes. This changes the input decoder,
+    /// not the output conversion or the accepted index/working-file receipts.
+    public func reinterpretingInputs(_ overrides:MergeInputEncodingOverrides,engine:SubversionMergeConfiguration,cancellation:OperationCancellation? = nil) throws -> Self {
+        try cancellation?.check()
+        guard !overrides.isEmpty else{return self}
+        guard let rawInputs else{throw TextConflictFailure.encoding}
+        func decode(_ bytes:Data,_ override:ComparisonTextEncoding?,_ current:ComparisonTextEncoding?) throws -> (String,ComparisonTextEncoding?) {
+            if let override {guard let text=override.decodeInput(bytes) else{throw TextConflictFailure.encoding};return(text,override.inputEncoding)}
+            guard let current else{if bytes.isEmpty{return("",nil)};throw TextConflictFailure.encoding}
+            guard let text=current.decodeInput(bytes) else{throw TextConflictFailure.encoding};return(text,current)
+        }
+        let base=try decode(rawInputs.base,overrides.base,baseEncoding),mine=try decode(rawInputs.mine,overrides.mine,mineEncoding),theirs=try decode(rawInputs.theirs,overrides.theirs,theirsEncoding)
+        var engine=engine;engine.blameEncodings=[base.1,mine.1,theirs.1]
+        let presentation=try SubversionMergePresentation(plan:engine.plan(base:base.0,mine:mine.0,theirs:theirs.0,cancellation:cancellation))
+        try cancellation?.check()
+        var next=Self(entry:entry,base:base.0,mine:mine.0,theirs:theirs.0,mineStage:mineStage,theirsStage:theirsStage,initialResult:presentation.result,generatedResult:presentation.result,workingContents:workingContents,permissions:permissions,encoding:encoding,baseEncoding:base.1,mineEncoding:mine.1,theirsEncoding:theirs.1)
+        next.rawInputs=rawInputs;next.externalSources=externalSources;next.mergeSources=presentation.sources;next.conflictTitles=conflictTitles;return next
+    }
     /// Keep conflict/index identity and the current result snapshot while Reload
     /// reads source panes whose SaveFileTo target has changed.
     public func replacingSources(mine: ComparisonFileContent?, theirs: ComparisonFileContent?, engine: SubversionMergeConfiguration, cancellation: OperationCancellation? = nil) throws -> Self {
@@ -445,6 +488,7 @@ extension TextConflictDocument {
             return MergeExternalSource(id:source.id,url:URL(fileURLWithPath:replacement.path),expectedBytes:replacement.bytes,expectedMissing:replacement.isDeleted,expectedPermissions:replacement.permissions)
         }
         next.mergeSources = presentation.sources; next.conflictTitles = conflictTitles
+        if var bytes=rawInputs {bytes.mine=mine?.bytes ?? bytes.mine;bytes.theirs=theirs?.bytes ?? bytes.theirs;next.rawInputs=bytes}
         return next
     }
     public func recordingOwnedWorkingWrite(_ content: ComparisonFileContent) throws -> Self {
@@ -453,6 +497,7 @@ extension TextConflictDocument {
             initialResult: text, generatedResult: generatedResult, workingContents: content.isDeleted ? nil : content.bytes, permissions: permissions,
             encoding: encoding, baseEncoding: baseEncoding, mineEncoding: mineEncoding, theirsEncoding: theirsEncoding)
         next.externalSources = externalSources
+        next.rawInputs=rawInputs
         next.mergeSources = mergeSources; next.conflictTitles = conflictTitles
         return next
     }
@@ -460,17 +505,20 @@ extension TextConflictDocument {
 
 
 extension WorkingTreePatchFileComparison {
-    public func patchMergeDocument(engine:SubversionMergeConfiguration,preferUTF8:Bool? = nil,legacyEncoding:ComparisonTextEncoding = .windows1252,cancellation:OperationCancellation? = nil) throws -> TextConflictDocument {
+    public func patchMergeDocument(engine:SubversionMergeConfiguration,preferUTF8:Bool? = nil,legacyEncoding:ComparisonTextEncoding = .windows1252,inputEncodings:MergeInputEncodingOverrides = .init(),cancellation:OperationCancellation? = nil) throws -> TextConflictDocument {
         guard let recoveryBase else {throw WorkingTreePatchFailure.review}
         let policy=textEncodingPolicy ?? preferUTF8.map {MergeTextEncodingPolicy(preferUTF8:$0,legacyEncoding:legacyEncoding)}
-        guard [recoveryBase,document.base,document.destination].allSatisfy({$0.mode != nil && $0.mode != "120000"}),policy != nil || recoveryKind == .text else {throw WorkingTreePatchFailure.review}
+        guard [recoveryBase,document.base,document.destination].allSatisfy({$0.mode != nil && $0.mode != "120000"}),policy != nil || recoveryKind == .text || !inputEncodings.isEmpty else {throw WorkingTreePatchFailure.review}
         func content(_ value:ComparisonFileContent)->ComparisonFileContent {policy?.applying(value) ?? value}
-        let base = content(recoveryBase),mine = content(document.base),theirs = content(document.destination)
-        guard let baseText = base.text,let mineText = mine.text,let theirsText = theirs.text,let encoding = mine.encoding ?? theirs.encoding else {throw TextConflictFailure.encoding}
+        let base = try inputEncodings.base.map {try content(recoveryBase).reinterpreting(encoding:$0)} ?? content(recoveryBase)
+        let mine = try inputEncodings.mine.map {try content(document.base).reinterpreting(encoding:$0)} ?? content(document.base)
+        let theirs = try inputEncodings.theirs.map {try content(document.destination).reinterpreting(encoding:$0)} ?? content(document.destination)
+        guard let baseText = base.text,let mineText = mine.text,let theirsText = theirs.text,let encoding = content(document.base).encoding ?? content(document.destination).encoding ?? mine.encoding ?? theirs.encoding else {throw TextConflictFailure.encoding}
         var engine = engine
         engine.blameEncodings = [base.encoding, mine.encoding, theirs.encoding]
         let merged = try SubversionMergePresentation(plan:engine.plan(base:baseText,mine:mineText,theirs:theirsText,cancellation:cancellation))
         var result = TextConflictDocument(entry:ConflictEntry(path:document.destination.path,stages:[]),base:baseText,mine:mineText,theirs:theirsText,mineStage:2,theirsStage:3,initialResult:merged.result,generatedResult:merged.result,workingContents:mine.bytes,permissions:mine.permissions ?? 0o644,encoding:encoding,baseEncoding:base.encoding,mineEncoding:mine.encoding,theirsEncoding:theirs.encoding)
+        result.rawInputs=MergeInputBytes(base:recoveryBase.bytes,mine:document.base.bytes,theirs:document.destination.bytes)
         result.mergeSources = merged.sources;return result
     }
 }
@@ -479,6 +527,7 @@ extension TextConflictDocument {
         guard let text = saved.document.destination.text else {throw TextConflictFailure.encoding}
         var next = TextConflictDocument(entry:entry,base:base,mine:mine,theirs:theirs,mineStage:mineStage,theirsStage:theirsStage,initialResult:text,generatedResult:generatedResult,workingContents:saved.document.destination.isDeleted ? nil : saved.document.destination.bytes,permissions:saved.document.destination.permissions ?? permissions,encoding:saved.document.destination.encoding ?? encoding,baseEncoding:baseEncoding,mineEncoding:mineEncoding,theirsEncoding:theirsEncoding)
         next.externalSources = externalSources
+        next.rawInputs=rawInputs
         next.mergeSources = mergeSources;next.conflictTitles = conflictTitles;return next
     }
 }

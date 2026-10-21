@@ -5,7 +5,9 @@ import TurtleGitCore
 /// source stages. Private read-only copies never redirect writes to a Git stage.
 @MainActor enum MergeSourceComparisonWindows {
     private static var windows: [UUID: (FileComparisonWindowController, URL)] = [:]
-    @discardableResult static func open(base: Data, side: Data, name: String, sideName: String, preferences: UserDefaults) throws -> FileComparisonWindowController {
+    @discardableResult static func open(base: Data, side: Data, name: String, sideName: String, preferences: UserDefaults,
+        baseEncoding:ComparisonTextEncoding?=nil,sideEncoding:ComparisonTextEncoding?=nil,sourceWindow:NSWindow?=nil,
+        configure:((FileComparisonWindowController)->Void)?=nil) throws -> FileComparisonWindowController {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitSourceCompare-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         do {
@@ -17,11 +19,14 @@ import TurtleGitCore
             // Store builds retain their container folder; source bytes are
             // captured from the already authorized document, not reread outside it.
             let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: left, destination: right), permissions: grants, preferences: preferences)
+            controller.model.configureInputEncodings(base:baseEncoding,destination:sideEncoding)
             try controller.model.retainSourceSnapshotDirectory(folder)
             controller.model.useInternalMergeViewer()
+            if let sourceWindow {controller.window?.alphaValue=sourceWindow.alphaValue;controller.window?.appearance=sourceWindow.effectiveAppearance}
             let id = UUID(); windows[id] = (controller, folder)
             controller.onClosed = { windows.removeValue(forKey: id); try? FileManager.default.removeItem(at: folder) }
-            controller.showWindow(nil); controller.model.load()
+            configure?(controller)
+            if !controller.model.inputEncodingOwnerRetired {controller.showWindow(nil); controller.model.load()}
             return controller
         } catch { try? FileManager.default.removeItem(at: folder); throw error }
     }

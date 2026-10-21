@@ -786,6 +786,13 @@ selected output ending also applies to subsequent typing and source choices.
 Encoding/EOL changes can be undone together; Save keeps the chosen format.
 While the Encoding dialog or Save is active, edits and Undo wait for it to finish.
 
+**Reload with encoding** reinterprets an individual input's saved bytes, including
+read-only Base/Mine/Theirs and historical panes. Control-selection in the encoding
+menu provides the same action. The comparison or merged result is regenerated;
+unsaved edits require the existing Save/Discard/Cancel decision. Output conversion
+and read-only EOL restrictions remain separate. See
+[input encoding](MERGE-INPUT-ENCODING-PARITY.md) for source mappings and limits.
+
 
 ## Dock progress
 

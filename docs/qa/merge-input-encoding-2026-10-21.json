@@ -1,0 +1,206 @@
+{
+  "date": "2026-10-21",
+  "family": "Compare/Merge input encoding and reload",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "parent_commit": "dadb08a3",
+  "source": [
+    "src/TortoiseMerge/MainFrm.cpp:3526-3554 AdjustUnicodeTypeForLoad",
+    "src/TortoiseMerge/MainFrm.cpp:3557-3626 OnEncodingLeft/Right/Bottom",
+    "src/TortoiseMerge/MainFrm.cpp:3693-3724 readonly Control encoding enablement"
+  ],
+  "implementation": [
+    "Per-input raw byte decoding independent of output encoding conversion",
+    "BOM reader normalization and strict byte-preserving decode",
+    "Actual Git conflict and reversed rebase stage roles, external three-file and patch producers retain raw inputs",
+    "Native encoding popup with captured Control and explicit Reload with encoding submenu; original reload context icon",
+    "Read-only/historical/undecoded regular input reload; EOL/output mutation restrictions retained",
+    "Captured one-use document/pane/role receipts, physical input identity across side swap and retained F5 overrides",
+    "Transactional decode and comparison/merge publication preserving accepted state/history on failure",
+    "Owned dirty Save/Discard/Cancel questions, actual sheet drain and stale/retired/Quit gates",
+    "SaveAs/source replacement clears or rebases input override to accepted new source codec",
+    "Compare-with-Base child retains original raw bytes/BOM and accepted decoders before first load"
+  ],
+  "source_hashes": {
+    "Sources/TurtleGitCore/FileComparison.swift": "debfaa48286d8afa69fb8e30e625afecb0ddcac3d37bf8bfba2d293cdf6fa0e8",
+    "Sources/TurtleGitCore/FileComparisonEditing.swift": "372fa485e1c98dd86d4d5c98d3905934db123be87fd22bbf7bb6c13e192996b8",
+    "Sources/TurtleGitCore/TextConflict.swift": "3032dab077fbd1905e3366f10c2c2826e4d7010ac91bc03d72dc9afa15322f4f",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "3f7d15cde413baee52df71f4772cba55b13655940ad1b67f92de736f1bae7569",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "76ca799c6ea8a6dc092ccb5a97bf2b1a09898addee440a93083587f5c03ca7ba",
+    "Sources/TurtleGitMac/MergeSourceComparisonWindows.swift": "1850f48821764da733cbbe2e707234f78a6c90ab956b3e4e86d860b2f27433be",
+    "Tests/TurtleGitCoreTests/MergeInputEncodingTests.swift": "545a0d02a5b80270eff381c5820b30b5d4da4cea935d1fefd17570e15cc6e870",
+    "docs/qa/merge-input-encoding-native-2026-10-21.swift": "5247703cf87a22d4080d2bbf4c1739f1ab0e80004735a6c7c3c329b702d1c6e0",
+    "scripts/test-merge-input-encoding.py": "f632e67890268ca0e50fd0f945246508d7e95a30df461a92af2b0ecea46abc1e",
+    ".github/workflows/macos.yml": "7d20e96c0697afaf284396893b49e04248446fc0a9d23e3363b927bba050bc92"
+  },
+  "core": {
+    "exit_code": 0,
+    "passed_methods": 63,
+    "new_input_encoding_methods": 6,
+    "full_core_suite_run": false,
+    "git": "/usr/bin/git",
+    "test_seconds": 40.024,
+    "filter": "MergeInputEncodingTests|TextConflictTests|MergeOpenTests|WorkingPatchEncodingTests|FileComparisonTests",
+    "log": "build/qa/merge-input-encoding-core-repair-2026-10-21.log",
+    "initial_compile_log": "build/qa/merge-input-encoding-core-2026-10-21.log",
+    "repair": "New test tuple lacked an explicit enum-pair type; added typed loadChoices without changing assertions. No tests executed on that failed compile."
+  },
+  "debug": {
+    "exit_code": 0,
+    "signing_allowed": false,
+    "final_log": "build/qa/merge-input-encoding-build-selectors-2026-10-21.log",
+    "earlier_logs": [
+      "build/qa/merge-input-encoding-build-2026-10-21.log",
+      "build/qa/merge-input-encoding-build-repair-2026-10-21.log"
+    ],
+    "repairs": [
+      "Added explicit MainActor on nested Objective-C menu target",
+      "Moved optional SwiftUI callback expressions into typed locals after compiler failed to diagnose the full pane expression",
+      "Renamed both new perform: target methods to unique chooseInputEncoding: after a real Objective-C selector collision with NSObject.perform:"
+    ],
+    "diagnostics": "Existing simulator SDK mismatch, Swift5/Swift6-mode warnings and exit-zero/no-output compiler diagnostics retained; actual final session exited zero."
+  },
+  "native": {
+    "passed_distinct_case_engine_pairs": 8,
+    "cases": [
+      {
+        "git": "/usr/bin/git",
+        "case": "two",
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "history",
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "three",
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "ownership",
+        "passed": true
+      },
+      {
+        "git": "build/git-runtime/Git/bin/git",
+        "case": "two",
+        "passed": true
+      },
+      {
+        "git": "build/git-runtime/Git/bin/git",
+        "case": "history",
+        "passed": true
+      },
+      {
+        "git": "build/git-runtime/Git/bin/git",
+        "case": "three",
+        "passed": true
+      },
+      {
+        "git": "build/git-runtime/Git/bin/git",
+        "case": "ownership",
+        "passed": true
+      }
+    ],
+    "logs": [
+      "build/qa/merge-input-encoding-native-selectors-2026-10-21.log",
+      "build/qa/merge-input-encoding-native-owned-2026-10-21.log",
+      "build/qa/merge-input-encoding-native-bundled-2026-10-21.log"
+    ],
+    "initial_attempts": [
+      "Fixture compile duplicate savedBytes from combined ownership sections; renamed result local, assertions retained.",
+      "PID599 stopped progressing after actual menu action NSInvalidArgumentException. Unified log and sample proved selector collision/task loss; terminated this owned failed receiver, reaped it and repaired both production handlers. No restart based on slowness alone.",
+      "After selector repair, system two/history/three passed. Ownership attempted reload before edited native result view had rebound; added readiness waits and explicit decision callback counts, then repeated only that affected case. No production repair for this fixture timing."
+    ],
+    "selector_failure_log": "build/qa/merge-input-encoding-selector-failure-2026-10-21.log",
+    "selector_failure_sample": "build/qa/merge-input-encoding-selector-failure-599.sample.txt",
+    "receiver_pids": [
+      599,
+      961,
+      1009,
+      1086,
+      1433,
+      1568,
+      1760,
+      1822,
+      1905,
+      2187
+    ],
+    "all_receivers_absent_verified": true,
+    "checks": [
+      "Actual native readonly reload context actions and source icons",
+      "Physical input identity across swap, stale receipt and new document refusal",
+      "Strict failed-decode retention and F5 accepted decoder persistence",
+      "Initial undecoded BOM-less UTF16 input recovery",
+      "Historical immutable source decoding and unchanged index/working bytes",
+      "Actual source-role merge regeneration, consumed/stale actions and raw/BOM source comparison child",
+      "Standalone BOM input decoding and child inheritance",
+      "Actual dirty Save/Discard/Cancel decisions, saved bytes, Undo boundaries and held owner-close/late reply drainage",
+      "Final models/read/engine/EditorConfig/sheet work drained; HEAD/index/MERGE_HEAD preserved"
+    ],
+    "scope": "Three system cases passed before fixture-only ownership readiness repair; affected ownership and all four unrun bundled cases then passed. App was not rebuilt for fixture-only repairs."
+  },
+  "captures": [
+    {
+      "file": "docs/site/assets/merge-input-encoding-light.png",
+      "dimensions": [
+        2240,
+        1606
+      ],
+      "sha256": "571f7b9b32547bc33703dfc490bd7a72fda9c52e18de3893c55ec35a17b63c97",
+      "reviewed": true,
+      "method": "SCScreenshotManager current-process complete-window capture; deliberately visible then immediately hidden/closed",
+      "scope": "Native two-pane window after UTF8 input reload; inactive chrome; not every menu/source state"
+    },
+    {
+      "file": "docs/site/assets/merge-input-encoding-dark.png",
+      "dimensions": [
+        2240,
+        1606
+      ],
+      "sha256": "8e2b5a17fce55293a7dae04b06c7c7d795a276653778211fe88201fb42355190",
+      "reviewed": true,
+      "method": "SCScreenshotManager current-process complete-window capture; deliberately visible then immediately hidden/closed",
+      "scope": "Native two-pane window after UTF8 input reload; inactive chrome; not every menu/source state"
+    }
+  ],
+  "resources": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1308,
+      "write_and_check_exit_code": 0
+    },
+    "help": {
+      "documents": 49,
+      "topics": 51,
+      "files": 69,
+      "write_and_check_exit_code": 0
+    },
+    "dialog_ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "certified_complete": 0,
+      "not_feature_percentage": true
+    }
+  },
+  "hosted_observation": {
+    "observed_utc": "2026-10-21 03:34:55",
+    "run_8f00ea46": 39533313374,
+    "job": 119008850134,
+    "status": "in_progress",
+    "stage": "Git integration tests step77; prior app/Finder, moved/wrapped native and oracle checks passed; SVN passed",
+    "dadb08a3_run": 39537826973,
+    "dadb08a3_status": "pending/no jobs",
+    "dadb08a3_pages_run": 39537826930,
+    "dadb08a3_pages_status": "success",
+    "full_current_hosted_pass_confirmed": false
+  },
+  "remaining": [
+    "Physical Control/popups/keyboard/VoiceOver and every input format/source combination",
+    "Windows malformed-byte substitution/font/pixel identity and complete editor parity",
+    "Signed file grants, minimum-version/Intel acceptance and current full hosted integration",
+    "Installed Finder and distribution/App Store acceptance"
+  ],
+  "whole_port_complete": false
+}
