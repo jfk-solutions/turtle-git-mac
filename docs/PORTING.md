@@ -1,5 +1,17 @@
 # TurtleGit for Mac — full port tracking
 
+The [Clone/Create navigation and result family](REPOSITORY-CREATION-SETUP-PARITY.md)
+connects source sticky Browse/Open, captured local/remote navigation, native form
+commands/tooltips and bounded fields, plus optional verified-bare folder artwork
+with preserved customization and nonfatal warnings. Eight distinct default native
+case/engine pairs pass across recorded fixture repairs and a production compact
+Init sizing repair. Four complete light/dark captures were reviewed; all sixteen
+receivers, including failed attempts, are absent. The
+[dated checkpoint](qa/clone-create-source-2026-10-21.json) retains a separate failing
+accessibility probe: offscreen SwiftUI virtual help exposure is unverified. Core
+was unchanged and not rerun. Full source, physical, signed and hosted acceptance
+remain open.
+
 The [submodule dialog actions family](SUBMODULE-DIALOG-ACTIONS-PARITY.md) connects
 sticky native Show diff/Compare actions, source action rows and colors, captured
 child Log/Reset preferences and exact revisions, retired cache replacement,

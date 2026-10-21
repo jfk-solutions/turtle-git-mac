@@ -139,3 +139,10 @@ replaces the remaining Blame command mascot with a deterministic variant of the
 custom TurtleGit source, retaining Git lettering and a magnifier cue. App and
 Finder resource aliases share `TurtleGitBlame.png`; original upstream resources
 remain separately attributed.
+
+## Bare repository folder artwork
+
+Verified bare Init/Clone also use the shared TurtleGit artwork, including Git text,
+for native Finder custom folder icons. Existing customization is preserved. This
+optional result setup has its own [source and ownership scope](REPOSITORY-CREATION-SETUP-PARITY.md);
+it is separate from Finder Sync status badges.

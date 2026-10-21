@@ -1,0 +1,218 @@
+{
+  "date": "2026-10-21",
+  "implementation_baseline": "7714d134",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Clone source sticky Browse/Open with captured local/remote navigation, closest ancestor and reveal fallback, owned authorization/cancellation; native form commands/tooltips/long fields and resizing; verified bare Init/Clone TurtleGit custom folder icons, prior customization preservation and nonfatal optional setup warnings.",
+  "validation": {
+    "status": "Scoped default grouped native checkpoint passed across recorded fixture repairs and focused Init layout repair. Separate accessibility acceptance probe remains unverified/failed.",
+    "tests_during_implementation": false,
+    "app": {
+      "log": "build/qa/clone-create-source-build.log",
+      "exit": 0,
+      "diagnostics": "Retains existing non-Sendable/native warnings, CoreSimulator version mismatch and contradictory failed-command-with-exit-zero diagnostics. Current app object freshness and native linking checked by receiver cache guard; no clean hosted-build claim."
+    },
+    "core": "Not rerun: no production Core Git operations changed. Native cases execute real private Git operations through built framework.",
+    "initial_native": {
+      "log": "build/qa/clone-create-source-native.log",
+      "exit": 1,
+      "failure": "First navigation/system case timed out awaiting Open. Fixture invoked a dropdown item before actual native control re-enabled following Browse. Receiver70329 reaped."
+    },
+    "fixture_repairs": [
+      "Wait actual native source control enabled, current model navigation eligibility and displayed ComboBox source before fresh actions; retain stale menu and one-shot assertions.",
+      "Added meaningful long-field containment/minimum size and actual accessibility-help assertions before native acceptance. Accessibility walker initially used namespace NSAccessibility instead of imported NSAccessibilityProtocol; fixture compile failed and cast corrected."
+    ],
+    "fixture_compile_failure": {
+      "log": "build/qa/clone-create-source-native-repair.log",
+      "exit": 1,
+      "receiver_spawned": false
+    },
+    "native": {
+      "cases": [
+        "navigation",
+        "forms",
+        "creation",
+        "ownership"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": "Actual split menus/primary persistence, local/fileURL/relative/closest-folder/reveal fallback, stale draft/Quit/close; native field geometry/help/shortcuts; real bare Init and direct/progress Clone, prior custom icons, refused metadata and failed-command Retry; held local chooser/workspace and optional setup owner drainage.",
+      "cleanup": "Private repository and preference roots; injected workspace/panels/questions; offscreen windows and sheets; model/global work and release counters drain; runner reaps owned groups on success/failure/timeout.",
+      "distinct_default_case_engine_pairs_passed": 8
+    },
+    "localizations": {
+      "languages": 38,
+      "keys": 1310,
+      "check": "passed"
+    },
+    "help": {
+      "documents": 48,
+      "topics": 51,
+      "files": 68,
+      "check": "passed"
+    },
+    "unrelated_work_preserved": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    },
+    "native_navigation": {
+      "log": "build/qa/clone-create-source-native-final.log",
+      "case_engine_pairs_passed": 2,
+      "receiver_pids": [
+        70706,
+        70734
+      ]
+    },
+    "native_forms_initial": {
+      "log": "build/qa/clone-create-source-native-final.log",
+      "exit": 1,
+      "failure": "Forms fixture searched for Destination directory as NSComboBox, while production uses existing PathEntryField.Field (NSTextField). Fixed actual control lookup; no production changes. Receiver70751 reaped."
+    },
+    "native_forms_lookup_repair": {
+      "log": "build/qa/clone-create-source-native-forms-repair.log",
+      "exit": 1,
+      "failure": "Fixture awaited a destination tooltip absent from existing PathEntryField. Corrected to require actual full native stringValue, preserving source ComboBox tooltip assertion. No production changes. Receiver70835 reaped."
+    },
+    "native_results_initial": {
+      "log": "build/qa/clone-create-source-native-results.log",
+      "exit": 1,
+      "failure": "Creation fixture checked direct-only parent completionWarning after closing progress. Actual progress already had successful Git receipt and visible warnings. Corrected to retain progress warnings before acknowledgment and require each in captured parent output. No production changes. Receiver71150 reaped."
+    },
+    "native_results": {
+      "log": "build/qa/clone-create-source-native-results-repair.log",
+      "exit": 0,
+      "case_engine_pairs_passed": 4,
+      "receiver_pids": [
+        71388,
+        71448,
+        71515,
+        71541
+      ]
+    },
+    "forms_accessibility_attempts": [
+      {
+        "log": "build/qa/clone-create-source-native-remaining.log",
+        "receiver": 71084,
+        "result": "Actual SwiftUI option help absent from inspected hierarchy."
+      },
+      {
+        "log": "build/qa/clone-create-source-native-checkpoint.log",
+        "receiver": 71337,
+        "result": "Expanded NSObject accessibility traversal still sees only AppKit-backed native controls; actual SwiftUI node exposure remains under investigation. Geometry/field content assertions passed before help assertion."
+      },
+      {
+        "log": "build/qa/clone-create-source-native-forms-ax.log",
+        "receiver": 71710,
+        "result": "Fixture trapped bridging AppKit navigation array: SDK declares NSAccessibilityElement but returns NSAccessibilityReparentingCellProxy. Switched that public array read to Objective-C getter; assertion retained."
+      },
+      {
+        "log": "build/qa/clone-create-source-native-form-captures.log",
+        "receiver": 71758,
+        "result": "Keyboard/stale-field and complete window captures reached successfully, but final AX help assertion failed; hosting virtual SwiftUI nodes absent. Captures revealed actual oversized Init hosting window, prompting production sizing repair."
+      }
+    ],
+    "accessibility_gate": {
+      "command": "python3 scripts/test-clone-create-source.py --only accessibility --git /usr/bin/git",
+      "status": "Unverified; prior forms probe failed exact shallow/bare help assertions. Retained as separate opt-in acceptance case; no passing claim. Default forms covers independent keyboard/layout/captured bindings.",
+      "private_activation_flags": false
+    },
+    "layout_repair": "Create Repository host now disables automatic sizing and constrains its source compact600x190 content. Only affected native forms are repeated after app rebuild; earlier Git/navigation/result/ownership passes are not rerun.",
+    "final_app": {
+      "log": "build/qa/clone-create-source-init-layout-build.log",
+      "exit": 0,
+      "diagnostics": "Retains contradictory failed-command-with-exit-zero diagnostic and existing native warnings. Final app objects passed receiver freshness/link guard."
+    },
+    "native_forms": {
+      "log": "build/qa/clone-create-source-native-forms-final.log",
+      "exit": 0,
+      "case_engine_pairs_passed": 2,
+      "receiver_pids": [
+        71882,
+        71885
+      ],
+      "scope": "Native long field geometry, source tooltip value, private menu keyboard focus/Option composition, stale Clone/Init bindings, exact Init content size and complete light/dark captures. Separate accessibility probe not included in passing cases."
+    },
+    "owned_receivers": {
+      "pids": [
+        70329,
+        70706,
+        70734,
+        70751,
+        70835,
+        71084,
+        71150,
+        71337,
+        71388,
+        71448,
+        71515,
+        71541,
+        71710,
+        71758,
+        71882,
+        71885
+      ],
+      "independently_confirmed_absent": true,
+      "includes_failed_attempts": true
+    },
+    "site": {
+      "build_log": "build/qa/clone-create-source-site.log",
+      "exit": 0,
+      "documents": 401,
+      "unresolved_fragments": [],
+      "checks_log": "build/qa/clone-create-source-site-check.log",
+      "link_checks_passed": 2
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "not_feature_completion_percentage": true
+    }
+  },
+  "remaining": [
+    "Physical picker/keyboard/VoiceOver and registered remote protocol behavior",
+    "Signed sandbox permission renewal, Finder icon persistence on deployment volumes and minimum OS/Intel acceptance",
+    "Complete source dialog state/layout coverage and hosted integration",
+    "Distribution signing, App Store archive/export/install acceptance"
+  ],
+  "captures": [
+    {
+      "path": "docs/site/assets/clone-source-long-fields-light.png",
+      "width": 1640,
+      "height": 1024,
+      "kind": "Complete actual native offscreen compositor window; private fixture, visually reviewed."
+    },
+    {
+      "path": "docs/site/assets/clone-source-long-fields-dark.png",
+      "width": 1640,
+      "height": 1024,
+      "kind": "Complete actual native offscreen compositor window; private fixture, visually reviewed."
+    },
+    {
+      "path": "docs/site/assets/create-repository-form-light.png",
+      "width": 1200,
+      "height": 444,
+      "kind": "Complete actual native offscreen compositor window; private fixture, visually reviewed."
+    },
+    {
+      "path": "docs/site/assets/create-repository-form-dark.png",
+      "width": 1200,
+      "height": 444,
+      "kind": "Complete actual native offscreen compositor window; private fixture, visually reviewed."
+    }
+  ],
+  "hosted_ci_at_checkpoint": {
+    "62330c51": {
+      "run": 39518002141,
+      "svn_runtime": "success",
+      "build_and_test": "in_progress Git integration tests"
+    },
+    "7714d134": {
+      "run": 39520128043,
+      "status": "pending"
+    },
+    "complete_current_hosted_pass_claimed": false
+  }
+}

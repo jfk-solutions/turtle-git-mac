@@ -72,3 +72,11 @@ It distinguishes initial destination cleanup from later recursive partial work,
 retains bare/no-checkout suppression and owns actual filter cancellation/progress.
 Configured LFS one-shot smudge, source boundaries and grouped evidence are tracked
 in that family; it does not claim persistent filter-process or complete providers.
+
+## Native bare result setup — October 21, 2026
+
+[Creation setup](REPOSITORY-CREATION-SETUP-PARITY.md) adds an owned, optional
+TurtleGit folder icon after actual bare discovery. Metadata failure is retained as
+a completed-result warning without repeating Git. Direct and progress routes share
+the helper; inspection retries reuse the destination receipt. Ownership and access
+remain held through actual optional work even when the window is retired.

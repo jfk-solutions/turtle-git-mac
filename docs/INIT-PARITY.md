@@ -31,7 +31,8 @@ inside a working repository. The workspace labels them explicitly and disables
 worktree operations. Log allows history, commit comparisons, branch/tag/push and
 soft reset; worktree comparison, checkout, revert and cherry-pick are disabled.
 Bare Branch/Tag cannot switch and Fetch cannot hand off to Rebase. Full bare menu
-parity, RefLog actions and repository-folder icon customization remain incomplete.
+parity and RefLog actions remain incomplete. Bare folder decoration now uses
+[owned native custom-icon setup](REPOSITORY-CREATION-SETUP-PARITY.md).
 
 ## Verification
 
@@ -120,9 +121,10 @@ contents, templates and default-branch configuration.
 The original workspace handoff remains separately owned. Closing Init after a
 successful creation does not discard a queued adoption; closing its initiating
 workspace does. Reusing a still-open Init preserves that owner and preference
-context; a retiring window cannot be reopened as a fresh dialog. Native Finder
-folder-icon customization remains unimplemented rather than copying Windows
-`desktop.ini` metadata into a macOS repository folder.
+context; a retiring window cannot be reopened as a fresh dialog. The subsequent [creation setup family](REPOSITORY-CREATION-SETUP-PARITY.md)
+adds native Finder folder icons using TurtleGit artwork after verified bare creation.
+It preserves existing customization and reports optional setup failures separately
+from successful Git creation.
 
 [Batch evidence](qa/repository-creation-results-family-2026-10-19.json) preserves
 actual validation attempts and limits. Physical warning/default-button/keyboard/

@@ -2331,9 +2331,11 @@
       "parity_documents": [
         "docs/CLONE-PARITY.md",
         "docs/REMOTE-PROGRESS-NOTIFICATIONS-PARITY.md",
+        "docs/REPOSITORY-CREATION-SETUP-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/clone-create-source-2026-10-21.json",
         "docs/qa/clone-progress-2026-10-08.json",
         "docs/qa/clone-stream-2026-10-08.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
@@ -3575,9 +3577,11 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/INIT-PARITY.md",
+        "docs/REPOSITORY-CREATION-SETUP-PARITY.md",
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/clone-create-source-2026-10-21.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/merge-stream-2026-10-08.json",

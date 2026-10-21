@@ -16,7 +16,12 @@ import TurtleGitCore
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 190), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window,repository:folder,dialog:"Git Init",preferences:preferences)
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: CreateRepositoryDialog(model: model).defaultAppStorage(preferences))
+        let host = NSHostingController(rootView: CreateRepositoryDialog(model: model).defaultAppStorage(preferences))
+        // Keep the source's compact confirmation layout. SwiftUI's flexible
+        // spacer must not become a new native window sizing proposal.
+        host.sizingOptions = []
+        window.contentViewController = host
+        NSLayoutConstraint.activate([host.view.widthAnchor.constraint(equalToConstant:600),host.view.heightAnchor.constraint(equalToConstant:190)])
         super.init(window: window); TurtleGitHelp.attach(window, topic: .createRepository); window.delegate = self
         window.setContentSize(NSSize(width: 600, height: 190)); window.center()
         model.close = { [weak self] in
@@ -43,7 +48,7 @@ import TurtleGitCore
             guard let self else{return}
             let alert = NSAlert(); alert.alertStyle = .informational
             alert.messageText = "Repository created"
-            alert.informativeText = "Initialized Git repository in \(folder.path)."
+            alert.informativeText = "Initialized Git repository in \(folder.path)." + (self.model.setupWarning.map { "\n\n" + $0 } ?? "")
             alert.addButton(withTitle: "OK")
             self.ask(.success,alert:alert){ [weak self] _ in self?.model.acknowledgeSuccess()}
         }
@@ -136,6 +141,8 @@ import TurtleGitCore
     var showSuccess:(()->Void)?
     var showError:((String,@escaping()->Void)->Void)?
     var initializeOperation:((GitRepository,URL,Bool,Set<InitializationWarning>,OperationCancellation) async throws->String)?
+    var bareResultSetup = BareRepositoryResultSetup()
+    @Published private(set) var setupWarning: String?
     var warningsForFolder:(URL,Bool)throws->Set<InitializationWarning>={try RepositoryInitialization.warnings(for:$0,bare:$1)}
     var onInitialized: (GitRepository, RepositoryAccessLease, Bool, String) -> Void = { _, _, _, _ in }
     let presentationPreferences:UserDefaults
@@ -208,7 +215,14 @@ import TurtleGitCore
                 let repo = GitRepository(root: resolved, executable: executable)
                 let actualBare = try await repo.isBare(cancellation: token)
                 try token.check(); guard !retired else { return }
+                // Keep the authoritative Git result while the optional Finder
+                // decoration drains, including when its owner is cancelled.
                 created=(repo,actualBare,output)
+                let warning = await bareResultSetup.apply(repository:repo,destination:folder,access:access,verifiedBare:actualBare,cancellation:token)
+                if let warning {
+                    created=(repo,actualBare,output + (output.hasSuffix("\n") || output.isEmpty ? "":"\n") + warning)
+                    if !retired { setupWarning=warning }
+                }
             }catch{if !retired,!token.isCancelled{failure=error.localizedDescription}}
         }
     }

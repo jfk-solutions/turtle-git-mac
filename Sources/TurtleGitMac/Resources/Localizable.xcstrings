@@ -166325,6 +166325,71 @@
         }
       }
     },
+    "Submodules are initialized and cloned using their default settings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Els submòduls s'inicialitzen i es clonen amb els paràmetres per defecte."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submodule werden mit ihren Standardeinstellungen initialisiert und geklont"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submodules are initialized and cloned using their default settings."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les sous-modules sont initialisés et clonés en utilisant leurs paramètres par défaut."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブモジュールは、それらのデフォルトの設定で、初期化され複製されます。"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submódulos são inicializados e clonados usando configurações padrão."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подмодули инициализированы и клонированы, используя их настройки по умолчанию."
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "துணை தொகுதிகள் அவற்றின் இயல்புநிலை அமைப்புகளைப் பயன்படுத்தி துவக்கப்பட்டு நகல் செய்யப்படுகின்றன."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子模块将使用其默认设置进行初始化和克隆。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子模組在初始化與複製時使用預設設定"
+          }
+        }
+      }
+    },
     "Success": {
       "extractionState": "manual",
       "localizations": {

@@ -23,8 +23,12 @@ ends in trunk. Disabled SVN values are not sent to a normal Git clone.
 
 URL edits derive the destination name and remove a final .git suffix. Subsequent
 URL edits replace the automatically generated component while preserving a manually
-changed directory. Browse uses native directory/key panels. Successful clones save
-URL/key histories, parent directory and recursive preference; Cancel saves none.
+changed directory. Browse uses native directory/key panels. Accepted submissions save
+captured URL/key histories, parent directory and recursive preference, following
+source OK timing; later Git failure does not roll these back. The source button
+separately remembers Browse/Open as soon as that action is invoked, including when
+the form is subsequently cancelled. See the
+[creation setup continuation](REPOSITORY-CREATION-SETUP-PARITY.md).
 
 Git arguments are separate process arguments, with source/destination after `--`.
 Option combinations, depth/revision, NULs, branch and origin names are validated.
@@ -63,7 +67,9 @@ unverified.
 SVN controls build the pinned `git svn clone` arguments, including an optional empty
 origin prefix and local-source file URL conversion. Execution preflights `git svn
 --version`. The current system Git has no SVN command; this produces an error
-without creating the destination. SVN execution is not verified or bundled.
+without creating the destination. The packaged runtime separately includes Git-SVN
+and its private Perl/Subversion dependencies; see [SVN parity](SVN-PARITY.md).
+System-Git availability does not prove packaged availability or real-server acceptance.
 
 ## Verification
 

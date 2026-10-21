@@ -112,6 +112,7 @@ for baseline and update rules.
 
 - [Clone dialog parity](CLONE-PARITY.md)
 - [Create Repository parity](INIT-PARITY.md)
+- [Clone/Create navigation and bare result setup](REPOSITORY-CREATION-SETUP-PARITY.md)
 - [New Branch/Tag dialog parity](BRANCH-TAG-PARITY.md)
 - [Switch/Checkout dialog parity](SWITCH-PARITY.md)
 - [Fetch dialog parity](FETCH-PARITY.md)

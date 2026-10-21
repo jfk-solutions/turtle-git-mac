@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 import TurtleGitCore
 
 typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportCoordinator
@@ -14,14 +15,15 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     private var closedActions:[()->Void]=[]
     init(directory: URL?, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, executable: URL? = nil, clipboardText:String? = nil) {
         model = CloneWindowModel(directory: directory, access: access, preferences: preferences, executable: executable,clipboardText:clipboardText)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 820, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = ReferenceFormNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 820, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Git Clone – TurtleGit"
-        window.minSize = NSSize(width: 780, height: 452)
-        window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: 452)
+        window.referenceMinimumContentSize=NSSize(width:780,height:480)
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: CloneDialog(model: model).defaultAppStorage(preferences))
+        let host=NSHostingController(rootView:CloneDialog(model:model).defaultAppStorage(preferences))
+        host.sizingOptions=[];window.contentViewController=host
+        NSLayoutConstraint.activate([host.view.widthAnchor.constraint(greaterThanOrEqualToConstant:780),host.view.heightAnchor.constraint(greaterThanOrEqualToConstant:480)])
         super.init(window: window); TurtleGitHelp.attach(window, topic: .clone); window.delegate = self; model.window = window
-        window.setContentSize(NSSize(width: 820, height: 420)); window.center()
+        window.setContentSize(NSSize(width: 820, height: 480)); window.center()
         model.close = { [weak self] in
             guard let self,!self.model.confirmingQuit,!self.model.activeOperation,self.window?.attachedSheet == nil,let window=self.window else{return}
             window.close();if !self.closed,!window.isVisible{self.retireClosedWindow()}
@@ -77,12 +79,13 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     private func endWork(){pendingOperations -= 1;Self.activeOperations -= 1;if !hasPendingWork{workDidDrain?()}}
     private var formRevision=UUID(),interactionGeneration=0
     private var submissionGeneration:Int?
-    @Published var confirmingQuit=false {didSet{if oldValue != confirmingQuit{formRevision=UUID();interactionGeneration += 1};progress?.confirmingQuit=confirmingQuit}}
+    @Published var confirmingQuit=false {didSet{if oldValue != confirmingQuit{formRevision=UUID();interactionGeneration += 1;navigationEpoch=UUID();if confirmingQuit{sourceNavigationCancellation?.cancel()}};progress?.confirmingQuit=confirmingQuit}}
     var handoffPresentation:MergeWindowPresentation?
     var afterClose:((@escaping()->Void)->Void)?
     struct FormContext:Equatable {let owner:ObjectIdentifier;let revision:UUID}
     var formContext:FormContext {.init(owner:ObjectIdentifier(self),revision:formRevision)}
     var canEditForm:Bool {!invalidated && !finished && !confirmingQuit && !activeOperation && completed == nil}
+    var formPreferences:UserDefaults {preferences}
     func field<Value>(_ key:ReferenceWritableKeyPath<CloneWindowModel,Value>,context:FormContext)->Binding<Value>{
         Binding(get:{self[keyPath:key]},set:{value in guard self.canEditForm,self.formContext == context else{return};self[keyPath:key]=value})
     }
@@ -166,7 +169,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     var onExplore: (URL) -> Void = { _ in }
     func invalidate() {
         guard !invalidated else{return}
-        invalidated = true; operationCancellation?.cancel(); progress?.invalidate(); keyAccess = nil
+        invalidated = true; operationCancellation?.cancel();sourceNavigationCancellation?.cancel();navigationEpoch=UUID(); progress?.invalidate(); keyAccess = nil
         formRevision=UUID()
         if let panel=openPanel,panelRelease == nil {
             let release=CloneChildRelease(window:panel,parent:window,closeWindow:true){ [self] in
@@ -189,6 +192,22 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     private var sourceAccess: RepositoryAccessLease?
     private var keyAccess: RepositoryAccessLease?
     private var automaticDirectory: String?
+    var bareResultSetup=BareRepositoryResultSetup()
+    enum SourceBrowseAction:Int,CaseIterable {case local=0,open=1
+        var title:String {self == .local ? "Browse…":"Open"}
+    }
+    @Published private(set) var sourceBrowseAction:SourceBrowseAction
+    private var navigationEpoch=UUID()
+    struct NavigationReceipt:Equatable {
+        let context:FormContext,epoch:UUID,draft:[GitReferenceName]
+    }
+    var navigationReceipt:NavigationReceipt {.init(context:formContext,epoch:navigationEpoch,draft:draft)}
+    var canNavigateSource:Bool {canEditForm && window?.attachedSheet==nil}
+    private var sourceNavigationCancellation:OperationCancellation?
+    @Published private(set) var navigatingSource=false
+    func cancelSourceNavigation(){sourceNavigationCancellation?.cancel();if navigatingSource{openPanel?.cancel(nil)}}
+    var openSourceURL:(URL,OperationCancellation)async throws->Bool={url,token in try token.check();return NSWorkspace.shared.open(url)}
+    var revealSourceURL:(URL,OperationCancellation)async throws->Bool={url,token in try token.check();return NSWorkspace.shared.selectFile(url.path,inFileViewerRootedAtPath:"")}
     @Published private(set) var urls: [String]
     @Published private(set) var keys: [String]
     var close: () -> Void = {}
@@ -198,6 +217,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     private var clonedRepository: GitRepository?
     init(directory: URL?, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, executable: URL? = nil, clipboardText:String? = nil) {
         self.preferences = preferences; self.executable = executable
+        sourceBrowseAction=SourceBrowseAction(rawValue:preferences.integer(forKey:"CloneBrowse")) ?? .local
         let defaults = preferences
         self.directory = directory?.path ?? defaults.string(forKey: "Clone.Directory") ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].path
         recursive = defaults.bool(forKey: "Clone.Recursive")
@@ -262,6 +282,64 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     func browseSource() {
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.prompt = "Select repository"
         browse(panel) { [weak self] url in self?.sourceAccess = RepositoryAccessLease(url: url); self?.source = url.path; self?.sourceChanged() }
+    }
+    func navigateSource(_ action:SourceBrowseAction,receipt:NavigationReceipt) {
+        guard canEditForm,window?.attachedSheet==nil,receipt==navigationReceipt else{return}
+        navigationEpoch=UUID();sourceBrowseAction=action;preferences.set(action.rawValue,forKey:"CloneBrowse")
+        if action == .local {browseSource();return}
+        let text=source.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard !text.isEmpty,!text.utf8.contains(0) else{error="Enter a repository URL or local repository path.";return}
+        let local:URL?
+        if text.hasPrefix("/") {local=URL(fileURLWithPath:text)}
+        else if let url=URL(string:text),url.isFileURL,url.host?.isEmpty != false || url.host=="localhost" {local=url}
+        else if (!text.contains(":") || text.hasPrefix("./") || text.hasPrefix("../")),directory.trimmingCharacters(in:.whitespacesAndNewlines).hasPrefix("/"),let cwd=try? CloneOptions.workingDirectory(for:URL(fileURLWithPath:directory.trimmingCharacters(in:.whitespacesAndNewlines))) {local=cwd.appendingPathComponent(text).standardizedFileURL}
+        else {local=nil}
+        let remote=URL(string:text)
+        guard local?.path.utf8.contains(0) != true,local != nil || remote?.scheme != nil && remote?.isFileURL != true else{error="Could not open the repository URL or local path.";return}
+        let token=OperationCancellation(),context=formContext,snapshot=draft
+        sourceNavigationCancellation=token;navigatingSource=true;granting=true;beginWork();error=nil
+        Task { [self] in
+            defer{if sourceNavigationCancellation===token{sourceNavigationCancellation=nil;navigatingSource=false;granting=false};endWork()}
+            do {
+                @MainActor func live() throws {
+                    try token.check()
+                    guard !invalidated,!finished,!confirmingQuit,formContext==context,draft==snapshot else{throw OperationCancellationFailure.cancelled}
+                }
+                let opened:Bool
+                if var location=local {
+                    let original=location
+                    try live()
+                    var navigationAccess=sourceAccess
+                    if GitRuntime.isAppStoreBuild {
+                        guard let lease=await grant(location,current:navigationAccess,message:"Authorize opening the local source repository.") else{return}
+                        try live();navigationAccess=lease
+                    }
+                    // ExploreTo reveals the closest existing ancestor when the
+                    // original folder has gone away. Preserve its literal path.
+                    while !FileManager.default.fileExists(atPath:location.path) {
+                        let parent=location.deletingLastPathComponent()
+                        guard parent.path != location.path else{throw CloneFailure.source}
+                        location=parent
+                        if GitRuntime.isAppStoreBuild,navigationAccess?.contains(location) != true {
+                            guard let lease=await grant(location,current:nil,message:"Authorize the closest existing source folder.") else{return}
+                            try live();navigationAccess=lease
+                        }
+                    }
+                    var directory:ObjCBool=false
+                    _=FileManager.default.fileExists(atPath:location.path,isDirectory:&directory)
+                    let authority=directory.boolValue ? location:location.deletingLastPathComponent()
+                    guard let lease=await grant(authority,current:navigationAccess,message:"Authorize opening the local source repository.") else{return}
+                    try live();sourceAccess=lease
+                    let revealed=try await revealSourceURL(location,token)
+                    try live()
+                    if revealed {opened=true}else{opened=try await openSourceURL(original,token)}
+                    withExtendedLifetime(lease){}
+                } else if let remote {try live();opened=try await openSourceURL(remote,token)}
+                else {throw CloneFailure.source}
+                try live()
+                if !opened {error="Could not open the repository URL or local path."}
+            }catch{if !invalidated,!confirmingQuit,!token.isCancelled,formContext==context,draft==snapshot{self.error=error.localizedDescription}}
+        }
     }
     func browseDirectory() {
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
@@ -342,6 +420,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
             busy = true; output = nil; error = nil
             if let onProgress {
                 let result = CloneProgressWindowModel(options: snapshot, destination: destination, executable: executable, destinationAccess: access, sourceAccess: capturedSourceAccess, keyAccess: capturedKeyAccess, preferences: preferences,backend:capturedBackend)
+                result.bareResultSetup=bareResultSetup
                 result.makeSSHCoordinator = sshFactory
                 result.onNotificationLog=onNotificationLog
                 result.onCloned = { [weak self] repo, output in self?.recordClone(repo, output: output, options: snapshot, destination: destination, access: access, keyAccess: capturedKeyAccess) }
@@ -382,8 +461,13 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         let repo=options.bare ? candidate:GitRepository(root:try await candidate.discoverRoot(cancellation:token),executable:candidate.executable)
         try token.check();guard !invalidated else {return}
         if GitRuntime.isAppStoreBuild && !access.contains(repo.root) {throw RepositoryAccessFailure.repositoryRootOutsidePermission(repo.root.path)}
-        pendingInspection=nil;completionWarning=outcome.warnings.isEmpty ? nil:outcome.warnings.joined(separator:"\n")
-        recordClone(repo,output:outcome.summary,options:options,destination:destination,access:access,keyAccess:keyAccess)
+        let actualBare=try await repo.isBare(cancellation:token)
+        let setupWarning=await bareResultSetup.apply(repository:repo,destination:destination,access:access,verifiedBare:actualBare,cancellation:token)
+        guard !invalidated else{return}
+        let warnings=outcome.warnings+[setupWarning].compactMap{$0}
+        let summary=CloneOutcome(output:outcome.output,warnings:warnings).summary
+        pendingInspection=nil;completionWarning=warnings.isEmpty ? nil:warnings.joined(separator:"\n")
+        recordClone(repo,output:summary,options:options,destination:destination,access:access,keyAccess:keyAccess)
     }
     func retryOpeningRepository() {
         guard !invalidated,!confirmingQuit,!activeOperation,pendingInspection != nil else {return}
@@ -405,6 +489,24 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
 
 struct CloneDialog: View {
     @ObservedObject var model: CloneWindowModel
+    private func commands(_ context:CloneWindowModel.FormContext)->[ReferenceFormCommand] {
+        [
+            .init(id:"cloneURL",title:"URL",key:"u",sourceKey:"u",icon:.clone,focus:"Repository URL",action:{}),
+            .init(id:"cloneDirectory",title:"Directory",key:"d",sourceKey:"d",icon:.explore,focus:"Destination directory",action:{}),
+            .init(id:"cloneBrowse",title:"Browse source",key:"b",sourceKey:"b",icon:.open,action:{model.navigateSource(model.sourceBrowseAction,receipt:model.navigationReceipt)}),
+            .init(id:"cloneBrowseDirectory",title:"Browse destination",key:"w",sourceKey:"w",icon:.explore,action:{model.browseDirectory()}),
+            .init(id:"cloneKey",title:"Auto-load SSH key",key:"k",sourceKey:"k",enabled:model.supportsKey && model.sshAvailable,focus:"OpenSSH private key",action:{model.field(\.useKey,context:context).wrappedValue.toggle()}),
+            .init(id:"cloneSVN",title:"From SVN Repository",key:"s",sourceKey:"s",action:{model.field(\.svn,context:context).wrappedValue.toggle();model.svnChanged()}),
+            .init(id:"cloneTrunk",title:"Trunk",key:"t",sourceKey:"t",enabled:model.svn,focus:"Trunk",action:{model.field(\.useTrunk,context:context).wrappedValue.toggle()}),
+            .init(id:"cloneTags",title:"Tags",key:"g",sourceKey:"g",enabled:model.svn,focus:"Tags",action:{model.field(\.useTags,context:context).wrappedValue.toggle()}),
+            .init(id:"cloneBranches",title:"SVN branches",key:"h",sourceKey:"h",enabled:model.svn,focus:"SVN branches",action:{model.field(\.useBranches,context:context).wrappedValue.toggle()}),
+            .init(id:"cloneFrom",title:"Starting revision",key:"f",sourceKey:"f",enabled:model.svn,focus:"Starting revision",action:{model.field(\.useFrom,context:context).wrappedValue.toggle()}),
+            .init(id:"cloneUsername",title:"Username",key:"n",sourceKey:"n",enabled:model.svn,focus:"SVN username",action:{model.field(\.useUsername,context:context).wrappedValue.toggle()}),
+            .init(id:"cloneDepth",title:"Depth",key:"e",enabled:!model.svn,focus:"Depth",action:{model.field(\.useDepth,context:context).wrappedValue.toggle()}),
+            .init(id:"cloneBranch",title:"Branch",key:"r",icon:.branch,enabled:!model.svn,focus:"Branch",action:{model.field(\.useBranch,context:context).wrappedValue.toggle()}),
+            .init(id:"cloneOrigin",title:"Origin Name",key:"o",enabled:!model.bare,focus:"Origin name",action:{model.field(\.useOrigin,context:context).wrappedValue.toggle()})
+        ]
+    }
     var body: some View {
         let context=model.formContext,urls=model.urls,keys=model.keys
         VStack(alignment: .leading, spacing: 14) {
@@ -423,23 +525,19 @@ struct CloneDialog: View {
                 GroupBox("Clone Existing Repository") {
                     VStack(spacing: 12) {
                         HStack { Text("URL:").frame(width: 70, alignment: .leading); CloneHistoryCombo(value: model.field(\.source,context:context), choices: model.urls, label: "Repository URL",onDelete:{index in guard model.formContext==context,model.urls.map({GitReferenceName($0)})==urls.map({GitReferenceName($0)}) else{return};model.deleteURLHistory(at:index)})
-                            Button("Browse…") { model.browseSource() }
-                            Menu {
-                                Button { if let url = URL(string: model.source), ["https", "http"].contains(url.scheme ?? "") { NSWorkspace.shared.open(url) } } label: { CommandLabel(title: "Open URL", icon: .open) }
-                                Button { model.browseSource() } label: { CommandLabel(title: "Browse local repository…", icon: .explore) }
-                            } label: { Image(systemName: "chevron.down") }.menuStyle(.borderlessButton).frame(width: 18)
+                            CloneSourceBrowseControl(model:model).fixedSize()
                         }
                         HStack { Text("Directory:").frame(width: 70, alignment: .leading); PathEntryField(text: model.field(\.directory,context:context), label: "Destination directory", permissions: model.pathCompletionPermissions, preferences: model.pathCompletionPreferences, mayEdit: { model.pathCompletionAvailable }).frame(height: 22); Button("Browse…") { model.browseDirectory() } }
                         HStack {
-                            Toggle("Depth", isOn: model.field(\.useDepth,context:context)).disabled(model.svn); TextField("Depth", text: model.field(\.depth,context:context)).frame(width: 48).disabled(!model.useDepth || model.svn)
-                            Toggle("Recursive", isOn: model.field(\.recursive,context:context)).disabled(model.svn || model.bare)
-                            Toggle("Clone into Bare Repo", isOn: model.field(\.bare,context:context)).disabled(model.svn || model.recursive || model.noCheckout || model.useOrigin)
-                            Toggle("No Checkout", isOn: model.field(\.noCheckout,context:context)).disabled(model.svn || model.bare)
+                            Group {Toggle("Depth", isOn: model.field(\.useDepth,context:context)).disabled(model.svn); TextField("Depth", text: model.field(\.depth,context:context)).frame(width: 48).disabled(!model.useDepth || model.svn)}.help("Create a shallow clone with history truncated to the specified number of revisions.")
+                            Toggle("Recursive", isOn: model.field(\.recursive,context:context)).disabled(model.svn || model.bare).help("Submodules are initialized and cloned using their default settings.")
+                            Toggle("Clone into Bare Repo", isOn: model.field(\.bare,context:context)).disabled(model.svn || model.recursive || model.noCheckout || model.useOrigin).help("Clone into a Git repository without a working tree.")
+                            Toggle("No Checkout", isOn: model.field(\.noCheckout,context:context)).disabled(model.svn || model.bare).help("Do not check out HEAD after cloning.")
                             Spacer(minLength: 0)
                         }
                         HStack {
-                            Toggle("Branch", isOn: model.field(\.useBranch,context:context)).disabled(model.svn); TextField("Branch", text: model.field(\.branch,context:context)).disabled(!model.useBranch || model.svn)
-                            Toggle("Origin Name", isOn: model.field(\.useOrigin,context:context)).disabled(model.bare); TextField("Origin name", text: model.field(\.origin,context:context)).disabled(!model.useOrigin || model.bare)
+                            Group {Toggle("Branch", isOn: model.field(\.useBranch,context:context)).disabled(model.svn); TextField("Branch", text: model.field(\.branch,context:context)).disabled(!model.useBranch || model.svn).frame(minWidth:0,maxWidth:.infinity)}.help("Point the new HEAD to this branch instead of the remote repository’s default branch.")
+                            Group {Toggle("Origin Name", isOn: model.field(\.useOrigin,context:context)).disabled(model.bare); TextField("Origin name", text: model.field(\.origin,context:context)).disabled(!model.useOrigin || model.bare).frame(minWidth:0,maxWidth:.infinity)}.help("Use this name instead of origin for the remote repository.")
                         }
                     }.padding(8)
                 }
@@ -474,6 +572,8 @@ struct CloneDialog: View {
         .onChange(of: model.source) { _ in guard model.formContext==context else{return};model.sourceChanged() }
         .onChange(of: model.svn) { _ in guard model.formContext==context else{return};model.svnChanged() }
         .onChange(of: model.bare) { value in if value,model.canEditForm,model.formContext==context { model.recursive = false; model.noCheckout = false; model.useOrigin = false } }
+        .background(ReferenceFormCommands(entries:commands(context),preferences:model.formPreferences,available:{model.canEditForm},changes:model.objectWillChange.eraseToAnyPublisher()).frame(width:0,height:0))
+        .overlay(alignment:.bottomLeading){if model.navigatingSource{Button("Cancel") {model.cancelSourceNavigation()}.padding(16).disabled(model.confirmingQuit)}}
         .alert("Clone failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }
 }
@@ -489,8 +589,9 @@ struct CloneHistoryCombo: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSComboBox {
         let combo: NSComboBox = onDelete == nil ? NSComboBox():EditableHistoryCombo(); combo.delegate = context.coordinator; combo.completes = true
-        combo.setContentHuggingPriority(.defaultLow, for: .horizontal); return combo
+        combo.setContentHuggingPriority(.defaultLow, for: .horizontal);combo.setContentCompressionResistancePriority(.defaultLow,for:.horizontal); return combo
     }
+    func sizeThatFits(_ proposal:ProposedViewSize,nsView:NSComboBox,context:Context)->CGSize? {referenceFormControlSize(proposal,height:24)}
     func updateNSView(_ combo: NSComboBox, context: Context) {
         context.coordinator.wordCommands.policy=GitInputWordBreak(mode:UInt32(truncatingIfNeeded:wordBreakMode))
         let coordinator = context.coordinator; coordinator.updating = true; defer { coordinator.updating = false }
@@ -501,7 +602,7 @@ struct CloneHistoryCombo: NSViewRepresentable {
             coordinator.choices=choices
         }
         if !GitReferenceName.equal(combo.stringValue,value) { combo.stringValue = value }
-        combo.isEnabled = enabled; combo.setAccessibilityLabel(label)
+        combo.isEnabled = enabled; combo.setAccessibilityLabel(label);combo.toolTip=value
     }
     static func dismantleNSView(_ combo:NSComboBox,coordinator:Coordinator) {combo.delegate=nil;(combo as? EditableHistoryCombo)?.deleteHistory=nil}
     @MainActor final class Coordinator: NSObject, NSComboBoxDelegate {
@@ -516,6 +617,80 @@ struct CloneHistoryCombo: NSViewRepresentable {
         var choices: [String] = []; var updating = false; var change: (String) -> Void = { _ in }
         func controlTextDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox else { return }; change(combo.stringValue) }
         func comboBoxSelectionDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox, choices.indices.contains(combo.indexOfSelectedItem) else { return }; change(choices[combo.indexOfSelectedItem]) }
+    }
+}
+
+@MainActor final class CloneSourceBrowseNativeControl:NSSegmentedControl {
+    let lifetime=TransportControlLifetime()
+    var primaryKeyAction:(()->Void)?
+    override var acceptsFirstResponder:Bool {isEnabled && !lifetime.retired}
+    override func viewDidMoveToWindow(){super.viewDidMoveToWindow();lifetime.observe(self)}
+    @discardableResult func showActionMenu()->Bool {
+        guard isEnabled,!lifetime.retired,let window,window.attachedSheet==nil,let menu=menu(forSegment:1) else{return false}
+        return menu.popUp(positioning:nil,at:NSPoint(x:bounds.maxX,y:bounds.minY),in:self)
+    }
+    override func accessibilityPerformShowMenu()->Bool {showActionMenu()}
+    override func keyDown(with event:NSEvent) {
+        let flags=event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if event.keyCode==118 && flags.isEmpty || event.keyCode==125 && flags == .option || event.keyCode==109 && flags == .shift {_=showActionMenu();return}
+        if [36,76,49].contains(event.keyCode),flags.isEmpty,isEnabled,!lifetime.retired {primaryKeyAction?();return}
+        super.keyDown(with:event)
+    }
+}
+struct CloneSourceBrowseControl:NSViewRepresentable {
+    @ObservedObject var model:CloneWindowModel
+    @Environment(\.isEnabled) private var enabled
+    func makeCoordinator()->Coordinator {Coordinator()}
+    func makeNSView(context:Context)->CloneSourceBrowseNativeControl {
+        let control=CloneSourceBrowseNativeControl(labels:["Browse…",""],trackingMode:.momentary,target:context.coordinator,action:#selector(Coordinator.clicked(_:)))
+        control.identifier = .init("Clone source navigation");control.setAccessibilityLabel(NSLocalizedString("Clone source navigation",comment:""));control.segmentStyle = .rounded
+        control.primaryKeyAction={ [weak coordinator=context.coordinator] in coordinator?.invokePrimary() }
+        control.lifetime.onRetire={ [weak coordinator=context.coordinator,weak control] in control?.primaryKeyAction=nil;coordinator?.retire() }
+        context.coordinator.control=control;return control
+    }
+    func updateNSView(_ control:CloneSourceBrowseNativeControl,context:Context) {
+        guard !control.lifetime.retired else{control.isEnabled=false;return}
+        let coordinator=context.coordinator;coordinator.bind(model)
+        control.isEnabled=enabled && model.canNavigateSource
+        let title=NSLocalizedString(model.sourceBrowseAction.title,comment:"")
+        control.setLabel(title,forSegment:0);control.setWidth(max(100,ceil((title as NSString).size(withAttributes:[.font:NSFont.systemFont(ofSize:NSFont.systemFontSize)]).width)+46),forSegment:0)
+        control.setImage((model.sourceBrowseAction == .local ? MenuIcon.explore:.open).contextImage(defaults:model.formPreferences),forSegment:0)
+        control.setWidth(24,forSegment:1);control.setShowsMenuIndicator(true,forSegment:1)
+        let menu=NSMenu();menu.autoenablesItems=false;menu.delegate=coordinator
+        for action in CloneWindowModel.SourceBrowseAction.allCases {
+            let item=NSMenuItem(title:NSLocalizedString(action.title,comment:""),action:#selector(Coordinator.chosen(_:)),keyEquivalent:"")
+            item.target=coordinator;item.representedObject=action.rawValue;item.state=action==model.sourceBrowseAction ? .on:.off;item.isEnabled=control.isEnabled
+            item.image=(action == .local ? MenuIcon.explore:.open).contextImage(defaults:model.formPreferences);menu.addItem(item)
+        }
+        control.setMenu(menu,forSegment:1);control.invalidateIntrinsicContentSize()
+    }
+    static func dismantleNSView(_ control:CloneSourceBrowseNativeControl,coordinator:Coordinator) {
+        control.primaryKeyAction=nil;control.lifetime.retire();coordinator.retire();control.menu(forSegment:1)?.delegate=nil;control.setMenu(nil,forSegment:1);control.target=nil;control.action=nil;control.isEnabled=false
+    }
+    @MainActor final class Coordinator:NSObject,NSMenuDelegate {
+        weak var control:CloneSourceBrowseNativeControl?
+        private weak var model:CloneWindowModel?
+        private var observation:AnyCancellable?,receipt:CloneWindowModel.NavigationReceipt?
+        private var retired=false,menuEpoch=UUID()
+        func bind(_ model:CloneWindowModel) {
+            guard !retired,self.model !== model else{return};self.model=model
+            observation=model.objectWillChange.sink{[weak self] _ in self?.receipt=nil;self?.menuEpoch=UUID()}
+        }
+        func retire(){retired=true;receipt=nil;observation=nil;model=nil}
+        private var ready:Bool {guard !retired,let control,control.isEnabled,!control.lifetime.retired,let window=control.window,let model else{return false};return model.window===window && model.canNavigateSource}
+        func invokePrimary(){guard ready,let model else{return};model.navigateSource(model.sourceBrowseAction,receipt:model.navigationReceipt)}
+        @objc func clicked(_ sender:NSSegmentedControl){guard sender===control,sender.selectedSegment==0 else{return};invokePrimary()}
+        func menuWillOpen(_ menu:NSMenu) {
+            receipt=nil;menuEpoch=UUID()
+            guard ready,let control,control.menu(forSegment:1)===menu,let model else{for item in menu.items{item.isEnabled=false};return}
+            receipt=model.navigationReceipt;for item in menu.items{item.isEnabled=true}
+        }
+        func menuDidClose(_ menu:NSMenu){let epoch=menuEpoch;DispatchQueue.main.async{[weak self] in guard let self,self.menuEpoch==epoch else{return};self.receipt=nil}}
+        @objc func chosen(_ item:NSMenuItem) {
+            guard ready,let control,item.menu===control.menu(forSegment:1),item.isEnabled,let raw=item.representedObject as? Int,
+                  let action=CloneWindowModel.SourceBrowseAction(rawValue:raw),let model,let receipt else{return}
+            self.receipt=nil;model.navigateSource(action,receipt:receipt)
+        }
     }
 }
 
@@ -584,6 +759,7 @@ enum ClonePostAction: String, Hashable {
     @Published private(set) var warnings:[String]=[]
     private var completedOutcome:CloneOutcome?
     private var adopted=false
+    var bareResultSetup = BareRepositoryResultSetup()
     var inspectRepository:(GitRepository,Bool,OperationCancellation) async throws -> GitRepository = {candidate,bare,token in
         try token.check()
         return bare ? candidate:GitRepository(root:try await candidate.discoverRoot(cancellation:token),executable:candidate.executable)
@@ -685,8 +861,13 @@ enum ClonePostAction: String, Hashable {
         try cancellation.check()
         if GitRuntime.isAppStoreBuild && !destinationAccess.contains(repo.root) {throw RepositoryAccessFailure.repositoryRootOutsidePermission(repo.root.path)}
         guard !invalidated,!abandoned else {return}
+        let actualBare = try await repo.isBare(cancellation:cancellation)
+        guard !invalidated,!abandoned else {return}
+        let warning = await bareResultSetup.apply(repository:repo,destination:destination,access:destinationAccess,verifiedBare:actualBare,cancellation:cancellation)
+        guard !invalidated,!abandoned else {return}
+        if let warning,!warnings.contains(warning) {warnings.append(warning);appendDiagnostic(warning)}
         repository=repo;success=true;postActions=[.log,.explore]
-        if !adopted {adopted=true;onCloned(repo,outcome.summary)}
+        if !adopted {adopted=true;onCloned(repo,outcome.summary + (warning.map{"\n" + $0} ?? ""))}
     }
     private func retryInspection() {
         guard let outcome=completedOutcome,!busy,!hasPendingWork,!confirmingQuit,!invalidated else {return}

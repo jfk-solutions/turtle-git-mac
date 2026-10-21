@@ -14,6 +14,15 @@ and progress windows; inspect the result before continuing. A failed Clone can
 leave partial files: retry does not delete them for you. See [Clone parity](CLONE-PARITY.md)
 for supported options, cancellation and remaining authentication work.
 
+The source button remembers **Browse…** or **Open**. Use its arrow to change the
+action. Open reveals a local source in Finder (or its closest existing parent)
+or opens a remote URL using its registered application. It does not start a clone.
+Local sources may require folder permission. Cancel stops a pending source request.
+
+After successful bare creation or cloning, TurtleGit sets its branded folder icon
+when no existing custom icon is present. An icon failure is reported separately:
+the Git repository remains created and you do not need to repeat Init or Clone.
+
 Opening a working repository enables the status, commit and history workflows.
 Bare repositories support history and remote operations but do not have a
 working tree to edit or commit. If saved folder access cannot be renewed, select

@@ -47,6 +47,7 @@
 		10EF906D8E37E89B852F673F /* MergeToolInvocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2414E7EA280472578E361D36 /* MergeToolInvocation.swift */; };
 		114EB220A33E2848C99E7466 /* WorkingFileRevert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */; };
 		11E2CC727FCB9A795D663F7F /* ClientHookRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B5CA377E560923FE6C0F849 /* ClientHookRuntime.swift */; };
+		1301BA2C5FE3CE34CB73318E /* BareRepositoryResultSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBF8CAAEDB347125AFE8C0A9 /* BareRepositoryResultSetup.swift */; };
 		135F13D3322EDDAFD3C718DA /* GitWorktrees.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50B9BC6078F637B8F0A3E3E2 /* GitWorktrees.swift */; };
 		140D138F7FCA43BF5C95B83B /* TurtleGitMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */; };
 		153F98E7380923ABB8849622 /* MergePaneInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BD4A5B48656E62C6797DF26 /* MergePaneInput.swift */; };
@@ -1024,6 +1025,7 @@
 		F92C83C2562E61AC44E27CB5 /* RepositoryFileEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryFileEvents.swift; sourceTree = "<group>"; };
 		FA0407EF51F807A4F8D86FDA /* HistoryOrdering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryOrdering.swift; sourceTree = "<group>"; };
 		FBE98FBF5981527BD422EDFB /* StatisticsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsWindow.swift; sourceTree = "<group>"; };
+		FBF8CAAEDB347125AFE8C0A9 /* BareRepositoryResultSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BareRepositoryResultSetup.swift; sourceTree = "<group>"; };
 		FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparisonEditing.swift; sourceTree = "<group>"; };
 		FD45183DEC1DC8D873F67BD7 /* LocalizationManifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = LocalizationManifest.json; sourceTree = "<group>"; };
 		FF1FD77D0F8E1D8790692A3D /* MergeFind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeFind.swift; sourceTree = "<group>"; };
@@ -1114,6 +1116,7 @@
 				5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */,
 				C04625726FBB2128C5DAD515 /* ApplicationIntroduction.swift */,
 				D16465B7DCE5BB303F553610 /* AutotextTester.swift */,
+				FBF8CAAEDB347125AFE8C0A9 /* BareRepositoryResultSetup.swift */,
 				95BD991FB21CB7C18C0CA1DE /* BinaryComparisonWindow.swift */,
 				2889759BB2F79152E342606E /* BisectWindow.swift */,
 				7C3A0368920E97DF4AFA1318 /* BlameMenuCommands.swift */,
@@ -2274,6 +2277,7 @@
 				230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */,
 				C672D529AE0E510EB83F8167 /* ApplicationIntroduction.swift in Sources */,
 				B6DE7C8AE3A9B25FFE8B6982 /* AutotextTester.swift in Sources */,
+				1301BA2C5FE3CE34CB73318E /* BareRepositoryResultSetup.swift in Sources */,
 				B0800F27EB6F7C31065C7970 /* BinaryComparisonWindow.swift in Sources */,
 				C0DFDDFC2CEFE1853FEDEA84 /* BisectWindow.swift in Sources */,
 				C0CB11DFCDE279F6A54841FD /* BlameMenuCommands.swift in Sources */,
