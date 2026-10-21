@@ -8,10 +8,13 @@ Reference: `SubmoduleResolveConflictDlg.cpp`, `CAppUtils::ConflictEdit`,
 
 The native resizable window follows the upstream path/Help header and three
 vertical groups. Base shows revision, subject and Show log; each destination adds
-Type and Use this. Parent-operation reference identities label the destination
+Type and Use this. The later [dialog actions family](SUBMODULE-DIALOG-ACTIONS-PARITY.md)
+corrects destination Show log to the Type row and Use this to the Revision row.
+Parent-operation reference identities label the destination
 groups. Rebase reverses displayed sides while retaining their actual stage choices.
-Show log opens the child repository with history ending at the displayed commit.
-Unavailable history buttons are disabled and unavailable subjects are red.
+Show log opens the child repository with history ending at and selecting the
+displayed commit. Unavailable history buttons are disabled; the dialog actions
+family restores white text on a red background for unavailable subjects.
 
 For initialized submodules the displayed Base is child HEAD, as upstream specifies.
 The captured index stages remain separate and are revalidated before resolution.

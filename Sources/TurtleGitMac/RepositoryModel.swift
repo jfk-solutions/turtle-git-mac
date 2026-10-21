@@ -1769,15 +1769,21 @@ private enum TransportBatchPresentationContext {
                 try await validateConflictEditorEntry(entry, repository: repository, token: token)
                 request.dismissProgress()
                 if let conflictEditorPresentation { conflictEditorPresentation(.submodule, repository, path, nil); return }
-                let controller = submoduleConflictWindows[key] ?? SubmoduleConflictWindowController(repository: repository, access: access, path: path, preferences: defaults)
-                controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.submoduleConflictWindows[key] === controller else { return }; self.submoduleConflictWindows.removeValue(forKey: key) }
+                let conflictKey=key+"\0git:"+repository.executable.path+"\0preferences:"+String(describing:ObjectIdentifier(defaults))
+                let reusable=submoduleConflictWindows[conflictKey].flatMap{$0.canReuse ? $0:nil}
+                let controller=reusable ?? SubmoduleConflictWindowController(repository:repository,access:access,path:path,preferences:defaults)
+                controller.onClosed={ [weak self,weak controller] in guard let self,let controller,self.submoduleConflictWindows[conflictKey] === controller else{return};self.submoduleConflictWindows.removeValue(forKey:conflictKey) }
                 controller.model.onChanged = { [weak self] output in
                     self?.refreshAfterConflictChange(root)
                     if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                 }
-                controller.model.onLog = { [weak self] child, revision in self?.showLog(repository: child, access: access, paths: [], endRevision: revision) }
-                controller.model.onReset = { [weak self, weak controller] child, revision, done in self?.showReset(repository: child, access: access, revision: revision, completion: done, dismissed: { [weak controller] in controller?.model.dismissReset() }) }
-                submoduleConflictWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller)
+                let preferences=controller.model.operation.preferences
+                controller.model.onLog={ [weak self] child,revision in self?.showLog(repository:child,access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:preferences) }
+                controller.model.onReset={ [weak self,weak controller] child,revision,done in
+                    guard let self,!self.retired,!self.confirmingQuit,let controller,controller.canReuse,!controller.model.confirmingQuit else{controller?.model.dismissReset();return}
+                    self.showReset(repository:child,access:access,revision:revision,completion:done,dismissed:{[weak controller] in controller?.resetChildClosed()},preferences:preferences,onCreated:{[weak controller] in controller?.retainReset($0)})
+                }
+                submoduleConflictWindows[conflictKey] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller)
                 }
             } catch { if !retired, !request.session.cancellation.isCancelled, !confirmingQuit { self.error = error.localizedDescription } }
         }
@@ -1830,7 +1836,8 @@ private enum TransportBatchPresentationContext {
             }
         }
     }
-    private func showReset(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, mode: ResetMode? = nil, completion: (() -> Void)? = nil, dismissed: (() -> Void)? = nil, preferences: UserDefaults? = nil) {
+    var resetWindowPresentation:((ResetWindowController)->Void)?
+    private func showReset(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, mode: ResetMode? = nil, completion: (() -> Void)? = nil, dismissed: (() -> Void)? = nil, preferences: UserDefaults? = nil, onCreated:((ResetWindowController)->Void)?=nil) {
         guard !confirmingQuit else { return }
         let root = repository.root, key = root.path + "\0" + (revision.map { $0 + "\0" + UUID().uuidString } ?? "")
         if revision == nil, let existing = resetWindows[key] {
@@ -1841,7 +1848,9 @@ private enum TransportBatchPresentationContext {
         if let mode { controller.model.mode = mode }
         controller.onClosed = { [weak self] in self?.resetWindows.removeValue(forKey: key); dismissed?() }
         configureResetInteractions(controller, repository: repository, access: access, completion: completion)
-        resetWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        resetWindows[key]=controller;onCreated?(controller)
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
+        if let resetWindowPresentation {resetWindowPresentation(controller)}else{controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
     }
     private func refreshAfterConflictChange(_ root:URL) {
         ConflictListRefreshPolicy.perform(preferences:fileComparisonPreferences) {
@@ -2559,15 +2568,19 @@ private enum TransportBatchPresentationContext {
     private func showSubmoduleDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String = "HEAD", to: String? = nil, fromPath: String? = nil, fromIndex: Bool = false, preferences: UserDefaults? = nil, appearance: NSAppearance? = nil, alpha: CGFloat? = nil) {
         guard !retired, !confirmingQuit else { return }
         let defaults = preferences ?? fileComparisonPreferences
-        let key = repository.root.path + "\0" + path + "\0" + from + "\0" + (to ?? "Working tree") + "\0" + (fromPath ?? path) + "\0" + String(fromIndex) + "\0preferences:" + String(describing: ObjectIdentifier(defaults))
-        let controller = submoduleDiffWindows[key] ?? SubmoduleDiffWindowController(repository: repository, access: access, path: path, from: from, to: to, fromPath:fromPath,fromIndex:fromIndex,preferences:defaults)
+        let key = repository.root.path + "\0" + path + "\0" + from + "\0" + (to ?? "Working tree") + "\0" + (fromPath ?? path) + "\0" + String(fromIndex) + "\0git:" + repository.executable.path + "\0preferences:" + String(describing: ObjectIdentifier(defaults))
+        let reusable=submoduleDiffWindows[key].flatMap{$0.canReuse ? $0:nil}
+        let controller = reusable ?? SubmoduleDiffWindowController(repository: repository, access: access, path: path, from: from, to: to, fromPath:fromPath,fromIndex:fromIndex,preferences:defaults)
         controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.submoduleDiffWindows[key] === controller else { return }; self.submoduleDiffWindows.removeValue(forKey: key) }
         controller.model.onLog = { [weak self] child, hash in self?.showLog(repository: child, access: access, paths: [], endRevision: hash, selectedRevision: hash, preferences: defaults) }
         controller.model.onStatus = { [weak self] child in self?.showStatus(repository: child, access: access, preferences: defaults) }
         controller.model.onCompare = { [weak self] child, old, new in self?.showRevisionComparison(repository: child, access: access, from: old, to: new, preferences: defaults) }
-        controller.model.onConflict = { [weak self, weak controller] in
-            controller?.window?.close()
-            self?.showConflictEditor(repository: repository, access: access, path: path, preferences: defaults)
+        controller.model.onConflict={ [weak self,weak controller] in
+            guard let controller else{return}
+            controller.closeForConflict { [weak self] in
+                guard let self,!self.retired,!self.confirmingQuit else{return}
+                self.showConflictEditor(repository:repository,access:access,path:path,preferences:defaults,commandLaunch:true)
+            }
         }
         controller.onAttemptCompleted = { [weak self] result in
             guard !result.entries.isEmpty else { return }

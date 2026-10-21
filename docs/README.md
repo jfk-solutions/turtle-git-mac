@@ -162,6 +162,7 @@ for baseline and update rules.
 - [Comparison marks: app and Finder](COMPARISON-MARK-PARITY.md)
 - [Submodule Diff and Changed Files parity](SUBMODULE-DIFF-PARITY.md)
 - [Submodule conflict dialog parity](SUBMODULE-CONFLICT-PARITY.md)
+- [Submodule comparison/conflict actions and ownership](SUBMODULE-DIALOG-ACTIONS-PARITY.md)
 - [Submodule Update parity](SUBMODULE-UPDATE-PARITY.md)
 
 ## Finder integration

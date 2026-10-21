@@ -41,7 +41,10 @@ on yellow. Missing metadata disables comparisons and highlights the subject.
 Update owns the existing Submodule Update options and progress sheets with that path selected. Canceling options releases the owner; the progress result retains ownership until acknowledgment.
 Identical revisions open child repository status; otherwise Show diff compares
 the two child commits. The dirty comparison menu also offers Compare against
-the working tree. F5 refreshes the metadata in place.
+the working tree. F5 refreshes the metadata in place. The later
+[dialog actions family](SUBMODULE-DIALOG-ACTIONS-PARITY.md) supplies the source
+sticky primary action and retires callbacks from an earlier displayed snapshot,
+with ownership retained through actual child/worker drainage.
 
 Changed Files has two revision groups, a path filter, five columns (File,
 Extension, Action, Lines added, Lines deleted), whitespace options, Common

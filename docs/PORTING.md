@@ -1,5 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+The [submodule dialog actions family](SUBMODULE-DIALOG-ACTIONS-PARITY.md) connects
+sticky native Show diff/Compare actions, source action rows and colors, captured
+child Log/Reset preferences and exact revisions, retired cache replacement,
+deferred conflict handoff and real child/worker cleanup. Eight distinct native
+case/engine pairs pass across the grouped checkpoint and affected routing repair.
+Four complete light/dark captures were reviewed; all eleven receivers, including
+the failed fixture attempt, are absent. [Dated evidence](qa/submodule-review-family-2026-10-21.json)
+records compiler/caption/fixture repairs and retained contradictory build diagnostics.
+Core was unchanged and not rerun. Full source, physical, signed and hosted
+acceptance remain open.
+
 The [conflicted Commit family](COMMIT-CONFLICT-INDEX-PARITY.md) connects source
 checkbox selection and live staging state, current-content Stage, remembered
 OK/Ignore and merge hints, unchecked conflict resets, CLI command-phase effects

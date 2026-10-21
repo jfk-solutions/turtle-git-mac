@@ -1,0 +1,125 @@
+{
+  "date": "2026-10-21",
+  "implementation_baseline": "62330c51",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Submodule Diff source sticky split actions and event Shift, captured display receipts, F5/Update/Quit retirement, read/Update child drainage and deferred conflict handoff; Resolve Submodule Conflict source layout/colors/title, exact child Log and Reset preferences, independent origin caches, Reset cancellation/retry and closed-owner retention.",
+  "source_contracts": [
+    "SubmoduleDiffDlg OnInitDialog123-130: identical Compare; dirty known Show diff/Compare. OnBnClickedShowDiff251-265: identical status, dirty Unknown/selected Compare working tree, current action Shift.",
+    "SubmoduleDiffDlg PreTranslateMessage209-214 closes/recreates on F5. Native in-place refresh retires old receipts and resets snapshot-local primary choice.",
+    "SubmoduleResolveConflictDlg ShowLog uses endrev and selected rev; ENG.rc2153-2184 places destination Log by Type and Use this by Revision; unavailable subjects use white on red.",
+    "Visual closure retains actual model/Update/Reset/question producers and sheets until drainage; cache callbacks cannot retire replacement owners."
+  ],
+  "validation": {
+    "status": "Scoped grouped checkpoint passed after recorded compiler, caption and fixture-readiness repairs.",
+    "tests_during_implementation": false,
+    "static_repairs": [
+      "Peer caught synchronous Reset refusal losing dismissal while parent worker busy; dismissal now queues until idle.",
+      "Root caught Quit receipt revival and stale same-content UI closure paths; display generations fence them.",
+      "Root caught retired cached-owner reuse/refusal: replacements are independent and old onClosed uses identity guard.",
+      "Deferred conflict preparation uses commandLaunch to avoid a newly focused unrelated progress owner."
+    ],
+    "initial_app": {
+      "log": "build/qa/submodule-review-app-2026-10-21.log",
+      "exit": 65,
+      "failure": "Two captures in nested owned cancellation Task required explicit self; corrected without behavior change."
+    },
+    "app_repair": {
+      "log": "build/qa/submodule-review-app-repair-2026-10-21.log",
+      "exit": 0,
+      "diagnostic": "Retains contradictory SwiftCompile failed-with-exit0 diagnostics alongside existing native warnings. Actual app objects passed native source/object freshness guard and linked successfully; no clean hosted build claim."
+    },
+    "core": "Not rerun: production Core Git operations/helpers are unchanged. Native checks exercise actual private Git operations through built framework.",
+    "native": {
+      "cases": [
+        "actions",
+        "diff-ownership",
+        "routing",
+        "conflict-ownership"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "distinct_case_engine_pairs_passed": 8,
+      "scope": "Real native segmented menu/main/F5 actions and captured alternate comparison, held metadata readers, actual private Update subprocesses/options/progress, separate origin conflict caches and replacement owners, selected+ending child Log, cancelled Reset and successful real soft Reset\u2192exact gitlink resolution, held warnings, Quit retirement and already-completed Git write after forced close.",
+      "cleanup": "Private repos/preferences and injected questions; offscreen windows/sheets; per-owner and global read/progress/question/child release counters drain before PASS; runner reaps owned process groups on all exits."
+    },
+    "localization_generation": {
+      "languages": 38,
+      "keys": 1309
+    },
+    "help": "No included Help guide changed; parity documents and docs index are outside help-topics.json.",
+    "unrelated_work_preserved": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    },
+    "initial_native": {
+      "log": "build/qa/submodule-review-native-2026-10-21.log",
+      "exit": 0,
+      "case_engine_pairs": 8,
+      "failures": 0
+    },
+    "visual_repair": "Initial complete captures revealed a literal newline cutting off the conflict path header. Use escaped filename display and full tooltip, matching Submodule Diff; model/Git behavior unchanged.",
+    "final_app": {
+      "log": "build/qa/submodule-review-app-caption-repair-2026-10-21.log",
+      "exit": 0,
+      "diagnostic": "Retains contradictory SwiftCompile failed-with-exit0 diagnostic. Current app objects passed source/object freshness guard and final native receiver linking. No clean hosted SDK or signed distribution claim."
+    },
+    "first_focused_native": {
+      "log": "build/qa/submodule-review-native-caption-repair-2026-10-21.log",
+      "exit": 1,
+      "attempted_case_engine_pairs": 1,
+      "failure": "Routing fixture waited only initial busy=false, which is true before ResetDialog.onAppear initializes the model. It could race real initial load and fail the existing formContext fence before progress. Timeout at fixture183. No production behavior repair."
+    },
+    "fixture_repair": "The actual Reset presentation hook calls its idempotent model.load before exposing the controller, then waits exact chosen target, canEditForm and both model/chooser idle. Keeps actual Reset preparation/progress/ack/retry and independent Git assertions; adds phase diagnostics.",
+    "focused_native": {
+      "log": "build/qa/submodule-review-native-routing-fixture-repair-2026-10-21.log",
+      "exit": 0,
+      "case": "routing",
+      "case_engine_pairs": 2,
+      "failures": 0,
+      "scope": "Only affected routing/capture case repeated with system and packaged Git. Other six passing case/engine pairs not repeated."
+    },
+    "owned_receiver_pids": [
+      65618,
+      65724,
+      65802,
+      65886,
+      65970,
+      66337,
+      66701,
+      66958,
+      67361,
+      67924,
+      68292
+    ],
+    "independently_absent": true,
+    "captures": {
+      "count": 4,
+      "reviewed": true,
+      "scope": "Actual complete offscreen light/dark comparison and conflict windows inside planned actions/routing runs. Conflict pair recaptured after caption repair; original historical assets retained.",
+      "paths": [
+        "docs/site/assets/submodule-review-comparison-light.png",
+        "docs/site/assets/submodule-review-comparison-dark.png",
+        "docs/site/assets/submodule-review-conflict-light.png",
+        "docs/site/assets/submodule-review-conflict-dark.png"
+      ]
+    },
+    "localization_check": "passed;38 languages/1309 source label keys, not a complete translation claim",
+    "dialog_coverage_reconcile": "passed;130 resources/120 partial family reviews/10 pending/0 certified; not a feature completion percentage",
+    "site": {
+      "build_log": "build/qa/submodule-review-site-2026-10-21.log",
+      "build_exit": 0,
+      "links_log": "build/qa/submodule-review-site-links-2026-10-21.log",
+      "links_exit": 0,
+      "methods": 2,
+      "scope": "Static documentation generation and local documentation links. Native PNG surfaces inspected independently; no whole-site physical/accessibility claim."
+    }
+  },
+  "remaining": [
+    "Complete source/layout and all missing-object, deinitialized, mixed-type and rebase states.",
+    "Physical keyboard, VoiceOver and Finder action acceptance.",
+    "Signed repository grants and distribution, minimum macOS and physical Intel.",
+    "Complete current hosted CI and App Store distribution acceptance."
+  ]
+}

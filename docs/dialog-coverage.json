@@ -3718,6 +3718,7 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/SUBMODULE-DIALOG-ACTIONS-PARITY.md",
         "docs/SUBMODULE-DIFF-PARITY.md"
       ],
       "qa_records": [
@@ -3725,7 +3726,8 @@
         "docs/qa/changed-files-recovery-2026-10-16.json",
         "docs/qa/parallel-port-families-2026-10-18.json",
         "docs/qa/prepared-submodule-2026-10-16.json",
-        "docs/qa/submodule-handoffs-2026-10-14.json"
+        "docs/qa/submodule-handoffs-2026-10-14.json",
+        "docs/qa/submodule-review-family-2026-10-21.json"
       ]
     },
     {
@@ -4230,11 +4232,13 @@
       "native_sources": [],
       "missing_native_references": [],
       "parity_documents": [
-        "docs/SUBMODULE-CONFLICT-PARITY.md"
+        "docs/SUBMODULE-CONFLICT-PARITY.md",
+        "docs/SUBMODULE-DIALOG-ACTIONS-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/conflict-identities-2026-10-15.json",
-        "docs/qa/conflict-review-2026-10-14.json"
+        "docs/qa/conflict-review-2026-10-14.json",
+        "docs/qa/submodule-review-family-2026-10-21.json"
       ]
     },
     {

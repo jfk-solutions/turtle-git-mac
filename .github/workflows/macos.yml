@@ -615,6 +615,8 @@ jobs:
           python3 scripts/test-submodule-source-family.py
           --git /usr/bin/git
           --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git
+      - name: Native submodule comparison and conflict dialog family
+        run: python3 scripts/test-submodule-review-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Grouped native RefLog comparisons, ranges and revision handoffs with one compilation
         run: >-
           python3 scripts/test-native-reflog-batch.py

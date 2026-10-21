@@ -251,7 +251,7 @@ import TurtleGitCore
         if RevisionGraphFindController.activeOperations > 0 || CommitContainingReferencesWindowController.activeOperations > 0 || RevisionGraphWindowModel.activeOperations > 0 || RevisionGraphFilterController.activeOperations > 0 { return .terminateCancel }
         if FileCopyWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? FileCopyWindowController }).contains(where: { $0.model.question || $0.model.confirmingCancel }) { return .terminateCancel }
         if FileMoveWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? FileMoveWindowController }).contains(where: { $0.model.hasQuestion || $0.model.choosingFolder || $0.model.confirmingCancellation }) { return .terminateCancel }
-        if ConflictReviewOperation.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? DeleteConflictWindowController }).contains(where: { !$0.model.operation.canClose }) || sender.windows.compactMap({ $0.delegate as? SubmoduleConflictWindowController }).contains(where: { !$0.model.operation.canClose }) { return .terminateCancel }
+        if ConflictReviewOperation.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? DeleteConflictWindowController }).contains(where: { !$0.model.operation.canClose }) || sender.windows.compactMap({ $0.delegate as? SubmoduleConflictWindowController }).contains(where: { $0.hasPendingWork || !$0.model.operation.canClose }) { return .terminateCancel }
         if ResolveWindowModel.activeOperations > 0 || ResolveWindowController.activeReleases > 0 || sender.windows.compactMap({ $0.delegate as? ResolveWindowController }).contains(where: { $0.model.hasQuestion || $0.model.hasChild || $0.model.confirmingCancellation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if IgnoreWindowModel.activeOperations > 0 { return .terminateCancel }
         if LogMessageView.Coordinator.activeOperations > 0 { return .terminateCancel }
@@ -286,7 +286,7 @@ import TurtleGitCore
         if RevisionComparisonWindowModel.activeFileOperations > 0 { return .terminateCancel }
         if LogWindowModel.activeReferenceReads > 0 || LogWindowController.activeReferencePickers > 0 || ReferenceBrowserWindowModel.activeReads > 0 { return .terminateCancel }
         if LogWindowModel.activeFileOpenReads > 0 || LogDocumentOpenSession.activeRequests > 0 || LogWindowModel.activeHistoryLoads > 0 || LogWindowModel.activeFilterValidations > 0 { return .terminateCancel }
-        if ExportWindowModel.activeReads > 0 || BranchTagWindowModel.activeReads > 0 || BranchTagWindowModel.activeCreations > 0 || MergeWindowModel.activeReads > 0 || ResetWindowModel.activeReads > 0 || SwitchWindowModel.activeReads > 0 || SubmoduleUpdateWindowModel.activeReads > 0 || SubmoduleWorkingLogSession.activeReads > 0 || SubmoduleUpdateProgressWindowModel.activeOperations > 0 || SubmoduleDiffWindowModel.activeReads > 0 { return .terminateCancel }
+        if ExportWindowModel.activeReads > 0 || BranchTagWindowModel.activeReads > 0 || BranchTagWindowModel.activeCreations > 0 || MergeWindowModel.activeReads > 0 || ResetWindowModel.activeReads > 0 || SwitchWindowModel.activeReads > 0 || SubmoduleUpdateWindowModel.activeReads > 0 || SubmoduleWorkingLogSession.activeReads > 0 || SubmoduleUpdateProgressWindowModel.activeOperations > 0 || SubmoduleDiffWindowModel.activeReads > 0 || SubmoduleDiffWindowController.activeReleases > 0 { return .terminateCancel }
         if RequestPullWindowModel.activeOperations > 0 || RequestPullWindowController.activeReleases > 0 || sender.windows.compactMap({ $0.delegate as? RequestPullWindowController }).contains(where: { $0.activeOperation }) { return .terminateCancel }
         if FormatPatchWindowModel.activeOperations > 0 || FormatPatchWindowController.activeReleases > 0 { return .terminateCancel }
         if LocalGitCommandProgress.activeOperations > 0 { return .terminateCancel }
@@ -423,11 +423,12 @@ import TurtleGitCore
         if updateProgress.contains(where: { $0.model.activeOperation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         let updates = sender.windows.compactMap { $0.delegate as? SubmoduleUpdateWindowController }
         let submoduleDiffs = sender.windows.compactMap { $0.delegate as? SubmoduleDiffWindowController }
+        let submoduleConflicts = sender.windows.compactMap { $0.delegate as? SubmoduleConflictWindowController }
         let patchDocuments = sender.windows.compactMap { $0.delegate as? PatchWindowController }.filter { $0.documentSession.enabled }
         let comparisons = sender.windows.compactMap { $0.delegate as? RevisionComparisonWindowController }
         let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
-        guard !adds.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !addProgress.contains(where: { $0.model.busy }), !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !submoduleDiffs.contains(where: { $0.model.busy || $0.model.hasUpdateChild }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) else { return .terminateCancel }
+        guard !adds.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !addProgress.contains(where: { $0.model.busy }), !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !submoduleDiffs.contains(where: { $0.hasPendingWork || $0.model.busy || $0.model.hasUpdateChild }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) else { return .terminateCancel }
         guard patchDocuments.contains(where: { $0.documentSession.dirty }) || !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.hasUnsavedEditorWork }) || fileComparisons.contains(where: { $0.model.dirty }) || reviews.contains(where: { $0.model.dirty }) || presentations.contains(where: { $0.model.revision.isDirty }) else { return finishBackgroundWatches(sender) }
         confirmingQuit = true
         for controller in patchDocuments { controller.model.confirmingQuit = true }
@@ -466,6 +467,7 @@ import TurtleGitCore
         for browser in browsers { browser.model.confirmingQuit = true }
         for comparison in fileComparisons { comparison.model.confirmingQuit = true }
         for diff in submoduleDiffs { diff.model.confirmingQuit = true }
+        for conflict in submoduleConflicts { conflict.model.confirmingQuit = true }
         for comparison in comparisons { comparison.model.confirmingQuit = true; comparison.model.patchWindow?.model.confirmingQuit = true; for viewer in comparison.model.unifiedWindows.values { viewer.model.confirmingQuit = true } }
         for update in updates { update.model.confirmingQuit = true }
         for update in updateProgress { update.model.confirmingQuit = true }
@@ -536,6 +538,7 @@ import TurtleGitCore
             if allowQuit { repositoryModel?.stopMonitoringForTermination();await repositoryModel?.finderWatches?.shutdown();await repositoryModel?.shutdownFinderPublication() }
             for browser in browsers { browser.model.confirmingQuit = false }
             for diff in submoduleDiffs { diff.model.confirmingQuit = false }
+            for conflict in submoduleConflicts { conflict.model.confirmingQuit = false }
             for comparison in fileComparisons { comparison.model.confirmingQuit = false }
             for comparison in comparisons { comparison.model.confirmingQuit = false; comparison.model.patchWindow?.model.confirmingQuit = false; for viewer in comparison.model.unifiedWindows.values { viewer.model.confirmingQuit = false } }
             for update in updates { update.model.confirmingQuit = false }
@@ -657,12 +660,14 @@ import TurtleGitCore
         let submoduleAddProgress = sender.windows.compactMap { $0.delegate as? SubmoduleAddProgressWindowController }
         let updates = sender.windows.compactMap { $0.delegate as? SubmoduleUpdateWindowController }
         let submoduleDiffs = sender.windows.compactMap { $0.delegate as? SubmoduleDiffWindowController }
+        let submoduleConflicts = sender.windows.compactMap { $0.delegate as? SubmoduleConflictWindowController }
         let updateProgress = sender.windows.compactMap { $0.delegate as? SubmoduleUpdateProgressWindowController }
         for controller in submoduleSyncs { controller.model.confirmingQuit = true }
         for controller in submoduleAdds { controller.model.confirmingQuit = true }
         for controller in submoduleAddProgress { controller.model.confirmingQuit = true }
         for controller in updates { controller.model.confirmingQuit = true }
         for controller in submoduleDiffs { controller.model.confirmingQuit = true }
+        for controller in submoduleConflicts { controller.model.confirmingQuit = true }
         for controller in updateProgress { controller.model.confirmingQuit = true }
         setTransferQuitConfirmation(sender, true); repositoryModel?.confirmingQuit = true
         Task {
@@ -699,6 +704,7 @@ import TurtleGitCore
             for controller in submoduleAddProgress { controller.model.confirmingQuit = false }
             for controller in updates { controller.model.confirmingQuit = false }
             for controller in submoduleDiffs { controller.model.confirmingQuit = false }
+            for controller in submoduleConflicts { controller.model.confirmingQuit = false }
             for controller in updateProgress { controller.model.confirmingQuit = false }
             setTransferQuitConfirmation(sender, false); repositoryModel?.confirmingQuit = false
             confirmingQuit=false;replyToTermination(sender,true)
