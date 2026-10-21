@@ -228,27 +228,70 @@ extension GitRepository {
         // GitStatusListCtrl::GitStageEntry always invokes Git add, independently
         // of the explicit Add command's backend setting. Preserve symlink leaves
         // and missing conflict resolutions through Git's own add semantics.
+        // A Commit row survives checkbox operations. Porcelain may subsequently
+        // split its rename, or pair identical blobs with a different deletion.
+        // Its captured paths remain the authorization boundary; fresh status is
+        // used for live conflict semantics, never for acquiring another source.
+        var captured=GitPathSet(),locations=GitPathMap<URL>()
+        for entry in entries {
+            locations[entry.path]=try restoreLocation(entry.path)
+            captured.insert(entry.path)
+            if entry.index == "R" || entry.worktree == "R",let old=entry.originalPath {
+                locations[old]=try restoreLocation(old);captured.insert(old)
+            }
+        }
+        guard !captured.isEmpty else{return}
+        let current=try status(refreshIndex:false,cancellation:cancellation)
+        let conflicts=current.filter{captured.contains($0.path) && $0.state == .conflicted}
+        func insertMembership(_ path:String,into names:inout GitPathSet) {
+            names.insert(path)
+            var ancestor=path[...]
+            while let slash=ancestor.lastIndex(of:"/") {
+                ancestor=ancestor[..<slash]
+                if !ancestor.isEmpty {names.insert(String(ancestor))}
+            }
+        }
+        var indexed=GitPathSet()
+        // Read membership without passing the selection through argv limits.
+        // Only captured, validated paths below may become mutation operands.
+        let indexNames=try run(["-c","core.precomposeunicode=false","ls-files","--cached","-z"],cancellation:cancellation).stdout
+        for path in indexNames.split(separator:0) {insertMembership(String(decoding:path,as:UTF8.self),into:&indexed)}
+        if staged {
+            var paths=GitPathSet()
+            for path in captured {
+                var info=stat()
+                if indexed.contains(path) || lstat(locations[path]!.path,&info)==0 {paths.insert(path)}
+                else if errno != ENOENT && errno != ENOTDIR {throw POSIXError(.init(rawValue:errno) ?? .EIO)}
+            }
+            try cancellation?.check()
+            try stage(paths.sorted(),cancellation:cancellation)
+            return
+        }
+        let base:String?
+        if amendToParent {base=try commitComparisonBase(amendToParent:true,cancellation:cancellation)}
+        else {
+            let head=try run(["rev-parse","--verify","--quiet","HEAD^{tree}"],successfulExitCodes:0...1,cancellation:cancellation)
+            base=head.exitCode==0 ? head.text.trimmingCharacters(in:.newlines):nil
+        }
+        let actions:GitPathMap<CommitConflictIndexActions> = try base.map{try commitConflictIndexActions(conflicts,base:$0,cancellation:cancellation)} ?? [:]
+        let conflictPaths=GitPathSet(conflicts.map(\.path))
+        var baseline=GitPathSet()
+        if let base {
+            let bytes=try run(["-c","core.precomposeunicode=false","ls-tree","-r","--full-tree","--name-only","-z",base],cancellation:cancellation).stdout
+            for path in bytes.split(separator:0) {insertMembership(String(decoding:path,as:UTF8.self),into:&baseline)}
+        }
         var paths=GitPathSet(),remove=GitPathSet()
-        let current=try status(cancellation:cancellation),byPath=GitPathMap(current.map{($0.path,$0)},uniquingKeysWith:{_,last in last})
-        let conflicts=entries.compactMap{byPath[$0.path]}.filter{$0.state == .conflicted}
-        let base=try commitComparisonBase(amendToParent:amendToParent,cancellation:cancellation)
-        let actions=staged ? GitPathMap<CommitConflictIndexActions>():try commitConflictIndexActions(conflicts,base:base,cancellation:cancellation)
-        for original in entries {
-            _ = try restoreLocation(original.path)
-            let entry=byPath[original.path] ?? original
-            if !staged,entry.state == .conflicted {
-                let flags=actions[entry.path] ?? CommitConflictIndexActions()
-                if flags.added {remove.insert(entry.path);continue}
+        for path in captured {
+            if conflictPaths.contains(path) {
+                let flags=actions[path] ?? CommitConflictIndexActions()
+                if flags.added {remove.insert(path);continue}
                 if !flags.deleted && !flags.modified {continue}
             }
-            paths.insert(entry.path)
-            if entry.index == "R" || entry.worktree == "R",let old=entry.originalPath {paths.insert(old)}
+            if indexed.contains(path) || baseline.contains(path) {paths.insert(path)}
         }
-        if staged {try stage(paths.sorted(),cancellation:cancellation)}
-        else {
-            if !remove.isEmpty {_ = try run(["rm","-f","--cached","--pathspec-from-file=-","--pathspec-file-nul"],cancellation:cancellation,input:literalPathPacket(remove.sorted()))}
-            try unstageCommitPaths(paths.sorted(),amendToParent:amendToParent,cancellation:cancellation)
-        }
+        try cancellation?.check()
+        if !remove.isEmpty {_ = try run(["rm","-f","--cached","--pathspec-from-file=-","--pathspec-file-nul"],cancellation:cancellation,input:literalPathPacket(remove.sorted()))}
+        try unstageCommitPaths(paths.sorted(),amendToParent:amendToParent,cancellation:cancellation)
     }
 
     public func unstageCommitPaths(_ paths: [String], amendToParent: Bool, cancellation: OperationCancellation? = nil) throws {

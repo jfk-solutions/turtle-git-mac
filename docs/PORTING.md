@@ -1,5 +1,7 @@
 # TurtleGit for Mac — full port tracking
 
+The [retained Commit staging repair](COMMIT-CONFLICT-INDEX-PARITY.md#retained-rename-rows-and-fresh-conflict-state--october-21-2026) preserves selected rename paths through repeated Stage/Unstage while consulting fresh conflicts, keeping copies destination-only and unrelated index content intact. Its [grouped checkpoint](qa/commit-retained-staging-2026-10-21.json) passes 21 Core methods and four native case/engine pairs after recorded fixture repairs. Both previously failing hosted methods pass locally; a complete current hosted pass remains open.
+
 The [Export archive format and owned chooser batch](EXPORT-PARITY.md#archive-formats-source-chooser-and-ownership--october-21-2026) implements source format choices, Git filename inference, captured save/overwrite decisions and drained native completion ownership. Ten distinct Core methods and six native case/engine pairs pass across the recorded checkpoint and focused repairs. Four complete captures were reviewed; signed destination grants and physical Finder acceptance remain open.
 
 The [Bisect source form and completion family](BISECT-PARITY.md#source-form-revision-picker-and-completion-ownership--october-21-2026)

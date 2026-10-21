@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-21",
+  "implementation_baseline": "276ac51a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Commit whole-file retained rename/copy staging, ambiguous rename pairing, fresh conflict classification on captured paths, parent/root/unborn baseline and pre-mutation path validation; native single/highlight/group actions and owned cancellation.",
+  "source": [
+    "GitStatusListCtrl.cpp931 GitStageEntry adds selected current path through CLI",
+    "GitStatusListCtrl.cpp948\u2013983 GitUnstageEntry removes current renamed path and resets retained old path",
+    "GitStatusListCtrl.cpp3508\u20133524 SetEntryCheck updates staging state without replacing retained entry"
+  ],
+  "adaptation": "Native two-path restaging retains existing whole-file behavior; fresh porcelain rename pairing never authorizes another source. Copies remain destination-only.",
+  "validation": {
+    "tests_during_implementation": false,
+    "core": {
+      "initial_log": "build/qa/commit-retained-staging-core-2026-10-21.log",
+      "initial_exit": 1,
+      "initial_failure": "New fixture used internal memberwise StatusEntry initializer without explicit originalPath:nil in three calls; no test methods ran. Corrected fixture calls.",
+      "final_log": "build/qa/commit-retained-staging-core-fixture-repair-2026-10-21.log",
+      "final_exit": 0,
+      "distinct_methods_passed": 21,
+      "classes": [
+        "CommitPatchTests (9)",
+        "CommitConflictSelectionTests (7)",
+        "CommitWholeFileStagingTests (5)"
+      ],
+      "engine": "/usr/bin/git",
+      "skipped": 0
+    },
+    "app": {
+      "log": "build/qa/commit-retained-staging-build-2026-10-21.log",
+      "exit": 0,
+      "diagnostics": "CoreSimulator version mismatch retained; macOS app build succeeds."
+    },
+    "native": {
+      "initial_log": "build/qa/commit-retained-staging-native-2026-10-21.log",
+      "initial_exit": 1,
+      "initial_failure": "Fixture attempted inaccessible internal StatusEntry initializer. Replaced with public porcelain parser for documented retained copy row.",
+      "first_repair_log": "build/qa/commit-retained-staging-native-fixture-repair-2026-10-21.log",
+      "first_repair_exit": 1,
+      "first_repair_failure": "Fixture omitted actual initial model.reload(paths:[\".\"]); readiness timed out without initialized mode/metadata. Added normal app initialization once; no direct mode forcing or weakened readiness.",
+      "final_log": "build/qa/commit-retained-staging-native-initialization-repair-2026-10-21.log",
+      "final_exit": 0,
+      "cases": [
+        "staging",
+        "ownership"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "distinct_case_engine_pairs_passed": 4,
+      "scope": "Actual Commit model single/highlight/group retained rename Off/On cycles with literal names, re-paired identical deletion, unrelated exact index content/tree and HEAD/working byte preservation, stale table receipt, supplied parsed C-row backed by real copy/source content and independent index oracle; actual held CLI add cancellation, parent closure/Quit guard, helper PID reaping and late Stage rejection.",
+      "copy_limit": "Porcelain does not reliably expose C rows; the native copy case deliberately supplies parsed retained copy metadata and does not claim heuristic copy detection."
+    },
+    "receivers": {
+      "pids": [
+        80752,
+        80884,
+        81230,
+        81578,
+        81663
+      ],
+      "includes_failed_attempt": true,
+      "independently_confirmed_absent": true
+    },
+    "help": {
+      "documents": 49,
+      "topics": 51,
+      "files": 69,
+      "check": "passed"
+    },
+    "localizations": "Native labels unchanged; generated catalog unchanged from preceding Export checkpoint.",
+    "captures": "No new UI controls/layout; existing Commit captures retain their original acceptance boundary.",
+    "privacy": "Private repositories/preferences, invisible/offscreen windows and real owned subprocess cleanup; no unrelated apps terminated.",
+    "website": {
+      "documents": 402,
+      "unresolved_fragments": 0,
+      "initial_log": "build/qa/commit-retained-staging-site-tests-2026-10-21.log",
+      "initial_failure": "Link test was incorrectly dispatched concurrently with renderer and saw110 of402 generated pages; independent second method passed. Rendering completed successfully, then only failed method rerun.",
+      "focused_log": "build/qa/commit-retained-staging-site-tests-render-repair-2026-10-21.log",
+      "distinct_methods_passed": 2,
+      "focused_exit": 0
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "mapped_controls": 1574,
+      "pending_control_reviews": 85
+    },
+    "unrelated_work_preserved": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    }
+  },
+  "hosted_ci": {
+    "regression_run": 39518002141,
+    "regression_commit": "62330c51",
+    "failed_assertions": 3,
+    "failed_methods": 2,
+    "local_repair": "Both existing failing methods now pass within focused21 group; no complete current hosted pass claimed."
+  },
+  "remaining": [
+    "Complete current hosted integration pass",
+    "Physical controls/keyboard/VoiceOver and full Commit source state/layout",
+    "External writers/filter/hooks and signed repository/Finder/minimum-version acceptance"
+  ]
+}

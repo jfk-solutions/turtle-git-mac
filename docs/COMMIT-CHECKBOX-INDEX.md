@@ -35,6 +35,14 @@ operation applies. The unresolved warning and merge information hint retain thei
 own remembered choices; Saved Data can clear them. See the
 [source and checkpoint boundary](COMMIT-CONFLICT-INDEX-PARITY.md).
 
+In staging mode, Stage and Unstage apply to both the displayed old and new names
+of a renamed file. Unstaging and then staging the same retained row keeps that
+rename intact, even when Git temporarily lists its destination as untracked or
+pairs identical contents with another deleted file. Copies affect their destination;
+they do not stage unrelated edits in the copied source. The operation checks the
+current conflict state before changing the index, while retaining the rename paths
+selected in the dialog. Other staged files and working bytes remain in place.
+
 The selected commit tree uses the existing private index. This keeps unchecked
 contents out of the commit and preserves selected staged modes. The real index
 receives checked whole-file contents and the source's unchecked-row updates.

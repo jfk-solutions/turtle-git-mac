@@ -82,3 +82,32 @@ and hook combinations, signed Finder grants, hosted CI or App Store distribution
 [dark](site/assets/commit-conflicted-selection-dark.png), and
 [staging, light](site/assets/commit-conflicted-staging-light.png) /
 [dark](site/assets/commit-conflicted-staging-dark.png) show the actual native windows.
+
+## Retained rename rows and fresh conflict state — October 21, 2026
+
+The hosted 62330c51 run exposed three failed assertions in two existing
+CommitPatch methods: whole-file Unstage could leave a captured rename source
+staged after Git chose a different identical source, and Stage after Unstage
+could add only the new name. Fresh status classification added for conflicts
+must not discard the source row's retained rename path. Copies remain distinct:
+their old path is not a rename deletion and must not acquire whole-file changes.
+
+This connected repair covers retained and fresh rename identities, ambiguous
+pairing, repeated Stage/Unstage, copies, comparison-base amendment and unborn
+repositories, current conflicts and literal-path validation before mutation.
+Pinned GitStatusListCtrl.cpp948–983 (GitUnstageEntry) retains the selected entry's old rename path in
+its second reset command; GitStageEntry adds the selected current path. The
+native whole-file two-path adaptation must retain its selected identity while
+consulting current conflict state. Index/tree membership includes directory
+ancestors once, avoiding a scan of the complete index for each selected row.
+Already-absent sides are safe no-ops, and ignored copy-source metadata is not
+validated as an operand.
+
+The [dated checkpoint](qa/commit-retained-staging-2026-10-21.json) records 21 Core
+methods passing, including both previously failing hosted methods, plus four
+native case/engine pairs for real retained rename/copy/ambiguous staging and
+owned cancellation. Initial fixture compilation and initialization errors are
+retained in the record; no assertions were removed. The Debug build passes.
+Native UI controls/layout are unchanged, so the prior captures remain applicable
+within their original limits. All five receiver processes are absent. Full current
+hosted CI, physical input/accessibility and signed Finder acceptance remain open.
