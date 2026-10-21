@@ -104,4 +104,11 @@ and constant/per-pixel alpha blending. They display through the same image and
 conflict panes; the original files remain unchanged. See the
 <a href="METAFILE-RASTER-PARITY.html#classic-emf-masked-and-transparent-transfer-family">record contracts and limits</a>
 for the accepted family and verification scope.</p>
+<p>Classic WMF/EMF images can also contain direct bitmap scanline bands. Supported
+bands display in their recorded position without stretching the pixels. Full
+RLE, PNG and JPEG direct images use their corresponding decoder. Classic EMF
+rectangle and triangle gradients display interpolated vertex colors through the
+same panes. These additions preserve the original files and conflict stages;
+see the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/METAFILE-SCANLINE-GRADIENT-PARITY.html">scanline and gradient contract</a>
+for format limits and actual validation. Graph export to WMF/EMF is separate.</p>
 </main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

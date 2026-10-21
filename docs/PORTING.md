@@ -1,5 +1,14 @@
 # TurtleGit for Mac — full port tracking
 
+The [classic direct bitmap and gradient family](METAFILE-SCANLINE-GRADIENT-PARITY.md)
+connects EMF/WMF scanline bands and full compressed direct input with classic
+rectangle/triangle meshes through existing native comparison and conflict panes.
+Its [grouped checkpoint](qa/metafile-scanline-gradient-2026-10-21.json) passes
+16 focused Core methods, universal runtime reconstruction/conversion, Debug and
+four native case/engine pairs after a runtime constructor-label repair. All four
+receivers are absent. Format/signed/physical limits remain explicit; this does
+not implement Windows metafile graph writing.
+
 The [Statistics save/calculation family](STATISTICS-EXPORT-PARITY.md) implements
 source filter groups and filename-selected encoders, captured exports, cancellable
 atomic publication, actual sheet/worker retirement and a consistent captured diff

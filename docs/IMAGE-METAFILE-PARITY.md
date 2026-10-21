@@ -98,8 +98,9 @@ Center/Inset positioning across the nine EMF+ stroke record families.
 The [indexed/16-bit bitmap extension](METAFILE-BITMAP-FORMATS-PARITY.md) covers
 1/4/8-bit indexed palettes and RGB555/RGB565/ARGB1555 for images and texture
 brushes. Extended grayscale and 48/64-bit formats, nested WMF images and uncommon
-embedded compressed formats remain open. SetDIBitsToDevice and triangle-gradient
-records remain outside the accepted painting families. The
+embedded compressed formats remain open. The [direct scanline and gradient family](METAFILE-SCANLINE-GRADIENT-PARITY.md)
+adds WMF/EMF direct bitmap bands and classic rectangle/triangle meshes; partial
+compressed bands and unsupported compressed alpha packing remain explicit gaps. The
 [classic clipping extension](METAFILE-CLASSIC-CLIP-PARITY.md) covers all five
 GDI region combinations, path clips, rectangle clips, offsets and metaregions.
 The connected [classic region/flood family](METAFILE-CLASSIC-REGION-FLOOD-PARITY.md)

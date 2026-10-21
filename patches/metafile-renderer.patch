@@ -1759,7 +1759,7 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 --- /dev/null
 +++ b/src/turtleGitRaster.js
-@@ -0,0 +1,317 @@
+@@ -0,0 +1,321 @@
 +// Original TurtleGit Boolean GDI playback. GPL-2.0-or-later, see NOTICE.
 +// SVG snapshots contain only the private renderer's escaped drawing stream.
 +module.exports=function installRaster({EmfDrawer,WmfDrawer,SvgContext,fail,u32,i32,f32,escape,normalizePaintColors}) {
@@ -1841,6 +1841,8 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  const brushes=require('./turtleGitRasterBrush')({fail,u32,i32,escape,decodeDib});
 +  const classicPen=require('./turtleGitClassicPen')({fail,u32,i32,escape,decodeDib,brushes,clipped,composite});
 +  const regions=require('./turtleGitClassicRegion')({fail,u32,i32,word,short,escape,brushes,clipped,composite,svg,dimension});
++  const directScanlines=require('./turtleGitDirectScanlines')({fail,u32,i32,decodeDib,declaredDib,transfer,mapping,group,clipped,composite,bitmapBudget,dimension});
++  const classicGradient=require('./turtleGitClassicGradient')({fail,u32,i32,clipped,group,dimension,bitmapBudget});
 +  function svg(ctx,nodes){
 +    const saved=ctx._nodes;ctx._nodes=nodes;let result;try{result=ctx.getSvg();}finally{ctx._nodes=saved;}
 +    const x=ctx._turtleGdiOffsetX||0,y=ctx._turtleGdiOffsetY||0,domain='x="'+(-x)+'" y="'+(-y)+'" width="'+(ctx.canvas.width+2*x)+'" height="'+(ctx.canvas.height+2*y)+'"';
@@ -2020,6 +2022,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  ep.processEmfRecordType=function(type,data){
 +    if(this._turtlePlusSeen&&!this._turtleGetDC&&type!==70&&type!==14&&type!==1)return;
 +    if(regions.emf(this,type,data))return;
++    if(directScanlines.emf(this,type,data)||classicGradient(this,type,data))return;
 +    if(type===95){classicPen.create(this,data);return;}
 +    if(type===58){
 +      // Normative MS-EMF specifies UINT32; Appendix A note 90 documents
@@ -2053,6 +2056,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  };
 +  const wmf=wp.processRecord;
 +  wp.processRecord=function(record){const type=record.functionId,data=record.data;
++    if(directScanlines.wmf(this,type,data))return;
 +    if(regions.wmf(this,type,data))return;
 +    if(type===0x104){if(data.length!==2)fail('invalid WMF ROP2');const mode=word(data,0);if(mode<1||mode>16)fail('invalid WMF binary raster mode');this._turtleRasterMode=mode;return;}
 +    if(type===0x1e){if(data.length||this.ctx._stack.length>=4096)fail('invalid WMF save DC');const s=snapshot(this);this._turtleRasterSaves=this._turtleRasterSaves||[];this._turtleRasterSaves.push(s);this.ctx.save();return;}
@@ -2636,4 +2640,193 @@ diff --git a/src/turtleGitClassicRegion.js b/src/turtleGitClassicRegion.js
 +    paint(d,geometry(d,region,frame,frame?short(data,2):0,frame?short(data,0):0),brush,type===0x12a);return true;
 +  }
 +  return {emf,wmf};
++};
+diff --git a/src/turtleGitClassicGradient.js b/src/turtleGitClassicGradient.js
+--- /dev/null
++++ b/src/turtleGitClassicGradient.js
+@@ -0,0 +1,88 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++// Original bounded EMR_GRADIENTFILL implementation. MS-EMF 2.3.5.12;
++// Win32 GradientFill/TRIVERTEX: vertex Alpha is ignored. Intrinsic device-pixel
++// centers and a top-left edge convention are the native raster adaptation.
++module.exports=({fail,u32,i32,clipped,group,dimension,bitmapBudget})=>{
++  const MAX_VERTICES=100000,MAX_MESHES=100000,MAX_WORK=67108864;
++  const edge=(a,b,x,y)=>(b.x-a.x)*(y-a.y)-(b.y-a.y)*(x-a.x);
++  const topLeft=(a,b)=>b.y<a.y || b.y===a.y && b.x>a.x;
++  function point(d,x,y,color){
++    const p=d.coordinateTransformer.transform(x,y);
++    if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||Math.abs(p.x)>1e9||Math.abs(p.y)>1e9)fail('invalid classic gradient transform');
++    return {x:p.x,y:p.y,color};
++  }
++  return function classicGradient(d,type,data){
++    if(type!==118)return false;
++    if(data.length<28)fail('truncated classic gradient header');
++    const n=u32(data,16),count=u32(data,20),mode=u32(data,24);
++    if(mode>2)fail('invalid classic gradient mode');
++    if(n>MAX_VERTICES||count>MAX_MESHES)fail('classic gradient mesh budget exceeded');
++    const meshStart=28+n*16,compact=meshStart+count*(mode===2?12:8),padded=compact+(mode===2?0:count*4);
++    // The protocol includes ignored rectangle padding. The Win32 variable
++    // structure also describes the compact rectangle-array representation.
++    // Only those complete extents are accepted; triangle trailing bytes refuse.
++    if(data.length!==compact && data.length!==padded)fail('invalid classic gradient mesh extent');
++    const ctx=d.ctx;
++    ctx._turtleClassicGradientVertices=(ctx._turtleClassicGradientVertices||0)+n;
++    ctx._turtleClassicGradientMeshes=(ctx._turtleClassicGradientMeshes||0)+count;
++    if(ctx._turtleClassicGradientVertices>1000000||ctx._turtleClassicGradientMeshes>1000000)fail('aggregate classic gradient mesh budget exceeded');
++    const vertices=[];
++    for(let j=0;j<n;j++){
++      const o=28+j*16;
++      const word=k=>data[o+k]|data[o+k+1]<<8;
++      vertices.push({x:i32(data,o),y:i32(data,o+4),color:[word(8),word(10),word(12)]});
++    }
++    const triangles=[];
++    function add(a,b,c){
++      let area=edge(a,b,c.x,c.y);
++      if(!Number.isFinite(area))fail('invalid classic gradient area');
++      if(area===0)return;
++      if(area<0){const swap=b;b=c;c=swap;area=-area;}
++      triangles.push({a,b,c,area});
++    }
++    for(let j=0;j<count;j++){
++      const o=meshStart+j*(mode===2?12:8),indexes=[u32(data,o),u32(data,o+4)];
++      if(mode===2)indexes.push(u32(data,o+8));
++      if(indexes.some(index=>index>=n))fail('classic gradient index outside vertex array');
++      const a=vertices[indexes[0]],b=vertices[indexes[1]];
++      if(mode===2){const c=vertices[indexes[2]];add(point(d,a.x,a.y,a.color),point(d,b.x,b.y,b.color),point(d,c.x,c.y,c.color));}
++      else if(b.x>a.x&&b.y>a.y){
++        const tl=point(d,a.x,a.y,a.color),tr=point(d,b.x,a.y,mode===0?b.color:a.color),br=point(d,b.x,b.y,b.color),bl=point(d,a.x,b.y,mode===0?a.color:b.color);
++        add(tl,tr,br);add(tl,br,bl);
++      }
++    }
++    if(!triangles.length)return true;
++    const canvasWidth=Math.round(ctx.canvas.width/(ctx._scaleX||1)),canvasHeight=Math.round(ctx.canvas.height/(ctx._scaleY||1));
++    dimension(canvasWidth,canvasHeight);
++    let left=canvasWidth,top=canvasHeight,right=0,bottom=0,work=0;
++    for(const t of triangles){
++      t.left=Math.max(0,Math.floor(Math.min(t.a.x,t.b.x,t.c.x)));t.top=Math.max(0,Math.floor(Math.min(t.a.y,t.b.y,t.c.y)));
++      t.right=Math.min(canvasWidth,Math.ceil(Math.max(t.a.x,t.b.x,t.c.x)));t.bottom=Math.min(canvasHeight,Math.ceil(Math.max(t.a.y,t.b.y,t.c.y)));
++      if(t.right<=t.left||t.bottom<=t.top)continue;
++      work+=(t.right-t.left)*(t.bottom-t.top);
++      if(work>MAX_WORK)fail('classic gradient raster work budget exceeded');
++      left=Math.min(left,t.left);top=Math.min(top,t.top);right=Math.max(right,t.right);bottom=Math.max(bottom,t.bottom);
++    }
++    if(right<=left||bottom<=top)return true;
++    ctx._turtleClassicGradientWork=(ctx._turtleClassicGradientWork||0)+work;
++    if(ctx._turtleClassicGradientWork>MAX_WORK)fail('aggregate classic gradient raster work budget exceeded');
++    const width=right-left,height=bottom-top;
++    dimension(width,height);bitmapBudget(d,width*height);
++    const pixels=new Uint8ClampedArray(width*height*4);
++    for(const t of triangles){
++      const ab=topLeft(t.a,t.b),bc=topLeft(t.b,t.c),ca=topLeft(t.c,t.a);
++      for(let y=t.top;y<t.bottom;y++)for(let x=t.left;x<t.right;x++){
++        const w0=edge(t.b,t.c,x+.5,y+.5),w1=edge(t.c,t.a,x+.5,y+.5),w2=edge(t.a,t.b,x+.5,y+.5);
++        if(w0<0||w0===0&&!bc||w1<0||w1===0&&!ca||w2<0||w2===0&&!ab)continue;
++        const offset=((y-top)*width+x-left)*4;
++        for(let channel=0;channel<3;channel++)pixels[offset+channel]=Math.max(0,Math.min(255,Math.round((w0*t.a.color[channel]+w1*t.b.color[channel]+w2*t.c.color[channel])/(t.area*256))));
++        pixels[offset+3]=255;
++      }
++    }
++    const href=ctx._pngBase64({width,height,data:pixels});
++    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,'))fail('classic gradient bitmap encoding failed');
++    const image='<image x="'+left+'" y="'+top+'" width="'+width+'" height="'+height+'" preserveAspectRatio="none" image-rendering="pixelated" href="'+href+'"/>';
++    ctx._nodes.push(...clipped(d,[group(d,[1,0,0,1,0,0],image)]));
++    return true;
++  };
++};
+diff --git a/src/turtleGitDirectScanlines.js b/src/turtleGitDirectScanlines.js
+--- /dev/null
++++ b/src/turtleGitDirectScanlines.js
+@@ -0,0 +1,93 @@
++// Original TurtleGit direct DIB scanline playback. GPL-2.0-or-later.
++// MS-EMF EMR_SETDIBITSTODEVICE / MS-WMF META_SETDIBTODEV.
++module.exports = function({fail,u32,i32,decodeDib,transfer,bitmapBudget,dimension}) {
++  function need(b,o,n){if(!Number.isSafeInteger(o)||!Number.isSafeInteger(n)||o<0||n<0||o+n>b.length)fail('truncated direct scanline record');}
++  function word(b,o){need(b,o,2);return b[o]|b[o+1]<<8;}
++  function short(b,o){return word(b,o)<<16>>16;}
++  function put32(b,o,v){for(let i=0;i<4;i++)b[o+i]=(v>>>(i*8))&255;}
++  function put16(b,o,v){b[o]=v&255;b[o+1]=(v>>>8)&255;}
++  function info(bytes,bmi,length,usage){
++    need(bytes,bmi,length);if(length<12||![0,1].includes(usage))fail('invalid direct scanline DIB information');
++    const header=u32(bytes,bmi),core=header===12;
++    if(!core&&![40,52,56,108,124].includes(header))fail('unsupported direct scanline DIB header');
++    if(header>length)fail('truncated direct scanline DIB header');
++    const width=core?word(bytes,bmi+4):i32(bytes,bmi+4),signedHeight=core?word(bytes,bmi+6):i32(bytes,bmi+8),height=Math.abs(signedHeight);
++    dimension(width,height);
++    const depth=word(bytes,bmi+(core?10:14)),compression=core?0:u32(bytes,bmi+16);
++    if(word(bytes,bmi+(core?8:12))!==1)fail('invalid direct scanline planes');
++    if(![0,1,2,3,4,5,6].includes(compression)||!([4,5].includes(compression)?depth===0:[1,4,8,16,24,32].includes(depth)))fail('unsupported direct scanline format');
++    if((compression===1&&depth!==8)||(compression===2&&depth!==4)||([3,6].includes(compression)&&![16,32].includes(depth))||(signedHeight<0&&[1,2,4,5].includes(compression)))fail('invalid direct scanline compression');
++    if(header===124&&(u32(bytes,bmi+112)||u32(bytes,bmi+116)))fail('profiled direct scanline DIB unsupported');
++    return {header,core,width,signedHeight,height,depth,compression};
++  }
++  function packedSize(bytes,bmi,usage){
++    need(bytes,bmi,12);const header=u32(bytes,bmi),core=header===12;
++    if(!core&&![40,52,56,108,124].includes(header))fail('unsupported packed direct scanline header');
++    need(bytes,bmi,header);const depth=word(bytes,bmi+(core?10:14)),compression=core?0:u32(bytes,bmi+16);
++    const used=core?0:u32(bytes,bmi+32),colors=depth>0&&depth<=8?(used||2**depth):0;
++    if(colors>256||colors>2**depth)fail('invalid direct scanline palette');
++    return header+(header===40&&[3,6].includes(compression)?(compression===6?16:12):0)+colors*(usage===1?2:core?3:4);
++  }
++  function paint(d,bytes,bmi,cbBmi,bits,cbBits,usage,start,count,dx,dy,sx,sy,cx,cy){
++    need(bytes,bmi,cbBmi);need(bytes,bits,cbBits);
++    if(bits<bmi+cbBmi&&bmi<bits+cbBits)fail('overlapping direct scanline DIB');
++    const meta=info(bytes,bmi,cbBmi,usage);
++    if(cx<0||cy<0)fail('negative direct scanline extent');
++    if(count>32768||start>32768)fail('direct scanline band exceeds limit');
++    // Zero scan count is a valid no-op; declared framing/header is still checked.
++    if(!count||!cx||!cy)return;
++    let decoded,bandCount=count;
++    if([4,5].includes(meta.compression)){
++      if(meta.core||meta.signedHeight<0||usage!==0||meta.depth!==0||start!==0||count!==meta.height)fail('unsupported compressed direct scanline band');
++      const size=u32(bytes,bmi+20);if(!size||size!==cbBits)fail('invalid compressed direct scanline size');
++      const raw=bytes.slice(bits,bits+size),png=meta.compression===5;
++      if(png?!(raw[0]===137&&raw[1]===80&&raw[2]===78&&raw[3]===71):!(raw[0]===255&&raw[1]===216&&raw[2]===255))fail('direct scanline compressed signature mismatch');
++      if(typeof __turtleCompressedClassicImage!=='function')fail('native compressed scanline adapter unavailable');
++      bitmapBudget(d,meta.width*meta.height);decoded=__turtleCompressedClassicImage(raw);
++      if(!decoded||decoded.width!==meta.width||decoded.height!==meta.height||typeof decoded.href!=='string'||!decoded.href.startsWith('data:image/png;base64,'))fail('compressed direct scanline dimensions differ');
++    }else if([1,2].includes(meta.compression)){
++      // RLE has commands crossing scanlines, not independently addressable rows.
++      if(start!==0||count!==meta.height)fail('partial RLE direct scanline band unsupported');
++      decoded=decodeDib(bytes,bmi,cbBmi,bits,cbBits,usage,d);
++    }else{
++      if(![0,3,6].includes(meta.compression))fail('unsupported direct scanline compression');
++      if(start>=meta.height)return;
++      bandCount=meta.signedHeight>0?Math.min(count,meta.height-start):Math.min(count,meta.height);
++      dimension(meta.width,bandCount);
++      // Keep palette/masks/profile fields intact, changing only the privately
++      // decoded band height. The original record and its full height stay intact.
++      const bandBytes=Math.ceil(meta.width*meta.depth/32)*4*bandCount;
++      if(bandBytes>cbBits)fail('truncated direct scanline band');
++      const copy=new Uint8Array(cbBmi+bandBytes);copy.set(bytes.slice(bmi,bmi+cbBmi));copy.set(bytes.slice(bits,bits+bandBytes),cbBmi);
++      if(meta.core)put16(copy,6,bandCount);else put32(copy,8,meta.signedHeight<0?-bandCount:bandCount);
++      decoded=decodeDib(copy,0,cbBmi,cbBmi,bandBytes,usage,d);
++    }
++    // Source coordinates use the lower-left even when physical rows are top-down.
++    // This is the actual SetDIBitsToDevice band contract, not StretchDIBits.
++    const top=start+(meta.signedHeight>0?bandCount:count)-(sy+cy);
++    const left=Math.max(0,sx),right=Math.min(decoded.width,sx+cx),first=Math.max(0,top),last=Math.min(decoded.height,top+cy);
++    if(right<=left||last<=first)return;
++    const origin=d.coordinateTransformer.transform(dx,dy);
++    if(![origin.x,origin.y].every(v=>Number.isFinite(v)&&Math.abs(v)<=1e9))fail('invalid direct scanline destination');
++    // The logical destination origin is transformed; DIB pixels remain device
++    // pixels. Preserve the real DC clip and checkpoint state on this proxy.
++    const device=Object.create(d);device.coordinateTransformer={transform:(x,y)=>({x,y})};
++    transfer(device,0xcc,origin.x+left-sx,origin.y+first-top,right-left,last-first,decoded,left,first,right-left,last-first);
++  }
++  return {
++    emf(d,type,data){
++      if(type!==80)return false;need(data,0,68);
++      const bmi=u32(data,40),cbBmi=u32(data,44),bits=u32(data,48),cbBits=u32(data,52);
++      if(bmi<76||bits<76||!cbBmi)fail('invalid direct scanline offsets');
++      paint(d,data,bmi-8,cbBmi,bits-8,cbBits,u32(data,56),u32(data,60),u32(data,64),i32(data,16),i32(data,20),i32(data,24),i32(data,28),i32(data,32),i32(data,36));return true;
++    },
++    wmf(d,type,data){
++      if(type!==0x0d33)return false;need(data,0,30);const usage=word(data,0),bmi=18,size=packedSize(data,bmi,usage),bits=bmi+size;need(data,bmi,size);
++      let cbBits=data.length-bits;
++      if(u32(data,bmi)!==12&&[4,5].includes(u32(data,bmi+16))){const declared=u32(data,bmi+20);if(declared>cbBits||cbBits-declared>1)fail('invalid packed compressed scanline size');cbBits=declared;}
++      // Playback sign-extends source/destination coordinates despite MS-WMF's
++      // unsigned field prose; scan counts/start remain unsigned WORD values.
++      paint(d,data,bmi,size,bits,cbBits,usage,word(data,4),word(data,2),short(data,16),short(data,14),short(data,8),short(data,6),word(data,12),word(data,10));return true;
++    }
++  };
 +};

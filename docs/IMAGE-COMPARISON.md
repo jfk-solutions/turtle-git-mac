@@ -120,3 +120,12 @@ and constant/per-pixel alpha blending. They display through the same image and
 conflict panes; the original files remain unchanged. See the
 [record contracts and limits](METAFILE-RASTER-PARITY.md#classic-emf-masked-and-transparent-transfer-family)
 for the accepted family and verification scope.
+
+
+Classic WMF/EMF images can also contain direct bitmap scanline bands. Supported
+bands display in their recorded position without stretching the pixels. Full
+RLE, PNG and JPEG direct images use their corresponding decoder. Classic EMF
+rectangle and triangle gradients display interpolated vertex colors through the
+same panes. These additions preserve the original files and conflict stages;
+see the [scanline and gradient contract](METAFILE-SCANLINE-GRADIENT-PARITY.md)
+for format limits and actual validation. Graph export to WMF/EMF is separate.

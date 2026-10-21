@@ -10,6 +10,51 @@ import AppKit
 private let inputLimit = 64 * 1024 * 1024
 private let outputLimit = 128 * 1024 * 1024
 private enum ConversionError: Error { case invalid(String) }
+/// Classic direct bitmap copies use RGB, independently of a compressed PNG's
+/// alpha. Preserve the decoded channel samples before any drawing/compositing;
+/// flattening over white would invent colors. Premultiplied transparent sources
+/// cannot prove their original RGB and are refused rather than guessed.
+private func classicOpaqueCompressedImage(_ image:CGImage)throws->CGImage {
+    switch image.alphaInfo {
+    case .none,.noneSkipFirst,.noneSkipLast:return image
+    case .first,.last,.premultipliedFirst,.premultipliedLast:break
+    default:throw ConversionError.invalid("Unsupported classic compressed alpha layout")
+    }
+    guard !image.isMask,!image.bitmapInfo.contains(.floatComponents),
+          let space=image.colorSpace,[CGColorSpaceModel.rgb,.monochrome].contains(space.model),
+          [8,16].contains(image.bitsPerComponent),
+          image.bitsPerPixel==image.bitsPerComponent*(space.numberOfComponents+1),
+          let stored=image.dataProvider?.data else {throw ConversionError.invalid("Unsupported classic compressed channel layout")}
+    let step=image.bitsPerPixel/8,sample=image.bitsPerComponent/8
+    guard step>0,image.bytesPerRow>=image.width*step,image.height<=inputLimit/image.bytesPerRow,
+          CFDataGetLength(stored)>=image.height*image.bytesPerRow else {throw ConversionError.invalid("Invalid classic compressed pixel storage")}
+    var bytes=Data(bytes:CFDataGetBytePtr(stored),count:image.height*image.bytesPerRow)
+    let first=image.alphaInfo == .first || image.alphaInfo == .premultipliedFirst
+    let premultiplied=image.alphaInfo == .premultipliedFirst || image.alphaInfo == .premultipliedLast
+    let byteOrder=image.bitmapInfo.intersection(.byteOrderMask)
+    // Little-endian packed pixels move the alpha sample to the opposite end.
+    // With 16-bit components, component byte order alone does not move it.
+    var alphaOffset=first ? 0:step-sample
+    if byteOrder == .byteOrder32Little {
+        guard image.bitsPerPixel==32 else {throw ConversionError.invalid("Unsupported classic compressed pixel byte order")}
+        alphaOffset=step-sample-alphaOffset
+    } else if byteOrder == .byteOrder16Little && image.bitsPerComponent==8 {
+        guard image.bitsPerPixel==16 else {throw ConversionError.invalid("Unsupported classic compressed pixel byte order")}
+        alphaOffset=step-sample-alphaOffset
+    }
+    for y in 0..<image.height {for x in 0..<image.width {
+        let offset=y*image.bytesPerRow+x*step+alphaOffset
+        for n in 0..<sample {
+            if premultiplied && bytes[offset+n] != 255 {throw ConversionError.invalid("Premultiplied compressed alpha cannot preserve classic RGB")}
+            bytes[offset+n]=255
+        }
+    }}
+    guard let provider=CGDataProvider(data:bytes as CFData),let result=CGImage(width:image.width,height:image.height,
+        bitsPerComponent:image.bitsPerComponent,bitsPerPixel:image.bitsPerPixel,bytesPerRow:image.bytesPerRow,
+        space:space,bitmapInfo:image.bitmapInfo,provider:provider,decode:image.decode,shouldInterpolate:false,intent:image.renderingIntent)
+        else {throw ConversionError.invalid("Cannot preserve classic compressed RGB")}
+    return result
+}
 private func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8)); exit(1)
 }
@@ -1597,7 +1642,7 @@ private func run() throws {
         guard CGImageDestinationFinalize(destination), output.length <= outputLimit / 2 else { nativeError("Metafile bitmap output exceeds limit"); return "" }
         return "data:image/png;base64," + (output as Data).base64EncodedString()
     }
-    let compressed: @convention(block) (JSValue) -> NSDictionary = { value in
+    func compressedImage(_ value:JSValue,classicOpaque:Bool)->NSDictionary {
         guard let raw = data(value), raw.count >= 8,
               raw.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]) || raw.starts(with: [255, 216, 255]),
               let source = CGImageSourceCreateWithData(raw as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
@@ -1606,9 +1651,13 @@ private func run() throws {
               let width = properties[kCGImagePropertyPixelWidth] as? Int,
               let height = properties[kCGImagePropertyPixelHeight] as? Int,
               width > 0, height > 0, width <= 32768, height <= 32768, width <= 16777216 / height,
-              let image = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) else {
+              let decoded = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCacheImmediately: !classicOpaque] as CFDictionary) else {
             nativeError("Invalid or oversized compressed metafile image"); return [:]
         }
+        let image:CGImage
+        do {image=classicOpaque ? try classicOpaqueCompressedImage(decoded):decoded}
+        catch ConversionError.invalid(let message) {nativeError(message);return [:]}
+        catch {nativeError("Cannot preserve classic compressed image colors");return [:]}
         let output = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(output, UTType.png.identifier as CFString, 1, nil) else {
             nativeError("Cannot encode compressed metafile image"); return [:]
@@ -1619,7 +1668,10 @@ private func run() throws {
         }
         return ["href": "data:image/png;base64," + (output as Data).base64EncodedString(), "width": width, "height": height]
     }
+    let compressed:@convention(block)(JSValue)->NSDictionary = {compressedImage($0,classicOpaque:false)}
+    let compressedClassic:@convention(block)(JSValue)->NSDictionary = {compressedImage($0,classicOpaque:true)}
     context.setObject(compressed, forKeyedSubscript: "__turtleCompressedImage" as NSString)
+    context.setObject(compressedClassic,forKeyedSubscript:"__turtleCompressedClassicImage" as NSString)
     context.setObject(decode, forKeyedSubscript: "__turtleDecode" as NSString)
     context.setObject(base64, forKeyedSubscript: "__turtleBase64" as NSString)
     context.setObject(measure, forKeyedSubscript: "__turtleMeasureText" as NSString)
