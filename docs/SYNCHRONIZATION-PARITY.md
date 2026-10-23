@@ -1826,3 +1826,13 @@ and complete source acceptance are recorded with that family.
 [The connected form family](SOURCE-FORM-CONTROLS-PARITY.md) records reference
 keyboard/focus and bounded captions, Push F5 refresh and Synchronization native
 split controls, with owned state and remaining acceptance kept explicit.
+
+
+## Embedded Fetch reference notifications — October 23, 2026
+
+The [connected transfer-result family](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md) carries actual libgit2 Fetch reference notifications through Synchronization and its checkout continuation, selecting the Action/Path Log from the actual execution backend. It retains original endpoint Show Log/Copy behavior, ordered partial results and warnings, independent command completion and owned menu/child retirement. Its dated checkpoint records actual grouped validation and remaining physical/signed/source gates; earlier CLI/transport passes do not independently certify this continuation.
+
+
+### Explicit remaining refspec lifecycle
+
+The pinned Fetch command loads a remote, calls `git_remote_add_fetch` to persist the selected spec, then `git_remote_fetch(remote, nullptr, ...)` using the already-loaded configured specs. The current Mac helper passes a per-operation explicit refspec and preserves configuration. A same-library source oracle confirms the resulting callback/configuration difference. Completing that source lifecycle remains open; the new notification table does not certify it. See the [dated checkpoint](qa/sync-transfer-notifications-2026-10-23.json) for oracle evidence and actual same/no-match boundaries.

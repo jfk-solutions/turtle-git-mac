@@ -296,6 +296,8 @@ progress and conflict result before starting another integration operation.
 
 ## Synchronization progress
 
+For an explicitly enabled libgit2 Fetch, the Log tab uses source Action/Path reference-result rows with captured-hash Show Log and Copy actions. Diagnostics and completion stay alongside the result table; CLI operations retain the text output. See [Synchronization Fetch results](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md).
+
 Synchronization replaces its branch/remote inputs with phase and progress while
 an inline command runs. The output retains 100 percent and a colored completion
 footer with the actual Git command's elapsed time and finish date. A later

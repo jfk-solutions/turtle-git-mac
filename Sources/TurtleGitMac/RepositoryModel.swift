@@ -2407,6 +2407,15 @@ private enum TransportBatchPresentationContext {
         let key = repository.root.path, access = activeAccess
         if let existing = synchronizationWindows[key] { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; if let synchronizationWindowPresentation {synchronizationWindowPresentation(existing)} else {existing.showWindow(nil);existing.window?.makeKeyAndOrderFront(nil)};return }
         let controller = SynchronizationWindowController(repository: repository, access: access, preferences: fileComparisonPreferences, sequence: sequence)
+        let notificationPreferences = controller.model.preferences
+        controller.model.onNotificationLog = { [weak self, weak controller] child, grant, paths, old, new in
+            guard let self, !self.retired, !self.confirmingQuit, let controller,
+                  controller.model.notificationActionsAvailable else { return }
+            self.showLog(repository: child, access: grant, paths: paths,
+                endRevision: old == nil ? new : nil,
+                revisionRange: old.map { HistoryRevisionRange(from: $0, to: new ?? "HEAD") },
+                preferences: notificationPreferences, sourceWindow: controller.window)
+        }
         controller.configureExport = { [weak self] child in self?.configureExportInteractions(child, repository: repository, access: access) }
         controller.configureBranchPicker = { [weak self] model in self?.configureReferenceBrowser(model, repository: repository, access: access) }
         controller.configureHistoryReference = { [weak self] child in self?.configureReferenceInteractions(child, repository: repository, access: access) }

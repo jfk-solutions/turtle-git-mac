@@ -96,3 +96,6 @@ Reviewed actual captures: [Clone light](site/assets/clone-reference-checkout-res
 Automated offscreen checks do not prove physical Finder behavior, signed
 distribution grants, complete VoiceOver/keyboard acceptance or visual parity of
 all upstream dialogs. Those remain separate acceptance work.
+
+
+The [Synchronization continuation](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md) connects this same typed reference-result contract to inline Sync Fetch and its owned follow-ups. Its separate dated checkpoint states actual coverage; standalone Clone/Fetch checks above do not substitute for that integration.

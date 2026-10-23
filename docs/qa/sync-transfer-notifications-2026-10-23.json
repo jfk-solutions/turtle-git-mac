@@ -1,0 +1,236 @@
+{
+  "date": "2026-10-23",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "passed",
+  "scope": [
+    "Core typed notification/presentation callbacks across Sync execution and owned checkout",
+    "Native selected-backend Action/Path reference results with immutable Log, clipboard, partial/warning and operation ownership",
+    "Actual workspace caller routing, originating preferences and permissions"
+  ],
+  "validation": {
+    "core_initial": {
+      "log": "build/qa/sync-transfer-notifications-core-2026-10-23.log",
+      "methods": 40,
+      "assertion_failures": 3,
+      "failed_methods": 2,
+      "unexpected_failures": 0,
+      "status": "failed",
+      "classes": [
+        "GitTransferNotificationTests",
+        "SyncLibGit2Tests",
+        "SynchronizationCommandCompletionTests",
+        "SynchronizationTransferNotificationTests",
+        "SynchronizationTransportTests"
+      ],
+      "failures": [
+        "Selected Fetch fixture incorrectly expected a Same callback from unchanged explicit refspec; actual libgit2 emits no event for that explicit no-op. Configured wildcard Fetch All reports Same.",
+        "Missing literal branch fixture expected failure but actual explicit no-match returns success with zero reference events."
+      ],
+      "repair": "Fixture advances before the later explicit Fetch and retains configured Fetch All Same assertion; separates actual explicit no-match success from genuinely unavailable local remote transport failure. Renderer/transport production not changed to manufacture callbacks/errors."
+    },
+    "core_focused_repair": {
+      "log": "build/qa/sync-transfer-notifications-core-repairs-2026-10-23.log",
+      "status": "passed",
+      "methods": 3,
+      "failures": 0,
+      "current_methods_cumulatively_passed": 41,
+      "methods_rechecked": [
+        "testSelectedSyncFetchFamilyDeliversRealReferenceRowsBeforeCompletionWithoutTouchingIndexOrHead",
+        "testSyncMissingLiteralBranchRetainsActualHelperNoMatchOutcomeWithoutInventedRows",
+        "testSyncUnavailableRemoteReportsRealFailureWithoutInventedRows"
+      ],
+      "full_group_repeated": false
+    },
+    "app_initial": {
+      "log": "build/qa/sync-transfer-notifications-app-2026-10-23.log",
+      "exit_code": 0,
+      "exit_code_source": "Parent-reported terminal result",
+      "diagnostics": "Log retains contradictory generic command-failed-with-exit-code-zero diagnostics, existing concurrency warnings and CoreSimulator version mismatch; not a clean-diagnostics claim."
+    },
+    "help_app": {
+      "log": "build/qa/sync-transfer-notifications-help-app-2026-10-23.log",
+      "exit_code": 0,
+      "exit_code_source": "Parent-reported terminal result",
+      "diagnostics": "CoreSimulator version mismatch remains."
+    },
+    "native_initial": {
+      "log": "build/qa/sync-transfer-notifications-native-2026-10-23.log",
+      "status": "passed",
+      "distinct_engine_case_pairs": 6,
+      "pairs": [
+        {
+          "case": "actual",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "separation",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "lifetime",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "actual",
+          "git": "build/git-runtime/Git/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "separation",
+          "git": "build/git-runtime/Git/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "lifetime",
+          "git": "build/git-runtime/Git/bin/git",
+          "status": "passed"
+        }
+      ],
+      "scope": [
+        "Real private local bare libgit2 Fetch callback, command/reference/finish rows, actual Action/Path table and source-only Show Log/Copy menu with icons",
+        "Actual RepositoryModel workspace Sync entry and child Log full old..new range, originating root/preferences retained across workspace and preference change",
+        "Private pasteboard keyboard/context copy, real attached sheet, tab generation, Quit and closed-owner callback fences",
+        "CLI rich text preserved; real unavailable private remote typed failure/finish ordering and no fabricated references",
+        "Actual helper producer read then held, captured backend preference change, cancellation accepted-row preservation and actual producer/owner drain",
+        "Private repositories/preferences/home/pasteboard; offscreen windows/sheets; local HEAD/index/config/worktree bytes preserved"
+      ]
+    },
+    "caption_app": {
+      "status": "passed",
+      "log": "build/qa/sync-transfer-notifications-caption-app-2026-10-23.log",
+      "exit_code": 0,
+      "exit_code_source": "Parent-reported terminal result",
+      "generic_exit_zero_diagnostics": 2,
+      "core_simulator_warning_present": true,
+      "diagnostics": "Contradictory generic command-failed-with-exit-code-zero diagnostics and CoreSimulator mismatch retained; no clean-diagnostics claim."
+    },
+    "caption_actual_recheck": {
+      "status": "passed",
+      "affected_engine_case_pairs": 2,
+      "reason": "Display-only immutable accepted Fetch remote/refspec caption; assert origin/main plus later form edits do not retarget accepted command receipt. Separation/lifetime are already passed and are not repeated.",
+      "log": "build/qa/sync-transfer-notifications-native-caption-2026-10-23.log",
+      "exit_code": 0,
+      "scope": "Both Git engines: actual-case full accepted Fetch origin/main command caption, immutable after form edit, actual full-hash child Log and copy/owner fences, final light/dark captures. Four separation/lifetime pairs not repeated."
+    },
+    "source_oracle": {
+      "status": "completed-source-diagnostic",
+      "report": "docs/qa/sync-fetch-source-oracle-2026-10-23.txt",
+      "c_source": "docs/qa/sync-fetch-source-oracle-2026-10-23.c",
+      "reproduction": "docs/qa/sync-fetch-source-oracle-2026-10-23.py",
+      "upstream_libgit2_commit": "f7164261c9bc0a7e0ebf767c584e5192810a8b24",
+      "scope": "Private local repositories, actual pinned library, source lookup -> add_fetch -> fetch(NULL) lifecycle; HTTP callback is a local-only link stub, not HTTP coverage."
+    },
+    "resources": {
+      "source": "Parent-reported terminal checks",
+      "localizations": {
+        "status": "passed",
+        "languages": 38,
+        "keys": 1315
+      },
+      "help": {
+        "status": "passed",
+        "documents": 57,
+        "topics": 51,
+        "files": 77,
+        "bytes": 3768046
+      },
+      "dialog_reconciliation": {
+        "status": "passed",
+        "dialogs": 130,
+        "partial": 120,
+        "pending": 10,
+        "unmapped_controls": 85,
+        "certified": 0,
+        "counts_are_feature_percentage": false
+      },
+      "git_diff_check": "passed"
+    },
+    "site": {
+      "status": "passed",
+      "log": "build/qa/sync-transfer-notifications-site-2026-10-23.log",
+      "documents": 421,
+      "unresolved_fragments": 0,
+      "exit_code": 0,
+      "source": "Parent-reported terminal build"
+    },
+    "cumulative": {
+      "current_core_methods_passed": 41,
+      "distinct_native_engine_case_pairs": 6,
+      "affected_actual_pairs_rechecked": 2,
+      "full_core_group_repeated": false,
+      "full_native_group_repeated": false
+    },
+    "site_tests": {
+      "status": "passed",
+      "python_tests": 2,
+      "javascript": "Search/filter/no-match/load-failure checks passed.",
+      "source": "Parent-reported terminal checks"
+    },
+    "protected_unrelated_wip": "Parent confirmed both protected WIP hashes unchanged."
+  },
+  "remaining": [
+    "Pinned upstream named-remote lookup -> add_fetch persists config but fetch(NULL) uses the already loaded remote specs; current Mac adapter supplies per-operation explicit refspecs without changing config. This full Sync refspec/config lifecycle remains unported; explicit unchanged/no-match rows differ as documented by source oracle.",
+    "Public authenticated providers and physical keyboard/pointer/VoiceOver",
+    "Complete source layout and minimum-version/Intel",
+    "Installed signed permissions, distribution and full hosted integration"
+  ],
+  "status_scope": "Focused local batch: 41 current Core methods passed cumulatively after fixture-oracle repairs; six distinct native case/engine pairs passed, then only the two affected actual-caption rechecks. Source-oracle refspec/config lifecycle gap remains explicit. No full hosted CI or whole-port acceptance claim.",
+  "ownership": {
+    "logged_receiver_pids": [
+      32095,
+      32271,
+      32455,
+      32595,
+      32752,
+      32930,
+      33665,
+      33846
+    ],
+    "runner_reported_reaped": [
+      32095,
+      32271,
+      32455,
+      32595,
+      32752,
+      32930,
+      33665,
+      33846
+    ],
+    "independently_verified_absent": [
+      32095,
+      32271,
+      32455,
+      32595,
+      32752,
+      32930,
+      33665,
+      33846
+    ],
+    "verified_at_utc": "2026-10-23T12:59:12.192514+00:00",
+    "verification": "Read-only os.kill(pid,0) raised ProcessLookupError for all eight logged receiver PIDs, including both affected caption rechecks. No signals sent or unrelated applications terminated.",
+    "helpers": "Runner requires exact executable plus open private fixture ownership, exact authored wrapper argv for shell; removes hold and terminates/waits only verified owned producers on failure/timeout. A successful case requiring cleanup fails."
+  },
+  "captures": {
+    "status": "passed-and-reviewed-by-parent",
+    "files": [
+      {
+        "path": "docs/site/assets/sync-fetch-notifications-log-light.png",
+        "width": 1720,
+        "height": 1156,
+        "bytes": 343261,
+        "sha256": "d68bf1e931f3ac012234cceab8a4c3a6e4cee4e2ef7811db6c9a8689c5529f72"
+      },
+      {
+        "path": "docs/site/assets/sync-fetch-notifications-log-dark.png",
+        "width": 1720,
+        "height": 1156,
+        "bytes": 370610,
+        "sha256": "8d0b812063fe2bbdef20352a0a6dcb7b0bf1f94c05bb95b0efc8edb70e7f555f"
+      }
+    ],
+    "scope": "Final complete actual native Sync Command Log current-process compositor captures, light/dark, offscreen. Parent visually accepted complete fit and visible Fetch origin main context; no visual parity claim for every upstream dialog."
+  }
+}

@@ -4534,3 +4534,6 @@ and [dated checkpoint](qa/statistics-interaction-family-2026-10-23.json).
 
 
 The October 23 [viewport navigation family](VIEWPORT-NAVIGATION-PARITY.md) connects Graph zoom-origin preservation, focused source key distances, Escape/cursors and current-press gesture ownership with explicit all-pane Compare/Merge scroll commands. The editor submenu is a documented native discovery adaptation; text/caret shortcuts and editing history retain their contracts. Its [dated checkpoint](qa/viewport-navigation-family-2026-10-23.json) records grouped native validation and remaining physical/signed/full-port work.
+
+
+The October 23 [Synchronization transfer-result family](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md) connects actual selected libgit2 Fetch notifications to the inline Action/Path Log and workspace child-Log routing. Command presentation follows post-checkout execution, typed buffers drain before completion, and original endpoint/copy semantics survive partial results, warnings and retirement. The [dated checkpoint](qa/sync-transfer-notifications-2026-10-23.json) records actual grouped validation and captures; this does not certify the whole Synchronization dialog or application.

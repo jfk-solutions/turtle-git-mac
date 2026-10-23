@@ -26,6 +26,10 @@ enum FileOperationProgressAction { case log, open, openWith, explore }
     init(preferences:UserDefaults) {self.preferences=preferences}
     func begin(_ command:String) {generation=UUID();rows=[];append("Command",command,kind:.command)}
     func append(_ action:String,_ path:String,kind:FileOperationProgressRow.Kind) {rows.append(.init(action:action,path:path,kind:kind))}
+    func appendBeforeCompletion(_ action:String,_ path:String,kind:FileOperationProgressRow.Kind) {
+        let row=FileOperationProgressRow(action:action,path:path,kind:kind)
+        if let index=rows.firstIndex(where:{$0.kind == .finished}) {rows.insert(row,at:index)} else {rows.append(row)}
+    }
     func appendCheckout(path:String) {rows.append(.init(action:"Checkout",path:path,kind:.file,filePath:path))}
     func record(id:UUID,action:String,path:String,status:String) {
         let row=FileOperationProgressRow(action:action,path:path,kind:.file,status:status,id:id)

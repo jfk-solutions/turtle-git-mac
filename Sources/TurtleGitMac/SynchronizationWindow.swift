@@ -355,6 +355,7 @@ final class SynchronizationNativeWindow: NSWindow {
     private static var placementSequence = 0
     private var conflictApplicationPanel: NSOpenPanel?
     let model: SynchronizationWindowModel
+    let notificationFiles:RemoteProgressFileActions
     var onClosed: () -> Void = {}
     private var cancellationAlert: NSAlert?
     private var pullAlert: NSAlert?
@@ -385,6 +386,7 @@ final class SynchronizationNativeWindow: NSWindow {
     var configurePushOptions: (PushWindowController) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, sequence: Int? = nil) {
         model = SynchronizationWindowModel(repository: repository, access: access, preferences: preferences)
+        notificationFiles=RemoteProgressFileActions(repository:repository,access:access)
         let window = SynchronizationNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1050, height: 660), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Git Synchronization", preferences: preferences)
         window.isReleasedWhenClosed = false; window.contentMinSize = NSSize(width: 860, height: 500)
@@ -411,6 +413,12 @@ final class SynchronizationNativeWindow: NSWindow {
             guard let self, let window, self.model.canUseConflictFiles else { return false }
             return window.attachedSheet == nil || window.attachedSheet === self.conflictApplicationPanel
         }
+        notificationFiles.window=window
+        notificationFiles.available={ [weak model] in model?.notificationOwnerAvailable==true }
+        notificationFiles.onBusy={ [weak model] in model?.fileActionBusy=$0 }
+        notificationFiles.onError={ [weak model] in model?.appendNotificationDiagnostic($0) }
+        notificationFiles.onLog={ [weak model] repository,access,paths,old,new in model?.onNotificationLog(repository,access,paths,old,new) }
+        model.onNotificationFileAction={ [weak self] in self?.notificationFiles.perform($0,$1) }
         model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }
         model.runPushOptions = { [weak self] source in
             guard let self, !self.model.closed, let owner = self.window, owner.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
@@ -959,7 +967,7 @@ final class SynchronizationNativeWindow: NSWindow {
         Self.activeInlineReleases += 1
 
         NotificationCenter.default.removeObserver(self); branchPickerRequest = nil; branchPickerCompletion = nil; branchPickerFocus = nil
-        model.invalidate()
+        notificationFiles.retire();model.invalidate()
         let answer = historyDeletionAnswer; historyDeletionAnswer = nil
         if let alert = historyDeletionAlert { window?.endSheet(alert.window, returnCode: .abort) }
         historyDeletionAlert = nil; answer?(-1)
@@ -1007,7 +1015,7 @@ final class SynchronizationNativeWindow: NSWindow {
         Task { [self] in
             defer { Self.activeInlineReleases -= 1 }
             for sheet in ownedSheets { await Self.detachInlineSheet(sheet) }
-            while model.hasPendingInlineWork { try? await Task.sleep(nanoseconds: 5_000_000) }
+            while model.hasPendingInlineWork || notificationFiles.busy { try? await Task.sleep(nanoseconds: 5_000_000) }
             onClosed()
         }
     }
@@ -1054,18 +1062,29 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     }
 }
 
+private final class SynchronizationInlinePresentation:@unchecked Sendable {
+    private let lock=NSLock()
+    private var value:SynchronizationCommandPresentation?
+    func record(_ next:SynchronizationCommandPresentation){lock.lock();defer{lock.unlock()};value=next}
+    func take()->SynchronizationCommandPresentation? {lock.lock();defer{lock.unlock()};let next=value;value=nil;return next}
+}
+
 /// One captured main Sync workflow owns its actual reads, Git producer and
 /// follow-up stages independently of whether its window is still presented.
 @MainActor private final class SynchronizationInlineAttempt {
     let identity = UUID(), dockOwner = UUID(), cancellation: OperationCancellation
     let displaysCommand: Bool
+    let notificationCommand:String
     let receipt = SynchronizationInlineReceipt()
+    let notifications=RemoteProgressNotificationBuffer()
+    let presentation=SynchronizationInlinePresentation()
+    var notificationStarted=Date()
     var completedWork = ""
     var startedAt = ProcessInfo.processInfo.systemUptime
     var finishedAt: Date?, elapsed: TimeInterval?
     var completed = false
-    init(cancellation: OperationCancellation, displaysCommand: Bool) {
-        self.cancellation = cancellation; self.displaysCommand = displaysCommand
+    init(cancellation: OperationCancellation, displaysCommand: Bool,notificationCommand:String) {
+        self.cancellation = cancellation; self.displaysCommand = displaysCommand;self.notificationCommand=notificationCommand
     }
     func startCommand() { startedAt = ProcessInfo.processInfo.systemUptime }
     func producerFinished() {
@@ -1077,7 +1096,42 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
 @MainActor final class SynchronizationWindowModel: ObservableObject {
     private(set) static var activeInlineOperations = 0
     private var inlineAttempts: [UUID: SynchronizationInlineAttempt] = [:]
-    var hasPendingInlineWork: Bool { !inlineAttempts.isEmpty || historyQuestionCount > 0 || !historyParentRequests.isEmpty || !combineSelectionReads.isEmpty || historyActionWorkers > 0 || outgoingFileList.hasPendingQuestion || incomingFileList.hasPendingQuestion || comparison.hasOwnedPreparation || incomingComparison.hasOwnedPreparation }
+    let notifications:FileOperationProgressState
+    @Published private(set) var showsNotifications=false
+    @Published private(set) var notificationWarnings:[String]=[]
+    @Published var fileActionBusy=false
+    private(set) var notificationBackend:GitLibGit2Configuration?
+    private var notificationAttemptID:UUID?
+    var onNotificationLog:RemoteProgressLogHandler = {_,_,_,_,_ in}
+    var onNotificationFileAction:(FileOperationProgressAction,FileOperationProgressRow)->Void = {_,_ in}
+    var notificationOwnerAvailable:Bool {showsNotifications && tab==2 && !closed && !confirmingQuit && !confirmingCancellation && !busy && !hasOtherBlockingChild && historyQuestionCount==0 && window?.attachedSheet==nil}
+    var notificationActionsAvailable:Bool {notificationOwnerAvailable && !fileActionBusy}
+    var notificationKeyboardAvailable:Bool {showsNotifications && tab==2 && !closed && !confirmingQuit && !confirmingCancellation && !fileActionBusy && !hasOtherBlockingChild && historyQuestionCount==0 && window?.attachedSheet==nil}
+    var actionLogOutput:String {showsNotifications ? notifications.output+"\n\n"+commandOutput:commandOutput}
+    func appendNotificationDiagnostic(_ text:String){guard !closed else{return};appendInlineDiagnostic(text)}
+    private func resetNotifications() {showsNotifications=false;notificationBackend=nil;notificationAttemptID=nil;notificationWarnings=[];notifications.retire()}
+    private func drainNotifications(_ attempt:SynchronizationInlineAttempt) {
+        // Core announces the actual command presentation before emitting any
+        // typed event. Read events first: if this snapshot contains a row, its
+        // earlier announcement is already buffered (or installed previously).
+        let values=attempt.notifications.take()
+        let mode=attempt.presentation.take()
+        guard !closed,notificationAttemptID==attempt.identity else{return}
+        if let mode {
+            switch mode {
+            case .text:showsNotifications=false;notifications.retire()
+            case .transferNotifications:
+                showsNotifications=true;attempt.notificationStarted=Date();notifications.begin(attempt.notificationCommand)
+            }
+        }
+        guard showsNotifications else{return}
+        for value in values {
+            notifications.appendTransfer(value)
+            if case .issue(let warning)=value {notificationWarnings.append(warning.message)}
+        }
+    }
+
+    var hasPendingInlineWork: Bool { fileActionBusy || !inlineAttempts.isEmpty || historyQuestionCount > 0 || !historyParentRequests.isEmpty || !combineSelectionReads.isEmpty || historyActionWorkers > 0 || outgoingFileList.hasPendingQuestion || incomingFileList.hasPendingQuestion || comparison.hasOwnedPreparation || incomingComparison.hasOwnedPreparation }
 
     private(set) static var activePushWorkflows=0
     lazy var clientHooks=ClientHookSession(preferences:preferences)
@@ -1189,7 +1243,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
             for viewer in incomingComparison.unifiedWindows.values { viewer.model.confirmingQuit = confirmingQuit }
         }
     }
-    @Published var tab = 0 { didSet { if tab != oldValue { fileListGeneration=UUID();resultGeneration=UUID() } } }
+    @Published var tab = 0 { didSet { if tab != oldValue { fileListGeneration=UUID();resultGeneration=UUID();if oldValue==2 || tab==2 {notifications.retire()} } } }
     @Published private(set) var incomingFromPatch = false
     private var lastTransportOldHash: String?
     @Published private(set) var incomingCommits: [LogEntry]? {didSet {resultGeneration=UUID();prepareHistorySVN()}}
@@ -1537,8 +1591,8 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
             DockProgressRegistry.shared.update(attempt.dockOwner, value)
         }
     }
-    private func beginInlineAttempt(_ request: OperationCancellation, command: Bool, preserveFormFocus:Bool=false) -> SynchronizationInlineAttempt {
-        let attempt = SynchronizationInlineAttempt(cancellation: request, displaysCommand: command)
+    private func beginInlineAttempt(_ request: OperationCancellation, command: Bool, preserveFormFocus:Bool=false,notificationCommand:String="Fetch") -> SynchronizationInlineAttempt {
+        let attempt = SynchronizationInlineAttempt(cancellation: request, displaysCommand: command,notificationCommand:notificationCommand)
         if !preserveFormFocus {window?.makeFirstResponder(nil)}
         if command {formRevision=UUID()}
         inlineAttempts[attempt.identity] = attempt; Self.activeInlineOperations += 1
@@ -1581,6 +1635,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     }
     private func completeInlineCommand(_ attempt: SynchronizationInlineAttempt, success: Bool, cancelled: Bool, exitCode: Int32?) {
         guard !closed, inlineAttempts[attempt.identity] === attempt, attempt.displaysCommand, !attempt.completed else { return }
+        drainNotifications(attempt)
         attempt.producerFinished(); attempt.completed = true
         let receipt = attempt.receipt.read()
         let succeeded = receipt?.success ?? success, cancelled = receipt?.cancelled ?? cancelled
@@ -1589,6 +1644,9 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
             elapsed: receipt?.elapsed ?? attempt.elapsed ?? 0, finished: receipt?.finished ?? attempt.finishedAt ?? Date(), preferences: preferences, showTimings: true)
         commandOutput = boundedInlineBody(commandOutput, bytes: outputState.limit-completion.text.utf8.count)
         completionRange = completion.append(to: &commandOutput)
+        if showsNotifications,notificationAttemptID==attempt.identity {
+            notifications.append("Finished",completion.text.trimmingCharacters(in:.newlines),kind:.finished)
+        }
         commandCancelled = cancelled; inlineCompletionSucceeded = succeeded; inlineCommandFinished = true
         attempt.completedWork = completion.currentWork; currentWork = completion.currentWork; percentage = 100
         OperationSounds.report(failed: !succeeded, preferences: preferences)
@@ -1600,6 +1658,8 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         if cancelled { message = "Synchronization cancelled." }
         else if let failure = error as? GitFailure, outputState.hasOutput { message = "Git command failed (\(failure.code))." }
         else { message = error.localizedDescription }
+        drainNotifications(attempt)
+        if showsNotifications,notificationAttemptID==attempt.identity {notifications.appendBeforeCompletion("Error",boundedInlineBody(message,bytes:outputState.limit),kind:.error)}
         if attempt.completed { appendInlineDiagnostic(message) }
         else {
             commandOutput = GitProgressFailureOutput.render(error, existing: commandOutput, limit: outputState.limit)
@@ -1752,7 +1812,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     @Published var historyHighlights: [Int: String] = [:]
     var onHistoryCreateReference: ((Bool, String) -> Void)?
     @Published var creatingHistoryReference = false
-    var hasBlockingChild: Bool { historyQuestionCount > 0 || conflictFileActionsStorage?.busy == true || conflictFileActionsStorage?.unifiedViewerBusy == true || hasOtherBlockingChild }
+    var hasBlockingChild: Bool { fileActionBusy || historyQuestionCount > 0 || conflictFileActionsStorage?.busy == true || conflictFileActionsStorage?.unifiedViewerBusy == true || hasOtherBlockingChild }
     private var hasOtherBlockingChild: Bool {
         outgoingFileList.resettingColumns || incomingFileList.resettingColumns || historyReferencesBlocking() || operatingHistory || exportingHistory || creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
             child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
@@ -1765,6 +1825,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     private var historyKey: String { "TurtleGit.Sync." + repository.root.path }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.preferences = preferences
+        notifications=FileOperationProgressState(preferences:preferences)
         sshSettings = SSHTransportSettings(repository: repository)
         outputState = GitProgressOutputState(preferences: preferences)
         comparison = RevisionComparisonWindowModel(repository: repository, access: access, from: .revision("HEAD"), to: .revision("HEAD"), preferences: preferences)
@@ -1807,7 +1868,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         case nil: return ""
         }
     }
-    func invalidate() { formRevision=UUID();fileListGeneration=UUID();resultGeneration=UUID();outgoingFileList.retire();incomingFileList.retire(); inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};historySVNRequest?.cancel();Array(historyListRetirements.values).forEach {$0()};closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { notifications.retire();notificationAttemptID=nil;formRevision=UUID();fileListGeneration=UUID();resultGeneration=UUID();outgoingFileList.retire();incomingFileList.retire(); inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};historySVNRequest?.cancel();Array(historyListRetirements.values).forEach {$0()};closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
         guard !closed, !confirmingQuit, !confirmingCancellation, !transportRunning, !hasBlockingChild, window?.attachedSheet==nil else { return }
         formRevision=UUID()
@@ -1998,7 +2059,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         compareTagsSelected = true; preferences.set(6, forKey: historyKey + ".pullAction")
         if shift { return }
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
-        comparingTags = true; tagSnapshot = nil; tab = 7; error = nil; commandOutput = ""; referenceChanges = []
+        resetNotifications();comparingTags = true; tagSnapshot = nil; tab = 7; error = nil; commandOutput = ""; referenceChanges = []
         completionRange = nil; commandCancelled = false; inlineCommandFinished = false; inlineCompletionSucceeded = false
         commandCompleted = false; percentage = nil; currentWork = ""
         incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil;incomingComparison.error=nil; conflicts = []
@@ -2133,7 +2194,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
                     guard !closed, token === request, !request.isCancelled else { return }
                     referenceChanges = rows
                     busy = false; transportRunning = false; token = nil
-                    onTransportFinished(commandOutput); reload(preserveError: true)
+                    onTransportFinished(actionLogOutput); reload(preserveError: true)
                 } catch { if !closed, token === request { self.error = error.localizedDescription } }
             }
         } else { runTransport(selected, shift: false) }
@@ -2152,7 +2213,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         let operationID = UUID(); transportID = operationID
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
         cancelling = false; commandCompleted = false; commandSucceeded = false
-        outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
+        resetNotifications();outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
         let forced = force
         let attempt = beginInlineAttempt(request, command: true)
         Task {
@@ -2184,7 +2245,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
             commandCompleted = true; cancelling = false; transportRunning = false; busy = false; token = nil; transportID = nil
             // Source Submodule completion leaves Command Log selected, without
             // Fetch's reference/incoming/outgoing refill phases.
-            onTransportFinished(commandOutput)
+            onTransportFinished(actionLogOutput)
         }
     }
     func stash(_ action: SynchronizationStashAction? = nil, shift: Bool = NSEvent.modifierFlags.contains(.shift)) {
@@ -2196,7 +2257,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         let operationID = UUID(); transportID = operationID
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
         cancelling = false; commandCompleted = false; commandSucceeded = false
-        outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
+        resetNotifications();outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
         let attempt = beginInlineAttempt(request, command: true)
         Task {
             defer { releaseInlineAttempt(attempt) }
@@ -2230,7 +2291,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
             commandCompleted = true; cancelling = false; transportRunning = false; busy = false; token = nil; transportID = nil
             // Stash leaves the outgoing/reference projection unchanged. Failed
             // restore shows Conflicts only for actual unmerged entries.
-            onTransportFinished(commandOutput)
+            onTransportFinished(actionLogOutput)
         }
     }
     private func runTransport(_ action: SynchronizationTransportAction, shift: Bool) {
@@ -2240,7 +2301,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true
         cancelling = false; commandCompleted = false; commandSucceeded = false; referenceChanges = []
         incomingFromPatch = false; incomingCommits = nil; incomingGraph = []; incomingComparison.snapshot = nil;incomingComparison.error=nil; conflicts = []
-        outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
+        resetNotifications();outputState.reset(); commandOutput = ""; percentage = nil; currentWork = ""; error = nil; tab = 2
         if shift { completionRange = nil; commandCancelled = false; inlineCommandFinished = false; inlineCompletionSucceeded = false }
         var options = SynchronizationTransportOptions(action: action)
         options.localBranch = localBranch; options.remote = remote; options.remoteBranch = remoteBranch; options.force = force
@@ -2250,7 +2311,14 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
         let factory = sshSettings.capture()
         sshSettings.save(preferences, key: historyKey + ".autoload")
         if pushing { Self.activePushWorkflows += 1 }
-        let attempt = beginInlineAttempt(request, command: !shift)
+        // This source-style caption is display-only. Capture accepted options
+        // before any checkout/authentication can suspend; a rebuilt Pull→Fetch
+        // keeps those same remote/branch options and receives its actual mode
+        // separately from Core. Fetch All intentionally has no single refspec.
+        let notificationCommand=["Fetch",options.remote,action == .fetchAllBranches ? "":options.remoteBranch].filter{!$0.isEmpty}.joined(separator:" ")
+        let attempt = beginInlineAttempt(request, command: !shift,notificationCommand:notificationCommand)
+        notificationBackend=capturedBackend
+        if !shift {notificationAttemptID=attempt.identity}
         Task {
             defer { releaseInlineAttempt(attempt) }
             defer { if pushing { Self.activePushWorkflows -= 1 };withExtendedLifetime(access) {} }
@@ -2333,18 +2401,22 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
                     pushAttempted=pushing
                     let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
                     attempt.startCommand(); let receipt = attempt.receipt
+                    let typed=attempt.notifications,presentation=attempt.presentation
+                    let notify:@Sendable(GitTransferNotification)->Void = {value in typed.append(value);continuation.yield(())}
+                    let announce:@Sendable(SynchronizationCommandPresentation)->Void = {value in presentation.record(value);continuation.yield(())}
                     let operation = Task {
                         defer { attempt.producerFinished(); continuation.finish() }
                         if let checkout {
                             return try await repository.synchronize(checkout, cancellation: request,
                                 onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation,
-                                onCommandFinished: { completion in receipt.record(completion); continuation.yield(()) },backend:capturedBackend)
+                                onCommandFinished: { completion in receipt.record(completion); continuation.yield(()) },backend:capturedBackend,onNotification:notify,onCommandPresentation:announce)
                         }
                         return try await repository.synchronize(plan, deletionAuthorized: deletionAuthorized, cancellation: request,
                             onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: coordinator?.preparation,
-                                onCommandFinished: { completion in receipt.record(completion); continuation.yield(()) },backend:capturedBackend)
+                                onCommandFinished: { completion in receipt.record(completion); continuation.yield(()) },backend:capturedBackend,onNotification:notify,onCommandPresentation:announce)
                     }
-                    for await _ in updates { consume(parser.processPending(), parser: parser, request: request, attempt: attempt) }
+                    for await _ in updates { drainNotifications(attempt);consume(parser.processPending(), parser: parser, request: request, attempt: attempt) }
+                    drainNotifications(attempt)
                     consume(parser.processPending(), parser: parser, request: request, attempt: attempt)
                     consume(parser.finish(), parser: parser, request: request, attempt: attempt)
                     let result = try await operation.value
@@ -2441,7 +2513,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
                 guard !closed,token === postRequest else { return };currentWork=attempt.completedWork
             }
             commandCompleted = true; cancelling = false; transportRunning = false; busy = false; token = nil; transportID = nil
-            onTransportFinished(commandOutput)
+            onTransportFinished(actionLogOutput)
             // Fetch completion refreshes outgoing projection, not incoming HEAD.
             // A cancelled/failed Git command can still have updated references.
             reload(preserveError: true)
@@ -2450,6 +2522,7 @@ private final class SynchronizationInlineReceipt: @unchecked Sendable {
     private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser, request: OperationCancellation, attempt: SynchronizationInlineAttempt) {
         if closed, attempt.receipt.read() != nil { DockProgressRegistry.shared.remove(attempt.dockOwner) }
         guard !closed, token === request, inlineAttempts[attempt.identity] === attempt, !attempt.completed else { return }
+        drainNotifications(attempt)
         outputState.consume(emission, parser: parser)
         if attempt.receipt.read() != nil {
             // Core emitted the receipt only after draining all producer output.
@@ -2534,8 +2607,16 @@ private struct SynchronizationDialog: View {
             } else if model.tab == 3 {
                 SynchronizationReferenceTable(model: model)
             } else if model.tab == 2 {
-                SubmoduleProgressOutputView(text: model.commandOutput, completed: model.inlineCommandFinished,
-                    completionRange: model.completionRange, success: model.inlineCompletionSucceeded, preferences: model.preferences)
+                if model.showsNotifications {
+                    VStack(spacing:4) {
+                        FileOperationProgressTable(state:model.notifications,icon:.fetch,available:model.notificationActionsAvailable,repository:model.repository.root,keyboardAvailable:model.notificationKeyboardAvailable,fileRowIcons:true,actionAvailability:{model.notificationActionsAvailable},keyboardAvailability:{model.notificationKeyboardAvailable},performRow:model.onNotificationFileAction)
+                            .frame(minHeight:180,maxHeight:.infinity).layoutPriority(1)
+                        SubmoduleProgressOutputView(text:model.commandOutput,completed:model.inlineCommandFinished,completionRange:model.completionRange,success:model.inlineCompletionSucceeded,preferences:model.preferences).frame(height:100)
+                    }
+                } else {
+                    SubmoduleProgressOutputView(text: model.commandOutput, completed: model.inlineCommandFinished,
+                        completionRange: model.completionRange, success: model.inlineCompletionSucceeded, preferences: model.preferences)
+                }
             } else if model.tab == 0 || model.tab == 4 {
                 SynchronizationHistoryTable(model: model)
                     .id(model.tab)

@@ -1,0 +1,55 @@
+Source call-order oracle, 2026-10-23
+
+This local diagnostic used the existing pinned libgit2 1.9.4 arm64 static
+library (commit f7164261c9bc0a7e0ebf767c584e5192810a8b24), not the app/helper
+command adapter. The C program follows FetchProgressCommand's named-remote
+lookup -> git_remote_add_fetch -> git_remote_fetch(remote, NULL, ...) order.
+The local fixture initialized author/main, one base commit, a private bare
+server, and a private client clone with origin's usual wildcard fetch spec.
+Both requested refspecs ran sequentially against that client. No network or
+user repository/preferences/configuration was used; a private empty global
+Git config and GIT_CONFIG_NOSYSTEM=1 were passed to every process. The fixture
+and repositories were removed afterward. The C HTTP configuration callback
+is a local-only link stub; this diagnostic does not test HTTP.
+
+Raw diagnostic output:
+
+REQUEST refs/heads/main:refs/remotes/origin/main CODE 0
+LOADED_BEFORE 1
+SPEC +refs/heads/*:refs/remotes/origin/*
+ADD_RESULT 0
+LOADED_AFTER 1
+SPEC_AFTER +refs/heads/*:refs/remotes/origin/*
+EVENT refs/remotes/origin/main 9e7cafe7fcb014da56e2cd552bebe7c4f455b8b7 9e7cafe7fcb014da56e2cd552bebe7c4f455b8b7
+FETCH_RESULT 0
+CONFIG AFTER +refs/heads/*:refs/remotes/origin/*
+refs/heads/main:refs/remotes/origin/main
+REQUEST refs/heads/does-not-exist:refs/remotes/origin/does-not-exist CODE 0
+LOADED_BEFORE 2
+SPEC +refs/heads/*:refs/remotes/origin/*
+SPEC refs/heads/main:refs/remotes/origin/main
+ADD_RESULT 0
+LOADED_AFTER 2
+SPEC_AFTER +refs/heads/*:refs/remotes/origin/*
+SPEC_AFTER refs/heads/main:refs/remotes/origin/main
+EVENT refs/remotes/origin/main 9e7cafe7fcb014da56e2cd552bebe7c4f455b8b7 9e7cafe7fcb014da56e2cd552bebe7c4f455b8b7
+FETCH_RESULT 0
+CONFIG AFTER +refs/heads/*:refs/remotes/origin/*
+refs/heads/main:refs/remotes/origin/main
+refs/heads/does-not-exist:refs/remotes/origin/does-not-exist
+
+Interpretation / remaining source gap:
+
+remote_add_fetch persists another configuration entry but does not refresh the
+already loaded remote object's fetch-spec array. Fetch(NULL) therefore uses
+that previously loaded array. The second command sees the first command's
+persisted addition, while its own new addition is visible only to later loads.
+The current macOS adapter instead supplies per-operation explicit refspecs
+without changing remote configuration. This is a remaining source behavior
+gap, not proof of complete synchronization parity. Explicit unchanged specs
+can omit notifications, while configured wildcard specs report Same updates.
+A missing explicit spec returns actual success with no matching rows in the
+current helper; an unavailable remote remains a real transport failure.
+
+The C source accepts arguments: CLIENT_REPOSITORY FETCH_REFSPEC.
+See the matching .py reproduction script for private fixture/build setup.

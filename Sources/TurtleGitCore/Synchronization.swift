@@ -16,6 +16,13 @@ public struct SynchronizationCommandCompletion: Sendable {
     }
 }
 
+/// The actual settled command plan chooses its log before the producer starts.
+/// A Pull can become Fetch after checkout/authentication changes rebase config;
+/// consumers must not infer this from the original action or first result row.
+public enum SynchronizationCommandPresentation: Sendable, Equatable {
+    case text, transferNotifications
+}
+
 public enum SynchronizationStashAction: Int, CaseIterable, Sendable {
     case save, pop, apply
     public var arguments: [String] {
@@ -65,12 +72,22 @@ public enum SynchronizationSubmoduleAction: Int, CaseIterable, Sendable {
 extension GitRepository {
     private func runSynchronizationCommand(_ arguments: [String], environmentOverrides: [String: String] = [:],
         literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation,
-        onOutput: (@Sendable (GitOutputChunk) -> Void)?, onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)?, executorOverride: URL? = nil) throws -> GitResult {
+        onOutput: (@Sendable (GitOutputChunk) -> Void)?, onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)?, executorOverride: URL? = nil,
+        onNotification: (@Sendable (GitTransferNotification) -> Void)? = nil) throws -> GitResult {
         try cancellation.check()
         let started = ProcessInfo.processInfo.systemUptime
         do {
-            let result = try run(arguments, environmentOverrides: environmentOverrides, literalPathspecs: literalPathspecs,
-                successfulExitCodes: successfulExitCodes, cancellation: cancellation, onOutput: onOutput, executorOverride: executorOverride)
+            let result: GitResult
+            if executorOverride != nil, onNotification != nil {
+                // runTransfer drains verified result metadata (including a
+                // framing warning) before this subprocess completion receipt.
+                // Only the selected Fetch helper uses that private channel.
+                result = try runTransfer(arguments, environment: environmentOverrides, literalPathspecs: literalPathspecs,
+                    cancellation: cancellation, onOutput: onOutput, executor: executorOverride, onNotification: onNotification)
+            } else {
+                result = try run(arguments, environmentOverrides: environmentOverrides, literalPathspecs: literalPathspecs,
+                    successfulExitCodes: successfulExitCodes, cancellation: cancellation, onOutput: onOutput, executorOverride: executorOverride)
+            }
             onCommandFinished?(.init(success: result.exitCode == 0, cancelled: false, exitCode: result.exitCode, started: started))
             return result
         } catch {
@@ -472,14 +489,16 @@ extension GitRepository {
             deletesDestination: pushing && options.action != .pushNotes && source.hasPrefix(":"),
             currentBranch: catalog.currentBranch, rebaseReference: reference, optionsOnly: optionsOnly)
     }
-    /// Executes the source CLI command. Project hooks, tracking questions and
+    /// Executes the captured source transport. Project hooks, tracking questions and
     /// native post-fetch Rebase choices remain the caller's owned workflow.
     public func synchronize(_ plan: SynchronizationTransportPlan, checkoutAuthorized: Bool = false, deletionAuthorized: Bool = false,
                             cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
                             prepareTransport: SSHTransportPreparation? = nil,
-                            onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)? = nil, backend: GitLibGit2Configuration? = nil) async throws -> SynchronizationTransportResult {
+                            onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)? = nil, backend: GitLibGit2Configuration? = nil,
+                            onNotification: (@Sendable (GitTransferNotification) -> Void)? = nil,
+                            onCommandPresentation: (@Sendable (SynchronizationCommandPresentation) -> Void)? = nil) async throws -> SynchronizationTransportResult {
         try await executeSynchronization(plan, checkout: nil, checkoutAuthorized: checkoutAuthorized, deletionAuthorized: deletionAuthorized,
-                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommandFinished: onCommandFinished, backend: backend)
+                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommandFinished: onCommandFinished, backend: backend, onNotification: onNotification, onCommandPresentation: onCommandPresentation)
     }
     /// Runs only the approved checkout, allowing the native owner to present
     /// source-style separate progress before tracking and transport questions.
@@ -503,14 +522,18 @@ extension GitRepository {
     public func synchronize(_ checkout: SynchronizationPullCheckout, cancellation: OperationCancellation? = nil,
                             onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
                             prepareTransport: SSHTransportPreparation? = nil,
-                            onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)? = nil, backend: GitLibGit2Configuration? = nil) async throws -> SynchronizationTransportResult {
+                            onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)? = nil, backend: GitLibGit2Configuration? = nil,
+                            onNotification: (@Sendable (GitTransferNotification) -> Void)? = nil,
+                            onCommandPresentation: (@Sendable (SynchronizationCommandPresentation) -> Void)? = nil) async throws -> SynchronizationTransportResult {
         try await executeSynchronization(checkout.plan, checkout: checkout, checkoutAuthorized: true, deletionAuthorized: false,
-                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommandFinished: onCommandFinished, backend: backend)
+                                         cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommandFinished: onCommandFinished, backend: backend, onNotification: onNotification, onCommandPresentation: onCommandPresentation)
     }
     private func executeSynchronization(_ plan: SynchronizationTransportPlan, checkout: SynchronizationPullCheckout?,
                                         checkoutAuthorized: Bool, deletionAuthorized: Bool, cancellation: OperationCancellation?,
                                         onOutput: (@Sendable (GitOutputChunk) -> Void)?, prepareTransport: SSHTransportPreparation?,
-                                        onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)?, backend: GitLibGit2Configuration?) async throws -> SynchronizationTransportResult {
+                                        onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)?, backend: GitLibGit2Configuration?,
+                                        onNotification: (@Sendable (GitTransferNotification) -> Void)?,
+                                        onCommandPresentation: (@Sendable (SynchronizationCommandPresentation) -> Void)?) async throws -> SynchronizationTransportResult {
         let backend = backend ?? libgit2Configuration ?? .load()
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard !plan.optionsOnly else { throw SynchronizationFailure.invalidInput }
@@ -540,8 +563,10 @@ extension GitRepository {
         // the original plan still owns the pre-checkout HEAD for incoming tabs.
         let execution = plan.options.action == .pull ? try buildSynchronizationTransportPlan(plan.options, cancellation: token, checkoutCompleted: true) : plan
         let executor = GitCommandIdentity(execution.arguments).command == "fetch" ? try backend.executor(for: .fetch) : nil
+        try token.check()
+        onCommandPresentation?(executor != nil && onNotification != nil ? .transferNotifications : .text)
         let result = try runSynchronizationCommand(execution.arguments, environmentOverrides: session?.transportEnvironment ?? [:],
-            cancellation: token, onOutput: onOutput, onCommandFinished: onCommandFinished, executorOverride: executor)
+            cancellation: token, onOutput: onOutput, onCommandFinished: onCommandFinished, executorOverride: executor, onNotification: onNotification)
         var target: String?
         if let reference = execution.rebaseReference {
             do {
