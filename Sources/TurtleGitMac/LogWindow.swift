@@ -2185,13 +2185,15 @@ struct LogCommandRequest: Identifiable {
         guard !isInvalidated, !referencePickerBlocked, !busy || loadingHistory else { return }
         let scope = paths.contains(".") ? [] : paths
         let whole = HistoryWholeProjectPreference.load(root: repository.root, defaults: labelDefaults)
-        guard historyPaths != scope || showWholeProject != whole else { return }
+        guard historyPaths.map({ GitReferenceName($0) }) != scope.map({ GitReferenceName($0) }) || showWholeProject != whole else { return }
         historyWalk.followRenames = false; canFollowRenames = false
         historyPaths = scope; showWholeProject = whole; updatePathScopeTitle(); reload()
     }
     func canReuseForRange(_ range: HistoryRevisionRange, paths:[String] = []) -> Bool {
-        !isInvalidated && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !unifiedViewerBusy && !copyingDetails &&
-        revisionRange == range && endRevision == nil && historyPaths == paths && showWholeProject == paths.isEmpty && startRevisions.isEmpty && effectiveReferenceScope == .current
+        guard let current = revisionRange else { return false }
+        return !isInvalidated && !confirmingQuit && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !unifiedViewerBusy && !copyingDetails &&
+        current.kind == range.kind && GitReferenceName.equal(current.from, range.from) && GitReferenceName.equal(current.to, range.to) &&
+        endRevision == nil && historyPaths.map({ GitReferenceName($0) }) == paths.map({ GitReferenceName($0) }) && showWholeProject == paths.isEmpty && startRevisions.isEmpty && effectiveReferenceScope == .current
     }
     func configureWholeProjectScope() {
         historyWalk.followRenames = false; canFollowRenames = false

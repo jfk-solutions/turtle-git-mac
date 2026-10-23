@@ -47,7 +47,18 @@ import TurtleGitCore
         let quoted = "'" + git.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
         let script = """
         #!/bin/sh
-        if [ "$4" = rev-parse ] && [ "$5" = --verify ] && [ -f "$0.hold" ]; then
+        task_range_read() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              --literal-pathspecs|--no-literal-pathspecs) shift ;;
+              -C|-c|--config-env|--git-dir|--work-tree) shift; [ "$#" -gt 0 ] && shift ;;
+              -*) shift ;;
+              *) break ;;
+            esac
+          done
+          [ "${1-}" = rev-parse ] && [ "${2-}" = --verify ]
+        }
+        if task_range_read "$@" && [ -f "$0.hold" ]; then
           /bin/rm "$0.hold"
           /bin/sleep 30 &
           task_child=$!

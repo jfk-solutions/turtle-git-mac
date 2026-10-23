@@ -214,6 +214,8 @@ child dialog returns it to the caller; it does not itself check out that referen
 
 The browser keeps distinct Unicode spellings from Git as separate entries, even
 when they look alike. Export refuses names that collide on the destination volume.
+Historical windows also keep distinct file scopes and named references separate,
+so opening a similar-looking name does not reuse another request's contents.
 Working-tree actions report a conflict if another tracked path has the same
 Unicode spelling and resolves to the same filesystem item. Checks also inspect
 each parent folder and untracked or ignored names, including case aliases, using

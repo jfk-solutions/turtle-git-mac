@@ -78,7 +78,9 @@ the CLI backend for a real started-Git Progress cancellation. The initial generi
 assertion did not identify its exact failure stage; the record does not invent one.
 
 Exact snapshot and Browser path identity is covered here; reuse keys for distinct
-canonical-equivalent historical comparison windows still require a separate audit.
+canonical-equivalent historical comparison windows are addressed by the separate
+[historical viewer continuation](HISTORICAL-WINDOW-IDENTITY-PARITY.md), whose dated
+evidence retains its own validation scope.
 Physical Finder/other-app drag reception,
 Windows pixel/layout equivalence, minimum-version/signed grants, full hosted CI
 and complete upstream dialog parity remain separate work.

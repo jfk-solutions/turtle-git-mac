@@ -406,7 +406,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     func sizeText(_ entry: RepositoryBrowserEntry) -> String { entry.size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "" }
     func invalidate() { active = false; generation = UUID(); cancelRequests() }
     func canReuseForRevision(_ requestedRevision: String) -> Bool {
-        canUseMenu && revision == requestedRevision && snapshot?.revision == requestedRevision && snapshot?.directory == ""
+        canUseMenu && GitReferenceName.equal(revision, requestedRevision) && snapshot.map { GitReferenceName.equal($0.revision, requestedRevision) && $0.directory.isEmpty } == true
     }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }

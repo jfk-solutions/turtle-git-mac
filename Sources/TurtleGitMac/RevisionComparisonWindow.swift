@@ -110,9 +110,9 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if sender.attachedSheet==nil,model.cancelFileAction(closeAfter:true) { return false }
-        guard sender.attachedSheet == nil, !model.busy, model.patchWindow?.model.busy != true, model.patchWindow?.window?.attachedSheet == nil, !model.unifiedWindows.values.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !model.comparisonWindows.values.contains(where: { $0.model.busy }) else { return false }
+        guard sender.attachedSheet == nil, !model.busy, model.patchWindow?.model.busy != true, model.patchWindow?.window?.attachedSheet == nil, !model.unifiedWindows.values.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), model.retiringComparisonWindows.isEmpty, !model.allComparisonWindows.contains(where: { $0.model.busy || $0.model.inputEncodingOwnerRetired }) else { return false }
         guard PatchDocumentSession.permitOwnerClose(Array(model.unifiedWindows.values)) else { return false }
-        if let child = model.comparisonWindows.values.first(where: { $0.model.dirty }) {
+        if let child = model.allComparisonWindows.first(where: { $0.model.dirty }) {
             child.window?.makeKeyAndOrderFront(nil); child.window?.performClose(nil); return false
         }
         return true
@@ -125,7 +125,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         referencePicker?.abandonPresentation(); referencePicker = nil
         logPicker?.close(); logPicker = nil; reflogPicker?.close(); reflogPicker = nil
         model.patchWindow?.close(); Array(model.unifiedWindows.values).forEach { $0.close() }
-        Array(model.comparisonWindows.values).forEach { $0.close() }; onClosed()
+        model.allComparisonWindows.forEach { $0.close() }; onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -298,6 +298,8 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     var onFileLog: (String, String?) -> Void = { _, _ in }
     var onSubmoduleCompare: (String, String?, ComparisonRevision, ComparisonRevision) -> Void = { _, _, _, _ in }
     var comparisonWindows = GitPathMap<FileComparisonWindowController>()
+    private(set) var retiringComparisonWindows:[ObjectIdentifier:FileComparisonWindowController]=[:]
+    var allComparisonWindows:[FileComparisonWindowController] {Array(comparisonWindows.values)+Array(retiringComparisonWindows.values)}
     @Published var fileColumns: StatusListColumnSettings { didSet { invalidateFileMenus() } }
     @Published var focusedFile: String? {
         didSet { if oldValue.map({GitReferenceName($0)}) != focusedFile.map({GitReferenceName($0)}) { invalidateFileMenus(includingDrag:false) } }
@@ -380,7 +382,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         fileActionToken?.cancel();cancelFilePicker();comparisonSessions.values.forEach {$0.cancel()};patchTokens.values.forEach {$0.cancel()};loadToken?.cancel();return true
     }
     func closeOwnedViewers() {
-        patchWindow?.close();Array(unifiedWindows.values).forEach {$0.close()};Array(comparisonWindows.values).forEach {$0.close()}
+        patchWindow?.close();Array(unifiedWindows.values).forEach {$0.close()};allComparisonWindows.forEach {$0.close()}
     }
     func cancelPendingInput() { inputGeneration = UUID(); inputTask?.cancel(); inputTask = nil }
     func editRevision(_ value: String, side: ComparisonSide) {
@@ -402,7 +404,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         !closed && inputTask == nil && !resettingColumns && !busy && !confirmingQuit && scopePaths.map({GitReferenceName($0)}) == paths.map({GitReferenceName($0)}) && GitReferenceName.equal(from,requestedFrom.label) && GitReferenceName.equal(to,requestedTo.label) &&
         patchWindow?.model.busy != true && patchWindow?.window?.attachedSheet == nil &&
         !unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } &&
-        !comparisonWindows.values.contains { $0.model.busy || $0.model.dirty }
+        retiringComparisonWindows.isEmpty && !comparisonWindows.values.contains { $0.model.busy || $0.model.dirty || $0.model.inputEncodingOwnerRetired }
     }
     private func side(_ input: String) -> ComparisonRevision {
         switch input.lowercased() { case "working tree": return .workingTree; case "empty tree": return .emptyTree; default: return .revision(input) }
@@ -503,9 +505,21 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
             guard !closed, !token.isCancelled else { return }
             if let openComparedFile { openComparedFile(snapshot, file); continue }
             if file.isSubmodule { onSubmoduleCompare(file.path, file.oldPath, snapshot.from, snapshot.to); continue }
-            let key = file.path + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey
-            let controller = comparisonWindows[key] ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
-            controller.onClosed = { [weak self] in self?.comparisonWindows.removeValue(forKey: key) }
+            // GitPathMap already preserves exact UTF-8 key bytes. Include the
+            // rename source and absence role too: the same destination/endpoints
+            // can acquire a different preimage in a refreshed embedded list.
+            let key = file.path + "\0" + (file.oldPath.map { "old-path:present:"+$0 } ?? "old-path:absent") + "\0" + file.action + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey
+            let existing=comparisonWindows[key]
+            if let existing,existing.model.inputEncodingOwnerRetired {
+                retiringComparisonWindows[ObjectIdentifier(existing)]=existing
+            }
+            let reusable=existing.flatMap{$0.model.inputEncodingOwnerRetired ? nil:$0}
+            let controller = reusable ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
+            controller.onClosed = { [weak self,weak controller] in
+                guard let self,let controller else{return}
+                self.retiringComparisonWindows.removeValue(forKey:ObjectIdentifier(controller))
+                if self.comparisonWindows[key] === controller {self.comparisonWindows.removeValue(forKey:key)}
+            }
             comparisonWindows[key] = controller
             controller.model.comparisonDefaults = preferences
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)

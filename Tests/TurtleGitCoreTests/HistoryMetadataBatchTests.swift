@@ -41,7 +41,16 @@ final class HistoryMetadataBatchTests:XCTestCase {
         let wrapper=root.appendingPathComponent("live-git"),marker=root.appendingPathComponent("walk-pids")
         let script="""
         #!/bin/sh
-        if [ "$4" = log ]; then
+        git_command() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -c|-C|--git-dir|--work-tree|--namespace|--config-env) shift; [ "$#" -gt 0 ] || return 1; shift ;;
+              --git-dir=*|--work-tree=*|--namespace=*|--config-env=*|--literal-pathspecs|--no-literal-pathspecs|--no-pager) shift ;;
+              *) printf '%s' "$1"; return ;;
+            esac
+          done
+        }
+        if [ "$(git_command "$@")" = log ]; then
           /usr/bin/git "$@"
           /bin/sleep 30 &
           task_child=$!
@@ -164,7 +173,16 @@ final class HistoryMetadataBatchTests:XCTestCase {
         let wrapper=root.appendingPathComponent("count-git")
         try """
         #!/bin/sh
-        printf '%s\\n' "$4" >> "$0.calls"
+        git_command() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -c|-C|--git-dir|--work-tree|--namespace|--config-env) shift; [ "$#" -gt 0 ] || return 1; shift ;;
+              --git-dir=*|--work-tree=*|--namespace=*|--config-env=*|--literal-pathspecs|--no-literal-pathspecs|--no-pager) shift ;;
+              *) printf '%s' "$1"; return ;;
+            esac
+          done
+        }
+        printf '%s\\n' "$(git_command "$@")" >> "$0.calls"
         exec /usr/bin/git "$@"
 
         """.write(to:wrapper,atomically:true,encoding:.utf8)

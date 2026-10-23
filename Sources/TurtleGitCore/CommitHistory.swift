@@ -1096,7 +1096,7 @@ extension GitRepository {
     public func history(options: HistoryOptions = HistoryOptions(), cancellation: OperationCancellation? = nil, issueProperties: IssueTrackerProperties? = nil, dateSettings: HistoryDateSettings = .load(), onProgress: (@Sendable (Int) -> Void)? = nil, onBatch: (@Sendable ([LogEntry]) -> Void)? = nil) throws -> [LogEntry] {
         try cancellation?.check()
         func historyRun(_ arguments: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
-            try run(arguments, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+            try run(["-c", "core.precomposeunicode=false"] + arguments, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
         }
         if options.limit == 0 { return [] }
         // An unborn HEAD is valid; --all may still have commits in other branches.
@@ -1302,7 +1302,7 @@ extension GitRepository {
         }
         let stream=HistoryRecordStream()
         var lastWalkBytes=Date()
-        _ = try run(args,cancellation:cancellation,retainStandardOutput:false,consumeOutput:{ chunk in
+        _ = try run(["-c", "core.precomposeunicode=false"] + args,cancellation:cancellation,retainStandardOutput:false,consumeOutput:{ chunk in
             guard case .stdout=chunk.stream else { return }
             if !chunk.data.isEmpty {
                 lastWalkBytes=Date()
@@ -1324,26 +1324,26 @@ extension GitRepository {
     public func canFollowHistory(paths: [String], revision: String? = nil, cancellation: OperationCancellation? = nil) throws -> Bool {
         try cancellation?.check()
         guard paths.count == 1, let path = paths.first, !path.isEmpty, path != ".", !path.hasSuffix("/") else { return false }
-        let bare = try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
+        let bare = try run(["-c", "core.precomposeunicode=false", "rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
         if !bare, (try? FileManager.default.attributesOfItem(atPath: root.appendingPathComponent(path).path)[.type] as? FileAttributeType) == .typeDirectory { return false }
-        let pinned = try run(["rev-parse", "--verify", "--quiet", "--end-of-options", (revision ?? "HEAD") + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
+        let pinned = try run(["-c", "core.precomposeunicode=false", "rev-parse", "--verify", "--quiet", "--end-of-options", (revision ?? "HEAD") + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
         if pinned.exitCode == 1 { return true }
         let hash = pinned.text.trimmingCharacters(in: .newlines)
-        let tree = try run(["ls-tree", "-z", hash, "--", path], cancellation: cancellation).stdout
+        let tree = try run(["-c", "core.precomposeunicode=false", "ls-tree", "-z", hash, "--", path], cancellation: cancellation).stdout
         let record = String(decoding: tree, as: UTF8.self)
         return !record.hasPrefix("040000 ") && !record.hasPrefix("160000 ")
     }
     public func historyPathScopes(paths: [String], revision: String? = nil, cancellation: OperationCancellation? = nil) throws -> [HistoryPathScope] {
         guard !paths.isEmpty else { return [] }
-        let bare = try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
-        let pinned = try run(["rev-parse", "--verify", "--quiet", "--end-of-options", (revision ?? "HEAD") + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
+        let bare = try run(["-c", "core.precomposeunicode=false", "rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
+        let pinned = try run(["-c", "core.precomposeunicode=false", "rev-parse", "--verify", "--quiet", "--end-of-options", (revision ?? "HEAD") + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
         let hash = pinned.text.trimmingCharacters(in: .newlines)
         return try paths.map { path in
             try cancellation?.check()
             var directory = path == "." || path.hasSuffix("/")
             if !bare, (try? FileManager.default.attributesOfItem(atPath: root.appendingPathComponent(path).path)[.type] as? FileAttributeType) == .typeDirectory { directory = true }
             if !directory, pinned.exitCode == 0 {
-                let record = String(decoding: try run(["ls-tree", "-z", hash, "--", path], cancellation: cancellation).stdout, as: UTF8.self)
+                let record = String(decoding: try run(["-c", "core.precomposeunicode=false", "ls-tree", "-z", hash, "--", path], cancellation: cancellation).stdout, as: UTF8.self)
                 directory = record.hasPrefix("040000 ") || record.hasPrefix("160000 ")
             }
             return HistoryPathScope(path: path, isDirectory: directory)

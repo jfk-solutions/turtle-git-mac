@@ -459,13 +459,13 @@ private enum TransportBatchPresentationContext {
     var commitWindowFactory:((GitRepository,RepositoryAccessLease?)->CommitWindowController)?
     private var combineWindows: [UUID: HistoryCombineWindowController] = [:]
     private var historyRevertWindows: [UUID: HistoryRevertWindowController] = [:]
-    private var logWindows: [String: LogWindowController] = [:]
+    private var logWindows = GitPathMap<LogWindowController>()
     private struct ConfiguredLog { weak var model:LogWindowModel? }
     private var configuredLogModels:[ObjectIdentifier:ConfiguredLog]=[:]
     var logWindowFactory:((GitRepository,RepositoryAccessLease?)->LogWindowController)?
     private var revisionGraphWindows: [String: RevisionGraphWindowController] = [:]
     private var referenceBrowserWindows: [String: ReferenceBrowserWindowController] = [:]
-    private var browserWindows: [String: RepositoryBrowserWindowController] = [:]
+    private var browserWindows = GitPathMap<RepositoryBrowserWindowController>()
     private var worktreeListWindows: [String: WorktreeListWindowController] = [:]
     var worktreeCreateWindowFactory: ((GitRepository, RepositoryAccessLease?, UserDefaults, URL?) -> WorktreeCreateWindowController)?
     var worktreeListWindowFactory: ((GitRepository, RepositoryAccessLease?, UserDefaults) -> WorktreeListWindowController)?
@@ -596,7 +596,7 @@ private enum TransportBatchPresentationContext {
     private(set) var imageConflictWindows = GitPathMap<ImageConflictWindowController>()
     private(set) var textConflictWindows = GitPathMap<TextConflictWindowController>()
     private(set) var submoduleDiffWindows = GitPathMap<SubmoduleDiffWindowController>()
-    private var revisionComparisonWindows: [String: RevisionComparisonWindowController] = [:]
+    private var revisionComparisonWindows = GitPathMap<RevisionComparisonWindowController>()
     private var imageLoader: ImageLoadWindowController?
     private(set) var fileComparisonWindows = GitPathMap<FileComparisonWindowController>()
     private var submoduleSyncWindows: [UUID: SubmoduleSyncWindowController] = [:]
@@ -2718,7 +2718,7 @@ private enum TransportBatchPresentationContext {
         if let submoduleDiffPresentation {submoduleDiffPresentation(controller)} else {controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)}
         controller.model.load()
     }
-    private func showRevisionComparison(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = [], preferences: UserDefaults? = nil) {
+    func showRevisionComparison(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String] = [], preferences: UserDefaults? = nil) {
         let baseKey = repository.root.path + "\0" + from.label + "\0" + to.label + "\0scope\0" + paths.joined(separator: "\0")
         let reusable = revisionComparisonWindows.first { _, controller in
             controller.model.repository.root == repository.root && controller.model.repository.executable == repository.executable &&
@@ -2726,7 +2726,7 @@ private enum TransportBatchPresentationContext {
         }
         let key = reusable?.key ?? (revisionComparisonWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
         let controller = reusable?.value ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to, paths: paths, preferences: preferences ?? fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.revisionComparisonWindows.removeValue(forKey: key) }
+        controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.revisionComparisonWindows[key] === controller else { return }; self.revisionComparisonWindows.removeValue(forKey: key) }
         configureRevisionComparisonInteractions(controller.model, repository: repository, access: access)
         revisionComparisonWindows[key] = controller
         controller.model.load()
@@ -2838,7 +2838,8 @@ private enum TransportBatchPresentationContext {
         guard !confirmingQuit else { return }
         if let commitChangeSetPresentation { commitChangeSetPresentation(comparison);return }
         let key=repository.root.path+"\0changesets\0"+comparison.snapshot.from.label+"\0"+comparison.snapshot.to.label+"\0"+ComparisonToolInvocation.cacheKey+"\0preferences:"+String(describing:ObjectIdentifier(defaults))
-        let controller=fileComparisonWindows[key] ?? FileComparisonWindowController(repository:repository,access:access,changeSets:comparison,preferences:defaults)
+        let cached=fileComparisonWindows[key].flatMap { $0.model.inputEncodingOwnerRetired ? nil:$0 }
+        let controller=cached ?? FileComparisonWindowController(repository:repository,access:access,changeSets:comparison,preferences:defaults)
         controller.model.comparisonDefaults=defaults
         controller.onClosed={ [weak self,weak controller] in
             guard let self,let controller,self.fileComparisonWindows[key] === controller else { return }
@@ -3010,8 +3011,9 @@ private enum TransportBatchPresentationContext {
                 showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label, to: snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label,fromPath:file.oldPath,preferences:defaults,appearance:appearance,alpha:alpha)
                 continue
             }
-            let key = repository.root.path + "\0" + file.path + "\0" + (file.oldPath ?? file.path) + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey + "\0preferences:" + String(describing: ObjectIdentifier(defaults)) + (line.map { "\0line\0" + String($0) + "\0" + UUID().uuidString } ?? "")
-            let controller = (fileComparisonWindows[key]?.window != nil ? fileComparisonWindows[key] : nil) ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path, preferences: defaults, line: line)
+            let key = repository.root.path + "\0" + file.path + "\0" + (file.oldPath ?? file.path) + "\0action\0" + file.action + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey + "\0preferences:" + String(describing: ObjectIdentifier(defaults)) + (line.map { "\0line\0" + String($0) + "\0" + UUID().uuidString } ?? "")
+            let cached = fileComparisonWindows[key].flatMap { $0.model.inputEncodingOwnerRetired ? nil : $0 }
+            let controller = cached ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path, preferences: defaults, line: line)
             controller.onClosed = { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             fileComparisonWindows[key] = controller
             controller.model.comparisonDefaults = defaults
@@ -3583,14 +3585,14 @@ private enum TransportBatchPresentationContext {
         }
         gitPropertyWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil, invocation: PrimaryCommandInvocation? = nil, outputAccess: RepositoryAccessLease? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil, presentation: MergeWindowPresentation? = nil) {
+    func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil, invocation: PrimaryCommandInvocation? = nil, outputAccess: RepositoryAccessLease? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
         let defaults = preferences ?? fileComparisonPreferences
         let root = repository.root
         var baseKey = root.path
         if let revisionRange { baseKey += "\0range\0" + revisionRange.expression }
         else if let endRevision { baseKey += "\0" + endRevision }
-        if !paths.isEmpty { baseKey += "\0paths\0" + paths.sorted().joined(separator: "\0") }
+        if !paths.isEmpty { baseKey += "\0paths\0" + paths.sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }.joined(separator: "\0") }
         if invocation != nil { baseKey += "\0command\0" + UUID().uuidString }
         if let preferences { baseKey += "\0preferences\0" + String(describing: ObjectIdentifier(preferences)) }
         let reusable: (key: String, value: LogWindowController)?

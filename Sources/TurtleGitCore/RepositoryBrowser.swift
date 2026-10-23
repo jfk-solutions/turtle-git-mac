@@ -159,7 +159,7 @@ extension GitRepository {
             guard try run(["show-ref", "--verify", "--quiet", ref], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 1 else { throw RepositoryBrowserFailure.revision }
             return RepositoryBrowserSnapshot(root: root, revision: revision, objectID: nil, treeID: nil, directory: "", bare: bare, entries: [])
         }
-        let object = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let object = try run(["-c", "core.precomposeunicode=false", "rev-parse", "--verify", "--end-of-options", revision + "^{}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         let tree: String
         do { tree = try run(["rev-parse", "--verify", "--end-of-options", object + "^{tree}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
         catch { try cancellation?.check(); throw RepositoryBrowserFailure.revision }

@@ -1,0 +1,164 @@
+{
+  "date": "2026-10-23",
+  "status": "grouped-checkpoint-passed-after-recorded-fixture-repairs",
+  "scope": [
+    "Byte-exact Log/Browser/Revision parent window maps and reuse predicates",
+    "Literal readonly history/scopes/named Browser queries under persistent core.precomposeunicode=true",
+    "Comparison action/old-path-sensitive receipt identity",
+    "Retired child replacement and late-close callback ownership"
+  ],
+  "pinned_source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "audit_correction": "Workspace and Revision child comparison maps were already GitPathMap; retained byte-identity coverage does not count them as new canonical-key fixes. Native Revision scope/endpoints also already used exact comparisons.",
+  "validation": {
+    "core": {
+      "command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 TURTLEGIT_CORE_ONLY=1 swift test --jobs 4 --filter 'HistoricalQueryIdentityTests|HistoryRangeTests|HistoryMetadataBatchTests'",
+      "methods": 13,
+      "exit_code": 0,
+      "log": "build/qa/historical-window-identity-core-2026-10-23.log"
+    },
+    "app": {
+      "configuration": "Debug, unsigned, native arm64",
+      "exit_code": 0,
+      "generic_exit_zero_diagnostics": 9,
+      "log": "build/qa/historical-window-identity-app-2026-10-23.log"
+    },
+    "native": {
+      "status": "eight distinct case/engine pairs pass cumulatively; ten attempted receivers reaped and independently absent",
+      "attempts": [
+        {
+          "case": "compare",
+          "engine": "/usr/bin/git",
+          "receiver_pid": 97032,
+          "result": "failed before workflow at raw packed reference fixture assertion; receiver reaped",
+          "repair": "Author both exact packed refs directly instead of filesystem-dependent sequential loose ref packing; retain raw-byte checks and add exact OID resolution"
+        },
+        {
+          "case": "compare",
+          "engine": "/usr/bin/git",
+          "receiver_pid": 97248,
+          "result": "pass; receiver reaped"
+        },
+        {
+          "case": "revision",
+          "engine": "/usr/bin/git",
+          "receiver_pid": 97411,
+          "result": "failed at dirty child setup/reuse assertion; receiver reaped",
+          "repair": "Historical panes correctly refused editing; use actual Changed Files working-tree child, assert editing is permitted, mutate unsaved draft, test parent refusal, restore original draft and verify clean"
+        },
+        {
+          "case": "revision",
+          "engine": "/usr/bin/git",
+          "receiver_pid": 97784,
+          "result": "pass; receiver reaped"
+        },
+        {
+          "case": "log",
+          "engine": "/usr/bin/git",
+          "receiver_pid": 97907,
+          "result": "pass; receiver reaped"
+        },
+        {
+          "case": "browser",
+          "engine": "/usr/bin/git",
+          "receiver_pid": 98148,
+          "result": "pass; receiver reaped"
+        },
+        {
+          "case": "compare",
+          "engine": "bundled Git",
+          "receiver_pid": 98256,
+          "result": "pass; receiver reaped"
+        },
+        {
+          "case": "revision",
+          "engine": "bundled Git",
+          "receiver_pid": 98416,
+          "result": "pass; receiver reaped"
+        },
+        {
+          "case": "log",
+          "engine": "bundled Git",
+          "receiver_pid": 98528,
+          "result": "pass; receiver reaped"
+        },
+        {
+          "case": "browser",
+          "engine": "bundled Git",
+          "receiver_pid": 98778,
+          "result": "pass; receiver reaped"
+        }
+      ],
+      "logs": [
+        "build/qa/historical-window-identity-native-2026-10-23.log",
+        "build/qa/historical-window-identity-native-repair1-2026-10-23.log",
+        "build/qa/historical-window-identity-native-repair2-system-2026-10-23.log",
+        "build/qa/historical-window-identity-native-bundled-2026-10-23.log"
+      ],
+      "ownership": "Private repositories/preferences, offscreen alpha-zero windows including children; all ten PIDs independently absent after runs; successful runs required no helper cleanup intervention",
+      "covered_behaviors": [
+        "Actual separate comparison documents for NFC/NFD Git names, exact repeat reuse and independent close",
+        "Old-path/action-sensitive comparison identity, added-side absence, captured alternate tool and preferences",
+        "Workspace and Changed Files held-load close, fresh replacement, retained retired owner and late-callback protection",
+        "Actual dirty working child prevents Changed Files parent reuse; Quit refuses new preparation",
+        "Exact scoped/ranged Log histories and named Browser trees while persistent core.precomposeunicode=true",
+        "HEAD/index/config/sentinel preserved"
+      ]
+    },
+    "not_rerun": [
+      "Full Core suite: hosted integration owns it",
+      "Older Log stream/range native receivers: wrapper argument parsing updated for command-local flags but not executed in this local batch",
+      "Passing Core methods and Debug build were not repeated after fixture-only native repairs"
+    ]
+  },
+  "limits": [
+    "No arbitrary invalid-UTF8 path support or physical filesystem normalization guarantee",
+    "Physical keyboard/VoiceOver/Finder, minimum-version/signed acceptance and complete hosted CI remain separate",
+    "No complete-dialog or whole-port completion claim"
+  ],
+  "hosted_observation": {
+    "pages": {
+      "commit": "e1407eff",
+      "run": 40000780395,
+      "conclusion": "success"
+    },
+    "macos": {
+      "commit": "e1407eff",
+      "run": 40000780384,
+      "status": "pending"
+    },
+    "older_macos": {
+      "commit": "47806274",
+      "run": 39989023340,
+      "job": 120543668633,
+      "conclusion": "failure",
+      "completed_log_time": "2026-10-23T18:25:43Z",
+      "core_methods": 2663,
+      "skips": 2,
+      "failures": 1,
+      "exact_failure": "MetafileDirectScanlineTests.testMalformedDirectScanlinesRefuseEntirePaintedPrefixAndPreserveSource: stale palette negative accepted",
+      "subsequent_fix": "5140a545 already changed invalid palette fixture and retained positive bands/custom negative coverage; local scoped validation is recorded separately",
+      "note": "Prior partial log ending at receipt-test startup did not prove a stall. Later complete log establishes terminal result; native steps were skipped."
+    }
+  },
+  "generated": {
+    "localization_languages": 38,
+    "localization_keys": 1316,
+    "help_documents": 58,
+    "help_topics": 51,
+    "help_files": 78,
+    "help_bytes": 3784744,
+    "dialog_ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "pending_static_controls": 85,
+      "certified_complete": 0
+    },
+    "site": {
+      "documents": 426,
+      "unresolved_fragments": 0,
+      "python_checks": 2,
+      "javascript_search": "pass"
+    }
+  }
+}

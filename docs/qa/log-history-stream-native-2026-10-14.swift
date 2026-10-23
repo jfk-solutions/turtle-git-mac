@@ -23,7 +23,18 @@ import TurtleGitCore
         func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
         let script = """
         #!/bin/sh
-        if [ "$4" = log ] && [ -f "$3/slow" ]; then
+        task_history_read() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              --literal-pathspecs|--no-literal-pathspecs) shift ;;
+              -C|-c|--config-env|--git-dir|--work-tree) shift; [ "$#" -gt 0 ] && shift ;;
+              -*) shift ;;
+              *) break ;;
+            esac
+          done
+          [ "${1-}" = log ]
+        }
+        if task_history_read "$@" && [ -f "$3/slow" ]; then
           \(quote(git.path)) "$@"
           : > "$3/started"
           /bin/sleep 30

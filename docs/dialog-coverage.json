@@ -706,6 +706,7 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/HISTORICAL-WINDOW-IDENTITY-PARITY.md",
         "docs/LOG-FILTER-PARITY.md",
         "docs/LOG-FOOTER-PARITY.md",
         "docs/LOG-MESSAGE-PARITY.md",
@@ -723,6 +724,7 @@
         "docs/qa/followed-history-2026-10-15.json",
         "docs/qa/historical-export-2026-10-05.json",
         "docs/qa/historical-save-2026-10-05.json",
+        "docs/qa/historical-window-identity-2026-10-23.json",
         "docs/qa/history-boundaries-2026-10-09.json",
         "docs/qa/history-lanes-2026-10-09.json",
         "docs/qa/history-projection-2026-10-09.json",
@@ -997,6 +999,7 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/HELP-PARITY.md",
+        "docs/HISTORICAL-WINDOW-IDENTITY-PARITY.md",
         "docs/REPOSITORY-BROWSER-PARITY.md",
         "docs/SYMLINK-BLAME-PARITY.md"
       ],
@@ -1006,6 +1009,7 @@
         "docs/qa/browser-revisions-2026-10-16.json",
         "docs/qa/browser-tree-comparisons-2026-10-15.json",
         "docs/qa/help-book-2026-10-15.json",
+        "docs/qa/historical-window-identity-2026-10-23.json",
         "docs/qa/prepared-submodule-2026-10-16.json",
         "docs/qa/repository-browser-2026-10-05.json",
         "docs/qa/repository-browser-actions-2026-10-13.json",
@@ -1803,6 +1807,7 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/COMPARE-WORKFLOW-PARITY.md",
+        "docs/HISTORICAL-WINDOW-IDENTITY-PARITY.md",
         "docs/LOG-PARITY.md",
         "docs/SUBMODULE-DIFF-PARITY.md",
         "docs/UI-PARITY.md"
@@ -1819,6 +1824,7 @@
         "docs/qa/followed-history-2026-10-15.json",
         "docs/qa/historical-export-2026-10-05.json",
         "docs/qa/historical-save-2026-10-05.json",
+        "docs/qa/historical-window-identity-2026-10-23.json",
         "docs/qa/history-boundaries-2026-10-09.json",
         "docs/qa/history-lanes-2026-10-09.json",
         "docs/qa/history-projection-2026-10-09.json",
