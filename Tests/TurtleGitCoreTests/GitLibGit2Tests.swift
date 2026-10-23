@@ -624,15 +624,32 @@ final class GitLibGit2Tests: XCTestCase {
         for _ in 0..<1500 { if predicate() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
         XCTFail("Owned libgit2 fixture did not reach its boundary"); throw GitLibGit2Failure.runtimeMissing
     }
-    @MainActor private func withHTTPS(_ f: Fixture, name: String = "https", _ body: (URL, String) async throws -> Void) async throws {
+    @MainActor private func withHTTPS(_ f: Fixture, name: String = "https", signedByCA: Bool = false, _ body: (URL, String) async throws -> Void) async throws {
         let root = f.root.appendingPathComponent(name)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        let configuration = "[req]\nprompt=no\ndistinguished_name=dn\nx509_extensions=ext\n[dn]\nCN=localhost\n[ext]\nsubjectAltName=DNS:localhost\nbasicConstraints=critical,CA:TRUE\nkeyUsage=critical,digitalSignature,keyEncipherment,keyCertSign\nextendedKeyUsage=serverAuth\n"
+        let configuration = "[req]\nprompt=no\ndistinguished_name=dn\nx509_extensions=ext\n[dn]\nCN=localhost\n[ext]\nsubjectAltName=DNS:localhost\nbasicConstraints=critical,CA:\(signedByCA ? "FALSE" : "TRUE")\nkeyUsage=critical,digitalSignature,keyEncipherment\(signedByCA ? "" : ",keyCertSign")\nextendedKeyUsage=serverAuth\n"
         try Data(configuration.utf8).write(to: root.appendingPathComponent("openssl.cnf"))
-        let certificate = Process(); certificate.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
-        certificate.arguments = ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-config", root.appendingPathComponent("openssl.cnf").path, "-keyout", root.appendingPathComponent("key.pem").path, "-out", root.appendingPathComponent("cert.pem").path]
-        certificate.standardOutput = FileHandle.nullDevice; certificate.standardError = FileHandle.nullDevice
-        try certificate.run(); certificate.waitUntilExit(); XCTAssertEqual(certificate.terminationStatus, 0)
+        func openssl(_ arguments: [String]) throws {
+            let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/bin/openssl")
+            process.arguments = arguments; process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
+            try process.run(); process.waitUntilExit()
+            guard process.terminationStatus == 0 else {
+                throw NSError(domain: "TurtleGit.HTTPSFixture", code: Int(process.terminationStatus),
+                              userInfo: [NSLocalizedDescriptionKey: "OpenSSL HTTPS fixture command failed: " + (arguments.first ?? "")])
+            }
+        }
+        if signedByCA {
+            // Exercise an actual configured authority and a distinct server
+            // leaf. A dual-role CA:TRUE server certificate can be rejected by
+            // platform SSL policy independently of HTTP configuration loading.
+            let ca = "[req]\nprompt=no\ndistinguished_name=dn\nx509_extensions=ext\n[dn]\nCN=TurtleGit private fixture CA\n[ext]\nbasicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign,cRLSign\n"
+            try Data(ca.utf8).write(to: root.appendingPathComponent("ca.cnf"))
+            try openssl(["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-sha256", "-days", "1", "-config", root.appendingPathComponent("ca.cnf").path, "-keyout", root.appendingPathComponent("ca-key.pem").path, "-out", root.appendingPathComponent("ca.pem").path])
+            try openssl(["req", "-new", "-newkey", "rsa:2048", "-nodes", "-sha256", "-config", root.appendingPathComponent("openssl.cnf").path, "-keyout", root.appendingPathComponent("key.pem").path, "-out", root.appendingPathComponent("server.csr").path])
+            try openssl(["x509", "-req", "-in", root.appendingPathComponent("server.csr").path, "-CA", root.appendingPathComponent("ca.pem").path, "-CAkey", root.appendingPathComponent("ca-key.pem").path, "-CAcreateserial", "-sha256", "-days", "1", "-extfile", root.appendingPathComponent("openssl.cnf").path, "-extensions", "ext", "-out", root.appendingPathComponent("cert.pem").path])
+        } else {
+            try openssl(["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-config", root.appendingPathComponent("openssl.cnf").path, "-keyout", root.appendingPathComponent("key.pem").path, "-out", root.appendingPathComponent("cert.pem").path])
+        }
         let server = Process(); server.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
         server.arguments = [try XCTUnwrap(Bundle.module.url(forResource: "git_https_server", withExtension: "py")).path, root.path, git.path, f.remote.root.path]
         server.standardOutput = FileHandle.nullDevice; server.standardError = FileHandle.nullDevice
@@ -737,13 +754,21 @@ final class GitLibGit2Tests: XCTestCase {
             XCTAssertEqual((before["requests"] as? [[String: Any]])?.count, (after["requests"] as? [[String: Any]])?.count)
             var fetch = FetchOptions(); fetch.remote = "origin"; fetch.depth = 2
             try FileManager.default.removeItem(at: root.appendingPathComponent("reject"))
-            let priorTrust = try String(contentsOf: root.appendingPathComponent("prompts.jsonl"), encoding: .utf8).split(separator: "\n").filter { line in
+            let trustBeforeFetch = try String(contentsOf: root.appendingPathComponent("prompts.jsonl"), encoding: .utf8).split(separator: "\n").filter { line in
                 (try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])?["kind"] as? String == "trust"
             }.count
             _ = try await cloned.fetch(fetch, backend:f.backend)
             let deepened=try await cloned.run(["rev-list","--count","HEAD"]).text;XCTAssertEqual(deepened,"2\n")
-            try await self.withHTTPS(f,name:"configured-ca-peer") { caRoot,caURL in
-                _ = try await f.runner.run(["config","--global","http."+caURL+".sslCAInfo",caRoot.appendingPathComponent("cert.pem").path])
+            // Fetch is a fresh helper against the original self-signed peer;
+            // its legitimate review is not a configured-CA trust exception.
+            let fetchTrust = try String(contentsOf: root.appendingPathComponent("prompts.jsonl"), encoding: .utf8).split(separator:"\n").map {
+                try XCTUnwrap(JSONSerialization.jsonObject(with:Data($0.utf8)) as? [String:Any])
+            }.filter { $0["kind"] as? String == "trust" }
+            XCTAssertEqual(fetchTrust.count,trustBeforeFetch+1,"Fresh Fetch did not independently review the original self-signed peer")
+            XCTAssertEqual(fetchTrust.last?["hostname"] as? String,"localhost")
+            let priorTrust=fetchTrust.count
+            try await self.withHTTPS(f,name:"configured-ca-peer",signedByCA:true) { caRoot,caURL in
+                _ = try await f.runner.run(["config","--global","http."+caURL+".sslCAInfo",caRoot.appendingPathComponent("ca.pem").path])
                 _ = try await f.runner.run(["config","--global","--add","http.extraHeader","X-TurtleGit-Fixture: invalid"])
                 for header in ["","X-TurtleGit-Fixture: private-fixture","X-Second-Fixture: retained"] {
                     _ = try await f.runner.run(["config","--global","--add","http."+caURL+".extraHeader",header])
@@ -751,7 +776,11 @@ final class GitLibGit2Tests: XCTestCase {
                 var caOptions=options;caOptions.source=caURL;caOptions.depth=2
                 _ = try await repo.clone(caOptions,to:f.root.appendingPathComponent("configured-ca-clone"),backend:f.backend)
                 let finalPrompts=try String(contentsOf:root.appendingPathComponent("prompts.jsonl"),encoding:.utf8).split(separator:"\n").map{try XCTUnwrap(JSONSerialization.jsonObject(with:Data($0.utf8)) as? [String:Any])}
-                XCTAssertEqual(finalPrompts.filter{$0["kind"] as? String == "trust"}.count,priorTrust,"Fresh uncached actual configured CA still required a trust exception")
+                let trustPrompts = finalPrompts.filter{$0["kind"] as? String == "trust"}
+                let unexpected = trustPrompts.dropFirst(priorTrust).map { prompt in
+                    "host=\(prompt["hostname"] as? String ?? "") failures=\(String(describing: prompt["failures"] ?? "")) error=\(prompt["validationError"] as? String ?? "unavailable")"
+                }.joined(separator: "; ")
+                XCTAssertEqual(trustPrompts.count,priorTrust,"Fresh uncached actual configured CA still required a trust exception. " + unexpected)
                 let configuredState=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:caRoot.appendingPathComponent("state.json"))) as? [String:Any])
                 XCTAssertTrue((configuredState["requests"] as? [[String:Any]] ?? []).contains{$0["authenticated"] as? Bool == true && $0["fixture_header"] as? Bool == true},"URL-scoped multivalue/reset headers were lost")
             }

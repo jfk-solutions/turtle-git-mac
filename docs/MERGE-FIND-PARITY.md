@@ -5,21 +5,18 @@ Baseline: pinned TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`,
 `BuildFindStringArray`, `GetCharGroup` and `IDD_FIND` in
 `src/Resources/TortoiseMergeENG.rc`.
 
-## Confirmed remaining directional behavior — October 23, 2026
+## Identified directional gaps and resolved continuation — October 23, 2026
 
-The native navigator currently chooses from a global forward nonoverlapping
-match list. Pinned `BaseView.cpp` 5591–5605 and 5646–5785 instead search the
-current bounded line substring on demand. This leaves confirmed differences:
-`aaa` / `aa` from caret 1 must find offset 1 forward, and reverse search from the
-end must find that rightmost overlapping occurrence. Search-up Replace uses the
-selected start, whereas the native include-selection path uses its end. The
-source's whole-word check also uses the bounded substring: `xcat` from caret 1
-forward and `catx` from caret 3 backward accept `cat` at that boundary.
-
-These cases require a separate directional navigator shared by Find, shortcuts,
-selected-text search and Replace. Count, painting and Replace All must retain
-their forward nonoverlapping projection (`BuildFindStringArray`, 4564–4633).
-This is outstanding behavior, not certified parity from the existing dialog.
+The initial source review found that native navigation selected from a global
+forward nonoverlapping match list, whereas pinned `BaseView.cpp` 5591–5605 and
+5646–5785 search the current bounded substring. The confirmed differences were
+forward/reverse overlapping matches, reverse Replace's selected-start boundary
+and whole-word tests at the initial substring boundary. The directional
+continuation below resolves those specific differences through a separate
+navigator, while Count, painting and Replace All retain their forward
+nonoverlapping projection (`BuildFindStringArray`, 4564–4633). Its focused Core
+and six native case/engine checks pass with the fixture repairs recorded below;
+this does not certify the entire editor or port.
 
 The two-pane comparison and three-pane conflict editor now use a pane-local,
 modeless native Find window. Search for and Replace with are editable history
@@ -46,7 +43,7 @@ added to history; CR/LF in history entries become spaces as in CHistoryCombo. A 
 when showing its dialog. Dialog geometry uses the shared native geometry store;
 separate upstream pane-relative X/Y placement is not reproduced yet.
 
-Replace starts at the current selected occurrence. Replace All takes the current
+Single Replace searches from the selection start in its chosen direction. Replace All takes the current
 nonoverlapping matches, then applies one grouped native edit, so replacement
 text containing the search term is not searched again. Two-pane display ranges
 are mapped back to original source ranges: display-only gaps/removed base rows
@@ -154,3 +151,81 @@ replacement/volume case and signed App Store acceptance remain open.
 
 
 The [attached-pane startup continuation](MERGE-NAVIGATION-PARITY.md#attached-pane-startup-and-deferred-writers--october-17-2026) adds appearance-once loading, current-viewport registration/retirement and attached-only deferred initial/Undo writers. Deterministic detach/reattach and six native family checks have passing runs, with an unexplained margin timeout retained in the [evidence](qa/merge-viewport-ownership-2026-10-17.json). These checks do not certify all causes of earlier intermittent initial-selection failures.
+
+## Directional search continuation — October 23, 2026
+
+The isolated implementation is integrated into the primary checkout. The focused
+Core search families and all six native case/engine pairs pass; the two failed
+fixture attempts and their scoped repairs remain recorded below.
+This section supersedes the earlier description of Find navigation as choosing
+from the nonoverlapping match list and of every single Replace starting at the
+current selected occurrence. It does not change the earlier validation records.
+
+The pinned [`BaseView.cpp::Search` and `StringFound`](https://github.com/TortoiseGit/TortoiseGit/blob/7338078f8ddd924b8cddee35f512f2286072136d/src/TortoiseMerge/BaseView.cpp#L5592)
+search an initial substring bounded by the caret or selection, then traverse
+eligible source rows in the requested direction. `MergeFind.navigate` implements
+that path independently of Count and search painting. The native Find button,
+Find Next/Previous actions, selected-text commands and existing F3/macOS keyboard
+wrappers use this navigator; there are no new controls, settings or shortcuts.
+
+- Forward Find starts at the selection end, or the caret with no selection.
+  Single Replace uses the selection start. A caret at offset 1 in `aaa`, searching
+  for `aa`, therefore finds offset 1 even though Count paints only offset 0.
+- Reverse Find takes the source's initial row from the selection end and its
+  column from the selection start. Reverse single Replace uses the start row as
+  well. Thus replacing upward from the second `aa` in `aa aa` replaces the first
+  one, and a multiline selection retains the source's end-row/start-column rule
+  for ordinary reverse Find.
+- Reverse candidate discovery advances by one UTF-16 unit, so it can find the
+  final overlapping `aa` in `aaa`. A rejected whole-word candidate follows the
+  source's decrement and strict-before retry rule; it is not replaced with a
+  generic backward substring search.
+- Whole-word testing uses the initial bounded substring. Forward `cat` at caret
+  1 in `xcat`, or reverse `cat` at caret 3 in `catx`, can therefore match where
+  full-line whole-word Count reports zero. This preserves the pinned caret-cut
+  behavior rather than imposing an additional boundary outside that substring.
+- Traversal skips synthetic Empty rows and respects modified-only state. It
+  visits the initial partial row and at most one complete traversal, including
+  a full revisit of the initial row after wrap. Existing top/bottom status and
+  no-match feedback remain; Windows flash feedback is still not reproduced.
+
+[`OnFindDialogMessage`](https://github.com/TortoiseGit/TortoiseGit/blob/7338078f8ddd924b8cddee35f512f2286072136d/src/TortoiseMerge/BaseView.cpp#L5458)
+and `BuildFindStringArray` distinguish navigation from the count/projection work.
+Count, highlight caches and Replace All retain their existing nonoverlapping
+full-line projection. Replacing `aa` with `Y` throughout `aaa` produces `Ya`.
+The existing grouped edit, source/display row mapping, Undo/Redo, read-only,
+modified-only, saved-byte/index and owner/Quit guards remain in use. No search
+result is saved or staged by this continuation.
+
+The grouped Core run passed all 20 search methods: nine new directional,
+eight retained Find and three marked-word methods. The same 21-method run failed
+one separate configured-CA HTTPS trust test; its diagnostics remain in
+[`search-log-ca-core-2026-10-23.log`](../build/qa/search-log-ca-core-2026-10-23.log).
+This search result is not a full Core or hosted CI pass. The Debug app build
+returned exit zero with 34 generic command-failed-with-exit-zero diagnostics
+retained in its log. Neither app nor Core was repeated for fixture-only repairs.
+
+Actual Compare, Merge and ownership native cases pass with system and bundled
+Git. They exercise real Find actions, F3 wrappers, overlaps, caret-cut whole
+words, wrap, reverse Replace, modified lines, nonoverlapping Count/paint/Replace
+All, Undo/Redo, read-only output, busy/Quit/retired refusal and unchanged saved
+input/index bytes. The initial system Compare passed and was not repeated.
+
+Two system Merge attempts failed in the fixture. The first observed a model
+update before the native pane installed its current source/presentation receipt;
+the fixture now waits for the actual Find eligibility. The next exposed an
+incorrect expected count: the aligned result displays a removed `base aa` row
+alongside `mine aa` and `theirs aa`. That removed row is searchable, including
+modified-only mode, while excluded from saved output. The fixture now asserts
+the exact literal displayed rows, seven nonoverlapping matches and saved output
+independently. All replacement and Undo assertions remain. Only the affected
+system Merge and previously unrun cases followed these repairs.
+
+Across eight receiver attempts, six passed and two failed; all were reaped and
+the parent independently verified their actual PIDs absent. Repositories,
+preferences and windows were private, and windows stayed invisible/offscreen.
+No capture, physical interaction or signed sandbox deployment is claimed. See
+[the dated directional-search record](qa/merge-directional-find-2026-10-23.json)
+for logs, receiver identities, cumulative scope and remaining limits.
+The existing platform Unicode case-conversion and font-metric differences,
+physical keyboard/VoiceOver acceptance and broader pane/volume cases remain open.

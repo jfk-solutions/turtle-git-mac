@@ -44,6 +44,12 @@ transfer retains its repository permission even if its source window closes.
 Dropping the same drag back onto its originating list does not start an incoming
 Copy/Add, Move or selection operation. Other incoming drops keep their existing
 review workflow.</p>
+<p>In Log, drag the highlighted rows from the changed-file list. A selected commit
+or range uses the selected child commit’s file contents, even if you navigate
+elsewhere before delivery. Each eligible historical file is a separate promised
+copy; the Working Tree row offers actual working-file URLs. All selected paths
+are also available as text. A combined list from multiple selected commits cannot
+start a drag because it has no single source revision.</p>
 <p>Changing a file outside TurtleGit does not create a commit or stage the change.
 Review the refreshed working-tree state afterward. Physical modifier/move,
 cross-application destination naming and signed Finder delivery still require

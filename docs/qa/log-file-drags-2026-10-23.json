@@ -1,0 +1,169 @@
+{
+  "date": "2026-10-23",
+  "status": "focused-native-passed-with-build-diagnostics",
+  "source_baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Log changed-file table highlighted multi-selection in native displayed order, independent of Git operation checkboxes",
+    "Captured selected child revision under ordinary/range-filter history, real historical file promises and aggregate relative POSIX path text",
+    "Multiple promised files including duplicate leaf names delivered into independent private receiver directories; deleted/gitlink text-only selection",
+    "Working-tree real URLs and native copy/move mask; historical and text-only copy masks",
+    "Busy, Quit, attached-sheet and retired-owner refusal; accepted text/file delivery after selection change and owner closure",
+    "Dedicated caller-lease/helper-receipt retention and release independent of Cocoa source controller/model deallocation",
+    "Exact private repository HEAD/index and working bytes preserved"
+  ],
+  "validation": {
+    "native": {
+      "exit_code": 0,
+      "case_engine_pairs": 6,
+      "cases": [
+        "historical",
+        "range",
+        "working"
+      ],
+      "results": [
+        {
+          "git": "/usr/bin/git",
+          "case": "historical",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "range",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "working",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "historical",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "range",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "working",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "log": "build/qa/log-file-drags-native-2026-10-23.log",
+      "results_file": "build/qa/log-file-drags-native-results.json",
+      "receiver_pids_reaped": [
+        77401,
+        77565,
+        77670,
+        77747,
+        77843,
+        77938
+      ],
+      "independently_absent": true,
+      "absence_check": {
+        "command": "ps -p 77401,77565,77670,77747,77843,77938 -o pid=,comm=",
+        "exit_code": 1,
+        "stdout": "",
+        "checked_at": "2026-10-23T16:37:06.596065+00:00"
+      },
+      "helper_cleanup": "Runner completed exact-executable plus private-fixture-resource cleanup on every case; no successful-case residual-helper failure.",
+      "visibility": "Receiver windows were alpha-zero and unconstrained offscreen, including owned sheets; no captures or foreground activation.",
+      "fixture_scope": "Installed native adapter and actual table selections; explicit promise delegates/providers and private pasteboard payloads. Physical mouse drag sessions were not established."
+    },
+    "debug_build": {
+      "exit_code": 0,
+      "terminal_status_source": "Parent orchestrator reported terminal success; current Debug objects linked by native receiver.",
+      "log": "build/qa/search-log-drag-app-2026-10-23.log",
+      "contradictory_failed_with_exit_zero_diagnostics": 34,
+      "generic_diagnostic_line_numbers": [
+        16,
+        284,
+        286,
+        288,
+        290,
+        619,
+        621,
+        761,
+        794,
+        796,
+        798,
+        800,
+        802,
+        804,
+        806,
+        948,
+        950,
+        952,
+        954,
+        1057,
+        1059,
+        1061,
+        1063,
+        1065,
+        1067,
+        1069,
+        1157,
+        1159,
+        1161,
+        1357,
+        1359,
+        1361,
+        1363,
+        1365
+      ],
+      "other_diagnostics": [
+        "CoreSimulator out-of-date and multiple matching destinations warnings",
+        "Existing concurrency/actor-isolation and capture-semantics warnings",
+        "Ad-hoc signing disables hardened runtime in development build"
+      ],
+      "clean_diagnostics_claimed": false
+    },
+    "core": "No Core transfer production changes in this Log continuation, and no Core transfer suite was rerun for it. The concurrent directional-search Core changes and checks are separately scoped.",
+    "native_attempts": [
+      {
+        "result": "passed",
+        "case_engine_pairs": 6,
+        "log": "build/qa/log-file-drags-native-2026-10-23.log",
+        "repairs_or_repeats": "None observed for this Log checkpoint."
+      }
+    ]
+  },
+  "ownership_qualification": "Passing delivery and dedicated lease/helper checks do not require or establish Cocoa source controller/model deallocation. Earlier working-file drag fixture failures and qualifications remain unchanged in working-file-drag-2026-10-23.json.",
+  "source_identity_qualification": "A history range filter retains the selected child revision. Multi-revision combined selection remains refused rather than guessing an endpoint. Merge parent-group duplicate occurrences are supported by production but not established by these ordinary/range fixtures.",
+  "limits": [
+    "Physical multi-row/header-origin gestures and actual AppKit drag-session terminal ownership were not proved by direct adapter/delegate checks",
+    "Receiver naming collisions/acceptance in other applications and physical copy/move modifier behavior remain open",
+    "VoiceOver, installed security-scoped grants, signed Finder delivery and App Store distribution acceptance remain open",
+    "No screenshots, complete hosted CI pass or whole-application parity is established"
+  ],
+  "files": {
+    "build/qa/log-file-drags-native-2026-10-23.log": {
+      "sha256": "bc044ecb54ac94b0f7508710b3d4759a1bebfbc954492f6d4582a419ba3b32b1"
+    },
+    "build/qa/log-file-drags-native-results.json": {
+      "sha256": "15af7df8add1a71f29305cdb501717ddde8bbf3d555a3b55a7a09b58493a61b0"
+    },
+    "docs/qa/log-file-drags-native-2026-10-23.swift": {
+      "sha256": "30544b4c24cb250aa0703d75ab538ddb84799b6a13b2218b066fc48fbcf3d12f"
+    },
+    "scripts/test-log-file-drags.py": {
+      "sha256": "7e1b957f4475ef763a051cfbd238bc37a19b7e4451d5cf88c16af0e0476b6ce9"
+    }
+  },
+  "documentation": {
+    "coverage_reconcile": "passed;130 dialogs/120 partial/10 pending; not a completion percentage",
+    "localizations": "38 languages/1315 keys check passed",
+    "help": "58 documents/51 topics/78 files/3782989 bytes check passed",
+    "site": "422 documents/zero unresolved fragments; Python2 tests and JS checks passed",
+    "protected_unrelated_wip": "Original two SHA256 values unchanged; excluded from commit"
+  }
+}

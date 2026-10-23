@@ -76,6 +76,85 @@ public enum MergeFind {
         }
         return result
     }
+    /// BaseView::Search searches a bounded initial line, then complete lines.
+    /// It cannot navigate the forward, nonoverlapping Count/paint projection:
+    /// a caret can start within one of those matches, and reverse Find chooses
+    /// the rightmost overlapping occurrence. Replacement starts at the selected
+    /// start; reverse Find also retains the source's start-column/end-line rule
+    /// for a multiline selection.
+    public static func navigate(_ query:String,in lines:[MergeFindLine],options:MergeFindOptions,
+                                selection:NSRange,upwards:Bool,useSelectionStart:Bool=false)->Match? {
+        guard !query.isEmpty,!lines.isEmpty,selection.location != NSNotFound,
+              selection.location>=0,selection.length>=0,selection.location<=Int.max-selection.length else{return nil}
+        var previousEnd=0
+        for line in lines {
+            let length=line.text.utf16.count
+            guard line.offset>=previousEnd,line.offset<=Int.max-length else{return nil}
+            previousEnd=line.offset+length
+        }
+        func point(_ offset:Int)->(row:Int,column:Int) {
+            var low=0,high=lines.count
+            while low<high {let middle=low+(high-low)/2;if lines[middle].offset<=offset {low=middle+1}else{high=middle}}
+            let row=max(0,low-1)
+            return (row,min(max(0,offset-lines[row].offset),lines[row].text.utf16.count))
+        }
+        let first=point(selection.location),last=point(selection.location+selection.length)
+        let start=useSelectionStart ? first:last
+        let column=upwards ? first.column:start.column
+        let separators=Set(options.wordSeparators.utf16)
+        let flags:NSString.CompareOptions=options.matchCase ? [.literal]:[.literal,.caseInsensitive]
+        func wordBoundary(_ unit:UInt16)->Bool {unit<0x20 || unit==0x20 || separators.contains(unit)}
+        func accepted(_ range:NSRange,in text:NSString)->Bool {
+            !options.wholeWord || ((range.location==0 || wordBoundary(text.character(at:range.location-1))) &&
+                (NSMaxRange(range)==text.length || wordBoundary(text.character(at:NSMaxRange(range)))))
+        }
+        func occurrence(in text:NSString)->NSRange? {
+            if !upwards {
+                var cursor=0
+                while cursor<text.length {
+                    let range=text.range(of:query,options:flags,range:NSRange(location:cursor,length:text.length-cursor))
+                    guard range.location != NSNotFound,range.length>0 else{return nil}
+                    if accepted(range,in:text){return range}
+                    cursor=NSMaxRange(range) // StringFound skips a rejected whole-word candidate by its end.
+                }
+                return nil
+            }
+            // StringFound(SearchPrevious) enumerates starts one UTF-16 unit
+            // apart; Count/ReplaceAll deliberately do not use this projection.
+            var candidates=[NSRange](),cursor=0
+            while cursor<text.length {
+                let range=text.range(of:query,options:flags,range:NSRange(location:cursor,length:text.length-cursor))
+                guard range.location != NSNotFound,range.length>0 else{break}
+                candidates.append(range);cursor=range.location+1
+            }
+            var limit=text.length
+            for range in candidates.reversed() where range.location<limit {
+                if accepted(range,in:text){return range}
+                // The source decrements start before its next strict-before
+                // candidate lookup, including after a whole-word rejection.
+                limit=range.location-1
+            }
+            return nil
+        }
+        var row=start.row,wrapped=false
+        // The initial row is revisited in full only after crossing the boundary.
+        for step in 0...lines.count {
+            let line=lines[row]
+            if line.state != .empty, !options.modifiedOnly || !line.state.isUnchanged {
+                let text=line.text as NSString
+                let cut=step==0 ? min(column,text.length):0
+                let window:NSRange=step==0 ? (upwards ? NSRange(location:0,length:cut):NSRange(location:cut,length:text.length-cut)) : NSRange(location:0,length:text.length)
+                if let found=occurrence(in:text.substring(with:window) as NSString) {
+                    return Match(range:NSRange(location:line.offset+window.location+found.location,length:found.length),wrapped:wrapped)
+                }
+            }
+            row += upwards ? -1:1
+            if row<0 {row=lines.count-1;wrapped=true}
+            else if row==lines.count {row=0;wrapped=true}
+        }
+        return nil
+    }
+
     public static func next(in matches: [NSRange], selection: NSRange, upwards: Bool, includeSelection: Bool = false) -> Match? {
         guard !matches.isEmpty else { return nil }
         if upwards {

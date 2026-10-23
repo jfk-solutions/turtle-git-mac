@@ -181,7 +181,7 @@ extension NSTextView {
         var options = MergeFindOptions.load(from: target.mergeFindDefaults)
         options.matchCase = false; options.modifiedOnly = false; options.wholeWord = false
         target.mergeFindHighlights.set(query, options: options, in: text)
-        guard !query.isEmpty, let match = MergeFind.next(in: target.mergeFindHighlights.ranges, selection: selected, upwards: upwards) else { return }
+        guard !query.isEmpty, let match = MergeFind.navigate(query, in: target.mergeFindLines, options: options, selection: selected, upwards: upwards) else { return }
         text.setSelectedRange(match.range); text.scrollRangeToVisible(match.range); (text as? MergeLineNavigationProviding)?.didNavigateViewport()
     }
     static func performKey(_ event: NSEvent, in text: NSTextView?) -> Bool {
@@ -217,7 +217,7 @@ extension NSTextView {
         if action == .previousMatch || action == .nextMatch {
             let state = target.mergeFindHighlights; state.refresh(in: text)
             let upwards = action == .previousMatch
-            guard let match = MergeFind.next(in: state.ranges, selection: text.selectedRange(), upwards: upwards) else { return }
+            guard let match = MergeFind.navigate(state.query, in: target.mergeFindLines, options: state.options, selection: text.selectedRange(), upwards: upwards) else { return }
             text.setSelectedRange(match.range); text.scrollRangeToVisible(match.range); (text as? MergeLineNavigationProviding)?.didNavigateViewport()
             target.mergeFindController?.reportNavigation(wrapped: match.wrapped, upwards: upwards)
             return
@@ -388,9 +388,9 @@ private final class MergeFindNativeWindow: NSWindow {
         return target?.mergeFindHighlights.ranges ?? []
     }
     func find(upwards: Bool? = nil) {
-        guard let text, let matches = prepare() else { return }
+        guard let text, prepare() != nil, let target else { return }
         (text as? MergeLineNavigationProviding)?.beginUserNavigation()
-        guard let match = MergeFind.next(in: matches, selection: text.selectedRange(), upwards: upwards ?? options.searchUp) else {
+        guard let match = MergeFind.navigate(search.stringValue, in: target.mergeFindLines, options: options, selection: text.selectedRange(), upwards: upwards ?? options.searchUp) else {
             status.stringValue = "\"\(search.stringValue)\" not found."; status.textColor = .systemRed; return
         }
         text.setSelectedRange(match.range); text.scrollRangeToVisible(match.range); (text as? MergeLineNavigationProviding)?.didNavigateViewport()
@@ -407,7 +407,12 @@ private final class MergeFindNativeWindow: NSWindow {
     }
     func replace(all: Bool) {
         guard let text, let matches = prepare(replacing: true) else { return }
-        let selected = all ? matches : MergeFind.next(in: matches, selection: text.selectedRange(), upwards: options.searchUp, includeSelection: true).map { [$0.range] } ?? []
+        // Single Replace uses the directional source search from selection start;
+        // Count, paint and Replace All deliberately retain nonoverlapping ranges.
+        let selected = all ? matches : target.flatMap {
+            MergeFind.navigate(search.stringValue, in: $0.mergeFindLines, options: options,
+                selection: text.selectedRange(), upwards: options.searchUp, useSelectionStart: true)
+        }.map { [$0.range] } ?? []
         guard !selected.isEmpty else { status.stringValue = all ? "0 match(es) replaced." : "\"\(search.stringValue)\" not found."; status.textColor = all ? .labelColor : .systemRed; return }
         if target?.replaceFindMatches(selected, with: replacement.stringValue) == true {
             status.stringValue = "\(selected.count) match(es) replaced."; status.textColor = .labelColor

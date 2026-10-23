@@ -492,6 +492,7 @@ jobs:
         run: |
           scripts/verify-browser-item-provider.sh
           python3 scripts/test-status-file-drags.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+          python3 scripts/test-log-file-drags.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Independent cache menu and activity ownership
         run: python3 scripts/test-cache-tray.py
       - name: Verify app, extension and original icon resources
@@ -568,7 +569,9 @@ jobs:
       - name: Native Merge Colors source and shared palette contexts
         run: python3 scripts/test-merge-colors-source.py
       - name: Native Merge search source and navigation workflows
-        run: python3 scripts/test-merge-search-source.py
+        run: |
+          python3 scripts/test-merge-search-source.py
+          python3 scripts/test-merge-directional-find.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Merge Open source and replacement workflows
         run: python3 scripts/test-merge-open-source.py
       - name: Native Commit and Working Tree missing staged-file recovery

@@ -1110,6 +1110,27 @@ struct LogCommandRequest: Identifiable {
         }
         return provider
     }
+    /// Capture the actual highlighted native row IDs, in their displayed order.
+    /// Merge-parent groups share the selected child object; a combined selection
+    /// has no single materialization revision and is not silently guessed.
+    func captureFileDrag(_ orderedIDs:[String])->LogFileListDrag? {
+        guard !confirmingQuit,NSApp.modalWindow==nil,pendingHistoryLoads==0,fileOpenRead==nil,
+              combineSelectionReads.isEmpty,!orderedIDs.isEmpty,
+              GitPathSet(orderedIDs).count==orderedIDs.count,
+              orderedIDs.allSatisfy({selectedFiles.contains($0)}) else{return nil}
+        let rows=fileTableRows,lookup=GitPathMap(uniqueKeysWithValues:rows.compactMap { row in row.file.map{(row.rawID,$0)} })
+        let files=orderedIDs.compactMap{lookup[$0]}
+        guard files.count==orderedIDs.count else{return nil}
+        var drag:LogFileListDrag?
+        withFileMenu(fileMenuSnapshot(GitPathSet(orderedIDs)),consume:false) {
+            let source:ComparisonRevision
+            if selectedWorkingTree {source = .workingTree}
+            else if let revision {source = .revision(revision.hash)}
+            else{return}
+            drag=LogFileListDrag(repository:repository,access:access,files:files,revision:source,backend:materializationBackend())
+        }
+        return drag
+    }
     private var lastImportedWorkingMark: UUID?
     @Published var comparisonMark: PreparedFileComparisonMark? { didSet { fileMenuGeneration = UUID() } }
     @Published var allBranches = false
@@ -3450,10 +3471,10 @@ struct LogDialog: View {
                     TableColumn("Lines removed",sortUsing:LogChangedFileSort(column:.removed)) { row in Text(row.file?.removedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(105)
                 } rows: {
                     ForEach(model.fileTableRows) {row in
-                        let receipt=model.fileMenuSnapshot(GitPathSet([row.rawID]))
-                        TableRow(row).itemProvider {row.file == nil ? nil:model.fileDragProvider(receipt)}
+                        TableRow(row)
                     }
                 }.fileListFont().frame(minHeight: 130, idealHeight: 180)
+                .background(LogFileDragInteraction(model:model,rows:model.fileTableRows))
                 .background(CommitFileInteraction(rows:model.fileTableRows.map {row in
                     if let title=row.header {return .group(.changelist(title))}
                     return row.statusEntry.map(StatusListRow.file) ?? .group(.changelist(""))
@@ -5307,4 +5328,131 @@ struct LogReferenceScopeCheckbox: NSViewRepresentable {
 @MainActor final class LogScopeCheckboxButton: NSButton {
     var buildMenu: (() -> NSMenu?)?
     override func menu(for event: NSEvent) -> NSMenu? { buildMenu?() }
+}
+
+/// One accepted Log changed-file transfer, independent of subsequent navigation
+/// or owner retirement. The existing promise/URL writers retain the captured
+/// repository grant and perform the shared bounded materialization operation.
+@MainActor final class LogFileListDrag {
+    let paths:[String],text:String,revision:ComparisonRevision
+    let writers:[NSPasteboardWriting],providers:[NSItemProvider],textProvider:NSItemProvider
+    let fileURLs:[URL]
+    private let access:RepositoryAccessLease?
+    init?(repository:GitRepository,access:RepositoryAccessLease?,files:[CommitFile],revision:ComparisonRevision,backend:GitLibGit2Configuration) {
+        guard !files.isEmpty else{return nil}
+        // Validate text-only occurrences as well, without duplicating the Core
+        // path grammar or treating an excluded directory as a materialized file.
+        let candidates=files.map{CommitFile(path:$0.path,oldPath:$0.oldPath,action:"M",added:nil,removed:nil,hasStatistics:false,isSubmodule:false)}
+        guard (try? FileListDragPlan(root:repository.root,revision:revision,files:candidates,backend:backend)) != nil,
+              let plan=try? FileListDragPlan(root:repository.root,revision:revision,files:files,backend:backend) else{return nil}
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true){return nil}
+        self.paths=files.map(\.path);text=paths.joined(separator:"\r\n")+"\r\n";self.revision=revision;self.access=access
+        let textWriter=LogFileDragTextWriter(text:text,access:access)
+        var writers:[NSPasteboardWriting]=[textWriter],providers:[NSItemProvider]=[],urls:[URL]=[]
+        for index in plan.items.indices {
+            if case .workingTree=revision {
+                guard let url=try? plan.validatedWorkingURL(itemAt:index) else{continue}
+                urls.append(url)
+            }
+            guard let writer=FileListDrag.itemWriter(repository:repository,access:access,plan:plan,itemAt:index),
+                  let provider=FileListDrag.provider(repository:repository,access:access,plan:plan,itemAt:index) else{return nil}
+            writers.append(writer);providers.append(provider)
+        }
+        self.writers=writers;self.providers=providers;fileURLs=urls
+        let textProvider=NSItemProvider()
+        textProvider.registerDataRepresentation(forTypeIdentifier:NSPasteboard.PasteboardType.string.rawValue,visibility:.all){[textWriter] completion in
+            completion(Data(textWriter.text.utf8),nil);withExtendedLifetime(textWriter){};return nil
+        }
+        self.textProvider=textProvider
+    }
+    var operationMask:NSDragOperation {
+        if case .workingTree=revision,!fileURLs.isEmpty{return [.copy,.move]}
+        return .copy // Historical promises are receiver-owned copies.
+    }
+    @discardableResult func write(to pasteboard:NSPasteboard)->Bool {pasteboard.clearContents();return pasteboard.writeObjects(writers)}
+}
+@MainActor private final class LogFileDragTextWriter:NSObject,NSPasteboardWriting {
+    nonisolated let text:String
+    private let access:RepositoryAccessLease?
+    init(text:String,access:RepositoryAccessLease?){self.text=text;self.access=access}
+    nonisolated func writableTypes(for pasteboard:NSPasteboard)->[NSPasteboard.PasteboardType]{[.string]}
+    nonisolated func pasteboardPropertyList(forType type:NSPasteboard.PasteboardType)->Any?{type == .string ? text:nil}
+}
+
+/// Observe the installed SwiftUI table without replacing its private data source,
+/// selection handling, column headers or context menus. Log has no inbound file
+/// drop route; its own outgoing payload therefore cannot recursively mutate it.
+@MainActor struct LogFileDragInteraction:NSViewRepresentable {
+    let model:LogWindowModel,rows:[LogFileTableRow]
+    func makeNSView(context:Context)->Probe{Probe()}
+    func updateNSView(_ view:Probe,context:Context){view.model=model;view.rows=rows}
+    static func dismantleNSView(_ view:Probe,coordinator:()){view.retire()}
+    final class Probe:NSView,NSDraggingSource {
+        weak var model:LogWindowModel?
+        var rows:[LogFileTableRow]=[]
+        private var active=false,monitor:Any?,closeObserver:NSObjectProtocol?
+        private struct Press {let point:NSPoint,row:Int,ids:[Data],selection:Set<String>}
+        private var press:Press?
+        private(set) var activeDrag:LogFileListDrag?
+        private var sessionOwner:Probe?
+        var nativeTable:NSTableView? {
+            guard active,let content=window?.contentView else{return nil}
+            let area=convert(bounds,to:nil)
+            func find(_ view:NSView)->NSTableView? {
+                if let table=view as? NSTableView,table.numberOfRows==rows.count,
+                   area.intersects(table.convert(table.visibleRect,to:nil)){return table}
+                return view.subviews.lazy.compactMap(find).first
+            }
+            return find(content)
+        }
+        func captureSelection()->LogFileListDrag? {
+            guard active,let model,let table=nativeTable,let window,table.window===window,
+                  window.attachedSheet==nil,NSApp.modalWindow==nil else{return nil}
+            let ids=table.selectedRowIndexes.compactMap{rows.indices.contains($0) && rows[$0].file != nil ? rows[$0].rawID:nil}
+            return model.captureFileDrag(ids)
+        }
+        override func hitTest(_ point:NSPoint)->NSView?{nil}
+        override func viewDidMoveToWindow(){
+            super.viewDidMoveToWindow();retire();guard window != nil else{return};active=true
+            closeObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main){[weak self] _ in MainActor.assumeIsolated{self?.retire()}}
+            monitor=NSEvent.addLocalMonitorForEvents(matching:[.leftMouseDown,.leftMouseDragged,.leftMouseUp,.rightMouseDown]){[weak self] event in
+                guard let self else{return event};return self.observe(event)
+            }
+        }
+        func retire(){
+            active=false;press=nil
+            if let monitor{NSEvent.removeMonitor(monitor);self.monitor=nil}
+            if let closeObserver{NotificationCenter.default.removeObserver(closeObserver);self.closeObserver=nil}
+            // Accepted native sessions survive closing/navigation. AppKit's
+            // terminal callback alone releases their captured grant and source.
+        }
+        deinit{retire()}
+        func observe(_ event:NSEvent)->NSEvent? {
+            guard active,let window,event.window===window else{return event}
+            if event.type == .rightMouseDown || event.type == .leftMouseUp {press=nil;return event}
+            if event.type == .leftMouseDown {
+                press=nil
+                guard activeDrag==nil,event.clickCount==1,let table=nativeTable,window.attachedSheet==nil,NSApp.modalWindow==nil,let model else{return event}
+                let point=table.convert(event.locationInWindow,from:nil),row=table.row(at:point)
+                guard table.visibleRect.contains(point),rows.indices.contains(row),rows[row].file != nil,table.column(at:point)>=0 else{return event}
+                press=Press(point:event.locationInWindow,row:row,ids:rows.map{Data($0.rawID.utf8)},selection:model.selected)
+                return event // Native selection and header handling remain AppKit's.
+            }
+            guard event.type == .leftMouseDragged,let press,
+                  press.ids==rows.map({Data($0.rawID.utf8)}),press.selection==model?.selected,
+                  hypot(event.locationInWindow.x-press.point.x,event.locationInWindow.y-press.point.y)>=4,
+                  let table=nativeTable,table.selectedRowIndexes.contains(press.row),let drag=captureSelection() else{return event}
+            self.press=nil;activeDrag=drag;sessionOwner=self
+            let point=table.convert(event.locationInWindow,from:nil)
+            let items=drag.writers.enumerated().map{index,writer in
+                let item=NSDraggingItem(pasteboardWriter:writer)
+                item.setDraggingFrame(NSRect(x:point.x+CGFloat(index)*3,y:point.y+CGFloat(index)*3,width:24,height:24),contents:MenuIcon.copy.image())
+                return item
+            }
+            table.beginDraggingSession(with:items,event:event,source:self);return nil
+        }
+        func draggingSession(_ session:NSDraggingSession,sourceOperationMaskFor context:NSDraggingContext)->NSDragOperation{activeDrag?.operationMask ?? []}
+        func ignoreModifierKeys(for session:NSDraggingSession)->Bool{false}
+        func draggingSession(_ session:NSDraggingSession,endedAt screenPoint:NSPoint,operation:NSDragOperation){activeDrag=nil;sessionOwner=nil;press=nil}
+    }
 }

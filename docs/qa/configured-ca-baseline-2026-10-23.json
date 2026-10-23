@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-23",
+  "scope": "Configured-CA HTTPS fixture trust-prompt baseline repair",
+  "status": "focused-local-pass",
+  "method": "GitLibGit2Tests.testActualHTTPSPeerReviewAuthenticationDepthAndRejectedPeerKeepSourceBytes",
+  "changed_files": [
+    "Tests/TurtleGitCoreTests/GitLibGit2Tests.swift"
+  ],
+  "root_cause": {
+    "kind": "fixture bookkeeping",
+    "description": "The configured-CA prompt baseline was captured before a fresh Fetch against the original self-signed peer. That new helper correctly requested another trust exception; comparing the later CA clone against the pre-Fetch baseline incorrectly attributed this prompt to the configured CA.",
+    "observed_counts": {
+      "before_fresh_fetch": 2,
+      "after_fresh_fetch_and_configured_ca_clone": 3
+    }
+  },
+  "repair": [
+    "Retain the distinct private CA and signed localhost server-leaf certificate fixture, including CA constraints, localhost SAN and serverAuth usage.",
+    "Explicitly assert that the fresh Fetch adds exactly one trust prompt and that its hostname is localhost.",
+    "Capture the configured-CA baseline after Fetch and its deepened-history assertion.",
+    "Retain the configured-CA clone assertion that no additional trust exception is requested, together with existing header, source-byte and Git outcome assertions."
+  ],
+  "validation": [
+    {
+      "log": "build/qa/search-log-ca-core-2026-10-23.log",
+      "result": "failed",
+      "executed": 21,
+      "passed": 20,
+      "failed": 1,
+      "detail": "All 20 selected search methods passed. The HTTPS method failed at the configured-CA comparison with actual prompt count 3 versus pre-Fetch baseline 2; the recorded localhost self-signed trust diagnostic belonged to the fresh Fetch."
+    },
+    {
+      "log": "build/qa/configured-ca-baseline-repair-core-2026-10-23.log",
+      "result": "passed",
+      "exit_code": 0,
+      "executed": 1,
+      "failed": 0,
+      "duration_seconds": 9.019,
+      "detail": "Only the affected HTTPS method was rerun after the fixture baseline repair."
+    }
+  ],
+  "bounded_private_diagnostics": [
+    {
+      "purpose": "Evaluate the generated CA/leaf chain with the production PEM-to-DER decoding and Apple Security SSL hostname policy, without network certificate fetching.",
+      "evidence": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-ca-diagnostic-nwxz2n4h/diagnostic.log",
+      "result": "exit 0; SecTrust accepted localhost with configured CA anchors, both with anchor-only false and true.",
+      "cleanup": "Diagnostic subprocesses completed; generated private keys were removed."
+    },
+    {
+      "purpose": "Exercise the copied production HTTP configuration reader against private scoped Git configuration and a literal Unicode/apostrophe CA path.",
+      "evidence": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-http-ca-reader-vaw8st26/diagnostic.log",
+      "result": "exit 0; actual URL matching loaded one 760-byte CA certificate and the expected X-QA: yes header.",
+      "cleanup": "Diagnostic subprocesses completed; no HTTP server, helper transport or GUI was launched."
+    }
+  ],
+  "production_changes": false,
+  "limits": [
+    "No production certificate trust logic, helper runtime or transport behavior changed.",
+    "The extra proposed actual-helper HTTP probe was not run after the baseline error was identified.",
+    "This focused local pass does not establish a complete hosted CI pass, hosted native execution, signed deployment or public-provider acceptance.",
+    "Private diagnostic paths are local evidence, not packaged or portable release artifacts."
+  ],
+  "documentation": {
+    "coverage_reconcile": "passed;130 dialogs/120 partial/10 pending; not a completion percentage",
+    "localizations": "38 languages/1315 keys check passed",
+    "help": "58 documents/51 topics/78 files/3782989 bytes check passed",
+    "site": "422 documents/zero unresolved fragments; Python2 tests and JS checks passed",
+    "protected_unrelated_wip": "Original two SHA256 values unchanged; excluded from commit"
+  }
+}

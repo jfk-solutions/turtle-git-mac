@@ -1,0 +1,187 @@
+{
+  "date": "2026-10-23",
+  "status": "focused-family-passed-with-recorded-fixture-repairs",
+  "workspace": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac",
+  "source": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "files": [
+      "src/TortoiseMerge/BaseView.cpp:5458-5541 OnFindDialogMessage",
+      "src/TortoiseMerge/BaseView.cpp:5592-5636 StringFound",
+      "src/TortoiseMerge/BaseView.cpp:5640-5795 Search",
+      "src/TortoiseMerge/BaseView.cpp:4564 BuildFindStringArray",
+      "src/TortoiseMerge/BaseView.cpp:4319 IsWordSeparator"
+    ]
+  },
+  "implementation": [
+    "Sources/TurtleGitCore/MergeFind.swift: MergeFind.navigate",
+    "Sources/TurtleGitMac/MergeFindWindow.swift: four directional consumers; unchanged Count/paint/ReplaceAll projection"
+  ],
+  "source_contract": [
+    "Caret/selection-bounded initial row; next starts at selection end, single Replace at selection start.",
+    "Ordinary reverse Find starts at selection end row with selection start column; reverse Replace starts at selection start row.",
+    "Reverse candidate discovery admits overlapping starts; failed whole-word candidate retains decrement then strict-before retry.",
+    "Whole-word initial substring boundaries admit xcat caret1 forward and catx caret3 reverse while full-line Count remains zero.",
+    "Empty row and modified-only source state gates remain; one directional traversal plus full initial-row revisit supplies wrap.",
+    "Count/highlights/ReplaceAll stay nonoverlapping; grouped edits, Undo and no implicit Save/staging remain."
+  ],
+  "authored_checks": {
+    "core_new": "Tests/TurtleGitCoreTests/MergeFindNavigationTests.swift (9 methods executed and passed)",
+    "core_retained": [
+      "MergeFindTests",
+      "MergeMarkedWordTests"
+    ],
+    "native_fixture": "docs/qa/merge-directional-find-native-2026-10-23.swift",
+    "native_runner": "scripts/test-merge-directional-find.py",
+    "native_cases": [
+      "compare",
+      "merge",
+      "ownership"
+    ],
+    "native_scope": [
+      "Actual two-pane and three-pane text views and modeless Find controllers",
+      "Find/F3/Shift-F3/selected-text actions with overlap and caret-cut whole-word cases",
+      "Reverse single Replace at selection start and native Undo/Redo",
+      "Count/paint and ReplaceAll remain nonoverlapping",
+      "Modified-only source/result row filtering",
+      "Readonly output and source replacement refusal",
+      "Busy/Quit/retired owner refusal",
+      "Unchanged Compare saved inputs and actual conflicted working-file/index bytes"
+    ],
+    "ownership": "Private repositories/preferences/temp paths; alpha-zero/offscreen native windows and child cleanup; cached native_receiver includes current app/framework/compiler inputs; exact private-resource/executable helper cleanup.",
+    "git_engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "receiver_pairs_passed": 6,
+    "native_command": "python3 scripts/test-merge-directional-find.py --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+  },
+  "validation": {
+    "executed": true,
+    "build": {
+      "configuration": "Debug",
+      "exit_code": 0,
+      "log": "build/qa/search-log-drag-app-2026-10-23.log",
+      "generic_exit_zero_diagnostics": 34,
+      "qualification": "The build returned exit 0 while emitting 34 generic command-failed-with-exit-zero diagnostics; retained rather than silently treating the log as clean.",
+      "repeated_for_fixture_repairs": false
+    },
+    "core": {
+      "log": "build/qa/search-log-ca-core-2026-10-23.log",
+      "search_methods": 20,
+      "search_failures": 0,
+      "families": {
+        "MergeFindNavigationTests": 9,
+        "MergeFindTests": 8,
+        "MergeMarkedWordTests": 3
+      },
+      "combined_run_methods": 21,
+      "combined_run_failures": 1,
+      "separate_failure": "GitLibGit2Tests.testActualHTTPSPeerReviewAuthenticationDepthAndRejectedPeerKeepSourceBytes: configured-CA certificate still requested a trust exception; unrelated to the 20 passing search methods. See the same raw Core log; TLS investigation is separate.",
+      "repeated_for_fixture_repairs": false
+    },
+    "native": {
+      "case_engine_pairs_passed": 6,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "cases": [
+        "compare",
+        "merge",
+        "ownership"
+      ],
+      "receiver_attempts": 8,
+      "passing_attempts": 6,
+      "failed_attempts": 2,
+      "attempts": [
+        {
+          "log": "build/qa/merge-directional-find-native-2026-10-23.log",
+          "engine": "system",
+          "passed": [
+            "compare"
+          ],
+          "failed": [
+            "merge"
+          ],
+          "pids": [
+            77400,
+            77482
+          ]
+        },
+        {
+          "log": "build/qa/merge-directional-find-repair-system-native-2026-10-23.log",
+          "engine": "system",
+          "passed": [],
+          "failed": [
+            "merge"
+          ],
+          "pids": [
+            78226
+          ]
+        },
+        {
+          "log": "build/qa/merge-directional-find-display-repair-system-native-2026-10-23.log",
+          "engine": "system",
+          "passed": [
+            "merge",
+            "ownership"
+          ],
+          "failed": [],
+          "pids": [
+            78602,
+            78660
+          ]
+        },
+        {
+          "log": "build/qa/merge-directional-find-bundled-native-2026-10-23.log",
+          "engine": "bundled",
+          "passed": [
+            "compare",
+            "merge",
+            "ownership"
+          ],
+          "failed": [],
+          "pids": [
+            78724,
+            78740,
+            78798
+          ]
+        }
+      ],
+      "results": [
+        "build/qa/merge-directional-find-system-repair-results.json",
+        "build/qa/merge-directional-find-native-results.json"
+      ],
+      "ownership": "All eight receiver attempts were reaped; the parent independently verified every recorded PID absent. Private windows/children and owned requests drained. No physical desktop capture/interaction was performed.",
+      "recheck_scope": "System Compare passed initially and was not repeated. Only affected system Merge plus unrun ownership and the three bundled cases were run after fixture-only repairs."
+    },
+    "failures": [
+      {
+        "scope": "native fixture system Merge initial attempt",
+        "cause": "Fixture observed marker-free model result and an old editable pane before the current source/presentation revision was installed; Count was legitimately gated.",
+        "repair": "Await actual mergeFindAllowed plus resolved mine/theirs displayed content; retain exact Count assertions and add readiness diagnostics.",
+        "production_changed": false
+      },
+      {
+        "scope": "native fixture system Merge first repair attempt",
+        "cause": "Expected six matches omitted the retained removed base source row; actual source view has seven nonoverlapping matches.",
+        "repair": "Assert literal intended eight displayed rows, base removal/exclusion state and exact saved result separately; set literal Count seven and modified-only navigation to first removed base row. Count/ReplaceAll/Undo coverage retained.",
+        "production_changed": false
+      }
+    ],
+    "captures": []
+  },
+  "remaining_limits": [
+    "No full hosted CI, physical keyboard/VoiceOver, signed sandbox/Finder or App Store deployment claim.",
+    "Existing rare Unicode case-conversion/font metric differences and Windows flash feedback remain.",
+    "No new screenshots or visual-parity certification."
+  ],
+  "integration": "Isolated source draft integrated into primary before the grouped checkpoint.",
+  "documentation": {
+    "coverage_reconcile": "passed;130 dialogs/120 partial/10 pending; not a completion percentage",
+    "localizations": "38 languages/1315 keys check passed",
+    "help": "58 documents/51 topics/78 files/3782989 bytes check passed",
+    "site": "422 documents/zero unresolved fragments; Python2 tests and JS checks passed",
+    "protected_unrelated_wip": "Original two SHA256 values unchanged; excluded from commit"
+  }
+}

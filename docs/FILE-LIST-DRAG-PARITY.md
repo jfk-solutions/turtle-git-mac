@@ -143,3 +143,68 @@ modifier/move behavior, VoiceOver, installed sandbox grants and signed Finder
 delivery remain open. Focused provider or delegate checks cannot certify those
 behaviors, full visual parity, or the entire port. Full current hosted integration
 and App Store distribution acceptance are independent release gates.
+
+## Log highlighted-selection continuation — October 23
+
+This implementation continuation follows pinned TortoiseGit
+`7338078f8ddd924b8cddee35f512f2286072136d`:
+
+- `LogDlg.h`'s `m_ChangedFileListCtrl` uses `CGitStatusListCtrl`;
+  `LogDlg.cpp` installs the selected child commit in `m_CurrentVersion`.
+- `GitStatusListCtrl.cpp`, `FillListOfSelectedItemPaths` and `OnBeginDrag`,
+  collect highlighted rows in displayed order, independently of checked rows,
+  and construct `GitDataObject` with the current materialization revision.
+- `GitDataObject.cpp` offers every selected path through newline-separated text
+  and filters deleted/missing/directory occurrences out of file delivery. Its
+  historical file descriptors are distinct occurrences, including repeated names.
+
+The Log changed-file table now starts one native multi-item gesture from its
+actual highlighted rows. The previous row-only SwiftUI item-provider route
+could offer only its individual row. `LogFileDragInteraction` observes the
+installed AppKit table without replacing SwiftUI's datasource, selection,
+column handling or context menus. A group/header cannot originate a file drag.
+The model validates current selected row identities and operation/owner state
+before accepting the transfer.
+
+`LogFileListDrag` captures literal paths in displayed order, the exact selected
+child hash or working-tree identity, backend and repository grant. Parent-group
+occurrences retain that same child hash and remain distinct. A combined
+multi-commit file union has no single recorded source revision; it remains
+unavailable rather than choosing an arbitrary selected hash. A history range
+filter does not change the exact selected child's materialization identity.
+
+The aggregate text representation contains all selected paths, including rows
+which offer no file contents. It uses native relative POSIX paths with CRLF
+separators. A separate native text item accompanies the file items; eligible
+historical occurrences use the existing real file-promise writers and item
+providers, while working occurrences offer their existing, validated URLs.
+A selection containing only excluded rows remains a text transfer. The shared
+Core transfer plan owns path validation and materialization; this continuation
+introduces no alternate filesystem or Git reader.
+
+Historical promises allow copying. Working URL gestures allow copying or moving
+with native modifier handling; the source performs no additional deletion.
+New gestures are fenced by busy, child/modal, Quit, changed selection and retired
+owner state. An accepted native session retains its source and transfer receipt
+until AppKit's terminal callback, so closing the Log window cannot revoke or
+retarget an already accepted delivery. Actual provider work retains the shared
+cancellation, queued-work accounting and exclusive receiver-write behavior.
+Log has no inbound file-drop operation, so its own outgoing payload cannot
+recursively trigger a Log mutation.
+
+All six grouped native case/engine pairs passed in the primary worktree:
+historical, history-range-filter and working-tree cases with system and bundled
+Git. The installed native adapter/table-selection, multiple promise and text/URL
+delivery, owner gates, independent caller-grant/helper retention, and unchanged
+repository assertions passed. All six receivers were reaped and independently
+absent. The Debug build exited zero while emitting 34 contradictory generic
+exit-zero compiler diagnostics and existing warnings. Core transfer production
+was unchanged and its suite was not repeated for this continuation. The
+[dated Log evidence](qa/log-file-drags-2026-10-23.json) records exact scope,
+PIDs, diagnostics and limits. Cocoa source deallocation was not used as a grant
+independence proxy; the earlier working-drag qualifications remain unchanged.
+Remaining acceptance includes physical multi-row gestures and header
+behavior, destination naming/acceptance in other applications, copy/move modifier
+behavior, VoiceOver, installed security-scoped grants, signed Finder delivery,
+full hosted integration and full application parity. These limits also apply
+to the new Log continuation independently of earlier family checkpoints.
