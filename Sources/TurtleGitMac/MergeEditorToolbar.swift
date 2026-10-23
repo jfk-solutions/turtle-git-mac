@@ -341,6 +341,36 @@ extension MergeEditorToolbar {
     }
 }
 
+/// The pinned frame exposes four all-pane viewport handlers. It assigns no
+/// menu/accelerator resources to them; our Scroll submenu is a discoverability
+/// adaptation and deliberately leaves native caret/word shortcuts untouched.
+enum MergeViewportScrollCommand:String,CaseIterable,Hashable {
+    case up,down,left,right
+    var title:String {switch self {case .up:return "Line Up";case .down:return "Line Down";case .left:return "Line Left";case .right:return "Line Right"}}
+}
+@MainActor enum MergeViewportScrolling {
+    static func step(_ command:MergeViewportScrollCommand,in scroll:NSScrollView) {
+        guard let view=scroll.documentView as? NSTextView,let font=view.font,
+              let layout=view.layoutManager,let container=view.textContainer else{return}
+        layout.ensureLayout(for:container)
+        var origin=scroll.contentView.bounds.origin
+        // Source CalcLineCharDim measures X in the active pane font. Native
+        // TextKit owns line height, including wrapped and folded screen rows.
+        let cell=max(1,("X" as NSString).size(withAttributes:[.font:font]).width)
+        let line=max(1,layout.defaultLineHeight(for:font))
+        switch command {
+        case .up:origin.y -= line
+        case .down:origin.y += line
+        case .left:origin.x -= cell
+        case .right:origin.x += cell
+        }
+        let clip=scroll.contentView
+        let constrained=clip.constrainBoundsRect(NSRect(origin:origin,size:clip.bounds.size)).origin
+        if constrained != clip.bounds.origin {clip.scroll(to:constrained);scroll.reflectScrolledClipView(clip)}
+        scroll.verticalRulerView?.needsDisplay=true
+    }
+}
+
 /// Native menu contributions have a focus lifetime independent of the editor.
 /// A previously retained item never becomes live again on a later focus cycle.
 @MainActor final class MergeEditorCommandMenu: NSObject, NSMenuItemValidation {
@@ -349,6 +379,7 @@ extension MergeEditorToolbar {
         case nextInline, previousInline, nextPane, previousPane, gotoLine, findNext, findPrevious, findSelectionNext, findSelectionPrevious, clearSearch
         case patchPreview, patchSelected, patchAll, patchFileList, patchKeepCurrent, patchUsePatched
         case overwrite, cycleEnding, markBlock
+        case viewport(MergeViewportScrollCommand)
         case toolbarVisible, statusVisible, lineDiff, lineNumbers, moved, locator, fishEye
         case whitespace(MergeWhitespaceComparison), ignoreEndings, ignoreCase, ignoreComments
         case regex(String?), configureRegex, settings, about
@@ -367,6 +398,7 @@ extension MergeEditorToolbar {
     private var trackedMenus = Set<ObjectIdentifier>()
     private var synchronizing = false, synchronizationQueued = false
     var applicationMenu: () -> NSMenu? = { NSApp.mainMenu }
+    var viewportPreferences:UserDefaults = .standard
     private var available: () -> Bool
     private var state: (Command) -> MergeToolbarState?
     private var action: (Command) -> Void
@@ -436,6 +468,12 @@ extension MergeEditorToolbar {
         append([.toolbarVisible,.statusVisible,.lineDiff,.locator,.fishEye,.toolbar(.wrap),.moved,.toolbar(.inline),.toolbar(.inlineWord),
                 .whitespace(.compare),.whitespace(.ignoreChanges),.whitespace(.ignoreAll),.ignoreEndings,.ignoreCase,.ignoreComments,
                 .toolbar(.whitespace),.lineNumbers,.toolbar(.onePane),.toolbar(.switchSides),.toolbar(.collapsed),.toolbar(.showBase),.patchFileList,.settings],to:view)
+        let scroll=NSMenuItem(title:"Scroll",action:nil,keyEquivalent:"")
+        scroll.identifier=NSUserInterfaceItemIdentifier("TurtleGitMerge.Viewport.Scroll")
+        scroll.submenu=NSMenu(title:"Scroll")
+        scroll.image=viewportImage("scroll",label:"Scroll")
+        append(MergeViewportScrollCommand.allCases.map{.viewport($0)},to:scroll.submenu!)
+        if scroll.submenu?.items.isEmpty==false {view.addItem(scroll);contributed.append(scroll)}
         if state(.regex(nil)) != nil || state(.configureRegex) != nil {
         let filters = NSMenuItem(title:"Filter Regexes",action:nil,keyEquivalent:"")
         filters.submenu = NSMenu(title:"Filter Regexes");view.addItem(filters);contributed.append(filters)
@@ -539,9 +577,15 @@ extension MergeEditorToolbar {
         for command in [.regex(nil)] + definitions.map({Command.regex($0)}) + [.configureRegex] { menu.addItem(makeItem(command)) }
     }
     var filterNames: () -> [String] = { [] }
+    private func viewportImage(_ symbol:String,label:String)->NSImage? {
+        guard MenuPresentationSettings.applicationContextIcons(defaults:viewportPreferences) else{return nil}
+        return NSImage(systemSymbolName:symbol,accessibilityDescription:label)
+    }
     private func update(_ item: NSMenuItem) {
+        if item.identifier?.rawValue=="TurtleGitMerge.Viewport.Scroll" {item.image=viewportImage("scroll",label:"Scroll")}
         guard let invocation = item.representedObject as? Invocation else { return }
         let value = state(invocation.command)
+        if case let .viewport(direction)=invocation.command {item.image=viewportImage("arrow."+direction.rawValue,label:direction.title)}
         item.isEnabled = active && attached(item) && invocation.epoch == epoch && value?.enabled == true
         item.state = value?.checked == true ? .on : .off
     }
@@ -607,6 +651,7 @@ extension MergeEditorToolbar {
         case .saveAs:return "Save As…";case .enableEdit:return "Enable editing"
         case .patchKeepCurrent:return "Keep current file state";case .patchUsePatched:return "Use patched file state"
         case .patchPreview:return "Preview patched file";case .patchSelected:return "Patch selected files";case .patchAll:return "Patch all files";case .patchFileList:return "Patch file list"
+        case .viewport(let direction):return direction.title
         case .overwrite:return "Overwrite mode";case .cycleEnding:return "Cycle current line ending";case .markBlock:return "Mark block"
         case .useFile:return "Use left file";case .useBothFirst:return "Use block from left before right";case .useBothLast:return "Use block from right before left"
         case .nextInline:return "Next inline difference";case .previousInline:return "Previous inline difference"
@@ -686,6 +731,7 @@ extension MergeEditorCommandMenu {
                 case .toolbar(let value):
                     guard let state = bar?.commandState(value) else { return nil }
                     return .init(enabled:enabled && state.enabled,checked:state.checked)
+                case .viewport:return .init(enabled:document && model.canScrollViewport)
                 case .saveAs:return .init(enabled:enabled && model.canSavePaneAs)
                 case .enableEdit:return .init(enabled:document && model.editableBase != nil,checked:model.editingEnabled)
                 case .useFile:return .init(enabled:document && model.oppositeViewCommandsAllowed && model.canTransfer(toBase:false))
@@ -718,6 +764,7 @@ extension MergeEditorCommandMenu {
                 guard let model,ready() else { return }
                 switch command {
                 case .toolbar(let value):bar?.perform(value)
+                case .viewport(let direction):model.scrollViewport(direction)
                 case .saveAs:model.saveAs(base:model.activeBase)
                 case .enableEdit:model.editingEnabled.toggle()
                 case .markBlock:
@@ -753,6 +800,7 @@ extension MergeEditorCommandMenu {
                 }
                 withExtendedLifetime(owner) {}
             })
+        menu.viewportPreferences=model.comparisonDefaults
         menu.filterNames = { [weak model] in model?.regexFilters.map(\.name) ?? [] };return menu
     }
     static func conflict(_ owner: TextConflictWindowController) -> MergeEditorCommandMenu? {
@@ -770,6 +818,7 @@ extension MergeEditorCommandMenu {
                 guard let model else { return nil };let enabled = ready()
                 switch command {
                 case .toolbar(let value):guard let state = bar?.commandState(value) else { return nil };return .init(enabled:enabled && state.enabled,checked:state.checked)
+                case .viewport:return .init(enabled:enabled && model.canScrollViewport)
                 case .saveAs:return .init(enabled:enabled && model.sourceMutationsAllowed)
                 case .enableEdit:return .init(enabled:false,checked:text()?.isEditable == true)
                 case .useFile,.useBothFirst,.useBothLast,.nextInline,.previousInline,.moved:return nil
@@ -799,6 +848,7 @@ extension MergeEditorCommandMenu {
                 guard let model,ready() else { return }
                 switch command {
                 case .toolbar(let value):bar?.perform(value)
+                case .viewport(let direction):model.scrollViewport(direction)
                 case .saveAs:model.export()
                 case .nextPane,.previousPane:if let window { cycle(window:window,forward:command == .nextPane) }
                 case .overwrite:(text() as? MergeTypingProviding)?.toggleMergeOverwrite()
@@ -824,6 +874,7 @@ extension MergeEditorCommandMenu {
                 default:break
                 }
             })
+        menu.viewportPreferences=model.comparisonDefaults
         menu.filterNames = { [weak model] in model?.regexFilters.map(\.name) ?? [] };return menu
     }
 }

@@ -43,8 +43,7 @@ and Overview icons. The toolbar percentage box offers 5%, 10%, 20%, 40%,
 50%, 75%, 100% and 200%. Choose a preset or type a positive percentage and
 press Return; custom percentages may exceed 200%. Invalid values restore the
 current percentage. Button, wheel and fit changes update the box.
-Command/Control-wheel also zooms. Drag blank space to
-pan the canvas. **Show Overview** displays a miniature graph in the lower right;
+Command/Control-wheel also zooms. Zoom changes preserve the viewed graph location by rescaling its scroll position, bounded by the new canvas size. With the canvas focused, arrows scroll twenty points and Page Up/Down scroll half a viewport. Drag blank space to pan the canvas; Escape cancels an active pan before closing the graph. **Show Overview** displays a miniature graph in the lower right;
 its size follows the graph and viewport, and the shaded rectangle shows the
 visible area. Click or drag within it to navigate. The overview is suppressed above 10,000 displayed
 nodes. **Refresh** or F5 reads the repository again.
@@ -121,3 +120,5 @@ is a reference for the Windows application; platform-specific details can differ
 Example exports from a disposable test repository: [SVG](site/assets/revision-graph-export.svg)
 and [Graphviz](site/assets/revision-graph-export.gv). The fixture includes a tag
 with XML metacharacters to verify that reference text remains readable.
+
+The [viewport navigation record](VIEWPORT-NAVIGATION-PARITY.md) describes source scrolling, gesture ownership and remaining physical/signed acceptance.

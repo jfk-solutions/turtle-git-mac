@@ -2042,6 +2042,30 @@ private extension FileComparisonDocument {
         }
         scrolls[base] = scroll; onRegisterScroll(scroll,base); refreshLocatorViewport()
     }
+    var canScrollViewport:Bool {
+        contextCommandsAllowed && !filtering && alignment != nil && !lineWrapping.isGeometryPending && !viewportScrolls.isEmpty
+    }
+    private var viewportScrolls:[NSScrollView] {
+        [true,false].compactMap {base in
+            guard let scroll=scrolls[base],ownsViewport(scroll,base:base),ownsEditor(scroll,base:base),
+                  !scroll.isHiddenOrHasHiddenAncestor,let view=scroll.documentView as? FileComparisonTextView,
+                  view.paneInputAllowed else{return nil}
+            return scroll
+        }
+    }
+    func scrollViewport(_ direction:MergeViewportScrollCommand) {
+        guard canScrollViewport,!synchronizing else{return}
+        lineWrapping.prepareForInput()
+        let targets=viewportScrolls
+        guard !targets.isEmpty,!lineWrapping.isGeometryPending else{return}
+        synchronizing=true;lineWrapping.beginViewportInput()
+        defer {synchronizing=false;lineWrapping.endViewportInput();refreshLocatorViewport()}
+        // Each pane advances from its own origin once. Disable ordinary linked
+        // callbacks during the batch so the second pane cannot advance twice.
+        for scroll in targets {MergeViewportScrolling.step(direction,in:scroll)}
+        let next=scrolls.mapValues{$0.contentView.bounds.minX}
+        if next != previewHorizontalOffsets {previewHorizontalOffsets=next}
+    }
     func scrolled(_ source: NSScrollView) {
         defer {
             refreshLocatorViewport()

@@ -227,6 +227,8 @@ are cleared while selected, you can uncheck it and choose a patch file. See
 [Merge Open parity](MERGE-OPEN-PARITY.md) for current validation and limitations.
 
 
+In a text comparison or merge, **View → Scroll → Line Up / Line Down** moves all displayed panes by one visible line. **Line Left / Line Right** moves them by one font character cell where horizontal scrolling is available. These commands leave text, caret selections and Undo history unchanged; ordinary caret arrow keys keep their usual behavior. See the [viewport navigation record](VIEWPORT-NAVIGATION-PARITY.md) for source mapping and platform differences.
+
 ## Text encoding and line endings
 
 In an editable comparison or merged-result pane, choose **Encoding…** beside

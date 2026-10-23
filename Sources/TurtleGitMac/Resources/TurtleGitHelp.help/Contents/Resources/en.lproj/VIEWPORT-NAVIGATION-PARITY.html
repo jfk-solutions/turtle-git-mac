@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Revision Graph and comparison viewport navigation</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="revision-graph-and-comparison-viewport-navigation">Revision Graph and comparison viewport navigation</h1>
+<p>Source baseline: TortoiseGit <code>7338078f8ddd924b8cddee35f512f2286072136d</code>.
+This family covers navigation of the existing graph and editor views. It does
+not certify the whole application or every physical input device.</p>
+<h2 id="revision-graph">Revision Graph</h2>
+<p><code>RevisionGraphDlgFunc.cpp::DoZoom</code> rescales both scroll positions by the ratio
+between the new and old zoom. The native graph applies that contract to toolbar,
+View-menu, percentage-box, fit and modifier-wheel routes. Native scroll bounds
+clamp the result after the canvas is resized. This preserves the inspected graph
+location where the resulting viewport can contain it; it does not substitute a
+pointer-centered zoom policy for the source origin-scaling contract. Invalid
+percentages retain the current zoom and viewport.</p>
+<p>With the graph canvas focused, arrows move the viewport twenty native points and
+Page Up/Down move it by half its height, following
+<code>RevisionGraphDlg.cpp::PreTranslateMessage</code>. Native field editing and unrelated
+modified shortcuts keep their normal AppKit routes. Escape first cancels an
+active canvas or overview pan. The graph remains open after this cancellation;
+normal close behavior remains available when no gesture is active.</p>
+<p>Canvas panning and overview navigation capture the accepted press and its owning
+graph/layout state. Orphan drag events and events after reload, zoom, modal
+ownership, Quit or closure cannot move the viewport. The overview can still
+recenter on an accepted click. Native open/closed hand cursors represent the
+source pan cursors; blocked and retired views release their gesture feedback.
+The source anchors are <code>RevisionGraphWnd.cpp::CancelMouseZoom</code>, mouse handlers
+and <code>OnSetCursor</code>. No working rectangle-zoom or middle-button feature is inferred
+from inactive source remnants.</p>
+<h2 id="compare-and-merge">Compare and Merge</h2>
+<p><code>TortoiseMerge/MainFrm.cpp::OnViewLineUpDown</code> and <code>OnViewLineLeftRight</code> scroll
+all available text views by one displayed line or one character cell. The native
+commands apply these operations to the current two-pane, combined or three-pane
+presentation without changing source text, caret selection, saved state or Undo
+history. Wrapped and folded views use their current displayed geometry. Normal
+caret-arrow behavior remains unchanged.</p>
+<p>The pinned source has command handlers but no corresponding menu or accelerator
+entry in its resource files. Native menu discovery is therefore a macOS
+adaptation, rather than a claim of a matching Windows shortcut. Current owned
+editor/menu guards reject commands during competing operations, sheets and
+retired or replaced documents.</p>
+<h2 id="verification-and-remaining-work">Verification and remaining work</h2>
+<p>The <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/viewport-navigation-family-2026-10-23.json">dated grouped checkpoint</a>
+records the actual app build, native scenarios, failures and focused repairs.
+Private repositories, preferences and receiver windows separate these checks
+from user-owned sessions. No Core production changes are required for this
+native navigation family.</p>
+<p>Native points, font-cell and viewport metrics replace Windows device pixels.
+Physical keyboard layouts, mouse/trackpad timing, VoiceOver, complete source
+layout, installed signed Finder/App Store workflows, minimum-version/Intel and
+full hosted integration remain separate acceptance requirements.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

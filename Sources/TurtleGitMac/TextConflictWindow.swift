@@ -1238,6 +1238,25 @@ private enum MergeSourceSide {
     private var sourceScrolls: [String: WeakMergeScroll] = [:]
     private var synchronizingScroll = false
     func registerSourceScroll(_ scroll: NSScrollView, label: String) { sourceScrolls[label] = WeakMergeScroll(scroll); refreshLocatorViewport(); refreshLinePreviewOffsets();schedulePanePresentation() }
+    var canScrollViewport:Bool {
+        sourceToolsAllowed && !lineWrapping.isGeometryPending && !viewportScrolls.isEmpty
+    }
+    private var viewportScrolls:[NSScrollView] {
+        navigationViews.compactMap {view in
+            guard view.paneInputAllowed,!view.isHiddenOrHasHiddenAncestor,
+                  let scroll=view.enclosingScrollView,scroll.window === window else{return nil}
+            return scroll
+        }
+    }
+    func scrollViewport(_ direction:MergeViewportScrollCommand) {
+        guard canScrollViewport,!synchronizingScroll else{return}
+        lineWrapping.prepareForInput()
+        let targets=viewportScrolls
+        guard !targets.isEmpty,!lineWrapping.isGeometryPending else{return}
+        synchronizingScroll=true;lineWrapping.beginViewportInput()
+        defer {synchronizingScroll=false;lineWrapping.endViewportInput();refreshLocatorViewport();refreshLinePreviewOffsets()}
+        for scroll in targets {MergeViewportScrolling.step(direction,in:scroll)}
+    }
     func sourceDidScroll(_ scroll: NSScrollView) {
         defer { refreshLocatorViewport(from:scroll); refreshLinePreviewOffsets() }
         guard !synchronizingScroll else { return }

@@ -1,0 +1,249 @@
+{
+  "date": "2026-10-23",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "passed",
+  "scope": [
+    "Revision Graph shared zoom/viewport, keyboard navigation, gesture ownership and cursors",
+    "Compare/Merge explicit one-line/character-cell viewport commands"
+  ],
+  "validation": {
+    "core": "No Core production changed; no Core tests rerun. This batch changes native viewport controls and owner receipts.",
+    "app": {
+      "log": "build/qa/viewport-navigation-family-app-2026-10-23.log",
+      "exit_code": 0,
+      "diagnostics": "Xcode exited zero while emitting contradictory generic command-failed-with-exit-code-zero diagnostics, existing concurrency warnings and a CoreSimulator version mismatch. No clean-diagnostics claim."
+    },
+    "graph_initial": {
+      "log": "build/qa/graph-viewport-family-native-2026-10-23.log",
+      "status": "fixture-compilation-failed",
+      "failure": "window.beginSheet(sheet) selected the async SDK overload without await.",
+      "repair": "Root supplied the explicit completionHandler overload in the fixture; production unchanged and no app rebuild.",
+      "receivers_launched": 0
+    },
+    "graph": {
+      "log": "build/qa/graph-viewport-family-native-sheet-2026-10-23.log",
+      "status": "passed",
+      "engine_case_pairs": 6,
+      "pairs": [
+        {
+          "case": "zoom",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "gestures",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "retirement",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "zoom",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "gestures",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "retirement",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "status": "passed"
+        }
+      ],
+      "scope": [
+        "Actual editable combo/button/Control-wheel/Command-wheel proportional origin zoom and fit",
+        "Focused canvas source 20-point arrows and half-page keys; zoom field retains its navigation",
+        "Accepted canvas/overview gestures, orphan drag refusal and native inverse overview mapping",
+        "Escape including field-focused overview cancellation, cursor state and cross-view receipt replacement",
+        "Actual attached sheet fences navigation/zoom; Quit/resize/real graph replacement/close reject stale callbacks",
+        "Private real Git repositories and actual layout helper; HEAD/refs/index/config unchanged; hidden/offscreen windows and cursor restored"
+      ]
+    },
+    "merge_attempts": [
+      {
+        "log": "build/qa/merge-viewport-family-native-2026-10-23.log",
+        "status": "first-native-case-failed",
+        "git": "/usr/bin/git",
+        "owned_receiver_pid": 25682,
+        "failure": "Viewport scrolled before the leading edge.",
+        "diagnosis": "Fixture assumed leading x=0; native ruler inset permits leading x=-45."
+      },
+      {
+        "log": "build/qa/merge-viewport-edge-diagnostic-2026-10-23.log",
+        "status": "diagnostic-case-failed",
+        "owned_receiver_pid": 25762,
+        "failure": "Same retained leading-edge assertion.",
+        "evidence": "Log shows left content inset45 and constrained minimum(-45,0), while fixture started at(0,0) and valid one-character left moved to -6.181640625.",
+        "repair": "Fixture starts at the actual constrained far-leading origin and retains edge refusal assertions; no production change or app rebuild."
+      },
+      {
+        "log": "build/qa/merge-viewport-edge-fixture-repair-2026-10-23.log",
+        "status": "receiver-crashed",
+        "owned_receiver_pid": 25799,
+        "signal": "SIGSEGV 11",
+        "diagnosis": "Parent/agent crash analysis found objc_release/autoreleasePoolPop during fixture temporary NSWindow lifetime; default isReleasedWhenClosed was true.",
+        "repair": "Fixture retains the temporary sheet with isReleasedWhenClosed=false and dispatches void menu actions via NSApp.sendAction; production unchanged and no app rebuild.",
+        "assertions_retained": true
+      }
+    ],
+    "merge": {
+      "log": "build/qa/merge-viewport-fixture-ownership-repair-2026-10-23.log",
+      "status": "passed",
+      "engine_case_pairs": 2,
+      "pairs": [
+        {
+          "case": "compare-merge-viewport",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "compare-merge-viewport",
+          "git": "build/git-runtime/Git/bin/git",
+          "status": "passed"
+        }
+      ],
+      "scope": [
+        "Actual ordinary/folded/wrapped Compare panes and ordinary/folded/wrapped Merge panes",
+        "Four all-pane scroll commands use native line/font-character increments and constrained edge clamps",
+        "Source text, selection, focus, dirty state, undo and fold state preserved",
+        "Source icons and owner preferences; ordinary caret arrow behavior unaffected",
+        "Captured command epoch, busy, Quit, real attached sheet and retired menu callbacks fenced"
+      ]
+    },
+    "resources": {
+      "source": "Parent-reported completed resource checks",
+      "help": {
+        "documents": 56,
+        "topics": 51,
+        "files": 76,
+        "bytes": 3760903,
+        "status": "passed"
+      },
+      "localizations": {
+        "languages": 38,
+        "keys": 1315,
+        "status": "passed"
+      }
+    },
+    "site": {
+      "log": "build/qa/viewport-navigation-family-site-2026-10-23.log",
+      "documents": 420,
+      "unresolved_fragments": 0,
+      "status": "passed"
+    },
+    "site_tests": {
+      "log": "build/qa/viewport-navigation-family-site-tests-2026-10-23.log",
+      "python_tests": 2,
+      "python_status": "passed",
+      "javascript_status": "Search, filtering, no-match and load-failure checks passed."
+    },
+    "graph_sheet_ownership_recheck": {
+      "log": "build/qa/graph-viewport-family-native-sheet-ownership-2026-10-23.log",
+      "status": "passed",
+      "cases": [
+        "retirement with system Git",
+        "retirement with bundled Git"
+      ],
+      "reason": "Root applied the same explicit isReleasedWhenClosed=false retention to the Graph fixture temporary sheet after the Merge fixture crash; production unchanged, no app rebuild and no other Graph case repeated.",
+      "engine_case_pairs": 2,
+      "pairs": [
+        {
+          "case": "retirement",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "retirement",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "status": "passed"
+        }
+      ]
+    },
+    "cumulative_native": {
+      "distinct_case_engine_pairs": 8,
+      "graph_pairs": 6,
+      "compare_merge_pairs": 2,
+      "affected_graph_retirement_pairs_rechecked": 2,
+      "additional_production_build_for_fixture_repairs": false,
+      "complete_native_group_repeated": false
+    }
+  },
+  "remaining": [
+    "Native points/font and full Windows raster/layout equivalence",
+    "Physical keyboard/pointer/VoiceOver",
+    "Installed signed workflows, minimum-version/Intel and hosted integration"
+  ],
+  "status_scope": "Focused local grouped native checkpoint: eight distinct case/engine pairs passed cumulatively, followed by only the two affected Graph retirement rechecks. No full hosted CI or whole-port acceptance claim.",
+  "ownership": {
+    "completed_attempt_receiver_pids": [
+      25154,
+      25236,
+      25316,
+      25403,
+      25486,
+      25566,
+      25682,
+      25762,
+      25799,
+      25896,
+      25900,
+      26001,
+      26087
+    ],
+    "runner_reported_reaped": [
+      25154,
+      25236,
+      25316,
+      25403,
+      25486,
+      25566,
+      25682,
+      25762,
+      25799,
+      25896,
+      25900,
+      26001,
+      26087
+    ],
+    "independently_verified_absent": [
+      25154,
+      25236,
+      25316,
+      25403,
+      25486,
+      25566,
+      25682,
+      25762,
+      25799,
+      25896,
+      25900,
+      26001,
+      26087
+    ],
+    "verified_at_utc": "2026-10-23T12:20:00.641770+00:00",
+    "verification": "Read-only os.kill(pid,0) raised ProcessLookupError for all 13 logged receivers, including failed/crashed attempts and affected rechecks. No signals sent or unrelated apps terminated.",
+    "scope": "Private repositories/preferences; actual offscreen windows/sheets and graph helpers drain on success/failure/timeout. Original NSCursor restored. Repository HEAD/refs/index/config and editor text/selection/dirty/undo state checked by fixtures."
+  },
+  "repairs": [
+    "Graph fixture uses explicit completionHandler for native sheet SDK overload; no production repair required.",
+    "Compare/Merge fixture edge oracle accounts for actual native ruler content inset and constrained clip minimum; original edge behavior assertion retained.",
+    "Compare/Merge edge-fixture retry crashed in fixture temporary-sheet ownership; explicit sheet retention and NSApp.sendAction fixed the fixture without changing production or removing assertions.",
+    "The equivalent Graph temporary-sheet fixture receives the same explicit retention; only the affected retirement pair is rechecked."
+  ],
+  "native_adaptations": [
+    "Source scroll distances are expressed in native points and measured native character cells/line metrics; full Windows pixel/font/layout equivalence is not claimed.",
+    "Graph overview retains native drawing margins and descriptor geometry; hidden/offscreen tests do not establish physical pointer timing or installed signed behavior."
+  ],
+  "hosted_ci_observed": {
+    "commit": "f0f6d7aa",
+    "job_id": 120400285588,
+    "status": "in_progress",
+    "last_parent_read_only_observation": "Application compilation and sibling earlier native steps passed; Git integration tests were in progress. No full hosted pass claimed."
+  }
+}

@@ -746,3 +746,8 @@ all three panes. Ordinary three-way loads still start with the pane hidden.
 Read-only source panes and disabled three-way inline traversal follow the pinned
 source; they are not missing editing features. The grouped checkpoint retains
 actual validation and remaining physical, visual, signed and complete-port limits.
+
+
+## Explicit all-pane viewport commands — October 23, 2026
+
+The [connected native viewport family](VIEWPORT-NAVIGATION-PARITY.md) adds the pinned frame’s four line/character-cell scroll handlers to both native editor presentations. Its View → Scroll submenu is an explicit macOS discovery adaptation because the source resources bind no menu or accelerator to these handlers. Actual displayed geometry, all-pane operation, locator/preview updates, unchanged editing history and current-owner guards are covered by the dated grouped checkpoint; complete physical/signed/application parity remains open.

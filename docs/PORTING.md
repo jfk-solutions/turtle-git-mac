@@ -4531,3 +4531,6 @@ pairs pass after one fixture-only average-band collision repair; no Core
 production changed or Core suite was repeated. See the
 [parity scope](LOG-STATISTICS-PARITY.md#shared-scene-and-native-interaction-ownership--october-23-2026)
 and [dated checkpoint](qa/statistics-interaction-family-2026-10-23.json).
+
+
+The October 23 [viewport navigation family](VIEWPORT-NAVIGATION-PARITY.md) connects Graph zoom-origin preservation, focused source key distances, Escape/cursors and current-press gesture ownership with explicit all-pane Compare/Merge scroll commands. The editor submenu is a documented native discovery adaptation; text/caret shortcuts and editing history retain their contracts. Its [dated checkpoint](qa/viewport-navigation-family-2026-10-23.json) records grouped native validation and remaining physical/signed/full-port work.

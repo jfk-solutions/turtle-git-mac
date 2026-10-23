@@ -270,7 +270,9 @@ final class RevisionGraphSurface: NSView {
 
 final class RevisionGraphNativeWindow: NSWindow {
     var command: (String) -> Void = { _ in }
+    var cancelPointerGesture:()->Bool = {false}
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.type == .keyDown,event.keyCode == 53,cancelPointerGesture(){return true}
         if let canvas=firstResponder as? RevisionGraphCanvas,canvas.performContextKey(event) { return true }
         let modifiers = event.modifierFlags.intersection([.command, .control, .shift, .option])
         if event.keyCode == 96, modifiers.isEmpty { command("refresh"); return true }
@@ -317,7 +319,7 @@ final class RevisionGraphToolbarButton: NSButton {
     private var displayedZoom: CGFloat?
     let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     private var toolbarButtons: [NSButton] = []
-    private let overview: RevisionGraphOverview
+    let overview: RevisionGraphOverview
     private(set) var filter: RevisionGraphFilterController?
     private(set) var find: RevisionGraphFindController?
     private var hasFindError: Bool { exportError != nil || unifiedError != nil || find?.acknowledgingFailure == true || find?.window?.attachedSheet != nil }
@@ -407,6 +409,7 @@ final class RevisionGraphToolbarButton: NSButton {
         scroll.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(scrolled), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         NotificationCenter.default.addObserver(self, selector: #selector(sheetEnded), name: NSWindow.didEndSheetNotification, object: window)
+        NotificationCenter.default.addObserver(self, selector: #selector(pointerSheetBegan), name: NSWindow.willBeginSheetNotification, object: window)
         let footer = NSStackView(views: [status, cancelButton]); footer.orientation = .horizontal; footer.distribution = .fill; footer.spacing = 12
         cancelButton.target = self; cancelButton.action = #selector(cancelGraphOperation)
         let stack = NSStackView(views: [bar, toolbar, host, footer]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
@@ -416,6 +419,8 @@ final class RevisionGraphToolbarButton: NSButton {
         host.setContentHuggingPriority(.defaultLow, for: .vertical); host.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         canvas.interactionAllowed = { [weak self] in self?.graphInteractionAllowed == true }
         overview.interactionAllowed = { [weak self] in self?.graphInteractionAllowed == true }
+        canvas.cancelOtherPointerGesture = {[weak overview = self.overview] in _=overview?.cancelPointerGesture()}
+        overview.cancelOtherPointerGesture = {[weak canvas = self.canvas] in _=canvas?.cancelPointerGesture()}
         canvas.contextMenu = { [weak self] in self?.nodeMenu() ?? NSMenu() }
         model.changed = { [weak self] in self?.update() }
         colorUpdates = NotificationCenter.default.publisher(for: .statusColorsChanged).receive(on: RunLoop.main).sink { [weak self] _ in
@@ -462,6 +467,11 @@ final class RevisionGraphToolbarButton: NSButton {
         model.sshSettings.present = { [weak window] prompt in
             guard let window, window.attachedSheet == nil, let child = prompt.window else { return false }
             child.alphaValue = window.alphaValue; window.beginSheet(child); return true
+        }
+        window.cancelPointerGesture = {[weak self] in
+            guard let self else{return false}
+            let canvas=self.canvas.cancelPointerGesture(),overview=self.overview.cancelPointerGesture()
+            return canvas || overview
         }
         window.command = { [weak self] in self?.perform($0) }; update(); window.center()
         DialogGeometry.attach(window, identifier: "RevisionGraph")
@@ -622,7 +632,7 @@ final class RevisionGraphToolbarButton: NSButton {
         // 200%. Reject values that cannot form finite native view geometry.
         guard scanner.isAtEnd, percent.isFinite, percent > 0, percent <= Double(Int32.max), zoom > 0, (1 / zoom).isFinite,
               size.width * zoom + 20 <= CGFloat(Int32.max), size.height * zoom + 20 <= CGFloat(Int32.max) else { synchronizeZoom(force: true); return }
-        model.zoom = zoom; model.changed()
+        _ = canvas.setZoom(zoom)
     }
     func comboBoxSelectionDidChange(_ notification: Notification) {
         guard notification.object as? NSComboBox === zoomBox, zoomBox.indexOfSelectedItem >= 0 else { return }
@@ -637,8 +647,13 @@ final class RevisionGraphToolbarButton: NSButton {
         displayedZoom = model.zoom; zoomBox.stringValue = String(format: "%.0f%%", model.zoom * 100)
     }
     @objc private func cancelGraphOperation() { model.cancel() }
-    @objc private func scrolled() { overview.needsDisplay = true }
+    @objc private func scrolled() {
+        overview.needsDisplay = true
+        window?.invalidateCursorRects(for:overview);window?.invalidateCursorRects(for:canvas)
+    }
     func windowDidResize(_ notification: Notification) { update() }
+    func windowDidResignKey(_ notification:Notification) {canvas.cancelPointerGesture();overview.cancelPointerGesture()}
+    @objc private func pointerSheetBegan(){canvas.cancelPointerGesture();overview.cancelPointerGesture()}
     @objc private func sheetEnded() { update() }
     func requestRepositoryRefresh() { guard !model.closed else { return }; pendingRepositoryRefresh = true; update() }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
@@ -667,13 +682,13 @@ final class RevisionGraphToolbarButton: NSButton {
         guard model.canAct, !hasClosed, !closing, !model.busy, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError else { return }
         switch command {
         case "refresh": model.load()
-        case "zoomIn": model.zoom = min(2, model.zoom / 0.9)
-        case "zoomOut": model.zoom = max(0.01, model.zoom * 0.9)
-        case "zoom100": model.zoom = 1
+        case "zoomIn": _ = canvas.setZoom(min(2, model.zoom / 0.9))
+        case "zoomOut": _ = canvas.setZoom(max(0.01, model.zoom * 0.9))
+        case "zoom100": _ = canvas.setZoom(1)
         case "fit", "fitWidth", "fitHeight":
             if let size = model.geometry?.size, size.width > 0, size.height > 0 {
                 let viewport = scroll.contentSize; let x = (viewport.width - 20) / size.width, y = (viewport.height - 20) / size.height
-                model.zoom = max(0.01, min(2, command == "fitWidth" ? x : command == "fitHeight" ? y : min(x, y)))
+                _ = canvas.setZoom(max(0.01, min(2, command == "fitWidth" ? x : command == "fitHeight" ? y : min(x, y))))
             }
         case "overview": model.showOverview.toggle(); model.preferences.set(model.showOverview, forKey: "ShowRevGraphOverview")
         case "arrows": model.arrowsTowardMerges.toggle(); model.preferences.set(model.arrowsTowardMerges, forKey: "ArrowPointToMerges")
@@ -699,13 +714,13 @@ final class RevisionGraphToolbarButton: NSButton {
         synchronizeZoom()
         find?.updateAvailability()
         zoomBox.isEnabled = graphInteractionAllowed
-        if !graphInteractionAllowed {canvas.cancelPointerGesture()}
         for button in toolbarButtons {
             button.isEnabled = zoomBox.isEnabled
             button.state = isChecked(button.identifier?.rawValue ?? "") ? .on : .off
         }
         canvas.resize(to: scroll.contentSize); canvas.needsDisplay = true; overview.updateFrame(); overview.needsDisplay = true
         overview.isHidden = !model.showOverview || model.busy || model.nodes.isEmpty || model.nodes.count > 10_000
+        canvas.updatePointerAvailability();overview.updatePointerAvailability()
         status.stringValue = model.error ?? (model.busy ? "Loading…" : "\(model.nodes.count) revisions • \(Int((model.zoom * 100).rounded()))%")
         cancelButton.isEnabled = model.busy
         if pendingRepositoryRefresh, model.canAct, !hasClosed, !closing, !model.busy, filter == nil, !exporting, window?.attachedSheet == nil && !hasFindError {
@@ -812,6 +827,7 @@ final class RevisionGraphToolbarButton: NSButton {
     }
     func windowWillClose(_ notification: Notification) {
         guard !hasClosed else{return};hasClosed=true;closing=true;colorUpdates=nil;currentNodeMenuSession=nil
+        canvas.cancelPointerGesture();overview.cancelPointerGesture()
         exportCancellation?.cancel()
         let save=graphSavePanel?.panel,errorSheet=exportError?.window
         if let alert=unifiedError {window?.endSheet(alert.window,returnCode:.cancel);alert.window.orderOut(nil);unifiedError=nil}
@@ -823,7 +839,7 @@ final class RevisionGraphToolbarButton: NSButton {
         if let errorSheet {errorSheet.sheetParent?.endSheet(errorSheet,returnCode:.cancel);errorSheet.orderOut(nil)}
         exportErrorReply?(.cancel)
         filter?.close();filter=nil;find?.close();find=nil
-        (window as? RevisionGraphNativeWindow)?.command={_ in};canvas.contextMenu={NSMenu()};canvas.interactionAllowed={false};overview.interactionAllowed={false}
+        (window as? RevisionGraphNativeWindow)?.command={_ in};(window as? RevisionGraphNativeWindow)?.cancelPointerGesture={false};canvas.contextMenu={NSMenu()};canvas.interactionAllowed={false};overview.interactionAllowed={false}
         if model.hasPendingWork || pendingExportOperations>0 || retiringFilter?.hasPendingWork == true || retiringFind?.hasPendingWork == true || retiringUnified?.model.busy == true || save?.sheetParent != nil || errorSheet?.sheetParent != nil {
             Self.activeRetirements += 1
             closeRelease=Task { [self] in
@@ -867,9 +883,13 @@ enum RevisionGraphTooltip {
     let model: RevisionGraphWindowModel
     var contextMenu: () -> NSMenu = { NSMenu() }
     var presentContextMenu:((NSMenu,NSPoint,NSView)->Void)?
+    var cancelOtherPointerGesture:()->Void = {}
     private var accessibleGeneration:UUID?
     private var accessibleNodes:[RevisionGraphAccessibleNode]=[]
     private var panPoint: NSPoint?
+    private var panReceipt: RevisionGraphPointerReceipt?
+    var hasPointerGesture:Bool {panPoint != nil}
+    var pointerCursor:NSCursor {interactionAllowed() && !model.busy && !model.closed && hasPointerGesture ? .closedHand:.arrow}
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
     init(model: RevisionGraphWindowModel) { self.model = model; super.init(frame: CGRect(x: 0, y: 0, width: 900, height: 550)); setAccessibilityRole(.group); setAccessibilityLabel("Revision Graph");setAccessibilityElement(true) }
@@ -904,7 +924,7 @@ enum RevisionGraphTooltip {
         if performContextKey(event) { return true };return super.performKeyEquivalent(with:event)
     }
     override func keyDown(with event:NSEvent) {
-        if performContextKey(event) { return };super.keyDown(with:event)
+        if performContextKey(event) || performNavigationKey(event) { return };super.keyDown(with:event)
     }
     override func accessibilityPerformShowMenu()->Bool { showSelectedContextMenu() }
     func resize(to viewport: CGSize) {
@@ -946,41 +966,88 @@ enum RevisionGraphTooltip {
         let p = CGPoint(x: (point.x - 10) / model.zoom, y: (point.y - 10) / model.zoom)
         return model.geometry?.nodes.first { $0.rect.contains(p) }?.hash
     }
-    override func mouseDown(with event: NSEvent) {
-        panPoint = nil
-        guard interactionAllowed(), !model.busy, !model.closed else { return }
+    /// Source DoZoom rescales scroll positions, rather than jumping to the
+    /// origin or retaining the old pixel offset. All native entry points share it.
+    @discardableResult func setZoom(_ zoom:CGFloat)->Bool {
+        guard interactionAllowed(),!model.busy,!model.closed,zoom.isFinite,zoom>0,(1/zoom).isFinite,
+              let geometry=model.geometry,let scroll=enclosingScrollView,
+              geometry.size.width*zoom+20 <= CGFloat(Int32.max),geometry.size.height*zoom+20 <= CGFloat(Int32.max) else{return false}
+        let previous=model.zoom,origin=scroll.contentView.bounds.origin
+        guard previous.isFinite,previous>0 else{return false}
+        cancelPointerGesture()
+        model.zoom=zoom;model.changed()
+        resize(to:scroll.contentSize)
+        self.scroll(to:NSPoint(x:origin.x*zoom/previous,y:origin.y*zoom/previous))
+        return true
+    }
+    /// Source PreTranslateMessage scrolls arrows by 20 and pages by half the
+    /// graph viewport, independently of modifiers. Keep it local to the canvas
+    /// so AppKit field editors retain their own caret/selection shortcuts.
+    @discardableResult func performNavigationKey(_ event:NSEvent)->Bool {
+        guard event.type == .keyDown,window?.firstResponder === self else{return false}
+        if event.keyCode == 53 {return cancelPointerGesture()}
+        guard [UInt16(123),124,125,126,116,121].contains(event.keyCode) else{return false}
+        // A disabled canvas must consume its own scrolling keys. Forwarding a
+        // refused event would let NSScrollView handle it behind an owned sheet.
+        guard interactionAllowed(),!model.busy,!model.closed else{cancelPointerGesture();return true}
+        guard let clip=enclosingScrollView?.contentView else{return true}
+        var origin=clip.bounds.origin
+        switch event.keyCode {
+        case 123:origin.x -= 20
+        case 124:origin.x += 20
+        case 125:origin.y += 20
+        case 126:origin.y -= 20
+        case 116:origin.y -= clip.bounds.height/2
+        case 121:origin.y += clip.bounds.height/2
+        default:return false
+        }
+        cancelPointerGesture();scroll(to:origin);return true
+    }
+    override func mouseDown(with event:NSEvent) {
+        cancelPointerGesture();cancelOtherPointerGesture()
+        guard interactionAllowed(),!model.busy,!model.closed else{return}
         window?.makeFirstResponder(self)
-        let hash = hit(convert(event.locationInWindow, from: nil))
-        let extending = !event.modifierFlags.intersection([.command, .control]).isEmpty
-        model.clickSelection(hash, extending: extending)
-        if hash == nil, !extending { panPoint = event.locationInWindow }
+        let hash=hit(convert(event.locationInWindow,from:nil))
+        let extending = !event.modifierFlags.intersection([.command,.control]).isEmpty
+        model.clickSelection(hash,extending:extending)
+        if hash == nil,!extending,let receipt=RevisionGraphPointerReceipt(view:self,model:model) {
+            panPoint=event.locationInWindow;panReceipt=receipt;window?.invalidateCursorRects(for:self)
+        }
     }
-    override func mouseDragged(with event: NSEvent) {
-        guard interactionAllowed(), !model.busy, !model.closed, let previous = panPoint, let scroll = enclosingScrollView else { panPoint = nil; return }
-        let clip = scroll.contentView
-        let before = clip.convert(previous, from: nil), after = clip.convert(event.locationInWindow, from: nil)
-        self.scroll(to: NSPoint(x: clip.bounds.minX - (after.x - before.x), y: clip.bounds.minY - (after.y - before.y)))
-        panPoint = event.locationInWindow
+    override func mouseDragged(with event:NSEvent) {
+        guard interactionAllowed(),!model.busy,!model.closed,let receipt=panReceipt,
+              receipt.accepts(view:self,model:model),let previous=panPoint,let scroll=enclosingScrollView else{cancelPointerGesture();return}
+        let clip=scroll.contentView
+        let before=clip.convert(previous,from:nil),after=clip.convert(event.locationInWindow,from:nil)
+        self.scroll(to:NSPoint(x:clip.bounds.minX-(after.x-before.x),y:clip.bounds.minY-(after.y-before.y)))
+        panPoint=event.locationInWindow
     }
-    func cancelPointerGesture() {panPoint=nil}
-    override func mouseUp(with event: NSEvent) { panPoint = nil }
-    private func scroll(to origin: NSPoint) {
-        guard let scroll = enclosingScrollView else { return }
-        let clip = scroll.contentView
-        clip.scroll(to: clip.constrainBoundsRect(NSRect(origin: origin, size: clip.bounds.size)).origin)
+    @discardableResult func cancelPointerGesture()->Bool {
+        let active=hasPointerGesture;panPoint=nil;panReceipt=nil;window?.invalidateCursorRects(for:self);return active
+    }
+    func updatePointerAvailability() {
+        if !interactionAllowed() || panReceipt.map({!$0.accepts(view:self,model:model)}) == true {cancelPointerGesture()}
+        window?.invalidateCursorRects(for:self)
+    }
+    override func resetCursorRects(){super.resetCursorRects();if interactionAllowed(),!model.busy,!model.closed {addCursorRect(visibleRect,cursor:pointerCursor)}}
+    override func viewWillMove(toWindow newWindow:NSWindow?){cancelPointerGesture();super.viewWillMove(toWindow:newWindow)}
+    override func mouseUp(with event:NSEvent){cancelPointerGesture()}
+    override func cancelOperation(_ sender:Any?){if !cancelPointerGesture(){super.cancelOperation(sender)}}
+    private func scroll(to origin:NSPoint) {
+        guard let scroll=enclosingScrollView else{return}
+        let clip=scroll.contentView
+        clip.scroll(to:clip.constrainBoundsRect(NSRect(origin:origin,size:clip.bounds.size)).origin)
         scroll.reflectScrolledClipView(clip)
     }
-    override func scrollWheel(with event: NSEvent) {
-        guard interactionAllowed(), !model.busy, !model.closed else { return }
-        if !event.modifierFlags.intersection([.command, .control]).isEmpty {
-            guard event.scrollingDeltaY != 0 else { return }
-            model.zoom = max(0.01, min(2, model.zoom * (event.scrollingDeltaY < 0 ? 0.9 : 1 / 0.9)))
-            model.changed()
-        } else if event.modifierFlags.contains(.shift), let clip = enclosingScrollView?.contentView {
-            // Precise trackpad events retain AppKit's acceleration and phases.
-            if event.hasPreciseScrollingDeltas { super.scrollWheel(with: event); return }
-            scroll(to: NSPoint(x: clip.bounds.minX - event.scrollingDeltaY, y: clip.bounds.minY - event.scrollingDeltaX))
-        } else { super.scrollWheel(with: event) }
+    override func scrollWheel(with event:NSEvent) {
+        guard interactionAllowed(),!model.busy,!model.closed else{return}
+        if !event.modifierFlags.intersection([.command,.control]).isEmpty {
+            guard event.scrollingDeltaY != 0 else{return}
+            _=setZoom(max(0.01,min(2,model.zoom*(event.scrollingDeltaY<0 ? 0.9:1/0.9))))
+        } else if event.modifierFlags.contains(.shift),let clip=enclosingScrollView?.contentView {
+            if event.hasPreciseScrollingDeltas {super.scrollWheel(with:event);return}
+            scroll(to:NSPoint(x:clip.bounds.minX-event.scrollingDeltaY,y:clip.bounds.minY-event.scrollingDeltaX))
+        } else {super.scrollWheel(with:event)}
     }
     override func menu(for event: NSEvent) -> NSMenu? {
         guard interactionAllowed(), !model.busy, !model.closed else { return nil }
@@ -1040,10 +1107,31 @@ enum RevisionGraphTooltip {
     }
 }
 
+/// A drag belongs to the graph, viewport and owner which accepted its press.
+/// Scrolling itself may change bounds.origin; geometry/zoom/ownership may not.
+@MainActor private struct RevisionGraphPointerReceipt {
+    let window:ObjectIdentifier,generation:UUID,epoch:UUID,zoom:CGFloat,geometry:CGSize,viewport:CGSize
+    init?(view:NSView,model:RevisionGraphWindowModel) {
+        guard let window=view.window,let geometry=model.geometry,
+              let scroll=(view as? RevisionGraphOverview)?.scroll ?? view.enclosingScrollView else{return nil}
+        self.window=ObjectIdentifier(window);generation=model.generation;epoch=model.commandEpoch
+        zoom=model.zoom;self.geometry=geometry.size;viewport=scroll.contentSize
+    }
+    func accepts(view:NSView,model:RevisionGraphWindowModel)->Bool {
+        guard let owner=view.window,let current=model.geometry,
+              let scroll=(view as? RevisionGraphOverview)?.scroll ?? view.enclosingScrollView else{return false}
+        return ObjectIdentifier(owner)==window && model.generation==generation && model.commandEpoch==epoch && model.zoom==zoom && current.size==geometry && scroll.contentSize==viewport
+    }
+}
+
 @MainActor final class RevisionGraphOverview: NSView {
     var interactionAllowed: () -> Bool = { true }
+    var cancelOtherPointerGesture:()->Void = {}
     let model: RevisionGraphWindowModel
     weak var scroll: NSScrollView?
+    private var dragReceipt:RevisionGraphPointerReceipt?
+    var hasPointerGesture:Bool {dragReceipt != nil}
+    var pointerCursor:NSCursor {interactionAllowed() && !model.busy && !model.closed && !isHidden ? (hasPointerGesture ? .closedHand:.openHand):.arrow}
     override var isFlipped: Bool { true }
     init(model: RevisionGraphWindowModel) { self.model = model; super.init(frame: .zero); setAccessibilityLabel("Graph overview") }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -1082,12 +1170,30 @@ enum RevisionGraphTooltip {
             NSColor.selectedControlColor.setStroke(); let path = NSBezierPath(rect: rect); path.lineWidth = 2; path.stroke()
         }
     }
-    override func mouseDown(with event: NSEvent) { navigate(event) }
-    override func mouseDragged(with event: NSEvent) { navigate(event) }
+    override func mouseDown(with event:NSEvent) {
+        cancelPointerGesture();cancelOtherPointerGesture()
+        guard interactionAllowed(),!model.busy,!model.closed,!isHidden,
+              bounds.contains(convert(event.locationInWindow,from:nil)),let receipt=RevisionGraphPointerReceipt(view:self,model:model) else{return}
+        dragReceipt=receipt;window?.invalidateCursorRects(for:self);navigate(event)
+    }
+    override func mouseDragged(with event:NSEvent) {
+        guard let receipt=dragReceipt,receipt.accepts(view:self,model:model),interactionAllowed(),!isHidden else{cancelPointerGesture();return}
+        navigate(event)
+    }
+    override func mouseUp(with event:NSEvent){cancelPointerGesture()}
+    @discardableResult func cancelPointerGesture()->Bool {
+        let active=hasPointerGesture;dragReceipt=nil;window?.invalidateCursorRects(for:self);return active
+    }
+    func updatePointerAvailability() {
+        if !interactionAllowed() || isHidden || dragReceipt.map({!$0.accepts(view:self,model:model)}) == true {cancelPointerGesture()}
+        window?.invalidateCursorRects(for:self)
+    }
+    override func resetCursorRects(){super.resetCursorRects();if interactionAllowed(),!model.busy,!model.closed,!isHidden {addCursorRect(hasPointerGesture ? bounds:viewportRect,cursor:pointerCursor)}}
+    override func viewWillMove(toWindow newWindow:NSWindow?){cancelPointerGesture();super.viewWillMove(toWindow:newWindow)}
     private func navigate(_ event: NSEvent) {
         guard interactionAllowed(), !model.busy, !model.closed, let scroll else { return }; let point = convert(event.locationInWindow, from: nil)
         guard bounds.contains(point) else { return }
-        let origin = CGPoint(x: max(0, (point.x - 4) / scale * model.zoom - scroll.contentSize.width / 2), y: max(0, (point.y - 4) / scale * model.zoom - scroll.contentSize.height / 2))
+        let origin = CGPoint(x: max(0, (point.x - 4) / scale * model.zoom + 10 - scroll.contentSize.width / 2), y: max(0, (point.y - 4) / scale * model.zoom + 10 - scroll.contentSize.height / 2))
         scroll.contentView.scroll(to: scroll.contentView.constrainBoundsRect(NSRect(origin: origin, size: scroll.contentView.bounds.size)).origin); scroll.reflectScrolledClipView(scroll.contentView); needsDisplay = true
     }
 }

@@ -776,3 +776,8 @@ The [new grouped checkpoint](qa/graph-metafile-family-2026-10-21.json) records
 focused repairs, with all 25 receivers independently absent. Older checkpoints
 do not independently validate this continuation. Physical, signed, complete
 Windows layout and hosted acceptance remain open.
+
+
+## Connected viewport navigation — October 23, 2026
+
+The [viewport family](VIEWPORT-NAVIGATION-PARITY.md) connects every native zoom route to source scroll-origin scaling, explicit focused-canvas keyboard increments, Escape pan cancellation, native hand cursors and accepted-press overview ownership. Its dated checkpoint records actual validation; earlier successful graph/export checks do not certify these new paths or complete physical/signed parity.
