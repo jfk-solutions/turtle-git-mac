@@ -491,3 +491,34 @@ preparation and adoption; transferred owners stay retained for actual drain.
 The common handoff now observes its supplied owner rather than a later workspace
 window. [Utility evidence](qa/utility-commands-2026-10-18.json) records actual checks
 and remaining physical/signed/complete-layout acceptance.
+
+## Ordinary workspace changes and Blame entry — October 23, 2026
+
+Pinned `SettingsCommand.cpp` constructs the property sheet with its captured
+repository path. The Mac workspace and modeless Settings coexist, so ordinary
+Open Repository, Open Recent and Close Repository must enforce the same context
+ownership already used by specialized command handoffs. A changed resolved root
+now consults the existing Settings transaction before adoption. Same-root reloads,
+including a selected subfolder resolving to that root, retain the current pages.
+Discovery and selected-revision validation finish before publication; a refused
+or failed opening restores the original workspace and monitoring without
+replacing Settings drafts. A refusal uses the existing native Settings message,
+not a second Git error.
+
+Immediate Settings reopening also retains the requested initial page while the
+previous owner's asynchronous page cleanup drains. Page construction must retry
+for the current owner and context rather than leave an empty property sheet;
+closing or replacing that owner cancels the deferred request.
+
+Both Blame Settings routes select the Blame page, as the pinned Blame process's
+`/page:blame` command does. The shared action rejects retired, busy, Quit-owned or
+child-blocked Blame owners. This is command/page fidelity rather than a complete
+Blame or Settings certification.
+
+[The connected batch record](qa/repository-settings-commit-handoff-2026-10-23.json)
+distinguishes grouped native checks from physical acceptance. Two attempted
+shipping-GUI launches did not isolate the ordinary preference domain; they were
+closed without opening a repository or applying Settings. That attempt is not
+evidence of successful isolated physical acceptance. Existing preference data
+was preserved rather than deleted. Full physical keyboard/VoiceOver, signed
+entry points, minimum-version/Intel and hosted integration remain open.

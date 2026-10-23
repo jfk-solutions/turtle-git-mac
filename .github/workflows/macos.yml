@@ -684,7 +684,9 @@ jobs:
       - name: Native ordered command transport batches
         run: python3 scripts/test-command-transport-batch.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native workspace completion handoffs
-        run: python3 scripts/test-repository-handoffs.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
+        run: |
+          python3 scripts/test-repository-handoffs.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
+          python3 scripts/test-repository-settings-handoffs.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native symbolic-link Blame documents and incoming commands
         run: python3 scripts/test-blame-symlink-native.py --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
       - name: Native Blame captured source menus

@@ -705,6 +705,11 @@ state before deciding how to continue.
 
 ## Settings
 
+Finish unsaved Settings changes before opening a different repository or closing
+the current repository. Those actions retain the current repository and drafts
+until Settings can close; refreshing the same repository remains available.
+Settings opened from Blame selects its Blame page.
+
 Settings uses a navigation tree. Apply saves changed pages; Cancel discards their
 unsaved drafts. Git, Dialogs 3 and Issue Tracker pages distinguish a read-only
 Effective view from stored Local, Project, Global and System values where offered.

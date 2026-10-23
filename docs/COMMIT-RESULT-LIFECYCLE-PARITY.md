@@ -1,5 +1,23 @@
 # Commit result recovery and the next draft
 
+## Closing owner handoffs — October 23, 2026
+
+A closed Commit remains cached while its real workers and children drain. It now
+rejects reopening and new command presets during that retirement instead of
+presenting an inert window or replacing its completion callback. The repository
+and access remain owned until actual cleanup finishes; a later fresh Commit can
+open after the cache removes that owner.
+
+Late progress, partial-patch, Log-picker and identity-Settings handoffs cannot
+reopen children or alter the draft after retirement or during a Quit question.
+Configurable child handoffs install their completion ownership first and recheck
+the accepted owner before presentation. The existing automatic saved patch view
+and live-dialog refresh behavior remain available.
+
+[The connected workflow evidence](qa/repository-settings-commit-handoff-2026-10-23.json)
+records actual checks and limits. Native owner retirement is a macOS lifetime
+adaptation, not a new upstream control or full dialog certification.
+
 Pinned TortoiseGit: `7338078f8ddd924b8cddee35f512f2286072136d`.
 
 ## Complete the committed working state before the result

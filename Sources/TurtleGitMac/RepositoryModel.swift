@@ -4,6 +4,11 @@ import TurtleGitCore
 import UniformTypeIdentifiers
 import Darwin
 
+/// Settings already presents the reason for refusing a context replacement.
+/// Keep that refusal separate from Git/cancellation failures while draining the
+/// ordinary repository-opening operation and restoring its original monitoring.
+private struct RepositorySettingsContextRefusal: Error {}
+
 /// The accepted command carries its output engine through permission and
 /// repository-discovery tasks without mutating shared preferences.
 private enum HistoricalMaterializationContext {
@@ -894,6 +899,7 @@ private enum TransportBatchPresentationContext {
     }
     func closeRepository() {
         guard !busy, !confirmingQuit else { return }
+        guard root == nil || canChangeSettingsContext() else { return }
         stopFileMonitoring()
         completedRepositoryHandoff = nil
         adoptionGeneration += 1; hasGitSVN = false; bare = false; mergeActive = false
@@ -1038,11 +1044,22 @@ private enum TransportBatchPresentationContext {
                     }
                 }
                 try cancellation.check();guard adoption == adoptionGeneration else { return }
-                repository = try makeRepository(resolved); activeAccess = sessionAccess; root = resolved
+                let preparedRepository = try makeRepository(resolved)
+                // Validate a requested historical selection before publishing
+                // its repository to Settings. A failed/delayed lookup must not
+                // create a transient editable context that rollback discards.
                 if invocation?.request.action == .log, let revision = invocation?.selectedRevision {
-                    commandSelectedRevision = try await repository!.rebaseCommit(revision, cancellation: cancellation).hash
+                    commandSelectedRevision = try await preparedRepository.rebaseCommit(revision, cancellation: cancellation).hash
                     try cancellation.check(); guard adoption == adoptionGeneration else { return }
                 }
+                // Discovery can await permission/helper work while Settings
+                // acquires drafts. Decide against the resolved repository at
+                // adoption, not the clicked folder (which may be a child or an
+                // alias of the existing root). Same-root reloads retain pages.
+                if root.map({ !GitReferenceName.equal($0.path, resolved.path) }) ?? true {
+                    guard canChangeSettingsContext() else { throw RepositorySettingsContextRefusal() }
+                }
+                repository = preparedRepository; activeAccess = sessionAccess; root = resolved
                 restoreCloneKeyAccess(root: resolved)
                 selection = []; entries = []; branch = ""; mergeActive = false
                 section = .status
@@ -1091,7 +1108,7 @@ private enum TransportBatchPresentationContext {
             } catch {
                 guard adoption == adoptionGeneration else { return }
                 restoreState()
-                if !cancellation.isCancelled { self.error=error.localizedDescription }
+                if !(error is RepositorySettingsContextRefusal), !cancellation.isCancelled { self.error=error.localizedDescription }
                 if !retired,monitoringEnabled,let repository,let directories=try? await repository.finderWatchDirectories() { monitorFiles(directories) }
                 holdsBusy = false; busy=false
             }
@@ -2008,12 +2025,20 @@ private enum TransportBatchPresentationContext {
     private func showCommitDialog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], invocation: PrimaryCommandInvocation? = nil, commandMessage: String? = nil, preferences: UserDefaults? = nil, sourceWindow: NSWindow? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
         let root = repository.root
+        if let existing = commitWindows[root.path], !existing.canReuse {
+            error = String(localized:"The previous Commit window is still closing. Wait for its operation to finish.")
+            return
+        }
         if invocation != nil, let existing = commitWindows[root.path] {
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil)
             error = "A Commit dialog is already open. Close it before opening a command-line Commit with new presets."
             return
         }
         let controller = commitWindows[root.path] ?? commitWindowFactory?(repository,access) ?? CommitWindowController(repository: repository, access: access, defaults: preferences ?? fileComparisonPreferences)
+        guard controller.canReuse else {
+            error = String(localized:"The previous Commit window is still closing. Wait for its operation to finish.")
+            return
+        }
         let preferences = controller.presentationPreferences, access = controller.model.access
         presentation?.apply(to: controller.window)
         if let sourceWindow { controller.window?.alphaValue = sourceWindow.alphaValue; controller.window?.appearance = sourceWindow.effectiveAppearance }

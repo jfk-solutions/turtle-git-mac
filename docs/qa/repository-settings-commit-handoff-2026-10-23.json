@@ -1,0 +1,184 @@
+{
+  "date": "2026-10-23",
+  "status": "focused-native-passed-with-recorded-build-diagnostics",
+  "source_baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": {
+    "repository": [
+      "Ordinary Open/Open Recent and Close Repository preserve dirty Settings context",
+      "Selected Log revision is validated before atomic repository adoption",
+      "Late adoption checks the actual resolved root and current Settings transaction"
+    ],
+    "commit": [
+      "Retiring cached Commit rejects reopening and replacement presets until real work drains",
+      "Late progress, Log picker, partial view and identity Settings callbacks respect owner retirement and Quit"
+    ],
+    "blame": [
+      "Both Settings routes select global Blame page and respect owner/child/Quit eligibility"
+    ],
+    "settings": [
+      "Initial page construction retries after prior page/transaction retirement instead of leaving a blank window",
+      "Retry is owned by the requested page/controller; superseding page/root and invalidation cancel it",
+      "Global-only Settings does not bind its deferred page to the workspace repository root",
+      "Deferred work holds only weak owner references between waits"
+    ]
+  },
+  "validation": {
+    "core": "Not repeated: native-only production changes",
+    "debug_builds": [
+      {
+        "exit_code": 0,
+        "log": "build/qa/repository-settings-commit-handoff-app-2026-10-23.log",
+        "contradictory_failed_with_exit_zero_diagnostics": 12
+      },
+      {
+        "exit_code": 0,
+        "log": "build/qa/repository-settings-commit-handoff-repair-app-2026-10-23.log",
+        "contradictory_failed_with_exit_zero_diagnostics": 1,
+        "scope": "Settings initial-page retry; subsequent global-only root independence correction required another affected build"
+      },
+      {
+        "exit_code": 0,
+        "log": "build/qa/repository-settings-commit-handoff-final-app-2026-10-23.log",
+        "contradictory_failed_with_exit_zero_diagnostics": 2,
+        "scope": "Final Settings retry including global-only root independence"
+      }
+    ],
+    "native_attempts": [
+      {
+        "case": "repository",
+        "git": "/usr/bin/git",
+        "result": "failed",
+        "failure": "Remote Settings readiness timeout at shared fixture line 52; phase not distinguished in original attempt",
+        "receiver_pid": 62907,
+        "receiver_reaped": true,
+        "log": "build/qa/repository-settings-commit-handoff-native-2026-10-23.log",
+        "repair": "Source review exposed a reachable missing initial-page retry while previous Settings retirement counters were active. Immediate-reopen assertions retained; added phase diagnostics and supersession/cancellation checks."
+      },
+      {
+        "case": "repository",
+        "git": "/usr/bin/git",
+        "result": "failed",
+        "failure": "Phases 1 and 2 opened; held-discovery marker timeout at fixture line 89",
+        "receiver_pid": 64162,
+        "receiver_reaped": true,
+        "log": "build/qa/repository-settings-commit-handoff-final-native-2026-10-23.log",
+        "scope": "Original immediate-reopen readiness failure passed after production retry repair; later discovery gate still under fixture diagnosis",
+        "repair": "Fixture now waits for actual workspace idle before accepted Open/Log actions; Remote name publication asynchronously refreshes the workspace. Wrapper matching uses canonical paths. The prior timeout cause was inferred from source, not captured by the old fixture."
+      }
+    ],
+    "resources": {
+      "localizations": {
+        "languages": 38,
+        "keys": 1315,
+        "check": "passed"
+      },
+      "help": {
+        "documents": 58,
+        "topics": 51,
+        "files": 78,
+        "bytes": 3781282,
+        "check": "passed"
+      },
+      "site": {
+        "build": "passed",
+        "python_tests": 2,
+        "python_failures": 0,
+        "search_checks": "passed",
+        "log_prefix": "build/qa/repository-settings-commit-handoff-final-",
+        "documents": 422,
+        "unresolved_fragments": 0
+      }
+    },
+    "native_final": {
+      "exit_code": 0,
+      "cases": 3,
+      "case_engine_pairs": 6,
+      "results": [
+        {
+          "git": "/usr/bin/git",
+          "case": "repository",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "commit",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "blame",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "repository",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "commit",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "blame",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "log": "build/qa/repository-settings-commit-handoff-settled-native-2026-10-23.log",
+      "receiver_pids_reaped": [
+        64538,
+        64766,
+        64939,
+        65012,
+        65229,
+        65405
+      ],
+      "visible_windows": false,
+      "screen_captures": false,
+      "cleanup": "Fixtures assert invisible/offscreen windows and drain counters, private suites/repos/configurations; runner verifies and reaps owned receivers/helpers on all exits",
+      "independently_absent_after_exit": true
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "pending_controls": 85,
+      "certified_complete": 0,
+      "meaning": "Coverage ledger, not a feature completion percentage"
+    }
+  },
+  "physical_acceptance": {
+    "result": "not achieved",
+    "attempts": 2,
+    "details": "Shipping GUI launches with private HOME/CFFIXED_USER_HOME still exposed ordinary preference state. Closed without opening a repository or applying Settings. Ordinary preference data was preserved; no claim that startup left preferences unchanged.",
+    "owned_app_pids_closed": [
+      60526,
+      60579,
+      60829
+    ],
+    "launcher_pid_reaped": 60827,
+    "unrelated_installed_finder_extension": "Not terminated"
+  },
+  "hosted": {
+    "latest_macos_run": 39973683101,
+    "latest_macos_status": "pending",
+    "active_older_run": 39960070555,
+    "active_older_commit": "69eb8839310747781a350797c4ce57b62df9961f",
+    "active_older_step": "Git integration tests",
+    "latest_pages_run": 39973682678,
+    "latest_pages_status": "success"
+  },
+  "limits": [
+    "Not complete upstream dialog certification",
+    "No current full hosted CI pass",
+    "Physical keyboard/VoiceOver, current signed/Finder and minimum-version/Intel acceptance remain open",
+    "Existing unsigned archive/ad-hoc preview are not updated by this native batch"
+  ]
+}

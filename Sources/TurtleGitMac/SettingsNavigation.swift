@@ -77,6 +77,8 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var delegateProxy: SettingsWindowDelegate?
     private var updating = false
     private var retired = false
+    private var deferredPage: Task<Void, Never>?
+    private var pageRequest = UUID()
     private var appearanceUpdates:AnyCancellable?
     init(workspace: RepositoryModel, appearance: AppAppearance, globalOnly: Bool = false, preferences: UserDefaults = .standard, initialPage: SettingsPageID = .general, remoteNoFetch: Bool = false, smtpCredentials: any SMTPCredentialStore = SMTPKeychainStore()) {
         overlayDraft = FinderOverlaySettingsModel(preferences:preferences)
@@ -167,6 +169,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     func updateRepository() {
         guard !retired, !globalOnly, isViewLoaded, workspace.root?.path != repositoryPath else { return }
         // A captured Remote model belongs to the repository that created it.
+        cancelDeferredPage()
         hooks?.invalidate(); hooks = nil; cache.removeValue(forKey: .hooks); transaction.unregister("hooks")
         retireRemotePage()
         cache.removeValue(forKey: .remote); transaction.unregister("remote")
@@ -174,18 +177,13 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         transaction.unregister("credential"); cache.removeValue(forKey: .credential)
         transaction.unregister("network"); cache.removeValue(forKey: .network)
         cache.removeValue(forKey: .git); cache.removeValue(forKey: .dialogs3)
+        let replacement: SettingsPageID?
         if [.remote, .git, .dialogs3, .hooks, .issueTracker, .credential, .network].contains(selected) {
             current?.view.removeFromSuperview(); current?.removeFromParent(); current = nil
-            let origin = selected, page = selected == .remote ? .git : selected, context = workspace.root?.path
-            Task { @MainActor [weak self] in
-                while let self, !self.retired, self.workspace.root?.path == context, self.selected == origin, !self.canDismiss {
-                    try? await Task.sleep(nanoseconds:10_000_000)
-                }
-                guard let self, !self.retired, self.workspace.root?.path == context, self.selected == origin, self.current == nil else {return}
-                self.show(page)
-            }
-        }
+            replacement = selected == .remote ? .git : selected
+        } else { replacement = current == nil ? selected : nil }
         rebuildTree()
+        if let replacement { show(replacement) }
     }
     private func rebuildTree() {
         let initial = roots.isEmpty
@@ -219,7 +217,9 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     }
     private var nodes:[SettingsPageNode] { roots.flatMap(\.descendants) }
     func requestCommandPage(_ page: SettingsPageID, noFetch: Bool = false) {
-        guard canDismiss else { return }
+        // An initial page waiting for another owner's retirement can still be
+        // superseded by a new command; existing live pages retain their guards.
+        guard !retired, current == nil || canDismiss else { return }
         if noFetch { remoteNoFetch = true; remote?.suppressFetchForCommand() }
         show(page); reveal(selected)
     }
@@ -243,8 +243,45 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     @objc private func acceptSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.apply(closeAfter: true) }
     @objc private func cancelSettings() { guard canDismiss else { return }; view.window?.makeFirstResponder(nil); transaction.cancel(); view.window?.performClose(nil) }
     private func host<V: View>(_ view: V) -> NSViewController { NSHostingController(rootView: view.environment(\.settingsTransaction, transaction).defaultAppStorage(preferences)) }
+    private var canRealizePage: Bool {
+        settingsLifetimesIdle && !retired && MergeEditorSettingsModel.activeProfileEditors == 0 && GitConfigurationSettingsModel.activeFolderChoosers == 0 && GeneralGitSettingsModel.activeDialogs == 0 && ToolApplicationChooser.activeChoosers == 0 && !emailDraft.busy && !emailDraft.editingCredentials && !transaction.busy && view.window?.attachedSheet == nil && remote?.busy != true && remote?.hasChild != true && GitConfigurationSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0 && NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0 && IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0
+    }
+    private func cancelDeferredPage() {
+        pageRequest = UUID(); deferredPage?.cancel(); deferredPage = nil
+    }
+    private func deferInitialPage(_ page: SettingsPageID) {
+        guard !retired, current == nil else { return }
+        cancelDeferredPage()
+        selected = page
+        // Global pages do not depend on repository adoption; only repository
+        // pages expire when their captured root changes.
+        let request = pageRequest, context = globalOnly ? nil : workspace.root.map { Data($0.path.utf8) }
+        deferredPage = Task { @MainActor [weak self] in
+            defer { if let self, self.pageRequest == request { self.deferredPage = nil } }
+            while !Task.isCancelled {
+                do {
+                    guard let self, !self.retired, self.pageRequest == request,
+                          self.current == nil, self.selected == page,
+                          self.globalOnly || self.workspace.root.map({ Data($0.path.utf8) }) == context else { return }
+                    if self.canRealizePage {
+                        self.deferredPage = nil
+                        self.show(page); return
+                    }
+                }
+                // The owner is weak between turns; this task cannot retain a
+                // deallocated controller indefinitely while another owner drains.
+                do { try await Task.sleep(nanoseconds: 10_000_000) } catch { return }
+            }
+        }
+    }
     private func show(_ page: SettingsPageID) {
-        guard settingsLifetimesIdle, !retired, MergeEditorSettingsModel.activeProfileEditors == 0, GitConfigurationSettingsModel.activeFolderChoosers == 0, GeneralGitSettingsModel.activeDialogs == 0, ToolApplicationChooser.activeChoosers == 0, !emailDraft.busy, !emailDraft.editingCredentials, !transaction.busy, view.window?.attachedSheet == nil, remote?.busy != true, remote?.hasChild != true, GitConfigurationSettingsModel.activeSaves == 0, CredentialSettingsModel.activeSaves == 0 && CredentialSettingsModel.activeSelections == 0, NetworkSettingsModel.activeSaves == 0 && NetworkSettingsModel.activeSSHChoosers == 0, IssueTrackerSettingsModel.activeSaves == 0 && HookSettingsModel.activeSaves == 0 && SavedSSHAuthenticationModel.activeOperations == 0 && SavedDataSettingsModel.activeCacheClears == 0 else { return }
+        guard canRealizePage else {
+            // A previous Settings transaction may still be releasing its pages
+            // when this owner opens. Keep the request instead of leaving a
+            // permanently blank initial page after that unrelated release.
+            deferInitialPage(page); return
+        }
+        cancelDeferredPage()
         if current != nil && selected == page { return }
         view.window?.makeFirstResponder(nil)
         let controller: NSViewController
@@ -321,6 +358,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     }
     func invalidate() {
         guard !retired else { return }; retired = true
+        cancelDeferredPage()
         appearanceDraft.endPreview();appearanceUpdates=nil
         transaction.invalidate(); emailDraft.invalidate(); hooks?.invalidate(); hooks = nil
         retireRemotePage()

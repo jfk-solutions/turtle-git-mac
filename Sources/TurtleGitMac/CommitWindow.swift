@@ -46,6 +46,13 @@ import TurtleGitCore
 @MainActor final class CommitWindowController: NSWindowController, NSWindowDelegate {
     let model: CommitWindowModel
     private(set) var commandMenu:CommitCommandMenu?
+    // Closing owners remain cached until their actual children/work release.
+    // They must retain that ownership without becoming a usable dialog again.
+    var canReuse:Bool {!closingCommit && model.messageFocusAvailable}
+    override func showWindow(_ sender:Any?) {
+        guard canReuse else{return}
+        super.showWindow(sender)
+    }
     func windowDidResignKey(_ notification:Notification) {commandMenu?.remove()}
     var commandsAvailable:Bool {!closingCommit && !hasMessagePicker && !model.inputsBlocked && window?.attachedSheet==nil && model.messageFocusAvailable}
     var refreshCommandAvailable:Bool {!closingCommit && !hasMessagePicker && model.canRefresh && window?.attachedSheet==nil}
@@ -205,11 +212,11 @@ import TurtleGitCore
         }
         issueProviderOwner = CommitIssueProviderOwner(model: model, parent: window)
         model.close = { [weak self, weak window] in
-            guard let self, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil, !self.model.unifiedViewerBusy else { return }
+            guard let self, self.canReuse, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil, !self.model.unifiedViewerBusy else { return }
             window?.close()
         }
         model.onCommitProgress = { [weak self, weak window] progress in
-            guard let self, let window, window.attachedSheet == nil else { progress.dismissWithoutWindow = true; if progress.cancellable { progress.cancellation.cancel() }; return }
+            guard let self, self.canReuse, !self.model.confirmingQuit, let window, window.attachedSheet == nil else { progress.dismissWithoutWindow = true; if progress.cancellable { progress.cancellation.cancel() }; return }
             let controller = CommitProgressWindowController(model: progress)
             controller.onClosed = { [weak self] in self?.progressController = nil }
             self.progressController = controller
@@ -478,7 +485,6 @@ import TurtleGitCore
         let child=SettingsSheetController(workspace:workspace,preferences:preferences,initialPage:.git,title:"Settings – TurtleGit for Mac")
         identitySettings=child;model.hasCommitIdentitySettings=true
         child.window?.alphaValue=owner.alphaValue;child.window?.appearance=owner.effectiveAppearance
-        configureCommitIdentitySettings(child)
         return await withCheckedContinuation {continuation in
             var settled=false
             let watcher=Task{@MainActor [weak self,weak child] in
@@ -495,6 +501,8 @@ import TurtleGitCore
                 // the model always reads all four values again.
                 continuation.resume(returning:self?.closingCommit==false && self?.model.confirmingQuit==false && !token.isCancelled)
             }
+            configureCommitIdentitySettings(child)
+            guard !settled,canReuse,!model.confirmingQuit,!token.isCancelled,identitySettings === child,owner.attachedSheet==nil else{child.retire();return}
             child.presentSheet(for:owner)
         }
     }
@@ -579,7 +587,8 @@ import TurtleGitCore
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending;addProgressController?.model.confirmingQuit=pending;detachedBranch?.model.confirmingQuit=pending }
     func windowWillClose(_ notification: Notification) {
         // End-sheet callbacks may run synchronously while native children retire.
-        // Fence owner actions before dismissing any of those children.
+        // Fence owner actions before dismissing any of those children, once.
+        guard !closingCommit else{return}
         closingCommit = true
         if let pending=conflictQuestionState {settleConflictQuestion(pending,result:nil)}
         retireCommitIdentityChildren();retireDetachedChildren()
@@ -626,17 +635,19 @@ import TurtleGitCore
         guard !closingCommit, !model.inputsBlocked, let window, window.attachedSheet == nil,
               historyWindow == nil, logPicker == nil else { return }
         let picker = LogWindowController(repository: model.repository, access: model.access, onChoose: { [weak self] revision in
-            if let revision {if message {self?.model.importLogMessage(revision.hash,insert:insert)} else {insert(revision.hash)}}
-            if let self, !self.closingCommit { self.model.reload() }
+            guard let self,self.canReuse,!self.model.confirmingQuit else{return}
+            if let revision {if message {self.model.importLogMessage(revision.hash,insert:insert)} else {insert(revision.hash)}}
+            self.model.reload()
         },labelDefaults:model.colorPreferences)
         logPicker = picker
         picker.onClosed = { [weak self] in self?.logPicker = nil }
         model.configureLogPicker(picker.model)
+        guard canReuse,!model.confirmingQuit,logPicker === picker,window.attachedSheet==nil else{picker.close();return}
         guard let child = picker.window else { logPicker = nil; return }
         child.alphaValue=window.alphaValue;child.appearance=window.appearance;window.beginSheet(child)
     }
     private func showPartial(staged: Bool, readOnly: Bool = false) {
-        guard let window, partial?.model.busy != true, partial?.window?.attachedSheet == nil else { return }
+        guard canReuse,!model.confirmingQuit,let window,window.attachedSheet==nil,partial?.model.busy != true, partial?.window?.attachedSheet == nil else { return }
         if let partial, partial.model.readOnly == readOnly, partial.model.staged == staged { partial.close(); return }
         let controller = partial ?? PatchWindowController(repository: model.repository, access: model.access, preferences: preferences)
         partial = controller
@@ -717,7 +728,7 @@ import TurtleGitCore
     func windowDidResize(_ notification: Notification) { followPartial() }
     func windowWillMiniaturize(_ notification: Notification) { partial?.window?.orderOut(nil) }
     func windowDidDeminiaturize(_ notification: Notification) { showPartialWithoutActivation() }
-    func windowDidBecomeKey(_ notification: Notification) {commandMenu?.install();showPartialWithoutActivation();model.offerMergeHint();model.offerStagingHint();model.offerUnversionedFiles()}
+    func windowDidBecomeKey(_ notification: Notification) {guard canReuse else{return};commandMenu?.install();showPartialWithoutActivation();model.offerMergeHint();model.offerStagingHint();model.offerUnversionedFiles()}
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 

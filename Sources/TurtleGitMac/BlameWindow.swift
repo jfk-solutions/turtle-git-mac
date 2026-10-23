@@ -681,6 +681,10 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     @Published var confirmingQuit=false {didSet {if confirmingQuit != oldValue {historyControlEpoch=UUID();historyMenuGeneration=UUID()}}}
     var canFindIgnoringHistoryChild:Bool { !retired && !busy && !confirmingQuit && !navigationSheetPresented && !searchFeedbackBusy && !openingDocument && !resettingHistoryColumns }
     var canFind:Bool { !historyChildBlocked && canFindIgnoringHistoryChild }
+    func showSettings() {
+        guard canFind, presentationCommandsAvailable() else { return }
+        SettingsPresentationService.shared.show(globalOnly:true,initialPage:.blame)
+    }
     var onFindFeedback:((BlameFindFeedback)->Void)?
     var ranks: [String: Int] = [:]
     private var origins: [String: GitBlameLine] = [:]
@@ -969,7 +973,7 @@ private struct BlameDialog: View {
                     Button { model.onOpenDocument?() } label: { CommandLabel(title:"Open…",icon:.open) }.keyboardShortcut("o",modifiers:.command)
                     if let recent=model.recentDocuments { BlameRecentFileMenu(store:recent,open:{ model.onOpenRecent?($0) }) }
                     Divider()
-                    Button { SettingsPresentationService.shared.show() } label: { CommandLabel(title:"Settings…",icon:.settings) }
+                    Button { model.showSettings() } label: { CommandLabel(title:"Settings…",icon:.settings) }
                     Button("Close") { NSApp.sendAction(#selector(NSWindow.performClose(_:)),to:nil,from:nil) }.keyboardShortcut("w",modifiers:.command)
                 }
                 Menu("Edit") {
@@ -1012,7 +1016,7 @@ private struct BlameDialog: View {
                     Divider()
                     Toggle("Wrap long lines",isOn:Binding(get:{model.wrapLongLines},set:{model.setWrapLongLines($0)}))
                 }
-                Button { SettingsPresentationService.shared.show() } label: { CommandLabel(title:"Settings…",icon:.settings) }
+                Button { model.showSettings() } label: { CommandLabel(title:"Settings…",icon:.settings) }
             }.disabled(model.busy || model.openingDocument || model.searchFeedbackBusy) }
             if let error=model.recentHistoryError { Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }
             if model.openingDocument { HStack { ProgressView(model.cancellingDocument ? "Cancelling…" : "Opening file…").controlSize(.small);Button("Cancel") { model.onCancelDocumentOpen?() }.disabled(model.cancellingDocument) } }
