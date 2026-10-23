@@ -422,6 +422,7 @@ private enum TransportBatchPresentationContext {
             for controller in formatPatchWindows.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in requestPullWindows.values {controller.model.confirmingQuit=confirmingQuit}
             if confirmingQuit {
+                for session in fileComparisonSessions.values { session.cancel() }
                 cancelFinderServicePreparation()
                 commandImportOwner?.cancellation.cancel();commandImportFolderChoice?.cancel()
                 for handoff in commandGraphHandoffs.values { handoff.owner.cancellation.cancel(); handoff.owner.onCancelled() }
@@ -623,7 +624,7 @@ private enum TransportBatchPresentationContext {
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { hasPendingFinderServiceWork || commandRepositoryBatchCancellation != nil || commandTransportFolderChoice != nil || mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { !fileComparisonSessions.isEmpty || hasPendingFinderServiceWork || commandRepositoryBatchCancellation != nil || commandTransportFolderChoice != nil || mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
     private var resolutionCommandPreparation: RepositoryWindowOwner?
     private var resolutionCommandFolderChoice: RepositoryCreationFolderChoice?
     private var silentResolveSessions = GitPathMap<FileListComparisonSession>()
@@ -701,7 +702,7 @@ private enum TransportBatchPresentationContext {
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true;cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true; for session in fileComparisonSessions.values { session.cancel() };cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() }; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -2867,6 +2868,31 @@ private enum TransportBatchPresentationContext {
             presentFileComparisons(repository: repository, access: access, snapshot: snapshot, cancellation: token, preferences: preferences)
         }
     }
+    /// A Blame parent can attribute several files, each with its own old path.
+    /// Accept the complete ordered request once: individual workspace launches
+    /// would set busy on the first file and silently reject every later origin.
+    func showOwnedFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, snapshots: [RevisionComparisonSnapshot], owner: NSWindow?, preferences: UserDefaults, alternate: Bool, cancellation: OperationCancellation) async throws {
+        try cancellation.check()
+        guard !retired, !busy, !confirmingQuit, !snapshots.isEmpty,
+              snapshots.allSatisfy({ $0.root == repository.root && !$0.files.isEmpty }),
+              let owner, owner.attachedSheet == nil, NSApp.modalWindow == nil else { return }
+        let capturedRepository = repository.capturingDiffBackend(preferences: preferences)
+        let appearance = owner.effectiveAppearance, alpha = owner.alphaValue
+        let id = UUID(), session = FileListComparisonSession(window: owner, preferences: preferences, cancellation: cancellation, alternateTool: alternate)
+        session.confirmation = fileComparisonQuestion
+        fileComparisonSessions[id] = session; busy = true
+        defer { fileComparisonSessions.removeValue(forKey: id); busy = false; withExtendedLifetime(access) {} }
+        try await session.run(selectedCount: snapshots.reduce(0) { $0 + $1.files.count }) { [self] token in
+            try token.check()
+            guard !retired, !confirmingQuit else { throw OperationCancellationFailure.cancelled }
+            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+            for snapshot in snapshots {
+                try token.check()
+                guard !retired, !confirmingQuit else { throw OperationCancellationFailure.cancelled }
+                presentFileComparisons(repository: capturedRepository, access: access, snapshot: snapshot, cancellation: token, preferences: preferences, appearance: appearance, alpha: alpha)
+            }
+        }
+    }
     func showWorkingFiles(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], amendToParent: Bool = false, owner: NSWindow? = nil, line: Int? = nil) {
         let conflicts = paths.filter { path in entries.contains { GitReferenceName.equal($0.path,path) && $0.state == .conflicted } }
         let conflictPaths = GitPathSet(conflicts)
@@ -3468,7 +3494,11 @@ private enum TransportBatchPresentationContext {
             child.onCompare={ [weak self] from,to in self?.showRevisionComparison(repository:repository,access:access,from:from,to:to,preferences:preferences) }
         }
         controller.model.onLog={ [weak self] origin,hash in self?.showLog(repository:repository,access:access,paths:[origin],endRevision:hash,selectedRevision:hash,preferences:preferences) }
-        controller.model.onChanges={ [weak self, weak controller] snapshot in guard let controller else { return }; self?.showFileComparisons(repository:repository,access:access,snapshot:snapshot,owner:controller.window,preferences:preferences) }
+        controller.model.onChanges=nil
+        controller.model.onOwnedChanges={ [weak self, weak controller] snapshots,alternate,token in
+            guard let self,let controller else { throw OperationCancellationFailure.cancelled }
+            try await self.showOwnedFileComparisons(repository:repository,access:access,snapshots:snapshots,owner:controller.window,preferences:preferences,alternate:alternate,cancellation:token)
+        }
         controller.model.onPrevious={ [weak self] origin,hash,number,inherited in self?.showBlame(repository:repository,access:access,path:origin,revision:hash,line:number,options:inherited,preferences:preferences) }
     }
     private func showBlame(repository:GitRepository,access:RepositoryAccessLease?,path:String,revision:String,line:Int? = nil,options:GitBlameOptions? = nil,commandLaunch:Bool = false,preferences:UserDefaults? = nil) {

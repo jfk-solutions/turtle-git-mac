@@ -33,7 +33,7 @@ maps += sorted(scratch.glob('**/GeneratedModuleMaps/TurtleGitSMTP.modulemap'))
 module_map = next((p for p in maps if p.is_file()), None)
 if not objects or not all(p.is_file() for p in objects) or module_map is None:
     raise SystemExit('Missing compiled Core/SMTP objects or module map; build the Core target first.')
-sources = [root / 'Sources/TurtleGitMac/RepositoryBrowserDrag.swift', root / 'scripts/verify-browser-item-provider.swift']
+sources = [root / 'Sources/TurtleGitMac/NativeFileTransfer.swift', root / 'Sources/TurtleGitMac/RepositoryBrowserDrag.swift', root / 'scripts/verify-browser-item-provider.swift']
 flags = ['-parse-as-library', '-swift-version', '5', '-target', platform.machine() + '-apple-macos13.0',
          '-I', str(module_path), '-Xcc', '-fmodule-map-file=' + str(module_map), '-lcurl']
 digest = hashlib.sha256()

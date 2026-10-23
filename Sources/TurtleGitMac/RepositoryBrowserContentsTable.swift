@@ -13,7 +13,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
     static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator) {
         coordinator.retired = true
         if let table=coordinator.table {NativeListSelection.remove(from:table)}
-        coordinator.table?.delegate = nil;coordinator.table?.dataSource = nil;coordinator.table?.menu?.delegate = nil
+        if coordinator.dragSession == nil {coordinator.activeTransfer=nil;coordinator.table?.delegate = nil;coordinator.table?.dataSource = nil};coordinator.table?.menu?.delegate = nil
         (coordinator.table as? RepositoryBrowserNativeTable)?.contentsAttached={_ in}
         (coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.buildMenu = {nil}
         (coordinator.table?.headerView as? RepositoryBrowserColumnHeader)?.fit = {_,_ in}
@@ -23,6 +23,14 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         var model:RepositoryBrowserWindowModel
         weak var table:NSTableView?
         var retired=false
+        fileprivate(set) var activeTransfer:RepositoryBrowserSelectionDrag?
+        private(set) var dragSession:NSDraggingSession?
+        private static var dragOwners:[ObjectIdentifier:Coordinator]=[:]
+        func captureDrag(rows indexes:IndexSet)->RepositoryBrowserSelectionDrag? {
+            guard available,let table,!indexes.isEmpty,indexes==table.selectedRowIndexes,
+                  indexes.allSatisfy({rows.indices.contains($0)}),NSApp.modalWindow==nil else{return nil}
+            return model.captureTransfer(indexes.map{rows[$0].id})
+        }
         private var columnMenuSession = UUID()
         private var updating=false
         private var rows:[RepositoryBrowserEntry]=[]
@@ -31,6 +39,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         var available:Bool { !retired && model.canEditColumns && table?.window?.attachedSheet == nil }
         func makeView() -> NSScrollView {
             let table=RepositoryBrowserNativeTable();table.style = .plain
+            table.dragContext={ [weak model] in model?.transferContext(tree:false) }
             table.contentsAttached={ [weak model] table in model?.contentsTableAttached(table) }
             table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(open)
             table.rowHeight=24;table.intercellSpacing=NSSize(width:4,height:0);table.allowsMultipleSelection=true
@@ -73,7 +82,11 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             NativeListSelection.install(on:table,preferences:model.preferences,primaryColumn:table.tableColumns.first{$0.identifier.rawValue=="name"},labelText:{[weak self] row in
                 guard let self,self.rows.indices.contains(row) else{return nil};return self.rows[row].name
             },font:.systemFont(ofSize:12),leadingInset:25)
-            table.isEnabled=available;table.allowsColumnResizing=available;table.allowsColumnReordering=available
+            // A native sheet can detach without publishing another model
+            // update. Keep persistent enabled state model-driven; available
+            // still fences every action/drag while a sheet owns this window.
+            let enabled = !retired && model.canEditColumns
+            table.isEnabled=enabled;table.allowsColumnResizing=enabled;table.allowsColumnReordering=enabled
             if table.window != nil{model.contentsTableAttached(table)}
         }
         func numberOfRows(in tableView:NSTableView) -> Int { rows.count }
@@ -215,14 +228,31 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         @objc func compareMarked() { one { model.compareWithMarkedFile($0) } }
         @objc func copyNames() { guard available else { return };model.copy() }
         @objc func copyHashes() { guard available else { return };model.copy(hashes:true) }
-        func tableView(_ tableView:NSTableView,pasteboardWriterForRow row:Int) -> NSPasteboardWriting? {
-            guard available,rows.indices.contains(row),let snapshot=model.snapshot,rows[row].kind != .submodule else { return nil }
-            return RepositoryBrowserFilePromise(repository:model.repository,access:model.access,snapshot:snapshot,entry:rows[row],backend:model.materializationBackend()).provider()
+        func tableView(_ tableView:NSTableView,writeRowsWith rowIndexes:IndexSet,to pasteboard:NSPasteboard)->Bool {
+            guard let source=tableView as? RepositoryBrowserNativeTable,source.acceptsDragGesture,let transfer=captureDrag(rows:rowIndexes),transfer.write(to:pasteboard) else{return false}
+            activeTransfer=transfer;return true
+        }
+        func tableView(_ tableView:NSTableView,draggingSession session:NSDraggingSession,willBeginAt screenPoint:NSPoint,forRowIndexes rowIndexes:IndexSet) {
+            guard activeTransfer != nil else{return};dragSession=session;Self.dragOwners[ObjectIdentifier(session)]=self
+        }
+        func tableView(_ tableView:NSTableView,draggingSession session:NSDraggingSession,endedAt screenPoint:NSPoint,operation:NSDragOperation) {
+            guard dragSession === session else{return}
+            Self.dragOwners.removeValue(forKey:ObjectIdentifier(session));dragSession=nil;activeTransfer=nil
+            if retired{tableView.delegate=nil;tableView.dataSource=nil}
         }
     }
 }
 
 final class RepositoryBrowserNativeTable:NSTableView {
+    var dragContext:()->String?={nil}
+    private var dragStart:String?
+    var acceptsDragGesture:Bool{dragStart != nil && dragStart==dragContext()}
+    @discardableResult func captureDragGesture(_ event:NSEvent)->Bool {
+        dragStart=nil
+        guard event.type == .leftMouseDown,event.window === window,isEnabled,row(at:convert(event.locationInWindow,from:nil))>=0,column(at:convert(event.locationInWindow,from:nil))>=0 else{return false}
+        dragStart=dragContext();return dragStart != nil
+    }
+    override func mouseDown(with event:NSEvent){_ = captureDragGesture(event);defer{dragStart=nil};super.mouseDown(with:event)}
     var contentsAttached:(NSTableView)->Void={_ in}
     override func viewDidMoveToWindow(){super.viewDidMoveToWindow();if window != nil{contentsAttached(self)}}
     override func menu(for event:NSEvent) -> NSMenu? {

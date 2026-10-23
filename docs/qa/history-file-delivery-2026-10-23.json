@@ -1,0 +1,219 @@
+{
+  "date": "2026-10-23",
+  "status": "grouped-local-checkpoint-passed-with-recorded-repairs",
+  "pinned_source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Owned multi-origin Blame parent comparisons through actual workspace",
+    "Aggregate confirmation and captured parent/rename/tool/backend/preferences/access",
+    "Source lifecycle cancellation, actual question sheet teardown and independent accepted viewers",
+    "Repository Browser recursive historical selection path text including gitlinks",
+    "Root/nested file promise naming and immutable native gesture/receiver ownership",
+    "Bounded snapshot-pinned metadata inventory with subtree fallback and exact Unicode identity"
+  ],
+  "validation": {
+    "core": {
+      "methods": 21,
+      "failures": 0,
+      "exit_code": 0,
+      "scope": [
+        "RepositoryBrowserTests",
+        "RepositoryBrowserTransferTests"
+      ],
+      "log": "build/qa/history-file-delivery-core-2026-10-23.log",
+      "full_suite_rerun": false
+    },
+    "app": {
+      "initial_exit": 65,
+      "initial_log": "build/qa/history-file-delivery-app-2026-10-23.log",
+      "failure": "Private setter inaccessible to enclosing representable teardown; repaired to fileprivate(set)",
+      "repair_exit": 0,
+      "repair_log": "build/qa/history-file-delivery-app-repair-2026-10-23.log",
+      "generic_exit_zero_diagnostics": 8,
+      "sheet_repair": {
+        "exit_code": 0,
+        "log": "build/qa/history-file-delivery-app-sheet-repair-2026-10-23.log",
+        "generic_exit_zero_diagnostics": 1,
+        "production_change": "Persistent native contents enabled/resize/reorder follows model state; live callbacks retain source-sheet gates"
+      }
+    },
+    "standalone_initial": {
+      "result": "Compiled actual standalone production transport, then failed generic output assertion; receiver91942 reaped and independently absent",
+      "log": "build/qa/history-file-delivery-provider-2026-10-23.log",
+      "repair_pending": false
+    },
+    "blame": {
+      "case_engine_pairs": [
+        {
+          "git": "/usr/bin/git",
+          "case": "aggregate",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "lifecycle",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "aggregate",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "lifecycle",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "receiver_pids": [
+        92169,
+        92349,
+        92856,
+        93100
+      ],
+      "log": "build/qa/history-file-delivery-blame-2026-10-23.log",
+      "scope": "Actual workspace route, genuine copied-origin parent reads, all four actual child documents per parent, Shift, held and real question lifetime"
+    },
+    "standalone_repair": {
+      "exit_code": 0,
+      "receiver_pid": 93609,
+      "log": "build/qa/history-file-delivery-provider-repair-2026-10-23.log",
+      "repair": "Added named diagnostics, baseline pre-existing exports and explicit command backend/robust Git subcommand parsing for real-start cancellation; all assertions retained",
+      "initial_exact_failing_stage": "Not captured; the original generic assertion does not prove which fixture hazard caused failure"
+    },
+    "browser_attempts": [
+      {
+        "log": "build/qa/history-file-delivery-browser-2026-10-23.log",
+        "passed": [
+          {
+            "case": "list",
+            "git": "/usr/bin/git",
+            "receiver_pid": 92503
+          },
+          {
+            "case": "tree",
+            "git": "/usr/bin/git",
+            "receiver_pid": 92622
+          }
+        ],
+        "failure": {
+          "case": "ownership",
+          "receiver_pid": 92740,
+          "message": "Press receipt refused after sheet dismissal"
+        }
+      },
+      {
+        "log": "build/qa/history-file-delivery-browser-ownership-repair-2026-10-23.log",
+        "failure": {
+          "case": "ownership",
+          "git": "/usr/bin/git",
+          "receiver_pid": 93691,
+          "message": "Readiness timeout: sheets detached, model context and coordinator available, native table disabled"
+        },
+        "conclusion": "Production update persisted native disabled state from transient attachedSheet; root repaired native enable/resize/reorder to model-driven state with live sheet guards retained",
+        "focused_app_rebuild_pending": false
+      },
+      {
+        "log": "build/qa/history-file-delivery-browser-sheet-repair-2026-10-23.log",
+        "passed": [
+          {
+            "case": "ownership",
+            "git": "/usr/bin/git",
+            "receiver_pid": 93887
+          }
+        ]
+      },
+      {
+        "log": "build/qa/history-file-delivery-browser-bundled-2026-10-23.log",
+        "passed": [
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "list",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "tree",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "ownership",
+            "returncode": 0,
+            "passed": true
+          }
+        ],
+        "receiver_pids": [
+          93950,
+          94004,
+          94055
+        ]
+      }
+    ],
+    "documentation": {
+      "coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "pending_controls": 85,
+        "certified_complete": 0
+      },
+      "localizations": {
+        "languages": 38,
+        "keys": 1316,
+        "check": "passed"
+      },
+      "help": {
+        "documents": 58,
+        "topics": 51,
+        "files": 78,
+        "bytes": 3784586,
+        "check": "passed"
+      },
+      "site": {
+        "documents": 425,
+        "unresolved_fragments": 0,
+        "python_tests": 2,
+        "javascript_search": "passed"
+      }
+    },
+    "native_summary": {
+      "distinct_case_engine_pairs": 10,
+      "passed_cumulatively": 10,
+      "blame_pairs": 4,
+      "browser_pairs": 6,
+      "gui_receiver_attempts": 12,
+      "standalone_attempts": 2,
+      "receiver_pids": [
+        92169,
+        92349,
+        92856,
+        93100,
+        92503,
+        92622,
+        92740,
+        93691,
+        93887,
+        93950,
+        94004,
+        94055,
+        91942,
+        93609
+      ],
+      "all_reaped_and_independently_absent": true,
+      "forced_private_helper_cleanup_needed_on_success": false,
+      "windows": "Private alpha-zero and constrained-frame override; owned windows closed; no physical Finder acceptance"
+    }
+  },
+  "limits": [
+    "No full dialog/application completion percentage",
+    "Physical Finder drag negotiation, accessibility and signed/minimum-version acceptance remain open",
+    "No full hosted CI pass or refreshed distribution archive claimed",
+    "Exact snapshot and Browser path identity is covered; comparison-window cache reuse for distinct canonical-equivalent names remains a separate audit, not certified here"
+  ]
+}

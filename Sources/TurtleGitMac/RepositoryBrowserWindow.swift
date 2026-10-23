@@ -288,17 +288,17 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     let access: RepositoryAccessLease?
     @Published var revision: String
     @Published private(set) var revisionLabel:String
-    @Published var choosingRevision=false
-    @Published var handlingFile=false
+    @Published var choosingRevision=false {didSet{transferEpoch=UUID()}}
+    @Published var handlingFile=false {didSet{transferEpoch=UUID()}}
     var clipboard:NSPasteboard = .general
     @Published private(set) var snapshot: RepositoryBrowserSnapshot?
     @Published private(set) var directories: RepositoryBrowserPathMap<[RepositoryBrowserEntry]> = [:]
     @Published var expanded: RepositoryBrowserPathSet = [""]
     @Published var selection = Set<String>()
-    @Published var sortOrder = [KeyPathComparator(\RepositoryBrowserEntry.name)]
-    @Published var busy = false
-    @Published var mutating = false
-    @Published var confirmingQuit = false
+    @Published var sortOrder = [KeyPathComparator(\RepositoryBrowserEntry.name)] {didSet{transferEpoch=UUID()}}
+    @Published var busy = false {didSet{transferEpoch=UUID()}}
+    @Published var mutating = false {didSet{transferEpoch=UUID()}}
+    @Published var confirmingQuit = false {didSet{transferEpoch=UUID()}}
     @Published var error: String?
     @Published var comparisonMark: PreparedFileComparisonMark? {didSet{comparisonMarkRevision=UUID()}}
     private var lastImportedWorkingMark: UUID?
@@ -307,9 +307,20 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var contentsTableAttached:(NSTableView)->Void={_ in}
     private(set) var generation = UUID()
     private var menuGeneration = UUID()
+    private var transferEpoch=UUID()
+    func transferContext(tree:Bool)->String? {
+        guard canUseMenu,let snapshot,snapshot.objectID != nil else{return nil}
+        return generation.uuidString+transferEpoch.uuidString+String(columnsRevision)+(tree ? "":RepositoryBrowserPathIdentity.id(snapshot.directory))
+    }
     private var loads = RepositoryBrowserPathSet()
     private var listings: RepositoryBrowserPathMap<RepositoryBrowserSnapshot> = [:]
     private var requestedDirectory = ""
+    private(set) var transferInventory:[RepositoryBrowserEntry]?
+    private(set) var transferInventoryError:String?
+    private(set) var transferInventoryBusy=false
+    private var transferDirectories:RepositoryBrowserPathMap<[RepositoryBrowserEntry]>=[:]
+    private var transferDirectoryErrors:RepositoryBrowserPathMap<String>=[:]
+    private var transferDirectoryLoads=RepositoryBrowserPathSet()
     private(set) var active = true
     private(set) static var activeOperations = 0
     private var requests: [UUID: OperationCancellation] = [:]
@@ -406,6 +417,8 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         guard active,!mutating,!confirmingQuit,!confirmingColumns,!choosingRevision,!handlingFile else { return }
         cancelRequests()
         let identity = UUID(); generation = identity; busy = true; error = nil; loads = []
+        transferInventory=nil;transferInventoryError=nil;transferInventoryBusy=false
+        transferDirectories=[:];transferDirectoryErrors=[:];transferDirectoryLoads=[]
         let requestedFile = initialFile
         let components = requestedFile?.split(separator: "/", omittingEmptySubsequences: false)
         let seed = requestedFile.flatMap { value -> String? in
@@ -448,6 +461,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
                 let current = restored[currentPath] ?? root
                 directories = restored.mapValues(\.entries); listings = restored; requestedDirectory = current.directory
                 snapshot = current;revisionLabel=label;error=labelError; expanded = wanted.intersection(restored.keys); expanded.insert("")
+                prepareTransferInventory(root,identity:identity)
                 if let seed {
                     selection = Set(current.entries.filter { RepositoryBrowserPathIdentity.equal($0.path, seed) }.map(\.id))
                     if let pending = initialFile, RepositoryBrowserPathIdentity.equal(pending, seed) { initialFile = nil }
@@ -456,6 +470,80 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             } catch { if active && generation == identity && !cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
+    private func prepareTransferInventory(_ snapshot:RepositoryBrowserSnapshot,identity:UUID) {
+        guard snapshot.treeID != nil else{return}
+        transferInventoryBusy=true
+        let (request,cancellation)=startRequest()
+        Task { [self,repository,access] in
+            defer{finishRequest(request);if active,generation==identity{transferInventoryBusy=false};withExtendedLifetime(access){}}
+            do {
+                try validateAccess()
+                let entries=try await repository.repositoryBrowserTransferInventory(snapshot,cancellation:cancellation)
+                guard active,generation==identity,!cancellation.isCancelled else{return}
+                transferInventory=entries
+            } catch {
+                guard active,generation==identity,!cancellation.isCancelled else{return}
+                transferInventoryError=error.localizedDescription
+            }
+        }
+    }
+    func captureTransfer(_ orderedIDs:[String])->RepositoryBrowserSelectionDrag? {
+        guard canUseMenu,let snapshot,!orderedIDs.isEmpty,Set(orderedIDs).count==orderedIDs.count,
+              orderedIDs.allSatisfy({selection.contains($0)}) else{return nil}
+        let selected=orderedIDs.compactMap{id in snapshot.entries.first{$0.id==id}}
+        guard selected.count==orderedIDs.count else{return nil}
+        return makeTransfer(snapshot,selected:selected)
+    }
+    func captureTreeTransfer(_ path:String)->RepositoryBrowserSelectionDrag? {
+        guard canUseMenu,folderObjectID(path) != nil,let root=listings[""] else{return nil}
+        if path.isEmpty {return makeTransfer(root,selected:root.entries.sorted{$0.name.utf16.lexicographicallyPrecedes($1.name.utf16)})}
+        let parent=(path as NSString).deletingLastPathComponent
+        guard let entry=directories[parent]?.first(where:{RepositoryBrowserPathIdentity.equal($0.path,path) && $0.kind == .directory}) else{return nil}
+        return makeTransfer(root,selected:[entry])
+    }
+    private func makeTransfer(_ snapshot:RepositoryBrowserSnapshot,selected:[RepositoryBrowserEntry])->RepositoryBrowserSelectionDrag? {
+        guard active,canUseMenu,!selected.isEmpty else{return nil}
+        do {try validateAccess()} catch {self.error=error.localizedDescription;return nil}
+        var inventory=transferInventory
+        if inventory==nil {
+            var collected:[RepositoryBrowserEntry]=[],missing=false
+            for entry in selected where entry.kind == .directory {
+                if let entries=transferDirectories[entry.path] {collected += entries}
+                else {
+                    missing=true
+                    if let failure=transferDirectoryErrors[entry.path]{error=failure}
+                    else if !transferInventoryBusy {
+                        prepareTransferDirectory(snapshot,directory:entry.path)
+                        error="The repository transfer inventory is still loading."
+                    } else {error="The repository transfer inventory is still loading."}
+                }
+            }
+            if missing{return nil}
+            if !collected.isEmpty{inventory=collected}
+        }
+        guard (inventory?.count ?? 0)<=100_000 else{error=RepositoryBrowserFailure.transferLimit.localizedDescription;return nil}
+        let transfer=RepositoryBrowserSelectionDrag(repository:repository,access:access,snapshot:snapshot,selected:selected,inventory:inventory,backend:materializationBackend())
+        if transfer==nil {error=RepositoryBrowserFailure.transferLimit.localizedDescription}
+        return transfer
+    }
+    private func prepareTransferDirectory(_ snapshot:RepositoryBrowserSnapshot,directory:String) {
+        guard !transferDirectoryLoads.contains(directory) else{return}
+        transferDirectoryLoads.insert(directory)
+        let identity=generation,(request,cancellation)=startRequest()
+        Task { [self,repository,access] in
+            defer{finishRequest(request);if active,generation==identity{transferDirectoryLoads.remove(directory)};withExtendedLifetime(access){}}
+            do {
+                try validateAccess()
+                let entries=try await repository.repositoryBrowserTransferInventory(snapshot,directory:directory,cancellation:cancellation)
+                guard active,generation==identity,!cancellation.isCancelled else{return}
+                transferDirectories[directory]=entries
+            } catch {
+                guard active,generation==identity,!cancellation.isCancelled else{return}
+                transferDirectoryErrors[directory]=error.localizedDescription
+            }
+        }
+    }
+
     func loadDirectory(_ path: String, select: Bool) {
         guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns,!choosingRevision,!handlingFile, let snapshot, snapshot.treeID != nil else { return }
         let identity = generation
@@ -791,7 +879,7 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     func makeNSView(context: Context) -> NSScrollView { context.coordinator.makeView() }
     func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.update() }
-    static func dismantleNSView(_ view:NSScrollView, coordinator:Coordinator) { coordinator.retired=true;coordinator.outline?.delegate=nil;coordinator.outline?.dataSource=nil }
+    static func dismantleNSView(_ view:NSScrollView, coordinator:Coordinator) { coordinator.retired=true;if coordinator.dragSession == nil{coordinator.activeTransfer=nil;coordinator.outline?.delegate=nil;coordinator.outline?.dataSource=nil} }
 
     @MainActor final class Node: NSObject {
         let path:String
@@ -805,12 +893,19 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
         private var generation:UUID?
         private var updating=false
         var retired=false
+        var activeTransfer:RepositoryBrowserSelectionDrag?
+        private(set) var dragSession:NSDraggingSession?
+        private static var dragOwners:[ObjectIdentifier:Coordinator]=[:]
+        func captureDrag(_ path:String)->RepositoryBrowserSelectionDrag? {
+            guard available,NSApp.modalWindow==nil else{return nil};return model.captureTreeTransfer(path)
+        }
         var available:Bool { !retired && model.canUseMenu && outline?.window?.attachedSheet==nil }
         init(_ model:RepositoryBrowserWindowModel) { self.model=model }
         func node(_ path:String) -> Node { if let value=nodes[path] { return value };let value=Node(path);nodes[path]=value;return value }
         func folders(_ path:String) -> [RepositoryBrowserEntry] { RepositoryBrowserListing.sorted(children[path] ?? []).filter { $0.kind == .directory } }
         func makeView() -> NSScrollView {
             let scroll=NSScrollView(),tree=RepositoryBrowserFolderOutline()
+            tree.dragContext={ [weak model] in model?.transferContext(tree:true) }
             scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.autohidesScrollers=true
             let column=NSTableColumn(identifier:.init("folder"));column.title="Folders";column.width=250;column.minWidth=100
             tree.addTableColumn(column);tree.outlineTableColumn=column;tree.headerView=nil
@@ -909,12 +1004,30 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
             action.used=true
             switch action.command { case 0:model.openFolder(action.path);case 1:model.showFolderLog(action.path);case 2:model.copyFolder(action.path);case 3:model.copyFolder(action.path,hashes:true);default:break }
         }
-        func outlineView(_ outlineView:NSOutlineView, pasteboardWriterForItem item:Any) -> NSPasteboardWriting? {
-            guard available,let item=item as? Node else { return nil };return model.folderPromise(item.path)
+        func outlineView(_ outlineView:NSOutlineView,writeItems items:[Any],to pasteboard:NSPasteboard)->Bool {
+            guard let outline=outlineView as? RepositoryBrowserFolderOutline,outline.acceptsDragGesture,items.count==1,let node=items.first as? Node,let transfer=captureDrag(node.path),transfer.write(to:pasteboard) else{return false}
+            activeTransfer=transfer;return true
+        }
+        func outlineView(_ outlineView:NSOutlineView,draggingSession session:NSDraggingSession,willBeginAt screenPoint:NSPoint,forItems draggedItems:[Any]) {
+            guard activeTransfer != nil else{return};dragSession=session;Self.dragOwners[ObjectIdentifier(session)]=self
+        }
+        func outlineView(_ outlineView:NSOutlineView,draggingSession session:NSDraggingSession,endedAt screenPoint:NSPoint,operation:NSDragOperation) {
+            guard dragSession === session else{return}
+            Self.dragOwners.removeValue(forKey:ObjectIdentifier(session));dragSession=nil;activeTransfer=nil
+            if retired{outlineView.delegate=nil;outlineView.dataSource=nil}
         }
     }
 }
 @MainActor final class RepositoryBrowserFolderOutline:NSOutlineView {
+    var dragContext:()->String?={nil}
+    private var dragStart:String?
+    var acceptsDragGesture:Bool{dragStart != nil && dragStart==dragContext()}
+    @discardableResult func captureDragGesture(_ event:NSEvent)->Bool {
+        dragStart=nil
+        guard event.type == .leftMouseDown,event.window === window,isEnabled,row(at:convert(event.locationInWindow,from:nil))>=0 else{return false}
+        dragStart=dragContext();return dragStart != nil
+    }
+    override func mouseDown(with event:NSEvent){_ = captureDragGesture(event);defer{dragStart=nil};super.mouseDown(with:event)}
     var openSelection:()->Void = {},copySelection:()->Void = {}
     var contextSelection:(Int)->Void = { _ in }
     override func keyDown(with event:NSEvent) {

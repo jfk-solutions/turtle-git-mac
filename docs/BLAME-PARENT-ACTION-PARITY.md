@@ -65,6 +65,28 @@ actual work counters through the parent integration.
 
 ## Validation scope and remaining differences
 
+### Grouped workspace comparison delivery — October 23, 2026
+
+The actual workspace route now accepts all origin-file snapshots from one parent
+action together. Previously the model invoked the workspace once per origin;
+the first invocation set its busy state and silently prevented later origins
+from opening. This differs from `LogListBlameAction.cpp`'s comparison branch,
+which dispatches every parent filename. The grouped request preserves each
+snapshot's parent/commit endpoints, old rename path and destination path, in
+captured order. It asks the existing multiple-diff confirmation once for the
+complete file count and retains the initiating Shift tool choice, preferences,
+repository grant and window appearance through preparation.
+
+Blame owns the request token and operation count until the actual workspace
+callback returns. Reload, document opening/replacement, Quit and closure cancel
+pending delivery and reject stale results; an already accepted comparison window
+keeps its independent workspace ownership. Source-pane comparisons use the same
+route with their one-file snapshot. The old synchronous callback remains for
+independent consumers, while production installs the owned aggregate callback.
+See [connected history file delivery](HISTORY-FILE-DELIVERY-PARITY.md) for the
+related workflows and grouped validation record. Implementation alone does not
+establish a validation pass or complete Blame parity.
+
 `GitBlameParentActionTests` covers distinct same-parent origin identities,
 canonically equivalent name bytes, and a real three-parent merge whose first
 parent is irrelevant, verifying filtered ordinal/subject labels against actual

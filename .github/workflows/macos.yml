@@ -480,6 +480,10 @@ jobs:
         run: python3 scripts/test-merge-view-family.py --only history --only typing --only lifecycle --only menus
       - name: Selected unified diff and history file backends
         run: python3 scripts/test-diff-backend.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Blame grouped origin comparisons and owned questions
+        run: python3 scripts/test-blame-grouped-comparisons.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Repository Browser recursive selection drag delivery
+        run: python3 scripts/test-browser-selection-drags.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Compare and Merge folded keyboard input and aligned deletion
         run: python3 scripts/test-merge-pane-input.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Merge view switching, native chrome and saved splits

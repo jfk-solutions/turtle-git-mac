@@ -65,3 +65,17 @@ source default GetOneFile backend to historical opening/editors, Save As and
 selected/recursive output. Accepted operations retain their engine choice through
 panels and delayed file delivery. Raw comparison and Blame readers remain distinct;
 source filter semantics and actual grouped evidence are recorded in that family.
+
+### Recursive selection text and source root naming
+
+The [historical delivery family](HISTORY-FILE-DELIVERY-PARITY.md) extends the
+native Browser gesture paths with complete recursive path text, including
+nonmaterialized gitlinks, and source root/nested export names. Existing file
+promises, exclusive writes and accepted receiver lifetime remain in use. Its
+checkpoint records the newly covered native gestures and inventory limits.
+
+The October 23 delivery continuation extracts shared accounting, export retention
+and exclusive publication into `NativeFileTransfer.swift`. The standalone transport
+runner includes that production source explicitly; it no longer depends on helpers
+accidentally available only in the full app file-list adapter. Its cache includes
+the additional source without removing any behavioral assertions.

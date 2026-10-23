@@ -45,7 +45,18 @@ enum ComparisonToolInvocation {
     func run(selectedCount: Int, operation: (OperationCancellation) async throws -> Void) async throws {
         guard !started else { throw OperationCancellationFailure.cancelled }
         started = true; Self.activeOperations += 1
+        // Cancellation may come from a document replacement while its native
+        // window stays open. Retire our own question immediately, but retain the
+        // session until the actual operation/injected answer has returned.
+        let watcher = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                if self.cancellation.isCancelled { self.cancel(); return }
+                try? await Task.sleep(nanoseconds: 10_000_000)
+            }
+        }
         defer {
+            watcher.cancel()
             Self.activeOperations -= 1
             if let observer { NotificationCenter.default.removeObserver(observer); self.observer = nil }
             alert = nil
@@ -59,9 +70,21 @@ enum ComparisonToolInvocation {
                 let question = NSAlert(); question.messageText = "Open diffs for \(selectedCount) files?"
                 question.informativeText = "Each selected file opens in its own viewer."
                 question.addButton(withTitle: "Yes"); question.addButton(withTitle: "No"); alert = question
+                question.window.appearance = window.effectiveAppearance
+                question.window.alphaValue = window.alphaValue
                 accepted = await withCheckedContinuation { reply in
                     question.beginSheetModal(for: window) { reply.resume(returning: $0 == .alertFirstButtonReturn) }
                 }
+                // The reply can arrive before AppKit has detached the sheet.
+                // Keep this session/counter and source ownership through that
+                // actual teardown, on accepted, declined and cancelled replies.
+                question.window.orderOut(nil)
+                while question.window.sheetParent != nil || window.attachedSheet === question.window {
+                    await withCheckedContinuation { reply in
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { reply.resume() }
+                    }
+                }
+                question.window.close(); alert = nil
             }
             try check()
             guard accepted else { return }

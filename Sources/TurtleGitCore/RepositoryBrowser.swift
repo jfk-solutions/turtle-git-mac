@@ -85,10 +85,11 @@ public struct RepositoryBrowserSnapshot: Sendable {
     public let entries: [RepositoryBrowserEntry]
 }
 public enum RepositoryBrowserFailure: LocalizedError {
-    case revision, directory, output, selection
+    case revision, directory, output, selection, transferLimit
     case normalizationCollision(String)
     public var errorDescription: String? {
         switch self {
+        case .transferLimit: return "The repository transfer exceeds the supported inventory limit."
         case .revision: return "Choose a revision containing a commit or tree."
         case .directory: return "The selected directory does not exist at this revision."
         case .output: return "Git returned an invalid repository tree."
@@ -118,18 +119,18 @@ public enum RepositoryBrowserListing {
         if path.isEmpty { return allowRoot }
         return !path.hasPrefix("/") && !path.utf8.contains(0) && path.split(separator: "/", omittingEmptySubsequences: false).allSatisfy { !$0.isEmpty && $0 != "." && $0 != ".." }
     }
-    static func parse(_ bytes: Data, directory: String) throws -> [RepositoryBrowserEntry] {
+    static func parse(_ bytes: Data, directory: String, recursive:Bool=false) throws -> [RepositoryBrowserEntry] {
         guard bytes.isEmpty || bytes.last == 0 else { throw RepositoryBrowserFailure.output }
         return try bytes.split(separator: 0).map { record in
             guard let tab = record.firstIndex(of: 9), let name = String(data: Data(record[record.index(after: tab)...]), encoding: .utf8),
-                  validPath(name, allowRoot: false), !name.contains("/") else { throw RepositoryBrowserFailure.output }
+                  validPath(name, allowRoot: false), recursive || !name.contains("/") else { throw RepositoryBrowserFailure.output }
             let fields = String(decoding: record[..<tab], as: UTF8.self).split(whereSeparator: { $0 == " " })
             guard fields.count == 4, ["040000", "100644", "100755", "120000", "160000"].contains(String(fields[0])),
                   [40, 64].contains(fields[2].count), fields[2].allSatisfy(\.isHexDigit) else { throw RepositoryBrowserFailure.output }
             let mode = String(fields[0]), size = Int64(fields[3])
             guard (mode == "040000" && fields[1] == "tree" || mode == "160000" && fields[1] == "commit") && fields[3] == "-" ||
                   (["100644", "100755", "120000"].contains(mode) && fields[1] == "blob" && size != nil && size! >= 0) else { throw RepositoryBrowserFailure.output }
-            return RepositoryBrowserEntry(path: directory.isEmpty ? name : directory + "/" + name, name: name, mode: mode, objectID: String(fields[2]), size: size)
+            return RepositoryBrowserEntry(path: directory.isEmpty ? name : directory + "/" + name, name: recursive ? String(name.split(separator:"/").last!):name, mode: mode, objectID: String(fields[2]), size: size)
         }
     }
 }
@@ -169,6 +170,34 @@ extension GitRepository {
         guard snapshot.root == root, RepositoryBrowserListing.validPath(directory, allowRoot: true),
               let tree = snapshot.treeID, let object = snapshot.objectID else { throw RepositoryBrowserFailure.directory }
         return try browseRepositoryTree(revision: snapshot.revision, objectID: object, treeID: tree, directory: directory, bare: snapshot.bare, cancellation: cancellation)
+    }
+    /// Bounded metadata only, pinned to the displayed tree rather than a mutable
+    /// symbolic revision. Callers may lower the entry ceiling for their workflow.
+    /// No file bytes, filters, child repository or working tree are consulted.
+    public func repositoryBrowserTransferInventory(_ snapshot:RepositoryBrowserSnapshot,directory:String="",maximumEntries:Int=100_000,cancellation:OperationCancellation?=nil)throws->[RepositoryBrowserEntry] {
+        try cancellation?.check()
+        guard snapshot.root==root,let tree=snapshot.treeID,snapshot.objectID != nil,
+              [40,64].contains(tree.utf8.count),tree.utf8.allSatisfy({(48...57).contains($0)||(97...102).contains($0)}),
+              RepositoryBrowserListing.validPath(directory,allowRoot:true),maximumEntries>0,maximumEntries<=100_000 else{throw RepositoryBrowserFailure.selection}
+        let subtree:String
+        if directory.isEmpty{subtree=tree}
+        else {
+            let listing=try browseRepositoryDirectory(snapshot,directory:directory,cancellation:cancellation)
+            guard listing.treeID==tree else{throw RepositoryBrowserFailure.directory}
+            subtree=try run(["-c","core.precomposeUnicode=false","rev-parse","--verify","--end-of-options",tree+":"+directory],cancellation:cancellation).text.trimmingCharacters(in:.newlines)
+        }
+        var bytes=Data(),records=0
+        _=try run(["ls-tree","-r","-t","-l","-z",subtree,"--"],cancellation:cancellation,retainStandardOutput:false,consumeOutput:{chunk in
+            guard case .stdout=chunk.stream else{return}
+            guard chunk.data.count<=16_777_216-bytes.count else{throw RepositoryBrowserFailure.transferLimit}
+            records += chunk.data.reduce(0){$0+($1==0 ? 1:0)}
+            guard records<=maximumEntries else{throw RepositoryBrowserFailure.transferLimit}
+            bytes.append(chunk.data)
+        })
+        try cancellation?.check()
+        let entries=try RepositoryBrowserListing.parse(bytes,directory:directory,recursive:true)
+        guard entries.allSatisfy({$0.path.split(separator:"/").count<=128}) else{throw RepositoryBrowserFailure.transferLimit}
+        return entries
     }
     private func browseRepositoryTree(revision: String, objectID: String, treeID: String, directory: String, bare: Bool, cancellation: OperationCancellation?) throws -> RepositoryBrowserSnapshot {
         try cancellation?.check()

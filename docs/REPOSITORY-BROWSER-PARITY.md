@@ -659,3 +659,11 @@ source default GetOneFile backend to historical opening/editors, Save As and
 selected/recursive output. Accepted operations retain their engine choice through
 panels and delayed file delivery. Raw comparison and Blame readers remain distinct;
 source filter semantics and actual grouped evidence are recorded in that family.
+
+## Complete selected transfer representations
+
+The [historical delivery continuation](HISTORY-FILE-DELIVERY-PARITY.md) connects
+native contents/tree gestures to captured recursive path text, gitlink-only text,
+root exports without an extra repository folder, and receiver-owned historical
+promises. Its bounded metadata collection and actual grouped checkpoint remain
+separate from older file/folder promise checks above.

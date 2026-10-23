@@ -1654,7 +1654,8 @@ Its Python harness builds only Core, detects native SwiftPM or Xcode-backed obje
 layouts, caches the standalone transport receiver and reaps its owned process and
 helpers. Locally, `--scratch-path .build/out` uses the existing Core artifacts;
 `--skip-build` requires those artifacts to be current. The receiver compiles
-RepositoryBrowserDrag independently of the window model and checks provider-lifetime
+RepositoryBrowserDrag and its shared NativeFileTransfer primitives independently
+of the window model and checks provider-lifetime
 cleanup, real Progress cancellation, queued promise ownership, coordinated exclusive
 receiver writes/collision refusal and pinned binary file/folder content. The grouped
 browser table/lifecycle reference receivers separately exercise the actual UI

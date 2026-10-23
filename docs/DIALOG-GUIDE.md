@@ -194,6 +194,12 @@ Repository Browser reads the tree at a pinned revision. Navigate folders, inspec
 files, and use Open or Save to work with a historical copy. A historical file is
 not the current working file. Review a Revert action carefully before accepting it.
 
+Drag selected files or folders to export their historical contents. Folder drags
+also offer the recursive repository-relative paths as text; submodules contribute
+their names without inventing file contents. Dragging the root in the folder tree
+exports its top-level items directly. Accepted transfers keep the displayed
+revision even if you refresh or close the Browser before the receiver reads them.
+
 The **Revision** button opens a single-selection Log for the displayed snapshot.
 Choose a commit and press **OK** to browse it; **Cancel** keeps the current revision.
 The picker hides the working-tree row and offers the configured Log actions.

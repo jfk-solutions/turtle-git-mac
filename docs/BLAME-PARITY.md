@@ -1113,9 +1113,11 @@ Browse Repository and Show branches this commit is on, with original artwork.
 They route the captured commit to the existing native workflows. The containing-
 references window is owned by Blame, follows its initial appearance and closes
 with its owner or document replacement. These commands do not mutate Git until
-their respective workflow is accepted. Source parent/previous-revision and unified-
-diff actions in the embedded Log are still missing; source-pane parent actions
-remain available but do not establish embedded-Log equivalence.
+their respective workflow is accepted. At this historical checkpoint, source parent/previous-revision and unified-diff
+actions in the embedded Log were missing. The subsequent
+[parent-action family](BLAME-PARENT-ACTION-PARITY.md) supplies those commands;
+the [grouped delivery continuation](HISTORY-FILE-DELIVERY-PARITY.md) addresses
+multi-origin dispatch through the actual workspace.
 
 Native right-click targets an unselected row and preserves an existing multiple
 selection. A menu retains its ordered entries across subsequent selection changes;
