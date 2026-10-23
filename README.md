@@ -254,6 +254,9 @@ reviews from unmapped controls and links recorded parity evidence.
 [The main dialog controls continuation](docs/PRIMARY-DIALOG-CONTROLS-PARITY.md)
 tracks Commit options, Log column fitting and Settings appearance transactions,
 including their remaining acceptance work.
+[Compare/Merge pane presentation](docs/MERGE-PANE-PRESENTATION-PARITY.md) and
+[patch application/save policies](docs/PATCH-SAVE-APPLICATION-POLICY-PARITY.md)
+track native pane status, automatic application and explicit save behavior.
 [UI parity](docs/UI-PARITY.md) records required source, layout and behavior
 comparisons. These documents and individual workflow audits track the full-port
 work that remains.

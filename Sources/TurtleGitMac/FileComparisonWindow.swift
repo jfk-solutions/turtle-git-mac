@@ -424,6 +424,38 @@ private extension FileComparisonDocument {
         guard let invocation = mergeToolInvocation else { return replacementReflectedNames[storageSide(base)] }
         return storageSide(base) ? invocation.baseReflectedName : invocation.mineReflectedName
     }
+    @Published private(set) var focusedPresentationPane:Bool?
+    @Published private(set) var paneStatusColumn=1
+    @Published private(set) var paneStatusMarked:[MergePaneMarkCount]=[]
+    var panePresentationAvailable:Bool {!retired && !busy && !filtering && !confirmingQuit && !hasPendingEditorChoice && window?.attachedSheet==nil}
+    func paneModified(base:Bool)->Bool {drafts?.isDirty(base:base)==true || base==mergeToolResultSide && (mergeToolSaveRequired || mergeToolNeedsOutput)}
+    func panePresentationAction(base:Bool)->()->Void {
+        let epoch=paneTabEpoch,generation=alignmentGeneration,physical=storageSide(base),preferences=comparisonDefaults
+        return {[weak self] in
+            guard let self,self.paneTabEpoch==epoch,self.storageSide(base)==physical,self.comparisonDefaults === preferences else{return}
+            self.focusPresentationPane(base:base,generation:generation)
+        }
+    }
+    func focusPresentationPane(base:Bool,generation:Int) {
+        guard panePresentationAvailable,alignmentGeneration==generation,(!onePaneActive || !base),let window,
+              let scroll=scrolls[base],ownsViewport(scroll,base:base),let view=scroll.documentView as? FileComparisonTextView else{return}
+        _ = window.makeFirstResponder(view);refreshPaneStatus()
+    }
+    func refreshPaneStatus() {
+        guard !retired else{return}
+        let focused=scrolls.first{side,scroll in ownsViewport(scroll,base:side) && window?.firstResponder === scroll.documentView && (!onePaneActive || !side)}
+        let side=focused?.key,column=MergePanePresentation.column(in:focused?.value.documentView as? NSTextView)
+        func liveView(_ base:Bool)->NSTextView? {
+            guard let scroll=scrolls[base],ownsViewport(scroll,base:base),(!onePaneActive || !base) else{return nil}
+            return scroll.documentView as? NSTextView
+        }
+        let marked:[MergePaneMarkCount]
+        if onePaneActive || singleFileMode {marked=[MergePanePresentation.marked(label:"L",in:liveView(false))]}
+        else {marked=[MergePanePresentation.marked(label:"L",in:liveView(true)),MergePanePresentation.marked(label:"R",in:liveView(false))]}
+        if focusedPresentationPane != side{focusedPresentationPane=side}
+        if paneStatusColumn != column{paneStatusColumn=column}
+        if paneStatusMarked != marked{paneStatusMarked=marked}
+    }
     func paneTitle(base: Bool) -> String {
         let name = mergeToolDescriptiveName(base:base).flatMap { $0.isEmpty ? nil : $0 } ?? (base ? "Base" : "Mine")
         let absent = mergeToolInvocation != nil && mergeToolInputs[storageSide(base)]?.content.isDeleted == true
@@ -594,6 +626,7 @@ private extension FileComparisonDocument {
                 ? [.read(self.scrolls[false]), .init(), .init()]
                 : [.read(self.scrolls[true]), .init(), .read(self.scrolls[false])]
             if self.locatorHighlights != next { self.locatorHighlights = next }
+            self.refreshPaneStatus()
         }
     }
     var locatorMap: MergeLocatorMap {
@@ -1147,6 +1180,7 @@ private extension FileComparisonDocument {
         editingActions(for: base)?.replace(MergeLineEndings.converting(draftText(base: base), to: ending), 0, nil)
     }
     func updateSelection(_ range: NSRange, cells: [MergeSourceCell]) {
+        refreshPaneStatus()
         guard !retired, let alignment else { return }
         let active = scrolls[activeBase]?.documentView as? FileComparisonTextView
         let block = active?.mergeSelectedBlockRange
@@ -1381,7 +1415,7 @@ private extension FileComparisonDocument {
     }
     func activatePane(base: Bool) {
         guard !busy, !hasPendingEditorChoice, !confirmingQuit, (!onePaneActive || !base), activeBase != base else { return }
-        activeBase = base; selectedRows = nil; selectionRequest = nil; updateHistoryState()
+        activeBase = base; selectedRows = nil; selectionRequest = nil; updateHistoryState();refreshPaneStatus()
     }
     func resetHistory() {
         historyCaretRequests = [:]
@@ -1445,6 +1479,7 @@ private extension FileComparisonDocument {
         guard scrolls[base] === scroll else { return }
         scrolls.removeValue(forKey: base); viewportNavigation.removeValue(forKey: base)
         if editorOwners[base] == ObjectIdentifier(scroll) { editorOwners.removeValue(forKey: base); editorActions.removeValue(forKey: base) }
+        refreshLocatorHighlights()
     }
     func applyViewportNavigation() { guard !retired else { return }; for action in viewportNavigation.values { action() } }
     private var synchronizing = false
@@ -2151,8 +2186,11 @@ struct FileComparisonPane: View {
             header = model.paneHeader(base:true) + " – " + model.paneHeader(base:false)
         } else { header = model.paneHeader(base:base) }
         return VStack(alignment: .leading, spacing: 5) {
-            Text(model.onePaneActive ? model.paneTitle(base:true) + " – " + model.paneTitle(base:false) : model.paneTitle(base:base)).font(.headline)
-            Text(header).font(.system(.caption, design: .monospaced)).lineLimit(1).help(model.onePaneActive ? model.paneHelp(base:true) + "\n" + model.paneHelp(base:false) : model.paneHelp(base:base))
+            let title=model.onePaneActive ? model.paneTitle(base:true)+" – "+model.paneTitle(base:false):model.paneTitle(base:base)
+            let caption=title==header ? header:title+" — "+header
+            let activate=model.panePresentationAction(base:base)
+            MergePaneHeader(title:caption,location:model.onePaneActive ? model.paneHelp(base:true)+"\n"+model.paneHelp(base:false):model.paneHelp(base:base),modified:model.onePaneActive ? model.paneModified(base:true) || model.paneModified(base:false):model.paneModified(base:base),active:model.focusedPresentationPane==base,kind:model.onePaneActive ? .removed:model.singleFileMode ? .neutral:base ? .removed:.added,font:model.generalPreferences.nativeFont,enabled:model.panePresentationAvailable,preferences:model.comparisonDefaults,activate:activate)
+                .frame(maxWidth:.infinity)
             if let alignment = model.alignment {
                 FileComparisonEditor(model: model, cells: model.displayCells(base: base), base: base)
             } else if let content {
@@ -2264,6 +2302,7 @@ private struct FileComparisonDialog: View {
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
                 Text(model.filtering ? "Comparing…" : model.alignment.map { "\($0.differences.count) difference(s)" } ?? "").font(.caption)
+                MergePaneStatus(column:model.paneStatusColumn,marked:model.paneStatusMarked)
                 Spacer()
                 MergeTypingModeControl(overwrite:model.overwriteModes[model.activeBase] == true,enabled:model.canTransfer(toBase:model.activeBase),toggle:{ model.overwriteModes[model.activeBase] = !(model.overwriteModes[model.activeBase] ?? false) })
                 Text(model.dirty ? "Modified · working file not saved" : model.editingEnabled && model.editableBase != nil ? "Editing working file" : "Read-only comparison").font(.caption).foregroundStyle(.secondary)
@@ -2789,7 +2828,12 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
     }
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
-        if accepted { model?.activatePane(base: baseSide) }
+        if accepted { model?.activatePane(base: baseSide);model?.refreshPaneStatus() }
+        return accepted
+    }
+    override func resignFirstResponder()->Bool {
+        let accepted=super.resignFirstResponder()
+        if accepted {DispatchQueue.main.async{[weak model] in model?.refreshPaneStatus()}}
         return accepted
     }
     override func draw(_ dirtyRect: NSRect) {

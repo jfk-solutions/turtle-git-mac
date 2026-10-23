@@ -1,0 +1,216 @@
+{
+  "date": "2026-10-23",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "scoped-grouped-checkpoint-passed",
+  "scope": [
+    "Two/three/one-pane native Compare/Merge header identity, palette, dirty/focus and caret/marked status",
+    "Patch automatic AutoAdd/progress/result/readonly and explicit Backup/Keep/Delete save policies"
+  ],
+  "validation": {
+    "core": {
+      "tests": 48,
+      "failures": 0,
+      "log": "build/qa/merge-patch-family-core-2026-10-21.log",
+      "scope": "WorkingPatchSavePolicyTests, WorkingPatchBatchTests, WorkingPatchCancellationTests, FileComparisonEditingTests; not rerun after fixture-only repairs"
+    },
+    "hosted_failure_repairs": {
+      "tests": 59,
+      "failures": 0,
+      "log": "build/qa/merge-patch-ci-repairs-2026-10-23.log",
+      "scope": "PrimaryCommandInvocationTests and the two previously failing MetafileImageTests gradient methods; original authored color/transform assertions retained"
+    },
+    "native": {
+      "distinct_case_engine_pairs": 6,
+      "cases": [
+        "patch",
+        "compare",
+        "conflict"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "passing_logs": [
+        "build/qa/merge-patch-family-native-resume-2026-10-23.log (patch both engines; later Compare failed)",
+        "build/qa/merge-patch-family-native-readiness-2026-10-23.log (Compare both engines; later Conflict failed)",
+        "build/qa/merge-patch-family-native-conflict-deferred-2026-10-23.log (Conflict both engines)"
+      ],
+      "cleanup": {
+        "reaped_receivers": [
+          10700,
+          11261,
+          11635,
+          12034,
+          12213,
+          12249,
+          12266,
+          12465,
+          12780,
+          12933,
+          13029,
+          13142,
+          13162,
+          42911,
+          43028,
+          43082,
+          43180,
+          43264,
+          43501,
+          43733,
+          43774
+        ],
+        "independently_present_after_checkpoint": [],
+        "windows": "Owned private windows and sheets globally hidden/offscreen; cleanup on success/failure; unrelated apps untouched"
+      }
+    },
+    "app": {
+      "latest_implementation_log": "build/qa/merge-patch-family-base-app-2026-10-21.log",
+      "exit_code": 0,
+      "diagnostics": "Exit-zero local build commands also emitted contradictory generic compiler failure diagnostics; not described as clean diagnostics. Later resource refresh recorded separately.",
+      "resource_refresh": {
+        "log": "build/qa/merge-patch-family-resources-app-2026-10-23.log",
+        "exit_code": 0,
+        "diagnostics": "CoreSimulator out-of-date and ambiguous local architecture destination warnings; no generic compiler failure in this incremental resource refresh."
+      }
+    },
+    "captures": [
+      {
+        "path": "docs/site/assets/compare-pane-status-light.png",
+        "width": 2240,
+        "height": 1606,
+        "sha256": "8b333da6a4d9efbeb088ae51c96b05b63f86d320a405f37d6f3535309e59217c",
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/compare-pane-status-dark.png",
+        "width": 2240,
+        "height": 1606,
+        "sha256": "6777ef934a60b6d191175e7ef838c860885587df798acc6198874359a78e4843",
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/compare-one-pane-status-light.png",
+        "width": 2240,
+        "height": 1606,
+        "sha256": "15c75dd58a798655fd62118c9092b15318a68a63172e49e2ecafe6db15c91bbc",
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/compare-one-pane-status-dark.png",
+        "width": 2240,
+        "height": 1606,
+        "sha256": "fc20ed09a6d1b036560e3a1cc1dc32a49846ed41419bc3e44a6e2e519e596271",
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/merge-pane-status-light.png",
+        "width": 2240,
+        "height": 1726,
+        "sha256": "607bc2553f1e191682b1f58387239bf2ed82b45e461ecf9932ed770256fee8b4",
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/merge-pane-status-dark.png",
+        "width": 2240,
+        "height": 1726,
+        "sha256": "a9a19e544239cd92f254c68a10193f7e478f5289645ed7c5b348978727334411",
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/patch-automatic-progress-light.png",
+        "width": 2200,
+        "height": 1504,
+        "sha256": "0fbc3603e7bbfcfdb4a68e4bc0ab25871dc39d648d72cd4221a2dee34ac19c66",
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/patch-automatic-progress-dark.png",
+        "width": 2200,
+        "height": 1504,
+        "sha256": "fb05957427f86c38610ca1d76335b0ac08cb840b6a0864467b63501dfdaa9faa",
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/patch-automatic-results-light.png",
+        "width": 2200,
+        "height": 1504,
+        "sha256": "ec22831c126b0eb9faf5e8c075aaa1063943c2f8e312be8d11f5ee85916e0841",
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/patch-automatic-results-dark.png",
+        "width": 2200,
+        "height": 1504,
+        "sha256": "94d06c6b916eeef1786cd165bb0f9d52271bac9f75b8485b3fea0ab7195dc252",
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/patch-empty-result-choice-light.png",
+        "width": 520,
+        "height": 344,
+        "sha256": "647617dcedcb3f01b277af5430a519f8b579de10275d0759a2d7fdf049fed6c2",
+        "reviewed": true
+      },
+      {
+        "path": "docs/site/assets/patch-empty-result-choice-dark.png",
+        "width": 520,
+        "height": 344,
+        "sha256": "a646138b437aeff7ed680e9911d6f6c04aa14f01c166ab23851ce132cbdd2281",
+        "reviewed": true
+      }
+    ],
+    "limits": "No complete hosted pass, physical keyboard/VoiceOver/Finder, installed signed/minimum-version/Intel or full upstream parity certified.",
+    "resources": {
+      "localizations": {
+        "languages": 38,
+        "keys": 1315,
+        "check": "passed"
+      },
+      "help": {
+        "documents": 54,
+        "topics": 51,
+        "files": 74,
+        "check": "passed"
+      },
+      "dialog_coverage": "reconciled and check passed; 130 dialogs,120 partial family audits,10 pending family reviews,85 pending control reviews,0 certified; not completion percentages",
+      "site": {
+        "documents": 418,
+        "unresolved_fragments": 0,
+        "documentation_tests": 2,
+        "search_filter_no_match_load_failure": "passed"
+      }
+    }
+  },
+  "remaining": [
+    "Source text-patch UTF16/UTF32, non-Git headers and expanded keyword adapter",
+    "Complete upstream workflow/state/layout parity",
+    "Physical input/VoiceOver, signed Finder/sandbox, minimum-version/Intel and full current hosted CI",
+    "Distribution signing and App Store acceptance"
+  ],
+  "started": "2026-10-21",
+  "repairs_and_failed_attempts": [
+    "Fixture initially referenced private FileComparisonTextView; uses public NSTextView plus MergeFindProviding instead.",
+    "Palette fixture initially sampled DarkAqua then color-managed NSView cache; explicit sRGB drawing under actual Aqua preserves exact private palette assertion.",
+    "Native title child consumed actual center click; shared header hit-testing now routes activation to its own editor.",
+    "Typing fixture waited for model permission before actual native isEditable; waits both.",
+    "Closed retained headers accepted accessibility press; actual window-close retirement revokes callbacks.",
+    "Status representable expanded footer; bounded single-line fitting and assertion repair.",
+    "Pinned one-pane header is Removed, not neutral; source role corrected.",
+    "Optional Base pane lacked registration; separate weak presentation registration now supports focus/status without joining aligned scrolling.",
+    "Readonly Compare fixture acted before current owned projection/navigation settled; authoritative view/bytes/readiness waits preserve caret and mutation assertions.",
+    "Merge Undo fixture incorrectly expected a clean result despite initialDirty=true; exact original text, dirty state/header and Redo availability are asserted.",
+    "Readonly Merge fixture configured immutable policy after SwiftUI initial load; deferred constructor/beginTransferredDocument matches actual receiver launch and verifies policy before load.",
+    "Hosted 34ec6bc8 run39559820121 failed 3 assertions among 2566 tests (2 skipped): obsolete EMF invocation rejection and unreachable gradient metadata tags. Accepted EMF output/invalid targets plus embedded raster colors now replace those stale expectations, preserving original pixel assertions."
+  ],
+  "hosted_observation": {
+    "macos_run": 39559820121,
+    "head": "34ec6bc8",
+    "conclusion": "failure",
+    "tests": 2566,
+    "skipped": 2,
+    "failures": 3,
+    "pages_run": 39559820148,
+    "pages_conclusion": "success",
+    "new_commit_ci": "not yet available"
+  }
+}

@@ -73,6 +73,7 @@ import TurtleGitCore
         }
         let separators = MergeFindOptions.load(from: target.mergeFindDefaults).wordSeparators
         let markingChanged = contentChanged || !cachedMarkedWord.utf8.elementsEqual(markedWord.utf8) || !cachedSeparators.utf8.elementsEqual(separators.utf8)
+        let previousMarks = markedRanges
         if markingChanged {
             markedRanges = MergeMarkedWord.matches(markedWord, in: lines, wordSeparators: separators)
             cachedMarkedWord = markedWord; cachedSeparators = separators
@@ -105,7 +106,7 @@ import TurtleGitCore
         paint(markedRanges, scale: 200, key: .mergeMarkedWord)
         paint(paintRanges, scale: 30, key: .mergeFindMatch)
         let highlights = MergeLocatorHighlights(search: MergeMarkedWord.rows(for: ranges, in: lines), marked: MergeMarkedWord.rows(for: markedRanges, in: lines))
-        if locatorHighlights != highlights { locatorHighlights = highlights; annotationsChanged() }
+        if locatorHighlights != highlights || previousMarks != markedRanges { locatorHighlights = highlights; annotationsChanged() }
         text.needsDisplay = true
     }
 }

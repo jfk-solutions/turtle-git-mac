@@ -218,8 +218,17 @@ final class MetafileImageTests: XCTestCase {
         try primary(value, 1, 60, 32)
         try primary(value, 2, 49, 54)
         XCTAssertTrue(try rgb(value, 44, 30).allSatisfy { $0 > 0.9 }, "Brush/world transforms misplaced the painted rectangle")
-        let svg = String(decoding: try XCTUnwrap(MetafileImageDecoder.convert(data("plus-gradient-transform.emf"))), as: UTF8.self)
-        XCTAssertTrue(svg.contains("<linearGradient"), "Gradient was flattened to a solid color")
+        // Final snapshots prune unreferenced semantic gradient definitions.
+        // Verify the actual paint pixels before native SVG display instead.
+        let paints = try embeddedPaints("plus-gradient-transform.emf")
+        XCTAssertEqual(paints.count, 1)
+        let paint = try XCTUnwrap(paints.first)
+        for (channel, x, y) in [(0, 70, 10), (1, 60, 32), (2, 49, 54)] {
+            let color = try paint.sample(x, y)
+            XCTAssertGreaterThan(color[channel], 0.8, paint.diagnostic)
+            for other in 0..<3 where other != channel { XCTAssertLessThan(color[other], 0.25, paint.diagnostic) }
+            XCTAssertEqual(color[3], 1, accuracy: 1.0 / 255, paint.diagnostic)
+        }
     }
     func testEllipticalPathGradientUsesBoundaryToCenterPresetOrderAndTransforms() throws {
         let value = try image("plus-gradient-radial.emf")
@@ -230,8 +239,15 @@ final class MetafileImageTests: XCTestCase {
         try primary(value, 1, 66, 38)
         try primary(value, 2, 76, 38)
         XCTAssertTrue(try rgb(value, 20, 20).allSatisfy { $0 > 0.9 })
-        let svg = String(decoding: try XCTUnwrap(MetafileImageDecoder.convert(data("plus-gradient-radial.emf"))), as: UTF8.self)
-        XCTAssertTrue(svg.contains("<radialGradient"))
+        let paints = try embeddedPaints("plus-gradient-radial.emf")
+        XCTAssertEqual(paints.count, 1)
+        let paint = try XCTUnwrap(paints.first)
+        for (channel, x, y) in [(0, 54, 38), (1, 66, 38), (2, 76, 38)] {
+            let color = try paint.sample(x, y)
+            XCTAssertGreaterThan(color[channel], 0.8, paint.diagnostic)
+            for other in 0..<3 where other != channel { XCTAssertLessThan(color[other], 0.25, paint.diagnostic) }
+            XCTAssertEqual(color[3], 1, accuracy: 1.0 / 255, paint.diagnostic)
+        }
     }
     func testLinearGradientHorizontalBlendFactorsRetainPlateausAndMidpoint() throws {
         let value = try image("plus-gradient-blend.emf")

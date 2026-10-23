@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Compare and Merge pane identity and status</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="compare-and-merge-pane-identity-and-status">Compare and Merge pane identity and status</h1>
+<p>Pinned source: <code>7338078f8ddd924b8cddee35f512f2286072136d</code>,
+<code>TortoiseMerge/BaseView.cpp::DrawHeader</code> and header tooltip handling,
+<code>MainFrm.cpp::OnUpdateColumnStatusBar/OnUpdateMarkedWords</code>.</p>
+<p>Compare uses compact single-line pane headers with the source Removed/Added
+palette. Three-way Merge uses neutral headers. Each header retains its pane title
+and source description, prefixes a modified pane with <code>* </code>, and draws an active
+focus edge. Literal titles and full paths remain available in native tooltips;
+embedded tabs and line separators use visible symbols only in the bounded
+caption. The document, path and saved bytes are unchanged. Colors use the owning
+comparison's captured palette preferences and adapt to light/dark appearance.</p>
+<p>Pressing a header focuses its actual editor. Readonly panes retain navigation and
+status. Closed, detached or replaced owners, busy operations and open sheets
+refuse activation. Captured callbacks cannot revive across Quit, reload, pane
+exchange or optional Base replacement. Combined one-pane Compare follows the
+active combined editor. Three-way Merge retains the independent result dirty
+indicator and existing kept-source explanation.</p>
+<p>The status bar reports the focused pane's one-based logical UTF-16 column,
+matching the source caret view coordinate. A tab counts one character, a non-BMP
+character uses two UTF-16 units, and wrapping does not reset the logical column.
+Marked-word counts follow source order: <code>L</code> for left, <code>R</code> for right and <code>B</code> for
+the bottom result. A separate optional Base preview is an additional native pane;
+its marks do not replace the source bottom count. Changing the marked word can
+change counts within the same line, independently of locator row highlights.
+The existing View/Status Bar preference hides and restores these indicators.</p>
+<p>Implementation is shared by <code>MergePanePresentation.swift</code>,
+<code>FileComparisonWindow.swift</code>, <code>TextConflictWindow.swift</code> and
+<code>MergeFindWindow.swift</code>. The
+<a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/merge-patch-family-2026-10-21.json">dated grouped record</a> reports actual
+validation attempts, repairs and captures. A fixture or this document alone is
+not evidence of a pass.</p>
+<p>Complete upstream command/state/layout parity, physical pointer/keyboard and
+VoiceOver behavior, very large documents, all locales, minimum-version/Intel,
+current installed signed workflows and complete hosted integration remain open.
+The separate <a href="PATCH-SAVE-APPLICATION-POLICY-PARITY.html">patch application/save family</a>
+does not close the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-PATCH-TEXT-ADAPTER-GAPS.html">source text-patch adapter gap</a>.</p>
+<p>The October 23 grouped checkpoint passes all six case/engine pairs across the
+three native scenarios, with twelve reviewed light/dark captures. The patch/Core
+group passes 48 tests; a separate 59-test focused check covers actual hosted
+assertion repairs. Failed attempts and their repairs remain in the dated record.
+These scoped results do not establish complete upstream or signed acceptance.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

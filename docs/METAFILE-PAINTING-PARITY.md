@@ -143,9 +143,13 @@ patterns incorrectly. Those observations required production painting changes;
 they were not resolved by removing pixel assertions. A separate native SVG
 alpha issue interpreted `rgba(...,1)` as byte alpha 1/255.
 
-Gradient objects retain semantic SVG gradient definitions as metadata, but actual
-brush color is evaluated analytically into a bounded PNG through the existing
-native `__turtleBitmap` adapter. The original fill geometry remains a vector
+Gradient objects create semantic SVG gradient definitions in the live drawing
+context, but actual brush color is evaluated analytically into a bounded PNG
+through the existing native `__turtleBitmap` adapter. SVG snapshots, including
+the final output, serialize only reachable definitions and their transitive
+references. Unreferenced semantic gradient definitions are therefore omitted;
+their absence does not indicate a solid-color replacement. The live definitions
+remain available for later object selections and SaveDC/RestoreDC. The original fill geometry remains a vector
 clip. Gradient text uses white text in a luminance mask because native SVG clip
 text was not honored. Conservative path-control-hull/rectangle/ellipse-arc
 bounds receive one pixel of padding; text falls back to the viewport bounds.

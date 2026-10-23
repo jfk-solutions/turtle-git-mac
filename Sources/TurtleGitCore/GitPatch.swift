@@ -250,23 +250,40 @@ public struct WorkingTreePatchFileResult: Sendable {
     public let success: Bool
     public let output: String
     public let requiresMerge: Bool
-    public init(pathBytes:Data,success:Bool,output:String,requiresMerge:Bool = false) {self.pathBytes = pathBytes;self.success = success;self.output = output;self.requiresMerge = requiresMerge}
+    /// The file was patched even when a later optional Git Add failed.
+    public let addError:String?
+    /// Git applied the patch; subsequent empty-result cleanup did not finish.
+    public let postApplyError:String?
+    public init(pathBytes:Data,success:Bool,output:String,requiresMerge:Bool = false,addError:String?=nil,postApplyError:String?=nil) {self.pathBytes = pathBytes;self.success = success;self.output = output;self.requiresMerge = requiresMerge;self.addError=addError;self.postApplyError=postApplyError}
 }
 public struct WorkingTreePatchBatchResult: Sendable {
     public let files: [WorkingTreePatchFileResult]
     public let cancelled: Bool
 }
 
+/// A current-file receipt, emitted before work; completedIndex counts only
+/// settled distinct paths. Original fileIDs and exact path bytes are retained.
+public struct WorkingTreePatchProgress:Sendable {
+    public let fileID:Int,pathBytes:Data,completedIndex:Int,total:Int
+    public init(fileID:Int,pathBytes:Data,completedIndex:Int,total:Int) {self.fileID=fileID;self.pathBytes=pathBytes;self.completedIndex=completedIndex;self.total=total}
+}
+
 extension GitRepository {
     /// FilePatchesDlg patches in list order, reports a failed file and continues.
     /// Whole checked-file application remains a separate, atomic Git operation.
-    public func applyWorkingTreePatchBatch(_ review: WorkingTreePatchReview, fileIDs: Set<Int>, mergeConfiguration:SubversionMergeConfiguration? = nil,textEncodingPolicy:MergeTextEncodingPolicy? = nil, cancellation: OperationCancellation? = nil,
-        onResult: (@Sendable (WorkingTreePatchFileResult) -> Void)? = nil) throws -> WorkingTreePatchBatchResult {
+    public func applyWorkingTreePatchBatch(_ review: WorkingTreePatchReview, fileIDs: Set<Int>, mergeConfiguration:SubversionMergeConfiguration? = nil,autoAddNewFiles:Bool=false,textEncodingPolicy:MergeTextEncodingPolicy? = nil, cancellation: OperationCancellation? = nil,
+        onProgress:(@Sendable(WorkingTreePatchProgress)->Void)?=nil,onResult: (@Sendable (WorkingTreePatchFileResult) -> Void)? = nil) throws -> WorkingTreePatchBatchResult {
         guard review.repositoryRoot == root, !fileIDs.isEmpty,
               fileIDs.isSubset(of: Set(review.files.map(\.id))) else { throw WorkingTreePatchFailure.review }
+        func matchingTextChange(_ review:WorkingTreePatchReview,file:WorkingTreePatchReview.File)->Bool {
+            review.files.contains{$0.pathBytes==file.pathBytes && (($0.additions ?? 0)>0 || ($0.deletions ?? 0)>0)}
+        }
+        let total=Set(review.files.filter{fileIDs.contains($0.id)}.map(\.pathBytes)).count
         var seen = Set<Data>(), results: [WorkingTreePatchFileResult] = []
         for file in review.files where fileIDs.contains(file.id) && seen.insert(file.pathBytes).inserted {
             if cancellation?.isCancelled == true { return .init(files: results, cancelled: true) }
+            onProgress?(.init(fileID:file.id,pathBytes:file.pathBytes,completedIndex:results.count,total:total))
+            if cancellation?.isCancelled==true {return .init(files:results,cancelled:true)}
             // Multiple patch records for one path must be applied together.
             let ids = Set(review.files.filter { $0.pathBytes == file.pathBytes }.map(\.id))
             let result: WorkingTreePatchFileResult
@@ -283,13 +300,29 @@ extension GitRepository {
                         }
                         let merged = try comparison.patchMergeDocument(engine:mergeConfiguration,cancellation:cancellation)
                         if MergeText.conflicts(in:merged.initialResult,document:merged).isEmpty && merged.mergeSources?.ignoredConflicts.isEmpty != false {
-                            let saved = try saveWorkingTreePatchFile(comparison,text:merged.initialResult,encoding:merged.encoding,autoAddNewFiles:false,cancellation:cancellation)
-                            result = .init(pathBytes:file.pathBytes,success:true,output:"Merged patch with its recorded base.\n" + saved.output)
+                            let saved = try saveWorkingTreePatchFile(comparison,text:merged.initialResult,encoding:merged.encoding,autoAddNewFiles:autoAddNewFiles,cancellation:cancellation)
+                            result = .init(pathBytes:file.pathBytes,success:true,output:"Merged patch with its recorded base.\n" + saved.output,addError:saved.addError)
                         } else {result = .init(pathBytes:file.pathBytes,success:false,output:"The patch needs a three-way merge. Preview this file to resolve its conflicts.\n" + failure,requiresMerge:true)}
                     } else {result = .init(pathBytes: file.pathBytes, success: false, output: failure)}
                 } else {
-                    let output = try applyWorkingTreePatch(selected, cancellation: cancellation)
-                    result = .init(pathBytes: file.pathBytes, success: true, output: output)
+                    guard let path=String(data:file.pathBytes,encoding:.utf8) else{throw WorkingTreePatchFailure.pathEncoding}
+                    let location=try workingTreePatchLocation(path)
+                    let missing=(try? FileManager.default.attributesOfItem(atPath:location.path)) == nil
+                    var output = try applyWorkingTreePatch(selected, cancellation: cancellation)
+                    // Source PatchSave deletes zero logical text records, even
+                    // a BOM-only regular file; a terminated blank line is kept.
+                    var postApplyError:String?
+                    let changesText=matchingTextChange(review,file:file)
+                    if changesText,let content=try? WorkingFileComparison.workingContent(at:location),["100644","100755"].contains(content.mode ?? ""),content.text?.isEmpty == true {
+                        do{try cancellation?.check();try FileManager.default.removeItem(at:location)}
+                        catch{postApplyError=error.localizedDescription;output += "Patch applied; empty-result cleanup did not finish: \(error.localizedDescription)\n"}
+                    }
+                    var addError:String?
+                    if postApplyError==nil,autoAddNewFiles,review.isGitWorkingTree,missing,let content=try? WorkingFileComparison.workingContent(at:location),content.mode != nil {
+                        do{_=try stage([path],cancellation:cancellation);output += "Added \(path) to Git.\n"}
+                        catch{addError=error.localizedDescription}
+                    }
+                    result = .init(pathBytes: file.pathBytes, success: true, output: output,addError:addError,postApplyError:postApplyError)
                 }
             } catch {
                 let needsFormat:Bool
@@ -613,15 +646,18 @@ public struct WorkingTreePatchSaveResult: Sendable {
 }
 
 extension GitRepository {
-    public func saveWorkingTreePatchFile(_ comparison: WorkingTreePatchFileComparison, text: String, encoding: ComparisonTextEncoding? = nil, autoAddNewFiles: Bool = true, cancellation: OperationCancellation? = nil) throws -> WorkingTreePatchSaveResult {
+    public func saveWorkingTreePatchFile(_ comparison: WorkingTreePatchFileComparison, text: String, encoding: ComparisonTextEncoding? = nil, autoAddNewFiles: Bool = true, options:MergeFileSaveOptions?=nil,cancellation: OperationCancellation? = nil) throws -> WorkingTreePatchSaveResult {
         try cancellation?.check()
         let destination = comparison.document.destination
         guard comparison.review.repositoryRoot == root, ["100644", "100755"].contains(destination.mode ?? "") else {throw FileComparisonEditFailure.unsupported}
         let bytes = try FileComparisonEditing.encoded(text,like:destination,encoding:encoding)
         var outputs = comparison.outputs
-        // Preserve the existing PatchSave zero-line deletion policy for text.
-        outputs[destination.path] = ComparisonFileContent(path:destination.path,revision:.workingTree,bytes:text.isEmpty ? Data() : bytes,mode:text.isEmpty ? nil : destination.mode,permissions:text.isEmpty ? nil : destination.permissions,encoding:encoding ?? destination.encoding,isDeleted:text.isEmpty)
-        return try savePatchOutputs(comparison,outputs:outputs,autoAddNewFiles:autoAddNewFiles,message:"Saved patched result.\n",cancellation:cancellation)
+        // nil is automatic PatchSave; explicit FileSave carries the accepted
+        // empty-file answer and captured Backup preference from the editor.
+        if let options,options.emptyResult == .delete,!text.isEmpty {throw MergeFileSaveFailure.nonemptyDeletion}
+        let deleting=text.isEmpty && (options?.emptyResult ?? .delete) == .delete
+        outputs[destination.path] = ComparisonFileContent(path:destination.path,revision:.workingTree,bytes:deleting ? Data():bytes,mode:deleting ? nil:destination.mode,permissions:deleting ? nil:destination.permissions,encoding:encoding ?? destination.encoding,isDeleted:deleting)
+        return try savePatchOutputs(comparison,outputs:outputs,autoAddNewFiles:autoAddNewFiles,backupOriginal:options?.backupOriginal ?? false,message:"Saved patched result.\n",cancellation:cancellation)
     }
     public func resolveWorkingTreePatchFile(_ comparison:WorkingTreePatchFileComparison,choice:WorkingTreePatchResolutionChoice,autoAddNewFiles:Bool = true,cancellation:OperationCancellation? = nil) throws -> WorkingTreePatchSaveResult {
         guard comparison.review.repositoryRoot == root,comparison.requiresMerge,comparison.recoveryKind != .text else {throw WorkingTreePatchFailure.review}
@@ -629,7 +665,7 @@ extension GitRepository {
         let outputs = chosen.mapValues {content in ComparisonFileContent(path:content.path,revision:.workingTree,bytes:content.bytes,mode:content.mode,permissions:content.permissions,encoding:content.encoding,isDeleted:content.mode == nil)}
         return try savePatchOutputs(comparison,outputs:outputs,autoAddNewFiles:choice == .patched && autoAddNewFiles,message:choice == .current ? "Kept current working files and paths.\n" : "Saved the selected patched file state.\n",cancellation:cancellation)
     }
-    private func savePatchOutputs(_ comparison:WorkingTreePatchFileComparison,outputs:GitPathMap<ComparisonFileContent>,autoAddNewFiles:Bool,message:String,cancellation:OperationCancellation?) throws -> WorkingTreePatchSaveResult {
+    private func savePatchOutputs(_ comparison:WorkingTreePatchFileComparison,outputs:GitPathMap<ComparisonFileContent>,autoAddNewFiles:Bool,backupOriginal:Bool=false,message:String,cancellation:OperationCancellation?) throws -> WorkingTreePatchSaveResult {
         try cancellation?.check()
         guard comparison.review.repositoryRoot == root,let destination = outputs[comparison.document.destination.path] else {throw WorkingTreePatchFailure.review}
         let inputs=comparison.currentInputs
@@ -676,6 +712,11 @@ extension GitRepository {
         let patch = try run(location + ["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", before, after], environmentOverrides: environment, cancellation: cancellation).stdout
         try validateInputs()
         var output = message
+        func backupDestination()throws {
+            guard backupOriginal,let original=inputs[destination.path],["100644","100755"].contains(original.mode ?? "") else{return}
+            let target=try workingTreePatchLocation(destination.path)
+            try MergeWorkingFileSave.backup(at:target,original:original.bytes,permissions:original.permissions ?? 0o644,validate:validateInputs)
+        }
         if !patch.isEmpty {
             output += try withPatchTarget(patch, directoryMode: comparison.review.directoryMode, isGitWorkingTree: comparison.review.isGitWorkingTree, cancellation: cancellation) { file, execute in
                 // Save edited bytes exactly; repository whitespace-fix policy was
@@ -683,9 +724,11 @@ extension GitRepository {
                 let arguments = ["apply", "--whitespace=nowarn"]
                 _ = try execute(arguments + ["--check", "--", file.path])
                 try validateInputs()
+                try backupDestination()
+                try validateInputs()
                 return try execute(arguments + ["--", file.path]).text
             }
-        }
+        } else {try backupDestination()}
         var addError: String?
         if autoAddNewFiles, comparison.review.isGitWorkingTree, comparison.inputs[destination.path]?.mode == nil, destination.mode != nil {
             do { _ = try stage([destination.path], cancellation: cancellation); output += "Added \(destination.path) to Git.\n" }

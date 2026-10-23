@@ -179,7 +179,7 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         XCTAssertEqual(cat.request.action, .cat); XCTAssertEqual(cat.catRevision, "HEAD:folder/a b"); XCTAssertEqual(cat.outputFile?.path, "/repo/result.bin")
         XCTAssertEqual(try parse(["/command:commitisonrefs", "/rev:topic"]).selectedRevision, "topic")
         XCTAssertNil(try parse(["/command:commitisonrefs", "/rev:"]).selectedRevision)
-        for (ext, format) in [("SVG", RevisionGraphFormat.svg), ("gv", .graphviz), ("dot", .graphviz), ("png", .png), ("jpg", .jpeg), ("jpeg", .jpeg), ("bmp", .bmp), ("gif", .gif), ("pdf", .pdf)] {
+        for (ext, format) in [("SVG", RevisionGraphFormat.svg), ("gv", .graphviz), ("dot", .graphviz), ("png", .png), ("jpg", .jpeg), ("jpeg", .jpeg), ("bmp", .bmp), ("gif", .gif), ("pdf", .pdf), ("WMF", .wmf), ("emf", .emf), ("EMF", .emf)] {
             let graph = try parse(["--command=revisiongraph", "--output=graph." + ext])
             XCTAssertEqual(graph.graphOutputFormat, format); XCTAssertEqual(graph.outputFile?.path, "/repo/graph." + ext)
         }
@@ -188,7 +188,7 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         for action in [RepositoryAction.cat, .showCompare, .commitIsOnRefs] { XCTAssertNil(FinderMenuEntry.entry(for: action)) }
     }
     func testHistoricalCommandInvalidOptionsAndPathFileCardinality() throws {
-        for arguments in [["--command=cat"], ["--command=cat", "--revision=HEAD"], ["--command=cat", "--revision=", "--savepath=x"], ["--command=cat", "--revision=-x", "--savepath=x"], ["--command=cat", "--revision=HEAD", "--outfile=x"], ["--command=showcompare"], ["--command=showcompare", "--revision1=-bad"], ["--command=revisiongraph", "--output=x.emf"], ["--command=revisiongraph", "--outfile=x.svg"], ["--command=commitisonrefs", "--revision=HEAD"]] {
+        for arguments in [["--command=cat"], ["--command=cat", "--revision=HEAD"], ["--command=cat", "--revision=", "--savepath=x"], ["--command=cat", "--revision=-x", "--savepath=x"], ["--command=cat", "--revision=HEAD", "--outfile=x"], ["--command=showcompare"], ["--command=showcompare", "--revision1=-bad"], ["--command=revisiongraph", "--output=x\0.emf"], ["--command=revisiongraph", "--output"], ["--command=revisiongraph", "--outfile=x.svg"], ["--command=commitisonrefs", "--revision=HEAD"]] {
             XCTAssertThrowsError(try parse(arguments), arguments.joined(separator: " "))
         }
         let root = try temporaryDirectory(); defer { try? FileManager.default.removeItem(at: root) }
@@ -201,6 +201,18 @@ final class PrimaryCommandInvocationTests: XCTestCase {
         XCTAssertEqual(resolved.catRevision, "HEAD"); XCTAssertEqual(resolved.outputFile?.path, "/repo/x"); XCTAssertEqual(resolved.request.paths.first?.path, "/repo/folder/a b")
         let graph = try parse(["--command=revisiongraph", "--output=x.svg", "--pathfile=roots"])
         XCTAssertEqual(graph.selecting([root]).graphOutputFormat, .svg)
+        // Metafiles are valid filename-selected encoders. A repository chooser
+        // must preserve the captured final output rather than retargeting it.
+        let metafile = try parse(["--command=revisiongraph", "--output=graph 雪.EMF"])
+        XCTAssertEqual(metafile.graphOutputFormat, .emf)
+        XCTAssertEqual(metafile.outputFile?.path, "/repo/graph 雪.EMF")
+        XCTAssertEqual(metafile.selecting([root]).graphOutputFormat, .emf)
+        XCTAssertEqual(metafile.selecting([root]).outputFile, metafile.outputFile)
+        // An unknown suffix follows upstream's JPEG fallback; it is not an
+        // invalid destination merely because no encoder owns that suffix.
+        let fallback = try parse(["--command=revisiongraph", "--output=graph.unknown"])
+        XCTAssertEqual(fallback.graphOutputFormat, .jpeg)
+        XCTAssertEqual(fallback.outputFile?.path, "/repo/graph.unknown.jpg")
     }
     func testSynchronizationAndSVNCommandRouting() throws {
         for (command, action) in [("sync", RepositoryAction.synchronize), ("svnfetch", .svnFetch), ("svnrebase", .svnRebase), ("svndcommit", .svnDCommit), ("svnignore", .svnIgnore)] {

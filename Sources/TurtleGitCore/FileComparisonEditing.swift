@@ -637,24 +637,29 @@ public enum MergeFileSaveFailure: LocalizedError {
 /// the Windows MoveFileEx path, a failed preparation leaves the original intact.
 /// Backups retain captured bytes/mode and replace only a regular .bak sibling.
 enum MergeWorkingFileSave {
+    /// Prepare a source FileSave backup without rewriting the current target.
+    /// Patch review uses this after its generated patch has passed --check.
+    static func backup(at location:URL,original:Data?,permissions:Int,validate:()throws->Void)throws {
+        guard let original else{return}
+        let manager=FileManager.default,target=URL(fileURLWithPath:location.path+".bak")
+        let temporary=location.deletingLastPathComponent().appendingPathComponent(".TurtleGitBackup-"+UUID().uuidString)
+        defer{try? manager.removeItem(at:temporary)}
+        if let attributes=try? manager.attributesOfItem(atPath:target.path),attributes[.type] as? FileAttributeType != .typeRegular {throw MergeFileSaveFailure.backupTarget}
+        try original.write(to:temporary,options:.withoutOverwriting)
+        try manager.setAttributes([.posixPermissions:permissions],ofItemAtPath:temporary.path)
+        try validate()
+        guard Darwin.rename(temporary.path,target.path)==0 else{throw CocoaError(.fileWriteUnknown)}
+    }
     static func write(at location: URL, original: Data?, permissions: Int, bytes: Data, delete: Bool, backup: Bool, validate: () throws -> Void) throws {
         let manager = FileManager.default
         let temporary = location.deletingLastPathComponent().appendingPathComponent(".TurtleGitSave-" + UUID().uuidString)
-        let backupTemporary = location.deletingLastPathComponent().appendingPathComponent(".TurtleGitBackup-" + UUID().uuidString)
-        defer { try? manager.removeItem(at: temporary); try? manager.removeItem(at: backupTemporary) }
+        defer { try? manager.removeItem(at: temporary) }
         if !delete {
             try bytes.write(to: temporary, options: .withoutOverwriting)
             try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: temporary.path)
         }
         try validate()
-        if backup, let original {
-            let target = URL(fileURLWithPath: location.path + ".bak")
-            if let attributes = try? manager.attributesOfItem(atPath: target.path), attributes[.type] as? FileAttributeType != .typeRegular { throw MergeFileSaveFailure.backupTarget }
-            try original.write(to: backupTemporary, options: .withoutOverwriting)
-            try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: backupTemporary.path)
-            try validate()
-            guard Darwin.rename(backupTemporary.path, target.path) == 0 else { throw CocoaError(.fileWriteUnknown) }
-        }
+        if backup {try Self.backup(at:location,original:original,permissions:permissions,validate:validate)}
         try validate()
         if delete { if original != nil { try manager.removeItem(at: location) } }
         else { guard Darwin.rename(temporary.path, location.path) == 0 else { throw CocoaError(.fileWriteUnknown) } }

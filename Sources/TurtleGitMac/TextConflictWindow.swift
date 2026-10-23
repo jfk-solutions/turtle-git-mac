@@ -191,6 +191,7 @@ struct MergeTabControls: View {
         }.disabled(!writable).fixedSize().accessibilityLabel("\(label) tab settings: \(settingsTitle)")
     }
 }
+enum TextConflictPaneRole { case theirs, mine, base, result }
 private enum MergeSourceSide {
     case mine, theirs
     var icon: MenuIcon { self == .mine ? .mergeUseMine : .mergeUseTheirs }
@@ -853,6 +854,52 @@ private enum MergeSourceSide {
     @Published private(set) var locatorPreferences = MergeLocatorPreferences.load()
     @Published private(set) var locatorViewport = MergeLocatorViewport()
     private weak var locatorResultScroll: NSScrollView?
+    private weak var basePresentationScroll:NSScrollView?
+    @Published private(set) var activePresentationPane:TextConflictPaneRole?
+    @Published private(set) var presentationColumn=1
+    @Published private(set) var presentationMarkedCounts:[MergePaneMarkCount]=[]
+    private var panePresentationScheduled=false
+    fileprivate func presentationView(_ role:TextConflictPaneRole)->MergeTextView? {
+        if role == .result {return locatorResultScroll?.documentView as? MergeTextView}
+        if role == .base {guard let view=basePresentationScroll?.documentView as? MergeTextView,view.window === window else{return nil};return view}
+        return sourceScrolls.values.compactMap{$0.view?.documentView as? MergeTextView}.first{$0.presentationRole == role && $0.window === window}
+    }
+    fileprivate func refreshPanePresentation() {
+        guard !retired else{return}
+        let focused=(window?.firstResponder as? MergeTextView).flatMap {view in
+            presentationView(view.presentationRole) === view ? view:nil
+        }
+        let role=focused?.presentationRole,column=MergePanePresentation.column(in:focused)
+        let counts=[MergePanePresentation.marked(label:"L",in:presentationView(.theirs)),MergePanePresentation.marked(label:"R",in:presentationView(.mine)),MergePanePresentation.marked(label:"B",in:presentationView(.result))]
+        if activePresentationPane != role {activePresentationPane=role}
+        if presentationColumn != column {presentationColumn=column}
+        if presentationMarkedCounts != counts {presentationMarkedCounts=counts}
+    }
+    fileprivate func schedulePanePresentation() {
+        guard !retired,!panePresentationScheduled else{return};panePresentationScheduled=true
+        DispatchQueue.main.async{[weak self] in guard let self else{return};self.panePresentationScheduled=false;self.refreshPanePresentation()}
+    }
+    func focusPresentationPane(_ role:TextConflictPaneRole) {
+        guard sourceToolsAllowed,let view=presentationView(role),let window,view.window === window else{return}
+        if window.makeFirstResponder(view) {refreshPanePresentation()}
+    }
+    func paneHeaderAction(_ role:TextConflictPaneRole)->()->Void {
+        let epoch=paneTabEpoch,generation=loadGeneration,preferences=comparisonDefaults
+        return {[weak self] in
+            guard let self,self.paneTabEpoch==epoch,self.loadGeneration==generation,self.comparisonDefaults === preferences else{return}
+            self.focusPresentationPane(role)
+        }
+    }
+    func paneHeaderLocation(_ role:TextConflictPaneRole)->String {
+        let mine:Bool?=role == .mine ? true:role == .theirs ? false:nil
+        if let reflected=mergeToolPaneLocation(mine:mine,result:role == .result){return reflected}
+        if let mine,let target=sourceTargetURL(mine:mine){return target.path}
+        if let workingMerge {
+            switch role {case .base:return workingMerge.baseURL.path;case .mine:return workingMerge.mineURL.path;case .theirs:return workingMerge.theirsURL.path;case .result:break}
+        }
+        let path=role == .result ? resultPath:self.path
+        return (path as NSString).isAbsolutePath ? path:repository.root.appendingPathComponent(path).path
+    }
     @Published private(set) var locatorHighlights = [MergeLocatorHighlights(), .init(), .init()]
     private var locatorHighlightsScheduled = false
     func refreshLocatorHighlights() {
@@ -870,6 +917,7 @@ private enum MergeSourceSide {
             }
             let next: [MergeLocatorHighlights] = [.read(left), result, .read(right)]
             if self.locatorHighlights != next { self.locatorHighlights = next }
+            self.refreshPanePresentation()
         }
     }
     var locatorMap: MergeLocatorMap {
@@ -881,7 +929,8 @@ private enum MergeSourceSide {
         if locatorPreferences.visible != value.visible { lineDiffBarVisible = showLineDiffBar }
         locatorPreferences = value; value.save(to: comparisonDefaults)
     }
-    func registerLocatorResult(_ scroll: NSScrollView) { locatorResultScroll = scroll }
+    func registerLocatorResult(_ scroll: NSScrollView) { locatorResultScroll = scroll;schedulePanePresentation() }
+    func registerBasePresentation(_ scroll:NSScrollView) {basePresentationScroll=scroll;schedulePanePresentation()}
     func invalidateLineRulers() {
         for reference in sourceScrolls.values { reference.view?.verticalRulerView?.needsDisplay = true }
         locatorResultScroll?.verticalRulerView?.needsDisplay = true
@@ -992,7 +1041,7 @@ private enum MergeSourceSide {
     @Published var busy = false { didSet { if oldValue != busy { paneTabEpoch = UUID() };if !busy {externalReloadCoordinator?.resume()} } }
     @Published private(set) var preparing = false {didSet {if !preparing {externalReloadCoordinator?.resume()}}}
     @Published var confirmingQuit = false {didSet {
-        if oldValue != confirmingQuit {inputEncodingEpoch=UUID();if confirmingQuit {retireReloadChoice();retireFormatChoice();loadCancellation?.cancel()}}
+        if oldValue != confirmingQuit {inputEncodingEpoch=UUID();paneTabEpoch=UUID();if confirmingQuit {retireReloadChoice();retireFormatChoice();loadCancellation?.cancel()}}
         if !confirmingQuit {externalReloadCoordinator?.resume()}
     }}
     @Published var error: String?
@@ -1007,7 +1056,7 @@ private enum MergeSourceSide {
         guard !externalReloadBlocksCommands,!preservingSourceCopies,!retired, !busy, !confirmingQuit, showStatusBar != value else { return }
         showStatusBar = value;comparisonDefaults.set(value,forKey:"TurtleGitMerge.StatusBarVisible")
     }
-    @Published var showBase = false
+    @Published var showBase = false {didSet {if showBase != oldValue {paneTabEpoch=UUID();schedulePanePresentation()}}}
     @Published var canUndo = false
     @Published var canRedo = false
     @Published var tabWidths: [String: Int] = [:]
@@ -1188,7 +1237,7 @@ private enum MergeSourceSide {
     var onChanged: (String) -> Void = { _ in }
     private var sourceScrolls: [String: WeakMergeScroll] = [:]
     private var synchronizingScroll = false
-    func registerSourceScroll(_ scroll: NSScrollView, label: String) { sourceScrolls[label] = WeakMergeScroll(scroll); refreshLocatorViewport(); refreshLinePreviewOffsets() }
+    func registerSourceScroll(_ scroll: NSScrollView, label: String) { sourceScrolls[label] = WeakMergeScroll(scroll); refreshLocatorViewport(); refreshLinePreviewOffsets();schedulePanePresentation() }
     func sourceDidScroll(_ scroll: NSScrollView) {
         defer { refreshLocatorViewport(from:scroll); refreshLinePreviewOffsets() }
         guard !synchronizingScroll else { return }
@@ -1546,6 +1595,7 @@ private enum MergeSourceSide {
     }
     fileprivate func ownsPaneInput(_ view:MergeTextView)->Bool {view.window === window && navigationViews.contains{$0 === view}}
     fileprivate func focusNavigation(_ view: MergeTextView) {
+        schedulePanePresentation()
         guard view.mergeEditable || view.sourceSide != nil else { return }
         if lastNavigationView !== view { lastNavigationView = view; objectWillChange.send() }
         previewLine(in:view,offset:view.selectedRange().location)
@@ -1585,6 +1635,7 @@ private enum MergeSourceSide {
         return NSRange(location:ranges[rows.lowerBound].location,length:NSMaxRange(ranges[rows.upperBound - 1]) - ranges[rows.lowerBound].location)
     }
     fileprivate func navigationSelectionChanged(_ view: MergeTextView) {
+        schedulePanePresentation()
         guard !retired, !selectingNavigationBlock, window?.firstResponder === view,
               view.sourceCells == nil || view.sourceLayoutRevision == sourceLayoutRevision else { return }
         previewLine(in:view,offset:view.selectedRange().location)
@@ -1934,13 +1985,13 @@ private struct TextConflictDialog: View {
             if let inputRequest {model.applyInputEncoding(inputRequest,encoding:value)}
         }
         let formatDialog:(()->Void)?=editable ? {model.showFormatDialog()}:nil
+        let paneRole:TextConflictPaneRole=editable ? .result:side == .mine ? .mine:side == .theirs ? .theirs:.base
+        let paneTitle=model.mergeToolPaneTitle(title,mine:side.map{$0 == .mine},result:editable)
+        let details=[caption,side.flatMap{model.sourceTargetURL(mine:$0 == .mine)?.lastPathComponent},editable && model.mergeToolReadOnly ? "Read-only":nil,side.map{model.keptExternalSources.contains($0 == .mine)} == true ? "Modified (kept)":nil].compactMap{$0}.filter{!$0.isEmpty && $0 != paneTitle}
+        let headerTitle=([paneTitle]+details).joined(separator:" — ")
+        let headerLocation=model.paneHeaderLocation(paneRole)+(side.map{model.keptExternalSources.contains($0 == .mine)} == true ? "\n"+model.keptSourcesExplanation:"")
         return VStack(spacing: 0) {
-            HStack {
-                Text(model.mergeToolPaneTitle(title,mine:side.map { $0 == .mine },result:editable)).font(.headline).textSelection(.enabled).help(model.mergeToolPaneLocation(mine:side.map { $0 == .mine },result:editable) ?? title)
-                if let caption = model.mergeToolPaneLocation(mine:side.map { $0 == .mine },result:editable) ?? caption { Text(caption).font(.caption).lineLimit(1).help(caption).textSelection(.enabled) }
-                if let side, let url = model.sourceTargetURL(mine: side == .mine) { Text(url.lastPathComponent).font(.caption).lineLimit(1).help(url.path) }
-                Spacer();if let side,model.keptExternalSources.contains(side == .mine) {Text("Modified (kept)").font(.caption).foregroundStyle(.secondary).help(model.keptSourcesExplanation)}
-                if editable { Text(model.mergeToolReadOnly ? "Read-only" : model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
+            MergePaneHeader(title:headerTitle,location:headerLocation,modified:editable && model.dirty,active:model.activePresentationPane == paneRole,kind:.neutral,font:model.generalPreferences.nativeFont,enabled:model.sourceToolsAllowed,preferences:model.comparisonDefaults,activate:model.paneHeaderAction(paneRole))
             MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab).frame(minWidth: 220, minHeight: 120)
             let counts=MergeLineStatistics(states:cells?.map(\.state) ?? (editable ? model.alignedResultStates : []))
             if !counts.isEmpty {MergeLineStatisticsView(statistics:counts).padding(.horizontal,7).padding(.vertical,2)}
@@ -2035,6 +2086,7 @@ private struct TextConflictDialog: View {
                         ForEach(MergeBlockChoice.allCases, id: \.self) { choice in Button { model.choose(choice) } label: { CommandLabel(title: choice.rawValue, icon: choice.icon) } }
                     }.disabled(!model.canChooseConflict)
                     MergeTypingModeControl(overwrite:model.overwriteMode,enabled:model.sourceMutationsAllowed,toggle:{model.overwriteMode.toggle()})
+                    MergePaneStatus(column:model.presentationColumn,marked:model.presentationMarkedCounts)
                     Text("Line \(model.resultLineNumber)").font(.caption).foregroundStyle(.secondary)
                 }.padding(8)
                 }
@@ -2111,6 +2163,7 @@ private struct MergeEditor: NSViewRepresentable {
         scroll.borderType = .bezelBorder; scroll.findBarPosition = .belowContent; view.usesFindBar = true; view.isIncrementalSearchingEnabled = true
         scroll.documentView = view
         if sourceCells != nil && !editable { context.coordinator.attachSourceScroll(scroll, label: label) }
+        if !editable,sourceSide == nil {model.registerBasePresentation(scroll)}
         if editable {
             model.registerLocatorResult(scroll)
             scroll.contentView.postsBoundsChangedNotifications = true
@@ -2274,6 +2327,7 @@ private struct MergeEditor: NSViewRepresentable {
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
 private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverProviding, MergeEditorPresentationProviding, MergeContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+    var presentationRole:TextConflictPaneRole {mergeEditable ? .result:sourceSide == .mine ? .mine:sourceSide == .theirs ? .theirs:.base}
     override var paneInputLayout:MergeFoldTextLayout {foldLayout}
     override var paneInputCells:[MergeSourceCell]? {sourceCells}
     override var paneInputRevision:Int {mergeEditable ? model?.resultPresentationRevision ?? -1:model?.sourceLayoutRevision ?? -1}
@@ -2322,6 +2376,11 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
         if accepted { model?.focusNavigation(self) }
+        return accepted
+    }
+    override func resignFirstResponder()->Bool {
+        let accepted=super.resignFirstResponder()
+        if accepted {model?.schedulePanePresentation()}
         return accepted
     }
     @objc private func nextDifference(_ sender: Any?) { model?.navigateBlock(1,conflictsOnly:false) }

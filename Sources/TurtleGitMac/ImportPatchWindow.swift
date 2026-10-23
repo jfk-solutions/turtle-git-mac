@@ -982,6 +982,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private(set) var retired = false
     private var operation: OperationCancellation?
     private var specialQuestion:NSAlert?
+    private(set) var saveQuestion:NSAlert?
+    var presentSaveQuestion:((NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Void)?
     var chooseSpecialResolution:((WorkingTreePatchResolutionChoice,WorkingTreePatchFileComparison) async -> Bool)?
     @Published private(set) var keptCurrentPaths:Set<Data> = []
     @Published private(set) var specialSavedResult:WorkingTreePatchSaveResult?
@@ -1015,7 +1017,12 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     @Published private(set) var highlightedFiles = Set<Int>()
     private(set) var fileListGeneration = UUID()
     private var comparisonRead = false
-    var canPatchFiles: Bool { canReplaceComparison && !requiresRefresh && review?.files.contains(where: { !appliedPaths.contains($0.pathBytes) }) == true }
+    var canPatchFiles: Bool { !mergeToolReadOnly && canReplaceComparison && !requiresRefresh && review?.files.contains(where: { !appliedPaths.contains($0.pathBytes) }) == true }
+    @Published private(set) var batchProgress:WorkingTreePatchProgress?
+    @Published private(set) var batchCompleted=0
+    @Published private(set) var batchTotal=0
+    @Published private(set) var batchCancelled=false
+    private var batchApplying=false
     @Published private(set) var fileListVisible = true
     var canToggleFileList:Bool { !retired && review?.files.isEmpty == false && !confirmingQuit && !draftDecisionPending && window?.attachedSheet == nil }
     func toggleFileList() {
@@ -1050,29 +1057,43 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         guard !targets.isEmpty, let token = begin() else { return }
         selectedReview = nil
         let reverse = reversed, strip = stripCount
+        let autoAdd=MergeEditorPreferences.load(from:preferences).autoAdd
+        var engine = try? SubversionMergeConfiguration.bundled();engine?.options = .load(from:preferences)
+        let capturedEngine=engine,policy=reviewEncodingPolicy
+        batchApplying=true;batchProgress=nil;batchCompleted=0;batchTotal=Set(review.files.filter{targets.contains($0.id)}.map(\.pathBytes)).count;batchCancelled=false
         Task { [self] in
             defer { finish(token) }
             var reported = false
             do {
                 try checkAccess()
-                var engine = try? SubversionMergeConfiguration.bundled();engine?.options = .load(from:preferences)
-                let batch = try await repository.applyWorkingTreePatchBatch(review, fileIDs: targets, mergeConfiguration:engine,textEncodingPolicy:reviewEncodingPolicy, cancellation: token) { [weak self] result in
+                let batch = try await repository.applyWorkingTreePatchBatch(review, fileIDs: targets, mergeConfiguration:capturedEngine,autoAddNewFiles:autoAdd,textEncodingPolicy:policy, cancellation: token,onProgress:{ [weak self] progress in
                     Task { @MainActor [weak self] in
-                        guard let self, !self.retired, self.operation === token else { return }
+                        guard let self,!self.retired,self.operation === token,self.batchApplying else{return}
+                        self.batchProgress=progress;self.batchCompleted=progress.completedIndex;self.batchTotal=progress.total
+                    }
+                }) { [weak self] result in
+                    Task { @MainActor [weak self] in
+                        guard let self, !self.retired, self.operation === token,self.batchApplying else { return }
                         self.fileResults[result.pathBytes] = result
                         if result.success { self.appliedPaths.insert(result.pathBytes) }
+                        self.batchCompleted += 1
                     }
                 }
-                let report = batch.files.map { ( $0.success ? "Patched: " : "Error: " ) + String(decoding: $0.pathBytes, as: UTF8.self) + "\n" + $0.output }.joined(separator: "\n")
+                batchApplying=false
+                let report = batch.files.map { ( $0.success ? "Patched: " : "Error: " ) + String(decoding: $0.pathBytes, as: UTF8.self) + "\n" + $0.output + ($0.addError.map{"\nSaved patched file, but Add failed: " + $0} ?? "") }.joined(separator: "\n")
                 // Notify the repository owner even if the window was closed after
                 // a file changed; UI publications still require the live token.
                 if batch.files.contains(where: \.success) { onChanged(report) } else { onMutationStopped() }
                 reported = true
                 guard !retired, operation === token else { return }
                 for result in batch.files { fileResults[result.pathBytes] = result; if result.success { appliedPaths.insert(result.pathBytes) } }
+                batchCompleted=batch.files.count;batchCancelled=batch.cancelled;batchProgress=nil
                 output += "\n" + report + "\n"
+                if batch.cancelled {notice="Patching canceled. Completed files remain patched; refresh to inspect the remaining files."}
                 try ensure(token)
                 try await load(reverse: reverse, strip: strip, token: token)
+                let failures=batch.files.filter{!$0.success}.count,warnings=batch.files.filter{$0.addError != nil || $0.postApplyError != nil}.count
+                if failures>0 || warnings>0 {notice="Patched \(batch.files.filter(\.success).count) of \(batch.files.count) files. \(failures) failed; \(warnings) saved with warnings. Select a file to inspect its result."}
             } catch {
                 if !reported { onMutationStopped() }
                 if !retired && !token.isCancelled { notice = error.localizedDescription }
@@ -1080,7 +1101,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         }
     }
     @Published private(set) var busy = false { didSet { updateParentState(); onBusyChanged() } }
-    @Published var confirmingQuit = false { didSet { updateParentState() } }
+    @Published var confirmingQuit = false { didSet {if confirmingQuit && !oldValue {fileListGeneration=UUID();cancelOperation()};updateParentState() } }
     @Published private(set) var reversed = false
     @Published private(set) var stripCount = 1
     @Published private(set) var comparison: WorkingTreePatchFileComparison?
@@ -1120,6 +1141,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private func finish(_ token: OperationCancellation) {
         Self.activeOperations -= 1
         if operation === token {
+            batchApplying=false;batchProgress=nil
             operation = nil; busy = false
             if !retired && token.isCancelled {
                 if editor?.dirty == true { notice = "Operation canceled. Draft retained; retry Save, or discard edits and refresh." }
@@ -1134,14 +1156,42 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private func ensure(_ token: OperationCancellation) throws {
         guard !retired, operation === token, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
     }
-    func cancelOperation() {operation?.cancel();dismissSpecialQuestion();editor?.cancelOutput();editor?.cancelPaneSave();conflictEditor?.cancelPatchOperation()}
+    func cancelOperation() {operation?.cancel();dismissSpecialQuestion();dismissSaveQuestion();editor?.cancelOutput();editor?.cancelPaneSave();conflictEditor?.cancelPatchOperation()}
+    private func dismissSaveQuestion(){
+        guard let question=saveQuestion else{return}
+        if let window,question.window.sheetParent === window {window.endSheet(question.window,returnCode:.abort)}
+        question.window.orderOut(nil)
+    }
+    /// Explicit FileSave asks about an empty result and honors Backup. Automatic
+    /// PatchSave deliberately uses the Core nil-options policy instead.
+    private func explicitSaveOptions(text:String,path:String,backup:Bool,cancellation:OperationCancellation) async throws -> MergeFileSaveOptions? {
+        try cancellation.check()
+        guard !retired,!confirmingQuit else{throw OperationCancellationFailure.cancelled}
+        guard text.isEmpty else{return .init(backupOriginal:backup,emptyResult:.keep)}
+        guard let window,window.attachedSheet==nil,saveQuestion==nil else{return nil}
+        let alert=NSAlert();alert.alertStyle = .warning;alert.messageText="File is empty."
+        alert.informativeText="Delete “\((path as NSString).lastPathComponent)” or keep the empty file?"
+        alert.addButton(withTitle:"Delete");alert.addButton(withTitle:"Cancel — Keep Empty File").keyEquivalent="\u{1b}"
+        saveQuestion=alert
+        let response=await withCheckedContinuation {continuation in
+            var answered=false
+            let answer:(NSApplication.ModalResponse)->Void={response in guard !answered else{return};answered=true;continuation.resume(returning:response)}
+            if let presentSaveQuestion {presentSaveQuestion(alert,answer)}
+            else {alert.beginSheetModal(for:window,completionHandler:answer)}
+        }
+        while alert.window.sheetParent != nil || window.attachedSheet === alert.window {try? await Task.sleep(nanoseconds:5_000_000)}
+        if saveQuestion === alert {saveQuestion=nil}
+        try cancellation.check()
+        guard !retired,!confirmingQuit,response == .alertFirstButtonReturn || response == .alertSecondButtonReturn else{return nil}
+        return .init(backupOriginal:backup,emptyResult:response == .alertFirstButtonReturn ? .delete:.keep)
+    }
     private func dismissSpecialQuestion() {
         guard let question = specialQuestion else {return};specialQuestion = nil
         if let window,question.window.sheetParent === window {window.endSheet(question.window,returnCode:.alertFirstButtonReturn)}
         question.window.orderOut(nil)
     }
     func retire() {
-        guard !retired else { return }; retired = true; operation?.cancel();dismissSpecialQuestion()
+        guard !retired else { return }; retired = true; operation?.cancel();dismissSpecialQuestion();dismissSaveQuestion()
         fileListGeneration = UUID()
         previewDocument.retire(); editor?.retireImageLoader(); editorChanges = nil;conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil
         beforeScroll = nil; afterScroll = nil; close = {}; chooseDraft = { .cancel }; onBusyChanged = {}
@@ -1246,6 +1296,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     func resolveSpecial(_ choice:WorkingTreePatchResolutionChoice) {
         guard canResolveSpecial,let comparison = specialComparison,let token = begin() else {return}
         let generation = fileListGeneration
+        let autoAdd=MergeEditorPreferences.load(from:preferences).autoAdd
         Task { [self] in
             defer {finish(token)}
             var reported = false
@@ -1266,7 +1317,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
                 try ensure(token)
                 guard accepted,generation == fileListGeneration,self.comparison?.fileID == comparison.fileID else {return}
                 try checkAccess()
-                let saved = try await repository.resolveWorkingTreePatchFile(comparison,choice:choice,autoAddNewFiles:MergeEditorPreferences.load(from:preferences).autoAdd,cancellation:token)
+                let saved = try await repository.resolveWorkingTreePatchFile(comparison,choice:choice,autoAddNewFiles:autoAdd,cancellation:token)
                 onChanged(saved.output);reported = true
                 try ensure(token)
                 specialSavedResult = saved;specialResolutionChoice = choice
@@ -1286,10 +1337,13 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         next.patchComparison = comparison;next.window = window;next.comparisonDefaults = preferences
         next.workingMergePermissions = [access,fileAccess].compactMap {$0}
         next.patchResultSaver = { [weak self,weak next] text,encoding,cancellation in
-            guard let self,let next,!self.retired,let document = next.document else {throw OperationCancellationFailure.cancelled}
+            guard let self,let next,!self.retired,let document = next.document,let cancellation else {throw OperationCancellationFailure.cancelled}
+            let autoAdd=MergeEditorPreferences.load(from:self.preferences).autoAdd,backup=MergeFileSaveOptions.backupEnabled(from:self.preferences)
             do {
                 try self.checkAccess()
-                let saved = try await self.repository.saveWorkingTreePatchFile(next.patchComparison ?? comparison,text:text,encoding:encoding,autoAddNewFiles:MergeEditorPreferences.load(from:self.preferences).autoAdd,cancellation:cancellation)
+                guard let options=try await self.explicitSaveOptions(text:text,path:comparison.document.destination.path,backup:backup,cancellation:cancellation) else{throw OperationCancellationFailure.cancelled}
+                guard self.conflictEditor === next else{throw OperationCancellationFailure.cancelled}
+                let saved = try await self.repository.saveWorkingTreePatchFile(next.patchComparison ?? comparison,text:text,encoding:encoding,autoAddNewFiles:autoAdd,options:options,cancellation:cancellation)
                 self.onChanged(saved.output)
                 if !self.retired {
                     self.appliedPaths.insert(Data(comparison.document.destination.path.utf8));self.output += saved.output
@@ -1375,9 +1429,12 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     func saveDraft(completion: ((Bool) -> Void)? = nil) {
         if let conflictEditor {guard canSaveDraft else {completion?(false);return};conflictEditor.save(markResolved:false,completion:completion);return}
         guard canSaveDraft, let token = begin() else { completion?(false); return }
-        Task { let saved = await performSave(token); finish(token); completion?(saved) }
+        let policy=savePolicy()
+        Task { let saved = await performSave(token,policy:policy); finish(token); completion?(saved) }
     }
-    private func performSave(_ token: OperationCancellation) async -> Bool {
+    private struct SavePolicy {let autoAdd:Bool,backup:Bool}
+    private func savePolicy()->SavePolicy {.init(autoAdd:MergeEditorPreferences.load(from:preferences).autoAdd,backup:MergeFileSaveOptions.backupEnabled(from:preferences))}
+    private func performSave(_ token: OperationCancellation,policy:SavePolicy) async -> Bool {
         guard !retired, let comparison, let editor, editor.canEdit(base: false) else { return false }
         if editor.savedPaneURL(base: false) != nil {
             let saved = await withCheckedContinuation { continuation in editor.saveReboundResultFromOwner { continuation.resume(returning: $0) } }
@@ -1388,11 +1445,13 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             return saved
         }
         let text = editor.draftText(base: false), encoding = editor.encoding(base: false)
-        let autoAdd = MergeEditorPreferences.load(from: preferences).autoAdd
+        let autoAdd=policy.autoAdd,backup=policy.backup
         var reported = false
         do {
             try checkAccess()
-            let saved = try await repository.saveWorkingTreePatchFile(comparison, text: text, encoding: encoding, autoAddNewFiles: autoAdd, cancellation: token)
+            guard let options=try await explicitSaveOptions(text:text,path:comparison.document.destination.path,backup:backup,cancellation:token) else{return false}
+            try ensure(token)
+            let saved = try await repository.saveWorkingTreePatchFile(comparison, text: text, encoding: encoding, autoAddNewFiles: autoAdd,options:options, cancellation: token)
             onChanged(saved.output); reported = true
             try ensure(token)
             appliedPaths.insert(Data(comparison.document.destination.path.utf8)); output += saved.output
@@ -1419,8 +1478,9 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         case .save:
             if let conflictEditor {return await withCheckedContinuation {continuation in conflictEditor.saveForQuit {continuation.resume(returning:$0)}}}
             guard let token = begin() else { return false }
+            let policy=savePolicy()
             defer { finish(token) }
-            return await performSave(token)
+            return await performSave(token,policy:policy)
         case .discard:
             if discardImmediately { resetComparisonDraft() }
             return true
@@ -1490,6 +1550,19 @@ struct WorkingTreePatchDialog: View {
                 }.frame(minWidth: 440)
             }
             Text(model.notice).foregroundStyle(model.canApply ? Color.secondary : Color.orange).textSelection(.enabled)
+            if let current=model.batchProgress {
+                VStack(alignment:.leading,spacing:4) {
+                    Text(model.repository.root.appendingPathComponent(String(decoding:current.pathBytes,as:UTF8.self)).path)
+                        .lineLimit(1).truncationMode(.middle)
+                        .help(model.repository.root.appendingPathComponent(String(decoding:current.pathBytes,as:UTF8.self)).path)
+                    ProgressView(value:Double(model.batchCompleted),total:Double(max(1,model.batchTotal)))
+                        .accessibilityLabel("Patching files")
+                    Text("\(model.batchCompleted) of \(model.batchTotal) files completed").font(.caption).foregroundStyle(.secondary)
+                }.accessibilityIdentifier("Patch batch progress")
+            } else if model.batchTotal>0 {
+                Text("\(model.batchCompleted) of \(model.batchTotal) files completed" + (model.batchCancelled ? " — canceled":""))
+                    .font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("Patch batch result")
+            }
             if !model.output.isEmpty { DisclosureGroup("Output") { OutputView(text: model.output, usesLogFont: true).frame(height: 100) } }
             HStack {
                 if model.busy || model.editor?.exporting == true || model.conflictEditor?.busy == true { ProgressView().controlSize(.small); Text(model.editor?.exporting == true ? "Saving copy…" : "Processing patch…"); Button("Cancel operation", action: model.cancelOperation) }
@@ -1600,7 +1673,7 @@ struct WorkingTreePatchNativeFileList: NSViewRepresentable {
         }
         table.delegate = context.coordinator;table.dataSource = context.coordinator
         table.target = context.coordinator;table.doubleAction = #selector(Coordinator.preview(_:))
-        let scroll = NSScrollView();scroll.borderType = .bezelBorder;scroll.hasVerticalScroller = true;scroll.documentView = table
+        let scroll = NSScrollView();scroll.borderType = .bezelBorder;scroll.hasVerticalScroller = true;scroll.hasHorizontalScroller=true;scroll.documentView = table
         context.coordinator.table = table;context.coordinator.update();return scroll
     }
     func updateNSView(_ scroll:NSScrollView,context:Context) {context.coordinator.update()}
@@ -1630,19 +1703,35 @@ struct WorkingTreePatchNativeFileList: NSViewRepresentable {
                 let origin = table.enclosingScrollView?.contentView.bounds.origin
                 rendered = next;table.reloadData()
                 if let origin {table.enclosingScrollView?.contentView.scroll(to:origin)}
+                fitColumns()
             }
             let selected = IndexSet(rows.indices.filter {model.highlightedFiles.contains(rows[$0].id)})
             if table.selectedRowIndexes != selected {table.selectRowIndexes(selected,byExtendingSelection:false)}
         }
         func numberOfRows(in tableView:NSTableView) -> Int {rows.count}
+        func fitColumns(){
+            guard let table else{return}
+            for column in table.tableColumns {
+                let header=(column.title as NSString).size(withAttributes:[.font:column.headerCell.font ?? NSFont.systemFont(ofSize:NSFont.smallSystemFontSize)]).width+20
+                let width=rows.reduce(header){width,file in
+                    let path=column.identifier.rawValue=="Path",text=path ? (file.path as NSString).lastPathComponent:model.fileState(file)
+                    let font=model.focusedFile==file.id ? NSFont.boldSystemFont(ofSize:NSFont.systemFontSize):NSFont.systemFont(ofSize:NSFont.systemFontSize)
+                    return max(width,(text as NSString).size(withAttributes:[.font:font]).width+(path ? 32:14))
+                }
+                // The sidebar remains bounded; long literal leaf names scroll
+                // horizontally and keep the complete path in their tooltip.
+                column.width=max(column.minWidth,min(column.identifier.rawValue=="Path" ? 600:180,width))
+            }
+        }
         func tableView(_ tableView:NSTableView,viewFor tableColumn:NSTableColumn?,row:Int) -> NSView? {
             guard rows.indices.contains(row) else {return nil};let file = rows[row],state = model.fileState(file)
             let cell = NSTableCellView(),label = NSTextField(labelWithString:tableColumn?.identifier.rawValue == "State" ? state : (file.path as NSString).lastPathComponent)
             label.lineBreakMode = .byTruncatingTail
             label.font = model.focusedFile == file.id ? .boldSystemFont(ofSize:NSFont.systemFontSize) : .systemFont(ofSize:NSFont.systemFontSize)
-            label.textColor = ["error","conflict"].contains(state) ? .systemRed : ["patched","kept current"].contains(state) ? .secondaryLabelColor : .labelColor
+            label.textColor = state=="conflict" ? .systemOrange:state=="error" ? .systemRed : ["patched","kept current"].contains(state) ? .secondaryLabelColor : .labelColor
             label.translatesAutoresizingMaskIntoConstraints = false;cell.addSubview(label);cell.textField = label
-            cell.toolTip = FileTransferPaths.fileURL(FileTransferPaths.lexicalPath(model.repository.root.path + "/" + file.path)).path + (["error","conflict"].contains(state) ? "\n" + (model.fileResults[file.pathBytes]?.output ?? model.fileInspections[file.pathBytes]?.diagnostic ?? "") : "")
+            let result=model.fileResults[file.pathBytes]
+            cell.toolTip = FileTransferPaths.fileURL(FileTransferPaths.lexicalPath(model.repository.root.path + "/" + file.path)).path + (["error","conflict"].contains(state) ? "\n" + (result?.output ?? model.fileInspections[file.pathBytes]?.diagnostic ?? "") : "") + (result?.addError.map{"\nSaved patched file, but Add failed: "+$0} ?? "") + (result?.postApplyError.map{"\nSaved patched file, but cleanup failed: "+$0} ?? "")
             if tableColumn?.identifier.rawValue == "Path" {
                 let image = NSImageView();image.image = NSWorkspace.shared.icon(for:UTType(filenameExtension:(file.path as NSString).pathExtension) ?? .data);image.translatesAutoresizingMaskIntoConstraints = false;cell.addSubview(image);cell.imageView = image
                 NSLayoutConstraint.activate([image.leadingAnchor.constraint(equalTo:cell.leadingAnchor,constant:4),image.centerYAnchor.constraint(equalTo:cell.centerYAnchor),image.widthAnchor.constraint(equalToConstant:16),image.heightAnchor.constraint(equalToConstant:16),label.leadingAnchor.constraint(equalTo:image.trailingAnchor,constant:4)])

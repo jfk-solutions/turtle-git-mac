@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Patch application and explicit Save policies</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="patch-application-and-explicit-save-policies">Patch application and explicit Save policies</h1>
+<p>Source pin: <code>7338078f8ddd924b8cddee35f512f2286072136d</code>,
+<code>TortoiseMerge/MainFrm.cpp::PatchSave</code> (1626–1654), <code>FileSave</code>
+(1657–1740), and <code>SaveFile</code> (1433–1548). Automatic Patch All/Selected and explicit
+editor Save are distinct source workflows.</p>
+<p>The batch API accepts a captured AutoAdd choice. Its default remains false for
+existing non-UI callers; the native review captures the source preference,
+which defaults true. Both ordinary applicable files and clean recorded-base text
+merges add a newly created destination only when that accepted choice permits it.
+Plain-folder review never initializes or writes an index. Add failure is a
+separate <code>addError</code>: the actual patched file remains successful and later files
+can continue. Completed mutations do not become rollback claims when cancellation
+arrives during Add.</p>
+<p>Before each distinct selected path, the Core emits its original file ID, exact
+path bytes, completed-path count and total. Cancellation from that receipt stops
+before starting the file. The existing per-file result callback remains the
+settled receipt. Repeated records for one path remain a single work item, and the
+original list order remains authoritative.</p>
+<p><code>saveWorkingTreePatchFile(options:nil)</code> retains automatic PatchSave behavior:
+no backup and deletion of a zero-record text result. Explicit FileSave passes the
+captured Backup preference and accepted Keep/Delete decision in
+<code>MergeFileSaveOptions</code>. Keep saves a regular zero-byte result; Delete removes it.
+A nonempty explicit deletion is refused. Backups preserve captured original bytes
+and permissions, reject nonregular <code>.bak</code> targets, and are prepared after stale
+input checks and successful generated-patch validation. Earlier successful backup
+creation is not rolled back if a later external race prevents saving, matching the
+existing nontransactional source boundary. Special-file whole-state Keep/Use
+Patched policies remain separate and preserve explicit empty regular files.</p>
+<p>The source <code>SaveFile</code> returns zero for a single empty <code>NoEnding</code> record, including
+an otherwise BOM-only file. A terminated blank line is a real record. Automatic
+content-changing text patches apply that same distinction after Git succeeds;
+metadata-only mode/rename records do not acquire a text deletion policy. A failed
+post-apply empty cleanup produces <code>postApplyError</code> and a visible output warning,
+while retaining the successful Git mutation receipt. No <code>.bak</code> is produced by
+this automatic path.</p>
+<p>Implementation: <code>GitPatch.swift</code>, the shared atomic backup primitive in
+<code>FileComparisonEditing.swift</code>, and the native patch-review controls. Focused Core
+class <code>WorkingPatchSavePolicyTests</code> uses real private Git repositories for
+captured Add/disabled/plain-directory behavior, Add failure continuation, explicit
+backup/Keep/Delete, unsafe/stale refusal, pre-file cancellation, empty/BOM/blank
+records, metadata-only mode changes, a real cleanup failure, and recorded-base
+rename merge. The parent records actual grouped validation after the full batch
+freezes in the <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/merge-patch-family-2026-10-21.json">dated record</a>.
+Fixture existence is not a pass.</p>
+<p>The October 23 grouped checkpoint passes all six case/engine pairs across the
+three native scenarios, with twelve reviewed light/dark captures. The patch/Core
+group passes 48 tests; a separate 59-test focused check covers actual hosted
+assertion repairs. Failed attempts and their repairs remain in the dated record.
+These scoped results do not establish complete upstream or signed acceptance.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

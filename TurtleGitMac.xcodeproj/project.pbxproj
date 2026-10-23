@@ -414,6 +414,7 @@
 		DD16EA85352150A590AED3FB /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 152D20910797F40A39CBF1A8 /* LICENSE */; };
 		DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = F925723BED85497207863D60 /* SubmoduleConflict.swift */; };
 		DDEB7F7F1B5C5A57B8BD9AF8 /* CommitContainingReferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08CE434E7454FBA5529A7F36 /* CommitContainingReferences.swift */; };
+		DE48C04838CA26BF24EAE608 /* MergePanePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC3918EFED65993562350E6 /* MergePanePresentation.swift */; };
 		DF04AA39801191C59FDD035A /* MergeToolPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A72CA1F57921800C12336E06 /* MergeToolPresentation.swift */; };
 		DF0CD2448F2B8812C9593D7E /* SSHKeyPassphraseWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE84FD354494653334022AA8 /* SSHKeyPassphraseWindow.swift */; };
 		DF224DF655B4A741AE3BDC97 /* ReferenceLogDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 553B03B8CB0E867E812A6B53 /* ReferenceLogDiff.swift */; };
@@ -942,6 +943,7 @@
 		BE0E07642065156B7B7D1788 /* PrimaryCommandInvocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrimaryCommandInvocation.swift; sourceTree = "<group>"; };
 		BE9DF5DEFC08DA3720B374B9 /* EnhancedMetafileWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnhancedMetafileWriter.swift; sourceTree = "<group>"; };
 		BEA9844D056250E1264A3B15 /* AdvancedSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettings.swift; sourceTree = "<group>"; };
+		BFC3918EFED65993562350E6 /* MergePanePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergePanePresentation.swift; sourceTree = "<group>"; };
 		C04625726FBB2128C5DAD515 /* ApplicationIntroduction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationIntroduction.swift; sourceTree = "<group>"; };
 		C0C826BF8D2B76F52F29C6CD /* HistoryLanes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryLanes.swift; sourceTree = "<group>"; };
 		C12C65B53D4E28A9F6C52DF1 /* ImageConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageConflictWindow.swift; sourceTree = "<group>"; };
@@ -1237,6 +1239,7 @@
 				738666ABF57FC060C82F5C25 /* MergeFoldingController.swift */,
 				5CE3CE517C60F5192533D85D /* MergeMessageEditor.swift */,
 				8B5ECE8E964DD38B678A58BE /* MergeOpenWindow.swift */,
+				BFC3918EFED65993562350E6 /* MergePanePresentation.swift */,
 				5D83BDB1830627E69B8F3E83 /* MergeRegexFilterWindows.swift */,
 				D90AC260ECFB41503700BF84 /* MergeSourceComparisonWindows.swift */,
 				686D88F916A3D20A7C2982D9 /* MergeSourceExport.swift */,
@@ -2414,6 +2417,7 @@
 				F44F454B57C6503187788976 /* MergeFoldingController.swift in Sources */,
 				FE0A4FBD4DEB65683A8F6586 /* MergeMessageEditor.swift in Sources */,
 				48FAEDE446D237548B7AFA7B /* MergeOpenWindow.swift in Sources */,
+				DE48C04838CA26BF24EAE608 /* MergePanePresentation.swift in Sources */,
 				E267C52FE1971CA10B0BABC6 /* MergeRegexFilterWindows.swift in Sources */,
 				822CC35D20E9128856D97562 /* MergeSourceComparisonWindows.swift in Sources */,
 				C87E59D9408A3FA164DE4D92 /* MergeSourceExport.swift in Sources */,

@@ -4496,3 +4496,16 @@ questions, and direct Colors appearance transactions with compact native groups.
 changes from complete dialog parity. The
 [grouped checkpoint record](qa/primary-dialog-controls-2026-10-21.json) reports
 actual validation scope and failures after implementation freezes.
+
+## Compare/Merge panes and patch application continuation
+
+The [pane presentation family](MERGE-PANE-PRESENTATION-PARITY.md) connects compact
+source-colored headers, literal identities, dirty/active state and focused caret
+and marked-word status across Compare and Merge. The
+[patch policy family](PATCH-SAVE-APPLICATION-POLICY-PARITY.md) connects captured
+AutoAdd, per-file progress/results, readonly automatic actions and explicit
+Backup/Keep/Delete decisions. Automatic PatchSave retains its separate source
+empty-result policy. The [dated checkpoint](qa/merge-patch-family-2026-10-21.json)
+records actual checks and failures. The
+[source text-patch adapter gap](MERGE-PATCH-TEXT-ADAPTER-GAPS.md) remains explicit;
+this continuation does not claim complete patch or editor parity.
