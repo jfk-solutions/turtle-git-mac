@@ -32,8 +32,11 @@ uses its high bit as alpha. The native conversion expands the stored components
 for display, retaining row orientation and padding. Existing 24-bit BGR,
 32-bit BGRX, ARGB and premultiplied ARGB remain supported.
 
-New indexed/16-bit inputs require four-byte-aligned scan lines. Existing
-24/32-bit inputs retain the earlier sufficient-stride compatibility policy.
+The October 19 indexed/16-bit checkpoint required four-byte-aligned scan lines
+while retaining an earlier sufficient-stride policy for 24/32-bit inputs. The
+[October 23 high-depth continuation](METAFILE-HIGH-DEPTH-PARITY.md) enforces the
+wire stride alignment for all raw formats and corrects the old RGB24 fixtures
+without changing their expected colors.
 Dimensions, row extents, palette size and pixel storage are validated before
 allocation/iteration. Native bitmap expansion reserves a shared 64-million-pixel
 budget per conversion, including generated brush cells, before RGBA allocation. Truncated data, absent palettes, invalid indices or
@@ -48,8 +51,7 @@ runtime build, focused Core and grouped native results, including failed attempt
 and affected rechecks. Synthetic records are original TurtleGit fixtures; they
 are not Windows GDI+ acceptance captures.
 
-Negative dimensions, extended 16-bit grayscale, 48/64-bit channel formats,
-nested WMF images, complex
+Negative dimensions, nested WMF images, complex
 text/pen behavior and the other documented graphics gaps remain unsupported.
 This extension does not certify every metafile, Windows pixel identity, physical
 image-window gestures, all-format signed helper execution, Finder grants or an

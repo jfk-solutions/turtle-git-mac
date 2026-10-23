@@ -77,6 +77,16 @@ write('classic-scanlines-bitfields',[emf(*dib(depth=16,compression=3))])
 palette=rec(49,U(1)+H(0x300,4)+bytes([255,0,0,0,0,255,0,0,0,0,255,0,255,255,0,0]))
 write('classic-scanlines-palette',[palette,rec(48,U(1)),emf(*dib(depth=8,usage=1),usage=1)])
 write('classic-scanlines-wmf-palette',[wr(0xf7,H(0x300,4)+bytes([255,0,0,0,0,255,0,0,0,0,255,0,255,255,0,0])),wr(0x234,H(0)),wmf(*dib(depth=8,usage=1),usage=1)],True)
+# DIB_PAL_COLORS WORDs name logical palette entries, not RGBQUADs.
+# Initial DEFAULT_PALETTE uses our documented Windows common-display profile:
+# 0 black, 1 maroon, 13 red, 14 green. No custom palette is required.
+for wm in [False,True]:
+ emit=wmf if wm else emf;kind='wmf-' if wm else ''
+ write('classic-scanlines-'+kind+'default-palette',[emit(*dib(depth=8,usage=1),usage=1)],wm)
+ for topdown in [False,True]:
+  info,pixels=dib(depth=8,usage=1,top=topdown,band=8)
+  info=info[:40]+H(13,14,16,15)
+  write('classic-scanlines-'+kind+'default-palette-band-'+('top' if topdown else 'bottom'),[emit(info,pixels,usage=1,start=8,count=8)],wm)
 # Whole RLE band: two runs per row, explicit EOL and EOB.
 for depth,compression in [(8,1),(4,2)]:
  bmi,_=dib(depth=depth);bits=b''.join(bytes([16,0,16,1 if depth==8 else 0x11,0,0]) for _ in range(32))+bytes([0,1]);bmi=bmi[:16]+U(compression,len(bits))+bmi[24:]
@@ -116,7 +126,13 @@ bad('negative-extent',emf(*full,cx=-1))
 bad('scan-budget',emf(*full,count=0xffffffff))
 bad('planes',emf(full[0][:12]+H(2)+full[0][14:],full[1]))
 bad('dimensions',emf(full[0][:4]+I(32769)+full[0][8:],full[1]))
-bad('palette',emf(*dib(depth=8,usage=1),usage=1))
+indexed_info,indexed_pixels=dib(depth=8,usage=1)
+# The old table0..3 is valid under DEFAULT_PALETTE. Index20 is outside the
+# explicitly bounded 20-entry logical profile; its pixels must refuse the
+# entire valid red prefix rather than inventing a device hardware color.
+bad('palette',emf(indexed_info[:40]+H(20,1,2,3),indexed_pixels,usage=1))
+short_palette=rec(49,U(1)+H(0x300,1)+bytes([255,0,0,0]))
+write('unsupported-scanlines-custom-palette',[*prefix,short_palette,rec(48,U(1)),emf(indexed_info,indexed_pixels,usage=1)])
 bad('header',emf(U(16)+b'\0'*12,b'\0'*32))
 bad('rle-partial',emf(U(40)+I(32,32)+H(1,8)+U(1,2,0,0,4,0)+bytes([0,0,255,0])*4,bytes([0,1]),start=1,count=2))
 bad('png-size',emf(bmi[:20]+U(len(bits)+1)+bmi[24:],bits))

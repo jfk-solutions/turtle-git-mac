@@ -309,12 +309,12 @@ raw_cases['indexed-halftone']=(raw_bitmap(0x30402,3,2,4,[bytes([0x12,0x3f,0,0]),
 raw_cases['indexed-alpha-unflagged']=(raw_bitmap(0x30402,3,2,4,[bytes([0x12,0x3f,0,0]),bytes([0x32,0x1f,0,0])],[0xffffffff,0x80ff0000,0xff00ff00,0x000000ff],0),3,2)
 for fmt,name,word in [(0x21005,'rgb555-mid',(3<<10)|(11<<5)|25),(0x21006,'rgb565-mid',(7<<11)|(17<<5)|23)]:
  raw_cases[name]=(raw_bitmap(fmt,3,2,8,[H(word,word,word)+bytes(2)]*2),3,2)
-# Compatibility samples intentionally retain sufficient but unaligned24bpp
-# stride9. 32bpp RGB ignores its high byte, straight/premultiplied alpha agree.
+# MS-EMFPLUS Bitmap stride is DWORD-aligned, including24bpp. Padding
+# preserves all six original RGB samples. 32bpp RGB ignores its high byte.
 for negative in [False,True]:
  suffix='negative' if negative else 'positive'
- rows24=[bytes([0,0,255,0,255,0,255,0,0]),bytes([255,255,255,0,0,0,0,255,255])]
- raw_cases['rgb24-'+suffix]=(raw_bitmap(0x21808,3,2,-9 if negative else 9,rows24),3,2)
+ rows24=[bytes([0,0,255,0,255,0,255,0,0,0,0,0]),bytes([255,255,255,0,0,0,0,255,255,0,0,0])]
+ raw_cases['rgb24-'+suffix]=(raw_bitmap(0x21808,3,2,-12 if negative else 12,rows24),3,2)
  rgb32=[bytes([0,0,255,0,0,255,0,0,255,0,0,0]),bytes([255,255,255,0,0,0,0,0,0,255,255,0])]
  raw_cases['rgb32-'+suffix]=(raw_bitmap(0x22009,3,2,-12 if negative else 12,rgb32),3,2)
  for fmt,name,red in [(0x26200a,'argb32',255),(0xe200b,'pargb32',128)]:

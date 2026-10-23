@@ -465,7 +465,9 @@ jobs:
       - name: Metafile bounded raster regions and checkpoint ownership
         run: python3 scripts/test-metafile-raster-roi.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Classic metafile direct scanlines and gradient meshes
-        run: python3 scripts/test-metafile-scanline-gradient.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+        run: |
+          python3 scripts/test-metafile-scanline-gradient.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+          python3 scripts/test-metafile-high-depth.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: PowerPoint export contracts and native slide comparison
         run: python3 scripts/test-presentation-comparison.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: LibreOffice comparison and tracked-change merge owners

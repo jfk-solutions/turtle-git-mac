@@ -1651,8 +1651,11 @@ private func run() throws {
               stride != Int.min, stride != 0, abs(stride) <= inputLimit / height else { nativeError("Invalid or oversized metafile bitmap"); return "" }
         // GDI+ PixelFormat values encode bits-per-pixel in bits 8...15.
         let bits = Int((format >> 8) & 255)
-        guard [UInt32(0x30101),0x30402,0x30803,0x21005,0x21006,0x61007,0x21808,0x22009,0x26200A,0xE200B].contains(format) else { nativeError("Unsupported metafile pixel format"); return "" }
-        guard abs(stride) >= (width * bits + 7) / 8, bits > 16 || abs(stride).isMultiple(of:4),
+        // MS-EMFPLUS 2.1.1.24 names 0x1A400E for PARGB64; the public
+        // Microsoft GDI+ SDK names 0x1C400E. Both exact encodings describe the
+        // same premultiplied channel layout; do not infer alpha from flags alone.
+        guard [UInt32(0x30101),0x30402,0x30803,0x101004,0x21005,0x21006,0x61007,0x21808,0x22009,0x26200A,0xE200B,0x10300C,0x34400D,0x1A400E,0x1C400E].contains(format) else { nativeError("Unsupported metafile pixel format"); return "" }
+        guard abs(stride) >= (width * bits + 7) / 8, abs(stride).isMultiple(of:4),
               let raw=data(value),raw.count == abs(stride) * height else {nativeError("Invalid metafile bitmap stride or pixel count");return ""}
         var palette:[UInt32]=[]
         if bits <= 8 {
@@ -1682,6 +1685,21 @@ private func run() throws {
                     guard index < palette.count else {nativeError("Metafile bitmap palette index exceeds count");return ""}
                     let color=palette[index]
                     rgba[end]=UInt8(truncatingIfNeeded:color>>16);rgba[end+1]=UInt8(truncatingIfNeeded:color>>8);rgba[end+2]=UInt8(truncatingIfNeeded:color);rgba[end+3]=UInt8(truncatingIfNeeded:color>>24)
+                }else if format == 0x101004 {
+                    // Raw playback follows the documented Wine GDI+ channel
+                    // layout: little-endian WORD, high-byte display projection.
+                    // This is not a guessed 13-bit LockBits normalization.
+                    let gray=raw[row+x*2+1]
+                    rgba[end]=gray;rgba[end+1]=gray;rgba[end+2]=gray;rgba[end+3]=255
+                }else if bits == 48 || bits == 64 {
+                    // B,G,R,[A] WORDs. Quantize each channel before native
+                    // compositing, including premultiplied alpha. Low bytes are
+                    // intentionally not rounded into their display high bytes.
+                    let start=row+x*(bits/8),alpha:UInt8=bits == 64 ? raw[start+7]:255
+                    rgba[end]=raw[start+5];rgba[end+1]=raw[start+3];rgba[end+2]=raw[start+1];rgba[end+3]=alpha
+                    if (format == 0x1A400E || format == 0x1C400E) && alpha == 0 {
+                        rgba[end]=0;rgba[end+1]=0;rgba[end+2]=0
+                    }
                 }else if bits == 16 {
                     let start=row+x*2,word=UInt16(raw[start]) | UInt16(raw[start+1]) << 8
                     let is565=format == 0x21006

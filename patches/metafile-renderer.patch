@@ -549,13 +549,13 @@ diff --git a/src/turtleGitBitmap.js b/src/turtleGitBitmap.js
 +// Original TurtleGit adaptation, MIT. MS-EMFPLUS 2.1.1.24, 2.1.2.5,
 +// 2.2.2.2/3/28. Shared raw image and texture framing, not a DIB header.
 +module.exports = function installBitmap({fail,u32}) {
-+  const formats=new Set([0x30101,0x30402,0x30803,0x21005,0x21006,0x61007,0x21808,0x22009,0x26200a,0xe200b]);
++  const formats=new Set([0x30101,0x30402,0x30803,0x101004,0x21005,0x21006,0x61007,0x21808,0x22009,0x26200a,0xe200b,0x10300c,0x34400d,0x1a400e,0x1c400e]);
 +  return function rawBitmap(data,offset,width,height,stride,format) {
 +    if(!formats.has(format))fail('unsupported raw EMF+ pixel format');
 +    const bits=(format>>>8)&255,indexed=!!(format&0x10000),rowBytes=Math.ceil(width*bits/8),size=Math.abs(stride)*height;
 +    if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1||width>32768||height>32768||width*height>16777216 ||
 +       !Number.isInteger(stride)||!stride||Math.abs(stride)<rowBytes||!Number.isSafeInteger(size)||size>64*1024*1024 ||
-+       (bits<=16 && Math.abs(stride)%4))fail('invalid raw bitmap extent/stride');
++       Math.abs(stride)%4)fail('invalid raw bitmap extent/stride');
 +    let palette=[];
 +    if(indexed) {
 +      const flags=u32(data,offset),count=u32(data,offset+4);offset+=8;

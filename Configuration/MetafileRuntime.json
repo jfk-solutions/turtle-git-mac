@@ -55,5 +55,30 @@
       "https://learn.microsoft.com/en-us/windows/win32/gdi/default-palette"
     ],
     "third_party_code_copied": false
+  },
+  "high_depth_bitmaps": {
+    "implementation": "Original TurtleGit raw high-depth bitmap adapter; no Wine functions copied",
+    "formats": [
+      "16bppGrayScale 0x00101004",
+      "48bppRGB 0x0010300C",
+      "64bppARGB 0x0034400D",
+      "64bppPARGB wire 0x001A400E / SDK 0x001C400E"
+    ],
+    "profile": "Little-endian B,G,R,[A] WORD high-byte display projection; premultiplied samples quantize before the existing premultiplied PNG pipeline; zero alpha clears premultiplied RGB; raw DWORD-aligned stride",
+    "playback_reference": {
+      "project": "Wine",
+      "commit": "7298a818b79446bae153b8d5aa27235ab3703bf9",
+      "source": "dlls/gdiplus/image.c",
+      "source_sha256": "2f49adeb8c9037a8ac2ec6aab181c13b8950b1bd50fc75dcc62cf4ff3f461999",
+      "metafile_source": "dlls/gdiplus/metafile.c",
+      "metafile_source_sha256": "3949a0f2b3a9d0f331831a482936309510c4111b2dfd482256f5d059efb8c632"
+    },
+    "semantics": [
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/47cbe48e-d13c-450b-8a23-6aa95488428e",
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/112a5e2c-6bb3-4daf-8ee3-0f3d3984410f",
+      "https://raw.githubusercontent.com/microsoft/win32metadata/main/generation/WinSDK/RecompiledIdlHeaders/um/gdipluspixelformats.h"
+    ],
+    "limits": "8-bit macOS display profile, not Windows GDI+ 13-bit LockBits/HDR/color-management identity",
+    "third_party_code_copied": false
   }
 }

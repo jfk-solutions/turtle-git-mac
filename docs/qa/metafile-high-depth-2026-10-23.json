@@ -1,0 +1,137 @@
+{
+  "date": "2026-10-23",
+  "status": "grouped-local-checkpoint-passed-with-recorded-fixture-repairs",
+  "scope": "Raw high-depth EMF+ image/texture display and bitmap layout/palette compatibility",
+  "formats": [
+    "16-bit grayscale",
+    "48-bit RGB",
+    "64-bit ARGB",
+    "64-bit PARGB wire and SDK identifiers"
+  ],
+  "profile": "Little-endian WORD high-byte eight-bit display projection based on pinned Wine raw playback; Windows GDI+13-bit/HDR identity unverified",
+  "hosted_prior_evidence": {
+    "commit": "cb676f1a",
+    "run": 39973683101,
+    "job": 120497460348,
+    "log_terminal_time_utc": "2026-10-23T16:58:00Z",
+    "result": "failed; authoritative completed job logs despite stale run metadata",
+    "core_methods": 2654,
+    "skipped": 2,
+    "failures": 2,
+    "methods": [
+      "GitLibGit2Tests.testActualHTTPSPeerReviewAuthenticationDepthAndRejectedPeerKeepSourceBytes",
+      "MetafileDirectScanlineTests.testMalformedDirectScanlinesRefuseEntirePaintedPrefixAndPreserveSource"
+    ],
+    "tls": "Baseline fixture corrected and focused local pass recorded separately",
+    "palette": "Old negative used valid default indices0..3; changed to out-of-profile20, added positive default and short-custom palette cases"
+  },
+  "implementation": {
+    "native_source": "Sources/TurtleGitMetafile/main.swift",
+    "renderer_patch": "patches/metafile-renderer.patch",
+    "core_new_methods": 6,
+    "direct_scanline_methods": 5,
+    "ui_labels": "unchanged"
+  },
+  "validation": {
+    "runtime": {
+      "build_exit": 0,
+      "all_architectures_audit_exit": 0,
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "log": "build/qa/metafile-high-depth-runtime-audit-2026-10-23.log"
+    },
+    "app": {
+      "debug_exit": 0,
+      "generic_exit_zero_diagnostics": 0,
+      "embedded_unsigned_source_hash": "3c05826b92186c26d2f199b6b858c192ea23b701d6a4a40fe6eb1391c922dab3",
+      "embedded_signed_binary_hash": "42d44da8d29387f68348094d2162d733d55b8a04d98b03e7dc4fea7d277d36d3",
+      "renderer_sha256": "05bf01f3609a95b2bc7e1398ec12f621a9016529986ffebbaedf57126209d0d4",
+      "source_cache_key": "92b01676fc8c871c41e21a8320bf7d6354cdf50b93269d5dcfac438e6e5b4594",
+      "identity_scope": "Embedded signed hash/signature plus common renderer/source/cache and recorded unsigned hash; removing signatures does not yield byte-identical files, no normalized whole-file identity claimed"
+    },
+    "core": {
+      "distinct_methods": 20,
+      "initial_compile_failure": "Missing try in new malformed-conversion assertion; no methods executed",
+      "grouped_attempt": "20 methods:19 pass; malformed method55 unexpected errors because throwing decoder was incorrectly asserted nil",
+      "focused_repair": "Malformed method passes after asserting decoder throws and ComparisonImage returns nil for all55 fixtures; source-byte assertions retained",
+      "logs": [
+        "build/qa/metafile-high-depth-core-2026-10-23.log",
+        "build/qa/metafile-high-depth-core-repair-2026-10-23.log",
+        "build/qa/metafile-high-depth-core-refusal-repair-2026-10-23.log"
+      ],
+      "full_suite_rerun": false
+    },
+    "native": {
+      "pairs": [
+        {
+          "git": "/usr/bin/git",
+          "case": "consumers",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "consumers",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "conflict",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "conflict",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "receiver_pids": [
+        86074,
+        86174,
+        86339,
+        86538
+      ],
+      "all_reaped_and_independently_absent": true,
+      "visible_windows": false,
+      "helper_cleanup_needed": false,
+      "log": "build/qa/metafile-high-depth-native-2026-10-23.log"
+    },
+    "documentation": {
+      "coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "pending_control_reviews": 85
+      },
+      "localizations": {
+        "languages": 38,
+        "keys": 1315,
+        "check": "passed"
+      },
+      "help": {
+        "documents": 58,
+        "topics": 51,
+        "files": 78,
+        "bytes": 3783688,
+        "check": "passed"
+      },
+      "site": {
+        "documents": 423,
+        "unresolved_fragments": 0,
+        "python_tests": 2,
+        "javascript_search": "passed"
+      }
+    }
+  },
+  "limits": [
+    "No complete Windows pixel identity or13-bitLockBits/HDR certification",
+    "Native consumers use rebuilt development helper with embedded-app identity checked separately; signed packaged invocation not certified",
+    "No physical UI, App Store signing/export/submission, complete hosted CI or full-port completion claim"
+  ]
+}

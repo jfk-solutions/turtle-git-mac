@@ -88,6 +88,27 @@ final class MetafileDirectScanlineTests: XCTestCase {
         }
     }
 
+    func testDefaultLogicalPaletteDirectPixelsAndPartialBands() throws {
+        // DEFAULT_PALETTE is the documented common-display 20-entry playback
+        // profile. These records intentionally never select a custom palette.
+        for kind in ["", "wmf-"] {
+            let suffix = kind.isEmpty ? ".emf" : ".wmf"
+            let name = "classic-scanlines-" + kind + "default-palette" + suffix
+            let image = try painting(name)
+            expect(image, 12, 12, [0, 0, 0, 255], name)
+            expect(image, 32, 32, [128, 0, 0, 255], name)
+            expect(image, 4, 12, white, name)
+            for orientation in ["top", "bottom"] {
+                let bandName = "classic-scanlines-" + kind + "default-palette-band-" + orientation + suffix
+                let band = try painting(bandName)
+                expect(band, 12, 28, red, bandName)
+                expect(band, 32, 28, green, bandName)
+                expect(band, 12, 20, white, bandName)
+                expect(band, 12, 36, white, bandName)
+            }
+        }
+    }
+
     func testDirectScanlinesTransformOriginOnlyAndRespectClipRestoreAndSourceCopy() throws {
         let scaled = try painting("classic-scanlines-transform-origin.emf")
         expect(scaled, 16, 16, red, "transformed origin"); expect(scaled, 36, 16, green, "unscaled source width")
