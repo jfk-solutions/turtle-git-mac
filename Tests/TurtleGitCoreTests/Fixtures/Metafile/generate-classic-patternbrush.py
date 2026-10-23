@@ -115,7 +115,8 @@ def wdibpattern(indices=(0,1)):
  return wr(0x142,H(5,1)+bmi+bytes([0x80,0xa5,0x96,0x69,0x40,0x5a,0x69,0x96]))
 def wpalette(colors):return wr(0xf7,H(0x300,len(colors))+b''.join(bytes([r,g,b,0]) for r,g,b in colors))
 write('wmf-classic-patternbrush-palette-select',[ws(0x8008),*wcolors(),wdibpattern(),ws(0),wpalette([(0,255,0),(255,0,0)]),wr(0x234,H(1)),wrect(0,0,64,16),wr(0x1e),wpalette([(0,255,255),(255,255,0)]),wr(0x234,H(0,2)),ws(0),wrect(0,16,64,32),wr(0x127,S(-1)),wrect(0,32,64,48),wr(0x139,H(3)),wr(0x37,H(0,3)+bytes([0,0,255,0,0,255,0,0,255,0,255,0])),wdibpattern((0,2)),ws(3),wrect(0,48,64,64)],True)
-write('unsupported-classic-patternbrush-emf-missing-palette',eprefix+[mono(usage=1,palette=H(0,1)),es(1),erect(8,8,56,56)])
+write('classic-patternbrush-default-palette',eprefix+[mono(usage=1,palette=H(0,1)),es(1),erect(8,8,56,56)])
+write('unsupported-classic-patternbrush-emf-out-of-profile-palette',eprefix+[mono(usage=1,palette=H(20,21)),es(1),erect(8,8,56,56)])
 # Empty ETO_OPAQUE text paints solid explicit BK despite a lazy mono brush;
 # the following ordinary FillPath must still use the selected pattern brush.
 opaque=rec(84,I(0,0,64,64)+U(2)+F(1,1)+I(0,0)+U(0,76,2)+I(0,0,64,16)+U(0))

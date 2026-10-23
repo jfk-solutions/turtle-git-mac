@@ -59,6 +59,13 @@ EMF+ comments receive their own framing checks. Decoder failures, malformed outp
 external image references, scripts and DTDs are refused. Parent-owned helper timeout,
 output limits and cancellation retire the process group before returning.
 
+The [classic drawing-state family](METAFILE-DRAWING-STATE-PARITY.md) connects
+stock DC brush/pen selection, recorded ordinary colored-object replacement and
+saved drawing-context state to those same painting consumers. A documented common
+twenty-entry Windows display palette is a macOS compatibility profile; unknown
+logical colors and explicit hardware indices remain refusals. Live Win32 color
+APIs do not imply invented serialized setter records.
+
 ## Intrinsic size and metadata
 
 EMF follows GDI+ physical frame/device metadata, rather than treating its ink

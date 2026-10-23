@@ -49,7 +49,7 @@ def eblt(kind,rop,x,y,w=4,h=4,source=True,gray=0xcc,flags=0,usage=0,transform=(1
   # DIB_PAL_COLORS uses WORD logical-palette indices, unlike irrelevant
   # usage1 metadata on a32bpp truecolor bitmap with no color table.
   bits=bytes(((sw+3)//4)*4*sh)
-  bmi=U(40)+I(sw,-sh)+H(1,8)+U(0,len(bits),0,0,1,0)+H(0,0)
+  bmi=U(40)+I(sw,-sh)+H(1,8)+U(0,len(bits),0,0,1,0)+H(20,0)
  if kind=='stretchdibits':
   offset=80 if source else 0
   body=I(x,y,x+w,y+h)+I(x,y,0,0,sw,sh)+U(offset,len(bmi),offset+len(bmi) if source else 0,len(bits),usage,(rop<<16)|flags)+I(w,h)+bmi+bits

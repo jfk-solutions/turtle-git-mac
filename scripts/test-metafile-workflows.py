@@ -7,6 +7,7 @@ import tempfile
 from native_receiver import build_receiver, run_receiver
 
 CASES = {
+    'drawing-state': ('metafile-drawing-state-native-2026-10-23.swift', 'MetafileDrawingStateVerification'),
     'classic-patternbrushes': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'classic-regions': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
     'classic-pens': ('metafile-consumers-native-2026-10-18.swift', 'MetafileConsumersVerification'),
@@ -23,6 +24,7 @@ CASES = {
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
 parser.add_argument('--only', choices=CASES, action='append')
+parser.add_argument('--capture-dir', type=Path)
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 # Stable source paths preserve #sourceLocation and hence native_receiver's full
@@ -79,7 +81,11 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temp
             private_home=directory/'home';private_home.mkdir(mode=0o700)
             environment.update(CFFIXED_USER_HOME=str(private_home), GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'), TMPDIR=str(private_temporary)+'/', TURTLEGIT_METAFILE_CASE=case)
             command = [str(receiver), str(directory), str(git.absolute())]
-            if case in ['consumers','compressed-paths','positioned-text','classic-pens','classic-regions','classic-patternbrushes']: command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
+            if case in ['drawing-state','consumers','compressed-paths','positioned-text','classic-pens','classic-regions','classic-patternbrushes']: command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
+            environment.pop('TURTLEGIT_DRAWING_STATE_CAPTURES', None)
+            if args.capture_dir and case == 'drawing-state' and index == 0:
+                args.capture_dir.resolve().mkdir(parents=True, exist_ok=True)
+                environment['TURTLEGIT_DRAWING_STATE_CAPTURES'] = str(args.capture_dir.resolve())
             print('Checking metafile '+case+' with '+str(git), flush=True)
             result = run_receiver(command, cwd=root, env=environment, capture_output=True, text=True,
                                   timeout_sample=directory/'timeout.sample.txt')

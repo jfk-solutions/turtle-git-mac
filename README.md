@@ -455,6 +455,9 @@ parallelogram copies, color-key transparency and alpha blending.
 destination painting while reducing repeated work for small transfers.
 [Classic EMF clipping](docs/METAFILE-CLASSIC-CLIP-PARITY.md) includes region
 Boolean combinations, clip offsets and independent metaregions.
+[Classic drawing state](docs/METAFILE-DRAWING-STATE-PARITY.md) adds stock DC
+objects, saved selections and live palette colors with an explicit common
+Windows display palette profile; physical device palettes remain separate.
 [EMF+ pen strokes](docs/METAFILE-PEN-PARITY.md) include linear nib transforms,
 compound bands, independent caps, joins, dashes and Center/Inset positioning.
 [Classic extended pens](docs/METAFILE-CLASSIC-PEN-PARITY.md) add geometric and

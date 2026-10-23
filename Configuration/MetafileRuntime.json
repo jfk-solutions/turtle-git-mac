@@ -44,5 +44,16 @@
     ],
     "documentation": "docs/METAFILE-RASTER-PARITY.md",
     "third_party_code_copied": false
+  },
+  "classic_drawing_state": {
+    "implementation": "Original TurtleGit stock object and logical palette playback (GPL-2.0-or-later)",
+    "scope": "Classic stock DC_BRUSH/DC_PEN defaults, recorded explicit color replacements, saved object selection, and logical palette color references across vector/raster consumers",
+    "default_logical_palette_profile": "Windows common display 20-color logical palette; a deterministic macOS playback profile, not an arbitrary printer or physical device palette",
+    "semantics": [
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/d6dffd25-8615-42f8-aed1-309f1fe54ab2",
+      "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-getstockobject",
+      "https://learn.microsoft.com/en-us/windows/win32/gdi/default-palette"
+    ],
+    "third_party_code_copied": false
   }
 }

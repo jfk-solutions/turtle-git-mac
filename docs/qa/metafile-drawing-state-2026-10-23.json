@@ -1,0 +1,311 @@
+{
+  "date": "2026-10-23",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "functional-passed-with-capture-limitation",
+  "scope": [
+    "EMF stock DC_BRUSH 18 white and DC_PEN 19 black playback defaults, real ordinary recorded brush/pen color replacements and SaveDC/RestoreDC selections",
+    "Explicit Windows common-display twenty-entry logical DEFAULT_PALETTE playback profile with initial/stock selection and read-only state",
+    "Live custom palette identity, edits while saved, protected selected/saved deletion and unselected object deletion",
+    "PALETTEINDEX ordinary/extended pens, solid/hatch brush and text consumers; DIB_PAL_COLORS bitmap/raster consumers; region/flood current paint",
+    "Deferred logical indexed brush selection before a usable palette exists; actual unresolved paint refuses whole image; unused unresolved selection remains valid",
+    "Actual native Compare/control raster pairs and private genuine Git three-stage conflict/reload with original-byte and owner cleanup checks"
+  ],
+  "source_evidence": {
+    "pinned_tortoisegit": "TortoiseIDiff/MainWindow.cpp:1255; Utils/MiscUI/Picture.cpp:418",
+    "stock_enum": "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/d6dffd25-8615-42f8-aed1-309f1fe54ab2",
+    "recording_reference": "https://github.com/wine-mirror/wine/blob/7298a818b79446bae153b8d5aa27235ab3703bf9/dlls/gdi32/emfdc.c#L2080-L2117",
+    "recording_contract": "Wine actual SetDCBrushColor/SetDCPenColor recording emits ordinary brush/pen create-and-select replacements; no fictional EMR color-setter record authored. WMF 18/19 remain unverified and refused.",
+    "default_profile": "https://learn.microsoft.com/en-us/windows/win32/gdi/default-palette"
+  },
+  "native_adaptations": [
+    "The selected twenty-entry Windows common-display DEFAULT_PALETTE is an explicit Mac logical playback policy; it is not arbitrary physical device/printer/hardware palette equivalence.",
+    "PC_EXPLICIT unknown hardware indices, logical indices outside represented palette and unsupported/malformed records refuse entire conversion.",
+    "Exact Windows GDI raster edge stepping, physical image-window/VoiceOver acceptance, signed installed deployment and Intel runtime execution remain separate."
+  ],
+  "fixture_scope": {
+    "generator": "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate-drawing-state.py",
+    "license": "MIT; original deterministic binary records; generator performs no rendering",
+    "accepted_control_pairs": 8,
+    "new_refusals": 7,
+    "canvas": [
+      64,
+      64
+    ],
+    "core_suite": "MetafileDrawingStateTests",
+    "new_core_methods_planned": 9,
+    "related_existing_methods_planned": 9,
+    "native_cases_planned": 1,
+    "native_engine_case_pairs_planned": 2,
+    "full_window_captures_planned": 4,
+    "controls": "Ordinary independent white/black objects, RGBQUAD DIB tables and ordinary RGB object replacement records; complete decoded raster equality plus independently authored literal pixels and colored interiors."
+  },
+  "precheckpoint_findings": [
+    {
+      "kind": "legitimate historical negative became supported",
+      "details": "Original logical palette WORD indices 0/1 without a custom palette are valid against the explicitly chosen default profile. Promoted classic-patternbrush-default-palette.emf to positive black/maroon assertions; renamed replacement refusal to out-of-profile indices 20/21. Three existing unsupported raster palette files now contain actual WORD 20 outside the profile; refusal assertions retained."
+    },
+    {
+      "kind": "static source repair before checkpoint",
+      "details": "Root found SelectBrush/SetTextColor/Restore refresh resolving indexed solid/hatch brush color before paint. Producer deferred style preparation; authored real selection-before-palette, saved selection, unrelated color changes, later cyan paint and unused unresolved EOF/control case. No failed test run is claimed for this precheckpoint static finding."
+    }
+  ],
+  "validation": {
+    "runtime_build": {
+      "status": "passed",
+      "log": "build/qa/metafile-drawing-state-runtime-2026-10-23.log",
+      "exit_code": 0,
+      "source": "Parent-reported terminal result",
+      "scope": "Renderer patch applied with zero fuzz and no malformed patch errors; production frozen including bounded deferred-brush static repair before this build."
+    },
+    "core": {
+      "status": "passed-cumulatively-after-fixture-repair",
+      "log": "build/qa/metafile-drawing-state-core-2026-10-23.log",
+      "planned_methods": 18,
+      "exit_code": 1,
+      "methods": 18,
+      "assertion_failures": 2,
+      "failed_methods": 1,
+      "failed_method": "testStockBrushFeedsExplicitRegionPATCOPYAndFloodWithoutChangingSelection",
+      "unaffected_methods_passed": 17,
+      "diagnosis": "Authored stock-consumers scene/control created red pen3 but never selected it before outer SaveDC. Restore correctly returned the original NULL_PEN. Full actual/control raster equality passed; final literal (44,60) expected red but actual blue because no red stroke was recorded.",
+      "repair": "Added actual SelectObject(3) before outer SaveDC in both authored scene/control and regenerated only drawing-state fixtures. Original red pixel and full raster equality assertions retained; production unchanged.",
+      "recheck_scope": "Only the one failed Core method; native check has not yet run and reads corrected pair."
+    },
+    "app": {
+      "status": "passed",
+      "log": "build/qa/metafile-drawing-state-app-2026-10-23.log",
+      "exit_code": 0,
+      "exit_code_source": "Parent-reported terminal result",
+      "generic_exit_zero_diagnostics": 0,
+      "core_simulator_warning_present": true,
+      "diagnostics": "Existing relocation/code-signing warnings and CoreSimulator mismatch remain; no clean-diagnostics claim."
+    },
+    "native": {
+      "status": "initial-capture-failed",
+      "log": "build/qa/metafile-drawing-state-native-2026-10-23.log",
+      "planned_engine_case_pairs": 2,
+      "exit_code": 1,
+      "engines_started": [
+        "/usr/bin/git"
+      ],
+      "owned_receiver_pid": 46177,
+      "failure": "SCStreamErrorDomain -3811 AudioVideoRecordingFailed during the first optional full-window capture; entire functional native case not completed.",
+      "scope": "Initial first Compare/control pair reached optional capture; no complete native case or bundled-Git pass claimed.",
+      "repair": "Capture fixture diagnosis pending; production remains frozen, no Core rerun."
+    },
+    "resources": {
+      "status": "passed",
+      "source": "Parent-reported completed checks",
+      "help": {
+        "documents": 58,
+        "topics": 51,
+        "files": 78,
+        "bytes": 3778335
+      },
+      "dialog_reconciliation": {
+        "dialogs": 130,
+        "partial": 120,
+        "pending": 10,
+        "certified": 0,
+        "unmapped_controls": 85,
+        "counts_are_feature_percentage": false
+      },
+      "localizations": {
+        "languages": 38,
+        "keys": 1315
+      }
+    },
+    "core_repair": {
+      "status": "passed",
+      "log": "build/qa/metafile-drawing-state-core-repair-2026-10-23.log",
+      "exit_code": 0,
+      "methods": 1,
+      "failures": 0,
+      "duration_seconds": 0.256,
+      "method": "testStockBrushFeedsExplicitRegionPATCOPYAndFloodWithoutChangingSelection",
+      "current_methods_cumulatively_passed": 18,
+      "full_group_repeated": false,
+      "production_changed": false
+    },
+    "native_repair": {
+      "status": "functional-pass-offscreen-ownership-repair-required",
+      "log": "build/qa/metafile-drawing-state-native-repair-2026-10-23.log",
+      "planned_engine_case_pairs": 2,
+      "repair_scope": "Capture-only fixture forces native display and diagnostics, retries at most three times only for exact SCStreamErrorDomain -3811. Actual screenshot pixels and all behavioral assertions retained; no production/Core changes.",
+      "cause": "Generic SDK internal video/audio recording failure; exact cause unproven.",
+      "exit_code": 0,
+      "engine_case_pairs": 2,
+      "owned_receiver_pids": [
+        46542,
+        46647
+      ],
+      "captures": "Four actual capture operations succeeded on first attempt.",
+      "ownership_finding": "AppKit constrained alpha1 capture windows to leave a 40-point visible screen edge. Strict offscreen ownership not established by this attempt; subsequent fixture-only constraining override and NSScreen intersection assertion are required."
+    },
+    "embedded_renderer": {
+      "status": "passed",
+      "source": "Parent-reported independent hash/provenance verification",
+      "scope": "Embedded renderer.js equals current built JavaScript; embedded provenance matches current patch and runtime Configuration hashes."
+    },
+    "protected_unrelated_wip": "Parent confirmed protected WIP hashes unchanged.",
+    "native_offscreen_recheck": {
+      "status": "capture-failed",
+      "planned_engine_case_pairs": 2,
+      "reason": "Fixture-only strict offscreen NSWindow constraining override and pre-capture NSScreen intersection assertion. No production/Core/app rebuild or Core repeat.",
+      "exit_code": 1,
+      "log": "build/qa/metafile-drawing-state-native-offscreen-2026-10-23.log",
+      "owned_receiver_pid": 46908,
+      "attempts": 3,
+      "failure": "SCStreamErrorDomain -3811 on all three bounded optional capture attempts while actual window was fully outside every NSScreen.",
+      "capture_window_rect": [
+        -2144,
+        -1776,
+        1120,
+        752
+      ],
+      "scope": "Strict offscreen geometry assertion passed before capture; complete native case did not finish because optional capture failed. No further capture retries."
+    },
+    "native_functional_final": {
+      "status": "passed",
+      "log": "build/qa/metafile-drawing-state-native-functional-2026-10-23.log",
+      "planned_engine_case_pairs": 2,
+      "scope": "Same native functional cases without optional capture; preserves strict offscreen assertions on every owned controller and all functional behavioral assertions. No production/Core/app change.",
+      "exit_code": 0,
+      "engine_case_pairs": 2,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "owned_receiver_pids": [
+        46951,
+        47054
+      ],
+      "capture_enabled": false
+    },
+    "cumulative": {
+      "current_core_methods_passed": 18,
+      "core_initial_methods": 18,
+      "core_initial_assertion_failures": 2,
+      "core_initial_failed_methods": 1,
+      "core_affected_method_recheck": 1,
+      "final_strict_offscreen_native_engine_case_pairs": 2,
+      "earlier_capture_repair_same_pairs_not_added_to_distinct_count": 2,
+      "full_core_group_repeated": false,
+      "production_changed_after_initial_core": false
+    },
+    "resource_only_final_app": {
+      "status": "passed",
+      "reason": "Documentation/gallery capture-limit clarification and regenerated Help only; no functional Core/native repeats required.",
+      "exit_code": 0,
+      "log": "build/qa/metafile-drawing-state-help-app-2026-10-23.log",
+      "diagnostics": "Parent reports only CoreSimulator mismatch/matching-destination warnings; documentation/gallery and regenerated Help only, no functional source changes or Core rerun."
+    },
+    "site": {
+      "status": "passed",
+      "log": "build/qa/metafile-drawing-state-site-2026-10-23.log",
+      "exit_code": 0,
+      "documents": 422,
+      "unresolved_fragments": 0,
+      "python_tests": 2,
+      "python_failures": 0,
+      "python_duration_seconds": 2.436,
+      "javascript": "Search/filter/no-match/load-failure checks passed.",
+      "source": "Parent-reported terminal grouped build/check results"
+    },
+    "git_diff_check": {
+      "status": "passed",
+      "source": "Parent-reported final check"
+    }
+  },
+  "remaining_acceptance": [
+    "Fully offscreen optional screenshot capture on current SDK: exact SCStreamErrorDomain -3811 after bounded retries. Final offscreen functional cases passed without captures; existing actual photographs retain their frame-placement limitation.",
+    "Windows device palette identity and exact raster edge stepping",
+    "Unimplemented metafile records and arbitrary device objects",
+    "Physical pointer/keyboard/VoiceOver and full upstream dialog layout",
+    "Installed signed grants/distribution, minimum-version/Intel execution and full current hosted integration"
+  ],
+  "status_scope": "Current local drawing-state functional checkpoint passed:18 Core methods cumulatively after one authored fixture repair, then both Git-engine native cases passed with strict offscreen ownership and all functional assertions. Optional fully offscreen screenshots remain limited by SCStreamErrorDomain -3811; earlier actual photographs have an explicit placement limitation. No full WMF/EMF, signed deployment, hosted CI or whole-port completion claim.",
+  "checkpoint_repairs": [
+    {
+      "kind": "initial checkpoint fixture authoring repair",
+      "details": "Initial Core18-method run had two RGB channel assertion failures in one method from missing recorded red pen selection. Both complete actual/control raster arrays already matched; genuine pre-save selection now authors intended RestoreDC ordinary-pen witness. No production change or assertion removal."
+    },
+    {
+      "kind": "native initial capture failure",
+      "details": "System-Git receiver 46177 reaped after SCStreamErrorDomain -3811 AudioVideoRecordingFailed before the complete native function reached its success marker. Capture-only fixture repair pending; no native pass claimed."
+    },
+    {
+      "kind": "offscreen capture ownership correction",
+      "details": "First capture-repair functional group passed both engines, but diagnostics revealed AppKit clamped capture windows leaving 40 points on screen at alpha1. Final affected native case must pass strict offscreen bounds assertions; its captures replace earlier outputs before parent visual acceptance."
+    },
+    {
+      "kind": "fully offscreen screenshot SDK limitation",
+      "details": "Strict offscreen window (-2144,-1776,1120,752) reproduced exact SCStreamErrorDomain -3811 on all three bounded capture attempts. No more capture retries; final functional group runs without optional captures and retains strict offscreen owner assertions. Earlier successful photographs are explicitly from the pre-placement-fix attempt, not proof of fully offscreen capture."
+    }
+  ],
+  "ownership": {
+    "logged_receiver_pids": [
+      46177,
+      46951,
+      47054,
+      46908,
+      46542,
+      46647
+    ],
+    "runner_reported_reaped": [
+      46177,
+      46951,
+      47054,
+      46908,
+      46542,
+      46647
+    ],
+    "independently_verified_absent": [
+      46177,
+      46951,
+      47054,
+      46908,
+      46542,
+      46647
+    ],
+    "verified_at_utc": "2026-10-23T13:49:34.095190+00:00",
+    "verification": "Read-only os.kill(pid,0) raised ProcessLookupError for all six logged receivers, including both failed optional capture attempts. No signals sent or unrelated applications terminated.",
+    "scope": "Final native functional group asserts strict offscreen placement for all owned windows, private preferences and genuine private Git conflict stages; decode operations and windows drain before fixture release. Earlier successful photograph attempt did not meet strict offscreen placement."
+  },
+  "captures": {
+    "status": "actual-photos-parent-reviewed-with-placement-limitation",
+    "files": [
+      {
+        "path": "docs/site/assets/metafile-drawing-state-compare-dark.png",
+        "width": 2240,
+        "height": 1576,
+        "bytes": 360867,
+        "sha256": "885ddb2613460b7c9efb0bafe59183f54c9997fa1a847d4a904b460987a93a16"
+      },
+      {
+        "path": "docs/site/assets/metafile-drawing-state-compare-light.png",
+        "width": 2240,
+        "height": 1576,
+        "bytes": 518845,
+        "sha256": "3b5ad57ac0d2757ad389cf398e592b9e55870cd56d817e690d52672e9b905c18"
+      },
+      {
+        "path": "docs/site/assets/metafile-drawing-state-conflict-dark.png",
+        "width": 2400,
+        "height": 1576,
+        "bytes": 358630,
+        "sha256": "465392d60852072a90d1895f62618bb51f075efaa2c9bbe4d79a97b111942c53"
+      },
+      {
+        "path": "docs/site/assets/metafile-drawing-state-conflict-light.png",
+        "width": 2400,
+        "height": 1576,
+        "bytes": 461129,
+        "sha256": "43cd27fa6b83ee4cf91895d6fd732ca865ae6a5f817ead0e85d07952353caa6b"
+      }
+    ],
+    "source_log": "build/qa/metafile-drawing-state-native-repair-2026-10-23.log",
+    "review": "Parent viewed all four photos: matching Compare panes and three different conflict stages visible, light/dark controls fit. Accepted as actual UI photographs only; independent pixel assertions remain the correctness oracle.",
+    "placement_limit": "Captured before strict offscreen constraining fix; AppKit left a 40-point screen edge. These photos do not establish fully offscreen screenshot capture. Strict offscreen capture later failed SC-3811 three times; final functional cases passed fully offscreen without capture."
+  }
+}

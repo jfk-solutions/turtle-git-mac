@@ -106,7 +106,7 @@ Raw bitmap batch (original generator inputs, no upstream picture bytes):
 - `plus-raw-indexed{1,4,8}-{positive,negative}.emf` use odd widths, deliberately
   nonzero unused bits/nibbles and row padding, and distinct top/bottom rows.
   One-bit values are MSB-first; four-bit values use the high nibble first.
-  Eight-bit uses index200 in a201-entry palette; padding255 must be ignored.
+  Eight-bit uses index 200 in a201-entry palette; padding255 must be ignored.
 - `plus-raw-indexed-alpha{,-unflagged}.emf` retain half/zero-alpha ARGB entries
   with and without HasAlpha metadata. GrayScale2 and Halftone4 have separate
   valid fixtures. GrayScale on non-gray colors is explicitly refused.
@@ -400,8 +400,10 @@ independently expecting blue/yellow instead of red/green.
 The no-source BitBlt/StretchBlt fixtures additionally use zero and skewed unused
 `XformSrc` metadata: PATCOPY must still use P, and DSTINVERT must still invert D.
 Source-dependent singular/nonfinite/rotated/sheared transforms remain refusals.
-The three missing-logical-palette refusals use actual indexed eight-bit
-`DIB_PAL_COLORS` WORD table entries, rather than truecolor data with no palette.
+The three logical-palette refusals use actual indexed eight-bit
+`DIB_PAL_COLORS` WORD table entries 20 outside the explicitly chosen 20-entry
+common-display default profile, rather than truecolor data with no palette.
+Index 0 without an explicit custom palette is now a valid default-profile lookup.
 The EMF ROP2 pen matrix intentionally declares a two-logical-unit solid
 `EMR_CREATEPEN` pen; interior truth samples require its full stroke coverage.
 
@@ -415,3 +417,38 @@ The malformed offcanvas record still declares an invalid source bitmap offset.
 Independent Core and native consumer expectations use literal device samples,
 not serialized implementation ROI fields or timing thresholds. The exhaustive
 ROP2/ROP3 truth matrices remain unchanged and retain the decoder's 15s deadline.
+
+
+`generate-drawing-state.py` (MIT) authors original 64×64 EMF/WMF records for
+`MetafileDrawingStateTests`. EMF stock DC_BRUSH 18/DC_PEN 19 use white/black
+playback defaults; later colors are ordinary CreateBrush/CreatePen/SelectObject
+records, matching real recorder output. Text/background color changes do not
+change these stock defaults. Ordinary object controls independently reproduce
+vector, explicit FillRgn, PATCOPY, flood, pen and saved-selection paintings.
+Cosmetic black strokes receive an explicit half-device-unit transform so literal
+interior samples are independent of edge antialiasing.
+
+The default-palette profile fixtures compare all 20 logical entries of the chosen
+Windows common-display profile with independently authored RGBQUAD DIBs. This is
+an explicit macOS playback policy for a device-dependent Windows default, not a
+hardware-palette equivalence claim. They cover initial/explicit DEFAULT selection,
+read-only stock palette update, PALETTEINDEX vector brush/pen, nested SaveDC/
+RestoreDC, live custom palette mutation while saved, ignored deletion while a
+saved DC selects the object, and later unselected deletion. The color-consumer
+pair reuses the same indexed ordinary/extended pen, brush, hatch and text objects
+across two real custom palette selections; ordinary RGB replacement controls
+provide a separate complete painting oracle. No invented DC-color setter record
+is present; unverified WMF stock 18/19 remain refusals.
+
+`classic-patternbrush-default-palette.emf` promotes the formerly refused valid
+WORD indices 0/1 to positive black/maroon default-profile coverage. Its replacement
+negative uses actual out-of-profile indices 20/21. Other `unsupported-drawing-state`
+records cover default index 20, PC_EXPLICIT unknown hardware entries and WMF
+stock18/19. Original-byte and conversion-isolation checks accompany all scenes.
+
+`classic-deferred-palette-brush.emf` selects a PALETTEINDEX 25 logical brush
+before its custom palette exists, saves/restores that selection, changes text/
+background attributes, then selects a 26-entry custom palette and paints cyan.
+Its final selected PALETTEINDEX 1000 brush remains unused and valid. The separate
+painted-unresolved brush refusal requires actual missing-color consumption,
+retaining whole-image refusal after earlier legitimate marks.

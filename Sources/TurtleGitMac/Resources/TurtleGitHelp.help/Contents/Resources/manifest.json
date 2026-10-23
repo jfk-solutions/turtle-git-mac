@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "418c6f002038acec80c7b673320ed23db9269f13a50fa54bf8f79a5c1d871a63",
+    "Contents/Info.plist": "7928f758ae782519e0241bead764a5dbf7958c2322004b17350b98354fcfea42",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BISECT.html": "c94bc39b7cf56afa6cd774a6758bb3994864256ec1ba6a85a3d47d820963b1ec",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "3c99fc083b21ae3fd2ced9b73430abe7383732d4b8b7e40eb960c1ffc5c1357d",
@@ -31,6 +31,7 @@
     "Contents/Resources/en.lproj/MERGE-FILTERS.html": "fd3810301986f74435fb161b42c4abff1bb1f53347e5e2cd9eae51f4c8b2a8af",
     "Contents/Resources/en.lproj/MERGE-PANE-PRESENTATION-PARITY.html": "28f903b89ad73027fc199a974643d1b6815aff3ee0195659e4d523193a8ed8ee",
     "Contents/Resources/en.lproj/MERGE-TOOL.html": "916a2d4f7bd280cbcb96e22bba49ade7ce5e945288dc0c0c2c1f1188ca553f3a",
+    "Contents/Resources/en.lproj/METAFILE-DRAWING-STATE-PARITY.html": "04c639af79c38b4fec12dd4c0449b8f8cd463ebadb1044e5d9c99059bf60c385",
     "Contents/Resources/en.lproj/METAFILE-RASTER-PARITY.html": "a92b01b9fe86daed677cc7e005e978f573efda2c74fd1cc6c44e8cf45288c1f7",
     "Contents/Resources/en.lproj/METAFILE-RASTER-ROI-PARITY.html": "5c02b100fc11689cfd7d3098561183977b8e854518e6d313af93e6aeff2cc032",
     "Contents/Resources/en.lproj/MISSING-STAGED-FILES.html": "94bbe1572af86ef4b96a93fe81a9cd33ffdfae9ec2799d0d755ef4c13398dc65",
@@ -74,8 +75,8 @@
     "Contents/Resources/en.lproj/images/ed3713977296-image-conflict-undecodable-light.png": "138d20aa5da3ab6b283e6d2d69e78639534af3cbef1a2bbbb686ab48aa3b1446",
     "Contents/Resources/en.lproj/images/f49a195c8c35-cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
     "Contents/Resources/en.lproj/images/f7856202ab6a-commit-file-groups-language-de-dark.png": "e7f075b32f6ff02494ead9db85a9da57039ad1a108cda57cadbe40c895f988ed",
-    "Contents/Resources/en.lproj/index.html": "16bf8a0866bf06c417a91af4bbe9071bea87e1b9e555f5bb56e20468b26f1d1a",
-    "Contents/Resources/en.lproj/topics.json": "3184017cc6b6d4fb339f70f2510c6fed39aa91373291bbbdbb739a3cb92d13c7"
+    "Contents/Resources/en.lproj/index.html": "3c5448ed48fa69c779d66b0f501b78f15a9f56d3ccb946d3722f42310edb18dd",
+    "Contents/Resources/en.lproj/topics.json": "a23dc6d725b6840764439a675006fff1a52cd1ec4a8ef1fa2039eb91c9428d12"
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
@@ -107,6 +108,7 @@
     "docs/MERGE-FILTERS.md": "c32dbedd77e3f6903bb05bac9d9edc9efbdfad6942bdaad57752a27c7107f028",
     "docs/MERGE-PANE-PRESENTATION-PARITY.md": "6db4971c3447dbbc1c6262effeecd8b2b07c9a15699fdc1ec785341b88db80f5",
     "docs/MERGE-TOOL.md": "f16911856a5878dc4bb783f86bfb073c3ca4e7ca21f0b28c969604ed7d413a28",
+    "docs/METAFILE-DRAWING-STATE-PARITY.md": "a96e020674d715ff6862134d0708c9241dc5f821ee9fe8c618fb4a13fe25a1fa",
     "docs/METAFILE-RASTER-PARITY.md": "dd394d8e00c2f55e406031f730198647c0e054339444f93d741bc332fa4afd31",
     "docs/METAFILE-RASTER-ROI-PARITY.md": "d791e0770fb94b1c40fe26a0882770c6d79d7a220c7611541eb40da02d31bbed",
     "docs/MISSING-STAGED-FILES.md": "8ae05b45701695eb63e173aa9c5f4292fc4036f1512acee4cfd829294cc64663",
@@ -135,7 +137,7 @@
     "docs/WORD-COMPARISON.md": "922b2e8a5f12bc40b8475bbf73cb558e87a0e692625139b3cc34502f4923663d",
     "docs/WORD-MERGE.md": "dc11fee38f848ddda8201163da223235c9adeaecfe74beaad1ff75d91ff702d7",
     "docs/ZIP-COMPARISON.md": "1fa7085d96970e6cc85ef8edb5e94f12277617d5c91614f1fd05c92362576241",
-    "docs/help-topics.json": "3184017cc6b6d4fb339f70f2510c6fed39aa91373291bbbdbb739a3cb92d13c7",
+    "docs/help-topics.json": "a23dc6d725b6840764439a675006fff1a52cd1ec4a8ef1fa2039eb91c9428d12",
     "docs/site/assets/binary-comparison-dark.png": "13944fd1b3128d1a46cadfabc89f4245a0008a379a7b1ad18e8b77365e618c8d",
     "docs/site/assets/binary-comparison-light.png": "0dda7bddf5a03dbf5bad64e6481f89121752721f2d4bb16995f29a406f2bb04b",
     "docs/site/assets/cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
