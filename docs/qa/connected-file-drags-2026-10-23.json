@@ -1,0 +1,285 @@
+{
+  "date": "2026-10-23",
+  "status": "grouped-native-passed-with-recorded-fixture-repairs",
+  "scope": [
+    "Shared native selected-file transfer receipts and gesture adapter",
+    "Changed Files destination revision and embedded Rebase historical revision",
+    "Paused Rebase and Sync conflict working-file drags independent of checked actions",
+    "Sync Incoming/Outgoing base revision, aggregate paths and accepted session ownership",
+    "Log compatibility and native highlight-independent drag context"
+  ],
+  "pinned_source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "planned_native_case_engine_pairs": 24,
+  "planned_groups": {
+    "revision": [
+      "historical",
+      "working",
+      "sourceownership"
+    ],
+    "rebase": [
+      "historical",
+      "conflicts"
+    ],
+    "sync": [
+      "incoming",
+      "outgoing",
+      "conflicts",
+      "ownership"
+    ],
+    "log": [
+      "historical",
+      "range",
+      "working"
+    ]
+  },
+  "core": "No Core production changes; native receipts and owner integrations use unchanged bounded transfer/materialization contracts. No full Core rerun planned.",
+  "validation": {
+    "debug_build": {
+      "exit_code": 0,
+      "log": "build/qa/connected-file-drags-app-2026-10-23.log",
+      "contradictory_failed_with_exit_zero_diagnostics": 24
+    },
+    "native": {
+      "distinct_case_engine_pairs": 24,
+      "passed": 24,
+      "groups": {
+        "revision": [
+          {
+            "git": "/usr/bin/git",
+            "case": "historical",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "working",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "sourceownership",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "historical",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "working",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "sourceownership",
+            "returncode": 0,
+            "passed": true
+          }
+        ],
+        "rebase": [
+          {
+            "git": "/usr/bin/git",
+            "case": "historical",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "conflicts",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "historical",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "conflicts",
+            "returncode": 0,
+            "passed": true
+          }
+        ],
+        "sync": [
+          {
+            "git": "/usr/bin/git",
+            "case": "incoming",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "outgoing",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "conflicts",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "ownership",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "incoming",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "outgoing",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "conflicts",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "ownership",
+            "returncode": 0,
+            "passed": true
+          }
+        ],
+        "log": [
+          {
+            "git": "/usr/bin/git",
+            "case": "historical",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "range",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/usr/bin/git",
+            "case": "working",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "historical",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "range",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "working",
+            "returncode": 0,
+            "passed": true
+          }
+        ]
+      },
+      "logs": [
+        "build/qa/revision-file-drags-native-2026-10-23.log",
+        "build/qa/revision-file-drags-selection-repair-system-native-2026-10-23.log",
+        "build/qa/revision-file-drags-bundled-native-2026-10-23.log",
+        "build/qa/rebase-file-drags-native-2026-10-23.log",
+        "build/qa/rebase-file-drags-actor-repair-native-2026-10-23.log",
+        "build/qa/sync-file-drags-native-2026-10-23.log",
+        "build/qa/sync-file-drags-busy-repair-native-2026-10-23.log",
+        "build/qa/connected-log-file-drags-native-2026-10-23.log"
+      ],
+      "receiver_attempts": 25,
+      "passing_receivers": 24,
+      "failed_receivers": 1,
+      "receiver_pids_reaped": [
+        80558,
+        80621,
+        81672,
+        81778,
+        82164,
+        82251,
+        82364,
+        80782,
+        80929,
+        81089,
+        81240,
+        82237,
+        82453,
+        82569,
+        82701,
+        82821,
+        82934,
+        83049,
+        83177,
+        81468,
+        81564,
+        81673,
+        81836,
+        81945,
+        82051
+      ],
+      "independently_absent": true,
+      "sandbox_extension_diagnostics": 0,
+      "visibility": "All receiver windows alpha0/strictly offscreen; no captures or desktop activation",
+      "physical_drag_session": "not certified; actual native adapters/data sources and promise/provider deliveries exercised"
+    },
+    "failures_and_repairs": [
+      {
+        "log": "build/qa/revision-file-drags-native-2026-10-23.log",
+        "failure": "System working-case timeout75 after historical pass; SwiftUI direct selected-index subset replacement did not settle",
+        "repair": "Use existing production replaceSelection helper; retained exact native/model selection and contents assertions; reran only affected/unrun cases",
+        "receivers_started": 2,
+        "failed_pid": 80621
+      },
+      {
+        "log": "build/qa/rebase-file-drags-native-2026-10-23.log",
+        "failure": "Nested Rebase fixture Context did not inherit MainActor; fixture compilation failed",
+        "repair": "Annotate the actual UI Context MainActor; no production changes or receivers started"
+      },
+      {
+        "log": "build/qa/sync-file-drags-native-2026-10-23.log",
+        "failure": "Sync fixture attempted inaccessible busy setter; fixture compilation failed",
+        "repair": "Exercise real owned compareHistoryChangeSets read against nonexistent object, assert busy/refusal in same MainActor turn, await actual drain; no production setter or receivers started"
+      }
+    ],
+    "scope": "One Debug build; no Core production changes or Core rerun; native fixture-only repairs did not trigger app builds or repeat unaffected passing cases."
+  },
+  "limits": [
+    "Physical AppKit drag gestures/destination names/modifier interoperability require installed acceptance.",
+    "No signed Finder grant, full hosted CI, universal rebuild or App Store signing/submission claim.",
+    "Separate context-menu and drag nonces preserve normal row highlighting without accepting stale source projections."
+  ],
+  "hosted_observation": {
+    "main_commit": "47806274",
+    "macos_run": 39989023340,
+    "macos_status": "pending",
+    "active_older_run": 39973683101,
+    "pages_run": 39989023268,
+    "pages_result": "success"
+  },
+  "documentation": {
+    "coverage": "130 dialogs/120 partial/10 pending; reconcile passed; not a feature percentage",
+    "localizations": "38 languages/1315 keys check passed",
+    "help": "58 documents/51 topics/78 files/3783688 bytes check passed",
+    "site": "422 documents; zero unresolved fragments; Python2 and JS search checks passed",
+    "unrelated_wip": "Both original SHA256 values unchanged and excluded from staging"
+  }
+}

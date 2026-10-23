@@ -237,7 +237,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
             selectedPaths = GitPathRowIdentity.paths(nativeSelection).intersection(visibleFiles.map(\.path))
             let valid = Set(selectedPaths.map(GitPathRowIdentity.encode))
             if nativeSelection != valid { nativeSelection = valid }
-            invalidateFileMenus(); cancelSelectionPreparations(); updatePatch()
+            invalidateFileMenus(includingDrag:false); cancelSelectionPreparations(); updatePatch()
         }
     }
     var selection: GitPathSet {
@@ -250,7 +250,8 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     @Published var busy = false { didSet { if busy != oldValue { invalidateFileMenus() } } }
     @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { invalidateFileMenus() } } }
     private(set) var fileMenuEpoch = UUID()
-    private func invalidateFileMenus() { fileMenuEpoch = UUID() }
+    private var fileDragEpoch=UUID()
+    private func invalidateFileMenus(includingDrag:Bool=true) { fileMenuEpoch = UUID();if includingDrag {fileDragEpoch=UUID()} }
     private func cancelSelectionPreparations() {
         if let token = fileActionToken { token.cancel(); cancelFilePicker() }
         comparisonSessions.values.forEach { $0.cancel() }; patchTokens.values.forEach { $0.cancel() }
@@ -299,7 +300,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     var comparisonWindows = GitPathMap<FileComparisonWindowController>()
     @Published var fileColumns: StatusListColumnSettings { didSet { invalidateFileMenus() } }
     @Published var focusedFile: String? {
-        didSet { if oldValue.map({GitReferenceName($0)}) != focusedFile.map({GitReferenceName($0)}) { invalidateFileMenus() } }
+        didSet { if oldValue.map({GitReferenceName($0)}) != focusedFile.map({GitReferenceName($0)}) { invalidateFileMenus(includingDrag:false) } }
     }
     @Published private(set) var resettingColumns = false
     private var columnsRequest = UUID()
@@ -634,6 +635,26 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     /// FileDiffDlg exports its second (destination) revision. Capture the
     /// rendered row receipt before the gesture; delivery owns its own lease.
     var canStartFileDrag:()->Bool = {true}
+    /// A gesture belongs to the rendered destination snapshot, not editable
+    /// revision text or a later resolved reference. Embedded owners add their
+    /// own replay/child lifetime gates through canStartFileDrag.
+    var fileDragGeneration:UUID? {
+        guard canStartFileDrag(),!closed,!busy,!confirmingQuit,!resettingColumns,
+              inputTask==nil,!hasOwnedPreparation,window?.attachedSheet==nil,
+              NSApp.modalWindow==nil,snapshot != nil else{return nil}
+        return fileDragEpoch
+    }
+    func captureFileDrag(_ orderedPaths:[String])->FileListSelectionDrag? {
+        guard fileDragGeneration != nil,!orderedPaths.isEmpty,
+              GitPathSet(orderedPaths).count==orderedPaths.count,
+              orderedPaths.allSatisfy({selection.contains($0)}),
+              let context=captureFileMenu(orderedPaths),claimFileMenu(context,consume:false),let snapshot else{return nil}
+        let lookup=GitPathMap(uniqueKeysWithValues:context.files.map{($0.path,$0)})
+        let files=orderedPaths.compactMap{lookup[$0]}
+        guard files.count==orderedPaths.count else{return nil}
+        return FileListSelectionDrag(repository:repository,access:access,files:files,
+            revision:snapshot.to,backend:materializationBackend())
+    }
     func fileDragProvider(_ context:FileMenuContext?)->NSItemProvider? {
         guard canStartFileDrag(),NSApp.modalWindow==nil,!hasOwnedPreparation,
               claimFileMenu(context,consume:false),let context,let snapshot,
@@ -896,10 +917,12 @@ struct RevisionComparisonFileList:View {
                 TableColumn("Lines removed", sortUsing: RevisionComparisonFileSort(column: .removed)) { row in let file = row.file; Text(file.removedText).foregroundStyle(color(file)) }.width(min: 65, ideal: 95, max: 320)
             } rows: {
                 ForEach(model.visibleFiles.map(RevisionComparisonFileRow.init)) {row in
-                    let receipt=model.captureFileMenu([row.file.path])
-                    TableRow(row).itemProvider {model.fileDragProvider(receipt)}
+                    TableRow(row)
                 }
             }.fileListFont()
+            .background(FileListDragInteraction(rows:model.visibleFiles.map{.init(id:$0.path)},
+                generation:{[weak model] in model?.fileDragGeneration},
+                capture:{[weak model] in model?.captureFileDrag($0)}))
             .background(CommitFileInteraction(rows: model.visibleFiles.compactMap { StatusEntry.parse(Data((" M " + $0.path + "\0").utf8)).first.map(StatusListRow.file) },
                 leadingColumnCount: 0, keyboardDeleteEnabled: false, nativeColumns: StatusListColumn.defaultColumns,
                 rowTexts: model.visibleFiles.map { file in Dictionary(uniqueKeysWithValues: StatusListColumn.defaultColumns.map { ($0, model.fileText(file, column: $0)) }) },

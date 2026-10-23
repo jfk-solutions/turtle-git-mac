@@ -208,3 +208,60 @@ behavior, destination naming/acceptance in other applications, copy/move modifie
 behavior, VoiceOver, installed security-scoped grants, signed Finder delivery,
 full hosted integration and full application parity. These limits also apply
 to the new Log continuation independently of earlier family checkpoints.
+
+
+## Connected revision and conflict lists — October 23, 2026
+
+This continuation implements a complete related outbound list family before its
+grouped native checkpoint. It does not certify physical drag interoperability.
+
+- Changed Files uses `CFileDiffDlg::OnLvnBegindrag` (`FileDiffDlg.cpp:1425–1468`):
+  every highlighted filtered/displayed row, with the immutable second/destination
+  revision. Its shared native list also serves Rebase Revision Files.
+- Rebase selects the commit hash for historical rows (`RebaseDlg.cpp:2927–2944`)
+  and clears the revision for replay/conflicts (`1331–1335`). Paused Conflict Files
+  therefore offer existing working-file URLs, independently of checked actions.
+- Synchronization installs new/old endpoints as Rev1/Rev2 (`SyncDlg.h:186–198`).
+  Shared status-list dragging chooses Rev2 before CurrentVersion
+  (`GitStatusListCtrl.cpp:3767–3805`), so Incoming/Outgoing retain the old/base
+  endpoint. Conflicts use working files.
+- `FillListOfSelectedItemPaths` (`3595–3609`) uses highlighted displayed rows.
+  `GitDataObject.cpp:253–275` provides every path as CRLF text while content
+  eligibility excludes missing/deleted/directory/gitlink rows. No alternate
+  revision or current index is substituted for a failed historical promise.
+
+A synthetic empty-tree comparison endpoint offers validated path text only; it
+has no file contents and cannot fall back to working files or another revision.
+This is the native empty-endpoint adaptation, distinct from source working-copy
+revision markers.
+
+The shared `FileListSelectionDrag` retains the existing bounded plan,
+materialization, independent file occurrences, writers/providers and repository
+lease. Log retains a compatibility alias and thin native adapter. The common
+adapter captures native selected indexes only when its displayed rows and source
+context still match; popup/marked-row changes are separated from the drag context
+so ordinary mouse-down highlighting does not cancel its own gesture. Context,
+sort/filter, owner retirement, pending work, modal sheets and Quit remain fenced.
+Accepted native sessions retain their source and receipt until AppKit completion.
+
+Synchronization captures one aggregate transfer through its actual AppKit table.
+Its existing per-file helper remains available to earlier callers. Conflict
+lists reuse the existing working-file receipt and interaction machinery, retaining
+same-origin refusal where an incoming-drop route exists.
+
+[Grouped native evidence](qa/connected-file-drags-2026-10-23.json) records 24
+passing case/engine pairs: standalone Changed Files (historical, working,
+ownership), embedded Rebase (historical, paused conflicts), Synchronization
+(Incoming, Outgoing, Conflicts, ownership), and the affected Log adapter. Every
+case used system and bundled Git, private repositories/preferences and invisible,
+strictly offscreen windows. All 25 receiver attempts, including one fixture
+selection timeout, were reaped and independently absent. Two fixture compilation
+failures started no receivers; all repairs and affected-only checks remain in the
+record. Actual adapters/data sources, promise delegates and retained provider
+contents were checked; physical AppKit drag sessions were not certified.
+
+One Debug build exited zero, with 24 contradictory generic “failed with exit code
+0” diagnostics retained. No Core production code, controls or labels changed,
+and no full Core or unaffected native suite was repeated. Signed grants,
+physical modifier/move behavior, destination naming, VoiceOver, current hosted CI
+and full upstream visual/format parity remain separate acceptance work.

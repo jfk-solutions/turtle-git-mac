@@ -78,9 +78,12 @@ private extension NSWindow {
         let rows=model.fileTableRows,indexes=IndexSet(rows.indices.filter{rows[$0].file.map{wanted.contains($0.path)} == true})
         try require(indexes.count==paths.count,"Actual changed-file list omitted selected rows")
         let table=try unwrap(probe.nativeTable,"Detached Log file table")
+        let gestureContext=probe.generation?()
         table.selectRowIndexes(indexes,byExtendingSelection:false)
         let files=indexes.compactMap{rows[$0].file},ids=GitPathSet(files.map(\.id))
         try await wait{model.selectedFiles==ids}
+        model.focusedChangedFile=files.first?.id
+        try require(gestureContext != nil && probe.generation?()==gestureContext,"Native highlight/marked-row selection invalidated its own drag gesture")
         return files
     }
     static func checkText(_ drag:LogFileListDrag,files:[CommitFile])throws {

@@ -1006,6 +1006,26 @@ struct RebaseReferenceRequest {
         let amendToParent:Bool
         var paths: [String] { rows.map(\.path) }
     }
+    let workingDragOrigin = UUID().uuidString
+    /// Paused replay files are working-tree paths, independent of commit checks.
+    func captureWorkingDrag(_ orderedPaths:[String])->WorkingFileListDrag? {
+        guard revisionMenuOwnerAvailable, !containingReferenceBlocked, !viewingConflictBase,
+              !preparingConflictDiff, !refreshingSession, fileRecovery,
+              NSApp.modalWindow == nil, !orderedPaths.isEmpty,
+              GitPathSet(orderedPaths).count == orderedPaths.count else { return nil }
+        let menu=conflictFileMenu(orderedPaths)
+        guard acceptsConflictFileMenu(menu), orderedPaths.allSatisfy({selectedConflicts.contains($0)}) else { return nil }
+        let lookup=GitPathMap(uniqueKeysWithValues:menu.rows.map{($0.path,$0)})
+        let rows=orderedPaths.compactMap{lookup[$0]}
+        guard rows.count == orderedPaths.count else { return nil }
+        let directories=GitPathSet(rows.filter { row in
+            let attributes=try? FileManager.default.attributesOfItem(atPath:repository.root.appendingPathComponent(row.path).path)
+            return conflictStatistics[row.path]?.isSubmodule == true || conflicts.contains{GitReferenceName.equal($0.path,row.path) && $0.isSubmodule} ||
+                attributes?[.type] as? FileAttributeType == .typeDirectory
+        }.map(\.path))
+        return FileListDrag.workingSelection(repository:repository,access:access,entries:rows,
+            directories:directories,backend:GitLibGit2Configuration.load(from:messageDefaults),origin:workingDragOrigin)
+    }
     func conflictFileMenu(_ values: some Sequence<String>,markedPath:String?=nil) -> ConflictFileMenu {
         let ids = GitPathSet(values)
         let rows = conflictTableRows.map(\.entry).filter { ids.contains($0.id) }
@@ -1393,7 +1413,7 @@ struct RebaseReferenceRequest {
         self.fullCommitMessageOnLogLine = messageDefaults.bool(forKey: "FullCommitMessageOnLogLine")
         revisionFiles.canStartFileDrag = { [weak self] in
             guard let self else{return false}
-            return self.revisionFilesAvailable && !self.containingReferenceBlocked && !self.revisionFindBlocked &&
+            return !self.fileRecovery && self.revisionFilesAvailable && !self.containingReferenceBlocked && !self.revisionFindBlocked &&
                 self.pendingConfirmation == nil && self.confirmation == nil && !self.hasReplayQuestion && !self.confirmingReplayCancellation
         }
         revisionFilesObservation=revisionFiles.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
@@ -2659,7 +2679,7 @@ struct RebaseConflictFiles: View {
             if paths.count == 1 && model.conflicts.contains(where: { paths.contains($0.id) }) { model.conflictAction(.editConflict, ids: paths) }
             else { model.compareConflictWorkingFiles(model.conflictFileMenu(paths)) }
         }
-        .background(CommitFileInteraction(rows:model.conflictTableRows.map { .file($0.entry) },keyboardDeleteEnabled:false,nativeColumns:RebaseWindowModel.conflictColumns,preferences:model.columnPreferences,
+        .background(CommitFileInteraction(rows:model.conflictTableRows.map { .file($0.entry) },keyboardDeleteEnabled:false,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin,nativeColumns:RebaseWindowModel.conflictColumns,preferences:model.columnPreferences,
             visibleColumns:Set(model.visibleConflictColumns),availableColumns:Set(RebaseWindowModel.conflictColumns),columnText:{model.conflictColumnText($0,$1)},
             savedOrder:model.conflictFileColumns.order,savedWidths:model.conflictFileColumns.widths,
             saveLayout:{model.saveConflictColumnLayout(order:$0,widths:$1)},setColumnVisible:{model.setConflictColumn($0,visible:$1)},

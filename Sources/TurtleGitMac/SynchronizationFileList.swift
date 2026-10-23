@@ -99,6 +99,17 @@ import TurtleGitCore
         guard available,let owner,receipt.epoch==epoch,receipt.generation==owner.fileListGeneration,receipt.tab==owner.tab,let child=comparison else{return false}
         return child.claimFileMenu(receipt.child)
     }
+    /// Capture all highlighted native rows, including text-only occurrences.
+    /// Sync installs Rev1=new/Rev2=old: its transfer endpoint is the immutable
+    /// base, unlike the selected-child revision in Log's changed-file list.
+    func captureFileDrag(_ orderedPaths:[String],epoch captured:UUID)->FileListSelectionDrag? {
+        guard available,epoch==captured,!orderedPaths.isEmpty,GitPathSet(orderedPaths).count==orderedPaths.count,
+              let child=comparison,!child.hasOwnedPreparation,let snapshot=child.snapshot else{return nil}
+        let lookup=GitPathMap(uniqueKeysWithValues:rows.map{($0.path,$0)})
+        let files=orderedPaths.compactMap{lookup[$0]}
+        guard files.count==orderedPaths.count,orderedPaths.allSatisfy({selection.contains($0)}) else{return nil}
+        return FileListSelectionDrag(repository:child.repository,access:child.access,files:files,revision:snapshot.from,backend:child.materializationBackend())
+    }
     /// Sync's status list sets Rev1=new and Rev2=old; drag-out uses Rev2.
     func dragWriter(_ file:CommitFile,epoch captured:UUID)->NSPasteboardWriting? {
         guard available,epoch==captured,let child=comparison,!child.hasOwnedPreparation,
@@ -215,12 +226,54 @@ struct SynchronizationFiles:NSViewRepresentable {
     func makeNSView(context:Context)->NSScrollView {context.coordinator.make()}
     func updateNSView(_ scroll:NSScrollView,context:Context){context.coordinator.refresh()}
     static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator){coordinator.retire()}
-    @MainActor final class Coordinator:NSObject,NSTableViewDataSource,NSTableViewDelegate {
+    @MainActor final class Coordinator:NSObject,NSTableViewDataSource,NSTableViewDelegate,NSDraggingSource {
         let model:SynchronizationWindowModel
         let state:SynchronizationFileListState
         weak var table:SynchronizationFileNativeTable?
         private var currentRows:[CommitFile]=[],updating=false,retired=false
         private var renderedEpoch=UUID()
+        private struct DragPress {let point:NSPoint,row:Int,files:[CommitFile],generation:UUID,from:ComparisonRevision,to:ComparisonRevision}
+        private var dragPress:DragPress?,dragMonitor:Any?
+        private(set) var activeDrag:FileListSelectionDrag?
+        private var dragOwner:Coordinator?
+        func captureDrag(rows indexes:IndexSet)->FileListSelectionDrag? {
+            guard !retired,activeDrag==nil,let table,let window=table.window,window === model.window,
+                  window.attachedSheet==nil,NSApp.modalWindow==nil,!indexes.isEmpty,
+                  table.numberOfRows==currentRows.count,currentRows==state.rows,
+                  indexes.allSatisfy({currentRows.indices.contains($0) && table.selectedRowIndexes.contains($0)}) else{return nil}
+            return state.captureFileDrag(indexes.map{currentRows[$0].path},epoch:state.menuEpoch)
+        }
+        func observeDrag(_ event:NSEvent)->NSEvent? {
+            guard !retired,let table,let window=table.window,event.window===window else{return event}
+            if event.type == .leftMouseUp || event.type == .rightMouseDown || event.type == .keyDown {dragPress=nil;return event}
+            if event.type == .leftMouseDown {
+                dragPress=nil
+                guard activeDrag==nil else{return event}
+                let point=table.convert(event.locationInWindow,from:nil),row=table.row(at:point),column=table.column(at:point)
+                if event.clickCount==1,state.available,table.visibleRect.contains(point),column>=0,currentRows.indices.contains(row),let snapshot=state.comparison?.snapshot {
+                    dragPress = .init(point:event.locationInWindow,row:row,files:currentRows,generation:model.fileListGeneration,from:snapshot.from,to:snapshot.to)
+                }
+                return event
+            }
+            guard event.type == .leftMouseDragged,let press=dragPress,
+                  hypot(event.locationInWindow.x-press.point.x,event.locationInWindow.y-press.point.y)>=4,
+                  press.generation==model.fileListGeneration,press.files==currentRows,
+                  state.comparison?.snapshot?.from==press.from,state.comparison?.snapshot?.to==press.to,
+                  table.selectedRowIndexes.contains(press.row),let drag=captureDrag(rows:table.selectedRowIndexes) else{return event}
+            dragPress=nil;activeDrag=drag;dragOwner=self
+            let point=table.convert(event.locationInWindow,from:nil)
+            let items=drag.writers.enumerated().map{index,writer in
+                let item=NSDraggingItem(pasteboardWriter:writer)
+                let image=drag.fileURLs.indices.contains(index-1) ? NSWorkspace.shared.icon(forFile:drag.fileURLs[index-1].path):MenuIcon.copy.image()
+                item.setDraggingFrame(NSRect(x:point.x+CGFloat(index)*3,y:point.y+CGFloat(index)*3,width:24,height:24),contents:image)
+                return item
+            }
+            table.beginDraggingSession(with:items,event:event,source:self)
+            return nil
+        }
+        func draggingSession(_ session:NSDraggingSession,sourceOperationMaskFor context:NSDraggingContext)->NSDragOperation {activeDrag?.operationMask ?? .copy}
+        func ignoreModifierKeys(for session:NSDraggingSession)->Bool {false}
+        func draggingSession(_ session:NSDraggingSession,endedAt screenPoint:NSPoint,operation:NSDragOperation){activeDrag=nil;dragPress=nil;dragOwner=nil}
         private weak var emptyLabel:NSTextField?
         private var fittedGeneration:UUID?,fittedRows=0,fittedWidths:[StatusListColumn:CGFloat]=[:]
         private var stateChanges:AnyCancellable?,childChanges:AnyCancellable?,closeObserver:NSObjectProtocol?
@@ -241,6 +294,7 @@ struct SynchronizationFiles:NSViewRepresentable {
             if let sort=state.sortColumn {table.sortDescriptors=[NSSortDescriptor(key:sort.rawValue,ascending:state.ascending)]}
             let header=SynchronizationFileHeader();header.makeMenu={ [weak self] in self?.headerMenu() ?? NSMenu() };table.headerView=header
             table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(doubleClick(_:))
+            dragMonitor=NSEvent.addLocalMonitorForEvents(matching:[.leftMouseDown,.leftMouseDragged,.leftMouseUp,.rightMouseDown,.keyDown]){[weak self] event in guard let self else{return event};return self.observeDrag(event)}
             table.onCompare={ [weak self] unified,alternate in self?.activate(unified:unified,alternate:alternate) }
             table.onCopy={ [weak self] extended in self?.copySelection(extended:extended) }
             table.makeRowMenu={ [weak self] row,column in self?.rowMenu(row:row,column:column) }
@@ -282,7 +336,10 @@ struct SynchronizationFiles:NSViewRepresentable {
             table.selectRowIndexes(IndexSet(currentRows.indices.filter {state.selection.contains(currentRows[$0].path)}),byExtendingSelection:false)
             NativeListSelection.install(on:table,preferences:model.preferences,primaryColumn:table.tableColumn(withIdentifier:.init(StatusListColumn.path.rawValue)),labelText:{[weak self] row in guard let self,self.currentRows.indices.contains(row) else{return nil};return self.state.text(self.currentRows[row],column:.path)},font:font,leadingInset:23)
         }
-        func retire(){guard !retired else{return};retired=true;stateChanges=nil;childChanges=nil;if let closeObserver {NotificationCenter.default.removeObserver(closeObserver)};closeObserver=nil;if let table {NativeListSelection.remove(from:table);table.retire();table.delegate=nil;table.dataSource=nil}}
+        func retire(){guard !retired else{return};retired=true;dragPress=nil;if let dragMonitor{NSEvent.removeMonitor(dragMonitor);self.dragMonitor=nil};stateChanges=nil;childChanges=nil;if let closeObserver {NotificationCenter.default.removeObserver(closeObserver)};closeObserver=nil;if let table {NativeListSelection.remove(from:table);table.retire();table.delegate=nil;table.dataSource=nil}}
+        // The aggregate monitor owns the complete multi-item session. AppKit's
+        // row-at-a-time route must not race it and omit the aggregate text item.
+        func tableView(_ tableView:NSTableView,canDragRowsWith rowIndexes:IndexSet,at point:NSPoint)->Bool {false}
         func tableView(_ tableView:NSTableView,pasteboardWriterForRow row:Int)->NSPasteboardWriting? {
             guard !retired,table === tableView,currentRows.indices.contains(row) else{return nil}
             return state.dragWriter(currentRows[row],epoch:renderedEpoch)

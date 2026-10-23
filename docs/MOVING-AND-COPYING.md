@@ -64,6 +64,16 @@ copy; the Working Tree row offers actual working-file URLs. All selected paths
 are also available as text. A combined list from multiple selected commits cannot
 start a drag because it has no single source revision.
 
+Changed Files exports the **To** endpoint of the displayed comparison. Rebase’s
+Revision Files tab exports the selected commit. Synchronization’s Incoming and
+Outgoing file lists export their **old/base** endpoint, matching TortoiseGit;
+they do not substitute newer contents when that endpoint cannot supply a file.
+Rebase’s paused Conflict Files and Synchronization’s Conflicts tab offer actual
+working-file URLs. Highlighting determines every transfer; checked conflict
+rows still determine the Git action. All these lists retain selected path text
+for rows without file contents, and accepted deliveries survive navigation or
+closing the source window.
+
 Changing a file outside TurtleGit does not create a commit or stage the change.
 Review the refreshed working-tree state afterward. Physical modifier/move,
 cross-application destination naming and signed Finder delivery still require

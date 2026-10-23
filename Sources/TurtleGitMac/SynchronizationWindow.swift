@@ -2712,6 +2712,7 @@ struct SynchronizationConflictFiles: View {
                 TableColumn("Lines removed",sortUsing:SynchronizationConflictSort(column:.removed)) { Text($0.removedText).frame(maxWidth:.infinity,alignment:.trailing) }.width(min:70,ideal:95)
             }.fileListFont()
             .background(CommitFileInteraction(rows:rows.map { .file($0.file.entry) },leadingColumnCount:0,keyboardDeleteEnabled:false,
+                captureWorkingDrag:{actions.captureWorkingDrag($0)},workingDragOrigin:actions.workingDragOrigin,
                 nativeColumns:[.path,.fileExtension,.status,.added,.removed],configureRefresh:{actions.fileListRefresh.attach($0)},watermarkIcon:.resolve,preferences:model.preferences,
                 visibleColumns:actions.fileColumns.visible.intersection(SynchronizationWindowModel.conflictColumns),availableColumns:SynchronizationWindowModel.conflictColumns,
                 columnText:{entry,column in lookup[entry.path].map { actions.columnText($0,column) } ?? ""},savedOrder:actions.fileColumns.order,savedWidths:actions.fileColumns.widths,

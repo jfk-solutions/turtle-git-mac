@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "d0285d3293c04c418853b8086091419bf3f5935dbfc684fa41addb90682daf0f",
+    "Contents/Info.plist": "ab51f7d9092274f9f80eb5da7e880ffd5c20ec86f6ea9587e35d1922f76fa8a6",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BISECT.html": "c94bc39b7cf56afa6cd774a6758bb3994864256ec1ba6a85a3d47d820963b1ec",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "3c99fc083b21ae3fd2ced9b73430abe7383732d4b8b7e40eb960c1ffc5c1357d",
@@ -35,7 +35,7 @@
     "Contents/Resources/en.lproj/METAFILE-RASTER-PARITY.html": "a92b01b9fe86daed677cc7e005e978f573efda2c74fd1cc6c44e8cf45288c1f7",
     "Contents/Resources/en.lproj/METAFILE-RASTER-ROI-PARITY.html": "5c02b100fc11689cfd7d3098561183977b8e854518e6d313af93e6aeff2cc032",
     "Contents/Resources/en.lproj/MISSING-STAGED-FILES.html": "94bbe1572af86ef4b96a93fe81a9cd33ffdfae9ec2799d0d755ef4c13398dc65",
-    "Contents/Resources/en.lproj/MOVING-AND-COPYING.html": "71a0d09fd45f6d1b9064ec02b20f8bad64abd0e7ad7ea61cfd7ca0f3052b8d9e",
+    "Contents/Resources/en.lproj/MOVING-AND-COPYING.html": "f32015f85ba2dee26896cdf01f7cafe5dfec5dd7784c276beefc3b45e7e3450a",
     "Contents/Resources/en.lproj/PATCH-SAVE-APPLICATION-POLICY-PARITY.html": "e48a83ba89cb4b4a3bf9f477b6547b4de29b950e57786191dda2dd526a6314dc",
     "Contents/Resources/en.lproj/POWERPOINT-COMPARISON.html": "a12d501fe975912495bd1decc1d898c7ccc3052b8d19e3a74810a6fa77886112",
     "Contents/Resources/en.lproj/PRIMARY-DIALOG-CONTROLS-PARITY.html": "3b573acee9ac9630fa78f76617d012dfaeb1ca0bd64e2b9893cd2c07bd537044",
@@ -112,7 +112,7 @@
     "docs/METAFILE-RASTER-PARITY.md": "dd394d8e00c2f55e406031f730198647c0e054339444f93d741bc332fa4afd31",
     "docs/METAFILE-RASTER-ROI-PARITY.md": "d791e0770fb94b1c40fe26a0882770c6d79d7a220c7611541eb40da02d31bbed",
     "docs/MISSING-STAGED-FILES.md": "8ae05b45701695eb63e173aa9c5f4292fc4036f1512acee4cfd829294cc64663",
-    "docs/MOVING-AND-COPYING.md": "6f0bc721d548a1662d1f65a7db6e48b0b4b1ce3861f7f039e8d55ff8e731d6bf",
+    "docs/MOVING-AND-COPYING.md": "95527cf729516945d17d44cc128a80b281f6f6d7478ab3f853790314f0909b36",
     "docs/PATCH-SAVE-APPLICATION-POLICY-PARITY.md": "f412e5815b06968b246ef5d630e6b816026e4d003a2eecc596e55448f82a610d",
     "docs/POWERPOINT-COMPARISON.md": "045ec11fe5c0ba81d37f538df754739de569ffbedc4b95338d3a3baa3c9d470d",
     "docs/PRIMARY-DIALOG-CONTROLS-PARITY.md": "606ef42122127fb0d99dcf1d372f92a3a1e26d2f8992da2f911eece91271e27c",
