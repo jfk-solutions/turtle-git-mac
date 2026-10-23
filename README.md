@@ -137,6 +137,17 @@ authorize Finder status sharing. See [trying the local preview](docs/LOCAL-PREVI
 and the [release blockers](docs/RELEASE-BLOCKERS.md) for the signed channel and
 remaining acceptance work.
 
+The current measured local package is version `0.1.0`, build `2`, under
+`build/previews/TurtleGit-d9849eb5-build2/`; its ZIP is 409,510,795 bytes.
+The matching unsigned archive is
+`build/archives/TurtleGit-AppStore-d9849eb5-build2.xcarchive`.
+[Delivery evidence](docs/qa/distribution-d9849eb5-build2-2026-10-23.json) records
+measured HEAD `d9849eb5`, explicitly dirty V2 configuration/script inputs, matching
+peer versions, universal audits and packaged WCRev probes. These local artifacts
+have not been uploaded as a release and do not establish a clean checkout,
+complete hosted CI result or signed runtime acceptance.
+[The preview guide](docs/LOCAL-PREVIEW.md) includes the ZIP checksum.
+
 ## Finder integration
 
 The app also advertises fifty-five selected-file **Services**, including Log, Commit,

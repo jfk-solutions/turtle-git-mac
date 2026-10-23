@@ -6,8 +6,12 @@ import subprocess
 from distribution_archive import file_inventory
 
 INPUT_PATHS = ('Sources', 'Configuration', 'TurtleGitMac.xcodeproj', 'Package.swift',
-               'Package.resolved', 'LICENSE', 'NOTICE', 'scripts')
-SCHEMA = 'TurtleGitDistributionInputsV1'
+               'Package.resolved', 'project.yml', 'LICENSE', 'NOTICE', 'Licenses', 'patches', 'scripts')
+# V2 closes the runtime reconstruction inputs: builders consume repository
+# patches, third-party license texts and the XcodeGen project recipe, as well
+# as generated project files, sources and pin manifests.
+# A V1 candidate must rebuild; it cannot establish these formerly unmeasured bytes.
+SCHEMA = 'TurtleGitDistributionInputsV2'
 
 
 def digest_file(path):

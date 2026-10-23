@@ -8,6 +8,7 @@ import plistlib
 import subprocess
 import sys
 from distribution_archive import KIND, archive_application, debug_symbols, file_inventory, export_options
+from distribution_identity import application_identity, build_number, positive_jobs
 from bundle_architectures import audit_application_architectures
 from distribution_provenance import source_inputs, require_same_inputs, require_same_bundle
 
@@ -16,6 +17,8 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--configuration', choices=('AppStore','Release'), default='AppStore')
 parser.add_argument('--archive-path', type=Path, required=True)
 parser.add_argument('--derived-data', type=Path, default=ROOT/'build-archive')
+parser.add_argument('--build-number', type=build_number, help='Explicit numeric CFBundleVersion override; does not contact App Store Connect.')
+parser.add_argument('--jobs', type=positive_jobs, default=4, help='Maximum concurrent Xcode build tasks (default: 4).')
 parser.add_argument('--audit-existing', action='store_true')
 parser.add_argument('--team-id', help='Prepare ExportOptions.plist for an actual team; does not sign or export.')
 args = parser.parse_args()
@@ -44,12 +47,14 @@ else:
     measured_inputs = source_inputs(ROOT)
     archive.parent.mkdir(parents=True,exist_ok=True)
     scheme = 'TurtleGitAppStore' if args.configuration == 'AppStore' else 'TurtleGitMac'
-    subprocess.run(['xcodebuild','-quiet','-project',str(ROOT/'TurtleGitMac.xcodeproj'),'-scheme',scheme,
+    identity_settings = ['CURRENT_PROJECT_VERSION=' + args.build_number] if args.build_number is not None else []
+    subprocess.run(['xcodebuild','-quiet','-jobs',str(args.jobs),'-project',str(ROOT/'TurtleGitMac.xcodeproj'),'-scheme',scheme,
                     '-configuration',args.configuration,'-destination','generic/platform=macOS',
                     '-derivedDataPath',str(args.derived_data.resolve()),'-archivePath',str(archive),
-                    'CODE_SIGNING_ALLOWED=NO','archive'],cwd=ROOT,check=True)
+                    'CODE_SIGNING_ALLOWED=NO',*identity_settings,'archive'],cwd=ROOT,check=True)
 require_same_inputs(measured_inputs, source_inputs(ROOT))
 app,metadata,info = archive_application(archive)
+identity = application_identity(app, expected_build_number=args.build_number)
 subprocess.run([sys.executable,str(ROOT/'scripts/validate-app-bundle.py'),str(app),'--require-git','--require-universal'],cwd=ROOT,check=True)
 subprocess.run([sys.executable,str(ROOT/'scripts/audit-cache-service.py'),str(app)],cwd=ROOT,check=True)
 architectures = audit_application_architectures(app)
@@ -60,6 +65,10 @@ record = {'kind':KIND,'configuration':args.configuration,'archive':str(archive),
           'version':info['CFBundleShortVersionString'],'build':info['CFBundleVersion'],
           'architectures':architectures,'debug_symbols':symbols,'files':inventory,
           'build_inputs':measured_inputs,
+          'requested_build_number':previous.get('requested_build_number') if args.audit_existing else args.build_number,
+          'audit_requested_build_number':args.build_number if args.audit_existing else None,
+          'build_jobs':previous.get('build_jobs') if args.audit_existing else args.jobs,
+          'measured_identity':identity,
           'audited_git_head':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
           'signing_and_sandbox_acceptance':'unverified','submission':'not performed',
           'export':'not performed','export_settings':str(options_path) if options else None}

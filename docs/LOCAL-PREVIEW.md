@@ -55,22 +55,37 @@ remaining work. Nothing is installed, registered, uploaded or submitted by local
 packaging. The website's screenshots are actual native captures from their dated
 workflow checks; each parity guide records the remaining acceptance.
 
-An earlier hosted wrapped-navigation check timed out on macOS 15.7.9 Intel.
-The hash-verified stack sample is retained in [the CI evidence](qa/ci-wrapped-stack-2026-10-18.json).
-The current preview includes subsequent presentation/history changes with scoped
-local passes. The 16380893 hosted moved/wrapped family passed; that run then failed
-in LFSLocksVerification before the grouped SMTP phase reached readiness. See
-[the actual CI assertion](qa/ci-lfs-failure-16380893-2026-10-18.json). A complete
-passing current hosted result remains required; packaging does not clear that gate.
+## Current measured package — 23 October 2026
 
-The current 18 October local package is under `build/previews/TurtleGit-16380893`.
-Its ZIP is `TurtleGit-for-Mac-0.1.0-local-preview.zip` (353,713,855 bytes); the
-adjacent manifest records application source `16380893`, measured dirty script
-inputs and SHA-256 `4af4beb37e5c00a646184b9899dddd7d0c66e070aeaed73137a345ea824b32c2`.
-The [packaging evidence](qa/distribution-16380893-2026-10-18.json) also records the
-separate unsigned AppStore archive and current development-signed sandbox probe.
-WCRev from the preview passes under arm64 and x86_64/Rosetta with the same expected
-demo revision and branch. The shipping main GUI and installed Finder were not
-launched by this checkpoint. These artifacts have not been uploaded as a GitHub
-release. The [earlier ae48b26a record](qa/distribution-current-preview-2026-10-18.json)
-remains historical evidence.
+The local package is `build/previews/TurtleGit-d9849eb5-build2/`. Its app, Finder
+extension and cache service all report version `0.1.0`, build `2`. The ZIP is
+`TurtleGit-for-Mac-0.1.0-local-preview.zip` (**409,510,795 bytes**), SHA-256:
+
+```text
+4dc53f880537d42de09a475057f75681fb505a61f5bb72fd4b3958713a2716de
+```
+
+The adjacent manifest records measured build HEAD
+`d9849eb51bdb139b293250e38e5d18844766f503` and V2 source input SHA-256
+`bf13f60f420fffc1e3ef48308f5470975a0ffb4ccf2683ce0da7dcf05830b9a4`.
+Its dirty input state includes the new configuration/script fixes and existing
+protected development-script changes. It is not a clean-commit build claim.
+The app and extracted ZIP pass matching complete 6,354-member signed inventories
+and deep strict ad-hoc code-seal checks.
+
+[The delivery evidence](qa/distribution-d9849eb5-build2-2026-10-23.json) also records
+the separate unsigned AppStore archive, eight universal app-owned components and
+eight matching universal dSYMs. Packaged WCRev `--json` passed under arm64 and
+x86_64/Rosetta against the expected private repository HEAD and branch; both owned
+receivers were reaped. This did not launch the shipping main GUI, install or
+register Finder, refresh the signed candidate, upload a GitHub release, or export
+or submit an App Store build.
+
+The current [d9849eb5 hosted macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39969018955)
+was pending at the recorded October 23 observation. A complete hosted pass remains
+required; these package and scoped helper checks do not clear that gate. The
+[release blockers](RELEASE-BLOCKERS.md) distinguish earlier hosted failures and
+local repairs from the current delivery evidence. The
+[October 18 package record](qa/distribution-16380893-2026-10-18.json) and
+[earlier ae48b26a record](qa/distribution-current-preview-2026-10-18.json) remain
+historical evidence.

@@ -18,6 +18,11 @@ class ProvenanceTests(unittest.TestCase):
         (self.root / 'Sources').mkdir(); (self.root / 'docs').mkdir()
         (self.root / 'Sources/main.swift').write_text('original')
         (self.root / 'docs/guide.md').write_text('guide')
+        (self.root / 'project.yml').write_text('original project recipe')
+        (self.root / 'TurtleGitMac.xcodeproj').mkdir()
+        (self.root / 'TurtleGitMac.xcodeproj/project.pbxproj').write_text('original generated project')
+        for relative in ['patches/renderer.patch', 'Licenses/component.txt']:
+            path = self.root / relative; path.parent.mkdir(); path.write_text('original runtime input')
         self.git('init', '-q'); self.git('add', '.')
         self.git('-c', 'user.name=Provenance Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'base')
         self.app = self.root / 'candidate.app'; (self.app / 'Contents/MacOS').mkdir(parents=True)
@@ -48,6 +53,56 @@ class ProvenanceTests(unittest.TestCase):
         current = source_inputs(self.root)
         self.assertTrue(current['dirty_inputs'])
         with self.assertRaises(ValueError): require_same_inputs(self.audit['build_inputs'], current)
+
+    def testProjectRecipeDriftCannotReuseAuditWithUnchangedGeneratedProject(self):
+        (self.root / 'project.yml').write_text('changed XcodeGen build identity')
+        self.assertEqual((self.root / 'TurtleGitMac.xcodeproj/project.pbxproj').read_text(), 'original generated project')
+        with self.assertRaisesRegex(ValueError, 'inputs changed'):
+            verify_candidate(self.audit, self.root, self.app)
+
+    def testRuntimePatchAndLicenseMutationsInvalidateBuiltCandidate(self):
+        for relative in ['patches/renderer.patch', 'Licenses/component.txt']:
+            with self.subTest(input=relative):
+                path = self.root / relative
+                self.assertIn(relative, self.audit['build_inputs']['files'])
+                path.write_text('changed runtime reconstruction input')
+                self.assertTrue(source_inputs(self.root)['dirty_inputs'])
+                with self.assertRaisesRegex(ValueError, 'inputs changed'):
+                    verify_candidate(self.audit, self.root, self.app)
+                path.write_text('original runtime input')
+                verify_candidate(self.audit, self.root, self.app)
+
+    def testUntrackedRuntimePatchAndLicenseCannotReuseBuiltCandidate(self):
+        for relative in ['patches/new renderer.patch', 'Licenses/new component.txt']:
+            with self.subTest(input=relative):
+                path = self.root / relative; path.write_text('new runtime input')
+                measured = source_inputs(self.root)
+                self.assertTrue(measured['dirty_inputs']); self.assertIn(relative, measured['files'])
+                with self.assertRaisesRegex(ValueError, 'inputs changed'):
+                    verify_candidate(self.audit, self.root, self.app)
+                path.unlink()
+                verify_candidate(self.audit, self.root, self.app)
+
+    def testDeletedRuntimePatchAndLicenseCannotReuseBuiltCandidate(self):
+        for relative in ['patches/renderer.patch', 'Licenses/component.txt']:
+            with self.subTest(input=relative):
+                path = self.root / relative; path.unlink()
+                measured = source_inputs(self.root)
+                self.assertTrue(measured['dirty_inputs'])
+                self.assertEqual(measured['files'][relative], {'kind': 'missing'})
+                with self.assertRaisesRegex(ValueError, 'inputs changed'):
+                    verify_candidate(self.audit, self.root, self.app)
+                path.write_text('original runtime input')
+                verify_candidate(self.audit, self.root, self.app)
+
+    def testV1AuditRequiresRebuildRatherThanRelabellingUnmeasuredRuntimeInputs(self):
+        old = copy.deepcopy(self.audit)
+        old['build_inputs']['schema'] = 'TurtleGitDistributionInputsV1'
+        old['build_inputs']['paths'] = [name for name in old['build_inputs']['paths'] if name not in ['patches', 'Licenses', 'project.yml']]
+        old['build_inputs']['files'] = {name: value for name, value in old['build_inputs']['files'].items()
+                                       if name != 'project.yml' and not name.startswith(('patches/', 'Licenses/'))}
+        with self.assertRaisesRegex(ValueError, 'Rebuild the candidate'):
+            verify_candidate(old, self.root, self.app)
 
     def testSourceAliasReferentContentCannotChangeUnnoticed(self):
         referent = self.root / 'generated.swift'; referent.write_text('first')

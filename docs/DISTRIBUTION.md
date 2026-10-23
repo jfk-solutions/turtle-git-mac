@@ -7,56 +7,63 @@ The full port, signed runtime tests and licensing clearance remain incomplete.
 Development builds can use the installed Git executable. The App Store
 configuration requires a prepared pinned runtime and refuses external fallback.
 
-## Current local artifacts — 19 October 2026
+## Current measured local artifacts — 23 October 2026
 
-The local Release preview and unsigned AppStore archive use application source
-revision `16380893`. The development-signed candidate was refreshed separately
-on October 19 from measured `bfa1fafe` inputs; see below. [Dated evidence](qa/distribution-16380893-2026-10-18.json)
-retains measured inputs, dirty script state, inventory hashes, failed attempts and
-actual results. This includes the connected command-entry, patch, Bisect and
-Compare history continuations after the [earlier ae48b26a package](qa/distribution-current-preview-2026-10-18.json).
+The Release preview and unsigned AppStore archive are version `0.1.0`, build `2`.
+Application, Finder extension and cache service versions/builds agree. Their
+measured build HEAD is `d9849eb51bdb139b293250e38e5d18844766f503`, with V2 input
+SHA-256 `bf13f60f420fffc1e3ef48308f5470975a0ffb4ccf2683ce0da7dcf05830b9a4`.
+The input state is **dirty**: it includes the new configuration/provenance-script
+fixes and existing protected development-script work. These artifacts are not
+claimed to be a clean build of that commit or a later documentation commit.
+[The dated delivery evidence](qa/distribution-d9849eb5-build2-2026-10-23.json)
+records the actual reports, diagnostics and probes.
 
-- Preview: `build/previews/TurtleGit-16380893/TurtleGit-for-Mac-0.1.0-local-preview.zip`
-  (353,713,855 bytes), with adjacent app, checksum, notices and manifest.
-- Archive: `build/archives/TurtleGit-AppStore-16380893.xcarchive`, with adjacent
-  audit and offline export settings. All eight app components and matching dSYMs
-  contain arm64 and x86_64; the archive inventory has 6,303 members.
-- Development-signed candidate:
-  `build/signed-development/Build/Products/AppStore/TurtleGitMac.app`.
-  Refreshed at measured `bfa1fafe` inputs, including explicit dirty script state,
-  current custom artwork and the metafile helper. Three peer signatures/groups,
-  all eight universal components, the 205-item runtime layout, branding and the
-  complete code seal pass. Real sandboxed parents run packaged Git, Lexilla and
-  Metafile; native image loading, malformed refusal, helper deadline, independent
-  group read, nonmember denial and cleanup pass. The 6,302-member candidate
-  inventory stays unchanged. See [signed execution](SIGNED-FINDER-DEVELOPMENT.md#current-signed-runtime-checkpoint)
-  and [dated evidence](qa/signed-metafile-2026-10-19.json).
+- Preview: `build/previews/TurtleGit-d9849eb5-build2/`, containing
+  `TurtleGitMac.app`, `TurtleGit-for-Mac-0.1.0-local-preview.zip`, `SHA256SUMS`,
+  notices, installation notes and `preview-manifest.json`. The ZIP is
+  **409,510,795 bytes**, SHA-256
+  `4dc53f880537d42de09a475057f75681fb505a61f5bb72fd4b3958713a2716de`.
+  Its 6,354-member signed bundle inventory matches the extracted ZIP, and both
+  deep strict ad-hoc code-seal checks pass.
+- Release source audit: `build/preview-2026-10-15/distribution-audit.json`.
+  The directory name is historical; the report is the current measured build.
+  Its application inventory has 6,349 members and eight app-owned universal
+  components. Release build/audit commands exited zero.
+- Archive: `build/archives/TurtleGit-AppStore-d9849eb5-build2.xcarchive`, with
+  adjacent `.archive-audit.json` and `.ExportOptions.plist`. Eight app-owned
+  components and all eight matching dSYMs contain arm64 and x86_64; its complete
+  archive inventory has 6,382 members. The unsigned archive and audits passed.
+  Four contradictory “failed with exit code 0” diagnostics in the archive build
+  log remain recorded despite the successful process exit and audits; the log
+  is not described as error-free.
 
-The packager verified the ad-hoc app and extracted ZIP against matching complete
-inventories. The packaged WCRev helper returned the expected demo revision and
-branch under arm64 and x86_64/Rosetta. Rosetta execution does not certify a physical
-Intel Mac or minimum macOS. No shipping main GUI was launched, app installed or
-uploaded, or extension/service registered by this checkpoint. [Trying the preview](LOCAL-PREVIEW.md)
-explains its separate signed Finder channel: ad-hoc processes cannot access the
-authorized App Group. The archive is unsigned; the separate development-signed
-build is not an App Store distribution archive or export.
+Packaged WCRev `--json` returned the expected private repository HEAD and branch
+under arm64 and x86_64/Rosetta. Both owned receivers were reaped. Rosetta execution
+does not certify a physical Intel Mac or minimum supported macOS. This checkpoint
+did not launch the shipping main GUI, install an app, register Finder/cache
+services, refresh the signed development candidate, upload a release or export or
+submit an App Store build. [Trying the preview](LOCAL-PREVIEW.md) explains why the
+ad-hoc preview cannot access the authorized Finder App Group.
 
-The initial exact certificate override conflicted with automatic signing; using
-Xcode's Apple Development selector built the candidate. A subsequent invocation
-of the unsigned validator failed when it directly launched inherited-sandbox Git
-from the ordinary build process. The signed candidate instead passed static
-identity/layout/signature checks and the real sandboxed-parent probe. No complete
-unsigned-validator pass is claimed for that signed app. The signed-runtime check
-uses disposable probe mains and does not renew installed Finder or main-GUI
-acceptance for this revision.
+### Historical signed development evidence
 
-The [earlier hosted wrapped-editor timeout](qa/ci-wrapped-stack-2026-10-18.json)
-remains release evidence; its macOS 15.7.9 Intel samples show active UI layout/drawing.
-Subsequent local presentation/history checks pass. The hosted 16380893 run now
-passes that moved/wrapped family but fails in its grouped LFS receiver before SMTP
-readiness; [failure evidence](qa/ci-lfs-failure-16380893-2026-10-18.json) retains the
-actual assertion. A complete passing current hosted macOS result remains required. [Current blockers](RELEASE-BLOCKERS.md) keep that
-separate from packaging, selected signed runtime checks and complete port acceptance.
+The separately refreshed October 19 Apple Development candidate at
+`build/signed-development/Build/Products/AppStore/TurtleGitMac.app` used measured
+`bfa1fafe` inputs. Its peer signatures/groups, eight universal components,
+205-item runtime layout, branding, complete seal and selected sandboxed-parent
+Git/Lexilla/Metafile/App Group probes passed. Its 6,302-member inventory remained
+unchanged. See [signed execution](SIGNED-FINDER-DEVELOPMENT.md#current-signed-runtime-checkpoint)
+and [dated evidence](qa/signed-metafile-2026-10-19.json). That older candidate is
+not this unsigned archive and was not refreshed by the October 23 delivery batch.
+The [October 18 preview/archive record](qa/distribution-16380893-2026-10-18.json)
+also remains historical evidence.
+
+The current [d9849eb5 macOS run39969018955](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39969018955)
+was pending at the recorded October 23 observation. Packaging and the scoped local
+checks do not establish a complete hosted pass. [Current blockers](RELEASE-BLOCKERS.md)
+retain earlier failed assertions, local repairs and the remaining signed,
+installed and full-port acceptance work separately.
 
 ## Build channels
 
@@ -78,6 +85,38 @@ xcodebuild -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore \
   -derivedDataPath build-store CODE_SIGNING_ALLOWED=NO build
 ```
 
+The `TurtleGitAppStore` scheme uses the AppStore configuration for Run, Test,
+Profile, Analyze and Archive. This keeps those actions on the same sandbox and
+bundled-runtime configuration; selecting the scheme does not sign or submit a
+product. Build tasks still use the configuration explicitly requested by the
+command.
+
+### Shared version and offline build identity
+
+The XcodeGen project defines marketing version `0.1.0` and current build `2` once
+at the shared settings level. App, Finder extension and cache service Info.plists
+use `$(MARKETING_VERSION)` and `$(CURRENT_PROJECT_VERSION)`, so all three peers
+receive the same values. Their measured bundle identifiers must also retain the
+application's `.finder` and `.cache` relationship.
+
+Both `build-distribution.py` and `archive-distribution.py` accept optional
+`--build-number` and `--jobs` arguments. For example, `--build-number 2 --jobs 4`
+requests build 2 with at most four concurrent Xcode tasks. Omitting the build
+number uses the project's current setting. A requested build number contains one
+to three numeric components separated by periods; it is passed to Xcode and then
+compared with the actual built bundle metadata. It does not edit an existing
+candidate, query App Store Connect or establish that a number is newer than any
+uploaded build.
+
+Audit reports distinguish `requested_build_number`, `audit_requested_build_number`
+and `measured_identity`. The measured identity includes the application and both
+peers, and all marketing versions and build numbers must agree. A missing,
+mismatched or differently measured value fails the audit. `--audit-existing`
+retains the original build request and records any requested identity check for
+that audit separately. The reports also retain the build's `build_jobs` value.
+These are offline provenance checks, separate from provisioning, signing and
+release-channel acceptance.
+
 Release and AppStore explicitly set `ARCHS = arm64 x86_64` and
 `ONLY_ACTIVE_ARCH = NO` for the app and its target dependencies. Debug keeps
 Xcode's development architecture behavior. Build distribution products with the
@@ -92,7 +131,8 @@ python3 scripts/validate-app-bundle.py \
 For a single build-and-audit entry point after preparing the pinned runtimes:
 
 ```sh
-python3 scripts/build-distribution.py --configuration AppStore --derived-data build-store
+python3 scripts/build-distribution.py --configuration AppStore --derived-data build-store \
+  --build-number 2 --jobs 4
 ```
 
 Use `--configuration Release` for a future direct-distribution candidate, or
@@ -111,12 +151,20 @@ launching the app or registering the Finder/cache service.
 
 ## Candidate provenance and preview freshness
 
-Distribution audits now retain a fingerprint of repository build inputs measured
-before and after the build: Sources, Configuration, the Xcode project, Package
-files, LICENSE, NOTICE and scripts. Tracked/untracked files, deletions, modes and
-contained file aliases are measured. HEAD at measurement and dirty input state
-remain explicit; a docs-only commit does not relabel the original build revision.
-This is a bounded input check, not a claim of a hermetic or bit-reproducible build.
+Distribution audits use `TurtleGitDistributionInputsV2`, a fingerprint of
+repository build inputs measured before and after the build. The complete path
+closure is `Sources`, `Configuration`, `TurtleGitMac.xcodeproj`, `Package.swift`,
+`Package.resolved`, `project.yml`, `LICENSE`, `NOTICE`, `Licenses`, `patches` and
+`scripts`. This includes runtime reconstruction patches, third-party license
+texts and the XcodeGen recipe alongside generated project files, source and pins.
+Tracked/untracked files, deletions, modes and contained file aliases are measured.
+A V1 record cannot prove the formerly omitted inputs and must be rebuilt; it is
+not silently upgraded by auditing its existing bundle.
+
+HEAD at measurement and dirty input state remain explicit. A candidate built from
+an earlier HEAD with measured dirty configuration/script inputs must not be
+labelled a clean build of a later documentation commit. This is a bounded input
+check, not a claim of a hermetic or bit-reproducible build.
 
 The app audit inventories every candidate bundle file, mode and portable alias;
 the archive audit includes its products and matching dSYMs. Both retain the
@@ -461,7 +509,8 @@ After the pinned runtimes are prepared, build a fresh universal archive:
 ```sh
 python3 scripts/archive-distribution.py --configuration AppStore \
   --derived-data build-archive \
-  --archive-path build/artifacts/TurtleGitMac-AppStore.xcarchive
+  --archive-path build/artifacts/TurtleGitMac-AppStore.xcarchive \
+  --build-number 2 --jobs 4
 ```
 
 The tool refuses to overwrite an existing archive. Use `--audit-existing` to
