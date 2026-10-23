@@ -68,12 +68,12 @@ final class SynchronizationTransferNotificationTests:XCTestCase {
     func testSelectedSyncFetchFamilyDeliversRealReferenceRowsBeforeCompletionWithoutTouchingIndexOrHead()async throws {
         let f=try await fixture();defer{try? FileManager.default.removeItem(at:f.root)}
         guard FileManager.default.isExecutableFile(atPath:f.helper.path) else{throw GitLibGit2Failure.runtimeMissing}
-        let next=try await advance(f),index=try Data(contentsOf:f.client.root.appendingPathComponent(".git/index")),config=try Data(contentsOf:f.client.root.appendingPathComponent(".git/config"))
+        let next=try await advance(f),index=try Data(contentsOf:f.client.root.appendingPathComponent(".git/index"))
         var expectedNew=next
         for action in [SynchronizationTransportAction.fetch,.fetchAllBranches,.fetchAndRebase] {
-            // Explicit libgit2 refspecs omit unchanged callbacks; exercise a
-            // genuine second update for Fetch & Rebase. Configured Fetch All
-            // above retains the source Same notification coverage.
+            // Source selected Fetch appends its qualified spec only after loading
+            // the remote. Both selected calls preserve real forward coverage;
+            // Fetch All retains configured Same callback coverage.
             if action == .fetchAndRebase {expectedNew=try await advance(f,serial:2)}
             let plan=try await f.client.synchronizationTransportPlan(options(action)),receipts=Receipts()
             let result=try await f.client.synchronize(plan,onOutput:receipts.chunk,onCommandFinished:receipts.completion,backend:f.backend,onNotification:receipts.notification,onCommandPresentation:receipts.presentation)
@@ -90,7 +90,8 @@ final class SynchronizationTransferNotificationTests:XCTestCase {
             if action == .fetchAndRebase {XCTAssertEqual(result.rebaseTarget,expectedNew)}
         }
         XCTAssertEqual(try Data(contentsOf:f.client.root.appendingPathComponent(".git/index")),index)
-        XCTAssertEqual(try Data(contentsOf:f.client.root.appendingPathComponent(".git/config")),config)
+        let configured=try await f.client.run(["config","--get-all","remote.origin.fetch"]).text.split(separator:"\n").map(String.init)
+        XCTAssertEqual(configured,["+refs/heads/*:refs/remotes/origin/*","refs/heads/main:refs/remotes/origin/main","refs/heads/main:refs/remotes/origin/main"])
         let head=try await hash(f.client);XCTAssertEqual(head,f.base)
         XCTAssertFalse(FileManager.default.fileExists(atPath:f.client.root.appendingPathComponent("incoming 雪").path))
     }
@@ -148,22 +149,24 @@ final class SynchronizationTransferNotificationTests:XCTestCase {
         XCTAssertFalse(try XCTUnwrap(receipts.completions.first).success)
         let after=try await f.client.run(["show-ref"]).stdout;XCTAssertEqual(before,after)
     }
-    func testSyncMissingLiteralBranchRetainsActualHelperNoMatchOutcomeWithoutInventedRows()async throws {
+    func testSyncMissingLiteralBranchUsesAlreadyLoadedConfiguredRefsAndPersistsNextInvocationSpec()async throws {
         let f=try await fixture();defer{try? FileManager.default.removeItem(at:f.root)}
         guard FileManager.default.isExecutableFile(atPath:f.helper.path) else{throw GitLibGit2Failure.runtimeMissing}
         var input=options();input.remoteBranch="does-not-exist"
         let plan=try await f.client.synchronizationTransportPlan(input),receipts=Receipts()
         let before=try await f.client.run(["show-ref"]).stdout,config=try Data(contentsOf:f.client.root.appendingPathComponent(".git/config"))
-        // libgit2 accepts an unmatched explicit refspec with no callback. Sync
-        // retains that real outcome rather than manufacturing rows/failures.
-        // The Mac per-operation spec deliberately does not persist the source
-        // FetchProgressCommand's remote_add_fetch configuration mutation.
+        // Source loads wildcard specs first, appends requested missing spec,
+        // then fetches the preloaded wildcard. A Same main callback is real;
+        // the newly persisted missing spec is not active in this invocation.
         let result=try await f.client.synchronize(plan,onCommandFinished:receipts.completion,backend:f.backend,onNotification:receipts.notification,onCommandPresentation:receipts.presentation)
-        XCTAssertEqual(result.command.exitCode,0);XCTAssertEqual(result.executedArguments,plan.arguments)
-        XCTAssertTrue(receipts.notifications.isEmpty);XCTAssertEqual(receipts.presentations,[.transferNotifications])
-        XCTAssertEqual(receipts.order,["presentation","completion"]);XCTAssertEqual(receipts.completions.first?.success,true)
+        XCTAssertEqual(result.command.exitCode,0)
+        XCTAssertTrue(receipts.references.contains{$0.reference=="refs/remotes/origin/main" && $0.change == .same && $0.oldHash==f.base && $0.newHash==f.base})
+        XCTAssertFalse(receipts.references.contains{$0.reference.contains("does-not-exist")});XCTAssertEqual(receipts.presentations,[.transferNotifications])
+        XCTAssertEqual(receipts.order.first,"presentation");XCTAssertEqual(receipts.order.last,"completion");XCTAssertEqual(receipts.completions.first?.success,true)
         let after=try await f.client.run(["show-ref"]).stdout;XCTAssertEqual(before,after)
-        XCTAssertEqual(try Data(contentsOf:f.client.root.appendingPathComponent(".git/config")),config)
+        XCTAssertNotEqual(try Data(contentsOf:f.client.root.appendingPathComponent(".git/config")),config)
+        let configured=try await f.client.run(["config","--get-all","remote.origin.fetch"]).text.split(separator:"\n").map(String.init)
+        XCTAssertEqual(configured,["+refs/heads/*:refs/remotes/origin/*","refs/heads/does-not-exist:refs/remotes/origin/does-not-exist"])
     }
     private func referenceFrame(old:String,new:String)throws->Data {
         let body:[String:Any]=["kind":"reference","repositoryPath":"","reference":"refs/remotes/origin/main","oldHash":old,"newHash":new,"change":"forward","count":1]
@@ -177,7 +180,7 @@ final class SynchronizationTransferNotificationTests:XCTestCase {
             try executable(injected,"#!/bin/sh\nprintf '%s' "+quote(String(decoding:metadata,as:UTF8.self))+"\nprintf '%s\\n' 'invalid result frame'\nprintf '%s' "+quote(diagnostic)+" >&2\nexit \(code)\n")
             let receipts=Receipts()
             do {let result=try await f.client.synchronize(plan,onOutput:receipts.chunk,onCommandFinished:receipts.completion,backend:.init(mask:4,helperURL:injected),onNotification:receipts.notification);XCTAssertEqual(code,0);XCTAssertEqual(result.command.text,diagnostic)}
-            catch let error as GitFailure {XCTAssertEqual(code,7);XCTAssertEqual(error.code,Int32(code));XCTAssertEqual(error.message,diagnostic);XCTAssertEqual(error.arguments,plan.arguments)}
+            catch let error as GitFailure {XCTAssertEqual(code,7);XCTAssertEqual(error.code,Int32(code));XCTAssertEqual(error.message,diagnostic);XCTAssertEqual(error.arguments,["fetch","--progress","-v","--","origin","refs/heads/main:refs/remotes/origin/main"]);XCTAssertFalse(error.arguments.contains("--turtlegit-source-fetch"))}
             XCTAssertEqual(receipts.bytes,Data(diagnostic.utf8));XCTAssertEqual(receipts.references.count,1)
             guard case .issue(let issue)?=receipts.notifications.last else{return XCTFail("Drained metadata warning missing")}
             XCTAssertEqual(issue.commandSucceeded,code==0);XCTAssertEqual(receipts.order,["notification","notification","completion"])

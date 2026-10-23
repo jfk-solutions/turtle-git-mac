@@ -134,10 +134,41 @@ int tg_clone(const char *source,const char *destination,int bare,int no_checkout
  context ctx={callbacks,origin,ssh_command,UINT_MAX,UINT_MAX,UINT_MAX};git_clone_options options=GIT_CLONE_OPTIONS_INIT;options.bare=bare;if(depth>0)options.local=GIT_CLONE_NO_LOCAL;options.checkout_branch=branch;options.fetch_opts.depth=depth;options.fetch_opts.proxy_opts.type=GIT_PROXY_AUTO;options.fetch_opts.proxy_opts.credentials=credentials;options.fetch_opts.proxy_opts.certificate_check=certificate;options.fetch_opts.proxy_opts.payload=&ctx;options.repository_cb=create_repository;options.repository_cb_payload=&ctx;options.remote_cb=create_remote;options.remote_cb_payload=&ctx;remote_callbacks(&options.fetch_opts.callbacks,&ctx);checkout_options(&options.checkout_opts,&ctx);if(no_checkout||bare)options.checkout_opts.checkout_strategy=GIT_CHECKOUT_NONE;
  active_context=&ctx;git_repository *repository=NULL;int result=git_clone(&repository,source,destination,&options);if(result==0)result=configure_clone_tracking(repository,origin,bare);if(result==0&&recursive&&!bare&&!no_checkout)result=recursive_update(repository,&ctx);git_repository_free(repository);active_context=NULL;emit(&ctx,"\n");return result;
 }
-static int fetch_one(git_repository *repository,const char *name,const char *const *refspecs,size_t count,int tags,int prune,int depth,context *ctx){
- if(stopped(ctx))return GIT_EUSER;git_remote *remote=NULL;int valid_name=0;int result=git_remote_name_is_valid(&valid_name,name);if(result<0)return result;if(valid_name){result=git_remote_lookup(&remote,repository,name);if(result==GIT_ENOTFOUND)result=git_remote_create_anonymous(&remote,repository,name);}else result=git_remote_create_anonymous(&remote,repository,name);if(result<0)return result;
- git_fetch_options options=GIT_FETCH_OPTIONS_INIT;remote_callbacks(&options.callbacks,ctx);options.depth=depth;options.proxy_opts.type=GIT_PROXY_AUTO;options.proxy_opts.credentials=credentials;options.proxy_opts.certificate_check=certificate;options.proxy_opts.payload=ctx;options.update_fetchhead=GIT_REMOTE_UPDATE_FETCHHEAD|(ctx->callbacks->reference_updated?GIT_REMOTE_UPDATE_REPORT_UNCHANGED:0);options.download_tags=(git_remote_autotag_option_t)tags;options.prune=(git_fetch_prune_t)prune;git_strarray specs={(char **)refspecs,count};
+static int fetch_one(git_repository *repository,const char *name,const char *const *refspecs,size_t count,int tags,int prune,int depth,int source_mode,context *ctx){
+ if(stopped(ctx))return GIT_EUSER;git_remote *remote=NULL;int result;
+ if(source_mode){
+  // Match FetchProgressCommand's fallback for every failed named lookup,
+  // including invalid configured remotes; preserve the generic path below.
+  result=git_remote_lookup(&remote,repository,name);
+  if(result<0)result=git_remote_create_anonymous(&remote,repository,name);
+ }else{
+  int valid_name=0;result=git_remote_name_is_valid(&valid_name,name);if(result<0)return result;
+  if(valid_name){result=git_remote_lookup(&remote,repository,name);if(result==GIT_ENOTFOUND)result=git_remote_create_anonymous(&remote,repository,name);}else result=git_remote_create_anonymous(&remote,repository,name);
+ }
+ if(result<0)return result;
+ git_fetch_options options=GIT_FETCH_OPTIONS_INIT;remote_callbacks(&options.callbacks,ctx);options.depth=depth;options.proxy_opts.type=GIT_PROXY_AUTO;options.proxy_opts.credentials=credentials;options.proxy_opts.certificate_check=certificate;options.proxy_opts.payload=ctx;options.update_fetchhead=GIT_REMOTE_UPDATE_FETCHHEAD|((source_mode||ctx->callbacks->reference_updated)?GIT_REMOTE_UPDATE_REPORT_UNCHANGED:0);options.download_tags=(git_remote_autotag_option_t)tags;options.prune=(git_fetch_prune_t)prune;git_strarray specs={(char **)refspecs,count};
  char line[1024];snprintf(line,sizeof(line),"Fetching %s\n",git_remote_name(remote)?git_remote_name(remote):"remote repository");emit(ctx,line);ctx->received=ctx->indexed=UINT_MAX;
+ // FetchProgressCommand loads the remote before persisting its requested
+ // refspec. Fetch with NULL on that SAME object deliberately retains its
+ // previously loaded configuration until the next operation. In particular,
+ // never implement this as config --add before launching the helper.
+ if(source_mode){
+  if(stopped(ctx)){git_remote_free(remote);return GIT_EUSER;}
+  if(count && refspecs[0][0]){
+   const char *remote_name=git_remote_name(remote);
+   // Anonymous URL remotes have no configuration identity. Source add_fetch
+   // fails for a nil name; return its invalid-spec category safely here.
+   if(!remote_name){git_error_set_str(GIT_ERROR_CONFIG,"Source Fetch cannot add a refspec to an anonymous remote");git_remote_free(remote);return GIT_EINVALIDSPEC;}
+   result=git_remote_add_fetch(repository,remote_name,refspecs[0]);
+   if(result<0){git_remote_free(remote);return result;}
+  }
+  if(stopped(ctx)){git_remote_free(remote);return GIT_EUSER;}
+  if(tags==GIT_REMOTE_DOWNLOAD_TAGS_UNSPECIFIED)options.download_tags=GIT_REMOTE_DOWNLOAD_TAGS_AUTO;
+  // Source has no Force property on FetchProgressCommand; configured '+'
+  // entries keep their own force semantics. Generic Fetch remains below.
+  result=git_remote_fetch(remote,NULL,&options,NULL);
+  git_remote_free(remote);emit(ctx,"\n");return result;
+ }
  git_strarray forced={0};
  if(ctx->callbacks->force_fetch){
   git_strarray configured={0};if(!count){result=git_remote_get_fetch_refspecs(&configured,remote);if(result<0){git_remote_free(remote);return result;}specs=configured;}
@@ -146,10 +177,11 @@ static int fetch_one(git_repository *repository,const char *name,const char *con
   git_strarray_dispose(&configured);result=git_remote_fetch(remote,forced.count?&forced:NULL,&options,NULL);git_strarray_dispose(&forced);
  }else result=git_remote_fetch(remote,count?&specs:NULL,&options,NULL);git_remote_free(remote);emit(ctx,"\n");return result;
 }
-int tg_fetch(const char *path,const char *remote,const char *const *refspecs,size_t count,int all_remotes,int tags,int prune,int depth,tg_callbacks *callbacks){
+int tg_fetch(const char *path,const char *remote,const char *const *refspecs,size_t count,int all_remotes,int tags,int prune,int depth,int source_mode,tg_callbacks *callbacks){
+ if(source_mode && (count>1 || (all_remotes && count))){git_error_set_str(GIT_ERROR_INVALID,"Source Fetch accepts one refspec for a single remote");return GIT_EINVALIDSPEC;}
  git_repository *repository=NULL;int result=git_repository_open_ext(&repository,path,0,NULL);if(result<0)return result;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};result=configure_repository(repository,&ctx);if(result<0){git_repository_free(repository);return result;}
- active_context=&ctx;if(all_remotes){git_strarray names={0};result=git_remote_list(&names,repository);for(size_t i=0;result==0&&i<names.count;i++){git_config *config=NULL;char key[1024];int skip=0;if(git_repository_config_snapshot(&config,repository)==0){snprintf(key,sizeof(key),"remote.%s.skipFetchAll",names.strings[i]);if(git_config_get_bool(&skip,config,key)==GIT_ENOTFOUND){snprintf(key,sizeof(key),"remote.%s.skipDefaultUpdate",names.strings[i]);(void)git_config_get_bool(&skip,config,key);}git_config_free(config);}if(!skip)result=fetch_one(repository,names.strings[i],NULL,0,tags,prune,depth,&ctx);}git_strarray_dispose(&names);}
- else result=fetch_one(repository,remote,refspecs,count,tags,prune,depth,&ctx);
+ active_context=&ctx;if(all_remotes){git_strarray names={0};result=git_remote_list(&names,repository);for(size_t i=0;result==0&&i<names.count;i++){git_config *config=NULL;char key[1024];int skip=0;if(git_repository_config_snapshot(&config,repository)==0){snprintf(key,sizeof(key),"remote.%s.skipFetchAll",names.strings[i]);if(git_config_get_bool(&skip,config,key)==GIT_ENOTFOUND){snprintf(key,sizeof(key),"remote.%s.skipDefaultUpdate",names.strings[i]);(void)git_config_get_bool(&skip,config,key);}git_config_free(config);}if(!skip)result=fetch_one(repository,names.strings[i],NULL,0,tags,prune,depth,source_mode,&ctx);}git_strarray_dispose(&names);}
+ else result=fetch_one(repository,remote,refspecs,count,tags,prune,depth,source_mode,&ctx);
  git_repository_free(repository);active_context=NULL;return result;
 }
 

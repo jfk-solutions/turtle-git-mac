@@ -33,7 +33,7 @@ func configuration(_ value:String)throws->String{
 struct Arguments{
     var command="",directory=FileManager.default.currentDirectoryPath,configs:[String]=[]
     var source="",destination="",branch:String?,origin:String?,ssh:String?,bare=false,noCheckout=false,recursive=false
-    var listRefs=false,listTags=false,listHeads=false,filters=false,transferNotifications=false
+    var listRefs=false,listTags=false,listHeads=false,filters=false,transferNotifications=false,sourceFetch=false
     var resetNotifications=false,resetMode:Int32=2,resetModeSpecified=false,revertNoCommit=false,revertNoEdit=false,mainline:UInt32=0,mainlineSpecified=false,revision=""
     var blobPath:String?,blobOID=""
     var privateIndex:String?,addMode:Int32=0,addModeSpecified=false,addStdin=false,addModeOnly=false
@@ -51,6 +51,7 @@ struct Arguments{
             let arg=try next()
             if arg == "--literal-pathspecs" || arg == "--no-literal-pathspecs"{continue}
             if arg == "--turtlegit-transfer-notifications"{guard !transferNotifications else{try refuse("Repeated transfer notification request")};transferNotifications=true;continue}
+            if arg == "--turtlegit-source-fetch"{guard !sourceFetch else{try refuse("Repeated source Fetch request")};sourceFetch=true;continue}
             if arg == "--turtlegit-reset-notifications"{guard !resetNotifications else{try refuse("Repeated Reset notification request")};resetNotifications=true;continue}
             if arg == "-C"{let path=try next();directory=URL(fileURLWithPath:path,relativeTo:URL(fileURLWithPath:directory,isDirectory:true)).standardizedFileURL.path;continue}
             if arg == "-c"{configs.append(try configuration(next()));continue}
@@ -58,6 +59,7 @@ struct Arguments{
         }
         guard !command.isEmpty else{try refuse("Expected a supported libgit2 command")}
         guard !transferNotifications || command == "clone" || command == "fetch" else{try refuse("Transfer notifications require Clone or Fetch")}
+        guard !sourceFetch || command == "fetch" else{try refuse("Source Fetch requires Fetch")}
         guard !resetNotifications || command == "reset" else{try refuse("Reset notifications require Reset")}
         guard environment["TURTLEGIT_RESET_RECYCLE_DIRECTORY"] == nil || (resetNotifications && command == "reset") else{try refuse("Recycle exchange requires explicit Reset notifications")}
         var operands:[String]=[],options=true
@@ -128,11 +130,17 @@ struct Arguments{
             guard refspecs.allSatisfy({$0.hasPrefix(":refs/") && !$0.dropFirst().contains(":") && !$0.contains("*") && !$0.contains("\0")}) else{try refuse("This helper accepts deletion-only push refspecs")}
         }else{
             guard !all || operands.isEmpty else{try refuse("--all cannot include a remote or refspec")}
-            if let first=operands.first{remote=first;refspecs=Array(operands.dropFirst()).map{value in
-                let parts=value.split(separator:":",maxSplits:1,omittingEmptySubsequences:false)
-                guard parts.count==2 else{return value};let target=String(parts[1]);return String(parts[0])+":"+((target.hasPrefix("remotes/") || target.hasPrefix("heads/") || target.hasPrefix("tags/")) ? "refs/"+target:target)
-            }}
+            if let first=operands.first{
+                remote=first;refspecs=Array(operands.dropFirst())
+                if !sourceFetch {refspecs=refspecs.map{value in
+                    let parts=value.split(separator:":",maxSplits:1,omittingEmptySubsequences:false)
+                    guard parts.count==2 else{return value};let target=String(parts[1]);return String(parts[0])+":"+((target.hasPrefix("remotes/") || target.hasPrefix("heads/") || target.hasPrefix("tags/")) ? "refs/"+target:target)
+                }}
+            }
             guard !remote.isEmpty,refspecs.count<=4096 else{try refuse("Invalid fetch remote/refspec")}
+            // FetchProgressCommand owns one raw CString refspec. Do not turn
+            // its persistent configuration entry into a rewritten CLI spec.
+            guard !sourceFetch || refspecs.count<=1 else{try refuse("Source Fetch accepts at most one refspec")}
         }
     }
 }
@@ -877,7 +885,7 @@ func run()throws->Int32{
         if args.command == "cat-file"{return tg_materialize_blob(args.directory,args.blobOID,args.blobPath!,&options)}
         if args.command == "ls-remote"{return tg_list_remote(args.directory,args.remote,args.listRefs ? 1:0,args.listTags ? 1:0,args.listHeads ? 1:0,&options)}
         if args.command == "push"{return withStrings(args.refspecs){refs,count in tg_delete_remote(args.directory,args.remote,refs,count,&options)}}
-        return withStrings(args.refspecs){refs,count in tg_fetch(args.directory,args.remote,refs,count,args.all ? 1:0,Int32(args.tags),Int32(args.prune),Int32(args.depth),&options)}
+        return withStrings(args.refspecs){refs,count in tg_fetch(args.directory,args.remote,refs,count,args.all ? 1:0,Int32(args.tags),Int32(args.prune),Int32(args.depth),args.sourceFetch ? 1:0,&options)}
     }
     if result<0{output("libgit2: "+String(cString:tg_git_error())+"\n");return cancelled() ? 130:1}
     if diffRequest?.history != nil {try owner.finishHistory()}

@@ -4537,3 +4537,16 @@ The October 23 [viewport navigation family](VIEWPORT-NAVIGATION-PARITY.md) conne
 
 
 The October 23 [Synchronization transfer-result family](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md) connects actual selected libgit2 Fetch notifications to the inline Action/Path Log and workspace child-Log routing. Command presentation follows post-checkout execution, typed buffers drain before completion, and original endpoint/copy semantics survive partial results, warnings and retirement. The [dated checkpoint](qa/sync-transfer-notifications-2026-10-23.json) records actual grouped validation and captures; this does not certify the whole Synchronization dialog or application.
+
+
+The October 23 [source-selected Fetch lifecycle continuation](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md#source-fetch-configuration-lifecycle--october-23-2026)
+implements load-remote → append requested spec → fetch-same-object ordering in
+the optional helper, connected to Sync and standalone Fetch/Rebase. It replaces
+the prior concrete per-operation-spec configuration gap. The current invocation
+uses loaded specs; later loads see appended duplicates. CLI behavior is unchanged.
+The [new checkpoint](qa/source-fetch-lifecycle-2026-10-23.json) separates its
+validation from the preceding notification-log pass. All Remotes remains a Mac
+named-remote iteration adaptation; pinned libgit2 can swallow config-write errors
+while returning zero. Those boundaries, public/signed/physical and complete
+source-resource acceptance remain explicit; this does not complete Sync or the
+application.

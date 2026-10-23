@@ -1224,6 +1224,7 @@
         "docs/qa/revert-planning-2026-10-16.json",
         "docs/qa/revert-progress-family-2026-10-14.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/source-fetch-lifecycle-2026-10-23.json",
         "docs/qa/temporary-files-2026-10-08.json"
       ]
     },
@@ -2081,6 +2082,7 @@
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/source-fetch-lifecycle-2026-10-23.json",
         "docs/qa/stash-export-progress-family-2026-10-19.json",
         "docs/qa/stash-reference-cancellation-2026-10-11.json",
         "docs/qa/sync-child-progress-2026-10-17.json",
@@ -2090,7 +2092,6 @@
         "docs/qa/sync-reference-results-2026-10-21.json",
         "docs/qa/sync-replay-hooks-2026-10-14.json",
         "docs/qa/sync-svn-commands-2026-10-18.json",
-        "docs/qa/sync-transfer-notifications-2026-10-23.json",
         "docs/qa/synchronization-apply-native-2026-10-11.json",
         "docs/qa/synchronization-branch-picker-native-2026-10-11.json",
         "docs/qa/synchronization-checkout-2026-10-11.json",
@@ -2353,6 +2354,7 @@
         "docs/qa/repository-creation-results-family-2026-10-19.json",
         "docs/qa/repository-handoffs-2026-10-18.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/source-fetch-lifecycle-2026-10-23.json",
         "docs/qa/ssh-clone-2026-10-09.json",
         "docs/qa/temporary-files-2026-10-08.json"
       ]
@@ -2462,6 +2464,7 @@
         "docs/qa/remote-dialogs-2026-10-13.json",
         "docs/qa/remote-progress-notifications-2026-10-19.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/source-fetch-lifecycle-2026-10-23.json",
         "docs/qa/temporary-files-2026-10-08.json",
         "docs/qa/transport-preparation-2026-10-14.json",
         "docs/qa/transport-presentation-2026-10-15.json",
@@ -3356,6 +3359,7 @@
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/remote-reference-engine-2026-10-19.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/source-fetch-lifecycle-2026-10-23.json",
         "docs/qa/source-form-controls-2026-10-20.json",
         "docs/qa/stash-reference-cancellation-2026-10-11.json",
         "docs/qa/sync-child-progress-2026-10-17.json",
@@ -3366,7 +3370,6 @@
         "docs/qa/sync-reference-results-2026-10-21.json",
         "docs/qa/sync-replay-hooks-2026-10-14.json",
         "docs/qa/sync-svn-commands-2026-10-18.json",
-        "docs/qa/sync-transfer-notifications-2026-10-23.json",
         "docs/qa/synchronization-apply-native-2026-10-11.json",
         "docs/qa/synchronization-branch-picker-native-2026-10-11.json",
         "docs/qa/synchronization-checkout-2026-10-11.json",

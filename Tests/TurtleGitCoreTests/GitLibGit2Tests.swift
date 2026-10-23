@@ -125,7 +125,12 @@ final class GitLibGit2Tests: XCTestCase {
         let rebase = try await client.fetchForRebase(options)
         XCTAssertEqual(rebase.upstream, String(decoding: head, as: UTF8.self).trimmingCharacters(in: .newlines))
         options.arbitraryURL = true; options.remote = f.remote.root.absoluteString
-        let direct = try await client.fetchForRebase(options)
+        let namedConfig = try Data(contentsOf: destination.appendingPathComponent(".git/config"))
+        do { _ = try await client.fetchForRebase(options); XCTFail("Anonymous source Fetch accepted a nonempty refspec without named configuration authority") }
+        catch let error as GitFailure { XCTAssertNotEqual(error.code, 0) }
+        XCTAssertEqual(try Data(contentsOf: destination.appendingPathComponent(".git/config")), namedConfig)
+        // CLI keeps the existing anonymous URL + selected branch success path.
+        let direct = try await client.fetchForRebase(options, backend: .init(enabled: false))
         XCTAssertEqual(direct.upstream, rebase.upstream)
         XCTAssertTrue(events.values.allSatisfy { $0.executable == f.helper && $0.arguments.first == "--literal-pathspecs" })
         let finalHead = try await client.run(["rev-parse", "HEAD"]).stdout

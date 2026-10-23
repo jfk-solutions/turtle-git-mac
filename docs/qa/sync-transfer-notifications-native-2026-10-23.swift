@@ -28,6 +28,7 @@ private extension NSWindow {
         let pasteboard=NSPasteboard(name:.init("TurtleGit.SyncNotifications."+UUID().uuidString))
         var syncs:[SynchronizationWindowController]=[],logs:[LogWindowController]=[],sheets:[NSWindow]=[]
         var workspace:RepositoryModel?,host:NSWindow?,old="",new="",head=Data(),index=Data(),config=Data()
+        var expectedFetchSpecs:[String]=[]
         var repository:GitRepository {GitRepository(root:root.appendingPathComponent("client"),executable:git,askpass:nil,libgit2Configuration:.init(enabled:false,helperURL:root.appendingPathComponent("held-helper")))}
         var hold:URL {root.appendingPathComponent("hold")};var started:URL {root.appendingPathComponent("helper-finished")}
         init(){preferences=UserDefaults(suiteName:suite)!;replacement=UserDefaults(suiteName:replacementSuite)!;preferences.set(true,forKey:"UseLibgit2");preferences.set(4,forKey:"UseLibgit2_mask");preferences.set(false,forKey:"ConfirmKillProcess")}
@@ -62,7 +63,16 @@ private extension NSWindow {
         }
         func preserved()async throws {
             let currentHead=try await repository.run(["rev-parse","HEAD"]).stdout,currentIndex=try Data(contentsOf:repository.root.appendingPathComponent(".git/index")),currentConfig=try Data(contentsOf:repository.root.appendingPathComponent(".git/config"))
-            try require(head==currentHead && index==currentIndex && config==currentConfig,"Fetch changed local HEAD/index/config")
+            try require(head==currentHead && index==currentIndex,"Fetch changed local HEAD/index")
+            let baseline=root.appendingPathComponent("original-config-witness")
+            try config.write(to:baseline)
+            let original=try await repository.run(["config","--file",baseline.path,"--null","--list"]).stdout.split(separator:0).map{Data($0)}
+            let actual=try await repository.run(["config","--local","--null","--list"]).stdout.split(separator:0).map{Data($0)}
+            let fetchKey=Data("remote.origin.fetch\n".utf8)
+            try require(actual.filter{!$0.starts(with:fetchKey)}==original.filter{!$0.starts(with:fetchKey)},"Fetch changed unrelated configuration records")
+            let expected=original.filter{$0.starts(with:fetchKey)}+expectedFetchSpecs.map{fetchKey+Data($0.utf8)}
+            try require(actual.filter{$0.starts(with:fetchKey)}==expected,"Fetch configuration differs from the exact accepted source refspec appends")
+            _=currentConfig // Raw config formatting is owned by libgit2's writer.
             try require(try Data(contentsOf:repository.root.appendingPathComponent("file.txt"))==Data("base\n".utf8),"Fetch changed worktree bytes")
         }
         func cleanup()async {
@@ -87,6 +97,7 @@ private extension NSWindow {
     static func actual(_ c:Context)async throws {
         let owner=try await c.open(),model=owner.model;c.workspace?.fileComparisonPreferences=c.replacement
         c.workspace?.open(c.root.appendingPathComponent("author"));try await wait(c.host){c.workspace?.busy==false && c.workspace?.root?.lastPathComponent=="author"}
+        c.expectedFetchSpecs.append("refs/heads/main:refs/remotes/origin/main")
         model.fetch();try await wait(owner.window){!model.busy && !model.hasPendingInlineWork && model.commandCompleted}
         try require(model.commandSucceeded && model.showsNotifications,"Actual libgit2 fetch did not publish structured completion: \(model.error ?? model.commandOutput)")
         var (native,coordinator)=try await table(owner)
@@ -96,7 +107,7 @@ private extension NSWindow {
         try require(value.reference?.oldHash==c.old && value.reference?.newHash==c.new && value.path.contains("Forward 1") && value.action=="Update ref","Real callback hashes/classification were lost")
         try require(coordinator.rows.first?.kind == .command && coordinator.rows.last?.kind == .finished,"Actual structured command/finish rows missing")
         let caption=try unwrap(coordinator.rows.first?.path,"Accepted command caption missing")
-        try require(caption.contains("origin") && caption.contains("main"),"Accepted libgit2 Fetch caption omitted remote/refspec context")
+        try require(caption=="Fetch origin refs/heads/main:refs/remotes/origin/main","Accepted libgit2 Fetch caption omitted remote/refspec context")
         model.remote="unaccepted-form-edit";model.remoteBranch="unaccepted-branch-edit"
         try require(model.notifications.rows.first?.path==caption,"Editing current form retargeted the accepted Fetch command caption")
         model.remote="origin";model.remoteBranch="main"
@@ -134,6 +145,7 @@ private extension NSWindow {
     }
     static func lifetime(_ c:Context)async throws {
         let owner=try await c.open(),model=owner.model
+        c.expectedFetchSpecs.append("refs/heads/main:refs/remotes/origin/main")
         try Data().write(to:c.hold);model.fetch()
         try await wait(owner.window){FileManager.default.fileExists(atPath:c.started.path) && model.notifications.rows.contains{$0.kind == .reference}}
         try require(model.busy && model.hasPendingInlineWork && SynchronizationWindowModel.activeInlineOperations>0,"Held actual producer was released before exit")
@@ -143,6 +155,7 @@ private extension NSWindow {
         model.cancelTransport();try await wait(owner.window){!model.busy && !model.hasPendingInlineWork}
         try require(model.commandCancelled && model.notifications.rows.contains{$0.kind == .reference},"Cancel lost accepted reference receipt or failed to wait for producer")
         c.preferences.set(true,forKey:"UseLibgit2");try? FileManager.default.removeItem(at:c.started);try Data().write(to:c.hold)
+        c.expectedFetchSpecs.append("refs/heads/main:refs/remotes/origin/main")
         model.fetch();try await wait(owner.window){FileManager.default.fileExists(atPath:c.started.path) && model.busy}
         var closed=0;owner.onClosed={closed+=1};model.confirmingQuit=true
         try require(!model.notificationActionsAvailable && !model.notificationKeyboardAvailable,"Quit did not fence notification actions/copy")

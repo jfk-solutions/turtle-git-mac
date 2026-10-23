@@ -15,8 +15,10 @@ The branch field and browse button are disabled for the default named-remote
 configured-refspec fetch and enabled for URLs. A `NamedRemoteFetchAll` preference
 is read, defaulting to true; its settings UI remains pending.
 
-Tags and Prune use native three-state checkboxes: mixed omits the flag and honors
-Git configuration, checked explicitly enables it, unchecked explicitly disables it.
+Tags and Prune use native three-state checkboxes: mixed omits the flag, checked
+explicitly enables it, unchecked explicitly disables it. CLI mixed values honor
+Git configuration. Selected source-mode libgit2 Fetch uses source AUTO tags when
+no explicit tag flag is supplied; Prune retains its configured default.
 Labels report configured named-remote defaults. An untracked branch with multiple
 remotes defaults to All unless a remembered remote is available. Depth is available only for a
 shallow repository, initially checked with depth 1, and requires a positive integer.
@@ -477,3 +479,29 @@ Named/arbitrary/all-remotes, tag/prune/depth options, actual TLS decisions and
 owned credential/cancellation progress use the selected engine. The default
 remains Git CLI. Consult the linked batch QA for actual validation and remaining
 provider, public-server and signed acceptance.
+
+
+## Source-selected Fetch refspec lifecycle — October 23, 2026
+
+Standalone selected libgit2 Fetch now appends its single requested raw branch
+refspec after loading the remote, then fetches using that same loaded object.
+The current fetch retains the previously configured spec set; a later fetch sees
+the new entry. Repeated selected requests retain source duplicate append order.
+The default named-remote configured fetch and All Remotes do not request an
+addition. CLI Fetch keeps its per-operation selection and does not acquire this
+configuration mutation.
+
+Fetch-for-Rebase retains the selected named remote branch as its completed
+upstream. It does not substitute an unrelated FETCH_HEAD line when configured
+specs fetched other branches. Configured-but-not-yet-active targets can therefore
+produce a follow-up error after a successful fetch; the real command output and
+accepted configuration addition remain available. Anonymous URL requests with a
+nonempty raw spec fail safely because source append has no named configuration
+target. No synthetic remote name is created.
+
+See the [shared source lifecycle contract](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md#source-fetch-configuration-lifecycle--october-23-2026)
+and [dated checkpoint](qa/source-fetch-lifecycle-2026-10-23.json) for source/API
+boundaries and actual grouped validation. Existing Mac All Remotes iteration and
+pinned libgit2's swallowed config-write return remain documented limitations.
+This continuation does not certify the entire Fetch/Pull resource or public,
+signed, physical, minimum-version/Intel and hosted integration acceptance.

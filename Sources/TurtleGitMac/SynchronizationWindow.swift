@@ -2315,7 +2315,8 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         // before any checkout/authentication can suspend; a rebuilt Pull→Fetch
         // keeps those same remote/branch options and receives its actual mode
         // separately from Core. Fetch All intentionally has no single refspec.
-        let notificationCommand=["Fetch",options.remote,action == .fetchAllBranches ? "":options.remoteBranch].filter{!$0.isEmpty}.joined(separator:" ")
+        let selectedRefspec=action == .fetchAllBranches || options.remoteBranch.isEmpty ? "":"refs/heads/"+options.remoteBranch+":refs/remotes/"+options.remote+"/"+options.remoteBranch
+        let notificationCommand=["Fetch",options.remote,selectedRefspec].filter{!$0.isEmpty}.joined(separator:" ")
         let attempt = beginInlineAttempt(request, command: !shift,notificationCommand:notificationCommand)
         notificationBackend=capturedBackend
         if !shift {notificationAttemptID=attempt.identity}

@@ -50,21 +50,50 @@ completion and existing progress/recovery behavior. Main Sync does not gain a
 new persistent Action log; its source does not write that transcript through the
 standalone Git Progress dialog's action logger.
 
-## Remaining fetch-refspec lifecycle difference
+## Source Fetch configuration lifecycle — October 23, 2026
 
-The pinned Windows command loads a named remote, appends its selected fetch
-refspec to repository configuration, then fetches through the already-loaded
-remote with a null refspec argument. Its existing configured refspecs therefore
-determine that invocation's rows. The current Mac transport supplies its selected
-refspec per operation and leaves that configuration unchanged. Porting the source
-configuration/refspec lifecycle remains a separate concrete gap; this notification
-integration does not certify it.
+Selected libgit2 Fetch now uses the source command's configuration lifecycle.
+The helper loads the remote first, appends the single requested raw fetch spec
+with `git_remote_add_fetch`, then fetches through that same loaded object with a
+null refspec argument. The current invocation uses its previously loaded specs;
+the next invocation sees the appended entry. Repeated requests append duplicate
+entries in order, as upstream does. Earlier configured wildcard and negative
+specs are retained; an unmatched newly requested branch does not replace the
+current invocation's configured updates.
 
-On the current Mac backend an unchanged explicit refspec may produce no callback,
-whereas configured Fetch All can report Same. An unmatched explicit refspec can
-settle successfully with no reference rows. The log preserves the actual backend
-receipt and does not invent a failure or an update. Real unavailable-remote
-failure is checked separately.
+Sync supplies `refs/heads/branch:refs/remotes/remote/branch` for its selected branch,
+independently of whether the tracking ref exists. Fetch All branches requests no
+addition. The source libgit2 command does not receive Sync's Force setting;
+configured `+` refspecs retain their own force behavior. CLI commands keep their
+existing per-operation arguments and Force handling. Backend selection remains
+captured for the accepted operation, including a Pull whose actual command is
+rebuilt as Fetch after checkout or transport preparation.
+
+The helper's private source mode is Fetch-only and accepts at most one raw spec.
+It does not rewrite that stored spec or add configuration before loading the
+remote. Anonymous URL remotes have no named configuration target: a nonempty
+requested spec fails safely before network transport instead of inventing a
+remote name. Empty-spec URL handling retains the source's anonymous lookup path.
+Successful appends are not rolled back after later authentication, cancellation,
+network or follow-up failure. Already received reference rows and actual command
+completion retain their existing independent receipts.
+
+The dated [source oracle](qa/sync-fetch-source-oracle-2026-10-23.txt) explains the
+pre-implementation difference and demonstrates load-before-append behavior using
+the same pinned library. Its original explicit-spec/no-match observations remain
+historical evidence, not the current selected source-mode contract. The
+[implementation checkpoint](qa/source-fetch-lifecycle-2026-10-23.json) records
+validation separately from that earlier notification checkpoint.
+
+Two boundaries remain explicit. All Remotes retains the Mac helper's iteration
+over configured named remotes and skip settings; this is an existing adaptation
+rather than the pinned caller's empty-URL behavior. Also, pinned libgit2 1.9.4's
+`write_add_refspec` can return zero after a failed configuration write, including
+a config-lock failure. The port preserves that API outcome; it does not promise
+that an entry was persisted merely because the call returned zero. Lookup,
+invalid-spec, anonymous-name and transport failures that the API actually returns
+remain failures. No additional persistence verification or library patch is
+claimed.
 
 ## Verification and limits
 

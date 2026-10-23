@@ -99,3 +99,22 @@ all upstream dialogs. Those remain separate acceptance work.
 
 
 The [Synchronization continuation](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md) connects this same typed reference-result contract to inline Sync Fetch and its owned follow-ups. Its separate dated checkpoint states actual coverage; standalone Clone/Fetch checks above do not substitute for that integration.
+
+
+## Selected Fetch configuration lifecycle — October 23, 2026
+
+The selected libgit2 Fetch helper now uses the source load-remote → append raw
+spec → fetch-same-object lifecycle, including standalone Fetch and Sync. Current
+configured specs produce this invocation's result rows; the appended entry
+becomes active on later loads, and repeated requests preserve duplicate entries.
+Generic helper calls and CLI Fetch retain their existing execution paths.
+Standalone Fetch-for-Rebase resolves the selected named remote branch after the
+source-mode fetch, rather than choosing an unrelated configured FETCH_HEAD row.
+Clone's transfer/checkout lifecycle is unchanged.
+
+The [source lifecycle contract](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md#source-fetch-configuration-lifecycle--october-23-2026)
+records anonymous-remote rejection, source Force/default-tag behavior, the Mac
+All Remotes adaptation and the pinned library's swallowed config-write error
+limitation. The [new checkpoint](qa/source-fetch-lifecycle-2026-10-23.json) states
+current validation; earlier Clone/Fetch notification passes do not certify these
+new configuration mutations or complete transport parity.

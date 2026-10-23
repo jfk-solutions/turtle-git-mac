@@ -64,16 +64,18 @@ extension GitRepository {
         try cancellation?.check()
         guard !(try rebaseState()).active else { throw FetchRebaseFailure.active }
         guard !options.allRemotes, !options.branch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw FetchRebaseFailure.destination }
-        // Fetch exactly the selected branch even when ordinary Fetch uses all
-        // configured refspecs. FETCH_HEAD then identifies that branch, including
-        // remotes whose refspecs do not map to refs/remotes/<name>/<branch>.
+        // CLI Fetch selects this branch directly. FetchProgressCommand instead
+        // appends its raw branch refspec for later invocations and fetches the
+        // already-loaded configured refs. Its Rebase target remains the named
+        // remote branch, as in DoFetch, rather than an unrelated FETCH_HEAD row.
         let branch = options.branch.trimmingCharacters(in: .whitespacesAndNewlines)
         let conventional = "refs/remotes/" + options.remote + "/" + (branch.hasPrefix("refs/heads/") ? String(branch.dropFirst(11)) : branch)
         let oldUpstream = options.arbitraryURL ? "" : ((try? run(["rev-parse", "--verify", "--end-of-options", conventional + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)) ?? "")
         var selected = options; selected.namedRemoteFetchAll = false
         let output = try await fetch(selected, cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport, onCommand:onCommand,backend:backend,onNotification:onNotification)
         do {
-            let upstream = try run(["rev-parse", "--verify", "FETCH_HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+            let upstreamReference = backend.requests(.fetch) && !options.arbitraryURL ? conventional : "FETCH_HEAD"
+            let upstream = try run(["rev-parse", "--verify", "--end-of-options", upstreamReference + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
             try cancellation?.check()
             let head = (try? run(["rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)) ?? ""
             func ancestor(_ from: String, _ to: String) throws -> Bool {
@@ -161,7 +163,7 @@ extension GitRepository {
         let session = try await prepareSSHTransport(options.allRemotes ? names : [options.remote], cancellation: token, preparation: prepareTransport)
         defer { withExtendedLifetime(session) {} }
         try token.check();onCommand?(commandInvocation(args,executorOverride:executor))
-        return try runTransfer(args,environment:session?.transportEnvironment ?? [:],cancellation:token,onOutput:onOutput,executor:executor,onNotification:onNotification).text
+        return try runTransfer(args,environment:session?.transportEnvironment ?? [:],cancellation:token,onOutput:onOutput,executor:executor,onNotification:onNotification,sourceFetch:executor != nil).text
     }
 }
 

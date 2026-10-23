@@ -183,7 +183,8 @@ final class GitTransferNotificationTests:XCTestCase {
         XCTAssertFalse(cloneText.contains("TurtleGit Transfer"));XCTAssertFalse(String(decoding:clone.bytes,as:UTF8.self).contains("TurtleGit Transfer"))
         let repository=GitRepository(root:destination,executable:f.git,askpass:nil)
         let hash=try await commit(f.source,"legacy forward")
-        // Sync transport/tagfetch still use this generic selected-executor path.
+        // Direct helper calls and tag fetch retain this generic executor path;
+        // selected Sync/standalone Fetch privately opt into source lifecycle.
         let direct=try await repository.run(["fetch","--progress","--","origin"],executorOverride:f.helper)
         XCTAssertTrue(direct.stdout.isEmpty);XCTAssertTrue(direct.text.contains(String(hash.prefix(8))));XCTAssertTrue(direct.text.contains("refs/remotes/origin/main"));XCTAssertFalse(direct.text.contains("TurtleGit Transfer"))
         _ = try await commit(f.source,"consumerless fetch")

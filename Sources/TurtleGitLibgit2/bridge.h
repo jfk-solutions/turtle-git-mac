@@ -46,7 +46,7 @@ int tg_unified_diff(const char *repository,const char *old_revision,const char *
 int tg_history_diff(const char *repository,const char *revision,int simple,unsigned int threshold,tg_callbacks *callbacks);
 int tg_reset(const char *repository,const char *revision,int mode,tg_callbacks *callbacks);
 int tg_revert(const char *repository,const char *revision,unsigned int mainline,tg_callbacks *callbacks);
-int tg_fetch(const char *repository,const char *remote,const char *const *refspecs,size_t count,int all_remotes,int tags,int prune,int depth,tg_callbacks *callbacks);
+int tg_fetch(const char *repository,const char *remote,const char *const *refspecs,size_t count,int all_remotes,int tags,int prune,int depth,int source_mode,tg_callbacks *callbacks);
 int tg_list_remote(const char *repository,const char *remote,int refs_only,int tags_only,int heads_only,tg_callbacks *callbacks);
 int tg_delete_remote(const char *repository,const char *remote,const char *const *refspecs,size_t count,tg_callbacks *callbacks);
 int tg_materialize_blob(const char *repository,const char *oid,const char *path,tg_callbacks *callbacks);

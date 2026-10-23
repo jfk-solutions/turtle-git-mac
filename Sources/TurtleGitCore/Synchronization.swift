@@ -73,17 +73,17 @@ extension GitRepository {
     private func runSynchronizationCommand(_ arguments: [String], environmentOverrides: [String: String] = [:],
         literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation,
         onOutput: (@Sendable (GitOutputChunk) -> Void)?, onCommandFinished: (@Sendable (SynchronizationCommandCompletion) -> Void)?, executorOverride: URL? = nil,
-        onNotification: (@Sendable (GitTransferNotification) -> Void)? = nil) throws -> GitResult {
+        onNotification: (@Sendable (GitTransferNotification) -> Void)? = nil, sourceFetch: Bool = false) throws -> GitResult {
         try cancellation.check()
         let started = ProcessInfo.processInfo.systemUptime
         do {
             let result: GitResult
-            if executorOverride != nil, onNotification != nil {
+            if executorOverride != nil, onNotification != nil || sourceFetch {
                 // runTransfer drains verified result metadata (including a
                 // framing warning) before this subprocess completion receipt.
                 // Only the selected Fetch helper uses that private channel.
                 result = try runTransfer(arguments, environment: environmentOverrides, literalPathspecs: literalPathspecs,
-                    cancellation: cancellation, onOutput: onOutput, executor: executorOverride, onNotification: onNotification)
+                    cancellation: cancellation, onOutput: onOutput, executor: executorOverride, onNotification: onNotification, sourceFetch: sourceFetch)
             } else {
                 result = try run(arguments, environmentOverrides: environmentOverrides, literalPathspecs: literalPathspecs,
                     successfulExitCodes: successfulExitCodes, cancellation: cancellation, onOutput: onOutput, executorOverride: executorOverride)
@@ -563,10 +563,24 @@ extension GitRepository {
         // the original plan still owns the pre-checkout HEAD for incoming tabs.
         let execution = plan.options.action == .pull ? try buildSynchronizationTransportPlan(plan.options, cancellation: token, checkoutCompleted: true) : plan
         let executor = GitCommandIdentity(execution.arguments).command == "fetch" ? try backend.executor(for: .fetch) : nil
+        var arguments = execution.arguments
+        if executor != nil {
+            // SyncDlg's selected libgit2 Fetch uses a fully qualified refspec,
+            // independently of whether the conventional tracking ref exists.
+            // Force belongs to CLI Fetch; FetchProgressCommand does not receive
+            // it. The helper owns load -> append config -> fetch(NULL) ordering.
+            arguments = ["fetch", "--progress"]
+            if execution.options.fetchVerbose { arguments.append("-v") }
+            arguments += ["--", execution.options.remote]
+            if execution.options.action != .fetchAllBranches, !execution.options.remoteBranch.isEmpty {
+                let branch = execution.options.remoteBranch
+                arguments.append("refs/heads/" + branch + ":refs/remotes/" + execution.options.remote + "/" + branch)
+            }
+        }
         try token.check()
         onCommandPresentation?(executor != nil && onNotification != nil ? .transferNotifications : .text)
-        let result = try runSynchronizationCommand(execution.arguments, environmentOverrides: session?.transportEnvironment ?? [:],
-            cancellation: token, onOutput: onOutput, onCommandFinished: onCommandFinished, executorOverride: executor, onNotification: onNotification)
+        let result = try runSynchronizationCommand(arguments, environmentOverrides: session?.transportEnvironment ?? [:],
+            cancellation: token, onOutput: onOutput, onCommandFinished: onCommandFinished, executorOverride: executor, onNotification: onNotification, sourceFetch: executor != nil)
         var target: String?
         if let reference = execution.rebaseReference {
             do {
@@ -578,7 +592,7 @@ extension GitRepository {
                 throw SynchronizationTransportFollowUpFailure(command: result, details: error.localizedDescription)
             }
         }
-        return SynchronizationTransportResult(command: result, rebaseTarget: target, rebaseMode: execution.rebaseMode, executedArguments: execution.arguments)
+        return SynchronizationTransportResult(command: result, rebaseTarget: target, rebaseMode: execution.rebaseMode, executedArguments: arguments)
     }
 
     public func synchronizationBranches(localBranch: String? = nil, cancellation: OperationCancellation? = nil) throws -> SynchronizationBranches {

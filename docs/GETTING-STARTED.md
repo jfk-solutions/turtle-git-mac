@@ -139,6 +139,8 @@ Cancel leaves your current fields unchanged.
 
 In **Git Synchronization**, **Log** shows Action/Path reference results for an explicitly enabled libgit2 Fetch. Select a completed Update ref row and choose **Show Log** to inspect its captured old/new revisions. Partial results remain available after failure or cancellation. The default CLI Fetch keeps its text log. See [Fetch result details](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md).
 
+With optional libgit2 Fetch, a selected branch spec is appended to the named remote’s fetch configuration. The current fetch uses the configuration loaded before that addition; later fetches see it. Repeated selected requests append duplicate entries. CLI Fetch retains its existing behavior. See [configuration lifecycle details](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md#source-fetch-configuration-lifecycle--october-23-2026).
+
 In **Git Synchronization**, open **Out Commits** to inspect the outgoing history.
 **In Commits** appears when incoming history is available. Each list has a compact
 revision graph and a context menu for the selected commits.

@@ -1,0 +1,253 @@
+{
+  "date": "2026-10-23",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "passed",
+  "scope": [
+    "Private source-selected helper Fetch mode: load remote, append single raw refspec, fetch same loaded remote with null refspec argument",
+    "Sync qualified selected branch specs, source Force handling, default AUTO tags, and CLI separation",
+    "Standalone raw selected Fetch spec and named remote Fetch-for-Rebase target",
+    "Persistent duplicate/order and first-versus-next-operation configuration lifecycle",
+    "Actual error, partial-mutation, cancellation and notification ownership boundaries"
+  ],
+  "source_oracle": {
+    "description": "Earlier same-library diagnostic proves remote_add_fetch does not refresh the already-loaded remote object. Original explicit-spec observations are historical baseline evidence.",
+    "source": "docs/qa/sync-fetch-source-oracle-2026-10-23.c",
+    "reproduction": "docs/qa/sync-fetch-source-oracle-2026-10-23.py",
+    "record": "docs/qa/sync-fetch-source-oracle-2026-10-23.txt"
+  },
+  "validation": {
+    "helper_build": {
+      "status": "passed",
+      "log": "build/qa/source-fetch-lifecycle-helper-2026-10-23.log",
+      "exit_code": 0,
+      "source": "Parent-reported terminal result",
+      "scope": "Exact pinned arm64 and x86_64 static slices reused; universal helper, SDK dependencies, licenses and structural validation passed. This does not establish x86_64 runtime execution."
+    },
+    "core": {
+      "status": "passed",
+      "log": "build/qa/source-fetch-lifecycle-core-2026-10-23.log",
+      "exit_code": 0,
+      "methods": 51,
+      "failures": 0,
+      "unexpected_failures": 0,
+      "duration_seconds": 113.798,
+      "new_lifecycle_methods": 9,
+      "repairs": [],
+      "repeated": false,
+      "scope": "Nine actual source lifecycle methods; related notification, completion, Sync transport/backend suites and affected GitLibGit2 named Fetch/tags/prune/Rebase method. Core selected group only, not entire hosted suite."
+    },
+    "app_build": {
+      "status": "passed",
+      "log": "build/qa/source-fetch-lifecycle-app-2026-10-23.log",
+      "exit_code": 0,
+      "exit_code_source": "Parent-reported terminal result",
+      "generic_exit_zero_diagnostics": 1,
+      "core_simulator_warning_present": true,
+      "diagnostics": "Build returned zero while retaining contradictory generic compiler exit-zero diagnostics and existing warnings/CoreSimulator mismatch; no clean-diagnostics claim."
+    },
+    "native": {
+      "status": "passed",
+      "log": "build/qa/source-fetch-lifecycle-native-2026-10-23.log",
+      "planned_engine_case_pairs": 6,
+      "exit_code": 0,
+      "engine_case_pairs": 6,
+      "cases": [
+        "sync",
+        "standalone",
+        "ownership"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "repairs": [],
+      "repeated": false,
+      "scope": [
+        "Real Sync narrow configured main first; requested qualified topic mapping only activates next invocation, duplicates retained; Fetch All does not append",
+        "Accepted command keeps exact full qualified refspec despite later form edit",
+        "Actual owned Remote settings opens/selects origin/closes and refreshes actual Sync selection/results",
+        "Standalone actual progress controllers retain raw branch spec, later load it without inventing tracking destination; explicit CLI remains separate",
+        "Unavailable named origin failure preserves accepted config append and Error/Finished ordering; retry, cancellation, Quit/actual producer retirement retain exact config order and immutable retired rows",
+        "Private repositories/preferences/pasteboard, offscreen owned windows/sheets, repository checkout/HEAD/index and unrelated configuration assertions"
+      ]
+    },
+    "note": "All listed checks are current source lifecycle checkpoint results. Historical source oracle was not rerun; no preceding notification pass is substituted for these new persistent configuration checks.",
+    "resources": {
+      "status": "passed",
+      "source": "Parent-reported completed checks",
+      "help": {
+        "documents": 57,
+        "topics": 51,
+        "files": 77,
+        "bytes": 3771158
+      },
+      "localizations": {
+        "languages": 38,
+        "keys": 1315
+      },
+      "dialog_reconciliation": {
+        "dialogs": 130,
+        "partial": 120,
+        "pending": 10,
+        "unmapped_controls": 85,
+        "certified_complete": 0,
+        "counts_are_feature_percentage": false
+      }
+    },
+    "prior_notification_affected_group": {
+      "status": "passed",
+      "planned_engine_case_pairs": 6,
+      "reason": "Existing native expectations and captures depend on selected source config mutation; validate affected prior group once against new production.",
+      "log": "build/qa/source-fetch-lifecycle-sync-native-2026-10-23.log",
+      "exit_code": 0,
+      "engine_case_pairs": 6,
+      "cases": [
+        "actual",
+        "separation",
+        "lifetime"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "scope": "Existing full typed notification workspace Log/copy/routing/captured-prefs/CLI/failure/cancellation family with expectations updated for accepted persistent spec additions. Actual full qualified command caption captured in light/dark.",
+      "repairs": [],
+      "repeated": false
+    },
+    "site": {
+      "status": "passed",
+      "log": "build/qa/source-fetch-lifecycle-site-2026-10-23.log",
+      "exit_code": 0,
+      "documents": 421,
+      "unresolved_fragments": 0,
+      "python_tests": 2,
+      "python_failures": 0,
+      "python_duration_seconds": 3.774,
+      "javascript": "Search/filter/no-match/load-failure checks passed."
+    },
+    "cumulative": {
+      "core_methods": 51,
+      "native_engine_case_pairs": 12,
+      "new_lifecycle_pairs": 6,
+      "affected_prior_notification_pairs": 6,
+      "failures": 0,
+      "repairs": 0,
+      "repeat_groups": 0
+    },
+    "git_diff_check": {
+      "status": "passed",
+      "source": "Parent-reported final check"
+    },
+    "helper_provenance": {
+      "status": "passed",
+      "source": "Parent verified current helper source hashes match main.swift/bridge.c/bridge.h and embedded bundle provenance",
+      "unsigned_built_helper_sha256_prefix": "9040911",
+      "ad_hoc_signed_bundle_helper_sha256_prefix": "60ea381",
+      "scope": "Both architecture structural slices and current embedded-source provenance verified; ad-hoc local signing is not installed signed distribution or Intel runtime acceptance."
+    }
+  },
+  "explicit_boundaries": [
+    "Anonymous URL remote plus nonempty requested raw spec fails safely without inventing a configuration identity.",
+    "All Remotes retains the existing Mac iteration over configured named remotes and skip settings; this is an adaptation of the pinned caller's empty-URL behavior.",
+    "Pinned libgit2 1.9.4 write_add_refspec can return zero after git_config_set_multivar fails, including a config-lock failure. The port preserves that actual API outcome without claiming verified persistence or adding a library patch.",
+    "Accepted configuration additions are not rolled back after later authentication, transport, cancellation or follow-up failure.",
+    "Generic helper Fetch and CLI behavior retain their separate per-operation contract."
+  ],
+  "remaining_acceptance": [
+    "Public transport providers and authentication",
+    "Physical pointer, keyboard, VoiceOver and complete source dialog layout",
+    "Installed signed repository grants and minimum-version/Intel execution",
+    "Full current hosted integration and whole-port coverage"
+  ],
+  "prior_batch_commit": "f414354a",
+  "prior_batch_scope": "Structured Sync transfer notifications checkpoint; its passes are historical and are not evidence for the new persistent refspec semantics.",
+  "test_scope": {
+    "new_core_suite": "SourceFetchLifecycleTests",
+    "new_core_methods": 9,
+    "cases": [
+      "Named narrow remote first-loaded-spec semantics, next invocation activation and exact ordered duplicate append",
+      "Configured wildcard Fetch All Same updates without config append",
+      "Standalone raw branch persistence, later activation and no invented tracking destination",
+      "Named unavailable remote failure after accepted configuration append and one settled completion",
+      "Linked worktree common config plus independent checkout",
+      "Explicit CLI Sync/standalone preserves configuration",
+      "Standalone source Fetch-for-Rebase chooses selected remote tracking ref despite unrelated main FETCH_HEAD",
+      "Narrow source Fetch-for-Rebase fails preparation when selected tracking ref absent instead of rebasing unrelated main",
+      "Pre-cancelled source Fetch preserves config and emits no notifications"
+    ],
+    "related_adjustments": [
+      "SynchronizationTransferNotificationTests qualified source config/order and loaded-wildcard missing branch semantics",
+      "SyncLibGit2Tests immutable backend, exact persisted spec, private-flag exclusion from semantic receipts",
+      "GitLibGit2Tests named source vs anonymous source failure, explicit CLI anonymous success; existing tags/prune assertions retained",
+      "GitTransferNotificationTests generic-helper contract comment updated; callback truth/classification assertions retained"
+    ]
+  },
+  "ownership": {
+    "logged_receiver_pids": [
+      40371,
+      40643,
+      40761,
+      41036,
+      41305,
+      41424,
+      41697,
+      41903,
+      42091,
+      42234,
+      42400,
+      42590
+    ],
+    "runner_reported_reaped": [
+      40371,
+      40643,
+      40761,
+      41036,
+      41305,
+      41424,
+      41697,
+      41903,
+      42091,
+      42234,
+      42400,
+      42590
+    ],
+    "independently_verified_absent": [
+      40371,
+      40643,
+      40761,
+      41036,
+      41305,
+      41424,
+      41697,
+      41903,
+      42091,
+      42234,
+      42400,
+      42590
+    ],
+    "verified_at_utc": "2026-10-23T13:17:02.937363+00:00",
+    "verification": "Read-only os.kill(pid,0) raised ProcessLookupError for all 12 logged receivers; no signals sent or unrelated applications terminated.",
+    "scope": "Actual private helper producers, Git processes and owned offscreen windows/sheets drained by fixtures/runner on success, failure and timeout; success requiring forced helper cleanup fails."
+  },
+  "captures": {
+    "status": "passed-and-reviewed-by-parent",
+    "files": [
+      {
+        "path": "docs/site/assets/sync-fetch-notifications-log-light.png",
+        "width": 1720,
+        "height": 1156,
+        "bytes": 347302,
+        "sha256": "19361b8928d6868929d1d08a80c517385bdd3f9daab6a6604650c33b601f25f8"
+      },
+      {
+        "path": "docs/site/assets/sync-fetch-notifications-log-dark.png",
+        "width": 1720,
+        "height": 1156,
+        "bytes": 382259,
+        "sha256": "48f64319ed07232f95e82c466b3582e36b3722e8ae4b0654377f1f15cae5ecb9"
+      }
+    ],
+    "scope": "Current complete native Sync Command Log source-qualified Fetch caption; light/dark current-process compositor captures of owned offscreen window. Parent accepted full caption and controls fit."
+  },
+  "status_scope": "Focused local source Fetch lifecycle batch: 51 Core methods and 12 distinct native case/engine pairs passed once with no failures, repairs or repeats. Prior structured notification commit f414354a is separate historical evidence; no whole-port or full current hosted CI completion claim."
+}

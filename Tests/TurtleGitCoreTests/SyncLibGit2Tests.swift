@@ -40,7 +40,7 @@ final class SyncLibGit2Tests: XCTestCase {
     func testSyncFetchUsesCapturedBackendAndActualSettledReceiptWithoutChangingCheckout() async throws {
         let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
         let before = try await f.client.run(["rev-parse", "HEAD"]).stdout
-        let index = try Data(contentsOf: f.client.root.appendingPathComponent(".git/index")), config = try Data(contentsOf: f.client.root.appendingPathComponent(".git/config"))
+        let index = try Data(contentsOf: f.client.root.appendingPathComponent(".git/index"))
         try Data("private working edit\n".utf8).write(to: f.client.root.appendingPathComponent("file"))
         try Data("remote update\n".utf8).write(to: f.source.root.appendingPathComponent("file")); try await f.source.stage(["file"]); _ = try await f.source.commit(message: "new remote tip")
         _ = try await f.source.run(["push", "--", f.remote.root.path, "main"])
@@ -55,10 +55,12 @@ final class SyncLibGit2Tests: XCTestCase {
         XCTAssertEqual(result.command.exitCode, 0); XCTAssertEqual(result.rebaseTarget, String(decoding: tip, as: UTF8.self).trimmingCharacters(in: .newlines))
         XCTAssertEqual(receipts.values.count, 1); XCTAssertTrue(receipts.values.first?.success == true)
         let argv = try Data(contentsOf: URL(fileURLWithPath: f.helper.path + ".argv")).split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
-        XCTAssertEqual(Array(argv.dropFirst(3)), result.executedArguments)
+        XCTAssertTrue(argv.contains("--turtlegit-source-fetch"))
+        XCTAssertEqual(Array(argv.dropFirst(3)).filter { $0 != "--turtlegit-source-fetch" && $0 != "--turtlegit-transfer-notifications" }, result.executedArguments)
         let after = try await f.client.run(["rev-parse", "HEAD"]).stdout
         XCTAssertEqual(after, before); XCTAssertEqual(try Data(contentsOf: f.client.root.appendingPathComponent(".git/index")), index)
-        XCTAssertEqual(try Data(contentsOf: f.client.root.appendingPathComponent(".git/config")), config)
+        let configured = try await f.client.run(["config", "--get-all", "remote.origin.fetch"]).text.split(separator: "\n").map(String.init)
+        XCTAssertEqual(configured, ["+refs/heads/*:refs/remotes/origin/*", "refs/heads/main:refs/remotes/origin/main"])
         XCTAssertEqual(try String(contentsOf: f.client.root.appendingPathComponent("file"), encoding: .utf8), "private working edit\n")
         XCTAssertFalse(GitLibGit2Configuration.load(from: defaults).requests(.fetch))
     }

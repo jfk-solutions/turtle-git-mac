@@ -1833,6 +1833,22 @@ split controls, with owned state and remaining acceptance kept explicit.
 The [connected transfer-result family](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md) carries actual libgit2 Fetch reference notifications through Synchronization and its checkout continuation, selecting the Action/Path Log from the actual execution backend. It retains original endpoint Show Log/Copy behavior, ordered partial results and warnings, independent command completion and owned menu/child retirement. Its dated checkpoint records actual grouped validation and remaining physical/signed/source gates; earlier CLI/transport passes do not independently certify this continuation.
 
 
-### Explicit remaining refspec lifecycle
+### Source Fetch refspec lifecycle — October 23, 2026
 
-The pinned Fetch command loads a remote, calls `git_remote_add_fetch` to persist the selected spec, then `git_remote_fetch(remote, nullptr, ...)` using the already-loaded configured specs. The current Mac helper passes a per-operation explicit refspec and preserves configuration. A same-library source oracle confirms the resulting callback/configuration difference. Completing that source lifecycle remains open; the new notification table does not certify it. See the [dated checkpoint](qa/sync-transfer-notifications-2026-10-23.json) for oracle evidence and actual same/no-match boundaries.
+Selected libgit2 Fetch now loads the remote, appends Sync's fully qualified
+selected-branch spec, then fetches through the same loaded configuration. The
+addition affects subsequent invocations; duplicates and original configured
+specs retain source ordering. This path does not receive Sync Force, while CLI
+Fetch retains its existing arguments. Failure or cancellation after an accepted
+append does not roll it back. This replaces the earlier concrete per-operation
+configuration gap; it does not certify the whole dialog.
+
+See the [source lifecycle contract and limitations](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md#source-fetch-configuration-lifecycle--october-23-2026)
+and [new checkpoint](qa/source-fetch-lifecycle-2026-10-23.json). Anonymous URL plus
+a nonempty requested spec fails without inventing a named remote. All Remotes
+retains the documented Mac named-remote iteration adaptation, and the pinned
+library's swallowed configuration-write return remains an explicit limitation.
+The [dated oracle](qa/sync-fetch-source-oracle-2026-10-23.txt) is retained as the
+source call-order baseline. Current grouped validation, installed/signed grants,
+public authentication, physical/VoiceOver and complete source layout remain
+separate gates.

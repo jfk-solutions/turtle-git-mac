@@ -928,6 +928,8 @@ jobs:
         run: python3 scripts/test-statistics-export-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Synchronization typed Fetch results and owned Log routing
         run: python3 scripts/test-sync-transfer-notifications.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Fetch source refspec configuration lifecycle and native ownership
+        run: python3 scripts/test-fetch-refspec-lifecycle.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Revision Graph source viewport navigation and gesture ownership
         run: python3 scripts/test-graph-viewport-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Compare and Merge all-pane viewport commands
