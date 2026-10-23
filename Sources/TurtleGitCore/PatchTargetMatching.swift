@@ -49,8 +49,18 @@ public enum PatchTargetMatching {
         return ancestors.first { matches($0, parentsOnly: true) }
     }
     /// Upstream removes Git's a/ and b/ prefixes, but leaves plain patch paths.
-    public static func initialStripCount(_ bytes: Data) -> Int {
-        for line in bytes.split(separator: 10) {
+    public static func initialStripCount(_ bytes: Data, textEncodingPolicy: MergeTextEncodingPolicy = .init(preferUTF8: true), cancellation: OperationCancellation? = nil) -> Int {
+        guard cancellation?.isCancelled != true else { return 0 }
+        // Header punctuation is text, not byte-LF framing in a UTF-16/32 file.
+        // Keep the original bytes for Git binary/opaque patches; the decoder
+        // never serializes another patch or supplies changed filesystem bytes.
+        let headerBytes: Data
+        if bytes.count <= 64 * 1024 * 1024, let encoding = ComparisonTextEncoding.detectMerge(bytes, preferUTF8: textEncodingPolicy.preferUTF8, legacyEncoding: textEncodingPolicy.legacyEncoding),
+           let text = encoding.decode(bytes), !text.contains("\0") {
+            headerBytes = Data(text.utf8)
+        } else { headerBytes = bytes }
+        for line in headerBytes.split(separator: 10) {
+            guard cancellation?.isCancelled != true else { return 0 }
             if line.starts(with: Data("diff --git a/".utf8)) || line.starts(with: Data("diff --git \"a/".utf8)) { return 1 }
             if line.starts(with: Data("@@".utf8)) { break }
             guard line.starts(with: Data("--- ".utf8)) || line.starts(with: Data("+++ ".utf8)) else { continue }
@@ -64,10 +74,32 @@ public enum PatchTargetMatching {
 extension GitRepository {
     /// Reverse statistics identify the preimage of renames without interpreting
     /// human-readable quoted paths. This query does not apply any patch.
-    public func patchTargetPaths(_ bytes: Data, stripCount: Int, cancellation: OperationCancellation? = nil) throws -> [Data] {
+    public func patchTargetPaths(_ bytes: Data, stripCount: Int, textEncodingPolicy: MergeTextEncodingPolicy = .init(preferUTF8: true), cancellation: OperationCancellation? = nil) throws -> [Data] {
+        try cancellation?.check()
         guard stripCount >= 0 else { throw WorkingTreePatchFailure.stripCount }
-        return try withPatchTarget(bytes, directoryMode: true, isGitWorkingTree: false, cancellation: cancellation) { file, execute in
-            try WorkingTreePatchReview.parseFiles(execute(["apply", "-p\(stripCount)", "--reverse", "--numstat", "-z", "--", file.path]).stdout).reversed().map(\.pathBytes)
+        var decodedFailure: Error?
+        // CheckPatchPath is a text-header query, independent of the eventual
+        // application engine. Git numstat can preserve an ACP byte name or pick
+        // the new header of a plain pair even in reverse; source paths are the
+        // decoded literal preimages. Opaque/source-incompatible syntax retains
+        // the original Git metadata reader below.
+        if SourceTextPatch.recognizedTextEligibility(bytes: bytes, textEncodingPolicy: textEncodingPolicy) {
+            do {
+                let patch = try SourceTextPatch.parse(bytes: bytes, textEncodingPolicy: textEncodingPolicy, cancellation: cancellation).strippingPaths(stripCount)
+                return try patch.files.compactMap { file in
+                    try cancellation?.check()
+                    return file.oldPathBytes ?? file.newPathBytes
+                }
+            } catch SourceTextPatchFailure.opaque { }
+            catch { try cancellation?.check(); decodedFailure = error }
+        }
+        do {
+            return try withPatchTarget(bytes, directoryMode: true, isGitWorkingTree: false, cancellation: cancellation) { file, execute in
+                try WorkingTreePatchReview.parseFiles(execute(["apply", "-p\(stripCount)", "--reverse", "--numstat", "-z", "--", file.path]).stdout).reversed().map(\.pathBytes)
+            }
+        } catch {
+            try cancellation?.check()
+            throw decodedFailure ?? error
         }
     }
 }

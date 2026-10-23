@@ -257,6 +257,8 @@ including their remaining acceptance work.
 [Compare/Merge pane presentation](docs/MERGE-PANE-PRESENTATION-PARITY.md) and
 [patch application/save policies](docs/PATCH-SAVE-APPLICATION-POLICY-PARITY.md)
 track native pane status, automatic application and explicit save behavior.
+[Unicode and source text patches](docs/SOURCE-TEXT-PATCH-PARITY.md) tracks the
+decoded patch adapter, original-byte preservation and source matching rules.
 [UI parity](docs/UI-PARITY.md) records required source, layout and behavior
 comparisons. These documents and individual workflow audits track the full-port
 work that remains.

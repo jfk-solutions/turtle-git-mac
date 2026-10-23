@@ -1,0 +1,245 @@
+{
+  "date": "2026-10-23",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "passed",
+  "scope": [
+    "Decoded Unicode/GNU/SVN text-patch syntax and immutable original-byte receipt",
+    "Pinned source matching, target encoding/BOM/EOL and bounded cancellable pure simulation",
+    "Git-first review/application with decoded-first read-only target discovery; selected/all comparison and checked publication with metadata/recovery/stale ownership",
+    "Native policy capture, Original patch codec and exact-byte Copy/Save with owned cancellation"
+  ],
+  "validation": {
+    "initial_core": {
+      "log": "build/qa/source-text-patch-family-core-2026-10-23.log",
+      "tests": 121,
+      "failures": 9,
+      "unexpected": 1,
+      "failed_methods": [
+        "SourceTextPatchParserTests.testWarningsDoNotChangeThePrecedingRecordEnding",
+        "SourceTextPatchWorkflowTests.testDecodedBatchRetainsExisting0750PermissionsWithoutPostApplyWarning",
+        "SourceTextPatchWorkflowTests.testDecodedSVNHeadersAndLegacyPolicyKeepStripSemanticsAndFileOrder",
+        "SourceTextPatchWorkflowTests.testDecodedUnicodeHeadersDiscoverLiteralPreimagesWithoutTargetWrites",
+        "SourceTextPatchWorkflowTests.testGitShorthandMismatchKeepsValidatedMetadataAndRecordedBaseRecovery",
+        "WorkingPatchBatchTests.testOrderedBatchContinuesAfterConflictWithoutChangingIndexOrHead"
+      ]
+    },
+    "initial_app": {
+      "log": "build/qa/source-text-patch-family-app-2026-10-23.log",
+      "exit_code": 0,
+      "diagnostics": "Xcode exited zero but emitted contradictory generic command-failed-with-exit-code-zero diagnostics, plus existing warnings and CoreSimulator mismatch. No clean-diagnostics claim."
+    },
+    "native": {
+      "status": "passed",
+      "log": "build/qa/source-text-patch-family-native-path-2026-10-23.log",
+      "engine_case_pairs": 6,
+      "pairs": [
+        {
+          "case": "workflow",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "workflow",
+          "git": "build/git-runtime/Git/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "svn",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "svn",
+          "git": "build/git-runtime/Git/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "lifecycle",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "lifecycle",
+          "git": "build/git-runtime/Git/bin/git",
+          "status": "passed"
+        }
+      ],
+      "visibility": "Owned receiver windows and sheets hidden/offscreen; deliberate current-process compositor captures only.",
+      "diagnostics": "Fixture compilation retains a nonfatal trailing-closure warning; successful runtime assertions were retained."
+    },
+    "focused_core": {
+      "log": "build/qa/source-text-patch-family-core-repairs-2026-10-23.log",
+      "tests": 38,
+      "failures": 0,
+      "unexpected": 0,
+      "scope": [
+        "PatchTargetMatchingTests (5 methods)",
+        "SourceTextPatchParserTests.testWarningsDoNotChangeThePrecedingRecordEnding",
+        "SourceTextPatchWorkflowTests (16 methods)",
+        "WorkingPatchBatchTests (16 methods)"
+      ]
+    },
+    "cumulative_core": {
+      "distinct_methods": 122,
+      "final_method_results": "122 passed across the initial run and affected recheck",
+      "initial_methods_rechecked": 37,
+      "unchanged_initial_passes_not_repeated": 84,
+      "new_recheck_methods": [
+        "SourceTextPatchWorkflowTests.testDecodedPublishedPermissionWarningRetainsSuccessfulBatchReceipt"
+      ],
+      "full_initial_group_rerun": false
+    },
+    "repair_app": {
+      "log": "build/qa/source-text-patch-family-repairs-app-2026-10-23.log",
+      "exit_code": 0,
+      "diagnostics": "Xcode exited zero with existing warnings, CoreSimulator mismatch and generic command-failed-with-exit-code-zero diagnostics; no clean-diagnostics claim."
+    },
+    "native_attempts": [
+      {
+        "log": "build/qa/source-text-patch-family-native-2026-10-23.log",
+        "status": "fixture-compilation-failed",
+        "failures": [
+          "Long patchText concatenation parsed trailing + as postfix; compiler unable to typecheck expression.",
+          "Nested fixture Context lacked MainActor isolation for actual native workflow mutations."
+        ]
+      },
+      {
+        "log": "build/qa/source-text-patch-family-native-actor-2026-10-23.log",
+        "status": "fixture-compilation-failed",
+        "failures": [
+          "MainActor repair applied; trailing + patchText concatenation still failed compilation."
+        ]
+      },
+      {
+        "log": "build/qa/source-text-patch-family-native-fixture-2026-10-23.log",
+        "status": "first-native-case-failed",
+        "failures": [
+          "Decoded Unicode path target discovery did not reach real repository."
+        ],
+        "owned_receiver_pid": 20846,
+        "repair": "Fixture target comparison uses standardized literal paths; subsequent final six-pair run passed."
+      }
+    ],
+    "hosted_compiler_repair_app": {
+      "log": "build/qa/source-text-patch-family-hosted-compiler-repair-app-2026-10-23.log",
+      "exit_code": 0,
+      "diagnostics": "Focused local Xcode app build after expression-only compiler compatibility repair; existing warnings and generic exit-code-zero diagnostics remain."
+    }
+  },
+  "remaining": [
+    "Full upstream parser and producer/encoding matrix acceptance",
+    "Physical input/VoiceOver/Finder and current installed signed workflows",
+    "Minimum-version/Intel and complete current hosted integration",
+    "Distribution signing and App Store acceptance",
+    "Extended reverse-copy metadata remains on the original Git route; Unicode containers rejected by Git do not acquire decoded reverse-copy support."
+  ],
+  "repairs": [
+    "Fixture Optional.none ambiguity: unwrap actual line then compare concrete Ending.none; line existence and ending assertion retained.",
+    "Read-only target discovery must prefer successfully parsed decoded header preimages, preserving logical filename bytes; opaque or source-incompatible syntax retains original Git query.",
+    "Generated Git output canonicalizes existing executable permissions; restore captured existing permissions using a checked owned output witness rather than accepting drift.",
+    "Standard Git zero-context middle hunk requires different flags; authored shorthand recovery fixture moves line32 to EOF, retaining metadata/base recovery assertions and unchanged Git arguments.",
+    "Decoded per-file failure diagnostics must retain the literal file path.",
+    "Generated publication permission restoration uses pinned no-follow root/parent/leaf descriptors, exact expected bytes and Git mode, stable named inode witnesses and fchmod; unchanged existing modes preserve full captured permissions, explicit mode transitions use canonical permissions.",
+    "Late permission-restoration failures retain published success with postApplyError; a private real Git wrapper regression verifies changed output and unchanged index without claiming rollback.",
+    "Native fixture compilation repaired MainActor isolation and patchText string construction; subsequent target comparison uses standardized literal paths.",
+    "Hosted Xcode 16.4 compiler could not typecheck the long ImportPatchWindow tooltip expression; identical text now uses typed sequential appends."
+  ],
+  "status_scope": "Focused local source-text-patch checkpoint; cumulative distinct Core methods and six native case/engine pairs. This is not a complete hosted CI or whole-port acceptance claim.",
+  "ownership": {
+    "receiver_pids_from_actual_native_logs": [
+      20846,
+      20932,
+      21077,
+      21209,
+      21272,
+      21325,
+      21348
+    ],
+    "runner_reported_reaped": [
+      20846,
+      20932,
+      21077,
+      21209,
+      21272,
+      21325,
+      21348
+    ],
+    "independently_verified_absent": [
+      20846,
+      20932,
+      21077,
+      21209,
+      21272,
+      21325,
+      21348
+    ],
+    "verification": "Read-only os.kill(pid, 0) returned ProcessLookupError for every logged receiver; no signals or unrelated process termination.",
+    "verified_at_utc": "2026-10-23T11:53:41.549758+00:00",
+    "private_helper_cleanup": "Final runner completed all cases without reporting owned-helper cleanup failure; fixture held Git discovery and native ownership assertions drained before success."
+  },
+  "captures": {
+    "count": 8,
+    "source": "Actual final native log current-process compositor outputs; light/dark UTF16 review/original patch and SVN UTF32-container review/original patch.",
+    "verification": "PNG signatures/IHDR dimensions and SHA-256 measured independently from saved files; visual gallery review is recorded separately by the parent.",
+    "files": [
+      {
+        "path": "docs/site/assets/source-patch-svn-utf32-review-dark.png",
+        "width": 2200,
+        "height": 1504,
+        "sha256": "9a2cd105a368375201eb712f3df58712d5249f129558875196bb9f5f9ec5a034"
+      },
+      {
+        "path": "docs/site/assets/source-patch-svn-utf32-review-light.png",
+        "width": 2200,
+        "height": 1504,
+        "sha256": "e3b545d924bdf90ba6e23799145679f1491e0c85be7dd8be457638e822cc93b1"
+      },
+      {
+        "path": "docs/site/assets/source-patch-utf16-review-dark.png",
+        "width": 2200,
+        "height": 1504,
+        "sha256": "7da06028e90057f16a2a83f8d30c9d967e8e119e8dbfed07455e235e738b14f5"
+      },
+      {
+        "path": "docs/site/assets/source-patch-utf16-review-light.png",
+        "width": 2200,
+        "height": 1504,
+        "sha256": "404bfbf8423cecbda3edc3bd3b34c961e17a3df4c75846d4f9ef30d19e61a2d6"
+      },
+      {
+        "path": "docs/site/assets/utf16-original-patch-dark.png",
+        "width": 2200,
+        "height": 1504,
+        "sha256": "55f6f08f22676f998ac0c07e36a3d011efb0a19fc872910c2962e0119461c431"
+      },
+      {
+        "path": "docs/site/assets/utf16-original-patch-light.png",
+        "width": 2200,
+        "height": 1504,
+        "sha256": "106fb1fcb31c9568eb377f5f4b762eef30fdf18e0e339865cf67d6179d88ec7f"
+      },
+      {
+        "path": "docs/site/assets/utf32-original-patch-dark.png",
+        "width": 2200,
+        "height": 1504,
+        "sha256": "1b3d4792e0c941a0d4d72bc0b36749ba397a82cb783ef41ac05f1c75d74b1734"
+      },
+      {
+        "path": "docs/site/assets/utf32-original-patch-light.png",
+        "width": 2200,
+        "height": 1504,
+        "sha256": "333a1741c463afcf10fb7cadfe2bf816a9c355a0cb0054aef1fba11e34616278"
+      }
+    ]
+  },
+  "hosted_ci": {
+    "run_id": 39944270661,
+    "job_id": 120383525956,
+    "status": "failed",
+    "step": 73,
+    "step_name": "Application and embedded Finder extension",
+    "cause": "Hosted Xcode 16.4 could not typecheck ImportPatchWindow long cell.toolTip expression.",
+    "downstream": "Core/native checks skipped in that hosted run.",
+    "repair": "Root split the expression into typed sequential appends with identical behavior; focused local app build exited zero. No hosted rerun pass claimed."
+  }
+}

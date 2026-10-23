@@ -910,8 +910,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var canReuse:Bool {!retired && !model.retired}
     var hasPendingWork:Bool {releaseTask != nil || activeOperation || window?.sheetParent != nil}
     var activeOperation: Bool { editorOpenWorkflow != nil || model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || model.editor?.hasPendingEditorChoice == true || model.editor?.busy == true || model.conflictOperationActive || window?.attachedSheet != nil }
-    init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1, automaticallyRefresh: Bool = true) {
-        model = WorkingTreePatchWindowModel(repository: repository, access: access, fileAccess: fileAccess, bytes: bytes, preferences: preferences, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, initialStripCount: initialStripCount)
+    init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1, initialTextEncodingPolicy:MergeTextEncodingPolicy? = nil, automaticallyRefresh: Bool = true) {
+        model = WorkingTreePatchWindowModel(repository: repository, access: access, fileAccess: fileAccess, bytes: bytes, preferences: preferences, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, initialStripCount: initialStripCount,initialTextEncodingPolicy:initialTextEncodingPolicy)
         let window = TextConflictNSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(title) – Review Patch – TurtleGitMerge"; window.isReleasedWhenClosed = false
         let host = NSHostingController(rootView: WorkingTreePatchDialog(model: model).defaultAppStorage(preferences)); host.sizingOptions = []
@@ -938,7 +938,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             if self.window?.isKeyWindow == true {self.editorCommandMenu?.install()}
         }
         editorCommandMenu = MergeEditorCommandMenu.patchReview(self)
-        if automaticallyRefresh { model.refresh() }
+        if automaticallyRefresh { model.refresh(encodingPolicy:initialTextEncodingPolicy) }
     }
     func setQuitConfirmation(_ value: Bool) { model.confirmingQuit = value; model.previewDocument.confirmingQuit = value }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -1197,10 +1197,10 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         beforeScroll = nil; afterScroll = nil; close = {}; chooseDraft = { .cancel }; onBusyChanged = {}
     }
     var canApply: Bool { !mergeToolReadOnly && canReplaceComparison && !requiresRefresh && selectedReview?.canApply == true && !selected.isEmpty }
-    init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, preferences: UserDefaults = .standard, directoryMode: Bool = false, isGitWorkingTree: Bool = true, initialStripCount: Int = 1,initialTextEncodingPolicy:MergeTextEncodingPolicy? = nil) {
         self._stripCount = Published(initialValue: initialStripCount)
         self.directoryMode = directoryMode; self.isGitWorkingTree = isGitWorkingTree
-        self.repository = repository; self.access = access; self.fileAccess = fileAccess; self.bytes = bytes; self.preferences = preferences;reviewEncodingPolicy=MergeTextEncodingPolicy(defaults:preferences)
+        self.repository = repository; self.access = access; self.fileAccess = fileAccess; self.bytes = bytes; self.preferences = preferences;reviewEncodingPolicy=initialTextEncodingPolicy ?? MergeTextEncodingPolicy(defaults:preferences)
         previewDocument = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
         previewDocument.setReadOnlyDiff(bytes,displayLegacyEncoding:reviewEncodingPolicy.legacyEncoding); previewDocument.refreshAvailable = false
     }
@@ -1215,10 +1215,10 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private func checkAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
-    func refresh(completion: (() -> Void)? = nil) {
+    func refresh(encodingPolicy:MergeTextEncodingPolicy? = nil,completion: (() -> Void)? = nil) {
         guard canReplaceComparison, let token = begin() else { completion?(); return }; selectedReview = nil; appliedPaths = []; keptCurrentPaths = []; comparison = nil; editor?.retireImageLoader(); editor = nil; editorChanges = nil; conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil; beforeScroll = nil; afterScroll = nil
         fileResults = [:];fileInspections = [:]
-        let reverse = reversed, strip = stripCount,policy=MergeTextEncodingPolicy(defaults:preferences)
+        let reverse = reversed, strip = stripCount,policy=encodingPolicy ?? MergeTextEncodingPolicy(defaults:preferences)
         Task {
             defer { finish(token); completion?() }
             do { try checkAccess(); try await load(reverse: reverse, strip: strip, token: token,encodingPolicy:policy) }
@@ -1227,10 +1227,13 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     private func load(reverse: Bool, strip: Int, token: OperationCancellation, retainingSavedComparison: Bool = false,encodingPolicy:MergeTextEncodingPolicy? = nil) async throws {
         try ensure(token)
-        let next = try await repository.reviewWorkingTreePatch(bytes, reversed: reverse, stripCount: strip, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, cancellation: token)
-        try ensure(token)
+        // One accepted read owns the container and target decoding policy across
+        // discovery, review, simulation and selected application. Original patch
+        // bytes remain the Copy/Save payload even for BOM-less Unicode text.
         let policy=encodingPolicy ?? reviewEncodingPolicy
-        if policy != reviewEncodingPolicy {previewDocument.setReadOnlyDiff(bytes,displayLegacyEncoding:policy.legacyEncoding)}
+        let next = try await repository.reviewWorkingTreePatch(bytes, reversed: reverse, stripCount: strip, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree,textEncodingPolicy:policy, cancellation: token)
+        try ensure(token)
+        previewDocument.setReadOnlyDiff(bytes,displayLegacyEncoding:policy.legacyEncoding,sourceEncoding:next.document.sourceEncoding)
         reviewEncodingPolicy=policy
         review = next; requiresRefresh = false; fileListGeneration = UUID()
         highlightedFiles.formIntersection(Set(next.files.map(\.id)))
@@ -1325,6 +1328,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
                 appliedPaths.insert(Data(comparison.document.destination.path.utf8));output += saved.output
                 comparisonNotice = choice == .current ? "Current working file and paths kept." : "Selected patched file state saved."
                 if let failure = saved.addError {notice = "Saved selected file state, but Add failed: " + failure}
+                if let failure=saved.postApplyError {notice=failure;requiresRefresh=true}
             } catch {
                 if !reported {onMutationStopped()}
                 if !retired,!token.isCancelled {notice = error.localizedDescription;output += notice + "\n"}
@@ -1349,6 +1353,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
                     self.appliedPaths.insert(Data(comparison.document.destination.path.utf8));self.output += saved.output
                     next.patchResultCompleted = true;next.resetHistory()
                     if let failure = saved.addError {self.notice = "Saved patched result, but Add failed: " + failure}
+                    if let failure=saved.postApplyError {self.notice=failure;self.requiresRefresh=true}
                 }
                 return try document.recordingPatchSave(saved)
             } catch {self.onMutationStopped();throw error}
@@ -1455,6 +1460,9 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             onChanged(saved.output); reported = true
             try ensure(token)
             appliedPaths.insert(Data(comparison.document.destination.path.utf8)); output += saved.output
+            // Publication already happened. Keep its warning and require an
+            // explicit fresh read instead of accepting an unverified savepoint.
+            if let failure=saved.postApplyError {notice=failure;requiresRefresh=true;return false}
             try editor.acceptPatchSave(saved.document)
             try await load(reverse: reversed, strip: stripCount, token: token, retainingSavedComparison: true)
             if let failure = saved.addError { notice = "Saved patched result, but Add failed: " + failure; output += notice + "\n"; return false }
@@ -1731,7 +1739,19 @@ struct WorkingTreePatchNativeFileList: NSViewRepresentable {
             label.textColor = state=="conflict" ? .systemOrange:state=="error" ? .systemRed : ["patched","kept current"].contains(state) ? .secondaryLabelColor : .labelColor
             label.translatesAutoresizingMaskIntoConstraints = false;cell.addSubview(label);cell.textField = label
             let result=model.fileResults[file.pathBytes]
-            cell.toolTip = FileTransferPaths.fileURL(FileTransferPaths.lexicalPath(model.repository.root.path + "/" + file.path)).path + (["error","conflict"].contains(state) ? "\n" + (result?.output ?? model.fileInspections[file.pathBytes]?.diagnostic ?? "") : "") + (result?.addError.map{"\nSaved patched file, but Add failed: "+$0} ?? "") + (result?.postApplyError.map{"\nSaved patched file, but cleanup failed: "+$0} ?? "")
+            let absolutePath = FileTransferPaths.lexicalPath(model.repository.root.path + "/" + file.path)
+            var tooltip: String = FileTransferPaths.fileURL(absolutePath).path
+            if ["error", "conflict"].contains(state) {
+                let diagnostic: String = result?.output ?? model.fileInspections[file.pathBytes]?.diagnostic ?? ""
+                tooltip += "\n" + diagnostic
+            }
+            if let addError = result?.addError {
+                tooltip += "\nSaved patched file, but Add failed: " + addError
+            }
+            if let postApplyError = result?.postApplyError {
+                tooltip += "\nSaved patched file, but cleanup failed: " + postApplyError
+            }
+            cell.toolTip = tooltip
             if tableColumn?.identifier.rawValue == "Path" {
                 let image = NSImageView();image.image = NSWorkspace.shared.icon(for:UTType(filenameExtension:(file.path as NSString).pathExtension) ?? .data);image.translatesAutoresizingMaskIntoConstraints = false;cell.addSubview(image);cell.imageView = image
                 NSLayoutConstraint.activate([image.leadingAnchor.constraint(equalTo:cell.leadingAnchor,constant:4),image.centerYAnchor.constraint(equalTo:cell.centerYAnchor),image.widthAnchor.constraint(equalToConstant:16),image.heightAnchor.constraint(equalToConstant:16),label.leadingAnchor.constraint(equalTo:image.trailingAnchor,constant:4)])

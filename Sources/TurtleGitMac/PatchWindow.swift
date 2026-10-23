@@ -282,12 +282,12 @@ import UniformTypeIdentifiers
         return exportDocument
     }
     func encodedDocumentBytes() throws ->Data {try documentSnapshot().bytes}
-    func setReadOnlyDiff(_ bytes: Data, discardingEdits: Bool = false,displayLegacyEncoding:ComparisonTextEncoding? = nil) {
+    func setReadOnlyDiff(_ bytes: Data, discardingEdits: Bool = false,displayLegacyEncoding:ComparisonTextEncoding? = nil,sourceEncoding:ComparisonTextEncoding? = nil) {
         guard !retired else { return }
         let legacy=displayLegacyEncoding ?? .legacyEncoding(from:appearancePreferences)
         if allowsDocumentEditing && documentDirty && !discardingEdits && !refreshReplacementApproved {requestReplacement?(bytes,legacy);return}
         approvedReplacementText = nil
-        let source = UnifiedDiffDocument(bytes:bytes,displayLegacyEncoding:legacy)
+        let source = UnifiedDiffDocument(bytes:bytes,displayLegacyEncoding:legacy,sourceEncoding:sourceEncoding)
         readOnly = true; document = GitPatch(text:source.displayText,displayLegacyEncoding:legacy); originalDiff = source
         savedText = document.text; savedDocument = source; editBuffer=allowsDocumentEditing ? UnifiedDiffEditBuffer(document:source):nil; documentDirty = false; documentResetRevision += 1; documentChanged()
     }

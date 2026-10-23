@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 public struct GitPatch: Sendable {
     public struct Hunk: Sendable {
@@ -238,6 +239,9 @@ public struct WorkingTreePatchReview: Sendable {
     public let validationError: String?
     public var canApply: Bool { validationError == nil }
     public let isGitWorkingTree: Bool
+    public let textEncodingPolicy: MergeTextEncodingPolicy?
+    fileprivate let decodedPatch: SourceTextPatch?
+    fileprivate let decodedInputs: GitPathMap<ComparisonFileContent>?
     fileprivate let directoryMode: Bool
     fileprivate let repositoryRoot: URL
     fileprivate let reversed: Bool
@@ -279,6 +283,7 @@ extension GitRepository {
             review.files.contains{$0.pathBytes==file.pathBytes && (($0.additions ?? 0)>0 || ($0.deletions ?? 0)>0)}
         }
         let total=Set(review.files.filter{fileIDs.contains($0.id)}.map(\.pathBytes)).count
+        var advancingReview = review
         var seen = Set<Data>(), results: [WorkingTreePatchFileResult] = []
         for file in review.files where fileIDs.contains(file.id) && seen.insert(file.pathBytes).inserted {
             if cancellation?.isCancelled == true { return .init(files: results, cancelled: true) }
@@ -286,12 +291,13 @@ extension GitRepository {
             if cancellation?.isCancelled==true {return .init(files:results,cancelled:true)}
             // Multiple patch records for one path must be applied together.
             let ids = Set(review.files.filter { $0.pathBytes == file.pathBytes }.map(\.id))
-            let result: WorkingTreePatchFileResult
+            var result: WorkingTreePatchFileResult
+            var acceptedOutputs: GitPathMap<ComparisonFileContent>?
             do {
-                let selected = try reviewWorkingTreePatchFiles(review, fileIDs: ids, cancellation: cancellation)
+                let selected = try reviewWorkingTreePatchFiles(advancingReview, fileIDs: ids, cancellation: cancellation)
                 if let failure = selected.validationError {
                     if let mergeConfiguration {
-                        let comparison = try compareWorkingTreePatchFile(review,fileID:file.id,textEncodingPolicy:textEncodingPolicy,cancellation:cancellation)
+                        let comparison = try compareWorkingTreePatchFile(advancingReview,fileID:file.id,textEncodingPolicy:textEncodingPolicy,cancellation:cancellation)
                         if comparison.recoveryKind != .text {
                             result = .init(pathBytes:file.pathBytes,success:false,output:"Preview this file to choose its current or patched state.\n" + failure,requiresMerge:true)
                             results.append(result);onResult?(result)
@@ -301,20 +307,33 @@ extension GitRepository {
                         let merged = try comparison.patchMergeDocument(engine:mergeConfiguration,cancellation:cancellation)
                         if MergeText.conflicts(in:merged.initialResult,document:merged).isEmpty && merged.mergeSources?.ignoredConflicts.isEmpty != false {
                             let saved = try saveWorkingTreePatchFile(comparison,text:merged.initialResult,encoding:merged.encoding,autoAddNewFiles:autoAddNewFiles,cancellation:cancellation)
-                            result = .init(pathBytes:file.pathBytes,success:true,output:"Merged patch with its recorded base.\n" + saved.output,addError:saved.addError)
+                            if selected.decodedPatch != nil {
+                                acceptedOutputs = comparison.outputs
+                                acceptedOutputs?[saved.document.destination.path] = saved.document.destination
+                            }
+                            result = .init(pathBytes:file.pathBytes,success:true,output:"Merged patch with its recorded base.\n" + saved.output,addError:saved.addError,postApplyError:saved.postApplyError)
                         } else {result = .init(pathBytes:file.pathBytes,success:false,output:"The patch needs a three-way merge. Preview this file to resolve its conflicts.\n" + failure,requiresMerge:true)}
                     } else {result = .init(pathBytes: file.pathBytes, success: false, output: failure)}
                 } else {
                     guard let path=String(data:file.pathBytes,encoding:.utf8) else{throw WorkingTreePatchFailure.pathEncoding}
                     let location=try workingTreePatchLocation(path)
                     let missing=(try? FileManager.default.attributesOfItem(atPath:location.path)) == nil
-                    var output = try applyWorkingTreePatch(selected, cancellation: cancellation)
+                    var output: String
+                    var postApplyError: String?
+                    if selected.decodedPatch != nil {
+                        let comparison = try decodedWorkingTreePatchComparison(selected, fileID: nil, allowRecovery: false, cancellation: cancellation)
+                        acceptedOutputs = comparison.outputs
+                        let saved = try savePatchOutputs(comparison, outputs: comparison.outputs, autoAddNewFiles: false, message: "Applied decoded text patch.\n", cancellation: cancellation)
+                        output = saved.output
+                        postApplyError = saved.postApplyError
+                    } else {
+                        output = try applyWorkingTreePatch(selected, cancellation: cancellation)
+                    }
                     // Source PatchSave deletes zero logical text records, even
                     // a BOM-only regular file; a terminated blank line is kept.
-                    var postApplyError:String?
                     let changesText=matchingTextChange(review,file:file)
-                    if changesText,let content=try? WorkingFileComparison.workingContent(at:location),["100644","100755"].contains(content.mode ?? ""),content.text?.isEmpty == true {
-                        do{try cancellation?.check();try FileManager.default.removeItem(at:location)}
+                    if postApplyError == nil,changesText,let content=try? WorkingFileComparison.workingContent(at:location),["100644","100755"].contains(content.mode ?? ""),content.text?.isEmpty == true {
+                        do{try cancellation?.check();try FileManager.default.removeItem(at:location);acceptedOutputs?[path]=ComparisonFileContent(path:path,revision:.workingTree,bytes:Data(),mode:nil,isDeleted:true)}
                         catch{postApplyError=error.localizedDescription;output += "Patch applied; empty-result cleanup did not finish: \(error.localizedDescription)\n"}
                     }
                     var addError:String?
@@ -328,6 +347,10 @@ extension GitRepository {
                 let needsFormat:Bool
                 if case FileComparisonEditFailure.encoding = error {needsFormat=true} else {needsFormat=false}
                 result = .init(pathBytes: file.pathBytes, success: false, output: error.localizedDescription,requiresMerge:needsFormat)
+            }
+            if result.success, result.postApplyError == nil, let acceptedOutputs {
+                do { advancingReview = try recordingDecodedOutputs(acceptedOutputs, in: advancingReview, cancellation: cancellation) }
+                catch { result = .init(pathBytes: result.pathBytes, success: true, output: result.output, addError: result.addError, postApplyError: result.postApplyError ?? error.localizedDescription) }
             }
             results.append(result); onResult?(result)
             if cancellation?.isCancelled == true { return .init(files: results, cancelled: true) }
@@ -351,9 +374,35 @@ public enum WorkingTreePatchFailure: LocalizedError {
 }
 
 extension GitRepository {
-    public func reviewWorkingTreePatch(_ bytes: Data, reversed: Bool = false, stripCount: Int = 1, directoryMode: Bool = false, isGitWorkingTree: Bool = true, cancellation: OperationCancellation? = nil) throws -> WorkingTreePatchReview {
+    public func reviewWorkingTreePatch(_ bytes: Data, reversed: Bool = false, stripCount: Int = 1, directoryMode: Bool = false, isGitWorkingTree: Bool = true, textEncodingPolicy: MergeTextEncodingPolicy? = nil, cancellation: OperationCancellation? = nil) throws -> WorkingTreePatchReview {
         try cancellation?.check()
-        return try reviewWorkingTreePatch(bytes, reversed: reversed, stripCount: stripCount, includePatterns: [], directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, cancellation: cancellation)
+        guard stripCount >= 0 else { throw WorkingTreePatchFailure.stripCount }
+        let policy = textEncodingPolicy ?? .init(preferUTF8: true)
+        var gitReview: WorkingTreePatchReview?, gitFailure: Error?
+        do {
+            let reviewed = try gitWorkingTreePatchReview(bytes, reversed: reversed, stripCount: stripCount, includePatterns: [], directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, textEncodingPolicy: textEncodingPolicy, cancellation: cancellation)
+            if reviewed.canApply { return reviewed }
+            gitReview = reviewed
+        } catch { try cancellation?.check(); gitFailure = error }
+        // A decoded source adapter is chosen only after the original Git path
+        // rejects the patch. Binary/combined/special records stay on Git.
+        if SourceTextPatch.recognizedTextEligibility(bytes: bytes, textEncodingPolicy: policy) {
+            do {
+                let parsed = try SourceTextPatch.parse(bytes: bytes, textEncodingPolicy: policy, cancellation: cancellation).strippingPaths(stripCount)
+                let patch = reversed ? parsed.reversed : parsed
+                return try decodedWorkingTreePatchReview(patch, reversed: reversed, stripCount: stripCount, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, policy: policy, cancellation: cancellation)
+            } catch SourceTextPatchFailure.opaque { /* Preserve an opaque Git receipt/error. */ }
+            catch {
+                try cancellation?.check()
+                // Git may accept standard syntax that pinned CPatch does not
+                // (including omitted-count quirks). Keep its failed check and
+                // recorded-base recovery instead of replacing that receipt.
+                if let gitReview { return gitReview }
+                throw error
+            }
+        }
+        if let gitReview { return gitReview }
+        throw gitFailure ?? WorkingTreePatchFailure.review
     }
     /// A failed whole-patch check does not prevent reviewing an applicable subset.
     public func reviewWorkingTreePatchFiles(_ review: WorkingTreePatchReview, fileIDs: Set<Int>, cancellation: OperationCancellation? = nil) throws -> WorkingTreePatchReview {
@@ -365,15 +414,22 @@ extension GitRepository {
         // --include chooses a complete path, so every repeated record for that
         // path must be selected rather than silently applying unchecked records.
         guard review.files.filter({ paths.contains($0.pathBytes) }).count == selected.count else { throw WorkingTreePatchFailure.selection }
+        if review.decodedPatch != nil {
+            let candidate = WorkingTreePatchReview(files: selected, document: review.document, statistics: review.statistics, summary: review.summary, validationError: nil, isGitWorkingTree: review.isGitWorkingTree, textEncodingPolicy: review.textEncodingPolicy, decodedPatch: review.decodedPatch, decodedInputs: review.decodedInputs, directoryMode: review.directoryMode, repositoryRoot: review.repositoryRoot, reversed: review.reversed, stripCount: review.stripCount, includePatterns: [])
+            var failure: String?
+            do { _ = try decodedWorkingTreePatchComparison(candidate, fileID: nil, allowRecovery: false, cancellation: cancellation) }
+            catch { try cancellation?.check(); failure = selected.map(\.path).joined(separator: ", ") + ": " + error.localizedDescription }
+            return candidate.replacingValidationError(failure)
+        }
         let patterns = try selected.map { file -> String in
             guard let path = String(data: file.pathBytes, encoding: .utf8) else { throw WorkingTreePatchFailure.pathEncoding }
             return String(decoding:path.utf8.flatMap {byte -> [UInt8] in [42,63,91,93,92].contains(byte) ? [92,byte]:[byte]},as:UTF8.self)
         }
-        let filtered = try reviewWorkingTreePatch(review.document.bytes, reversed: review.reversed, stripCount: review.stripCount, includePatterns: patterns, directoryMode: review.directoryMode, isGitWorkingTree: review.isGitWorkingTree, cancellation: cancellation)
+        let filtered = try gitWorkingTreePatchReview(review.document.bytes, reversed: review.reversed, stripCount: review.stripCount, includePatterns: patterns, directoryMode: review.directoryMode, isGitWorkingTree: review.isGitWorkingTree, textEncodingPolicy: review.textEncodingPolicy, cancellation: cancellation)
         guard filtered.files.count == selected.count, Set(filtered.files.map(\.pathBytes)) == paths else { throw WorkingTreePatchFailure.selection }
         return filtered
     }
-    private func reviewWorkingTreePatch(_ bytes: Data, reversed: Bool, stripCount: Int, includePatterns: [String], directoryMode: Bool, isGitWorkingTree: Bool, cancellation: OperationCancellation?) throws -> WorkingTreePatchReview {
+    private func gitWorkingTreePatchReview(_ bytes: Data, reversed: Bool, stripCount: Int, includePatterns: [String], directoryMode: Bool, isGitWorkingTree: Bool, textEncodingPolicy: MergeTextEncodingPolicy?, cancellation: OperationCancellation?) throws -> WorkingTreePatchReview {
         try cancellation?.check()
         guard stripCount >= 0 else { throw WorkingTreePatchFailure.stripCount }
         return try withPatchTarget(bytes, directoryMode: directoryMode, isGitWorkingTree: isGitWorkingTree, cancellation: cancellation) { file, execute in
@@ -384,12 +440,16 @@ extension GitRepository {
             var failure: String?
             do { _ = try execute(arguments + ["--check", "--", file.path]) }
             catch let error as GitFailure { failure = error.localizedDescription }
-            return WorkingTreePatchReview(files: files, document: UnifiedDiffDocument(bytes: bytes), statistics: statistics, summary: summary, validationError: failure, isGitWorkingTree: isGitWorkingTree, directoryMode: directoryMode, repositoryRoot: root, reversed: reversed, stripCount: stripCount, includePatterns: includePatterns)
+            return WorkingTreePatchReview(files: files, document: UnifiedDiffDocument(bytes: bytes, displayLegacyEncoding: textEncodingPolicy?.legacyEncoding ?? .windows1252), statistics: statistics, summary: summary, validationError: failure, isGitWorkingTree: isGitWorkingTree, textEncodingPolicy: textEncodingPolicy, decodedPatch: nil, decodedInputs: nil, directoryMode: directoryMode, repositoryRoot: root, reversed: reversed, stripCount: stripCount, includePatterns: includePatterns)
         }
     }
     public func applyWorkingTreePatch(_ review: WorkingTreePatchReview, cancellation: OperationCancellation? = nil) throws -> String {
         try cancellation?.check()
         guard review.repositoryRoot == root, review.canApply else { throw WorkingTreePatchFailure.review }
+        if review.decodedPatch != nil {
+            let comparison = try decodedWorkingTreePatchComparison(review, fileID: nil, allowRecovery: false, cancellation: cancellation)
+            return try savePatchOutputs(comparison, outputs: comparison.outputs, autoAddNewFiles: false, message: "Applied decoded text patch.\n", cancellation: cancellation).output
+        }
         return try withPatchTarget(review.document.bytes, directoryMode: review.directoryMode, isGitWorkingTree: review.isGitWorkingTree, cancellation: cancellation) { file, execute in
             let arguments = ["apply", "-p\(review.stripCount)"] + (review.reversed ? ["--reverse"] : []) + review.includePatterns.map { "--include=" + $0 }
             // Revalidate against current files, then let Git validate again when
@@ -504,6 +564,10 @@ extension GitRepository {
         try cancellation?.check()
         guard review.repositoryRoot == root, review.includePatterns.isEmpty,
               let file = review.files.first(where: { $0.id == fileID }) else { throw WorkingTreePatchFailure.selection }
+        if review.decodedPatch != nil {
+            return try decodedWorkingTreePatchComparison(review, fileID: fileID, allowRecovery: true, cancellation: cancellation)
+        }
+        let textEncodingPolicy: MergeTextEncodingPolicy? = textEncodingPolicy ?? review.textEncodingPolicy
         let matching = review.files.filter { $0.pathBytes == file.pathBytes }
         let selected = try reviewWorkingTreePatchFiles(review, fileIDs: Set(matching.map(\.id)), cancellation: cancellation)
         // An initially applicable review cannot silently adopt later conflicts.
@@ -643,6 +707,8 @@ public struct WorkingTreePatchSaveResult: Sendable {
     public let output: String
     /// Saving succeeded even if the optional subsequent Add failed.
     public let addError: String?
+    /// Bytes were published, but subsequent permission verification did not finish.
+    public let postApplyError: String?
 }
 
 extension GitRepository {
@@ -711,6 +777,12 @@ extension GitRepository {
         let before = try tree(inputs), after = try tree(outputs)
         let patch = try run(location + ["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", before, after], environmentOverrides: environment, cancellation: cancellation).stdout
         try validateInputs()
+        let permissionRoot: Int32
+        if comparison.review.decodedPatch != nil {
+            permissionRoot = Darwin.open(root.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+            guard permissionRoot >= 0 else { throw FileComparisonEditFailure.changed }
+        } else { permissionRoot = -1 }
+        defer { if permissionRoot >= 0 { Darwin.close(permissionRoot) } }
         var output = message
         func backupDestination()throws {
             guard backupOriginal,let original=inputs[destination.path],["100644","100755"].contains(original.mode ?? "") else{return}
@@ -729,13 +801,21 @@ extension GitRepository {
                 return try execute(arguments + ["--", file.path]).text
             }
         } else {try backupDestination()}
+        var postApplyError: String?
+        if permissionRoot >= 0 {
+            do { try restoreDecodedPatchPermissions(rootDescriptor: permissionRoot, inputs: inputs, outputs: outputs, cancellation: cancellation) }
+            catch {
+                postApplyError = error.localizedDescription
+                output += "Patch saved; permission verification did not finish: \(error.localizedDescription)\n"
+            }
+        }
         var addError: String?
-        if autoAddNewFiles, comparison.review.isGitWorkingTree, comparison.inputs[destination.path]?.mode == nil, destination.mode != nil {
+        if postApplyError == nil, autoAddNewFiles, comparison.review.isGitWorkingTree, comparison.inputs[destination.path]?.mode == nil, destination.mode != nil {
             do { _ = try stage([destination.path], cancellation: cancellation); output += "Added \(destination.path) to Git.\n" }
             catch { addError = error.localizedDescription }
         }
         let savedDocument = FileComparisonDocument(base: comparison.editingDocument.base, destination: outputs[destination.path]!)
-        return WorkingTreePatchSaveResult(document: savedDocument, output: output, addError: addError)
+        return WorkingTreePatchSaveResult(document: savedDocument, output: output, addError: addError, postApplyError: postApplyError)
     }
 }
 
@@ -764,5 +844,233 @@ extension GitRepository {
             }
         }
         return result
+    }
+}
+
+// Decoded CPatch adapter. Original Git successes never enter this path; checked
+// generated binary diffs remain the only filesystem publication mechanism.
+private extension WorkingTreePatchReview {
+    func replacingValidationError(_ failure: String?) -> Self {
+        Self(files: files, document: document, statistics: statistics, summary: summary, validationError: failure,
+             isGitWorkingTree: isGitWorkingTree, textEncodingPolicy: textEncodingPolicy,
+             decodedPatch: decodedPatch, decodedInputs: decodedInputs, directoryMode: directoryMode,
+             repositoryRoot: repositoryRoot, reversed: reversed, stripCount: stripCount, includePatterns: includePatterns)
+    }
+}
+
+private extension GitRepository {
+    func recordingDecodedOutputs(_ expected: GitPathMap<ComparisonFileContent>, in review: WorkingTreePatchReview, cancellation: OperationCancellation?) throws -> WorkingTreePatchReview {
+        guard review.decodedPatch != nil, var recorded = review.decodedInputs else { return review }
+        let policy = review.textEncodingPolicy ?? .init(preferUTF8: true)
+        for (path, output) in expected {
+            let actual = try decodedPatchInput(path, policy: policy, cancellation: cancellation)
+            let exactPermissions = actual.permissions == output.permissions
+            // Git creates absent paths under the inherited umask. Retain that
+            // measured restricted receipt only for our newly created target;
+            // existing paths keep the exact pre-write permission guard.
+            let createdUnderMask = recorded[path]?.mode == nil && actual.mode != nil && actual.permissions.map { value in output.permissions.map { value & $0 == value } ?? false } == true
+            guard actual.bytes == output.bytes, actual.mode == output.mode, exactPermissions || createdUnderMask else { throw FileComparisonEditFailure.changed }
+            recorded[path] = actual
+        }
+        return WorkingTreePatchReview(files: review.files, document: review.document, statistics: review.statistics, summary: review.summary, validationError: review.validationError,
+            isGitWorkingTree: review.isGitWorkingTree, textEncodingPolicy: review.textEncodingPolicy, decodedPatch: review.decodedPatch, decodedInputs: recorded,
+            directoryMode: review.directoryMode, repositoryRoot: review.repositoryRoot, reversed: review.reversed, stripCount: review.stripCount, includePatterns: review.includePatterns)
+    }
+    func decodedPatchPath(_ bytes: Data) throws -> String {
+        guard let path = String(data: bytes, encoding: .utf8) else { throw WorkingTreePatchFailure.pathEncoding }
+        _ = try workingTreePatchLocation(path)
+        return path
+    }
+    func decodedPatchInput(_ path: String, policy: MergeTextEncodingPolicy, cancellation: OperationCancellation?) throws -> ComparisonFileContent {
+        try cancellation?.check()
+        let location = try workingTreePatchLocation(path)
+        var parent = location.deletingLastPathComponent()
+        while !GitReferenceName.equal(parent.path, root.path) {
+            guard parent.path.utf8.starts(with: (root.path + "/").utf8) else { throw WorkingFileRestoreFailure.location }
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: parent.path), attributes[.type] as? FileAttributeType == .typeSymbolicLink { throw WorkingFileRestoreFailure.location }
+            parent.deleteLastPathComponent()
+        }
+        do {
+            let value = try WorkingFileComparison.workingContent(at: location)
+            guard ["100644", "100755"].contains(value.mode ?? "") else { throw SourceTextPatchFailure.opaque }
+            return policy.applying(ComparisonFileContent(path: path, revision: .workingTree, bytes: value.bytes, mode: value.mode, permissions: value.permissions))
+        } catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError {
+            return ComparisonFileContent(path: path, revision: .workingTree, bytes: Data(), mode: nil)
+        }
+    }
+    func decodedWorkingTreePatchReview(_ patch: SourceTextPatch, reversed: Bool, stripCount: Int, directoryMode: Bool, isGitWorkingTree: Bool, policy: MergeTextEncodingPolicy, cancellation: OperationCancellation?) throws -> WorkingTreePatchReview {
+        let files = patch.files.map { file in
+            WorkingTreePatchReview.File(id: file.id, pathBytes: file.pathBytes,
+                additions: file.hunks.reduce(0) { $0 + $1.lines.filter { $0.kind == .added }.count },
+                deletions: file.hunks.reduce(0) { $0 + $1.lines.filter { $0.kind == .removed }.count })
+        }
+        guard !files.isEmpty else { throw SourceTextPatchFailure.unrecognized }
+        var inputs = GitPathMap<ComparisonFileContent>()
+        for file in patch.files {
+            try cancellation?.check()
+            if reversed && file.copyFromPathBytes != nil { throw SourceTextPatchFailure.opaque }
+            func agrees(_ role: Data?, _ raw: Data?) -> Bool {
+                guard let role, let raw else { return false }
+                return role == raw || ((raw.starts(with: [97,47]) || raw.starts(with: [98,47])) && role == Data(raw.dropFirst(2)))
+            }
+            let renaming = file.renameFromPathBytes != nil || file.renameToPathBytes != nil
+            let copying = file.copyFromPathBytes != nil || file.copyToPathBytes != nil
+            guard !(renaming && copying),
+                  !renaming || (agrees(file.renameFromPathBytes, file.rawOldPathBytes) && agrees(file.renameToPathBytes, file.rawNewPathBytes)),
+                  !copying || (agrees(file.copyFromPathBytes, file.rawOldPathBytes) && agrees(file.copyToPathBytes, file.rawNewPathBytes)) else { throw SourceTextPatchFailure.opaque }
+            for bytes in [file.oldPathBytes, file.newPathBytes].compactMap({ $0 }) {
+                let path = try decodedPatchPath(bytes)
+                if inputs[path] == nil { inputs[path] = try decodedPatchInput(path, policy: policy, cancellation: cancellation) }
+            }
+        }
+        let statistics = files.map { "\($0.path) | +\($0.additions ?? 0) -\($0.deletions ?? 0)" }.joined(separator: "\n")
+        let candidate = WorkingTreePatchReview(files: files, document: patch.document, statistics: statistics, summary: "\(files.count) file(s) in decoded text patch.", validationError: nil,
+            isGitWorkingTree: isGitWorkingTree, textEncodingPolicy: policy, decodedPatch: patch, decodedInputs: inputs,
+            directoryMode: directoryMode, repositoryRoot: root, reversed: reversed, stripCount: stripCount, includePatterns: [])
+        var failure: String?
+        do { _ = try decodedWorkingTreePatchComparison(candidate, fileID: nil, allowRecovery: false, cancellation: cancellation) }
+        catch { try cancellation?.check(); failure = error.localizedDescription }
+        return candidate.replacingValidationError(failure)
+    }
+    func decodedWorkingTreePatchComparison(_ review: WorkingTreePatchReview, fileID: Int?, allowRecovery: Bool, cancellation: OperationCancellation?) throws -> WorkingTreePatchFileComparison {
+        try cancellation?.check()
+        guard review.repositoryRoot == root, let patch = review.decodedPatch else { throw WorkingTreePatchFailure.review }
+        let policy = review.textEncodingPolicy ?? .init(preferUTF8: true)
+        let wanted: [WorkingTreePatchReview.File]
+        if let fileID {
+            guard let selected = review.files.first(where: { $0.id == fileID }) else { throw WorkingTreePatchFailure.selection }
+            wanted = review.files.filter { $0.pathBytes == selected.pathBytes }
+        } else { wanted = review.files }
+        let identifiers = Set(wanted.map(\.id)), records = patch.files.filter { identifiers.contains($0.id) }
+        guard !records.isEmpty, records.count == wanted.count else { throw WorkingTreePatchFailure.selection }
+        var inputs = GitPathMap<ComparisonFileContent>()
+        for file in records {
+            for bytes in [file.oldPathBytes, file.newPathBytes].compactMap({ $0 }) {
+                try cancellation?.check()
+                let path = try decodedPatchPath(bytes)
+                guard inputs[path] == nil else { continue }
+                let current = try decodedPatchInput(path, policy: policy, cancellation: cancellation)
+                if let expected = review.decodedInputs?[path] {
+                    guard current.bytes == expected.bytes, current.mode == expected.mode, current.permissions == expected.permissions else { throw FileComparisonEditFailure.changed }
+                }
+                inputs[path] = current
+            }
+        }
+        var outputs = inputs, recoveryBase: ComparisonFileContent?
+        let first = records[0], source = try decodedPatchPath(first.oldPathBytes ?? first.newPathBytes!), destination = try decodedPatchPath(first.newPathBytes ?? first.oldPathBytes!)
+        for file in records {
+            try cancellation?.check()
+            guard !review.reversed || file.copyFromPathBytes == nil else { throw SourceTextPatchFailure.opaque }
+            let beforePath = try decodedPatchPath(file.oldPathBytes ?? file.newPathBytes!)
+            let afterPath = try decodedPatchPath(file.newPathBytes ?? file.oldPathBytes!)
+            guard let before = outputs[beforePath], let after = outputs[afterPath] else { throw WorkingTreePatchFailure.metadata }
+            let changingPath = !GitReferenceName.equal(beforePath, afterPath)
+            if changingPath, after.mode != nil { throw FileComparisonEditFailure.changed }
+            let input = before.mode == nil ? nil : before.bytes
+            let application: SourceTextPatchApplication
+            do {
+                application = try SourceTextPatchApplication.simulate(file: file, input: input, textEncodingPolicy: policy, cancellation: cancellation)
+            } catch {
+                try cancellation?.check()
+                // Only an actual index old..new object records a Git base.
+                // SVN '(revision n)' annotations never populate this field.
+                guard allowRecovery else { throw error }
+                let bytes: Data, label: String
+                if file.oldPathBytes == nil || file.oldRevision.map({ (7...64).contains($0.utf8.count) && $0.allSatisfy { $0 == "0" } }) == true {
+                    bytes = Data(); label = file.oldRevision ?? "Patch addition"
+                } else {
+                    guard review.isGitWorkingTree, let object = file.oldRevision,
+                          (7...64).contains(object.utf8.count), object.utf8.allSatisfy({ (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0) }) else { throw error }
+                    bytes = try run(["cat-file", "blob", object], environmentOverrides: ["GIT_NO_LAZY_FETCH": "1"], cancellation: cancellation).stdout
+                    label = object
+                }
+                application = try SourceTextPatchApplication.simulate(file: file, input: input, baseInput: bytes, textEncodingPolicy: policy, force: true, cancellation: cancellation)
+                let base = ComparisonFileContent(path: beforePath, revision: .revision(label), bytes: bytes, mode: file.oldMode ?? before.mode ?? "100644", permissions: before.permissions ?? 0o644)
+                recoveryBase = policy.applying(base)
+            }
+            if file.newPathBytes == nil {
+                outputs[beforePath] = ComparisonFileContent(path: beforePath, revision: .workingTree, bytes: Data(), mode: nil, isDeleted: true)
+            } else {
+                let mode = file.newMode ?? before.mode ?? "100644"
+                guard ["100644", "100755"].contains(mode) else { throw SourceTextPatchFailure.opaque }
+                let permissions = mode == before.mode ? (before.permissions ?? 0o644) : (mode == "100755" ? 0o755 : 0o644)
+                outputs[afterPath] = ComparisonFileContent(path: afterPath, revision: .workingTree, bytes: application.outputData, mode: mode, permissions: permissions, encoding: application.outputEncoding)
+                if changingPath, file.copyFromPathBytes == nil {
+                    outputs[beforePath] = ComparisonFileContent(path: beforePath, revision: .workingTree, bytes: Data(), mode: nil, isDeleted: true)
+                }
+            }
+        }
+        guard let before = inputs[source], let after = outputs[destination] else { throw WorkingTreePatchFailure.metadata }
+        let selected = WorkingTreePatchReview(files: wanted, document: review.document, statistics: review.statistics, summary: review.summary, validationError: review.validationError,
+            isGitWorkingTree: review.isGitWorkingTree, textEncodingPolicy: review.textEncodingPolicy, decodedPatch: patch, decodedInputs: review.decodedInputs,
+            directoryMode: review.directoryMode, repositoryRoot: review.repositoryRoot, reversed: review.reversed, stripCount: review.stripCount, includePatterns: [])
+        return WorkingTreePatchFileComparison(document: FileComparisonDocument(base: before, destination: after), fileID: fileID ?? wanted[0].id,
+            review: selected, inputs: inputs, outputs: outputs, recoveryBase: recoveryBase, textEncodingPolicy: review.textEncodingPolicy)
+    }
+}
+
+private extension GitRepository {
+    /// Git's generated-diff publication recreates regular files with canonical
+    /// executable permissions. CPatch saves retain an existing file's captured
+    /// permissions. Restore only through a pinned root/parent/leaf descriptor,
+    /// after verifying the exact expected owned bytes and Git mode.
+    func restoreDecodedPatchPermissions(rootDescriptor: Int32, inputs: GitPathMap<ComparisonFileContent>, outputs: GitPathMap<ComparisonFileContent>, cancellation: OperationCancellation?) throws {
+        for (path, output) in outputs {
+            try cancellation?.check()
+            guard let original = inputs[path], ["100644", "100755"].contains(original.mode ?? ""),
+                  output.mode == original.mode, let desired = output.permissions else { continue }
+            let parts = path.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
+            guard let leaf = parts.last, !leaf.isEmpty, !parts.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." }) else { throw WorkingFileRestoreFailure.location }
+            var parent = fcntl(rootDescriptor, F_DUPFD_CLOEXEC, 0)
+            guard parent >= 0 else { throw FileComparisonEditFailure.changed }
+            defer { Darwin.close(parent) }
+            for component in parts.dropLast() {
+                let next = openat(parent, component, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+                guard next >= 0 else { throw FileComparisonEditFailure.changed }
+                Darwin.close(parent); parent = next
+            }
+            let descriptor = openat(parent, leaf, O_RDONLY | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC)
+            guard descriptor >= 0 else { throw FileComparisonEditFailure.changed }
+            defer { Darwin.close(descriptor) }
+            var before = stat(), named = stat()
+            guard fstat(descriptor, &before) == 0, before.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG),
+                  before.st_size == output.bytes.count,
+                  (before.st_mode & 0o111 != 0 ? "100755" : "100644") == output.mode,
+                  fstatat(parent, leaf, &named, AT_SYMLINK_NOFOLLOW) == 0,
+                  before.st_dev == named.st_dev, before.st_ino == named.st_ino else { throw FileComparisonEditFailure.changed }
+            var offset = 0, buffer = [UInt8](repeating: 0, count: 65_536)
+            while true {
+                try cancellation?.check()
+                let capacity = min(buffer.count, output.bytes.count - offset + 1)
+                let count = buffer.withUnsafeMutableBytes { Darwin.read(descriptor, $0.baseAddress, capacity) }
+                if count < 0, errno == EINTR { continue }
+                guard count >= 0, count <= output.bytes.count - offset else { throw FileComparisonEditFailure.changed }
+                if count == 0 { break }
+                guard output.bytes.subdata(in: offset..<(offset + count)).elementsEqual(buffer.prefix(count)) else { throw FileComparisonEditFailure.changed }
+                offset += count
+            }
+            var measured = stat()
+            guard offset == output.bytes.count, fstat(descriptor, &measured) == 0,
+                  measured.st_dev == before.st_dev, measured.st_ino == before.st_ino,
+                  measured.st_size == before.st_size, measured.st_mtimespec.tv_sec == before.st_mtimespec.tv_sec,
+                  measured.st_mtimespec.tv_nsec == before.st_mtimespec.tv_nsec,
+                  measured.st_mode == before.st_mode,
+                  fstatat(parent, leaf, &named, AT_SYMLINK_NOFOLLOW) == 0,
+                  measured.st_dev == named.st_dev, measured.st_ino == named.st_ino else { throw FileComparisonEditFailure.changed }
+            if Int(measured.st_mode & 0o7777) != desired {
+                let canonical = output.mode == "100755" ? 0o755 : 0o644
+                let actual = Int(measured.st_mode & 0o7777)
+                guard measured.st_nlink == 1, actual & canonical == actual else { throw FileComparisonEditFailure.changed }
+                try cancellation?.check()
+                guard fchmod(descriptor, mode_t(desired)) == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+                var final = stat()
+                guard fstat(descriptor, &final) == 0, final.st_dev == measured.st_dev, final.st_ino == measured.st_ino,
+                      Int(final.st_mode & 0o7777) == desired, final.st_size == measured.st_size,
+                      final.st_mtimespec.tv_sec == measured.st_mtimespec.tv_sec,
+                      final.st_mtimespec.tv_nsec == measured.st_mtimespec.tv_nsec,
+                      fstatat(parent, leaf, &named, AT_SYMLINK_NOFOLLOW) == 0,
+                      final.st_dev == named.st_dev, final.st_ino == named.st_ino else { throw FileComparisonEditFailure.changed }
+            }
+        }
     }
 }

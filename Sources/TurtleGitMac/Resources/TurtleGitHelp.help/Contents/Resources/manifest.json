@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "984c1de2bb5d02df26d6432c18638b78b1617b1ba289994412d5472921611d0c",
+    "Contents/Info.plist": "7c7036d658fb5cedceb0600570a42be1dd6cbdc70d51a685e1e70e9975528277",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BISECT.html": "c94bc39b7cf56afa6cd774a6758bb3994864256ec1ba6a85a3d47d820963b1ec",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "3c99fc083b21ae3fd2ced9b73430abe7383732d4b8b7e40eb960c1ffc5c1357d",
@@ -50,6 +50,7 @@
     "Contents/Resources/en.lproj/SAVE-AS-TARGETS.html": "6741aa854a92d8ab43b9694238f2b70073e03fa84dc262cda148511791677a00",
     "Contents/Resources/en.lproj/SAVED-DATA.html": "a12e071bb8898ae7d5bd3cf962545279e31332d274a5e9e6fa0356478b256601",
     "Contents/Resources/en.lproj/SMTP-CERTIFICATE-REVIEW.html": "b3cd59529a53a29bbf7894ba4ed5ae03d718acf0dd1b7245c45fe31ccd7033b9",
+    "Contents/Resources/en.lproj/SOURCE-TEXT-PATCH-PARITY.html": "aae582916d5cf636a77545a4b877f0cb7cd9ea1b61e85858b8895bb54ac8d153",
     "Contents/Resources/en.lproj/SSH-AUTHENTICATION.html": "97b2afc89a58711b9c1e8a1124b289a36356e2658aa86edae3290d93ae40e51c",
     "Contents/Resources/en.lproj/STATISTICS.html": "0d8b4579d26818998ac55d563ce4f02a7096ddf0c55c86a36c26f7c69b0cb7c1",
     "Contents/Resources/en.lproj/SVN-AUTHENTICATION.html": "a85280bfb4fdb0793092ad90646321abed37aa760ac91a5a86b456bffb355a98",
@@ -71,8 +72,8 @@
     "Contents/Resources/en.lproj/images/ed3713977296-image-conflict-undecodable-light.png": "138d20aa5da3ab6b283e6d2d69e78639534af3cbef1a2bbbb686ab48aa3b1446",
     "Contents/Resources/en.lproj/images/f49a195c8c35-cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
     "Contents/Resources/en.lproj/images/f7856202ab6a-commit-file-groups-language-de-dark.png": "e7f075b32f6ff02494ead9db85a9da57039ad1a108cda57cadbe40c895f988ed",
-    "Contents/Resources/en.lproj/index.html": "d57acc70f01182d4c07655188b31c7172bcb597363df5db43afbbbb52454fe76",
-    "Contents/Resources/en.lproj/topics.json": "d487e7a20c99f58ce276a2ae9ae1752bca72d1cc39dc51b714b34d051ee6a67f"
+    "Contents/Resources/en.lproj/index.html": "c292d07191d55e7a0cf473b7b80d61dfa272d4e508b13e3c1d55d16082d7c20a",
+    "Contents/Resources/en.lproj/topics.json": "442f98dee1ff9c2706f45d270e977a163ac096190705890bf309dc30cefb94bc"
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "ee719cd1fba7a1824d4ed327a06e06b8b1723e853be349657221a0379048b71e",
@@ -123,13 +124,14 @@
     "docs/SAVE-AS-TARGETS.md": "f459f2e8eecf636479352dbcc36f220d4f6efec6f9f8f75c0c95e1cc3d3e19c8",
     "docs/SAVED-DATA.md": "54f11a8a0ec8a5dda818158f36dbaabe43dbbd7ba83cf141aa5f742007be0caf",
     "docs/SMTP-CERTIFICATE-REVIEW.md": "58c9d73f8f5f7b319cd50bd5d2206d463a744456c110229e814c7c3ef8cc04ef",
+    "docs/SOURCE-TEXT-PATCH-PARITY.md": "b60a8e0b1a8875697f7a581f7426d85d6671be2a77564a3ce012fb70fd889a74",
     "docs/SSH-AUTHENTICATION.md": "33c00c2bde5c80f561e2b31f124a436127bc78d17466109828ab4742c34b7a8a",
     "docs/STATISTICS.md": "67d0a3a499963af07bf8706acb8119e2778cfd0e5a3d1fa05cf59000cab6749c",
     "docs/SVN-AUTHENTICATION.md": "f5cdd353c17d55ff2d7f5cc37e93d96205c0b6a53737cc4226049769ad830b16",
     "docs/WORD-COMPARISON.md": "922b2e8a5f12bc40b8475bbf73cb558e87a0e692625139b3cc34502f4923663d",
     "docs/WORD-MERGE.md": "dc11fee38f848ddda8201163da223235c9adeaecfe74beaad1ff75d91ff702d7",
     "docs/ZIP-COMPARISON.md": "1fa7085d96970e6cc85ef8edb5e94f12277617d5c91614f1fd05c92362576241",
-    "docs/help-topics.json": "d487e7a20c99f58ce276a2ae9ae1752bca72d1cc39dc51b714b34d051ee6a67f",
+    "docs/help-topics.json": "442f98dee1ff9c2706f45d270e977a163ac096190705890bf309dc30cefb94bc",
     "docs/site/assets/binary-comparison-dark.png": "13944fd1b3128d1a46cadfabc89f4245a0008a379a7b1ad18e8b77365e618c8d",
     "docs/site/assets/binary-comparison-light.png": "0dda7bddf5a03dbf5bad64e6481f89121752721f2d4bb16995f29a406f2bb04b",
     "docs/site/assets/cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",

@@ -141,6 +141,7 @@
 		4156DA7CC800D81319F91575 /* SynchronizationFileList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA9CD77011B00EE76A976A3 /* SynchronizationFileList.swift */; };
 		443137D28BFDD283BDA2B71E /* HistoryReferenceLabels.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCD52A86C10025F3F1705C8 /* HistoryReferenceLabels.swift */; };
 		4452DB2F9B5533ACBEAAD448 /* ImageComparisonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C9B173C5B4A10A0D415C859 /* ImageComparisonWindow.swift */; };
+		449D448E1690B8B8B98392D0 /* SourceTextPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6954BFE3E52E4CBBF90D46C /* SourceTextPatch.swift */; };
 		4556F8934B7D589ABF9888FA /* FinderContextMenuSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D093EAD0CE5B754453B7C11E /* FinderContextMenuSettings.swift */; };
 		45AA8F5271C15E919C1105E9 /* NativeIssueProviderSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 336A159F3B08A80B9BBBECCC /* NativeIssueProviderSession.swift */; };
 		46F03179364D977A48FD1EC5 /* Changelists.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA08DAA6757DBD3FB0045BC5 /* Changelists.swift */; };
@@ -357,6 +358,7 @@
 		B9C46EA0242416CA6D538C73 /* MessageEditorFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87335D6A9D18FB71DB2EC3C5 /* MessageEditorFont.swift */; };
 		BA385183E9E7CF4B38B22FDD /* StatisticsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBE98FBF5981527BD422EDFB /* StatisticsWindow.swift */; };
 		BAE0AF0BB890C9C785B7904C /* FinderSelectionContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = E720E3E9B15FDAFDB7661C03 /* FinderSelectionContext.swift */; };
+		BB63679EF61D3B7559A2E378 /* SourceTextPatchApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC74AF01ABF5C5CFD1D6B6B7 /* SourceTextPatchApplication.swift */; };
 		BBF557294334CDAEE1937ADD /* NativeWatermarkTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BCC367833CF7B0CCC10BC6 /* NativeWatermarkTable.swift */; };
 		BCD150BA60D833990C3FB778 /* ImageConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDA6BCF99B24BA72CE43F823 /* ImageConflict.swift */; };
 		BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */; };
@@ -1002,6 +1004,7 @@
 		DAD242D45D90F689D7AA5D91 /* SelectionAllCheckbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionAllCheckbox.swift; sourceTree = "<group>"; };
 		DB0CB365EEFF6DBDAC30CD93 /* SecurityInterface.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SecurityInterface.framework; path = System/Library/Frameworks/SecurityInterface.framework; sourceTree = SDKROOT; };
 		DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchMenuCommands.swift; sourceTree = "<group>"; };
+		DC74AF01ABF5C5CFD1D6B6B7 /* SourceTextPatchApplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceTextPatchApplication.swift; sourceTree = "<group>"; };
 		DCBF9D9C1C9D5D627003C7C5 /* SubmoduleUpdatePathList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdatePathList.swift; sourceTree = "<group>"; };
 		DD369921B6275ED94AC162A8 /* RevisionGraphLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionGraphLayout.swift; sourceTree = "<group>"; };
 		DD5BCAA63686B010F009A0EE /* RegexFilter.ini */ = {isa = PBXFileReference; path = RegexFilter.ini; sourceTree = "<group>"; };
@@ -1044,6 +1047,7 @@
 		F551EF3478A65B697AC427F7 /* GitLibGit2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitLibGit2.swift; sourceTree = "<group>"; };
 		F5B1B4492D159F92D3F03BBA /* Bisect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bisect.swift; sourceTree = "<group>"; };
 		F652716395D1C6B7B2071D5A /* StatisticsChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsChartView.swift; sourceTree = "<group>"; };
+		F6954BFE3E52E4CBBF90D46C /* SourceTextPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceTextPatch.swift; sourceTree = "<group>"; };
 		F6B702D69C1F3D1B61D2EC83 /* CacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheService.swift; sourceTree = "<group>"; };
 		F6EA08B98AB3B225EE0A8279 /* Synchronization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Synchronization.swift; sourceTree = "<group>"; };
 		F6EF0B95838332AF2D08641C /* SynchronizationActionControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizationActionControl.swift; sourceTree = "<group>"; };
@@ -1617,6 +1621,8 @@
 				C8793BAAC2C2BCB452DBF2BC /* SavedMergePane.swift */,
 				B448BFA0806C28AEC8AE9126 /* SerialPatch.swift */,
 				C67F27BFB40588DC92B4F276 /* SMTPCertificateTransport.swift */,
+				F6954BFE3E52E4CBBF90D46C /* SourceTextPatch.swift */,
+				DC74AF01ABF5C5CFD1D6B6B7 /* SourceTextPatchApplication.swift */,
 				1955B87A0E1325E2162C4C37 /* SSHAgentSession.swift */,
 				FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */,
 				A6CAABC1071730FA9E23CCD4 /* SSHKeyConversion.swift */,
@@ -2263,6 +2269,8 @@
 				768B7B2B700F618CA924EBDA /* SavedData.swift in Sources */,
 				243FF612B8CF82EB79FC9C0D /* SavedMergePane.swift in Sources */,
 				C90C42AC6C78C7122C11B302 /* SerialPatch.swift in Sources */,
+				449D448E1690B8B8B98392D0 /* SourceTextPatch.swift in Sources */,
+				BB63679EF61D3B7559A2E378 /* SourceTextPatchApplication.swift in Sources */,
 				B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */,
 				B144262A42A7437C5B7EE78F /* StatusListClipboard.swift in Sources */,
 				92F05B4D5521D2D60D90F9E9 /* StatusListGroups.swift in Sources */,

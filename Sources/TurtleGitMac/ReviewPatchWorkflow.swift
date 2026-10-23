@@ -151,6 +151,7 @@ import TurtleGitCore
         guard let target, covered(target), !retired else { fail(RepositoryAccessFailure.securityScopeUnavailable); return }
         loading = true; status = "Opening patch review…"; Self.activeLoads += 1
         let grants = grants, file = file, clipboardBytes = clipboardBytes, token = token
+        let textEncodingPolicy=MergeTextEncodingPolicy(defaults:preferences)
         defer { Self.activeLoads -= 1; loading = false }
         do {
             let bytes = try await Task.detached {
@@ -163,9 +164,9 @@ import TurtleGitCore
                 }
             }.value
             var selectedTarget = target
-            let strip = PatchTargetMatching.initialStripCount(bytes)
+            let strip = PatchTargetMatching.initialStripCount(bytes,textEncodingPolicy:textEncodingPolicy,cancellation:token)
             let candidate = GitRepository(root: target, executable: executable)
-            let paths = try await candidate.patchTargetPaths(bytes, stripCount: strip, cancellation: token)
+            let paths = try await candidate.patchTargetPaths(bytes, stripCount: strip,textEncodingPolicy:textEncodingPolicy,cancellation: token)
             let boundary = GitRuntime.isAppStoreBuild ? grants.filter { $0.hasSecurityScope && $0.contains(target) }.map(\.url).min { $0.path.count < $1.path.count } : nil
             let suggestion = await Task.detached { PatchTargetMatching.suggestion(start: target, paths: paths, boundary: boundary, cancellation: token) }.value
             guard !retired, generation == current else { return }
@@ -190,13 +191,13 @@ import TurtleGitCore
             let access = grants.first { $0.contains(selectedTarget) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) }
             let fileAccess = file.flatMap { file in grants.first { $0.contains(file) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) } }
             let controller = WorkingTreePatchWindowController(repository: repository, access: access, fileAccess: fileAccess,
-                bytes: bytes, title: clipboardBytes == nil ? (file?.lastPathComponent ?? sourceTitle) : sourceTitle, preferences: preferences, directoryMode: true, isGitWorkingTree: isGit, initialStripCount: strip, automaticallyRefresh: preparedPresentation == nil)
+                bytes: bytes, title: clipboardBytes == nil ? (file?.lastPathComponent ?? sourceTitle) : sourceTitle, preferences: preferences, directoryMode: true, isGitWorkingTree: isGit, initialStripCount: strip,initialTextEncodingPolicy:textEncodingPolicy, automaticallyRefresh: preparedPresentation == nil)
             pendingReview=controller
             configureReview(controller.model)
             guard !retired,generation == current,!token.isCancelled,controller.canReuse else{controller.close();return}
             if let preparedPresentation {
                 pendingReview = controller
-                await withCheckedContinuation { continuation in controller.model.refresh { continuation.resume() } }
+                await withCheckedContinuation { continuation in controller.model.refresh(encodingPolicy:textEncodingPolicy) { continuation.resume() } }
                 guard !retired, generation == current, !token.isCancelled else { controller.close(); pendingReview = nil; return }
                 guard controller.model.review != nil else {
                     let message = controller.model.notice

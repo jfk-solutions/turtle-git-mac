@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Unicode and source text patches</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="unicode-and-source-text-patches">Unicode and source text patches</h1>
+<p>Source pin: <code>7338078f8ddd924b8cddee35f512f2286072136d</code>.
+The connected adapter batch covers decoded patch headers and hunks, target-folder
+matching, Review Patch file selection, Before/After comparison, recorded-base
+recovery, and checked application through the existing patch editor/save policies.
+It supplements the Git patch engine; it does not replace Git's binary or
+special-file handling. The <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/qa/source-text-patch-family-2026-10-23.json">dated grouped record</a> reports
+actual validation scope and failures. Authored fixtures are not passing evidence.</p>
+<h2 id="review-and-original-data">Review and original data</h2>
+<p>The immutable <code>SourceTextPatch</code> receipt keeps the original bytes, decoded text,
+captured container encoding, file order, exact path bytes, hunks and line-format
+state. Copy and unedited Save retain the original patch bytes. Decoding a UTF-16
+or UTF-32 patch for Review does not convert the patch file on disk or force that
+encoding on the files being patched. The captured Merge UTF-8/legacy-code-page
+policy governs detection, independently of later Settings changes.</p>
+<p>Ordinary GNU/SVN <code>---</code> and <code>+++</code> file pairs do not require a <code>diff --git</code> header.
+SVN revision annotations, tab-delimited timestamps and fullwidth revision
+parentheses are handled. Only an <code>index old..new</code> record supplies recorded Git
+object identities; a numeric SVN revision is not a Git blob identifier. An
+arbitrary SVN patch without a recorded Git base cannot acquire invented
+three-way recovery.</p>
+<p>Source default paths remove <code>a/</code> and <code>b/</code>; an explicit Strip count operates on
+the retained raw header paths. Reverse swaps before/after paths, ranges, line
+roles, BOM flags and recorded identities while retaining the original document.
+Native quoted Git names preserve literal parentheses, escaped backslashes,
+octal filename bytes and Unicode composition. Parsing these quoted tokens before
+SVN annotation trimming is an intentional macOS adaptation: valid Git filenames
+must not be truncated or changed into different filesystem paths. Unquoted
+source Windows-style separators remain supported.</p>
+<p>Regular executable modes and rename/copy roles are retained in the per-file
+receipt. They must pass through the checked multi-path application writer; text
+simulation alone does not authorize dropping metadata or overwriting a rename
+destination. Metadata-only Git changes stay with Git. Extended reverse-copy metadata also
+stays on the original Git route; Unicode containers that Git cannot decode do
+not acquire invented reverse-copy semantics from this adapter. Mixed documents containing
+an unsupported opaque record are refused by the text adapter as a whole, rather
+than applying only their text subset.</p>
+<h2 id="matching-follows-the-pinned-patch-algorithm">Matching follows the pinned patch algorithm</h2>
+<p><code>TortoiseMerge/Patch.cpp::ParsePatchFile</code> (49–372) and <code>PatchFile</code> (425–582)
+define this compatibility behavior. Hunk counts must match before a complete
+receipt is returned. Unknown markers, incomplete headers, count overflow and
+unterminated hunks fail without publishing a partially parsed selection. Parsing
+and simulation are bounded and cancellable.</p>
+<p>Removed lines compare exactly at the current new-line cursor and remove that
+line without advancing the cursor. Context compares the current new and old
+cursors. A mismatch can probe only the next new-cursor line, then the line two
+positions forward, then the next old-cursor line, in that order. Each hunk starts
+from its declared positions. There is no arbitrary backward search, global
+offset scoring, whitespace folding, case folding or Unicode normalization.</p>
+<p>Insertion checks later non-added patch records against the same current target
+line to avoid duplicate insertion. A successful lookahead remains accepted even
+if a later comparison breaks the lookahead, matching the pinned implementation.
+The force flag used for recorded-base retry bypasses an addition's existing-file
+refusal; it does not bypass hunk matching.</p>
+<p>The source's omitted-count shorthand has unusual semantics: <code>-N</code> means old start
+zero/count N, and <code>+N</code> means new start one/count N. The adapter preserves this
+source rule. Ordinary successful Git parsing retains Git's standard unified-diff
+semantics rather than being reinterpreted by the adapter.</p>
+<p>Expanded-keyword matching is deliberately narrow in where it applies, but broad
+within that line. A case-sensitive occurrence of <code>$LastChangedDate</code>, <code>$Date</code>,
+<code>$LastChangedRevision</code>, <code>$Rev</code>, <code>$LastChangedBy</code>, <code>$Author</code>, <code>$HeadURL</code>, <code>$URL</code> or
+<code>$Id</code> anywhere in a patch context/removal payload bypasses that entire payload's
+equality check. A closing dollar sign and a matching target expansion are not
+required. Added-line insertion lookahead still uses exact equality. Existing
+context text is retained; removal deletes the actual addressed target line.</p>
+<h2 id="target-encoding-bom-and-line-endings">Target encoding, BOM and line endings</h2>
+<p><code>FileTextLines.cpp::Load</code> and <code>Save</code> provide the target format rules. Existing
+target codecs and untouched line endings are retained. Inserted terminated patch
+records use the target's predominant ending, with source CRLF fallback. A missing
+preimage starts with the captured legacy code page, not the patch container's
+codec; lossless representability is required. Explicit BOM transitions can
+promote the result to UTF-8 BOM, including a pure addition, or remove a UTF-8 BOM
+when the hunk's first-line flags request that transition. This is source behavior,
+not a general request to transcode every target to UTF-8.</p>
+<p>Patch payloads retain their original terminators for inspection, while any
+terminated inserted record has source <code>AutoLine</code> semantics. A leading U+FEFF is
+removed from a hunk payload and retained as a BOM flag. The source ignores
+backslash-prefixed warnings, including <code>\ No newline at end of file</code>: the warning
+does not retroactively remove the preceding record's ending. The Git engine's
+existing exact final-newline behavior remains separate.</p>
+<p>A loaded nonempty target has a final <code>NoEnding</code> record, including an empty final
+record after an ending. A genuinely zero-byte file returns from source loading
+before that record is added. BOM-only input is nonzero-byte input and retains its
+empty decoded record. These states must remain distinct from absent files and
+from a terminated blank line. Automatic PatchSave and explicit Keep/Delete Save
+remain governed by the <a href="PATCH-SAVE-APPLICATION-POLICY-PARITY.html">patch application/save policies</a>.</p>
+<h2 id="filesystem-and-engine-boundaries">Filesystem and engine boundaries</h2>
+<p>The pure applicator returns a result and an exact input-byte witness; it does not
+write a target or change the index. The repository integration retains the
+captured file bytes, modes and permissions, path confinement, folder-access
+scope, stale-input checks, generated-patch validation and publication path.
+For decoded output with unchanged existing Git modes, captured permissions
+survive Git's canonical executable mode recreation. Restoration uses a pinned root and parent/leaf descriptors,
+refuses symlinks, verifies exact owned output bytes and mode, and checks the
+opened file and named entry before changing permissions. New outputs retain
+their actual umask-restricted permissions in subsequent owned receipts. A failure
+or cancellation after publication retains the successful byte-write receipt
+with a distinct warning; it does not claim rollback. Native explicit Save
+requires a fresh read before accepting an unverified savepoint. Patch All
+and Patch Selected continue to use captured AutoAdd, per-file progress,
+cancellation and successful-file/warning receipts. Plain-folder application
+does not initialize an index.</p>
+<p>Binary payloads, symlinks, gitlinks and unsupported mixed records are not decoded
+as ordinary text to make a failed Git command succeed. There is no blind fallback
+from every Git error. Existing binary/symlink/deletion whole-state recovery stays
+available through its existing route. Source <code>.rej</code> files are not a missing
+implemented upstream feature: <code>Git/GitPatch.cpp</code> records an error string and
+explicitly says reject files are unsupported; the rejected-hunk viewer in
+<code>MainFrm.cpp::PatchFile</code> is disabled.</p>
+<h2 id="evidence-and-remaining-acceptance">Evidence and remaining acceptance</h2>
+<p>Parser and applicator fixtures cover Unicode and captured legacy codecs,
+multi-file SVN/GNU headers, quoted paths, source offset/keyword rules, format
+state, strict failures, Reverse/Strip, metadata retention, exact input witnesses
+and cancellation. The connected repository/native checkpoint must additionally
+exercise real selected/all application, recovery, mode/rename/copy publication,
+original-byte Copy/Save, captured preferences, unsafe/stale refusal and actual
+worker/window retirement with private repositories and hidden windows.</p>
+<p>The dated record distinguishes completed checks from failures and unrun cases.
+This scope does not establish full upstream parser acceptance, every external producer's
+format, visual parity of every dialog, hosted CI success or physical Finder
+acceptance. Remaining implementation and evidence are tracked in
+<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MERGE-PATCH-TEXT-ADAPTER-GAPS.html">the adapter gap record</a>.</p>
+</main><footer>Development preview. Complete TortoiseGit parity and signed distribution remain in progress. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a></footer></body></html>

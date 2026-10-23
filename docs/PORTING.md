@@ -4509,3 +4509,15 @@ empty-result policy. The [dated checkpoint](qa/merge-patch-family-2026-10-21.jso
 records actual checks and failures. The
 [source text-patch adapter gap](MERGE-PATCH-TEXT-ADAPTER-GAPS.md) remains explicit;
 this continuation does not claim complete patch or editor parity.
+
+## Decoded source text-patch workflow
+
+The [Unicode/source patch family](SOURCE-TEXT-PATCH-PARITY.md) connects decoded
+UTF-16/UTF-32 and GNU/SVN headers to existing target discovery, Review, original
+byte Copy/Save, per-file comparison and checked application. Parsing and pure
+simulation retain source hunk, keyword, BOM and automatic-EOL semantics. The Git
+engine remains authoritative for successful ordinary patches and opaque binary
+or special-file records. Accepted encoding policy crosses native preparation and
+preview; mode, rename/copy and input state remain part of the Core receipt.
+The family guide and its dated evidence distinguish implemented behavior from
+actual grouped verification and remaining acceptance.
