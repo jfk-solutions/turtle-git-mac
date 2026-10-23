@@ -320,7 +320,7 @@ private struct StatisticsDialog: View {
             HStack { Text("Graph type:"); Spacer(); Picker("Graph type", selection: Binding(get: { model.metric }, set: { model.selectMetric($0, context: context) })) { ForEach(LogStatisticsMetric.allCases, id: \.rawValue) { Text($0.title).tag($0) } }.labelsHidden().frame(width: 360).disabled(!model.canInteract) }
             GroupBox {
                 if model.metric == .statistics, let summary = model.summary { StatisticsSummary(summary: summary, calculate: { model.calculate(context: context) }).disabled(!model.canInteract).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) }
-                else if let graph = model.graph { StatisticsChart(graph: graph, style: model.style, byAuthor: model.metric.byAuthor).frame(maxWidth: .infinity, maxHeight: .infinity)
+                else if let graph = model.graph { StatisticsChart(graph: graph, style: model.style, byAuthor: model.metric.byAuthor, acceptsInteraction: { [weak model] in model?.accepts(context) == true }).frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(GeometryReader { proxy in Color.clear.onAppear { model.graphSize = proxy.size }.onChange(of: proxy.size) { model.graphSize = $0 } }) }
                 else { VStack {
                     Text(model.busy ? "Gathering statistics…" : "No graph data available.")

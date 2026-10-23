@@ -4521,3 +4521,13 @@ or special-file records. Accepted encoding policy crosses native preparation and
 preview; mode, rename/copy and input state remain part of the Core receipt.
 The family guide and its dated evidence distinguish implemented behavior from
 actual grouped verification and remaining acceptance.
+
+The October 23 Statistics interaction continuation unifies native/export hit
+geometry with source tooltip priority, virtual averages, first-series group
+selection, sparse line rectangles, integer bar borders and tiny-pie endpoints.
+Chart callbacks now capture form and projection receipts and respect actual
+save/error sheets, held exports, Quit and retirement. Six native case/engine
+pairs pass after one fixture-only average-band collision repair; no Core
+production changed or Core suite was repeated. See the
+[parity scope](LOG-STATISTICS-PARITY.md#shared-scene-and-native-interaction-ownership--october-23-2026)
+and [dated checkpoint](qa/statistics-interaction-family-2026-10-23.json).

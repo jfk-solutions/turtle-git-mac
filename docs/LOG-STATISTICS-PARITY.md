@@ -117,8 +117,7 @@ Multiple slots use 85% for bars, with the source gap before each slot and the sa
 right alignment. A single ordinary series fills its slot; stacked bars always use
 85% and accumulate each group's value. Author graphs use one original series,
 with an empty series tick caption and authors in the legend. Native rectangles and
-hover regions share this normalized geometry. Exact one-pixel GDI border overlap,
-rounding, outlines and full legend placement remain pending.
+hover regions share this normalized geometry. Integer bar corners and shared right/bottom borders now drive both painting and hit regions. Exact GDI outlines, font metrics and full legend placement remain pending.
 
 Cartesian native hover uses the plot proxy to find bars or line-point regions;
 line points use the source six-point bounding box and its below-40-series cutoff.
@@ -133,8 +132,7 @@ Pie wedges now progress counterclockwise from the left, following
 `WedgeEndFromDegrees`, and use the same progression to map the native mouse position
 to a data tooltip. Each pie stores hover text separately so moving between groups does not clear the
 new group's value. Empty/outside regions clear the hover text. Exports omit mouse
-tracking overlays. The source's pie virtual-average hit region, tiny-wedge pixel skipping, centre/shared-border region overlap and physical
-hover timing/VoiceOver remain pending. Logical helper tests and compilation do not
+tracking overlays. The shared scene now includes the source virtual-average region for pies and the integer endpoint cutoff for tiny wedges. Exact GDI centre/border raster identity and physical hover timing/VoiceOver remain pending. Logical helper tests and compilation do not
 prove actual pointer interaction; see [interaction QA](qa/statistics-interaction-2026-10-07.json).
 
 ## Shared legend and horizontal pies
@@ -157,7 +155,7 @@ sit below the circles, followed by the common x-axis unit; author pies have no
 series caption. All styles, including pies, export at the current viewport size.
 Dense history therefore shrinks the pies rather than growing a vertical canvas.
 The native reserved label/title space is adapted to SwiftUI; exact GDI margins,
-tiny-wedge behavior and physical mouse/keyboard acceptance remain pending.
+physical mouse/keyboard acceptance and complete Windows raster identity remain pending.
 
 Core checks cover populated pie categories and legend elision/last-group rules.
 The native receiver checks actual PDF viewport dimensions and crowded/narrow
@@ -355,3 +353,33 @@ Log cache replacement. Its dated evidence supersedes the earlier accepted-save
 forced-close rule for current interactive exports; historical outcomes above
 remain evidence for their recorded versions. Remaining physical, signed, full
 source-layout and hosted acceptance stay explicit.
+
+
+## Shared scene and native interaction ownership — October 23, 2026
+
+The native chart and its exported scene share the pinned `MyGraph.cpp` hit
+geometry. Tooltip priority is the whole Legend box, the Title region, the virtual
+average band, then matching groups in the first original series. Overlapping
+intervals no longer combine unrelated series. The virtual average band exists for
+all five styles, including pies and stacked styles that draw no guide. Ordinary
+line hits use a six-by-six rectangle around each point, including zero values,
+and disappear at forty original series; stacked areas retain no data regions.
+
+Bar paint and hover use the same integer corners and shared border pixels. Pie
+centers, radii and endpoint cutoffs follow the source; skipped tiny wedges do not
+advance the last painted endpoint. A single full-circle wedge uses a native closed
+circle. Native font measurements remain the macOS adaptation rather than a claim
+of Windows Arial/GDI pixel identity.
+
+Each chart projection captures its owning form revision and checks current
+Statistics interaction eligibility when a tooltip callback arrives. Save/error
+sheets, calculations, export, Quit confirmation and retired windows block stale
+callbacks immediately. Tooltip tag, projection generation and size receipts reject
+callbacks from replaced or resized geometry. Dismantling releases the owner
+closure, tooltip regions, drawing and accessibility children. Data values remain
+available as accessibility labels even where source hover regions are absent.
+
+The [dated grouped checkpoint](qa/statistics-interaction-family-2026-10-23.json)
+records scene and actual controller ownership coverage, failures and repairs.
+Physical hover timing, keyboard/VoiceOver sessions, complete source layout,
+installed signed execution and full hosted integration remain separate gates.

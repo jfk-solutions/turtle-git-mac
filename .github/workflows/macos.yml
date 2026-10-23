@@ -926,6 +926,8 @@ jobs:
         run: python3 scripts/test-statistics-dialog.py
       - name: Statistics source export filters and owned save cancellation
         run: python3 scripts/test-statistics-export-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Statistics source hover geometry and chart ownership
+        run: python3 scripts/test-statistics-interaction-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Statistics exact author identity and graph exports
         run: python3 scripts/test-statistics-authors.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Shared native graph scenes and enhanced-metafile save ownership

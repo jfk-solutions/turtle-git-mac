@@ -1,0 +1,200 @@
+{
+  "date": "2026-10-23",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "passed",
+  "scope": [
+    "Shared native/export scene tooltip priority, all-style virtual average, original-series overlap, rectangular sparse-line hits, integer bar borders and tiny-pie endpoints",
+    "Actual native form/projection receipt ownership through save/error sheets, held export, Quit and close"
+  ],
+  "validation": {
+    "core": "No Core production changed; no Core tests were rerun. The shared AppKit scene and native ownership are covered by the grouped native cases.",
+    "app": {
+      "log": "build/qa/statistics-interaction-family-app-2026-10-23.log",
+      "exit_code": 0,
+      "diagnostics": "Xcode exited zero but emitted a contradictory generic command-failed-with-exit-code-zero diagnostic, existing concurrency warnings and a CoreSimulator version mismatch. No clean-diagnostics claim."
+    },
+    "initial_native": {
+      "log": "build/qa/statistics-interaction-family-native-2026-10-23.log",
+      "status": "first-scene-case-failed",
+      "case": "scene",
+      "git": "/usr/bin/git",
+      "owned_receiver_pid": 22744,
+      "failure": "Shared bar tooltip omitted or reordered a group. The fixture sample also intersected the higher-priority average guide.",
+      "repairs": [
+        "Fixture first-series values changed to A=2/B=1 so the group-order sample is outside the average region.",
+        "A separate explicit average/bar collision assertion verifies that the average wins over both overlapping groups.",
+        "Fixture TooltipReceipt isolated to MainActor to remove the initial actor-call warning."
+      ],
+      "production_changed_for_repair": false,
+      "assertions_retained": true
+    },
+    "native": {
+      "log": "build/qa/statistics-interaction-family-native-fixture-2026-10-23.log",
+      "status": "passed",
+      "engine_case_pairs": 6,
+      "pairs": [
+        {
+          "case": "scene",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "owner",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "writer",
+          "git": "/usr/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "scene",
+          "git": "build/git-runtime/Git/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "owner",
+          "git": "build/git-runtime/Git/bin/git",
+          "status": "passed"
+        },
+        {
+          "case": "writer",
+          "git": "build/git-runtime/Git/bin/git",
+          "status": "passed"
+        }
+      ],
+      "scope": {
+        "scene": [
+          "Legend/title/average/data tooltip priority across graph styles",
+          "Original-series precedence and overlapping group order independent of the average collision sample",
+          "Integer adjacent/stacked bar shared border regions",
+          "Sparse line rectangular corners and zero points; 40+ series omit source line regions",
+          "Tiny pie endpoint suppression, retained preceding painted endpoint and full one-value pie",
+          "Actual native tooltip receipt invalidation and retirement"
+        ],
+        "owner": [
+          "Real hosted chart projection/style changes invalidate stale receipts",
+          "Quit confirmation and cancellation do not revive old tooltip receipts",
+          "Actual save-panel close/Quit ownership and sheet cancellation",
+          "Actual window close retires the chart and drains ownership"
+        ],
+        "writer": [
+          "Held accepted export writer fences chart interaction and Quit",
+          "Close cancels accepted writer and waits for settlement",
+          "Late completion does not replace a private sentinel destination",
+          "Actual export-error sheet and duplicate reply preserve owner guards and fresh projection recovery"
+        ]
+      },
+      "ownership": "Private repositories/preferences and hidden/offscreen owned windows; fixture assertions verify unchanged index/config/HEAD and drained operations/sheets/windows."
+    },
+    "resources": {
+      "source": "Parent-reported completed resource checks",
+      "help": {
+        "documents": 55,
+        "topics": 51,
+        "files": 75,
+        "bytes": 3755112,
+        "status": "passed"
+      },
+      "localizations": {
+        "languages": 38,
+        "keys": 1315,
+        "status": "passed"
+      }
+    },
+    "site_initial": {
+      "log": "build/qa/statistics-interaction-family-site-2026-10-23.log",
+      "documents": 419,
+      "unresolved_fragments": 0,
+      "status": "passed",
+      "limitation": "The RELEASE status row was added after the initial site build; the separately recorded final site-only rebuild includes it."
+    },
+    "site_tests": {
+      "log": "build/qa/statistics-interaction-family-site-tests-2026-10-23.log",
+      "python_tests": 2,
+      "python_status": "passed",
+      "javascript_status": "Search, filtering, no-match and load-failure checks passed."
+    },
+    "site_final": {
+      "log": "build/qa/statistics-interaction-family-site-final-2026-10-23.log",
+      "exit_code": 0,
+      "documents": 419,
+      "unresolved_fragments": 0,
+      "status": "passed",
+      "scope": "Final site-only rebuild after RELEASE status row and documentation freeze; no native or Core repetition."
+    }
+  },
+  "remaining": [
+    "Native system-font/layout adaptation does not certify Windows GDI pixel identity",
+    "Physical pointer timing, keyboard and VoiceOver",
+    "Installed signed workflows, minimum macOS/Intel and full hosted integration"
+  ],
+  "status_scope": "Focused local Statistics interaction checkpoint with six native case/engine pairs; not full upstream, installed signed or hosted CI acceptance.",
+  "ownership": {
+    "receiver_pids_from_actual_native_logs": [
+      22744,
+      22989,
+      23023,
+      23069,
+      23129,
+      23161,
+      23198
+    ],
+    "runner_reported_reaped": [
+      22744,
+      22989,
+      23023,
+      23069,
+      23129,
+      23161,
+      23198
+    ],
+    "independently_verified_absent": [
+      22744,
+      22989,
+      23023,
+      23069,
+      23129,
+      23161,
+      23198
+    ],
+    "verified_at_utc": "2026-10-23T12:00:12.473754+00:00",
+    "verification": "Read-only os.kill(pid, 0) returned ProcessLookupError for every logged receiver. No signals were sent and no unrelated applications were terminated.",
+    "fixtures_drained": "Final cases assert active operations/exports and owned pending work drain, all owned windows invisible with no attached sheets, and private repository state unchanged."
+  },
+  "source_review": {
+    "pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "references": [
+      "Utils/MiscUI/MyGraph.cpp::GetTipText (379\u2013432)",
+      "Utils/MiscUI/MyGraph.cpp::DrawTitle/SetupAxes/DrawLegend",
+      "Utils/MiscUI/MyGraph.cpp::DrawSeriesBar/DrawSeriesLine/DrawSeriesPie (including 1490\u20131550)"
+    ],
+    "result": "No blocking source-fidelity defect found in the scoped interaction review.",
+    "confirmed": [
+      "Legend then title then virtual average then original first-series data precedence",
+      "Overlapping groups within that series report in source order",
+      "Integer bar corners and shared +1 right/bottom border footprint",
+      "Subpixel/tiny pie endpoint distance suppression leaves start at preceding painted endpoint"
+    ],
+    "native_adaptations": [
+      "Native axes, font metrics, spacing and raster antialiasing do not certify Windows GDI pixel identity.",
+      "Source GAP_PIXELS=6 and legend threshold=300 differ from native spacing and threshold=320; title and guide bounds follow the native scene geometry.",
+      "A single nonzero pie wedge is represented as a full native circle rather than the source one-pixel endpoint nudge."
+    ],
+    "physical_acceptance_not_claimed": true
+  },
+  "repairs": [
+    "The only initial native runtime failure was a fixture sample colliding with the valid higher-priority average region; production interaction behavior was unchanged.",
+    "Separate overlap-order and average-collision assertions now verify both source behaviors.",
+    "Fixture MainActor isolation repaired the recorded actor warning."
+  ],
+  "hosted_ci_observed": {
+    "commit": "f0f6d7aa",
+    "macos_run_id": 39949389005,
+    "macos_status": "in_progress",
+    "pages_run_id": 39949388964,
+    "pages_status": "success",
+    "source": "Parent read-only GitHub status observation at finalization; no full macOS hosted pass claimed."
+  }
+}
