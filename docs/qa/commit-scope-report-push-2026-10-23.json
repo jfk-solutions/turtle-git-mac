@@ -1,0 +1,147 @@
+{
+  "date": "2026-10-23",
+  "status": "grouped-checkpoint-passed-after-recorded-core-test-constructor-repair",
+  "pinned_source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Persisted repository Commit Show Whole Project preference and actual scoped/full status reload with retained check policy",
+    "Paste file list uses displayed order, checked rows, action captions and displayed rename/copy paths",
+    "Explicit native consumer for declared tsvn.logfilelistenglish policy",
+    "Typed footer/result-menu Commit Push continuation, explicit configured mapping, owned direct native progress and dialog fallback"
+  ],
+  "source_references": [
+    "src/TortoiseProc/CommitDlg.cpp:220-221,553-567,1085-1087,2208-2244,2798-2824",
+    "src/TortoiseProc/GitStatusListCtrl.cpp:686-687,4349-4358",
+    "src/Git/Git.cpp:867-898",
+    "src/TortoiseProc/ProjectProperties.h:37,183"
+  ],
+  "audit_refinements": [
+    "Known manual check state survives pinned status-list Clear via its filename-to-checked map; only newly discovered rows receive defaults",
+    "The pinned file-list code computes an unused langID and never assigns bFileListInEnglish from project configuration. Native explicit language-policy consumption is an adaptation completing declared intent, not a claim about working pinned behavior",
+    "Direct Commit Push requires explicit configured remote and destination; Push dialog sole-remote defaults do not authorize bypassing the form"
+  ],
+  "validation": {
+    "core": {
+      "command": "GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 TURTLEGIT_CORE_ONLY=1 swift test --jobs 4 --filter 'CommitScopeReportTests|CommitPushContinuationTests|PushTests'",
+      "initial_result": "Test compilation failed before execution: new CommitScopeReportTests CommitFile constructor missing required isSubmodule argument",
+      "repair": "Supply isSubmodule:false in fixture; production unchanged",
+      "logs": [
+        "build/qa/commit-scope-report-push-core-2026-10-23.log",
+        "build/qa/commit-scope-report-push-core-repair1-2026-10-23.log"
+      ],
+      "status": "passed after test-constructor repair",
+      "methods": 22,
+      "exit_code": 0
+    },
+    "app": {
+      "configuration": "Debug, native arm64 unsigned",
+      "status": "completed",
+      "log": "build/qa/commit-scope-report-push-app-2026-10-23.log",
+      "exit_code": 0,
+      "generic_exit_zero_diagnostics": 29
+    },
+    "native": {
+      "planned_cases": [
+        "scope",
+        "report",
+        "push"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "status": "six distinct case/engine pairs pass on first native run",
+      "log": "build/qa/commit-scope-report-push-native-2026-10-23.log",
+      "receivers": [
+        {
+          "case": "scope",
+          "engine": "/usr/bin/git",
+          "pid": 2253,
+          "result": "pass; reaped and independently absent"
+        },
+        {
+          "case": "report",
+          "engine": "/usr/bin/git",
+          "pid": 2685,
+          "result": "pass; reaped and independently absent"
+        },
+        {
+          "case": "push",
+          "engine": "/usr/bin/git",
+          "pid": 2793,
+          "result": "pass; reaped and independently absent"
+        },
+        {
+          "case": "scope",
+          "engine": "bundled Git",
+          "pid": 3846,
+          "result": "pass; reaped and independently absent"
+        },
+        {
+          "case": "report",
+          "engine": "bundled Git",
+          "pid": 4279,
+          "result": "pass; reaped and independently absent"
+        },
+        {
+          "case": "push",
+          "engine": "bundled Git",
+          "pid": 4385,
+          "result": "pass; reaped and independently absent"
+        }
+      ],
+      "actual_scope": [
+        "Actual owner scoped/full reread, persisted root preference, newly discovered rows, retained manual checks, original scope restored",
+        "Held/cancelled/forced-close late status replies do not publish proposed scope or preferences; sheets and stale form receipts refuse admission",
+        "Staging state and outside-scope staged rows preserved without independent index writes",
+        "Actual native Paste file list, displayed order/action labels/full and abbreviated rename paths, policy reread, HEAD/index preservation",
+        "Ordinary workspace successful Commit closes then mapped footer pushes into private bare remote using captured original preferences/access",
+        "Actual private post-push hook exits7 after successful transport under auto-close-success preference; warning retained, success/post-actions preserved, manual dismissal required",
+        "Amend, result-menu and missing explicit mapping open normal Push; sole remote does not imply direct mapping",
+        "Actual private pre-push hook exits9 and Continue=false; failed standalone result visible, remote unchanged",
+        "Actual push helper held then owner force-close; cancelled/drained with private remote unchanged and no late new form"
+      ],
+      "isolation": "Private repositories/preferences/access leases; alpha-zero offscreen windows including standalone progress and sheets; successful runner requires no leftover helper cleanup intervention",
+      "warnings": {
+        "count": 4,
+        "receivers": [
+          2253,
+          3846
+        ],
+        "text": "Application performed a reentrant operation in its NSTableView delegate. This warning will become an assert in the future.",
+        "diagnosis": "Static bounded review identifies synchronous table.view lookup/overlay rearrangement from NativeListSelection row creation/selection callbacks as plausible reentry; exact runtime stack not captured, no proven source-regression claim",
+        "remaining_action": "Address shared native-list decoration/notification deferral and retirement ownership in a related workflow batch; passing checks were not expanded"
+      }
+    },
+    "not_rerun": [
+      "Full Core suite; CI owns complete integration",
+      "Older Commit last-action/progress native receivers; callback signatures migrated without removing assertions, new connected native workflow covers this handoff",
+      "App build and passing Core group were not repeated after fixture-only changes"
+    ]
+  },
+  "limits": [
+    "No full dialog or whole-port completion claim",
+    "Physical keyboard/VoiceOver/Finder, minimum-version/Intel and signed distribution remain separate",
+    "A complete current hosted integration pass remains required"
+  ],
+  "generated": {
+    "localization_languages": 38,
+    "localization_keys": 1317,
+    "help_documents": 58,
+    "help_topics": 51,
+    "help_files": 78,
+    "help_bytes": 3785589,
+    "dialog_ledger": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "pending_static_controls": 85,
+      "certified_complete": 0
+    },
+    "site": {
+      "documents": 428,
+      "unresolved_fragments": 0,
+      "python_checks": 2,
+      "javascript_search": "pass"
+    }
+  }
+}

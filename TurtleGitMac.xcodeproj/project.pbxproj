@@ -391,6 +391,7 @@
 		CAC5E6527836442CCE843857 /* HistoryHighlights.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2371301238EAD65AEE06ACF5 /* HistoryHighlights.swift */; };
 		CB6FE8AF17B58EAAA58EBD32 /* LocalizationManifest.json in Resources */ = {isa = PBXBuildFile; fileRef = FD45183DEC1DC8D873F67BD7 /* LocalizationManifest.json */; };
 		CC207D06117A1AC9782352E4 /* PatchMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */; };
+		CC2FEF9F10CC04BE61DD4677 /* CommitScopeReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EAE32B6BBDB65F26BDA7DCB /* CommitScopeReport.swift */; };
 		CC6D27AC08555115BD75EB87 /* Clean.swift in Sources */ = {isa = PBXBuildFile; fileRef = 340673250460ADE4B0D7C99C /* Clean.swift */; };
 		CC83A733E382FC6DCCBAF5AD /* LogRevisionColumnControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE2583A07793BC760D4AEBDA /* LogRevisionColumnControls.swift */; };
 		CDA5CA2296FD4B376D9C26E6 /* FinderBackgroundService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 915E15D41336AA69D1B13F32 /* FinderBackgroundService.swift */; };
@@ -818,6 +819,7 @@
 		7D861E87DCA7F3D938BFDF07 /* SSHKeyGenerationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHKeyGenerationWindow.swift; sourceTree = "<group>"; };
 		7E85FED91C2F9C44EB16228A /* SubmoduleAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleAdd.swift; sourceTree = "<group>"; };
 		7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflictWindow.swift; sourceTree = "<group>"; };
+		7EAE32B6BBDB65F26BDA7DCB /* CommitScopeReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitScopeReport.swift; sourceTree = "<group>"; };
 		7FA9CD77011B00EE76A976A3 /* SynchronizationFileList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizationFileList.swift; sourceTree = "<group>"; };
 		7FCFCDB728C608CE307F104D /* GitCommandPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitCommandPresentation.swift; sourceTree = "<group>"; };
 		809D37BDD2634840B77F0A85 /* EmailSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailSettings.swift; sourceTree = "<group>"; };
@@ -1471,6 +1473,7 @@
 				1559DC3926805ADF57166DCE /* CommitMessage.swift */,
 				5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */,
 				FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */,
+				7EAE32B6BBDB65F26BDA7DCB /* CommitScopeReport.swift */,
 				515FF59B2CF163D9481D39B5 /* CommitSelection.swift */,
 				9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */,
 				102D31C868ED7CEE8FB72699 /* ConflictResolution.swift */,
@@ -2114,6 +2117,7 @@
 				7DF22EAE12F58CFE9D5C5D47 /* CommitMessage.swift in Sources */,
 				1979E37CB9AAE2C56AB7BEE7 /* CommitMessageHistory.swift in Sources */,
 				4B43C652D04DFD95FB88BFB1 /* CommitPreferences.swift in Sources */,
+				CC2FEF9F10CC04BE61DD4677 /* CommitScopeReport.swift in Sources */,
 				A38739D4994FF189F311F57A /* CommitSelection.swift in Sources */,
 				68355E42E5C9D1D014516AF4 /* ComparisonFileList.swift in Sources */,
 				B37762B44078ECEA7539D02D /* ConflictResolution.swift in Sources */,

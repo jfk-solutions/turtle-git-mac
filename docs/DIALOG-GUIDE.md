@@ -95,6 +95,17 @@ Write the commit message above the changed-file list. In ordinary mode, check th
 files to include. Use the Check links to select categories. Show Unversioned Files
 includes new files in the list; review what is checked before committing.
 
+**Show Whole Project** remembers its choice for this repository. Changing it
+reloads status for the whole repository or the original file/folder scope, so
+newly changed files appear without reopening Commit. Review the checked rows
+after changing scope.
+
+The message editor’s **Paste file list** command inserts checked files in their
+displayed order, including the displayed rename/copy paths and action labels.
+Unversioned files use the Added label. The project property
+`tsvn.logfilelistenglish` controls whether these labels use English (the default)
+or the current interface language.
+
 When the project configures a message width (`tgit.logwidthmarker`), the editor
 shows a column border and permits horizontal scrolling. Editing splits long lines
 at that width. Select text and choose **Split lines** from its context menu to
@@ -136,8 +147,11 @@ editor and issue field unchanged. An invalid issue ID can still be recovered fro
 history even though it cannot be committed with numeric issue validation enabled.
 
 The Commit split button offers Commit, ReCommit, and Commit & Push. ReCommit
-continues the commit workflow; Commit & Push hands the result to Push. A commit
-or push failure is reported in its owning workflow. Read the output before retrying.
+continues the commit workflow. After an ordinary Commit & Push, a configured
+branch push destination opens Push progress directly. An amended commit or a
+missing destination opens the Push dialog for review. The Push action offered in
+commit results also opens that dialog. A commit or push failure is reported in
+its owning workflow. Read the output before retrying.
 A successful commit restores files marked for restoration before the client
 post-commit hook runs. HEAD keeps the committed contents; the working file gets
 the saved full contents. If completion reports a restoration or post-hook error,

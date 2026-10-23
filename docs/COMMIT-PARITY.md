@@ -2763,3 +2763,14 @@ The connected [message wrapping family](MESSAGE-WRAPPING-PARITY.md) maps the
 source width-dependent editor mode, edited/visible-range splitting and selected
 Split lines command shared with Rebase. Its implementation and checkpoint are
 recorded there; a configured border alone does not establish editing parity.
+
+## Scoped preparation, file-list report and Push handoff
+
+The [scope and report continuation](COMMIT-SCOPE-REPORT-PARITY.md) covers the
+`IDD_COMMITDLG` whole-project reread/persistence and actual displayed checked-file
+report. The [Push continuation](COMMIT-PUSH-CONTINUATION-PARITY.md) distinguishes
+captured footer/amend and result-menu intent, explicit source mappings, owned
+standalone progress, fallback forms and reviewable completion warnings.
+The [shared checkpoint](qa/commit-scope-report-push-2026-10-23.json) records actual
+validation and remaining acceptance; these additions do not certify full Commit
+or Push parity.

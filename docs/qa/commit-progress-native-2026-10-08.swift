@@ -101,7 +101,7 @@ import Darwin
             let model = try await owner(repo)
             var results = 0, closes = 0, push = 0, pull = 0, tag = 0, dcommit = 0
             model.onCommitted = { _ in results += 1 }; model.close = { closes += 1 }
-            model.onSVNDCommit = { dcommit += 1 }; model.onPush = { push += 1 }; model.onPull = { pull += 1 }; model.onCreateTag = { tag += 1 }
+            model.onSVNDCommit = { dcommit += 1 }; model.onPush = { _ in push += 1 }; model.onPull = { pull += 1 }; model.onCreateTag = { tag += 1 }
             model.onCommitProgress = { _ in }
             model.commit(); try await wait { model.commitProgress?.busy == false }
             let progress = model.commitProgress!
@@ -122,7 +122,7 @@ import Darwin
         for action in [CommitWindowModel.CompletionAction.recommit,.push] {
             let repo = try await fixture("footer-" + action.rawValue), model = try await owner(repo)
             var closes = 0, pushed = 0, progressCloses = 0
-            model.close = { closes += 1 }; model.onPush = { pushed += 1 }
+            model.close = { closes += 1 }; model.onPush = { _ in pushed += 1 }
             model.onCommitProgress = { $0.onClose = { progressCloses += 1 } }
             model.commit(action); try await wait { !model.busy }
             try require(model.commitProgress == nil && progressCloses == 1)

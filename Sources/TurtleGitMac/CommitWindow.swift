@@ -814,7 +814,7 @@ import TurtleGitCore
         case .author:setAuthor=value
         case .authorDate:setAuthorDate=value
         case .resetDate:resetAuthorDate=value
-        case .wholeProject:showWholeProject=value
+        case .wholeProject:setShowWholeProject(value)
         case .messageOnly:messageOnly=value
         case .noAutoSubmodules:setDoNotAutoselectSubmodules(value)
         case .staging:setStagingEnabled(value)
@@ -1192,6 +1192,8 @@ import TurtleGitCore
     private let dialogDefaults: UserDefaults
     private var selectFilesAutomatically: Bool
     private let doNotAutoselectMissing: Bool
+    private var scopeCheckStates=GitPathMap<Bool>()
+    @Published private(set) var fileListReportInEnglish=true
     @Published var showWholeProject = true {
         willSet {if newValue != showWholeProject,messageFocusAvailable,!busy {filterPosition = fileListRefresh.begin(preferences:dialogDefaults,selectedIDs:selection)}}
         didSet {if showWholeProject != oldValue{retireFormReceipts()};updateScopeTitle();if let position = filterPosition {filterPosition = nil;restoreVisibleFilePosition(position)}}
@@ -1218,7 +1220,7 @@ import TurtleGitCore
     var closePartial: () -> Void = {}
     var close: () -> Void = {}
     var onCommitted: (String) -> Void = { _ in }
-    var onPush: () -> Void = {}
+    var onPush: (CommitPushContinuation) -> Void = { _ in }
     var onPull: () -> Void = {}
     var onCreateTag: () -> Void = {}
     var onSVNDCommit: () -> Void = {}
@@ -1258,6 +1260,10 @@ import TurtleGitCore
         let position = fileListRefresh.begin(preferences:dialogDefaults,selectedIDs:selection)
         showUnversioned = enabled
         unversionedDefaults.set(enabled, forKey: "AddBeforeCommit");restoreVisibleFilePosition(position)
+    }
+    func setShowWholeProject(_ value:Bool) {
+        guard canChangeFormOption(.wholeProject),value != showWholeProject else{return}
+        reload(wholeProject:value)
     }
     private func restoreVisibleFilePosition(_ position:FileListRefreshCoordinator.Ticket) {
         if !position.remember {selection = []}
@@ -1816,14 +1822,18 @@ import TurtleGitCore
         commandLineIssueID = invocation.issueID
         if let issueID = invocation.issueID { self.issueID = issueID }
     }
-    func reload(paths: [String]? = nil) {
+    func reload(paths: [String]? = nil,wholeProject:Bool? = nil) {
         let repository=self.repository.capturingDiffBackend(preferences:dialogDefaults)
         guard messageFocusAvailable, !issueProviderBusy, !busy, !pendingReloadCancel, !unversionedPromptVisible else { return }
         unversionedPromptPending=false;fileListReadError=nil;fileListReadCancelled=false
         fileMenuGeneration = UUID(); busy = true
         let requestedScope = paths.map { $0.contains(".") ? [] : $0 } ?? scopePaths
-        let requestedWholeProject = paths == nil ? showWholeProject : requestedScope.isEmpty
-        let resetChecks = paths != nil && (!hasLoaded || requestedScope != scopePaths)
+        let scopedPreference=dialogDefaults.bool(forKey:CommitScopePreference.key(root:repository.root))
+        let requestedWholeProject=wholeProject ?? (paths == nil ? showWholeProject:requestedScope.isEmpty || scopedPreference)
+        let changingWholeProject=wholeProject != nil && !requestedScope.isEmpty
+        let resetChecks=changingWholeProject || paths != nil && (!hasLoaded || requestedScope != scopePaths)
+        var retainedScopeChecks=scopeCheckStates
+        if hasLoaded {for entry in visibleEntries {retainedScopeChecks[entry.path]=checked.contains(entry.id)}}
         let position = fileListRefresh.begin(preferences:dialogDefaults,reset:!hasLoaded || requestedScope != scopePaths,selectedIDs:selection)
         let token = OperationCancellation(); reloadCancellation = token; Self.activeReloads += 1
         reloadTask = Task {
@@ -1852,6 +1862,7 @@ import TurtleGitCore
                 let nextEntries = try await readReload(token) { try await queryCommitStatus(compareParent,token) }
                 let nextSubmodules = try await readReload(token) { try await repository.submodulePathNames(cancellation:token).map(\.rawValue) }
                 let nextBranch = try await readReload(token) { try await repository.branch(cancellation:token) }
+                let nextReportInEnglish=try await readReload(token) {try await repository.commitFileListReportInEnglish(cancellation:token)}
                 let nextMetadata = try await readReload(token) { await repository.statusListMetadata(paths:nextEntries.map(\.path)) }
                 let nextHasLFS = try await readReload(token) { try await repository.hasLFS(cancellation:token) }
                 let snippetURL = RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("snippet.txt")
@@ -1925,6 +1936,7 @@ import TurtleGitCore
                 hasHead=nextHasHead;hasParent=nextHasParent;comparisonBase=nextBase
                 scopePaths=requestedScope;showWholeProject=requestedWholeProject
                 entries=nextEntries;submodules=GitPathSet(nextSubmodules);branch=nextBranch;fileMetadata=nextMetadata
+                fileListReportInEnglish=nextReportInEnglish
                 hasLFS=nextHasLFS;messageSnippets=nextSnippets;changelists=nextChangelists;changelistsLoaded=true
                 indexFlagFiles=nextIndexFlags;conflictRebase=nextConflictRebase
                 statistics=nextStatistics;stagedStatistics=nextStaged;unstagedStatistics=nextUnstaged
@@ -1933,10 +1945,11 @@ import TurtleGitCore
                 nativeIssueProvider=provider.provider;issueProviderError=provider.error
                 if resetChecks {
                     checked=GitPathSet(visibleEntries.filter {entry in
-                        let inScope=requestedScope.isEmpty || requestedScope.contains {$0 == entry.path || entry.path.hasPrefix($0 + "/")}
-                        let directFile=requestedScope.contains(entry.path)
+                        if let retained=retainedScopeChecks[entry.path] {return retained}
+                        let inScope=entry.staged || requestedWholeProject || requestedScope.isEmpty || requestedScope.contains {GitReferenceName.equal($0,entry.path) || entry.path.utf8.starts(with:($0+"/").utf8)}
+                        let directFile=requestedScope.contains {GitReferenceName.equal($0,entry.path)}
                         let missing=entry.worktree == "D"
-                        let automatic=(selectFilesAutomatically || replaySplit != nil) && entry.state != .untracked && (!doNotAutoselectMissing || !missing)
+                        let automatic=(changingWholeProject || selectFilesAutomatically || replaySplit != nil) && entry.state != .untracked && (!doNotAutoselectMissing || !missing)
                         return inScope && (directFile || automatic) && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path))
                     }.map(\.id))
                 } else {checked.formIntersection(GitPathSet(entries.map(\.id)))}
@@ -1950,6 +1963,11 @@ import TurtleGitCore
                     }
                 }
                 droppedChecks=[];selection.formIntersection(GitPathSet(entries.map(\.id)))
+                if changingWholeProject {
+                    scopeCheckStates=retainedScopeChecks
+                    for entry in visibleEntries {scopeCheckStates[entry.path]=checked.contains(entry.id)}
+                    dialogDefaults.set(requestedWholeProject,forKey:CommitScopePreference.key(root:repository.root))
+                }
                 if author.isEmpty || pendingRecommitSession,let nextAuthor {author=nextAuthor}
                 hasLoaded=true
                 if let seed {
@@ -2617,7 +2635,7 @@ import TurtleGitCore
                     // Save before the accepted success closes/invalidates this owner.
                     unversionedDefaults.set(showUnversionedForAttempt,forKey:"AddBeforeCommit")
                     busy = false; close()
-                    if action == .push || selectedPostAction == .push { onPush() }
+                    if action == .push || selectedPostAction == .push { onPush(.init(origin:action == .push ? .footer:.progress,amend:options.amend)) }
                     else if selectedPostAction == .pull { onPull() }
                     else if selectedPostAction == .createTag { onCreateTag() }
                     else if selectedPostAction == .svnDCommit { onSVNDCommit() }
@@ -2672,11 +2690,19 @@ import TurtleGitCore
             }
         }
     }
-    var checkedFileList: String {
-        visibleEntries.filter { stagingEnabled ? isStaged($0) : checked.contains($0.id) }.map { entry in
-            let label = entry.state == .untracked ? "Added" : entry.state.rawValue.capitalized
-            return label.padding(toLength: max(10, label.count), withPad: " ", startingAt: 0) + " " + entry.path + "\n"
-        }.joined()
+    var displayedFileEntries:[StatusEntry] {
+        let ignored=GitPathSet(indexFlagFiles.filter{$0.assumeUnchanged || $0.skipWorktree}.map{$0.entry.path})
+        return StatusListGroups.rows(entries:sortedFiles(visibleEntries,statistics:statistics),changelists:changelists,locallyIgnored:ignored).compactMap(\.entry)
+    }
+    func fileListDisplayedPath(_ entry:StatusEntry)->String {
+        CommitFileListReport.displayedPath(entry,statistics:statistics[entry.path],abbreviateRenames:dialogDefaults.bool(forKey:"AbbreviateRenamings"))
+    }
+    var checkedFileList:String {
+        let displayed=displayedFileEntries
+        let included=stagingEnabled ? GitPathSet(displayed.filter{isStaged($0)}.map(\.id)):checked
+        return CommitFileListReport.text(entries:displayed,checked:included,statistics:statistics,abbreviateRenames:dialogDefaults.bool(forKey:"AbbreviateRenamings"),label:{[fileListReportInEnglish] raw in
+            fileListReportInEnglish ? raw:NSLocalizedString(raw,comment:"")
+        })
     }
     private var operationInputsBlocked:Bool {loadingImportedMessage || busy || issueProviderBusy || confirmingQuit || pendingReloadCancel || savingPreferences || mergeHintVisible || stagingHintVisible || unversionedPromptVisible}
     var inputsBlocked:Bool {!commitIdentityPrepared || preparingCommitIdentity || operationInputsBlocked}
@@ -3135,7 +3161,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                         Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay {
                             if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) }
                         }
-                        Text(StatusListClipboard.displayedPath(entry)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences))
+                        Text(model.fileListDisplayedPath(entry)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences))
                     }.repositoryFileHelp(repository: model.repository.root, path: entry.path, detail: model.fileHelp(entry), preferences: model.colorPreferences)
                 } else if let group = row.group {
                     HStack {
@@ -3812,7 +3838,7 @@ private struct CommitProgressDialog: View {
             model.check({self.predicate(command,$0)},checking:value)
         case .staging:model.setStagingEnabled(!model.stagingEnabled)
         case .showUnversioned:model.setShowUnversioned(!model.showUnversioned)
-        case .whole:model.showWholeProject.toggle()
+        case .whole:model.setShowWholeProject(!model.showWholeProject)
         case .messageOnly:model.messageOnly.toggle()
         case .amend:model.amend.toggle()
         case .newBranch:model.setFormOption(.newBranch,value:!model.createBranch,receipt:model.formReceipt)

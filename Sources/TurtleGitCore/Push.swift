@@ -19,6 +19,11 @@ public struct PushOptions: Sendable {
     public var showBranchRevisionNumber = false
     public init() {}
 }
+public enum CommitPushContinuationPlan:Sendable {
+    case noBranch
+    case dialog
+    case push(PushOptions)
+}
 public struct PushDefaults: Sendable {
     public let remote: String
     public let destination: String
@@ -92,6 +97,36 @@ extension GitRepository {
         else if merge.hasPrefix("refs/") { merge = String(merge.dropFirst(5)) }
         return PushDefaults(remote: remote, destination: destination.isEmpty ? merge : destination,
                             setUpstream: branch != nil && merge.isEmpty, localBranch: branch)
+    }
+    /// CommitDlg::DoPush uses only explicit GetRemotePushBranch mappings. The
+    /// ordinary Push dialog's sole-remote suggestion must not authorize this path.
+    public func commitPushContinuationPlan(usePushDialog:Bool=false,cancellation:OperationCancellation?=nil)throws->CommitPushContinuationPlan {
+        try cancellation?.check()
+        let current=try branch(cancellation:cancellation)
+        guard !current.isEmpty else{return .noBranch}
+        if usePushDialog{return .dialog}
+        func config(_ key:String)throws->String {
+            let value=try run(["-c","core.precomposeunicode=false","config","--get",key],successfulExitCodes:0...1,cancellation:cancellation)
+            guard value.exitCode==0 else{return ""}
+            var bytes=value.stdout;if bytes.last==10{bytes.removeLast()}
+            return String(decoding:bytes,as:UTF8.self)
+        }
+        var remote=try config("branch."+current+".pushremote")
+        if remote.isEmpty{remote=try config("remote.pushdefault")}
+        if remote.isEmpty{remote=try config("branch."+current+".remote")}
+        var destination=try config("branch."+current+".pushbranch")
+        if destination.isEmpty {
+            destination=try config("branch."+current+".merge")
+            if destination.hasPrefix("refs/heads/"){destination=String(destination.dropFirst(11))}
+            else if destination.hasPrefix("refs/"){destination=String(destination.dropFirst(5))}
+            while destination.last?.isWhitespace==true{destination.removeLast()}
+        }
+        guard !remote.isEmpty,!destination.isEmpty else{return .dialog}
+        let names=try remoteNames(cancellation:cancellation)
+        var options=PushOptions();options.source=current;options.remote=remote;options.destination=destination
+        // Source mappings may name '.' or another direct Git transport target.
+        options.arbitraryURL = !names.contains{GitReferenceName.equal($0,remote)}
+        return .push(options)
     }
     public func pushSubmoduleDefault() -> PushSubmodules { (try? pushSubmoduleDefault(cancellation: nil)) ?? .none }
     public func pushSubmoduleDefault(cancellation: OperationCancellation?) throws -> PushSubmodules {

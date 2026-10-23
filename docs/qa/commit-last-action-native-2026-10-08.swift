@@ -43,7 +43,7 @@ import TurtleGitCore
         let otherRepo = try await fixture("other"), fresh = try await owner(otherRepo)
         precondition(existing.currentCompletionAction == .push && fresh.currentCompletionAction == .recommit)
         var pushes = 0, closes = 0, progressCloses = 0
-        existing.onPush = { pushes += 1 }; existing.close = { closes += 1 }
+        existing.onPush = { _ in pushes += 1 }; existing.close = { closes += 1 }
         existing.onCommitProgress = { $0.onClose = { progressCloses += 1 } }
         existing.commitCurrentAction(); try await wait { !existing.busy }
         precondition(pushes == 1 && closes == 1 && progressCloses == 1 && preferences.integer(forKey:"CommitLastAction") == 2)
@@ -73,7 +73,7 @@ import TurtleGitCore
         precondition(before == after && failed.message == "remembered action" && preferences.integer(forKey:"CommitLastAction") == 2)
         let retry = try await owner(failedRepo); precondition(retry.currentCompletionAction == .push)
         _ = try await failedRepo.run(["config","core.hooksPath","/dev/null"])
-        retry.onCommitProgress = { _ in }; retry.onPush = { pushes += 1 }
+        retry.onCommitProgress = { _ in }; retry.onPush = { _ in pushes += 1 }
         retry.commitCurrentAction(); try await wait { !retry.busy }; precondition(pushes == 2)
 
         let cancelledRepo = try await fixture("preflight"), cancelled = try await owner(cancelledRepo)

@@ -480,6 +480,7 @@ private enum TransportBatchPresentationContext {
     private var rebaseWindows: [String: RebaseWindowController] = [:]
     private var fetchWindows: [String: FetchWindowController] = [:]
     private var pushWindows: [String: PushWindowController] = [:]
+    var pushWindowFactory:((GitRepository,RepositoryAccessLease?,UserDefaults)->PushWindowController)?
     private var synchronizationWindows: [String: SynchronizationWindowController] = [:]
     private var referenceWindows: [String: BranchTagWindowController] = [:]
     private var switchProgressWindows: [UUID: SwitchProgressWindowController] = [:]
@@ -2051,7 +2052,9 @@ private enum TransportBatchPresentationContext {
             self.output = output
             Task { await self.refresh() }
         }
-        controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access, preferences: preferences) }
+        controller.model.onPush = { [weak self] continuation in
+            self?.showPush(repository:repository,access:access,preferences:preferences,commitContinuation:continuation)
+        }
         controller.model.onPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(showPush: true), preferences: preferences) }
         controller.model.onCreateTag = { [weak self] in self?.showReference(repository: repository, access: access, isTag: true, preferences: preferences) }
         controller.model.onSVNDCommit = { [weak self] in self?.showSVN(.dcommit, repository: repository, access: access) }
@@ -4171,16 +4174,26 @@ private enum TransportBatchPresentationContext {
         fetchWindows[key] = controller; controller.model.load(remote: remote, allRemotes: allRemotes)
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showPush(repository: GitRepository, access: RepositoryAccessLease?, source: String? = nil, preserveAllBranches: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
+    private func showPush(repository: GitRepository, access: RepositoryAccessLease?, source: String? = nil, preserveAllBranches: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil,commitContinuation:CommitPushContinuation?=nil) {
         guard !retired, !confirmingQuit else { return }
         let root = repository.root, key = repository.root.path + ":push:" + UUID().uuidString
-        let controller = PushWindowController(repository: repository, access: access, preferences: preferences ?? fileComparisonPreferences)
-        controller.onClosed = { [weak self] in self?.pushWindows.removeValue(forKey: key) }
+        let defaults=preferences ?? fileComparisonPreferences
+        let controller = pushWindowFactory?(repository,access,defaults) ?? PushWindowController(repository: repository, access: access, preferences:defaults)
+        controller.onClosed = { [weak self,weak controller] in
+            guard let self,let controller,self.pushWindows[key] === controller else{return}
+            self.pushWindows.removeValue(forKey:key)
+        }
         configurePushInteractions(controller, repository: repository, access: access)
         controller.model.clipboardText = transportClipboardText
         presentation?.apply(to: controller.window)
-        pushWindows[key] = controller; controller.model.load(source: source, preserveAllBranches: preserveAllBranches)
-        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        pushWindows[key] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
+        if let commitContinuation,commitContinuation.origin == .footer {
+            controller.startCommitContinuation(usePushDialog:commitContinuation.amend)
+        } else {
+            controller.model.load(source:source,preserveAllBranches:preserveAllBranches)
+            controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
+        }
     }
     private func configurePushInteractions(_ controller: PushWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
         let transportChain=TransportBatchPresentationContext.chain

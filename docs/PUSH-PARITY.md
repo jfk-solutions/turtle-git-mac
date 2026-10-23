@@ -521,3 +521,11 @@ Finder activation, sandbox/App Store and full application acceptance remain open
 [The connected form family](SOURCE-FORM-CONTROLS-PARITY.md) records reference
 keyboard/focus and bounded captions, Push F5 refresh and Synchronization native
 split controls, with owned state and remaining acceptance kept explicit.
+
+## Commit continuation
+
+The `IDD_PUSH` family also receives the captured successful Commit continuation.
+[Source mapping and lifetime](COMMIT-PUSH-CONTINUATION-PARITY.md) distinguish the
+ordinary footer direct transfer from amend/missing-map/result-menu forms, with
+private transport, warning and cancellation evidence retained in the
+[shared checkpoint](qa/commit-scope-report-push-2026-10-23.json).
