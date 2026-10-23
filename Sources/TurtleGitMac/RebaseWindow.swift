@@ -2537,7 +2537,7 @@ struct RebaseDialog: View {
                         if model.fileRecovery || model.state?.squashMessage != nil || model.state?.isEditPause == true || model.state?.split != nil {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(model.state?.squashMessage != nil ? "Combined commit message:" : "Edit commit message:")
-                                ProjectMessageEditor(text: model.messageBinding(context), settings: model.projectSettings, label: model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message", preferences: model.messageEditorPreferences, issueProperties: model.issueProperties)
+                                ProjectMessageEditor(text: model.messageBinding(context), settings: model.projectSettings, label: model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message", preferences: model.messageEditorPreferences, issueProperties: model.issueProperties, sourceAvailable: { [weak model] in model?.canEditMessage == true && model?.formContext == context })
                                     .id(model.replayMessageEditorID).disabled(!model.canEditMessage)
                                 if let author = model.replayMessageCommit {
                                     Text("Author: " + author.author + " <" + author.email + "> • Author date: " + dates.format(author.date, absolute: true)).font(.caption).textSelection(.enabled)

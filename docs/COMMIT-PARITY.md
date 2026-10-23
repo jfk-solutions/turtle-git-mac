@@ -2756,3 +2756,10 @@ validation scope separately from full-dialog/signed acceptance.
 [The shared conditional UI audit](PRIMARY-CONDITIONAL-UI-PARITY.md) records the
 Commit split control, Log control states and Working Tree refresh/cancellation
 follow-up, with focused validation and remaining acceptance kept explicit.
+
+## Project message width and selected reflow
+
+The connected [message wrapping family](MESSAGE-WRAPPING-PARITY.md) maps the
+source width-dependent editor mode, edited/visible-range splitting and selected
+Split lines command shared with Rebase. Its implementation and checkpoint are
+recorded there; a configured border alone does not establish editing parity.

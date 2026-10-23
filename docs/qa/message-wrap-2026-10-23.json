@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-23",
+  "status": "grouped-native-checkpoint-passed-with-recorded-fixture-repairs",
+  "scope": [
+    "Commit/Rebase project-width horizontal versus visual wrapping mode",
+    "Automatic visible/edited logical-line splitting",
+    "Selected Split lines join/reflow with localized source icon",
+    "Shared native metrics, tabs, Undo/redo, caret/selection and marked-input handling",
+    "Immediate owner/read-only/busy/sheet/retirement gates and unchanged initial source messages"
+  ],
+  "pinned_source": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": [
+    "src/Utils/MiscUI/SciEdit.cpp:348-359",
+    "src/Utils/MiscUI/SciEdit.cpp:942-953",
+    "src/Utils/MiscUI/SciEdit.cpp:1191-1245",
+    "src/Utils/MiscUI/SciEdit.cpp:1315-1328",
+    "ext/scintilla/src/Editor.cxx:1772-1825"
+  ],
+  "core": "No Core production changes; native AppKit editing and existing model bindings only. No full Core rerun.",
+  "validation": {
+    "debug_build": {
+      "exit_code": 0,
+      "generic_exit_zero_diagnostics": 1,
+      "log": "build/qa/message-wrap-app-2026-10-23.log"
+    },
+    "native_attempts": [
+      {
+        "log": "build/qa/message-wrap-native-2026-10-23.log",
+        "result": "Commit startup timed out before behavior; actual controller needed model.reload(paths:[\".\"]) as shipping startup does",
+        "receiver_pid": 88053,
+        "reaped_and_independently_absent": true,
+        "repair": "Fixture-only actual status reload; all readiness/behavior assertions retained"
+      },
+      {
+        "log": "build/qa/message-wrap-native-startup-repair-2026-10-23.log",
+        "passed_pairs": [
+          {
+            "case": "commit",
+            "git": "/usr/bin/git",
+            "receiver_pid": 88354
+          },
+          {
+            "case": "rebase",
+            "git": "/usr/bin/git",
+            "receiver_pid": 88427
+          }
+        ],
+        "failure": {
+          "case": "commit",
+          "git": "build/git-runtime/Git/bin/git",
+          "receiver_pid": 88576,
+          "scope": "All editing assertions reached; final windows/work cleanup assertion failed"
+        },
+        "all_receivers_reaped_and_independently_absent": true
+      },
+      {
+        "log": "build/qa/message-wrap-native-cleanup-repair-2026-10-23.log",
+        "passed_pairs": [
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "commit",
+            "returncode": 0,
+            "passed": true
+          },
+          {
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "case": "rebase",
+            "returncode": 0,
+            "passed": true
+          }
+        ],
+        "receiver_pids": [
+          88852,
+          88924
+        ],
+        "repair": "Fixture ends owned editing and waits for both work counters including styling and actual hidden/unparented native windows. No blanket window closing or removed assertions. Earlier exact survivor was not captured, so original cleanup race cause remains inferred."
+      }
+    ],
+    "documentation": {
+      "localizations": {
+        "languages": 38,
+        "keys": 1316,
+        "check": "passed"
+      },
+      "help": {
+        "documents": 58,
+        "topics": 51,
+        "files": 78,
+        "bytes": 3784176,
+        "check": "passed"
+      },
+      "site": {
+        "documents": 424,
+        "unresolved_fragments": 0,
+        "python_tests": 2,
+        "javascript_search": "passed"
+      },
+      "coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "certified_complete": 0,
+        "pending_control_reviews": 85
+      }
+    },
+    "native": {
+      "distinct_case_engine_pairs": 4,
+      "passed_cumulatively": 4,
+      "receiver_attempts": 6,
+      "receiver_pids": [
+        88053,
+        88354,
+        88427,
+        88576,
+        88852,
+        88924
+      ],
+      "all_reaped_and_independently_absent": true,
+      "physical_display_acceptance": false,
+      "owned_helpers_required_forced_cleanup": false
+    }
+  },
+  "limits": [
+    "TextKit glyph shaping/break boundaries are native adaptations, not Windows pixel identity",
+    "New hard breaks use macOS LF; loaded source endings preserved until editing",
+    "Physical IME, keyboard/VoiceOver, installed signed workflows, full hosted CI and complete upstream dialog parity remain unverified"
+  ]
+}

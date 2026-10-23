@@ -48,6 +48,7 @@
 		10EF906D8E37E89B852F673F /* MergeToolInvocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2414E7EA280472578E361D36 /* MergeToolInvocation.swift */; };
 		114EB220A33E2848C99E7466 /* WorkingFileRevert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */; };
 		11E2CC727FCB9A795D663F7F /* ClientHookRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B5CA377E560923FE6C0F849 /* ClientHookRuntime.swift */; };
+		12945D97CBBE46999F74661D /* MessageEditorLineLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D700370D7F50A6ED8A1813E /* MessageEditorLineLayout.swift */; };
 		1301BA2C5FE3CE34CB73318E /* BareRepositoryResultSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBF8CAAEDB347125AFE8C0A9 /* BareRepositoryResultSetup.swift */; };
 		135F13D3322EDDAFD3C718DA /* GitWorktrees.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50B9BC6078F637B8F0A3E3E2 /* GitWorktrees.swift */; };
 		140D138F7FCA43BF5C95B83B /* TurtleGitMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */; };
@@ -777,6 +778,7 @@
 		69C742F936FA4A0276A54856 /* CleanWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanWindow.swift; sourceTree = "<group>"; };
 		6A72CBF70DA62980294AB41A /* TurtleGitMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TurtleGitMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6CFEE049A0098A0212AD01DA /* ResetWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetWindow.swift; sourceTree = "<group>"; };
+		6D700370D7F50A6ED8A1813E /* MessageEditorLineLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorLineLayout.swift; sourceTree = "<group>"; };
 		6D854D45255E20E630E8A738 /* Completion */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Completion; path = Sources/TurtleGitCore/Resources/Completion; sourceTree = SOURCE_ROOT; };
 		6E301A686F051DF474EF1D7D /* WorkingFileDelete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileDelete.swift; sourceTree = "<group>"; };
 		6E3EC4644CBE1C28B8925E8C /* RepositoryAccessWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryAccessWindow.swift; sourceTree = "<group>"; };
@@ -1251,6 +1253,7 @@
 				A72CA1F57921800C12336E06 /* MergeToolPresentation.swift */,
 				326985003F83908822D7B91E /* MergeWindow.swift */,
 				87335D6A9D18FB71DB2EC3C5 /* MessageEditorFont.swift */,
+				6D700370D7F50A6ED8A1813E /* MessageEditorLineLayout.swift */,
 				96E940ECCB7183AF9D421680 /* MessageEditorStylingSession.swift */,
 				5223DFD2A4DD4A2D03A544FA /* MissingStagedFileRecovery.swift */,
 				9FA1B00CA442E623732196B4 /* NativeFixedFontChoice.swift */,
@@ -2433,6 +2436,7 @@
 				DF04AA39801191C59FDD035A /* MergeToolPresentation.swift in Sources */,
 				1C7C643A9272F36E8A10A307 /* MergeWindow.swift in Sources */,
 				B9C46EA0242416CA6D538C73 /* MessageEditorFont.swift in Sources */,
+				12945D97CBBE46999F74661D /* MessageEditorLineLayout.swift in Sources */,
 				786E39DA3EFAA4527CBD79D4 /* MessageEditorStylingSession.swift in Sources */,
 				0F5692E27DE7CC5C20F31062 /* MissingStagedFileRecovery.swift in Sources */,
 				E0C3C88D342ACD61766B9E6A /* NativeFixedFontChoice.swift in Sources */,

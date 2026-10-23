@@ -663,3 +663,10 @@ ownership retain their roles; full physical/signed parity remains open.
 ## Captured file drag delivery — October 21, 2026
 
 The [revision-list drag family](FILE-LIST-DRAG-PARITY.md) adds target-revision file delivery to the embedded Revision Files table. A live weak-parent availability guard rejects new drags while the parent is busy, during selection/picker work, questions and retirement; accepted providers retain their own revision, backend and access lease. The grouped checkpoint includes the real parent/child models, with physical window gestures and signed delivery still open.
+
+## Shared message width and selected reflow
+
+The [Commit/Rebase message wrapping family](MESSAGE-WRAPPING-PARITY.md) maps
+project-width mode, automatic splitting and selected-text join/reflow. Rebase
+retains its stopped-phase form identity and immediate owner gate, so an old
+editor cannot apply a command to a later replay occurrence.

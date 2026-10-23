@@ -31,7 +31,7 @@ struct CommitMessageEditor: NSViewRepresentable {
         guard let editor = scroll.documentView as? CommitMessageTextView,model.messageFocusAvailable,!context.coordinator.invalidated else {return}
         context.coordinator.updateModel(model)
         editor.isEditable = enabled && !model.loadingAmendMessage; editor.model = model
-        editor.sourceLinkAvailable = { [weak model] in model?.messageFocusAvailable == true && model?.busy == false && model?.confirmingQuit == false }
+        editor.sourceLinkAvailable = { [weak model] in model?.messageFocusAvailable == true && model?.inputsBlocked == false && model?.confirmingQuit == false }
         model.prepareMessageCompletions()
         if !editor.string.utf8.elementsEqual(model.message.utf8) {
             let range = editor.selectedRange()
@@ -111,7 +111,7 @@ struct CommitMessageEditor: NSViewRepresentable {
             }
         }
         func textDidChange(_ notification: Notification) {
-            if let editor = notification.object as? NSTextView { model.message = editor.string; updatePosition(editor) }
+            if let editor = notification.object as? CommitMessageTextView, editor.messageLayoutAvailable { model.message = editor.string; updatePosition(editor) }
         }
         func textViewDidChangeSelection(_ notification: Notification) {
             if let editor = notification.object as? NSTextView { updatePosition(editor) }

@@ -95,6 +95,13 @@ Write the commit message above the changed-file list. In ordinary mode, check th
 files to include. Use the Check links to select categories. Show Unversioned Files
 includes new files in the list; review what is checked before committing.
 
+When the project configures a message width (`tgit.logwidthmarker`), the editor
+shows a column border and permits horizontal scrolling. Editing splits long lines
+at that width. Select text and choose **Split lines** from its context menu to
+join and reflow the selected lines. Opening an existing message preserves its
+text. Without a configured width, text wraps visually to the editor window.
+The shared Rebase message editor uses the same project policy.
+
 Amend Last Commit changes the latest commit. Set author date and Set author
 allow explicit attribution. These options rewrite commit metadata; verify them
 before accepting. Message only is available for the corresponding commit flow.

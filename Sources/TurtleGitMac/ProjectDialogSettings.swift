@@ -469,9 +469,97 @@ class ProjectMessageTextView: NSTextView {
         if sourceStyling == nil { sourceStyling = MessageEditorStylingSession(editor: self) }
         sourceStyling?.configure(properties: properties, preferences: preferences, font: font)
     }
-    func retireSourceStyling() { sourceStyling?.retire(); sourceStyling = nil; sourceLinks.retire() }
-    override func didChangeText() { sourceLinks.invalidate(); super.didChangeText(); sourceStyling?.refresh() }
-    override func unmarkText() { super.unmarkText(); sourceStyling?.refresh() }
+    func retireSourceStyling() { messageEditingRetired = true; pendingLineEdit = nil; deferredCompositionRange = nil; sourceStyling?.retire(); sourceStyling = nil; sourceLinks.retire() }
+    private var pendingLineEdit: NSRange?
+    private var applyingLineEdits = false
+    private var messageEditingRetired = false
+    private var deferredCompositionRange: NSRange?
+    private var messageOwnerObserver: NSObjectProtocol?
+    private weak var messageOwner: NSWindow?
+    private var messageOwnerClosed = false
+    deinit { if let messageOwnerObserver { NotificationCenter.default.removeObserver(messageOwnerObserver) } }
+    var messageLayoutAvailable: Bool {
+        !messageEditingRetired && window != nil && isEditable && sourceLinkAvailable() && window?.attachedSheet == nil && NSApp.modalWindow == nil
+    }
+    var messageBorderWidth: CGFloat {
+        CGFloat(projectSettings.borderColumn) * (" " as NSString).size(withAttributes: [.font: styledBaseFont ?? font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)]).width
+    }
+    override func shouldChangeText(in affectedCharRange: NSRange, replacementString: String?) -> Bool {
+        guard messageLayoutAvailable else { return false }
+        let accepted = super.shouldChangeText(in: affectedCharRange, replacementString: replacementString)
+        if accepted, !applyingLineEdits, !messageEditingRetired {
+            pendingLineEdit = NSRange(location: affectedCharRange.location, length: (replacementString as NSString?)?.length ?? 0)
+        }
+        return accepted
+    }
+    override func didChangeText() {
+        guard !applyingLineEdits else { return }
+        let edited = pendingLineEdit; pendingLineEdit = nil
+        if hasMarkedText() {
+            let changed = edited ?? selectedRange()
+            deferredCompositionRange = deferredCompositionRange.map { NSUnionRange($0, changed) } ?? changed
+        } else {
+            let changed = edited ?? deferredCompositionRange
+            deferredCompositionRange = nil
+            if let changed, undoManager?.isUndoing != true, undoManager?.isRedoing != true { splitEditedLines(changed) }
+        }
+        sourceLinks.invalidate(); super.didChangeText(); sourceStyling?.refresh()
+        updateMessageWidthMode()
+    }
+    override func unmarkText() {
+        super.unmarkText()
+        if let range = deferredCompositionRange {
+            deferredCompositionRange = nil
+            if splitEditedLines(range) { sourceLinks.invalidate(); super.didChangeText() }
+        }
+        sourceStyling?.refresh()
+    }
+    @discardableResult private func applyLineEdits(_ edits: [MessageEditorLineLayout.Edit]) -> Bool {
+        guard !edits.isEmpty, messageLayoutAvailable, !hasMarkedText() else { return false }
+        let ranges = selectedRanges.map(\.rangeValue)
+        applyingLineEdits = true; defer { applyingLineEdits = false }
+        for edit in edits.reversed() { super.insertText(edit.text, replacementRange: edit.range) }
+        selectedRanges = ranges.map { NSValue(range: MessageEditorLineLayout.mapped($0, through: edits)) }
+        return true
+    }
+    @discardableResult private func splitEditedLines(_ edit: NSRange) -> Bool {
+        guard messageLayoutAvailable, !hasMarkedText(), messageBorderWidth > 0 else { return false }
+        let length = (string as NSString).length
+        guard edit.location <= length else { return false }
+        var range = NSRange(location: edit.location, length: min(edit.length, length - edit.location))
+        if let layoutManager, let textContainer {
+            let glyphs = layoutManager.glyphRange(forBoundingRect: visibleRect.offsetBy(dx: -textContainerOrigin.x, dy: -textContainerOrigin.y), in: textContainer)
+            let visible = layoutManager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+            range = NSUnionRange(range, visible)
+        }
+        return applyLineEdits(MessageEditorLineLayout.edits(text: string, range: range, width: messageBorderWidth, font: styledBaseFont ?? font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize), join: false))
+    }
+    @objc func splitMessageLines(_ sender: Any?) {
+        guard messageLayoutAvailable, !hasMarkedText(), selectedRanges.count == 1, selectedRange().length > 0, messageBorderWidth > 0 else { return }
+        breakUndoCoalescing(); undoManager?.beginUndoGrouping()
+        let base = styledBaseFont ?? font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let joined = applyLineEdits(MessageEditorLineLayout.edits(text: string, range: selectedRange(), width: messageBorderWidth, font: base, join: true))
+        let split = applyLineEdits(MessageEditorLineLayout.edits(text: string, range: selectedRange(), width: messageBorderWidth, font: base, join: false))
+        undoManager?.endUndoGrouping(); breakUndoCoalescing()
+        if joined || split { sourceLinks.invalidate(); super.didChangeText(); sourceStyling?.refresh(); updateMessageWidthMode() }
+    }
+    func updateMessageWidthMode() {
+        guard let scroll = enclosingScrollView, let textContainer else { return }
+        let unwrapped = projectSettings.borderColumn > 0
+        scroll.hasHorizontalScroller = unwrapped; isHorizontallyResizable = unwrapped
+        textContainer.widthTracksTextView = !unwrapped
+        if unwrapped {
+            textContainer.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+            layoutManager?.ensureLayout(for: textContainer)
+            let extent = (layoutManager?.usedRect(for: textContainer).maxX ?? 0) + textContainerInset.width * 2
+            setFrameSize(NSSize(width: max(scroll.contentSize.width, extent), height: frame.height))
+            autoresizingMask = []
+        } else {
+            autoresizingMask = [.width]
+            setFrameSize(NSSize(width: scroll.contentSize.width, height: frame.height))
+            textContainer.containerSize = NSSize(width: frame.width, height: CGFloat.greatestFiniteMagnitude)
+        }
+    }
     private var appliedStyles: [IssueMessageStyle] = []
     private var styledText = ""
     private var styledBaseFont: NSFont?
@@ -501,6 +589,7 @@ class ProjectMessageTextView: NSTextView {
         if undoEnabled { undoManager?.enableUndoRegistration() }
         selectedRanges = selection
         typingAttributes = [.font: base, .foregroundColor: NSColor.textColor, .paragraphStyle: paragraph]
+        updateMessageWidthMode()
     }
     var spellingPreferences = UserDefaults.standard
     var spellingSuggestions: ((String, String?) -> [String])?
@@ -543,7 +632,19 @@ class ProjectMessageTextView: NSTextView {
         spellingPopup.show(spellingChoices, catalog: MessageCompletionCatalog(), icon: .completionSpelling, in: self)
     }
     override func resignFirstResponder() -> Bool { dismissSpellingSuggestions(); return super.resignFirstResponder() }
-    override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); sourceLinks.attachOwner(); if window == nil { dismissSpellingSuggestions(); retireSourceStyling() } }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow(); sourceLinks.attachOwner()
+        if let window, messageOwner !== window {
+            if let messageOwnerObserver { NotificationCenter.default.removeObserver(messageOwnerObserver) }
+            messageOwner = window; messageOwnerClosed = false
+            messageOwnerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.messageOwnerClosed = true; self?.retireSourceStyling() }
+            }
+            updateMessageWidthMode()
+        }
+        if window != nil, !messageOwnerClosed { messageEditingRetired = false }
+        if window == nil { dismissSpellingSuggestions(); retireSourceStyling() }
+    }
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event)
         if let menu {
@@ -556,6 +657,13 @@ class ProjectMessageTextView: NSTextView {
             item.target = self; item.image = MenuIcon.completionSpelling.contextImage(defaults:spellingPreferences)
             item.isEnabled = ProjectLanguages.code(projectSettings.language.value) != -1 && (spellingPreferences.object(forKey: "Spellchecker") as? Bool ?? true)
             menu.addItem(item)
+            if projectSettings.borderColumn > 0 {
+                menu.addItem(.separator())
+                let split = NSMenuItem(title: String(localized: "Split lines"), action: #selector(splitMessageLines(_:)), keyEquivalent: "")
+                split.target = self; split.isEnabled = messageLayoutAvailable && !hasMarkedText() && selectedRange().length > 0
+                split.image = MenuIcon.mergeWrap.contextImage(defaults: spellingPreferences)
+                menu.addItem(split)
+            }
         }
         return menu
     }
@@ -572,12 +680,14 @@ class ProjectMessageTextView: NSTextView {
         }
     }
     func applyProjectSettings(_ settings: ProjectDialogSettings) {
-        // The source suggests corrections; it never rewrites commit-message bytes automatically.
+        // Spelling only suggests corrections; disable automatic spelling and
+        // typography substitutions independently of source hard line wrapping.
         isAutomaticSpellingCorrectionEnabled = false; isAutomaticTextReplacementEnabled = false
         isAutomaticQuoteSubstitutionEnabled = false; isAutomaticDashSubstitutionEnabled = false
         isContinuousSpellCheckingEnabled = ProjectLanguages.code(settings.language.value) != -1 && (spellingPreferences.object(forKey: "Spellchecker") as? Bool ?? true)
-        guard projectSettings != settings else { return }
+        guard projectSettings != settings else { updateMessageWidthMode(); return }
         projectSettings = settings; needsDisplay = true
+        updateMessageWidthMode()
     }
     override func checkText(in range: NSRange, types checkingTypes: NSTextCheckingTypes, options: [NSSpellChecker.OptionKey: Any] = [:]) {
         var options = options, types = checkingTypes
@@ -612,7 +722,7 @@ class ProjectMessageTextView: NSTextView {
         super.draw(dirtyRect)
         let column = projectSettings.borderColumn
         guard column > 0, let font = styledBaseFont ?? font else { return }
-        let width = ("M" as NSString).size(withAttributes: [.font: font]).width
+        let width = (" " as NSString).size(withAttributes: [.font: font]).width
         let x = textContainerOrigin.x + (textContainer?.lineFragmentPadding ?? 0) + CGFloat(column) * width
         guard x >= dirtyRect.minX, x <= dirtyRect.maxX else { return }
         NSColor.separatorColor.setStroke()
@@ -627,6 +737,7 @@ struct ProjectMessageEditor: NSViewRepresentable {
     let label: String
     var preferences: UserDefaults = .standard
     var issueProperties = IssueTrackerProperties()
+    var sourceAvailable: () -> Bool = { true }
     @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
     @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     @Environment(\.isEnabled) private var enabled
@@ -645,6 +756,7 @@ struct ProjectMessageEditor: NSViewRepresentable {
         guard let editor = scroll.documentView as? ProjectMessageTextView else { return }
         context.coordinator.text = $text
         editor.isEditable = enabled; editor.setAccessibilityLabel(label)
+        editor.sourceLinkAvailable = sourceAvailable
         let font = MessageEditorFont.resolve(name: preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName, size: preferences.object(forKey: "LogFontSize") as? Int ?? MessageEditorFont.defaultSize)
         if editor.string != text {
             let selected = editor.selectedRange(); editor.string = text
@@ -664,7 +776,7 @@ struct ProjectMessageEditor: NSViewRepresentable {
         var text: Binding<String>
         init(_ text: Binding<String>) { self.text = text }
         func textDidChange(_ notification: Notification) {
-            if let editor = notification.object as? NSTextView { text.wrappedValue = editor.string }
+            if let editor = notification.object as? ProjectMessageTextView, editor.messageLayoutAvailable { text.wrappedValue = editor.string }
         }
     }
 }
