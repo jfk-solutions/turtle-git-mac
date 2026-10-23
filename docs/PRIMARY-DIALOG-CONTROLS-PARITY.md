@@ -70,3 +70,23 @@ Full upstream state/layout coverage, physical keyboard and accessibility
 acceptance, installed signed Finder entry points, minimum-version/Intel
 acceptance and a complete current hosted integration pass remain open. The
 dialog ledger tracks review coverage rather than a feature completion percentage.
+
+## Commit option bands and Log menu artwork — October 23, 2026
+
+The pinned `IDD_COMMITDLG` resource places the conditional “Show diff to last
+commit” checkbox at the right of the Amend band. File statistics appear directly
+below the file list, above the patch links. The native dialog now follows those
+positions, with the lower checkbox and statistics columns aligned at their tops.
+The footer retains Commit's split action, Cancel and Help; Refresh remains on F5
+and the Commit menu, as advertised in the Changes caption. No commit, staging,
+author/date or checked-file semantics change with this layout correction.
+
+Log's native Copy submenu and merge-parent Revert submenu now obtain their icon
+visibility from the same captured preferences as the rest of that popup. This
+matters when an owning workspace has a distinct preference domain. The existing
+SwiftUI root already supplies that domain to its font and date consumers; no
+font/date propagation defect was established by this review.
+
+The grouped checkpoint is recorded in
+[the dated batch evidence](qa/primary-layout-patch-encoding-2026-10-23.json).
+This correction does not certify every conditional layout or physical gesture.

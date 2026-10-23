@@ -1,0 +1,158 @@
+{
+  "date": "2026-10-23",
+  "status": "focused-passed-with-build-diagnostics",
+  "source_baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": {
+    "commit": [
+      "Right-aligned conditional amend comparison option",
+      "Statistics above patch links with top-aligned lower columns",
+      "Source footer button set; F5 and Commit-menu Refresh retained"
+    ],
+    "log": [
+      "Four native Copy and merge-parent Revert icon consumers use captured owning preferences"
+    ],
+    "patch": [
+      "Explicit target encoding policy reaches decoded inspection, selected/all application and manual recovery",
+      "Unicode patch container encoding remains independent of target ACP",
+      "Legacy container re-decode retains path/record/rename/copy/mode/object authority and original filesystem witnesses",
+      "Unrepresentable patched text remains available for manual Unicode saving; automatic lossy publication refused"
+    ]
+  },
+  "hosted_trigger": {
+    "run": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39949389005",
+    "commit": "f0f6d7aa",
+    "app_build": "passed",
+    "core": {
+      "methods": 2625,
+      "skipped": 2,
+      "assertion_failures": 6,
+      "failed_methods": [
+        "WorkingPatchEncodingTests.testRegionalRecordedBasePreviewAndManualSaveAreLossless",
+        "WorkingPatchEncodingTests.testUnrepresentableAutoMergeRemainsAvailableForManualEncodingChoice"
+      ]
+    },
+    "later_native_steps": "skipped after Core failure"
+  },
+  "local": {
+    "core": {
+      "status": "passed",
+      "exit_code": 0,
+      "methods": 45,
+      "failures": 0,
+      "filter": "WorkingPatchEncodingTests|WorkingPatchBatchTests|SourceTextPatchWorkflowTests|MergeInputEncodingTests",
+      "log": "build/qa/primary-layout-patch-encoding-core-2026-10-23.log"
+    },
+    "app_build": {
+      "status": "exited-zero-with-contradictory-compiler-diagnostics",
+      "log": "build/qa/primary-layout-patch-encoding-app-2026-10-23.log",
+      "exit_code": 0,
+      "diagnostics": "Five generic command-failed-with-exit-code-0 diagnostics retained, alongside existing actor-isolation, unreachable-catch, unused-value and CoreSimulator warnings. The process exited 0 and current GUI/Core binaries were produced; this is not a clean hosted build certification.",
+      "contradictory_diagnostics": 5,
+      "binary_timestamps": {
+        "gui": "2026-10-23 16:15:30 Europe/Berlin",
+        "core": "2026-10-23 16:15:12 Europe/Berlin"
+      }
+    },
+    "native": {
+      "status": "passed",
+      "planned_case_engine_pairs": 4,
+      "cases": [
+        "commit",
+        "log"
+      ],
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "exit_code": 0,
+      "case_engine_pairs": 4,
+      "log": "build/qa/primary-layout-patch-encoding-native-2026-10-23.log",
+      "receiver_pids": [
+        51467,
+        51737,
+        52001,
+        52104
+      ],
+      "diagnostics": "Both Commit cases emitted existing NSTableView reentrant-delegate warning; no exception/assertion. Log cases passed without that warning.",
+      "placement": "Normal checks alpha0 and strictly offscreen via scoped constraint override. Four opt-in deliberate visual photographs briefly centered an actual nonactivating window; finally restored alpha0/offscreen. Owners closed and receivers reaped.",
+      "images": [
+        {
+          "path": "docs/site/assets/commit-source-bands-classic-dark.png",
+          "sha256": "01ebee04073a68ca662aa3018e17ab0552142c72357ad02cc8a082224e9ea51a",
+          "width": 2200,
+          "height": 1664,
+          "review": "complete actual inactive window; amended ordinary or staging; source band/statistics/link/footer geometry fits"
+        },
+        {
+          "path": "docs/site/assets/commit-source-bands-classic-light.png",
+          "sha256": "33734922ae49c809c111587a99794326d954c5e78cb2753aef654c14703355ca",
+          "width": 2200,
+          "height": 1664,
+          "review": "complete actual inactive window; amended ordinary or staging; source band/statistics/link/footer geometry fits"
+        },
+        {
+          "path": "docs/site/assets/commit-source-bands-staging-dark.png",
+          "sha256": "cffc5187c26213186009aa95312b4528a54fdb22833b56bd9524442d7ef75316",
+          "width": 2200,
+          "height": 1664,
+          "review": "complete actual inactive window; amended ordinary or staging; source band/statistics/link/footer geometry fits"
+        },
+        {
+          "path": "docs/site/assets/commit-source-bands-staging-light.png",
+          "sha256": "53d0a80da540355d3db8df50353c7c76c898b7b161e5fc004cc4a94b17983eec",
+          "width": 2200,
+          "height": 1664,
+          "review": "complete actual inactive window; amended ordinary or staging; source band/statistics/link/footer geometry fits"
+        }
+      ],
+      "cleanup_checks": [
+        {
+          "pid": 51467,
+          "independently_absent": true
+        },
+        {
+          "pid": 51737,
+          "independently_absent": true
+        },
+        {
+          "pid": 52001,
+          "independently_absent": true
+        },
+        {
+          "pid": 52104,
+          "independently_absent": true
+        }
+      ]
+    },
+    "resources": {
+      "localizations": {
+        "languages": 38,
+        "keys": 1315,
+        "check": "passed"
+      },
+      "help": {
+        "documents": 58,
+        "topics": 51,
+        "files": 78,
+        "bytes": 3780988,
+        "check": "passed"
+      },
+      "site": {
+        "documents": 422,
+        "unresolved_fragments": 0,
+        "python_tests": 2,
+        "search_filter_no_match_load_failure": "passed",
+        "log": "build/qa/primary-layout-patch-encoding-site-2026-10-23.log",
+        "final_gallery_build": "build/qa/primary-layout-patch-encoding-site-final-2026-10-23.log",
+        "final_gallery_python_tests": 2,
+        "final_gallery_search_filter_no_match_load_failure": "passed"
+      }
+    }
+  },
+  "limits": [
+    "Focused local pass is not a complete hosted CI pass",
+    "No complete upstream dialog or application certification",
+    "Physical keyboard/VoiceOver, installed signed Finder, minimum-version/Intel and App Store distribution remain independent gates"
+  ],
+  "ci_regression": "Existing primary-dialog step also runs the new four-pair native check without visual captures. Complete hosted rerun remains unverified."
+}

@@ -373,7 +373,9 @@ jobs:
       - name: Commit visibility and Log source command families
         run: python3 scripts/test-app-port-families.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Commit options, Log columns and Settings appearance
-        run: python3 scripts/test-primary-parity-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+        run: |
+          python3 scripts/test-primary-parity-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+          python3 scripts/test-primary-presentation-corrections.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Compare and Merge pane status with patch application policies
         run: python3 scripts/test-merge-patch-family.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Decoded Unicode and SVN source patch workflow

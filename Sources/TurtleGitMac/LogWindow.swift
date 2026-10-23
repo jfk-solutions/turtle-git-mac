@@ -4678,7 +4678,7 @@ struct RevisionTable: NSViewRepresentable {
                 // native workflow factory, including the focused model fixture.
                 if let revision = model.revision, revision.parents.count > 1 {
                     let parent = NSMenuItem(title: "Revert change by this commit", action: nil, keyEquivalent: "")
-                    parent.image = MenuIcon.revert.contextImage(); parent.isEnabled = model.canRevertRevision
+                    parent.image = MenuIcon.revert.contextImage(defaults:model.colorPreferences); parent.isEnabled = model.canRevertRevision
                     let submenu = NSMenu(title: parent.title); submenu.autoenablesItems = false
                     for choice in model.parentChoices(for: revision) {
                         let child = NSMenuItem(title: choice.title, action: #selector(revertParent), keyEquivalent: "")
@@ -4763,16 +4763,16 @@ struct RevisionTable: NSViewRepresentable {
                 ("Authors", #selector(copyAuthors)), ("Author names", #selector(copyAuthorNames)),
                 ("Author emails", #selector(copyAuthorEmails)), ("Subjects", #selector(copySubjects)), ("Messages", #selector(copyMessages))] {
                 let child = NSMenuItem(title: title, action: selector, keyEquivalent: "")
-                child.target = self; child.image = MenuIcon.copy.contextImage(); child.isEnabled = !model.selected.isEmpty
+                child.target = self; child.image = MenuIcon.copy.contextImage(defaults:model.colorPreferences); child.isEnabled = !model.selected.isEmpty
                 clipboard.addItem(child)
             }
             let parent = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
             if one, model.revision?.references.isEmpty == false {
                 let refs = NSMenuItem(title: "Tag/branch names", action: #selector(copyReferenceNames(_:)), keyEquivalent: "")
-                refs.target = self; refs.image = MenuIcon.copy.contextImage(); refs.representedObject = pointed; refs.isEnabled = !model.busy
+                refs.target = self; refs.image = MenuIcon.copy.contextImage(defaults:model.colorPreferences); refs.representedObject = pointed; refs.isEnabled = !model.busy
                 clipboard.addItem(refs)
             }
-            parent.image = MenuIcon.copy.contextImage(); parent.submenu = clipboard; menu.addItem(parent)
+            parent.image = MenuIcon.copy.contextImage(defaults:model.colorPreferences); parent.submenu = clipboard; menu.addItem(parent)
             let find=NSMenuItem(title:"Find…",action:#selector(findEntry(_:)),keyEquivalent:"")
             find.target=self;find.image=MenuIcon.historyFind.contextImage(defaults:model.colorPreferences)
             find.isEnabled = !model.isInvalidated && !model.busy && !model.findBlocked && !model.orderingBlocked && !model.referencePickerBlocked && (table?.window as? LogHistoryWindow) != nil

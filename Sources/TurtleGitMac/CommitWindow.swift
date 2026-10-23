@@ -2986,7 +2986,6 @@ struct CommitDialog: View {
                         .font(.caption).foregroundStyle(.orange).lineLimit(2).help(operation.title)
                         .accessibilityIdentifier("Commit operation state")
                 }
-                Button("Refresh") { model.reload() }.disabled(!model.canRefresh)
                 Spacer()
                 CommitActionControl(model:model).fixedSize().disabled(!model.canCommit || model.inputsBlocked)
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel)
@@ -3021,9 +3020,12 @@ struct CommitDialog: View {
                 VStack(alignment: .leading, spacing: 8) {
                     CommitMessageEditor(model: model).frame(minHeight: 100, maxHeight: .infinity).border(Color.secondary.opacity(0.3))
                     HStack { Spacer(); CommitMessagePositionIndicator(model: model) }
-                    DialogCommandRows {
-                        Toggle("Amend Last Commit", isOn:formBinding(.amend,\.amend)).toggleStyle(.checkbox).disabled(!model.canChangeFormOption(.amend)).onChange(of: model.amend) { _ in model.amendChanged() }
-                        if model.amend { Toggle("Show diff to last commit", isOn:formBinding(.amendComparison,\.amendDiffToLastCommit)).toggleStyle(.checkbox).disabled(!model.canChangeFormOption(.amendComparison)) }
+                    // IDD_COMMITDLG keeps the conditional comparison control
+                    // anchored to the right edge of the Amend option band.
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Toggle("Amend Last Commit", isOn:formBinding(.amend,\.amend)).toggleStyle(.checkbox).fixedSize().disabled(!model.canChangeFormOption(.amend)).onChange(of: model.amend) { _ in model.amendChanged() }
+                        Spacer(minLength: 12)
+                        if model.amend { Toggle("Show diff to last commit", isOn:formBinding(.amendComparison,\.amendDiffToLastCommit)).toggleStyle(.checkbox).fixedSize().disabled(!model.canChangeFormOption(.amendComparison)) }
                     }
                     DialogCommandRows {
                         Toggle("Set author date", isOn:formBinding(.authorDate,\.setAuthorDate)).toggleStyle(.checkbox).frame(minWidth:170,alignment:.leading).fixedSize()
@@ -3060,7 +3062,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                         fileTable(model.visibleEntries, staged: model.stagingEnabled ? model.stagedDiff : nil)
                             .overlay {if let text=model.fileListEmptyMessage {Text(text).multilineTextAlignment(.center).font(.callout).foregroundStyle(.secondary).padding(20).frame(maxWidth:.infinity,maxHeight:.infinity).allowsHitTesting(false).accessibilityLabel(text)}}
                             .frame(minHeight: 120).disabled(model.messageOnly)
-                        HStack {
+                        HStack(alignment: .top) {
                             VStack(alignment: .leading, spacing: 6) {
                                 Toggle("Staging support (EXPERIMENTAL)",isOn:formBinding(.staging,\.stagingEnabled))
                                 Toggle("Show Unversioned Files", isOn:formBinding(.unversioned,\.showUnversioned))
@@ -3068,13 +3070,15 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                             }.toggleStyle(.checkbox)
                             Spacer()
                             VStack(alignment: .trailing, spacing: 6) {
+                                // Source statistics precede the patch links,
+                                // directly below the accepted file snapshot.
+                                Text(model.stagingEnabled ? FileListLabels.stagingSummary(staged:model.stagedEntries.count,unstaged:model.unstagedEntries.count):FileListLabels.selectionSummary(checked:model.checkedPathsForCommit.count,shown:model.visibleEntries.count)).font(.caption)
                                 if model.stagingEnabled {
                                     Button(LocalizedStringKey(model.partialMode == false ? "Hide Staging «" : "Partial Staging »")) { model.showPartial(false) }.buttonStyle(.link)
                                     Button(LocalizedStringKey(model.partialMode == true ? "Hide Unstaging «" : "Partial Unstaging »")) { model.showPartial(true) }.buttonStyle(.link)
                                 } else {
                                     Button(LocalizedStringKey(model.viewingPatch ? "Hide Patch «" : "View Patch »")) { model.showViewPatch() }.buttonStyle(.link)
                                 }
-                                Text(model.stagingEnabled ? FileListLabels.stagingSummary(staged:model.stagedEntries.count,unstaged:model.unstagedEntries.count):FileListLabels.selectionSummary(checked:model.checkedPathsForCommit.count,shown:model.visibleEntries.count)).font(.caption)
                             }
                         }
                     }.padding(4)

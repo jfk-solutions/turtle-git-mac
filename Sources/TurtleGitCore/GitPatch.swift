@@ -283,7 +283,7 @@ extension GitRepository {
             review.files.contains{$0.pathBytes==file.pathBytes && (($0.additions ?? 0)>0 || ($0.deletions ?? 0)>0)}
         }
         let total=Set(review.files.filter{fileIDs.contains($0.id)}.map(\.pathBytes)).count
-        var advancingReview = review
+        var advancingReview = try workingTreePatchReview(review, applying: textEncodingPolicy, cancellation: cancellation)
         var seen = Set<Data>(), results: [WorkingTreePatchFileResult] = []
         for file in review.files where fileIDs.contains(file.id) && seen.insert(file.pathBytes).inserted {
             if cancellation?.isCancelled == true { return .init(files: results, cancelled: true) }
@@ -535,6 +535,8 @@ public struct WorkingTreePatchFileComparison: Sendable {
     /// Recorded version-control base used when the working file rejects the patch.
     public let recoveryBase: ComparisonFileContent?
     public let textEncodingPolicy:MergeTextEncodingPolicy?
+    /// Decoded source comparisons already carry accepted per-pane codecs.
+    var usesDecodedTextPatch: Bool { review.decodedPatch != nil }
     public var requiresMerge:Bool { recoveryBase != nil }
     public enum RecoveryKind:String,Sendable {case text,binary,symbolicLink,deletion}
     public var recoveryKind:RecoveryKind? {
@@ -565,7 +567,8 @@ extension GitRepository {
         guard review.repositoryRoot == root, review.includePatterns.isEmpty,
               let file = review.files.first(where: { $0.id == fileID }) else { throw WorkingTreePatchFailure.selection }
         if review.decodedPatch != nil {
-            return try decodedWorkingTreePatchComparison(review, fileID: fileID, allowRecovery: true, cancellation: cancellation)
+            let effectiveReview = try workingTreePatchReview(review, applying: textEncodingPolicy, cancellation: cancellation)
+            return try decodedWorkingTreePatchComparison(effectiveReview, fileID: fileID, allowRecovery: true, cancellation: cancellation)
         }
         let textEncodingPolicy: MergeTextEncodingPolicy? = textEncodingPolicy ?? review.textEncodingPolicy
         let matching = review.files.filter { $0.pathBytes == file.pathBytes }
@@ -859,6 +862,46 @@ private extension WorkingTreePatchReview {
 }
 
 private extension GitRepository {
+    /// A later editor/operation may supply the target ACP after discovery.
+    /// Reinterpret decoding only; preserve the accepted path and filesystem
+    /// witnesses instead of obtaining a new review of potentially changed files.
+    func workingTreePatchReview(_ review: WorkingTreePatchReview, applying requestedPolicy: MergeTextEncodingPolicy?, cancellation: OperationCancellation?) throws -> WorkingTreePatchReview {
+        guard let policy = requestedPolicy, let captured = review.decodedPatch, policy != review.textEncodingPolicy else { return review }
+        try cancellation?.check()
+        var patch = captured
+        // A Unicode patch container is independent of the target's legacy
+        // encoding. Only reinterpret a legacy container's original bytes when
+        // the selected legacy codec changes; never turn UTF8 Japanese hunks
+        // into ACP text merely because the current target uses that ACP.
+        if captured.sourceEncoding.legacyCodePage != nil, captured.sourceEncoding != policy.legacyEncoding {
+            let parsed = try SourceTextPatch.parse(bytes: captured.originalBytes,
+                textEncodingPolicy: .init(preferUTF8: false, legacyEncoding: policy.legacyEncoding), cancellation: cancellation).strippingPaths(review.stripCount)
+            patch = review.reversed ? parsed.reversed : parsed
+            guard patch.files.count == captured.files.count else { throw WorkingTreePatchFailure.review }
+            for (before, after) in zip(captured.files, patch.files) {
+                try cancellation?.check()
+                // A new codec is not authority to introduce another path,
+                // rename/copy role, mode or recorded version-control object.
+                guard before.id == after.id,
+                      before.rawOldPathBytes == after.rawOldPathBytes, before.rawNewPathBytes == after.rawNewPathBytes,
+                      before.oldPathBytes == after.oldPathBytes, before.newPathBytes == after.newPathBytes,
+                      before.renameFromPathBytes == after.renameFromPathBytes, before.renameToPathBytes == after.renameToPathBytes,
+                      before.copyFromPathBytes == after.copyFromPathBytes, before.copyToPathBytes == after.copyToPathBytes,
+                      before.oldMode == after.oldMode, before.newMode == after.newMode,
+                      before.oldRevision == after.oldRevision, before.newRevision == after.newRevision else { throw WorkingTreePatchFailure.review }
+            }
+        }
+        let candidate = WorkingTreePatchReview(files: review.files, document: patch.document,
+            statistics: review.statistics, summary: review.summary, validationError: nil,
+            isGitWorkingTree: review.isGitWorkingTree, textEncodingPolicy: policy, decodedPatch: patch,
+            decodedInputs: review.decodedInputs, directoryMode: review.directoryMode,
+            repositoryRoot: review.repositoryRoot, reversed: review.reversed, stripCount: review.stripCount,
+            includePatterns: review.includePatterns)
+        var failure: String?
+        do { _ = try decodedWorkingTreePatchComparison(candidate, fileID: nil, allowRecovery: false, cancellation: cancellation) }
+        catch { try cancellation?.check(); failure = error.localizedDescription }
+        return candidate.replacingValidationError(failure)
+    }
     func recordingDecodedOutputs(_ expected: GitPathMap<ComparisonFileContent>, in review: WorkingTreePatchReview, cancellation: OperationCancellation?) throws -> WorkingTreePatchReview {
         guard review.decodedPatch != nil, var recorded = review.decodedInputs else { return review }
         let policy = review.textEncodingPolicy ?? .init(preferUTF8: true)
@@ -968,8 +1011,23 @@ private extension GitRepository {
             if changingPath, after.mode != nil { throw FileComparisonEditFailure.changed }
             let input = before.mode == nil ? nil : before.bytes
             let application: SourceTextPatchApplication
+            var unicodePreview = false
+            func preview(_ bytes: Data) throws -> SourceTextPatchApplication {
+                let raw = ComparisonFileContent(path: beforePath, revision: .workingTree, bytes: bytes, mode: before.mode ?? "100644", permissions: before.permissions)
+                guard let text = policy.applying(raw).text else { throw SourceTextPatchApplication.Failure.encoding }
+                // This private Unicode representation is for preview only.
+                // Original current/recorded bytes remain the save witnesses;
+                // automatic Save still requests the captured target codec.
+                let unicode = try ComparisonTextEncoding.utf8BOM.encode(text)
+                return try SourceTextPatchApplication.simulate(file: file, input: input, baseInput: unicode,
+                    textEncodingPolicy: .init(preferUTF8: true), force: true, cancellation: cancellation)
+            }
             do {
                 application = try SourceTextPatchApplication.simulate(file: file, input: input, textEncodingPolicy: policy, cancellation: cancellation)
+            } catch let failure as SourceTextPatchApplication.Failure where allowRecovery && failure == .encoding {
+                application = try preview(input ?? Data())
+                recoveryBase = before
+                unicodePreview = true
             } catch {
                 try cancellation?.check()
                 // Only an actual index old..new object records a Git base.
@@ -984,7 +1042,12 @@ private extension GitRepository {
                     bytes = try run(["cat-file", "blob", object], environmentOverrides: ["GIT_NO_LAZY_FETCH": "1"], cancellation: cancellation).stdout
                     label = object
                 }
-                application = try SourceTextPatchApplication.simulate(file: file, input: input, baseInput: bytes, textEncodingPolicy: policy, force: true, cancellation: cancellation)
+                do {
+                    application = try SourceTextPatchApplication.simulate(file: file, input: input, baseInput: bytes, textEncodingPolicy: policy, force: true, cancellation: cancellation)
+                } catch let failure as SourceTextPatchApplication.Failure where failure == .encoding {
+                    application = try preview(bytes)
+                    unicodePreview = true
+                }
                 let base = ComparisonFileContent(path: beforePath, revision: .revision(label), bytes: bytes, mode: file.oldMode ?? before.mode ?? "100644", permissions: before.permissions ?? 0o644)
                 recoveryBase = policy.applying(base)
             }
@@ -994,7 +1057,9 @@ private extension GitRepository {
                 let mode = file.newMode ?? before.mode ?? "100644"
                 guard ["100644", "100755"].contains(mode) else { throw SourceTextPatchFailure.opaque }
                 let permissions = mode == before.mode ? (before.permissions ?? 0o644) : (mode == "100755" ? 0o755 : 0o644)
-                outputs[afterPath] = ComparisonFileContent(path: afterPath, revision: .workingTree, bytes: application.outputData, mode: mode, permissions: permissions, encoding: application.outputEncoding)
+                let outputEncoding: ComparisonTextEncoding = unicodePreview ? (file.newHasBOM == true ? .utf8BOM : .utf8) : application.outputEncoding
+                let outputBytes = unicodePreview ? try outputEncoding.encode(application.text) : application.outputData
+                outputs[afterPath] = ComparisonFileContent(path: afterPath, revision: .workingTree, bytes: outputBytes, mode: mode, permissions: permissions, encoding: outputEncoding)
                 if changingPath, file.copyFromPathBytes == nil {
                     outputs[beforePath] = ComparisonFileContent(path: beforePath, revision: .workingTree, bytes: Data(), mode: nil, isDeleted: true)
                 }

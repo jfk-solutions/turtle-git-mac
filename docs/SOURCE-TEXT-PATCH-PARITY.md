@@ -142,3 +142,23 @@ This scope does not establish full upstream parser acceptance, every external pr
 format, visual parity of every dialog, hosted CI success or physical Finder
 acceptance. Remaining implementation and evidence are tracked in
 [the adapter gap record](MERGE-PATCH-TEXT-ADAPTER-GAPS.md).
+
+## Captured target encoding after discovery — October 23, 2026
+
+Inspection, comparison and selected/all application must honor an explicitly
+supplied target text policy even when discovery already selected the decoded
+adapter. The patch container and target encoding are separate: a captured Unicode
+patch retains its Unicode hunk text, while a legacy patch can be re-decoded from
+its original bytes under the newly selected legacy codec. Re-decoding cannot
+change accepted paths, record identities, rename/copy roles, modes or recorded
+object identities.
+
+The original target byte, mode and permission witnesses remain authoritative.
+Changing an encoding choice does not refresh the review or accept later external
+edits. Manual recovery may show text that requires another output encoding;
+automatic publication still requires lossless encoding, and an unrepresentable
+result remains available for an explicit manual encoding choice.
+
+The hosted Core failure that exposed this propagation boundary and the focused
+repair checks are recorded with
+[the connected batch](qa/primary-layout-patch-encoding-2026-10-23.json).

@@ -75,4 +75,48 @@ final class WorkingPatchEncodingTests:XCTestCase {
         XCTAssertTrue(result.files[0].requiresMerge);XCTAssertFalse(result.files[0].success)
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("file.txt")),current)
     }
+    func testLateCapturedPolicyAppliesSelectedCleanUnicodePatchWithoutRetargetingOtherFiles()async throws {
+        let codec=ComparisonTextEncoding.windows1251,base="head\nold\nместный хвост\n",patched="head\nnew\nместный хвост\n"
+        let(root,repo,_)=try await fixture(base:codec.encode(base),patched:codec.encode(patched),current:codec.encode(base));defer{try? FileManager.default.removeItem(at:root)}
+        try codec.encode(base).write(to:root.appendingPathComponent("other.txt"));try await repo.stage(["other.txt"]);_=try await repo.commit(message:"other tracked file")
+        let entry="@@ -1,3 +1,3 @@\n head\n-old\n+new\n местный хвост\n"
+        let text="--- a/file.txt\n+++ b/file.txt\n"+entry+"--- a/other.txt\n+++ b/other.txt\n"+entry
+        let bytes=try ComparisonTextEncoding.utf16LEBOM.encode(text),review=try await repo.reviewWorkingTreePatch(bytes)
+        XCTAssertFalse(review.canApply,"Default discovery must discriminate the later Cyrillic target policy")
+        let policy=MergeTextEncodingPolicy(preferUTF8:false,legacyEncoding:codec),file=try XCTUnwrap(review.files.first{$0.path=="file.txt"})
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let result=try await repo.applyWorkingTreePatchBatch(review,fileIDs:[file.id],textEncodingPolicy:policy)
+        XCTAssertEqual(result.files.count,1);XCTAssertTrue(result.files[0].success,result.files[0].output)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("file.txt")),try codec.encode(patched))
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("other.txt")),try codec.encode(base))
+        XCTAssertEqual(review.document.bytes,bytes,"Accepted patch container bytes changed")
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+        let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(afterHead,head)
+    }
+    func testLatePolicyNeverRecapturesChangedPreviewOrManualSaveWitnesses()async throws {
+        let codec=ComparisonTextEncoding.windows1251,base="head\nстарое\nkeep\n",patched="head\nновое\nkeep\n",current="head\nместное\nkeep\n"
+        let(root,repo,review)=try await fixture(base:codec.encode(base),patched:codec.encode(patched),current:codec.encode(current));defer{try? FileManager.default.removeItem(at:root)}
+        let policy=MergeTextEncodingPolicy(preferUTF8:false,legacyEncoding:codec),comparison=try await repo.compareWorkingTreePatchFile(review,fileID:review.files[0].id,textEncodingPolicy:policy)
+        XCTAssertEqual(comparison.document.base.text,current);XCTAssertEqual(comparison.document.destination.text,patched)
+        let changed=try codec.encode("external edit\n"),index=try Data(contentsOf:root.appendingPathComponent(".git/index"));try changed.write(to:root.appendingPathComponent("file.txt"))
+        do{_=try await repo.compareWorkingTreePatchFile(review,fileID:review.files[0].id,textEncodingPolicy:policy);XCTFail("Late codec choice adopted changed target as a new review")}catch FileComparisonEditFailure.changed{}
+        do{_=try await repo.saveWorkingTreePatchFile(comparison,text:patched,encoding:.utf8,autoAddNewFiles:false);XCTFail("Late codec choice bypassed manual save witness")}catch FileComparisonEditFailure.changed{}
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("file.txt")),changed);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+    }
+    func testDirectUnicodePatchWithUnrepresentableTargetKeepsManualUnicodePreviewButRefusesAutomaticSave()async throws {
+        let codec=ComparisonTextEncoding.windows1251,current="head\nold\nkeep\nместный хвост\n",original=try codec.encode(current)
+        let(root,repo,_)=try await fixture(base:original,patched:codec.encode(current.replacingOccurrences(of:"old",with:"seed")),current:original);defer{try? FileManager.default.removeItem(at:root)}
+        let text="--- a/file.txt\n+++ b/file.txt\n@@ -1,3 +1,3 @@\n head\n-old\n+日本語\n keep\n"
+        let review=try await repo.reviewWorkingTreePatch(ComparisonTextEncoding.utf16LEBOM.encode(text)),policy=MergeTextEncodingPolicy(preferUTF8:false,legacyEncoding:codec)
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let automatic=try await repo.applyWorkingTreePatchBatch(review,fileIDs:Set(review.files.map(\.id)),mergeConfiguration:engine,textEncodingPolicy:policy)
+        XCTAssertFalse(automatic.files[0].success);XCTAssertTrue(automatic.files[0].requiresMerge);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("file.txt")),original)
+        let comparison=try await repo.compareWorkingTreePatchFile(review,fileID:review.files[0].id,textEncodingPolicy:policy),document=try comparison.patchMergeDocument(engine:engine)
+        XCTAssertEqual(comparison.recoveryBase?.bytes,original);XCTAssertEqual(comparison.document.base.bytes,original);XCTAssertEqual(comparison.textEncodingPolicy,policy)
+        XCTAssertEqual(document.encoding,codec);XCTAssertEqual(document.initialResult,"head\n日本語\nkeep\nместный хвост\n")
+        XCTAssertEqual(document.rawInputs?.mine,original);XCTAssertEqual(document.rawInputs?.theirs,Data(document.theirs.utf8))
+        _=try await repo.saveWorkingTreePatchFile(comparison,text:document.initialResult,encoding:.utf8,autoAddNewFiles:false)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("file.txt")),Data(document.initialResult.utf8));XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+    }
+
 }

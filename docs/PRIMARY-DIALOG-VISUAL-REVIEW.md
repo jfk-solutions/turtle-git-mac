@@ -94,3 +94,29 @@ See [dated native evidence](qa/primary-live-presentation-2026-10-16.json). Commi
 ![Native log-live-dates-light](site/assets/primary-log-live-dates-light.png)
 
 ![Native log-live-dates-dark](site/assets/primary-log-live-dates-dark.png)
+
+
+## Commit source option bands — October 23, 2026
+
+Four actual complete-window captures show the corrected Amend comparison option
+at the right, statistics above patch links, top-aligned lower columns and the
+source Commit/Cancel/Help footer. Ordinary and staging views use the same private
+amended merge draft. The receiver briefly displayed each owned window for this
+deliberate visual check, then immediately restored invisible/offscreen placement.
+Inactive native chrome and controls are visible because the receiver did not
+activate itself. These images do not certify active focus, physical keyboard or
+all conditional states.
+
+The [grouped checkpoint](qa/primary-layout-patch-encoding-2026-10-23.json) records
+45 affected Core checks and four native case/engine pairs passing once, with
+receiver cleanup. The Debug build exited zero and produced current binaries but
+emitted five contradictory command-failed-with-exit-code-zero diagnostics, which
+remain recorded rather than treated as a clean build.
+
+![Ordinary amended Commit, light](site/assets/commit-source-bands-classic-light.png)
+
+![Ordinary amended Commit, dark](site/assets/commit-source-bands-classic-dark.png)
+
+![Staging amended Commit, light](site/assets/commit-source-bands-staging-light.png)
+
+![Staging amended Commit, dark](site/assets/commit-source-bands-staging-dark.png)

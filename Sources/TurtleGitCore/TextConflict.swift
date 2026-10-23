@@ -509,7 +509,13 @@ extension WorkingTreePatchFileComparison {
         guard let recoveryBase else {throw WorkingTreePatchFailure.review}
         let policy=textEncodingPolicy ?? preferUTF8.map {MergeTextEncodingPolicy(preferUTF8:$0,legacyEncoding:legacyEncoding)}
         guard [recoveryBase,document.base,document.destination].allSatisfy({$0.mode != nil && $0.mode != "120000"}),policy != nil || recoveryKind == .text || !inputEncodings.isEmpty else {throw WorkingTreePatchFailure.review}
-        func content(_ value:ComparisonFileContent)->ComparisonFileContent {policy?.applying(value) ?? value}
+        func content(_ value:ComparisonFileContent)->ComparisonFileContent {
+            // Source patch preview has already decoded each original input and
+            // may represent an unencodable patched pane privately as Unicode.
+            // Reapplying the target ACP would corrupt that accepted pane.
+            if usesDecodedTextPatch, textEncodingPolicy != nil { return value }
+            return policy?.applying(value) ?? value
+        }
         let base = try inputEncodings.base.map {try content(recoveryBase).reinterpreting(encoding:$0)} ?? content(recoveryBase)
         let mine = try inputEncodings.mine.map {try content(document.base).reinterpreting(encoding:$0)} ?? content(document.base)
         let theirs = try inputEncodings.theirs.map {try content(document.destination).reinterpreting(encoding:$0)} ?? content(document.destination)
