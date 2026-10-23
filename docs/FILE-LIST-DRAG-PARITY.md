@@ -1,10 +1,13 @@
-# Dragging files from revision lists
+# Dragging files from Git lists
 
 This family follows pinned TortoiseGit
 `7338078f8ddd924b8cddee35f512f2286072136d`. It covers file delivery from
 Changed Files, Log's changed-file list, Rebase's Revision Files, and the incoming
 and outgoing Synchronization file lists. Repository Browser has a separate
 existing drag implementation.
+
+The October 23 continuation also connects the shared working-file list used by
+Commit, Working Tree and Add; its scope and evidence are recorded below.
 
 ## Source contract
 
@@ -68,6 +71,46 @@ This adds delivery behavior to the existing tables without introducing another
 dialog, setting or column layout.
 
 ## Grouped checkpoint and acceptance still required
+
+### Working-file list continuation — October 23, 2026
+
+Pinned `GitStatusListCtrl.cpp` 3767–3804 starts a drag from the highlighted rows;
+`FillListOfSelectedItemPaths` preserves their list order. `GitDataObject.cpp`
+284–315 supplies real working-file paths, excluding missing/deleted files and
+directories from file delivery. Its text representation retains selected paths
+independently of file eligibility. Checkbox membership belongs to Commit/Add,
+not to this selected-row transfer.
+
+The native continuation connects the existing working-file transfer contract to
+Commit's classic/staged/unstaged tables, Working Tree and Add. Repository,
+selected rows and access are captured at the gesture. New gestures obey the
+originating owner's operation/Quit/retirement gates; accepted writers retain
+their captured access until the receiver releases them. Group/checkbox/header
+gestures keep their existing native behavior. An originating list refuses its
+own incoming drag rather than inadvertently launching a second Git operation.
+
+[The connected checkpoint](qa/working-file-drag-2026-10-23.json) records actual
+validation, repairs and remaining acceptance. It does not certify physical
+multi-file gestures, other applications' move/copy behavior or signed Finder
+delivery. No new setting or icon is introduced by this continuation.
+
+All six functional case/engine pairs pass for Commit, Working Tree and Add.
+The native adapters/datasource retain display order and checkbox independence,
+offer mixed text/file and text-only selections, reject new gestures through
+busy/Quit/sheet/retired owners, and reject same-origin drops. Captured providers
+deliver after normal source closure. A separate call through the same shared
+helper releases its caller's private lease and receipt before loading the
+retained provider, proving permission retention without a controller holding it.
+
+An earlier fixture incorrectly required Cocoa controller/model deallocation as
+the source-close condition. That strict diagnostic still fails in the headless
+receiver and remains opt-in; its failures and reference scans are retained.
+The functional checks require closed/retired source ownership and drained work,
+and do not claim natural Cocoa object deallocation. Reference scans alone do not
+establish an ARC cycle. Pasteboard sandbox-extension diagnostics from unbundled
+receivers are also retained; these checks do not establish signed grant delivery.
+
+### Historical-list checkpoint — October 21, 2026
 
 The [October 21 checkpoint](qa/file-list-drag-2026-10-21.json) passes six focused
 Core methods, the Debug app build, and all six native case/engine combinations

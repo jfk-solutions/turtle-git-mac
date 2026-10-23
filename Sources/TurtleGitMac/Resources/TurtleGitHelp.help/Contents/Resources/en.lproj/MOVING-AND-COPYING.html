@@ -32,6 +32,22 @@ An occupied name keeps the name sheet open until a valid destination is entered.
 <p>A failed item in a dropped Move offers Ignore or Abort. Earlier successful moves
 remain applied. Clipboard Paste Move stops at its first failure. Review the
 operation output and current status before retrying either workflow.</p>
+<h2 id="drag-files-out-of-a-file-list">Drag files out of a file list</h2>
+<p>In Commit, Working Tree and Add, highlight the file rows to transfer and drag
+them to Finder or another application. The highlighted rows determine the drag;
+the checkboxes still determine the dialog's Git operation. Group headings and
+checkbox clicks do not start a file transfer.</p>
+<p>Working files are offered as their actual file URLs. Deleted or missing files,
+directories and submodules do not offer file contents. The text representation
+retains the selected paths, including paths without file contents. An accepted
+transfer retains its repository permission even if its source window closes.
+Dropping the same drag back onto its originating list does not start an incoming
+Copy/Add, Move or selection operation. Other incoming drops keep their existing
+review workflow.</p>
+<p>Changing a file outside TurtleGit does not create a commit or stage the change.
+Review the refreshed working-tree state afterward. Physical modifier/move,
+cross-application destination naming and signed Finder delivery still require
+installed acceptance; see <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/FILE-LIST-DRAG-PARITY.html">the source comparison</a>.</p>
 <h2 id="copy-and-add">Copy and Add</h2>
 <p>Copy and Add accepts external source files and folders. Overwrite replaces an
 existing file; Keep retains and stages the destination's existing contents;

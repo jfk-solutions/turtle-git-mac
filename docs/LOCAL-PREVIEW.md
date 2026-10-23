@@ -57,23 +57,23 @@ workflow checks; each parity guide records the remaining acceptance.
 
 ## Current measured package — 23 October 2026
 
-The local package is `build/previews/TurtleGit-d9849eb5-build2/`. Its app, Finder
-extension and cache service all report version `0.1.0`, build `2`. The ZIP is
-`TurtleGit-for-Mac-0.1.0-local-preview.zip` (**409,510,795 bytes**), SHA-256:
+The local package is `build/previews/TurtleGit-2ba5f945-build3/`. Its app, Finder
+extension and cache service all report version `0.1.0`, build `3`. The ZIP is
+`TurtleGit-for-Mac-0.1.0-local-preview.zip` (**409,567,553 bytes**), SHA-256:
 
 ```text
-4dc53f880537d42de09a475057f75681fb505a61f5bb72fd4b3958713a2716de
+257250e35136e059e68ce29d7cacfa4844dac24ede3207b94a876b4f5e88a371
 ```
 
 The adjacent manifest records measured build HEAD
-`d9849eb51bdb139b293250e38e5d18844766f503` and V2 source input SHA-256
-`bf13f60f420fffc1e3ef48308f5470975a0ffb4ccf2683ce0da7dcf05830b9a4`.
-Its dirty input state includes the new configuration/script fixes and existing
+`2ba5f94555f059c2a3fab888ace15fe808fe2105` and V3 source input SHA-256
+`df66a7af80dbb33925e718f495a2b131127f5cf075a8bd395b3876830672fd6d`.
+Its dirty input state includes the selected-file dragging/provenance fixes and existing
 protected development-script changes. It is not a clean-commit build claim.
 The app and extracted ZIP pass matching complete 6,354-member signed inventories
 and deep strict ad-hoc code-seal checks.
 
-[The delivery evidence](qa/distribution-d9849eb5-build2-2026-10-23.json) also records
+[The delivery evidence](qa/distribution-2ba5f945-build3-2026-10-23.json) also records
 the separate unsigned AppStore archive, eight universal app-owned components and
 eight matching universal dSYMs. Packaged WCRev `--json` passed under arm64 and
 x86_64/Rosetta against the expected private repository HEAD and branch; both owned
@@ -81,8 +81,8 @@ receivers were reaped. This did not launch the shipping main GUI, install or
 register Finder, refresh the signed candidate, upload a GitHub release, or export
 or submit an App Store build.
 
-The current [d9849eb5 hosted macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39969018955)
-was pending at the recorded October 23 observation. A complete hosted pass remains
+The [2ba5f945 hosted macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39978977077)
+was pending at the October 23 observation while cb676f1a was active. A complete hosted pass remains
 required; these package and scoped helper checks do not clear that gate. The
 [release blockers](RELEASE-BLOCKERS.md) distinguish earlier hosted failures and
 local repairs from the current delivery evidence. The

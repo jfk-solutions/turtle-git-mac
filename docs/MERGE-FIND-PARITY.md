@@ -5,6 +5,22 @@ Baseline: pinned TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`,
 `BuildFindStringArray`, `GetCharGroup` and `IDD_FIND` in
 `src/Resources/TortoiseMergeENG.rc`.
 
+## Confirmed remaining directional behavior — October 23, 2026
+
+The native navigator currently chooses from a global forward nonoverlapping
+match list. Pinned `BaseView.cpp` 5591–5605 and 5646–5785 instead search the
+current bounded line substring on demand. This leaves confirmed differences:
+`aaa` / `aa` from caret 1 must find offset 1 forward, and reverse search from the
+end must find that rightmost overlapping occurrence. Search-up Replace uses the
+selected start, whereas the native include-selection path uses its end. The
+source's whole-word check also uses the bounded substring: `xcat` from caret 1
+forward and `catx` from caret 3 backward accept `cat` at that boundary.
+
+These cases require a separate directional navigator shared by Find, shortcuts,
+selected-text search and Replace. Count, painting and Replace All must retain
+their forward nonoverlapping projection (`BuildFindStringArray`, 4564–4633).
+This is outstanding behavior, not certified parity from the existing dialog.
+
 The two-pane comparison and three-pane conflict editor now use a pane-local,
 modeless native Find window. Search for and Replace with are editable history
 combos. The left column contains Match case, Limit search to modified lines,

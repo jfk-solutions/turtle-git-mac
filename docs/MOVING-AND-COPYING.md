@@ -42,6 +42,26 @@ A failed item in a dropped Move offers Ignore or Abort. Earlier successful moves
 remain applied. Clipboard Paste Move stops at its first failure. Review the
 operation output and current status before retrying either workflow.
 
+## Drag files out of a file list
+
+In Commit, Working Tree and Add, highlight the file rows to transfer and drag
+them to Finder or another application. The highlighted rows determine the drag;
+the checkboxes still determine the dialog's Git operation. Group headings and
+checkbox clicks do not start a file transfer.
+
+Working files are offered as their actual file URLs. Deleted or missing files,
+directories and submodules do not offer file contents. The text representation
+retains the selected paths, including paths without file contents. An accepted
+transfer retains its repository permission even if its source window closes.
+Dropping the same drag back onto its originating list does not start an incoming
+Copy/Add, Move or selection operation. Other incoming drops keep their existing
+review workflow.
+
+Changing a file outside TurtleGit does not create a commit or stage the change.
+Review the refreshed working-tree state afterward. Physical modifier/move,
+cross-application destination naming and signed Finder delivery still require
+installed acceptance; see [the source comparison](FILE-LIST-DRAG-PARITY.md).
+
 ## Copy and Add
 
 Copy and Add accepts external source files and folders. Overwrite replaces an

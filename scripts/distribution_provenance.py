@@ -5,13 +5,12 @@ from pathlib import Path
 import subprocess
 from distribution_archive import file_inventory
 
-INPUT_PATHS = ('Sources', 'Configuration', 'TurtleGitMac.xcodeproj', 'Package.swift',
+INPUT_PATHS = ('Sources', 'FinderSync', 'Configuration', 'TurtleGitMac.xcodeproj', 'Package.swift',
                'Package.resolved', 'project.yml', 'LICENSE', 'NOTICE', 'Licenses', 'patches', 'scripts')
-# V2 closes the runtime reconstruction inputs: builders consume repository
-# patches, third-party license texts and the XcodeGen project recipe, as well
-# as generated project files, sources and pin manifests.
-# A V1 candidate must rebuild; it cannot establish these formerly unmeasured bytes.
-SCHEMA = 'TurtleGitDistributionInputsV2'
+# V3 also measures the Finder extension's top-level source directory. V2
+# measured runtime reconstruction inputs but omitted this compiled app peer.
+# Older candidates must rebuild; their audits cannot establish omitted bytes.
+SCHEMA = 'TurtleGitDistributionInputsV3'
 
 
 def digest_file(path):

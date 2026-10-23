@@ -51,7 +51,7 @@ contexts; see [popup behavior and remaining acceptance](docs/LOG-POPUP-VARIANTS.
 | Single-patch review | Native before/after review, checked-file application, edited saves, exact-byte clipboard copy/review and confirmed target matching against plain directories or Git subfolders; app/Finder entry | Full TortoiseGitMerge behavior, broader formats and physical/signed clipboard acceptance; [source audit](docs/REVIEW-PATCH-PARITY.md) |
 | SVN integration | DCommit choices/stash flow, Fetch comparisons, fetch-then-Rebase and Ignore destinations; private universal Perl/Subversion runtime; native credentials, explicit certificate trust, dual fingerprints/native certificate inspection and public DER/PEM export, and private client-certificate selection | Public server/TLS, signed Keychain/grants, physical UI and distribution acceptance; [guide](docs/SVN-AUTHENTICATION.md), [source audit](docs/SVN-PARITY.md) |
 | Git daemon | Native warning/progress, server URLs, owned cancellation and app/Finder entry | Signed sandbox, firewall and LAN/IPv6 acceptance; [source audit](docs/DAEMON-PARITY.md) |
-| Moving and copying | Guarded Move/Rename, native Copy/Add, captured clipboard transfers and direct Finder Transfer with native destination/history; workspace/Working Tree drops share source choices and owned preparation/progress/recovery | Physical/signed permission acceptance; exact Finder right-drag interception has no public FinderSync hook; [guide](docs/MOVING-AND-COPYING.md), [source audit](docs/FINDER-SOURCE-TRANSFER-PARITY.md) |
+| Moving and copying | Guarded Move/Rename, native Copy/Add, captured clipboard transfers and direct Finder Transfer with native destination/history; workspace/Working Tree drops share source choices and owned preparation/progress/recovery; highlighted Commit/Working Tree/Add rows offer outbound working-file and path-text drags | Physical/signed permission acceptance; exact Finder right-drag interception has no public FinderSync hook; [guide](docs/MOVING-AND-COPYING.md), [source audit](docs/FINDER-SOURCE-TRANSFER-PARITY.md) |
 | Repository folder access | Saved workspace folder/metadata grants, automatic linked-worktree/submodule/shared-object discovery, native access manager with renewal, replacement and confirmed removal | Signed sandbox/powerbox and Finder-service acceptance; [guide](docs/REPOSITORY-FOLDER-ACCESS.md) |
 | Cache menu | Optional independent menu-bar icon, live counts, fifteen-line activity, Enable/Disable and awaited Exit | Signed service and physical menu-bar acceptance remain open; [guide](docs/CACHE-MENU.md) |
 | Finder | Embedded Finder Sync extension, status snapshot/badges, selection-based context-menu routing, event-driven active-workspace refresh and watched-repository service; [CacheSave](docs/FINDER-CACHE-PERSISTENCE.md) separates optional warm persistence from live process sessions and preserves other active publishers during shutdown | An older development-signed candidate passed installed activation, live badges and one file-context Show Log; complete current-command and distribution/App Store acceptance remain open |
@@ -137,12 +137,12 @@ authorize Finder status sharing. See [trying the local preview](docs/LOCAL-PREVI
 and the [release blockers](docs/RELEASE-BLOCKERS.md) for the signed channel and
 remaining acceptance work.
 
-The current measured local package is version `0.1.0`, build `2`, under
-`build/previews/TurtleGit-d9849eb5-build2/`; its ZIP is 409,510,795 bytes.
+The current measured local package is version `0.1.0`, build `3`, under
+`build/previews/TurtleGit-2ba5f945-build3/`; its ZIP is 409,567,553 bytes.
 The matching unsigned archive is
-`build/archives/TurtleGit-AppStore-d9849eb5-build2.xcarchive`.
-[Delivery evidence](docs/qa/distribution-d9849eb5-build2-2026-10-23.json) records
-measured HEAD `d9849eb5`, explicitly dirty V2 configuration/script inputs, matching
+`build/archives/TurtleGit-AppStore-2ba5f945-build3.xcarchive`.
+[Delivery evidence](docs/qa/distribution-2ba5f945-build3-2026-10-23.json) records
+measured HEAD `2ba5f945`, explicitly dirty V3 source/script inputs, matching
 peer versions, universal audits and packaged WCRev probes. These local artifacts
 have not been uploaded as a release and do not establish a clean checkout,
 complete hosted CI result or signed runtime acceptance.

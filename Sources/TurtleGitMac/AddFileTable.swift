@@ -55,13 +55,19 @@ struct AddFileTable: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView { context.coordinator.fileListFont = fileListFont; return context.coordinator.make() }
     func updateNSView(_ view: NSScrollView, context: Context) { _ = showFullPathTooltip; context.coordinator.fileListFont = fileListFont; context.coordinator.refresh() }
-    static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator) {NativeListSelection.remove(from:coordinator.table)}
+    static func dismantleNSView(_ scroll:NSScrollView,coordinator:Coordinator) {coordinator.retire();NativeListSelection.remove(from:coordinator.table)}
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         let model: AddWindowModel
         private let nativeTable = AddNativeTable(icon: .addBackdrop)
         var table: NSTableView { nativeTable }
         var fileListFont: NSFont?
         private var updating = false
+        private var retired = false
+        private(set) var workingDrag:WorkingFileListDrag?
+        private var workingDragSession:ObjectIdentifier?
+        // SwiftUI may dismantle the table while AppKit still owns its drag.
+        // Retain its data source and captured access until the actual end callback.
+        private static var draggingOwners:[ObjectIdentifier:Coordinator]=[:]
         private var applyingColumns = false
         private var resetGeneration = -1
         private var defaultWidths: [String: CGFloat] = [:]
@@ -89,6 +95,7 @@ struct AddFileTable: NSViewRepresentable {
             nativeTable.registerForDraggedTypes([.fileURL])
             nativeTable.validateFileDrop = { [weak self] in self?.validateDrop($0) == true }
             nativeTable.acceptFileDrop = { [weak self] in self?.acceptDrop($0) == true }
+            table.setDraggingSourceOperationMask(.copy,forLocal:true);table.setDraggingSourceOperationMask(.copy,forLocal:false)
             table.dataSource = self; table.delegate = self; table.allowsMultipleSelection = true; table.rowHeight = 22
             table.target = self; table.doubleAction = #selector(preview)
             nativeTable.contextSelection = { [weak self] row, column in self?.prepareContext(row: row, column: column) }
@@ -186,7 +193,40 @@ struct AddFileTable: NSViewRepresentable {
         func droppedURLs(_ pasteboard: NSPasteboard) -> [URL] {
             (pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) ?? []).compactMap { ($0 as? NSURL).map { $0 as URL } }
         }
-        func validateDrop(_ pasteboard: NSPasteboard) -> Bool { model.canReceiveFileDrop && table.window?.attachedSheet == nil && !droppedURLs(pasteboard).isEmpty }
+        func validateDrop(_ pasteboard: NSPasteboard) -> Bool { !retired && model.canReceiveFileDrop && table.window != nil && table.window?.attachedSheet == nil && NSApp.modalWindow==nil && !FileListDrag.isOwnWorkingDrop(pasteboard:pasteboard,origin:model.workingDragOrigin) && !droppedURLs(pasteboard).isEmpty }
+        func retire(){
+            retired=true;nativeTable.validateFileDrop={_ in false};nativeTable.acceptFileDrop={_ in false}
+            if workingDragSession==nil {workingDrag=nil}
+        }
+        func captureDrag(rows indexes:IndexSet)->WorkingFileListDrag? {
+            guard !retired,!indexes.isEmpty,let window=table.window,window.attachedSheet==nil,NSApp.modalWindow==nil else{return nil}
+            let displayed=rows
+            guard indexes.allSatisfy({displayed.indices.contains($0) && table.selectedRowIndexes.contains($0)}) else{return nil}
+            return model.captureWorkingDrag(indexes.map{displayed[$0].path})
+        }
+        func tableView(_ tableView:NSTableView,canDragRowsWith rowIndexes:IndexSet,at mouseDownPoint:NSPoint)->Bool {
+            let row=table.row(at:mouseDownPoint),column=table.column(at:mouseDownPoint)
+            guard row>=0,column>=0,table.tableColumns[column].identifier.rawValue != "check",rowIndexes.contains(row) else{return false}
+            return captureDrag(rows:rowIndexes) != nil
+        }
+        func tableView(_ tableView:NSTableView,writeRowsWith rowIndexes:IndexSet,to pasteboard:NSPasteboard)->Bool {
+            guard let drag=captureDrag(rows:rowIndexes) else{return false}
+            let hasFiles = !drag.fileURLs.isEmpty
+            let mask:NSDragOperation=hasFiles ? [.copy,.move]:.copy
+            table.setDraggingSourceOperationMask(mask,forLocal:true);table.setDraggingSourceOperationMask(mask,forLocal:false)
+            guard drag.write(to:pasteboard) else{workingDrag=nil;return false}
+            workingDrag=drag
+            return true
+        }
+        func tableView(_ tableView:NSTableView,draggingSession session:NSDraggingSession,willBeginAt screenPoint:NSPoint,forRowIndexes rowIndexes:IndexSet) {
+            guard workingDrag != nil else{return}
+            let identity=ObjectIdentifier(session);workingDragSession=identity;Self.draggingOwners[identity]=self
+        }
+        func tableView(_ tableView:NSTableView,draggingSession session:NSDraggingSession,endedAt screenPoint:NSPoint,operation:NSDragOperation) {
+            let identity=ObjectIdentifier(session)
+            guard workingDragSession==identity else{return}
+            workingDragSession=nil;workingDrag=nil;Self.draggingOwners.removeValue(forKey:identity)
+        }
         @discardableResult func acceptDrop(_ pasteboard: NSPasteboard) -> Bool {
             guard validateDrop(pasteboard) else { return false }
             return model.addDropped(droppedURLs(pasteboard))

@@ -9,32 +9,32 @@ configuration requires a prepared pinned runtime and refuses external fallback.
 
 ## Current measured local artifacts — 23 October 2026
 
-The Release preview and unsigned AppStore archive are version `0.1.0`, build `2`.
+The Release preview and unsigned AppStore archive are version `0.1.0`, build `3`.
 Application, Finder extension and cache service versions/builds agree. Their
-measured build HEAD is `d9849eb51bdb139b293250e38e5d18844766f503`, with V2 input
-SHA-256 `bf13f60f420fffc1e3ef48308f5470975a0ffb4ccf2683ce0da7dcf05830b9a4`.
-The input state is **dirty**: it includes the new configuration/provenance-script
+measured build HEAD is `2ba5f94555f059c2a3fab888ace15fe808fe2105`, with V3 input
+SHA-256 `df66a7af80dbb33925e718f495a2b131127f5cf075a8bd395b3876830672fd6d`.
+The input state is **dirty**: it includes the selected-file dragging and provenance-script
 fixes and existing protected development-script work. These artifacts are not
 claimed to be a clean build of that commit or a later documentation commit.
-[The dated delivery evidence](qa/distribution-d9849eb5-build2-2026-10-23.json)
+[The dated delivery evidence](qa/distribution-2ba5f945-build3-2026-10-23.json)
 records the actual reports, diagnostics and probes.
 
-- Preview: `build/previews/TurtleGit-d9849eb5-build2/`, containing
+- Preview: `build/previews/TurtleGit-2ba5f945-build3/`, containing
   `TurtleGitMac.app`, `TurtleGit-for-Mac-0.1.0-local-preview.zip`, `SHA256SUMS`,
   notices, installation notes and `preview-manifest.json`. The ZIP is
-  **409,510,795 bytes**, SHA-256
-  `4dc53f880537d42de09a475057f75681fb505a61f5bb72fd4b3958713a2716de`.
+  **409,567,553 bytes**, SHA-256
+  `257250e35136e059e68ce29d7cacfa4844dac24ede3207b94a876b4f5e88a371`.
   Its 6,354-member signed bundle inventory matches the extracted ZIP, and both
   deep strict ad-hoc code-seal checks pass.
 - Release source audit: `build/preview-2026-10-15/distribution-audit.json`.
   The directory name is historical; the report is the current measured build.
   Its application inventory has 6,349 members and eight app-owned universal
   components. Release build/audit commands exited zero.
-- Archive: `build/archives/TurtleGit-AppStore-d9849eb5-build2.xcarchive`, with
+- Archive: `build/archives/TurtleGit-AppStore-2ba5f945-build3.xcarchive`, with
   adjacent `.archive-audit.json` and `.ExportOptions.plist`. Eight app-owned
   components and all eight matching dSYMs contain arm64 and x86_64; its complete
   archive inventory has 6,382 members. The unsigned archive and audits passed.
-  Four contradictory “failed with exit code 0” diagnostics in the archive build
+  Three contradictory “failed with exit code 0” diagnostics in the archive build
   log remain recorded despite the successful process exit and audits; the log
   is not described as error-free.
 
@@ -59,8 +59,8 @@ not this unsigned archive and was not refreshed by the October 23 delivery batch
 The [October 18 preview/archive record](qa/distribution-16380893-2026-10-18.json)
 also remains historical evidence.
 
-The current [d9849eb5 macOS run39969018955](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39969018955)
-was pending at the recorded October 23 observation. Packaging and the scoped local
+The [2ba5f945 macOS run39978977077](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/39978977077)
+was pending at the October 23 observation while the older cb676f1a run was active. Packaging and the scoped local
 checks do not establish a complete hosted pass. [Current blockers](RELEASE-BLOCKERS.md)
 retain earlier failed assertions, local repairs and the remaining signed,
 installed and full-port acceptance work separately.
@@ -151,15 +151,18 @@ launching the app or registering the Finder/cache service.
 
 ## Candidate provenance and preview freshness
 
-Distribution audits use `TurtleGitDistributionInputsV2`, a fingerprint of
+Distribution audits use `TurtleGitDistributionInputsV3`, a fingerprint of
 repository build inputs measured before and after the build. The complete path
-closure is `Sources`, `Configuration`, `TurtleGitMac.xcodeproj`, `Package.swift`,
+closure is `Sources`, `FinderSync`, `Configuration`, `TurtleGitMac.xcodeproj`, `Package.swift`,
 `Package.resolved`, `project.yml`, `LICENSE`, `NOTICE`, `Licenses`, `patches` and
 `scripts`. This includes runtime reconstruction patches, third-party license
 texts and the XcodeGen recipe alongside generated project files, source and pins.
+The top-level `FinderSync` directory contains the compiled Finder extension;
+changing its menus or badges must invalidate the candidate just like app code.
 Tracked/untracked files, deletions, modes and contained file aliases are measured.
-A V1 record cannot prove the formerly omitted inputs and must be rebuilt; it is
-not silently upgraded by auditing its existing bundle.
+V1 records omitted runtime reconstruction inputs; V2 also omitted the compiled
+Finder extension directory. Both require rebuilding and cannot be silently
+upgraded by auditing their existing bundles.
 
 HEAD at measurement and dirty input state remain explicit. A candidate built from
 an earlier HEAD with measured dirty configuration/script inputs must not be

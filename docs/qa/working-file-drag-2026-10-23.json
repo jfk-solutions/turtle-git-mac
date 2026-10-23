@@ -1,0 +1,240 @@
+{
+  "date": "2026-10-23",
+  "status": "functional-native-passed-with-recorded-diagnostics",
+  "source_baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Outbound selected working-file dragging in Commit classic/staged/unstaged lists, Working Tree and Add",
+    "Highlighted/displayed order independent of checked Git-operation membership",
+    "Real working URLs and source text paths; deleted/missing/directory/gitlink eligibility",
+    "Captured repository access, operation/Quit/retirement fences and same-origin incoming-drop refusal"
+  ],
+  "validation": {
+    "native": {
+      "exit_code": 0,
+      "case_engine_pairs": 6,
+      "results": [
+        {
+          "git": "/usr/bin/git",
+          "case": "commit",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "status",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "add",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "commit",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "status",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "add",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "receiver_pids_reaped": [
+        69246,
+        69322,
+        69366,
+        69398,
+        69473,
+        69515
+      ],
+      "independently_absent": true,
+      "log": "build/qa/working-file-drag-contract-native-2026-10-23.log",
+      "sandbox_extension_diagnostics": 16,
+      "scope": "Actual native adapters/datasource, closed-retired source provider delivery, independent caller-lease/helper-receipt release before provider delivery",
+      "forced_cocoa_deallocation": "Not established; optional diagnostic remains, historical failures retained",
+      "visibility": "All receiver windows alpha0 and unconstrained offscreen; no captures or foreground activation"
+    },
+    "core": "Not rerun: Core production code unchanged; no full Core or historical-native suite repetition",
+    "debug_builds": [
+      {
+        "exit_code": 65,
+        "log": "build/qa/working-file-drag-app-2026-10-23.log",
+        "failure": "Native adapter called internal RepositoryBrowserListing.validPath across framework boundary",
+        "repair": "Use public FileListDragPlan for every selected text path before separate actual file eligibility; Core unchanged"
+      },
+      {
+        "exit_code": 0,
+        "log": "build/qa/working-file-drag-repair-app-2026-10-23.log",
+        "contradictory_failed_with_exit_zero_diagnostics": 4
+      }
+    ],
+    "help": {
+      "documents": 58,
+      "topics": 51,
+      "files": 78,
+      "bytes": 3782528,
+      "check": "passed"
+    },
+    "native_attempts": [
+      {
+        "case": "commit",
+        "git": "/usr/bin/git",
+        "result": "failed",
+        "failure": "Strict weak source controller/model deallocation timeout after payload/retirement checks; all observed work counters drained",
+        "receiver_pids_reaped": [
+          67394
+        ],
+        "log": "build/qa/working-file-drag-native-2026-10-23.log",
+        "sandbox_extension_diagnostics": 3
+      },
+      {
+        "case": "commit",
+        "git": "/usr/bin/git",
+        "result": "failed",
+        "failure": "Strict weak source controller/model deallocation timeout after payload/retirement checks; all observed work counters drained",
+        "receiver_pids_reaped": [
+          67797
+        ],
+        "log": "build/qa/working-file-drag-release-diagnostic-2026-10-23.log",
+        "sandbox_extension_diagnostics": 3
+      },
+      {
+        "case": "commit",
+        "git": "/usr/bin/git",
+        "result": "failed",
+        "failure": "Strict weak source controller/model deallocation timeout after payload/retirement checks; all observed work counters drained",
+        "receiver_pids_reaped": [
+          67993
+        ],
+        "log": "build/qa/working-file-drag-producer-release-2026-10-23.log",
+        "sandbox_extension_diagnostics": 3
+      },
+      {
+        "case": "commit",
+        "git": "/usr/bin/git",
+        "result": "failed",
+        "failure": "Strict weak source controller/model deallocation timeout after payload/retirement checks; all observed work counters drained",
+        "receiver_pids_reaped": [
+          68191
+        ],
+        "log": "build/qa/working-file-drag-autorelease-2026-10-23.log",
+        "sandbox_extension_diagnostics": 3
+      },
+      {
+        "case": "commit",
+        "git": "/usr/bin/git",
+        "result": "failed",
+        "failure": "Strict weak source controller/model deallocation timeout after payload/retirement checks; all observed work counters drained",
+        "receiver_pids_reaped": [
+          68358
+        ],
+        "log": "build/qa/working-file-drag-retain-graph-2026-10-23.log",
+        "sandbox_extension_diagnostics": 3
+      },
+      {
+        "case": "commit",
+        "git": "/usr/bin/git",
+        "result": "failed",
+        "failure": "Strict weak source controller/model deallocation timeout after payload/retirement checks; all observed work counters drained",
+        "receiver_pids_reaped": [
+          68564
+        ],
+        "log": "build/qa/working-file-drag-neutral-release-2026-10-23.log",
+        "sandbox_extension_diagnostics": 3
+      },
+      {
+        "case": "commit",
+        "git": "/usr/bin/git",
+        "result": "failed",
+        "failure": "Strict weak source controller/model deallocation timeout after payload/retirement checks; all observed work counters drained",
+        "receiver_pids_reaped": [
+          68765
+        ],
+        "log": "build/qa/working-file-drag-reverse-trace-2026-10-23.log",
+        "sandbox_extension_diagnostics": 3
+      },
+      {
+        "case": "commit",
+        "git": "/usr/bin/git",
+        "result": "failed",
+        "failure": "Strict weak source controller/model deallocation timeout after payload/retirement checks; all observed work counters drained",
+        "receiver_pids_reaped": [
+          68992
+        ],
+        "log": "build/qa/working-file-drag-event-release-2026-10-23.log",
+        "sandbox_extension_diagnostics": 3
+      },
+      {
+        "stage": "fixture compilation",
+        "result": "failed",
+        "failure": "Obsolete Swift makeKeyWindow API in attempted neutral-window diagnostic; second compile was accidentally retried before the replacement edit applied",
+        "receiver_started": false,
+        "log": "build/qa/working-file-drag-cache-release-2026-10-23.log"
+      },
+      {
+        "stage": "fixture compilation",
+        "result": "failed",
+        "failure": "Obsolete Swift makeKeyWindow API in attempted neutral-window diagnostic; second compile was accidentally retried before the replacement edit applied",
+        "receiver_started": false,
+        "log": "build/qa/working-file-drag-cache-release-repair-2026-10-23.log"
+      }
+    ],
+    "localizations": {
+      "languages": 38,
+      "keys": 1315,
+      "check": "passed"
+    },
+    "retention_investigation": {
+      "first_reference_tree": "build/qa/working-file-drag-retain-tree-2026-10-23.log",
+      "release_phase_reverse_tree": "build/qa/working-file-drag-reverse-tree-2026-10-23.log",
+      "release_phase_witness": "build/qa/working-file-drag-release-witness-2026-10-23.json",
+      "observed": "Closed invisible source controller/model remain alive in the prohibited headless receiver with all tracked work drained. Reference scans show Cocoa event/window roots; these scans are not proof of ARC strong ownership or a production cycle.",
+      "unsuccessful_fixture_attempts": [
+        "Separate producer Task release",
+        "Explicit construction/close autorelease pools",
+        "Neutral key-window lifecycle",
+        "One untargeted application event"
+      ],
+      "correction": "Functional check must establish source close/retirement and captured provider delivery; independent permission retention is asserted at the same shared helper boundary without any controller holding the lease. Strict source-deallocation assertion remains available as an explicit diagnostic, not claimed passed."
+    },
+    "all_owned_receiver_pids_independently_absent": [
+      67394,
+      67797,
+      67993,
+      68191,
+      68358,
+      68564,
+      68765,
+      68992,
+      69246,
+      69322,
+      69366,
+      69398,
+      69473,
+      69515
+    ]
+  },
+  "limits": [
+    "Physical multi-row gestures and modifier/copy/move behavior in other applications not certified by injected native receivers",
+    "Signed Finder and minimum-version/Intel runtime acceptance remain open",
+    "Full upstream dialog and hosted integration completion not claimed"
+  ],
+  "documentation": {
+    "coverage_reconcile": "passed; 130 dialogs, 120 partial families, 10 pending; not feature completion",
+    "localizations": "38 languages / 1315 keys check passed",
+    "help": "58 documents / 51 topics / 78 files / 3782528 bytes check passed",
+    "site": "422 documents, zero unresolved fragments; Python 2 tests and JS search checks passed",
+    "protected_unrelated_wip": "Both recorded SHA-256 values unchanged; not staged"
+  }
+}

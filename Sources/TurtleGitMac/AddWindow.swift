@@ -156,6 +156,16 @@ private final class AddNativeWindow: NSWindow {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     var presentationPreferences: UserDefaults { defaults }
+    let workingDragOrigin = UUID().uuidString
+    func captureWorkingDrag(_ orderedPaths:[String])->WorkingFileListDrag? {
+        guard !retired,!accepted,!busy,!confirmingQuit,!orderedPaths.isEmpty,
+              GitPathSet(orderedPaths).count==orderedPaths.count else{return nil}
+        let lookup=GitPathMap(uniqueKeysWithValues:entries.map{($0.path,$0)})
+        let selected=orderedPaths.compactMap{lookup[$0]}
+        guard selected.count==orderedPaths.count,orderedPaths.allSatisfy({highlighted.contains($0)}) else{return nil}
+        return FileListDrag.workingSelection(repository:repository,access:access,entries:selected.map(\.status),
+            directories:GitPathSet(selected.filter(\.isDirectory).map(\.path)),backend:GitLibGit2Configuration.load(from:defaults),origin:workingDragOrigin)
+    }
     private let defaults: UserDefaults
     private static let columnKey = "Add.FileColumns"
     static let columns: [StatusListColumn] = [.path, .fileExtension, .lastModified, .fileSize]

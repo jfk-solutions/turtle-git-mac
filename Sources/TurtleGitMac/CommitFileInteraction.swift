@@ -267,6 +267,8 @@ struct CommitFileInteraction: NSViewRepresentable {
     var leadingColumnCount = 1
     var selectionLabelInset:CGFloat = 24
     var keyboardDeleteEnabled = true
+    var captureWorkingDrag: (([String]) -> WorkingFileListDrag?)? = nil
+    var workingDragOrigin: String? = nil
     var nativeColumns = StatusListColumn.allCases
     var rowTexts: [[StatusListColumn: String]]? = nil
     var itemIDs: [String]? = nil
@@ -300,6 +302,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         view.preferences=preferences
         view.fileListFont = useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil
         view.leadingColumnCount = leadingColumnCount; view.selectionLabelInset=selectionLabelInset; view.keyboardDeleteEnabled = keyboardDeleteEnabled
+        view.captureWorkingDrag = captureWorkingDrag; view.workingDragOrigin = workingDragOrigin
         view.nativeColumns = nativeColumns; view.rowTexts = rowTexts; view.itemIDs = itemIDs
         view.copyIDs = copyIDs; view.copyColumnIDs = copyColumnIDs; view.captureColumnCopy = captureColumnCopy; view.toggleCheckIDs = toggleCheckIDs
         view.columnText = columnText
@@ -313,13 +316,66 @@ struct CommitFileInteraction: NSViewRepresentable {
     }
     static func dismantleNSView(_ view: Probe, coordinator: ()) { view.stopObserving() }
 
-    final class Probe: NSView {
+    final class Probe: NSView, NSDraggingSource {
         var preferences:UserDefaults = .standard
         var fileListFont: NSFont?
         var rows: [StatusListRow] = []
         var leadingColumnCount = 1
         var selectionLabelInset:CGFloat = 24
         var keyboardDeleteEnabled = true
+        var captureWorkingDrag: (([String]) -> WorkingFileListDrag?)?
+        var workingDragOrigin: String?
+        private struct WorkingDragPress {
+            let point:NSPoint, row:Int, rows:[Data], generation:UUID
+        }
+        private var workingDragPress:WorkingDragPress?
+        private(set) var activeWorkingDrag:WorkingFileListDrag?
+        // A native drag may outlive its source window. Released only by AppKit's
+        // terminal session callback, rather than owner retirement.
+        private var workingDragSessionOwner:Probe?
+        var nativeTable:NSTableView? {configuredTable}
+        /// Read the highlighted native rows at the gesture, after AppKit has
+        /// handled ordinary click/Shift/Command selection. Checkbox state is absent.
+        func workingDragSelection()->WorkingFileListDrag? {
+            guard integrationActive,enabled,let captureWorkingDrag,let table=configuredTable,
+                  let window,table.window===window,window.attachedSheet==nil,NSApp.modalWindow==nil,
+                  table.numberOfRows==rows.count else{return nil}
+            let paths=table.selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].entry?.path:nil }
+            guard !paths.isEmpty else{return nil}
+            return captureWorkingDrag(paths)
+        }
+        func draggingSession(_ session:NSDraggingSession,sourceOperationMaskFor context:NSDraggingContext)->NSDragOperation {activeWorkingDrag?.fileURLs.isEmpty == false ? [.copy,.move]:.copy}
+        func ignoreModifierKeys(for session:NSDraggingSession)->Bool {false}
+        func draggingSession(_ session:NSDraggingSession,endedAt screenPoint:NSPoint,operation:NSDragOperation) {
+            activeWorkingDrag=nil;workingDragPress=nil;workingDragSessionOwner=nil
+        }
+        private func rememberWorkingDragPress(_ event:NSEvent) {
+            workingDragPress=nil
+            guard captureWorkingDrag != nil,integrationActive,enabled,event.clickCount==1,
+                  let table=configuredTable,let window,table.window===window,window.attachedSheet==nil,NSApp.modalWindow==nil else{return}
+            let point=table.convert(event.locationInWindow,from:nil),row=table.row(at:point),column=table.column(at:point)
+            guard table.visibleRect.contains(point),rows.indices.contains(row),rows[row].entry != nil,column>=leadingColumnCount else{return}
+            // A checkbox embedded in the path column has no separate NSTableColumn.
+            if leadingColumnCount==0,columnDefinition(atNativeIndex:column) == .path,
+               point.x-table.rect(ofColumn:column).minX < selectionLabelInset{return}
+            workingDragPress = .init(point:event.locationInWindow,row:row,rows:rows.map {Data(($0.entry?.path ?? "\0group").utf8)},generation:integrationGeneration)
+        }
+        private func beginWorkingDrag(_ event:NSEvent)->Bool {
+            guard let press=workingDragPress,press.generation==integrationGeneration,
+                  press.rows==rows.map({Data(($0.entry?.path ?? "\0group").utf8)}),
+                  hypot(event.locationInWindow.x-press.point.x,event.locationInWindow.y-press.point.y)>=4,
+                  let table=configuredTable,table.selectedRowIndexes.contains(press.row),let drag=workingDragSelection() else{return false}
+            workingDragPress=nil;activeWorkingDrag=drag;workingDragSessionOwner=self
+            let point=table.convert(event.locationInWindow,from:nil)
+            let items=drag.writers.enumerated().map {index,writer in
+                let item=NSDraggingItem(pasteboardWriter:writer)
+                let icon=drag.fileURLs.indices.contains(index) ? NSWorkspace.shared.icon(forFile:drag.fileURLs[index].path):MenuIcon.copy.image()
+                item.setDraggingFrame(NSRect(x:point.x+CGFloat(index)*3,y:point.y+CGFloat(index)*3,width:24,height:24),contents:icon)
+                return item
+            }
+            table.beginDraggingSession(with:items,event:event,source:self)
+            return true
+        }
         var nativeColumns = StatusListColumn.allCases
         var rowTexts: [[StatusListColumn: String]]? = nil
         var itemIDs: [String]? = nil
@@ -643,6 +699,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         private var menuObserver: NSObjectProtocol?
         func acceptsFileDrop(at location: CGPoint) -> Bool {
             guard enabled, window?.attachedSheet == nil, let table = configuredTable else { return false }
+            if let workingDragOrigin,FileListDrag.isOwnWorkingDrop(pasteboard:NSPasteboard(name:.drag),origin:workingDragOrigin){return false}
             let point = NSPoint(x: location.x, y: isFlipped ? location.y : bounds.height - location.y)
             let row = table.row(at: table.convert(point, from: self))
             return row < 0 || rows.indices.contains(row) && rows[row].group == nil
@@ -669,6 +726,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             finishResetQuestion(false)
             if let closeObserver {NotificationCenter.default.removeObserver(closeObserver);self.closeObserver=nil}
             integrationActive = false; integrationGeneration = UUID(); configurationScheduled = false
+            workingDragPress=nil
             for observer in geometryObservers { NotificationCenter.default.removeObserver(observer) }; geometryObservers = []
             groupHeaders?.removeFromSuperview(); groupHeaders = nil
             watermark?.removeFromSuperview(); watermark = nil
@@ -730,8 +788,9 @@ struct CommitFileInteraction: NSViewRepresentable {
                 if positionCompletion != nil { cancelListPosition() }
             }
             if event.type == .scrollWheel { return event }
-            if event.type == .rightMouseDown { trackingHeader = false; draggingHeader = false }
+            if event.type == .rightMouseDown { trackingHeader = false; draggingHeader = false;workingDragPress=nil }
             if event.type == .leftMouseDown {
+                rememberWorkingDragPress(event)
                 draggingHeader = false
                 if let table = configuredTable, let header = table.headerView {
                     let point = header.convert(event.locationInWindow, from: nil)
@@ -742,8 +801,13 @@ struct CommitFileInteraction: NSViewRepresentable {
                     }
                 }
             }
-            if event.type == .leftMouseDragged { if trackingHeader { draggingHeader = true }; return event }
+            if event.type == .leftMouseDragged {
+                if trackingHeader { draggingHeader = true }
+                else if beginWorkingDrag(event) {return nil}
+                return event
+            }
             if event.type == .leftMouseUp {
+                workingDragPress=nil
                 if trackingHeader {
                     if draggingHeader { rememberNativeColumnLayout() }
                     trackingHeader = false; draggingHeader = false

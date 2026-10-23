@@ -1762,9 +1762,21 @@ import TurtleGitCore
         }
         reload(paths: ["."])
     }
+    let workingDragOrigin = UUID().uuidString
+    func captureWorkingDrag(_ orderedPaths:[String])->WorkingFileListDrag? {
+        guard fileListAvailable,hasLoaded,!orderedPaths.isEmpty,
+              comparisonWindow?.attachedSheet==nil,NSApp.modalWindow==nil,
+              GitPathSet(orderedPaths).count==orderedPaths.count else{return nil}
+        let lookup=GitPathMap(uniqueKeysWithValues:visibleEntries.map{($0.path,$0)})
+        let selected=orderedPaths.compactMap{lookup[$0]}
+        guard selected.count==orderedPaths.count,orderedPaths.allSatisfy({selection.contains($0)}) else{return nil}
+        let directories=GitPathSet(selected.filter{submodules.contains($0.path) || statistics[$0.path]?.isSubmodule==true || fileMetadata[$0.path]?.isDirectory==true}.map(\.path))
+        return FileListDrag.workingSelection(repository:repository,access:access,entries:selected,
+            directories:directories,backend:GitLibGit2Configuration.load(from:dialogDefaults),origin:workingDragOrigin)
+    }
     var canReceiveFileDrop: Bool { messageFocusAvailable && !inputsBlocked && !messageOnly && hasLoaded }
     @discardableResult func receiveFileDrop(_ providers: [NSItemProvider]) -> Bool {
-        guard canReceiveFileDrop, !providers.isEmpty, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }) else { return false }
+        guard canReceiveFileDrop, !FileListDrag.isOwnWorkingDrop(providers:providers,origin:workingDragOrigin), !providers.isEmpty, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }) else { return false }
         busy = true; let token = OperationCancellation(); reloadCancellation = token
         Self.activeFileDrops += 1
         reloadTask = Task {
@@ -3292,7 +3304,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
-        .background(CommitFileInteraction(rows: rows, configureRefresh: {dropTargets.set($0,for:focusKey);model.registerFileList($0,key:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
+        .background(CommitFileInteraction(rows: rows,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin, configureRefresh: {dropTargets.set($0,for:focusKey);model.registerFileList($0,key:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
             String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata, lfsOwners: model.lfsOwners, label:FileListLabels.caption).dropLast())
         }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths, saveLayout: { model.saveFileColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: model.fileListAvailable, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
             let next = model.stagingEnabled ? model.stagingState(mark) != .on : !model.checked.contains(mark.id)

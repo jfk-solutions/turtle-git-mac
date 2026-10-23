@@ -21,7 +21,7 @@ class ProvenanceTests(unittest.TestCase):
         (self.root / 'project.yml').write_text('original project recipe')
         (self.root / 'TurtleGitMac.xcodeproj').mkdir()
         (self.root / 'TurtleGitMac.xcodeproj/project.pbxproj').write_text('original generated project')
-        for relative in ['patches/renderer.patch', 'Licenses/component.txt']:
+        for relative in ['patches/renderer.patch', 'Licenses/component.txt', 'FinderSync/FinderSync.swift']:
             path = self.root / relative; path.parent.mkdir(); path.write_text('original runtime input')
         self.git('init', '-q'); self.git('add', '.')
         self.git('-c', 'user.name=Provenance Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'base')
@@ -102,6 +102,41 @@ class ProvenanceTests(unittest.TestCase):
         old['build_inputs']['files'] = {name: value for name, value in old['build_inputs']['files'].items()
                                        if name != 'project.yml' and not name.startswith(('patches/', 'Licenses/'))}
         with self.assertRaisesRegex(ValueError, 'Rebuild the candidate'):
+            verify_candidate(old, self.root, self.app)
+
+    def testFinderExtensionMutationCannotReuseBuiltCandidate(self):
+        path = self.root / 'FinderSync/FinderSync.swift'
+        self.assertIn('FinderSync/FinderSync.swift', self.audit['build_inputs']['files'])
+        path.write_text('changed Finder menu and badge implementation')
+        self.assertTrue(source_inputs(self.root)['dirty_inputs'])
+        with self.assertRaisesRegex(ValueError, 'inputs changed'):
+            verify_candidate(self.audit, self.root, self.app)
+
+    def testNewAndDeletedFinderExtensionInputsCannotReuseBuiltCandidate(self):
+        new = self.root / 'FinderSync/new menu.swift'
+        new.write_text('new compiled extension source')
+        self.assertIn('FinderSync/new menu.swift', source_inputs(self.root)['files'])
+        with self.assertRaisesRegex(ValueError, 'inputs changed'):
+            verify_candidate(self.audit, self.root, self.app)
+        new.unlink()
+        tracked = self.root / 'FinderSync/FinderSync.swift'; tracked.unlink()
+        measured = source_inputs(self.root)
+        self.assertEqual(measured['files']['FinderSync/FinderSync.swift'], {'kind': 'missing'})
+        self.assertTrue(measured['dirty_inputs'])
+        with self.assertRaisesRegex(ValueError, 'inputs changed'):
+            verify_candidate(self.audit, self.root, self.app)
+
+    def testV2AuditCannotCertifyUnmeasuredFinderExtension(self):
+        old = copy.deepcopy(self.audit)
+        old['build_inputs']['schema'] = 'TurtleGitDistributionInputsV2'
+        old['build_inputs']['paths'].remove('FinderSync')
+        old['build_inputs']['files'] = {name: value for name, value in old['build_inputs']['files'].items()
+                                       if not name.startswith('FinderSync/')}
+        with self.assertRaisesRegex(ValueError, 'Rebuild the candidate'):
+            verify_candidate(old, self.root, self.app)
+        # Relabelling an old schema cannot replace measuring its missing path.
+        old['build_inputs']['schema'] = self.audit['build_inputs']['schema']
+        with self.assertRaisesRegex(ValueError, 'inputs changed'):
             verify_candidate(old, self.root, self.app)
 
     def testSourceAliasReferentContentCannotChangeUnnoticed(self):

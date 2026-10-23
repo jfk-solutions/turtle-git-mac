@@ -198,3 +198,83 @@ private final class FileListWeakExportRetention {
         try await payload.write(to:url,cancellation:cancellation)
     }
 }
+
+/// One accepted working-list gesture. Highlighted paths retain displayed order,
+/// including rows which cannot offer file contents. Checked-operation membership
+/// never participates in this value. Writers keep the original grant alive.
+@MainActor final class WorkingFileListDrag {
+    let paths:[String]
+    let text:String
+    let writers:[NSPasteboardWriting]
+    let providers:[NSItemProvider]
+    let fileURLs:[URL]
+    private let access:RepositoryAccessLease?
+    fileprivate init(paths:[String],urls:[URL],writers:[NSPasteboardWriting],providers:[NSItemProvider],access:RepositoryAccessLease?) {
+        self.paths=paths;self.text=paths.joined(separator:"\r\n")+"\r\n";fileURLs=urls
+        self.writers=writers;self.providers=providers;self.access=access
+    }
+    @discardableResult func write(to pasteboard:NSPasteboard)->Bool {
+        pasteboard.clearContents();return pasteboard.writeObjects(writers)
+    }
+}
+
+/// The marker names the originating owner, so another list can still accept a
+/// real external/cross-owner transfer without recursing into its own source.
+@MainActor extension FileListDrag {
+    static func workingOriginType(_ origin:String)->NSPasteboard.PasteboardType {
+        .init("org.turtlegit.working-file-list-origin."+origin.lowercased())
+    }
+    static func isOwnWorkingDrop(pasteboard:NSPasteboard,origin:String)->Bool {
+        pasteboard.types?.contains(workingOriginType(origin)) == true
+    }
+    static func isOwnWorkingDrop(providers:[NSItemProvider],origin:String)->Bool {
+        providers.contains{$0.hasItemConformingToTypeIdentifier(workingOriginType(origin).rawValue)}
+    }
+    static func workingSelection(repository:GitRepository,access:RepositoryAccessLease?,entries:[StatusEntry],directories:GitPathSet,backend:GitLibGit2Configuration,origin:String)->WorkingFileListDrag? {
+        guard !entries.isEmpty,GitPathSet(entries.map(\.path)).count==entries.count else{return nil}
+        // Validate every text path through the public transfer contract before
+        // applying URL eligibility. Deleted and directory rows still supply text.
+        let candidates=entries.map{CommitFile(path:$0.path,oldPath:$0.originalPath,action:"M",added:nil,removed:nil,hasStatistics:false,isSubmodule:false)}
+        guard (try? FileListDragPlan(root:repository.root,revision:.workingTree,files:candidates,backend:backend)) != nil else{return nil}
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true){return nil}
+        let paths=entries.map(\.path),text=paths.joined(separator:"\r\n")+"\r\n",marker=workingOriginType(origin)
+        let files=entries.map{CommitFile(path:$0.path,oldPath:$0.originalPath,action:$0.state == .deleted ? "D":"M",added:nil,removed:nil,hasStatistics:false,isSubmodule:directories.contains($0.path))}
+        guard let plan=try? FileListDragPlan(root:repository.root,revision:.workingTree,files:files,backend:backend) else{return nil}
+        var urls:[URL]=[],raw:[NSPasteboardWriting]=[]
+        for index in plan.items.indices {
+            guard let url=try? plan.validatedWorkingURL(itemAt:index),let writer=itemWriter(repository:repository,access:access,plan:plan,itemAt:index) else{continue}
+            urls.append(url);raw.append(writer)
+        }
+        var writers:[NSPasteboardWriting]=[],providers:[NSItemProvider]=[]
+        for index in 0..<max(1,raw.count) {
+            let writer=WorkingFileDragWriter(base:raw.indices.contains(index) ? raw[index]:nil,text:index==0 ? text:nil,marker:marker,access:access)
+            writers.append(writer)
+            let provider=NSItemProvider();provider.suggestedName=urls.indices.contains(index) ? urls[index].lastPathComponent:nil
+            for type in writer.writableTypes(for:.general) {
+                let data:Data
+                if let value=writer.pasteboardPropertyList(forType:type) as? String{data=Data(value.utf8)}else{data=Data()}
+                provider.registerDataRepresentation(forTypeIdentifier:type.rawValue,visibility:.all){[writer] completion in
+                    completion(data,nil);withExtendedLifetime(writer){};return nil
+                }
+            }
+            providers.append(provider)
+        }
+        return WorkingFileListDrag(paths:paths,urls:urls,writers:writers,providers:providers,access:access)
+    }
+}
+
+@MainActor private final class WorkingFileDragWriter:NSObject,NSPasteboardWriting {
+    private let base:NSPasteboardWriting?
+    private nonisolated let text:String?,marker:NSPasteboard.PasteboardType,url:String?
+    private let access:RepositoryAccessLease?
+    init(base:NSPasteboardWriting?,text:String?,marker:NSPasteboard.PasteboardType,access:RepositoryAccessLease?) {
+        self.base=base;self.text=text;self.marker=marker;self.access=access
+        self.url=base?.pasteboardPropertyList(forType:.fileURL) as? String
+    }
+    nonisolated func writableTypes(for pasteboard:NSPasteboard)->[NSPasteboard.PasteboardType] {
+        (url == nil ? []:[.fileURL])+(text == nil ? []:[.string])+[marker]
+    }
+    nonisolated func pasteboardPropertyList(forType type:NSPasteboard.PasteboardType)->Any? {
+        if type == .fileURL{return url};if type == .string{return text};if type == marker{return "1"};return nil
+    }
+}

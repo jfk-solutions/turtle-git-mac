@@ -312,6 +312,20 @@ final class StatusNativeWindow: NSWindow {
         }
     }
     var onTransferDrop: ([NSItemProvider]) -> Bool = { _ in false }
+    let workingDragOrigin = UUID().uuidString
+    @discardableResult func receiveFileDrop(_ providers:[NSItemProvider])->Bool {
+        guard !controlsBlocked,!FileListDrag.isOwnWorkingDrop(providers:providers,origin:workingDragOrigin) else{return false}
+        return onTransferDrop(providers)
+    }
+    func captureWorkingDrag(_ orderedPaths:[String])->WorkingFileListDrag? {
+        guard !controlsBlocked,!orderedPaths.isEmpty,GitPathSet(orderedPaths).count==orderedPaths.count else{return nil}
+        let lookup=GitPathMap(uniqueKeysWithValues:sortedRows.map{($0.path,$0)})
+        let selected=orderedPaths.compactMap{lookup[$0]}
+        guard selected.count==orderedPaths.count,orderedPaths.allSatisfy({selection.contains($0)}) else{return nil}
+        let directories=GitPathSet(selected.filter{self.submodules.contains($0.path) || $0.statistics?.isSubmodule==true || $0.metadata?.isDirectory==true}.map(\.path))
+        return FileListDrag.workingSelection(repository:repository,access:access,entries:selected.map{ $0.file.entry },
+            directories:directories,backend:GitLibGit2Configuration.load(from:defaults),origin:workingDragOrigin)
+    }
     var onCopyAdd: ([String]) -> Void = { _ in }
     var onPasteFiles: (Bool, [URL]) -> Void = { _, _ in }
     var onAction: (RepositoryAction, [String]) -> Void = { _, _ in }
@@ -891,9 +905,9 @@ struct StatusDialog: View {
                 TableColumn("LFS Lock", sortUsing: StatusGroupedSort(column: .lfsOwner)) { item in groupCell(item, column: .lfsOwner) }.width(min: 100, ideal: 160)
             }.fileListFont().disabled(model.controlsBlocked)
             .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
-                guard !model.busy, !model.confirmingQuit, !model.retired else { return false }; return model.onTransferDrop(providers)
+                model.receiveFileDrop(providers)
             }
-            .background(CommitFileInteraction(rows: model.tableRows.map(\.row), leadingColumnCount: 0, selectionLabelInset:22, keyboardDeleteEnabled: true,configureRefresh:{model.fileListRefresh.attach($0)},watermarkIcon:.statusBackdrop,preferences:model.colorPreferences,
+            .background(CommitFileInteraction(rows: model.tableRows.map(\.row), leadingColumnCount: 0, selectionLabelInset:22, keyboardDeleteEnabled: true,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin,configureRefresh:{model.fileListRefresh.attach($0)},watermarkIcon:.statusBackdrop,preferences:model.colorPreferences,
                 visibleColumns: Set(model.visibleColumns), availableColumns: model.availableColumns, columnText: { entry, column in
                     rowsByID[entry.path].map { model.columnText($0,column) } ?? ""
                 }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths,
