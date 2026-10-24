@@ -52,14 +52,28 @@ import TurtleGitCore
         if object_getClass(row).map(ObjectIdentifier.init) == ObjectIdentifier(binding.decoratedClass) {object_setClass(row,binding.originalClass)}
         objc_setAssociatedObject(row,&rowKey,nil,.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     }
-    static func install(on table:NSTableView,preferences:UserDefaults,primaryColumn:NSTableColumn?,labelText:((Int)->String?)?=nil,font:NSFont?=nil,leadingInset:CGFloat=0) {
-        let owner=(objc_getAssociatedObject(table,&key) as? Owner) ?? Owner(table:table)
+    static func install(on table:NSTableView,preferences:UserDefaults,primaryColumn:NSTableColumn?,labelText:((Int)->String?)?=nil,font:NSFont?=nil,leadingInset:CGFloat=0,client:AnyObject?=nil) {
+        // A closed owner's late SwiftUI update cannot revive its proxy. A
+        // deliberate detach/remove permits a fresh attachment afterwards.
+        if let previous=owner(table) {
+            if !previous.accepts(client:client) {
+                previous.retire()
+                objc_setAssociatedObject(table,&key,nil,.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+            } else if previous.retired {
+                guard let window=table.window,window !== previous.retiredWindow else{return}
+                objc_setAssociatedObject(table,&key,nil,.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+            } else if table.delegate !== previous {
+                previous.retire()
+                objc_setAssociatedObject(table,&key,nil,.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+            }
+        }
+        let owner=(objc_getAssociatedObject(table,&key) as? Owner) ?? Owner(table:table,client:client)
         objc_setAssociatedObject(table,&key,owner,.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         owner.preferences=preferences;owner.primaryColumn=primaryColumn;owner.labelText=labelText;owner.font=font;owner.leadingInset=leadingInset
         owner.bind();owner.invalidate()
     }
-    static func remove(from table:NSTableView) {
-        guard let owner=objc_getAssociatedObject(table,&key) as? Owner else{return}
+    static func remove(from table:NSTableView,client:AnyObject?=nil) {
+        guard let owner=objc_getAssociatedObject(table,&key) as? Owner,owner.accepts(client:client) else{return}
         owner.retire();objc_setAssociatedObject(table,&key,nil,.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     }
     fileprivate static func owner(_ table:NSTableView)->Owner? {objc_getAssociatedObject(table,&key) as? Owner}
@@ -67,16 +81,29 @@ import TurtleGitCore
     /// drawing additional adornments without assuming column width == text.
     static func labelRect(in table:NSTableView,row:Int)->NSRect? {owner(table)?.label(row:row)?.rect}
     static func labelTextRect(in table:NSTableView,row:Int)->NSRect? {owner(table)?.label(row:row)?.frame}
+    /// Snapshot of the actual caption/font and drawing bounds in table
+    /// coordinates. Marker captions draw their attributed text into these bounds;
+    /// ordinary native cells retain their original cell drawing path.
+    static func labelDrawing(in table:NSTableView,row:Int)->(cell:NSTextFieldCell,frame:NSRect)? {
+        guard let label=owner(table)?.label(row:row),let cell=label.cell.copy() as? NSTextFieldCell else{return nil}
+        return (cell,label.frame)
+    }
     static func usesFullRowSelection(in table:NSTableView)->Bool? {guard let owner=owner(table),!owner.retired else{return nil};return owner.fullRow}
-    static func originalDelegate(of table:NSTableView)->NSTableViewDelegate? {owner(table)?.original ?? table.delegate}
+    static func originalDelegate(of table:NSTableView)->NSTableViewDelegate? {
+        guard let owner=owner(table),owner.isCurrent(table) else{return table.delegate}
+        return owner.original
+    }
 
     fileprivate struct Label {
         let rect:NSRect,frame:NSRect,cell:NSTextFieldCell
+        var contentFrame=false
     }
     @MainActor fileprivate final class Owner:NSObject,NSTableViewDelegate {
         weak var table:NSTableView?
         weak var original:NSTableViewDelegate?
         weak var primaryColumn:NSTableColumn?
+        private weak var client:AnyObject?
+        private let clientIdentity:ObjectIdentifier?
         var preferences:UserDefaults = .standard
         var labelText:((Int)->String?)?,font:NSFont?,leadingInset:CGFloat=0
         private var observations:[NSObjectProtocol]=[]
@@ -88,13 +115,31 @@ import TurtleGitCore
             init(_ value:NSTableRowView,style:NSTableView.SelectionHighlightStyle){self.value=value;originalStyle=style}
         }
         private var rows:[WeakRow]=[]
+        private var reconciliationPending=false
+        private var reconciliationGeneration=UUID()
         private(set) var retired=false
+        private(set) weak var retiredWindow:NSWindow?
         var fullRow:Bool {AdvancedListBehavior(defaults:preferences).fullRowSelect}
-        init(table:NSTableView) {
-            self.table=table;originalHighlightStyle=table.selectionHighlightStyle;super.init()
+        func accepts(client:AnyObject?)->Bool {
+            guard clientIdentity==client.map(ObjectIdentifier.init) else{return false}
+            return clientIdentity==nil || self.client === client
+        }
+        init(table:NSTableView,client:AnyObject?) {
+            self.table=table;self.client=client;clientIdentity=client.map(ObjectIdentifier.init)
+            originalHighlightStyle=table.selectionHighlightStyle;super.init()
             for name in [NSTableView.selectionDidChangeNotification,NSTableView.columnDidResizeNotification,NSTableView.columnDidMoveNotification,UserDefaults.didChangeNotification,NSWindow.didBecomeKeyNotification,NSWindow.didResignKeyNotification,NSWorkspace.accessibilityDisplayOptionsDidChangeNotification] {
                 let center=name == NSWorkspace.accessibilityDisplayOptionsDidChangeNotification ? NSWorkspace.shared.notificationCenter:NotificationCenter.default
-                observations.append(center.addObserver(forName:name,object:nil,queue:.main){[weak self] _ in MainActor.assumeIsolated{self?.invalidate()}})
+                observations.append(center.addObserver(forName:name,object:nil,queue:.main){[weak self] note in
+                    MainActor.assumeIsolated {
+                        guard let self else{return}
+                        if name == NSTableView.selectionDidChangeNotification || name == NSTableView.columnDidResizeNotification || name == NSTableView.columnDidMoveNotification {
+                            guard let source=note.object as? NSTableView,source === self.table else{return}
+                        } else if name == NSWindow.didBecomeKeyNotification || name == NSWindow.didResignKeyNotification {
+                            guard let source=note.object as? NSWindow,source === self.table?.window else{return}
+                        }
+                        self.invalidate()
+                    }
+                })
             }
             observations.append(NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:nil,queue:.main){[weak self] note in
                 MainActor.assumeIsolated {guard let self,let window=note.object as? NSWindow,window === self.table?.window else{return};self.retire()}
@@ -103,66 +148,111 @@ import TurtleGitCore
         func bind() {
             guard !retired,let table else{return}
             if table.delegate !== self {original=table.delegate;table.delegate=self}
-            // Existing visible native rows predate the proxy on SwiftUI tables.
-            table.enumerateAvailableRowViews {row,index in self.configure(row,index:index)}
             overlay.owner=self;overlay.frame=table.bounds;overlay.autoresizingMask=[.width,.height];overlay.setAccessibilityElement(false)
             // SwiftUI tables compose their cells into layers; a drawing-only
             // subview must participate above those layers too.
             overlay.wantsLayer=true;overlay.layer?.zPosition=1000
-            table.addSubview(overlay,positioned:.above,relativeTo:nil)
+            scheduleReconciliation()
         }
         override func responds(to selector:Selector!)->Bool {super.responds(to:selector) || original?.responds(to:selector)==true}
         override func forwardingTarget(for selector:Selector!)->Any? {original?.responds(to:selector)==true ? original:super.forwardingTarget(for:selector)}
         func tableView(_ tableView:NSTableView,rowViewForRow row:Int)->NSTableRowView? {
             let supplied=original?.tableView?(tableView,rowViewForRow:row)
             let view=supplied ?? NativeListSelectionRowView()
-            configure(view,index:row);return view
+            guard isCurrent(tableView) else{return view}
+            configureRow(view);scheduleReconciliation();return view
         }
         func tableView(_ tableView:NSTableView,willDisplayCell cell:Any,for tableColumn:NSTableColumn?,row:Int) {
             original?.tableView?(tableView,willDisplayCell:cell,for:tableColumn,row:row)
+            guard isCurrent(tableView) else{return}
             if !fullRow,let cell=cell as? NSCell {cell.isHighlighted=false;cell.backgroundStyle = .normal}
         }
         func tableView(_ tableView:NSTableView,didAdd rowView:NSTableRowView,forRow row:Int) {
             original?.tableView?(tableView,didAdd:rowView,forRow:row)
-            configure(rowView,index:row)
+            guard isCurrent(tableView) else{return}
+            configureRow(rowView);scheduleReconciliation()
         }
-        private func configure(_ row:NSTableRowView,index:Int) {
+        // Row factories must not ask the table for cells, enumerate its rows or
+        // change its subview hierarchy while AppKit is adding that same row.
+        private func configureRow(_ row:NSTableRowView) {
+            let previous:Owner?
+            if let row=row as? NativeListSelectionRowView {previous=row.selectionOwner}
+            else {previous=(objc_getAssociatedObject(row,&NativeListSelection.rowKey) as? RowBinding)?.owner}
+            if let previous,previous !== self {previous.release(row)}
             if !rows.contains(where:{$0.value === row}) {
                 rows.removeAll{$0.value==nil}
                 let style = !fullRow && row.selectionHighlightStyle == .none ? originalHighlightStyle:row.selectionHighlightStyle
                 rows.append(WeakRow(row,style:style))
             }
-            if let saved=rows.first(where:{$0.value === row}) {row.selectionHighlightStyle=fullRow ? saved.originalStyle:.none}
+            if let saved=rows.first(where:{$0.value === row}) {
+                let style:NSTableView.SelectionHighlightStyle=fullRow ? saved.originalStyle:.none
+                if row.selectionHighlightStyle != style {row.selectionHighlightStyle=style}
+            }
             if let row=row as? NativeListSelectionRowView {row.selectionOwner=self;row.needsDisplay=true}
             else {NativeListSelection.decorate(row,owner:self);row.needsDisplay=true}
-            if let table {
-                for column in table.tableColumns.indices {
-                    (table.view(atColumn:column,row:index,makeIfNecessary:false) as? NSTableCellView)?.backgroundStyle=row.interiorBackgroundStyle
-                }
-                table.addSubview(overlay,positioned:.above,relativeTo:nil)
+        }
+        private func owns(_ row:NSTableRowView)->Bool {
+            if let row=row as? NativeListSelectionRowView {return row.selectionOwner === self}
+            return (objc_getAssociatedObject(row,&NativeListSelection.rowKey) as? RowBinding)?.owner === self
+        }
+        fileprivate func isCurrent(_ table:NSTableView)->Bool {
+            !retired && self.table === table && (clientIdentity==nil || client != nil) &&
+            NativeListSelection.owner(table) === self && table.delegate === self
+        }
+        private func release(_ row:NSTableRowView) {
+            guard owns(row) else{return}
+            if let saved=rows.first(where:{$0.value === row}) {row.selectionHighlightStyle=saved.originalStyle}
+            NativeListSelection.undecorate(row,owner:self)
+            if let row=row as? NativeListSelectionRowView {row.selectionOwner=nil}
+            row.needsDisplay=true
+            rows.removeAll{$0.value==nil || $0.value === row}
+        }
+        func invalidate() {scheduleReconciliation()}
+        private func scheduleReconciliation() {
+            guard !reconciliationPending,let table,isCurrent(table) else{return}
+            reconciliationPending=true
+            let generation=reconciliationGeneration
+            DispatchQueue.main.async { [weak self,weak table] in
+                guard let self,self.reconciliationGeneration==generation else{return}
+                self.reconciliationPending=false
+                guard let table,self.isCurrent(table) else{return}
+                self.reconcile(table)
             }
         }
-        func invalidate() {
-            guard !retired,let table else{return}
-            // Private SwiftUI rows may paint selection without calling the
-            // public drawSelection hook. Disable the native full-row style,
-            // retaining the table's semantic selected indexes and controls.
-            table.selectionHighlightStyle=fullRow ? originalHighlightStyle:.none
-            table.enumerateAvailableRowViews{row,index in self.configure(row,index:index)}
+        private func reconcile(_ table:NSTableView) {
+            // All work uses the current row mapping, never an index captured by
+            // a delegate callback before a reload, sort or native row reuse.
+            var available:[(NSTableRowView,Int)]=[]
+            table.enumerateAvailableRowViews {row,index in available.append((row,index))}
+            guard isCurrent(table) else{return}
+            let style:NSTableView.SelectionHighlightStyle=fullRow ? originalHighlightStyle:.none
+            if table.selectionHighlightStyle != style {table.selectionHighlightStyle=style}
+            for (row,index) in available {
+                guard isCurrent(table) else{return}
+                guard row.superview != nil,table.row(for:row)==index else{continue}
+                configureRow(row)
+                for column in table.tableColumns.indices {
+                    guard isCurrent(table),owns(row),table.row(for:row)==index else{break}
+                    let cell=table.view(atColumn:column,row:index,makeIfNecessary:false) as? NSTableCellView
+                    guard isCurrent(table),owns(row),table.row(for:row)==index else{return}
+                    cell?.backgroundStyle=row.interiorBackgroundStyle
+                }
+            }
+            // Preserve the existing overlay, native row backgrounds and label
+            // drawing. Reorder once per reconciliation, outside row delegates.
+            guard isCurrent(table) else{return}
+            if table.subviews.last !== overlay {table.addSubview(overlay,positioned:.above,relativeTo:nil)}
             table.needsDisplay=true
             overlay.frame=table.bounds;overlay.isHidden=fullRow;overlay.needsDisplay=true
         }
         func retire() {
             guard !retired else{return};retired=true
+            retiredWindow=table?.window
+            reconciliationGeneration=UUID();reconciliationPending=false
             if let table {
                 table.selectionHighlightStyle=originalHighlightStyle
                 if table.delegate === self {table.delegate=original}
-                for saved in rows {
-                    guard let row=saved.value else{continue}
-                    row.selectionHighlightStyle=saved.originalStyle
-                    NativeListSelection.undecorate(row,owner:self)
-                    if let row=row as? NativeListSelectionRowView {row.selectionOwner=nil;row.needsDisplay=true}
-                }
+                for row in rows.compactMap(\.value) {release(row)}
                 table.needsDisplay=true
             }
             observations.forEach {NotificationCenter.default.removeObserver($0);NSWorkspace.shared.notificationCenter.removeObserver($0)};observations=[]
@@ -186,7 +276,28 @@ import TurtleGitCore
                 if let cell=view as? NSTableCellView,let field=cell.textField{return field}
                 return view.subviews.compactMap(textField).first
             }
-            let field=table.view(atColumn:index,row:row,makeIfNecessary:false).flatMap(textField)
+            let nativeCell=table.view(atColumn:index,row:row,makeIfNecessary:false)
+            func marker(_ view:NSView)->NativeListSelectionLabelMarker.Probe? {
+                if let marker=view as? NativeListSelectionLabelMarker.Probe,!marker.retired {return marker}
+                return view.subviews.compactMap(marker).first
+            }
+            if let marker=nativeCell.flatMap(marker) {
+                let measured=marker.convert(marker.bounds,to:table)
+                guard marker.window === table.window,measured.width>0,measured.height>0,
+                      measured.intersects(bounds),
+                      let text=labelText?(row) ?? (table.dataSource?.tableView?(table,objectValueFor:column,row:row) as? String) else{return nil}
+                let cell=NSTextFieldCell(textCell:text)
+                cell.font=font ?? table.font ?? .systemFont(ofSize:NSFont.systemFontSize)
+                cell.lineBreakMode = .byTruncatingTail
+                let paragraph=NSMutableParagraphStyle()
+                paragraph.lineBreakMode = .byTruncatingTail
+                paragraph.alignment = .left
+                cell.attributedStringValue=NSAttributedString(string:text,attributes:[.font:cell.font!,.paragraphStyle:paragraph])
+                let frame=measured.intersection(bounds)
+                let rect=NSRect(x:frame.minX-2,y:bounds.minY,width:frame.width+4,height:bounds.height).intersection(bounds)
+                return Label(rect:rect,frame:frame,cell:cell,contentFrame:true)
+            }
+            let field=nativeCell.flatMap(textField)
             if let field {
                 // Let the native field editor render its own selection/caret.
                 guard field.currentEditor()==nil else{return nil}
@@ -218,7 +329,12 @@ import TurtleGitCore
             label.cell.backgroundStyle = .normal;label.cell.textColor=foreground
             let text=NSMutableAttributedString(attributedString:label.cell.attributedStringValue)
             text.addAttribute(.foregroundColor,value:foreground,range:NSRange(location:0,length:text.length));label.cell.attributedStringValue=text
-            label.cell.drawInterior(withFrame:frame,in:view)
+            if label.contentFrame {
+                // The marker is Text's drawable content, not a native control
+                // frame. Draw the single-line attributed caption directly so
+                // NSCell's additional layout cannot truncate a fitted caption.
+                text.draw(with:frame,options:[.usesLineFragmentOrigin,.truncatesLastVisibleLine],context:nil)
+            } else {label.cell.drawInterior(withFrame:frame,in:view)}
             if NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast {foreground.setStroke();let edge=NSBezierPath(rect:rect.insetBy(dx:0.5,dy:0.5));edge.lineWidth=1;edge.stroke()}
         }
     }
@@ -259,6 +375,39 @@ import TurtleGitCore
 }
 
 import SwiftUI
+/// Measure the primary Text itself before a consumer expands its column frame.
+/// This view supplies geometry only; input and accessibility stay with the Text.
+@MainActor struct NativeListSelectionLabelMarker:NSViewRepresentable {
+    func makeNSView(context:Context)->Probe {Probe()}
+    func updateNSView(_ view:Probe,context:Context) {view.invalidateGeometry(force:true)}
+    static func dismantleNSView(_ view:Probe,coordinator:()) {view.retire()}
+    final class Probe:NSView {
+        private(set) var retired=false
+        private var lastFrame=NSRect.null
+        private weak var lastTable:NSTableView?
+        override func hitTest(_ point:NSPoint)->NSView? {nil}
+        override func isAccessibilityElement()->Bool {false}
+        override func viewDidMoveToWindow(){super.viewDidMoveToWindow();invalidateGeometry()}
+        override func viewDidMoveToSuperview(){super.viewDidMoveToSuperview();invalidateGeometry()}
+        override func layout(){super.layout();invalidateGeometry()}
+        func invalidateGeometry(force:Bool=false) {
+            guard !retired else{return}
+            var ancestor=superview
+            while let view=ancestor {
+                if let table=view as? NSTableView {
+                    let frame=convert(bounds,to:table)
+                    guard force || table !== lastTable || frame != lastFrame else{return}
+                    lastTable=table;lastFrame=frame
+                    NativeListSelection.owner(table)?.invalidate();return
+                }
+                ancestor=view.superview
+            }
+            lastTable=nil;lastFrame = .null
+        }
+        func retire(){retired=true;if let lastTable {NativeListSelection.owner(lastTable)?.invalidate()};lastTable=nil}
+    }
+}
+
 /// Attach as the background of precisely one SwiftUI Table, not its enclosing
 /// window. The column object is retained across native column reordering.
 @MainActor struct NativeListSelectionProbe:NSViewRepresentable {
@@ -297,13 +446,14 @@ import SwiftUI
             let candidates=find(root)
             guard candidates.count==1,let next=candidates.first else{return}
             if table !== next {detach();table=next;column=nil}
+            if let column,!next.tableColumns.contains(where:{$0 === column}) {self.column=nil}
             if column==nil {
                 column=settings.primaryTitle.flatMap{title in next.tableColumns.first{$0.title==title || $0.title==NSLocalizedString(title,comment:"")}}
                 if column==nil,next.tableColumns.indices.contains(settings.primaryColumnIndex) {column=next.tableColumns[settings.primaryColumnIndex]}
             }
-            NativeListSelection.install(on:next,preferences:settings.preferences,primaryColumn:column,labelText:settings.labelText,font:settings.font,leadingInset:settings.leadingInset)
+            NativeListSelection.install(on:next,preferences:settings.preferences,primaryColumn:column,labelText:settings.labelText,font:settings.font,leadingInset:settings.leadingInset,client:self)
         }
-        private func detach(){if let table {NativeListSelection.remove(from:table)};table=nil;column=nil}
+        private func detach(){if let table {NativeListSelection.remove(from:table,client:self)};table=nil;column=nil}
         func retire(){guard !retired else{return};retired=true;detach();settings=nil}
     }
 }

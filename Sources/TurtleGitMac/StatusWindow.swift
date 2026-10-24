@@ -899,7 +899,7 @@ struct StatusDialog: View {
             Table(model.tableRows, selection: $model.nativeFileSelection, sortOrder: Binding(get: { model.sortOrder.map { StatusGroupedSort(column: $0.column, order: $0.order) } }, set: { model.setSortOrder($0.map { StatusFileSort(column: $0.column, order: $0.order) }) })) {
                 TableColumn("Path", sortUsing: StatusGroupedSort(column: .path)) { item in
                     if let row = item.contents {
-                        HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)).lineLimit(1) }
+                        HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)).lineLimit(1).background(NativeListSelectionLabelMarker()) }
                             .repositoryFileHelp(repository: model.repository.root, path: row.path, detail: row.file.entry.originalPath.map { "Renamed from " + $0 } ?? "", preferences: model.colorPreferences)
                     } else if let group = item.row.group { Text(verbatim:FileListLabels.groupTitle(group)).font(.headline).foregroundStyle(Color.accentColor).help(changelistGroupHelp(group, lists: model.changelists)).accessibilityLabel(changelistGroupHelp(group, lists: model.changelists)) }
                 }.width(min: 250, ideal: 380)

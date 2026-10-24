@@ -380,6 +380,8 @@ jobs:
         run: python3 scripts/test-report-workspace-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Automatic status reads, watcher quiescence and cancellation ownership
         run: python3 scripts/test-status-refresh-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Native file-list callback safety, replacement ownership and interactions
+        run: python3 scripts/test-native-list-interactions.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
       - name: Commit visibility and Log source command families
         run: python3 scripts/test-app-port-families.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Commit options, Log columns and Settings appearance

@@ -1,0 +1,383 @@
+{
+  "family": "Shared native file-list selection, decoration and lifecycle ownership",
+  "date": "2026-10-25",
+  "base_commit": "3a72244e85cb8d31cf098ede0b2a758646df1cda",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "bounded_final_text_repair_debug_native_and_physical_log_acceptance_passed",
+  "scope": [
+    "Row-only delegate configuration and deferred/coalesced current-row reconciliation",
+    "Preserve full-row/label-only selection, native backgrounds, source colors, emphasis, accessibility and embedded controls",
+    "Safe cross-table row reuse, delegate replacement, retirement and queued-callback refusal",
+    "Explicit detach/reinstall and reparent attachment; closed-window late updates cannot revive owner",
+    "Primary column re-resolution after schema object replacement; reorder preserves exact object",
+    "Retain Commit/Log/Working Tree context-menu, check/highlight, drag, keyboard and refresh-position consumer contracts",
+    "Weak exact client receipt on install/remove prevents old consumer teardown from retiring successor decoration",
+    "originalDelegate unwraps only the current live proxy; WorkingTree F5 cannot route to a replaced stale coordinator (WorktreeListTable.swift255)"
+  ],
+  "source_anchors": [
+    "TortoiseProc/Settings/SettingsAdvanced.cpp46 FullRowSelect defaulttrue",
+    "TortoiseProc/ResizableColumnsListCtrl.h86\u201393 conditional fullrow and headerdrag styles",
+    "Git/GitStatusListCtrl.cpp1255ff selected/focused versus check transitions",
+    "Git/GitStatusListCtrl.cpp1639ff context selectionmark and column",
+    "Git/GitStatusListCtrl.cpp3767ff drag selected paths",
+    "Git/GitStatusListCtrl.cpp899\u2013931 scroll/focus selectionmark restoration",
+    "TortoiseProc/GitLogListBase.cpp264 primary Log list fullrow style"
+  ],
+  "historical_diagnostics": {
+    "previous_family": "docs/qa/status-refresh-family-2026-10-25.json",
+    "warning": "Application performed a reentrant operation in its NSTableView delegate",
+    "origin_proven": false,
+    "bounded_source_finding": "Shared row callbacks synchronously requested table cells/enumerated rows/reordered overlay; current family defers those operations. No prior stack proved sole warning origin."
+  },
+  "bounded_consumer_review": {
+    "files": [
+      "Sources/TurtleGitMac/CommitFileInteraction.swift",
+      "Sources/TurtleGitMac/CommitWindow.swift",
+      "Sources/TurtleGitMac/LogWindow.swift",
+      "Sources/TurtleGitMac/StatusWindow.swift"
+    ],
+    "additional_demonstrated_menu_checkbox_drag_gap": false,
+    "connected_client_handoff_gap_repaired": "Old consumer teardown could remove successor decoration on a reused native table; CommitFileInteraction and shared probe now pass self to install/remove, with pending configuration generation guards retained.",
+    "native_adaptation": "Contextual clicked-row snapshot is separate from retained native highlight/anchor; shared decorator paints only."
+  },
+  "native": {
+    "fixture": "docs/qa/native-list-interactions-native-2026-10-25.swift",
+    "runner": "scripts/test-native-list-interactions.py",
+    "cases": [
+      "callbacks",
+      "lifecycle",
+      "consumers"
+    ],
+    "planned_pairs": 6,
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "existing_consumer_fixture_symbols_reused": true,
+    "executed": true,
+    "new_physical_menu_action_acceptance": false,
+    "passed_pairs": 6,
+    "attempts": [
+      {
+        "path": "build/qa/native-list-interactions-native-2026-10-25.log",
+        "sha256": "823d7de1d01de1642074a1bc96fe3832ccf0550396ec1b992dcdc28a468e3de2",
+        "session": 10240,
+        "receiver_pid": 79625,
+        "receiver_reaped": true,
+        "case": "callbacks/system",
+        "result": "failed",
+        "failure": "Custom row subclass was replaced"
+      },
+      {
+        "path": "build/qa/native-list-interactions-callback-repair-2026-10-25.log",
+        "sha256": "4e896e85437047a40855bf05ad6877108f65166174e5472781a19d06ccb1d139",
+        "session": 39362,
+        "receiver_pid": 79745,
+        "receiver_reaped": true,
+        "case": "callbacks/system",
+        "result": "failed",
+        "failure": "Native row absent after exact identity oracle correction"
+      },
+      {
+        "path": "build/qa/native-list-interactions-row-acquisition-repair-2026-10-25.log",
+        "sha256": "8e3c20b1d1b0e45a9d33faf744061778741ea9e07729acab61089ccbfbc5dba1",
+        "session": 9520,
+        "receiver_pid": 79826,
+        "receiver_reaped": true,
+        "case": "callbacks/system",
+        "result": "failed",
+        "failure": "Label-only decoration replaced custom row background; object identity and runtime class chain assertions now pass"
+      },
+      {
+        "path": "build/qa/native-list-interactions-background-baseline-2026-10-25.log",
+        "sha256": "e9bc94dcdecfa00331b7ba798b63a8874c6acf4184d612c92c44a0ec69b8b97e",
+        "session": 51524,
+        "receiver_pid": 79972,
+        "receiver_reaped": true,
+        "case": "callbacks/system",
+        "result": "pass"
+      },
+      {
+        "path": "build/qa/native-list-interactions-lifecycle-consumers-2026-10-25.log",
+        "sha256": "bc9a3689a22413433d7c634eda1dfc4c633d70a7cc6632d5995066d1c83a7c3b",
+        "session": 29901,
+        "result": "pass",
+        "pairs": 4,
+        "receiver_pids": [
+          80002,
+          80019,
+          80308,
+          80318
+        ]
+      },
+      {
+        "path": "build/qa/native-list-interactions-callback-bundled-2026-10-25.log",
+        "sha256": "0807369f402d2476ad3117f898b21448428ee643edf7f696e741c7fa2a72a439",
+        "session": 12407,
+        "result": "pass",
+        "pairs": 1,
+        "receiver_pids": [
+          80565
+        ]
+      }
+    ],
+    "diagnosis": "All three earlier failures are fixture acquisition/oracle issues: dynamic subclass cast, lazy offscreen materialization, and factory-requested background versus actual AppKit attached background. No production change after Debug.",
+    "background_oracle": {
+      "factory_requested_rgba": [
+        0.31,
+        0.18,
+        0.45,
+        1.0
+      ],
+      "undecorated_attached_selected_rgba": [
+        0.11764705882352941,
+        0.11764705882352941,
+        0.11764705882352941,
+        1.0
+      ],
+      "adapted_attached_selected_rgba": [
+        0.11764705882352941,
+        0.11764705882352941,
+        0.11764705882352941,
+        1.0
+      ],
+      "property_owned_by_appkit": true,
+      "prebind_postbind_same_object": false,
+      "proved": "Attached row is exact delegate-emitted object with original superclass chain; explicit reuse retains marker/object/class and native baseline background",
+      "not_claimed": "Same object across complete delegate binding or arbitrary custom draw-color preservation"
+    },
+    "final_logs_reentrant_warning_present": false,
+    "warning_scope": "None in final bounded workload logs. No global resolution or exact earlier warning-origin claim; workloads differ and original lacked stack.",
+    "cleanup": {
+      "all_attempted_receiver_pids": [
+        79625,
+        79745,
+        79826,
+        79972,
+        80002,
+        80019,
+        80308,
+        80318,
+        80565
+      ],
+      "reaped": true,
+      "independently_absent": true,
+      "gui_or_cache_remaining": false,
+      "existing_installed_finder_pid": 77954,
+      "finder_untouched": true
+    }
+  },
+  "hosted_status_at_authored_freeze": {
+    "pages": {
+      "run": 40142132328,
+      "status": "success"
+    },
+    "macos": {
+      "run": 40142132368,
+      "status": "pending_behind_prior_run"
+    },
+    "prior_macos": {
+      "run": 40139781252,
+      "status": "live"
+    }
+  },
+  "validation": {
+    "core": "not_run_native_only_family",
+    "app": "Final9477exit0,2contradictoryexitzero diagnostics retained",
+    "native": "Fresh41843sixpairs pass plus finaldraw-only28727consumersbothGit2pass; initial failures historical",
+    "signed_or_installed": "not_run; installedprior3a72244e candidate unchanged",
+    "localization": "23162exit0,38locales/1318labels",
+    "visual": "Bounded actualDebugLogdark+Lightpass; no fullvisualall3consumer claim"
+  },
+  "limits": [
+    "Final bounded logs contain no reentrant warning, without proof of global resolution or exact original warning origin",
+    "No complete physical keyboard/VoiceOver/window-focus acceptance",
+    "Not every shared consumer or every upstream dialog is certified",
+    "Full current hosted CI and wider source parity remain open",
+    "No new signed build/install; previous installed physical acceptance does not validate current source",
+    "App Store archive/export/submission remains open",
+    "Final physical acceptance is Log dark/light only; no full visual acceptance of all3consumers",
+    "Initial offscreen artifacts, two ineffective physical repair attempts and all fixture failures remain historical evidence"
+  ],
+  "debug": {
+    "path": "build/qa/native-list-interactions-debug-2026-10-25.log",
+    "sha256": "e8324268e02550247ed24dc3a57356652fc7b0a4e4de2a16b18899b5d035d411",
+    "session": 41727,
+    "exit_code": 0,
+    "contradictory_exit_zero_diagnostics": 3
+  },
+  "localizations": {
+    "path": "build/qa/native-list-interactions-localizations-2026-10-25.log",
+    "sha256": "ec05a86dd323f78f3a588765d2029330d708bd555628bc4eed283135bf88b62d",
+    "session": 23162,
+    "exit_code": 0,
+    "locales": 38,
+    "labels": 1318
+  },
+  "captures": {
+    "directory": "build/qa/native-list-interactions-captures-2026-10-25/receiver-80019",
+    "files": {
+      "commit-dark-label-only.png": "ac8d9738907422d9d226410eab9077cc30d9104acb00965e642ec387c63b71fb",
+      "commit-light-label-only.png": "f72b4084456af5c13b32a80fc5efa2b4496a631a2bbb8186587ed6cdb7693e92",
+      "log-dark-label-only.png": "b5b30b568bea4aedc03e8ec71c884f6c700c59e42a5afeb661176743fce743b7",
+      "log-light-label-only.png": "872599fa035b54af49fd76494675feff551ff53a84af2c2293a79bd9b5baaa71",
+      "status-dark-label-only.png": "9ffdd80c797596ee9e66ebbaaa52fbf36955b1d82bb736bdeddcec3fd6528ba9",
+      "status-light-label-only.png": "07b41066110830665fe0850f913ea56f9bedadae19b2eb82c1ef6637ddc31c62"
+    },
+    "root_reviewed_all_six": true,
+    "suitable_for_visual_acceptance": false,
+    "published_to_site": false,
+    "limitations": [
+      "Transparent backdrop/incomplete compositing",
+      "Normal glyphs/icons missing",
+      "Dark Log left label text overlap"
+    ],
+    "interpretation": "Original offscreen limitations retained, but deliberate physical Debug Log acceptance independently confirmed duplicated left-side a/b text: a real label-overlay geometry bug."
+  },
+  "historical_checkpoint": {
+    "description": "Initial Debug and6nativepairpasses remain historical; current production changed for physical label geometry defect",
+    "native_passes": 6,
+    "fresh_validation_pending": true
+  },
+  "physical_geometry_failure": {
+    "status": "confirmed_real_bug",
+    "workflow": "Deliberate visible Debug Log label-only selection",
+    "failure": "Original a/b text remains visible LEFT of overlay duplicate",
+    "evidence": [
+      "build/qa/native-list-interactions-physical-2026-10-25/log-system.png",
+      "build/qa/native-list-interactions-physical-2026-10-25/log-system.txt"
+    ],
+    "repair": "Public NativeListSelectionLabelMarker NSView geometry with direct primary Text backgrounds in Commit/Log/Status; actual geometry assertions being added",
+    "fresh_build_and_native_results": "pending",
+    "full_visual_acceptance": false
+  },
+  "geometry_repair_debug": {
+    "path": "build/qa/native-list-interactions-geometry-debug-2026-10-25.log",
+    "sha256": "6d3e5381844edc941f122f2a0344b50115bbf51dfcea680c92918fd8552233d7",
+    "session": 6247,
+    "exit_code": 0,
+    "contradictory_exit_zero_diagnostics": 7
+  },
+  "geometry_repair_native": {
+    "session": 41843,
+    "path": "build/qa/native-list-interactions-geometry-native-2026-10-25.log",
+    "status": "terminal_pass_historical_geometry_checkpoint",
+    "planned_pairs": 6,
+    "assertions": [
+      "Actual marker NSView bounds converted to table, labelTextRect within0.5pt",
+      "Highlight covers label left/right bounds",
+      "Hit/accessibility-transparent marker",
+      "Resize/path-column reorder/restore and light/dark, all3tables",
+      "Checks execute without optional image capture"
+    ],
+    "exit_code": 0,
+    "passed_pairs": 6,
+    "receiver_pids": [
+      81365,
+      81375,
+      81415,
+      81713,
+      81723,
+      81733
+    ],
+    "receivers_reaped": true,
+    "sha256": "5503a8479efc1097613761a3e8d2d9791854f52a8ce06ce1a5b4219c8a5dde71",
+    "final_physical_acceptance": false
+  },
+  "physical_precheck_cleanup": {
+    "full_row_select_key": "absent baseline restored",
+    "appearance": "FollowSystem unchanged",
+    "fixture_grant": "onlyHarbor forgotten; TiaFileFormat preserved",
+    "debug_quit": true,
+    "index_config_and_six_file_hashes_unchanged": true,
+    "finder_registration": "one elected installed entry",
+    "existing_finder_pid": 77954
+  },
+  "physical_padding_failure": {
+    "status": "confirmed",
+    "duplicate_left_glyph_fixed": true,
+    "remaining": "Early alpha.... beta.... truncation caused by native text cell padding in measured drawing area",
+    "evidence": [
+      "build/qa/native-list-interactions-physical-2026-10-25/log-system-repaired.png",
+      "build/qa/native-list-interactions-physical-2026-10-25/log-system-repaired.txt"
+    ],
+    "repair": "Inverse cell-frame helper had no physical improvement and was removed. Marker path now draws attributed text directly in actual measured content bounds; ordinary native field fallback unchanged.",
+    "root_cause": "NSCell marker rendering path caused early truncation; padding hypothesis not proven. Drawing/title rectangles were identical in actual AppKit probe41204."
+  },
+  "temporary_physical_recheck_state": {
+    "debug_gui": "closed",
+    "FullRowSelect": false,
+    "privateHarborGrant": "retained only for next physical recheck",
+    "final_restoration": "completed_final_cleanup"
+  },
+  "padding_attempt": {
+    "path": "build/qa/native-list-interactions-padding-debug-2026-10-25.log",
+    "sha256": "7d44fb28db44f73a24a701c090b76644019f78e4703ab6afd4881d853022403a",
+    "session": 80509,
+    "exit_code": 0,
+    "contradictory_exit_zero_diagnostics": 1,
+    "physical_result": "failed_no_visible_improvement",
+    "inverse_helper_removed": true
+  },
+  "final_text_debug": {
+    "path": "build/qa/native-list-interactions-text-debug-2026-10-25.log",
+    "sha256": "3f21eac9b1f4b0ca9517f673689ba07ab1f150aba36a6158a03d7a7f7409c819",
+    "session": 9477,
+    "exit_code": 0,
+    "contradictory_exit_zero_diagnostics": 2
+  },
+  "final_text_native": {
+    "path": "build/qa/native-list-interactions-text-native-2026-10-25.log",
+    "sha256": "c25df8e19af8257db934868760e33e0af85556d247fb39d5f1e28da88164bb80",
+    "session": 28727,
+    "exit_code": 0,
+    "consumer_pairs": 2,
+    "receiver_pids": [
+      82756,
+      83046
+    ],
+    "receivers_reaped": true,
+    "scope": "BothGit actual3consumer geometry+attributed-layout snapshot; draw-only repair retains fresh41843callbacks/lifecycle coverage"
+  },
+  "physical_evidence_files": {
+    "build/qa/native-list-interactions-physical-2026-10-25/log-light-text-repaired.png": "6e764cc039eacc8be022447432065f4abe6c9fa6a924703978e8a43f8620f70c",
+    "build/qa/native-list-interactions-physical-2026-10-25/log-light-text-repaired.txt": "0b1c101ccc04a33691ac993413a8e52af24358ab0b8315f6e1841f32db90c264",
+    "build/qa/native-list-interactions-physical-2026-10-25/log-system-padding-repaired.png": "cdea223e913b07b9a054d0512ce7dbea9c195b7f3e89cb03ca62f3900656c871",
+    "build/qa/native-list-interactions-physical-2026-10-25/log-system-padding-repaired.txt": "6d12bbf8c39b02f5c38664f39b78b18b16bad8b259249f02f1aad65d21f8ed16",
+    "build/qa/native-list-interactions-physical-2026-10-25/log-system-repaired.png": "7f482d905d3655f7bf7b3b2c9b347f26aa6726cfc6da9350e9bd891cd6d2bc19",
+    "build/qa/native-list-interactions-physical-2026-10-25/log-system-repaired.txt": "e85294a36b04cd8089414a615e59ed461b044e8c986bb749b93d169859c61c2c",
+    "build/qa/native-list-interactions-physical-2026-10-25/log-system-text-repaired.png": "95d7d7679d2566feb46089ab6656875396864f4f1c274ab013cb4ffb99a691fc",
+    "build/qa/native-list-interactions-physical-2026-10-25/log-system-text-repaired.txt": "6d12bbf8c39b02f5c38664f39b78b18b16bad8b259249f02f1aad65d21f8ed16",
+    "build/qa/native-list-interactions-physical-2026-10-25/log-system.png": "c6aa7f039031ea55afefbad3236ca351f85cb5a13fbf2e0f9313186fdf088a6b",
+    "build/qa/native-list-interactions-physical-2026-10-25/log-system.txt": "a48f15ea3ac9948d7c242cb5dc8423938383e5cd6b9c2cdaa5898e64e4a83c5d"
+  },
+  "final_physical": {
+    "status": "bounded_log_pass",
+    "scope": [
+      "Actual Debug Log system-dark",
+      "Actual Debug Log explicitLight"
+    ],
+    "final_images": [
+      "log-system-text-repaired.png",
+      "log-light-text-repaired.png"
+    ],
+    "observed": "Full alpha.txt/beta.txt, no original left glyph, sourceicons/status/graph unaffected",
+    "earlier_failed_images": [
+      "log-system.png",
+      "log-system-repaired.png",
+      "log-system-padding-repaired.png"
+    ],
+    "all_three_consumer_full_visual_acceptance": false
+  },
+  "final_cleanup": {
+    "FollowSystem": "Restored through UI",
+    "FullRowSelect": "Key removed via Advanced empty Apply; authoritative defaults read absent",
+    "appearance_key": "Original absence restored after quit using defaults delete; immediate plist stale, authoritative defaults read absent",
+    "forgot_permission": "OnlyHarbor; TiaRecent preserved",
+    "Debug_quit": true,
+    "owned_gui_cache_receiver_absent": true,
+    "existing_finder_pid": 77954,
+    "one_elected_installed_plugin_unchanged": true,
+    "head_index_config_six_file_hashes_unchanged": true
+  }
+}

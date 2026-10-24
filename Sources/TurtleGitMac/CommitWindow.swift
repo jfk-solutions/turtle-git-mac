@@ -3312,7 +3312,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                         Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay {
                             if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) }
                         }
-                        Text(model.fileListDisplayedPath(entry)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences))
+                        Text(model.fileListDisplayedPath(entry)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)).background(NativeListSelectionLabelMarker())
                     }.repositoryFileHelp(repository: model.repository.root, path: entry.path, detail: model.fileHelp(entry), preferences: model.colorPreferences)
                 } else if let group = row.group {
                     HStack {

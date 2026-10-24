@@ -609,7 +609,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             let currentObjects = Set(table.tableColumns.map(ObjectIdentifier.init))
             let originalObjects = Set(originalColumns.map(ObjectIdentifier.init))
             if configuredTable !== table || currentObjects != originalObjects || layoutObservers.isEmpty {
-                if let previous=configuredTable,previous !== table {NativeListSelection.remove(from:previous)}
+                if let previous=configuredTable,previous !== table {NativeListSelection.remove(from:previous,client:self)}
                 for observer in geometryObservers { NotificationCenter.default.removeObserver(observer) }; geometryObservers = []
                 groupHeaders?.removeFromSuperview(); groupHeaders = nil
                 watermark?.removeFromSuperview(); watermark = nil
@@ -639,7 +639,7 @@ struct CommitFileInteraction: NSViewRepresentable {
                 guard let self,self.rows.indices.contains(row),self.rows[row].group==nil else{return nil}
                 if let texts=self.rowTexts,texts.indices.contains(row) {return texts[row][.path]}
                 return self.rows[row].entry.map{self.columnText($0,.path)}
-            },font:fileListFont,leadingInset:selectionLabelInset)
+            },font:fileListFont,leadingInset:selectionLabelInset,client:self)
             desiredColumns = Array(originalColumns.prefix(leadingColumnCount)) + savedOrder.compactMap { byDefinition[$0] }
             desiredWidths = originalWidths
             for (definition, column) in byDefinition where visibleColumns.contains(definition) && savedWidths[definition] == nil {
@@ -745,7 +745,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
         }
         func stopObserving() {
-            if let configuredTable {NativeListSelection.remove(from:configuredTable)}
+            if let configuredTable {NativeListSelection.remove(from:configuredTable,client:self)}
             finishResetQuestion(false)
             if let closeObserver {NotificationCenter.default.removeObserver(closeObserver);self.closeObserver=nil}
             integrationActive = false; integrationGeneration = UUID(); configurationScheduled = false

@@ -1,5 +1,19 @@
 # TurtleGit for Mac — full port tracking
 
+The [native list interaction family](NATIVE-LIST-INTERACTIONS-PARITY.md) preserves
+full-row/label selection, native checks, colors and drag while deferring unsafe
+row-construction work and fencing delegate/client/reuse/retirement handoffs.
+Its [checkpoint](qa/native-list-interactions-2026-10-25.json) initially passed Debug and
+six native case/engine pairs after retained fixture-oracle repairs. A later
+physical Debug Log check proved duplicated label text, then early truncation.
+Measured primary-label geometry and direct attributed drawing now pass a fresh
+six-pair checkpoint plus focused consumers with both Git executables, and
+physical Log dark/light checks show complete labels. Failed fixture and physical
+attempts remain recorded. Owned receivers are reaped and final cleanup restores
+preferences/grants. Six original offscreen images remain diagnostic only.
+Full visual acceptance of all three consumers, a new signed installation, full
+hosted CI and App Store delivery remain open.
+
 The [status refresh ownership family](STATUS-REFRESH-OWNERSHIP-PARITY.md) keeps
 Working Tree, Commit, Log working-tree previews and Finder display reads fresh
 without publishing optional index-stat updates. Busy Cancel drops older passive
