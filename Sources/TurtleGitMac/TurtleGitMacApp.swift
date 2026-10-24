@@ -41,23 +41,10 @@ struct TurtleGitMacApp: App {
     @StateObject private var patchMenuContext = PatchMenuContext()
     @StateObject private var statisticsMenuContext = StatisticsMenuContext()
     var body: some Scene {
-        WindowGroup("TurtleGit for Mac") {
-            RepositoryWindow(model: model)
-                .disabled(model.confirmingQuit)
-                .onAppear { appearance.apply(); SettingsPresentationService.shared.install(workspace: model, appearance: appearance); FirstStartWizardService.shared.install(); ReleaseUpdateService.shared.install(); applicationDelegate.repositoryModel = model }
-                #if DEBUG
-                .onAppear {
-                    if Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true, model.root == nil,
-                       let path = Bundle.main.object(forInfoDictionaryKey: "TurtleGitDocumentationRepository") as? String {
-                        model.open(URL(fileURLWithPath: path, isDirectory: true)) {
-                            if let request = Bundle.main.object(forInfoDictionaryKey: "TurtleGitDocumentationRequest") as? String,
-                               let url = URL(string: request), FinderRequest(url: url) != nil {
-                                model.handle(url)
-                            }
-                        }
-                    }
-                }
-                #endif
+        // One workspace model has one native owner. A WindowGroup permits
+        // Launch Services to create another scene for each external event.
+        Window("TurtleGit for Mac", id: WorkspaceSceneContent.windowID) {
+            WorkspaceSceneContent(model: model, appearance: appearance, applicationDelegate: applicationDelegate)
         }
         .commands {
             AppUtilityCommands()
@@ -74,6 +61,41 @@ struct TurtleGitMacApp: App {
             }
             #endif
         }
+    }
+}
+
+/// The identified Window and every external/reopen request use this same
+/// presentation action. Child Git/editor windows retain their own controllers.
+@MainActor private struct WorkspaceSceneContent: View {
+    static let windowID = "workspace"
+    @ObservedObject var model: RepositoryModel
+    @ObservedObject var appearance: AppAppearance
+    let applicationDelegate: TurtleGitApplicationDelegate
+    @Environment(\.openWindow) private var openWindow
+    var body: some View {
+        RepositoryWindow(model: model, onWorkspaceWindowAttached: applicationDelegate.workspaceWindowDidAttach)
+            .disabled(model.confirmingQuit)
+            .onAppear {
+                let present = openWindow
+                applicationDelegate.presentWorkspace = { present(id: Self.windowID) }
+                appearance.apply()
+                SettingsPresentationService.shared.install(workspace: model, appearance: appearance)
+                FirstStartWizardService.shared.install(); ReleaseUpdateService.shared.install()
+                // Install the presentation route before permitting queued
+                // startup/URL/Services delivery against this model.
+                applicationDelegate.repositoryModel = model
+            }
+            #if DEBUG
+            .onAppear {
+                if Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true, model.root == nil,
+                   let path = Bundle.main.object(forInfoDictionaryKey: "TurtleGitDocumentationRepository") as? String {
+                    model.open(URL(fileURLWithPath: path, isDirectory: true)) {
+                        if let request = Bundle.main.object(forInfoDictionaryKey: "TurtleGitDocumentationRequest") as? String,
+                           let url = URL(string: request), FinderRequest(url: url) != nil { model.handle(url) }
+                    }
+                }
+            }
+            #endif
     }
 }
 
@@ -168,6 +190,7 @@ struct WorkspaceStatusRow:Identifiable {
 struct RepositoryWindow: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: RepositoryModel
+    var onWorkspaceWindowAttached: () -> Void = {}
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -233,7 +256,7 @@ struct RepositoryWindow: View {
             }.font(.caption).foregroundStyle(.secondary).padding(8)
         }
         .frame(minWidth: 920, minHeight: 650)
-        .background(RepositoryWindowCapture(model: model).frame(width: 0, height: 0))
+        .background(RepositoryWindowCapture(model: model, onAttached: onWorkspaceWindowAttached).frame(width: 0, height: 0))
         .toolbar {
             Button { model.chooseRepository() } label: { Label("Open", systemImage: "folder") }.disabled(model.busy)
             Button { Task { await model.refresh() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }.disabled(model.root == nil || model.busy)
@@ -351,13 +374,56 @@ struct RepositoryWindow: View {
 
 private struct RepositoryWindowCapture: NSViewRepresentable {
     let model: RepositoryModel
-    func makeNSView(context: Context) -> NSView { CaptureView(model: model) }
+    let onAttached: () -> Void
+    func makeNSView(context: Context) -> NSView { CaptureView(model: model, onAttached: onAttached) }
     func updateNSView(_ nsView: NSView, context: Context) {}
     final class CaptureView: NSView {
         weak var model: RepositoryModel?
-        init(model: RepositoryModel) { self.model = model; super.init(frame: .zero) }
+        private weak var capturedWindow: NSWindow?
+        private var closeObserver: NSObjectProtocol?
+        private var keyObserver: NSObjectProtocol?
+        private var closed = false
+        private let onAttached: () -> Void
+        init(model: RepositoryModel, onAttached: @escaping () -> Void) { self.model = model; self.onAttached = onAttached; super.init(frame: .zero) }
         required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.workspaceWindow = window }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let closeObserver { NotificationCenter.default.removeObserver(closeObserver); self.closeObserver = nil }
+            if let keyObserver { NotificationCenter.default.removeObserver(keyObserver); self.keyObserver = nil }
+            if let capturedWindow, model?.workspaceWindow === capturedWindow { model?.workspaceWindow = nil }
+            capturedWindow = window; closed = false
+            guard let window else { return }
+            model?.workspaceWindow = window
+            closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self, weak window] _ in
+                MainActor.assumeIsolated {
+                    guard let self, let window, self.model?.workspaceWindow === window else { return }
+                    self.closed = true; self.model?.workspaceWindow = nil
+                }
+            }
+            keyObserver = NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self, weak window] _ in
+                MainActor.assumeIsolated {
+                    guard let self, let window, self.capturedWindow === window,
+                          self.model?.workspaceWindow == nil || self.model?.workspaceWindow === window else { return }
+                    self.closed = false
+                    if self.model?.workspaceWindow !== window { self.model?.workspaceWindow = window }
+                    self.notifyAttachment()
+                }
+            }
+            notifyAttachment()
+        }
+        private func notifyAttachment() {
+            // Present child workflows after this native attachment/layout turn,
+            // and refuse an attachment that closed before the queued callback.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !self.closed, let window = self.capturedWindow,
+                      self.model?.workspaceWindow === window else { return }
+                self.onAttached()
+            }
+        }
+        deinit {
+            if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) }
+            if let keyObserver { NotificationCenter.default.removeObserver(keyObserver) }
+        }
     }
 }
 

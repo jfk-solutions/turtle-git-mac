@@ -52,7 +52,7 @@ import TurtleGitCore
             throw TurtleGitFinderServicesProvider.Failure.busy
         }
         guard pendingFinderServiceRequest == nil else { throw TurtleGitFinderServicesProvider.Failure.busy }
-        if startupReady, startupDelivered, let repositoryModel {
+        if startupReady, startupDelivered, let repositoryModel, workspaceDeliveryReady() {
             guard workspaceServiceHandler(repositoryModel, captured) else { throw TurtleGitFinderServicesProvider.Failure.busy }
         } else {
             pendingFinderServiceRequest = captured
@@ -60,7 +60,7 @@ import TurtleGitCore
     }
     private func deliverPendingFinderService() {
         guard acceptingOpenURLs, startupReady, startupDelivered, startupLaunchMode == .workspace,
-              let repositoryModel else { return }
+              let repositoryModel, workspaceDeliveryReady() else { return }
         if let request = pendingFinderServiceRequest {
             pendingFinderServiceRequest = nil
             if confirmingQuit || repositoryModel.confirmingQuit || repositoryModel.busy || repositoryModel.hasPendingRepositoryWork || !workspaceServiceHandler(repositoryModel, request) {
@@ -70,6 +70,26 @@ import TurtleGitCore
         if let message = pendingFinderServiceError { pendingFinderServiceError = nil; repositoryModel.error = message }
     }
     weak var repositoryModel: RepositoryModel? { didSet { deliverStartupCommand(); deliverPendingOpenURLs(); deliverPendingFinderService() } }
+    // Installed by the identified workspace scene. A standalone Merge process
+    // never installs this route or creates a repository window for incoming URLs.
+    var presentWorkspace: (() -> Void)?
+    private var workspacePresentationRequested = false
+    private func workspaceDeliveryReady() -> Bool {
+        guard let presentWorkspace else { return true } // Injected/headless owners.
+        guard repositoryModel?.workspaceWindow != nil else {
+            if !workspacePresentationRequested {
+                workspacePresentationRequested = true
+                presentWorkspace()
+            }
+            return repositoryModel?.workspaceWindow != nil
+        }
+        return true
+    }
+    func workspaceWindowDidAttach() {
+        guard acceptingOpenURLs, startupLaunchMode == .workspace, repositoryModel?.workspaceWindow != nil else { return }
+        workspacePresentationRequested = false
+        deliverStartupCommand(); deliverPendingOpenURLs(); deliverPendingFinderService()
+    }
     var startupArguments = Array(CommandLine.arguments.dropFirst())
     var startupDirectory = FileManager.default.currentDirectoryPath
     var startupCommandHandler: ((RepositoryModel, [String], String) -> Void)?
@@ -100,7 +120,7 @@ import TurtleGitCore
         }
     }
     private func deliverPendingOpenURLs() {
-        guard acceptingOpenURLs, !deliveringOpenURLs, startupReady, startupDelivered, startupLaunchMode == .workspace, let repositoryModel else { return }
+        guard acceptingOpenURLs, !deliveringOpenURLs, startupReady, startupDelivered, startupLaunchMode == .workspace, let repositoryModel, workspaceDeliveryReady() else { return }
         deliveringOpenURLs = true; defer { deliveringOpenURLs = false }
         while acceptingOpenURLs, !pendingOpenURLs.isEmpty {
             let urls = pendingOpenURLs; pendingOpenURLs.removeAll()
@@ -167,9 +187,20 @@ import TurtleGitCore
         deliverStartupCommand(); deliverPendingFinderService()
     }
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { startupLaunchMode == .workspace }
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { startupLaunchMode == .workspace }
+    // Closing the workspace must not end an owned Git/editor child or stop
+    // Finder routing. Reopen and the next external request use the same scene.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard startupLaunchMode == .workspace, acceptingOpenURLs, !confirmingQuit else { return false }
+        guard let presentWorkspace else { return true }
+        // openWindow targets the single identified scene even when only a child
+        // workflow is visible, or the user closed the workspace earlier.
+        presentWorkspace()
+        return false
+    }
     private func deliverStartupCommand() {
-        guard startupReady, !startupDelivered, let repositoryModel else { return }
+        guard startupReady, !startupDelivered, let repositoryModel,
+              startupLaunchMode != .workspace || workspaceDeliveryReady(), !startupDelivered else { return }
         startupDelivered = true
         if let startupCommandHandler { startupCommandHandler(repositoryModel, startupArguments, startupDirectory) }
         else {
@@ -184,7 +215,7 @@ import TurtleGitCore
     }
     private var confirmingQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
-    func applicationWillTerminate(_ notification: Notification) { retireFinderServices(); acceptingOpenURLs = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
+    func applicationWillTerminate(_ notification: Notification) { retireFinderServices(); acceptingOpenURLs = false; presentWorkspace = nil; workspacePresentationRequested = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); repositoryModel?.stopMonitoringForTermination(); repositoryModel?.finderWatches?.retire(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     private func setTransferQuitConfirmation(_ sender: NSApplication, _ value: Bool) {
         for window in sender.windows {
             (window.delegate as? FileDropTransferWindowController)?.model.confirmingQuit = value
@@ -388,11 +419,14 @@ import TurtleGitCore
         if sender.windows.compactMap({ $0.delegate as? LFSLocksWindowController }).contains(where: { $0.model.busy || $0.model.showingProgress || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? WorktreeListWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? CommitContainingReferencesWindowController }).contains(where: { $0.busy || $0.hasBlockingChild }) { return .terminateCancel }
-        let reviews = sender.windows.compactMap { $0.delegate as? WorkingTreePatchWindowController }
+        // NSApplication can retain closed windows. Retired document owners are
+        // not unsaved participants and must never be made visible by Quit.
+        // Process/release counters above still fence their draining workers.
+        let reviews = sender.windows.compactMap { $0.delegate as? WorkingTreePatchWindowController }.filter { $0.canReuse }
         let presentations = sender.windows.compactMap { $0.delegate as? PresentationComparisonWindowController }.filter { !$0.model.retired }
-        let imports = sender.windows.compactMap { $0.delegate as? ImportPatchWindowController }
-        let controllers = sender.windows.compactMap { $0.delegate as? TextConflictWindowController }
-        let commits = sender.windows.compactMap { $0.delegate as? CommitWindowController }
+        let imports = sender.windows.compactMap { $0.delegate as? ImportPatchWindowController }.filter { $0.canReuse }
+        let controllers = sender.windows.compactMap { $0.delegate as? TextConflictWindowController }.filter { !$0.model.retired }
+        let commits = sender.windows.compactMap { $0.delegate as? CommitWindowController }.filter { $0.canReuse }
         let adds = sender.windows.compactMap { $0.delegate as? AddWindowController }
         let lfsLocks = sender.windows.compactMap { $0.delegate as? LFSLocksWindowController }
         let statuses = sender.windows.compactMap { $0.delegate as? StatusWindowController }
@@ -438,9 +472,9 @@ import TurtleGitCore
         let updates = sender.windows.compactMap { $0.delegate as? SubmoduleUpdateWindowController }
         let submoduleDiffs = sender.windows.compactMap { $0.delegate as? SubmoduleDiffWindowController }
         let submoduleConflicts = sender.windows.compactMap { $0.delegate as? SubmoduleConflictWindowController }
-        let patchDocuments = sender.windows.compactMap { $0.delegate as? PatchWindowController }.filter { $0.documentSession.enabled }
+        let patchDocuments = sender.windows.compactMap { $0.delegate as? PatchWindowController }.filter { !$0.model.retired && $0.documentSession.enabled }
         let comparisons = sender.windows.compactMap { $0.delegate as? RevisionComparisonWindowController }
-        let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }
+        let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }.filter { $0.model.copyCommandsAllowed }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
         guard !adds.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !addProgress.contains(where: { $0.model.busy }), !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !submoduleDiffs.contains(where: { $0.hasPendingWork || $0.model.busy || $0.model.hasUpdateChild }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) else { return .terminateCancel }
         guard patchDocuments.contains(where: { $0.documentSession.dirty }) || !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.hasUnsavedEditorWork }) || fileComparisons.contains(where: { $0.model.dirty }) || reviews.contains(where: { $0.model.dirty }) || presentations.contains(where: { $0.model.revision.isDirty }) else { return finishBackgroundWatches(sender) }
@@ -495,16 +529,16 @@ import TurtleGitCore
         for controller in controllers { controller.model.confirmingQuit = true }
         Task {
             var allowQuit = true
-            for controller in patchDocuments where controller.documentSession.dirty {
+            for controller in patchDocuments where !controller.model.retired && controller.documentSession.dirty {
                 if !(await controller.documentSession.resolveChanges()) { allowQuit = false; break }
             }
-            for controller in reviews where allowQuit && controller.model.dirty {
+            for controller in reviews where allowQuit && controller.canReuse && controller.model.dirty {
                 if !(await controller.model.resolveDraft(discardImmediately: false)) { allowQuit = false; break }
             }
-            for controller in presentations where allowQuit && controller.model.revision.isDirty {
+            for controller in presentations where allowQuit && !controller.model.retired && controller.model.revision.isDirty {
                 if !(await controller.confirmQuit()) {allowQuit=false;break}
             }
-            for controller in fileComparisons where allowQuit && controller.model.dirty {
+            for controller in fileComparisons where allowQuit && controller.model.copyCommandsAllowed && controller.model.dirty {
                 controller.window?.makeKeyAndOrderFront(nil)
                 let alert = NSAlert(); alert.messageText = "Save changes to “\(controller.model.unsavedFilesDescription)” before quitting?"
                 alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
@@ -517,7 +551,7 @@ import TurtleGitCore
                 }
                 if !allowQuit { break }
             }
-            for controller in controllers where allowQuit && controller.model.hasUnsavedEditorWork {
+            for controller in controllers where allowQuit && !controller.model.retired && controller.model.hasUnsavedEditorWork {
                 controller.window?.makeKeyAndOrderFront(nil)
                 let alert = NSAlert(); alert.messageText = "Save changes to “\(controller.model.path)” before quitting?"
                 if controller.model.hasKeptSourceChanges { alert.informativeText = String(localized:"Save copies of the retained source panes before saving the merged result.") }
@@ -534,7 +568,7 @@ import TurtleGitCore
                 if !allowQuit { break }
             }
             if allowQuit {
-                for commit in commits {
+                for commit in commits where commit.canReuse {
                     commit.window?.makeKeyAndOrderFront(nil)
                     let approved = await withCheckedContinuation { continuation in
                         commit.model.cancel(closeWindow: false) { continuation.resume(returning: $0) }
@@ -543,7 +577,7 @@ import TurtleGitCore
                 }
             }
             if allowQuit {
-                for controller in imports {
+                for controller in imports where controller.canReuse {
                     if !(await controller.model.confirmQuit()) { allowQuit = false; break }
                 }
             }

@@ -3483,7 +3483,7 @@ struct LogDialog: View {
                     ForEach(model.fileTableRows) {row in
                         TableRow(row)
                     }
-                }.fileListFont().frame(minHeight: 130, idealHeight: 180)
+                }.tableStyle(.bordered(alternatesRowBackgrounds:false)).fileListFont().frame(minHeight: 130, idealHeight: 180)
                 .background(LogFileDragInteraction(model:model,rows:model.fileTableRows))
                 .background(CommitFileInteraction(rows:model.fileTableRows.map {row in
                     if let title=row.header {return .group(.changelist(title))}

@@ -1,0 +1,538 @@
+{
+  "family": "Single workspace ownership, retired-document Quit and three report tables",
+  "date": "2026-10-25",
+  "status": "bounded_local_and_repaired_installed_acceptance_completed_with_recorded_limits",
+  "base_commit": "beadb01b40a324efff3ecb1e422dad36e30f68fa",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "One identified SwiftUI workspace scene across startup, Finder URLs, Services and reopen; accepted requests wait for attached workspace",
+    "Exclude retired document owners from new and awaited Quit prompts while retaining live draft decisions and active-worker fencing",
+    "Sole SwiftUI bordered non-alternating style on Commit files, Working Tree files and Log changed files; existing interaction adapter unchanged"
+  ],
+  "source_anchors": [
+    "TortoiseProc/Commands/LogCommand.cpp25–92 requested modal workflow",
+    "Resources/TortoiseProcENG.rc187–193 Changed Files report list",
+    "Resources/TortoiseProcENG.rc210–230 Log changed-files report list",
+    "Resources/TortoiseProcENG.rc245–278 Commit file report list"
+  ],
+  "installed_discovery": {
+    "evidence": "docs/qa/installed-current-family-2026-10-24.json",
+    "candidate_commit": "beadb01b40a324efff3ecb1e422dad36e30f68fa",
+    "findings": [
+      "Unwanted extra main workspace windows after Finder entry",
+      "Alternating rounded empty table stripes below real rows",
+      "Retired Commit resurfaced and prevented graceful Quit; exact owned installed app PID54430 required SIGTERM"
+    ],
+    "historical_evidence_unchanged": true,
+    "repaired_installed_acceptance": "pending"
+  },
+  "initial_attempts": {
+    "debug": {
+      "path": "build/qa/workspace-report-debug-build-2026-10-25.log",
+      "sha256": "25df08008995a77fd5e02de27b548f96a7dbf6cba69c00479699fd3b6b797994",
+      "session": 3790,
+      "exit_code": 0,
+      "contradictory_exit_zero_diagnostics": 5
+    },
+    "native": {
+      "path": "build/qa/report-workspace-family-native-2026-10-25.log",
+      "sha256": "0cd16c96231f355d221b0e2dc53387a0b14f0f5ed9e3081dab188137286c4462",
+      "session": 39879,
+      "status": "failed",
+      "first_case": "Commit/system Git",
+      "receiver_pid": 63821,
+      "receiver_signal": "SIGSEGV11",
+      "receiver_reaped": true,
+      "diagnostic_report": "/Users/jkuehner/Library/Logs/DiagnosticReports/receiver-bbad4c1881ea90de36b701222e6273fe527dda6699784df14702965-2026-10-25-002140.ips",
+      "cause": "Imperative NSTableView fullWidth style mutation raced SwiftUI inset-style ownership"
+    },
+    "signed": {
+      "path": "build/qa/workspace-report-signed-build-2026-10-25.log",
+      "sha256": "b9a4adcb7cc0add9a573e706b10c61d8aecf6feb7d512a5770794829240255fd",
+      "session": 75039,
+      "exit_code": 75,
+      "status": "deliberately_interrupted",
+      "reason": "Stopped after actual native crash; not a timeout or completed signed candidate"
+    },
+    "superseded_inputs": {
+      "path": "build/qa/workspace-report-inputs-2026-10-25.json",
+      "fingerprint_prefix": "105506",
+      "invalidated_by_production_repair": true
+    }
+  },
+  "repair": {
+    "production": "Remove newly added native adapter style mutation/restoration; use tableStyle(.bordered(alternatesRowBackgrounds:false)) at three SwiftUI table declarations",
+    "interaction_bridge": "CommitFileInteraction.swift restored to original ownership; selection/checkbox/group/drag assertions retained",
+    "fixture": "Check declarative report style remains unchanged when adapter detaches, rather than require restoration of an imperative override"
+  },
+  "measured_repair_inputs": {
+    "path": "build/qa/workspace-report-repair-inputs-2026-10-25.json",
+    "sha256": "8e3bd62a49b385569aab099c2d9b0dd2c9886f4beddeb19161e389b0b6d9ffa4",
+    "fingerprint": "198a84fb9e2dc168feea7548ba22b415eab60a977d3307bc7b7b31a0300c261f",
+    "file_count": 1471,
+    "head_at_measurement": "beadb01b40a324efff3ecb1e422dad36e30f68fa",
+    "dirty_inputs": true,
+    "protected_wip_preserved": true
+  },
+  "validation": {
+    "debug": {
+      "path": "build/qa/workspace-report-debug-repair-build-2026-10-25.log",
+      "sha256": "d8812fef980e52eade5402cca9dc59872cd2d60f4c65cd198e4c379db6091e63",
+      "session": 2495,
+      "exit_code": 0,
+      "contradictory_exit_zero_diagnostics": 4
+    },
+    "native": {
+      "status": "passed_cumulatively_after_recorded_repairs",
+      "initial_repaired_attempt": {
+        "path": "build/qa/report-workspace-family-native-repair-2026-10-25.log",
+        "sha256": "0cd59f1b83dde902ee295eb343c10e4b1f08ae4e871e54473c20cf72be61b868",
+        "session": 97771,
+        "exit_code": 1,
+        "cause": "New fixture incorrectly required discarded native highlight to survive unchanged interaction bridge stopObserving; no production crash"
+      },
+      "fixture_failure_record": {
+        "path": "build/qa/report-workspace-family-native-detach-fixture-failure-2026-10-25.json",
+        "sha256": "141cd4ba0dabdad7fa3a43a15ce788be21b461be0b3b014ed2ea1d971de66dbb"
+      },
+      "fixture_repair": "Source-reviewed teardown restores the framework delegate and clears discarded highlight. The replacement assertion requires the retired adapter cannot drag and artwork is removed; live rows/colors/selection/checkbox/sort/drag/light-dark/replacement assertions remain.",
+      "commit_recheck": {
+        "path": "build/qa/report-workspace-family-native-commit-recheck-2026-10-25.log",
+        "sha256": "678b1dfb47a8df2774a79f0d05b943db1876e5fd1f6791584e95d49e6192c051",
+        "session": 78300,
+        "exit_code": 0,
+        "passed_engine_pairs": 2,
+        "results": {
+          "path": "build/qa/report-workspace-family-native-commit-pass-2026-10-25.json",
+          "sha256": "ce2f7c71c65156517c9b6531dcf18a96502b5ca3cb3c76a3a3af4b3e27235a59"
+        }
+      },
+      "remaining": {
+        "path": "build/qa/report-workspace-family-native-remaining-2026-10-25.log",
+        "sha256": "43c373590774ab805ce2811e8bb86aba53c41920d405cf0a499ae93293654f86",
+        "session": 31826,
+        "exit_code": 0,
+        "passed_engine_pairs": 8
+      },
+      "all_pairs_cumulatively_passed_claimed": true,
+      "distinct_case_engine_pairs_passed": 10,
+      "cumulative_results": {
+        "path": "build/qa/report-workspace-family-native-cumulative-pass-2026-10-25.json",
+        "sha256": "64c90a88a1384c0620019efb6f781beade2ec368b29e360815849e844183fc19"
+      },
+      "passing_cases_rerun": false,
+      "receiver_cache": "Current Debug app objects reused; only changed QA fixture recompiled after invalid detach assumption",
+      "detach_diagnostic": {
+        "rows_before": 3,
+        "rows_after": 3,
+        "highlight_before": [
+          0,
+          2
+        ],
+        "highlight_after": [],
+        "delegate_before": "Owner",
+        "delegate_after": "AppKitOutlineTableCoordinator",
+        "style": 1,
+        "alternating_rows": false,
+        "interpretation": "Framework teardown intentionally cleared discarded highlight while retaining rows/style; not a production regression"
+      },
+      "ownership": {
+        "reaped_receiver_pids": [
+          64626,
+          64756,
+          64912,
+          64983,
+          65029,
+          65059,
+          65255,
+          65331,
+          65376,
+          65405
+        ],
+        "independent_ps_query_exit_code": 1,
+        "independent_ps_output": "",
+        "all_ten_absent": true,
+        "helper_cleanup": "Runner retains exact image/private resource cleanup and rejects leftovers on a successful case"
+      }
+    },
+    "signed_build": {
+      "path": "build/qa/workspace-report-signed-repair-build-2026-10-25.log",
+      "sha256": "e5ff78de5a5e48f63fe90db3c4a2ee58b4dcd0411eb8ec6dea33404e579e70a0",
+      "session": 99954,
+      "status": "passed",
+      "exit_code": 0,
+      "contradictory_exit_zero_diagnostics": 1,
+      "clean_diagnostics_claim": false
+    },
+    "core": {
+      "status": "not_run",
+      "reason": "App-only scene, UI style and document ownership changes; no Core production changed"
+    },
+    "new_installed_candidate": {
+      "status": "installed_verified_then_bounded_gui_acceptance_passed",
+      "session": 21342,
+      "exit_code": 0,
+      "receipt": {
+        "path": "build/qa/workspace-report-install-2026-10-25.json",
+        "sha256": "5593b1ebecbaa21d46f07ac43b7faf621e2febe6eb3511673872e77260137686"
+      },
+      "installed": "/Applications/TurtleGit for Mac.app",
+      "recoverable_previous_bundle": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/workspace-report-displaced-installed-2026-10-25",
+      "installed_executable_sha256": "d3fe9dae34d25ebe037a30d5afd381ad1b5cdb3cbe13e95ddfe52660226929c9",
+      "candidate_executable_sha256": "d3fe9dae34d25ebe037a30d5afd381ad1b5cdb3cbe13e95ddfe52660226929c9",
+      "installed_bundle_matches_static_inventory": true,
+      "finder_executable_unchanged": true,
+      "registration": {
+        "status": "one elected installed plug-in after supported public pluginkit unregister-build/register-installed/elect-use operations",
+        "evidence": {
+          "path": "build/qa/workspace-report-finder-registration-2026-10-25.txt",
+          "sha256": "c47b485a77822d8cfd0e85f6588468cd871ae7b1976fae895b2a873e5d856b63"
+        },
+        "old_extension_pid": 54248,
+        "new_extension_pid": 67907,
+        "old_process_retirement": "natural",
+        "direct_kill": false
+      },
+      "installed_gui_pid": 67908,
+      "bounded_workflows": [
+        {
+          "case": "Finder pair Commit",
+          "result": "Exactly the two selected files reached Commit; Cancel Yes retired the dialog",
+          "evidence": [
+            {
+              "path": "build/qa/workspace-report-ui-2026-10-25/finder-pair-menu.txt",
+              "sha256": "cd54c75322c5cdf0765ffcbecd5b48955c83ba260c80fc8eb0d38185741662c4"
+            },
+            {
+              "path": "build/qa/workspace-report-ui-2026-10-25/finder-commit-opened.txt",
+              "sha256": "a08e88a25da44696a6faf17b4b51ee4968ca466db76d3b1e105674d3c05691fb"
+            },
+            {
+              "path": "build/qa/workspace-report-ui-2026-10-25/commit-cancelled.txt",
+              "sha256": "cd15733fda3e87eb4daad7e717f303f504d90ba885413b2cc8fa9258001aa89a"
+            }
+          ]
+        },
+        {
+          "case": "Finder single-file Log",
+          "result": "alpha.txt scope, two historical revisions and graph; beta shown out-of-scope in source gray; closing Log retained identified workspace",
+          "evidence": [
+            {
+              "path": "build/qa/workspace-report-ui-2026-10-25/finder-single-menu.txt",
+              "sha256": "37009590d4e19a7c54d09ed1630b032a6cd6bbd2863a2ccabe5f621bd9b1dcd8"
+            },
+            {
+              "path": "build/qa/workspace-report-ui-2026-10-25/finder-log-delivery.txt",
+              "sha256": "b2daa9a63233bcf1f4c433d44dbb1c44f46bb00d8b1f62ab5112215aa92246e2"
+            },
+            {
+              "path": "build/qa/workspace-report-ui-2026-10-25/log-dark.txt",
+              "sha256": "d7105ea0699937511ef64e23ba9748ba1f7288fea59925b12ce30f566f9dca72"
+            },
+            {
+              "path": "build/qa/workspace-report-ui-2026-10-25/log-closed-workspace-retained.txt",
+              "sha256": "b45a74ef9a07ecb2108850bd073a90d389793d5d23f985c53105f571618fec55"
+            }
+          ]
+        },
+        {
+          "case": "Finder pair comparison after workspace closure",
+          "result": "Finder reopened the identified workspace and comparison showed intended alpha/beta contents; closing comparison retained workspace with native ID workspace",
+          "evidence": [
+            {
+              "path": "build/qa/workspace-report-ui-2026-10-25/finder-diff-menu-after-workspace-close.txt",
+              "sha256": "ed9a68a26697dc28745a01b7c40d3bf49861afdc203898714053e3db0a6ea87a"
+            },
+            {
+              "path": "build/qa/workspace-report-ui-2026-10-25/finder-diff-after-workspace-close-request.txt",
+              "sha256": "0e01023ed49c9646a02d01986ab4dd3c2b7d8bd61d76afbdeffd420e18967b3e"
+            },
+            {
+              "path": "build/qa/workspace-report-ui-2026-10-25/diff-closed-reopened-workspace.txt",
+              "sha256": "a05ffb9b63e7c3ba8b09d2274f99ea9b1344f0e752e6fea5703008efe95bdde4"
+            }
+          ]
+        },
+        {
+          "case": "Three report tables",
+          "result": "Commit, Log changed files and grouped Working Tree use legible light/dark plain report tables with colors, complete footers and no empty stripes",
+          "review": "Parent individually viewed all six actual installed captures"
+        },
+        {
+          "case": "Quit after retired child workflows",
+          "result": "Command-Q exited PID67908 immediately; no SIGTERM",
+          "receipt": {
+            "path": "build/qa/workspace-report-installed-quit-pass-2026-10-25.json",
+            "sha256": "a003090fb58513feeb37a5110e135bc507ef474796023c110722e71d9ce42dc6"
+          },
+          "details": {
+            "timestamp": "2026-10-24T22:39:06.004019+00:00",
+            "installed_app_pid": 67908,
+            "main_pid_absent_after_command_q": true,
+            "forced_termination_used": false,
+            "retired_child_workflows": [
+              "Finder pair Commit (Cancel Yes)",
+              "Finder single-file Log",
+              "Finder pair comparison after workspace close",
+              "Working Tree dark/light report"
+            ],
+            "workspace_native_id": "workspace",
+            "finder_extension_pid": 67907,
+            "finder_registration": "one elected installed plug-in",
+            "source_of_previous_failure_preserved": "docs/qa/installed-current-family-2026-10-24.json",
+            "limit": "Bounded installed acceptance, no complete port or hosted CI certification"
+          }
+        }
+      ],
+      "window_inventory_limit": "CUA listApps inventory timed out and was reset; Window menu omitted the identified workspace and listed only Log. Evidence proves identified scene and observed reopen/surviving workspace, not a completed absolute global-window count.",
+      "status_limit": "Refresh can recur between native close attempts. Normal Command-W cancels; rapid primary Cancel then Command-W closed. Remaining refresh/cancel usability requires investigation; no full Status certification.",
+      "cua_observation_failures": [
+        "listApps inventory timeout/reset; no completed global inventory",
+        "Two stale accessibility errors while opening Status Appearance; keyboard Return closed Status, then it was reopened under Light from the stable workspace for the actual capture"
+      ],
+      "appearance": "Follow System restored",
+      "appearance_evidence": {
+        "path": "build/qa/workspace-report-ui-2026-10-25/appearance-baseline-restored.txt",
+        "sha256": "7cef83e058909f58fd13e561962500f13106ce5b5fa62f73dc4a57c2707c6341"
+      },
+      "cleanup": "Completed through actual UI; see final_cleanup receipt. Private repository retained intentionally.",
+      "registration_update_pending": false
+    },
+    "hosted": {
+      "complete_current_pass_claimed": false,
+      "latest_bead_run": {
+        "id": 40135216031,
+        "status": "pending_at_parent_observation"
+      },
+      "older_build56": {
+        "run_id": 40132230473,
+        "main_job": 120990221513,
+        "status": "live Git integration at parent observation; not polled for this record",
+        "includes_current_uncommitted_repairs": false
+      }
+    },
+    "static_signed_candidate": {
+      "status": "passed",
+      "session": 15360,
+      "exit_code": 0,
+      "receipt": {
+        "path": "build/qa/workspace-report-repair-static-2026-10-25.json",
+        "sha256": "46567449650b11288da164ddf66f3cdf279e5f4e3a2a711a8b04df0f53b0e8c5"
+      },
+      "log": {
+        "path": "build/qa/workspace-report-repair-static-2026-10-25.log",
+        "sha256": "f2d452f833afb65b330956879afac67827f3546edca6d471f89a439933aafd39"
+      },
+      "build_inputs_sha256": "198a84fb9e2dc168feea7548ba22b415eab60a977d3307bc7b7b31a0300c261f",
+      "source_inputs_unchanged": true,
+      "universal_owned_code_items": 8,
+      "architectures": {
+        "Contents/MacOS/TurtleGitMac": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/MacOS/TurtleGitWCRev": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "runtime_code_items": 206,
+      "bundle_inventory_members": 6356,
+      "bundle_inventory_sha256": "e0afb7b7bcc1825a730f064828f8ab1a23908193a22dee28ba278b417d4c867b",
+      "actual_peer_signatures": 3,
+      "team": "A49SCA5S8K",
+      "group": "A49SCA5S8K.org.turtlegit.macos",
+      "identity": {
+        "bundle_identifier": "org.turtlegit.macos",
+        "marketing_version": "0.1.0",
+        "build_number": "2",
+        "peers": {
+          "finder": {
+            "bundle_identifier": "org.turtlegit.macos.finder",
+            "marketing_version": "0.1.0",
+            "build_number": "2"
+          },
+          "cache": {
+            "bundle_identifier": "org.turtlegit.macos.cache",
+            "marketing_version": "0.1.0",
+            "build_number": "2"
+          }
+        }
+      },
+      "packaged_git_libgit2_metafile_inherited_signatures": true,
+      "functional_runtime_cases_executed": 0,
+      "installed_application_modified_by_static_audit": false,
+      "failures": []
+    }
+  },
+  "limits": [
+    "No native pass is inferred from a successful Debug build",
+    "Repaired signed candidate installation, bounded GUI/Finder/Quit checks and owned cleanup completed. Full source parity, current hosted CI and remaining Status refresh/cancel usability are not certified.",
+    "Initial crash, interrupted signed build and contradictory build diagnostics remain part of the evidence",
+    "No full Core rerun or complete current hosted result claimed",
+    "No full dialog, physical Intel/minimum-macOS or complete Finder parity certification",
+    "No completed global native window inventory: CUA listApps timed out/reset and Window menu omits identified workspace",
+    "Remaining Working Tree refresh/cancel usability requires investigation despite successful bounded closure",
+    "Two stale Status Appearance accessibility actions retained as observation failures; actual Light capture followed reopen from stable workspace",
+    "Raw index bytes changed during the new installed read workflows; staged content equals unchanged HEAD and all four entries retain H flags. A metadata-only refresh is inferred, not proven. Historical earlier bead raw-index evidence is unchanged."
+  ],
+  "captures": [
+    {
+      "source": {
+        "path": "build/qa/workspace-report-ui-2026-10-25/commit-dark.png",
+        "sha256": "1685d5d8d0908483a2ff270ad6a18f2941125e9a7fca895e51ef1d5b44cbf7c0"
+      },
+      "published_copy": {
+        "path": "docs/site/assets/workspace-report-commit-dark-2026-10-25.png",
+        "sha256": "1685d5d8d0908483a2ff270ad6a18f2941125e9a7fca895e51ef1d5b44cbf7c0"
+      },
+      "copy_method": "Normal byte-preserving file copy; no image edits",
+      "individually_reviewed_by_parent": true
+    },
+    {
+      "source": {
+        "path": "build/qa/workspace-report-ui-2026-10-25/commit-light.png",
+        "sha256": "12b4d568ec687626a9a37171d20072a9f07add875030a4870bc29bad2a67061f"
+      },
+      "published_copy": {
+        "path": "docs/site/assets/workspace-report-commit-light-2026-10-25.png",
+        "sha256": "12b4d568ec687626a9a37171d20072a9f07add875030a4870bc29bad2a67061f"
+      },
+      "copy_method": "Normal byte-preserving file copy; no image edits",
+      "individually_reviewed_by_parent": true
+    },
+    {
+      "source": {
+        "path": "build/qa/workspace-report-ui-2026-10-25/log-dark.png",
+        "sha256": "11a9c700dce8f623dbf5de9e78ea7246f673316cfa2db432cef9299448e38174"
+      },
+      "published_copy": {
+        "path": "docs/site/assets/workspace-report-log-dark-2026-10-25.png",
+        "sha256": "11a9c700dce8f623dbf5de9e78ea7246f673316cfa2db432cef9299448e38174"
+      },
+      "copy_method": "Normal byte-preserving file copy; no image edits",
+      "individually_reviewed_by_parent": true
+    },
+    {
+      "source": {
+        "path": "build/qa/workspace-report-ui-2026-10-25/log-light.png",
+        "sha256": "2162982a5d1a0415e58cff3ffab6773fc952ee5ab0f9ffe81bb69635cff1779f"
+      },
+      "published_copy": {
+        "path": "docs/site/assets/workspace-report-log-light-2026-10-25.png",
+        "sha256": "2162982a5d1a0415e58cff3ffab6773fc952ee5ab0f9ffe81bb69635cff1779f"
+      },
+      "copy_method": "Normal byte-preserving file copy; no image edits",
+      "individually_reviewed_by_parent": true
+    },
+    {
+      "source": {
+        "path": "build/qa/workspace-report-ui-2026-10-25/status-dark.png",
+        "sha256": "3934f48fc844bfd3a2a14143ebf37e342c580d5274e109c05967806676ca3897"
+      },
+      "published_copy": {
+        "path": "docs/site/assets/workspace-report-status-dark-2026-10-25.png",
+        "sha256": "3934f48fc844bfd3a2a14143ebf37e342c580d5274e109c05967806676ca3897"
+      },
+      "copy_method": "Normal byte-preserving file copy; no image edits",
+      "individually_reviewed_by_parent": true
+    },
+    {
+      "source": {
+        "path": "build/qa/workspace-report-ui-2026-10-25/status-light.png",
+        "sha256": "2791fcf7125dfac77b1bc5eea5100f2d426790a69211ddaf5a8237957222c6a1"
+      },
+      "published_copy": {
+        "path": "docs/site/assets/workspace-report-status-light-2026-10-25.png",
+        "sha256": "2791fcf7125dfac77b1bc5eea5100f2d426790a69211ddaf5a8237957222c6a1"
+      },
+      "copy_method": "Normal byte-preserving file copy; no image edits",
+      "individually_reviewed_by_parent": true
+    }
+  ],
+  "final_cleanup": {
+    "receipt": {
+      "path": "build/qa/workspace-report-installed-cleanup-2026-10-25.json",
+      "sha256": "379ac7779d6911f5eb23ea7256b847bb34c29c8dff7f7538b8ac5186080412ed"
+    },
+    "details": {
+      "timestamp": "2026-10-24T22:40:44.467796+00:00",
+      "head_unchanged": true,
+      "raw_index_unchanged": false,
+      "current_index_sha256": "e0b7f9450006a85c5d07c1de36c980bc6d23e69460bcb169167a3650778db0b4",
+      "baseline_index_sha256": "1dc9d64e2412a0729dc1b64da3bef8c667f735d9e1f14616ddd5c85b36d8ea7e",
+      "index_content_matches_head": true,
+      "index_flags": [
+        "H .gitignore",
+        "H Folder/normal.txt",
+        "H alpha.txt",
+        "H beta.txt"
+      ],
+      "config_unchanged": true,
+      "original_files_unchanged": true,
+      "fixture_retained": true,
+      "finder_owned_window_closed": true,
+      "user_downloads_window_preserved": true,
+      "index_note": "Raw index bytes changed during the installed read workflows; staged content remains identical to unchanged HEAD and no assume-unchanged/skip-worktree flags were introduced. Metadata-only refresh is inferred; raw-byte preservation is not claimed.",
+      "owned_gui_cache_receivers_remaining": [],
+      "repositories.json_fixture_absent": true,
+      "watched-repositories.json_fixture_absent": true,
+      "appearance_restored": true,
+      "measured_build_inputs_unchanged": true
+    },
+    "actual_ui_observations": {
+      "fixture_saved_permission": "Removed only Harbor fixture through Recent remove/Forget in a fresh app with no repository opened",
+      "fresh_cleanup_app_quit": "Normal Command-Q; process gone",
+      "owned_finder_window": "Harbor closed with Command-W",
+      "user_window": "Full Finder accessibility window inventory confirmed Downloads preserved",
+      "appearance": "Follow System confirmed in preferences",
+      "remaining_owned_gui_cache_receivers": [],
+      "finder_extension_pid_preserved": 67907,
+      "private_repository_retained": true,
+      "saved_repository_and_watch_fixture_entries": "Absent"
+    },
+    "content_integrity": {
+      "head_unchanged": true,
+      "config_unchanged": true,
+      "all_six_original_working_files_unchanged": true,
+      "raw_index_byte_preservation": false,
+      "current_index_sha256": "e0b7f9450006a85c5d07c1de36c980bc6d23e69460bcb169167a3650778db0b4",
+      "baseline_index_sha256": "1dc9d64e2412a0729dc1b64da3bef8c667f735d9e1f14616ddd5c85b36d8ea7e",
+      "git_diff_cached_quiet_exit": 0,
+      "four_index_entries": [
+        "H .gitignore",
+        "H Folder/normal.txt",
+        "H alpha.txt",
+        "H beta.txt"
+      ],
+      "assume_unchanged_or_skip_worktree_flags_introduced": false,
+      "interpretation": "Staged content matches unchanged HEAD. Metadata-only refresh is inferred, not proven; raw index byte preservation is not claimed."
+    },
+    "measured_build_inputs_unchanged_after_gui": true,
+    "measured_input_fingerprint": "198a84fb9e2dc168feea7548ba22b415eab60a977d3307bc7b7b31a0300c261f"
+  }
+}

@@ -1,0 +1,742 @@
+{
+  "family": "Current development-signed installed application and Finder acceptance",
+  "date": "2026-10-24",
+  "status": "bounded_installed_acceptance_completed_with_real_quit_failure_and_repairs_pending",
+  "target_source_commit": "beadb01b40a324efff3ecb1e422dad36e30f68fa",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "goal": "Refresh the measured signed candidate and exercise current installed native/Finder workflows without treating bounded source audits or cloned sandbox probes as complete port certification.",
+  "bounded_source_findings": [
+    {
+      "area": "IDD_URL",
+      "finding": "Pinned URL dialog implements history/edit/save but searches found no active caller outside its own class/resources/help marker. No new exposed native workflow was confirmed.",
+      "is_full_parity_certification": false
+    },
+    {
+      "area": "First Start and platform adaptations",
+      "finding": "The inspected five-page native setup routes, including configured SSH continuation, already implement active portable behavior. Windows-specific process restart/tool choices are documented adaptations. No substantial new active gap confirmed in this bounded review.",
+      "is_full_parity_certification": false
+    },
+    {
+      "area": "Progress outbound drag",
+      "finding": "The investigated pinned outbound drag path is disabled in source; its absence is not counted as a missing active user workflow.",
+      "is_full_parity_certification": false
+    }
+  ],
+  "historical_signed_candidate": {
+    "base_commit": "9a8e37ced99cea280257f68c1bcd78171c6dcd10",
+    "evidence": "docs/qa/signed-history-family-2026-10-24.json",
+    "limitation": "Earlier candidate and disposable sandbox-clone evidence are historical. A refreshed current candidate and installed acceptance have not yet been measured for this family."
+  },
+  "completed_cleanup": {
+    "record": "build/qa/orphaned-sync-helper-cleanup-2026-10-24.json",
+    "sha256": "6744b2ba1ec6e8f3d62491799d41230536081a53cf57e7913371bf80b1fd543c",
+    "details": {
+      "pid": 57089,
+      "observed": "57089     1 57089 /bin/sh /var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-sync-literal-retained-ald4tk_p/temporary/turtlegit-sync-native-15ax70e3/qa-sync-stash-8134FB82-8F81-484B-A711-86DE4E9AEE91/reference-git-2 --literal-pathspecs -C /var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-sync-literal-retained-ald4tk_p/temporary/turtlegit-sync-native-15ax70e3/qa-sync-stash-8134FB82-8F81-484B-A711-86DE4E9AEE91 rev-parse --verify refs/stash",
+      "scope": "Abandoned test wrapper in deleted private fixture; unrelated installed Finder extension57078 unchanged",
+      "signal": "SIGTERM to verified owned process group",
+      "group_absent": true
+    },
+    "additional_parent_observation": "Abandoned deleted private Sync wrapper had been present about 5h35m; the verified owned process group contained the wrapper shell and its sleep child. Parent sent SIGTERM only to that group and confirmed it drained.",
+    "installed_finder_pid": 57078,
+    "installed_finder_action": "Untouched; no signal or termination"
+  },
+  "planned_phases": [
+    {
+      "phase": "Measure current signed build inputs",
+      "status": "completed_input_measurement_only",
+      "requirements": [
+        "Capture exact current production, runtime, entitlement and external harness inputs before build",
+        "Use the current supported universal AppStore development-signing scheme and existing signing authority",
+        "Retain command exit status and actual diagnostics; no clean-build claim from exit zero alone"
+      ]
+    },
+    {
+      "phase": "Build and audit current signed candidate",
+      "status": "build_and_static_audit_completed_with_diagnostics_recorded",
+      "requirements": [
+        "Verify actual app/Finder/cache team and App Group identities",
+        "Verify inherited-sandbox runtime layout and signatures",
+        "Retain universal slice, framework, provenance and bundle inventory evidence"
+      ]
+    },
+    {
+      "phase": "Back up and update installed application",
+      "status": "backup_and_verified_install_completed_supported_toggle_completed",
+      "requirements": [
+        "Capture the actual installed app identity/version/signature and extension state before changes",
+        "Create a recoverable backup before replacement",
+        "Use supported application/extension enable-disable controls; do not terminate installed Finder PID 57078 or unrelated user processes",
+        "Record the actual replacement and rollback paths and outcome"
+      ]
+    },
+    {
+      "phase": "Exercise installed entry points and owned native workflows",
+      "status": "bounded_gui_and_background_observations_completed_with_real_quit_failure",
+      "requirements": [
+        "Use disposable repositories and explicitly owned operations",
+        "Record actual Finder menu/badge and app entry behavior separately from source code or cloned sandbox evidence",
+        "Exercise representative history, Commit/Settings and comparison workflows on the installed current app",
+        "Record external repository grant acquisition/renewal and cancellation behavior actually exercised",
+        "Retain captures only from deliberate acceptance windows, then close owned windows"
+      ]
+    },
+    {
+      "phase": "Final ownership and artifact reconciliation",
+      "status": "owned_cleanup_and_repository_baseline_recheck_completed_repair_validation_pending",
+      "requirements": [
+        "Confirm all test-owned helpers/windows/temporary repositories have drained or been removed",
+        "Recheck measured build inputs and candidate/installed artifact identity",
+        "Preserve user-owned applications and supported Finder activation state",
+        "Record failures, repairs and affected rechecks without repeating passing unrelated suites"
+      ]
+    }
+  ],
+  "validation": {
+    "build": {
+      "path": "build/qa/installed-acceptance-build-2026-10-24.log",
+      "sha256": "4ea2d1e55a4980834e4099f3781c4fc0c2cceec9db41932b8e4a5465a8d7b954",
+      "status": "passed",
+      "session": 72810,
+      "exit_code": 0,
+      "contradictory_exit_zero_diagnostics": 4,
+      "clean_diagnostics_claim": false
+    },
+    "package_audit": {
+      "path": "build/qa/installed-acceptance-static-2026-10-24.json",
+      "sha256": "6188390f6c3baaf1cbb50a4315f43b89ba9a5accdd9753017b705896fe9f6b89",
+      "status": "passed",
+      "session": 78237,
+      "exit_code": 0,
+      "log": {
+        "path": "build/qa/installed-acceptance-static-2026-10-24.log",
+        "sha256": "c58e3c161ab0cae9f48946927ad08510e9b5397a989c4cfc617a62c1723cd1e2"
+      },
+      "build_head": "beadb01b40a324efff3ecb1e422dad36e30f68fa",
+      "source_inputs_unchanged": true,
+      "team": "A49SCA5S8K",
+      "group": "A49SCA5S8K.org.turtlegit.macos",
+      "identity": {
+        "bundle_identifier": "org.turtlegit.macos",
+        "marketing_version": "0.1.0",
+        "build_number": "2",
+        "peers": {
+          "finder": {
+            "bundle_identifier": "org.turtlegit.macos.finder",
+            "marketing_version": "0.1.0",
+            "build_number": "2"
+          },
+          "cache": {
+            "bundle_identifier": "org.turtlegit.macos.cache",
+            "marketing_version": "0.1.0",
+            "build_number": "2"
+          }
+        }
+      },
+      "architectures": {
+        "Contents/MacOS/TurtleGitMac": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/MacOS/TurtleGitWCRev": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+          "x86_64",
+          "arm64"
+        ],
+        "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "runtime_code_items": 206,
+      "bundle_inventory_members": 6356,
+      "bundle_inventory_sha256": "7df95df6544afd3433f089aa1a9805c3462adc81eff414f959098b7b812e312e",
+      "actual_peer_signatures": 3,
+      "packaged_git_libgit2_metafile_inherited_signatures": true
+    },
+    "installation": {
+      "path": "build/qa/installed-acceptance-install-2026-10-24.json",
+      "sha256": "f705bcf7f154af4a2cf4d003e21b4f0c17687093c83cc1ae9d40483f514357a5",
+      "status": "installed_verified_candidate",
+      "session": 30053,
+      "exit_code": 0,
+      "installed": "/Applications/TurtleGit for Mac.app",
+      "candidate": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+      "recoverable_backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/installed-acceptance-original-2026-10-24/TurtleGit for Mac.app",
+      "displaced_original": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/installed-acceptance-original-2026-10-24/displaced-installed-bundle",
+      "candidate_executable_sha256": "861dffaf0046f38ef3bae1dfa752040b1263e17a0840332c63851e8c3990a5b4",
+      "installed_executable_sha256": "861dffaf0046f38ef3bae1dfa752040b1263e17a0840332c63851e8c3990a5b4",
+      "initial_install_receipt_extension_reenable_pending": true,
+      "later_supported_extension_toggle": "Completed via System Settings; independent replacement extension process observed",
+      "direct_extension_kill": false
+    },
+    "finder": {
+      "status": "partial",
+      "actual_menu_entry_routes": [
+        "scoped multi-file Commit",
+        "single-file Log",
+        "two-file Diff"
+      ],
+      "icon_overlay_background_refresh": "Actual installed Finder normal→modified→normal observed while cache helper ran alone after the GUI was forcibly terminated; complete background route and graceful Quit are not passed",
+      "all_source_menus_or_overlay_states_certified": false
+    },
+    "native_workflows": {
+      "status": "partial",
+      "execution": "Actual installed shipping GUI through parent CUA, not a synthetic native receiver",
+      "completed_cases": [
+        {
+          "name": "finder_multi_commit",
+          "status": "passed_bounded_workflow",
+          "description": "Passed scoped multi-file Finder Commit opening; inclusion checkboxes and highlight selection stayed independent; dialog cancelled without a commit.",
+          "evidence": [
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-multiple-selected.txt",
+              "sha256": "74583d1bcbe005b660058f5d801432efeee109904b2927127fb49e4e78665b23"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-multiple-context-menu.txt",
+              "sha256": "74b4bb497c1ea33ffd6c8a91b35f3f82a28d9e66a7ef6b0606a7fb2681aa4b57"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-commit-opened-visible.png",
+              "sha256": "a314341af75fe926cf25f99403e653132349cc9343610f896ccebb8634022899"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/commit-full-state.txt",
+              "sha256": "215d1e059752e631f304c42a54442a9d639698d17cd99f197dcae2740eb951de"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/commit-alpha-unchecked.txt",
+              "sha256": "b55b48b3fb8ace35c5895877e99086fd8e00b827ed0750170cbed817fd6fb850"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/commit-highlight-independent.txt",
+              "sha256": "ec7108ea2803d628cef195168edbff9ef8aa41b066363a1c81257999e3779c64"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/commit-cancel-confirmed.txt",
+              "sha256": "ca78f6906c3920a92319b7f993f62a2a5efb48204ca36fcf0ad99a1e4e89cffc"
+            }
+          ]
+        },
+        {
+          "name": "finder_single_file_log",
+          "status": "passed_bounded_workflow",
+          "description": "Passed single-file Finder Log entry with alpha.txt scope and the graph in front of the revision list.",
+          "evidence": [
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-log-open-request.txt",
+              "sha256": "b42e2449cb9e4a8cae9b0f9fa7e811d17b9b95da9e94a3d9a9a304585fea60d3"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-log-opened.png",
+              "sha256": "f61f6dfdd32f9dbaa1ca6c3d2f0befbb755e3bb4c24cf78ea9e4eba96aa82d86"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/log-full-state.txt",
+              "sha256": "78b65665a7b7e6e5bc808074c826f86ef8987f77cf508cecf93d281268580e52"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/log-closed.txt",
+              "sha256": "d09a97b7b50dbc8ea41d44ed629341e7ac3c642ee6e7aeb0076c3a992a310697"
+            }
+          ]
+        },
+        {
+          "name": "settings_remote_discard",
+          "status": "passed_bounded_workflow",
+          "description": "Passed Remote draft→Git page→Cancel, reopen confirms discard, and Escape closure.",
+          "evidence": [
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/installed-settings-remote.txt",
+              "sha256": "8d10071518ec8980ef18def0921fb25befb3c35271cd397c6229a3c2e810236f"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/installed-remote-unsaved-draft.txt",
+              "sha256": "5c3677d73e7863fc554d0c664d6c8caf9aa1dc98f1c38130dd71302c9d2c662d"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/installed-settings-git-after-remote.txt",
+              "sha256": "be170114a69e3524886cc9291e76dcbfd34db3ad7f898752dacfb7909b7fd215"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/installed-settings-cancelled.txt",
+              "sha256": "e9ab1e5c76a6cf68f50e9c2b7d83ae6aa968bcbfcf720ae884f2598c19e576e5"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/installed-settings-reopened.txt",
+              "sha256": "22d2ce8a964b8d2c00441b609870965ba51a8d5fae0bc31454a6b62cd1d0368f"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/installed-remote-draft-discarded.txt",
+              "sha256": "8d10071518ec8980ef18def0921fb25befb3c35271cd397c6229a3c2e810236f"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/installed-settings-escape-closed.txt",
+              "sha256": "6badd636a29e856f98766ad8a4fa96df89e3d41ab06b07b04e34c2b1c7ddde9a"
+            }
+          ]
+        },
+        {
+          "name": "finder_pair_diff",
+          "status": "passed_bounded_workflow",
+          "description": "Passed Finder two-file comparison route with the intended two input contents.",
+          "evidence": [
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-pair-diff-menu.txt",
+              "sha256": "a91138d2999ef0a712a0de60cde7ffe850b280b0f8f7fa13d99e08ca1cc64f6b"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-pair-diff-request.txt",
+              "sha256": "1e79bc28d19c7c67408b147ff10773b9b4e1b045d73567b310934b56bad87003"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-pair-diff-opened.png",
+              "sha256": "9b1690d5f263f3397b0034ce53ffb66d6e2e805846563d7962fb0e6ec7a87cb9"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-pair-diff-opened.txt",
+              "sha256": "bcde70f1034723a0c80d5cd86c7ea0cf66bdf78f066f5e205112cf79f6db243e"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-pair-diff-closed.txt",
+              "sha256": "04105b0c980e9075266913a59f4586ece6238ff1c8ab27f0fd26c1217b7a5d04"
+            }
+          ]
+        }
+      ],
+      "working_tree_status": {
+        "status": "passed_native_cancel_and_close",
+        "description": "After stale accessibility element observations during refresh, a screenshot-grounded primary Cancel reached idle OK; Command-W closed Working Tree and left the sole workspace.",
+        "evidence": [
+          {
+            "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-status-opened.png",
+            "sha256": "86c301d064066856c6ffd70681429a7eadb7767c2d62777dbcefdf4ea8e19927"
+          },
+          {
+            "path": "build/qa/installed-acceptance-ui-2026-10-24/status-before-native-close.txt",
+            "sha256": "e246d1feed34cba04295d5bc331d1059f68d94281af9dfe7f83558fe568e271c"
+          },
+          {
+            "path": "build/qa/installed-acceptance-ui-2026-10-24/status-primary-cancel.txt",
+            "sha256": "0f38c76ffcbb2a6c925221fb17dd7a2fc81676bb336d6bc97ed44cb20b64de31"
+          },
+          {
+            "path": "build/qa/installed-acceptance-ui-2026-10-24/status-cancel-native-close-attempt.txt",
+            "sha256": "66c7ce52e3975b53e62dcfe16c6c8d746d33dd2ac80f2af53cb65703511e5454"
+          }
+        ],
+        "observed_limit": "Accessibility IDs expired while refresh cycled. Those CUA stale-element failures are retained as observation failures, not proof of an application refresh-loop defect.",
+        "git_mutations": "None observed or requested"
+      },
+      "background_helper": {
+        "status": "bounded_cache_refresh_observed_after_failed_gui_quit",
+        "background_enabled_in_actual_ui": true,
+        "ready_watched_roots": 1,
+        "helper_pid": 62826,
+        "graceful_gui_quit": {
+          "status": "failed",
+          "pid": 54430,
+          "description": "Settings OK followed by Command-Q timed out. A formerly closed Commit window resurfaced with disabled Commit/Cancel and no visible confirmation sheet; Escape and Command-W had no effect.",
+          "receipt": {
+            "path": "build/qa/installed-app-quit-failure-2026-10-24.json",
+            "sha256": "f8867878312aa435dd1279ec3497a93023a6428c8d2e4361e1765499793feec8"
+          },
+          "details": {
+            "timestamp": "2026-10-24T22:16:27.207824+00:00",
+            "pid": 54430,
+            "command": "/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac",
+            "reason": "Owned installed acceptance app did not exit after Cmd+Q; resurfaced previously closed Commit window with disabled cancellation and no accessible confirmation sheet. Preserve failure, no graceful quit pass claimed.",
+            "signal": "SIGTERM",
+            "sample": "build/qa/installed-app-quit-sample-2026-10-24.txt"
+          },
+          "sample": {
+            "path": "build/qa/installed-app-quit-sample-2026-10-24.txt",
+            "sha256": "a88ae2c3cbc2a2cef16f1ad4e62d4c6b5210bd12abd12701ba48b8c3c02c8cc6"
+          },
+          "forced_stop": "Parent verified exact owned installed executable/PID and sent SIGTERM; this was not a graceful quit pass."
+        },
+        "actual_refresh": {
+          "gui_pid_absent": true,
+          "helper_running_alone": true,
+          "path": "Folder/normal.txt",
+          "transitions": [
+            "normal",
+            "modified",
+            "normal"
+          ],
+          "finder_evidence": [
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/background-finder-normal.txt",
+              "sha256": "c472880bfdc88b5b590a9800c9a43c5c43133c7e5e778772e74bb976760233c9"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/background-finder-modified.txt",
+              "sha256": "d1558af4f926663acd4213cbf0cf580080b4561430a4e003983f40ad799d1bb6"
+            },
+            {
+              "path": "build/qa/installed-acceptance-ui-2026-10-24/background-finder-restored.txt",
+              "sha256": "0a6f7d586346111edc27d28d01be381f39bb1553a6c0cfb1adbf9072e10efab6"
+            }
+          ],
+          "snapshot_evidence": [
+            {
+              "path": "build/qa/installed-background-modified-snapshot-2026-10-24.json",
+              "sha256": "95dee770714ff6afd505697d0533f5e38edc2e465a012e298308c9f4af82f8aa"
+            },
+            {
+              "path": "build/qa/installed-background-restored-snapshot-2026-10-24.json",
+              "sha256": "f67d7726e8d895a723b3de8fca73f686b67ab99a31eaf85dc5c38d48d104412a"
+            }
+          ],
+          "scope": "Actual installed Finder accessibility states plus cache snapshot state; bounded private watched repository only"
+        },
+        "whole_background_route_or_graceful_quit_pass_claimed": false
+      }
+    },
+    "captures": [
+      {
+        "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-commit-opened-visible.png",
+        "sha256": "a314341af75fe926cf25f99403e653132349cc9343610f896ccebb8634022899"
+      },
+      {
+        "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-log-opened.png",
+        "sha256": "f61f6dfdd32f9dbaa1ca6c3d2f0befbb755e3bb4c24cf78ea9e4eba96aa82d86"
+      },
+      {
+        "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-pair-diff-opened.png",
+        "sha256": "9b1690d5f263f3397b0034ce53ffb66d6e2e805846563d7962fb0e6ec7a87cb9"
+      },
+      {
+        "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-pair-menu-visible.png",
+        "sha256": "db0a20b7e90b1b0230abb6b36a043c2d96913a7b7f75a3f07f002f5b0a101c75"
+      },
+      {
+        "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-source-menu-visible.png",
+        "sha256": "200d6926b6558d6b8719543ef0b2fa71dec275b959899601e79d197f8fabcd2a"
+      },
+      {
+        "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-status-opened.png",
+        "sha256": "86c301d064066856c6ffd70681429a7eadb7767c2d62777dbcefdf4ea8e19927"
+      }
+    ],
+    "failures": [
+      {
+        "kind": "CUA stale-element observation failures during Working Tree refresh",
+        "product_bug_proven": false,
+        "recovery": "Screenshot-grounded native Cancel, then Command-W; completed without Git mutation",
+        "evidence": [
+          {
+            "path": "build/qa/installed-acceptance-ui-2026-10-24/status-primary-cancel.txt",
+            "sha256": "0f38c76ffcbb2a6c925221fb17dd7a2fc81676bb336d6bc97ed44cb20b64de31"
+          },
+          {
+            "path": "build/qa/installed-acceptance-ui-2026-10-24/status-cancel-native-close-attempt.txt",
+            "sha256": "66c7ce52e3975b53e62dcfe16c6c8d746d33dd2ac80f2af53cb65703511e5454"
+          }
+        ]
+      },
+      {
+        "kind": "Actual installed application graceful Quit failure",
+        "status": "Preserved; related retired document ownership repair is being implemented separately",
+        "receipt": {
+          "path": "build/qa/installed-app-quit-failure-2026-10-24.json",
+          "sha256": "f8867878312aa435dd1279ec3497a93023a6428c8d2e4361e1765499793feec8"
+        },
+        "pid": 54430,
+        "forced_signal": "SIGTERM only after exact owned executable/PID verification"
+      }
+    ]
+  },
+  "limits": [
+    "Current bead signed candidate built, audited and installed with recoverable backup. Bounded GUI/Finder/cache observations are recorded, but actual graceful GUI Quit failed and required owned SIGTERM; separate ownership/report-style repairs remain unvalidated on a new installed candidate.",
+    "Three bounded source reviews do not prove complete upstream functionality, layout or dialog parity",
+    "Physical Intel/minimum-macOS, complete hosted integration and App Store distribution require their own evidence",
+    "Four contradictory exit-zero build diagnostics remain recorded despite command exit zero and static audit success.",
+    "The discovered extra workspace windows and empty table stripes are under a separate implementation batch; no repaired installed result or complete acceptance is claimed.",
+    "A fresh app later quit normally during cleanup; that isolated success does not turn the original retired-Commit Quit failure into a pass."
+  ],
+  "preflight": {
+    "source_inputs": {
+      "path": "build/qa/installed-acceptance-inputs-2026-10-24.json",
+      "sha256": "97d5cdabc904bac3054d090b2d5b42d765be245acd3e2c01e23a014ea0f0d745",
+      "file_count": 1470,
+      "target_commit": "beadb01b40a324efff3ecb1e422dad36e30f68fa",
+      "dirty_inputs": true,
+      "protected_wip": "Protected existing test-native-reference-batch.py was measured unchanged, not edited by preparation"
+    },
+    "build_plan": {
+      "path": "build/qa/installed-acceptance-build-plan-2026-10-24.json",
+      "sha256": "79df08d0aa1eb83a067d6ab13f01cc23695d24da6c66a8a5f6dcdabaf34d27fa",
+      "preparation_status": "prepared-not-run",
+      "command": [
+        "xcodebuild",
+        "-quiet",
+        "-jobs",
+        "4",
+        "-project",
+        "TurtleGitMac.xcodeproj",
+        "-scheme",
+        "TurtleGitAppStore",
+        "-configuration",
+        "AppStore",
+        "-destination",
+        "generic/platform=macOS",
+        "-derivedDataPath",
+        "build/signed-development",
+        "DEVELOPMENT_TEAM=A49SCA5S8K",
+        "CODE_SIGN_IDENTITY=Apple Development",
+        "build"
+      ],
+      "candidate": "build/signed-development/Build/Products/AppStore/TurtleGitMac.app",
+      "provisioning_updates_requested": false
+    },
+    "build_observation": {
+      "status": "passed",
+      "session": 72810,
+      "xcodebuild_pid": 51755,
+      "started_local": "2026-10-24 23:45:09 Europe/Berlin",
+      "log": "build/qa/installed-acceptance-build-2026-10-24.log",
+      "exit_code": 0,
+      "source": "Parent live-handle observation; build plan remains its original preparation receipt",
+      "contradictory_exit_zero_diagnostics": 4,
+      "path": "build/qa/installed-acceptance-build-2026-10-24.log",
+      "sha256": "4ea2d1e55a4980834e4099f3781c4fc0c2cceec9db41932b8e4a5465a8d7b954"
+    },
+    "disposable_repository": {
+      "path": "build/qa/installed-acceptance-fixture-2026-10-24.json",
+      "sha256": "fc77394261f5a4dcedaa66dca82730b3d29ec635bde2e07a42c7f1d4fe5a65cd",
+      "repository": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGit-Installed-20261024-lquozoou/Harbor",
+      "head": "8dd19fcd959477226c70aed5e8a052c1612d5452",
+      "index_sha256": "1dc9d64e2412a0729dc1b64da3bef8c667f735d9e1f14616ddd5c85b36d8ea7e",
+      "config_sha256": "23615da47be07b139f004b305a59bfa168b3cf64651f926fc2624f4cd1819980",
+      "files": {
+        "alpha.txt": "4f910e380dba9b4d925b1ced4d4423b860ccdb7da66581cbd864ab2f8c7ec3bc",
+        "untracked.txt": "a123853c40d4ba4dda8c4bff32c0cb5dba121db8d303e8af72c799ef3ac0eb87",
+        "preview.ignored": "f822e0b5a20ecf574601af1a486d3117d90266e4dc2a8bd40c5b6f021d859e19",
+        "beta.txt": "4967d2fd5864f46e6833f6abcc890363bb4e3fcc52c2f0b0872f5f0297238ff3",
+        ".gitignore": "f2e66e77ab2e75f6b21cdeab963706bfdd87704b2aa54c2a2a60d8c65191b8a6",
+        "Folder/normal.txt": "1323acdabab50ac6de479790cfb433f9c944a362fd611721df98a71f80747422"
+      },
+      "setup": {
+        "history": "Private graph repository",
+        "modified_tracked_files": 2,
+        "untracked": true,
+        "ignored": true,
+        "remotes": 2,
+        "remote_kind": "Private local repositories"
+      },
+      "acceptance_run": false
+    },
+    "original_installation": {
+      "path": "build/qa/installed-acceptance-original-2026-10-24/baseline.json",
+      "sha256": "4d8d6f99f0ac82d1ba2d97329042a5e83a1f57d4ebce30bc965e54f04cd34d0b",
+      "original_app": "/Applications/TurtleGit for Mac.app",
+      "recoverable_backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/installed-acceptance-original-2026-10-24/TurtleGit for Mac.app",
+      "original_executable_sha256": "4e40704d4b906d02c5b3b06d66d487ce5a83791e855351d849b4a62d8ce668e8",
+      "original_info_sha256": "48efa71d25b1e7ae533d4e58eb992ea692b9f66b1e3796738a918b224cc6e0b9",
+      "original_extension_pid": 57078,
+      "original_extension_enabled": true,
+      "original_background_switch": "on; service process absent at baseline",
+      "backup_status": "Recoverable byte copy completed; installed app not replaced",
+      "private_state_backup": {
+        "status": "Preferences and App Support copied",
+        "entries": 2,
+        "values_in_report": false
+      }
+    },
+    "actual_system_observation": {
+      "source": "Parent CUA observation",
+      "installed_extension_switch": "on",
+      "background_item_switch": "on",
+      "background_helper_process": "absent",
+      "installed_app_process": "not running",
+      "installed_finder_pid": 57078,
+      "installed_finder_pid_action": "untouched/running",
+      "plugin_registration": {
+        "elected_entries": 2,
+        "paths": [
+          "historical signed build candidate",
+          "/Applications/TurtleGit for Mac.app"
+        ]
+      },
+      "owned_system_settings_window": "Extension details opened by parent",
+      "switches_toggled": false,
+      "application_replaced": false,
+      "historical_preflight_only": true
+    }
+  },
+  "observed_on": "2026-10-25 Europe/Berlin; evidence family started 2026-10-24",
+  "installed_activation": {
+    "extension_toggle": "Completed through supported System Settings UI",
+    "original_extension_pid": 57078,
+    "original_extension_retirement": "Retired naturally; no direct kill",
+    "replacement_extension_pid": 54248,
+    "replacement_extension_verified_independently": true,
+    "app_exit_verified_independently": true,
+    "system_settings_cua_timeout": {
+      "after_completed_toggle": true,
+      "description": "CUA observation timed out after the completed toggle; independent checks confirmed application exit and replacement extension PID. This does not mean the toggle failed."
+    },
+    "background_helper_acceptance": "Not executed; no claim that the cache/background service is running"
+  },
+  "concrete_findings": [
+    {
+      "finding": "Unwanted extra main workspace windows after Finder routes",
+      "status": "Separate implementation batch in progress; installed measured bead candidate still exhibits it",
+      "evidence": [
+        {
+          "path": "build/qa/installed-acceptance-ui-2026-10-24/installed-window-menu-after-finder-routes.txt",
+          "sha256": "e799e1caa51f259b38ea698c948030e63d44c737c599ff9958ebabbce20e08cc"
+        },
+        {
+          "path": "build/qa/installed-acceptance-ui-2026-10-24/duplicate-workspace-closed.txt",
+          "sha256": "c60e10c40051731baf9de2cfb8ed2e27e855fbe5ae369fbbd2043b7b58493617"
+        },
+        {
+          "path": "build/qa/installed-acceptance-ui-2026-10-24/pair-route-extra-workspace-closed.txt",
+          "sha256": "f4a92cc7d6ab39849ea0dcd565d5709ca0ecea7bb9aef94ce23b01160d196955"
+        }
+      ],
+      "observed_detail": "Window menu lists the scoped Log dialog plus three generic TurtleGit for Mac windows; owned duplicate workspaces had to be closed.",
+      "confirmed_by": "Parent GUI observation and recorded Window menu tree"
+    },
+    {
+      "finding": "Alternating empty table stripes below actual rows",
+      "status": "Separate implementation batch in progress; not yet repaired or reaccepted on this installed candidate",
+      "evidence": [
+        {
+          "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-log-opened.png",
+          "sha256": "f61f6dfdd32f9dbaa1ca6c3d2f0befbb755e3bb4c24cf78ea9e4eba96aa82d86"
+        },
+        {
+          "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-status-opened.png",
+          "sha256": "86c301d064066856c6ffd70681429a7eadb7767c2d62777dbcefdf4ea8e19927"
+        },
+        {
+          "path": "build/qa/installed-acceptance-ui-2026-10-24/finder-commit-opened-visible.png",
+          "sha256": "a314341af75fe926cf25f99403e653132349cc9343610f896ccebb8634022899"
+        }
+      ],
+      "observed_detail": "Repeated rounded alternating bands continue below the actual three Log changed-file rows, three Working Tree rows, and two scoped Commit rows.",
+      "confirmed_by": "Parent observation and child actual view_image inspection of all three captures"
+    },
+    {
+      "finding": "Retired Commit resurfaced and blocked graceful application Quit",
+      "status": "Separate retired-owner/Quit implementation pending new build validation",
+      "evidence": [
+        {
+          "path": "build/qa/installed-app-quit-failure-2026-10-24.json",
+          "sha256": "f8867878312aa435dd1279ec3497a93023a6428c8d2e4361e1765499793feec8"
+        },
+        {
+          "path": "build/qa/installed-app-quit-sample-2026-10-24.txt",
+          "sha256": "a88ae2c3cbc2a2cef16f1ad4e62d4c6b5210bd12abd12701ba48b8c3c02c8cc6"
+        }
+      ],
+      "observed_detail": "Owned installed acceptance app did not exit after Cmd+Q; resurfaced previously closed Commit window with disabled cancellation and no accessible confirmation sheet. Preserve failure, no graceful quit pass claimed."
+    }
+  ],
+  "cleanup": {
+    "status": "Acceptance-owned cleanup completed; private fixture retained for next candidate",
+    "ui": {
+      "fixture_watch_removed": true,
+      "ready_watched_roots_after": 0,
+      "background_switch_restored": "off",
+      "fixture_saved_permission_forgotten_via_recent_remove": true,
+      "fresh_app_normal_quit": "Succeeded; does not erase earlier failed GUI Quit",
+      "owned_finder_fixture_window": "Closed",
+      "user_downloads_window": "Preserved"
+    },
+    "evidence": [
+      {
+        "path": "build/qa/installed-acceptance-ui-2026-10-24/background-refresh-baseline.txt",
+        "sha256": "8c04f435c90e81cb60bc773cee84a367abd4abefedf4717f7069722ef1923d1f"
+      },
+      {
+        "path": "build/qa/installed-acceptance-ui-2026-10-24/background-refresh-enabled.txt",
+        "sha256": "2d5cabee5549438ffcab82cd51d849f6e06aed04b42a14d96fbeb917354a526a"
+      },
+      {
+        "path": "build/qa/installed-acceptance-ui-2026-10-24/background-watch-removed.txt",
+        "sha256": "84445fa0d0aa57e106f0b2e23440ef00c341f6a84fc64cf85f0e09cec7b71f66"
+      },
+      {
+        "path": "build/qa/installed-acceptance-ui-2026-10-24/background-baseline-restored.txt",
+        "sha256": "88dab8dcaacc9b704061d0e1f2c1a75845e70e70a9d1a5c63a7ea969aa467edd"
+      },
+      {
+        "path": "build/qa/installed-acceptance-ui-2026-10-24/fixture-permission-forgotten.txt",
+        "sha256": "598811ff2c273dd413eaad9b69c4d8a232b9ac649ee09e06452dc4e4da5b8fa2"
+      }
+    ],
+    "independent_process_observation": {
+      "command": "ps -p 54430,62826,54248 -o pid=,command=",
+      "gui_54430_absent": true,
+      "cache_62826_absent": true,
+      "finder_54248_preserved": true,
+      "observed_remaining": "54248 /Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder -AppleLanguages (de-DE)"
+    },
+    "repository_baseline_recheck": {
+      "index": {
+        "sha256": "1dc9d64e2412a0729dc1b64da3bef8c667f735d9e1f14616ddd5c85b36d8ea7e",
+        "matches_baseline": true
+      },
+      "config": {
+        "sha256": "23615da47be07b139f004b305a59bfa168b3cf64651f926fc2624f4cd1819980",
+        "matches_baseline": true
+      },
+      "files": {
+        "alpha.txt": {
+          "sha256": "4f910e380dba9b4d925b1ced4d4423b860ccdb7da66581cbd864ab2f8c7ec3bc",
+          "matches_baseline": true
+        },
+        "untracked.txt": {
+          "sha256": "a123853c40d4ba4dda8c4bff32c0cb5dba121db8d303e8af72c799ef3ac0eb87",
+          "matches_baseline": true
+        },
+        "preview.ignored": {
+          "sha256": "f822e0b5a20ecf574601af1a486d3117d90266e4dc2a8bd40c5b6f021d859e19",
+          "matches_baseline": true
+        },
+        "beta.txt": {
+          "sha256": "4967d2fd5864f46e6833f6abcc890363bb4e3fcc52c2f0b0872f5f0297238ff3",
+          "matches_baseline": true
+        },
+        ".gitignore": {
+          "sha256": "f2e66e77ab2e75f6b21cdeab963706bfdd87704b2aa54c2a2a60d8c65191b8a6",
+          "matches_baseline": true
+        },
+        "Folder/normal.txt": {
+          "sha256": "1323acdabab50ac6de479790cfb433f9c944a362fd611721df98a71f80747422",
+          "matches_baseline": true
+        }
+      },
+      "head": {
+        "oid": "8dd19fcd959477226c70aed5e8a052c1612d5452",
+        "matches_baseline": true
+      }
+    },
+    "private_fixture_removed": false,
+    "fixture_retention_reason": "Recheck forthcoming repaired candidate without recreating the acceptance history/state"
+  }
+}

@@ -903,7 +903,7 @@ struct StatusDialog: View {
                 TableColumn("Last modified", sortUsing: StatusGroupedSort(column: .lastModified)) { item in groupCell(item, column: .lastModified) }.width(min: 150, ideal: 170)
                 TableColumn("File size", sortUsing: StatusGroupedSort(column: .fileSize)) { item in groupCell(item, column: .fileSize) }.width(min: 70, ideal: 100)
                 TableColumn("LFS Lock", sortUsing: StatusGroupedSort(column: .lfsOwner)) { item in groupCell(item, column: .lfsOwner) }.width(min: 100, ideal: 160)
-            }.fileListFont().disabled(model.controlsBlocked)
+            }.tableStyle(.bordered(alternatesRowBackgrounds:false)).fileListFont().disabled(model.controlsBlocked)
             .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
                 model.receiveFileDrop(providers)
             }

@@ -3345,7 +3345,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             TableColumn("LFS Lock", sortUsing: CommitFileSort(column: .lfsOwner)) { (row: CommitSortableRow) in
                 if let entry = row.entry { Text(row.lfsOwner).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)) } else { groupRule }
             }.width(min: 100, ideal: 160)
-        }.fileListFont().contextMenu(forSelectionType: String.self) { nativeIDs in
+        }.tableStyle(.bordered(alternatesRowBackgrounds:false)).fileListFont().contextMenu(forSelectionType: String.self) { nativeIDs in
             let requested = GitPathRowIdentity.paths(nativeIDs)
             TurtleGitContextMenu {
                 let ids = requested.intersection(GitPathSet(entries.map(\.id)))
