@@ -87,7 +87,7 @@ brushes. Its own evidence separates newly accepted behavior from this older
 checkpoint. The [compressed-path extension](METAFILE-PATH-PARITY.md) adds relative/RLE region
 paths and shares validation with drawing, clipping, custom caps and accepted
 gradient boundaries. Negative region rectangle extents, singular
-region fill transforms and nested-metafile textures remain explicit refusals.
+region fill transforms remain explicit refusals. The [embedded-metafile family](METAFILE-EMBEDDED-IMAGE-PARITY.md) supersedes the former nested-image/texture refusal with bounded child playback and isolated texture surfaces.
 
 ## Explicit remaining format behavior
 
@@ -109,7 +109,7 @@ The [indexed/16-bit bitmap extension](METAFILE-BITMAP-FORMATS-PARITY.md) covers
 brushes. The [high-depth bitmap continuation](METAFILE-HIGH-DEPTH-PARITY.md) adds raw
 16-bit grayscale, 48-bit RGB and 64-bit ARGB/premultiplied ARGB through a
 documented eight-bit display profile. Windows internal thirteen-bit/HDR identity,
-nested WMF images and uncommon embedded compressed formats remain open. The [direct scanline and gradient family](METAFILE-SCANLINE-GRADIENT-PARITY.md)
+and uncommon embedded compressed formats remain open. Embedded WMF/EMF/EMF+ image objects are now covered by the separate [embedded-image family](METAFILE-EMBEDDED-IMAGE-PARITY.md), with explicit Windows-reference and native-profile limits. The [direct scanline and gradient family](METAFILE-SCANLINE-GRADIENT-PARITY.md)
 adds WMF/EMF direct bitmap bands and classic rectangle/triangle meshes; partial
 compressed bands and unsupported compressed alpha packing remain explicit gaps. The
 [classic clipping extension](METAFILE-CLASSIC-CLIP-PARITY.md) covers all five

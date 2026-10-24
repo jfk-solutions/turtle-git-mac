@@ -57,7 +57,7 @@ An ID0 reference would incorrectly point at our image object rather than optiona
 attributes. This corpus corrects that previously permissive synthetic encoding.
 
 Additional intentional refusal cases cover E=0x2000 (image effects, not relative
-points), BitmapClamp1, invalid wrap5, wrong-type attributes, and malformed preset
+points), invalid Clamp values, invalid wrap5, wrong-type attributes, and malformed preset
 stop order. They must not be rendered as successful approximate/blank images.
 The wire flag definitions and integer encoding come from independent Microsoft
 [DrawImagePoints](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emfplus/9bad3867-71b0-46fb-9b90-f7d8fb37ff76),
@@ -452,3 +452,23 @@ background attributes, then selects a 26-entry custom palette and paints cyan.
 Its final selected PALETTEINDEX 1000 brush remains unused and valid. The separate
 painted-unresolved brush refusal requires actual missing-color consumption,
 retaining whole-image refusal after earlier legitimate marks.
+
+
+## Embedded metafile images and textures
+
+`generate-embedded.py` independently authors 57 accepted embedded-image/texture
+EMFs, 15 malformed/budget refusals and one literal RGBA PNG control. WMF,
+placeable WMF, EMF, EMF+ only and dual children contain known red/green geometry
+with unpainted holes. Direct draws exercise crop, affine mapping, device clip,
+recursive/repeated use, fresh-child/explicit composition, classic DSTINVERT,
+Clear and parent-state restoration. Textures compare against literal raw BGRA
+images for all wrap modes, pen, glyph and SourceCopy; checkpoint-scope fixtures
+retain a separately painted parent prefix. ImageAttributes fixtures prove direct vector wrap/clamp is ignored, while
+bitmap attributes retain their existing behavior. Classic glyph axes and a WMF
+round rectangle/clip exercise the full parent affine rather than a bounding box. Clamp BOOL=1 is accepted as ignored
+GDI+ 1.0 metadata; `plus-image-attributes-clamp-ignored.emf` retains the bytes of
+the old `unsupported-image-attributes.emf` sample. All other prior payloads are
+unchanged. Invalid child/header/type/size/reference, recursion and playback-count
+samples must fail the whole outer image. See
+[embedded image parity](../../../../docs/METAFILE-EMBEDDED-IMAGE-PARITY.md) for
+source contracts, bounds and the pending grouped checkpoint.

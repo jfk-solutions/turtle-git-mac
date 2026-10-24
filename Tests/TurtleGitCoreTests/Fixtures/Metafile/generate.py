@@ -116,7 +116,7 @@ rs=image_objects()+[ep(0x402D,F(24,4)),ep(0x401B,U(0xffffffff,2)+F(0,0,2,2)+U(3)
 # E(0x2000) is an effect flag, NOT relative point encoding. A missing/unsupported
 # effect pipeline must refuse this draw rather than silently render unmodified.
 (P/'unsupported-image-effect.emf').write_bytes(plus(image_objects()+[ep(0x401B,U(0xffffffff,2)+F(0,0,2,2)+U(3)+F(8,8,40,8,8,40),0x2000)]))
-(P/'unsupported-image-attributes.emf').write_bytes(plus(image_objects(attr(clamp=1))+[image_rect(3)]))
+(P/'plus-image-attributes-clamp-ignored.emf').write_bytes(plus(image_objects(attr(clamp=1))+[image_rect(3)]))
 (P/'unsupported-image-wrap.emf').write_bytes(plus(image_objects(attr(wrap=5))+[image_rect(3)]))
 (P/'unsupported-image-attribute-type.emf').write_bytes(plus(image_objects()+[image_rect(0)]))
 # Three precise preset colors; no copied CSS, pictures, expected SVG or fonts.

@@ -48,8 +48,10 @@ Gradient, hatch and texture sources keep their existing
 brush pipeline; transparent brush cells clear within the actual shape, without
 using brush opacity as a substitute for that shape. Images capture their intended
 destination parallelogram independently of bitmap alpha, including affine
-placement, source crop and accepted image attributes. Nested accepted image
-representations remain a single image paint.
+placement, source crop and accepted image attributes. Embedded metafiles use [live child playback](METAFILE-EMBEDDED-IMAGE-PARITY.md)
+instead of a single image-rectangle replacement: their actual individual paints
+start with SourceOver, honor explicit child mode changes and retain the
+destination under unpainted child areas. Parent SourceCopy is restored afterward.
 
 After the record has supplied its complete region clip, source and coverage
 receive the identical world/page/device transform and device clip. The native

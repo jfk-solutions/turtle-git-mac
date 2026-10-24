@@ -49,6 +49,14 @@ import TurtleGitCore
     var resultIsCurrent:Bool {resultManifest != nil && resultDecisions==review?.decisions}
     var canPreviewResult:Bool {canSave && !resultBusy && !resultIsCurrent}
     var resultSlide:PresentationSlide? {guard let resultSelection,let slides=resultManifest?.slides,slides.indices.contains(resultSelection) else{return nil};return slides[resultSelection]}
+    enum ReviewEntries:String,CaseIterable {case all="All revisions",comments="Comments"}
+    private var changingEntries=false
+    @Published var reviewEntries=ReviewEntries.all {didSet {
+        guard !changingEntries else{return};changingEntries=true;defer{changingEntries=false}
+        guard canAct else{reviewEntries=oldValue;return}
+        preferences?.set(reviewEntries.rawValue,forKey:"PresentationReview.Entries")
+        if !visibleChanges.contains(where:{$0.id==selection}) {selection=visibleChanges.first?.id}
+    }}
     private var changingSelection=false
     @Published var selection:String? {didSet {
         guard !changingSelection else{return};changingSelection=true;defer{changingSelection=false}
@@ -68,7 +76,47 @@ import TurtleGitCore
     var canAct:Bool {!retired && !loading && !exporting && actionsAllowed()}
     var isDirty:Bool {!retired && (review?.decisions ?? [:]) != savedDecisions}
     var changes:[PresentationRevisionChange] {review?.changes ?? []}
-    var selected:PresentationRevisionChange? {changes.first{$0.id==selection}}
+    var commentRows:[PresentationRevisionChange] {
+        guard let review else{return []}
+        let changed=Dictionary(uniqueKeysWithValues:changes.map{($0.id,$0)})
+        return review.commentChanges.map {id,pair in
+            if let existing=changed[id] {return existing}
+            let comment=pair.destination ?? pair.base!
+            return PresentationRevisionChange(id:id,title:"Slide \(comment.slideIndex+1): Comment by "+comment.author,detail:"Unchanged comment",baseSlideIndex:pair.base?.slideIndex,destinationSlideIndex:pair.destination?.slideIndex,kind:.commentChanged)
+        }.sorted {a,b in
+            let lhs=review.commentChanges[a.id]!,rhs=review.commentChanges[b.id]!
+            let l=lhs.destination ?? lhs.base!,r=rhs.destination ?? rhs.base!
+            if l.slideIndex != r.slideIndex {return l.slideIndex<r.slideIndex}
+            if l.threadID != r.threadID {return l.threadID<r.threadID}
+            if l.depth != r.depth {return l.depth<r.depth}
+            return a.id<b.id
+        }
+    }
+    var visibleChanges:[PresentationRevisionChange] {reviewEntries == .comments ? commentRows:changes}
+    var selected:PresentationRevisionChange? {(changes+commentRows).first{$0.id==selection}}
+    var selectedComment:PresentationCommentChange? {guard let selection else{return nil};return review?.commentChanges[selection]}
+    var selectedCommentIsDeleted:Bool {guard let selection else{return false};return review?.commentIsDeleted(changeID:selection)==true}
+    var selectedCommentCanRestore:Bool {guard let selection else{return false};return canAct && review?.commentIsDirectlyDeleted(changeID:selection)==true}
+    var canDecideSelected:Bool {guard let selection else{return false};return canAct && changes.contains{$0.id==selection}}
+    func decisionLabel(_ id:String)->String {
+        if review?.commentIsDeleted(changeID:id)==true{return "Deleted comment"}
+        if !changes.contains(where:{$0.id==id}) {return "Unchanged"}
+        return PresentationRevisionChangePresentation.decision(review?.decisions[id])
+    }
+    private func commentDestination(_ delta:Int)->String? {
+        let ordered=commentRows.map(\.id)
+        guard !ordered.isEmpty else{return nil}
+        guard let current=ordered.firstIndex(where:{$0==selection}) else{return delta>0 ? ordered.first:ordered.last}
+        let next=current+delta;return ordered.indices.contains(next) ? ordered[next]:nil
+    }
+    func canNavigateComment(_ delta:Int)->Bool {canAct && commentDestination(delta) != nil}
+    func navigateComment(_ delta:Int){guard canAct,let id=commentDestination(delta) else{return};reviewEntries = .comments;selection=id}
+    func selectCommentRecord(_ recordID:String,destination:Bool) {
+        guard canAct,let review,let id=review.commentChanges.first(where:{destination ? $0.value.destination?.id==recordID:$0.value.base?.id==recordID})?.key else{return}
+        reviewEntries = .comments;selection=id
+    }
+    func deleteComment(_ id:String? = nil){guard canAct,let id=id ?? selection,review?.commentChanges[id] != nil else{return};let before=review?.decisions;review?.deleteComment(changeID:id);decisionsChanged(before)}
+    func restoreComment(_ id:String? = nil){guard canAct,let id=id ?? selection,review?.commentIsDirectlyDeleted(changeID:id)==true else{return};let before=review?.decisions;review?.restoreComment(changeID:id);decisionsChanged(before)}
     var unresolvedCount:Int {review?.unresolvedCount ?? 0}
     var canSave:Bool {canAct && review != nil && unresolvedCount==0}
     var suggestedExtension:String {review?.suggestedExtension ?? "pptx"}
@@ -77,8 +125,10 @@ import TurtleGitCore
     var destinationSlide:PresentationSlide? {guard let index=selected?.destinationSlideIndex,let slides=review?.destinationManifest.slides,slides.indices.contains(index) else{return nil};return slides[index]}
     init(preview:PresentationComparisonPreview,protectedInputs:[URL],initialReview:PresentationRevisionReview? = nil,preferences:UserDefaults?=nil) {
         self.preview=preview;self.protectedInputs=protectedInputs;self.preferences=preferences;review=initialReview;selection=initialReview?.changes.first?.id
+        reviewEntries=ReviewEntries(rawValue:preferences?.string(forKey:"PresentationReview.Entries") ?? "") ?? .all
         previewMode=PreviewMode(rawValue:preferences?.string(forKey:"PresentationReview.PreviewMode") ?? "") ?? .sources
         saveFormat=[preview.base,preview.destination].contains{$0.pathExtension.lowercased()=="ppt"} ? .legacy:.openXML
+        selection=visibleChanges.first?.id
     }
     func start(){
         guard !retired,!loading,review==nil,actionsAllowed() else{return}
@@ -97,7 +147,7 @@ import TurtleGitCore
                 }.value
                 guard !retired,generation==request else{return}
                 if token.isCancelled {loading=false;self.token=nil;self.error="Editable revision preparation cancelled. Retry to read the captured packages again.";return}
-                review=value;loading=false;self.token=nil;selection=value.changes.first?.id
+                review=value;loading=false;self.token=nil;selection=visibleChanges.first?.id
             }catch{
                 guard !retired,generation==request else{return};loading=false;self.token=nil
                 self.error=token.isCancelled ? "Editable revision preparation cancelled. Retry to read the captured packages again.":error.localizedDescription
@@ -252,8 +302,15 @@ struct PresentationRevisionReviewPanel:View {
             }
             if let resultError=model.resultError {Text(resultError).foregroundStyle(.red).textSelection(.enabled)}
             if model.review != nil {
+                HStack {
+                    Picker("Review entries",selection:$model.reviewEntries){ForEach(PresentationRevisionWindowModel.ReviewEntries.allCases,id:\.self){Text(LocalizedStringKey($0.rawValue)).tag($0)}}.frame(width:220).disabled(!model.canAct).accessibilityIdentifier("presentation-review-entries")
+                    Text("\(model.commentRows.count) comments").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button{model.navigateComment(-1)}label:{CommandLabel(title:"Previous comment",icon:.mergePreviousDifference)}.disabled(!model.canNavigateComment(-1)).accessibilityIdentifier("presentation-comment-previous")
+                    Button{model.navigateComment(1)}label:{CommandLabel(title:"Next comment",icon:.mergeNextDifference)}.disabled(!model.canNavigateComment(1)).accessibilityIdentifier("presentation-comment-next")
+                }
                 HSplitView {
-                    List(selection:$model.selection){ForEach(model.changes,id:\.id){change in
+                    List(selection:$model.selection){ForEach(model.visibleChanges,id:\.id){change in
                         changeRow(change)
                     }}.frame(minWidth:280,idealWidth:390).disabled(!model.canAct)
                     ScrollView {VStack(alignment:.leading,spacing:8){
@@ -263,22 +320,35 @@ struct PresentationRevisionReviewPanel:View {
                                 Text(verbatim:PresentationRevisionChangePresentation.breadcrumb(change)).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                             }
                             Text(verbatim:change.detail).textSelection(.enabled)
-                            if model.baseSlide != nil || model.destinationSlide != nil {
+                            if let comment=model.selectedComment {
+                                PresentationCommentReviewDetail(pair:comment,baseInventory:model.review?.baseComments ?? [],destinationInventory:model.review?.destinationComments ?? [],canSelect:model.canAct,select:model.selectCommentRecord)
+                                if model.selectedCommentIsDeleted {Text(model.selectedCommentCanRestore ? "Deleted from editable output":"Deleted with its parent comment. Select that parent or use Undo to restore the thread.").font(.caption).foregroundStyle(.orange)}
+                            } else if model.baseSlide != nil || model.destinationSlide != nil {
                                 HStack(alignment:.top){slideDetail(model.baseSlide,title:"Base slide text and notes");Divider();slideDetail(model.destinationSlide,title:"New slide text and notes")}
                             }
                         }
                         else {Text(model.changes.isEmpty ? "No editable package differences.":"Select a revision to inspect its details.")}
                     }.frame(maxWidth:.infinity,alignment:.leading).padding(6)}.frame(minWidth:260)
-                }.frame(minHeight:135,idealHeight:220,maxHeight:220)
+                }.frame(minHeight:155,idealHeight:model.selectedComment == nil ? 220:300,maxHeight:model.selectedComment == nil ? 220:320)
                 HStack {
-                    Button{model.decide(accept:true)}label:{CommandLabel(title:"Accept selected",icon:.add)}.disabled(!model.canAct || model.selected==nil)
-                    Button{model.decide(accept:false)}label:{CommandLabel(title:"Reject selected",icon:.revert)}.disabled(!model.canAct || model.selected==nil)
-                    Button{model.decideAll(accept:true)}label:{CommandLabel(title:"Accept all",icon:.add)}.disabled(!model.canAct || model.changes.isEmpty)
-                    Button{model.decideAll(accept:false)}label:{CommandLabel(title:"Reject all",icon:.revert)}.disabled(!model.canAct || model.changes.isEmpty)
-                    Spacer()
+                    Button{model.decide(accept:true)}label:{CommandLabel(title:"Accept selected",icon:.add)}.fixedSize().disabled(!model.canDecideSelected)
+                    Button{model.decide(accept:false)}label:{CommandLabel(title:"Reject selected",icon:.revert)}.fixedSize().disabled(!model.canDecideSelected)
+                    Button{model.decideAll(accept:true)}label:{CommandLabel(title:"Accept all",icon:.add)}.fixedSize().disabled(!model.canAct || model.changes.isEmpty)
+                    Button{model.decideAll(accept:false)}label:{CommandLabel(title:"Reject all",icon:.revert)}.fixedSize().disabled(!model.canAct || model.changes.isEmpty)
+                    if model.selectedComment != nil {
+                        if model.selectedCommentIsDeleted {
+                            Button{model.restoreComment()}label:{CommandLabel(title:"Restore comment",icon:.restore)}.fixedSize().disabled(!model.selectedCommentCanRestore).accessibilityIdentifier("presentation-comment-restore")
+                        } else {
+                            Button{model.deleteComment()}label:{CommandLabel(title:"Delete comment",icon:.remove)}.fixedSize().disabled(!model.canAct).accessibilityIdentifier("presentation-comment-delete")
+                        }
+                    }
+                    Spacer(minLength:0)
+                }
+                HStack {
                     Picker("Save format",selection:$model.saveFormat){ForEach(PresentationRevisionWindowModel.SaveFormat.allCases,id:\.self){Text($0.rawValue).tag($0)}}.frame(width:300).disabled(!model.canAct)
-                    if model.exporting {ProgressView().controlSize(.small);Button("Cancel export"){model.cancel()}}
-                    if let url=model.savedURL {Text("Saved: \(url.lastPathComponent)").font(.caption).help(url.path)}
+                    if model.exporting {ProgressView().controlSize(.small);Button("Cancel export"){model.cancel()}.fixedSize()}
+                    if let url=model.savedURL {Text("Saved: \(url.lastPathComponent)").font(.caption).lineLimit(1).truncationMode(.middle).help(url.path)}
+                    Spacer(minLength:0)
                 }
                 ForEach(Array(model.notices.enumerated()),id:\.offset){_,notice in Text(notice).font(.caption).foregroundStyle(.secondary)}
                 Text("Preview Result renders the chosen revisions with Microsoft PowerPoint. Source slides remain available for comparison.").font(.caption).foregroundStyle(.secondary)
@@ -287,8 +357,8 @@ struct PresentationRevisionReviewPanel:View {
     }
     private func changeRow(_ change:PresentationRevisionChange)->some View {
         HStack(alignment:.top,spacing:6) {
-            Image(systemName:model.review?.decisions[change.id].map{$0 ? "checkmark.circle.fill":"xmark.circle.fill"} ?? "circle").foregroundStyle(model.review?.decisions[change.id].map{$0 ? Color.green:Color.red} ?? .secondary)
-            if let image=PresentationRevisionChangePresentation.icon(change).image() {
+            Image(systemName:model.review?.commentIsDeleted(changeID:change.id)==true ? "trash.circle.fill":model.review?.decisions[change.id].map{$0 ? "checkmark.circle.fill":"xmark.circle.fill"} ?? "circle").foregroundStyle(model.review?.commentIsDeleted(changeID:change.id)==true ? Color.orange:model.review?.decisions[change.id].map{$0 ? Color.green:Color.red} ?? .secondary)
+            if let image=(model.changes.contains{$0.id==change.id} ? PresentationRevisionChangePresentation.icon(change):MenuIcon.status).image() {
                 Image(nsImage:image).renderingMode(image.isTemplate ? .template:.original).resizable().frame(width:16,height:16)
             }
             VStack(alignment:.leading,spacing:2) {
@@ -301,19 +371,81 @@ struct PresentationRevisionReviewPanel:View {
         .help(PresentationRevisionChangePresentation.location(change))
         .accessibilityElement(children:.ignore)
         .accessibilityLabel(Text(verbatim:PresentationRevisionChangePresentation.location(change)))
-        .accessibilityValue(Text(LocalizedStringKey(PresentationRevisionChangePresentation.decision(model.review?.decisions[change.id]))))
+        .accessibilityValue(Text(LocalizedStringKey(model.decisionLabel(change.id))))
         .accessibilityIdentifier("presentation-revision-"+change.id)
-        .accessibilityAction(named:Text("Accept selected")){if model.canAct{model.decide(changeID:change.id,accept:true)}}
-        .accessibilityAction(named:Text("Reject selected")){if model.canAct{model.decide(changeID:change.id,accept:false)}}
+        .accessibilityAction(named:Text("Accept selected")){if model.canAct && model.changes.contains(where:{$0.id==change.id}){model.decide(changeID:change.id,accept:true)}}
+        .accessibilityAction(named:Text("Reject selected")){if model.canAct && model.changes.contains(where:{$0.id==change.id}){model.decide(changeID:change.id,accept:false)}}
         .tag(change.id).contextMenu {
-            Button{model.decide(changeID:change.id,accept:true)}label:{CommandLabel(title:"Accept selected",icon:.add)}.disabled(!model.canAct)
-            Button{model.decide(changeID:change.id,accept:false)}label:{CommandLabel(title:"Reject selected",icon:.revert)}.disabled(!model.canAct)
+            Button{model.decide(changeID:change.id,accept:true)}label:{CommandLabel(title:"Accept selected",icon:.add)}.disabled(!model.canAct || !model.changes.contains{$0.id==change.id})
+            Button{model.decide(changeID:change.id,accept:false)}label:{CommandLabel(title:"Reject selected",icon:.revert)}.disabled(!model.canAct || !model.changes.contains{$0.id==change.id})
+            if model.review?.commentChanges[change.id] != nil {
+                if model.review?.commentIsDeleted(changeID:change.id)==true {
+                    Button{model.restoreComment(change.id)}label:{CommandLabel(title:"Restore comment",icon:.restore)}.disabled(!model.canAct || model.review?.commentIsDirectlyDeleted(changeID:change.id) != true)
+                } else {
+                    Button{model.deleteComment(change.id)}label:{CommandLabel(title:"Delete comment",icon:.remove)}.disabled(!model.canAct)
+                }
+            }
         }
     }
     private func slideDetail(_ slide:PresentationSlide?,title:String)->some View {
         VStack(alignment:.leading,spacing:4){Text(title).font(.caption).bold();Text(slide?.text ?? "—").textSelection(.enabled);if let notes=slide?.notes,!notes.isEmpty {Text(notes).font(.caption).textSelection(.enabled)}}.frame(maxWidth:.infinity,alignment:.leading)
     }
 
+}
+
+struct PresentationCommentReviewDetail:View {
+    let pair:PresentationCommentChange
+    let baseInventory:[PresentationComment],destinationInventory:[PresentationComment]
+    let canSelect:Bool
+    let select:(String,Bool)->Void
+    var body:some View {
+        HStack(alignment:.top,spacing:12) {
+            side(pair.base,inventory:baseInventory,title:"Base comments",destination:false)
+            Divider()
+            side(pair.destination,inventory:destinationInventory,title:"New comments",destination:true)
+        }.accessibilityIdentifier("presentation-comments-detail")
+    }
+    private func thread(_ selected:PresentationComment,inventory:[PresentationComment])->[PresentationComment] {
+        let records=inventory.filter{$0.threadID==selected.threadID}
+        let ids=Set(records.map(\.id))
+        func ordered(_ items:[PresentationComment])->[PresentationComment] {items.sorted {if $0.created != $1.created{return $0.created<$1.created};return $0.id<$1.id}}
+        var children:[String:[PresentationComment]]=[:]
+        for record in records {if let parent=record.parentID {children[parent,default:[]].append(record)}}
+        var stack=Array(ordered(records.filter{$0.parentID==nil || !ids.contains($0.parentID!)}).reversed()),result:[PresentationComment]=[],seen=Set<String>()
+        while let comment=stack.popLast() {
+            guard seen.insert(comment.id).inserted else{continue};result.append(comment)
+            stack.append(contentsOf:ordered(children[comment.id] ?? []).reversed())
+        }
+        return result
+    }
+    @ViewBuilder private func side(_ selected:PresentationComment?,inventory:[PresentationComment],title:String,destination:Bool)->some View {
+        VStack(alignment:.leading,spacing:8) {
+            Text(LocalizedStringKey(title)).font(.caption).bold()
+            if let selected {
+                Text(selected.isModern ? "Modern threaded comment":"Classic comment").font(.caption).foregroundStyle(.secondary)
+                ForEach(thread(selected,inventory:inventory),id:\.id) {comment in
+                    VStack(alignment:.leading,spacing:5) {
+                        HStack(alignment:.top,spacing:6) {
+                            Text(verbatim:comment.initials.isEmpty ? "?":comment.initials).font(.caption.bold()).padding(5).background(Color.accentColor.opacity(0.15)).clipShape(Circle())
+                            VStack(alignment:.leading,spacing:2) {
+                                Button{select(comment.id,destination)}label:{Text(verbatim:comment.author).font(.callout.bold())}.buttonStyle(.plain).foregroundStyle(Color.accentColor).disabled(!canSelect)
+                                Text("Slide \(comment.slideIndex+1)").font(.caption).foregroundStyle(.secondary)
+                                if !comment.created.isEmpty {Text(verbatim:comment.created).font(.caption).foregroundStyle(.secondary)}
+                            }
+                            Spacer(minLength:0)
+                            if !comment.status.isEmpty {Text(verbatim:comment.status).font(.caption).foregroundStyle(comment.status.lowercased()=="active" ? Color.blue:Color.green)}
+                        }
+                        if comment.parentID != nil {Text("Reply").font(.caption).foregroundStyle(.secondary)}
+                        Text(verbatim:comment.text).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)
+                        if !comment.anchor.isEmpty {DisclosureGroup("Anchor") {Text(verbatim:comment.anchor).font(.system(.caption,design:.monospaced)).textSelection(.enabled)}}
+                    }.padding(7).frame(maxWidth:.infinity,alignment:.leading)
+                    .background(comment.id==selected.id ? Color.accentColor.opacity(0.10):Color.clear).cornerRadius(5)
+                    .padding(.leading,CGFloat(min(comment.depth,6))*10)
+                    .accessibilityElement(children:.contain).accessibilityIdentifier("presentation-comment-"+comment.id)
+                }
+            } else {Text("Comment not present").foregroundStyle(.secondary)}
+        }.frame(maxWidth:.infinity,alignment:.leading)
+    }
 }
 
 enum PresentationRevisionChangePresentation {
@@ -327,11 +459,11 @@ enum PresentationRevisionChangePresentation {
     }
     static func icon(_ change:PresentationRevisionChange)->MenuIcon {
         switch change.kind {
-        case .slideAdded,.shapeAdded:return .actionAdded
-        case .slideDeleted,.shapeDeleted:return .actionDeleted
+        case .slideAdded,.shapeAdded,.commentAdded:return .actionAdded
+        case .slideDeleted,.shapeDeleted,.commentDeleted:return .actionDeleted
         case .slideMoved,.shapeOrder:return .mergeMoved
         case .slideEnvironment,.presentation:return .settings
-        case .shapeChanged:return .actionModified
+        case .shapeChanged,.commentChanged:return .actionModified
         }
     }
 }

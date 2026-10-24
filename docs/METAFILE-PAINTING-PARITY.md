@@ -80,7 +80,7 @@ reserves `count * (escapedPNGhref.length + 4096)` bytes against an aggregate
 multi-gigabyte inline SVG. Clamp (4) paints the requested
 ARGB color only outside the source image extent before placing the original
 image. Keeping the clamp area separate avoids painting an opaque backing under
-translucent source pixels. BitmapClamp (1) remains refused. The absent-attributes
+translucent source pixels. The Clamp BOOL (0 or 1) is ignored under the documented GDI+ 1.0 contract. The absent-attributes
 sentinel is `0xffffffff`; an explicit table index must be 0–63 and name a present
 ImageAttributes object, rather than an unrelated object type.
 
@@ -90,10 +90,10 @@ signed 16-bit destination rectangles. DrawImagePoints supports floating-point,
 signed 16-bit and relative signed 7/15-bit point encodings before applying the
 current graphics transform and source crop. The relative flag is `0x0800`;
 `0x2000` denotes an image-effect route and is refused. Relative image placement
-does not imply support for the separate relative path encoding. Source-copy
-compositing and image effects remain explicit refusals. Attributes applied to
-nested EMF images are refused; the pre-existing nested-EMF route is retained only
-with absent attributes. Up to three wire-alignment bytes are ignored, without
+does not imply support for the separate relative path encoding. Source-copy composition is implemented by the separate
+[SourceCopy family](METAFILE-SOURCE-COPY-PARITY.md); image effects remain refused.
+Generic embedded metafile images, textures and applicable attributes now follow
+the [embedded-image family](METAFILE-EMBEDDED-IMAGE-PARITY.md). Up to three wire-alignment bytes are ignored, without
 treating additional bytes as an extended attributes structure.
 
 ## Gradient subset
@@ -195,7 +195,7 @@ are the final focused verification scope:
 | `plus-image-relative.emf` | Relative `0x0800` points use mixed signed 7/15-bit cumulative deltas, even when the compressed bit is also set. |
 | `plus-image-int16.emf` | Signed absolute 16-bit destinations preserve negative coordinates. |
 | `plus-alpha-pen.emf` | A real opaque red pen and half-alpha inline red brush retain separate SVG color/opacity and the expected pixel contrast. |
-| `unsupported-image-effect.emf`, `unsupported-image-attributes.emf`, `unsupported-image-wrap.emf`, `unsupported-image-attribute-type.emf` | Image effects, BitmapClamp, invalid wrap value and wrong object type fail explicitly. |
+| `unsupported-image-effect.emf`, `unsupported-image-wrap.emf`, `unsupported-image-attribute-type.emf` | Image effects, invalid wrap value and wrong object type fail explicitly. Clamp BOOL=1 is now accepted as ignored metadata. |
 | `unsupported-gradient-stops.emf` | Invalid preset data cannot become a successful plausible gradient. |
 | `unsupported-image-tile-budget.emf` | A count-valid repeated bitmap must fail its projected serialized-byte budget before constructing excessive SVG. |
 | `unsupported-gradient-precision.emf` | Coordinates with excessive Float32/canonical tolerance relative to the ellipse axis must not approximate arbitrary boundaries. |

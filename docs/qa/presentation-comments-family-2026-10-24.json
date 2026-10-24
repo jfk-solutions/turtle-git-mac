@@ -1,0 +1,134 @@
+{
+  "date": "2026-10-24",
+  "status": "scoped-validation-complete",
+  "baseline": "8d2e868e",
+  "scope": [
+    "Classic and verified modern comment/thread inventory, authors, task/status and anchors",
+    "Independent decisions/deletion with shared Undo/Redo and coherent editable package export",
+    "Root-level presentation parts and moved replies",
+    "Native comment navigation, selected threads, immutable result preview and cancellation/close"
+  ],
+  "core": {
+    "distinct_methods_passed": 28,
+    "new_methods": 9,
+    "logs": [
+      "build/qa/presentation-comments-core-2026-10-24.log",
+      "build/qa/presentation-comments-core-repair1-2026-10-24.log",
+      "build/qa/presentation-comments-core-repair2-2026-10-24.log"
+    ],
+    "attempts": [
+      {
+        "phase": "compile",
+        "result": "failed",
+        "cause": "Undo delta new value was nonoptional although restore must remove a decision; repaired to Bool? before any assertions executed"
+      },
+      {
+        "phase": "group",
+        "passed": 27,
+        "failed": 1,
+        "cause": "Retained check assumed registry filename/serialized attribute text"
+      },
+      {
+        "phase": "focused failed method",
+        "passed": 1,
+        "failed": 0,
+        "repair": "Independent XML registry/comment author identity, unique index and lastIdx-maximum checks replaced filename/string matching; production unchanged"
+      }
+    ]
+  },
+  "production_inputs": {
+    "Sources/TurtleGitCore/PresentationRevision.swift": "b72578eda2d7206cf436e286ac33689d502f744875629af35e3ab1dcbf958d84",
+    "Sources/TurtleGitMac/PresentationRevisionReview.swift": "6f4dd487497e456cc3e50ec8447d1a7d5eefc09255f67a3f6e975294cd8ec169",
+    "Sources/TurtleGitMac/PresentationComparisonWindow.swift": "dca2a935fb313e92c2971f8b41f578cdf4e5a8288ffdffa7bcfa7fd033f917ea"
+  },
+  "native": {
+    "status": "scoped-validation-complete",
+    "distinct_cases_passed": [
+      "review (classic and modern packages, independent ZIP/XML export)",
+      "lifecycle (captured result, cancellation and close)"
+    ],
+    "logs": [
+      "build/qa/presentation-comments-native-2026-10-24.log",
+      "build/qa/presentation-comments-native-repair1-2026-10-24.log",
+      "build/qa/presentation-comments-native-footer-2026-10-24.log",
+      "build/qa/presentation-comments-native-viewport-2026-10-24.log"
+    ],
+    "attempts": [
+      "Initial fixture compile failed because nested Context lacked explicit @MainActor; fixed fixture only, no receiver launched.",
+      "Review and lifecycle passed; visual inspection caught footer action label truncation.",
+      "Footer-only app build and review passed; final viewport height adjustment addresses toolbar overlap at minimum window size."
+    ],
+    "receivers": [
+      69798,
+      69826,
+      70557,
+      70852
+    ],
+    "warning": "NSTableView reentrant delegate warning emitted during programmatic review selection; current assertions pass, physical interaction and future SDK behavior remain unverified.",
+    "receiver_absence_verified": true,
+    "captures": {
+      "initial": "build/qa/presentation-comments-captures-initial-2026-10-24",
+      "footer": "build/qa/presentation-comments-captures-footer-2026-10-24",
+      "final": "build/qa/presentation-comments-captures-2026-10-24",
+      "reviewed_images": 6,
+      "final_result": "Full action captions fit; preview headings are below the toolbar at the minimum window size in both appearances. Thread details remain scrollable.",
+      "scope": "Offscreen owned package/comment fallback; source PowerPoint visuals unavailable, no physical pointer/keyboard acceptance."
+    }
+  },
+  "limits": [
+    "Modern person/social/unknown extensions and dependent comment graphs remain complete-source-only.",
+    "Native fixtures use shipping handlers/injected renderer; physical input and installed Office rendering remain separate acceptance requirements.",
+    "No hosted CI or complete port claim."
+  ],
+  "app": {
+    "attempts": [
+      {
+        "exit_code": 0,
+        "generic_exit_zero_diagnostics": 33,
+        "log": "build/qa/presentation-metafile-app-2026-10-24.log"
+      },
+      {
+        "exit_code": 0,
+        "generic_exit_zero_diagnostics": 1,
+        "log": "build/qa/presentation-footer-app-2026-10-24.log"
+      },
+      {
+        "exit_code": 0,
+        "generic_exit_zero_diagnostics": 1,
+        "log": "build/qa/presentation-viewport-app-2026-10-24.log"
+      }
+    ],
+    "final_source_snapshot": "build/qa/presentation-viewport-app-source-before-2026-10-24.json",
+    "changed_sources_during_each_build": [],
+    "repair_scope": "Two concrete visual defects repaired; only affected native review/capture checks repeated, Core and metafile groups retained."
+  },
+  "documentation": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1317,
+      "mode": "check",
+      "result": "pass"
+    },
+    "help": {
+      "documents": 58,
+      "topics": 51,
+      "files": 78,
+      "mode": "check",
+      "result": "pass"
+    },
+    "site": {
+      "documents": 437,
+      "unresolved_fragments": 0,
+      "python_tests": 2,
+      "search_checks": "pass"
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_families": 120,
+      "pending_families": 10,
+      "certified_complete": 0,
+      "pending_control_reviews": 85,
+      "note": "Resource/audit ledger, not a feature completion percentage."
+    }
+  }
+}

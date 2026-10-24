@@ -51,7 +51,14 @@ private enum PresentationReviewText {
     var clipboard:NSPasteboard = .general
     var actionsAllowed:()->Bool={true}
     var canAct:Bool {!retired && !confirmingQuit && actionsAllowed()}
-    var visibleIndices:[Int] {rows.indices.filter{!changesOnly || rows[$0].change != .unchanged || rows[$0].isMoved}}
+    func rowHasCommentChanges(_ row:PresentationSlideComparison)->Bool {
+        let changed=Set(revision.changes.map(\.id))
+        return revision.commentRows.contains {change in
+            guard changed.contains(change.id) || revision.review?.commentIsDeleted(changeID:change.id)==true else{return false}
+            return (change.baseSlideIndex != nil && change.baseSlideIndex==row.base?.pageIndex) || (change.destinationSlideIndex != nil && change.destinationSlideIndex==row.destination?.pageIndex)
+        }
+    }
+    var visibleIndices:[Int] {rows.indices.filter{!changesOnly || rows[$0].change != .unchanged || rows[$0].isMoved || rowHasCommentChanges(rows[$0])}}
     var current:PresentationSlideComparison? {selection.flatMap{rows.indices.contains($0) ? rows[$0]:nil}}
     var sourcePreviewsAvailable:Bool {FileManager.default.fileExists(atPath:preview.basePDF.path) && FileManager.default.fileExists(atPath:preview.destinationPDF.path)}
     var summary:String {
@@ -67,13 +74,15 @@ private enum PresentationReviewText {
         fit=(preferences.object(forKey:"PresentationReview.Fit") as? NSNumber)?.boolValue ?? true
         let saved=preferences.double(forKey:"PresentationReview.Zoom");zoom=saved.isFinite && (0.1...8).contains(saved) ? saved:1
         revision.actionsAllowed={ [weak self] in self?.canAct==true }
-        revision.onSelection={ [weak self] change in
-            guard let self,let change,let index=rows.firstIndex(where:{row in
-                (change.baseSlideIndex != nil && row.base?.pageIndex==change.baseSlideIndex) || (change.destinationSlideIndex != nil && row.destination?.pageIndex==change.destinationSlideIndex)
-            }) else{return};selection=index
-        }
+        revision.onSelection={ [weak self] change in self?.selectRevision(change) }
         revision.onBegin={ [weak self] in self?.begin() }
         revision.onEnd={ [weak self] in self?.end() }
+    }
+    private func selectRevision(_ change:PresentationRevisionChange?) {
+        guard let change,let index=rows.firstIndex(where:{row in
+            (change.baseSlideIndex != nil && row.base?.pageIndex==change.baseSlideIndex) || (change.destinationSlideIndex != nil && row.destination?.pageIndex==change.destinationSlideIndex)
+        }) else{return}
+        selection=index
     }
     private func begin(){pending+=1;Self.activeRequests+=1}
     private func end(){pending-=1;Self.activeRequests-=1;if retired && pending==0 {onDrain()}}
@@ -94,7 +103,7 @@ private enum PresentationReviewText {
                 }.value
                 guard !retired,generation==request else{return}
                 if token.isCancelled {busy=false;self.token=nil;self.error="Review preparation cancelled. Retry to prepare the slides again.";return}
-                rows=report.rows;busy=false;self.token=nil;selection=visibleIndices.first
+                rows=report.rows;busy=false;self.token=nil;selection=visibleIndices.first;selectRevision(revision.selected)
             }catch{
                 guard !retired,generation==request else{return};busy=false;self.token=nil
                 if !token.isCancelled {self.error=error.localizedDescription}else{self.error="Review preparation cancelled. Retry to prepare the slides again."}
@@ -121,7 +130,7 @@ private enum PresentationReviewText {
     }
     func navigate(_ delta:Int,changes:Bool=true){
         guard canAct,!busy else{return}
-        let indices=visibleIndices.filter{!changes || rows[$0].change != .unchanged || rows[$0].isMoved}
+        let indices=visibleIndices.filter{!changes || rows[$0].change != .unchanged || rows[$0].isMoved || rowHasCommentChanges(rows[$0])}
         let current=selection ?? (delta>0 ? -1:rows.count)
         selection=delta>0 ? indices.first{$0>current} ?? selection:indices.last{$0<current} ?? selection
     }
@@ -137,8 +146,20 @@ private enum PresentationReviewText {
         if let review=revision.review {
             result+="Editable revision decisions\n"
             for change in review.changes {
-                let decision=review.decisions[change.id].map{$0 ? "Accepted New":"Rejected Base"} ?? "Unresolved"
+                let decision=revision.decisionLabel(change.id)
                 result+="\(decision): \(PresentationRevisionChangePresentation.location(change))\n\(change.detail)\n"
+            }
+            if !revision.commentRows.isEmpty {
+                result+="\nComment review\n"
+                for change in revision.commentRows {
+                    guard let pair=review.commentChanges[change.id] else{continue}
+                    result+="\(revision.decisionLabel(change.id)): \(change.title)\n"
+                    for (side,comment) in [("Base",pair.base),("New",pair.destination)] {
+                        guard let comment else{continue}
+                        result+="\(side): \(comment.author) · \(comment.created) · \(comment.status)\n\(comment.text)\n"
+                        if !comment.anchor.isEmpty {result+="Anchor: \(comment.anchor)\n"}
+                    }
+                }
             }
         }
         return result
@@ -287,7 +308,7 @@ private struct PresentationComparisonDialog:View {
         self.model=model;revision=model.revision;self.saveEditable=saveEditable;self.export=export;self.close=close
     }
     private func status(_ row:PresentationSlideComparison)->Color {
-        switch row.change {case .added:return .green;case .deleted:return .red;case .modified:return .orange;case .unchanged:return row.isMoved ? .blue:.secondary}
+        switch row.change {case .added:return .green;case .deleted:return .red;case .modified:return .orange;case .unchanged:return row.isMoved || model.rowHasCommentChanges(row) ? .blue:.secondary}
     }
     private func icon(_ row:PresentationSlideComparison)->MenuIcon {switch row.change {case .added:return .add;case .deleted:return .revert;case .modified:return .compare;case .unchanged:return row.isMoved ? .mergeMoved:.status}}
     var body:some View {
@@ -316,7 +337,7 @@ private struct PresentationComparisonDialog:View {
                     let row=model.rows[index]
                     HStack(alignment:.top){Image(nsImage:icon(row).contextImage(defaults:model.preferences) ?? NSImage()).frame(width:16,height:16)
                         VStack(alignment:.leading){Text("\(row.base.map{String($0.pageIndex+1)} ?? "—") → \(row.destination.map{String($0.pageIndex+1)} ?? "—")").font(.headline)
-                            Text(String(describing:row.change).capitalized+(row.isMoved ? " · Moved":"")).foregroundStyle(status(row))
+                            Text((row.change == .unchanged && model.rowHasCommentChanges(row) ? "Comments changed":String(describing:row.change).capitalized)+(row.isMoved ? " · Moved":"")).foregroundStyle(status(row))
                             Text((row.destination?.text ?? row.base?.text ?? "").prefix(90)).lineLimit(2).font(.caption)
                         }
                     }.tag(index)
@@ -336,7 +357,7 @@ private struct PresentationComparisonDialog:View {
                                 Image(systemName:"doc.text.magnifyingglass").font(.system(size:36)).foregroundStyle(.secondary)
                                 Text("Source slide previews require Microsoft PowerPoint.").font(.headline)
                                 Text("Review the package revisions below. Accept or reject changes and save an editable copy.").font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                            }.padding(24).frame(maxWidth:.infinity,maxHeight:.infinity).frame(minHeight:230).background(Color(nsColor:.controlBackgroundColor))
+                            }.padding(24).frame(maxWidth:.infinity,maxHeight:.infinity).frame(minHeight:160).background(Color(nsColor:.controlBackgroundColor))
                         }
                         if let row=model.current {DisclosureGroup("Text and notes") {
                             HStack(alignment:.top){details(row.base,changedText:PresentationReviewText.differs(row.base?.text,row.destination?.text),changedNotes:PresentationReviewText.differs(row.base?.notes,row.destination?.notes));Divider();details(row.destination,changedText:PresentationReviewText.differs(row.base?.text,row.destination?.text),changedNotes:PresentationReviewText.differs(row.base?.notes,row.destination?.notes))}.frame(height:150)
@@ -368,7 +389,7 @@ private struct PresentationSlideCanvas:View {
                     else {ZStack{page(images?.base,width:width,height:geometry.size.height-8);page(images?.destination,width:width,height:geometry.size.height-8).opacity(0.5)}}
                 }.padding(4)
             }.background(Color(nsColor:.underPageBackgroundColor))
-        }.frame(minHeight:230)
+        }.frame(minHeight:160)
     }
     @ViewBuilder private func page(_ raster:PresentationComparisonRendering.Raster?,width:CGFloat,height:CGFloat)->some View {
         if let raster,let image=raster.image {

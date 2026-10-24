@@ -144,6 +144,28 @@ private final class NativeRasterComposite {
     private struct Checkpoint {let token:String,width:Int,height:Int,pixels:Data}
     // One native-produced canvas per conversion, never an SVG/state cache.
     private var checkpoint:Checkpoint?
+    private var checkpointScopes:[Checkpoint?]=[]
+    func embeddedScope(_ entering:Bool)throws {
+        if entering {
+            let retained=checkpointScopes.compactMap{$0}.reduce(0){$0+$1.pixels.count}+(checkpoint?.pixels.count ?? 0)
+            guard checkpointScopes.count<8,retained<=128*1024*1024 else{throw invalid("embedded checkpoint scope budget exceeded")}
+            checkpointScopes.append(checkpoint);checkpoint=nil
+        } else {
+            guard !checkpointScopes.isEmpty else{throw invalid("unmatched embedded checkpoint scope")}
+            checkpoint=checkpointScopes.removeLast()
+        }
+    }
+    /// Only a guarded, renderer-generated transparent child scene enters this
+    /// bridge. Existing conversion-wide work/markup counters remain cumulative.
+    func embeddedImage(_ value:JSValue,_ widthValue:Double,_ heightValue:Double)throws->String {
+        guard widthValue.isFinite,heightValue.isFinite,widthValue.rounded()==widthValue,heightValue.rounded()==heightValue,
+              widthValue>=1,heightValue>=1,widthValue<=32768,heightValue<=32768,widthValue*heightValue<=16777216 else{throw invalid("invalid embedded raster dimensions")}
+        let width=Int(widthValue),height=Int(heightValue),pixels=width*height
+        guard calls<4096,pixels<=67108864-renderedPixels else{throw invalid("embedded image raster work budget exceeded")}
+        calls+=1;renderedPixels+=pixels
+        guard let source=try svg(value,size:CGSize(width:width,height:height),required:true) else{throw invalid("missing embedded image scene")}
+        return try encode(render(source,width:width,height:height),width:width,height:height)
+    }
     private func region(_ request:JSValue,width:Int,height:Int)throws->Region {
         if request.isUndefined || request.isNull{return Region(x:0,y:0,width:width,height:height)}
         guard request.isObject,!request.isArray else{throw invalid("invalid raster ROI request")}
@@ -1648,6 +1670,16 @@ private func run() throws {
         catch{nativeError("Metafile region geometry failed: "+String(describing:error));return [:]}
     }
     let rasterCompositor=NativeRasterComposite()
+    let embeddedScope:@convention(block)(Bool)->Void = {entering in
+        do {try rasterCompositor.embeddedScope(entering)}
+        catch ConversionError.invalid(let message){nativeError(message)}
+        catch{nativeError("Embedded metafile scope failed")}
+    }
+    let embeddedImage:@convention(block)(JSValue,Double,Double)->String = {scene,width,height in
+        do {return try rasterCompositor.embeddedImage(scene,width,height)}
+        catch ConversionError.invalid(let message){nativeError(message);return ""}
+        catch{nativeError("Embedded metafile raster failed");return ""}
+    }
     let rasterComposite:@convention(block)(JSValue,JSValue,JSValue,JSValue,Double,Double,Double,JSValue)->NSObject = {destination,source,pattern,coverage,width,height,rop,request in
         do{return try autoreleasepool{try rasterCompositor.composite(destination,source,pattern,coverage,width,height,rop,request)}}
         catch ConversionError.invalid(let message){nativeError(message);return "" as NSString}
@@ -1782,6 +1814,8 @@ private func run() throws {
     context.setObject(strokePath, forKeyedSubscript: "__turtleStrokePath" as NSString)
     context.setObject(regionPath,forKeyedSubscript:"__turtleRegionPath" as NSString)
     context.setObject(floodCoverage,forKeyedSubscript:"__turtleFloodCoverage" as NSString)
+    context.setObject(embeddedScope,forKeyedSubscript:"__turtleMetafileScope" as NSString)
+    context.setObject(embeddedImage,forKeyedSubscript:"__turtleMetafileRaster" as NSString)
     context.setObject(rasterComposite,forKeyedSubscript:"__turtleRasterComposite" as NSString)
     context.setObject(rasterTransfer,forKeyedSubscript:"__turtleRasterTransfer" as NSString)
     context.setObject(bitmap, forKeyedSubscript: "__turtleBitmapNative" as NSString)

@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-24",
+  "status": "scoped-validation-complete",
+  "baseline": "8d2e868e",
+  "scope": [
+    "All five embedded metafile kinds with live direct placement and isolated texture rasterization",
+    "Source crop, child graphics/object state, fresh compositing, source-reference image attributes, affine glyph/shape/clip/path replay",
+    "Scoped native checkpoints, aggregate work bounds, malformed whole-picture refusal and ownership/cancellation"
+  ],
+  "fixtures": {
+    "new_accepted": 57,
+    "new_refused": 15,
+    "literal_png_controls": 1,
+    "earlier_payloads_unchanged": 1261,
+    "reclassified_same_byte": "unsupported-image-attributes.emf -> plus-image-attributes-clamp-ignored.emf"
+  },
+  "source_sha256": {
+    "patches/metafile-renderer.patch": "b011da6a59cc9e57bc1bc241f22f4431ed942471e5c0fb64cb28d3d87245d78f",
+    "Sources/TurtleGitMetafile/main.swift": "04f21c4b8f669709628d15f5e8583783afe139a0f7bb3c16b85ab7d5fb3822c2",
+    "Tests/TurtleGitCoreTests/MetafileEmbeddedImageTests.swift": "de0967f7650ae8997c580b5c6bfcd79fd827ca8a119ba6ac987de429cfc126b1",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate-embedded.py": "b389dad88101f2000ef96475b20ad6dcf909a9434122437c8a116e2bd72b4bcd"
+  },
+  "runtime": {
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "minimum_macos": "13.0",
+    "build_exit_code": 0,
+    "validator_exit_code": 0,
+    "actual_conversion_and_refusal_both_architectures": true,
+    "binary_sha256": "aaf92a9588607f134c8813d39ba03f4ec422968e2a8835a8f0d92d669f24e48c",
+    "renderer_sha256": "ea78e706b886c6506282bcd1c060bb2d83e95203eaa6fad9342626f2c3ba8673",
+    "cache_key": "8592efd39654845002832c208866119f0a6b9e8a8104c26166c598308948a5d4",
+    "logs": [
+      "build/qa/metafile-embedded-runtime-build-2026-10-24.log",
+      "build/qa/metafile-embedded-runtime-final-2026-10-24.log",
+      "build/qa/metafile-embedded-runtime-validation-2026-10-24.log"
+    ],
+    "attempt_note": "First source-frozen helper build succeeded; bounded peer then found active path dispatcher ordering. Corrected before app/Core/native checks, then reconstructed final artifact."
+  },
+  "core": {
+    "distinct_methods_passed": 18,
+    "new_embedded_methods": 9,
+    "retained_sourcecopy_methods": 7,
+    "retained_image_attribute_and_refusal_methods": 2,
+    "methods": [
+      "MetafileEmbeddedImageTests testAllEmbeddedMetafileKindsUseLivePlaybackAgainstLiteralPNG",
+      "MetafileEmbeddedImageTests testClassicGlyphAxesAndRoundClipKeepFullParentAffine",
+      "MetafileEmbeddedImageTests testDestinationDependentROPChildClearAndIsolatedCheckpointRestoration",
+      "MetafileEmbeddedImageTests testDirectMetafileAttributesAreValidatedButDoNotTileOrClampVectorPlayback",
+      "MetafileEmbeddedImageTests testDirectPlaybackStartsSourceOverWithoutErasingUnpaintedViewport",
+      "MetafileEmbeddedImageTests testEveryMetafileTextureKindAndWrapMatchesIndependentRawBitmap",
+      "MetafileEmbeddedImageTests testMalformedNestedImagesFailWholePictureWithBoundedRecursionAndCancellation",
+      "MetafileEmbeddedImageTests testMetafileTexturePensGlyphsAndSourceCopyUseTransparentOwnedSurface",
+      "MetafileEmbeddedImageTests testRecursiveRepeatedAffineAndDeviceClipKeepIndependentChildState",
+      "MetafileImageTests testImageAttributesDefaultClampColorAndTileFlipPreserveOriginalPixels",
+      "MetafileImageTests testMalformedAndUnsupportedPaintingFailInsteadOfSuccessfulBlank",
+      "MetafileSourceCopyTests testEachOverlappingRectangleIsAnOrderedReplacementRatherThanFlattenedSourceOver",
+      "MetafileSourceCopyTests testGradientHatchTextureAndImageCoverageIsIndependentOfSourceOpacity",
+      "MetafileSourceCopyTests testInvalidModesPaintAndClearTypeRefuseWholePrefixAndDoNotLeakState",
+      "MetafileSourceCopyTests testPenAndBothNativeGlyphPathsReplaceWithSourceAlphaOnlyOnInkCoverage",
+      "MetafileSourceCopyTests testSaveContainersGetDCPreserveModeAndClearIgnoresCompositingMode",
+      "MetafileSourceCopyTests testTransparentPathRegionAndClipHolesPreserveDestinationOutsideActualGeometry",
+      "MetafileSourceCopyTests testTransparentSemiAndOpaqueSourceCopyReplaceAllChannelsAgainstLiteralPNGControls"
+    ],
+    "log": "build/qa/metafile-embedded-core-2026-10-24.log"
+  },
+  "app": {
+    "exit_code": 0,
+    "generic_exit_zero_diagnostics": 33,
+    "changed_sources": [],
+    "log": "build/qa/presentation-metafile-app-2026-10-24.log",
+    "source_snapshot": "build/qa/presentation-metafile-app-source-before-2026-10-24.json",
+    "note": "Subsequent presentation-layout-only builds/checks do not change metafile production inputs."
+  },
+  "native": {
+    "passed_pairs": 2,
+    "case": "embedded-metafiles",
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "log": "build/qa/metafile-embedded-native-2026-10-24.log",
+    "receivers": [
+      69841,
+      70016
+    ],
+    "receiver_absence_verified": true,
+    "remaining_metafile_helpers_at_checkpoint": 0
+  },
+  "windows_reference": "metafile-windows-reference-2026-10-24.json",
+  "limits": [
+    "Serialized metafile textures/native GDI+ serialization and temporary GetDC pixels have explicit profile boundaries.",
+    "No full Windows corpus/font/antialias identity, physical Finder, signed/minimum-OS or hosted CI certification."
+  ],
+  "documentation": {
+    "localizations": {
+      "languages": 38,
+      "keys": 1317,
+      "mode": "check",
+      "result": "pass"
+    },
+    "help": {
+      "documents": 58,
+      "topics": 51,
+      "files": 78,
+      "mode": "check",
+      "result": "pass"
+    },
+    "site": {
+      "documents": 437,
+      "unresolved_fragments": 0,
+      "python_tests": 2,
+      "search_checks": "pass"
+    },
+    "coverage": {
+      "dialogs": 130,
+      "partial_families": 120,
+      "pending_families": 10,
+      "certified_complete": 0,
+      "pending_control_reviews": 85,
+      "note": "Resource/audit ledger, not a feature completion percentage."
+    }
+  }
+}

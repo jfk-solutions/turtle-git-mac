@@ -306,3 +306,7 @@ reviewed full-window light/dark captures.
 [Positioned metafile text](METAFILE-POSITIONED-TEXT-PARITY.md) tracks the connected driver-string, glyph-index and classic text-spacing implementation and its remaining acceptance.
 
 [Classic WMF/EMF raster operations](METAFILE-RASTER-PARITY.md) records Boolean playback, device brushes and remaining format restrictions.
+
+[Presentation comment and thread review](PRESENTATION-COMMENTS-PARITY.md) records classic and modern comment decisions, authors, anchors and coherent editable export.
+
+[Embedded metafile images and textures](METAFILE-EMBEDDED-IMAGE-PARITY.md) records nested WMF/EMF/EMF+ playback, affine placement and Windows-reference limits.

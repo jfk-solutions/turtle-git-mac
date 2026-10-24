@@ -38,7 +38,7 @@ Close cancels the window's remaining work and releases its captured files after
 that work retires. Help opens this guide offline when the bundled book is present.</p>
 <h2 id="accept-or-reject-revisions">Accept or reject revisions</h2>
 <p>For a supported Open XML presentation, <strong>Editable revision review</strong> lists changed
-slides, shapes/groups, stacking order and shared presentation properties. Select
+slides, shapes/groups, stacking order, comments and shared presentation properties. Select
 an entry to read its scope and the corresponding Base/New text and notes.
 <strong>Accept selected</strong> takes New; <strong>Reject selected</strong> keeps Base. <strong>Accept all</strong> and
 <strong>Reject all</strong> decide the full review. Undo and Redo restore decision changes;
@@ -56,6 +56,36 @@ connectors must retain an unambiguous selected target; an unsafe combination
 reports an error rather than silently detaching the connector. Changes whose references must stay together, such as a
 slide environment with notes/timing/layout changes, are labeled as a complete
 slide decision. The selected dependency graph is carried into the output.</p>
+<h3 id="review-comments-and-replies">Review comments and replies</h3>
+<p>Choose <strong>Comments</strong> in <strong>Review entries</strong> to see the complete comment inventory,
+including unchanged thread context. <strong>All revisions</strong> keeps changed comments
+alongside slide and shape revisions. <strong>Previous comment</strong> and <strong>Next comment</strong>
+select a comment and its source slide. A comments-only slide remains available
+with <strong>Changes only</strong> enabled.</p>
+<p>The Base and New panes show classic comments and modern threaded comments with
+author initials, author names, creation dates, status, and replies. Click an author
+inside a thread to select that comment's decision. Expand <strong>Anchor</strong> to inspect
+the source position or moniker. Anchors are source metadata; the pane does not
+guess an on-slide balloon position or highlight an unrelated shape.</p>
+<p><strong>Accept selected</strong> keeps the New comment; <strong>Reject selected</strong> keeps Base.
+An added comment rejected to Base is omitted; a deleted comment rejected to Base
+is retained. <strong>Delete comment</strong> explicitly removes a comment from the editable
+output, even when that comment was unchanged. Deleting a parent also removes its
+replies. Select the deleted parent and choose <strong>Restore comment</strong>, or use Undo,
+to restore its thread. An inherited reply deletion cannot restore its parent.
+Undo and Redo include comment deletion and restoration in the same history as
+slide and shape decisions. Unchanged context does not need an accept/reject
+decision. Copy/Export Review includes comment text, authors, dates, status,
+anchors and the chosen decisions.</p>
+<p>Editable output preserves supported classic threading and modern nested replies,
+author references, status and anchors while combining comment choices with the
+selected slide/shape revisions. A comment whose anchor refers to a rejected shape
+or incompatible selected text reports a precise export error. Retain the anchor
+shape/text or reject/delete the comment. Unknown comment extensions or unsupported
+person registries may require a coherent complete revision; they are not silently
+discarded. No comment edits are written to either original file. Save and result
+preview capture the complete decision plan; canceling or closing a pending export
+suppresses late output and waits for owned work before releasing private captures.</p>
 <p>After every entry has a decision, <strong>Save Editable Copy…</strong> writes a presentation
 through a native Save panel. Choose Open XML output (<code>.pptx</code> or <code>.pptm</code>) or
 <strong>PowerPoint 97–2003 (.ppt)</strong>. Binary inputs default to legacy output; legacy
@@ -104,8 +134,9 @@ ZIP64 archives and unknown top-level shape constructs report an explicit reason.
 Stable identities are matched first. Regenerated slide/shape IDs can be matched
 by unique content/dependency anchors and sufficiently distinct similarity;
 ambiguous duplicates remain additions/deletions. Classic comment authors and
-per-author comment indexes are remapped when combining revisions. Modern threaded
-comments/person registries still require a coherent complete revision. Mixed
+per-author comment indexes are remapped when combining revisions. Supported modern
+threaded comments and authors are also combined. Unknown comment/person registry
+extensions require a coherent complete revision. Mixed
 choices involving incompatible global notes or handout masters, namespace prefixes,
 duplicate group-child IDs or references to rejected shapes/slides can be refused. Choose a coherent complete revision or
 adjust the decisions; the editor does not silently discard those references.</p>

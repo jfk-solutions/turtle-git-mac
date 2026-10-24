@@ -47,7 +47,7 @@ that work retires. Help opens this guide offline when the bundled book is presen
 ## Accept or reject revisions
 
 For a supported Open XML presentation, **Editable revision review** lists changed
-slides, shapes/groups, stacking order and shared presentation properties. Select
+slides, shapes/groups, stacking order, comments and shared presentation properties. Select
 an entry to read its scope and the corresponding Base/New text and notes.
 **Accept selected** takes New; **Reject selected** keeps Base. **Accept all** and
 **Reject all** decide the full review. Undo and Redo restore decision changes;
@@ -66,6 +66,41 @@ connectors must retain an unambiguous selected target; an unsafe combination
 reports an error rather than silently detaching the connector. Changes whose references must stay together, such as a
 slide environment with notes/timing/layout changes, are labeled as a complete
 slide decision. The selected dependency graph is carried into the output.
+
+### Review comments and replies
+
+Choose **Comments** in **Review entries** to see the complete comment inventory,
+including unchanged thread context. **All revisions** keeps changed comments
+alongside slide and shape revisions. **Previous comment** and **Next comment**
+select a comment and its source slide. A comments-only slide remains available
+with **Changes only** enabled.
+
+The Base and New panes show classic comments and modern threaded comments with
+author initials, author names, creation dates, status, and replies. Click an author
+inside a thread to select that comment's decision. Expand **Anchor** to inspect
+the source position or moniker. Anchors are source metadata; the pane does not
+guess an on-slide balloon position or highlight an unrelated shape.
+
+**Accept selected** keeps the New comment; **Reject selected** keeps Base.
+An added comment rejected to Base is omitted; a deleted comment rejected to Base
+is retained. **Delete comment** explicitly removes a comment from the editable
+output, even when that comment was unchanged. Deleting a parent also removes its
+replies. Select the deleted parent and choose **Restore comment**, or use Undo,
+to restore its thread. An inherited reply deletion cannot restore its parent.
+Undo and Redo include comment deletion and restoration in the same history as
+slide and shape decisions. Unchanged context does not need an accept/reject
+decision. Copy/Export Review includes comment text, authors, dates, status,
+anchors and the chosen decisions.
+
+Editable output preserves supported classic threading and modern nested replies,
+author references, status and anchors while combining comment choices with the
+selected slide/shape revisions. A comment whose anchor refers to a rejected shape
+or incompatible selected text reports a precise export error. Retain the anchor
+shape/text or reject/delete the comment. Unknown comment extensions or unsupported
+person registries may require a coherent complete revision; they are not silently
+discarded. No comment edits are written to either original file. Save and result
+preview capture the complete decision plan; canceling or closing a pending export
+suppresses late output and waits for owned work before releasing private captures.
 
 After every entry has a decision, **Save Editable Copy…** writes a presentation
 through a native Save panel. Choose Open XML output (`.pptx` or `.pptm`) or
@@ -122,8 +157,9 @@ ZIP64 archives and unknown top-level shape constructs report an explicit reason.
 Stable identities are matched first. Regenerated slide/shape IDs can be matched
 by unique content/dependency anchors and sufficiently distinct similarity;
 ambiguous duplicates remain additions/deletions. Classic comment authors and
-per-author comment indexes are remapped when combining revisions. Modern threaded
-comments/person registries still require a coherent complete revision. Mixed
+per-author comment indexes are remapped when combining revisions. Supported modern
+threaded comments and authors are also combined. Unknown comment/person registry
+extensions require a coherent complete revision. Mixed
 choices involving incompatible global notes or handout masters, namespace prefixes,
 duplicate group-child IDs or references to rejected shapes/slides can be refused. Choose a coherent complete revision or
 adjust the decisions; the editor does not silently discard those references.

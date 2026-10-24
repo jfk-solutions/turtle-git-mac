@@ -191,11 +191,11 @@ final class PresentationRevisionTests:XCTestCase {
         var review=try PresentationRevisionReview(base:base,destination:.init(entries:entries));review.decideAll(accept:true)
         let output=try review.exported()
         XCTAssertEqual(output.entries["ppt/commentAuthors.xml"],entries["ppt/commentAuthors.xml"]);XCTAssertEqual(output.entries["ppt/comments/comment.xml"],entries["ppt/comments/comment.xml"])
-        review.decide(changeID:review.changes.first{$0.kind == .presentation}!.id,accept:false)
+        review.decide(changeID:review.changes.first{$0.kind == .shapeChanged && $0.destinationSlideIndex==1}!.id,accept:false)
         let mixed=try review.exported()
         XCTAssertTrue(mixed.entries.keys.contains{$0.hasPrefix("ppt/comments/turtlegit-")})
         XCTAssertTrue(mixed.entries.keys.contains{$0.hasPrefix("ppt/turtlegit-") && $0.hasSuffix("commentAuthors.xml")})
-        XCTAssertEqual(try manifest(mixed).slides.map(\.text),["new","new second"])
+        XCTAssertEqual(try manifest(mixed).slides.map(\.text),["new","old second"])
     }
     func testDeletingCustomShowSlideRequiresConsistentPresentationDecision()throws {
         var entries=try package([(256,shape(2,"old")),(257,shape(2,"show slide"))]).entries
@@ -283,16 +283,40 @@ final class PresentationRevisionTests:XCTestCase {
         let base=try withComments(a,authors:[(0,"Alice")],comments:[(256,0,1,"Base comment"),(257,0,2,"Retained comment")],usingDefault:true)
         let new=try withComments(b,authors:[(0,"Bob")],comments:[(256,0,1,"New comment"),(257,0,2,"New second comment")],usingDefault:true)
         var review=try PresentationRevisionReview(base:base,destination:new);review.decideAll(accept:false)
-        review.decide(changeID:review.changes.first{$0.destinationSlideIndex==0}!.id,accept:true)
-        let result=try review.exported(),authors=String(decoding:result.entries["ppt/commentAuthors.xml"]!,as:UTF8.self)
-        XCTAssertTrue(authors.contains("Alice"));XCTAssertTrue(authors.contains("Bob"))
-        let imported=try XCTUnwrap(result.entries.first{$0.key.hasPrefix("ppt/comments/turtlegit-")})
-        XCTAssertTrue(String(decoding:imported.value,as:UTF8.self).contains("authorId=\"1\""))
+        let comment=try XCTUnwrap(review.changes.first{$0.kind == .commentChanged && $0.destinationSlideIndex==0})
+        review.decide(changeID:comment.id,accept:true)
+        let result=try review.exported(),inventory=try PresentationRevisionReview(base:result,destination:result)
+        XCTAssertEqual(Set(inventory.baseComments.map(\.text)),Set(["New comment","Retained comment"]))
+        XCTAssertEqual(Set(inventory.baseComments.map(\.author)),Set(["Alice","Bob"]))
+        XCTAssertEqual(try manifest(result).slides.map(\.text),["old one","old two"],"Comment decisions must not silently choose shape changes")
         let sameAuthor=try withComments(b,authors:[(0,"Alice")],comments:[(256,0,1,"Changed comment"),(257,0,2,"Changed second")],usingDefault:true)
-        var same=try PresentationRevisionReview(base:base,destination:sameAuthor);same.decideAll(accept:false);same.decide(changeID:same.changes.first{$0.destinationSlideIndex==0}!.id,accept:true)
-        let combined=try same.exported(),comment=try XCTUnwrap(combined.entries.first{$0.key.hasPrefix("ppt/comments/turtlegit-")})
-        let text=String(decoding:comment.value,as:UTF8.self);XCTAssertTrue(text.contains("authorId=\"0\""));XCTAssertTrue(text.contains("idx=\"3\""))
-        XCTAssertTrue(String(decoding:combined.entries["ppt/commentAuthors.xml"]!,as:UTF8.self).contains("lastIdx=\"3\""))
+        var same=try PresentationRevisionReview(base:base,destination:sameAuthor);same.decideAll(accept:false)
+        same.decide(changeID:same.changes.first{$0.kind == .commentChanged && $0.destinationSlideIndex==0}!.id,accept:true)
+        let combined=try same.exported(),read=try PresentationRevisionReview(base:combined,destination:combined)
+        XCTAssertEqual(read.baseComments.count,2);XCTAssertEqual(Set(read.baseComments.map(\.author)),Set(["Alice"]))
+        // Inspect the package contract, independently of XML quote style or
+        // generated registry filenames. One logical author owns both indexes.
+        let typeDoc=try XMLDocument(data:combined.entries["[Content_Types].xml"]!,options:[])
+        let typeNodes=typeDoc.rootElement()!.elements(forLocalName:"Override",uri:"http://schemas.openxmlformats.org/package/2006/content-types")
+        let authorPart=try XCTUnwrap(typeNodes.first{$0.attribute(forName:"ContentType")?.stringValue=="application/vnd.openxmlformats-officedocument.presentationml.commentAuthors+xml"}?.attribute(forName:"PartName")?.stringValue)
+        let authorBytes=try XCTUnwrap(combined.entries[String(authorPart.dropFirst())])
+        let authorDoc=try XMLDocument(data:authorBytes,options:[])
+        let authors=authorDoc.rootElement()!.elements(forLocalName:"cmAuthor",uri:p)
+        XCTAssertEqual(authors.count,1,"Equivalent Alice authors were split: \(String(decoding:authorBytes,as:UTF8.self))")
+        let alice=try XCTUnwrap(authors.first),aliceID=try XCTUnwrap(alice.attribute(forName:"id")?.stringValue)
+        var indexes=Set<UInt32>(),commentCount=0
+        for item in typeNodes where item.attribute(forName:"ContentType")?.stringValue=="application/vnd.openxmlformats-officedocument.presentationml.comments+xml" {
+            let path=String(try XCTUnwrap(item.attribute(forName:"PartName")?.stringValue).dropFirst())
+            let doc=try XMLDocument(data:XCTUnwrap(combined.entries[path]),options:[])
+            for comment in doc.rootElement()!.elements(forLocalName:"cm",uri:p) {
+                XCTAssertEqual(comment.attribute(forName:"authorId")?.stringValue,aliceID)
+                let index=try XCTUnwrap(comment.attribute(forName:"idx")?.stringValue.flatMap(UInt32.init))
+                XCTAssertTrue(indexes.insert(index).inserted,"Retained comments reused one author's index")
+                commentCount += 1
+            }
+        }
+        XCTAssertEqual(commentCount,2)
+        XCTAssertEqual(alice.attribute(forName:"lastIdx")?.stringValue.flatMap(UInt32.init),indexes.max(),"Registry must cover actual published indexes: \(String(decoding:authorBytes,as:UTF8.self))")
     }
     func testEquivalentRenamedDefaultTypedNotesMasterIsReusedForMixedSlideChoices()throws {
         let base=try withNotes(package([(256,shape(2,"old")),(257,shape(2,"old second"))]),slideID:256,text:"Base notes",master:"old.nmaster",masterDefault:true)
@@ -315,6 +339,178 @@ final class PresentationRevisionTests:XCTestCase {
         var authors=try withComments(valid,authors:[(0,"Alice"),(1,"Bob")],comments:[(256,0,1,"Comment")]).entries
         authors["ppt/commentAuthors.xml"]=bytes(String(decoding:authors["ppt/commentAuthors.xml"]!,as:UTF8.self).replacingOccurrences(of:"id=\"1\"",with:"id=\"00\""))
         XCTAssertThrowsError(try PresentationRevisionReview(base:valid,destination:.init(entries:authors)))
+    }
+
+    private func modernComments(_ package:PresentationPackage,text:String="Root",reply:String="Reply",name:String="Alice",status:String="active",anchorID:Int?=nil)throws->PresentationPackage {
+        let ns="http://schemas.microsoft.com/office/powerpoint/2018/8/main",pc="http://schemas.microsoft.com/office/powerpoint/2013/main/command",ac="http://schemas.microsoft.com/office/drawing/2013/main/command",mr="http://schemas.microsoft.com/office/2018/10/relationships/"
+        let author="{10000000-0000-0000-0000-000000000001}",rootID="{20000000-0000-0000-0000-000000000001}",replyID="{20000000-0000-0000-0000-000000000002}"
+        var entries=package.entries
+        func xml(_ x:String)->Data {Data(x.utf8)}
+        let anchor=anchorID.map{"<ac:deMkLst><pc:sldMkLst><pc:sldMk sldId=\"256\"/></pc:sldMkLst><ac:spMk id=\"\($0)\"/></ac:deMkLst>"} ?? "<pc:sldMkLst><pc:sldMk sldId=\"256\"/></pc:sldMkLst>"
+        func body(_ text:String)->String {"<p188:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>\(text)</a:t></a:r></a:p></p188:txBody>"}
+        entries["ppt/authors/authors.xml"]=xml("<p188:authorLst xmlns:p188=\"\(ns)\"><p188:author id=\"\(author)\" name=\"\(name)\" initials=\"A\" userId=\"\(name)@example.invalid\" providerId=\"AD\"/></p188:authorLst>")
+        entries["ppt/comments/modern.xml"]=xml("<p188:cmLst xmlns:p188=\"\(ns)\" xmlns:a=\"\(a)\" xmlns:pc=\"\(pc)\" xmlns:ac=\"\(ac)\"><p188:cm id=\"\(rootID)\" authorId=\"\(author)\" created=\"2026-10-24T12:00:00Z\" status=\"active\" assignedTo=\"\(author)\" startDate=\"2026-10-24T12:00:00Z\" dueDate=\"2026-10-25T12:00:00Z\" complete=\"50000\" title=\"Task\">\(anchor)<p188:replyLst><p188:reply id=\"\(replyID)\" authorId=\"\(author)\" created=\"2026-10-24T12:01:00Z\" status=\"\(status)\">\(body(reply))</p188:reply></p188:replyLst>\(body(text))</p188:cm></p188:cmLst>")
+        for (path,type) in [("ppt/authors/authors.xml","authors"),("ppt/comments/modern.xml","comments")] {
+            entries["[Content_Types].xml"]=xml(String(decoding:entries["[Content_Types].xml"]!,as:UTF8.self).replacingOccurrences(of:"</Types>",with:"<Override PartName=\"/\(path)\" ContentType=\"application/vnd.ms-powerpoint.\(type)+xml\"/></Types>"))
+        }
+        entries["ppt/_rels/presentation.xml.rels"]=xml(String(decoding:entries["ppt/_rels/presentation.xml.rels"]!,as:UTF8.self).replacingOccurrences(of:"</Relationships>",with:"<Relationship Id=\"authors\" Type=\"\(mr)authors\" Target=\"authors/authors.xml\"/></Relationships>"))
+        entries["ppt/slides/_rels/slide256.xml.rels"]=xml(String(decoding:entries["ppt/slides/_rels/slide256.xml.rels"]!,as:UTF8.self).replacingOccurrences(of:"</Relationships>",with:"<Relationship Id=\"modernComments\" Type=\"\(mr)comments\" Target=\"../comments/modern.xml\"/></Relationships>"))
+        entries["ppt/slides/slide256.xml"]=xml(String(decoding:entries["ppt/slides/slide256.xml"]!,as:UTF8.self).replacingOccurrences(of:"</p:sld>",with:"<p:extLst><p:ext uri=\"{6950BFC3-D8DA-4A85-94F7-54DA5524770B}\"><p188:commentRel xmlns:p188=\"\(ns)\" r:id=\"modernComments\"/></p:ext></p:extLst></p:sld>"))
+        return try .init(entries:entries)
+    }
+    func testModernCommentReplyMixedChoicePreservesThreadAuthorsAssignmentsAndStatus()throws {
+        let deck=try package([(256,shape(2,"Same shape"))])
+        let base=try modernComments(deck),new=try modernComments(deck,reply:"New reply",name:"Bob",status:"resolved")
+        var review=try PresentationRevisionReview(base:base,destination:new)
+        XCTAssertEqual(review.baseComments.count,2);XCTAssertEqual(review.destinationComments.count,2)
+        let reply=try XCTUnwrap(review.changes.first{review.commentChanges[$0.id]?.destination?.depth==1})
+        review.decideAll(accept:false);review.decide(changeID:reply.id,accept:true)
+        let output=try review.exported(),roundtrip=try PresentationRevisionReview(base:output,destination:output)
+        XCTAssertEqual(Set(roundtrip.baseComments.map(\.text)),Set(["Root","New reply"]))
+        XCTAssertEqual(Set(roundtrip.baseComments.map(\.author)),Set(["Alice","Bob"]))
+        let resultReply=try XCTUnwrap(roundtrip.baseComments.first{$0.depth==1})
+        XCTAssertEqual(resultReply.status,"resolved");XCTAssertNotNil(resultReply.parentID)
+        let xml=output.entries.filter{$0.key.contains("comments/")}.values.compactMap{String(data:$0,encoding:.utf8)}.joined()
+        XCTAssertTrue(xml.contains("assignedTo="));XCTAssertTrue(xml.contains("dueDate=\"2026-10-25T12:00:00Z\""));XCTAssertTrue(xml.contains("complete=\"50000\""))
+        XCTAssertEqual(try manifest(output).slides[0].text,"Same shape")
+    }
+    func testCommentDeleteResolvesChangeCascadesAndUndoRestoresUnresolved()throws {
+        let deck=try package([(256,shape(2,"Same"))])
+        let base=try modernComments(deck),new=try modernComments(deck,text:"New root",reply:"New reply")
+        var review=try PresentationRevisionReview(base:base,destination:new)
+        let root=try XCTUnwrap(review.baseComments.first{$0.depth==0}),reply=try XCTUnwrap(review.baseComments.first{$0.depth==1})
+        review.deleteComment(changeID:root.id)
+        XCTAssertTrue(review.commentIsDeleted(changeID:reply.id));XCTAssertFalse(review.commentIsDirectlyDeleted(changeID:reply.id))
+        XCTAssertEqual(review.unresolvedCount,0)
+        let removed=try review.exported();XCTAssertTrue(try PresentationRevisionReview(base:removed,destination:removed).baseComments.isEmpty)
+        review.undo();XCTAssertFalse(review.commentIsDeleted(changeID:root.id));XCTAssertGreaterThan(review.unresolvedCount,0)
+        review.redo();XCTAssertEqual(review.unresolvedCount,0)
+        review.restoreComment(changeID:root.id);XCTAssertGreaterThan(review.unresolvedCount,0)
+    }
+    func testUnchangedCommentCanBeDeletedWithoutChangingAnyShapes()throws {
+        let deck=try modernComments(package([(256,shape(2,"Same"))]))
+        var review=try PresentationRevisionReview(base:deck,destination:deck)
+        XCTAssertTrue(review.changes.isEmpty)
+        let reply=try XCTUnwrap(review.baseComments.first{$0.depth==1});review.deleteComment(changeID:reply.id)
+        let output=try review.exported(),read=try PresentationRevisionReview(base:output,destination:output)
+        XCTAssertEqual(read.baseComments.map(\.text),["Root"]);XCTAssertEqual(try manifest(output).slides[0].text,"Same")
+        review.undo();XCTAssertEqual(try review.exported().entries,deck.entries)
+    }
+    func testClassicThreadParentAuthorAndIndexSurviveMixedAuthorCollision()throws {
+        let deck=try package([(256,shape(2,"Same")),(257,shape(2,"Second"))])
+        let base=try withComments(deck,authors:[(0,"Alice"),(1,"Bob")],comments:[(256,0,1,"Parent"),(257,1,2,"Reply")])
+        var entries=base.entries
+        let key="ppt/comments/c257.xml"
+        entries[key]=bytes(String(decoding:entries[key]!,as:UTF8.self).replacingOccurrences(of:"</p:cm>",with:"<p:extLst><p:ext uri=\"{threading}\"><p15:threadingInfo xmlns:p15=\"http://schemas.microsoft.com/office/powerpoint/2012/main\" timeZoneBias=\"60\"><p15:parentCm authorId=\"0\" idx=\"1\"/></p15:threadingInfo></p:ext></p:extLst></p:cm>"))
+        let threaded=try PresentationPackage(entries:entries)
+        var changed=entries
+        changed[key]=bytes(String(decoding:entries[key]!,as:UTF8.self).replacingOccurrences(of:"Reply",with:"Changed reply"))
+        changed["ppt/commentAuthors.xml"]=bytes(String(decoding:entries["ppt/commentAuthors.xml"]!,as:UTF8.self).replacingOccurrences(of:"Alice",with:"Carol"))
+        var review=try PresentationRevisionReview(base:threaded,destination:.init(entries:changed))
+        XCTAssertEqual(review.baseComments.filter{$0.depth==1}.count,1)
+        review.decideAll(accept:false)
+        let root=try XCTUnwrap(review.destinationComments.first{$0.depth==0}),reply=try XCTUnwrap(review.baseComments.first{$0.depth==1})
+        review.decide(changeID:root.id,accept:true)
+        let mixed=try review.exported(),read=try PresentationRevisionReview(base:mixed,destination:mixed)
+        let resultParent=try XCTUnwrap(read.baseComments.first{$0.depth==0}),resultReply=try XCTUnwrap(read.baseComments.first{$0.depth==1})
+        XCTAssertEqual(resultParent.author,"Carol");XCTAssertEqual(resultReply.author,"Bob");XCTAssertEqual(resultReply.parentID,resultParent.id)
+        XCTAssertEqual(resultReply.text,"Reply");XCTAssertEqual(try manifest(mixed).slides.map(\.text),["Same","Second"])
+        review.deleteComment(changeID:root.id)
+        XCTAssertTrue(review.commentIsDeleted(changeID:reply.id));XCTAssertEqual(review.unresolvedCount,0)
+        let empty=try review.exported();XCTAssertTrue(try PresentationRevisionReview(base:empty,destination:empty).baseComments.isEmpty)
+        review.undo();XCTAssertFalse(review.commentIsDeleted(changeID:reply.id))
+    }
+    func testModernAnchoredCommentRefusesMissingSelectedShapeAndInvalidReplyParent()throws {
+        let a=try modernComments(package([(256,shape(2,"Keep"))]),anchorID:2)
+        let b=try modernComments(package([(256,shape(3,"Different"))]),reply:"Changed",anchorID:3)
+        var review=try PresentationRevisionReview(base:a,destination:b);review.decideAll(accept:false)
+        let comment=try XCTUnwrap(review.changes.first{review.commentChanges[$0.id]?.destination?.depth==0})
+        review.decide(changeID:comment.id,accept:true)
+        XCTAssertThrowsError(try review.exported()) {XCTAssertTrue($0.localizedDescription.contains("anchor"))}
+        let plain=try package([(256,shape(2,"Keep"))]),added=try modernComments(plain)
+        var orphan=try PresentationRevisionReview(base:plain,destination:added);orphan.decideAll(accept:false)
+        let reply=try XCTUnwrap(orphan.changes.first{orphan.commentChanges[$0.id]?.destination?.depth==1})
+        orphan.decide(changeID:reply.id,accept:true)
+        XCTAssertThrowsError(try orphan.exported()) {XCTAssertTrue($0.localizedDescription.contains("parent"))}
+    }
+    func testCommentWholeRevisionPreservesOpaqueExtensionsButMixedRefusesPrecisely()throws {
+        let base=try modernComments(package([(256,shape(2,"Old"))]))
+        var entries=try modernComments(package([(256,shape(2,"New"))])).entries
+        let path="ppt/comments/modern.xml"
+        entries[path]=bytes(String(decoding:entries[path]!,as:UTF8.self).replacingOccurrences(of:"</p188:cm>",with:"<p188:extLst><p:ext xmlns:p=\"\(p)\" uri=\"unknown\"/></p188:extLst></p188:cm>"))
+        let new=try PresentationPackage(entries:entries)
+        var review=try PresentationRevisionReview(base:base,destination:new);review.decideAll(accept:true)
+        XCTAssertEqual(try review.exported().entries,new.entries)
+        review.decideAll(accept:false);XCTAssertEqual(try review.exported().entries,base.entries)
+        if let last=review.changes.last {review.decide(changeID:last.id,accept:true);XCTAssertThrowsError(try review.exported())}
+    }
+    func testCommentUnknownAuthorAndCancellationAreNotSilentlyAccepted()throws {
+        let deck=try modernComments(package([(256,shape(2,"Text"))]))
+        var entries=deck.entries
+        entries["ppt/comments/modern.xml"]=bytes(String(decoding:entries["ppt/comments/modern.xml"]!,as:UTF8.self).replacingOccurrences(of:"authorId=\"{10000000-0000-0000-0000-000000000001}\"",with:"authorId=\"{90000000-0000-0000-0000-000000000001}\""))
+        XCTAssertThrowsError(try PresentationRevisionReview(base:deck,destination:.init(entries:entries)))
+        let token=OperationCancellation();token.cancel();XCTAssertThrowsError(try PresentationRevisionReview(base:deck,destination:deck,cancellation:token))
+    }
+
+    func testRootLevelMainPartCommentCompositionRetainsValidRelationships()throws {
+        func moveMain(_ package:PresentationPackage)throws->PresentationPackage {
+            var entries=package.entries
+            entries["presentation.xml"]=entries.removeValue(forKey:"ppt/presentation.xml")
+            let old=entries.removeValue(forKey:"ppt/_rels/presentation.xml.rels")!
+            let relDoc=try XMLDocument(data:old,options:[])
+            for node in relDoc.rootElement()!.elements(forName:"Relationship") {
+                if let target=node.attribute(forName:"Target"),let value=target.stringValue {target.stringValue="ppt/"+value}
+            }
+            entries["_rels/presentation.xml.rels"]=relDoc.xmlData()
+            entries["_rels/.rels"]=bytes(String(decoding:entries["_rels/.rels"]!,as:UTF8.self).replacingOccurrences(of:"ppt/presentation.xml",with:"presentation.xml"))
+            entries["[Content_Types].xml"]=bytes(String(decoding:entries["[Content_Types].xml"]!,as:UTF8.self).replacingOccurrences(of:"/ppt/presentation.xml",with:"/presentation.xml"))
+            return try .init(entries:entries)
+        }
+        let plain=try package([(256,shape(2,"Same")),(257,shape(2,"Second"))])
+        for modern in [false,true] {
+            let a=try moveMain(modern ? modernComments(plain,text:"Base root",reply:"Base reply"):withComments(plain,authors:[(0,"Alice")],comments:[(256,0,1,"Base root"),(257,0,2,"Context")]))
+            let b=try moveMain(modern ? modernComments(plain,text:"New root",reply:"New reply"):withComments(plain,authors:[(0,"Bob")],comments:[(256,0,1,"New root"),(257,0,2,"Context")]))
+            var review=try PresentationRevisionReview(base:a,destination:b);review.decideAll(accept:false)
+            let root=try XCTUnwrap(review.changes.first{review.commentChanges[$0.id]?.destination?.depth==0})
+            review.decide(changeID:root.id,accept:true)
+            let output=try review.exported(),read=try PresentationRevisionReview(base:output,destination:output)
+            XCTAssertNotNil(output.entries["presentation.xml"]);XCTAssertNil(output.entries["ppt/presentation.xml"])
+            XCTAssertNotNil(output.entries["_rels/presentation.xml.rels"])
+            XCTAssertEqual(try manifest(output).slides[0].text,"Same")
+            XCTAssertEqual(Set(read.baseComments.map(\.text)),modern ? Set(["New root","Base reply"]):Set(["New root","Context"]))
+            let mainRelationships=String(decoding:output.entries["_rels/presentation.xml.rels"]!,as:UTF8.self)
+            XCTAssertFalse(mainRelationships.contains("Target=\"commentAuthors.xml\""),"Root main-part relationships must resolve to their actual package paths")
+        }
+    }
+
+    func testModernReplyMovedBetweenThreadsIsAnIndependentExportDecision()throws {
+        let deck=try modernComments(package([(256,shape(2,"Same"))]))
+        var entries=deck.entries
+        let path="ppt/comments/modern.xml",ns="http://schemas.microsoft.com/office/powerpoint/2018/8/main"
+        let oldDoc=try XMLDocument(data:entries[path]!,options:[]),list=oldDoc.rootElement()!
+        let original=try XCTUnwrap(list.children?.compactMap{$0 as? XMLElement}.first)
+        let other=original.copy() as! XMLElement
+        other.attribute(forName:"id")?.stringValue="{20000000-0000-0000-0000-000000000003}"
+        other.elements(forLocalName:"replyLst",uri:ns).forEach{$0.detach()}
+        let text=try XCTUnwrap(other.elements(forLocalName:"txBody",uri:ns).first)
+        for node in try text.nodes(forXPath:".//*[local-name()='t']") {node.stringValue="Other root"}
+        list.addChild(other)
+        entries[path]=oldDoc.xmlData();let base=try PresentationPackage(entries:entries)
+        let moving=try XMLDocument(data:entries[path]!,options:[]),roots=moving.rootElement()!.elements(forLocalName:"cm",uri:ns)
+        let replies=try XCTUnwrap(roots[0].elements(forLocalName:"replyLst",uri:ns).first);replies.detach()
+        let position=(roots[1].children ?? []).firstIndex{($0 as? XMLElement)?.localName=="txBody"} ?? roots[1].childCount
+        roots[1].insertChild(replies,at:position)
+        entries[path]=moving.xmlData()
+        entries["ppt/slides/slide256.xml"]=bytes(String(decoding:entries["ppt/slides/slide256.xml"]!,as:UTF8.self).replacingOccurrences(of:"Same",with:"New shape"))
+        var review=try PresentationRevisionReview(base:base,destination:.init(entries:entries));review.decideAll(accept:false)
+        let reply=try XCTUnwrap(review.changes.first{review.commentChanges[$0.id]?.destination?.text=="Reply"})
+        XCTAssertEqual(reply.kind,.commentChanged)
+        XCTAssertNotEqual(review.commentChanges[reply.id]?.base?.parentID,review.commentChanges[reply.id]?.destination?.parentID)
+        review.decide(changeID:reply.id,accept:true)
+        let output=try review.exported(),read=try PresentationRevisionReview(base:output,destination:output)
+        let moved=try XCTUnwrap(read.baseComments.first{$0.text=="Reply"})
+        XCTAssertEqual(read.baseComments.first{$0.id==moved.parentID}?.text,"Other root")
+        XCTAssertEqual(try manifest(output).slides[0].text,"Same","Reply move must not choose an unrelated shape change")
     }
 
 }

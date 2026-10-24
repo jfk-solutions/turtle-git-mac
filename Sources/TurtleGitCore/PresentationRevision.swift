@@ -17,7 +17,7 @@ public enum PresentationRevisionFailure: LocalizedError, Sendable {
 }
 
 public struct PresentationRevisionChange: Identifiable, Sendable, Equatable {
-    public enum Kind:String, Sendable {case slideAdded,slideDeleted,slideMoved,shapeAdded,shapeDeleted,shapeChanged,shapeOrder,slideEnvironment,presentation}
+    public enum Kind:String, Sendable {case slideAdded,slideDeleted,slideMoved,shapeAdded,shapeDeleted,shapeChanged,shapeOrder,slideEnvironment,presentation,commentAdded,commentDeleted,commentChanged}
     public let id:String,title:String,detail:String,baseSlideIndex:Int?,destinationSlideIndex:Int?,kind:Kind
     public let groupPath:[String]
     public var depth:Int {groupPath.count}
@@ -40,18 +40,24 @@ public struct PresentationRevisionReview: Sendable {
     public let notices:[String]
     public private(set) var decisions:[String:Bool]=[:]
     private let base:PresentationPackage,destination:PresentationPackage
+    private let originalBase:PresentationPackage,originalDestination:PresentationPackage
+    private let oldComments:RevisionComments,newComments:RevisionComments
+    public let commentChanges:[String:PresentationCommentChange]
+    public var baseComments:[PresentationComment] {oldComments.records.values.sorted{$0.order<$1.order}.map(\.value)}
+    public var destinationComments:[PresentationComment] {newComments.records.values.sorted{$0.order<$1.order}.map(\.value)}
+
     private let plans:[RevisionSlidePlan]
     private let baseOrder:[String],destinationOrder:[String]
     private let environmentChange:String?,orderChange:String?
     private var history:[[RevisionDecisionDelta]]=[],future:[[RevisionDecisionDelta]]=[]
     public var canUndo:Bool {!history.isEmpty}
     public var canRedo:Bool {!future.isEmpty}
-    public var unresolvedCount:Int {changes.count-decisions.count}
+    public var unresolvedCount:Int {changes.filter{decisions[$0.id]==nil && !commentIsDeleted(changeID:$0.id)}.count}
     public var isDirty:Bool {!decisions.isEmpty}
 
     public init(base:PresentationPackage,destination:PresentationPackage,cancellation:OperationCancellation? = nil)throws {
-        let old=try RevisionDeck(base,cancellation:cancellation),new=try RevisionDeck(destination,cancellation:cancellation)
-        self.base=base;self.destination=destination
+        var old=try RevisionDeck(base,cancellation:cancellation),new=try RevisionDeck(destination,cancellation:cancellation)
+        originalBase=base;originalDestination=destination
         let originalBaseManifest=try old.manifest(),originalDestinationManifest=try new.manifest()
         let oldByID=Dictionary(uniqueKeysWithValues:old.slides.map{($0.id,$0)}),newByID=Dictionary(uniqueKeysWithValues:new.slides.map{($0.id,$0)})
         let identities=try revisionMatch(old.slides.map(\.id),new.slides.map(\.id),fingerprint:{isNew,id in
@@ -59,13 +65,17 @@ public struct PresentationRevisionReview: Sendable {
             return try deck.slideIdentityFingerprint(slide,cancellation:cancellation)
         },similarity:{a,b in try old.slideSimilarity(oldByID[a]!,new,newByID[b]!)},cancellation:cancellation)
         let oldKeys=Dictionary(uniqueKeysWithValues:identities.compactMap{pair in pair.base.map{($0,pair.id)}}),newKeys=Dictionary(uniqueKeysWithValues:identities.compactMap{pair in pair.destination.map{($0,pair.id)}})
+        oldComments=try RevisionComments.read(base,slideKeys:Dictionary(uniqueKeysWithValues:old.slides.map{($0.path,oldKeys[$0.id]!)}),cancellation:cancellation)
+        newComments=try RevisionComments.read(destination,slideKeys:Dictionary(uniqueKeysWithValues:new.slides.map{($0.path,newKeys[$0.id]!)}),cancellation:cancellation)
+        self.base=oldComments.stripped;self.destination=newComments.stripped
+        old=try RevisionDeck(self.base,cancellation:cancellation);new=try RevisionDeck(self.destination,cancellation:cancellation)
         baseOrder=old.slides.map{oldKeys[$0.id]!};destinationOrder=new.slides.map{newKeys[$0.id]!}
         baseManifest=originalBaseManifest
         let manifestIDs=Dictionary(uniqueKeysWithValues:identities.compactMap{pair in pair.destination.map{($0,pair.base ?? $0)}})
         destinationManifest=PresentationSlideManifest(slides:originalDestinationManifest.slides.map {slide in PresentationSlide(pageIndex:slide.pageIndex,stableID:slide.stableID.flatMap{manifestIDs[$0]},text:slide.text,notes:slide.notes,visualFingerprint:slide.visualFingerprint)})
         requiredFileExtension=(old.hasMacros || new.hasMacros) ? "pptm":"pptx"
         invalidatesDigitalSignatures=old.hasSignatures || new.hasSignatures
-        notices=invalidatesDigitalSignatures ? ["Saving a reviewed presentation removes package digital signatures. The saved deck must be signed again."]:[]
+        notices=(invalidatesDigitalSignatures ? ["Saving a reviewed presentation removes package digital signatures. The saved deck must be signed again."]:[]) + (oldComments.unsupported || newComments.unsupported ? ["Unknown comment or person extensions can be preserved only by choosing one complete revision. Independent mixed comment review is unavailable for those extensions."]:[])
         var changes:[PresentationRevisionChange]=[],plans:[RevisionSlidePlan]=[]
         func change(_ id:String,_ title:String,_ detail:String,_ kind:PresentationRevisionChange.Kind,_ a:Int?=nil,_ b:Int?=nil)->String {
             changes.append(.init(id:id,title:title,detail:detail,baseSlideIndex:a,destinationSlideIndex:b,kind:kind));return id
@@ -104,15 +114,43 @@ public struct PresentationRevisionReview: Sendable {
                 plans.append(.init(id:id,base:a.path,destination:b.path,baseID:identity.base,destinationID:identity.destination,whole:nil,container:container))
             }
         }
-        self.changes=changes;self.plans=plans
+        var comments:[String:PresentationCommentChange]=[:]
+        for id in Set(oldComments.records.keys).union(newComments.records.keys).sorted() {
+            let a=oldComments.records[id],b=newComments.records[id]
+            comments[id]=PresentationCommentChange(base:a?.value,destination:b?.value)
+            if a.map({Data($0.node.utf8)}) != b.map({Data($0.node.utf8)}) || a.map({Data($0.authorNode.utf8)}) != b.map({Data($0.authorNode.utf8)}) || a?.value.parentID != b?.value.parentID {
+                let item=b?.value ?? a!.value
+                changes.append(.init(id:id,title:"Slide \(item.slideIndex+1): comment"+(item.depth>0 ? " reply":""),detail:item.text,baseSlideIndex:a?.value.slideIndex,destinationSlideIndex:b?.value.slideIndex,kind:a==nil ? .commentAdded:b==nil ? .commentDeleted:.commentChanged,groupPath:[]))
+            }
+        }
+        commentChanges=comments;self.changes=changes;self.plans=plans
     }
     public mutating func decide(changeID:String,accept:Bool) {
         guard changes.contains(where:{$0.id==changeID}),decisions[changeID] != accept else{return}
         history.append([.init(id:changeID,old:decisions[changeID],new:accept)]);future=[];decisions[changeID]=accept
     }
     public mutating func decideAll(accept:Bool) {
-        let next=Dictionary(uniqueKeysWithValues:changes.map{($0.id,accept)})
+        var next=decisions
+        for change in changes {next[change.id]=accept}
         guard next != decisions else{return};history.append(changes.compactMap {change in decisions[change.id] == accept ? nil:.init(id:change.id,old:decisions[change.id],new:accept)});future=[];decisions=next
+    }
+    public func commentIsDeleted(changeID:String)->Bool {
+        var current:String?=changeID,seen=Set<String>()
+        while let id=current,seen.insert(id).inserted {
+            if decisions["delete-"+id]==true{return true}
+            let pair=commentChanges[id]
+            current=(decisions[id]==true ? pair?.destination:pair?.base ?? pair?.destination)?.parentID
+        }
+        return false
+    }
+    public func commentIsDirectlyDeleted(changeID:String)->Bool {decisions["delete-"+changeID]==true}
+    public mutating func deleteComment(changeID:String) {setCommentDeletion(changeID,true)}
+    public mutating func restoreComment(changeID:String) {setCommentDeletion(changeID,false)}
+    private mutating func setCommentDeletion(_ id:String,_ deleted:Bool) {
+        guard commentChanges[id] != nil else{return}
+        let key="delete-"+id,next:Bool?=deleted ? true:nil
+        guard decisions[key] != next else{return}
+        history.append([.init(id:key,old:decisions[key],new:next)]);future=[];decisions[key]=next
     }
     public mutating func undo() {guard let previous=history.popLast() else{return};future.append(previous);for delta in previous{decisions[delta.id]=delta.old}}
     public mutating func redo() {guard let next=future.popLast() else{return};history.append(next);for delta in next{decisions[delta.id]=delta.new}}
@@ -121,11 +159,10 @@ public struct PresentationRevisionReview: Sendable {
         try cancellation?.check();guard unresolvedCount==0 else{throw PresentationRevisionFailure.unresolved}
         let old=try RevisionDeck(base,cancellation:cancellation),new=try RevisionDeck(destination,cancellation:cancellation)
         // Choosing either complete revision preserves every opaque package member.
-        if changes.allSatisfy({decisions[$0.id] == true}) {return try RevisionOutput.finish(destination,extension:requiredFileExtension,cancellation:cancellation)}
-        if changes.allSatisfy({decisions[$0.id] == false}) {return try RevisionOutput.finish(base,extension:requiredFileExtension,cancellation:cancellation)}
-        if old.hasModernComments || new.hasModernComments {
-            throw PresentationRevisionFailure.unsupported("Mixed decisions with modern threaded comments/person registries are not supported. Choose one complete revision to preserve threaded identities.")
-        }
+        let deleted=decisions.keys.contains{$0.hasPrefix("delete-")}
+        if !deleted,changes.allSatisfy({decisions[$0.id] == true}) {return try RevisionOutput.finish(originalDestination,extension:requiredFileExtension,cancellation:cancellation)}
+        if !deleted,changes.allSatisfy({decisions[$0.id] == false}) {return try RevisionOutput.finish(originalBase,extension:requiredFileExtension,cancellation:cancellation)}
+        guard !oldComments.unsupported,!newComments.unsupported else{throw PresentationRevisionFailure.unsupported("Unknown comment/person extension requires a complete revision choice")}
         let anchorNew=environmentChange.map{decisions[$0] == true} ?? false
         let anchor=anchorNew ? new:old,other=anchorNew ? old:new
         var output=try RevisionOutput(anchor:anchor,foreign:other,cancellation:cancellation)
@@ -158,6 +195,7 @@ public struct PresentationRevisionReview: Sendable {
             }
         }
         try output.registerSlides(ordered,cancellation:cancellation)
+        try output.installComments(old:oldComments,new:newComments,plans:selected,decisions:decisions,anchorNew:anchorNew,cancellation:cancellation)
         return try RevisionOutput.finish(try PresentationPackage(entries:output.entries),extension:requiredFileExtension,cancellation:cancellation)
     }
 }
@@ -258,7 +296,7 @@ private func revisionShapeSimilarity(_ a:RevisionShape,_ b:RevisionShape)->Doubl
     if sameName,sameGeometry{return 0.92}
     return 0
 }
-private struct RevisionDecisionDelta:Sendable {let id:String,old:Bool?,new:Bool}
+private struct RevisionDecisionDelta:Sendable {let id:String,old:Bool?,new:Bool?}
 private struct RevisionSlidePlan:Sendable {let id:String,base:String?,destination:String?,baseID:String?,destinationID:String?,whole:String?,container:RevisionContainerPlan?}
 private struct RevisionContainerPlan:Sendable {
     var shapes:[RevisionShapePlan]
@@ -501,6 +539,11 @@ private struct RevisionDeck {
     }
     static func owner(of rels:String)throws->String {
         if rels=="_rels/.rels" {return ""}
+        if rels.hasPrefix("_rels/"),rels.hasSuffix(".rels") {
+            let name=String(rels.dropFirst(6).dropLast(5))
+            guard !name.isEmpty,!name.contains("/"),name != ".",name != ".." else{throw PresentationRevisionFailure.invalid("Malformed root relationship part path")}
+            return name
+        }
         guard let range=rels.range(of:"/_rels/",options:.backwards),rels.hasSuffix(".rels") else{throw PresentationRevisionFailure.invalid("Malformed relationship part path")}
         return String(rels[..<range.lowerBound])+"/"+String(rels[range.upperBound...].dropLast(5))
     }
@@ -682,6 +725,7 @@ private struct RevisionOutput {
     private var mapping:[String:String]=[:],pinned=Set<String>(),imported=Set<String>(),counter=0
     private var typeOverrides:[String:String]=[:]
     private var usedSlideNumbers=Set<UInt32>()
+    var commentShapeMaps:[String:[String:String]]=[:]
     private var authorsPrepared=false,authorIDs:[String:String]=[:],commentIndices:[String:Set<UInt32>]=[:]
     private var authorsDocument:XMLDocument?,authorsPath:String?,newAuthorRegistry:String?
     init(anchor:RevisionDeck,foreign:RevisionDeck,cancellation:OperationCancellation?)throws {
@@ -820,6 +864,8 @@ private struct RevisionOutput {
         entries[revisionRelsPath(target)]=revisionData(doc)
     }
     mutating func copyWholeSlide(source:RevisionDeck,path:String,target:String,fromAnchor:Bool,cancellation:OperationCancellation?)throws {
+        let ids=Dictionary(uniqueKeysWithValues:try source.shapes(RevisionSlide(id:"",path:path,index:0)).flatMap{revisionDescendants($0.element).filter{revisionIs($0,"cNvPr",revisionPresentationNS)}.compactMap{revisionAttribute($0,"id")}}.map{($0,$0)})
+        commentShapeMaps[(fromAnchor ? "anchor:":"foreign:")+path]=ids
         if fromAnchor {
             guard path==target else{throw PresentationRevisionFailure.invalid("Unexpected anchor slide mapping")};return
         }
@@ -858,6 +904,8 @@ private struct RevisionOutput {
             let mapped=String(number)
             if let id=record.base{oldIDs[id]=mapped};if let id=record.destination{newIDs[id]=mapped}
         }
+        commentShapeMaps[(anchorNew ? "foreign:":"anchor:")+old.path]=oldIDs
+        commentShapeMaps[(anchorNew ? "anchor:":"foreign:")+new.path]=newIDs
         // Each piece is either a leaf/atomic subtree or the shell of a granular
         // group. Its source determines both identity and relationship remapping.
         var pieces:[RevisionSelectedShape]=[]
@@ -1028,5 +1076,333 @@ private struct RevisionOutput {
         let result=try PresentationPackage(entries:entries)
         _=try RevisionDeck(result,cancellation:cancellation)
         return result
+    }
+}
+
+// Verified PresentationML classic comments and MS-PPTX 2.16 (2018/8) comments.
+public struct PresentationComment:Identifiable,Sendable,Equatable {
+    public let id:String,threadID:String,text:String,author:String,initials:String,created:String,status:String,anchor:String
+    public let parentID:String?
+    public let slideIndex:Int,depth:Int
+    public let isModern:Bool
+}
+public struct PresentationCommentChange:Sendable {
+    public let base:PresentationComment?,destination:PresentationComment?
+}
+private let revisionThreadingNS="http://schemas.microsoft.com/office/powerpoint/2012/main"
+private func revisionStandalone(_ node:XMLElement)->String {
+    let copy=node.copy() as! XMLElement
+    var scopes:[XMLElement]=[],parent:XMLElement?=node
+    while let value=parent {scopes.append(value);parent=value.parent as? XMLElement}
+    for scope in scopes.reversed() {for ns in scope.namespaces ?? [] {
+        if copy.namespace(forPrefix:ns.name ?? "")==nil {copy.addNamespace(ns.copy() as! XMLNode)}
+    }}
+    return copy.xmlString
+}
+private let revisionModernNS="http://schemas.microsoft.com/office/powerpoint/2018/8/main"
+private let revisionModernCommentsType="application/vnd.ms-powerpoint.comments+xml"
+private let revisionModernAuthorsType="application/vnd.ms-powerpoint.authors+xml"
+private let revisionModernRelationship="http://schemas.microsoft.com/office/2018/10/relationships/"
+private struct RevisionCommentRecord:Sendable {
+    var value:PresentationComment
+    let slidePath:String,node:String,authorNode:String,authorKey:String,assigned:[String:String],modernExtension:String?
+    let order:Int
+}
+private struct RevisionComments:Sendable {
+    var records:[String:RevisionCommentRecord]=[:]
+    let stripped:PresentationPackage
+    let unsupported:Bool
+    private init(opaque:PresentationPackage) {stripped=opaque;unsupported=true}
+    static func read(_ package:PresentationPackage,slideKeys:[String:String],cancellation:OperationCancellation?)throws->Self {
+        do {return try Self(package,slideKeys:slideKeys,cancellation:cancellation)}
+        catch PresentationRevisionFailure.unsupported(_) {try cancellation?.check();return Self(opaque:package)}
+    }
+    init(_ package:PresentationPackage,slideKeys:[String:String],cancellation:OperationCancellation?)throws {
+        let deck=try RevisionDeck(package,cancellation:cancellation)
+        var records:[String:RevisionCommentRecord]=[:]
+        var entries=package.entries,removed=Set<String>(),unknown=false
+        var authors:[Bool:[String:String]]=[:]
+        for rel in try revisionRelationships(entries,part:deck.presentation) where !rel.external {
+            let path=try revisionTarget(rel.target,from:deck.presentation),type=deck.partTypes[path] ?? ""
+            let modern=type==revisionModernAuthorsType
+            guard modern || type==revisionClassicAuthorsType else{continue}
+            guard rel.type==(modern ? revisionModernRelationship+"authors":revisionOfficeRelationshipNS+"/commentAuthors") else{throw PresentationRevisionFailure.invalid("Comment author relationship type mismatch")}
+            guard authors[modern]==nil else{throw PresentationRevisionFailure.invalid("Duplicate comment author registry")}
+            let doc=try deck.document(path),root=doc.rootElement()!,ns=modern ? revisionModernNS:revisionPresentationNS
+            guard revisionIs(root,modern ? "authorLst":"cmAuthorLst",ns),try revisionRelationships(entries,part:path).isEmpty else{throw PresentationRevisionFailure.unsupported("Extended comment author registry")}
+            var values:[String:String]=[:]
+            for node in revisionChildren(root) {
+                guard revisionIs(node,modern ? "author":"cmAuthor",ns),let raw=revisionAttribute(node,"id"),!raw.isEmpty else{throw PresentationRevisionFailure.unsupported("Unknown comment author")}
+                guard revisionDescendants(node).dropFirst().allSatisfy({element in
+                    !modern && ((element.uri==revisionPresentationNS && ["extLst","ext"].contains(revisionLocal(element))) || revisionIs(element,"presenceInfo",revisionThreadingNS))
+                }) else{throw PresentationRevisionFailure.unsupported("Unknown comment author extension")}
+                let id:String
+                if modern {guard revisionAttribute(node,"name") != nil,revisionAttribute(node,"userId") != nil,revisionAttribute(node,"providerId") != nil,let guid=revisionCommentGUIDIdentity(raw) else{throw PresentationRevisionFailure.invalid("Invalid modern author GUID")};id=guid}
+                else {guard let number=UInt32(raw) else{throw PresentationRevisionFailure.invalid("Invalid classic author ID")};id=String(number)}
+                guard values[id]==nil else{throw PresentationRevisionFailure.invalid("Duplicate comment author identity")}
+                values[id]=revisionStandalone(node)
+            }
+            authors[modern]=values;removed.insert(path)
+        }
+        for slide in deck.slides {
+            try cancellation?.check()
+            let logical=slideKeys[slide.path] ?? slide.id
+            var seen=Set<String>()
+            let slideDoc=try deck.document(slide.path)
+            let modernExtensions=revisionDescendants(slideDoc.rootElement()!).filter{revisionIs($0,"commentRel",revisionModernNS)}
+            for rel in try revisionRelationships(entries,part:slide.path) where !rel.external {
+                let path=try revisionTarget(rel.target,from:slide.path),type=deck.partTypes[path] ?? ""
+                let modern=type==revisionModernCommentsType
+                guard modern || type==revisionClassicCommentsType else{continue}
+                guard rel.type==(modern ? revisionModernRelationship+"comments":revisionOfficeRelationshipNS+"/comments") else{throw PresentationRevisionFailure.invalid("Comment relationship type mismatch")}
+                let doc=try deck.document(path),root=doc.rootElement()!,ns=modern ? revisionModernNS:revisionPresentationNS
+                guard revisionIs(root,"cmLst",ns),try revisionRelationships(entries,part:path).isEmpty else{throw PresentationRevisionFailure.unsupported("Comment parts with dependent relationships")}
+                let extensionNode=modernExtensions.first{revisionAttribute($0,"id")==rel.id || $0.attributes?.contains(where:{$0.localName=="id" && $0.stringValue==rel.id})==true}?.parent as? XMLElement
+                if modern,extensionNode==nil {throw PresentationRevisionFailure.invalid("Modern comment relationship has no slide extension")}
+                func read(_ node:XMLElement,parent:String?,thread:String?,depth:Int)throws {
+                    try cancellation?.check()
+                    guard depth<=64,records.count<50000,revisionIs(node,parent==nil ? "cm":"reply",ns),let rawAuthor=revisionAttribute(node,"authorId") else{throw PresentationRevisionFailure.invalid("Invalid comment identity")}
+                    let authorID=modern ? revisionCommentGUIDIdentity(rawAuthor) ?? "":UInt32(rawAuthor).map(String.init) ?? ""
+                    guard let authorXML=authors[modern]?[authorID] else{throw PresentationRevisionFailure.invalid("Unknown comment author or reply structure")}
+                    let author=try revisionXML(Data(authorXML.utf8),"comment author").rootElement()!
+                    let raw=modern ? revisionAttribute(node,"id").flatMap(revisionCommentGUIDIdentity) : revisionAttribute(node,"idx").flatMap(UInt32.init).map{authorID+":"+String($0)}
+                    if modern {
+                        guard revisionAttribute(node,"created") != nil,let raw,UUID(uuidString:raw.trimmingCharacters(in:CharacterSet(charactersIn:"{}"))) != nil else{throw PresentationRevisionFailure.invalid("Invalid modern comment GUID or creation time")}
+                    }
+                    guard let raw,!raw.isEmpty,seen.insert(raw).inserted else{throw PresentationRevisionFailure.invalid("Duplicate comment identity")}
+                    let id="comment-"+revisionHash(Data((logical+"\0"+String(modern)+"\0"+raw).utf8))
+                    let rootID=thread ?? id
+                    let shell=try revisionXML(Data(revisionStandalone(node).utf8),"comment").rootElement()!
+                    revisionChildren(shell).filter{revisionIs($0,"replyLst",ns)}.forEach{$0.detach()}
+                    if modern {
+                        let known=Set(["id","authorId","status","created","startDate","dueDate","assignedTo","complete","title"])
+                        guard (shell.attributes ?? []).allSatisfy({known.contains(revisionLocal($0)) && ($0.uri ?? "").isEmpty}),!revisionDescendants(shell).contains(where:{revisionLocal($0)=="extLst"}) else{throw PresentationRevisionFailure.unsupported("Unknown modern comment properties or extensions")}
+                    } else if let ext=revisionChild(shell,"extLst") {
+                        guard revisionDescendants(ext).allSatisfy({element in
+                            (element.uri==revisionPresentationNS && ["extLst","ext"].contains(revisionLocal(element))) || (element.uri==revisionThreadingNS && ["threadingInfo","parentCm"].contains(revisionLocal(element)))
+                        }) else{throw PresentationRevisionFailure.unsupported("Unknown classic comment extensions")}
+                    }
+                    if modern {
+                        for moniker in revisionDescendants(shell) where moniker.uri=="http://schemas.microsoft.com/office/powerpoint/2013/main/command" && revisionLocal(moniker)=="sldMk" {
+                            guard revisionAttribute(moniker,"sldId").flatMap(UInt32.init)==UInt32(slide.id) else{throw PresentationRevisionFailure.invalid("Comment moniker names another slide")}
+                        }
+                    }
+                    let text=modern ? revisionDescendants(shell).filter{revisionIs($0,"t",revisionDrawingNS)}.compactMap(\.stringValue).joined(separator:"") : revisionChild(shell,"text")?.stringValue ?? ""
+                    let anchor=revisionChildren(shell).filter{!["txBody","text","replyLst"].contains(revisionLocal($0))}.map(\.xmlString).joined(separator:"\n")
+                    var assigned:[String:String]=[:]
+                    for aid in (revisionAttribute(node,"assignedTo") ?? "").split(whereSeparator:{$0.isWhitespace}).map(String.init) {
+                        guard let value=authors[modern]?[revisionCommentGUIDIdentity(aid) ?? aid] else{throw PresentationRevisionFailure.invalid("Comment assignment references an unknown author")};assigned[aid]=value
+                    }
+                    let value=PresentationComment(id:id,threadID:rootID,text:text,author:revisionAttribute(author,"name") ?? "",initials:revisionAttribute(author,"initials") ?? "",created:revisionAttribute(node,modern ? "created":"dt") ?? "",status:revisionAttribute(node,"status") ?? "active",anchor:anchor,parentID:parent,slideIndex:slide.index,depth:depth,isModern:modern)
+                    if modern,!Set(["active","resolved","closed"]).contains(value.status){throw PresentationRevisionFailure.unsupported("Unknown modern comment status")}
+                    records[id]=RevisionCommentRecord(value:value,slidePath:slide.path,node:shell.xmlString,authorNode:authorXML,authorKey:authorID,assigned:assigned,modernExtension:extensionNode.map(revisionStandalone),order:records.count)
+                    if let replies=revisionChild(node,"replyLst") {guard parent==nil else{throw PresentationRevisionFailure.invalid("Modern replies cannot contain reply lists")};for reply in revisionChildren(replies){try read(reply,parent:id,thread:rootID,depth:depth+1)}}
+                }
+                for node in revisionChildren(root){try read(node,parent:nil,thread:nil,depth:0)}
+                removed.insert(path)
+            }
+            for node in modernExtensions {if let parent=node.parent as? XMLElement {parent.detach()}}
+            for list in revisionChildren(slideDoc.rootElement()!) where revisionLocal(list)=="extLst" && revisionChildren(list).isEmpty {list.detach()}
+            entries[slide.path]=revisionData(slideDoc)
+        }
+        // Classic parent identity is presentation-wide (authorId, idx), not a
+        // nested XML reply. Preserve its actual graph, including cross-slide links.
+        var classic:[String:String]=[:]
+        for (id,record) in records where !record.value.isModern {
+            let node=try revisionXML(Data(record.node.utf8),"classic comment").rootElement()!
+            let key=record.authorKey+":"+String(UInt32(revisionAttribute(node,"idx") ?? "")!)
+            guard classic.updateValue(id,forKey:key)==nil else{throw PresentationRevisionFailure.invalid("Duplicate presentation-wide classic comment index")}
+        }
+        var parents:[String:String]=[:]
+        for (id,record) in records where !record.value.isModern {
+            let node=try revisionXML(Data(record.node.utf8),"classic comment").rootElement()!
+            if let parent=revisionDescendants(node).first(where:{revisionIs($0,"parentCm",revisionThreadingNS)}) {
+                guard let author=revisionAttribute(parent,"authorId"),let idx=revisionAttribute(parent,"idx"),let a=UInt32(author),let i=UInt32(idx),let target=classic[String(a)+":"+String(i)] else{throw PresentationRevisionFailure.invalid("Classic reply references an unknown parent")}
+                parents[id]=target
+            }
+        }
+        for id in parents.keys {
+            var current=id,seen=Set<String>(),depth=0
+            while let parent=parents[current] {guard seen.insert(current).inserted,depth<64 else{throw PresentationRevisionFailure.invalid("Classic comment thread cycle or depth")};current=parent;depth += 1}
+            var record=records[id]!,v=record.value
+            v=PresentationComment(id:v.id,threadID:current,text:v.text,author:v.author,initials:v.initials,created:v.created,status:v.status,anchor:v.anchor,parentID:parents[id],slideIndex:v.slideIndex,depth:depth,isModern:false)
+            record.value=v;records[id]=record
+        }
+        for (path,type) in deck.partTypes where type.lowercased().contains("comment") || type.lowercased().contains("person") || type==revisionModernAuthorsType {
+            if !removed.contains(path){unknown=true}
+        }
+        for path in removed {entries.removeValue(forKey:path);entries.removeValue(forKey:revisionRelsPath(path))}
+        for path in Array(entries.keys) where path.hasSuffix(".rels") {
+            let doc=try revisionXML(entries[path]!,path)
+            let source=try RevisionDeck.owner(of:path)
+            for node in revisionChildren(doc.rootElement()!) where revisionAttribute(node,"TargetMode") != "External" {
+                if let target=revisionAttribute(node,"Target"),removed.contains(try revisionTarget(target,from:source)){node.detach()}
+            }
+            entries[path]=revisionData(doc)
+        }
+        let types=try revisionXML(entries["[Content_Types].xml"]!,"content types")
+        for node in revisionChildren(types.rootElement()!) {if let part=revisionAttribute(node,"PartName"),removed.contains(try revisionTarget(part,from:"")){node.detach()}}
+        entries["[Content_Types].xml"]=revisionData(types)
+        self.records=records;stripped=try (removed.isEmpty ? package:PresentationPackage(entries:entries));unsupported=unknown
+    }
+}
+
+private func revisionCommentGUIDIdentity(_ raw:String)->String? {
+    UUID(uuidString:raw.trimmingCharacters(in:CharacterSet(charactersIn:"{}"))).map{"{"+$0.uuidString+"}"}
+}
+private func revisionCommentGUID(_ seed:String)->String {
+    let h=Array(revisionHash(Data(seed.utf8)).prefix(32))
+    return "{"+String(h[0..<8])+"-"+String(h[8..<12])+"-"+String(h[12..<16])+"-"+String(h[16..<20])+"-"+String(h[20..<32])+"}"
+}
+private extension RevisionOutput {
+    mutating func installComments(old:RevisionComments,new:RevisionComments,plans:[RevisionSlidePlan],decisions:[String:Bool],anchorNew:Bool,cancellation:OperationCancellation?)throws {
+        var chosen:[String:(RevisionCommentRecord,Bool)]=[:]
+        let all=Set(old.records.keys).union(new.records.keys)
+        func explicitlyDeleted(_ id:String)->Bool {
+            var current:String?=id,seen=Set<String>()
+            while let key=current,seen.insert(key).inserted {
+                if decisions["delete-"+key]==true{return true}
+                current=(decisions[key]==true ? new.records[key]:old.records[key] ?? new.records[key])?.value.parentID
+            }
+            return false
+        }
+        for id in all.sorted() {
+            try cancellation?.check()
+            if explicitlyDeleted(id){continue}
+            let useNew=decisions[id] ?? anchorNew
+            guard let record=(useNew ? new:old).records[id] else{continue}
+            guard plans.contains(where:{useNew ? $0.destination==record.slidePath:$0.base==record.slidePath}) else {
+                throw PresentationRevisionFailure.unsupported("A selected comment belongs to a rejected slide. Retain its slide or delete the comment.")
+            }
+            chosen[id]=(record,useNew)
+        }
+        for (_,pair) in chosen {if let parent=pair.0.value.parentID,chosen[parent]==nil {throw PresentationRevisionFailure.unsupported("A selected reply has no selected parent comment. Review its parent and reply together.")}}
+        let orderedIDs=chosen.keys.sorted {a,b in
+            let x=chosen[a]!.0.order,y=chosen[b]!.0.order
+            return x==y ? a<b:x<y
+        }
+        var authorNodes:[Bool:[String:XMLElement]]=[:],authorIDs:[String:String]=[:]
+        func author(_ xml:String,modern:Bool)throws->String {
+            let node=try revisionXML(Data(xml.utf8),"comment author").rootElement()!
+            node.detach();node.attribute(forName:"id")?.detach();if !modern {node.attribute(forName:"lastIdx")?.detach()}
+            // Identity includes the complete author record, never name alone.
+            let key=String(modern)+":"+revisionCanonical(node)
+            if let id=authorIDs[key]{return id}
+            let id=modern ? revisionCommentGUID(key):String(authorNodes[modern,default:[:]].count)
+            revisionSet(node,"id",id);authorNodes[modern,default:[:]][id]=node;authorIDs[key]=id;return id
+        }
+        var nodes:[String:XMLElement]=[:],classicIndex:[String:Int]=[:]
+        for id in orderedIDs {
+            let (record,useNew)=chosen[id]!,modern=record.value.isModern
+            let node=try revisionXML(Data(record.node.utf8),"comment").rootElement()!
+            node.detach()
+            let authorID=try author(record.authorNode,modern:modern)
+            revisionSet(node,"authorId",authorID)
+            if modern {
+                revisionSet(node,"id",revisionCommentGUID(id))
+                if let assigned=revisionAttribute(node,"assignedTo"),!assigned.isEmpty {
+                    let mapped=try assigned.split(whereSeparator:{$0.isWhitespace}).map {value->String in
+                        guard let xml=record.assigned[String(value)] else{throw PresentationRevisionFailure.invalid("Missing assigned comment author")}
+                        return try author(xml,modern:true)
+                    };revisionSet(node,"assignedTo",mapped.joined(separator:" "))
+                }
+            } else {
+                classicIndex[authorID,default:0] += 1
+                revisionSet(node,"idx",String(classicIndex[authorID]!))
+            }
+            guard let plan=plans.first(where:{useNew ? $0.destination==record.slidePath:$0.base==record.slidePath}),let number=slideNumbers[plan.id] else{throw PresentationRevisionFailure.invalid("Missing selected comment slide")}
+            let maps=commentShapeMaps[(useNew==anchorNew ? "anchor:":"foreign:")+record.slidePath] ?? [:]
+            let sourceDeck=useNew==anchorNew ? anchor:foreign
+            let sourceSlide=try sourceDeck.document(record.slidePath).rootElement()!
+            let outputSlide=try revisionXML(entries[slidePaths[plan.id]!]!,"comment anchor slide").rootElement()!
+            func shape(_ root:XMLElement,_ id:String)->XMLElement? {
+                guard let nv=revisionDescendants(root).first(where:{revisionIs($0,"cNvPr",revisionPresentationNS) && revisionAttribute($0,"id")==id}) else{return nil}
+                return nv.parent?.parent as? XMLElement
+            }
+            let textAnchored=revisionDescendants(node).contains{revisionLocal($0)=="txMkLst"}
+            for anchor in revisionDescendants(node) {
+                if anchor.uri=="http://schemas.microsoft.com/office/powerpoint/2013/main/command",revisionLocal(anchor)=="sldMk" {revisionSet(anchor,"sldId",number)}
+                if anchor.uri=="http://schemas.microsoft.com/office/drawing/2013/main/command",["spMk","grpSpMk","graphicFrameMk","cxnSpMk","picMk","inkMk"].contains(revisionLocal(anchor)),let value=revisionAttribute(anchor,"id") {
+                    guard let mapped=maps[value],let originalShape=shape(sourceSlide,value),let targetShape=shape(outputSlide,mapped) else{throw PresentationRevisionFailure.unsupported("A comment anchor references a rejected or unknown shape. Retain its anchor shape or reject the comment.")}
+                    if textAnchored {
+                        let sourceText=revisionDescendants(originalShape).filter{revisionIs($0,"t",revisionDrawingNS)}.compactMap(\.stringValue).joined()
+                        let targetText=revisionDescendants(targetShape).filter{revisionIs($0,"t",revisionDrawingNS)}.compactMap(\.stringValue).joined()
+                        guard Data(sourceText.utf8)==Data(targetText.utf8) else{throw PresentationRevisionFailure.unsupported("A comment text-range anchor belongs to different selected text. Retain its text shape or reject the comment.")}
+                    }
+                    if revisionAttribute(anchor,"creationId") != nil {
+                        guard let creation=revisionDescendants(targetShape).first(where:{revisionLocal($0)=="creationId"}).flatMap({revisionAttribute($0,"id")}) else{throw PresentationRevisionFailure.unsupported("A comment creation anchor has no selected shape identity")}
+                        revisionSet(anchor,"creationId",creation)
+                    }
+                    revisionSet(anchor,"id",mapped)
+                }
+            }
+            nodes[id]=node
+        }
+        for id in orderedIDs {
+            guard let parent=chosen[id]!.0.value.parentID else{continue}
+            if !chosen[id]!.0.value.isModern {
+                for element in revisionDescendants(nodes[id]!) where revisionIs(element,"parentCm",revisionThreadingNS) {
+                    revisionSet(element,"authorId",revisionAttribute(nodes[parent]!,"authorId")!);revisionSet(element,"idx",revisionAttribute(nodes[parent]!,"idx")!)
+                }
+                continue
+            }
+            let parentNode=nodes[parent]!,list=revisionChild(parentNode,"replyLst") ?? {
+                let list=XMLElement(name:"p188:replyLst",uri:revisionModernNS)
+                // MS-PPTX requires replies before txBody.
+                let index=(parentNode.children ?? []).firstIndex{($0 as? XMLElement).map{revisionLocal($0)=="txBody"} ?? false} ?? parentNode.childCount
+                parentNode.insertChild(list,at:index);return list
+            }()
+            list.addChild(nodes[id]!)
+        }
+        let typeDoc=try revisionXML(entries["[Content_Types].xml"]!,"content types")
+        func addType(_ path:String,_ type:String) {
+            let node=XMLElement(name:"Override",uri:revisionContentNS);revisionSet(node,"PartName","/"+path);revisionSet(node,"ContentType",type);typeDoc.rootElement()!.addChild(node)
+        }
+        func addRelationship(_ source:String,_ path:String,_ type:String)throws->String {
+            let key=revisionRelsPath(source)
+            let doc=try entries[key].map{try revisionXML($0,key)} ?? revisionXML(Data(("<Relationships xmlns=\""+revisionRelationshipNS+"\"/>").utf8),key)
+            let used=Set(revisionChildren(doc.rootElement()!).compactMap{revisionAttribute($0,"Id")})
+            var n=1;while used.contains("rIdTurtleGitComment\(n)"){n += 1}
+            let id="rIdTurtleGitComment\(n)",node=XMLElement(name:"Relationship",uri:revisionRelationshipNS)
+            revisionSet(node,"Id",id);revisionSet(node,"Type",type);revisionSet(node,"Target",revisionRelative(path,from:source));doc.rootElement()!.addChild(node);entries[key]=revisionData(doc);return id
+        }
+        for modern in [false,true] where !(authorNodes[modern] ?? [:]).isEmpty {
+            let ns=modern ? revisionModernNS:revisionPresentationNS,path=allocate(modern ? "ppt/authors/authors.xml":"ppt/commentAuthors.xml")
+            let root=XMLElement(name:modern ? "p188:authorLst":"p:cmAuthorLst",uri:ns)
+            root.addNamespace(XMLNode.namespace(withName:modern ? "p188":"p",stringValue:ns) as! XMLNode)
+            for key in authorNodes[modern]!.keys.sorted() {
+                let node=authorNodes[modern]![key]!
+                if !modern {revisionSet(node,"lastIdx",String(classicIndex[key] ?? 0))}
+                root.addChild(node)
+            }
+            entries[path]=revisionData(XMLDocument(rootElement:root));addType(path,modern ? revisionModernAuthorsType:revisionClassicAuthorsType)
+            _=try addRelationship(anchor.presentation,path,modern ? revisionModernRelationship+"authors":revisionOfficeRelationshipNS+"/commentAuthors")
+        }
+        for plan in plans {
+            let target=slidePaths[plan.id]!
+            for modern in [false,true] {
+                let roots=orderedIDs.filter {id in let (record,useNew)=chosen[id]!;return (record.value.parentID==nil || !modern) && record.value.isModern==modern && (useNew ? plan.destination==record.slidePath:plan.base==record.slidePath)}
+                if roots.isEmpty {continue}
+                let ns=modern ? revisionModernNS:revisionPresentationNS,path=allocate("ppt/comments/comments.xml")
+                let root=XMLElement(name:modern ? "p188:cmLst":"p:cmLst",uri:ns)
+                root.addNamespace(XMLNode.namespace(withName:modern ? "p188":"p",stringValue:ns) as! XMLNode)
+                root.addNamespace(XMLNode.namespace(withName:"a",stringValue:revisionDrawingNS) as! XMLNode)
+                for id in roots{root.addChild(nodes[id]!)}
+                entries[path]=revisionData(XMLDocument(rootElement:root));addType(path,modern ? revisionModernCommentsType:revisionClassicCommentsType)
+                let relID=try addRelationship(target,path,modern ? revisionModernRelationship+"comments":revisionOfficeRelationshipNS+"/comments")
+                if modern {
+                    guard let ext=chosen[roots[0]]!.0.modernExtension else{throw PresentationRevisionFailure.invalid("Missing modern comment extension")}
+                    let node=try revisionXML(Data(ext.utf8),"comment extension").rootElement()!
+                    node.detach()
+                    for child in revisionDescendants(node) where revisionIs(child,"commentRel",revisionModernNS) {
+                        for attr in child.attributes ?? [] where attr.localName=="id"{attr.stringValue=relID}
+                    }
+                    let doc=try revisionXML(entries[target]!,target),slide=doc.rootElement()!
+                    let list=revisionChild(slide,"extLst") ?? {let value=XMLElement(name:"p:extLst",uri:revisionPresentationNS);slide.addChild(value);return value}()
+                    list.addChild(node);entries[target]=revisionData(doc)
+                }
+            }
+        }
+        entries["[Content_Types].xml"]=revisionData(typeDoc)
     }
 }

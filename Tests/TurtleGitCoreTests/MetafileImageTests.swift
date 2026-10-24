@@ -282,6 +282,8 @@ final class MetafileImageTests: XCTestCase {
         try primary(plain, 0, 16, 16)
         try primary(plain, 1, 32, 16)
         try primary(plain, 2, 16, 32)
+        let ignoredClamp = try image("plus-image-attributes-clamp-ignored.emf")
+        for y in [16,32] { for x in [16,32] { XCTAssertEqual(try rgb(ignoredClamp,x,y),try rgb(plain,x,y),"GDI+ 1.0 ignores SetWrapMode clamp BOOL") } }
         let clamped = try image("plus-image-clamp.emf")
         for x in [16, 64] {
             let color = try rgb(clamped, x, 16)
@@ -601,7 +603,7 @@ final class MetafileImageTests: XCTestCase {
         }
     }
     func testMalformedAndUnsupportedPaintingFailInsteadOfSuccessfulBlank() throws {
-        for name in ["unsupported-region.emf", "unsupported-image-effect.emf", "unsupported-image-attributes.emf", "unsupported-image-wrap.emf", "unsupported-image-attribute-type.emf", "unsupported-gradient-stops.emf", "unsupported-image-tile-budget.emf", "unsupported-gradient-precision.emf"] {
+        for name in ["unsupported-region.emf", "unsupported-image-effect.emf", "unsupported-image-wrap.emf", "unsupported-image-attribute-type.emf", "unsupported-gradient-stops.emf", "unsupported-image-tile-budget.emf", "unsupported-gradient-precision.emf"] {
             XCTAssertThrowsError(try MetafileImageDecoder.convert(data(name)))
             XCTAssertNil(ComparisonImage(bytes: try data(name)))
         }

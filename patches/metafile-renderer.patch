@@ -115,7 +115,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,433 @@
+@@ -0,0 +1,526 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -126,6 +126,16 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +  function u32(b, o) { if (o < 0 || o+4 > b.length) fail('truncated record'); return (b[o]|b[o+1]<<8|b[o+2]<<16|b[o+3]<<24)>>>0; }
 +  function i32(b,o) { return u32(b,o)|0; }
 +  function f32(b,o) { if(o < 0 || o+4 > b.length) fail('truncated floating-point record'); const v=new DataView(b.buffer,b.byteOffset,b.byteLength).getFloat32(o,true); if(!Number.isFinite(v)||Math.abs(v)>1e9) fail('invalid coordinate'); return v; }
++  let conversion=null;
++  const sharedCounters=['ClassicGradientMeshes','ClassicGradientVertices','ClassicGradientWork','ClassicPenEntries','CopyBytes','CopyPaints','DecodedPathPoints','GdiMaskBytes','GdiRegionRectangles','GradientPixels','ImageMarkup','ImageTiles','MaskBytes','PenPoints','PositionedUnits','RasterBrushBytes','RasterBrushDefinitions','RasterBrushSequence','RasterDecoded','RasterPaletteEntries','RasterPatternPixels','RasterTilePixels','RegionMaskBytes','RegionNodes','RegionPoints','RegionRectangles','TextureMarkup','TexturePixels','TextureTiles','TracedPathPoints'];
++  function shareBudgets(ctx) {
++    const counters=conversion.counters;
++    for(const suffix of sharedCounters){const key='_turtle'+suffix;Object.defineProperty(ctx,key,{get(){return counters[key]||0;},set(value){if(!Number.isFinite(value)||value<0)fail('invalid shared rendering budget');counters[key]=value;}});}
++  }
++  function embeddedMarkup(bytes) {
++    if(!conversion||!Number.isSafeInteger(bytes)||bytes<0||bytes>64*1024*1024-conversion.paintBytes)fail('aggregate embedded image paint markup budget exceeded');
++    conversion.paintBytes+=bytes;
++  }
 +  const paths=require('./turtleGitPaths')({fail,u32,f32});
 +  const escape = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 +  const matrix = a => a.map(v => { if(!Number.isFinite(v)||Math.abs(v)>1e12) fail('invalid transform'); return String(v); }).join(' ');
@@ -268,9 +278,25 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    if(!layout.path)return;
 +    this._nodes.push('<path d="'+escape(layout.path)+'" fill="'+escape(this.fillStyle)+'" fill-rule="nonzero" stroke="none" '+this._attr()+'/>');
 +  };
++  // Axis-oriented classic primitives must be built in the child's device
++  // plane, then mapped as complete paths/text, rather than bounding two already
++  // sheared corners. The raw hook precedes brush and ROP interception so their
++  // captured geometry is the same final-device geometry.
++  for(const name of ['fill','stroke','fillRect','strokeRect','fillText']){
++    const original=SvgContext.prototype[name];
++    SvgContext.prototype[name]=function(...args){
++      const m=this._turtleLocalPaintMatrix;if(!m)return original.apply(this,args);
++      const first=this._nodes.length,clip=this._state.clip;this._state.clip=null;
++      try{return original.apply(this,args);}finally{
++        this._state.clip=clip;
++        if(this._nodes.length>first){const body=this._nodes.splice(first).join('');this._nodes.push(masked(this._turtleLocalPaintWmf?this._turtleInheritedClip:null,'<g '+(clip?'clip-path="'+clip+'" ':'')+'><g transform="matrix('+matrix(m)+')">'+body+'</g></g>'));this._turtleEmbeddedPainted=(this._turtleEmbeddedPainted||0)+1;}
++      }
++    };
++  }
 +  const rawPaint=Object.fromEntries(['fill','fillRect','fillText','fillGlyphPaths'].map(name=>[name,SvgContext.prototype[name]]));
-+  const paint=require('./turtleGitPaint')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,escape,matrix,currentMatrix,rawBitmap,paths});
-+  const images=require('./turtleGitImages')({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix});
++  const embedded=require('./turtleGitEmbedded')({fail,u32,escape,matrix,renderDocument,charge:embeddedMarkup,currentMatrix,state,mask,combineMasks,masked,mul});
++  const paint=require('./turtleGitPaint')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,escape,matrix,currentMatrix,rawBitmap,paths,embedded});
++  const images=require('./turtleGitImages')({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix,embedded});
 +  const pens=require('./turtleGitPens')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,unitScale,currentMatrix,paint,paths});
 +  const sourceCopy=require('./turtleGitSourceCopy')({EmfPlusDrawer,SvgContext,fail,escape,matrix,currentMatrix,masked,raw:rawPaint});
 +  // Existing drawing routines operate in local coordinates. Wrap each completed
@@ -323,17 +349,19 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +      case 0x4005:case 0x4006:case 0x4007: fail('unsupported EMF+ alternate-format records');
 +      case 0x4023: if(data.length!==0||(flags&255)>1)fail('invalid EMF+ compositing mode');s.compositing=flags&255;return;
 +      case 0x401F: if(data.length!==0||(flags&255)>5)fail('invalid EMF+ text rendering hint');s.textHint=flags&255;return;
-+      case 0x4009: if(data.length!==4)fail('invalid EMF+ clear record');sourceCopy.clear(this,u32(data,0),s.clip);return;
++      case 0x4009: if(data.length!==4)fail('invalid EMF+ clear record');sourceCopy.clear(this,u32(data,0),combineMasks(this,s.clip,ctx._turtleInheritedClip||null,1));return;
 +    }
 +    if(type<0x4001||type>0x403A)fail('unsupported EMF+ record 0x'+type.toString(16));
 +    if(s.compositing===1&&s.textHint===5&&(type===0x401C||type===0x4036))fail('unsupported SourceCopy ClearType text');
-+    const first=ctx._nodes.length, savedClip=ctx._state.clip;let recordClip=s.clip;ctx._state.clip=null;
-+    const copy=s.compositing===1?sourceCopy.begin(this):null;
++    const first=ctx._nodes.length, savedClip=ctx._state.clip;let recordClip=combineMasks(this,s.clip,ctx._turtleInheritedClip||null,1);ctx._state.clip=null;
++    const direct=(type===0x401a||type===0x401b)&&this.emfPlusObjects[flags&255]&&this.emfPlusObjects[flags&255].type==='imageMetafile';
++    const copy=s.compositing===1&&!direct?sourceCopy.begin(this):null;
 +    try {
 +      if(type===0x4013)recordClip=combineMasks(this,recordClip,fillRegion(this,flags,data),1);
 +      else originalDispatch.call(this,type,flags,data);
 +    }
 +    finally {ctx._state.clip=savedClip;ctx._turtleStrokeReceipt=null;sourceCopy.abort(this);}
++    if(direct)return;
 +    if(copy){sourceCopy.finish(this,copy,first,recordClip);return;}
 +    if(ctx._nodes.length>first) {
 +      const nodes=ctx._nodes.splice(first).join('');
@@ -393,6 +421,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +        this.emfPlusObjects[id]={type:'imageData',href,width:Math.abs(width),height:Math.abs(height)};return;
 +      }
 +      if(imageType!==2)fail('unsupported EMF+ image object');
++      if(id>63)fail('invalid image object index');this.emfPlusObjects[id]=embedded.parse(data);return;
 +    }
 +    originalObject.call(this,flags&0x7fff,data);
 +    if(type===6) {
@@ -463,6 +492,8 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    if([0x940,0xb41,0xf43].includes(type)&&u32(data,0)!==0x00cc0020)fail('unsupported WMF bitmap raster operation');
 +    return oldWmfRecord.call(this,record);
 +  };
++  const inheritedWmfRecord=wd.processRecord;
++  wd.processRecord=function(record){const ctx=this.ctx,first=ctx._nodes.length,painted=ctx._turtleEmbeddedPainted||0,checkpoint=ctx._turtleRasterCheckpoint||0;const result=inheritedWmfRecord.call(this,record);if((ctx._turtleEmbeddedPainted||0)===painted&&ctx._turtleInheritedClip&&(ctx._turtleRasterCheckpoint||0)===checkpoint&&ctx._nodes.length>first){const body=ctx._nodes.splice(first).join('');ctx._nodes.push(masked(ctx._turtleInheritedClip,body));}return result;};
 +  // GDI+ playback selects EMF+ drawing. The classic representation is a fallback,
 +  // except for the explicit GetDC interval until the next EMF+ record.
 +  ed._detectDualMode=function(){return false;};
@@ -517,21 +548,34 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +  function validateRecords(bytes){
 +    if(bytes.length>=88&&u32(bytes,0)===1&&u32(bytes,40)===0x464d4520){
 +      const total=u32(bytes,48),declared=u32(bytes,52),header=u32(bytes,4);if(total!==bytes.length||header<88||header>total||header%4||declared>1000000)fail('invalid EMF header lengths');
-+      let o=0,count=0,eof=false;while(o<total){if(o+8>total)fail('truncated EMF record');const type=u32(bytes,o),size=u32(bytes,o+4);if(size<8||size%4||size>total-o)fail('invalid EMF record length');
-+        if(type===70){const cb=u32(bytes,o+8);if(cb>size-12)fail('truncated EMF comment');if(cb>=4&&u32(bytes,o+12)===0x2b464d45){let c=o+16,end=o+12+cb;while(c<end){if(c+12>end)fail('truncated EMF+ header');const n=u32(bytes,c+4),body=u32(bytes,c+8);if(n<12||n%4||n>end-c||body>n-12)fail('invalid EMF+ record length');c+=n;}}}
++      let o=0,count=0,plusCount=0,plusMode=null,eof=false;while(o<total){if(o+8>total)fail('truncated EMF record');const type=u32(bytes,o),size=u32(bytes,o+4);if(size<8||size%4||size>total-o)fail('invalid EMF record length');
++        if(type===70){const cb=u32(bytes,o+8);if(cb>size-12)fail('truncated EMF comment');if(cb>=4&&u32(bytes,o+12)===0x2b464d45){let c=o+16,end=o+12+cb;while(c<end){if(c+12>end)fail('truncated EMF+ header');const n=u32(bytes,c+4),body=u32(bytes,c+8);if(n<12||n%4||n>end-c||body>n-12)fail('invalid EMF+ record length');if(++plusCount>1000000)fail('record count limit');if((bytes[c]|bytes[c+1]<<8)===0x4001){if(plusMode!==null)fail('duplicate EMF+ header');plusMode=(bytes[c+2]|bytes[c+3]<<8)&1;}c+=n;}}}
 +        o+=size;count++;if(type===14){eof=true;if(o!==total)fail('bytes after EMF EOF');break;}}
-+      if(!eof||count!==declared)fail('incomplete EMF record chain');return;
++      if(!eof||count!==declared)fail('incomplete EMF record chain');return {count:count+plusCount,plusMode};
 +    }
 +    let o=bytes.length>=22&&u32(bytes,0)===0x9ac6cdd7?22:0;if(bytes.length<o+18)fail('truncated WMF header');
 +    if((bytes[o]|bytes[o+1]<<8)>2||(bytes[o+2]|bytes[o+3]<<8)!==9||u32(bytes,o+6)*2!==bytes.length-o)fail('invalid WMF header');
 +    o+=18;let eof=false,count=0;while(o<bytes.length){if(o+6>bytes.length)fail('truncated WMF record');const size=u32(bytes,o)*2,type=bytes[o+4]|bytes[o+5]<<8;if(size<6||size>bytes.length-o)fail('invalid WMF record length');o+=size;if(++count>1000000)fail('record count limit');if(type===0){eof=true;if(o!==bytes.length)fail('bytes after WMF EOF');break;}}
-+    if(!eof)fail('missing WMF EOF');
++    if(!eof)fail('missing WMF EOF');return {count,plusMode:null};
 +  }
-+  globalThis.__turtleRender=function(bytes,format) {
-+    bytes=Uint8Array.from(bytes);if(!bytes.length||bytes.length>64*1024*1024)fail('input size limit');
-+    validateRecords(bytes);
++  function renderDocument(bytes,format,declared=null,playback=null) {
++    if(!conversion)fail('missing conversion scope');
++    const child=declared!==null;
++    if(child&&conversion.depth>=9)fail('embedded metafile recursion budget exceeded');
++    if(child&&++conversion.images>4096)fail('embedded metafile image count budget exceeded');
++    conversion.depth++;
++    let scope=false;
++    try {
++    if(child&&!playback){if(typeof __turtleMetafileScope!=='function')fail('native embedded image scope unavailable');__turtleMetafileScope(true);scope=true;}
++    if(!bytes||!Number.isSafeInteger(bytes.length)||!bytes.length||bytes.length>64*1024*1024)fail('input size limit');
++    if(bytes.length>128*1024*1024-conversion.bytes)fail('aggregate embedded metafile byte budget exceeded');conversion.bytes+=bytes.length;
++    bytes=Uint8Array.from(bytes);
++    const recordInfo=validateRecords(bytes);if(recordInfo.count>1000000-conversion.records)fail('aggregate embedded metafile record budget exceeded');conversion.records+=recordInfo.count;
 +    const parsed=parseMetafile(bytes);if(parsed.error||!parsed.header)fail(parsed.error||'invalid header');
 +    if(!['wmf','placeable-wmf','emf','emf+'].includes(parsed.fileType))fail('unsupported format');
++    if(child){const expected={1:'wmf',2:'placeable-wmf',3:'emf',4:'emf',5:'emf'}[declared];if(parsed.fileType!==expected)fail('embedded metafile type/header mismatch');
++      if(declared===3&&recordInfo.plusMode!==null||declared>=4&&recordInfo.plusMode!==(declared===5?1:0))fail('embedded EMF+ type/header mismatch');
++    }
 +    if(format&&format!=='auto'&&format==='wmf'&&!/wmf/.test(parsed.fileType))fail('format mismatch');
 +    let bounds=parsed.header.bounds||parsed.header.placeableHeader;
 +    let width=bounds?bounds.right-bounds.left:0,height=bounds?bounds.bottom-bounds.top:0;
@@ -545,8 +589,57 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    else if(/wmf/.test(parsed.fileType)) {const ext=parsed.records.find(r=>r.functionId===0x20c);if(ext&&ext.data.length>=4){width=Math.abs((ext.data[2]|ext.data[3]<<8)<<16>>16);height=Math.abs((ext.data[0]|ext.data[1]<<8)<<16>>16);}}
 +    if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0||width>32768||height>32768||width*height>67108864)fail('invalid or oversized image bounds');
 +    if(parsed.records.length>1000000)fail('record count limit');
-+    const context=new SvgContext();createDrawer(context,parsed.fileType).draw(parsed,{viewWidth:width,viewHeight:height});const svg=normalizePaintColors(context.getSvg());
-+    if(typeof svg!=='string'||svg.length>128*1024*1024)fail('output size limit');return svg;
++    if(playback&&playback.inspectOnly)return {width,height};
++    const context=new SvgContext();shareBudgets(context);context._turtleTransparentSurface=child;
++    const parent=playback&&playback.parent;
++    if(parent){
++      context.canvas=parent.ctx.canvas;context._turtleReplaySurface=true;
++      context._nodes=parent.ctx._nodes;context._defs=parent.ctx._defs;context._images=parent.ctx._images;context._clipCount=parent.ctx._clipCount;
++      context._turtleRasterReceipt=parent.ctx._turtleRasterReceipt;context._turtleRasterCheckpoint=parent.ctx._turtleRasterCheckpoint;
++      context._turtleInheritedClip=playback.clip;context._turtleEmbeddedMatrix=playback.matrix;context._turtleLocalWidth=width;context._turtleLocalHeight=height;
++    }
++    const drawer=createDrawer(context,parsed.fileType);shareBudgets(drawer);
++    const firstNode=context._nodes.length,firstDef=context._defs.length,originalNodes=context._nodes;
++    if(parent){
++      const t=drawer.coordinateTransformer,original=t.transform,m=playback.matrix;
++      t._turtleOriginalTransform=original;
++      t.transform=function(x,y){const p=original.call(this,x,y);const point={x:m[0]*p.x+m[2]*p.y+m[4],y:m[1]*p.x+m[3]*p.y+m[5]};if(!Number.isFinite(point.x)||!Number.isFinite(point.y)||Math.max(Math.abs(point.x),Math.abs(point.y))>1e9)fail('embedded device coordinate budget exceeded');return point;};
++    }
++    if(parent){
++      const t=drawer.coordinateTransformer,m=playback.matrix;
++      const names=/wmf/.test(parsed.fileType)?['processRectangle','processEllipse','processRoundRect','processArc','processPie','processChord','processTextOut','processExtTextOut']:['processEmfExtTextOutA'];
++      for(const name of names){const action=drawer[name];if(typeof action!=='function')continue;
++        drawer[name]=function(...args){const mapped=t.transform,old=context._turtleLocalPaintMatrix,oldWmf=context._turtleLocalPaintWmf;t.transform=t._turtleOriginalTransform;context._turtleLocalPaintMatrix=m;context._turtleLocalPaintWmf=/wmf/.test(parsed.fileType);
++          try{return action.apply(this,args);}finally{t.transform=mapped;context._turtleLocalPaintMatrix=old;context._turtleLocalPaintWmf=oldWmf;}};
++      }
++      if(/wmf/.test(parsed.fileType)){
++        const process=drawer.processRecord;
++        drawer.processRecord=function(record){
++          if(![0x12c,0x415,0x416].includes(record.functionId))return process.call(this,record);
++          const mapped=t.transform;t.transform=t._turtleOriginalTransform;
++          try{return process.call(this,record);}finally{t.transform=mapped;}
++        };
++      }
++    }
++    try {drawer.draw(parsed,{viewWidth:width,viewHeight:height});}
++    finally {if(parent){parent.ctx._nodes=context._nodes;parent.ctx._defs=context._defs;parent.ctx._images=context._images;parent.ctx._clipCount=context._clipCount;parent.ctx._turtleRasterReceipt=context._turtleRasterReceipt;parent.ctx._turtleRasterCheckpoint=context._turtleRasterCheckpoint;}}
++    if(parent){
++      let bytes=0;for(let i=context._nodes===originalNodes?firstNode:0;i<context._nodes.length;i++){bytes+=context._nodes[i].length;if(bytes>64*1024*1024)fail('embedded image paint markup limit');}
++      for(let i=firstDef;i<context._defs.length;i++){bytes+=context._defs[i].length;if(bytes>64*1024*1024)fail('embedded image paint markup limit');}
++      embeddedMarkup(bytes);return {width,height};
++    }
++    let svg=normalizePaintColors(context.getSvg());
++    if(typeof svg!=='string'||svg.length>128*1024*1024)fail('output size limit');
++    if(child){if(svg.length>64*1024*1024-conversion.childBytes||context._defs.length>131072-conversion.definitions)fail('aggregate embedded metafile serialization budget exceeded');conversion.childBytes+=svg.length;conversion.definitions+=context._defs.length;
++      const prefix='embedded-'+(++conversion.namespace)+'-';svg=svg.replace(/\bid="([^"]+)"/g,(_,id)=>'id="'+prefix+id+'"').replace(/url\(#([^)]*)\)/g,(_,id)=>'url(#'+prefix+id+')').replace(/href="#([^"]+)"/g,(_,id)=>'href="#'+prefix+id+'"');
++    }
++    return {svg,width,height};
++    } finally {if(scope)__turtleMetafileScope(false);conversion.depth--;}
++  }
++  globalThis.__turtleRender=function(bytes,format) {
++    if(conversion)fail('recursive top-level conversion');
++    conversion={depth:0,images:0,bytes:0,records:0,paintBytes:0,childBytes:0,definitions:0,namespace:0,counters:{}};
++    try{return renderDocument(bytes,format).svg;}finally{conversion=null;}
 +  };
 +};
 diff --git a/src/turtleGitBitmap.js b/src/turtleGitBitmap.js
@@ -599,7 +692,7 @@ diff --git a/src/turtleGitGdiClip.js b/src/turtleGitGdiClip.js
 +  function state(d) {
 +    if(!d._turtleGdiClip) {
 +      const o=point(d,0,0),x=point(d,1,0),y=point(d,0,1);
-+      d._turtleGdiClip={selected:null,meta:null,initial:[x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y]};
++      d._turtleGdiClip={selected:null,meta:d.ctx._turtleInheritedClip||null,initial:[x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y]};
 +    }
 +    return d._turtleGdiClip;
 +  }
@@ -734,14 +827,14 @@ diff --git a/src/turtleGitGdiClip.js b/src/turtleGitGdiClip.js
 +  };
 +  const draw=ep.draw;
 +  ep.draw=function(document,options) {
-+    this._turtleGdiClip=null;
++    this._turtleGdiClip=null;const firstDef=this.ctx._defs.length;
 +    const result=draw.call(this,document,options),ctx=this.ctx,x=ctx._turtleGdiOffsetX||0,y=ctx._turtleGdiOffsetY||0;
 +    const width=ctx.canvas.width+2*x,height=ctx.canvas.height+2*y;
 +    if(width>32768||height>32768||width*height>67108864)fail('GDI clip domain expansion budget exceeded');
 +    const bounds='x="'+(-x)+'" y="'+(-y)+'" width="'+width+'" height="'+height+'"';
 +    // Resolve after all records, including offsets after restoring old DCs.
 +    // Nested metafiles export their defs directly rather than calling getSvg.
-+    for(let i=0;i<ctx._defs.length;i++)ctx._defs[i]=ctx._defs[i].split(domain).join(bounds);
++    for(let i=firstDef;i<ctx._defs.length;i++)ctx._defs[i]=ctx._defs[i].split(domain).join(bounds);
 +    return result;
 +  };
 +};
@@ -830,10 +923,10 @@ diff --git a/src/turtleGitHatch.js b/src/turtleGitHatch.js
 diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 --- /dev/null
 +++ b/src/turtleGitImages.js
-@@ -0,0 +1,116 @@
+@@ -0,0 +1,117 @@
 +// Original TurtleGit adaptation, MIT. MS-EMFPLUS 2.2.1.5, 2.2.2.21/22/37,
 +// 2.3.4.8/9. No document-derived resource or executable access.
-+module.exports = function installImages({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix}) {
++module.exports = function installImages({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix,embedded}) {
 +  const ep=EmfPlusDrawer.prototype, oldImage=ep._drawImageObj;
 +  const color=value=>'#'+(value&0xffffff).toString(16).padStart(6,'0');
 +  function short(data,offset) {if(offset<0||offset+2>data.length)fail('truncated image point');return(data[offset]|data[offset+1]<<8)<<16>>16;}
@@ -846,7 +939,7 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +  }
 +  function parameters(drawer,flags,data) {
 +    const id=flags&255,image=drawer.emfPlusObjects[id];
-+    if(id>63||!image||!['imageData','imageEmf'].includes(image.type))fail('missing or wrong-type image object');
++    if(id>63||!image||!['imageData','imageMetafile'].includes(image.type))fail('missing or wrong-type image object');
 +    if(u32(data,4)!==2)fail('unsupported non-pixel bitmap source units');
 +    const source={x:f32(data,8),y:f32(data,12),w:f32(data,16),h:f32(data,20)};
 +    if(source.w<=0||source.h<=0)fail('invalid nonpositive image source extent');
@@ -880,9 +973,8 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +    this._drawImageObj(p.image,a.x,a.y,b.x,b.y,c.x,c.y,p.source,p.attrs);
 +  };
 +  ep._drawImageObj=function(img,x1,y1,x2,y2,x3,y3,src,attrs=null) {
-+    if(img.type!=='imageData') {
-+      if(attrs)fail('unsupported image attributes on nested metafiles');
-+      return oldImage.call(this,img,x1,y1,x2,y2,x3,y3,src);
++    if(img.type==='imageMetafile') {
++      return embedded.draw(this,img,x1,y1,x2,y2,x3,y3,src,attrs);
 +    }
 +    const sx=src?src.x:0,sy=src?src.y:0,sw=src?src.w:img.width,sh=src?src.h:img.height;
 +    if(sw<=0||sh<=0)fail('invalid bitmap source extent');
@@ -940,9 +1032,11 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +  };
 +  return{parseAttributes(id,data) {
 +    if(id>63||data.length!==24)fail('invalid image attributes object');
++    const version=u32(data,0);if(version!==0xdbc01001&&version!==0xdbc01002)fail('invalid image attributes graphics version');
 +    const wrap=u32(data,8),color=u32(data,12),clamp=u32(data,16);
 +    if(wrap>4)fail('invalid image wrap mode');
-+    if(clamp!==0)fail('unsupported bitmap-clamp image attributes');
++    if(clamp>1)fail('invalid bitmap-clamp image attributes');
++    // GDI+ 1.0 SetWrapMode documents this BOOL as ignored metadata.
 +    // Reserved1 and Reserved2 are ignored, as required by the wire format.
 +    this.emfPlusObjects[id]={type:'imageAttributes',wrap,color,clamp};
 +  }};
@@ -950,13 +1044,13 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 --- /dev/null
 +++ b/src/turtleGitPaint.js
-@@ -0,0 +1,359 @@
+@@ -0,0 +1,361 @@
 +// TurtleGit EMF+ gradient, hatch and bitmap texture painting. MIT, see repository LICENSE.
 +// Canonical hatch cell data is isolated in LGPL-2.1-or-later turtleGitHatch.js.
 +// Geometry remains in local drawing coordinates; the record's world/page/device
 +// transform is applied by turtleGit.js to the completed drawing node.
 +module.exports = function installGradientPaint(helpers) {
-+  const {EmfPlusDrawer, SvgContext, fail, u32, i32, f32, state, escape, matrix, currentMatrix,rawBitmap,paths} = helpers;
++  const {EmfPlusDrawer, SvgContext, fail, u32, i32, f32, state, escape, matrix, currentMatrix,rawBitmap,paths,embedded} = helpers;
 +  const hatchCells = require('./turtleGitHatch');
 +  const ep = EmfPlusDrawer.prototype, originalResolve = ep._emfPlusResolveBrush;
 +  const identity = () => [1,0,0,1,0,0];
@@ -1059,8 +1153,10 @@ diff --git a/src/turtleGitPaint.js b/src/turtleGitPaint.js
 +    return {center:c,tolerance,transform:nonsingular([u[0],u[1],v[0],v[1],c[0],c[1]])};
 +  }
 +  function textureBitmap(data,offset) {
-+    if(data.length-offset<28) fail('missing texture brush bitmap');
++    if(data.length-offset<8) fail('missing texture brush image');
 +    version(data,offset);
++    if(u32(data,offset+4)===2)return embedded.raster(embedded.parse(data,offset));
++    if(data.length-offset<28)fail('missing texture brush bitmap');
 +    if(u32(data,offset+4)!==1) fail('unsupported non-bitmap texture brush image');
 +    let width=i32(data,offset+8),height=i32(data,offset+12);
 +    const stride=i32(data,offset+16),pixelFormat=u32(data,offset+20),bitmapType=u32(data,offset+24);
@@ -1605,7 +1701,7 @@ diff --git a/src/turtleGitPens.js b/src/turtleGitPens.js
 diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 --- /dev/null
 +++ b/src/turtleGitPositionedText.js
-@@ -0,0 +1,158 @@
+@@ -0,0 +1,161 @@
 +// Original TurtleGit positioned EMF+/GDI text playback, MIT.
 +// MS-EMFPLUS DrawDriverString; MS-EMF EmrText/EMR_EXTTEXTOUTW.
 +// Native CoreText outlines are painted through existing brush/clip consumers.
@@ -1722,7 +1818,8 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 +    const orientation=graphics===2?(font.orientation||0)%3600:escapement;
 +    const angle=-escapement*Math.PI/1800,cos=Math.cos(angle),sin=Math.sin(angle),relativeAngle=(escapement-orientation)*Math.PI/1800;
 +    let nativeMatrix=[Math.cos(relativeAngle),Math.sin(relativeAngle),-Math.sin(relativeAngle),Math.cos(relativeAngle),0,0],layoutMatrix=identity();
-+    const reference=ts.align&1?this.currentPos:{x:i32(data,28),y:i32(data,32)},origin=point(this,reference.x,reference.y);
++    const reference=ts.align&1?this.currentPos:{x:i32(data,28),y:i32(data,32)},transformer=this.coordinateTransformer;
++    const localPoint=transformer._turtleOriginalTransform?transformer._turtleOriginalTransform.call(transformer,reference.x,reference.y):transformer.transform(reference.x,reference.y),origin=[localPoint.x,localPoint.y];
 +    let output=[base.a*cos+base.c*sin,base.b*cos+base.d*sin,-base.a*sin+base.c*cos,-base.b*sin+base.d*cos,origin[0],origin[1]];
 +    // Compatible explicit displacements follow the DC with reflected device
 +    // axes compensated. Font ink/metrics instead use uniform |M22| scaling.
@@ -1736,6 +1833,8 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 +      nativeMatrix=[(output[3]*desired[0]-output[2]*desired[1])/det,(-output[1]*desired[0]+output[0]*desired[1])/det,(output[3]*desired[2]-output[2]*desired[3])/det,(-output[1]*desired[2]+output[0]*desired[3])/det,0,0];
 +      layoutMatrix=nativeMatrix.slice();
 +    }
++    const localOutput=output.slice(),embedded=this.ctx._turtleEmbeddedMatrix;
++    if(embedded){const a=embedded,b=output;output=[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];}
 +    matrix(output);matrix(nativeMatrix);matrix(layoutMatrix);
 +    const result=layout(face,Math.abs(height),(font.weight||400)>=700,!!font.italic,{values,cmap:!(options&0x10),positions,realizedAdvance:!dxOffset,vertical:false,limitSubpixel:false,matrix:nativeMatrix,layoutMatrix,outputTransform:output,horizontal,baseline,underline:!!font.underline,strikeout:!!font.strikeOut,cellHeight:height>0,averageWidth:font.width||0,classic:true,advance});
 +    const ctx=this.ctx;
@@ -1745,9 +1844,9 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 +      const first=ctx._nodes.length;
 +      if(ts.background===2&&(options&6)!==6) {
 +        const fraction=horizontal===1?.5:horizontal===2?1:0,offset=baseline===1?result.ascent:baseline===2?-result.descent:0;
-+        const baselinePoint=mapped(output,layoutMatrix[2]*offset-fraction*result.advance[0],layoutMatrix[3]*offset-fraction*result.advance[1]),metricScale=graphics===1?Math.abs(base.d):Math.hypot(base.c,base.d);
-+        const left=baselinePoint[0],right=left+output[0]*result.advance[0]+output[2]*result.advance[1],top=baselinePoint[1]-result.ascent*metricScale,bottom=baselinePoint[1]+result.descent*metricScale;
-+        if(right>left&&bottom>top)polygon(this,[[left,top],[right,top],[right,bottom],[left,bottom]],this._turtleRasterBkColor||'#ffffff');
++        const baselinePoint=mapped(localOutput,layoutMatrix[2]*offset-fraction*result.advance[0],layoutMatrix[3]*offset-fraction*result.advance[1]),metricScale=graphics===1?Math.abs(base.d):Math.hypot(base.c,base.d);
++        const left=baselinePoint[0],right=left+localOutput[0]*result.advance[0]+localOutput[2]*result.advance[1],top=baselinePoint[1]-result.ascent*metricScale,bottom=baselinePoint[1]+result.descent*metricScale;
++        if(right>left&&bottom>top){let points=[[left,top],[right,top],[right,bottom],[left,bottom]];if(embedded)points=points.map(p=>mapped(embedded,p[0],p[1]));polygon(this,points,this._turtleRasterBkColor||'#ffffff');}
 +      }
 +      const saved=ctx.fillStyle;ctx.fillStyle=this.textColor;
 +      try {ctx.fillGlyphPaths(result);}finally{ctx.fillStyle=saved;}
@@ -1758,7 +1857,7 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 +    if((ts.align&1)&&horizontal!==1) {
 +      const determinant=base.a*base.d-base.b*base.c;
 +      if(!Number.isFinite(determinant)||Math.abs(determinant)<1e-20)fail('singular GDI current-position mapping');
-+      const sign=horizontal===2?-1:1,dx=sign*(output[0]*result.advance[0]+output[2]*result.advance[1]),dy=sign*(output[1]*result.advance[0]+output[3]*result.advance[1]);
++      const sign=horizontal===2?-1:1,dx=sign*(localOutput[0]*result.advance[0]+localOutput[2]*result.advance[1]),dy=sign*(localOutput[1]*result.advance[0]+localOutput[3]*result.advance[1]);
 +      this.currentPos={x:reference.x+(base.d*dx-base.c*dy)/determinant,y:reference.y+(-base.b*dx+base.a*dy)/determinant};
 +    }
 +    ctx._nodes.push('<desc>'+escape(face)+' positioned '+(options&0x10?'glyph indexes':'Unicode')+'</desc>');
@@ -1876,7 +1975,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    return normalizePaintColors(result.split('__TURTLEGIT_GDI_CLIP_DOMAIN__').join(domain));
 +  }
 +  SvgContext.prototype.getSvg=function(){return svg(this,this._nodes);};
-+  function clipped(d,nodes){let body=nodes.join(''),s=d._turtleGdiClip;if(s){if(s.selected!==null)body='<g mask="url(#'+s.selected+')">'+body+'</g>';if(s.meta!==null)body='<g mask="url(#'+s.meta+')">'+body+'</g>';}return[body];}
++  function clipped(d,nodes){let body=nodes.join(''),s=d._turtleGdiClip;if(!s&&d.ctx._turtleInheritedClip)body='<g mask="url(#'+d.ctx._turtleInheritedClip+')">'+body+'</g>';if(s){if(s.selected!==null)body='<g mask="url(#'+s.selected+')">'+body+'</g>';if(s.meta!==null)body='<g mask="url(#'+s.meta+')">'+body+'</g>';}return[body];}
 +  function deviceROI(d,m){
 +    const ctx=d.ctx,width=Math.round(ctx.canvas.width/(ctx._scaleX||1)),height=Math.round(ctx.canvas.height/(ctx._scaleY||1));dimension(width,height);
 +    // Four corners include mirrored/sheared destinations. One device pixel is
@@ -1933,7 +2032,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +      if(painted.length){
 +        const source=clipped(d,painted);
 +        if(patterned){
-+          const pattern=brushes.pattern(d);if(pattern===null)return result;
++          let pattern=brushes.pattern(d);if(this._turtleLocalPaintMatrix&&pattern!==null)pattern='<g transform="matrix('+this._turtleLocalPaintMatrix.join(' ')+')">'+pattern+'</g>';if(pattern===null)return result;
 +          const id='turtle-raster-coverage-'+this._defs.length;
 +          this._defs.push('<mask id="'+id+'" maskUnits="userSpaceOnUse" x="0" y="0" width="'+this.canvas.width+'" height="'+this.canvas.height+'">'+source.join('')+'</mask>');
 +          const coverage=['<g mask="url(#'+id+')">'+pattern+'</g>'];
@@ -2444,7 +2543,7 @@ diff --git a/src/utils/nestedMetafilePlayer.js b/src/utils/nestedMetafilePlayer.
 diff --git a/src/turtleGitClassicPen.js b/src/turtleGitClassicPen.js
 --- /dev/null
 +++ b/src/turtleGitClassicPen.js
-@@ -0,0 +1,126 @@
+@@ -0,0 +1,130 @@
 +// Original TurtleGit classic extended-pen playback. GPL-2.0-or-later.
 +// EMR_EXTCREATEPEN offsets include the record's eight-byte header; data does not.
 +module.exports=function({fail,u32,i32,escape,decodeDib,brushes,clipped,composite}) {
@@ -2526,13 +2625,13 @@ diff --git a/src/turtleGitClassicPen.js b/src/turtleGitClassicPen.js
 +    return true;
 +  }
 +  function shape(d,type,data){
-+    const pen=selected(d);if(!pen||![42,43,44,45,46,47,55].includes(type)||d.pathState==='active')return false;
++    const embedded=!!d.ctx._turtleEmbeddedMatrix,pen=selected(d)||(embedded?{geometric:false,style:0,width:1}:null);if(!pen||![42,43,44,45,46,47,55].includes(type)||d.pathState==='active'&&!embedded)return false;
 +    need(data,type===44?24:type>=45?32:16);
-+    const ctx=d.ctx,t=d.coordinateTransformer;
++    const ctx=d.ctx,t=d.coordinateTransformer,recording=d.pathState==='active';
 +    let l=i32(data,0),top=i32(data,4),r=i32(data,8),b=i32(data,12);
 +    if(l>r)[l,r]=[r,l];if(top>b)[top,b]=[b,top];if(l===r||top===b)return true;
 +    let nextPosition=null;
-+    const original=[l,top,r,b],inside=pen.geometric&&(pen.style&15)===6;
++    const original=[l,top,r,b],inside=!recording&&pen.geometric&&(pen.style&15)===6;
 +    if(inside){const ix=Math.min(pen.width/2,(r-l)/2-1e-6),iy=Math.min(pen.width/2,(b-top)/2-1e-6);l+=ix;r-=ix;top+=iy;b-=iy;}
 +    function point(x,y){const p=t.transform(x,y);if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||Math.max(Math.abs(p.x),Math.abs(p.y))>1e9)fail('extended pen shape coordinate exceeds limit');return p;}
 +    function move(x,y){const p=point(x,y);ctx.moveTo(p.x,p.y);}
@@ -2543,7 +2642,7 @@ diff --git a/src/turtleGitClassicPen.js b/src/turtleGitClassicPen.js
 +      if(begin)move(cx+rx*Math.cos(start),cy+ry*Math.sin(start));
 +      for(let i=0;i<pieces;i++){const a=start+i*step,z=a+step,k=4/3*Math.tan(step/4),x=Math.cos(a),y=Math.sin(a),xx=Math.cos(z),yy=Math.sin(z);curve([cx+rx*(x-k*y),cy+ry*(y+k*x)],[cx+rx*(xx+k*yy),cy+ry*(yy-k*xx)],[cx+rx*xx,cy+ry*yy]);}
 +    }
-+    ctx.beginPath();
++    if(!recording)ctx.beginPath();
 +    if(type===43){move(l,top);line(r,top);line(r,b);line(l,b);ctx.closePath();}
 +    else if(type===44){
 +      const rx=Math.min(Math.abs(i32(data,16))/2,(r-l)/2),ry=Math.min(Math.abs(i32(data,20))/2,(b-top)/2);
@@ -2557,11 +2656,15 @@ diff --git a/src/turtleGitClassicPen.js b/src/turtleGitClassicPen.js
 +        let sweep=z-a;if(clockwise){while(sweep<=0)sweep+=2*Math.PI;}else{while(sweep>=0)sweep-=2*Math.PI;}
 +        if(type===47){move(cx,cy);line(cx+rx*Math.cos(a),cy+ry*Math.sin(a));arc(cx,cy,rx,ry,a,sweep,false);ctx.closePath();}
 +        else {
-+          if(type===55){move(d.currentPos.x,d.currentPos.y);line(cx+rx*Math.cos(a),cy+ry*Math.sin(a));arc(cx,cy,rx,ry,a,sweep,false);nextPosition={x:cx+rx*Math.cos(a+sweep),y:cy+ry*Math.sin(a+sweep)};}
++          if(type===55){if(!recording||!ctx._hasSubpath)move(d.currentPos.x,d.currentPos.y);line(cx+rx*Math.cos(a),cy+ry*Math.sin(a));arc(cx,cy,rx,ry,a,sweep,false);nextPosition={x:cx+rx*Math.cos(a+sweep),y:cy+ry*Math.sin(a+sweep)};}
 +          else {arc(cx,cy,rx,ry,a,sweep,true);if(type===46)ctx.closePath();}
 +        }
 +      }
 +    }
++    // The outer raster dispatcher reaches shape before GdiClip's recording
++    // guard. Own this branch explicitly: preserve all prior figures and defer
++    // both paint and InsideFrame treatment until the later path operation.
++    if(recording){if(nextPosition)d.currentPos=nextPosition;return true;}
 +    const old=d._turtleClassicInsideBounds;
 +    try {
 +      if(inside&&type!==55){const p=original.map((v,i)=>v),points=[[p[0],p[1]],[p[2],p[1]],[p[2],p[3]],[p[0],p[3]]].map(v=>point(...v));const id='turtle-extended-inside-'+ctx._defs.length;ctx._defs.push('<clipPath id="'+id+'"><polygon points="'+points.map(p=>p.x+','+p.y).join(' ')+'"/></clipPath>');d._turtleClassicInsideBounds=id;}
@@ -2571,11 +2674,10 @@ diff --git a/src/turtleGitClassicPen.js b/src/turtleGitClassicPen.js
 +  }
 +  return {create,stroke,shape};
 +};
-
 diff --git a/src/turtleGitClassicRegion.js b/src/turtleGitClassicRegion.js
 --- /dev/null
 +++ b/src/turtleGitClassicRegion.js
-@@ -0,0 +1,162 @@
+@@ -0,0 +1,163 @@
 +// Original TurtleGit classic region painting and destination flood coverage.
 +// GPL-2.0-or-later. No platform painting implementation is copied here.
 +module.exports=function({fail,u32,i32,word,short,escape,brushes,clipped,composite,svg,dimension}) {
@@ -2695,7 +2797,8 @@ diff --git a/src/turtleGitClassicRegion.js b/src/turtleGitClassicRegion.js
 +    return [Math.min(x,r),Math.min(y,b),Math.max(x,r),Math.max(y,b)];
 +  }
 +  function setDeviceClip(d,rectangles){
-+    const ctx=d.ctx,coverage=geometry(d,rectangles,false,0,0,[1,0,0,1,0,0]);
++    const ctx=d.ctx,m=ctx._turtleEmbeddedMatrix;
++    const coverage=m?rectangles.map(r=>'<path d="M '+[[r[0],r[1]],[r[2],r[1]],[r[2],r[3]],[r[0],r[3]]].map(p=>(m[0]*p[0]+m[2]*p[1]+m[4])+' '+(m[1]*p[0]+m[3]*p[1]+m[5])).join(' L ')+' Z"/>'):geometry(d,rectangles,false,0,0,[1,0,0,1,0,0]);
 +    const id='turtle-wmf-region-clip-'+ctx._defs.length;
 +    // A direct nonempty shape outside the fixed device canvas represents an
 +    // empty clip without CoreSVG treating an empty clipPath as absent.
@@ -2704,7 +2807,7 @@ diff --git a/src/turtleGitClassicRegion.js b/src/turtleGitClassicRegion.js
 +    ctx._state.clip='url(#'+id+')';d._turtleWmfClipRectangles=rectangles;
 +  }
 +  function wmf(d,type,data){
-+    if(!d._turtleWmfRegionInitial){const t=d.coordinateTransformer,o=t.transform(0,0),x=t.transform(1,0),y=t.transform(0,1);d._turtleWmfRegionInitial=[x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y];d._turtleWmfClipRectangles=null;}
++    if(!d._turtleWmfRegionInitial){const t=d.coordinateTransformer,point=t._turtleOriginalTransform||t.transform,o=point.call(t,0,0),x=point.call(t,1,0),y=point.call(t,0,1);d._turtleWmfRegionInitial=[x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y];d._turtleWmfClipRectangles=null;}
 +    if(type===0x12c){
 +      exact(data,2);const handle=word(data,0),ctx=d.ctx;
 +      // Windows uses zero as NULL for this record, even though zero is an
@@ -2716,7 +2819,7 @@ diff --git a/src/turtleGitClassicRegion.js b/src/turtleGitClassicRegion.js
 +    if(type===0x415||type===0x416){
 +      exact(data,8);const t=d.coordinateTransformer,o=t.transform(0,0),x=t.transform(1,0),y=t.transform(0,1),m=[x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y];
 +      const r=deviceRect([short(data,6),short(data,4),short(data,2),short(data,0)],m),ctx=d.ctx;
-+      const current=d._turtleWmfClipRectangles||[[0,0,ctx.canvas.width/(ctx._scaleX||1),ctx.canvas.height/(ctx._scaleY||1)]],next=[];
++      const current=d._turtleWmfClipRectangles||[[0,0,ctx._turtleLocalWidth||ctx.canvas.width/(ctx._scaleX||1),ctx._turtleLocalHeight||ctx.canvas.height/(ctx._scaleY||1)]],next=[];
 +      for(const a of current){
 +        const i=[Math.max(a[0],r[0]),Math.max(a[1],r[1]),Math.min(a[2],r[2]),Math.min(a[3],r[3])];
 +        const intersects=i[0]<i[2]&&i[1]<i[3];
@@ -3023,3 +3126,70 @@ diff --git a/src/turtleGitSourceCopy.js b/src/turtleGitSourceCopy.js
 +    }
 +  };
 +};
+diff --git a/src/turtleGitEmbedded.js b/src/turtleGitEmbedded.js
+--- /dev/null
++++ b/src/turtleGitEmbedded.js
+@@ -0,0 +1,44 @@
++// Original TurtleGit embedded image adapter, MIT.
++// MS-EMFPLUS 2.1.1.20, 2.2.1.4, 2.2.2.27, 2.2.2.46.
++module.exports=function({fail,u32,escape,matrix,renderDocument,charge,currentMatrix,state,mask,combineMasks,masked,mul}) {
++  function parse(data,offset=0) {
++    if(offset<0||data.length-offset<16)fail('truncated embedded metafile image');
++    const version=u32(data,offset),imageType=u32(data,offset+4),type=u32(data,offset+8),size=u32(data,offset+12);
++    if(version!==0xdbc01001&&version!==0xdbc01002)fail('unsupported embedded image graphics version');
++    if(imageType!==2||type<1||type>5)fail('invalid embedded metafile type');
++    if(!size||size>64*1024*1024||size>data.length-offset-16||data.length-offset-16-size>3)fail('invalid embedded metafile size');
++    const bytes=data.subarray(offset+16,offset+16+size),result=renderDocument(bytes,'auto',type,{inspectOnly:true});
++    return {type:'imageMetafile',width:result.width,height:result.height,bytes,metafileType:type,href:null};
++  }
++  function raster(image) {
++    if(image.href)return image;
++    if(typeof globalThis.__turtleMetafileRaster!=='function')fail('native embedded image raster adapter unavailable');
++    const result=renderDocument(image.bytes,'auto',image.metafileType);
++    const href=globalThis.__turtleMetafileRaster(result.svg,image.width,image.height);
++    if(typeof href!=='string'||!href.startsWith('data:image/png;base64,'))fail('invalid embedded metafile raster result');
++    image.href=href;return image;
++  }
++  function polygon(m,rect) {
++    const [x,y,w,h]=rect,points=[[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map(([a,b])=>[m[0]*a+m[2]*b+m[4],m[1]*a+m[3]*b+m[5]]);
++    return 'M '+points.map(p=>p.join(' ')).join(' L ')+' Z';
++  }
++  function draw(parent,image,x1,y1,x2,y2,x3,y3,src,attrs) {
++    const sx=src?src.x:0,sy=src?src.y:0,sw=src?src.w:image.width,sh=src?src.h:image.height;
++    if(!(sw>0&&sh>0))fail('invalid embedded image source extent');
++    const local=[(x2-x1)/sw,(y2-y1)/sw,(x3-x1)/sh,(y3-y1)/sh,0,0];
++    local[4]=x1-local[0]*sx-local[2]*sy;local[5]=y1-local[1]*sx-local[3]*sy;
++    const m=mul(currentMatrix(parent),local);matrix(m);const det=m[0]*m[3]-m[1]*m[2];if(det===0)return;
++    const ctx=parent.ctx,s=state(parent),base=combineMasks(parent,s.clip,ctx._turtleInheritedClip||null,1);
++    const crop=mask(parent,'<path d="'+polygon(m,[sx,sy,sw,sh])+'" fill="white"/>');
++    const clip=combineMasks(parent,base,crop,1);
++    function replay(placement,tileClip=clip) {
++      charge(1024);
++      renderDocument(image.bytes,'auto',image.metafileType,{parent,matrix:mul(m,placement),clip:tileClip});
++    }
++    // Windows GDI+ reference playback (same src/dest, all wrap modes) ignores
++    // serialized wrap/clamp attributes for metafile enumeration. Validate the
++    // table object in the caller, but never invent bitmap tiling/vector clears.
++    replay([1,0,0,1,0,0]);
++  }
++  return {parse,raster,draw};
++};
+diff --git a/src/utils/surface.js b/src/utils/surface.js
+--- a/src/utils/surface.js
++++ b/src/utils/surface.js
+@@ -28,6 +28,7 @@
+  * @returns {number} the DPR that was applied
+  */
+ function applyCanvasSize(ctx, canvasWidth, canvasHeight, dpr = getDevicePixelRatio()) {
++    if (ctx._turtleReplaySurface) return 1;
+     ctx.canvas.width = Math.round(canvasWidth * dpr);
+     ctx.canvas.height = Math.round(canvasHeight * dpr);
+     // CSS display size (logical pixels)
+@@ -47,6 +48,7 @@
+  * @param {string} [color]
+  */
+ function clearCanvas(ctx, canvasWidth, canvasHeight, color = DEFAULT_CANVAS_BACKGROUND) {
++    if (ctx._turtleTransparentSurface) return;
+     ctx.fillStyle = color;
+     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+     console.log('Canvas cleared');
