@@ -51,7 +51,8 @@ final class FetchPullOutputTests: XCTestCase {
         exec /usr/bin/git "$@"
         """#
         try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
-        let repo = GitRepository(root: consumer.root, executable: helper), capture = FetchPullStreamCapture()
+        // This fixture injects a CLI metadata failure after successful CLI transport.
+        let repo = GitRepository(root: consumer.root, executable: helper, libgit2Configuration: .init(enabled: false)), capture = FetchPullStreamCapture()
         var options = FetchOptions(); options.remote = "origin"; options.branch = "main"
         do { _ = try await repo.fetchForRebase(options, onOutput: { capture.append($0) }); XCTFail("Metadata execution failure accepted") }
         catch let failure as FetchRebaseExecutionFailure {
@@ -59,7 +60,8 @@ final class FetchPullOutputTests: XCTestCase {
             XCTAssertEqual(failure.output, capture.text)
             XCTAssertEqual(failure.commandFailure?.arguments.first, "rev-parse")
             XCTAssertEqual(failure.commandFailure?.code, 73)
-            XCTAssertTrue(failure.commandFailure?.arguments.contains("remotes/origin/main^{commit}") == true)
+            // Typed lookup resolves the expression before applying an object-type suffix.
+            XCTAssertEqual(failure.commandFailure?.arguments, ["rev-parse", "--verify", "--quiet", "--end-of-options", "remotes/origin/main"])
             XCTAssertTrue(failure.localizedDescription.contains("successful transport diagnostic"))
             XCTAssertTrue(failure.localizedDescription.contains("Preparing Rebase failed"))
         }

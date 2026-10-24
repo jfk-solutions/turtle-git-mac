@@ -127,9 +127,9 @@ extension GitRepository {
             }
             records.sort { $0[0].utf8.lexicographicallyPrecedes($1[0].utf8) }
             switch scope {
-            case .heads: records.removeAll { !$0[0].hasPrefix("refs/heads/") }
-            case .headsAndTags: records.removeAll { !$0[0].hasPrefix("refs/heads/") && !$0[0].hasPrefix("refs/tags/") }
-            case .remotes: records.removeAll { !$0[0].hasPrefix("refs/remotes/") }
+            case .heads: records.removeAll { GitReferenceName.removingPrefix("refs/heads/",from:$0[0]) == nil }
+            case .headsAndTags: records.removeAll { GitReferenceName.removingPrefix("refs/heads/",from:$0[0]) == nil && GitReferenceName.removingPrefix("refs/tags/",from:$0[0]) == nil }
+            case .remotes: records.removeAll { GitReferenceName.removingPrefix("refs/remotes/",from:$0[0]) == nil }
             default: break
             }
         } else {
@@ -143,11 +143,36 @@ extension GitRepository {
             records.append(record); index += atoms.count
         }
         guard values.dropFirst(index).allSatisfy({ $0.isEmpty || $0 == "\n" }) else { throw ReferenceBrowserFailure.output }
+        // for-each-ref returns display atoms in their original commit charset.
+        // Pretty-format log explicitly reencodes the complete commit, including
+        // signatures. Batch unique object IDs; literal ref names stay untouched.
+        var seenCommits = Set<String>()
+        let commits = records.filter { $0[2] == "commit" }.map { $0[1] }.filter { seenCommits.insert($0).inserted }
+        var display: [String: [String]] = [:]
+        for start in stride(from: 0, to: commits.count, by: 200) {
+            try cancellation?.check()
+            let batch = Array(commits[start..<min(start + 200, commits.count)])
+            guard batch.allSatisfy(GitLocalReferenceProtocol.validOID) else { throw ReferenceBrowserFailure.output }
+            let format = ["%H", "%s", "%an", "%ae", "%cn", "%ce"].joined(separator: "%x00") + "%x00"
+            let output = try run(["log", "--no-walk=unsorted", "--no-notes", "--no-decorate", "--no-show-signature", "--encoding=UTF-8", "--format=" + format] + batch + ["--"], cancellation: cancellation).stdout
+            let fields = output.split(separator: 0, omittingEmptySubsequences: false)
+            guard fields.count == batch.count * 6 + 1, fields.last?.allSatisfy({ $0 == 10 }) == true else { throw ReferenceBrowserFailure.output }
+            let expected = Set(batch)
+            for offset in stride(from: 0, to: batch.count * 6, by: 6) {
+                let hash = String(decoding: fields[offset].drop(while: { $0 == 10 }), as: UTF8.self)
+                guard expected.contains(hash), display[hash] == nil else { throw ReferenceBrowserFailure.output }
+                display[hash] = (1...5).map { String(decoding: fields[offset + $0], as: UTF8.self) }
+            }
+        }
+        for index in records.indices where records[index][2] == "commit" {
+            guard let text = display[records[index][1]] else { throw ReferenceBrowserFailure.output }
+            for (field, value) in zip([5, 6, 7, 9, 10], text) { records[index][field] = value }
+        }
         }
         // gPickRef_NoTag suppresses tags while retaining stash/custom namespaces.
         if scope == .excludingTags { records.removeAll { $0[0].utf8.starts(with: "refs/tags/".utf8) } }
         // Include all remote names in the gone check, independently of merge filtering.
-        let remoteNames = Set(try checkoutReferences(includeAll: true, cancellation: cancellation).filter(\.remote).map { GitReferenceName($0.name) })
+        let remoteNames = Set(try checkoutReferences(includeAll: true, cancellation: cancellation, backend: selectedBackend).filter(\.remote).map { GitReferenceName($0.name) })
         let descriptions = try historyBranchDescriptions(cancellation: cancellation)
         func clean(_ value: String) -> String { value.trimmingCharacters(in: .whitespacesAndNewlines) }
         func identity(_ record: [String], committer: Bool) -> (String, String, TimeInterval?) {

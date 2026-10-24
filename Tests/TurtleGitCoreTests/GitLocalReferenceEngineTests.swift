@@ -80,11 +80,29 @@ final class GitLocalReferenceEngineTests: XCTestCase {
     }
     func testMergedFiltersRetainCLIWhileUnfilteredSelectionRequiresHelper() async throws {
         let(root,repo,_)=try await fixture();defer{try? FileManager.default.removeItem(at:root)}
-        let selected=engine([.forEachRef],helper:root.appendingPathComponent("missing-helper"))
+        let helper=try XCTUnwrap(engine([.forEachRef]).executor(for:.forEachRef))
+        let wrapper=root.appendingPathComponent("filtered-reference-helper"),calls=root.appendingPathComponent("filtered-reference-helper.calls")
+        func quote(_ value:String)->String {"'"+value.replacingOccurrences(of:"'",with:"'\"'\"'")+"'"}
+        let script="""
+        #!/bin/sh
+        printf '%s\\n' "$@" >> \(quote(calls.path))
+        exec \(quote(helper.path)) "$@"
+        """
+        try Data(script.utf8).write(to:wrapper)
+        try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
+        let selected=engine([.forEachRef],helper:wrapper)
         let merged=try await repo.referenceBrowser(filter:.merged,backend:selected)
-        XCTAssertTrue(merged.references.contains{$0.name.rawValue=="refs/heads/main"})
+        XCTAssertEqual(merged.references.map(\.name.rawValue),["refs/heads/main"])
+        let mergedCalls=try String(contentsOf:calls,encoding:.utf8).split(separator:"\n").map(String.init)
+        XCTAssertFalse(mergedCalls.contains("turtlegit-local-refs"),"Merged inventory must remain CLI")
+        XCTAssertTrue(mergedCalls.contains("turtlegit-checkout-refs"),"Follow-up metadata must retain the selected master backend")
+        try Data().write(to:calls)
         let unmerged=try await repo.referenceBrowser(filter:.unmerged,backend:selected);XCTAssertTrue(unmerged.references.isEmpty)
-        do {_ = try await repo.referenceBrowser(backend:selected);XCTFail("selected missing helper silently fell back")}catch GitLibGit2Failure.runtimeMissing{}
+        let unmergedCalls=try String(contentsOf:calls,encoding:.utf8).split(separator:"\n").map(String.init)
+        XCTAssertFalse(unmergedCalls.contains("turtlegit-local-refs"),"Unmerged inventory must remain CLI")
+        XCTAssertTrue(unmergedCalls.contains("turtlegit-checkout-refs"))
+        let unavailable=engine([.forEachRef],helper:root.appendingPathComponent("missing-helper"))
+        do {_ = try await repo.referenceBrowser(backend:unavailable);XCTFail("selected missing helper silently fell back")}catch GitLibGit2Failure.runtimeMissing{}
     }
     func testContainsFindsEqualDescendantAnnotatedTagsAndSymbolicsOnlyInSourceNamespaces() async throws {
         let(root,repo,base)=try await fixture();defer{try? FileManager.default.removeItem(at:root)}

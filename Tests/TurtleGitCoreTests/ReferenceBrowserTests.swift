@@ -161,6 +161,23 @@ final class ReferenceBrowserTests: XCTestCase {
         let cancelled = OperationCancellation(); cancelled.cancel()
         do { _ = try await repo.referenceBrowser(cancellation: cancelled); XCTFail("Cancelled metadata query ran") } catch OperationCancellationFailure.cancelled {}
     }
+    func testScopedCatalogsAndCheckoutRetainCombiningInitialComponents() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let names = ["refs/heads/\u{301}topic", "refs/tags/\u{301}tag", "refs/remotes/\u{301}remote/topic"]
+        for name in names { _ = try await repo.run(["update-ref", name, "HEAD"]) }
+        for enabled in [false, true] {
+            let backend = GitLibGit2Configuration(enabled: enabled, mask: GitLibGit2Operation.forEachRef.mask)
+            let choices = try await repo.checkoutReferences(backend: backend)
+            for name in names { XCTAssertTrue(choices.contains { GitReferenceName.equal($0.name, name) }, name) }
+            for (scope, expected) in [(ReferenceBrowserScope.heads, [names[0]]), (.headsAndTags, Array(names.prefix(2))), (.remotes, [names[2]])] {
+                let snapshot = try await repo.referenceBrowser(scope: scope, backend: backend)
+                for name in expected { XCTAssertTrue(snapshot.references.contains { GitReferenceName.equal($0.name.rawValue, name) }, name) }
+                for name in names where !expected.contains(name) {
+                    XCTAssertFalse(snapshot.references.contains { GitReferenceName.equal($0.name.rawValue, name) }, name)
+                }
+            }
+        }
+    }
     func testMergedUnmergedBareAndEmptyCatalogs() async throws {
         let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         _ = try await repo.run(["checkout", "-b", "unmerged"]); _ = try await repo.run(["commit", "--allow-empty", "-m", "new blue fox"]); _ = try await repo.run(["checkout", "main"])

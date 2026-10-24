@@ -75,7 +75,7 @@ extension GitRepository {
         let selected=backend ?? libgit2Configuration ?? .load()
         var result:[CheckoutReference]
         if let backend=masterReferenceBackend(selected) {
-            result=try localReferenceReply(verb:"turtlegit-checkout-refs",operation:"choices",request:["version":1],backend:backend,command:.forEachRef,cancellation:cancellation).choices.filter {includeAll || $0.name.hasPrefix("refs/heads/") || $0.name.hasPrefix("refs/remotes/") || $0.name.hasPrefix("refs/tags/")}
+            result=try localReferenceReply(verb:"turtlegit-checkout-refs",operation:"choices",request:["version":1],backend:backend,command:.forEachRef,cancellation:cancellation).choices.filter {includeAll || GitReferenceName.removingPrefix("refs/heads/",from:$0.name) != nil || GitReferenceName.removingPrefix("refs/remotes/",from:$0.name) != nil || GitReferenceName.removingPrefix("refs/tags/",from:$0.name) != nil}
         } else {
         let bytes = try checkoutCommand(["for-each-ref", "--sort=refname", "--format=%(refname)%00%(symref)%00"] + (includeAll ? [] : ["refs/heads", "refs/remotes", "refs/tags"]), cancellation: cancellation).stdout
         let fields = String(decoding: bytes, as: UTF8.self).components(separatedBy: "\0")

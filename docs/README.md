@@ -330,3 +330,6 @@ creation, Switch, Push, Fetch and Synchronization continuations.
 [Historical navigation](HISTORICAL-NAVIGATION-PARITY.md) covers Browser revision
 and comparison targets, literal submodule pins, reference deletion receipts and
 owned Log/Rebase/Bisect handoffs.
+
+[Reference metadata text and literal namespaces](REFERENCE-METADATA-PARITY.md) records
+legacy commit display, exact scoped catalogs and the hosted-failure repair checkpoint.

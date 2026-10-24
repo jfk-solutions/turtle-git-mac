@@ -10,7 +10,7 @@ import TurtleGitCore
         for _ in 0..<3000 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
         throw Failure(description:"Local reference native timeout at \(line)")
     }
-    static func drained()->Bool {ReferenceBrowserWindowModel.activeReads==0 && ReferenceBrowserWindowModel.activeMutations==0 && CommitContainingReferencesWindowController.activeOperations==0 && LocalGitCommandProgress.activeOperations==0 && LogWindowModel.activeHistoryDeletions==0 && ReferenceLogWindowModel.activeRevisionReads==0 && SynchronizationWindowModel.activeHistoryDeletions==0 && RevisionGraphWindowModel.activeOperations==0}
+    static func drained()->Bool {ReferenceBrowserWindowModel.activeReads==0 && ReferenceBrowserWindowModel.activeMutations==0 && CommitContainingReferencesWindowController.activeOperations==0 && LocalGitCommandProgress.activeOperations==0 && LogWindowModel.activeHistoryDeletions==0 && ReferenceLogWindowModel.activeRevisionReads==0 && SynchronizationWindowModel.activeHistoryDeletions==0 && RevisionGraphWindowModel.activeOperations==0 && SwitchWindowModel.activeReads==0}
     static func verify(root:URL,git:URL,helper:URL,graphLayout:URL)async throws {
         let fm=FileManager.default,work=root.appendingPathComponent("repository")
         try fm.createDirectory(at:work,withIntermediateDirectories:true)
@@ -21,6 +21,16 @@ import TurtleGitCore
         try Data("base\n".utf8).write(to:file);try await plain.stage(["file"]);_ = try await plain.commit(message:"base")
         let base=try await plain.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
         _ = try await plain.run(["branch","old",base]);_ = try await plain.run(["tag","-a","annotated","-m","annotation",base])
+        // Genuine declared-encoding metadata, not UTF-8 text merely carrying
+        // an encoding header. Main descends from this commit, preserving the
+        // original merged/unmerged fixture's topology.
+        let tree=try await plain.run(["rev-parse","HEAD^{tree}"]).text.trimmingCharacters(in:.newlines)
+        let legacyText="tree \(tree)\nparent \(base)\nauthor André auteur <author@example.invalid> 1700000000 +0130\ncommitter Renée committer <committer@example.invalid> 1700000300 -0230\nencoding windows-1252\n\nCafé résumé\n\nCorps préservé\n"
+        guard let legacyBytes=legacyText.data(using:.windowsCP1252) else{throw Failure(description:"Cannot encode genuine legacy commit fixture")}
+        let legacy=try await plain.run(["hash-object","-t","commit","-w","--stdin"],input:legacyBytes).text.trimmingCharacters(in:.newlines)
+        _ = try await plain.run(["update-ref","refs/heads/main",legacy,base]);_ = try await plain.run(["branch","legacy-metadata",legacy])
+        let combiningTag="refs/tags/\u{301}tag"
+        _ = try await plain.run(["update-ref",combiningTag,base])
         try Data("next\n".utf8).write(to:file);try await plain.stage(["file"]);_ = try await plain.commit(message:"next")
         let head=try await plain.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
         _ = try await plain.run(["checkout","-b","unmerged",base]);_ = try await plain.run(["commit","--allow-empty","-m","side"]);_ = try await plain.run(["checkout","main"])
@@ -78,12 +88,26 @@ import TurtleGitCore
         try require(browse.model.error==nil && browse.model.snapshotBackendIdentity != nil && (try log()).contains("turtlegit-local-refs"),"Browser selected engine not used")
         let selectedIdentity=browse.model.snapshotBackendIdentity,selectedNames=browse.model.snapshot!.references.map{Data($0.name.rawValue.utf8)}
         try require(selectedNames.contains(Data(nfc.utf8)) && selectedNames.contains(Data(nfd.utf8)),"Browser normalized canonical reference peers")
+        @MainActor func requireLegacyMetadata(_ owner:ReferenceBrowserWindowController)throws {
+            let row=owner.model.snapshot?.references.first{$0.name==GitReferenceName("refs/heads/legacy-metadata")}
+            try require(row?.hash==legacy && row?.subject=="Café résumé" && row?.author=="André auteur" && row?.committer=="Renée committer","Native Browser lost genuine windows-1252 subject/author/committer metadata")
+        }
+        try requireLegacyMetadata(browse)
+        let beforeSwitchHead=try await plain.run(["rev-parse","HEAD"]).stdout,beforeSwitchIndex=try Data(contentsOf:work.appendingPathComponent(".git/index"))
+        let switchModel=SwitchWindowModel(repository:repo,access:grant,preferences:prefs)
+        defer{switchModel.invalidate()}
+        switchModel.load();try await wait{!switchModel.busy && !switchModel.hasPendingReferenceReads && SwitchWindowModel.activeReads==0}
+        let combiningChoice=switchModel.tags.first{GitReferenceName.equal($0.name,combiningTag)}
+        try require(switchModel.error==nil && combiningChoice?.target == .tag && combiningChoice?.label.utf8.elementsEqual("\u{301}tag".utf8)==true && (try log()).contains("turtlegit-checkout-refs"),"Actual Switch catalog dropped combining-first-character tag or failed selected metadata read")
+        let afterSwitchHead=try await plain.run(["rev-parse","HEAD"]).stdout
+        try require(afterSwitchHead==beforeSwitchHead && (try Data(contentsOf:work.appendingPathComponent(".git/index")))==beforeSwitchIndex,"Native Switch catalog mutated HEAD/index")
         try clear();browse.model.mergeFilter = .unmerged;browse.model.load();try await settled(browse)
-        try require((try log()).isEmpty && browse.model.snapshot?.references.map(\.name)==[GitReferenceName("refs/heads/unmerged")],"Unmerged Browser did not retain source CLI route")
+        try require(!(try log()).contains("turtlegit-local-refs") && (try log()).contains("turtlegit-checkout-refs") && browse.model.snapshot?.references.map(\.name)==[GitReferenceName("refs/heads/unmerged")],"Unmerged Browser did not retain CLI inventory and selected master checkout metadata")
         browse.model.mergeFilter = .merged;browse.model.load();try await settled(browse)
-        try require((try log()).isEmpty && browse.model.snapshot?.references.contains(where:{$0.name=="refs/heads/unmerged"})==false,"Merged Browser widened selection")
+        try require(!(try log()).contains("turtlegit-local-refs") && (try log()).contains("turtlegit-checkout-refs") && browse.model.snapshot?.references.contains(where:{$0.name=="refs/heads/unmerged"})==false,"Merged Browser widened selection or changed source inventory route")
         use(0,enabled:false);browse.model.mergeFilter = .all;browse.model.load();try await settled(browse)
         try require(Set(browse.model.snapshot!.references.map{Data($0.name.rawValue.utf8)})==Set(selectedNames) && browse.model.snapshotBackendIdentity != selectedIdentity,"CLI/helper Browser metadata names diverged")
+        try requireLegacyMetadata(browse)
         // A read accepted with bit18 keeps that policy while its real process waits.
         use(1<<18);try clear();try Data().write(to:hold);browse.model.load()
         try await wait{fm.fileExists(atPath:ready.path) && browse.model.busy}
@@ -166,7 +190,7 @@ import TurtleGitCore
         defer{graph.invalidate()};graph.load();try await wait{!graph.busy}
         try require(graph.error==nil && graph.nodes.contains{$0.hash==head},"Actual graph layout unavailable: \(graph.error ?? "none")")
         graph.select(head,extending:false);use(1<<8);try clear();graph.confirmReferenceDeletion={_ in use(0,enabled:false);return .delete}
-        graph.deleteReferences(["refs/tags/consumer-graph"],hash:head);try await wait{!graph.busy && RevisionGraphWindowModel.activeOperations==0}
+        graph.deleteReferences(["refs/tags/consumer-graph"],hash:head);try await wait{!graph.busy && RevisionGraphWindowModel.activeOperations==0 && SwitchWindowModel.activeReads==0}
         try require(graph.error==nil && (try log()).contains("turtlegit-delete-local-ref"),"Graph deletion recaptured preferences")
         for name in ["consumer-log","consumer-reflog","consumer-sync","consumer-graph"] {
             let result=try await plain.run(["show-ref","--verify","refs/tags/"+name],successfulExitCodes:0...128)

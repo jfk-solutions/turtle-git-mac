@@ -224,9 +224,16 @@ final class GitLibGit2Tests: XCTestCase {
         let deletedTag = try await f.remote.run(["show-ref", "--verify", "--quiet", "refs/tags/remote-only"], successfulExitCodes: 0...1)
         XCTAssertEqual(deletedTag.exitCode, 1)
         let localOnly = try XCTUnwrap(tags.rows.first { $0.name == GitReferenceName("local-only") })
-        // The source's ordinary tag Push remains CLI even with push enabled and
-        // an unavailable helper; only remote deletion selects that backend.
-        _ = try await f.source.synchronizeTag(.push, row: localOnly, snapshot: tags, backend: .init(mask: 0x800, helperURL: f.root.appendingPathComponent("missing-helper")))
+        // Ordinary tag Push is CLI, while its mandatory revision/existence
+        // reads still honor the captured master helper configuration.
+        let metadataHelper = f.root.appendingPathComponent("tag-push-metadata-helper")
+        let metadataLog = f.root.appendingPathComponent("tag-push-helper-arguments")
+        try executable(metadataHelper, "#!/bin/sh\nprintf '%s\\n' \"$@\" >> " + quote(metadataLog.path) + "\nexec " + quote(f.helper.path) + " \"$@\"\n")
+        _ = try await f.source.synchronizeTag(.push, row: localOnly, snapshot: tags, backend: .init(mask: 0x800, helperURL: metadataHelper))
+        let metadataArguments = try String(contentsOf: metadataLog, encoding: .utf8).split(separator: "\n").map(String.init)
+        XCTAssertTrue(metadataArguments.contains("turtlegit-revision-lookup"))
+        XCTAssertFalse(metadataArguments.contains("push"), "Tag Push must not select helper transport")
+        XCTAssertFalse(metadataArguments.contains("turtlegit-delete-local-ref"))
         let pushedTag = try await f.remote.run(["show-ref", "--verify", "--quiet", "refs/tags/local-only"], successfulExitCodes: 0...1)
         XCTAssertEqual(pushedTag.exitCode, 0)
         let finalHead = try await f.source.run(["rev-parse", "HEAD"]).stdout

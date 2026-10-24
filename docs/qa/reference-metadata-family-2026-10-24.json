@@ -1,0 +1,187 @@
+{
+  "family": "Reference metadata text and literal namespace identities",
+  "date": "2026-10-24",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Selected helper reference display metadata: exact source/Core alias selection, declared commit encoding for all five display fields, UTF-8 maximal-subpart replacement, bounded strict legacy conversion",
+    "Exact Switch and selected-helper Reference Browser namespace filtering/classification; combining-mark initial components retained across heads, tags and remotes",
+    "Retained command/backend instrumentation repairs without dropping behavioral assertions",
+    "CLI reference commit display reencoding in batches of 200 unique OIDs, with strict framed receipts and display-only overlay",
+    "Reference Browser follow-up remote-name catalog retains the accepted backend snapshot; CLI metadata disables signature display alongside notes/decoration"
+  ],
+  "source_distinctions": {
+    "general_commit_display": "GitRev.cpp99\u2013130 passes declared encoding to message and signature conversion",
+    "pinned_reference_browser": "GitRevRefBrowser.cpp157\u2013162 uses default UTF-8 for summary and signatures; native declared-encoding handling is an explicit compatibility extension",
+    "identities": "Reference/path/OID identity remains strict and byte-exact, separate from display decoding",
+    "charset_policy": "Helper finite ordered 156 source/Core aliases; unknown labels fallback UTF-8, including iconv-only known names. CLI uses Git supported charset names; arbitrary-label equivalence is not claimed."
+  },
+  "historical_hosted_failure": {
+    "commit": "b97ddfe2",
+    "run_id": 40126776274,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40126776274",
+    "methods": 2794,
+    "skipped": 2,
+    "assertion_failures": 7,
+    "failed_methods": 6,
+    "local_failure_excerpt": "build/qa/hosted-b97ddfe2-40126776274-failures.log",
+    "affected_families": [
+      "FetchPullOutputTests",
+      "GitLibGit2Tests remote deletion",
+      "RebaseTests legacy encoded messages",
+      "ReferenceBrowserTests nested Unicode/classification",
+      "SyncLibGit2Tests captured backend receipt (two assertions; already repaired before current batch)",
+      "SynchronizationTransferNotificationTests approved Checkout"
+    ],
+    "is_current_validation": false
+  },
+  "validation": {
+    "status": "relevant_group_passed_cumulatively",
+    "helper_build": {
+      "log": "build/qa/reference-metadata-helper-2026-10-24.log",
+      "sha256": "7b34f235bb3cb439946bc339ced6fd594436f049fa9bb53919a380086167e34f",
+      "session": 17227,
+      "exit_code": 0,
+      "reused_exact_static_slices": [
+        "arm64",
+        "x86_64"
+      ]
+    },
+    "helper_execution": {
+      "log": "build/qa/reference-metadata-helper-execution-2026-10-24.log",
+      "sha256": "16f67010630c569a4805b32711ead1f9bcc5cd6bcca4c8a72df1cf01d883df9b",
+      "session": 68282,
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "pass_markers_observed": true,
+      "exit_code": 0
+    },
+    "build": {
+      "log": "build/qa/reference-metadata-app-2026-10-24.log",
+      "sha256": "176f58b77aa506a74264ee4079270bb5efa6601f73effe42f25fdca37b487978",
+      "session": 96137,
+      "exit_code": 0,
+      "contradictory_exit_zero_diagnostics": 0,
+      "other_build_warnings": "Retained in log, including SDK simulator and runtime layout signing warnings"
+    },
+    "core": {
+      "distinct_methods_cumulatively_passed": 48,
+      "initial": {
+        "log": "build/qa/reference-metadata-core-2026-10-24.log",
+        "sha256": "022423064d2c0eceaeaeaa3de84779351b28f713dead7436257f78597afb6c26",
+        "session": 32370,
+        "exit_code": 1,
+        "methods": 48,
+        "passed": 47,
+        "failed": 1,
+        "failed_method": "GitLocalReferenceEngineTests.testMergedFiltersRetainCLIWhileUnfilteredSelectionRequiresHelper",
+        "cause": "Retained fixture expected CLI inventory and unavailable-helper metadata paths before newly captured master-selected follow-up reads"
+      },
+      "repair": "Fixture instrumentation retains CLI inventory, master-selected follow-up metadata, and missing-helper no-fallback assertions",
+      "focused_recheck": {
+        "log": "build/qa/reference-metadata-core-repair-2026-10-24.log",
+        "sha256": "ea64b8e1cd94878d5930d5353f494165f8271841c5f56f74eeb0d031b8701e77",
+        "session": 90797,
+        "methods": 1,
+        "passed": 1,
+        "exit_code": 0
+      },
+      "original_six_hosted_failure_methods": "All six pass locally in the current grouped selection; the historical full hosted failure remains recorded separately"
+    },
+    "native": {
+      "status": "passed",
+      "session": 84226,
+      "runner": "scripts/test-local-reference-engine.py",
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/reference-metadata-native-2026-10-24.log",
+      "sha256": "8c17a494941b8fba13612ef5dd415e3f3209e3d7aa51ecdfc04904904203581d",
+      "passed_pairs": 2,
+      "exit_code": 0,
+      "owned_receiver_pids": [
+        49506,
+        50004
+      ],
+      "receiver_absence": {
+        "method": "Independent ps -p 49506,50004 -o pid=,command=",
+        "exit_code": 1,
+        "output": "",
+        "both_absent": true
+      },
+      "diagnostics": {
+        "kind": "NSSplitView zero-bounds arranged-frame resize warnings during offscreen construction",
+        "occurrences": 6,
+        "is_clean_log": false,
+        "does_not_certify_visual_parity": true
+      }
+    },
+    "hosted_current": {
+      "build_number": 56,
+      "status": "build_in_progress_at_observation",
+      "includes_uncommitted_metadata_changes": false
+    },
+    "scope_limits": [
+      "No full Core rerun after fixture-only repair",
+      "Native log retains offscreen zero-bounds split-view warnings; no new visual acceptance or clean-log claim",
+      "A local cumulative pass does not establish complete hosted CI, signed deployment or physical interaction acceptance"
+    ]
+  },
+  "remaining": [
+    "All source code-page availability on supported macOS versions",
+    "Physical Reference Browser/Switch/Rebase interaction and signed deployment",
+    "New complete hosted integration result",
+    "Complete source dialog and application parity"
+  ],
+  "authored_tests": [
+    "ReferenceBrowserTests.testScopedCatalogsAndCheckoutRetainCombiningInitialComponents (CLI/helper; namespace allow/deny; original failure test retained)",
+    "LocalReferenceEncodingTests: 6 methods for Windows-1252 five-field conversion, unknown-label fallback, UTF-8 maximal subparts, tag display/raw-object identity, malformed legacy refusal and strict reference-name bytes"
+  ],
+  "artifacts": {
+    "helper_binary": {
+      "path": "build/libgit2-runtime/LibGit2/bin/turtlegit-libgit2",
+      "sha256": "e394d20de1d82eb4ef1e71861f3822143c29ef6b557eaf2b098c0b06503d76ea"
+    },
+    "helper_provenance": {
+      "path": "build/libgit2-runtime/LibGit2/provenance.json",
+      "sha256": "f198129e107b594ed920b4f3c91ef08ab834421912c18661d09465943d9e445b"
+    }
+  },
+  "source_inputs": {
+    "Sources/TurtleGitLibgit2/bridge.c": "d509fb78ae27ba27232a869b6799bab5addd7fc18de98ccc2cba26634c3f7f29",
+    "Sources/TurtleGitCore/Checkout.swift": "21af19e9d3dddbd59d42a1f204c5cf20f2ad8830e8f0aa12ecfdd32b698a46a2",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "26ad688f396e79e8490a2d8c2e117bd2f92f27e57aebab1dd6648d593811a43c",
+    "Tests/TurtleGitCoreTests/LocalReferenceEncodingTests.swift": "c4bbb25c610c7f2007957504327eb9befc96a39c128649da9910af20712ee5fd",
+    "Tests/TurtleGitCoreTests/ReferenceBrowserTests.swift": "71ae875cf057bcadc498f0ca426c4110e1a379fc48828733abcbd20f82c77aa5",
+    "Tests/TurtleGitCoreTests/GitLocalReferenceEngineTests.swift": "51a52fd6e75681cfe3edd8fb37e8c14b14ee521306b1678f9495f8715b12960f"
+  },
+  "documentation_checks": {
+    "site": {
+      "documents": 448,
+      "unresolved_fragments": []
+    },
+    "dialog_coverage": {
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "pending_control_reviews": 85,
+      "certified_complete": 0,
+      "interpretation": "Coverage inventory, not feature completion percentage."
+    }
+  },
+  "embedded_helper_identity": {
+    "measured_helper_sha256": "e394d20de1d82eb4ef1e71861f3822143c29ef6b557eaf2b098c0b06503d76ea",
+    "embedded_binary_sha256": "433eba4bc2feb761cd7df282a9aebc5febddc1ef22b11380fab7ac8f3752ce6c",
+    "embedded_unsigned_identity_matches_measured_helper": true,
+    "provenance_differing_keys": [
+      "binary_sha256",
+      "bundle_layout",
+      "sandbox_inherited",
+      "signed",
+      "unsigned_binary_sha256"
+    ],
+    "explanation": "Embedded ad-hoc signing and bundle layout change its final binary hash; its recorded unsigned identity equals the measured universal helper and other provenance keys match."
+  }
+}

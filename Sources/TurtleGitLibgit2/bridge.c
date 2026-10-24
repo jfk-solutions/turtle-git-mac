@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
+#include <iconv.h>
 #include <limits.h>
 #include <spawn.h>
 #include <signal.h>
@@ -610,8 +612,215 @@ int tg_history_diff(const char *path,const char *revision,int simple,unsigned in
 
 /* Local reference reads use their pinned source command gates in Core. These
  * callbacks retain literal names before resolving a symbolic reference. */
+/* Display-only commit/tag metadata crosses a strict UTF-8 wire. Preserve
+ * literal reference names separately. GitRev::ParserFromCommit uses the declared
+ * commit charset for both signatures and message; absent/unknown charsets use
+ * UTF-8 with Unicode maximal-subpart replacement, as Core commit display does.
+ * The finite ordered alias table mirrors CommitMessageEncoding (UnicodeUtils
+ * GetCPCode); do not let additional iconv aliases change unknown-label fallback.
+ * BrowseRefs originally omits the charset: using it here is a native consistency
+ * extension, retaining git_commit_summary paragraph folding. */
+static const struct {unsigned int page;const char *name;} local_display_encodings[]={
+ {37,"IBM037"},
+ {437,"IBM437"},
+ {500,"IBM500"},
+ {708,"ASMO-708"},
+ {709,"Arabic"},
+ {710,"Arabic"},
+ {720,"DOS-720"},
+ {737,"ibm737"},
+ {775,"ibm775"},
+ {850,"ibm850"},
+ {852,"ibm852"},
+ {855,"IBM855"},
+ {857,"ibm857"},
+ {858,"IBM00858"},
+ {860,"IBM860"},
+ {861,"ibm861"},
+ {862,"DOS-862"},
+ {863,"IBM863"},
+ {864,"IBM864"},
+ {865,"IBM865"},
+ {866,"cp866"},
+ {869,"ibm869"},
+ {870,"IBM870"},
+ {874,"windows-874"},
+ {875,"cp875"},
+ {932,"shift_jis"},
+ {936,"gb2312"},
+ {949,"ks_c_5601-1987"},
+ {949,"cp949"},
+ {950,"big5"},
+ {1026,"IBM1026"},
+ {1047,"IBM01047"},
+ {1140,"IBM01140"},
+ {1141,"IBM01141"},
+ {1142,"IBM01142"},
+ {1143,"IBM01143"},
+ {1144,"IBM01144"},
+ {1145,"IBM01145"},
+ {1146,"IBM01146"},
+ {1147,"IBM01147"},
+ {1148,"IBM01148"},
+ {1149,"IBM01149"},
+ {1200,"utf-16"},
+ {1201,"unicodeFFFE"},
+ {1250,"windows-1250"},
+ {1251,"windows-1251"},
+ {1251,"cp1251"},
+ {1251,"cp-1251"},
+ {1251,"cp_1251"},
+ {1252,"windows-1252"},
+ {1253,"windows-1253"},
+ {1254,"windows-1254"},
+ {1255,"windows-1255"},
+ {1256,"windows-1256"},
+ {1257,"windows-1257"},
+ {1258,"windows-1258"},
+ {1361,"Johab"},
+ {10000,"macintosh"},
+ {10001,"x-mac-japanese"},
+ {10002,"x-mac-chinesetrad"},
+ {10003,"x-mac-korean"},
+ {10004,"x-mac-arabic"},
+ {10005,"x-mac-hebrew"},
+ {10006,"x-mac-greek"},
+ {10007,"x-mac-cyrillic"},
+ {10008,"x-mac-chinesesimp"},
+ {10010,"x-mac-romanian"},
+ {10017,"x-mac-ukrainian"},
+ {10021,"x-mac-thai"},
+ {10029,"x-mac-ce"},
+ {10079,"x-mac-icelandic"},
+ {10081,"x-mac-turkish"},
+ {10082,"x-mac-croatian"},
+ {12000,"utf-32"},
+ {12001,"utf-32BE"},
+ {20000,"x-Chinese_CNS"},
+ {20001,"x-cp20001"},
+ {20002,"x_Chinese-Eten"},
+ {20003,"x-cp20003"},
+ {20004,"x-cp20004"},
+ {20005,"x-cp20005"},
+ {20105,"x-IA5"},
+ {20106,"x-IA5-German"},
+ {20107,"x-IA5-Swedish"},
+ {20108,"x-IA5-Norwegian"},
+ {20127,"us-ascii"},
+ {20261,"x-cp20261"},
+ {20269,"x-cp20269"},
+ {20273,"IBM273"},
+ {20277,"IBM277"},
+ {20278,"IBM278"},
+ {20280,"IBM280"},
+ {20284,"IBM284"},
+ {20285,"IBM285"},
+ {20290,"IBM290"},
+ {20297,"IBM297"},
+ {20420,"IBM420"},
+ {20423,"IBM423"},
+ {20424,"IBM424"},
+ {20833,"x-EBCDIC-KoreanExtended"},
+ {20838,"IBM-Thai"},
+ {20866,"koi8-r"},
+ {20871,"IBM871"},
+ {20880,"IBM880"},
+ {20905,"IBM905"},
+ {20924,"IBM00924"},
+ {20932,"EUC-JP"},
+ {20936,"x-cp20936"},
+ {20949,"x-cp20949"},
+ {21025,"cp1025"},
+ {21027,"21027"},
+ {21866,"koi8-u"},
+ {28591,"iso-8859-1"},
+ {28592,"iso-8859-2"},
+ {28593,"iso-8859-3"},
+ {28594,"iso-8859-4"},
+ {28595,"iso-8859-5"},
+ {28596,"iso-8859-6"},
+ {28597,"iso-8859-7"},
+ {28598,"iso-8859-8"},
+ {28599,"iso-8859-9"},
+ {28603,"iso-8859-13"},
+ {28605,"iso-8859-15"},
+ {29001,"x-Europa"},
+ {38598,"iso-8859-8-i"},
+ {50220,"iso-2022-jp"},
+ {50221,"csISO2022JP"},
+ {50222,"iso-2022-jp"},
+ {50225,"iso-2022-kr"},
+ {50227,"x-cp50227"},
+ {50229,"ISO"},
+ {50930,"EBCDIC"},
+ {50931,"EBCDIC"},
+ {50933,"EBCDIC"},
+ {50935,"EBCDIC"},
+ {50936,"EBCDIC"},
+ {50937,"EBCDIC"},
+ {50939,"EBCDIC"},
+ {51932,"euc-jp"},
+ {51936,"EUC-CN"},
+ {51949,"euc-kr"},
+ {51950,"EUC"},
+ {52936,"hz-gb-2312"},
+ {54936,"GB18030"},
+ {57002,"x-iscii-de"},
+ {57003,"x-iscii-be"},
+ {57004,"x-iscii-ta"},
+ {57005,"x-iscii-te"},
+ {57006,"x-iscii-as"},
+ {57007,"x-iscii-or"},
+ {57008,"x-iscii-ka"},
+ {57009,"x-iscii-ma"},
+ {57010,"x-iscii-gu"},
+ {57011,"x-iscii-pa"},
+ {65000,"utf-7"},
+ {65001,"utf-8"},
+};
+static int local_display_utf8(char **out,const char *text,const char *encoding){
+ const size_t maximum=1048576;size_t length=strnlen(text?text:"",maximum+1);*out=NULL;
+ if(length>maximum){git_error_set_str(GIT_ERROR_INVALID,"Reference display metadata exceeds bounds");return -1;}
+ size_t capacity=length<=(maximum-16)/4?length*4+16:maximum;
+ char *value=malloc(capacity+1);if(!value){git_error_set_oom();return -1;}
+ if(!length){value[0]=0;*out=value;return 0;}
+ unsigned int page=65001;const char *charset=NULL;
+ if(encoding&&*encoding){
+  if(strnlen(encoding,257)>256){free(value);git_error_set_str(GIT_ERROR_INVALID,"Commit display encoding exceeds bounds");return -1;}
+  for(size_t i=0;i<sizeof(local_display_encodings)/sizeof(local_display_encodings[0]);i++){
+   if(!strcasecmp(encoding,local_display_encodings[i].name)){page=local_display_encodings[i].page;charset=local_display_encodings[i].name;break;}
+  }
+ }
+ if(page==1200||page==1201||page==12000||page==12001){free(value);git_error_set_str(GIT_ERROR_INVALID,"Unsupported Unicode commit display encoding");return -1;}
+ iconv_t conversion=(iconv_t)-1;
+ if(page!=65001){conversion=iconv_open("UTF-8",charset);if(conversion==(iconv_t)-1){free(value);git_error_set_str(GIT_ERROR_INVALID,"The declared commit display encoding is unavailable");return -1;}}
+ if(conversion!=(iconv_t)-1){
+  char *input=(char *)(text?text:""),*output=value;size_t remaining=length,space=capacity;
+  size_t result=iconv(conversion,&input,&remaining,&output,&space);
+  if(result!=(size_t)-1)result=iconv(conversion,NULL,NULL,&output,&space);
+  iconv_close(conversion);
+  if(result==(size_t)-1||remaining||memchr(value,0,(size_t)(output-value))){free(value);git_error_set_str(GIT_ERROR_INVALID,"Could not decode reference display metadata using its declared commit encoding");return -1;}
+  *output=0;*out=value;return 0;
+ }
+ const unsigned char *input=(const unsigned char *)(text?text:"");size_t used=0;
+ for(size_t i=0;i<length;){
+  unsigned char lead=input[i];size_t count=lead<0x80?1:(lead>=0xc2&&lead<=0xdf?2:(lead>=0xe0&&lead<=0xef?3:(lead>=0xf0&&lead<=0xf4?4:0)));
+  size_t consumed=1;int valid=count>0;
+  if(count>1){
+   if(i+1>=length)valid=0;
+   else{unsigned char second=input[i+1];int continuation=second>=0x80&&second<=0xbf;
+    if(!continuation||(lead==0xe0&&second<0xa0)||(lead==0xed&&second>=0xa0)||(lead==0xf0&&second<0x90)||(lead==0xf4&&second>=0x90))valid=0;
+    else{consumed=2;while(consumed<count&&i+consumed<length&&input[i+consumed]>=0x80&&input[i+consumed]<=0xbf)consumed++;if(consumed<count)valid=0;}
+   }
+  }
+  size_t bytes=valid?count:3;if(bytes>capacity-used){free(value);git_error_set_str(GIT_ERROR_INVALID,"Converted reference display metadata exceeds bounds");return -1;}
+  if(valid)memcpy(value+used,input+i,count);else memcpy(value+used,"\xef\xbf\xbd",3);
+  used+=bytes;i+=valid?count:consumed;
+ }
+ value[used]=0;*out=value;return 0;
+}
 static int local_reference_row(context *ctx,git_repository *repo,git_reference *raw,int metadata,int skip_unresolved_remote){
- git_reference *ref=NULL;git_object *object=NULL,*peeled=NULL;git_buf upstream=GIT_BUF_INIT;int result=0;
+ git_reference *ref=NULL;git_object *object=NULL,*peeled=NULL;git_buf upstream=GIT_BUF_INIT;int result=0;char *display[5]={0};const char *encoding=NULL;
  const char *name=git_reference_name(raw),*symbolic=git_reference_symbolic_target(raw);
  if((result=git_reference_resolve(&ref,raw))<0){if(skip_unresolved_remote&&git_reference_is_remote(raw)&&git_reference_type(raw)==GIT_REFERENCE_SYMBOLIC){git_error_clear();result=0;}goto done;}
  const git_oid *oid=git_reference_target(ref);char hex[GIT_OID_SHA1_HEXSIZE+1];
@@ -626,7 +835,7 @@ static int local_reference_row(context *ctx,git_repository *repo,git_reference *
   if(git_object_type(object)==GIT_OBJECT_TAG && git_reference_is_tag(ref)){
    git_tag *tag=(git_tag *)object;const char *message=git_tag_message(tag);row.subject=message?message:"";author=committer=git_tag_tagger(tag);
   }else if(git_object_type(object)==GIT_OBJECT_COMMIT){
-   git_commit *commit=(git_commit *)object;const char *summary=git_commit_summary(commit);row.subject=summary?summary:"";author=git_commit_author(commit);committer=git_commit_committer(commit);
+   git_commit *commit=(git_commit *)object;encoding=git_commit_message_encoding(commit);const char *summary=git_commit_summary(commit);row.subject=summary?summary:"";author=git_commit_author(commit);committer=git_commit_committer(commit);
    if(git_reference_is_branch(ref)){
     result=git_branch_upstream_name(&upstream,repo,git_reference_name(ref));
     if(result==GIT_ENOTFOUND){git_error_clear();result=0;}else if(result<0)goto done;
@@ -635,10 +844,12 @@ static int local_reference_row(context *ctx,git_repository *repo,git_reference *
   }
   if(author){row.has_author=1;row.author_name=author->name?author->name:"";row.author_email=author->email?author->email:"";row.author_time=author->when.time;}
   if(committer){row.has_committer=1;row.committer_name=committer->name?committer->name:"";row.committer_email=committer->email?committer->email:"";row.committer_time=committer->when.time;}
+  const char **fields[]={&row.subject,&row.author_name,&row.author_email,&row.committer_name,&row.committer_email};
+  for(size_t i=0;i<5;i++){if((result=local_display_utf8(&display[i],*fields[i],encoding))<0)goto done;*fields[i]=display[i];}
  }
  if(stopped(ctx)){result=GIT_EUSER;goto done;}
  if(ctx->callbacks->local_reference)result=ctx->callbacks->local_reference(&row,ctx->callbacks->payload);
- done:git_buf_dispose(&upstream);git_object_free(peeled);git_object_free(object);git_reference_free(ref);return result;
+ done:for(size_t i=0;i<5;i++)free(display[i]);git_buf_dispose(&upstream);git_object_free(peeled);git_object_free(object);git_reference_free(ref);return result;
 }
 int tg_local_references(const char *path,int scope,tg_callbacks *callbacks){
  git_repository *repo=NULL;git_reference_iterator *iterator=NULL;git_reference *ref=NULL;int result=0;size_t count=0;context ctx={callbacks,NULL,NULL,UINT_MAX,UINT_MAX,UINT_MAX,0};
