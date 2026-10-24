@@ -41,7 +41,7 @@ final class PushTests: XCTestCase {
         let refs = try await remote.checkoutReferences(); XCTAssertEqual(refs.map(\.name), ["refs/tags/selected"])
         options.destination = "renamed-tag"; _ = try await repo.push(options)
         let renamed = try await remote.run(["cat-file", "-t", "refs/tags/renamed-tag"]).text; XCTAssertEqual(renamed, "commit\n")
-        options.source = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); options.destination = "hash-target"
+        options.source = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); options.destination = "refs/heads/hash-target"
         _ = try await repo.push(options)
         let hashTarget = try await remote.run(["rev-parse", "refs/heads/hash-target"]).text
         let expected = try await repo.run(["rev-parse", "HEAD"]).text; XCTAssertEqual(hashTarget, expected)
@@ -77,7 +77,7 @@ final class PushTests: XCTestCase {
         let (root, repo, remote, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         var options = PushOptions(); options.remote = remote.root.path; options.arbitraryURL = true; options.source = "refs/heads/main"; options.destination = "refs/heads/url-target"
         _ = try await repo.push(options)
-        options.arbitraryURL = false; options.remote = "origin"; options.destination = "saved"; options.savePushRemote = true; options.savePushBranch = true
+        options.arbitraryURL = false; options.remote = "origin"; options.source = "main"; options.destination = "saved"; options.savePushRemote = true; options.savePushBranch = true
         _ = try await repo.push(options)
         let defaults = try await repo.pushDefaults(source: "refs/heads/main"); XCTAssertEqual(defaults.remote, "origin"); XCTAssertEqual(defaults.destination, "saved")
         options.savePushRemote = false; options.savePushBranch = false; options.source = ""; _ = try await repo.push(options)

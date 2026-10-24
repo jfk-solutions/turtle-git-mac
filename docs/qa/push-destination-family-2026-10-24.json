@@ -1,0 +1,135 @@
+{
+  "date": "2026-10-24",
+  "status": "scoped-grouped-checkpoint-passed",
+  "baseline_head": "4ad15ededdb1d284ef3fffc544485ab044335d9b",
+  "preserved_worktree_snapshot": "build/qa/primary-workflow-next-batch-baseline-2026-10-24.json",
+  "scope": [
+    "Literal Push destinations and Git-owned remote branch/tag namespace resolution",
+    "Short/qualified remote deletion, explicit namespace escape and new hash destination behavior",
+    "Source-text native option availability and exact short local-branch saved-mapping ownership",
+    "Removal/all-branches preference isolation, native confirmation/result and selected historical revision ownership"
+  ],
+  "frozen_inputs": {
+    "Sources/TurtleGitCore/Push.swift": "34433c09dd36fc833bdceb655ba43d43ef71b249970f090a4c54ba1814168335",
+    "Sources/TurtleGitMac/PushWindow.swift": "c1138a0de3979f343a6d56a8f815590675cc85aa20e2d50cc7c92874b66de9f4",
+    "Tests/TurtleGitCoreTests/PushTests.swift": "ac26a959c3fb52df7fa563bc1c25ef7d76a237ec0d2c29ebf768bc296e5060b9",
+    "Tests/TurtleGitCoreTests/PushDestinationTests.swift": "b4822ae048b251fe1f8e118f75325d216490d2d87a133b19b7ea98b1294aca57",
+    "docs/qa/push-source-pickers-native-2026-10-08.swift": "b3525e8e9cc01d7a04197b83e0aabf835115669a577a4fd9030d6ec368fdfecc",
+    "docs/qa/push-destination-native-2026-10-24.swift": "29e57ee8af09a02ed86141f71930c08ec7ad7303830170661cf471b38b8e1e03",
+    "scripts/test-push-destination.py": "8ba8ffc42b8b29258606559799fb274f8cdeff93437d85be096b00f283a72187"
+  },
+  "validation": {
+    "core": {
+      "filter": "PushTests|PushDestinationTests|CommitPushContinuationTests",
+      "log": "build/qa/push-destination-core-2026-10-24.log",
+      "status": "passed",
+      "methods": 25,
+      "failures": 0,
+      "exit_code": 0
+    },
+    "native": {
+      "planned_pairs": 6,
+      "cases": [
+        "namespace",
+        "removal",
+        "pickers"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "exit_code": 0,
+      "results": [
+        {
+          "case": "namespace",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "namespace",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "removal",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "removal",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "pickers",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "pickers",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "passed_pairs": 6,
+      "log": "build/qa/push-destination-native-2026-10-24.log",
+      "owned_receiver_pids": [
+        27875,
+        28110,
+        28346,
+        28471,
+        28607,
+        28741
+      ],
+      "independently_still_running": [],
+      "diagnostics": []
+    },
+    "app": {
+      "exit_code": 0,
+      "generic_exit_zero_diagnostics": 0,
+      "source_changes_during_build": [],
+      "log": "build/qa/push-destination-app-2026-10-24.log",
+      "warnings": [
+        "Xcode reported unavailable outdated iOS simulator support while macOS destination build succeeded."
+      ],
+      "shared_checkout_note": "App sources were unchanged during this batch build. The separate user-owned Merge chat continued editing its own source afterward; those uncommitted changes are not included or certified by the Push commit."
+    },
+    "resources": {
+      "localization_labels_changed": false,
+      "help_guides_changed": false,
+      "site_documents": 431,
+      "unresolved_fragments": 0,
+      "python_site_tests": 2,
+      "javascript_search_check": "passed",
+      "logs": [
+        "build/qa/push-destination-site-2026-10-24.log",
+        "build/qa/push-destination-site-check-2026-10-24.log",
+        "build/qa/push-destination-site-search-2026-10-24.log"
+      ],
+      "dialog_coverage": {
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "pending_controls": 85,
+        "certified_complete": 0,
+        "note": "Not a feature completion percentage"
+      },
+      "localization_check": {
+        "languages": 38,
+        "keys": 1317,
+        "exit_code": 0
+      }
+    }
+  },
+  "limits": [
+    "No complete hosted CI or whole-port certification",
+    "Physical controls/VoiceOver, signed sandbox grants, public remote credentials and exceptional protocol acceptance remain open",
+    "Shared P4/Merge work is preserved and excluded from this commit"
+  ]
+}

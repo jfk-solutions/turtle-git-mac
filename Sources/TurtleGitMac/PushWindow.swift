@@ -302,8 +302,11 @@ struct CommitPushContinuation {
     var destinationHistoryKey: String { "History.RemoteBranch." + repository.root.path }
     var pushOptionHistoryKey: String { "History.PushOption." + repository.root.path }
     var submodulePreferenceKey: String { "History.PushRecurseSubmodules." + repository.root.path }
-    var canSave: Bool { !options.arbitraryURL && !options.allRemotes && !options.allBranches && localBranch != nil && !options.setUpstream }
-    var canTrack: Bool { !options.arbitraryURL && (options.allBranches || localBranch != nil) }
+    // PushDlg gates these controls on source text, independently of whether
+    // Git resolves it to a branch, tag or selected Log/RefLog revision. Only
+    // actual local branches receive remembered configuration during execution.
+    var canSave: Bool { !options.arbitraryURL && !options.allRemotes && !options.allBranches && !FetchDialogHistory.trim(options.source).isEmpty && !options.setUpstream }
+    var canTrack: Bool { !options.arbitraryURL && (options.allBranches || !FetchDialogHistory.trim(options.source).isEmpty) }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences; sshSettings = SSHTransportSettings(repository: repository) }
     func preparationFailed(_ error:Error) {guard !invalidated else{return};preparationNeedsRetry=true;self.error=error.localizedDescription}
     func prepareCommitContinuation(usePushDialog:Bool=false,_ completion:@escaping(Result<CommitPushContinuationPlan,Error>)->Void) {
@@ -510,6 +513,10 @@ struct CommitPushContinuation {
         if !snapshot.allBranches && !(snapshot.source.isEmpty && !snapshot.destination.isEmpty) {
             if snapshot.arbitraryURL { urls = FetchDialogHistory.save(snapshot.remote, entries: urls, preferences: preferences, key: urlHistoryKey, caseSensitive: true) }
             destinationHistory = FetchDialogHistory.save(snapshot.destination, entries: destinationHistory, preferences: preferences, key: destinationHistoryKey, caseSensitive: false)
+            // PushDlg remembers its selected remote in the same non-removal
+            // branch as URL/destination history. A one-off deletion or an
+            // all-branches push must not replace the next ordinary default.
+            if !snapshot.arbitraryURL && !snapshot.allRemotes { preferences.set(snapshot.remote, forKey: key + ".remote") }
         }
         pushOptionHistory = FetchDialogHistory.save(snapshot.pushOption, entries: pushOptionHistory, preferences: preferences, key: pushOptionHistoryKey, caseSensitive: true)
     }
@@ -579,7 +586,6 @@ struct CommitPushContinuation {
                 preferences.set(snapshot.allBranches, forKey: key + ".allBranches")
                 preferences.set(!snapshot.arbitraryURL && snapshot.allRemotes, forKey: key + ".allRemotes")
                 preferences.set(PushSubmodules.allCases.firstIndex(of: snapshot.submodules)!, forKey: submodulePreferenceKey)
-                if !snapshot.arbitraryURL && !snapshot.allRemotes { preferences.set(snapshot.remote, forKey: key + ".remote") }
                 }
                 let result: PushProgressWindowModel?
                 if let earlyResult {

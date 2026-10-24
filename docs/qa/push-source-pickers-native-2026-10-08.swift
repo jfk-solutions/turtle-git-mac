@@ -46,14 +46,14 @@ import TurtleGitCore
         reflog.onChoose = { selected in chosen += 1; push.chooseSourceRevision(selected.hash) }
         reflog.selection = [entry.id]; reflog.accept(); precondition(chosen == 2 && push.options.source == first)
         let deadline = Date().addingTimeInterval(10)
-        while push.localBranch != nil && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
-        precondition(push.localBranch == nil && !push.canTrack && !push.canSave && !push.options.setUpstream)
+        while push.preparing && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!push.preparing && push.localBranch == nil && push.canTrack && push.canSave && !push.options.setUpstream)
         precondition(preferences.stringArray(forKey: push.urlHistoryKey) == nil && preferences.stringArray(forKey: push.destinationHistoryKey) == nil)
         let beforePush = try await remote.checkoutReferences(); precondition(beforePush.isEmpty)
         let afterSelectionHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterSelectionIndex = try Data(contentsOf: client.appendingPathComponent(".git/index")), afterSelectionConfig = try Data(contentsOf: client.appendingPathComponent(".git/config"))
         precondition(head == afterSelectionHead && index == afterSelectionIndex && config == afterSelectionConfig)
         // Only explicit OK sends the chosen immutable historical commit.
-        push.options.destination = "selected-old"; push.options.remote = "origin"; push.push(); try await wait { push.busy }; precondition(push.error == nil)
+        push.options.destination = "refs/heads/selected-old"; push.options.remote = "origin"; push.push(); try await wait { push.busy }; precondition(push.error == nil)
         let published = try await remote.run(["rev-parse", "refs/heads/selected-old"]).text.trimmingCharacters(in: .newlines)
         precondition(published == first)
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterIndex = try Data(contentsOf: client.appendingPathComponent(".git/index"))

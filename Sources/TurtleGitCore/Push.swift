@@ -147,7 +147,7 @@ extension GitRepository {
         let tag = try optionalPushRead(["show-ref", "--verify", "--quiet", "--", "refs/tags/" + source], cancellation: cancellation) != nil
         return !(branch && tag)
     }
-    private func validatedPush(_ options: PushOptions, cancellation: OperationCancellation?) throws -> (source: String, destination: String, remotes: [String], localBranch: String?, destinationRef: String) {
+    private func validatedPush(_ options: PushOptions, cancellation: OperationCancellation?) throws -> (source: String, destination: String, remotes: [String], localBranch: String?) {
         try cancellation?.check()
         let names = try remoteNames(cancellation: cancellation), source = options.source.trimmingCharacters(in: .whitespacesAndNewlines)
         let destination = options.destination.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -164,13 +164,17 @@ extension GitRepository {
             guard try optionalPushRead(["check-ref-format", full], cancellation: cancellation) != nil else { throw PushValidationFailure.destination }
         }
         let defaults = try pushDefaults(source: source, cancellation: cancellation)
-        let symbolic = try optionalPushRead(["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", source], cancellation: cancellation)?.text.trimmingCharacters(in: .newlines) ?? ""
-        let destinationRef = destination.isEmpty || destination.hasPrefix("refs/") ? destination : (symbolic.hasPrefix("refs/tags/") ? "refs/tags/" : "refs/heads/") + destination
+        // DoPush forwards the entered destination literally. Git resolves an
+        // existing remote branch/tag, rejects ambiguous names, and requires a
+        // qualified new destination when a raw revision has no ref namespace.
         try cancellation?.check()
         if options.savePushRemote || options.savePushBranch {
-            guard !options.arbitraryURL, !options.allRemotes, !options.allBranches, !options.setUpstream, defaults.localBranch != nil else { throw PushValidationFailure.combination }
+            guard !options.arbitraryURL, !options.allRemotes, !options.allBranches, !options.setUpstream, !source.isEmpty else { throw PushValidationFailure.combination }
         }
-        return (source, destination, remotes, defaults.localBranch, destinationRef)
+        // IsLocalBranch compares the submitted short name with local branch names;
+        // HEAD/revisions and fully qualified refs may suggest defaults but own no saved mapping.
+        let mappingBranch = defaults.localBranch.flatMap { GitReferenceName.equal($0,source) ? $0 : nil }
+        return (source, destination, remotes, mappingBranch)
     }
     /// Read-only submission validation, shared by the native history gate and transport.
     public func validatePushOptions(_ options: PushOptions, cancellation: OperationCancellation? = nil) throws {
@@ -183,9 +187,10 @@ extension GitRepository {
     public func push(_ options: PushOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> String {
         let token = cancellation ?? OperationCancellation(); try token.check()
         let plan = try validatedPush(options, cancellation: token)
-        let source = plan.source, destination = plan.destination, remotes = plan.remotes, destinationRef = plan.destinationRef
-        if options.savePushRemote || options.savePushBranch {
-            guard !options.arbitraryURL, !options.allRemotes, !options.allBranches, !options.setUpstream, let branch = plan.localBranch else { throw PushValidationFailure.combination }
+        let source = plan.source, destination = plan.destination, remotes = plan.remotes
+        // Source exposes these preferences for any nonempty source, but only
+        // local branches own branch.<name> configuration. Tags/hashes are no-op.
+        if options.savePushRemote || options.savePushBranch,let branch=plan.localBranch {
             if options.savePushRemote { _ = try pushCommand(["config", "--local", "branch." + branch + ".pushRemote", options.remote], cancellation: cancellation) }
             if options.savePushBranch {
                 let key = "branch." + branch + ".pushbranch"
@@ -212,7 +217,7 @@ extension GitRepository {
                     var args = ["push"] + flags
                     if options.includeTags { args.append("--tags") }
                     args += ["--", remote]
-                    if !source.isEmpty || !destination.isEmpty { args.append(source + (destinationRef.isEmpty ? "" : ":" + destinationRef)) }
+                    if !source.isEmpty || !destination.isEmpty { args.append(source + (destination.isEmpty ? "" : ":" + destination)) }
                     output += try pushCommand(args, environmentOverrides: environment, cancellation: token, onOutput: onOutput).text; completed.append(remote)
                     if options.showBranchRevisionNumber { output += try branchRevisionNumber(source, cancellation: token, onOutput: onOutput) + "\n" }
                 }

@@ -3,6 +3,10 @@
 Reference: `PushDlg.cpp`, `IDD_PUSH`, PushCommand and `CAppUtils::DoPush/Push`
 at the pinned commit in `upstream.json`.
 
+The [literal destination and source-option family](PUSH-DESTINATION-PARITY.md)
+records Git-owned branch/tag resolution, deletion and saved-default behavior,
+including corrections to the earlier automatic namespace expansion.
+
 The separate native window follows the upstream Ref, Destination and Options
 order: all branches, editable local/remote references with browse buttons, named
 remote or arbitrary URL, Manage, force with lease/force, tags, upstream tracking,
