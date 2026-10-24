@@ -22,7 +22,23 @@ final class SyncLibGit2Tests: XCTestCase {
         let global = root.appendingPathComponent("global.config"); try Data().write(to: global)
         let environment = "unset GIT_DIR GIT_WORK_TREE GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS\nexport GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=" + quote(global.path) + " HOME=" + quote(root.path) + " XDG_CONFIG_HOME=" + quote(root.path) + "\n"
         let git = root.appendingPathComponent("private git"), helper = root.appendingPathComponent("private libgit2")
-        for (path, command) in [(git, environment + "exec " + quote(actualGit.path) + " \"$@\"\n"), (helper, environment + "printf '%s\\0' \"$@\" > \"$0.argv\"\nexec " + quote(selected.path) + " \"$@\"\n")] {
+        // Later selected metadata reads share this helper. Retain the Fetch
+        // invocation specifically instead of overwriting it with a follow-up.
+        let recordFetch = """
+        sync_backend_command() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -c|-C|--git-dir|--work-tree|--namespace|--config-env) shift; [ "$#" -gt 0 ] || return 1; shift ;;
+              --git-dir=*|--work-tree=*|--namespace=*|--config-env=*|--literal-pathspecs|--no-literal-pathspecs|--no-pager|--turtlegit-source-fetch|--turtlegit-transfer-notifications) shift ;;
+              *) sync_backend_command_name=$1; return ;;
+            esac
+          done
+        }
+        sync_backend_command "$@"
+        if [ "$sync_backend_command_name" = fetch ]; then printf '%s\\0' "$@" > "$0.argv"; fi
+
+        """
+        for (path, command) in [(git, environment + "exec " + quote(actualGit.path) + " \"$@\"\n"), (helper, environment + recordFetch + "exec " + quote(selected.path) + " \"$@\"\n")] {
             try Data(("#!/bin/sh\n" + command).utf8).write(to: path)
             try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: path.path)
         }
@@ -56,7 +72,11 @@ final class SyncLibGit2Tests: XCTestCase {
         XCTAssertEqual(receipts.values.count, 1); XCTAssertTrue(receipts.values.first?.success == true)
         let argv = try Data(contentsOf: URL(fileURLWithPath: f.helper.path + ".argv")).split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
         XCTAssertTrue(argv.contains("--turtlegit-source-fetch"))
-        XCTAssertEqual(Array(argv.dropFirst(3)).filter { $0 != "--turtlegit-source-fetch" && $0 != "--turtlegit-transfer-notifications" }, result.executedArguments)
+        XCTAssertEqual(Array(argv.prefix(3)),["--literal-pathspecs","-C",f.client.root.path])
+        // Public executedArguments retain the source command. The actual
+        // executor additionally freezes literal reference spelling per invocation.
+        let transport=Array(argv.dropFirst(3)).filter { $0 != "--turtlegit-source-fetch" && $0 != "--turtlegit-transfer-notifications" }
+        XCTAssertEqual(transport,["-c","core.precomposeunicode=false"]+result.executedArguments)
         let after = try await f.client.run(["rev-parse", "HEAD"]).stdout
         XCTAssertEqual(after, before); XCTAssertEqual(try Data(contentsOf: f.client.root.appendingPathComponent(".git/index")), index)
         let configured = try await f.client.run(["config", "--get-all", "remote.origin.fetch"]).text.split(separator: "\n").map(String.init)

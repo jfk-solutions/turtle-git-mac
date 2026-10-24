@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-24",
+  "run_id": 40116391496,
+  "job_id": 120950249716,
+  "commit": "4366c6e9",
+  "status": "focused-repairs-validated-current-full-hosted-pass-still-required",
+  "executed_methods": 2752,
+  "skips": 2,
+  "assertion_failures": 3,
+  "unexpected_failures": 1,
+  "failure_log_excerpts": [
+    "2026-10-24T19:47:17.4939150Z \t Executed 2752 tests, with 2 tests skipped and 3 failures (1 unexpected) in 3557.588 (3558.004) seconds",
+    "2026-10-24T19:47:17.4943790Z \t Executed 2752 tests, with 2 tests skipped and 3 failures (1 unexpected) in 3557.588 (3558.013) seconds",
+    "2026-10-24T19:47:17.5606320Z ##[error]Process completed with exit code 1."
+  ],
+  "already_repaired_in": "5aa3c085 GitCommandPresentationTests argv identification",
+  "newly_observed": [
+    "SubmoduleUpdateRecoveryTests cancellation PID marker publication",
+    "SyncLibGit2Tests private normalization options in actual helper argv"
+  ],
+  "production_changes": false,
+  "repairs": [
+    "Publish both owned cancellation PIDs via atomic temporary-marker rename",
+    "Assert complete helper Fetch argv including transient core.precomposeunicode=false configuration",
+    "Capture actual Fetch command after parsing global/private flags; later revision metadata cannot overwrite the Fetch receipt"
+  ],
+  "local_validation": {
+    "initial_focused_methods": 3,
+    "initial_passed_methods": 2,
+    "initial_failed_methods": 1,
+    "initial_assertion_failures": 2,
+    "additional_failure": "Current typed follow-up metadata overwrote generic helper argv receipt",
+    "affected_sync_recheck_methods_passed": 1,
+    "distinct_original_hosted_failed_methods_passed_cumulatively": 3,
+    "logs": [
+      "build/qa/hosted-core-contracts-repair-2026-10-24.log",
+      "build/qa/hosted-core-contracts-sync-repair2-2026-10-24.log"
+    ],
+    "no_full_core_or_app_or_native_rerun": true,
+    "assertions_removed": false
+  },
+  "test_inputs": {
+    "Tests/TurtleGitCoreTests/SubmoduleUpdateRecoveryTests.swift": "14f8770d827388093fc88e9df1f27307d1f988f7f09cebb8f9d2ff99046ea11a",
+    "Tests/TurtleGitCoreTests/SyncLibGit2Tests.swift": "d93cdb31d1bd9d20f8d8247224f502d097f9406c9cfb45d1187947b0252aa272",
+    "Tests/TurtleGitCoreTests/GitCommandPresentationTests.swift": "a3f77f61aef0361891cc312352e7a9594ecaf9eb796706e4f6751e27825a226a"
+  }
+}

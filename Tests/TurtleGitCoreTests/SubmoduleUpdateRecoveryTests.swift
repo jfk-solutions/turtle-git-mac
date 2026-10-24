@@ -30,7 +30,10 @@ final class SubmoduleUpdateRecoveryTests: XCTestCase {
             /bin/sleep 30 &
             task_child=$!
             trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-            printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+            # Publish the PID pair atomically. Existence of the final marker
+            # must mean both IDs are readable, not merely that redirection opened it.
+            printf '%s %s\\n' "$$" "$task_child" > "$0.started.tmp"
+            /bin/mv "$0.started.tmp" "$0.started"
             wait "$task_child"
           fi
           exit 0
