@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "566ec623109dc0a99c5ac11a72b240ed004a2db1729f43439794c679fedb6b39",
+    "Contents/Info.plist": "087a97f8d25414b9b452f009ac041eb9ecc9068dc3c1d62fc689b097d8264e84",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "68fc9fc8d35182e30c91cb0d8c7ec92c7fce1c50799f15d5ae14eef259acc461",
     "Contents/Resources/en.lproj/BISECT.html": "c94bc39b7cf56afa6cd774a6758bb3994864256ec1ba6a85a3d47d820963b1ec",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "3c99fc083b21ae3fd2ced9b73430abe7383732d4b8b7e40eb960c1ffc5c1357d",
@@ -30,7 +30,7 @@
     "Contents/Resources/en.lproj/LOG-FIND.html": "6f557107c2666c5117ca34d1486449389f82e74eade846a50d75a3a676d7b739",
     "Contents/Resources/en.lproj/MERGE-FILTERS.html": "fd3810301986f74435fb161b42c4abff1bb1f53347e5e2cd9eae51f4c8b2a8af",
     "Contents/Resources/en.lproj/MERGE-PANE-PRESENTATION-PARITY.html": "28f903b89ad73027fc199a974643d1b6815aff3ee0195659e4d523193a8ed8ee",
-    "Contents/Resources/en.lproj/MERGE-TOOL.html": "5664924ac6a91b3049938f1898fd257b0c84610e9bad67aeeae65eaecea38592",
+    "Contents/Resources/en.lproj/MERGE-TOOL.html": "adafd797a93ad4b59fef41cd135541c7220f5ed7eef732ed7d4319fd876251b8",
     "Contents/Resources/en.lproj/METAFILE-DRAWING-STATE-PARITY.html": "04c639af79c38b4fec12dd4c0449b8f8cd463ebadb1044e5d9c99059bf60c385",
     "Contents/Resources/en.lproj/METAFILE-RASTER-PARITY.html": "a92b01b9fe86daed677cc7e005e978f573efda2c74fd1cc6c44e8cf45288c1f7",
     "Contents/Resources/en.lproj/METAFILE-RASTER-ROI-PARITY.html": "5c02b100fc11689cfd7d3098561183977b8e854518e6d313af93e6aeff2cc032",
@@ -107,7 +107,7 @@
     "docs/LOG-FIND.md": "76d55d6d65a79e6bb066468bddd465e81c3a038b4289e2db84a3ded13c5d7e9e",
     "docs/MERGE-FILTERS.md": "c32dbedd77e3f6903bb05bac9d9edc9efbdfad6942bdaad57752a27c7107f028",
     "docs/MERGE-PANE-PRESENTATION-PARITY.md": "6db4971c3447dbbc1c6262effeecd8b2b07c9a15699fdc1ec785341b88db80f5",
-    "docs/MERGE-TOOL.md": "b2a3317d3ec3b43258e1d7659d151dc3b7ada7b9c3df125e65b3fd94b521adf3",
+    "docs/MERGE-TOOL.md": "8ba53e12e0397b31514f1d5f8d7139d0d8dd34fb6c565c5f0ec1a7b4bbef8d1f",
     "docs/METAFILE-DRAWING-STATE-PARITY.md": "a96e020674d715ff6862134d0708c9241dc5f821ee9fe8c618fb4a13fe25a1fa",
     "docs/METAFILE-RASTER-PARITY.md": "dd394d8e00c2f55e406031f730198647c0e054339444f93d741bc332fa4afd31",
     "docs/METAFILE-RASTER-ROI-PARITY.md": "d791e0770fb94b1c40fe26a0882770c6d79d7a220c7611541eb40da02d31bbed",

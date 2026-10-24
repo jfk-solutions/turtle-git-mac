@@ -969,7 +969,14 @@ private enum MergeSourceSide {
     func p4DisplayRange(_ range:NSRange)->NSRange {p4Projection.displayRange(range) ?? range}
     func p4Toggle(_ input: MergeInputSource, chunk: MergeSourceChunk, expected: MergeResultPresentation) {
         guard sourceMutationsAllowed, resultPresentation == expected, p4Chunks.contains(where:{$0.id==chunk.id}),
-              let next=resultPresentation.togglingInput(input,chunk:chunk,lineEnding:resultLineEnding) else {return}
+              p4ResultRange(chunk) != nil else {return}
+        let equivalent=P4SourceSelectorLayout(chunk:chunk).equivalents(input)
+        let included=resultPresentation.selectedInputs(for:chunk).filter{equivalent.contains($0)}
+        var next=resultPresentation
+        for source in included.isEmpty ? [input]:included {
+            guard let changed=next.togglingInput(source,chunk:chunk,lineEnding:resultLineEnding) else{return}
+            next=changed
+        }
         applyP4Presentation(next,name:"Choose " + input.rawValue + " chunk")
     }
     func p4UseFile(_ input: MergeInputSource) {
@@ -3369,7 +3376,7 @@ private struct P4MergeWorkspace: View {
                             HStack(spacing:0) {
                                 P4ResultOrigins(model:model).frame(width:28)
                                 editor(.result,text:model.result)
-                                P4ChunkChoices(model:model).frame(width:66).background(Color(nsColor:.textBackgroundColor))
+                                P4ChunkChoices(model:model).frame(width:68).background(Color(nsColor:.windowBackgroundColor))
                             }
                         }.frame(maxHeight:.infinity)
                     }
@@ -3377,7 +3384,7 @@ private struct P4MergeWorkspace: View {
             } else {ProgressView().frame(maxWidth:.infinity,maxHeight:.infinity)}
             Divider()
             HStack {
-                Text(model.hasUnresolvedConflicts ? "Click the colored + symbols to include source text; click again to remove it.":"No remaining conflicts").font(.caption).foregroundStyle(model.hasUnresolvedConflicts ? Color.red:Color.secondary)
+                Text(model.hasUnresolvedConflicts ? "Colored symbols are included; gray symbols are excluded. = marks identical source text.":"No remaining conflicts").font(.caption).foregroundStyle(model.hasUnresolvedConflicts ? Color.red:Color.secondary)
                 Spacer()
                 MergeFormatControls(label:"Merge result",encoding:model.encoding,text:model.result,editable:model.sourceMutationsAllowed,changeEncoding:model.changeEncoding,changeEnding:model.changeLineEnding)
                 Button("Mark as resolved") {model.save(markResolved:true)}.disabled(!model.repositoryResolutionAllowed || model.hasUnresolvedConflicts)
@@ -3437,26 +3444,52 @@ private struct P4ChunkChoices:NSViewRepresentable {
     func updateNSView(_ view:P4ChunkChoiceView,context:Context) {view.configure(model)}
     static func dismantleNSView(_ view:P4ChunkChoiceView,coordinator:()) {view.retire()}
 }
+/// Group byte-identical alternatives so their equality and toggle state agree.
+struct P4SourceSelectorLayout {
+    let chunk:MergeSourceChunk
+    let sources:[MergeInputSource]
+    init(chunk:MergeSourceChunk) {
+        self.chunk=chunk
+        var remaining:[MergeInputSource]=[.base,.theirs,.mine],ordered:[MergeInputSource]=[]
+        while let first=remaining.first {
+            let group=remaining.filter{chunk.text($0).utf8.elementsEqual(chunk.text(first).utf8)}
+            ordered += group;remaining.removeAll{group.contains($0)}
+        }
+        sources=ordered
+    }
+    func equivalents(_ input:MergeInputSource)->[MergeInputSource] {
+        sources.filter{chunk.text($0).utf8.elementsEqual(chunk.text(input).utf8)}
+    }
+    func badge(_ input:MergeInputSource)->String? {
+        guard input != .base else{return nil}
+        if chunk.base.isEmpty && !chunk.text(input).isEmpty {return "+"}
+        if !chunk.base.isEmpty && chunk.text(input).isEmpty {return "−"}
+        return nil
+    }
+}
 @MainActor private final class P4SourceChoiceCell:NSButtonCell {
     var role=P4MergePane.base
     var hovered=false
+    var badge:String?
     override func draw(withFrame frame:NSRect,in view:NSView) {
-        NSColor.controlBackgroundColor.withAlphaComponent(isEnabled ? 0.8:0.3).setFill()
-        let button=NSBezierPath(roundedRect:frame.insetBy(dx:1,dy:2),xRadius:3,yRadius:3)
-        button.fill()
-        (hovered ? role.color:NSColor.separatorColor).setStroke();button.lineWidth=0.5;button.stroke()
         if isEnabled && (hovered || isHighlighted) {
-            role.color.withAlphaComponent(isHighlighted ? 0.20:0.10).setFill();button.fill()
+            NSColor.labelColor.withAlphaComponent(isHighlighted ? 0.13:0.06).setFill()
+            NSBezierPath(roundedRect:frame.insetBy(dx:1,dy:1),xRadius:2,yRadius:2).fill()
         }
-        let area=NSRect(x:frame.midX-6,y:frame.midY-4,width:8,height:8),shape:NSBezierPath
+        let area=NSRect(x:frame.midX-5.5,y:frame.midY-5.5,width:11,height:11),shape:NSBezierPath
         if role == .mine {shape=NSBezierPath(ovalIn:area)}
         else if role == .base {shape=NSBezierPath(rect:area)}
         else {shape=NSBezierPath();shape.move(to:NSPoint(x:area.minX,y:area.minY));shape.line(to:NSPoint(x:area.maxX,y:area.minY));shape.line(to:NSPoint(x:area.midX,y:area.maxY));shape.close()}
-        let color=role.color.withAlphaComponent(isEnabled ? (state == .on ? 1:0.9):0.25)
-        if state == .on {color.setFill();shape.fill()}
-        else {color.setStroke();shape.lineWidth=1;shape.stroke()}
-        let action=(state == .on ? "−":"+") as NSString
-        action.draw(at:NSPoint(x:frame.midX+2,y:frame.midY-5),withAttributes:[.font:NSFont.systemFont(ofSize:9,weight:.semibold),.foregroundColor:NSColor.labelColor])
+        let shade=(state == .on ? role.color:NSColor.systemGray).withAlphaComponent(isEnabled ? 1:0.35)
+        NSGradient(starting:shade.blended(withFraction:0.30,of:.white) ?? shade,ending:shade)?.draw(in:shape,angle:90)
+        shade.blended(withFraction:0.22,of:.black)?.setStroke();shape.lineWidth=0.6;shape.stroke()
+        if let badge {
+            let caption=badge as NSString
+            let attrs:[NSAttributedString.Key:Any]=[.font:NSFont.systemFont(ofSize:9,weight:.bold),.foregroundColor:NSColor.labelColor]
+            let point=NSPoint(x:frame.midX+1,y:frame.midY-1)
+            NSColor.windowBackgroundColor.setFill();NSRect(origin:point,size:caption.size(withAttributes:attrs)).fill()
+            caption.draw(at:point,withAttributes:attrs)
+        }
         if showsFirstResponder {
             NSColor.keyboardFocusIndicatorColor.setStroke()
             let ring=NSBezierPath(roundedRect:frame.insetBy(dx:1,dy:1),xRadius:3,yRadius:3);ring.lineWidth=1.5;ring.stroke()
@@ -3477,14 +3510,16 @@ private struct P4ChunkChoices:NSViewRepresentable {
     }
     override func mouseEntered(with event:NSEvent) {(cell as? P4SourceChoiceCell)?.hovered=true;needsDisplay=true}
     override func mouseExited(with event:NSEvent) {(cell as? P4SourceChoiceCell)?.hovered=false;needsDisplay=true}
-    init(input:MergeInputSource,chunk:Int,selected:Bool,enabled:Bool,choose:@escaping()->Void) {
+    init(input:MergeInputSource,chunk:Int,selected:Bool,enabled:Bool,badge:String?,equalTo:[MergeInputSource],choose:@escaping()->Void) {
         self.choose=choose;super.init(frame:.zero)
         let role=P4MergePane.role(input)
-        let choiceCell=P4SourceChoiceCell();choiceCell.role=role;cell=choiceCell
+        let choiceCell=P4SourceChoiceCell();choiceCell.role=role;choiceCell.badge=badge;cell=choiceCell
         isBordered=false;setButtonType(.toggle)
         state=selected ? .on:.off;isEnabled=enabled;target=self;action=#selector(invokeChoice)
         toolTip="\(selected ? "Remove":"Include") \(role.title) in chunk \(chunk+1)"
+        if !equalTo.isEmpty {toolTip=(toolTip ?? "") + "; identical to " + equalTo.map{P4MergePane.role($0).title}.joined(separator:", ")}
         setAccessibilityLabel("\(role.title), chunk \(chunk+1)")
+        setAccessibilityValue(selected ? "Included":"Excluded")
     }
     required init?(coder:NSCoder){fatalError("init(coder:) is not supported")}
     @objc func invokeChoice(){choose()}
@@ -3505,12 +3540,29 @@ private struct P4ChunkChoices:NSViewRepresentable {
     required init?(coder:NSCoder){fatalError("init(coder:) is not supported")}
     deinit {observers.forEach(NotificationCenter.default.removeObserver)}
     func retire(){observers.forEach(NotificationCenter.default.removeObserver);observers=[];buttons.forEach{$0.1.forEach{$0.choose={}}};model=nil}
+    override func draw(_ dirtyRect:NSRect) {
+        NSColor.windowBackgroundColor.setFill();bounds.fill()
+        NSColor.labelColor.withAlphaComponent(0.06).setFill();bounds.fill()
+        NSColor.separatorColor.setFill();NSRect(x:0,y:bounds.minY,width:0.5,height:bounds.height).fill()
+        for (chunk,row) in buttons {
+            let selector=P4SourceSelectorLayout(chunk:chunk)
+            for index in 0..<max(0,row.count-1) where !row[index].isHidden && selector.equivalents(selector.sources[index]).contains(selector.sources[index+1]) {
+                // Use the symbols' geometric center rather than a font baseline.
+                let center=NSPoint(x:(row[index].frame.midX+row[index+1].frame.midX)/2,y:row[index].frame.midY)
+                NSColor.secondaryLabelColor.setFill()
+                for offset:CGFloat in [-2,1] {
+                    NSRect(x:center.x-2,y:center.y+offset,width:4,height:1).fill()
+                }
+            }
+        }
+    }
     func configure(_ model:TextConflictWindowModel) {
         self.model=model;buttons.forEach{$0.1.forEach{$0.removeFromSuperview()}};buttons=[]
         let expected=model.resultPresentation
         for (index,chunk) in model.p4Chunks.enumerated() {
             let selected=expected.selectedInputs(for:chunk)
-            let row=MergeInputSource.allCases.map {input in P4ChunkButton(input:input,chunk:index,selected:selected.contains(input),enabled:model.sourceMutationsAllowed && model.p4ResultRange(chunk) != nil) { [weak model] in model?.p4Toggle(input,chunk:chunk,expected:expected) }}
+            let selector=P4SourceSelectorLayout(chunk:chunk)
+            let row=selector.sources.map {input in P4ChunkButton(input:input,chunk:index,selected:selector.equivalents(input).contains{selected.contains($0)},enabled:model.sourceMutationsAllowed && model.p4ResultRange(chunk) != nil,badge:selector.badge(input),equalTo:selector.equivalents(input).filter{$0 != input}) { [weak model] in model?.p4Toggle(input,chunk:chunk,expected:expected) }}
             row.forEach{addSubview($0)};buttons.append((chunk,row))
         }
         needsLayout=true
@@ -3519,26 +3571,26 @@ private struct P4ChunkChoices:NSViewRepresentable {
         super.layout()
         guard let model,let text=model.p4Scroll(.result)?.documentView as? NSTextView,let layout=text.layoutManager,let container=text.textContainer else {return}
         layout.ensureLayout(for:container)
-        var previous:CGFloat = -30
         for (chunk,row) in buttons {
             guard let range=model.p4ResultRange(chunk).map({model.p4DisplayRange($0)}),NSMaxRange(range)<=text.string.utf16.count else {row.forEach{$0.isHidden=true};continue}
-            let glyph=layout.glyphRange(forCharacterRange:range,actualCharacterRange:nil)
-            var rect=layout.boundingRect(forGlyphRange:glyph,in:container)
-            if range.length==0 {rect=range.location==text.string.utf16.count || layout.numberOfGlyphs==0 ? layout.extraLineFragmentRect:layout.lineFragmentRect(forGlyphAt:min(glyph.location,layout.numberOfGlyphs-1),effectiveRange:nil)}
-            rect.origin.y += text.textContainerOrigin.y
-            let point=convert(rect.origin,from:text), y=max(point.y,previous+22)
-            previous=y
+            let glyph=layout.glyphRange(forCharacterRange:NSRange(location:range.location,length:0),actualCharacterRange:nil)
+            // The selector belongs to the first visual line, not the chunk's
+            // bounding box; wrapped/multiline chunks must not move its center.
+            let rect:NSRect
+            if range.location==text.string.utf16.count || layout.numberOfGlyphs==0 {
+                rect=layout.extraLineFragmentRect
+            } else {
+                rect=layout.lineFragmentUsedRect(forGlyphAt:min(glyph.location,layout.numberOfGlyphs-1),effectiveRange:nil)
+            }
+            let lineHeight=max(12,rect.height)
+            let center=convert(NSPoint(x:0,y:rect.minY+lineHeight/2+text.textContainerOrigin.y),from:text).y
+            let height=min(19,lineHeight),y=center-height/2
             for (index,button) in row.enumerated() {
-                var position=y
-                if let candidate=model.p4Projection.records.first(where:{$0.chunkID==chunk.id && $0.unresolved})?.candidates.first(where:{$0.source==MergeInputSource.allCases[index]}),NSMaxRange(candidate.range)<=text.string.utf16.count {
-                    let glyphs=layout.glyphRange(forCharacterRange:candidate.range,actualCharacterRange:nil)
-                    var sourceRect=layout.boundingRect(forGlyphRange:glyphs,in:container)
-                    if candidate.range.length==0 {sourceRect=candidate.range.location==text.string.utf16.count || layout.numberOfGlyphs==0 ? layout.extraLineFragmentRect:layout.lineFragmentRect(forGlyphAt:min(glyphs.location,layout.numberOfGlyphs-1),effectiveRange:nil)}
-                    position=convert(NSPoint(x:0,y:sourceRect.minY+text.textContainerOrigin.y),from:text).y
-                }
-                button.frame=NSRect(x:CGFloat(index)*20+3,y:position,width:20,height:20);button.isHidden=position+20<0 || position>bounds.height
+                button.frame=NSRect(x:CGFloat(index)*22+2,y:y,width:19,height:height)
+                button.isHidden=y+height<0 || y>bounds.height
             }
         }
+        needsDisplay=true
     }
 }
 private extension MergeTextView {

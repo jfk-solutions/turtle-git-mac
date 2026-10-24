@@ -26,7 +26,7 @@ markers remain in the underlying result, and Save still warns about unresolved
 conflicts. Typing within a candidate region resolves that region to its visible
 contents plus your edit; Undo restores its conflict state.
 
-The compact colored +/− buttons beside each result chunk are toggles. Select a source to
+The compact colored source buttons beside each result chunk are toggles. Select a source to
 include it; select it again to remove it. You can combine sources in click order.
 Identical text is included once. The three **Use whole file** controls replace
 the result with that complete source. All choices and manual result edits support
@@ -119,4 +119,4 @@ See [the source entry review](MERGE-TOOL-ENTRY-PARITY.md) and
 [two-file behavior review](MERGE-TOOL-COMPARISON-PARITY.md) for remaining states and
 platform differences. This does not certify complete TortoiseMerge parity.
 
-The P4Merge-style toolbar has separate previous/next controls for all differences and unresolved conflicts (red arrows). Resolved chunks are skipped by conflict navigation. It also offers Find, Go to Line, line numbers, whitespace and word wrap. Colored +/− source buttons include or remove text; hovering shows the source and a hand cursor. Highlight bands continue through the line-number margin, with overlay scrollbars keeping the connector edges clear.
+The P4Merge-style toolbar has separate previous/next controls for all differences and unresolved conflicts (red arrows). Resolved chunks are skipped by conflict navigation. It also offers Find, Go to Line, line numbers, whitespace and word wrap. Included source symbols use their source color; excluded symbols are filled gray. Identical alternatives sit together with an = between them and toggle the shared text once. A + or − badge indicates an insertion or deletion relative to Base, independently of selection. Hovering shows the source, identical peers and a hand cursor. Each chunk has one aligned row on a neutral gutter. Highlight bands continue through the line-number margin, with overlay scrollbars keeping the connector edges clear.

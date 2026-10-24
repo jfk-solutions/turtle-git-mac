@@ -46,6 +46,15 @@ import TurtleGitCore
             model.p4Navigate(1,conflictsOnly:true)
             try MergeConflictInspectionVerification.require(model.p4SelectedChunk==conflictTarget,"Conflict navigation did not select its target")
             try MergeConflictInspectionVerification.require(model.p4Scroll(.base)?.borderType == .noBorder && model.p4Scroll(.base)?.scrollerStyle == .overlay,"Source edges reserve a scrollbar or bezel gap: border=\(String(describing:model.p4Scroll(.base)?.borderType.rawValue)) style=\(String(describing:model.p4Scroll(.base)?.scrollerStyle.rawValue))")
+            func selector(_ base:String,_ theirs:String,_ mine:String)->P4SourceSelectorLayout {
+                let zero=NSRange(location:0,length:0)
+                return P4SourceSelectorLayout(chunk:MergeSourceChunk(id:0,sourceRows:0..<1,baseRange:zero,theirsRange:zero,mineRange:zero,base:base,theirs:theirs,mine:mine,conflict:false))
+            }
+            let same=selector("old","new","new")
+            try MergeConflictInspectionVerification.require(same.equivalents(.theirs)==[.theirs,.mine],"Identical variants do not share an equality group")
+            try MergeConflictInspectionVerification.require(selector("old","new","old").sources == [.base,.mine,.theirs],"Equal Base/Yours choices are not adjacent")
+            try MergeConflictInspectionVerification.require(selector("","new","new").badge(.theirs)=="+" && selector("old","","").badge(.mine)=="−" && same.badge(.mine)==nil,"Addition/deletion badges describe selection instead of source changes")
+            try MergeConflictInspectionVerification.require(selector("old","new\n","new\r\n").equivalents(.theirs)==[.theirs],"Equality erased line-ending differences")
             let initial=model.resultPresentation
             try MergeConflictInspectionVerification.require(model.hasUnresolvedConflicts && !result.string.contains("<<<<<<<") && result.string.contains("refreshInterval = 30") && result.string.contains("refreshInterval = 60") && result.string.contains("refreshInterval = 15"),"Unresolved candidates or retained conflict status missing")
             model.confirmUnresolvedSave={_ in false}
@@ -61,6 +70,25 @@ import TurtleGitCore
             model.undo()
             try await MergeConflictInspectionVerification.wait {model.resultPresentation==initial && model.nativeEditorReady}
             let allButtons=MergeConflictInspectionVerification.descendants(window.contentView,NSButton.self)
+            let choices=allButtons.filter {($0.accessibilityLabel() ?? "").hasSuffix(", chunk 1")}
+            try MergeConflictInspectionVerification.require(choices.count==3 && Set(choices.map{$0.frame.minY}).count==1,"Source choices are scattered instead of aligned")
+            func requireLineAlignment() throws {
+                guard let manager=result.layoutManager,let container=result.textContainer else {throw MergeConflictInspectionVerification.Failure(description:"Missing result layout")}
+                manager.ensureLayout(for:container)
+                let controls=MergeConflictInspectionVerification.descendants(window.contentView,NSButton.self)
+                for (index,chunk) in model.p4Chunks.enumerated() {
+                    guard let raw=model.p4ResultRange(chunk) else {continue}
+                    let range=model.p4DisplayRange(raw)
+                    let glyph=manager.glyphRange(forCharacterRange:NSRange(location:range.location,length:0),actualCharacterRange:nil)
+                    let line=range.location==result.string.utf16.count || manager.numberOfGlyphs==0 ? manager.extraLineFragmentRect:manager.lineFragmentUsedRect(forGlyphAt:min(glyph.location,manager.numberOfGlyphs-1),effectiveRange:nil)
+                    let expected=result.convert(NSPoint(x:0,y:line.midY+result.textContainerOrigin.y),to:nil).y
+                    for control in controls where (control.accessibilityLabel() ?? "").hasSuffix(", chunk \(index+1)") {
+                        let actual=control.convert(NSPoint(x:control.bounds.midX,y:control.bounds.midY),to:nil).y
+                        try MergeConflictInspectionVerification.require(abs(actual-expected)<0.75,"Source selector is not centered on its first result line")
+                    }
+                }
+            }
+            try requireLineAlignment()
             let button=allButtons.first{$0.accessibilityLabel()=="Theirs, chunk 1"}
             try MergeConflictInspectionVerification.require(button?.isEnabled==true,"Inline source toggle unavailable")
             button?.performClick(nil)
@@ -74,6 +102,14 @@ import TurtleGitCore
             let chosen=model.resultPresentation
             button?.performClick(nil)
             try MergeConflictInspectionVerification.require(model.resultPresentation==chosen,"Stale source-button receipt mutated a newer result")
+            model.p4Toggle(.theirs,chunk:chunk,expected:model.resultPresentation)
+            try await MergeConflictInspectionVerification.wait {model.resultPresentation.selectedInputs(for:chunk).isEmpty && model.nativeEditorReady}
+            try MergeConflictInspectionVerification.require(!model.result.contains("refreshInterval = 60") && !model.result.contains("refreshInterval = 15"),"Excluded candidate text remained in result")
+            window.contentView?.layoutSubtreeIfNeeded()
+            try requireLineAlignment()
+            if CommandLine.arguments.count>2 {try await MergeConflictInspectionVerification.capture(window,directory:URL(fileURLWithPath:CommandLine.arguments[2]).appendingPathComponent("none-selected"))}
+            model.undo()
+            try await MergeConflictInspectionVerification.wait {model.resultPresentation==chosen && model.nativeEditorReady}
             model.p4Toggle(.mine,chunk:chunk,expected:model.resultPresentation)
             try await MergeConflictInspectionVerification.wait {model.result.contains("refreshInterval = 15")}
             try MergeConflictInspectionVerification.require(model.result.contains("refreshInterval = 60"),"Combining inputs discarded first source")
@@ -81,6 +117,17 @@ import TurtleGitCore
             try await MergeConflictInspectionVerification.wait {model.resultPresentation==chosen}
             model.redo()
             try await MergeConflictInspectionVerification.wait {model.resultPresentation.selectedInputs(for:chunk)==[.theirs,.mine]}
+            if let equivalentChunk=model.p4Chunks.first(where:{$0.base.utf8.elementsEqual($0.theirs.utf8) && !$0.base.isEmpty}) {
+                let before=model.resultPresentation
+                model.p4Toggle(.base,chunk:equivalentChunk,expected:before)
+                try await MergeConflictInspectionVerification.wait {model.resultPresentation != before && model.nativeEditorReady}
+                let equalButtons=MergeConflictInspectionVerification.descendants(window.contentView,NSButton.self).filter{($0.toolTip ?? "").contains("identical to")}
+                try MergeConflictInspectionVerification.require(equalButtons.count>=2,"Equality choices lack accessible source relation")
+                model.p4Toggle(.theirs,chunk:equivalentChunk,expected:model.resultPresentation)
+                try await MergeConflictInspectionVerification.wait {!model.resultPresentation.selectedInputs(for:equivalentChunk).contains(.base) && !model.resultPresentation.selectedInputs(for:equivalentChunk).contains(.theirs)}
+                model.undo();model.undo()
+                try await MergeConflictInspectionVerification.wait {model.resultPresentation==before && model.nativeEditorReady}
+            }
             model.confirmingQuit=true
             let blocked=model.resultPresentation;model.p4Toggle(.base,chunk:chunk,expected:blocked)
             try MergeConflictInspectionVerification.require(model.resultPresentation==blocked,"Closing owner accepted chunk action")

@@ -68,5 +68,43 @@
       "Added overlay compatibility to custom reading-position scroller after native assertion caught reserved track"
     ],
     "captures": "build/qa/p4merge-toolbar-captures; light and dark inspected"
+  },
+  "source_selector_followup": {
+    "scope": "Solid colored symbols in all selection states, no action badges or individual unselected button cards, aligned per-chunk rows, compact colored selection frames, subtly shaded gutter",
+    "reference": "https://help.perforce.com/helix-core/server-apps/p4merge/current/Content/P4Merge/diff-merge.p4merge.html and official p4v-merge-highlight.png inspected",
+    "validation": "Unsigned Debug app build and grouped native checks; includes aligned choices, deselect-all text removal and undo restoration; light/dark captures of unresolved, selected and none-selected states",
+    "core": "No Core changes in this followup; retained prior focused 36-test pass",
+    "logs": [
+      "build/p4merge-selector-build.log",
+      "build/p4merge-selector-native.log"
+    ],
+    "captures": "build/qa/p4merge-selector-captures"
+  },
+  "equality_selector_followup": {
+    "scope": "Gray deselected versus colored included beveled source symbols; byte-identical source alternatives grouped with =; +/minus badges only for insertion/deletion relative to Base; equal choices toggle shared text atomically",
+    "reference": "Perforce merge guide and its sameyourstheirs/addyourstheirs/deletedyourstheirs icon legend reviewed alongside user screenshots",
+    "build": "passed: build/p4merge-equality-build.log",
+    "native": "passed: build/p4merge-equality-native.log; equal-source toggling and Undo, pair adjacency, LF/CRLF inequality, source change badges, deselect-all and retained ownership/save checks",
+    "core": "No Core implementation changes; previous 36-test focused Core pass retained",
+    "captures": "build/qa/p4merge-equality-captures; light/dark unresolved, included and fully deselected captures",
+    "limitations": "Native recreation follows documented states; proprietary bitmap assets are not copied and complete pixel parity is not certified"
+  },
+  "selector_spacing_followup": {
+    "scope": "Narrow selector gutter from 80 to 68 points and slot spacing from 26 to 22 points; draw equality strokes centered geometrically between centered source symbols rather than using a text baseline",
+    "validation": "Unsigned Debug build and grouped native checks passed; actual light capture inspected",
+    "logs": [
+      "build/p4merge-selector-spacing-build.log",
+      "build/p4merge-selector-spacing-native.log"
+    ],
+    "core": "No Core changes; no Core rerun"
+  },
+  "selector_line_alignment_followup": {
+    "scope": "Center source selectors on the first TextKit visual line in each result chunk; use actual line height for the hit target and remove forced inter-chunk vertical spacing; retain equality stroke center",
+    "validation_scope": "Grouped native receiver asserts selector center against actual first-line geometry for every chunk, including empty deselected regions; no Core implementation changes",
+    "logs": [
+      "build/p4merge-line-alignment-build.log",
+      "build/p4merge-line-alignment-native.log"
+    ],
+    "result": "Unsigned Debug build and grouped native checks passed; selector-to-first-line assertions passed for populated and empty chunks; actual capture visually inspected"
   }
 }

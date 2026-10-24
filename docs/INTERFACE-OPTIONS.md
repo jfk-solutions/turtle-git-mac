@@ -40,8 +40,8 @@ inside the existing undoable presentation. Inline buttons include/remove each
 source independently, combine in click order, and avoid duplicating identical
 payloads. Whole-file choices include Base. All choices, manual typing, Undo/Redo,
 Save, read-only and operation ownership use the existing result editor workflow.
-The compact toolbar, relative file labels, flat headers, compact filled/outlined +/−
-source selectors and colored result flow gutter follow the reference screenshots.
+The compact toolbar, relative file labels, flat headers, colored/gray source toggle symbols, equality groups, change badges and a neutral
+selector gutter and colored result flow gutter follow the reference screenshots.
 An explicit display/serialized projection shows unresolved source alternatives
 without Git marker lines. Save still reads the serialized conflict state. Editing
 a candidate resolves only that engine region to its visible contents plus the
@@ -60,6 +60,7 @@ Actual inactive native windows using disposable Swift input files:
 ![Unresolved four-pane merge with candidate text and compact source selectors](site/assets/p4merge-style-unresolved-light.png)
 
 [After including Theirs and Yours](site/assets/p4merge-style-light.png) ·
+[With all conflict alternatives deselected](site/assets/p4merge-style-none-selected-light.png) ·
 [Unresolved dark appearance](site/assets/p4merge-style-unresolved-dark.png)
 
 ## Remaining behavior and acceptance
